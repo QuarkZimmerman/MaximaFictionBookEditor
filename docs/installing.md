@@ -7,6 +7,7 @@ repository (https://github.com/QuarkZimmerman/MaximaFictionBookEditor/releases),
 | Platform | File | Notes |
 |----------|------|-------|
 | Windows 10 / 11 (64-bit) | `MaximaFictionBookEditor-<version>-win64.msi` | installer; registers `.fb2` / `.fbd` |
+| Windows 10 / 11 (64-bit) | `MaximaFictionBookEditor-<version>-win64-portable.zip` | portable: unzip and run, no installation |
 | Linux (any distribution, x86_64) | `MaximaFictionBookEditor-<version>-x86_64.AppImage` | single file, no installation |
 | Debian / Ubuntu family | `mfbe_<version>_amd64.deb` | package with menu entry and file associations |
 | Fedora / openSUSE family | `mfbe-<version>-1.x86_64.rpm` | package with menu entry and file associations |
@@ -58,6 +59,20 @@ for an unsigned installer: click *More info* > *Run anyway*.
 the Start menu entry and the `.fb2` / `.fbd` associations. Your settings, dictionary and
 user folders (see [User folders](#user-folders)) are kept; delete them by hand if you no
 longer want them.
+
+### Portable version (no installation)
+
+1. Download `MaximaFictionBookEditor-<version>-win64-portable.zip` and unzip it anywhere (a
+   folder in your profile, a USB stick); no administrator rights are needed.
+2. Start `bin\mfbe.exe` in the unzipped folder. The first time, Windows SmartScreen may show
+   "Windows protected your PC": click *More info* > *Run anyway* (or tick *Unblock* in the
+   ZIP file's *Properties* before unzipping).
+
+The portable version has no Start menu entry and registers no file associations: open books
+with *File > Open* or by dropping them on the window. Settings and user data are kept in the
+same per-user folders as with the installer (see [User folders](#user-folders)); a `user`
+folder next to `mfbe.exe` adds genres, scripts and dictionaries. To remove the editor, delete
+the folder.
 
 ## Linux: AppImage
 
@@ -208,7 +223,8 @@ mfbe [FILE...] [--lang en|ru] [--new] [--remote-debugging-port N] [--no-sandbox]
 file associations start the editor). When an instance is already running, a second start
 hands the file to it and brings its window to the front instead of opening a second copy.
 Unknown options print `Invalid command line option: '<option>'` and exit with code 2.
-On Windows the `mfbe.exe` executable is in the `bin` folder of the installation directory.
+On Windows the `mfbe.exe` executable is in the `bin` folder of the installation directory (or
+of the unzipped portable folder).
 
 ## Getting help
 

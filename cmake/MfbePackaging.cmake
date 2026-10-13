@@ -1,15 +1,17 @@
 # CPack configuration shared by every generator (included last by the root CMakeLists.txt).
 #
 # Generators are selected by the package presets (CMakePresets.json): Linux DEB;RPM;External
-# (External = AppImage through packaging/appimage/CPackExternal.cmake), Windows WIX (WiX .NET
-# tool, CPACK_WIX_VERSION 4), macOS DragNDrop. Generator-specific settings live in
-# packaging/CPackConfig.cmake, which cpack evaluates once per generator; every CPACK_* value
-# set here is written to the generated CPackConfig.cmake and therefore visible there.
+# (External = AppImage through packaging/appimage/CPackExternal.cmake), Windows WIX;ZIP (WiX
+# .NET tool, CPACK_WIX_VERSION 4; ZIP = portable copy), macOS DragNDrop. Generator-specific
+# settings live in packaging/CPackConfig.cmake, which cpack evaluates once per generator; every
+# CPACK_* value set here is written to the generated CPackConfig.cmake and therefore visible
+# there.
 #
 # Produces (versions from MfbeVersion.cmake):
 #   mfbe_<version>_amd64.deb, mfbe-<version>-1.x86_64.rpm,
 #   MaximaFictionBookEditor-<version>-x86_64.AppImage (+ .zsync),
 #   MaximaFictionBookEditor-<version>-win64.msi,
+#   MaximaFictionBookEditor-<version>-win64-portable.zip,
 #   MaximaFictionBookEditor-<version>-macos-<arch>.dmg
 
 set(CPACK_PACKAGE_NAME "MaximaFictionBookEditor")
@@ -105,7 +107,7 @@ endif()
 # Default generators of the `package` build target (the package presets list the same ones).
 if(NOT CPACK_GENERATOR)
   if(WIN32)
-    set(CPACK_GENERATOR "WIX")
+    set(CPACK_GENERATOR "WIX;ZIP")
   elseif(APPLE)
     set(CPACK_GENERATOR "DragNDrop")
   else()

@@ -24,7 +24,7 @@ single generators: `cpack -G DEB --config build/<preset>/CPackConfig.cmake`. Pac
 | Platform | Layout |
 |----------|--------|
 | Linux (prefix `/usr`) | `bin/mfbe` -> `../lib/mfbe/mfbe`, `bin/mfbe-core`; `lib/mfbe/` = shell executable, `libcef.so` and the other CEF binaries, `*.pak`, `icudtl.dat`, `locales/{en-US,ru}.pak`, `chrome-sandbox`; `share/mfbe/{resources,ui,scripts}`; `share/applications/mfbe.desktop`, `share/mime/packages/mfbe.xml`, `share/icons/hicolor/*/apps/mfbe.png`, `share/doc/mfbe/LICENSE` |
-| Windows (MSI root) | `bin\mfbe.exe` with every CEF DLL and resource next to it, `bin\mfbe-core.exe`; `share\mfbe\{resources,ui,scripts}`; `share\doc\mfbe` |
+| Windows (MSI root, portable ZIP folder) | `bin\mfbe.exe` with every CEF DLL and resource next to it, `bin\mfbe-core.exe`; `share\mfbe\{resources,ui,scripts}`; `share\doc\mfbe` |
 | macOS | `mfbe.app/Contents/{MacOS/mfbe, Frameworks/Chromium Embedded Framework.framework, Frameworks/mfbe Helper*.app, Resources/{resources,ui,scripts,mfbe.icns}}` (+ `bin/mfbe-core` for developers, not in the .dmg) |
 
 The Linux shell lives in `lib/mfbe` because Chromium resolves its resources, the V8 snapshot
@@ -119,9 +119,14 @@ v7 share the v4 schema). Requirements on the build machine: .NET SDK,
 - The Windows resources of the executable itself (icon, per-monitor DPI v2 manifest, UTF-8
   code page, version info) are in `app/win/`.
 
-The MSI is produced and smoke-installed by the `windows-app-release` jobs of the CI and
-release workflows (`msiexec /i ... /qn` followed by `mfbe.exe --version`); it cannot be built
-on Linux hosts.
+The same tree is also packed as `MaximaFictionBookEditor-<version>-win64-portable.zip` (CPack
+ZIP, `packaging/CPackConfig.cmake`): one top-level folder with `bin\mfbe.exe`, nothing
+registered, no installer.
+
+Both are produced and smoke-tested by the `windows-app-release` jobs of the CI and release
+workflows: the MSI is installed (`msiexec /i ... /qn`), the ZIP is unpacked into a folder of
+the user profile, and each copy runs `mfbe.exe --version` and is started until its window shows
+the interface (`tools/ci/windows-start-smoke.ps1`). Neither can be built on Linux hosts.
 
 ## macOS (`packaging/macos`, `app/mac`)
 

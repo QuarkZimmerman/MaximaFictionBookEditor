@@ -20,6 +20,8 @@ hotkeys, spell checking (English and Russian), the Words tool and user scripts.
   all files.
 - Windows: the executable carries the editor's icon and version information (Start menu,
   search, taskbar, Open with); the installer installs into Program Files for all users.
+- Windows: a portable ZIP next to the installer: unzip it anywhere and start `bin\mfbe.exe`;
+  no installation or administrator rights needed.
 
 ### Fixed since the first build
 

@@ -3,7 +3,7 @@ name: Release
 # Tag `vX.Y.Z` (or run by hand): builds the full application on every platform, runs the
 # release gates that CI can run (unit tests, UI checks, end-to-end journeys, shell smoke,
 # licence check), produces the packages with CPack, smoke-tests each package, and attaches
-# MSI / AppImage (+ .zsync) / .deb / .rpm / .dmg with SHA-256 checksums and the installation
+# MSI / portable ZIP / AppImage (+ .zsync) / .deb / .rpm / .dmg with SHA-256 checksums and the installation
 # excerpt to a GitHub Release.
 #
 # Gates that cannot run here (Constitution IV/VI, documented in the release notes):
@@ -312,6 +312,7 @@ jobs:
           Write-Host "version info: $($vi.ProductName) $($vi.ProductVersion); icon $($icon.Width)x$($icon.Height)"
           if ((Get-ItemProperty HKLM:\Software\Classes\.fb2).'(default)' -ne 'MaximaFBE.fb2') { throw ".fb2 association missing" }
           if ((Get-ItemProperty HKLM:\Software\Classes\.fbd).'(default)' -ne 'MaximaFBE.fbd') { throw ".fbd association missing" }
+          tools/ci/windows-start-smoke.ps1 -Exe $exe
           $u = Start-Process msiexec -ArgumentList "/x `"$msi`" /qn" -Wait -PassThru
           if ($u.ExitCode -ne 0) { throw "msiexec uninstall exit $($u.ExitCode)" }
           if (Test-Path 'HKLM:\Software\Classes\.fb2') { throw ".fb2 association still present after uninstall" }
@@ -319,6 +320,23 @@ jobs:
         if: failure() && runner.os == 'Windows'
         shell: pwsh
         run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP\install.log" -Title "MSI install log"
+
+      - name: Package smoke (Windows - portable ZIP)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = (Get-ChildItem build\${{ matrix.preset }}\packages\*-portable.zip | Select-Object -First 1).FullName
+          # Unpacked into the user profile like a downloaded copy, outside Program Files.
+          $dest = Join-Path $env:USERPROFILE 'Downloads\mfbe-portable-smoke'
+          if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Expand-Archive -Path $zip -DestinationPath $dest
+          $exe = (Get-ChildItem $dest -Recurse -Filter mfbe.exe | Select-Object -First 1).FullName
+          if (-not $exe) { throw "bin\mfbe.exe not found in $zip" }
+          Write-Host "Portable copy: $exe"
+          & $exe --version
+          tools/ci/windows-start-smoke.ps1 -Exe $exe
+          Remove-Item $dest -Recurse -Force
 
       - name: Package smoke (macOS)
         if: runner.os == 'macOS'
@@ -351,6 +369,7 @@ jobs:
             build/${{ matrix.preset }}/packages/*.deb
             build/${{ matrix.preset }}/packages/*.rpm
             build/${{ matrix.preset }}/packages/*.msi
+            build/${{ matrix.preset }}/packages/*.zip
             build/${{ matrix.preset }}/packages/*.dmg
           if-no-files-found: error
 
@@ -383,16 +402,23 @@ jobs:
             echo
             echo "| Platform | File |"
             echo "|----------|------|"
-            for f in dist/*; do
-              case "$f" in
-                *.msi) echo "| Windows 10/11 x64 (installer with administrator prompt; \`C:\\Program Files\\Maxima Fiction Book Editor\`) | \`$(basename "$f")\` |" ;;
-                *.AppImage) echo "| Linux x86_64, any distribution (make executable and run) | \`$(basename "$f")\` |" ;;
-                *.deb) echo "| Debian / Ubuntu 22.04+ (\`sudo apt install ./<file>\`) | \`$(basename "$f")\` |" ;;
-                *.rpm) echo "| Fedora 39+ / openSUSE (\`sudo dnf install ./<file>\` / \`sudo zypper install ./<file>\`) | \`$(basename "$f")\` |" ;;
-                *arm64*.dmg) echo "| macOS 13+ on Apple Silicon (drag to Applications; first launch: Privacy & Security > Open Anyway) | \`$(basename "$f")\` |" ;;
-                *x86_64*.dmg) echo "| macOS 13+ on Intel (drag to Applications; first launch: Privacy & Security > Open Anyway) | \`$(basename "$f")\` |" ;;
-              esac
+            # Rows in a fixed order: Windows, Linux, macOS.
+            for pattern in '*.msi' '*-portable.zip' '*.AppImage' '*.deb' '*.rpm' '*arm64*.dmg' '*x86_64*.dmg'; do
+              for f in dist/$pattern; do
+                [ -e "$f" ] || continue
+                case "$f" in
+                  *.msi) echo "| Windows 10/11 x64 (installer with administrator prompt; \`C:\\Program Files\\Maxima Fiction Book Editor\`) | \`$(basename "$f")\` |" ;;
+                  *-portable.zip) echo "| Windows 10/11 x64, portable (no installation: unzip anywhere and start \`bin\\mfbe.exe\`) | \`$(basename "$f")\` |" ;;
+                  *.AppImage) echo "| Linux x86_64, any distribution (make executable and run) | \`$(basename "$f")\` |" ;;
+                  *.deb) echo "| Debian / Ubuntu 22.04+ (\`sudo apt install ./<file>\`) | \`$(basename "$f")\` |" ;;
+                  *.rpm) echo "| Fedora 39+ / openSUSE (\`sudo dnf install ./<file>\` / \`sudo zypper install ./<file>\`) | \`$(basename "$f")\` |" ;;
+                  *arm64*.dmg) echo "| macOS 13+ on Apple Silicon (drag to Applications; first launch: Privacy & Security > Open Anyway) | \`$(basename "$f")\` |" ;;
+                  *x86_64*.dmg) echo "| macOS 13+ on Intel (drag to Applications; first launch: Privacy & Security > Open Anyway) | \`$(basename "$f")\` |" ;;
+                esac
+              done
             done
+            echo
+            echo "When installing the MSI, Windows may show *Windows protected your PC* (Microsoft Defender SmartScreen; the installer is not code-signed): click **More info**, then **Run anyway**. The portable version shows the same notice the first time \`bin\\mfbe.exe\` is started."
             echo
             echo "Installation and uninstallation steps for every platform, the sandbox notes for Linux and the per-user folder locations: [docs/installing.md](https://github.com/${{ github.repository }}/blob/${tag}/docs/installing.md). \`SHA256SUMS\` lists the checksums of all files."
             echo
