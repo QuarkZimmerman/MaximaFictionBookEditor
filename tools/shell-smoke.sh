@@ -5,6 +5,10 @@
 # endpoint (/json/version), then runs tools/shell-smoke.mjs (Playwright connectOverCDP) which
 # asserts the page title and a visible selector and saves a screenshot.
 #
+# Every run also makes GTK decode a PNG inside the shell (a user stylesheet with a PNG
+# background, as many desktop themes have) and checks that the shell exports no symbols of its
+# statically linked libraries.
+#
 # Usage: tools/shell-smoke.sh
 # Environment:
 #   MFBE_APP_BIN                shell executable   (default build/linux-app-debug/bin/mfbe)
@@ -50,7 +54,7 @@ if [[ ! -x "$MFBE_APP_BIN" ]]; then
   echo "shell-smoke: $MFBE_APP_BIN is not an executable (build a linux-app-* preset or set MFBE_APP_BIN)" >&2
   exit 1
 fi
-for tool in xvfb-run node python3 curl setsid; do
+for tool in xvfb-run node python3 curl setsid nm; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "shell-smoke: required tool '$tool' not found" >&2
     exit 1
@@ -59,6 +63,18 @@ done
 if [[ ! -d "$ROOT/ui/node_modules/playwright" && ! -d "$ROOT/ui/node_modules/@playwright/test" ]]; then
   echo "shell-smoke: playwright is not installed in ui/node_modules (run: cd ui && npm ci)" >&2
   exit 1
+fi
+
+# The shell exports nothing but C++ runtime symbols: an exported symbol of a statically linked
+# library (libpng, zlib, ...) replaces the system copy for every library in the process.
+if [[ "$MFBE_APP_BIN" != *.AppImage ]]; then
+  LEAKED=$(nm -D --defined-only "$MFBE_APP_BIN" | awk '{print $3}' |
+    grep -vE '^(_ZN?K?St|_IO_stdin_used$|__bss_start$|_edata$|_end$)' || true)
+  if [[ -n "$LEAKED" ]]; then
+    echo "shell-smoke: $MFBE_APP_BIN exports symbols of its statically linked libraries:" >&2
+    head -n 20 <<<"$LEAKED" >&2
+    exit 1
+  fi
 fi
 
 TMP=$(mktemp -d -t mfbe-smoke.XXXXXX)
@@ -206,6 +222,10 @@ SH
   chmod +x "$TMP/launch.sh"
   LAUNCHER="$TMP/launch.sh"
 fi
+# GTK decodes this PNG while the shell starts, as it does for the images of many desktop themes.
+mkdir -p "$TMP/home/.config/gtk-3.0"
+printf '* { background-image: url("%s"); }\n' "$ROOT/resources/icons/app/mfbe-64.png" \
+  >"$TMP/home/.config/gtk-3.0/gtk.css"
 # Isolated HOME/XDG so a developer's real profile is never touched even outside --url mode.
 HOME="$TMP/home" XDG_CONFIG_HOME="$TMP/home/.config" XDG_DATA_HOME="$TMP/home/.local/share" \
 XDG_STATE_HOME="$TMP/home/.local/state" MFBE_SHELL_SELFTEST="$SELFTEST" \

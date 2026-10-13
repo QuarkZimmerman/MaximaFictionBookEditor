@@ -265,7 +265,9 @@ cd ..
 
 Shell smoke test under a virtual display (Linux only; needs `xvfb`): starts the CEF shell
 with the in-process core, attaches Playwright over CDP, checks the window title, opens a
-document given on the command line and the About dialog:
+document given on the command line and the About dialog. Every run also makes GTK decode a PNG
+inside the shell, as desktop themes with PNG images do, and fails when the shell exports symbols
+of its statically linked libraries:
 
 <!-- replay:linux -->
 ```bash
