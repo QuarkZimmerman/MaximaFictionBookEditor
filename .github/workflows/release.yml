@@ -336,7 +336,6 @@ jobs:
           Write-Host "Portable copy: $exe"
           & $exe --version
           tools/ci/windows-start-smoke.ps1 -Exe $exe
-          Remove-Item $dest -Recurse -Force
 
       - name: Package smoke (macOS)
         if: runner.os == 'macOS'
