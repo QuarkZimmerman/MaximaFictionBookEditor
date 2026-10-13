@@ -45,4 +45,12 @@ try {
     throw
 } finally {
     & taskkill.exe /PID $proc.Id /T /F 2>&1 | Out-Null
+    # taskkill only requests the end: wait until no process runs from the editor's folder, so its
+    # files are released (uninstall, deleting the folder).
+    $folder = Split-Path -Parent $Exe
+    $stopDeadline = (Get-Date).AddSeconds(30)
+    while ((Get-Date) -lt $stopDeadline -and
+           (Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($folder, [StringComparison]::OrdinalIgnoreCase) })) {
+        Start-Sleep -Milliseconds 500
+    }
 }
