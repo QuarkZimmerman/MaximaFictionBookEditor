@@ -188,9 +188,16 @@ set(MFBE_ICON_DIR "${MFBE_RESOURCES_SOURCE_DIR}/icons/app")
 # Linux
 
 if(OS_LINUX)
+  # Libraries are looked up next to the executable ($ORIGIN below), never in the working
+  # directory: CEF's linker flags add "." to the run path.
+  list(REMOVE_ITEM CEF_LINKER_FLAGS "-Wl,-rpath,.")
+
   add_executable(${MFBE_TARGET} ${MFBE_SHELL_SRCS})
   SET_EXECUTABLE_TARGET_PROPERTIES(${MFBE_TARGET})
   mfbe_shell_configure_target(${MFBE_TARGET})
+  # The statically linked libraries (libpng, zlib, ...) stay private to the executable: exported,
+  # they would replace the system copies that GTK and its image loaders use in this process.
+  target_link_options(${MFBE_TARGET} PRIVATE "LINKER:--exclude-libs,ALL")
 
   # libcef.so and friends are placed next to the executable.
   set_target_properties(${MFBE_TARGET} PROPERTIES

@@ -21,6 +21,14 @@ hotkeys, spell checking (English and Russian), the Words tool and user scripts.
 - Windows: the executable carries the editor's icon and version information (Start menu,
   search, taskbar, Open with); the installer installs into Program Files for all users.
 
+### Fixed since the first build
+
+- Linux: the editor no longer stops at start-up with "munmap_chunk(): invalid pointer" on
+  desktops whose GTK theme uses PNG images (Linux Mint's Mint-Y themes, for example); the
+  `.deb`, `.rpm` and AppImage were all affected.
+- Linux: the editor looks for its libraries only in its own folder, never in the folder it is
+  started from.
+
 ### Behaviour that differs from the original editor
 
 - Files are written as FictionBook 2.1 in UTF-8 by default (or the encoding
