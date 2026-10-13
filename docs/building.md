@@ -349,7 +349,7 @@ cmake --install build/linux-app-release --prefix /tmp/mfbe --strip
 | `CMake 3.30 or higher is required` | install a current CMake (section 1) and make sure it comes first on `PATH` |
 | vcpkg: `Could not find a package configuration file` / `VCPKG_ROOT` errors | `VCPKG_ROOT` is not set in this terminal or points to a checkout that was never bootstrapped |
 | vcpkg builds fail on Linux with `autoconf`, `libtool` or `bison` errors | install `autoconf automake autoconf-archive libtool bison flex` |
-| vcpkg on Windows: `error: in triplet x64-windows-static-md` or `cl.exe` not found | the Visual Studio build environment is missing: use the Native Tools prompt or the `Enter-VsDevShell` block of section 1 |
+| vcpkg on Windows: `error: in triplet x64-windows-static` or `cl.exe` not found | the Visual Studio build environment is missing: use the Native Tools prompt or the `Enter-VsDevShell` block of section 1 |
 | CEF download hash mismatch or interrupted download | delete `third_party/downloads/*.part` and the archive, re-run the configure step |
 | `npm ci` fails with an engine warning/error | Node.js 24 is required (`node --version`); older Node versions are not supported |
 | `mfbe` prints `Chromium sandbox unavailable ... running without the sandbox` | expected in containers and when running as root; on Ubuntu 24.04+ install the `.deb` (it ships an AppArmor profile and the SUID helper) or run the AppImage, which handles this automatically |

@@ -33,9 +33,10 @@ if(NOT DEFINED api_version)
 endif()
 
 if(WIN32)
-  # vcpkg triplet x64-windows-static-md builds the core and its dependencies against the
-  # dynamic CRT (/MD); CEF defaults to /MT. Keep one runtime for the whole process.
-  set(CEF_RUNTIME_LIBRARY_FLAG "/MD" CACHE STRING "Optional flag specifying which runtime to use")
+  # libcef_dll_wrapper and the shell use the static runtime (/MT) too, like every other target
+  # (CMAKE_MSVC_RUNTIME_LIBRARY, vcpkg triplet x64-windows-static). A plain variable: a value
+  # cached by an older configuration does not override it.
+  set(CEF_RUNTIME_LIBRARY_FLAG "/MT")
 endif()
 
 find_package(CEFDistribution REQUIRED)

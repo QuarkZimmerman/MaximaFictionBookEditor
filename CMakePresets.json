@@ -26,7 +26,7 @@
       "inherits": "base",
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
       "architecture": { "value": "x64", "strategy": "external" },
-      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-windows-static-md" }
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-windows-static" }
     },
     {
       "name": "macos-base",

@@ -18,6 +18,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Windows: the C/C++ runtime is linked into every binary (vcpkg triplet x64-windows-static, CEF's
+# /MT), so the package needs no Visual C++ Redistributable.
+if(MSVC)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 option(MFBE_BUILD_APP "Build the desktop shell (requires the CEF binary distribution)" OFF)
