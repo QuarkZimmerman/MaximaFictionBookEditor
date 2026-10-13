@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "07/hebrew",
+  "name": {
+    "en": "Hebrew",
+    "ru": "Иврит"
+  },
+  "description": {
+    "en": "Inserts a letter of the Hebrew alphabet at the caret",
+    "ru": "Вставляет букву еврейского алфавита в позицию курсора"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Hebrew",
+    "ru": "Иврит"
+  },
+  "legacy": {
+    "source": "07_Символы/Иврит.js",
+    "fbeVersion": "2.7"
+  }
+}

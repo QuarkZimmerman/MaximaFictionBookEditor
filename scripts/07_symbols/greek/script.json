@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "07/greek",
+  "name": {
+    "en": "Greek",
+    "ru": "Греческий"
+  },
+  "description": {
+    "en": "Inserts a letter of the Greek alphabet at the caret",
+    "ru": "Вставляет букву греческого алфавита в позицию курсора"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Greek",
+    "ru": "Греческий"
+  },
+  "legacy": {
+    "source": "07_Символы/Греческий.js",
+    "fbeVersion": "2.7"
+  }
+}

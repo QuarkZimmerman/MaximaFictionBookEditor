@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "17/one-note-into-brackets",
+  "name": {
+    "en": "Move one note into brackets",
+    "ru": "Перенос одного примечания в скобки"
+  },
+  "description": {
+    "en": "Moves the note under the caret into brackets at every place it is referenced, removes its section and renumbers the remaining notes and comments",
+    "ru": "Переносит примечание, в котором стоит курсор, в скобки во всех местах ссылок, удаляет его секцию и перенумеровывает оставшиеся примечания и комментарии"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Move one note into brackets",
+    "ru": "Перенос одного примечания в скобки"
+  },
+  "legacy": {
+    "source": "17_Перенос примечаний в скобки/03_Перенос одного примечания в скобки.js",
+    "fbeVersion": "2.7"
+  }
+}

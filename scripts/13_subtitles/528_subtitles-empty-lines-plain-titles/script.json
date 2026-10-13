@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "13/subtitles-empty-lines-plain-titles",
+  "name": {
+    "en": "Mark up subtitles, clean up empty lines, remove bold and italics in titles",
+    "ru": "Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках"
+  },
+  "description": {
+    "en": "Same as \"Mark up subtitles, clean up empty lines\", and additionally removes bold and italic formatting inside titles",
+    "ru": "То же, что «Разметка подзаголовков, чистка пустых строк», и дополнительно удаляет жирность и курсив в заголовках"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Mark up subtitles, clean up empty lines, remove bold and italics in titles",
+    "ru": "Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках"
+  },
+  "legacy": {
+    "source": "13_Подзаголовки, пустые строки/528_Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках.js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "12/next-guillemets",
+  "name": {
+    "en": "Go to next guillemets",
+    "ru": "Переход на след. елочки"
+  },
+  "description": {
+    "en": "Moves the caret to the next guillemet («») and selects it; at the end of the book offers to continue from the beginning",
+    "ru": "Переводит курсор на следующую ёлочку («») и выделяет её; в конце книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next guillemets",
+    "ru": "Переход на след. елочки"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/007_Переход на след. елочки.js",
+    "fbeVersion": "2.7"
+  },
+  "icon": "icon.png"
+}

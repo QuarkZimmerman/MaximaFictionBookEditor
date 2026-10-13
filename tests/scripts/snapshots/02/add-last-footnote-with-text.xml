@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Сноски</last-name>
+			</author>
+			<book-title>Книга для проверки сносок и комментариев</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Сноски и комментарии</p>
+		</title>
+		<section id="s1">
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Первая сноска стоит здесь<a l:href="#n_1" type="note">[1]</a>, а комментарий — здесь<a l:href="#c_1"><sup>{1}</sup></a>.</p>
+			<p>Абзац без сносок, в который будет вставлена новая сноска. Он содержит <emphasis>курсив</emphasis> и <strong>жирный</strong> текст.</p>
+			<p>Старая нумерация: сноска с кривым номером<a l:href="#n_old" type="note">[7]</a> и ещё одна<a l:href="#n_3" type="note">[3]</a>.</p>
+			<p>Внешняя <a l:href="https://example.org/">ссылка</a> не считается сноской. Второй комментарий<a l:href="#c_2"><sup>{2}</sup></a>.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<p>Последний абзац книги без сносок после него.<a l:href="#n_4" type="note">[4]</a></p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Текст первой сноски.</p>
+		</section>
+		<section id="n_old">
+			<title>
+				<p>7</p>
+			</title>
+			<p>Сноска со старым идентификатором.</p>
+		</section>
+		<section id="n_3">
+			<p>Сноска без заголовка.</p>
+		</section>
+		<section id="n_unused">
+			<title>
+				<p>99</p>
+			</title>
+			<p>На эту секцию никто не ссылается.</p>
+		</section>
+		<section id="n_4">
+			<title>
+				<p>4</p>
+			</title>
+			<p>Последняя <emphasis>сноска</emphasis></p>
+		</section>
+	</body>
+	<body name="comments">
+		<title>
+			<p>Комментарии</p>
+		</title>
+		<section id="c_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Первый комментарий.</p>
+		</section>
+		<section id="c_2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Второй комментарий.</p>
+		</section>
+		<section id="c_unused">
+			<title>
+				<p>9</p>
+			</title>
+			<p>Комментарий, на который никто не ссылается.</p>
+		</section>
+	</body>
+</FictionBook>

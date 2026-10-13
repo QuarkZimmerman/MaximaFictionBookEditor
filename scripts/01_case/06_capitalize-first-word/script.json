@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "01/capitalize-first-word",
+  "name": {
+    "en": "Capitalize the first word",
+    "ru": "Капитализация первого слова"
+  },
+  "description": {
+    "en": "The first word of the selection gets a capital first letter; everything else in the selection becomes lower case",
+    "ru": "Первое слово выделения получает прописную первую букву; остальной выделенный текст — строчные"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Capitalize the first word",
+    "ru": "Капитализация первого слова"
+  },
+  "legacy": {
+    "source": "01_Регистр/06_Капитализация первого слова.js",
+    "fbeVersion": "2.7"
+  }
+}

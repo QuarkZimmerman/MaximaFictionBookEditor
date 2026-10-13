@@ -1,0 +1,79 @@
+/* Script dialogs (ui.form) and the Scripts toolbar buttons. */
+
+.mfbe-script-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 320px;
+  max-width: 80vw;
+}
+
+.mfbe-script-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mfbe-script-form-label {
+  font-weight: 600;
+}
+
+.mfbe-script-form-static {
+  white-space: pre-wrap;
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+}
+
+.mfbe-script-form-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.mfbe-script-form-input:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: -1px;
+}
+
+.mfbe-script-form-number {
+  width: 8em;
+}
+
+.mfbe-script-form-textarea {
+  resize: vertical;
+  min-height: 4em;
+}
+
+.mfbe-script-form-group {
+  margin: 0;
+  padding: 4px 8px 6px;
+  border: 1px solid var(--mfbe-color-border, #d0d0d0);
+}
+
+.mfbe-script-form-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.mfbe-script-toolbar-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.mfbe-script-toolbar-glyph {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--mfbe-color-border-strong, #8a8a8a);
+  border-radius: 3px;
+}

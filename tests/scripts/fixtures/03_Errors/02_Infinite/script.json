@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test.errors.infinite",
+  "name": {
+    "en": "Infinite loop",
+    "ru": "Бесконечный цикл"
+  },
+  "kind": "menu"
+}

@@ -1,0 +1,7 @@
+﻿# User genre file fixture: BOM, CRLF line endings, header row, comments.
+code	category	name_en	name_ru
+sf_litrpg	sf	LitRPG	ЛитРПГ
+
+# a brand-new category key with an English name only (Russian falls back to English)
+fanfiction	fanfic	Fan fiction
+sf_realrpg	sf	RealRPG	

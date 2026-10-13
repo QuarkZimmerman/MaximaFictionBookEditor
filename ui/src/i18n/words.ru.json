@@ -1,0 +1,38 @@
+{
+  "dialog": {
+    "words": {
+      "analyzing": "Анализ слов книги...",
+      "analyzeFailed": "Не удалось проанализировать слова: {{reason}}",
+      "noDocument": "Сначала откройте книгу.",
+      "empty": "Слова не найдены.",
+      "summary": "Различных слов: {{distinct}}, всего: {{total}} ({{duration}} мс)",
+      "visibleRows_one": "Показано {{count}} слово",
+      "visibleRows_few": "Показано {{count}} слова",
+      "visibleRows_many": "Показано {{count}} слов",
+      "visibleRows_other": "Показано {{count}} слова",
+      "hiddenExclusions_one": "Скрыто {{count}} исключение",
+      "hiddenExclusions_few": "Скрыто {{count}} исключения",
+      "hiddenExclusions_many": "Скрыто {{count}} исключений",
+      "hiddenExclusions_other": "Скрыто {{count}} исключения",
+      "columns": {
+        "highlight": "Выделить",
+        "replaced": "Заменять",
+        "state": "Состояние"
+      },
+      "states": {
+        "normal": "Обычное",
+        "highlighted": "Выделено",
+        "replaced": "Заменяется",
+        "excluded": "Исключено"
+      },
+      "editReplacement": "Изменить замену для \"{{word}}\"",
+      "toggleExclusion": "Переключить исключение \"{{word}}\"",
+      "toggleHighlight": "Выделить \"{{word}}\"",
+      "toggleReplaced": "Заменять \"{{word}}\"",
+      "sortBy": "Сортировать по столбцу «{{column}}»",
+      "nothingToReplace": "Ни одна замена не отмечена: делать нечего.",
+      "exclusionsRejected": "Эти слова нельзя добавить в список исключений (только буквы и один дефис внутри слова):\n{{words}}",
+      "noCurrentWord": "Сначала выберите слово в списке."
+    }
+  }
+}

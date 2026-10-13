@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test.errors.sandbox",
+  "name": {
+    "en": "Sandbox probe",
+    "ru": "Проверка песочницы"
+  },
+  "kind": "menu"
+}

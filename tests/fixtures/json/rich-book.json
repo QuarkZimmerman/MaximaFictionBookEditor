@@ -1,0 +1,360 @@
+{
+  "modelVersion": 1,
+  "docId": "d2",
+  "path": "/books/rich.fb2",
+  "fileKind": "fb2",
+  "sourceEncoding": "windows-1251",
+  "schemaHint": "legacy",
+  "stylesheets": [{ "type": "text/css", "content": "p { text-indent: 1em; }" }],
+  "description": {
+    "titleInfo": {
+      "genres": [{ "code": "prose_classic" }, { "code": "poetry", "match": 40 }],
+      "authors": [
+        {
+          "firstName": "Анна",
+          "middleName": "Петровна",
+          "lastName": "Иванова",
+          "homePages": ["https://example.org/anna"],
+          "emails": ["anna@example.org"],
+          "id": "author1"
+        }
+      ],
+      "bookTitle": "Богатая книга",
+      "annotation": {
+        "type": "annotation",
+        "attrs": { "nodeId": "n100" },
+        "content": [
+          {
+            "type": "p",
+            "attrs": { "nodeId": "n101" },
+            "content": [
+              { "type": "text", "text": "Аннотация с " },
+              { "type": "text", "text": "курсивом", "marks": [{ "type": "emphasis" }] },
+              { "type": "text", "text": "." }
+            ]
+          }
+        ]
+      },
+      "keywords": "проза, стихи",
+      "date": { "text": "2019", "value": "2019-01-01", "lang": "ru" },
+      "coverpage": [{ "href": "#cover.jpg", "alt": "Обложка" }],
+      "lang": "ru",
+      "srcLang": "en",
+      "translators": [{ "firstName": "Пётр", "lastName": "Сидоров", "homePages": [], "emails": [] }],
+      "sequences": []
+    },
+    "documentInfo": {
+      "authors": [{ "nickname": "maker", "homePages": [], "emails": [] }],
+      "date": { "text": "2026-10-12" },
+      "srcUrls": ["https://example.org/source"],
+      "srcOcr": "ABBYY FineReader",
+      "id": "9b7f2c9d-1e22-4b0b-9a1e-3f0a4b7e2d31",
+      "version": "2.1",
+      "history": {
+        "type": "annotation",
+        "attrs": { "nodeId": "n110" },
+        "content": [
+          {
+            "type": "p",
+            "attrs": { "nodeId": "n111" },
+            "content": [{ "type": "text", "text": "v1.0 — создание файла" }]
+          }
+        ]
+      },
+      "publishers": []
+    },
+    "customInfo": [],
+    "outputs": []
+  },
+  "bodies": [
+    {
+      "type": "body",
+      "attrs": { "nodeId": "n1" },
+      "content": [
+        {
+          "type": "image",
+          "attrs": { "nodeId": "n2", "href": "#cover.jpg", "alt": "Обложка" }
+        },
+        {
+          "type": "title",
+          "attrs": { "nodeId": "n3" },
+          "content": [
+            {
+              "type": "p",
+              "attrs": { "nodeId": "n4" },
+              "content": [{ "type": "text", "text": "Богатая книга" }]
+            }
+          ]
+        },
+        {
+          "type": "epigraph",
+          "attrs": { "nodeId": "n5", "id": "epi1" },
+          "content": [
+            {
+              "type": "p",
+              "attrs": { "nodeId": "n6" },
+              "content": [{ "type": "text", "text": "Эпиграф." }]
+            },
+            {
+              "type": "text-author",
+              "attrs": { "nodeId": "n7" },
+              "content": [{ "type": "text", "text": "Неизвестный автор" }]
+            }
+          ]
+        },
+        {
+          "type": "section",
+          "attrs": { "nodeId": "n10", "id": "ch1", "lang": "ru" },
+          "content": [
+            {
+              "type": "title",
+              "attrs": { "nodeId": "n11" },
+              "content": [
+                {
+                  "type": "p",
+                  "attrs": { "nodeId": "n12" },
+                  "content": [{ "type": "text", "text": "Глава 1" }]
+                },
+                { "type": "empty-line", "attrs": { "nodeId": "n13" } }
+              ]
+            },
+            {
+              "type": "p",
+              "attrs": { "nodeId": "n14", "style": "lead" },
+              "content": [
+                { "type": "text", "text": "Текст с " },
+                {
+                  "type": "text",
+                  "text": "жирным курсивом",
+                  "marks": [{ "type": "strong" }, { "type": "emphasis" }]
+                },
+                { "type": "text", "text": ", " },
+                { "type": "text", "text": "зачёркнутым", "marks": [{ "type": "strikethrough" }] },
+                { "type": "text", "text": ", H" },
+                { "type": "text", "text": "2", "marks": [{ "type": "sub" }] },
+                { "type": "text", "text": "O, x" },
+                { "type": "text", "text": "2", "marks": [{ "type": "sup" }] },
+                { "type": "text", "text": ", " },
+                { "type": "text", "text": "code()", "marks": [{ "type": "code" }] },
+                { "type": "text", "text": ", " },
+                {
+                  "type": "text",
+                  "text": "именованный стиль",
+                  "marks": [{ "type": "style", "attrs": { "name": "note" } }]
+                },
+                { "type": "text", "text": " и сноска" },
+                {
+                  "type": "text",
+                  "text": "1",
+                  "marks": [{ "type": "link", "attrs": { "href": "#n_1", "type": "note" } }]
+                },
+                { "type": "text", "text": " плюс " },
+                {
+                  "type": "text",
+                  "text": "ссылка",
+                  "marks": [{ "type": "link", "attrs": { "href": "https://example.org" } }]
+                },
+                { "type": "text", "text": " и картинка " },
+                { "type": "inline-image", "attrs": { "nodeId": "n15", "href": "#smile.png", "alt": ":)" } },
+                { "type": "text", "text": "." }
+              ]
+            },
+            {
+              "type": "subtitle",
+              "attrs": { "nodeId": "n16" },
+              "content": [{ "type": "text", "text": "* * *" }]
+            },
+            {
+              "type": "poem",
+              "attrs": { "nodeId": "n20", "id": "poem1" },
+              "content": [
+                {
+                  "type": "title",
+                  "attrs": { "nodeId": "n21" },
+                  "content": [
+                    {
+                      "type": "p",
+                      "attrs": { "nodeId": "n22" },
+                      "content": [{ "type": "text", "text": "Стихотворение" }]
+                    }
+                  ]
+                },
+                {
+                  "type": "stanza",
+                  "attrs": { "nodeId": "n23" },
+                  "content": [
+                    {
+                      "type": "v",
+                      "attrs": { "nodeId": "n24" },
+                      "content": [{ "type": "text", "text": "Первая строка," }]
+                    },
+                    {
+                      "type": "v",
+                      "attrs": { "nodeId": "n25" },
+                      "content": [{ "type": "text", "text": "вторая строка." }]
+                    }
+                  ]
+                },
+                {
+                  "type": "text-author",
+                  "attrs": { "nodeId": "n26" },
+                  "content": [{ "type": "text", "text": "А. Иванова" }]
+                },
+                {
+                  "type": "date",
+                  "attrs": { "nodeId": "n27", "value": "1900-01-01" },
+                  "content": [{ "type": "text", "text": "1900" }]
+                }
+              ]
+            },
+            {
+              "type": "cite",
+              "attrs": { "nodeId": "n30" },
+              "content": [
+                {
+                  "type": "p",
+                  "attrs": { "nodeId": "n31" },
+                  "content": [{ "type": "text", "text": "Цитата." }]
+                },
+                {
+                  "type": "text-author",
+                  "attrs": { "nodeId": "n32" },
+                  "content": [{ "type": "text", "text": "Кто-то" }]
+                }
+              ]
+            },
+            {
+              "type": "table",
+              "attrs": { "nodeId": "n40", "id": "t1", "style": "grid" },
+              "content": [
+                {
+                  "type": "tr",
+                  "attrs": { "nodeId": "n41", "align": "center" },
+                  "content": [
+                    {
+                      "type": "th",
+                      "attrs": { "nodeId": "n42", "colspan": 2 },
+                      "content": [{ "type": "text", "text": "Заголовок" }]
+                    }
+                  ]
+                },
+                {
+                  "type": "tr",
+                  "attrs": { "nodeId": "n43" },
+                  "content": [
+                    {
+                      "type": "td",
+                      "attrs": { "nodeId": "n44", "align": "left", "valign": "top" },
+                      "content": [{ "type": "text", "text": "A" }]
+                    },
+                    {
+                      "type": "td",
+                      "attrs": { "nodeId": "n45", "rowspan": 1 },
+                      "content": [{ "type": "text", "text": "B" }]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "image",
+              "attrs": { "nodeId": "n46", "href": "#figure.png", "title": "Рисунок 1", "id": "fig1" }
+            },
+            {
+              "type": "raw-xml",
+              "attrs": {
+                "nodeId": "n47",
+                "xml": "<unknown-block attr=\"1\">kept verbatim</unknown-block>",
+                "inline": false
+              }
+            },
+            {
+              "type": "p",
+              "attrs": { "nodeId": "n48" },
+              "content": [
+                { "type": "text", "text": "Inline unknown: " },
+                {
+                  "type": "raw-xml",
+                  "attrs": { "nodeId": "n49", "xml": "<weird>x</weird>", "inline": true }
+                }
+              ]
+            },
+            { "type": "empty-line", "attrs": { "nodeId": "n50" } }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "body",
+      "attrs": { "nodeId": "n60", "name": "notes" },
+      "content": [
+        {
+          "type": "section",
+          "attrs": { "nodeId": "n61", "id": "n_1" },
+          "content": [
+            {
+              "type": "title",
+              "attrs": { "nodeId": "n62" },
+              "content": [
+                {
+                  "type": "p",
+                  "attrs": { "nodeId": "n63" },
+                  "content": [{ "type": "text", "text": "1" }]
+                }
+              ]
+            },
+            {
+              "type": "p",
+              "attrs": { "nodeId": "n64" },
+              "content": [{ "type": "text", "text": "Текст сноски." }]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "binaries": [
+    {
+      "id": "cover.jpg",
+      "contentType": "image/jpeg",
+      "size": 102400,
+      "width": 600,
+      "height": 900,
+      "decodable": true,
+      "willConvert": false,
+      "referenceCount": 2
+    },
+    {
+      "id": "smile.png",
+      "contentType": "image/png",
+      "size": 2048,
+      "width": 16,
+      "height": 16,
+      "decodable": true,
+      "willConvert": false,
+      "referenceCount": 1
+    },
+    {
+      "id": "figure.png",
+      "contentType": "image/gif",
+      "size": 4096,
+      "decodable": true,
+      "willConvert": true,
+      "referenceCount": 1
+    },
+    {
+      "id": "blob.bin",
+      "contentType": "application/octet-stream",
+      "size": 10,
+      "decodable": false,
+      "willConvert": false,
+      "referenceCount": 0
+    }
+  ],
+  "extras": [
+    {
+      "type": "raw-xml",
+      "attrs": { "nodeId": "n70", "xml": "<custom-top-level/>", "inline": false }
+    }
+  ]
+}

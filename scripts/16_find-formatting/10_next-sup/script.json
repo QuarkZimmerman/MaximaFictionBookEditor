@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-sup",
+  "name": {
+    "en": "Go to next superscript",
+    "ru": "Переход на следующий верхний индекс"
+  },
+  "description": {
+    "en": "Moves the caret to the start of the next run of superscript; offers to continue from the beginning of the book when the end is reached",
+    "ru": "Переводит курсор в начало следующего фрагмента (верхний индекс); по достижении конца книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next superscript",
+    "ru": "Переход на следующий верхний индекс"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/10_Переход на следующий верхний индекс.js",
+    "fbeVersion": "2.7"
+  }
+}

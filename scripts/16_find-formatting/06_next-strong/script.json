@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-strong",
+  "name": {
+    "en": "Go to next bold",
+    "ru": "Переход на следующую жирность"
+  },
+  "description": {
+    "en": "Moves the caret to the start of the next run of bold text; offers to continue from the beginning of the book when the end is reached",
+    "ru": "Переводит курсор в начало следующего фрагмента (жирность); по достижении конца книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next bold",
+    "ru": "Переход на следующую жирность"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/06_Переход на следующую жирность.js",
+    "fbeVersion": "2.7"
+  }
+}

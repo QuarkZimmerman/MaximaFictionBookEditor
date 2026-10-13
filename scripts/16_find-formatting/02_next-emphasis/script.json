@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-emphasis",
+  "name": {
+    "en": "Go to next italics",
+    "ru": "Переход на следующий курсив"
+  },
+  "description": {
+    "en": "Moves the caret to the start of the next run of italics; offers to continue from the beginning of the book when the end is reached",
+    "ru": "Переводит курсор в начало следующего фрагмента (курсив); по достижении конца книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next italics",
+    "ru": "Переход на следующий курсив"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/02_Переход на следующий курсив.js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,21 @@
+# Maxima Fiction Book Editor - static analysis configuration
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-pro-type-cstyle-cast,
+  misc-unused-using-decls,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  performance-*,
+  readability-braces-around-statements,
+  readability-container-size-empty,
+  readability-redundant-string-cstr
+WarningsAsErrors: ''
+HeaderFilterRegex: '(core|app)/(include|src)/.*'
+FormatStyle: file
+CheckOptions:
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'

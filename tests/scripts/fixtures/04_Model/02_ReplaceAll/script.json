@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test.model.replaceAll",
+  "name": {
+    "en": "Replace all (regex)",
+    "ru": "Заменить всё (регэксп)"
+  },
+  "kind": "menu"
+}

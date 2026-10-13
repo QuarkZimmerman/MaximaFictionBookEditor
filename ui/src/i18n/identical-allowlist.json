@@ -1,0 +1,18 @@
+{
+  "$comment": "Keys whose value is legitimately identical in en.json and ru.json (brand names, OK, attribute codes). Values consisting only of placeholders and punctuation are skipped automatically. Read by tools/i18n-check.mjs and ui/tests/unit/i18n-completeness.test.ts.",
+  "keys": [
+    "app.name",
+    "app.shortName",
+    "linksBar.id",
+    "tableBar.colspan",
+    "tableBar.rowspan",
+    "tableBar.trAlign",
+    "tableBar.tdAlign",
+    "tableBar.tdValign",
+    "cmd.nav.selectId.tooltip",
+    "dialog.buttons.ok",
+    "description.id",
+    "description.fields.isbn",
+    "description.schema.current"
+  ]
+}

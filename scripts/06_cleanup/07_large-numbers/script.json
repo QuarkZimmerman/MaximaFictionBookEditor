@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "06/large-numbers",
+  "name": {
+    "en": "10.000.000.000",
+    "ru": "10.000.000.000"
+  },
+  "description": {
+    "en": "Interactively re-formats large numbers (groups separated by spaces or dots) with non-breaking spaces and digit ranges with an en dash, starting at the caret",
+    "ru": "Интерактивно переформатирует большие числа (разряды через пробел или точку) неразрывными пробелами, а интервалы чисел — коротким тире, начиная от курсора"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Large numbers",
+    "ru": "Большие числа"
+  },
+  "legacy": {
+    "source": "06_Чистка/07_10.000.000.000.js",
+    "fbeVersion": "2.7"
+  }
+}

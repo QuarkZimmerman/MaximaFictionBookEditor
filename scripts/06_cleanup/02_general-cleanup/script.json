@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "06/general-cleanup",
+  "name": {
+    "en": "General clean-up",
+    "ru": "Генеральная уборка"
+  },
+  "description": {
+    "en": "Typographic clean-up of the whole book: spaces around punctuation, hyphens and dashes, ellipses, abbreviations and units, date ranges, leading/trailing spaces, soft hyphens, final dots in titles, junk ids",
+    "ru": "Типографская чистка всей книги: пробелы у знаков препинания, дефисы и тире, многоточия, сокращения и размерности, интервалы дат, начальные/конечные пробелы, мягкие переносы, точки в заголовках, мусорные идентификаторы"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "General clean-up",
+    "ru": "«Генеральная уборка»"
+  },
+  "legacy": {
+    "source": "06_Чистка/02_Генеральная уборка.js",
+    "fbeVersion": "2.7"
+  }
+}

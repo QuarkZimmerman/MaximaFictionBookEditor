@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "06/external-links-to-text",
+  "name": {
+    "en": "Turn external links into text",
+    "ru": "Превращение внешних ссылок в текст"
+  },
+  "description": {
+    "en": "Removes every link whose target is not internal (#...) or a file:// address, keeping its text",
+    "ru": "Снимает все ссылки, которые ведут не на внутренний якорь (#...) и не на file://, оставляя их текст"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "External links to text",
+    "ru": "Превращение внешних ссылок в текст"
+  },
+  "legacy": {
+    "source": "06_Чистка/17_Превращение внешних ссылок в текст.js",
+    "fbeVersion": "2.7"
+  }
+}

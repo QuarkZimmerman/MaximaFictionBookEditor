@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "01/cycle-case",
+  "name": {
+    "en": "Cycle the case",
+    "ru": "Циклическое изменение регистра"
+  },
+  "description": {
+    "en": "Switches the selection (or the word under the caret) between lower case, UPPER CASE and Sentence case",
+    "ru": "Переключает выделение (или слово под курсором) между нижним регистром, ВЕРХНИМ РЕГИСТРОМ и Предложением"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Cycle the case",
+    "ru": "Циклическое изменение регистра"
+  },
+  "legacy": {
+    "source": "01_Регистр/07_Циклическое изменение регистра.js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "21/text-error-search",
+  "name": {
+    "en": "Search for text errors (regexp set)",
+    "ru": "Поиск ошибок текста (набор регэкспов)"
+  },
+  "description": {
+    "en": "Selects the next probable OCR/typing error after the caret (misread words, mixed alphabets, wrong dashes, punctuation slips, formatting inside words) and shows which rule matched in the status bar",
+    "ru": "Выделяет следующую после курсора вероятную ошибку распознавания или набора (искажённые слова, смесь алфавитов, неверные тире, огрехи пунктуации, форматирование внутри слов) и показывает сработавшее правило в строке состояния"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Search for text errors (regexp set)",
+    "ru": "Поиск ошибок текста (набор регэкспов)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/04_Поиск ошибок текста (набор регэкспов).js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,125 @@
+/* Validation panel: docked under the view area, list-view look of the original validator output. */
+
+.mfbe-validation {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  max-height: 40%;
+  min-height: 72px;
+  border-top: 1px solid var(--mfbe-color-border-strong);
+  background: var(--mfbe-color-bg);
+  font: var(--mfbe-font-ui);
+}
+
+.mfbe-validation-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 8px;
+  background: var(--mfbe-color-chrome-bg);
+  border-bottom: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-validation-title {
+  font-weight: 600;
+}
+
+.mfbe-validation-summary {
+  flex: 1 1 auto;
+  color: var(--mfbe-color-fg-muted);
+}
+
+.mfbe-validation-close {
+  width: 24px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mfbe-validation-close:hover {
+  background: var(--mfbe-color-danger);
+  color: var(--mfbe-color-on-accent);
+}
+
+.mfbe-validation-empty {
+  padding: 8px 12px;
+  color: var(--mfbe-color-fg-muted);
+}
+
+.mfbe-validation-scroll {
+  overflow: auto;
+  min-height: 0;
+}
+
+.mfbe-validation-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mfbe-validation-table th {
+  position: sticky;
+  top: 0;
+  padding: 2px 8px;
+  text-align: left;
+  font-weight: 600;
+  background: var(--mfbe-color-chrome-bg-2);
+  border-bottom: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-validation-row td {
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.mfbe-validation-row td.mfbe-validation-message {
+  white-space: normal;
+  width: 100%;
+}
+
+.mfbe-validation-row:focus {
+  outline: none;
+}
+
+.mfbe-validation-row-selected td {
+  background: var(--mfbe-color-accent-soft);
+}
+
+.mfbe-validation-row:focus td {
+  background: var(--mfbe-color-highlight-bg);
+  color: var(--mfbe-color-highlight-fg);
+}
+
+.mfbe-validation-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  border-radius: 50%;
+  color: var(--mfbe-color-on-accent);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+
+.mfbe-validation-icon-error {
+  background: var(--mfbe-color-danger);
+}
+
+.mfbe-validation-icon-warning {
+  background: var(--mfbe-color-warning);
+}
+
+.mfbe-validation-path {
+  color: var(--mfbe-color-fg-muted);
+  font-size: 92%;
+}
+
+.mfbe-validation-row:focus .mfbe-validation-path {
+  color: inherit;
+}

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Примечания</last-name>
+			</author>
+			<book-title>Перенос примечаний в скобки</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2024-01-01">2024</date>
+			<id>conv-c-17</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Перенос примечаний</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Первое слово<a l:href="#n_1" type="note">[1]</a> с примечанием и второе<a l:href="#n_2" type="note">[2]</a> с двухабзацным.</p>
+			<p>Ссылка <emphasis>внутри курсива<a l:href="#n_3" type="note">[3]</a> остаётся</emphasis> курсивом вокруг.</p>
+			<p>Комментарий<a l:href="#c_1" type="note"><sup>{1}</sup></a> и внешняя <a l:href="http://example.org/">ссылка</a>.</p>
+			<p>Обычная ссылка на <a l:href="#n_2">второе примечание</a> и битая<a l:href="#n_99" type="note">[99]</a>.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<p>Повторная ссылка<a l:href="#n_1" type="note">[1]</a> на первое примечание.</p>
+			<p>Ссылка на пятое<a l:href="#n_5" type="note">[5]</a> примечание.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Первое примечание с <emphasis>курсивом</emphasis>.</p>
+		</section>
+		<section id="n_2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Первый абзац второго.</p>
+			<p>Второй абзац с <strong>жирным</strong> и <sup>индексом</sup>.</p>
+		</section>
+		<section id="n_3">
+			<title>
+				<p>3</p>
+			</title>
+			<p>Третье со ссылкой на <a l:href="http://example.org/">сайт</a> и на первое<a l:href="#n_1" type="note">[1]</a>.</p>
+		</section>
+		<section id="n_4">
+			<title>
+				<p>4</p>
+			</title>
+			<p>Четвёртое примечание ни на что не ссылается.</p>
+		</section>
+		<section id="n_5">
+			<title>
+				<p>5</p>
+			</title>
+			<p>Пятое примечание.</p>
+		</section>
+	</body>
+</FictionBook>

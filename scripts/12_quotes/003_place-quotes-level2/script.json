@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "12/place-quotes-level2",
+  "name": {
+    "en": "Place guillemets and low quotes (starting at level 2)",
+    "ru": "Расстановка елочек и лапок (начиная со 2-го уровня)"
+  },
+  "description": {
+    "en": "Replaces straight quotes with «» (level 0) and „“ (nested) in the selection, assuming it starts inside an open level-1 quote; stops with a message when the nesting cannot be resolved",
+    "ru": "Заменяет прямые кавычки на «» (0-й уровень) и „“ (вложенные) в выделении, считая, что оно начинается внутри открытой кавычки 1-го уровня; при невозможности определить вложенность останавливается с сообщением"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Place guillemets and low quotes (starting at level 2)",
+    "ru": "Расстановка елочек и лапок (начиная со 2-го уровня)"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/003_Расстановка елочек и лапок (начиная со 2-го уровня).js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "07/arabic",
+  "name": {
+    "en": "Arabic",
+    "ru": "Арабский"
+  },
+  "description": {
+    "en": "Inserts a letter of the Arabic alphabet at the caret",
+    "ru": "Вставляет букву арабского алфавита в позицию курсора"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Arabic",
+    "ru": "Арабский"
+  },
+  "legacy": {
+    "source": "07_Символы/Арабский.js",
+    "fbeVersion": "2.7"
+  }
+}

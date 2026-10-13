@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "02/add-footnote",
+  "name": {
+    "en": "Add a footnote, staying at its reference",
+    "ru": "Добавить сноску, оставшись на ее ссылке"
+  },
+  "description": {
+    "en": "Inserts a footnote link at the caret, renumbers the footnotes and creates the note section; the caret stays in the text",
+    "ru": "Вставляет ссылку сноски в позиции курсора, перенумеровывает сноски и создает секцию примечания; курсор остается в тексте"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Add a footnote, staying at its reference",
+    "ru": "Добавить сноску, оставшись на ее ссылке"
+  },
+  "legacy": {
+    "source": "02_Добавление примечания/01_Добавить сноску, оставшись на ее ссылке.js",
+    "fbeVersion": "2.7"
+  }
+}

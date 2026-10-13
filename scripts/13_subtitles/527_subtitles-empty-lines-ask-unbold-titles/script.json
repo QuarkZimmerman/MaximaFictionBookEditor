@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "13/subtitles-empty-lines-ask-unbold-titles",
+  "name": {
+    "en": "Mark up subtitles, clean up empty lines; remove bold in titles on request",
+    "ru": "Разметка подзаголовков, чистка пустых строк; удаление жирности в заголовках по запросу"
+  },
+  "description": {
+    "en": "Same as \"Mark up subtitles, clean up empty lines\"; first asks whether bold formatting inside titles should be removed",
+    "ru": "То же, что «Разметка подзаголовков, чистка пустых строк»; перед началом спрашивает, удалять ли жирность в заголовках"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Mark up subtitles, clean up empty lines; remove bold in titles on request",
+    "ru": "Разметка подзаголовков, чистка пустых строк; удаление жирности в заголовках по запросу"
+  },
+  "legacy": {
+    "source": "13_Подзаголовки, пустые строки/527_Разметка подзаголовков, чистка пустых строк, удаление жирности в заголовках по запросу.js",
+    "fbeVersion": "2.7"
+  }
+}

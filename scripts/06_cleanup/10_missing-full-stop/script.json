@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "06/missing-full-stop",
+  "name": {
+    "en": "Full stop.",
+    "ru": "Точка."
+  },
+  "description": {
+    "en": "Interactively looks for a missing full stop before a capitalised word that follows a lower-case word, starting at the caret; rejected words are remembered as proper names",
+    "ru": "Интерактивно ищет пропущенную точку перед словом с прописной после строчной, начиная от курсора; отклонённые слова запоминаются как имена собственные"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Missing full stop",
+    "ru": "Точка. Точка, запятая"
+  },
+  "legacy": {
+    "source": "06_Чистка/10_Точка..js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,11 @@
+// Converted from 04_Примечания и комментарии из скобок/606_Примечания из скобок, заданных простым текстом.js (FictionBook Editor 2.7), Tier 2.
+// Asks the two brackets as plain text ("[ ]") and turns every bracketed fragment of the book into a footnote.
+// The twelve scripts of this group share one engine (brackets-engine.js) and differ only in the
+// bracket pair and the footnote/comment settings, like the originals' settings block.
+import { askBrackets, FOOTNOTES, runBracketsScript } from './brackets-engine.js';
+
+export default async function run(ctx) {
+  const brackets = await askBrackets(ctx, 'text');
+  if (!brackets) return;
+  await runBracketsScript(ctx, { ...FOOTNOTES, ...brackets });
+}

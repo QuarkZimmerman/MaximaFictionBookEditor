@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "03/add-last-comment",
+  "name": {
+    "en": "Add the last comment, staying at its reference",
+    "ru": "Добавить последний комментарий, оставшись на его ссылке"
+  },
+  "description": {
+    "en": "Inserts a comment link at the caret (which must follow every other comment) and appends the comment section without renumbering",
+    "ru": "Вставляет ссылку комментария в позиции курсора (после всех прочих комментариев) и добавляет секцию комментария в конец без перенумерации"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Add the last comment, staying at its reference",
+    "ru": "Добавить последний комментарий, оставшись на его ссылке"
+  },
+  "legacy": {
+    "source": "03_Добавление комментария/05_Добавить последний комментарий, оставшись на его ссылке.js",
+    "fbeVersion": "2.7"
+  }
+}

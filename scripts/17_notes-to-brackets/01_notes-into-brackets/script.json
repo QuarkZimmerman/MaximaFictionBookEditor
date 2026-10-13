@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "17/notes-into-brackets",
+  "name": {
+    "en": "Move notes into brackets",
+    "ru": "Перенос примечаний в скобки"
+  },
+  "description": {
+    "en": "Replaces every footnote and comment reference with the note text in [] or {} brackets and removes the notes and comments bodies",
+    "ru": "Заменяет каждую ссылку на примечание или комментарий текстом примечания в скобках [] или {} и удаляет тела примечаний и комментариев"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Move notes into brackets",
+    "ru": "Перенос примечаний в скобки"
+  },
+  "legacy": {
+    "source": "17_Перенос примечаний в скобки/01_Перенос примечаний в скобки.js",
+    "fbeVersion": "2.7"
+  }
+}

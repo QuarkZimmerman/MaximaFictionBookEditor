@@ -1,0 +1,36 @@
+{
+  "spell": {
+    "status": {
+      "noDictionary": "Нет словаря для языка {{lang}}",
+      "disabled": "Проверка орфографии отключена в настройках.",
+      "notConnected": "Для проверки орфографии нужно подключение к ядру.",
+      "wordAdded": "Слово «{{word}}» добавлено в пользовательский словарь.",
+      "wordRemoved": "Слово «{{word}}» удалено из пользовательского словаря.",
+      "replacedAll_one": "Заменено {{count}} вхождение.",
+      "replacedAll_few": "Заменено {{count}} вхождения.",
+      "replacedAll_many": "Заменено {{count}} вхождений.",
+      "replacedAll_other": "Заменено {{count}} вхождения."
+    },
+    "menu": {
+      "loading": "Поиск вариантов...",
+      "noSuggestions": "(нет вариантов)",
+      "ignoreAll": "Пропустить все"
+    },
+    "dialog": {
+      "dictionaries": "Словари:",
+      "noDictionaries": "Словари не установлены.",
+      "checking": "Проверка...",
+      "noSuggestions": "(нет вариантов)",
+      "where": {
+        "annotation": "аннотация",
+        "history": "история",
+        "body": "текст книги"
+      },
+      "location": "Где: {{where}}"
+    },
+    "undo": {
+      "replaceWord": "Замена слова с ошибкой",
+      "replaceAll": "Замена всех вхождений слова"
+    }
+  }
+}

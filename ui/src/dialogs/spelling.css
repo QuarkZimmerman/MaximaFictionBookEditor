@@ -1,0 +1,107 @@
+/* Spelling dialog (IDD_SPELL_CHECK layout) and the Body editor's misspelling marks (T088/T089). */
+
+.fb-editor .mfbe-misspelled {
+  text-decoration: underline wavy var(--mfbe-color-danger, #c42b1c);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 2px;
+}
+
+.fb-editor .mfbe-spell-current {
+  background: var(--mfbe-color-accent-soft, #cce4f7);
+  outline: 1px solid var(--mfbe-color-accent, #0078d4);
+}
+
+.mfbe-spelling-dialog {
+  min-width: 520px;
+}
+
+.mfbe-spelling {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 460px;
+}
+
+.mfbe-spelling-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.mfbe-spelling-label {
+  white-space: nowrap;
+}
+
+.mfbe-spelling-word {
+  background: var(--mfbe-color-chrome-bg, #f3f3f3);
+}
+
+.mfbe-spelling-main {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.mfbe-spelling-suggestions-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfbe-spelling-suggestions {
+  height: 136px;
+  margin: 0;
+  padding: 2px 0;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--mfbe-color-input-bg, #fff);
+  border: 1px solid var(--mfbe-color-border-strong, #8a8a8a);
+}
+
+.mfbe-spelling-suggestion {
+  padding: 2px 6px;
+  cursor: default;
+}
+
+.mfbe-spelling-suggestion:hover {
+  background: var(--mfbe-color-chrome-bg-2, #e9e9e9);
+}
+
+.mfbe-spelling-suggestion-selected,
+.mfbe-spelling-suggestion-selected:hover {
+  background: var(--mfbe-color-highlight-bg, #0078d4);
+  color: var(--mfbe-color-highlight-fg, #fff);
+}
+
+.mfbe-spelling-suggestion-empty {
+  padding: 2px 6px;
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+}
+
+.mfbe-spelling-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(96px, auto));
+  gap: 6px 8px;
+}
+
+.mfbe-spelling-actions .mfbe-button {
+  min-width: 96px;
+}
+
+.mfbe-spelling-dictionaries {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.mfbe-spelling-muted {
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+}
+
+.mfbe-spelling-status {
+  min-height: 1.4em;
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+}

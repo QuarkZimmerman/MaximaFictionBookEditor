@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "09/merge-paragraphs",
+  "name": {
+    "en": "Merge paragraphs",
+    "ru": "Слить параграфы"
+  },
+  "description": {
+    "en": "Merges the selected consecutive paragraphs (or verse lines) into one, joining them with a space, or without a space after a trailing hyphen",
+    "ru": "Сливает выделенные подряд идущие абзацы (или строки стиха) в один, соединяя их пробелом, а после конечного дефиса — без пробела"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Merge paragraphs",
+    "ru": "Слить параграфы"
+  },
+  "legacy": {
+    "source": "09_Стихи/03_Слить параграфы.js",
+    "fbeVersion": "2.7"
+  }
+}

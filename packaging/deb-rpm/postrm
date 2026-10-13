@@ -1,0 +1,25 @@
+#!/bin/sh
+# Debian postrm of the mfbe package: refresh the desktop caches after the files are gone and
+# drop the AppArmor leftovers on purge. User data (~/.config/maxfbeditor, ~/.local/share/
+# maxfbeditor, ~/.local/state/maxfbeditor) is never touched.
+set -e
+
+if [ "$1" = "remove" ] || [ "$1" = "purge" ] || [ "$1" = "upgrade" ]; then
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database -q /usr/share/applications || true
+    fi
+    if command -v update-mime-database >/dev/null 2>&1; then
+        update-mime-database /usr/share/mime >/dev/null 2>&1 || true
+    fi
+    if command -v gtk-update-icon-cache >/dev/null 2>&1 && [ -f /usr/share/icons/hicolor/index.theme ]; then
+        gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+    fi
+fi
+
+if [ "$1" = "purge" ]; then
+    rm -f /etc/apparmor.d/disable/mfbe /etc/apparmor.d/force-complain/mfbe /etc/apparmor.d/local/mfbe
+    rm -f /var/cache/apparmor/*/mfbe 2>/dev/null || true
+    rmdir /etc/apparmor.d/local /etc/apparmor.d/disable 2>/dev/null || true
+fi
+
+exit 0

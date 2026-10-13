@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test.model.append",
+  "name": {
+    "en": "Append paragraph",
+    "ru": "Добавить абзац"
+  },
+  "kind": "menu",
+  "icon": "icon.png"
+}

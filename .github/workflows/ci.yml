@@ -1,0 +1,496 @@
+name: CI
+
+# Every push / pull request: core unit tests on all three platforms, UI checks, headless
+# end-to-end journeys against the real core, the CEF application on all three platforms
+# (with the shell smoke test under Xvfb on Linux) and a packaging dry run per platform.
+# Release packages are produced by release.yml; docs/building.md is replayed by
+# docs-build.yml.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite"
+
+jobs:
+  lint:
+    name: lint (formats, scripts, docs)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck python3-yaml
+          # Same clang-format major version as the development host (.clang-format is tuned for it).
+          pipx install clang-format==19.1.7
+      - name: C++ formatting
+        run: |
+          clang-format --version
+          git ls-files 'core/**/*.cpp' 'core/**/*.hpp' 'core/**/*.h' 'app/**/*.cpp' 'app/**/*.h' 'app/**/*.mm' \
+            | xargs clang-format --dry-run --Werror
+      - name: Shell scripts
+        run: |
+          shellcheck tools/*.sh packaging/appimage/build.sh packaging/appimage/AppRun tests/corpus/run.sh
+          shellcheck -s sh packaging/deb-rpm/postinst packaging/deb-rpm/prerm packaging/deb-rpm/postrm \
+            packaging/deb-rpm/rpm-post.sh packaging/deb-rpm/rpm-preun.sh packaging/deb-rpm/rpm-postun.sh
+      - name: Path portability (Windows/macOS checkouts)
+        run: python3 tools/path-portability-check.py
+      - name: Workflow and docs checks
+        run: |
+          for f in .github/workflows/*.yml; do python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$f"; done
+          python3 tools/extract-doc-commands.py --check
+          python3 tools/extract-doc-commands.py linux --output build/replay-linux.sh
+          bash -n build/replay-linux.sh
+          python3 tools/extract-doc-commands.py macos --output build/replay-macos.sh
+          bash -n build/replay-macos.sh
+          python3 tools/extract-doc-commands.py windows --output build/replay-windows.ps1
+      - name: Licence check (Constitution VI, T156)
+        # Policy (MIT-compatible licences only, no GPL/AGPL/unknown) and up-to-date notices for
+        # the npm, engine and bundled-data sections; the native rows are fully re-verified where
+        # the core is built (release.yml).
+        run: python3 tools/licence-check.py --check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Parity matrix (SC-003, T157)
+        # Every row of docs/parity-matrix.md marked implemented names a command id that exists in
+        # the UI registry and is exercised by the listed Playwright journey.
+        run: node tools/parity-check.mjs
+
+  core:
+    name: core (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-22.04
+            preset: linux-core-release
+          - name: windows
+            os: windows-2025
+            preset: windows-core-release
+          - name: macos
+            os: macos-15
+            preset: macos-core-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config autoconf automake autoconf-archive libtool bison flex \
+            libgtk-3-dev libnss3 libasound2 xvfb file
+
+      - name: Install Ninja (Windows/macOS)
+        if: runner.os != 'Linux'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        run: brew install autoconf automake autoconf-archive libtool pkg-config
+
+      - name: Set up MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          vcpkgJsonGlob: vcpkg.json
+          runVcpkgInstall: false
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.vcpkg-cache
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ matrix.name }}-
+
+      - name: Configure
+        shell: bash
+        run: |
+          set -o pipefail
+          # vcpkg downloads occasionally fail with DNS errors on hosted runners: retry once.
+          cmake --preset ${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/configure.log" || \
+            { echo "::warning::configure failed once, retrying"; sleep 20; cmake --preset ${{ matrix.preset }} 2>&1 | tee -a "$RUNNER_TEMP/configure.log"; }
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      - name: Configure failure details
+        if: failure()
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/configure.log" "Configure"
+
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build --preset ${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/build.log"
+      - name: Build failure details
+        if: failure()
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build.log" "Build"
+
+      - name: Test
+        shell: bash
+        run: |
+          set -o pipefail
+          ctest --preset ${{ matrix.preset }} -LE corpus --output-on-failure 2>&1 | tee "$RUNNER_TEMP/ctest.log"
+      - name: Test failure details
+        if: failure()
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/ctest.log" "Unit tests"
+
+      - name: Upload core artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mfbe-core-${{ matrix.name }}
+          path: |
+            build/${{ matrix.preset }}/bin/
+          if-no-files-found: ignore
+
+  ui:
+    name: ui (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2025, macos-15]
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: i18n parity
+        if: runner.os == 'Linux'
+        # Catalogue parity (keys, plurals, placeholders), no untranslated Russian values, unique
+        # menu/dialog accelerators, and no literal UI strings in the React sources (T098, SC-004).
+        run: |
+          node ../tools/i18n-check.mjs --strict-identical --accelerators
+          node ../tools/i18n-literals.mjs
+      - name: Upload UI bundle
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mfbe-ui-dist
+          path: ui/dist/
+
+  e2e:
+    name: e2e (headless, Linux)
+    needs: [core, ui]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: mfbe-core-linux
+          path: build/linux-core-release/bin
+      - uses: actions/download-artifact@v4
+        with:
+          name: mfbe-ui-dist
+          path: ui/dist
+      - run: chmod +x build/linux-core-release/bin/* || true
+      - run: npm ci
+        working-directory: ui
+      - run: npx playwright install --with-deps chromium
+        working-directory: ui
+      - run: npm run test:e2e
+        working-directory: ui
+        env:
+          MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
+          MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+      - name: Script equivalence suite (142 converted packages; T127, SC-011)
+        # Every snapshot of tests/scripts/snapshots/suite.json through run-script.mjs against
+        # the release core (bundled scripts resolved from MFBE_SCRIPTS_SOURCE_DIR) and the built
+        # UI; fails on any snapshot difference or a package without a snapshot.
+        run: tests/scripts/run-all.sh --json build/script-suite-results.json
+        env:
+          MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
+          MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+      - name: Upload script suite results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: script-suite-results
+          path: build/script-suite-results.json
+          if-no-files-found: ignore
+      - name: Performance budgets (10 MB journeys; T150, SC-002)
+        # The 150 MB image book is a local/nightly run (tests/bench/README.md): hosted runners
+        # are slow and short on memory. Fails when a budget is exceeded.
+        run: tests/bench/run.sh --skip-150 --json
+        env:
+          MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
+          MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+          MFBE_BENCH_WORKDIR: ${{ runner.temp }}/mfbe-bench
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: tests/bench/results/
+          if-no-files-found: ignore
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: ui/playwright-report/
+          if-no-files-found: ignore
+
+  app:
+    name: app (CEF shell, ${{ matrix.name }})
+    needs: [core]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-22.04
+            preset: linux-app-release
+            cef: linux64
+          - name: windows
+            os: windows-2025
+            preset: windows-app-release
+            cef: windows64
+          - name: macos
+            os: macos-15
+            preset: macos-app-release
+            cef: macosarm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config autoconf automake autoconf-archive libtool bison flex \
+            libgtk-3-dev libnss3 libasound2 xvfb file rpm dpkg-dev patchelf
+
+      - name: Install Ninja (Windows/macOS)
+        if: runner.os != 'Linux'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        run: brew install autoconf automake autoconf-archive libtool pkg-config
+
+      - name: Set up MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install WiX Toolset (.NET tool)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          dotnet --list-sdks
+          $installed = (dotnet tool list --global) -match "^wix\s"
+          if ($installed) { dotnet tool update --global wix 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/wix.log" }
+          else { dotnet tool install --global wix 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/wix.log" }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          wix --version 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          $version = (wix --version).Trim()
+          $major = $version.Split('.')[0]
+          # WiX v7 asks every machine to acknowledge the Open Source Maintenance Fee EULA
+          # (https://wixtoolset.org/osmf/). The fee applies to organisations above the revenue
+          # threshold only; this independent open-source project is exempt and accepts the EULA.
+          if ([int]$major -ge 7) { wix eula accept "wix$major" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log" }
+          wix extension add -g "WixToolset.UI.wixext/$major.*" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          if ($LASTEXITCODE -ne 0) { wix extension add -g WixToolset.UI.wixext 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log" }
+          wix extension add -g "WixToolset.Util.wixext/$major.*" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          if ($LASTEXITCODE -ne 0) { wix extension add -g WixToolset.Util.wixext 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log" }
+          wix extension list -g 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: WiX failure details
+        if: failure() && runner.os == 'Windows'
+        shell: pwsh
+        run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP/wix.log" -Title "WiX install"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          vcpkgJsonGlob: vcpkg.json
+          runVcpkgInstall: false
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.vcpkg-cache
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ matrix.name }}-
+
+      - name: Cache CEF distribution
+        uses: actions/cache@v4
+        with:
+          path: third_party/downloads
+          key: cef-${{ hashFiles('cmake/CefVersion.cmake') }}-${{ matrix.cef }}
+
+      - name: Configure
+        shell: bash
+        run: |
+          set -o pipefail
+          # vcpkg downloads occasionally fail with DNS errors on hosted runners: retry once.
+          cmake --preset ${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/configure.log" || \
+            { echo "::warning::configure failed once, retrying"; sleep 20; cmake --preset ${{ matrix.preset }} 2>&1 | tee -a "$RUNNER_TEMP/configure.log"; }
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      - name: Configure failure details
+        if: failure()
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/configure.log" "Configure"
+
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build --preset ${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/build.log"
+      - name: Build failure details
+        if: failure()
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build.log" "Build"
+
+      # The shipped configuration is built without the test-only RPC hooks, so the core test
+      # suite (which drives them) runs in the `core` job; here the application is exercised.
+      - name: Version (Linux)
+        if: runner.os == 'Linux'
+        run: build/${{ matrix.preset }}/bin/mfbe --version
+
+      - name: Version (macOS)
+        if: runner.os == 'macOS'
+        run: build/${{ matrix.preset }}/bin/mfbe.app/Contents/MacOS/mfbe --version
+
+      - name: Shell smoke (Xvfb + CDP; real UI, file argument, About dialog)
+        if: runner.os == 'Linux'
+        run: |
+          (cd ui && npm ci && npx playwright install chromium)
+          tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
+          MFBE_SMOKE_ABOUT: "1"
+
+      - name: Installed tree (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cmake --install build/${{ matrix.preset }} --prefix "$RUNNER_TEMP/mfbe-prefix" --strip
+          "$RUNNER_TEMP/mfbe-prefix/bin/mfbe" --version
+          "$RUNNER_TEMP/mfbe-prefix/bin/mfbe-core" --version
+          test -f "$RUNNER_TEMP/mfbe-prefix/share/mfbe/ui/index.html"
+          test -f "$RUNNER_TEMP/mfbe-prefix/share/mfbe/resources/schema/FictionBook.xsd"
+
+      - name: Package
+        run: cpack --preset ${{ matrix.preset }}
+
+      - name: Package smoke (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -eux
+          ls -l build/${{ matrix.preset }}/packages/
+          image=$(ls build/${{ matrix.preset }}/packages/*.AppImage)
+          "$image" --appimage-extract-and-run --version
+          dpkg-deb -I build/${{ matrix.preset }}/packages/mfbe_*_amd64.deb
+          dpkg -x build/${{ matrix.preset }}/packages/mfbe_*_amd64.deb "$RUNNER_TEMP/deb" && "$RUNNER_TEMP/deb/usr/bin/mfbe" --version
+          rpm -qpi build/${{ matrix.preset }}/packages/mfbe-*.rpm && rpm -qp --scripts build/${{ matrix.preset }}/packages/mfbe-*.rpm | head -20
+          APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$image" MFBE_SMOKE_REAL_UI=1 \
+            MFBE_SMOKE_SCREENSHOT=build/shell-smoke-appimage.png tools/shell-smoke.sh
+
+      - name: Package smoke (Windows - install, associations, uninstall)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
+          Write-Host "Installing $msi (per machine, Program Files)"
+          $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /l*v $env:RUNNER_TEMP\install.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $env:RUNNER_TEMP\install.log -Tail 80; throw "msiexec install exit $($p.ExitCode)" }
+          $exe = Join-Path $env:ProgramFiles "Maxima Fiction Book Editor\bin\mfbe.exe"
+          if (-not (Test-Path $exe)) { throw "mfbe.exe not found at $exe" }
+          & $exe --version
+          # The renamed CEF bootstrap must carry the editor's own version info and icon
+          # (Start menu / Explorer show the executable's resources).
+          $vi = (Get-Item $exe).VersionInfo
+          if ($vi.ProductName -ne 'Maxima Fiction Book Editor') { throw "version info not stamped: ProductName='$($vi.ProductName)'" }
+          Add-Type -AssemblyName System.Drawing
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
+          if ($null -eq $icon -or $icon.Width -lt 16) { throw "the executable has no icon" }
+          Write-Host "version info: $($vi.ProductName) $($vi.ProductVersion); icon $($icon.Width)x$($icon.Height)"
+          $prog = (Get-ItemProperty HKLM:\Software\Classes\.fb2 -ErrorAction Stop).'(default)'
+          if ($prog -ne 'MaximaFBE.fb2') { throw ".fb2 is associated with '$prog'" }
+          $cmd = (Get-ItemProperty 'HKLM:\Software\Classes\MaximaFBE.fb2\shell\open\command').'(default)'
+          Write-Host "open command: $cmd"
+          if (-not (Test-Path 'HKLM:\Software\Classes\.fbd')) { throw ".fbd association missing" }
+          Write-Host "Uninstalling"
+          $u = Start-Process msiexec -ArgumentList "/x `"$msi`" /qn" -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "msiexec uninstall exit $($u.ExitCode)" }
+          if (Test-Path 'HKLM:\Software\Classes\.fb2') { throw ".fb2 association still present after uninstall" }
+          if (Test-Path $exe) { throw "mfbe.exe still present after uninstall" }
+
+      - name: Package smoke (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -eux
+          ls -l build/${{ matrix.preset }}/packages/
+          dmg=$(ls build/${{ matrix.preset }}/packages/*.dmg)
+          hdiutil attach "$dmg" -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly
+          codesign --verify --deep --strict "$RUNNER_TEMP/dmg/mfbe.app"
+          "$RUNNER_TEMP/dmg/mfbe.app/Contents/MacOS/mfbe" --version
+          hdiutil detach "$RUNNER_TEMP/dmg"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.name }}
+          path: |
+            build/${{ matrix.preset }}/packages/*.AppImage
+            build/${{ matrix.preset }}/packages/*.zsync
+            build/${{ matrix.preset }}/packages/*.deb
+            build/${{ matrix.preset }}/packages/*.rpm
+            build/${{ matrix.preset }}/packages/*.msi
+            build/${{ matrix.preset }}/packages/*.dmg
+            build/${{ matrix.preset }}/packages/*.sha256
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload shell smoke screenshots
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: shell-smoke
+          path: build/shell-smoke*.png
+          if-no-files-found: ignore

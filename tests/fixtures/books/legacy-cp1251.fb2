@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:xlink="http://www.w3.org/1999/xlink">
+<description>
+<document-info>
+<author><nickname>Старый конвертер</nickname></author>
+<date value="2005-03-01">1 марта 2005</date>
+<program-used>FB Tools 2.0</program-used>
+<id>legacy-0001</id>
+<version>1.1</version>
+</document-info>
+<title-info>
+<genre>prose_classic</genre>
+<genre match="50">poetry</genre>
+<author>
+<first-name>Антон</first-name>
+<middle-name>Павлович</middle-name>
+<last-name>Чехов</last-name>
+</author>
+<book-title>Старая книга</book-title>
+<annotation><p>Аннотация старой книги — так писали старые конвертеры.</p></annotation>
+<lang>ru</lang>
+<coverpage><image xlink:href="#cover.jpg"/></coverpage>
+<date>1890</date>
+<keywords>проза, рассказы</keywords>
+</title-info>
+<publish-info>
+<year>1999</year>
+<book-name>Старая книга (бумажное издание)</book-name>
+<publisher>Издательство «Пример»</publisher>
+<city>Москва</city>
+<isbn>5-00000-000-0</isbn>
+</publish-info>
+</description>
+<body>
+<title><p>Старая книга</p></title>
+<section id="s1">
+<title><p>Глава первая</p></title>
+<p>Первый абзац с <strong>жирным</strong> и <emphasis>курсивом</emphasis>, а также сноска<a xlink:href="#n_1" type="note">[1]</a>.</p>
+<p>Второй абзац: «ёлка», «Ёж», тире — и кавычки.</p>
+<empty-line/>
+<p>Третий абзац со ссылкой на <a xlink:href="http://example.org/">внешний ресурс</a>.</p>
+</section>
+<section>
+<title><p>Глава вторая</p></title>
+<section>
+<p>Вложенный раздел без заголовка.</p>
+</section>
+</section>
+</body>
+<body name="notes">
+<title><p>Примечания</p></title>
+<section id="n_1">
+<title><p>1</p></title>
+<p>Текст первой сноски.</p>
+</section>
+</body>
+<binary id="cover.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkI
+CQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQ
+EBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREA
+AhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUX
+ITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQV
+FiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0
+zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==
+</binary>
+</FictionBook>

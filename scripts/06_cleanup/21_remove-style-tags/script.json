@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "06/remove-style-tags",
+  "name": {
+    "en": "Remove style tags",
+    "ru": "Удаление тегов style"
+  },
+  "description": {
+    "en": "Removes every <style name=\"...\"> inline element from the book, keeping its text",
+    "ru": "Удаляет из книги все строчные элементы <style name=\"...\">, оставляя их текст"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Remove style tags",
+    "ru": "Удаление тегов style"
+  },
+  "legacy": {
+    "source": "06_Чистка/21_Удаление тегов style.js",
+    "fbeVersion": "2.7"
+  }
+}

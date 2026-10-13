@@ -1,0 +1,34 @@
+{
+  "dialog": {
+    "words": {
+      "analyzing": "Analysing the words of the book...",
+      "analyzeFailed": "The words could not be analysed: {{reason}}",
+      "noDocument": "Open a book first.",
+      "empty": "No words found.",
+      "summary": "{{distinct}} distinct words, {{total}} in total ({{duration}} ms)",
+      "visibleRows_one": "{{count}} word shown",
+      "visibleRows_other": "{{count}} words shown",
+      "hiddenExclusions_one": "{{count}} exclusion hidden",
+      "hiddenExclusions_other": "{{count}} exclusions hidden",
+      "columns": {
+        "highlight": "Highlight",
+        "replaced": "Replace",
+        "state": "State"
+      },
+      "states": {
+        "normal": "Normal",
+        "highlighted": "Highlighted",
+        "replaced": "Replaced",
+        "excluded": "Excluded"
+      },
+      "editReplacement": "Edit the replacement of \"{{word}}\"",
+      "toggleExclusion": "Toggle the exclusion of \"{{word}}\"",
+      "toggleHighlight": "Highlight \"{{word}}\"",
+      "toggleReplaced": "Replace \"{{word}}\"",
+      "sortBy": "Sort by {{column}}",
+      "nothingToReplace": "No replacement was marked: nothing to do.",
+      "exclusionsRejected": "These words cannot be added to the exclusion list (letters and a single inner '-' only):\n{{words}}",
+      "noCurrentWord": "Select a word in the list first."
+    }
+  }
+}

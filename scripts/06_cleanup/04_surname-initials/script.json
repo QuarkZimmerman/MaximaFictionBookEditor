@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "06/surname-initials",
+  "name": {
+    "en": "Surname I. O.",
+    "ru": "Фамилия И. О."
+  },
+  "description": {
+    "en": "Interactively joins initials and surnames (И.О.Фамилия, Фамилия И. О., Пётр I) with non-breaking spaces, starting at the caret; remembers accepted and rejected proposals",
+    "ru": "Интерактивно соединяет инициалы и фамилии (И.О.Фамилия, Фамилия И. О., Пётр I) неразрывными пробелами, начиная от курсора; запоминает принятые и отклонённые варианты"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Surname I. O.",
+    "ru": "«Фамилия И.О.»"
+  },
+  "legacy": {
+    "source": "06_Чистка/04_Фамилия И. О..js",
+    "fbeVersion": "2.7"
+  }
+}

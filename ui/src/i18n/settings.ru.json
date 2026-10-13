@@ -1,0 +1,67 @@
+{
+  "dialog": {
+    "settings": {
+      "loading": "Загрузка настроек...",
+      "unavailable": "Настройки недоступны: ядро редактора не подключено.",
+      "browse": "Обзор...",
+      "invalidField": "Недопустимое значение поля \"{{field}}\": {{reason}}",
+      "rangeError": "{{field}}: требуется целое число от {{min}} до {{max}}.",
+      "colorError": "{{field}}: требуется цвет вида #rrggbb.",
+      "view": {
+        "languageSystem": "Как в системе",
+        "languageEn": "Английский",
+        "languageRu": "Русский",
+        "fontDefault": "Шрифт по умолчанию",
+        "fontFamily": "Гарнитура",
+        "sourceFontSize": "Размер:",
+        "fontSizeHint": "Пункты (6-96)",
+        "customDictionaryFilter": "Словари Hunspell",
+        "chooseDictionary": "Выберите пользовательский словарь"
+      },
+      "other": {
+        "openScriptsFolder": "Открыть папку скриптов",
+        "customFolder": "Своя папка:",
+        "chooseGenresFolder": "Укажите папку жанров",
+        "genreSources": "Действующий список жанров: {{sources}}",
+        "genreSourcesUnknown": "Действующий список жанров: недоступен (ядро не подключено)",
+        "genreSourceStandard": "стандартный список ({{count}})",
+        "genreSourceLayer": "{{file}} из слоя {{layer}} ({{count}})",
+        "genreIssues_one": "{{count}} ошибка в пользовательских файлах жанров (см. журнал).",
+        "genreIssues_few": "{{count}} ошибки в пользовательских файлах жанров (см. журнал).",
+        "genreIssues_many": "{{count}} ошибок в пользовательских файлах жанров (см. журнал).",
+        "genreIssues_other": "{{count}} ошибки в пользовательских файлах жанров (см. журнал).",
+        "nbspChars": {
+          "degree": "Знак градуса (°)",
+          "square": "Белый квадрат (□)",
+          "smallSquare": "Малый белый квадрат (▫)",
+          "bullet": "Белый маркер (◦)",
+          "space": "Обычный пробел (невидимый)"
+        }
+      },
+      "hotkeys": {
+        "capturePlaceholder": "Нажмите новое сочетание клавиш",
+        "current": "Текущее сочетание:",
+        "noDescription": "Описание отсутствует.",
+        "groupHelp": "Справка",
+        "notPersisted": "Сочетания действуют в этом сеансе, но ядро не смогло их сохранить."
+      },
+      "words": {
+        "newWord": "Новое слово-исключение",
+        "counted": "Вхождений в открытой книге",
+        "noDocument": "—",
+        "empty": "Список исключений пуст.",
+        "removeConfirm_one": "Убрать из списка исключений {{count}} слово?",
+        "removeConfirm_few": "Убрать из списка исключений {{count}} слова?",
+        "removeConfirm_many": "Убрать из списка исключений {{count}} слов?",
+        "removeConfirm_other": "Убрать из списка исключений {{count}} слова?"
+      }
+    }
+  },
+  "msg": {
+    "settingsSaved": "Настройки сохранены.",
+    "settingsSaveFailed": "Не удалось сохранить настройки: {{reason}}",
+    "openFolderUnavailable": "Папку нельзя открыть отсюда. Она находится здесь:\n{{path}}",
+    "openFolderFailed": "Не удалось открыть папку: {{reason}}",
+    "hotkeysApplied": "Сочетания клавиш обновлены."
+  }
+}

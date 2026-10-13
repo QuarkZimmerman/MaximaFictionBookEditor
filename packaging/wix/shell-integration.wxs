@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Windows shell integration of the Maxima Fiction Book Editor MSI (T142, FR-121):
+
+    * ProgIds MaximaFBE.fb2 / MaximaFBE.fbd with the editor's icon and "Open" / "Edit" verbs,
+    * the .fb2 / .fbd extensions bound to those ProgIds (plus OpenWithProgids so the editor is
+      offered in "Open with" even when another program owns the extension),
+    * Default Programs registration (Capabilities + RegisteredApplications) so the editor can
+      be chosen in Settings > Default apps.
+
+  Root="HKMU" resolves to HKLM for this per-machine package (see mfbe.template.in), so the
+  associations apply to every user of the machine. Every value belongs to a component of the root
+  feature (feature.patch.xml), so Windows Installer removes all of them on uninstall and
+  MajorUpgrade keeps them across upgrades. Plain registry values are used instead of
+  advertised ProgId/Extension elements to avoid MSI self-repair on double-click. Explorer's
+  icon cache is refreshed by the application itself (SHChangeNotify on its first start after
+  an installation, see app/src/native_actions.cpp).
+
+  Compiled by CPack through CPACK_WIX_EXTRA_SOURCES; INSTALL_ROOT is the directory id CPack
+  generates for the installation folder (…\Maxima Fiction Book Editor\), the executable is
+  bin\mfbe.exe (cmake/InstallLayout.cmake).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Fragment>
+    <ComponentGroup Id="MfbeShellIntegration" Directory="INSTALL_ROOT">
+
+      <!-- ProgId for .fb2 -->
+      <Component Id="MfbeProgIdFb2" Guid="45AF2997-26FA-4CEF-A91D-45E9CFB5647B">
+        <RegistryKey Root="HKMU" Key="Software\Classes\MaximaFBE.fb2">
+          <RegistryValue Type="string" Value="FictionBook 2 e-book" KeyPath="yes"/>
+          <RegistryValue Name="FriendlyTypeName" Type="string" Value="FictionBook 2 e-book"/>
+          <RegistryKey Key="DefaultIcon">
+            <RegistryValue Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot;,0"/>
+          </RegistryKey>
+          <RegistryKey Key="shell">
+            <RegistryValue Type="string" Value="open"/>
+            <RegistryKey Key="open">
+              <RegistryValue Type="string" Value="Open"/>
+              <RegistryKey Key="command">
+                <RegistryValue Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot; &quot;%1&quot;"/>
+              </RegistryKey>
+            </RegistryKey>
+            <RegistryKey Key="edit">
+              <RegistryValue Type="string" Value="Edit"/>
+              <RegistryKey Key="command">
+                <RegistryValue Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot; &quot;%1&quot;"/>
+              </RegistryKey>
+            </RegistryKey>
+          </RegistryKey>
+        </RegistryKey>
+      </Component>
+
+      <!-- ProgId for .fbd -->
+      <Component Id="MfbeProgIdFbd" Guid="C3E9B8B0-0793-40E1-9679-670E4229C1C2">
+        <RegistryKey Root="HKMU" Key="Software\Classes\MaximaFBE.fbd">
+          <RegistryValue Type="string" Value="FictionBook 2 description" KeyPath="yes"/>
+          <RegistryValue Name="FriendlyTypeName" Type="string" Value="FictionBook 2 description"/>
+          <RegistryKey Key="DefaultIcon">
+            <RegistryValue Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot;,0"/>
+          </RegistryKey>
+          <RegistryKey Key="shell">
+            <RegistryValue Type="string" Value="open"/>
+            <RegistryKey Key="open">
+              <RegistryValue Type="string" Value="Open"/>
+              <RegistryKey Key="command">
+                <RegistryValue Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot; &quot;%1&quot;"/>
+              </RegistryKey>
+            </RegistryKey>
+            <RegistryKey Key="edit">
+              <RegistryValue Type="string" Value="Edit"/>
+              <RegistryKey Key="command">
+                <RegistryValue Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot; &quot;%1&quot;"/>
+              </RegistryKey>
+            </RegistryKey>
+          </RegistryKey>
+        </RegistryKey>
+      </Component>
+
+      <!-- Extensions -->
+      <Component Id="MfbeExtensionFb2" Guid="6C16B187-2932-4DF1-84BF-44D9AABB785E">
+        <RegistryKey Root="HKMU" Key="Software\Classes\.fb2">
+          <RegistryValue Type="string" Value="MaximaFBE.fb2" KeyPath="yes"/>
+          <RegistryValue Name="Content Type" Type="string" Value="application/x-fictionbook+xml"/>
+          <RegistryValue Name="PerceivedType" Type="string" Value="document"/>
+          <RegistryKey Key="OpenWithProgids">
+            <RegistryValue Name="MaximaFBE.fb2" Type="string" Value=""/>
+          </RegistryKey>
+        </RegistryKey>
+      </Component>
+      <Component Id="MfbeExtensionFbd" Guid="34BA076B-5911-494E-A8E2-2580B86E72AE">
+        <RegistryKey Root="HKMU" Key="Software\Classes\.fbd">
+          <RegistryValue Type="string" Value="MaximaFBE.fbd" KeyPath="yes"/>
+          <RegistryValue Name="Content Type" Type="string" Value="application/x-fictionbook+xml"/>
+          <RegistryValue Name="PerceivedType" Type="string" Value="document"/>
+          <RegistryKey Key="OpenWithProgids">
+            <RegistryValue Name="MaximaFBE.fbd" Type="string" Value=""/>
+          </RegistryKey>
+        </RegistryKey>
+      </Component>
+
+      <!-- Application registration: "Open with" entry and Default Programs capabilities -->
+      <Component Id="MfbeApplicationRegistration" Guid="55F3DCC0-F497-40BB-A334-764BD37F11DE">
+        <RegistryKey Root="HKMU" Key="Software\Classes\Applications\mfbe.exe">
+          <RegistryValue Name="FriendlyAppName" Type="string" Value="Maxima Fiction Book Editor" KeyPath="yes"/>
+          <RegistryKey Key="SupportedTypes">
+            <RegistryValue Name=".fb2" Type="string" Value=""/>
+            <RegistryValue Name=".fbd" Type="string" Value=""/>
+          </RegistryKey>
+          <RegistryKey Key="shell\open\command">
+            <RegistryValue Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot; &quot;%1&quot;"/>
+          </RegistryKey>
+        </RegistryKey>
+        <RegistryKey Root="HKMU" Key="Software\Maxima Fiction Book Editor\Capabilities">
+          <RegistryValue Name="ApplicationName" Type="string" Value="Maxima Fiction Book Editor"/>
+          <RegistryValue Name="ApplicationDescription" Type="string" Value="Editor for FictionBook 2 (.fb2/.fbd) e-books"/>
+          <RegistryValue Name="ApplicationIcon" Type="string" Value="&quot;[INSTALL_ROOT]bin\mfbe.exe&quot;,0"/>
+          <RegistryKey Key="FileAssociations">
+            <RegistryValue Name=".fb2" Type="string" Value="MaximaFBE.fb2"/>
+            <RegistryValue Name=".fbd" Type="string" Value="MaximaFBE.fbd"/>
+          </RegistryKey>
+          <RegistryKey Key="MimeAssociations">
+            <RegistryValue Name="application/x-fictionbook+xml" Type="string" Value="MaximaFBE.fb2"/>
+          </RegistryKey>
+        </RegistryKey>
+        <RegistryKey Root="HKMU" Key="Software\RegisteredApplications">
+          <RegistryValue Name="Maxima Fiction Book Editor" Type="string" Value="Software\Maxima Fiction Book Editor\Capabilities"/>
+        </RegistryKey>
+        <!-- App Paths: `mfbe` resolves from Run dialogs and ShellExecute. -->
+        <RegistryKey Root="HKMU" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\mfbe.exe">
+          <RegistryValue Type="string" Value="[INSTALL_ROOT]bin\mfbe.exe"/>
+          <RegistryValue Name="Path" Type="string" Value="[INSTALL_ROOT]bin"/>
+        </RegistryKey>
+      </Component>
+
+    </ComponentGroup>
+  </Fragment>
+</Wix>

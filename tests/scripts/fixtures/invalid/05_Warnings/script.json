@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test.invalid.warnings",
+  "name": {
+    "en": "Warnings only"
+  },
+  "icon": "nope.png",
+  "defaultHotkey": "Ctrl+Alt+Nope",
+  "needsSelection": "yes"
+}

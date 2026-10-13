@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "02/unify-footnotes",
+  "name": {
+    "en": "Unify footnotes",
+    "ru": "Унификация сносок"
+  },
+  "description": {
+    "en": "Renumbers the footnote sections (ids n_N, titles N) and the links that point to them ([N])",
+    "ru": "Перенумеровывает секции примечаний (id n_N, заголовки N) и ссылки на них ([N])"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Unify footnotes",
+    "ru": "Унификация сносок"
+  },
+  "legacy": {
+    "source": "02_Добавление примечания/04_Унификация сносок.js",
+    "fbeVersion": "2.7"
+  }
+}

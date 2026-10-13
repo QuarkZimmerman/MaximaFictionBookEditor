@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "02/add-last-footnote-with-text",
+  "name": {
+    "en": "Add the last footnote, entering its text in a dialog",
+    "ru": "Добавить последнюю сноску, введя ее текст в окошке"
+  },
+  "description": {
+    "en": "Inserts the last footnote link at the caret and appends the note section with the text entered in a prompt",
+    "ru": "Вставляет ссылку последней сноски в позиции курсора и добавляет в конец секцию примечания с текстом, введенным в окошке"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Add the last footnote, entering its text in a dialog",
+    "ru": "Добавить последнюю сноску, введя ее текст в окошке"
+  },
+  "legacy": {
+    "source": "02_Добавление примечания/06_Добавить последнюю сноску, введя ее текст в окошке.js",
+    "fbeVersion": "2.7"
+  }
+}

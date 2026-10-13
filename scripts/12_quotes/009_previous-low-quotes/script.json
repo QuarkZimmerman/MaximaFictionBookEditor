@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "12/previous-low-quotes",
+  "name": {
+    "en": "Go to previous low quotes",
+    "ru": "Переход на пред. лапки"
+  },
+  "description": {
+    "en": "Moves the caret to the previous low/high quote („“”) and selects it; at the beginning of the book offers to continue from the end",
+    "ru": "Переводит курсор на предыдущую лапку („“”) и выделяет её; в начале книги предлагает продолжить с конца"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to previous low quotes",
+    "ru": "Переход на пред. лапки"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/009_Переход на пред. лапки.js",
+    "fbeVersion": "2.7"
+  },
+  "icon": "icon.png"
+}

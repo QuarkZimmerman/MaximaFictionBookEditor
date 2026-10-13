@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "01/lower-case",
+  "name": {
+    "en": "Lower case",
+    "ru": "Нижний регистр"
+  },
+  "description": {
+    "en": "Converts the selected text (or the word under the caret) to lower case, keeping the formatting",
+    "ru": "Переводит выделенный текст (или слово под курсором) в нижний регистр, сохраняя форматирование"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Lower case",
+    "ru": "Нижний регистр"
+  },
+  "legacy": {
+    "source": "01_Регистр/02_Нижний регистр.js",
+    "fbeVersion": "2.7"
+  }
+}

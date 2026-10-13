@@ -1,0 +1,15 @@
+#!/bin/sh
+# AppRun of the Maxima Fiction Book Editor AppImage (packaging/appimage/build.sh copies it to
+# the AppDir root). The AppImage runtime mounts the image and sets APPDIR/APPIMAGE/OWD before
+# running this script.
+#
+# - The real executable lives in usr/lib/mfbe next to libcef.so (RPATH $ORIGIN); nothing else
+#   needs LD_LIBRARY_PATH, and leaving it untouched keeps bundled libraries out of programs the
+#   editor launches (xdg-open, the file manager, the browser).
+# - Portable folder: the core reads $APPIMAGE and looks for <image>.home/user,
+#   <image>.d/user or <image>.d next to the .AppImage file (contracts/resource-formats.md §2).
+# - Sandbox: no SUID helper can exist inside an AppImage; the shell probes unprivileged user
+#   namespaces at start and disables the Chromium sandbox itself (logged) only when they are
+#   unavailable (app/src/sandbox_check.cpp), so no --no-sandbox is needed here.
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/lib/mfbe/mfbe" "$@"

@@ -1,0 +1,153 @@
+# Maxima Fiction Book Editor - FB2 genre display names (English).
+# Format: one genre per line, three TAB-separated fields:
+#   category<TAB>code<TAB>name
+# 'category' is the English title of the group the genre is listed under
+# (see categories.tsv for the stable category keys); 'code' is the FB2
+# genre code (FictionBookGenres.xsd); 'name' is the display name.
+# A code may appear under several categories (cross-listing); category
+# and genre order follow the original lists. Lines starting with '#' are
+# comments. UTF-8, LF.
+#
+# Derived from the original FictionBook Editor 2.7 sources,
+# file(s) FBE/genres.txt, by tools/resources-import/import_genres.py.
+# Do not edit by hand - rerun the script instead.
+SF, Fantasy	sf_history	Alternative history
+SF, Fantasy	sf_action	Action SF
+SF, Fantasy	sf_epic	Epic SF
+SF, Fantasy	sf_heroic	Heroic SF
+SF, Fantasy	sf_detective	Detective SF
+SF, Fantasy	sf_cyberpunk	Cyberpunk
+SF, Fantasy	sf_space	Space SF
+SF, Fantasy	sf_social	Social SF
+SF, Fantasy	sf_horror	Horror & Mystic
+SF, Fantasy	sf_humor	Humor SF
+SF, Fantasy	sf_fantasy	Fantasy
+SF, Fantasy	sf	Science Fiction
+SF, Fantasy	child_sf	Science Fiction for Kids
+SF, Fantasy	love_sf	Love
+Detectives, Thrillers	det_classic	Classical Detective
+Detectives, Thrillers	det_police	Police Stories
+Detectives, Thrillers	det_action	Action
+Detectives, Thrillers	det_irony	Ironical Detective
+Detectives, Thrillers	det_history	Historical Detective
+Detectives, Thrillers	det_espionage	Espionage Detective
+Detectives, Thrillers	det_crime	Crime Detective
+Detectives, Thrillers	det_political	Political Detective
+Detectives, Thrillers	det_maniac	Maniacs
+Detectives, Thrillers	det_hard	Hard-boiled Detective
+Detectives, Thrillers	thriller	Thrillers
+Detectives, Thrillers	detective	Detective
+Detectives, Thrillers	sf_detective	Detective SF
+Detectives, Thrillers	child_det	Detectives & Thrillers
+Detectives, Thrillers	love_detective	Detective Romance
+Prose	prose_classic	Classics Prose
+Prose	prose_history	Historical Prose
+Prose	prose_contemporary	Contemporary Prose
+Prose	prose_counter	Counterculture
+Prose	prose_rus_classic	Russian Classics
+Prose	prose_su_classics	Soviet Classics
+Prose	prose_military	Military
+Prose	humor_prose	Humor Prose
+Prose	child_prose	Prose
+Romance	love_contemporary	Contemporary Romance
+Romance	love_history	Historical Romance
+Romance	love_detective	Detective Romance
+Romance	love_short	Short Romance
+Romance	love_erotica	Erotica
+Romance	love_sf	Science Fiction
+Adventure	adv_western	Western
+Adventure	adv_history	History
+Adventure	adv_indian	Indians
+Adventure	adv_maritime	Maritime Fiction
+Adventure	adv_geo	Travel & Geography
+Adventure	adv_animal	Nature & Animals
+Adventure	adventure	Misc Adventures
+Adventure	child_adv	Adventures for Kids
+Children's	child_tale	Fairy Tales
+Children's	child_verse	Verses
+Children's	child_prose	Prose for Kids
+Children's	child_sf	Science Fiction for Kids
+Children's	child_det	Detectives & Thrillers
+Children's	child_adv	Adventures for Kids
+Children's	child_education	Education for Kids
+Children's	children	For Kids: Misc
+Poetry, Dramaturgy	poetry	Poetry
+Poetry, Dramaturgy	dramaturgy	Dramaturgy
+Poetry, Dramaturgy	humor_verse	Humor Verses
+Poetry, Dramaturgy	child_verse	Verses
+Antique	antique_ant	Antique Literature
+Antique	antique_european	European Literature
+Antique	antique_russian	Antique Russian Literature
+Antique	antique_east	Antique East Literature
+Antique	antique_myths	Myths. Legends. Epos
+Antique	antique	Other Antique
+Science, Education	sci_history	History
+Science, Education	sci_psychology	Psychology
+Science, Education	sci_culture	Cultural Science
+Science, Education	sci_religion	Religious Studies
+Science, Education	sci_philosophy	Philosophy
+Science, Education	sci_politics	Politics
+Science, Education	sci_juris	Jurisprudence
+Science, Education	sci_linguistic	Linguistics
+Science, Education	sci_medicine	Medicine
+Science, Education	sci_phys	Physics
+Science, Education	sci_math	Mathematics
+Science, Education	sci_chem	Chemistry
+Science, Education	sci_biology	Biology
+Science, Education	sci_tech	Technical
+Science, Education	science	Misc Science, Education
+Science, Education	adv_animal	Nature & Animals
+Computers	comp_www	Internet
+Computers	comp_programming	Programming
+Computers	comp_hard	Hardware
+Computers	comp_soft	Software
+Computers	comp_db	Databases
+Computers	comp_osnet	OS & Networking
+Computers	computers	Computers: Misc
+Reference	ref_encyc	Encyclopedias
+Reference	ref_dict	Dictionaries
+Reference	ref_ref	Reference
+Reference	ref_guide	Guidebooks
+Reference	reference	Misc References
+Nonfiction	nonf_biography	Biography & Memoirs
+Nonfiction	nonf_publicism	Publicism
+Nonfiction	nonf_criticism	Criticism
+Nonfiction	nonfiction	Misc Nonfiction
+Nonfiction	design	Art, Design
+Nonfiction	adv_animal	Nature & Animals
+Religion	religion_rel	Religion
+Religion	religion_esoterics	Esoterics
+Religion	religion_self	Self-perfection
+Religion	religion	Religion: Other
+Religion	sci_religion	Religious Studies
+Humor	humor_anecdote	Anecdote
+Humor	humor_prose	Humor Prose
+Humor	humor_verse	Humor Verses
+Humor	humor	Misc Humor
+Home, Family	home_cooking	Cooking
+Home, Family	home_pets	Pets
+Home, Family	home_crafts	Hobbies & Crafts
+Home, Family	home_entertain	Entertaining
+Home, Family	home_health	Health
+Home, Family	home_garden	Garden
+Home, Family	home_diy	Do it yourself
+Home, Family	home_sport	Sports
+Home, Family	home_sex	Erotica, Sex
+Home, Family	home	Home: Other
+Home, Family	geo_guides	Geo guides
+Economy, Business	job_hunting	Job Hunting
+Economy, Business	management	Management
+Economy, Business	marketing	Marketing
+Economy, Business	banking	Banking
+Economy, Business	stock	Stock
+Economy, Business	accounting	Accounting
+Economy, Business	global_economy	Global Economy
+Economy, Business	economics	Economics
+Economy, Business	industries	Industries
+Economy, Business	org_behavior	Corporate Culture
+Economy, Business	personal_finance	Personal Finance
+Economy, Business	real_estate	Real Estate
+Economy, Business	popular_business	Popular Business
+Economy, Business	small_business	Small Business
+Economy, Business	paper_work	Paper Work
+Economy, Business	economics_ref	Economics Reference Book

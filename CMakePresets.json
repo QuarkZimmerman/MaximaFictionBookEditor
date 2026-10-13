@@ -1,0 +1,167 @@
+{
+  "version": 8,
+  "cmakeMinimumRequired": { "major": 3, "minor": 30, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/vcpkg_installed"
+      }
+    },
+    {
+      "name": "linux-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-linux" }
+    },
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "architecture": { "value": "x64", "strategy": "external" },
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-windows-static-md" }
+    },
+    {
+      "name": "macos-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" },
+      "cacheVariables": { "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0" }
+    },
+
+    {
+      "name": "linux-core-debug",
+      "displayName": "Linux - core + tests (Debug, test hooks on)",
+      "inherits": "linux-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "MFBE_BUILD_TESTS": "ON",
+        "MFBE_TEST_HOOKS": "ON",
+        "MFBE_BUILD_APP": "OFF",
+        "MFBE_BUILD_UI": "OFF"
+      }
+    },
+    {
+      "name": "linux-core-release",
+      "displayName": "Linux - core + tests (Release)",
+      "inherits": "linux-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MFBE_BUILD_TESTS": "ON",
+        "MFBE_TEST_HOOKS": "ON",
+        "MFBE_BUILD_APP": "OFF",
+        "MFBE_BUILD_UI": "OFF"
+      }
+    },
+    {
+      "name": "linux-app-release",
+      "displayName": "Linux - full application (Release)",
+      "inherits": "linux-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MFBE_BUILD_TESTS": "ON",
+        "MFBE_TEST_HOOKS": "OFF",
+        "MFBE_BUILD_APP": "ON",
+        "MFBE_BUILD_UI": "ON"
+      }
+    },
+    {
+      "name": "linux-app-debug",
+      "displayName": "Linux - full application (Debug, test hooks on, CDP smoke)",
+      "inherits": "linux-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "MFBE_BUILD_TESTS": "ON",
+        "MFBE_TEST_HOOKS": "ON",
+        "MFBE_BUILD_APP": "ON",
+        "MFBE_BUILD_UI": "ON"
+      }
+    },
+    {
+      "name": "windows-core-release",
+      "displayName": "Windows - core + tests (Release)",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MFBE_BUILD_TESTS": "ON",
+        "MFBE_TEST_HOOKS": "ON",
+        "MFBE_BUILD_APP": "OFF",
+        "MFBE_BUILD_UI": "OFF"
+      }
+    },
+    {
+      "name": "windows-app-release",
+      "displayName": "Windows - full application (Release)",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MFBE_BUILD_TESTS": "ON",
+        "MFBE_TEST_HOOKS": "OFF",
+        "MFBE_BUILD_APP": "ON",
+        "MFBE_BUILD_UI": "ON"
+      }
+    },
+    {
+      "name": "macos-core-release",
+      "displayName": "macOS - core + tests (Release)",
+      "inherits": "macos-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MFBE_BUILD_TESTS": "ON",
+        "MFBE_TEST_HOOKS": "ON",
+        "MFBE_BUILD_APP": "OFF",
+        "MFBE_BUILD_UI": "OFF"
+      }
+    },
+    {
+      "name": "macos-app-release",
+      "displayName": "macOS - full application (Release)",
+      "inherits": "macos-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MFBE_BUILD_TESTS": "ON",
+        "MFBE_TEST_HOOKS": "OFF",
+        "MFBE_BUILD_APP": "ON",
+        "MFBE_BUILD_UI": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "linux-core-debug", "configurePreset": "linux-core-debug" },
+    { "name": "linux-core-release", "configurePreset": "linux-core-release" },
+    { "name": "linux-app-release", "configurePreset": "linux-app-release" },
+    { "name": "linux-app-debug", "configurePreset": "linux-app-debug" },
+    { "name": "windows-core-release", "configurePreset": "windows-core-release" },
+    { "name": "windows-app-release", "configurePreset": "windows-app-release" },
+    { "name": "macos-core-release", "configurePreset": "macos-core-release" },
+    { "name": "macos-app-release", "configurePreset": "macos-app-release" }
+  ],
+  "testPresets": [
+    {
+      "name": "test-base",
+      "hidden": true,
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error", "stopOnFailure": false }
+    },
+    { "name": "linux-core-debug", "inherits": "test-base", "configurePreset": "linux-core-debug" },
+    { "name": "linux-core-release", "inherits": "test-base", "configurePreset": "linux-core-release" },
+    { "name": "linux-app-release", "inherits": "test-base", "configurePreset": "linux-app-release" },
+    { "name": "linux-app-debug", "inherits": "test-base", "configurePreset": "linux-app-debug" },
+    { "name": "windows-core-release", "inherits": "test-base", "configurePreset": "windows-core-release" },
+    { "name": "windows-app-release", "inherits": "test-base", "configurePreset": "windows-app-release" },
+    { "name": "macos-core-release", "inherits": "test-base", "configurePreset": "macos-core-release" },
+    { "name": "macos-app-release", "inherits": "test-base", "configurePreset": "macos-app-release" }
+  ],
+  "packagePresets": [
+    { "name": "linux-app-release", "configurePreset": "linux-app-release", "generators": ["DEB", "RPM", "External"] },
+    { "name": "windows-app-release", "configurePreset": "windows-app-release", "generators": ["WIX"] },
+    { "name": "macos-app-release", "configurePreset": "macos-app-release", "generators": ["DragNDrop"] }
+  ]
+}

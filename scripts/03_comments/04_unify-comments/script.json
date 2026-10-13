@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "03/unify-comments",
+  "name": {
+    "en": "Unify comments",
+    "ru": "Унификация комментариев"
+  },
+  "description": {
+    "en": "Renumbers the comment sections (ids c_N, titles N) and the links that point to them ({N})",
+    "ru": "Перенумеровывает секции комментариев (id c_N, заголовки N) и ссылки на них ({N})"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Unify comments",
+    "ru": "Унификация комментариев"
+  },
+  "legacy": {
+    "source": "03_Добавление комментария/04_Унификация комментариев.js",
+    "fbeVersion": "2.7"
+  }
+}

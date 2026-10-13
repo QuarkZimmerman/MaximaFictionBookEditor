@@ -1,0 +1,110 @@
+{
+  "$comment": "Description forms (US3, T075-T077). Labels follow the original editor's eng.xsl.",
+  "descriptionForm": {
+    "undoLabel": "Description edit",
+    "required": "Required field",
+    "remove": "Remove",
+    "add": "Add",
+    "authors": "Authors",
+    "translators": "Translators",
+    "sequences": "Sequences",
+    "documentAuthors": "Document authors",
+    "publishers": "Publishers",
+    "keywords": "Keywords:",
+    "noPersons": "No entries. Use \"Add\" to enter a person.",
+    "noSequences": "No sequences.",
+    "extrasNote_one": "{{count}} preserved element of the description (output instructions or unknown elements) is kept as is and can be edited in the Source view.",
+    "extrasNote_other": "{{count}} preserved elements of the description (output instructions or unknown elements) are kept as is and can be edited in the Source view.",
+    "person": {
+      "first": "First:",
+      "middle": "Middle:",
+      "last": "Last:",
+      "nickname": "Nickname:",
+      "id": "Author ID:",
+      "homePage": "Website:",
+      "email": "E-mail:",
+      "incomplete": "Enter a first and last name, or a nickname alone; otherwise the entry is not valid."
+    },
+    "sequence": {
+      "name": "Name:",
+      "number": "Number:",
+      "nested": "nested",
+      "addNested": "Add a nested sequence",
+      "unnamed": "A sequence needs a name"
+    },
+    "date": {
+      "text": "Date text:",
+      "value": "Date value:",
+      "invalid": "Use the form YYYY-MM-DD",
+      "placeholder": "YYYY-MM-DD",
+      "today": "Today"
+    },
+    "language": {
+      "none": "(not set)",
+      "code": "code",
+      "freeText": "Language code (free text when the language is not in the list)"
+    },
+    "genres": {
+      "title": "Genres",
+      "genre": "Genre:",
+      "match": "Match (%):",
+      "add": "Add genre...",
+      "choose": "Choose another genre",
+      "none": "No genres. At least one genre is required.",
+      "unknown": "not in the genre list (kept as is)",
+      "pickerCaption": "Choose a genre",
+      "filter": "Filter:",
+      "summary": "Effective list: {{count}} genres, {{extensions}} extension file(s).",
+      "fileIssues_one": "{{count}} problem in user genre files (see Settings).",
+      "fileIssues_other": "{{count}} problems in user genre files (see Settings).",
+      "sourceUser": "user",
+      "sourceBundled": "extension"
+    },
+    "cover": {
+      "title": "Coverpage",
+      "image": "Image:",
+      "add": "Add cover...",
+      "choose": "Choose another image",
+      "none": "No cover page images.",
+      "missing": "missing",
+      "dangling": "The referenced binary object does not exist",
+      "hrefText": "Reference (#binary id or external URL)",
+      "pickerCaption": "Choose a cover image",
+      "addFile": "Add file...",
+      "noBinaries": "The document has no image binaries yet. Use \"Add file...\"."
+    },
+    "id": {
+      "new": "new",
+      "generate": "Generate a new document ID",
+      "warning": "Are you sure you want to generate a new ID?\n\nThis will affect library submission.\nPrevious value will be lost!"
+    },
+    "srcTitleInfo": {
+      "add": "Add source title info",
+      "remove": "Remove source title info",
+      "hint": "For translations: the original book's title, authors and language."
+    },
+    "custom": {
+      "none": "No custom info.",
+      "type": "Type:",
+      "value": "Value:",
+      "add": "Add custom info",
+      "untyped": "A custom info element needs a type"
+    },
+    "binaries": {
+      "add": "Add binary object...",
+      "none": "The document has no binary objects.",
+      "dangling_one": "{{count}} image reference points to a missing binary object:",
+      "dangling_other": "{{count}} image references point to missing binary objects:",
+      "id": "Id",
+      "contentType": "Content type",
+      "size": "Size",
+      "dimensions": "Dimensions",
+      "references": "References",
+      "noPreview": "no preview",
+      "unreferenced": "not referenced",
+      "removeReferenced_one": "The binary object \"{{id}}\" is still referenced {{count}} time. Remove it anyway?",
+      "removeReferenced_other": "The binary object \"{{id}}\" is still referenced {{count}} times. Remove it anyway?",
+      "removed": "Binary object \"{{id}}\" removed"
+    }
+  }
+}

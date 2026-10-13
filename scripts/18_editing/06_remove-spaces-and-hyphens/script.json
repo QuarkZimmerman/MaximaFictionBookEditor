@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "18/remove-spaces-and-hyphens",
+  "name": {
+    "en": "Remove spaces and hyphens",
+    "ru": "Удаление пробелов и дефисов"
+  },
+  "description": {
+    "en": "Removes spaces, non-breaking spaces and hyphens from the selected text, keeping the formatting",
+    "ru": "Удаляет пробелы, неразрывные пробелы и дефисы из выделенного текста, сохраняя форматирование"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Remove spaces and hyphens",
+    "ru": "Удаление пробелов и дефисов"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/06_Удаление пробелов и дефисов.js",
+    "fbeVersion": "2.7"
+  }
+}

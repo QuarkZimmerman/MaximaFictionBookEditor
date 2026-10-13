@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "19/element-browser",
+  "name": {
+    "en": "Browse and convert elements...",
+    "ru": "Обзор и превращение элементов..."
+  },
+  "description": {
+    "en": "Lists the title lines, subtitles or runs of emphasis / strong / sup / sub / strikethrough of the book; the chosen ones are reformatted into another kind (titles, subtitles, text, another inline style) or get their case changed",
+    "ru": "Показывает строки заголовков, подзаголовки или фрагменты emphasis / strong / sup / sub / strikethrough книги; выбранные переформатируются в другой вид (заголовки, подзаголовки, текст, другое начертание) или меняют регистр"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Browse and convert elements",
+    "ru": "Обзор и превращение элементов"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/Обзор и превращение элементов....js",
+    "fbeVersion": "2.7"
+  }
+}

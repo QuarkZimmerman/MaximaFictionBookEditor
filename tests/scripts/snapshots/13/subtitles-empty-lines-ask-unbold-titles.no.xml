@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Подзаголовки</last-name>
+			</author>
+			<book-title>Подзаголовки и пустые строки</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга <strong>с жирным</strong> и <emphasis>курсивным</emphasis> заголовком</p>
+		</title>
+		<section>
+			<title>
+				<p><strong>Глава первая</strong></p>
+				<p>Подзаголовок <emphasis>главы</emphasis></p>
+			</title>
+			<epigraph>
+				<p>Эпиграф.</p>
+				<empty-line/>
+				<text-author>Автор эпиграфа</text-author>
+			</epigraph>
+			<p>Первый абзац главы.</p>
+			<empty-line/>
+			<p>Второй абзац после трёх пустых строк.</p>
+			<subtitle>* * *</subtitle>
+			<p>Абзац после звёздочек.</p>
+			<subtitle>* * *</subtitle>
+			<p>Ещё абзац.</p>
+			<subtitle>* * *</subtitle>
+			<p>Абзац перед существующим подзаголовком.</p>
+			<subtitle>Существующий подзаголовок</subtitle>
+			<p>Абзац перед стихом.</p>
+			<poem>
+				<stanza>
+					<v>Строка первая</v>
+					<v>Строка вторая</v>
+				</stanza>
+			</poem>
+			<p>Абзац перед цитатой.</p>
+			<cite>
+				<p>Текст цитаты.</p>
+				<empty-line/>
+				<p>Вторая строка цитаты.</p>
+				<empty-line/>
+				<text-author>Автор цитаты</text-author>
+			</cite>
+			<p>Абзац после цитаты.</p>
+			<p>Не подзаголовок: * * * в середине.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава, в которой только пустая строка</p>
+			</title>
+			<empty-line/>
+		</section>
+		<section>
+			<title>
+				<p>Глава с картинкой</p>
+			</title>
+			<image l:href="#pic.png"/>
+			<p>Текст после картинки.</p>
+		</section>
+		<section>
+			<title>
+				<p>Часть вторая</p>
+			</title>
+			<section>
+				<title>
+					<p>Глава третья</p>
+				</title>
+				<p>Текст третьей главы.</p>
+				<subtitle>* * *</subtitle>
+				<p>Текст, отделённый звёздочками, должен влиться в третью главу.</p>
+				<subtitle>Подзаголовок-секция</subtitle>
+				<p>Текст секции, начинающейся с подзаголовка.</p>
+			</section>
+			<section>
+				<title>
+					<p>Глава четвёртая</p>
+				</title>
+				<p>Текст четвёртой главы.</p>
+			</section>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

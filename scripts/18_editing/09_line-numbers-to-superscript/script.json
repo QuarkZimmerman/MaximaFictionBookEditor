@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "18/line-numbers-to-superscript",
+  "name": {
+    "en": "Numbers at line starts to superscript",
+    "ru": "Нумерацию в началах строк - надстрочным текстом"
+  },
+  "description": {
+    "en": "In the selected paragraphs a number at the start followed by spaces becomes a superscript and the spaces collapse to one",
+    "ru": "В выделенных абзацах число в начале, за которым идут пробелы, становится надстрочным, а пробелы сводятся к одному"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Numbers at line starts to superscript",
+    "ru": "Нумерацию в началах строк - надстрочным текстом"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/09_Нумерацию в началах строк - надстрочным текстом.js",
+    "fbeVersion": "2.7"
+  }
+}

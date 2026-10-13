@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>dramaturgy</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Тестов</last-name>
+			</author>
+			<book-title>Стихи и драма</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture generator</program-used>
+			<date value="2024-01-01">2024-01-01</date>
+			<id>conv-b-09</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Стихи и драма</p>
+		</title>
+		<section>
+			<title>
+				<p>Стихи</p>
+			</title>
+			<p>Абзац перед стихами.</p>
+			<poem>
+				<title>
+					<p>Первое стихотворение</p>
+				</title>
+				<stanza>
+					<v>Первая строка первой строфы,</v>
+					<v>вторая строка первой строфы.</v>
+				</stanza>
+			</poem>
+			<empty-line/>
+			<poem>
+				<stanza>
+					<v>Строфа, которую надо присоединить,</v>
+					<v>к первому стихотворению.</v>
+				</stanza>
+			</poem>
+			<poem>
+				<stanza>
+					<v>Ещё одна строфа без пустой строки.</v>
+				</stanza>
+				<text-author>Автор стихов</text-author>
+			</poem>
+			<empty-line/>
+			<poem>
+				<stanza>
+					<v>Это стихотворение не присоединяется:</v>
+					<v>предыдущее кончается автором.</v>
+				</stanza>
+			</poem>
+			<p>Абзац между стихами.</p>
+			<empty-line/>
+			<poem>
+				<title>
+					<p>Со своим заголовком</p>
+				</title>
+				<stanza>
+					<v>Не присоединяется, так как есть заголовок.</v>
+				</stanza>
+			</poem>
+			<empty-line/>
+			<p>Абзац после стихов.</p>
+		</section>
+		<section>
+			<title>
+				<p>Драма</p>
+			</title>
+			<subtitle>Действие первое. Явление первое.</subtitle>
+			<p>Г а м л е т. Быть или не быть, вот в чём вопрос.</p>
+			<p>Офелия (тихо). Принц, как поживали вы все эти дни?</p>
+			<p><emphasis>Полоний</emphasis>. Что вы читаете, принц?</p>
+			<p>Что? Нет, это не реплика.</p>
+			<p>Слишком длинное имя действующего лица. Не размечается.</p>
+			<p>Король. <strong>Уже</strong> размеченный жирным текст после имени.</p>
+			<cite>
+				<p>Горацио. Внутри цитаты не размечается.</p>
+			</cite>
+			<p>Первая строка разорванного-</p>
+			<p>предложения, которое надо</p>
+			<p>слить в один абзац.</p>
+			<p>Последний абзац.</p>
+		</section>
+	</body>
+</FictionBook>

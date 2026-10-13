@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "04/comments-from-text-brackets",
+  "name": {
+    "en": "Comments from brackets given as plain text",
+    "ru": "Комментарии из скобок, заданных простым текстом"
+  },
+  "description": {
+    "en": "Asks the two brackets as plain text (\"[ ]\") and turns every bracketed fragment of the book into a comment",
+    "ru": "Запрашивает пару скобок простым текстом («[ ]») и превращает каждый фрагмент в таких скобках в комментарий"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Comments from brackets given as plain text",
+    "ru": "Комментарии из скобок, заданных простым текстом"
+  },
+  "legacy": {
+    "source": "04_Примечания и комментарии из скобок/612_Комментарии из скобок, заданных простым текстом.js",
+    "fbeVersion": "2.7"
+  }
+}

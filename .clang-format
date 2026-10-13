@@ -1,0 +1,23 @@
+# Maxima Fiction Book Editor - C++ formatting (Google-derived, 4-space indent)
+BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 100
+AccessModifierOffset: -4
+DerivePointerAlignment: false
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<mfbe/'
+    Priority: 2
+  - Regex: '^"'
+    Priority: 1
+  - Regex: '^<(libxml|hunspell|nlohmann|spdlog|CLI|uuid|sago|uWS|App)'
+    Priority: 3
+  - Regex: '^<'
+    Priority: 4
+SortIncludes: CaseSensitive
+NamespaceIndentation: None
+FixNamespaceComments: true

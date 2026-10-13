@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "12/place-quotes-from-caret-level2",
+  "name": {
+    "en": "Place guillemets and low quotes (from the caret, starting at level 2)",
+    "ru": "Расстановка елочек и лапок (с позиции курсора, начиная со 2-го уровня)"
+  },
+  "description": {
+    "en": "Replaces straight quotes with «» (level 0) and „“ (nested) from the caret to the end of the book, assuming the caret is inside an open level-1 quote; stops with a message when the nesting cannot be resolved",
+    "ru": "Заменяет прямые кавычки на «» (0-й уровень) и „“ (вложенные) от позиции курсора до конца книги, считая, что курсор внутри открытой кавычки 1-го уровня; при невозможности определить вложенность останавливается с сообщением"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Place guillemets and low quotes (from the caret, starting at level 2)",
+    "ru": "Расстановка елочек и лапок (с позиции курсора, начиная со 2-го уровня)"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/006_Расстановка елочек и лапок (с позиции курсора, начиная со 2-го уровня).js",
+    "fbeVersion": "2.7"
+  }
+}

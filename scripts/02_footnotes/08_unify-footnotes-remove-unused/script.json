@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "02/unify-footnotes-remove-unused",
+  "name": {
+    "en": "Unify footnotes (removing unused footnote sections)",
+    "ru": "Унификация сносок (с удалением неиспользуемых разделов сносок)"
+  },
+  "description": {
+    "en": "Removes the footnote sections no link points to, then renumbers the footnote sections and links",
+    "ru": "Удаляет секции примечаний, на которые нет ссылок, затем перенумеровывает секции примечаний и ссылки"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Unify footnotes (removing unused footnote sections)",
+    "ru": "Унификация сносок (с удалением неиспользуемых разделов сносок)"
+  },
+  "legacy": {
+    "source": "02_Добавление примечания/08_Унификация сносок (с удалением неиспользуемых разделов сносок).js",
+    "fbeVersion": "2.7"
+  }
+}

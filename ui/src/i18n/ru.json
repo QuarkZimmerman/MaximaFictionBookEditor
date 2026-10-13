@@ -1,0 +1,950 @@
+{
+  "app": {
+    "name": "Maxima Fiction Book Editor",
+    "shortName": "MFBE",
+    "untitled": "Без имени",
+    "windowTitle": "{{document}} - {{app}}",
+    "modifiedMarker": "*"
+  },
+  "status": {
+    "ready": "Готово",
+    "notConnected": "Нет соединения",
+    "connecting": "Подключение...",
+    "ins": "ВСТ",
+    "ovr": "ЗАМ",
+    "noErrors": "Ошибок не обнаружено.",
+    "savedNoErrors": "Документ сохранен. Ошибок не обнаружено.",
+    "openedWithWarnings_one": "Документ открыт с {{count}} предупреждением.",
+    "openedWithWarnings_few": "Документ открыт с {{count}} предупреждениями.",
+    "openedWithWarnings_many": "Документ открыт с {{count}} предупреждениями.",
+    "openedWithWarnings_other": "Документ открыт с {{count}} предупреждениями.",
+    "incrementalSearch": "Инкрементальный поиск: {{text}}",
+    "failingIncrementalSearch": "Инкрементальный поиск (не найдено): {{text}}",
+    "progress": "{{phase}}: {{done}} из {{total}}",
+    "progressPercent": "{{phase}}: {{percent}}%"
+  },
+  "menu": {
+    "file": {
+      "caption": "&Файл",
+      "new": "&Создать",
+      "open": "&Открыть...",
+      "save": "Со&хранить",
+      "saveAs": "Сохранить &как...",
+      "validate": "&Проверить",
+      "import": "&Импорт",
+      "noImportPlugins": "Не установлено ни одного плагина",
+      "export": "&Экспорт",
+      "noExportPlugins": "Не установлено ни одного плагина",
+      "recent": "П&редыдущие документы",
+      "noRecent": "Пусто",
+      "openThisDocument": "Открыть этот документ",
+      "exit": "&Выход"
+    },
+    "edit": {
+      "caption": "&Правка",
+      "undo": "&Отменить",
+      "redo": "&Вернуть",
+      "cut": "В&ырезать",
+      "copy": "&Копировать",
+      "paste": "В&ставить",
+      "find": "&Найти...",
+      "findNext": "Н&айти далее",
+      "replace": "&Заменить...",
+      "gotoFootnote": "&Перейти к сноске или к ссылке",
+      "gotoMatchTag": "Перейти к парному &тегу",
+      "gotoWrongTag": "Перейти к о&шибочному тегу",
+      "clone": "К&лонировать",
+      "split": "Разр&езать",
+      "merge": "Скле&ить",
+      "removeOuter": "&Убрать внешний"
+    },
+    "view": {
+      "caption": "&Вид",
+      "toolbarCommands": "&Панель инструментов",
+      "toolbarScripts": "Панель скриптов",
+      "linksBar": "Па&нель ссылок",
+      "tableBar": "П&анель таблиц",
+      "statusBar": "&Строка состояния",
+      "tree": "С&труктура книги",
+      "description": "&Описание документа",
+      "body": "&Дизайн",
+      "source": "&Код",
+      "fastMode": "&Ускоренный режим"
+    },
+    "add": {
+      "caption": "В&ставка",
+      "body": "&Тело",
+      "title": "&Заголовок",
+      "epigraph": "&Эпиграф",
+      "annotation": "&Аннотация",
+      "textAuthor": "А&втор",
+      "image": "&Рисунок",
+      "inlineImage": "Рисунок в т&екст",
+      "poem": "&Стихи",
+      "cite": "&Цитата",
+      "table": "Та&блица",
+      "sectionImage": "Р&исунок секции",
+      "binary": "&Прикрепить"
+    },
+    "style": {
+      "caption": "С&тиль",
+      "normal": "&Обычный",
+      "textAuthor": "&Автор",
+      "subtitle": "&Подзаголовок",
+      "link": "&Ссылка...",
+      "footnote": "С&носка...",
+      "removeLink": "&Удалить ссылку"
+    },
+    "tools": {
+      "caption": "Се&рвис",
+      "words": "&Слова...",
+      "settings": "&Настройки...",
+      "spellcheck": "&Орфография..."
+    },
+    "scripts": {
+      "caption": "С&крипты",
+      "none": "Не найдено ни одного скрипта",
+      "last": "&Последний скрипт",
+      "invalid": "некорректный скрипт: {{reason}}"
+    },
+    "help": {
+      "caption": "Спр&авка",
+      "about": "&О программе..."
+    }
+  },
+  "treeMenu": {
+    "view": "Перейти к элементу",
+    "viewSource": "Перейти к коду",
+    "moveRight": "Сдвинуть вправо",
+    "moveWithChildren": "Сделать дочерним элементом",
+    "moveLeft": "Сдвинуть влево",
+    "delete": "Удалить",
+    "elements": "Элементы",
+    "scripts": "Скрипты"
+  },
+  "toolbarMenu": {
+    "customize": "Настройка панели..."
+  },
+  "toolbar": {
+    "commands": "Панель инструментов",
+    "scripts": "Панель скриптов",
+    "links": "Панель ссылок",
+    "table": "Панель таблиц"
+  },
+  "linksBar": {
+    "id": "ID:",
+    "href": "Ссылка:",
+    "sectionId": "ID секции:",
+    "imageTitle": "Подпись к картинке:"
+  },
+  "tableBar": {
+    "tableId": "ID таблицы:",
+    "tableStyle": "Стиль таблицы:",
+    "style": "Стиль:",
+    "colspan": "colspan:",
+    "rowspan": "rowspan:",
+    "trAlign": "tr align:",
+    "tdAlign": "th, td align:",
+    "tdValign": "th, td valign:"
+  },
+  "tree": {
+    "caption": "Структура документа",
+    "clean": "Очистить",
+    "empty": "Документ не открыт."
+  },
+  "views": {
+    "description": {
+      "title": "Описание",
+      "empty": "Описание документа - документ не открыт."
+    },
+    "body": {
+      "title": "Дизайн",
+      "empty": "Дизайн - документ не открыт.",
+      "imageMissing": "Изображение недоступно:",
+      "undoLabel": "Правка текста",
+      "sourceOnly": "Документ не является корректным XML: сначала исправьте его в режиме «Код».",
+      "bodyNumber": "Тело {{number}}",
+      "moreSections_one": "... ещё {{count}} раздел",
+      "moreSections_few": "... ещё {{count}} раздела",
+      "moreSections_many": "... ещё {{count}} разделов",
+      "moreSections_other": "... ещё {{count}} раздела",
+      "conversionProblems_one": "{{count}} элемент не соответствует структуре FB2 и показан как есть.",
+      "conversionProblems_few": "{{count}} элемента не соответствуют структуре FB2 и показаны как есть.",
+      "conversionProblems_many": "{{count}} элементов не соответствуют структуре FB2 и показаны как есть.",
+      "conversionProblems_other": "{{count}} элемента не соответствуют структуре FB2 и показаны как есть."
+    },
+    "source": {
+      "title": "Код",
+      "empty": "Код - документ не открыт.",
+      "undoLabel": "Правка кода",
+      "sourceOnly": "Файл не является корректным XML и открыт только в режиме «Код». Исправьте ошибки, чтобы пользоваться другими режимами.",
+      "loadFailed": "Не удалось загрузить исходный код документа.\n{{reason}}"
+    },
+    "switcher": "Режимы"
+  },
+  "editing": {
+    "unknownElement": "Неизвестный элемент - редактируется в режиме «Код»",
+    "cmd": {
+      "insertNbsp": {
+        "tooltip": "Вставить неразрывный пробел",
+        "description": "Вставить неразрывный пробел в позиции курсора"
+      }
+    },
+    "link": {
+      "caption": "Ссылка",
+      "prompt": "Адрес ссылки (#id элемента или адрес):"
+    },
+    "footnote": {
+      "notesTitle": "Примечания",
+      "undoLabel": "Создание сноски"
+    },
+    "contextMenu": {
+      "cut": "Вырезать",
+      "copy": "Копировать",
+      "paste": "Вставить",
+      "select": "Выделить {{element}}"
+    },
+    "msg": {
+      "binaryAddUnavailable": "Файл изображения пока нельзя добавить как двоичный объект; изображение ссылается на #{{name}}."
+    }
+  },
+  "cmd": {
+    "file": {
+      "new": {
+        "tooltip": "Новый",
+        "description": "Создать новый документ"
+      },
+      "open": {
+        "tooltip": "Открыть",
+        "description": "Открыть документ"
+      },
+      "save": {
+        "tooltip": "Сохранить",
+        "description": "Сохранить документ"
+      },
+      "saveAs": {
+        "tooltip": "Сохранить как",
+        "description": "Сохранить активный документ под новым именем"
+      },
+      "validate": {
+        "tooltip": "Проверить",
+        "description": "Проверить документ на соответствие формату Fiction Book"
+      },
+      "exit": {
+        "tooltip": "Выход",
+        "description": "Закрыть программу; будет предложено сохранить документ перед закрытием"
+      }
+    },
+    "edit": {
+      "undo": {
+        "tooltip": "Отменить",
+        "description": "Отменить последнее действие"
+      },
+      "redo": {
+        "tooltip": "Вернуть",
+        "description": "Вернуть последнее отмененное действие"
+      },
+      "cut": {
+        "tooltip": "Вырезать",
+        "description": "Вырезать выделенный фрагмент и положить его в буфер обмена"
+      },
+      "copy": {
+        "tooltip": "Копировать",
+        "description": "Скопировать выделенный фрагмент в буфер обмена"
+      },
+      "paste": {
+        "tooltip": "Вставить",
+        "description": "Вставить содержимое буфера обмена"
+      },
+      "find": {
+        "tooltip": "Найти",
+        "description": "Найти текст"
+      },
+      "findNext": {
+        "tooltip": "Найти далее",
+        "description": "Повторить последний поиск"
+      },
+      "replace": {
+        "tooltip": "Заменить",
+        "description": "Найти текст и заменить его другим текстом"
+      },
+      "incrementalSearch": {
+        "tooltip": "Инкрементальный поиск",
+        "description": "Поиск по мере ввода; текущее совпадение показывается в строке состояния"
+      },
+      "gotoFootnote": {
+        "tooltip": "Перейти на текст сноски или к ссылке",
+        "description": "Перейти на текст сноски или к ссылке"
+      },
+      "gotoMatchTag": {
+        "tooltip": "Перейти к парному тегу",
+        "description": "Перейти к парному тегу"
+      },
+      "gotoWrongTag": {
+        "tooltip": "Перейти к ошибочному тегу",
+        "description": "Перейти к ошибочному тегу"
+      },
+      "clone": {
+        "tooltip": "Клонировать",
+        "description": "Клонировать контейнер"
+      },
+      "split": {
+        "tooltip": "Разрезать контейнер",
+        "description": "Разрезать контейнер"
+      },
+      "merge": {
+        "tooltip": "Слить контейнеры",
+        "description": "Слить выделенный контейнер со следующим"
+      },
+      "removeOuter": {
+        "tooltip": "Удалить внешнюю секцию",
+        "description": "Убрать контейнер вокруг выделения, сохранив его содержимое"
+      }
+    },
+    "view": {
+      "toolbarCommands": {
+        "tooltip": "Панель инструментов",
+        "description": "Показать или скрыть панель инструментов"
+      },
+      "toolbarScripts": {
+        "tooltip": "Панель скриптов",
+        "description": "Показать или скрыть панель скриптов"
+      },
+      "linksBar": {
+        "tooltip": "Панель ссылок",
+        "description": "Показать или скрыть панель ссылок"
+      },
+      "tableBar": {
+        "tooltip": "Панель таблиц",
+        "description": "Показать или скрыть панель редактирования параметров таблиц"
+      },
+      "statusBar": {
+        "tooltip": "Строка состояния",
+        "description": "Показать или скрыть строку состояния"
+      },
+      "tree": {
+        "tooltip": "Структура документа",
+        "description": "Показать или скрыть структуру документа"
+      },
+      "description": {
+        "tooltip": "Описание документа",
+        "description": "Перейти к описанию документа"
+      },
+      "body": {
+        "tooltip": "Тело",
+        "description": "Перейти к телу документа"
+      },
+      "source": {
+        "tooltip": "Перейти к коду",
+        "description": "Перейти к коду"
+      },
+      "fastMode": {
+        "tooltip": "Переключить в ускоренный режим",
+        "description": "Переключить в ускоренный режим"
+      }
+    },
+    "insert": {
+      "body": {
+        "tooltip": "Добавить тело",
+        "description": "Добавить новое тело документа"
+      },
+      "title": {
+        "tooltip": "Добавить заголовок",
+        "description": "Добавить заголовок к выделенному элементу"
+      },
+      "epigraph": {
+        "tooltip": "Добавить эпиграф",
+        "description": "Добавить эпиграф к выделенному фрагменту"
+      },
+      "annotation": {
+        "tooltip": "Добавить аннотацию",
+        "description": "Добавить аннотацию к выделенному фрагменту"
+      },
+      "textAuthor": {
+        "tooltip": "Добавить автора текста",
+        "description": "Добавить автора текста в контейнер"
+      },
+      "image": {
+        "tooltip": "Вставить изображение",
+        "description": "Вставить изображение на месте курсора"
+      },
+      "inlineImage": {
+        "tooltip": "Вставить изображение в текст",
+        "description": "Вставить изображение в текст на месте курсора"
+      },
+      "poem": {
+        "tooltip": "Добавить стихи",
+        "description": "Добавить стихи"
+      },
+      "cite": {
+        "tooltip": "Вставить цитату",
+        "description": "Вставить цитату"
+      },
+      "table": {
+        "tooltip": "Вставить таблицу",
+        "description": "Вставить таблицу на место курсора"
+      },
+      "sectionImage": {
+        "tooltip": "Добавить изображение",
+        "description": "Добавить изображение"
+      },
+      "binary": {
+        "tooltip": "Прикрепить бинарный файл",
+        "description": "Прикрепить бинарный файл к документу"
+      }
+    },
+    "style": {
+      "normal": {
+        "tooltip": "Обычный текст",
+        "description": "Обычный текст"
+      },
+      "textAuthor": {
+        "tooltip": "Автор текста",
+        "description": "Автор текста параграфа"
+      },
+      "subtitle": {
+        "tooltip": "Подзаголовок",
+        "description": "Подзаголовок"
+      },
+      "link": {
+        "tooltip": "Гиперссылка",
+        "description": "Добавить гиперссылку"
+      },
+      "footnote": {
+        "tooltip": "Сноска",
+        "description": "Добавить сноску"
+      },
+      "removeLink": {
+        "tooltip": "Удалить ссылки",
+        "description": "Удалить ссылки из выделенного текста"
+      },
+      "strong": {
+        "tooltip": "Жирный",
+        "description": "Жирный"
+      },
+      "emphasis": {
+        "tooltip": "Курсив",
+        "description": "Курсив"
+      },
+      "strikethrough": {
+        "tooltip": "Зачеркнутый текст",
+        "description": "Зачеркнутый текст"
+      },
+      "sub": {
+        "tooltip": "Нижний индекс",
+        "description": "Нижний индекс"
+      },
+      "sup": {
+        "tooltip": "Верхний индекс",
+        "description": "Верхний индекс"
+      },
+      "code": {
+        "tooltip": "Код",
+        "description": "Код"
+      }
+    },
+    "tools": {
+      "words": {
+        "tooltip": "Слова",
+        "description": "Частотный список слов книги с заменами"
+      },
+      "settings": {
+        "tooltip": "Настройки",
+        "description": "Настройки редактора"
+      },
+      "spellcheck": {
+        "tooltip": "Проверка орфографии",
+        "description": "Проверка орфографии документа..."
+      },
+      "spellHighlight": {
+        "tooltip": "Переключить выделение слов с ошибками",
+        "description": "Включить или выключить выделение слов с ошибками"
+      }
+    },
+    "scripts": {
+      "last": {
+        "tooltip": "Последний скрипт",
+        "description": "Выполнить последний запущенный скрипт"
+      }
+    },
+    "help": {
+      "about": {
+        "tooltip": "О программе",
+        "description": "Показать информацию о программе, номер версии и копирайт"
+      }
+    },
+    "nav": {
+      "nextItem": {
+        "tooltip": "Следующий элемент",
+        "description": "Перейти к следующему элементу"
+      },
+      "selectHref": {
+        "tooltip": "Ссылка",
+        "description": "Перейти в поле «Ссылка» панели ссылок"
+      },
+      "selectId": {
+        "tooltip": "ID",
+        "description": "Перейти в поле «ID» панели ссылок"
+      },
+      "selectTableId": {
+        "tooltip": "ID таблицы",
+        "description": "Перейти в поле «ID таблицы» панели таблиц"
+      },
+      "selectText": {
+        "tooltip": "Текст",
+        "description": "Вернуть фокус в текст документа"
+      },
+      "selectTree": {
+        "tooltip": "Дерево",
+        "description": "Перейти в дерево документа"
+      }
+    },
+    "source": {
+      "collapse": {
+        "tooltip_one": "Свернуть дерево на {{count}} уровень",
+        "tooltip_few": "Свернуть дерево на {{count}} уровня",
+        "tooltip_many": "Свернуть дерево на {{count}} уровней",
+        "tooltip_other": "Свернуть дерево на {{count}} уровня",
+        "description_one": "Свернуть XML-код на {{count}} уровень вложенности",
+        "description_few": "Свернуть XML-код на {{count}} уровня вложенности",
+        "description_many": "Свернуть XML-код на {{count}} уровней вложенности",
+        "description_other": "Свернуть XML-код на {{count}} уровня вложенности"
+      },
+      "expand": {
+        "tooltip_one": "Развернуть дерево на {{count}} уровень",
+        "tooltip_few": "Развернуть дерево на {{count}} уровня",
+        "tooltip_many": "Развернуть дерево на {{count}} уровней",
+        "tooltip_other": "Развернуть дерево на {{count}} уровня",
+        "description_one": "Развернуть XML-код на {{count}} уровень вложенности",
+        "description_few": "Развернуть XML-код на {{count}} уровня вложенности",
+        "description_many": "Развернуть XML-код на {{count}} уровней вложенности",
+        "description_other": "Развернуть XML-код на {{count}} уровня вложенности"
+      }
+    },
+    "symbol": {
+      "description": "Вставить символ {{name}} ({{char}})"
+    },
+    "script": {
+      "description": "Выполнить скрипт {{name}}"
+    }
+  },
+  "hotkeys": {
+    "groups": {
+      "file": "Файл",
+      "edit": "Редактировать",
+      "navigation": "Навигация",
+      "style": "Стиль",
+      "view": "Просмотр",
+      "tools": "Инструменты",
+      "symbols": "Символы",
+      "scripts": "Скрипты",
+      "plugins": "Плагины"
+    },
+    "wrong": "Неправильное сочетание!",
+    "defaultCollision": "Сочетание по умолчанию для этой команды было зарезервировано для \"{{command}}\"! Заменить?",
+    "assigned": "Зарезервировано \"{{command}}\"",
+    "notAssigned": "Не зарезервировано для других команд",
+    "scriptConflict": "Скрипт\n{{script}}\n имеет код клавиши быстрого доступа, совпадающий с уже загруженным скриптом\n {{other}}",
+    "none": "Нет"
+  },
+  "dialog": {
+    "buttons": {
+      "ok": "OK",
+      "cancel": "Отмена",
+      "abort": "П&рервать",
+      "retry": "&Повторить",
+      "ignore": "&Игнорировать",
+      "yes": "&Да",
+      "no": "&Нет",
+      "close": "Закрыть"
+    },
+    "input": {
+      "caption": "Ввод",
+      "prompt": "Текст:"
+    },
+    "error": {
+      "caption": "Ошибка"
+    },
+    "find": {
+      "caption": "Поиск",
+      "findWhat": "&Что искать:",
+      "wholeWords": "&Только целые слова",
+      "matchCase": "&Учитывать регистр",
+      "regex": "&Регулярное выражение",
+      "direction": "Направление",
+      "up": "&Вверх",
+      "down": "В&низ",
+      "findNext": "&Искать далее"
+    },
+    "replace": {
+      "caption": "Заменить",
+      "replaceWith": "Заменить:",
+      "replace": "&Заменить",
+      "replaceAll": "Заменить в&се",
+      "replaceAllCaption": "Заменить все"
+    },
+    "table": {
+      "caption": "Параметры таблицы",
+      "rows": "Число строк таблицы <tr><td></td></tr>:",
+      "addHeader": "Вставить строку заголовков <tr><th></th></tr>"
+    },
+    "words": {
+      "caption": "Слова",
+      "showHideExclusions": "Показать/скрыть исключения",
+      "process": "Обработка",
+      "processHighlighted": "Выделенные",
+      "invert": "Обратить",
+      "resetReplaced": "Не заменять",
+      "toExclusions": "В исключения",
+      "highlightAll": "Выбрать все",
+      "setReplaced": "В заменяемые",
+      "setReplacedAll": "Замена для всех",
+      "currentWord": "Текущее слово",
+      "word": "Слово:",
+      "replacement": "Замена:",
+      "find": "Найти",
+      "next": "Далее",
+      "replace": "Заменить",
+      "columns": {
+        "word": "Слово",
+        "replacement": "Замена",
+        "counted": "Количество"
+      }
+    },
+    "spelling": {
+      "caption": "Орфография",
+      "notInDictionary": "Нет в словаре:",
+      "changeTo": "Изменить на:",
+      "suggestions": "Варианты:",
+      "ignore": "Пропустить",
+      "ignoreAll": "Пропуск всех",
+      "change": "Заменить",
+      "changeAll": "Замена всех",
+      "add": "Добавить",
+      "suggest": "Вариант",
+      "undoLast": "Вернуть",
+      "addToDictionary": "Добавить в словарь",
+      "continue": "Продолжить",
+      "replaceWord": "Заменить слово"
+    },
+    "about": {
+      "caption": "О программе",
+      "build": "Сборка",
+      "version": "Версия {{version}}",
+      "openLogFolder": "Открыть папку журнала",
+      "licences": "Лицензии"
+    },
+    "settings": {
+      "caption": "Настройки",
+      "pages": {
+        "view": "Вид",
+        "other": "Другое",
+        "hotkeys": "Клавиши",
+        "words": "Слова"
+      },
+      "apply": "Применить",
+      "view": {
+        "common": "Общее",
+        "language": "Язык:",
+        "fontSize": "Размер шрифта:",
+        "body": "Тело",
+        "editorFont": "Шрифт:",
+        "textColor": "Цвет текста:",
+        "background": "Цвет фона:",
+        "fastMode": "Ускоренный режим",
+        "sourceEditor": "Редактор кода",
+        "wrap": "Перенос строк",
+        "syntaxHighlight": "Подсветка синтаксиса",
+        "showEol": "Показывать символы конца строк",
+        "showWhitespace": "Показывать пробелы",
+        "lineNumbers": "Показывать номера строк",
+        "matchTags": "Подсветка парных тегов",
+        "spellcheck": "Проверка орфографии",
+        "useSpellchecker": "Проверять орфографию",
+        "highlightMisspelled": "Выделять ошибки",
+        "customDictionary": "Пользовательский словарь:"
+      },
+      "other": {
+        "saveFile": "Опции сохранения",
+        "defaultEncoding": "Кодировка:",
+        "keepEncoding": "Сохранять оригинальную кодировку",
+        "openFile": "Опции открытия",
+        "restorePosition": "Восстанавливать позицию курсора",
+        "scriptsFolder": "Папка скриптов",
+        "genresFolder": "Папка жанров",
+        "openGenresFolder": "Открыть папку жанров",
+        "defaultFolder": "Папка по умолчанию",
+        "dialogs": "Диалоги",
+        "askNonClearImage": "Спрашивать о вставке непустого изображения",
+        "images": "Изображения",
+        "insertClearImages": "Вставлять пустые изображения",
+        "pasteImagesAs": "Вставлять изображения как",
+        "imageFormat": "Формат:",
+        "jpegQuality": "Качество JPEG:",
+        "nbsp": "Неразрывные пробелы",
+        "displayChar": "Использовать символ:"
+      },
+      "hotkeys": {
+        "groups": "Группы:",
+        "commands": "Команды:",
+        "shortcut": "Клавиши:",
+        "default": "По умолчанию",
+        "delete": "Удалить",
+        "assign": "Присвоить",
+        "actions": "Действия",
+        "assignedTo": "Присвоено",
+        "description": "Описание"
+      },
+      "words": {
+        "exclusionList": "Список слов-исключений",
+        "add": "Добавить",
+        "showExclusions": "Показывать слова-исключения в диалоге \"Слова\"",
+        "selectAll": "Выделить всё",
+        "removeSelected": "Убрать выделенное",
+        "columns": {
+          "counted": "Встретилось",
+          "word": "Слово"
+        }
+      }
+    },
+    "saveFile": {
+      "encoding": "Кодировка:",
+      "filterFb2": "Документы FictionBook",
+      "filterFbd": "Описания FictionBook",
+      "filterAll": "Все файлы"
+    },
+    "addImage": {
+      "caption": "Вставить картинку",
+      "insertClear": "Вставить пустую картинку?",
+      "chooseImage": "Выберите картинку для вставки:",
+      "chooseBinaries": "Выберите один или несколько бинарных файлов:",
+      "filterImages": "Изображения"
+    },
+    "chooseScriptsFolder": "Выберите папку со скриптами",
+    "dontAskAgain": "Больше не спрашивать",
+    "validation": {
+      "caption": "Проверка",
+      "severity": "Тип",
+      "line": "Строка",
+      "column": "Столбец",
+      "message": "Сообщение",
+      "error": "Ошибка",
+      "warning": "Предупреждение",
+      "summary": "{{errors}} {{warnings}}",
+      "warningsFound_one": "{{count}} предупреждение.",
+      "warningsFound_few": "{{count}} предупреждения.",
+      "warningsFound_many": "{{count}} предупреждений.",
+      "warningsFound_other": "{{count}} предупреждения."
+    }
+  },
+  "validation": {
+    "schema": "{{element}}: {{detail}}",
+    "wellFormed": "XML некорректен: {{message}}",
+    "genreUnknown": "Неизвестный жанр \"{{code}}\"",
+    "required": "Обязательный элемент \"{{element}}\" отсутствует или пуст",
+    "bodies": {
+      "none": "В документе нет тела (body)"
+    },
+    "link": {
+      "dangling": "Цель ссылки \"{{href}}\" не существует"
+    },
+    "binary": {
+      "missing": "Изображение \"{{href}}\" ссылается на отсутствующий бинарный объект",
+      "unreferenced": "Бинарный объект \"{{id}}\" нигде не используется",
+      "notImage": "Бинарный объект \"{{id}}\" ({{contentType}}) не является распознаваемым изображением и сохраняется как есть",
+      "undecodable": "Бинарный объект \"{{id}}\" ({{contentType}}) не является распознаваемым изображением",
+      "invalidBase64": "Бинарный объект \"{{id}}\" содержит некорректные данные base64; он сохранён как текст",
+      "willConvert": "Бинарный объект \"{{id}}\" ({{contentType}}) будет преобразован в JPEG/PNG при сохранении",
+      "placeholderMissing": "Бинарный объект \"{{id}}\" ({{size}} байт) больше недоступен",
+      "missingId": "Бинарному объекту без id присвоено имя \"{{assigned}}\"",
+      "duplicateId": "Повторяющийся id бинарного объекта \"{{id}}\" переименован в \"{{renamed}}\""
+    },
+    "encoding": {
+      "mismatch": "Объявленная кодировка {{declared}} не соответствует содержимому файла ({{detected}})"
+    },
+    "xml": {
+      "notWellFormed": "XML некорректен: {{message}}",
+      "namespaceMissing": "Корневой элемент не принадлежит пространству имён FictionBook ({{expected}})"
+    },
+    "schemaInvalid": "Схема: {{message}}",
+    "schemaUnavailable": "Не удалось загрузить схему FictionBook: {{reason}}",
+    "genre": {
+      "unknown": "Неизвестный жанр \"{{code}}\""
+    },
+    "image": {
+      "emptyHref": "Изображение без ссылки (пустой href)",
+      "missingBinary": "Изображение \"{{href}}\" ссылается на отсутствующий бинарный объект",
+      "externalHref": "Изображение \"{{href}}\" ссылается на внешний файл"
+    },
+    "description": {
+      "emptyRequired": "Обязательный элемент \"{{element}}\" отсутствует или пуст"
+    }
+  },
+  "error": {
+    "$comment": "Таблица ошибок JSON-RPC из contracts/rpc-api.md §1 (устойчивые имена из core/include/mfbe/rpc.hpp) и ошибки клиента rpc/client.ts; подстановки соответствуют документированным полям `data`.",
+    "parseError": "Ядро редактора не смогло разобрать запрос",
+    "invalidRequest": "Некорректный запрос к ядру редактора",
+    "methodNotFound": "Эта операция не поддерживается ядром редактора",
+    "invalidParams": "Некорректные параметры запроса: {{detail}}",
+    "internalError": "Внутренняя ошибка ядра редактора",
+    "cancelled": "Операция отменена",
+    "doc": {
+      "notFound": "Документ больше не открыт в ядре редактора",
+      "parseError": "Файл не является корректным XML (строка {{line}}, столбец {{column}}): {{message}}",
+      "ioError": "Не удалось прочитать или записать {{path}}: {{reason}}",
+      "sourceMalformed": "XML-код документа некорректен; сначала исправьте его в режиме «Код»",
+      "notFictionBook": "{{path}} не является документом FictionBook"
+    },
+    "binary": {
+      "notFound": "Бинарный объект \"{{id}}\" отсутствует в документе"
+    },
+    "spell": {
+      "dictionaryUnavailable": "Для языка \"{{lang}}\" не установлен орфографический словарь: {{reason}}"
+    },
+    "script": {
+      "notFound": "Скрипт \"{{scriptId}}\" не найден",
+      "invalidManifest": "Скрипт \"{{scriptId}}\" неполон: отсутствует его главный модуль \"{{entry}}\""
+    },
+    "settings": {
+      "invalid": "Недопустимое значение настройки \"{{field}}\""
+    },
+    "dialog": {
+      "unavailable": "Системные диалоги недоступны в этом режиме"
+    },
+    "client": {
+      "timeout": "Ядро редактора не ответило вовремя",
+      "disconnected": "Соединение с ядром редактора потеряно",
+      "invalidResponse": "Ядро редактора прислало неожиданный ответ"
+    }
+  },
+  "genres": {
+    "issue": {
+      "$comment": "resources.genres().issues[].reason (core/include/mfbe/genres.hpp LoadIssue).",
+      "unreadable": "{{file}}: не удалось прочитать файл жанров",
+      "invalidCode": "{{file}}, строка {{line}}: \"{{code}}\" не является допустимым кодом жанра",
+      "missingName": "{{file}}, строка {{line}}: у жанра \"{{code}}\" нет названия",
+      "duplicate": "{{file}}, строка {{line}}: жанр \"{{code}}\" указан несколько раз"
+    }
+  },
+  "source": {
+    "foldLevel": "Уровень свёртки:",
+    "collapse": "Свернуть",
+    "expand": "Развернуть",
+    "binaryPlaceholder_one": "двоичные данные, {{count}} байт",
+    "binaryPlaceholder_few": "двоичные данные, {{count}} байта",
+    "binaryPlaceholder_many": "двоичные данные, {{count}} байт",
+    "binaryPlaceholder_other": "двоичные данные, {{count}} байта",
+    "noMatchingTag": "Курсор не находится на теге с парным тегом.",
+    "noWrongTag": "Ошибочных тегов не найдено."
+  },
+  "msg": {
+    "saveChanges": "Сохранить изменения в {{name}}?",
+    "validationFailedCaption": "Ошибка",
+    "validationFailed": "{{errors}}\nВсе равно сохранить файл?\n\nВНИМАНИЕ: Файлы, содержащие ошибки, могут неправильно отображаться и вызывать ошибки при открытии другими программами.",
+    "fileChangedCaption": "Файл изменен",
+    "fileChanged": "Файл {{name}} был изменен другим приложением.\nЗагрузить измененный файл?",
+    "searchFinished": "Поиск строки \"{{text}}\" завершен.",
+    "searchFailed": "Строка '{{text}}' не найдена.",
+    "replacementsDone_one": "Поиск завершен. Произведена {{count}} замена.",
+    "replacementsDone_few": "Поиск завершен. Произведено {{count}} замены.",
+    "replacementsDone_many": "Поиск завершен. Произведено {{count}} замен.",
+    "replacementsDone_other": "Поиск завершен. Произведено {{count}} замены.",
+    "replaceWordsCaption": "Замена слов",
+    "wordsReplaced_one": "Заменено {{count}} слово",
+    "wordsReplaced_few": "Заменено {{count}} слова",
+    "wordsReplaced_many": "Заменено {{count}} слов",
+    "wordsReplaced_other": "Заменено {{count}} слова",
+    "referenceNotFound": "В документе нет ни одной ссылки на сноски!",
+    "spellingComplete": "Проверка орфографии завершена.",
+    "badXml": "Был открыт некорректный XML документ.\n\nВы должны исправить все ошибки XML (используйте команды \"Проверить\" и \"Перейти к ошибочному тегу\") перед тем, как переключиться в другой режим редактора.",
+    "needRestart": "Изменения вступят в силу после перезагрузки программы.\nПерезагрузить сейчас?",
+    "outOfMemory": "Для выполнения операции не хватает памяти",
+    "invalidCommandLine": "Неправильный параметр командной строки: '{{option}}'",
+    "commandLineNeedsArgument": "Для параметра командной строки '{{option}}' нужен аргумент",
+    "scriptMessageCaption": "Сообщение скрипта",
+    "scriptError": "Ошибка выполнения скрипта: {{message}} в строке {{line}}, столбце {{column}}",
+    "scriptUnknownError": "Неизвестная ошибка выполнения скрипта.",
+    "scriptLoadError": "При загрузке скрипта {{name}} возникла ошибка: {{error}}",
+    "scriptStillRunning": "Скрипт все еще выполняется. Подождать его завершения или прервать?",
+    "scriptWait": "&Подождать",
+    "scriptCancel": "П&рервать скрипт",
+    "xmlParseErrorCaption": "Ошибка разбора XML",
+    "xmlParseError": "В {{where}}, строка {{line}}, столбец {{column}}: {{message}}",
+    "xmlParseErrorShort": "В {{where}}: {{message}}",
+    "genresFileError": "Не найден файл со списком жанров {{path}}",
+    "wordExists": "Это слово уже есть в списке!",
+    "wordAddErrorCaption": "Ошибка добавления слова",
+    "wordInvalid": "Новые исключения могут содержать только буквенные символы и один \"-\" между ними!",
+    "generateNewId": "Вы уверены, что хотите изменить ID?\n\nЭто повлияет на уникальность книги в библиотеке.\nПредыдущее значение будет утеряно!",
+    "notFictionBook": "Файл {{path}} не является документом FictionBook (FB2) и не может быть открыт.",
+    "openFailed": "Не удалось открыть {{path}}.\n{{reason}}",
+    "saveFailed": "Не удалось сохранить {{path}}.\n{{reason}}",
+    "notConnected": "Нет соединения с ядром редактора.",
+    "docIssues_one": "{{count}} замечание",
+    "docIssues_few": "{{count}} замечания",
+    "docIssues_many": "{{count}} замечаний",
+    "docIssues_other": "{{count}} замечания",
+    "errorsFound_one": "Найдена {{count}} ошибка.",
+    "errorsFound_few": "Найдено {{count}} ошибки.",
+    "errorsFound_many": "Найдено {{count}} ошибок.",
+    "errorsFound_other": "Найдено {{count}} ошибки."
+  },
+  "description": {
+    "titleInfo": "Информация о произведении",
+    "srcTitleInfo": "Информация об оригинальном тексте",
+    "documentInfo": "Информация о документе",
+    "publishInfo": "Информация об издании",
+    "customInfo": "Дополнительная информация",
+    "genreMatch": "Соответствие жанру",
+    "keywords": "Ключевые слова",
+    "authorNickname": "Ник автора",
+    "id": "ID",
+    "binaries": "Бинарные объекты",
+    "fileInfo": "Файл",
+    "fields": {
+      "bookTitle": "Название книги:",
+      "authors": "Авторы:",
+      "genres": "Жанры:",
+      "sequences": "Серии:",
+      "lang": "Язык:",
+      "srcLang": "Язык оригинала:",
+      "translators": "Переводчики:",
+      "date": "Дата:",
+      "coverpage": "Обложка:",
+      "annotation": "Аннотация:",
+      "version": "Версия:",
+      "programUsed": "Программа:",
+      "documentAuthors": "Авторы документа:",
+      "srcUrls": "Адреса источника:",
+      "srcOcr": "OCR источника:",
+      "history": "История:",
+      "bookName": "Название издания:",
+      "publisher": "Издательство:",
+      "city": "Город:",
+      "year": "Год:",
+      "isbn": "ISBN:",
+      "binariesCount": "Количество:",
+      "bytes_one": "{{count}} байт",
+      "bytes_few": "{{count}} байта",
+      "bytes_many": "{{count}} байт",
+      "bytes_other": "{{count}} байта",
+      "willConvert": "будет преобразован в JPEG/PNG при сохранении",
+      "notDecodable": "не является распознаваемым изображением",
+      "path": "Путь:",
+      "encoding": "Кодировка:",
+      "schemaHint": "Схема:",
+      "bodiesCount": "Тел документа:"
+    },
+    "schema": {
+      "current": "FictionBook 2.1",
+      "legacy": "Устаревшая (приводится к 2.1 при сохранении)",
+      "unknown": "Неизвестно"
+    }
+  },
+  "lang": {
+    "en": "Английский",
+    "ru": "Русский",
+    "uk": "Украинский",
+    "system": "Как в системе"
+  }
+}

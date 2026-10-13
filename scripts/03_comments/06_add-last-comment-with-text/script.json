@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "03/add-last-comment-with-text",
+  "name": {
+    "en": "Add the last comment, entering its text in a dialog",
+    "ru": "Добавить последний комментарий, введя его текст в окошке"
+  },
+  "description": {
+    "en": "Inserts the last comment link at the caret and appends the comment section with the text entered in a prompt",
+    "ru": "Вставляет ссылку последнего комментария в позиции курсора и добавляет в конец секцию комментария с текстом, введенным в окошке"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Add the last comment, entering its text in a dialog",
+    "ru": "Добавить последний комментарий, введя его текст в окошке"
+  },
+  "legacy": {
+    "source": "03_Добавление комментария/06_Добавить последний комментарий, введя его текст в окошке.js",
+    "fbeVersion": "2.7"
+  }
+}

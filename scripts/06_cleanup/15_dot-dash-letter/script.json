@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "06/dot-dash-letter",
+  "name": {
+    "en": "Dot, dash, letter...",
+    "ru": "Точка, тире, буква..."
+  },
+  "description": {
+    "en": "From the caret on, finds a full stop or comma (including ellipses) followed by a dash and a letter of the wrong case and offers to swap the punctuation or change the letter's case",
+    "ru": "От курсора ищет точку или запятую (включая многоточия), за которыми идут тире и буква не того регистра, и предлагает заменить знак или регистр буквы"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Dot, dash, letter...",
+    "ru": "Точка, тире, буква..."
+  },
+  "legacy": {
+    "source": "06_Чистка/15_Точка, тире, буква....js",
+    "fbeVersion": "2.7"
+  },
+  "icon": "icon.png"
+}

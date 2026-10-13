@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "06/broken-sentences",
+  "name": {
+    "en": "Broken sentences",
+    "ru": "Разрыв предложения"
+  },
+  "description": {
+    "en": "Finds sentences broken across two paragraphs: joins the unambiguous cases automatically (optionally all hyphenated line ends) and asks about the doubtful ones, including adding a missing final full stop",
+    "ru": "Ищет предложения, разорванные на два абзаца: бесспорные случаи (и, по желанию, все переносы по дефису) сливает автоматически, о сомнительных спрашивает, в том числе предлагает поставить пропущенную точку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Broken sentences",
+    "ru": "Поиск разорванных предложений"
+  },
+  "legacy": {
+    "source": "06_Чистка/14_Разрыв предложения.js",
+    "fbeVersion": "2.7"
+  }
+}

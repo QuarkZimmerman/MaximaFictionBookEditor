@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-paragraph-with-code",
+  "name": {
+    "en": "Go to next paragraph with code",
+    "ru": "Переход на следующий абзац, содержащий код"
+  },
+  "description": {
+    "en": "Moves the caret to the first code in the next paragraph that contains code; offers to continue from the beginning of the book when the end is reached",
+    "ru": "Переводит курсор на следующий абзац, содержащий код; по достижении конца книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next paragraph with code",
+    "ru": "Переход на следующий абзац, содержащий код"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/24_Переход на следующий абзац, содержащий код.js",
+    "fbeVersion": "2.7"
+  }
+}

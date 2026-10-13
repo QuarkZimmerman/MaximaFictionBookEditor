@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "12/previous-straight-quotes",
+  "name": {
+    "en": "Go to previous straight quotes",
+    "ru": "Переход на пред. прямые кавычки"
+  },
+  "description": {
+    "en": "Moves the caret to the previous straight quote (\") and selects it; at the beginning of the book offers to continue from the end",
+    "ru": "Переводит курсор на предыдущую прямую кавычку (\") и выделяет её; в начале книги предлагает продолжить с конца"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to previous straight quotes",
+    "ru": "Переход на пред. прямые кавычки"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/011_Переход на пред. прямые кавычки.js",
+    "fbeVersion": "2.7"
+  }
+}

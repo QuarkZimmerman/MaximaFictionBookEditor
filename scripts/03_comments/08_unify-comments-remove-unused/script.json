@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "03/unify-comments-remove-unused",
+  "name": {
+    "en": "Unify comments (removing unused comment sections)",
+    "ru": "Унификация комментариев (с удалением неиспользуемых разделов комментариев)"
+  },
+  "description": {
+    "en": "Removes the comment sections no link points to, then renumbers the comment sections and links",
+    "ru": "Удаляет секции комментариев, на которые нет ссылок, затем перенумеровывает секции комментариев и ссылки"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Unify comments (removing unused comment sections)",
+    "ru": "Унификация комментариев (с удалением неиспользуемых разделов комментариев)"
+  },
+  "legacy": {
+    "source": "03_Добавление комментария/08_Унификация комментариев (с удалением неиспользуемых разделов комментариев).js",
+    "fbeVersion": "2.7"
+  }
+}

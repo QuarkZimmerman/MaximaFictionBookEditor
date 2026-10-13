@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "06/remove-back-links",
+  "name": {
+    "en": "Remove back links",
+    "ru": "Удаление возвратов"
+  },
+  "description": {
+    "en": "Removes the converter back links (_ftnref…, _ednref…) from the notes body and the matching paragraph ids from the other bodies; warns when a notes section has not exactly one back link",
+    "ru": "Удаляет возвратные ссылки конвертеров (_ftnref…, _ednref…) из body примечаний и соответствующие id абзацев в остальных body; предупреждает, если в секции примечаний не ровно одна возвратная ссылка"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Remove back links",
+    "ru": "Удаление возвратных ссылок"
+  },
+  "legacy": {
+    "source": "06_Чистка/12_Удаление возвратов.js",
+    "fbeVersion": "2.7"
+  }
+}

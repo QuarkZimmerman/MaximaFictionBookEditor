@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "02/test-footnotes",
+  "name": {
+    "en": "Footnote test",
+    "ru": "Тест сносок"
+  },
+  "description": {
+    "en": "Checks that every footnote link points to an existing note section, in order, and that every note section is referenced once",
+    "ru": "Проверяет, что каждая ссылка сноски ведет на существующую секцию примечания, по порядку, и что на каждую секцию есть ровно одна ссылка"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Footnote test",
+    "ru": "Тест сносок"
+  },
+  "legacy": {
+    "source": "02_Добавление примечания/20_Тест сносок.js",
+    "fbeVersion": "2.7"
+  }
+}

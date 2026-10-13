@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "tree/example-1",
+  "name": {
+    "en": "Example 1: paragraphs without a full stop",
+    "ru": "Пример 1: абзацы без точки"
+  },
+  "description": {
+    "en": "Sample tree command: lists the paragraphs of the clicked node (or of the whole book) that contain no full stop and jumps to the chosen one",
+    "ru": "Пример команды дерева: показывает абзацы выбранного узла (или всей книги), в которых нет точки, и переходит к выбранному"
+  },
+  "kind": "tree",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Example 1",
+    "ru": "Пример 1"
+  },
+  "legacy": {
+    "source": "TreeCmd/Пример 1.js",
+    "fbeVersion": "2.7"
+  }
+}

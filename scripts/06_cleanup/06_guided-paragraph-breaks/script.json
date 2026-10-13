@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "06/guided-paragraph-breaks",
+  "name": {
+    "en": "Guided repair of paragraph breaks...",
+    "ru": "Управляемое исправление разрывов абзацев..."
+  },
+  "description": {
+    "en": "Finds paragraphs broken by a scan (hyphen or dash at the end, comma, lower-case continuation, missing full stop); every kind of break is fixed automatically or confirmed one by one, as chosen in the first form",
+    "ru": "Находит абзацы, разорванные при сканировании (дефис или тире в конце, запятая, продолжение со строчной, пропущенная точка); каждый вид разрыва правится автоматически или подтверждается по одному — как выбрано в первой форме"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Repair of paragraph breaks",
+    "ru": "Исправление разрывов абзацев"
+  },
+  "legacy": {
+    "source": "06_Чистка/06_Управляемое исправление разрывов абзацев....js",
+    "fbeVersion": "2.7"
+  }
+}

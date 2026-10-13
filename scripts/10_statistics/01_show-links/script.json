@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "10/show-links",
+  "name": {
+    "en": "Show all links",
+    "ru": "Показать все ссылки"
+  },
+  "description": {
+    "en": "Lists every link of the book (internal and external) in a message box; links that do not start with # are flagged",
+    "ru": "Показывает список всех ссылок книги (внутренних и внешних) в окне сообщения; ссылки не на # помечаются"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Show all links",
+    "ru": "Показать все ссылки"
+  },
+  "legacy": {
+    "source": "10_Статистика/01_Показать все ссылки.js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>sci_history</genre>
+			<author>
+				<first-name>Клио</first-name>
+				<last-name>Историк</last-name>
+			</author>
+			<book-title>Только описание</book-title>
+			<annotation>
+				<p>Файл-описание без тела.</p>
+			</annotation>
+			<lang>ru</lang>
+			<sequence name="Описания" number="1"/>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture generator</program-used>
+			<date value="2026-01-01">2026</date>
+			<id>fixture-descriptor</id>
+			<version>1.0</version>
+		</document-info>
+		<publish-info>
+			<book-name>Бумажное издание</book-name>
+			<year>2001</year>
+		</publish-info>
+		<custom-info info-type="kind">descriptor</custom-info>
+	</description>
+</FictionBook>

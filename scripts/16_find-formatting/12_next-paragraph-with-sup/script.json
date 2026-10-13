@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-paragraph-with-sup",
+  "name": {
+    "en": "Go to next paragraph with superscript",
+    "ru": "Переход на следующий абзац с верхним индексом"
+  },
+  "description": {
+    "en": "Moves the caret to the first superscript in the next paragraph that contains superscript; offers to continue from the beginning of the book when the end is reached",
+    "ru": "Переводит курсор на следующий абзац, содержащий верхний индекс; по достижении конца книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next paragraph with superscript",
+    "ru": "Переход на следующий абзац с верхним индексом"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/12_Переход на следующий абзац с верхним индексом.js",
+    "fbeVersion": "2.7"
+  }
+}

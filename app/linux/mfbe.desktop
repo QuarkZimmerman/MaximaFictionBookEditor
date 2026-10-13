@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=Maxima Fiction Book Editor
+Name[ru]=Maxima Fiction Book Editor
+GenericName=FictionBook Editor
+GenericName[ru]=Редактор FictionBook
+Comment=Edit FictionBook 2 (.fb2/.fbd) e-books
+Comment[ru]=Редактирование электронных книг FictionBook 2 (.fb2/.fbd)
+Exec=mfbe %F
+TryExec=mfbe
+Icon=mfbe
+Terminal=false
+Categories=Office;Publishing;
+MimeType=application/x-fictionbook+xml;
+Keywords=fb2;fbd;fictionbook;ebook;editor;
+Keywords[ru]=fb2;fbd;fictionbook;книга;редактор;
+StartupNotify=true
+StartupWMClass=mfbe

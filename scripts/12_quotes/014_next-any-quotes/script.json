@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "12/next-any-quotes",
+  "name": {
+    "en": "Go to next straight quotes, guillemets or low quotes",
+    "ru": "Переход на след. прямые кавычки, елочки или лапки"
+  },
+  "description": {
+    "en": "Moves the caret to the next quote of any kind and selects it; at the end of the book offers to continue from the beginning",
+    "ru": "Переводит курсор на следующую кавычку любого вида и выделяет её; в конце книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next straight quotes, guillemets or low quotes",
+    "ru": "Переход на след. прямые кавычки, елочки или лапки"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/014_Переход на след. прямые кавычки, елочки или лапки.js",
+    "fbeVersion": "2.7"
+  }
+}

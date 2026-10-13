@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "03/add-last-comment-go-to-comment",
+  "name": {
+    "en": "Add the last comment and go to its section",
+    "ru": "Добавить последний комментарий, перейти к его разделу"
+  },
+  "description": {
+    "en": "Inserts the last comment link at the caret, appends the comment section and moves the caret into it",
+    "ru": "Вставляет ссылку последнего комментария в позиции курсора, добавляет секцию комментария в конец и переводит курсор в нее"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Add the last comment and go to its section",
+    "ru": "Добавить последний комментарий, перейти к его разделу"
+  },
+  "legacy": {
+    "source": "03_Добавление комментария/07_Добавить последний комментарий, перейти к его разделу.js",
+    "fbeVersion": "2.7"
+  }
+}

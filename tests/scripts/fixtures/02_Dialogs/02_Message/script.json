@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test.dialogs.message",
+  "name": {
+    "en": "Message and input",
+    "ru": "Сообщение и ввод"
+  },
+  "kind": "menu"
+}

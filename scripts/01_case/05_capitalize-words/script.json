@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "01/capitalize-words",
+  "name": {
+    "en": "Capitalize the selection",
+    "ru": "Капитализация выделения"
+  },
+  "description": {
+    "en": "Every word of the selection (or the word under the caret) gets a capital first letter, the rest lower case",
+    "ru": "Каждое слово выделения (или слово под курсором) получает прописную первую букву, остальные — строчные"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Capitalize the selection",
+    "ru": "Капитализация выделения"
+  },
+  "legacy": {
+    "source": "01_Регистр/05_Капитализация выделения.js",
+    "fbeVersion": "2.7"
+  }
+}

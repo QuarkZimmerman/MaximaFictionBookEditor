@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "08/section-down",
+  "name": {
+    "en": "Lower the section one level down",
+    "ru": "Опустить раздел на один уровень"
+  },
+  "description": {
+    "en": "Wraps the content of the section at the caret (everything after its title, epigraph, image and annotation) into a new nested section",
+    "ru": "Оборачивает содержимое раздела под курсором (всё после заголовка, эпиграфа, картинки и аннотации) во вложенный раздел"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Lower the section",
+    "ru": "Опустить раздел"
+  },
+  "legacy": {
+    "source": "08_Структура разделов/03_Опустить раздел на один уровень.js",
+    "fbeVersion": "2.7"
+  }
+}

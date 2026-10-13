@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "05/remove-unused-binaries",
+  "name": {
+    "en": "Remove unused binary objects...",
+    "ru": "Удаление неиспользуемых вложений..."
+  },
+  "description": {
+    "en": "Removes the binary objects no image or cover refers to (needs a binary-removal call in the script API)",
+    "ru": "Удаляет вложения, на которые не ссылается ни одна картинка или обложка (требует вызов удаления вложений в API скриптов)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Remove unused binary objects",
+    "ru": "Удаление неиспользуемых вложений"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/07_Удаление неиспользуемых вложений....js",
+    "fbeVersion": "2.7"
+  }
+}

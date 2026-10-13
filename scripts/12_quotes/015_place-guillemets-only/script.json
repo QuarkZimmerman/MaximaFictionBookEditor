@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "12/place-guillemets-only",
+  "name": {
+    "en": "Place guillemets only",
+    "ru": "Расстановка только елочек"
+  },
+  "description": {
+    "en": "Replaces straight quotes with «» in the selection (or the whole book); ambiguous quotes are left straight",
+    "ru": "Заменяет прямые кавычки на «» в выделении (или во всей книге); сомнительные кавычки остаются прямыми"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Place guillemets only",
+    "ru": "Расстановка только елочек"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/015_Расстановка только елочек.js",
+    "fbeVersion": "2.7"
+  }
+}

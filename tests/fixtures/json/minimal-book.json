@@ -1,0 +1,52 @@
+{
+  "modelVersion": 1,
+  "docId": "d1",
+  "path": "/books/minimal.fb2",
+  "fileKind": "fb2",
+  "sourceEncoding": "utf-8",
+  "schemaHint": "2.1",
+  "stylesheets": [],
+  "description": {
+    "titleInfo": {
+      "genres": [{ "code": "sf" }],
+      "authors": [{ "firstName": "Ivan", "lastName": "Petrov", "homePages": [], "emails": [] }],
+      "bookTitle": "Minimal Book",
+      "coverpage": [],
+      "lang": "ru",
+      "translators": [],
+      "sequences": []
+    },
+    "documentInfo": {
+      "authors": [{ "nickname": "maker", "homePages": [], "emails": [] }],
+      "programUsed": "Maxima Fiction Book Editor",
+      "date": { "text": "12 October 2026", "value": "2026-10-12" },
+      "srcUrls": [],
+      "id": "3f0a4b7e-2d31-4b0b-9a1e-6b7f2c9d1e22",
+      "version": "1.0",
+      "publishers": []
+    },
+    "customInfo": [],
+    "outputs": []
+  },
+  "bodies": [
+    {
+      "type": "body",
+      "attrs": { "nodeId": "n1" },
+      "content": [
+        {
+          "type": "section",
+          "attrs": { "nodeId": "n2" },
+          "content": [
+            {
+              "type": "p",
+              "attrs": { "nodeId": "n3" },
+              "content": [{ "type": "text", "text": "Hello, world." }]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "binaries": [],
+  "extras": []
+}

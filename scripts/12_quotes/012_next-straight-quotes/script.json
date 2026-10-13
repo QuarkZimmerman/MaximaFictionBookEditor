@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "12/next-straight-quotes",
+  "name": {
+    "en": "Go to next straight quotes",
+    "ru": "Переход на след. прямые кавычки"
+  },
+  "description": {
+    "en": "Moves the caret to the next straight quote (\") and selects it; at the end of the book offers to continue from the beginning",
+    "ru": "Переводит курсор на следующую прямую кавычку (\") и выделяет её; в конце книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next straight quotes",
+    "ru": "Переход на след. прямые кавычки"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/012_Переход на след. прямые кавычки.js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "11/caption-strong",
+  "name": {
+    "en": "Image title to caption (strong)",
+    "ru": "Заголовок картинки в подпись (strong)"
+  },
+  "description": {
+    "en": "Moves the title of every block image into a bold paragraph below the image (plus an empty line) and removes the title attribute",
+    "ru": "Переносит заголовок (title) каждой картинки под неё как жирный абзац (плюс пустая строка) и удаляет атрибут title"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Image title to caption (strong)",
+    "ru": "Заголовок картинки в подпись (strong)"
+  },
+  "legacy": {
+    "source": "11_Заголовки картинок в подписи/600_Заголовок картинки в подпись (strong).js",
+    "fbeVersion": "2.7"
+  }
+}

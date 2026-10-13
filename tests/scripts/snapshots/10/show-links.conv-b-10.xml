@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Тестов</last-name>
+			</author>
+			<book-title>Статистика</book-title>
+			<coverpage>
+				<image l:href="#cover.png"/>
+			</coverpage>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга со ссылками</p>
+		</title>
+		<section id="s1">
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Первый абзац со сноской<a l:href="#n_1" type="note">[1]</a> и внешней ссылкой на <a l:href="https://example.org/page" type="simple">сайт</a>.</p>
+			<p>Второй абзац со <strong>второй</strong> сноской<a l:href="#n_2" type="note">[2]</a>, ссылкой на <a l:href="#s2">вторую главу</a> и битой ссылкой <a l:href="broken-link">без решётки</a>.</p>
+			<p>Абзац с инлайн-картинкой <image l:href="#dot.gif" alt="точка"/> и ссылкой <a l:href="http://example.com/">http</a>.</p>
+			<image l:href="#cover.png" alt="Картинка" title="Подпись к картинке"/>
+			<p>Четвёртый абзац. Пятое предложение здесь.</p>
+		</section>
+		<section id="s2">
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<p>Абзац второй главы с пустой ссылкой <a l:href="">пусто</a>.</p>
+			<poem>
+				<stanza>
+					<v>Строка стиха,</v>
+					<v>ещё одна строка.</v>
+				</stanza>
+			</poem>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Первая сноска.</p>
+		</section>
+		<section id="n_2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Вторая сноска.</p>
+		</section>
+	</body>
+	<binary id="cover.png" content-type="image/png">…</binary>
+	<binary id="dot.gif" content-type="image/gif">…</binary>
+	<binary id="unused.gif" content-type="image/gif">…</binary>
+</FictionBook>

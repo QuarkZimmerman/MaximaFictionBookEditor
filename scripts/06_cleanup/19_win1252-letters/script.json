@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "06/win1252-letters",
+  "name": {
+    "en": "win-1252 characters (letters)...",
+    "ru": "Символы win-1252 (буквы)..."
+  },
+  "description": {
+    "en": "From the caret on, finds Cyrillic letters that are really mis-decoded windows-1252 characters inside Latin words (\"cafй\" for \"café\") and offers the recoded single letter",
+    "ru": "От курсора ищет кириллические буквы, которые на самом деле являются неверно раскодированными символами windows-1252 внутри латинских слов («cafй» вместо «café»), и предлагает перекодированную букву"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "win-1252 characters (letters)...",
+    "ru": "Символы win-1252 (буквы)..."
+  },
+  "legacy": {
+    "source": "06_Чистка/19_Символы win-1252 (буквы)....js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "03/add-comment-with-text",
+  "name": {
+    "en": "Add a comment, entering its text in a dialog",
+    "ru": "Добавить комментарий, введя его текст в окошке"
+  },
+  "description": {
+    "en": "Inserts a comment link at the caret and creates the comment section with the text entered in a prompt",
+    "ru": "Вставляет ссылку комментария в позиции курсора и создает секцию комментария с текстом, введенным в окошке"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Add a comment, entering its text in a dialog",
+    "ru": "Добавить комментарий, введя его текст в окошке"
+  },
+  "legacy": {
+    "source": "03_Добавление комментария/02_Добавить комментарий, введя его текст в окошке.js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "spell": {
+    "status": {
+      "noDictionary": "No dictionary for {{lang}}",
+      "disabled": "Spell checking is turned off in Settings.",
+      "notConnected": "Spell checking needs the running core.",
+      "wordAdded": "'{{word}}' added to the custom dictionary.",
+      "wordRemoved": "'{{word}}' removed from the custom dictionary.",
+      "replacedAll_one": "{{count}} occurrence replaced.",
+      "replacedAll_other": "{{count}} occurrences replaced."
+    },
+    "menu": {
+      "loading": "Looking up suggestions...",
+      "noSuggestions": "(no suggestions)",
+      "ignoreAll": "Ignore all"
+    },
+    "dialog": {
+      "dictionaries": "Dictionaries:",
+      "noDictionaries": "No dictionaries are installed.",
+      "checking": "Checking...",
+      "noSuggestions": "(no suggestions)",
+      "where": {
+        "annotation": "annotation",
+        "history": "history",
+        "body": "body"
+      },
+      "location": "In: {{where}}"
+    },
+    "undo": {
+      "replaceWord": "Replace misspelled word",
+      "replaceAll": "Replace all occurrences of a word"
+    }
+  }
+}

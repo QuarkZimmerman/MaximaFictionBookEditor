@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "05/check-images",
+  "name": {
+    "en": "Check illustrations",
+    "ru": "Проверка иллюстраций"
+  },
+  "description": {
+    "en": "Reports unused binary objects and images whose binary object is missing",
+    "ru": "Сообщает о неиспользуемых бинарных объектах и о картинках без вложения"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Check illustrations",
+    "ru": "Проверка иллюстраций"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/01_Проверка иллюстраций.js",
+    "fbeVersion": "2.7"
+  }
+}

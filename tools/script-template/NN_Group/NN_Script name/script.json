@@ -1,0 +1,11 @@
+{
+  "manifestVersion": 1,
+  "id": "yourname.group.script",
+  "name": { "en": "Script name", "ru": "Название скрипта" },
+  "description": { "en": "What the script does, shown as a tooltip", "ru": "Что делает скрипт (подсказка)" },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": { "en": "Script name", "ru": "Название скрипта" }
+}

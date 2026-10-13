@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "04/comments-from-square-bang",
+  "name": {
+    "en": "Comments from [! !]",
+    "ru": "Комментарии из [! !]"
+  },
+  "description": {
+    "en": "Turns every fragment of the book enclosed in [! !] into a comment (link in the text, section in the comments body)",
+    "ru": "Превращает каждый фрагмент книги в скобках [! !] в комментарий (ссылка в тексте, секция в body комментариев)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Comments from [! !]",
+    "ru": "Комментарии из [! !]"
+  },
+  "legacy": {
+    "source": "04_Примечания и комментарии из скобок/609_Комментарии из [! !].js",
+    "fbeVersion": "2.7"
+  }
+}

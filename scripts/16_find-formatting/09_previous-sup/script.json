@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-sup",
+  "name": {
+    "en": "Go to previous superscript",
+    "ru": "Переход на предыдущий верхний индекс"
+  },
+  "description": {
+    "en": "Moves the caret to the end of the previous run of superscript; offers to continue from the end of the book when the beginning is reached",
+    "ru": "Переводит курсор в конец предыдущего фрагмента (верхний индекс); по достижении начала книги предлагает продолжить с конца"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to previous superscript",
+    "ru": "Переход на предыдущий верхний индекс"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/09_Переход на предыдущий верхний индекс.js",
+    "fbeVersion": "2.7"
+  }
+}

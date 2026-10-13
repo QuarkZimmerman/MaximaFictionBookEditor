@@ -1,0 +1,467 @@
+/*
+ * Body view styling (T049) - a port of the original editor's `main.css` (and `main_fast.css`
+ * for Fast mode) onto the semantic DOM produced by `schema.ts`:
+ *   body/section/title/epigraph/annotation/poem/stanza/cite/table are framed boxes with a
+ *   coloured left border, titles are green bars with centred white text, epigraphs are small
+ *   blue text indented to the right, cites brown, text-author lines dark red, table header
+ *   cells cyan/purple and data cells blue/navy, footnote links superscript blue, code grey mono.
+ * Fonts and colours of the text itself come from the Settings > View variables in layout.css;
+ * the accents are the `--mfbe-fb-*` variables declared there for the light and the dark theme.
+ */
+
+.mfbe-body-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 0.2em 0.2em 1em;
+  font-family: var(--mfbe-body-font-family);
+  font-size: var(--mfbe-body-font-size);
+  color: var(--mfbe-body-fg);
+  background: var(--mfbe-body-bg);
+}
+
+.mfbe-body-editor {
+  flex: 1 1 auto;
+}
+
+.fb-editor {
+  outline: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+.fb-editor:focus-visible {
+  outline: none;
+}
+
+/* Explicit selection colour: the browser default is not legible on every theme/platform. */
+.mfbe-body-view ::selection {
+  background: var(--mfbe-body-selection);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Window placeholders, body selector, notices                            */
+/* ---------------------------------------------------------------------- */
+
+.mfbe-body-more {
+  display: block;
+  width: 100%;
+  margin: 0.4em 0;
+  padding: 0.5em;
+  border: 1px dashed var(--mfbe-color-border-strong);
+  border-radius: 3px;
+  background: var(--mfbe-color-chrome-bg);
+  color: var(--mfbe-color-fg-muted);
+  font: var(--mfbe-font-ui);
+  cursor: pointer;
+}
+
+.mfbe-body-more:hover {
+  background: var(--mfbe-color-button-hover);
+  color: var(--mfbe-color-fg);
+}
+
+.mfbe-body-selector {
+  display: flex;
+  gap: 2px;
+  margin: 0 0 0.4em;
+  padding: 0 0 2px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+  font: var(--mfbe-font-ui);
+}
+
+.mfbe-body-tab {
+  padding: 2px 10px;
+  border: 1px solid var(--mfbe-color-border);
+  border-radius: 3px 3px 0 0;
+  background: var(--mfbe-color-chrome-bg-2);
+  cursor: pointer;
+}
+
+.mfbe-body-tab-active {
+  background: var(--mfbe-color-bg);
+  font-weight: 600;
+}
+
+.mfbe-body-notice {
+  margin: 0 0 0.5em;
+  padding: 6px 10px;
+  border: 1px solid var(--mfbe-color-border-strong);
+  border-left: 4px solid var(--mfbe-color-accent);
+  background: var(--mfbe-color-chrome-bg);
+  font: var(--mfbe-font-ui);
+}
+
+.mfbe-body-notice-warning {
+  border-left-color: var(--mfbe-color-warning);
+  margin-top: 0.5em;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Framed containers (main.css: div#fbw_body div)                         */
+/* ---------------------------------------------------------------------- */
+
+.fb-editor div {
+  padding: 0 0 0 0.4em;
+  margin: 0.5em 0;
+  border-left: solid 1px;
+  clear: both;
+}
+
+.fb-editor .fb-body {
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.fb-section {
+  border-color: var(--mfbe-fb-section);
+}
+
+.fb-cite {
+  padding-left: 2em;
+  padding-right: 2em;
+  color: var(--mfbe-fb-cite);
+  border-color: var(--mfbe-fb-cite);
+}
+
+.fb-epigraph {
+  font-size: 80%;
+  border-color: var(--mfbe-fb-epigraph);
+  color: var(--mfbe-fb-epigraph);
+}
+
+.fb-epigraph p {
+  text-indent: 3em;
+  margin: 0 1em 0.5em 25%;
+}
+
+.fb-annotation {
+  border-color: var(--mfbe-fb-annotation);
+  color: var(--mfbe-fb-annotation);
+}
+
+.fb-history {
+  border-color: var(--mfbe-fb-history);
+  color: var(--mfbe-fb-history);
+}
+
+.fb-poem {
+  border-color: var(--mfbe-fb-poem);
+}
+
+.fb-stanza {
+  border-color: var(--mfbe-fb-stanza);
+}
+
+.fb-stanza p {
+  text-align: left;
+  text-indent: 3em;
+  margin-bottom: 0;
+}
+
+.fb-title {
+  font-size: 130%;
+  border-color: var(--mfbe-fb-title-bg);
+  background: var(--mfbe-fb-title-bg);
+  color: var(--mfbe-fb-title-fg);
+  padding: 0.3em;
+}
+
+.fb-title p {
+  text-align: center;
+  text-indent: 0;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Paragraph-like elements                                                */
+/* ---------------------------------------------------------------------- */
+
+.fb-editor p {
+  text-indent: 3em;
+  margin: 0 0 0.2em;
+  text-align: justify;
+  min-height: 1.4em;
+}
+
+.fb-editor p.fb-subtitle {
+  text-align: center;
+  font-weight: bold;
+  text-indent: 0;
+}
+
+.fb-editor p.fb-text-author,
+.fb-editor p.fb-date {
+  margin-left: 3em;
+  margin-bottom: 1em;
+  text-align: right;
+  text-indent: 0;
+  color: var(--mfbe-fb-author);
+}
+
+.fb-editor p.fb-date {
+  font-style: italic;
+}
+
+.fb-editor p.fb-empty-line {
+  min-height: 1.4em;
+  margin: 0 0 0.2em;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Inline styles                                                          */
+/* ---------------------------------------------------------------------- */
+
+.fb-emphasis {
+  font-style: italic;
+}
+
+.fb-strong {
+  font-weight: bold;
+}
+
+.fb-strikethrough {
+  text-decoration: line-through;
+}
+
+.fb-code {
+  font-family: var(--mfbe-font-mono);
+  font-style: normal;
+  background: var(--mfbe-fb-code-bg);
+}
+
+.fb-style {
+  border-bottom: 1px dotted currentColor;
+}
+
+a.fb-link {
+  color: var(--mfbe-fb-link);
+  text-decoration: underline;
+  cursor: text;
+}
+
+a.fb-note {
+  vertical-align: super;
+  color: var(--mfbe-fb-note);
+  font-size: 75%;
+  text-decoration: none;
+}
+
+/* Non-breaking space marker: the character stays in the text, the display char is painted over it. */
+.fb-nbsp {
+  position: relative;
+  color: transparent;
+}
+
+.fb-nbsp::before {
+  content: attr(data-char);
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: var(--mfbe-fb-nbsp);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Tables                                                                 */
+/* ---------------------------------------------------------------------- */
+
+.fb-editor table.fb-table {
+  border-collapse: separate;
+  border-spacing: 2px;
+  margin: 0.5em 0 0.5em 0.4em;
+  border-left: solid 1px var(--mfbe-fb-table-border);
+  padding-left: 0.4em;
+}
+
+.fb-editor .fb-table th,
+.fb-editor .fb-table td {
+  padding: 2px 6px;
+  text-indent: 0;
+  vertical-align: top;
+}
+
+.fb-editor .fb-table th {
+  text-align: center;
+  background: var(--mfbe-fb-th-bg);
+  color: var(--mfbe-fb-th-fg);
+  font-weight: bold;
+}
+
+.fb-editor .fb-table td {
+  background: var(--mfbe-fb-td-bg);
+  color: var(--mfbe-fb-td-fg);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Images                                                                 */
+/* ---------------------------------------------------------------------- */
+
+.fb-editor figure.fb-image {
+  margin: 0.5em 0;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+  clear: both;
+  text-align: center;
+}
+
+.fb-editor .fb-image img {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  vertical-align: middle;
+}
+
+.fb-editor .fb-image-caption {
+  font-size: 85%;
+  color: var(--mfbe-color-fg-muted);
+  text-indent: 0;
+}
+
+.fb-editor .fb-inline-image {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.fb-editor .fb-inline-image img {
+  max-height: 1.6em;
+  vertical-align: middle;
+}
+
+.fb-image-placeholder {
+  display: none;
+  padding: 0.3em 0.6em;
+  border: 1px dashed var(--mfbe-color-border-strong);
+  color: var(--mfbe-color-fg-muted);
+  font: var(--mfbe-font-ui);
+}
+
+.fb-image-missing img,
+.fb-image-external img {
+  display: none;
+}
+
+.fb-image-missing .fb-image-placeholder {
+  display: inline-block;
+}
+
+.fb-selected {
+  outline: 2px solid var(--mfbe-color-accent);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Unknown elements (raw-xml)                                             */
+/* ---------------------------------------------------------------------- */
+
+.fb-editor .fb-unknown,
+.fb-editor .fb-unknown-inline {
+  border: 1px dashed var(--mfbe-fb-unknown-border);
+  background: var(--mfbe-fb-unknown-bg);
+  color: var(--mfbe-fb-unknown-fg);
+  font: var(--mfbe-font-ui);
+}
+
+.fb-editor .fb-unknown {
+  padding: 2px 6px;
+  margin: 0.3em 0;
+}
+
+.fb-editor .fb-unknown-inline {
+  display: inline-block;
+  padding: 0 4px;
+  margin: 0 2px;
+  vertical-align: baseline;
+}
+
+.fb-unknown-name::before {
+  content: '<';
+}
+
+.fb-unknown-name::after {
+  content: '>';
+}
+
+/* ---------------------------------------------------------------------- */
+/* Fast mode (T154, FR-025; the original main_fast.css): the class        */
+/* `mfbe-body-view--fast` is applied on the Body root by editor/fastMode */
+/* .ts. No frames, backgrounds or colours, no font-size changes, images  */
+/* collapsed to a placeholder box, no NBSP markers.                       */
+/* ---------------------------------------------------------------------- */
+
+.mfbe-body-view--fast .fb-editor div {
+  padding-left: 0.4em;
+  border-left: none;
+  background: transparent;
+}
+
+.mfbe-body-view--fast .fb-editor .fb-body {
+  padding: 0;
+}
+
+.mfbe-body-view--fast .fb-section,
+.mfbe-body-view--fast .fb-cite,
+.mfbe-body-view--fast .fb-epigraph,
+.mfbe-body-view--fast .fb-annotation,
+.mfbe-body-view--fast .fb-history,
+.mfbe-body-view--fast .fb-poem,
+.mfbe-body-view--fast .fb-stanza,
+.mfbe-body-view--fast .fb-text-author,
+.mfbe-body-view--fast .fb-date,
+.mfbe-body-view--fast p.fb-text-author,
+.mfbe-body-view--fast p.fb-date {
+  color: inherit;
+  font-size: inherit;
+}
+
+.mfbe-body-view--fast .fb-title {
+  padding: 0 0 0 0.3em;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: bold;
+}
+
+.mfbe-body-view--fast a.fb-note {
+  font-size: inherit;
+}
+
+.mfbe-body-view--fast .fb-editor table.fb-table {
+  border-left: none;
+}
+
+.mfbe-body-view--fast .fb-table th,
+.mfbe-body-view--fast .fb-table td {
+  background: transparent;
+  color: inherit;
+}
+
+.mfbe-body-view--fast .fb-code,
+.mfbe-body-view--fast .fb-editor .fb-unknown,
+.mfbe-body-view--fast .fb-editor .fb-unknown-inline {
+  background: transparent;
+}
+
+/* Images: previews are not laid out or painted; the placeholder box shows the reference. */
+.mfbe-body-view--fast .fb-image img,
+.mfbe-body-view--fast .fb-inline-image img {
+  display: none;
+}
+
+.mfbe-body-view--fast .fb-image .fb-image-placeholder,
+.mfbe-body-view--fast .fb-inline-image .fb-image-placeholder {
+  display: inline-block;
+}
+
+/* Non-breaking spaces are shown as plain spaces. */
+.mfbe-body-view--fast .fb-nbsp {
+  color: inherit;
+}
+
+.mfbe-body-view--fast .fb-nbsp::before {
+  content: none;
+}

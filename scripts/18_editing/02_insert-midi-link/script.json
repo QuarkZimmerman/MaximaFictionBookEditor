@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "18/insert-midi-link",
+  "name": {
+    "en": "Insert a link to midi...",
+    "ru": "Вставить ссылку на midi..."
+  },
+  "description": {
+    "en": "Asks for a midi file name and turns the selected text into a superscript link file:<name>",
+    "ru": "Запрашивает имя midi-файла и превращает выделенный текст в надстрочную ссылку file:<имя>"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Insert a link to midi...",
+    "ru": "Вставить ссылку на midi..."
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/02_Вставить ссылку на midi....js",
+    "fbeVersion": "2.7"
+  }
+}

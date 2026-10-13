@@ -1,0 +1,81 @@
+/* About dialog (T149) after IDD_ABOUTBOX: name + version, build stamp, link, licence, log folder. */
+
+.mfbe-aboutdialog {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.mfbe-about {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 8px 14px;
+  align-items: start;
+}
+
+.mfbe-about-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: var(--mfbe-color-accent, #0078d4);
+  color: var(--mfbe-color-on-accent, #fff);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.mfbe-about-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfbe-about-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mfbe-about-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 4px 0 0;
+}
+
+.mfbe-about-facts dt {
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+  white-space: nowrap;
+}
+
+.mfbe-about-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-about-link a {
+  color: var(--mfbe-color-accent, #0078d4);
+  overflow-wrap: anywhere;
+}
+
+.mfbe-about-note {
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+}
+
+.mfbe-about-log {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-about-log .mfbe-button {
+  min-width: 0;
+  white-space: nowrap;
+}

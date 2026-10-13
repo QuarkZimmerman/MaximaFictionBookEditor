@@ -1,0 +1,87 @@
+Hunspell spelling dictionaries - provenance
+===========================================
+
+Both dictionaries were downloaded unmodified (byte-exact, LF line endings,
+no BOM) from the LibreOffice dictionaries repository:
+
+  Repository : https://github.com/LibreOffice/dictionaries
+  Branch     : master
+  Commit     : 67032ee957631908098a72edf48dc81cac27e369
+               (committer date 2026-10-12T12:58:15Z, "tdf#173648 Add Ligurian
+               (lij_IT) spelling and hyphenation dictionaries"; obtained from
+               https://api.github.com/repos/LibreOffice/dictionaries/commits/master
+               at download time)
+  Downloaded : 2026-10-12
+
+Files (local name <- upstream path, pinned raw URL):
+
+  en_US.aff <- en/en_US.aff
+    https://raw.githubusercontent.com/LibreOffice/dictionaries/67032ee957631908098a72edf48dc81cac27e369/en/en_US.aff
+  en_US.dic <- en/en_US.dic
+    https://raw.githubusercontent.com/LibreOffice/dictionaries/67032ee957631908098a72edf48dc81cac27e369/en/en_US.dic
+  en_US.txt <- en/README_en_US.txt
+    https://raw.githubusercontent.com/LibreOffice/dictionaries/67032ee957631908098a72edf48dc81cac27e369/en/README_en_US.txt
+  ru_RU.aff <- ru_RU/ru_RU.aff
+    https://raw.githubusercontent.com/LibreOffice/dictionaries/67032ee957631908098a72edf48dc81cac27e369/ru_RU/ru_RU.aff
+  ru_RU.dic <- ru_RU/ru_RU.dic
+    https://raw.githubusercontent.com/LibreOffice/dictionaries/67032ee957631908098a72edf48dc81cac27e369/ru_RU/ru_RU.dic
+  ru_RU.txt <- ru_RU/README_ru_RU.txt
+    https://raw.githubusercontent.com/LibreOffice/dictionaries/67032ee957631908098a72edf48dc81cac27e369/ru_RU/README_ru_RU.txt
+
+Sizes, encodings, checksums
+---------------------------
+  file        bytes     encoding (declared by "SET" in the .aff)   sha256
+  en_US.aff      3205   SET UTF-8 (line 5; lines 1-3 are comments) e746c882dd6f303c2c46e7452804b9201115a6942cfeb15f18f8edf774d2e24e
+  en_US.dic    551762   UTF-8 per en_US.aff (content is pure ASCII;
+                        49568 entries, first line = word count)    f0b1a234bd178bdd01875b2a392a9647f888b8fe879f79c52aae62c2759b3647
+  en_US.txt     15732   UTF-8                                      168b4c01cb841f766a72f310b065c04d09cff46376c37a81d799593ce751c371
+  ru_RU.aff     71236   SET UTF-8 (line 1)                         38ce7d4af78e211e9bafe4bf7e3d6a2c420591136cb738ec6648f8fdf6524cd7
+  ru_RU.dic   3473191   UTF-8 per ru_RU.aff (146269 entries)       f6047416a0204adbecf3a451b874ec8a97ee37e2cbc714466ef04d8dbcc0d6fc
+  ru_RU.txt      1886   ASCII                                      262af2f6ad70a61e5ee1332ff44fa8ee50edca819cf33207d8ad6ba6a0c9be52
+
+Hunspell reads the .dic file in the encoding declared by the .aff "SET" line,
+so the files must stay byte-exact; do not re-encode or normalise them.
+
+Versions
+--------
+  en_US : SCOWL-derived "en_US Hunspell Dictionary" version 2020.12.07
+          (http://wordlist.sourceforge.net, see en_US.txt); the .aff carries
+          LibreOffice fixes up to 2024-01-29 (Marco A.G. Pinto).
+  ru_RU : Russian dictionary (BSD-style licence, see ru_RU.txt),
+          with the 2012-08-24 TRY-line fix by Laszlo Nemeth (see ru_RU.txt).
+
+Licences
+--------
+  en_US.aff / en_US.dic
+    The word list is SCOWL (Spell Checker Oriented Word Lists), collective
+    work under the permissive SCOWL
+    licence ("Permission to use, copy, modify, distribute and sell these
+    word lists ... is hereby granted without fee, provided that the above
+    copyright notice appears in all copies ..."). Parts are covered by the
+    Ispell BSD-style licence (Geoff Kuenning), the WordNet licence
+    (Princeton University), the UK Advanced Cryptics Dictionary licence
+    (J Ross Beresford) and public-domain material (Moby Words II). The
+    complete notices are reproduced in en_US.txt (= upstream
+    README_en_US.txt). Note: the LibreOffice "en" extension directory also
+    ships a GPL-2 license.txt covering the extension as a whole (Lightproof
+    grammar checker etc.); it is not needed for the word list.
+
+  ru_RU.aff / ru_RU.dic
+    BSD-style licence (full text with the required copyright notice in ru_RU.txt)
+    (redistribution with notice, modified versions must be clearly marked,
+    no endorsement). Full text in ru_RU.txt (= upstream README_ru_RU.txt).
+
+Regeneration
+------------
+  SHA=67032ee957631908098a72edf48dc81cac27e369
+  BASE=https://raw.githubusercontent.com/LibreOffice/dictionaries/$SHA
+  curl -fL -o en_US.aff $BASE/en/en_US.aff
+  curl -fL -o en_US.dic $BASE/en/en_US.dic
+  curl -fL -o en_US.txt $BASE/en/README_en_US.txt
+  curl -fL -o ru_RU.aff $BASE/ru_RU/ru_RU.aff
+  curl -fL -o ru_RU.dic $BASE/ru_RU/ru_RU.dic
+  curl -fL -o ru_RU.txt $BASE/ru_RU/README_ru_RU.txt
+  sha256sum -c   # against the table above
+To update to a newer upstream state, take the new SHA from
+https://api.github.com/repos/LibreOffice/dictionaries/commits/master and
+refresh the table above.

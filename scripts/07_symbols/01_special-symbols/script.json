@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "07/special-symbols",
+  "name": {
+    "en": "Special symbols",
+    "ru": "Спецсимволы"
+  },
+  "description": {
+    "en": "Inserts a special symbol (¡ § © « » ° ± × ÷ † ← → ♠ ™ ‰ …) at the caret",
+    "ru": "Вставляет специальный символ (¡ § © « » ° ± × ÷ † ← → ♠ ™ ‰ …) в позицию курсора"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Special symbols",
+    "ru": "Спецсимволы"
+  },
+  "legacy": {
+    "source": "07_Символы/01_Спецсимволы.js",
+    "fbeVersion": "2.7"
+  }
+}
