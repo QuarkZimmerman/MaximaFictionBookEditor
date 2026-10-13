@@ -24,6 +24,7 @@ Packages for every platform are attached to each release on the
 | Platform | Package | Install | Uninstall |
 |----------|---------|---------|-----------|
 | Windows 10/11 x64 | `MaximaFictionBookEditor-<version>-win64.msi` | double-click (administrator prompt); installs into `C:\Program Files\Maxima Fiction Book Editor` for all users and registers `.fb2`/`.fbd`; unattended: `msiexec /i <msi> /qn` | *Settings > Apps* or `msiexec /x <msi>` - associations are removed |
+| Windows 10/11 x64, portable | `MaximaFictionBookEditor-<version>-win64-portable.zip` | unzip anywhere (no installation, no administrator rights) and start `bin\mfbe.exe`; no Start menu entry or file associations | delete the folder |
 | Linux, any distribution | `MaximaFictionBookEditor-<version>-x86_64.AppImage` | `chmod +x` and run (X11 and Wayland, no extra packages, no FUSE needed) | delete the file |
 | Debian / Ubuntu 22.04+ | `mfbe_<version>_amd64.deb` | `sudo apt install ./mfbe_<version>_amd64.deb` (menu entry, file associations, sandbox helper, AppArmor profile) | `sudo apt remove mfbe` (`purge` also drops the profile) |
 | Fedora 39+ / openSUSE | `mfbe-<version>-1.x86_64.rpm` | `sudo dnf install ./mfbe-<version>-1.x86_64.rpm` or `sudo zypper install ./...` | `sudo dnf remove mfbe` / `sudo zypper remove mfbe` |

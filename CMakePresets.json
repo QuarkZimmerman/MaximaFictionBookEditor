@@ -161,7 +161,7 @@
   ],
   "packagePresets": [
     { "name": "linux-app-release", "configurePreset": "linux-app-release", "generators": ["DEB", "RPM", "External"] },
-    { "name": "windows-app-release", "configurePreset": "windows-app-release", "generators": ["WIX"] },
+    { "name": "windows-app-release", "configurePreset": "windows-app-release", "generators": ["WIX", "ZIP"] },
     { "name": "macos-app-release", "configurePreset": "macos-app-release", "generators": ["DragNDrop"] }
   ]
 }

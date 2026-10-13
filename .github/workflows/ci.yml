@@ -455,11 +455,29 @@ jobs:
           $cmd = (Get-ItemProperty 'HKLM:\Software\Classes\MaximaFBE.fb2\shell\open\command').'(default)'
           Write-Host "open command: $cmd"
           if (-not (Test-Path 'HKLM:\Software\Classes\.fbd')) { throw ".fbd association missing" }
+          tools/ci/windows-start-smoke.ps1 -Exe $exe
           Write-Host "Uninstalling"
           $u = Start-Process msiexec -ArgumentList "/x `"$msi`" /qn" -Wait -PassThru
           if ($u.ExitCode -ne 0) { throw "msiexec uninstall exit $($u.ExitCode)" }
           if (Test-Path 'HKLM:\Software\Classes\.fb2') { throw ".fb2 association still present after uninstall" }
           if (Test-Path $exe) { throw "mfbe.exe still present after uninstall" }
+
+      - name: Package smoke (Windows - portable ZIP)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = (Get-ChildItem build\${{ matrix.preset }}\packages\*-portable.zip | Select-Object -First 1).FullName
+          # Unpacked into the user profile like a downloaded copy, outside Program Files.
+          $dest = Join-Path $env:USERPROFILE 'Downloads\mfbe-portable-smoke'
+          if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Expand-Archive -Path $zip -DestinationPath $dest
+          $exe = (Get-ChildItem $dest -Recurse -Filter mfbe.exe | Select-Object -First 1).FullName
+          if (-not $exe) { throw "bin\mfbe.exe not found in $zip" }
+          Write-Host "Portable copy: $exe"
+          & $exe --version
+          tools/ci/windows-start-smoke.ps1 -Exe $exe
+          Remove-Item $dest -Recurse -Force
 
       - name: Package smoke (macOS)
         if: runner.os == 'macOS'
@@ -482,6 +500,7 @@ jobs:
             build/${{ matrix.preset }}/packages/*.deb
             build/${{ matrix.preset }}/packages/*.rpm
             build/${{ matrix.preset }}/packages/*.msi
+            build/${{ matrix.preset }}/packages/*.zip
             build/${{ matrix.preset }}/packages/*.dmg
             build/${{ matrix.preset }}/packages/*.sha256
           retention-days: 7

@@ -20,7 +20,7 @@ What gets built:
 | core (`core/`) | static library `mfbe_core` and the headless executable `mfbe-core` |
 | UI (`ui/`) | the web interface bundle `ui/dist` |
 | shell (`app/`) | the desktop application `mfbe` embedding Chromium (CEF) and the core |
-| packages (`packaging/`) | Linux AppImage, `.deb`, `.rpm`; Windows MSI; macOS `.dmg` |
+| packages (`packaging/`) | Linux AppImage, `.deb`, `.rpm`; Windows MSI and portable ZIP; macOS `.dmg` |
 
 ## 1. Prerequisites
 
@@ -304,6 +304,7 @@ ls -l build/macos-app-release/packages/
 | Linux | `mfbe_<version>_amd64.deb` | CPack DEB (`dpkg-deb`) |
 | Linux | `mfbe-<version>-1.x86_64.rpm` | CPack RPM (`rpmbuild` from the `rpm` package) |
 | Windows | `MaximaFictionBookEditor-<version>-win64.msi` | CPack WIX with the WiX .NET tool (`wix`, extensions `WixToolset.UI.wixext`, `WixToolset.Util.wixext`) |
+| Windows | `MaximaFictionBookEditor-<version>-win64-portable.zip` | CPack ZIP of the same installation tree (portable copy, nothing registered) |
 | macOS | `MaximaFictionBookEditor-<version>-macos-<arch>.dmg` | CPack DragNDrop; the bundle is ad-hoc signed (`codesign --sign -`) |
 
 Details of each package (layout, file associations, sandbox helper, AppArmor profile,
