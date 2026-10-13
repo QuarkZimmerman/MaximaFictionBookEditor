@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test.errors.throws",
+  "name": {
+    "en": "Throws an error",
+    "ru": "Бросает ошибку"
+  },
+  "kind": "menu"
+}

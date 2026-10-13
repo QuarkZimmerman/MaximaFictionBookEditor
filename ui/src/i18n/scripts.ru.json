@@ -1,0 +1,56 @@
+{
+  "scripting": {
+    "menu": {
+      "openFolder": "&Открыть папку скриптов",
+      "reload": "Пере&читать скрипты"
+    },
+    "cmd": {
+      "openFolder": {
+        "tooltip": "Открыть папку скриптов",
+        "description": "Открыть папку, в которой хранятся ваши собственные скрипты"
+      },
+      "reload": {
+        "tooltip": "Перечитать скрипты",
+        "description": "Заново просмотреть папки со скриптами"
+      }
+    },
+    "status": {
+      "running": "Выполняется скрипт «{{name}}»...",
+      "finished": "Скрипт «{{name}}» завершён",
+      "cancelled": "Скрипт «{{name}}» прерван",
+      "failed": "Скрипт «{{name}}» завершился с ошибкой",
+      "reloaded_one": "Найден {{count}} скрипт",
+      "reloaded_few": "Найдено {{count}} скрипта",
+      "reloaded_many": "Найдено {{count}} скриптов",
+      "reloaded_other": "Найдено {{count}} скрипта"
+    },
+    "error": {
+      "caption": "Ошибка скрипта",
+      "atLine": "Ошибка скрипта: {{message}} в строке {{line}}, позиция {{column}}",
+      "noLocation": "Ошибка скрипта: {{message}}",
+      "loadFailed": "Не удалось загрузить скрипт «{{name}}»: {{reason}}"
+    },
+    "running": {
+      "caption": "Скрипт всё ещё выполняется",
+      "text": "Скрипт «{{name}}» давно работает и не сообщает о ходе выполнения. Подождать или прервать его?",
+      "wait": "&Подождать",
+      "cancel": "П&рервать скрипт"
+    },
+    "issue": {
+      "$comment": "scripts.list().issues[].reason (core/src/resources/scripts.cpp): почему пакет скрипта или группа пропущены либо загружены с предупреждениями.",
+      "invalidJson": "{{path}}: script.json не является корректным JSON ({{message}})",
+      "invalidManifest": "{{path}}: script.json не является корректным манифестом ({{message}})",
+      "entryMissing": "{{path}}: отсутствует главный модуль скрипта ({{message}})",
+      "iconMissing": "{{path}}: отсутствует файл значка скрипта ({{message}})",
+      "duplicateId": "{{path}}: скрипт с идентификатором \"{{id}}\" уже загружен ({{message}})",
+      "invalidGroupJson": "{{path}}: не удалось прочитать group.json ({{message}})",
+      "missingManifest": "{{path}}: в папке нет файла script.json ({{message}})",
+      "warning": "{{path}}: {{reason}} - {{message}}"
+    },
+    "busy": "Другой скрипт («{{name}}») всё ещё выполняется. Дождитесь его завершения или прервите его.",
+    "noDocument": "Прежде чем запускать скрипт, откройте документ.",
+    "undo": {
+      "description": "Скрипт: описание"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "08/split-into-sections",
+  "name": {
+    "en": "Split the document into sections...",
+    "ru": "Разбить документ на разделы..."
+  },
+  "description": {
+    "en": "Cuts sections before every paragraph matching a regular expression and makes that paragraph the title of the new section",
+    "ru": "Разрывает разделы перед каждым абзацем, подходящим под регэксп, делая этот абзац заголовком нового раздела"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Split into sections",
+    "ru": "Разбиение на секции"
+  },
+  "legacy": {
+    "source": "08_Структура разделов/02_Разбить документ на разделы....js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "05/unify-binaries",
+  "name": {
+    "en": "Unify binary objects and illustrations",
+    "ru": "Унификация вложений и иллюстраций"
+  },
+  "description": {
+    "en": "Gives binary objects uniform ids (cover.*, i_001.*, unused_*, nonjpegpng_*) and updates the images; reports the plan where the API cannot rename binaries",
+    "ru": "Приводит id вложений к единому виду (cover.*, i_001.*, unused_*, nonjpegpng_*) и обновляет картинки; сообщает план, если API не может переименовать вложения"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Unify binary objects and illustrations",
+    "ru": "Унификация вложений и иллюстраций"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/02_Унификация вложений и иллюстраций.js",
+    "fbeVersion": "2.7"
+  }
+}

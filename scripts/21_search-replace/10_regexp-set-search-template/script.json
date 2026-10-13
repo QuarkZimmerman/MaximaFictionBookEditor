@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "21/regexp-set-search-template",
+  "name": {
+    "en": "Search by a set of regexps (template)",
+    "ru": "Поиск по набору регэкспов (заготовка)"
+  },
+  "description": {
+    "en": "Template for your own list of regular expressions: edit index.js, then each run selects the next hit after the caret and shows its description in the status bar",
+    "ru": "Заготовка для собственного списка регэкспов: отредактируйте index.js, после чего каждый запуск выделяет следующее совпадение после курсора и показывает его описание в строке состояния"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Search by a set of regexps (template)",
+    "ru": "Поиск по набору регэкспов (заготовка)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/10_Поиск по набору регэкспов (заготовка).js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,38 @@
+FictionBook 2.1 XML Schema (FB2) - provenance
+=============================================
+
+Upstream repository : https://github.com/gribuser/fb2
+Git commit          : 4d3740e319039911c30d291abb0c8b26ec99703b
+Commit date         : 2023-06-24T01:09:03+03:00
+Local mirror used   : /root/maxfbeditor/reference/fb2 (git clone of the repository above)
+Licence             : BSD 2-clause - see LICENSE.md
+                      (the same text is embedded as a comment at the top of FictionBook.xsd)
+
+Files in this directory are byte-exact copies of the upstream files (no
+re-encoding, no line-ending normalisation, licence headers kept):
+
+  sha256                                                            file
+  db2c0a239f4654db808d580b4d835fda9b41df09c169556116c4092ca47865b3  FictionBook.xsd
+  4e412d345b72c633a763e4c49f1e7c198e9f21b74b6be53d2d844d7b90133722  FictionBookGenres.xsd
+  4873a0ec10a86a68c8e511ded5fdbb71f1cc8d7319bc71a791cd13575db51158  FictionBookLang.xsd
+  f4697d9a42f191a9030b74f7611dd340b0298860b5eb30e67ea6560b52ff6af6  FictionBookLinks.xsd
+  8b79bad14b883cdb5014d0c0e96a6cae7fc5eefaf913d647ee9aa5f81997d2e0  FictionNotes.xsd
+  b5e8a64ae8c61c8587ac325cae8dafd5f49b16c1f2beff550f1e06eb9597e43c  LICENSE.md
+
+Notes
+-----
+* FictionBook.xsd imports FictionBookGenres.xsd, FictionBookLang.xsd and
+  FictionBookLinks.xsd by relative schemaLocation; FictionNotes.xsd imports
+  FictionBook.xsd. Keep the five files together in one directory.
+* FictionBookGenres.xsd enumerates 186 genre codes (xs:enumeration). The
+  bundled copy in the original FictionBook Editor (FBE/FictionBookGenres.xsd)
+  is an older, shorter list (128 codes); the upstream fb2 repository copy is
+  used here.
+* FictionNotes.xsd upstream uses CRLF line endings; it is kept byte-exact
+  (all other files use LF).
+
+Regeneration
+------------
+  git clone https://github.com/gribuser/fb2 && git -C fb2 checkout 4d3740e319039911c30d291abb0c8b26ec99703b
+  cp fb2/FictionBook.xsd fb2/FictionBookGenres.xsd fb2/FictionBookLang.xsd \
+     fb2/FictionBookLinks.xsd fb2/FictionNotes.xsd fb2/LICENSE.md resources/schema/

@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-paragraph-with-emphasis",
+  "name": {
+    "en": "Go to previous paragraph with italics",
+    "ru": "Переход на предыдущий абзац с курсивом"
+  },
+  "description": {
+    "en": "Moves the caret to the first italics in the previous paragraph that contains italics; offers to continue from the end of the book when the beginning is reached",
+    "ru": "Переводит курсор на предыдущий абзац, содержащий курсив; по достижении начала книги предлагает продолжить с конца"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to previous paragraph with italics",
+    "ru": "Переход на предыдущий абзац с курсивом"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/03_Переход на предыдущий абзац с курсивом.js",
+    "fbeVersion": "2.7"
+  }
+}

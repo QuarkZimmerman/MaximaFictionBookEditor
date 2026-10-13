@@ -1,0 +1,1511 @@
+[
+  {
+    "snapshot": "01/capitalize-first-word.xml",
+    "script": "scripts/01_case/06_capitalize-first-word",
+    "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
+    "args": [
+      "--select",
+      "n12"
+    ]
+  },
+  {
+    "snapshot": "01/capitalize-words.xml",
+    "script": "scripts/01_case/05_capitalize-words",
+    "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
+    "args": [
+      "--select",
+      "n12"
+    ]
+  },
+  {
+    "snapshot": "01/cycle-case.xml",
+    "script": "scripts/01_case/07_cycle-case",
+    "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
+    "args": [
+      "--select",
+      "n11"
+    ]
+  },
+  {
+    "snapshot": "01/lower-case.xml",
+    "script": "scripts/01_case/02_lower-case",
+    "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
+    "args": [
+      "--select",
+      "n11:5:5"
+    ]
+  },
+  {
+    "snapshot": "01/sentence-case-simple.xml",
+    "script": "scripts/01_case/03_sentence-case-simple",
+    "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
+    "args": [
+      "--select",
+      "n11"
+    ]
+  },
+  {
+    "snapshot": "01/sentence-case.xml",
+    "script": "scripts/01_case/04_sentence-case",
+    "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
+    "args": [
+      "--select",
+      "n11"
+    ]
+  },
+  {
+    "snapshot": "01/titles-case.xml",
+    "script": "scripts/01_case/08_titles-case",
+    "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
+    "args": [
+      "--answer",
+      "{}",
+      "--answer",
+      "{\"operation\":\"capitalize\"}"
+    ]
+  },
+  {
+    "snapshot": "01/upper-case.xml",
+    "script": "scripts/01_case/01_upper-case",
+    "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
+    "args": [
+      "--select",
+      "n10:20:60"
+    ]
+  },
+  {
+    "snapshot": "02/add-footnote-go-to-note.xml",
+    "script": "scripts/02_footnotes/03_add-footnote-go-to-note",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n8:57:57"
+    ]
+  },
+  {
+    "snapshot": "02/add-footnote-with-text.xml",
+    "script": "scripts/02_footnotes/02_add-footnote-with-text",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n8:57:57",
+      "--answer",
+      "Текст <b>новой</b> сноски<br>Второй абзац &lt;с&gt; сущностями"
+    ]
+  },
+  {
+    "snapshot": "02/add-footnote.xml",
+    "script": "scripts/02_footnotes/01_add-footnote",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n8:57:57"
+    ]
+  },
+  {
+    "snapshot": "02/add-last-footnote-go-to-note.xml",
+    "script": "scripts/02_footnotes/07_add-last-footnote-go-to-note",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n14:44:44"
+    ]
+  },
+  {
+    "snapshot": "02/add-last-footnote-with-text.xml",
+    "script": "scripts/02_footnotes/06_add-last-footnote-with-text",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n14:44:44",
+      "--answer",
+      "Последняя <i>сноска</i>"
+    ]
+  },
+  {
+    "snapshot": "02/add-last-footnote.not-last.xml",
+    "script": "scripts/02_footnotes/05_add-last-footnote",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n8:57:57"
+    ]
+  },
+  {
+    "snapshot": "02/add-last-footnote.xml",
+    "script": "scripts/02_footnotes/05_add-last-footnote",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n14:44:44"
+    ]
+  },
+  {
+    "snapshot": "02/test-footnotes.xml",
+    "script": "scripts/02_footnotes/20_test-footnotes",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/unify-footnotes-remove-unused.xml",
+    "script": "scripts/02_footnotes/08_unify-footnotes-remove-unused",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/unify-footnotes.xml",
+    "script": "scripts/02_footnotes/04_unify-footnotes",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "03/add-comment-go-to-comment.xml",
+    "script": "scripts/03_comments/03_add-comment-go-to-comment",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n8:57:57"
+    ]
+  },
+  {
+    "snapshot": "03/add-comment-with-text.xml",
+    "script": "scripts/03_comments/02_add-comment-with-text",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n8:57:57",
+      "--answer",
+      "Текст <em>нового</em> комментария"
+    ]
+  },
+  {
+    "snapshot": "03/add-comment.xml",
+    "script": "scripts/03_comments/01_add-comment",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n8:57:57"
+    ]
+  },
+  {
+    "snapshot": "03/add-last-comment-go-to-comment.xml",
+    "script": "scripts/03_comments/07_add-last-comment-go-to-comment",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n14:44:44"
+    ]
+  },
+  {
+    "snapshot": "03/add-last-comment-with-text.xml",
+    "script": "scripts/03_comments/06_add-last-comment-with-text",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n14:44:44",
+      "--answer",
+      "Последний комментарий"
+    ]
+  },
+  {
+    "snapshot": "03/add-last-comment.xml",
+    "script": "scripts/03_comments/05_add-last-comment",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--select",
+      "n14:44:44"
+    ]
+  },
+  {
+    "snapshot": "03/unify-comments-remove-unused.xml",
+    "script": "scripts/03_comments/08_unify-comments-remove-unused",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "03/unify-comments.xml",
+    "script": "scripts/03_comments/04_unify-comments",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/comments-from-curly.xml",
+    "script": "scripts/04_notes-from-brackets/608_comments-from-curly",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/comments-from-regex-brackets.xml",
+    "script": "scripts/04_notes-from-brackets/611_comments-from-regex-brackets",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": [
+      "--answer",
+      "\\[~",
+      "--answer",
+      "~\\]"
+    ]
+  },
+  {
+    "snapshot": "04/comments-from-square-bang.xml",
+    "script": "scripts/04_notes-from-brackets/609_comments-from-square-bang",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/comments-from-square-tilde.xml",
+    "script": "scripts/04_notes-from-brackets/610_comments-from-square-tilde",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/comments-from-square.xml",
+    "script": "scripts/04_notes-from-brackets/607_comments-from-square",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/comments-from-text-brackets.xml",
+    "script": "scripts/04_notes-from-brackets/612_comments-from-text-brackets",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": [
+      "--answer",
+      "{ }"
+    ]
+  },
+  {
+    "snapshot": "04/footnotes-from-curly.xml",
+    "script": "scripts/04_notes-from-brackets/602_footnotes-from-curly",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/footnotes-from-regex-brackets.xml",
+    "script": "scripts/04_notes-from-brackets/605_footnotes-from-regex-brackets",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": [
+      "--answer",
+      "\\{",
+      "--answer",
+      "\\}"
+    ]
+  },
+  {
+    "snapshot": "04/footnotes-from-square-bang.xml",
+    "script": "scripts/04_notes-from-brackets/603_footnotes-from-square-bang",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/footnotes-from-square-tilde.xml",
+    "script": "scripts/04_notes-from-brackets/604_footnotes-from-square-tilde",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/footnotes-from-square.errors.xml",
+    "script": "scripts/04_notes-from-brackets/601_footnotes-from-square",
+    "book": "tests/scripts/fixtures/books/conv-a-04-errors.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/footnotes-from-square.xml",
+    "script": "scripts/04_notes-from-brackets/601_footnotes-from-square",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "04/footnotes-from-text-brackets.xml",
+    "script": "scripts/04_notes-from-brackets/606_footnotes-from-text-brackets",
+    "book": "tests/scripts/fixtures/books/conv-a-04.fb2",
+    "args": [
+      "--answer",
+      "« »"
+    ]
+  },
+  {
+    "snapshot": "05/check-images.xml",
+    "script": "scripts/05_images/01_check-images",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/empty-lines-near-images.add.xml",
+    "script": "scripts/05_images/06_empty-lines-near-images",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/empty-lines-near-images.remove.xml",
+    "script": "scripts/05_images/06_empty-lines-near-images",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": [
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "05/image-captions.all-bold.xml",
+    "script": "scripts/05_images/08_image-captions",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": [
+      "--answer",
+      "{\"strong\":true,\"subtitle\":false,\"start\":\"begin\"}",
+      "--answer",
+      "all"
+    ]
+  },
+  {
+    "snapshot": "05/image-captions.xml",
+    "script": "scripts/05_images/08_image-captions",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": [
+      "--answer",
+      "{}",
+      "--answer",
+      "skip",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "05/inline-image-to-block.with-text.xml",
+    "script": "scripts/05_images/09_inline-image-to-block",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": [
+      "--select",
+      "n19:25:26"
+    ]
+  },
+  {
+    "snapshot": "05/inline-image-to-block.xml",
+    "script": "scripts/05_images/09_inline-image-to-block",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": [
+      "--select",
+      "n21:0:1"
+    ]
+  },
+  {
+    "snapshot": "05/remove-all-binaries.xml",
+    "script": "scripts/05_images/05_remove-all-binaries",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": [
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "05/remove-unused-binaries.xml",
+    "script": "scripts/05_images/07_remove-unused-binaries",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/unify-binaries.xml",
+    "script": "scripts/05_images/02_unify-binaries",
+    "book": "tests/scripts/fixtures/books/conv-a-05.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/broken-sentences.conv-b-06.xml",
+    "script": "scripts/06_cleanup/14_broken-sentences",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "06/dot-dash-letter-no-ellipsis.conv-b-06.xml",
+    "script": "scripts/06_cleanup/16_dot-dash-letter-no-ellipsis",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--select",
+      "n41:0:0",
+      "--answer",
+      "{\"action\":\"letter\"}",
+      "--answer",
+      "{\"action\":\"letter\"}"
+    ]
+  },
+  {
+    "snapshot": "06/dot-dash-letter.conv-b-06.xml",
+    "script": "scripts/06_cleanup/15_dot-dash-letter",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--select",
+      "n41:0:0",
+      "--answer",
+      "{\"action\":\"letter\"}",
+      "--answer",
+      "{\"action\":\"punct\"}",
+      "--answer",
+      "{\"action\":\"letter\"}",
+      "--answer",
+      "{\"action\":\"skip\"}"
+    ]
+  },
+  {
+    "snapshot": "06/external-links-to-text.conv-b-06.xml",
+    "script": "scripts/06_cleanup/17_external-links-to-text",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/general-cleanup.conv-b-06.xml",
+    "script": "scripts/06_cleanup/02_general-cleanup",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/guided-paragraph-breaks.conv-b-06.xml",
+    "script": "scripts/06_cleanup/06_guided-paragraph-breaks",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--answer",
+      "{\"case1\":\"1\",\"case5\":\"8\",\"case2\":\"2\",\"case3\":\"3\",\"case4\":\"4\",\"case6\":\"1\",\"case7\":\"1\"}"
+    ]
+  },
+  {
+    "snapshot": "06/hyphen-vs-dash.conv-b-06.xml",
+    "script": "scripts/06_cleanup/08_hyphen-vs-dash",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--select",
+      "n28:0:0",
+      "--answer",
+      "стоял — сказал",
+      "--answer",
+      ""
+    ]
+  },
+  {
+    "snapshot": "06/large-numbers.conv-b-06.xml",
+    "script": "scripts/06_cleanup/07_large-numbers",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--select",
+      "n26:0:0",
+      "--answer",
+      "10 000 000",
+      "--answer",
+      "1 500 000"
+    ]
+  },
+  {
+    "snapshot": "06/latin-to-cyrillic.conv-b-06.xml",
+    "script": "scripts/06_cleanup/03_latin-to-cyrillic",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/missing-full-stop.conv-b-06.xml",
+    "script": "scripts/06_cleanup/10_missing-full-stop",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--select",
+      "n29:0:0",
+      "--answer",
+      "домой. Было"
+    ]
+  },
+  {
+    "snapshot": "06/remove-back-links.conv-b-06.xml",
+    "script": "scripts/06_cleanup/12_remove-back-links",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-style-tags.conv-b-06.xml",
+    "script": "scripts/06_cleanup/21_remove-style-tags",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/stuck-words.conv-b-06.xml",
+    "script": "scripts/06_cleanup/05_stuck-words",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--select",
+      "n27:0:0",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "Слипшиеся. Слова",
+      "--answer",
+      "слово Слово",
+      "--answer",
+      "цифры 5",
+      "--answer",
+      "ушёл. — и",
+      "--answer",
+      ""
+    ]
+  },
+  {
+    "snapshot": "06/surname-initials.conv-b-06.xml",
+    "script": "scripts/06_cleanup/04_surname-initials",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--select",
+      "n25:0:0",
+      "--answer",
+      "А. С. Пушкин",
+      "--answer",
+      "Л. Н. Толстой",
+      "--answer",
+      "",
+      "--answer",
+      ""
+    ]
+  },
+  {
+    "snapshot": "06/win1252-letters.conv-b-06.xml",
+    "script": "scripts/06_cleanup/19_win1252-letters",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--select",
+      "n48:0:0",
+      "--answer",
+      "{}",
+      "--answer",
+      "{}"
+    ]
+  },
+  {
+    "snapshot": "06/win1252-words.conv-b-06.xml",
+    "script": "scripts/06_cleanup/20_win1252-words",
+    "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": [
+      "--select",
+      "n48:0:0",
+      "--answer",
+      "{}",
+      "--answer",
+      "{\"replacement\":\"Zurich\"}"
+    ]
+  },
+  {
+    "snapshot": "07/arabic.conv-b-07.xml",
+    "script": "scripts/07_symbols/arabic",
+    "book": "tests/scripts/fixtures/books/conv-b-07.fb2",
+    "args": [
+      "--select",
+      "n7:38:38",
+      "--answer",
+      "{\"symbol\":\"ب\"}"
+    ]
+  },
+  {
+    "snapshot": "07/currency.conv-b-07.xml",
+    "script": "scripts/07_symbols/currency",
+    "book": "tests/scripts/fixtures/books/conv-b-07.fb2",
+    "args": [
+      "--select",
+      "n7:5:5",
+      "--answer",
+      "{\"symbol\":\"€\"}"
+    ]
+  },
+  {
+    "snapshot": "07/diacritics.conv-b-07.xml",
+    "script": "scripts/07_symbols/02_diacritics",
+    "book": "tests/scripts/fixtures/books/conv-b-07.fb2",
+    "args": [
+      "--select",
+      "n9:15:16",
+      "--answer",
+      "{\"symbol\":\"é\"}"
+    ]
+  },
+  {
+    "snapshot": "07/greek.conv-b-07.xml",
+    "script": "scripts/07_symbols/greek",
+    "book": "tests/scripts/fixtures/books/conv-b-07.fb2",
+    "args": [
+      "--select",
+      "n8:0:0",
+      "--answer",
+      "{\"symbol\":\"α\"}"
+    ]
+  },
+  {
+    "snapshot": "07/hebrew.conv-b-07.xml",
+    "script": "scripts/07_symbols/hebrew",
+    "book": "tests/scripts/fixtures/books/conv-b-07.fb2",
+    "args": [
+      "--select",
+      "n9:0:0",
+      "--answer",
+      "{\"symbol\":\"א\"}"
+    ]
+  },
+  {
+    "snapshot": "07/old-russian.conv-b-07.xml",
+    "script": "scripts/07_symbols/old-russian",
+    "book": "tests/scripts/fixtures/books/conv-b-07.fb2",
+    "args": [
+      "--select",
+      "n7:0:0",
+      "--answer",
+      "{\"symbol\":\"ѣ\"}"
+    ]
+  },
+  {
+    "snapshot": "07/special-symbols.conv-b-07.xml",
+    "script": "scripts/07_symbols/01_special-symbols",
+    "book": "tests/scripts/fixtures/books/conv-b-07.fb2",
+    "args": [
+      "--select",
+      "n8:8:16",
+      "--answer",
+      "{\"symbol\":\"§\"}"
+    ]
+  },
+  {
+    "snapshot": "08/reset-structure.xml",
+    "script": "scripts/08_sections/04_reset-structure",
+    "book": "tests/scripts/fixtures/books/conv-a-08.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "08/section-down.no-section.xml",
+    "script": "scripts/08_sections/03_section-down",
+    "book": "tests/scripts/fixtures/books/conv-a-08.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "08/section-down.xml",
+    "script": "scripts/08_sections/03_section-down",
+    "book": "tests/scripts/fixtures/books/conv-a-08.fb2",
+    "args": [
+      "--select",
+      "n10:0:0"
+    ]
+  },
+  {
+    "snapshot": "08/split-into-sections.xml",
+    "script": "scripts/08_sections/02_split-into-sections",
+    "book": "tests/scripts/fixtures/books/conv-a-08.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"^глава \",\"before\":\"0\",\"after\":\"1\"}"
+    ]
+  },
+  {
+    "snapshot": "09/drama-speakers.conv-b-09.xml",
+    "script": "scripts/09_poems/02_drama-speakers",
+    "book": "tests/scripts/fixtures/books/conv-b-09.fb2",
+    "args": [
+      "--answer",
+      "10",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "09/merge-adjacent-poems.conv-b-09.xml",
+    "script": "scripts/09_poems/01_merge-adjacent-poems",
+    "book": "tests/scripts/fixtures/books/conv-b-09.fb2",
+    "args": [
+      "--select",
+      "n17"
+    ]
+  },
+  {
+    "snapshot": "09/merge-paragraphs.conv-b-09.xml",
+    "script": "scripts/09_poems/03_merge-paragraphs",
+    "book": "tests/scripts/fixtures/books/conv-b-09.fb2",
+    "args": [
+      "--select",
+      "n49"
+    ]
+  },
+  {
+    "snapshot": "09/merge-paragraphs.range.conv-b-09.xml",
+    "script": "scripts/09_poems/03_merge-paragraphs",
+    "book": "tests/scripts/fixtures/books/conv-b-09.fb2",
+    "args": [
+      "--select-range",
+      "n49:0-n51:5"
+    ]
+  },
+  {
+    "snapshot": "10/document-statistics.conv-b-10.xml",
+    "script": "scripts/10_statistics/03_document-statistics",
+    "book": "tests/scripts/fixtures/books/conv-b-10.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "10/show-all-links.conv-b-10.xml",
+    "script": "scripts/10_statistics/02_show-all-links",
+    "book": "tests/scripts/fixtures/books/conv-b-10.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "10/show-links.conv-b-10.xml",
+    "script": "scripts/10_statistics/01_show-links",
+    "book": "tests/scripts/fixtures/books/conv-b-10.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "11/caption-emphasis.conv-b-11.xml",
+    "script": "scripts/11_image-captions/601_caption-emphasis",
+    "book": "tests/scripts/fixtures/books/conv-b-11.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "11/caption-strong.conv-b-11.xml",
+    "script": "scripts/11_image-captions/600_caption-strong",
+    "book": "tests/scripts/fixtures/books/conv-b-11.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "11/caption-subtitle-emphasis.conv-b-11.xml",
+    "script": "scripts/11_image-captions/604_caption-subtitle-emphasis",
+    "book": "tests/scripts/fixtures/books/conv-b-11.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "11/caption-subtitle-strong.conv-b-11.xml",
+    "script": "scripts/11_image-captions/603_caption-subtitle-strong",
+    "book": "tests/scripts/fixtures/books/conv-b-11.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "11/caption-subtitle.conv-b-11.xml",
+    "script": "scripts/11_image-captions/602_caption-subtitle",
+    "book": "tests/scripts/fixtures/books/conv-b-11.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "12/next-any-quotes.conv-b-12.xml",
+    "script": "scripts/12_quotes/014_next-any-quotes",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/next-guillemets.conv-b-12.xml",
+    "script": "scripts/12_quotes/007_next-guillemets",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/next-low-quotes.conv-b-12.xml",
+    "script": "scripts/12_quotes/010_next-low-quotes",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/next-straight-quotes.conv-b-12.xml",
+    "script": "scripts/12_quotes/012_next-straight-quotes",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n7:12:12"
+    ]
+  },
+  {
+    "snapshot": "12/place-guillemets-only.conv-b-12.xml",
+    "script": "scripts/12_quotes/015_place-guillemets-only",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "12/place-quotes-from-caret-level1.conv-b-12.xml",
+    "script": "scripts/12_quotes/005_place-quotes-from-caret-level1",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n24:30:30"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes-from-caret-level2.conv-b-12.xml",
+    "script": "scripts/12_quotes/006_place-quotes-from-caret-level2",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n24:47:47"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes-from-caret.conv-b-12.xml",
+    "script": "scripts/12_quotes/004_place-quotes-from-caret",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n13:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes-level1.conv-b-12.xml",
+    "script": "scripts/12_quotes/002_place-quotes-level1",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n24:11:91"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes-level2.conv-b-12.xml",
+    "script": "scripts/12_quotes/003_place-quotes-level2",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n8:12:27"
+    ]
+  },
+  {
+    "snapshot": "12/place-quotes.conv-b-12.xml",
+    "script": "scripts/12_quotes/001_place-quotes",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "12/previous-any-quotes.conv-b-12.xml",
+    "script": "scripts/12_quotes/013_previous-any-quotes",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n20:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/previous-guillemets.conv-b-12.xml",
+    "script": "scripts/12_quotes/008_previous-guillemets",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n20:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/previous-low-quotes.conv-b-12.xml",
+    "script": "scripts/12_quotes/009_previous-low-quotes",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n20:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/previous-straight-quotes.conv-b-12.xml",
+    "script": "scripts/12_quotes/011_previous-straight-quotes",
+    "book": "tests/scripts/fixtures/books/conv-b-12.fb2",
+    "args": [
+      "--select",
+      "n7:12:12"
+    ]
+  },
+  {
+    "snapshot": "13/subtitles-empty-lines-ask-unbold-titles.no.xml",
+    "script": "scripts/13_subtitles/527_subtitles-empty-lines-ask-unbold-titles",
+    "book": "tests/scripts/fixtures/books/conv-c-13.fb2",
+    "args": [
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "13/subtitles-empty-lines-ask-unbold-titles.xml",
+    "script": "scripts/13_subtitles/527_subtitles-empty-lines-ask-unbold-titles",
+    "book": "tests/scripts/fixtures/books/conv-c-13.fb2",
+    "args": [
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "13/subtitles-empty-lines-plain-titles.xml",
+    "script": "scripts/13_subtitles/528_subtitles-empty-lines-plain-titles",
+    "book": "tests/scripts/fixtures/books/conv-c-13.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/subtitles-empty-lines-unbold-titles.xml",
+    "script": "scripts/13_subtitles/526_subtitles-empty-lines-unbold-titles",
+    "book": "tests/scripts/fixtures/books/conv-c-13.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/subtitles-empty-lines.xml",
+    "script": "scripts/13_subtitles/525_subtitles-empty-lines",
+    "book": "tests/scripts/fixtures/books/conv-c-13.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "16/next-code.xml",
+    "script": "scripts/16_find-formatting/22_next-code",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-emphasis.xml",
+    "script": "scripts/16_find-formatting/02_next-emphasis",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-code.xml",
+    "script": "scripts/16_find-formatting/24_next-paragraph-with-code",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-emphasis.xml",
+    "script": "scripts/16_find-formatting/04_next-paragraph-with-emphasis",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-strikethrough.xml",
+    "script": "scripts/16_find-formatting/20_next-paragraph-with-strikethrough",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-strong.xml",
+    "script": "scripts/16_find-formatting/08_next-paragraph-with-strong",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-sub.xml",
+    "script": "scripts/16_find-formatting/16_next-paragraph-with-sub",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-paragraph-with-sup.xml",
+    "script": "scripts/16_find-formatting/12_next-paragraph-with-sup",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-strikethrough.xml",
+    "script": "scripts/16_find-formatting/18_next-strikethrough",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-strong.xml",
+    "script": "scripts/16_find-formatting/06_next-strong",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-sub.xml",
+    "script": "scripts/16_find-formatting/14_next-sub",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/next-sup.xml",
+    "script": "scripts/16_find-formatting/10_next-sup",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-code.xml",
+    "script": "scripts/16_find-formatting/21_previous-code",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-emphasis.xml",
+    "script": "scripts/16_find-formatting/01_previous-emphasis",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-paragraph-with-code.xml",
+    "script": "scripts/16_find-formatting/23_previous-paragraph-with-code",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-paragraph-with-emphasis.xml",
+    "script": "scripts/16_find-formatting/03_previous-paragraph-with-emphasis",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-paragraph-with-strikethrough.xml",
+    "script": "scripts/16_find-formatting/19_previous-paragraph-with-strikethrough",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-paragraph-with-strong.xml",
+    "script": "scripts/16_find-formatting/07_previous-paragraph-with-strong",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-paragraph-with-sub.xml",
+    "script": "scripts/16_find-formatting/15_previous-paragraph-with-sub",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-paragraph-with-sup.xml",
+    "script": "scripts/16_find-formatting/11_previous-paragraph-with-sup",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-strikethrough.xml",
+    "script": "scripts/16_find-formatting/17_previous-strikethrough",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-strong.xml",
+    "script": "scripts/16_find-formatting/05_previous-strong",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-sub.xml",
+    "script": "scripts/16_find-formatting/13_previous-sub",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "16/previous-sup.xml",
+    "script": "scripts/16_find-formatting/09_previous-sup",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n9:5:5",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "17/notes-into-brackets-with-space.xml",
+    "script": "scripts/17_notes-to-brackets/02_notes-into-brackets-with-space",
+    "book": "tests/scripts/fixtures/books/conv-c-17.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "17/notes-into-brackets.comments.xml",
+    "script": "scripts/17_notes-to-brackets/01_notes-into-brackets",
+    "book": "tests/scripts/fixtures/books/conv-c-17-comments.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "17/notes-into-brackets.xml",
+    "script": "scripts/17_notes-to-brackets/01_notes-into-brackets",
+    "book": "tests/scripts/fixtures/books/conv-c-17.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "17/one-note-into-brackets.comments.xml",
+    "script": "scripts/17_notes-to-brackets/03_one-note-into-brackets",
+    "book": "tests/scripts/fixtures/books/conv-c-17-comments.fb2",
+    "args": [
+      "--select",
+      "n26:3:3"
+    ]
+  },
+  {
+    "snapshot": "17/one-note-into-brackets.xml",
+    "script": "scripts/17_notes-to-brackets/03_one-note-into-brackets",
+    "book": "tests/scripts/fixtures/books/conv-c-17.fb2",
+    "args": [
+      "--select",
+      "n26:3:3"
+    ]
+  },
+  {
+    "snapshot": "18/bracket-superscripts-curly.xml",
+    "script": "scripts/18_editing/08_bracket-superscripts-curly",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "18/bracket-superscripts-square.xml",
+    "script": "scripts/18_editing/07_bracket-superscripts-square",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "18/empty-line-after-poem-epigraph-or-cite.xml",
+    "script": "scripts/18_editing/05_empty-line-after-poem-epigraph-or-cite",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select",
+      "n32"
+    ]
+  },
+  {
+    "snapshot": "18/empty-line-before-poem-or-cite.xml",
+    "script": "scripts/18_editing/04_empty-line-before-poem-or-cite",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select",
+      "n27"
+    ]
+  },
+  {
+    "snapshot": "18/insert-midi-link.xml",
+    "script": "scripts/18_editing/02_insert-midi-link",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select",
+      "n8:22:29",
+      "--answer",
+      "{\"file\":\"song.mid\"}"
+    ]
+  },
+  {
+    "snapshot": "18/line-numbers-to-superscript.range.xml",
+    "script": "scripts/18_editing/09_line-numbers-to-superscript",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select-range",
+      "n39:0-n46:1"
+    ]
+  },
+  {
+    "snapshot": "18/line-numbers-to-superscript.xml",
+    "script": "scripts/18_editing/09_line-numbers-to-superscript",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select",
+      "n40:0:3"
+    ]
+  },
+  {
+    "snapshot": "18/remove-spaces-and-hyphens.xml",
+    "script": "scripts/18_editing/06_remove-spaces-and-hyphens",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select",
+      "n7:0:60"
+    ]
+  },
+  {
+    "snapshot": "18/remove-spaces.xml",
+    "script": "scripts/18_editing/01_remove-spaces",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select",
+      "n7:0:35"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.cite.xml",
+    "script": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select",
+      "n33:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.epigraph.xml",
+    "script": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select",
+      "n16:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.xml",
+    "script": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
+    "args": [
+      "--select",
+      "n25:0:0"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.case.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/books/conv-c-19.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n5:0\"],\"action\":\"case:allBig\"}",
+      "--answer",
+      "{\"action\":\"kind\"}",
+      "--answer",
+      "{\"kind\":\"subtitles\"}",
+      "--answer",
+      "{\"items\":[\"n13\"],\"action\":\"case:onlyFirstBig\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.inline.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/books/conv-c-19.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"emphasis\"}",
+      "--answer",
+      "{\"items\":[\"n12:1:2\"],\"action\":\"strong\"}",
+      "--answer",
+      "{\"action\":\"kind\"}",
+      "--answer",
+      "{\"kind\":\"sup\"}",
+      "--answer",
+      "{\"items\":[\"n14:1:2\"],\"action\":\"text\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.subtitles-to-text.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/books/conv-c-19.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"subtitles\"}",
+      "--answer",
+      "{\"items\":[\"n16\",\"n19\",\"n29\"],\"action\":\"text\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.subtitles-to-titles.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/books/conv-c-19.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"subtitles\"}",
+      "--answer",
+      "{\"items\":[\"n13\",\"n37\"],\"action\":\"titles\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.titles-to-subtitles.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/books/conv-c-19.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n5:1\"],\"action\":\"subtitles\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.titles-to-text.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/books/conv-c-19.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n5:0\",\"n5:1\",\"n5:2\"],\"action\":\"text\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "20/show-code.xml",
+    "script": "scripts/20_debug/01_show-code",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n23"
+    ]
+  },
+  {
+    "snapshot": "20/show-whole-code.xml",
+    "script": "scripts/20_debug/02_show-whole-code",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--select",
+      "n26"
+    ]
+  },
+  {
+    "snapshot": "21/regexp-set-search-template.xml",
+    "script": "scripts/21_search-replace/10_regexp-set-search-template",
+    "book": "tests/scripts/fixtures/books/conv-c-21.fb2",
+    "args": [
+      "--select",
+      "n7:3:3"
+    ]
+  },
+  {
+    "snapshot": "21/text-error-search.xml",
+    "script": "scripts/21_search-replace/04_text-error-search",
+    "book": "tests/scripts/fixtures/books/conv-c-21.fb2",
+    "args": [
+      "--select",
+      "n7:0:0"
+    ]
+  },
+  {
+    "snapshot": "fixtures/append.modern-utf8.xml",
+    "script": "tests/scripts/fixtures/04_Model/01_Append",
+    "book": "tests/fixtures/books/modern-utf8.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "tree/example-1.xml",
+    "script": "scripts/tree/example-1",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": [
+      "--tree-node",
+      "n14",
+      "--answer",
+      "{\"target\":\"n23\"}"
+    ]
+  }
+]

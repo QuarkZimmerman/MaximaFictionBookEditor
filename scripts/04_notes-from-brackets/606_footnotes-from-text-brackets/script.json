@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "04/footnotes-from-text-brackets",
+  "name": {
+    "en": "Footnotes from brackets given as plain text",
+    "ru": "Примечания из скобок, заданных простым текстом"
+  },
+  "description": {
+    "en": "Asks the two brackets as plain text (\"[ ]\") and turns every bracketed fragment of the book into a footnote",
+    "ru": "Запрашивает пару скобок простым текстом («[ ]») и превращает каждый фрагмент в таких скобках в сноску"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Footnotes from brackets given as plain text",
+    "ru": "Примечания из скобок, заданных простым текстом"
+  },
+  "legacy": {
+    "source": "04_Примечания и комментарии из скобок/606_Примечания из скобок, заданных простым текстом.js",
+    "fbeVersion": "2.7"
+  }
+}

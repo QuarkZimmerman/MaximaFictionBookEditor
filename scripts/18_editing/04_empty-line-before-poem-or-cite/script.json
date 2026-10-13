@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "18/empty-line-before-poem-or-cite",
+  "name": {
+    "en": "Insert an empty line before the poem or cite",
+    "ru": "Вставить пустую строку перед стихом или цитатой"
+  },
+  "description": {
+    "en": "Inserts an empty line before the poem or cite that contains the caret",
+    "ru": "Вставляет пустую строку перед стихом или цитатой, в которых стоит курсор"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Insert an empty line before the poem or cite",
+    "ru": "Вставить пустую строку перед стихом или цитатой"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/04_Вставить пустую строку перед стихом или цитатой.js",
+    "fbeVersion": "2.7"
+  }
+}

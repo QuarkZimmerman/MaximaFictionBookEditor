@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Элементы</last-name>
+			</author>
+			<book-title>Обзор элементов</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Заголовок книги не показывается</p>
+		</title>
+		<section>
+			<p>Часть первая</p>
+			<p>Подзаголовок части</p>
+			<p>Третья строка заголовка</p>
+			<p>Эпиграф части.</p>
+			<p>Автор эпиграфа</p>
+			<p>Первый абзац части с <emphasis>курсивом</emphasis> и <strong>жирным</strong>.</p>
+			<subtitle>ПЕРВЫЙ ПОДЗАГОЛОВОК</subtitle>
+			<p>Абзац после первого подзаголовка с <sup>индексом</sup>.</p>
+			<p>Ещё абзац со <strikethrough>вычеркнутым</strikethrough> словом.</p>
+			<subtitle>Второй подзаголовок</subtitle>
+			<p>Абзац после второго подзаголовка.</p>
+			<cite>
+				<subtitle>Подзаголовок в цитате</subtitle>
+				<p>Текст цитаты.</p>
+			</cite>
+			<poem>
+				<title>
+					<p>Заглавие стиха</p>
+				</title>
+				<stanza>
+					<title>
+						<p>Первая строфа</p>
+					</title>
+					<v>Строка с <emphasis>курсивом</emphasis></v>
+					<v>Вторая строка</v>
+				</stanza>
+				<subtitle>Между строфами</subtitle>
+				<stanza>
+					<v>Третья строка</v>
+				</stanza>
+			</poem>
+			<p>Абзац после стиха.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<p>Текст второй главы с <sub>нижним</sub> индексом.</p>
+			<subtitle>Последний подзаголовок</subtitle>
+		</section>
+	</body>
+</FictionBook>

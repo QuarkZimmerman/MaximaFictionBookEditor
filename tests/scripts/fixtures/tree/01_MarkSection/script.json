@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test.tree.mark",
+  "name": {
+    "en": "Mark section (tree)",
+    "ru": "Пометить раздел (дерево)"
+  },
+  "kind": "tree",
+  "icon": "icon.png"
+}

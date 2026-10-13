@@ -1,0 +1,122 @@
+name: Docs build replay
+
+# Replays docs/building.md on clean runners (FR-128 / SC-012): tools/extract-doc-commands.py
+# turns the command blocks tagged <!-- replay:<os> --> into one script per operating system
+# and the script is executed from a fresh checkout. Nothing but the documented commands
+# builds, tests and packages the editor; the only runner-side preparation is what the
+# guide's prerequisite sections describe as manual installer steps (Windows: Visual Studio,
+# CMake, Ninja, Node.js - provided by the runner image / setup actions) and a vcpkg binary
+# cache that only speeds up the dependency build.
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"   # weekly, Monday 04:17 UTC
+  push:
+    paths:
+      - docs/building.md
+      - tools/extract-doc-commands.py
+      - .github/workflows/docs-build.yml
+      - CMakePresets.json
+      - vcpkg.json
+  pull_request:
+    paths:
+      - docs/building.md
+      - tools/extract-doc-commands.py
+      - .github/workflows/docs-build.yml
+  workflow_dispatch:
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite"
+
+jobs:
+  check:
+    name: tags and fences
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 tools/extract-doc-commands.py --check
+          python3 tools/extract-doc-commands.py linux --list
+          python3 tools/extract-doc-commands.py windows --list
+          python3 tools/extract-doc-commands.py macos --list
+
+  replay:
+    name: replay docs/building.md (${{ matrix.target }})
+    needs: [check]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux
+            os: ubuntu-22.04
+          - target: windows
+            os: windows-2025
+          - target: macos
+            os: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.vcpkg-cache
+          key: docs-vcpkg-${{ matrix.target }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: docs-vcpkg-${{ matrix.target }}-
+
+      # Windows prerequisites are manual installer steps in the guide (section 1): the runner
+      # image provides Visual Studio 2022, CMake and Git; Ninja and Node.js 24 are added here.
+      - name: Windows prerequisites (Node.js 24, Ninja)
+        if: runner.os == 'Windows'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Windows prerequisites (Ninja)
+        if: runner.os == 'Windows'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Extract the documented commands
+        shell: bash
+        run: |
+          ext="sh"
+          if [ "${{ matrix.target }}" = "windows" ]; then ext="ps1"; fi
+          python3 tools/extract-doc-commands.py "${{ matrix.target }}" --output "$RUNNER_TEMP/replay-${{ matrix.target }}.$ext"
+          cat "$RUNNER_TEMP/replay-${{ matrix.target }}.$ext"
+
+      - name: Replay (bash)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -o pipefail
+          bash "$RUNNER_TEMP/replay-${{ matrix.target }}.sh" 2>&1 | tee "$RUNNER_TEMP/replay.log"
+      - name: Replay failure details
+        if: failure() && runner.os != 'Windows'
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/replay.log" "docs/building.md replay"
+
+      - name: Replay (PowerShell)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          & "$env:RUNNER_TEMP\replay-windows.ps1" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/replay.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Replay failure details (Windows)
+        if: failure() && runner.os == 'Windows'
+        shell: pwsh
+        run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP/replay.log" -Title "docs/building.md replay"
+
+      - name: Upload the packages produced by the documented steps
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-replay-packages-${{ matrix.target }}
+          path: |
+            build/*/packages/*.AppImage
+            build/*/packages/*.deb
+            build/*/packages/*.rpm
+            build/*/packages/*.msi
+            build/*/packages/*.dmg
+          retention-days: 7
+          if-no-files-found: ignore

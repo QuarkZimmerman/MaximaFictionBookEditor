@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Скобки</last-name>
+			</author>
+			<book-title>Книга для проверки примечаний из скобок</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>Maxima Fiction Book Editor</program-used>
+			<date value="2026-01-01">2026-01-01</date>
+			<id>conv-a-04</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Примечания из скобок</p>
+		</title>
+		<section id="s1">
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Простое примечание [в квадратных скобках] посреди абзаца, и второе [с <emphasis>курсивом</emphasis> внутри] в том же абзаце.</p>
+			<p>Уже существующая сноска<a l:href="#n_1" type="note">[1]</a> и после неё примечание [которое должно встать перед существующей секцией].</p>
+			<p>Фигурные скобки {для скриптов из фигурных скобок} и особые [! восклицательные !] и [~ тильдовые ~] скобки.</p>
+			<p>Многоабзацное примечание начинается здесь [первый абзац примечания</p>
+			<p>второй абзац примечания</p>
+			<p>третий абзац примечания] и текст после закрывающей скобки.</p>
+			<p>Ссылка внутри скобок [см. <a l:href="https://example.org/">источник</a>] сохраняется.</p>
+			<empty-line/>
+			<p>Абзац без скобок в конце главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<p>Последняя сноска книги<a l:href="#n_2" type="note">[2]</a> и примечание после неё [в самом конце].</p>
+			<p>Пара «кавычек-ёлочек» для скрипта с текстовыми скобками.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Первая существующая сноска.</p>
+		</section>
+		<section id="n_2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Вторая существующая сноска.</p>
+		</section>
+	</body>
+</FictionBook>

@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-paragraph-with-strikethrough",
+  "name": {
+    "en": "Go to next paragraph with strikethrough",
+    "ru": "Переход на следующий абзац, содержащий зачеркивание"
+  },
+  "description": {
+    "en": "Moves the caret to the first strikethrough in the next paragraph that contains strikethrough; offers to continue from the beginning of the book when the end is reached",
+    "ru": "Переводит курсор на следующий абзац, содержащий зачеркивание; по достижении конца книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next paragraph with strikethrough",
+    "ru": "Переход на следующий абзац, содержащий зачеркивание"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/20_Переход на следующий абзац, содержащий зачеркивание.js",
+    "fbeVersion": "2.7"
+  }
+}

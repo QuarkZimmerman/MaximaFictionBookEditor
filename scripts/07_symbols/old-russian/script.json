@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "07/old-russian",
+  "name": {
+    "en": "Old Russian",
+    "ru": "Древнерусский"
+  },
+  "description": {
+    "en": "Inserts an Old Russian (Old Cyrillic) letter at the caret",
+    "ru": "Вставляет букву древнерусского алфавита в позицию курсора"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Old Russian",
+    "ru": "Древнерусский"
+  },
+  "legacy": {
+    "source": "07_Символы/Древнерусский.js",
+    "fbeVersion": "2.7"
+  }
+}

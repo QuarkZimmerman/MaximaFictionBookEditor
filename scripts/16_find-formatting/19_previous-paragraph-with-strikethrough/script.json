@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-paragraph-with-strikethrough",
+  "name": {
+    "en": "Go to previous paragraph with strikethrough",
+    "ru": "Переход на предыдущий абзац, содержащий зачеркивание"
+  },
+  "description": {
+    "en": "Moves the caret to the first strikethrough in the previous paragraph that contains strikethrough; offers to continue from the end of the book when the beginning is reached",
+    "ru": "Переводит курсор на предыдущий абзац, содержащий зачеркивание; по достижении начала книги предлагает продолжить с конца"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to previous paragraph with strikethrough",
+    "ru": "Переход на предыдущий абзац, содержащий зачеркивание"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/19_Переход на предыдущий абзац, содержащий зачеркивание.js",
+    "fbeVersion": "2.7"
+  }
+}

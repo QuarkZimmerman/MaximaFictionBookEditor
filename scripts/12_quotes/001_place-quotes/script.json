@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "12/place-quotes",
+  "name": {
+    "en": "Place guillemets and low quotes",
+    "ru": "Расстановка елочек и лапок"
+  },
+  "description": {
+    "en": "Replaces straight quotes with «» (level 0) and „“ (nested) in the selection (or the whole book); stops with a message when the nesting cannot be resolved",
+    "ru": "Заменяет прямые кавычки на «» (0-й уровень) и „“ (вложенные) в выделении (или во всей книге); при невозможности определить вложенность останавливается с сообщением"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Place guillemets and low quotes",
+    "ru": "Расстановка елочек и лапок"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/001_Расстановка елочек и лапок.js",
+    "fbeVersion": "2.7"
+  },
+  "icon": "icon.png"
+}

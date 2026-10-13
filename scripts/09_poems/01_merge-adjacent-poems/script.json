@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "09/merge-adjacent-poems",
+  "name": {
+    "en": "Merge consecutive poems",
+    "ru": "Слияние подряд идущих стихов"
+  },
+  "description": {
+    "en": "Within the selection, appends every poem that directly follows another poem (only empty lines between them) to that poem, when the result stays valid",
+    "ru": "В выделении присоединяет каждое стихотворение, идущее сразу за другим (между ними только пустые строки), к предыдущему, если это не нарушит валидность"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Merge consecutive poems",
+    "ru": "Объединение стихов"
+  },
+  "legacy": {
+    "source": "09_Стихи/01_Слияние подряд идущих стихов.js",
+    "fbeVersion": "2.7"
+  }
+}

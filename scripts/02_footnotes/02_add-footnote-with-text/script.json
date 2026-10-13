@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "02/add-footnote-with-text",
+  "name": {
+    "en": "Add a footnote, entering its text in a dialog",
+    "ru": "Добавить сноску, введя ее текст в окошке"
+  },
+  "description": {
+    "en": "Inserts a footnote link at the caret and creates the note section with the text entered in a prompt",
+    "ru": "Вставляет ссылку сноски в позиции курсора и создает секцию примечания с текстом, введенным в окошке"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Add a footnote, entering its text in a dialog",
+    "ru": "Добавить сноску, введя ее текст в окошке"
+  },
+  "legacy": {
+    "source": "02_Добавление примечания/02_Добавить сноску, введя ее текст в окошке.js",
+    "fbeVersion": "2.7"
+  }
+}

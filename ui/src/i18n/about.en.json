@@ -1,0 +1,17 @@
+{
+  "dialog": {
+    "about": {
+      "versionUnknown": "Version unknown (core not connected)",
+      "buildUnknown": "unknown",
+      "platform": "Platform",
+      "engine": "Browser engine",
+      "apiVersion": "API version",
+      "repository": "Source code and releases:",
+      "licence": "Licence: MIT License",
+      "licenceNote": "Free and open-source software; the full licence text is in the LICENSE file of the installation.",
+      "logFolder": "Diagnostics log folder:",
+      "logFolderUnknown": "unknown (core not connected)",
+      "dictionaryLicences": "Third-party licence texts stay with the bundled data files (dictionaries, genre lists)."
+    }
+  }
+}

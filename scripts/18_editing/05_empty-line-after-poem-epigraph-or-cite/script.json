@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "18/empty-line-after-poem-epigraph-or-cite",
+  "name": {
+    "en": "Insert an empty line after the poem, epigraph or cite",
+    "ru": "Вставить пустую строку за стихом, эпиграфом или цитатой"
+  },
+  "description": {
+    "en": "Inserts an empty line after the poem, epigraph or cite that contains the caret",
+    "ru": "Вставляет пустую строку после стиха, эпиграфа или цитаты, в которых стоит курсор"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Insert an empty line after the poem, epigraph or cite",
+    "ru": "Вставить пустую строку за стихом, эпиграфом или цитатой"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/05_Вставить пустую строку за стихом, эпиграфом или цитатой.js",
+    "fbeVersion": "2.7"
+  }
+}

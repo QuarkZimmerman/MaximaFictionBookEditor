@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "test.case.upper",
+  "name": {
+    "en": "To upper case",
+    "ru": "К верхнему регистру"
+  },
+  "description": {
+    "en": "Converts the selected text to upper case",
+    "ru": "Переводит выделенный текст в верхний регистр"
+  },
+  "kind": "menu",
+  "icon": "icon.png",
+  "defaultHotkey": "Ctrl+Alt+U",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Upper case",
+    "ru": "Верхний регистр"
+  },
+  "legacy": {
+    "source": "01_Регистр/01_Верхний регистр.js",
+    "fbeVersion": "2.7"
+  }
+}

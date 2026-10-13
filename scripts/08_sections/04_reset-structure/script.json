@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "08/reset-structure",
+  "name": {
+    "en": "Reset the section structure",
+    "ru": "Сброс структуры разделов"
+  },
+  "description": {
+    "en": "Flattens one level: every top-level section with subsections is replaced by its own header section followed by its subsections",
+    "ru": "Поднимает вложенные разделы на уровень выше: раздел верхнего уровня с подразделами заменяется разделом с его заголовком и его подразделами"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Reset the section structure",
+    "ru": "Сброс структуры разделов"
+  },
+  "legacy": {
+    "source": "08_Структура разделов/04_Сброс структуры разделов.js",
+    "fbeVersion": "2.7"
+  }
+}

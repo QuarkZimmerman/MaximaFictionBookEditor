@@ -1,0 +1,75 @@
+/* Dialogs of the Body editing story (Find, Replace, Link, Table properties). */
+
+.mfbe-finddialog {
+  min-width: 480px;
+}
+
+.mfbe-find-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mfbe-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mfbe-field-row .mfbe-inputdialog-input {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.mfbe-find-label {
+  flex: 0 0 92px;
+  white-space: nowrap;
+}
+
+.mfbe-find-options {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.mfbe-find-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfbe-check-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.mfbe-find-direction {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 4px 10px 8px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+}
+
+.mfbe-find-direction legend {
+  padding: 0 4px;
+}
+
+.mfbe-number-input {
+  width: 72px;
+}
+
+.mfbe-field-hint {
+  margin-top: 6px;
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+  overflow-wrap: anywhere;
+}
+
+.mfbe-tabledialog .mfbe-field-row {
+  margin-top: 10px;
+}

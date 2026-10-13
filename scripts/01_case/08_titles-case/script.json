@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "01/titles-case",
+  "name": {
+    "en": "Case of titles and subtitles...",
+    "ru": "Регистр заголовков и подзаголовков..."
+  },
+  "description": {
+    "en": "Lists the titles and subtitles of the book and changes the case of the chosen ones",
+    "ru": "Показывает заголовки и подзаголовки книги и меняет регистр выбранных"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Case of titles and subtitles",
+    "ru": "Изменение регистра заголовков"
+  },
+  "legacy": {
+    "source": "01_Регистр/08_Регистр заголовков и подзаголовков....js",
+    "fbeVersion": "2.7"
+  }
+}

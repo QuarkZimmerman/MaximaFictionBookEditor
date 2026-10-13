@@ -1,0 +1,110 @@
+/* Document Tree panel (T084). Layout variables come from app/layout.css. */
+
+.mfbe-tree-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+  background: var(--mfbe-color-toolbar-bg);
+}
+
+.mfbe-tree-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  cursor: default;
+}
+
+.mfbe-tree-toolbar-button:hover:not(:disabled) {
+  border-color: var(--mfbe-color-border);
+  background: var(--mfbe-color-button-hover);
+}
+
+.mfbe-tree-toolbar-button:disabled img {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.mfbe-tree-content {
+  position: relative;
+  outline: none;
+  user-select: none;
+  font: var(--mfbe-font-ui);
+}
+
+.mfbe-tree-content:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--mfbe-color-accent);
+}
+
+.mfbe-tree-rows {
+  position: relative;
+  min-width: 100%;
+}
+
+.mfbe-tree-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  padding-right: 8px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.mfbe-tree-row:hover {
+  background: var(--mfbe-color-chrome-bg-2);
+}
+
+.mfbe-tree-row-selected,
+.mfbe-tree-row-selected:hover {
+  background: var(--mfbe-color-accent-soft);
+}
+
+.mfbe-tree-content:focus .mfbe-tree-row-selected {
+  background: var(--mfbe-color-highlight-bg);
+  color: var(--mfbe-color-highlight-fg);
+}
+
+.mfbe-tree-toggle {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  cursor: default;
+}
+
+.mfbe-tree-toggle-leaf {
+  display: inline-block;
+}
+
+.mfbe-tree-icon {
+  flex: 0 0 16px;
+  image-rendering: pixelated;
+}
+
+.mfbe-tree-row-caption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Positioned at the pointer (inline left/top); higher specificity than .mfbe-menu-popup. */
+.mfbe-menu-popup.mfbe-tree-menu {
+  position: fixed;
+  z-index: 600;
+}

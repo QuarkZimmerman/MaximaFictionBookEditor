@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      No Content-Security-Policy <meta> here on purpose: the core serves this bundle and sends
+      the CSP (and the other security headers) as HTTP response headers.
+    -->
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/app/mfbe-32.png" />
+    <title>Maxima Fiction Book Editor</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

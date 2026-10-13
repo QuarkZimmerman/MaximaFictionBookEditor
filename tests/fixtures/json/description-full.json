@@ -1,0 +1,77 @@
+{
+  "modelVersion": 1,
+  "docId": "d3",
+  "fileKind": "fbd",
+  "sourceEncoding": "utf-16",
+  "schemaHint": "unknown",
+  "stylesheets": [],
+  "description": {
+    "titleInfo": {
+      "genres": [{ "code": "sf_epic", "match": 100 }, { "code": "sf_litrpg", "match": 20 }],
+      "authors": [
+        { "firstName": "John", "lastName": "Smith", "homePages": [], "emails": [] },
+        { "nickname": "coauthor", "homePages": ["https://co.example"], "emails": [] }
+      ],
+      "bookTitle": "Full Description",
+      "keywords": "epic, saga",
+      "date": { "text": "Spring 2020", "value": "2020-04-01" },
+      "coverpage": [],
+      "lang": "en",
+      "translators": [],
+      "sequences": [
+        {
+          "name": "Saga",
+          "number": 3,
+          "children": [
+            { "name": "Trilogy", "number": 1, "lang": "en", "children": [] },
+            { "name": "Prequels", "children": [{ "name": "Origins", "number": 0, "children": [] }] }
+          ]
+        },
+        { "name": "Standalone", "children": [] }
+      ]
+    },
+    "srcTitleInfo": {
+      "genres": [{ "code": "sf" }],
+      "authors": [{ "firstName": "Иван", "lastName": "Кузнецов", "homePages": [], "emails": [] }],
+      "bookTitle": "Полное описание",
+      "coverpage": [],
+      "lang": "ru",
+      "translators": [],
+      "sequences": []
+    },
+    "documentInfo": {
+      "authors": [{ "firstName": "Doc", "lastName": "Maker", "homePages": [], "emails": ["doc@example.org"] }],
+      "programUsed": "FictionBook Editor 2.7",
+      "date": { "text": "2026-10-12", "value": "2026-10-12" },
+      "srcUrls": ["https://a.example", "https://b.example"],
+      "id": "00000000-0000-4000-8000-000000000001",
+      "version": "3.14",
+      "publishers": [{ "nickname": "LitPub", "homePages": [], "emails": [], "id": "pub1" }]
+    },
+    "publishInfo": {
+      "bookName": "Full Description (print)",
+      "publisher": "Example Press",
+      "city": "Moscow",
+      "year": "2020",
+      "isbn": "978-5-00000-000-0",
+      "sequences": [{ "name": "Print series", "number": 12, "children": [] }]
+    },
+    "customInfo": [
+      { "infoType": "general", "text": "Custom note" },
+      { "infoType": "lang-note", "text": "Заметка", "lang": "ru" }
+    ],
+    "outputs": [
+      {
+        "type": "raw-xml",
+        "attrs": {
+          "nodeId": "n200",
+          "xml": "<output mode=\"free\" include-all=\"require\" price=\"0\"><part type=\"require\" xlink:href=\"#x\"/></output>",
+          "inline": false
+        }
+      }
+    ]
+  },
+  "bodies": [],
+  "binaries": [],
+  "extras": []
+}

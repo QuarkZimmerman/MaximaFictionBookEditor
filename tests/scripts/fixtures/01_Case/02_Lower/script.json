@@ -1,0 +1,12 @@
+{
+  "manifestVersion": 1,
+  "id": "test.case.lower",
+  "name": {
+    "en": "To lower case",
+    "ru": "К нижнему регистру"
+  },
+  "kind": "menu",
+  "icon": "icon.png",
+  "defaultHotkey": "Ctrl+Alt+L",
+  "needsSelection": true
+}

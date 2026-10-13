@@ -1,0 +1,73 @@
+# Maxima Fiction Book Editor - FB2 genre display names (Russian), supplement.
+# Names for the 65 codes of schema/FictionBookGenres.xsd that the original
+# FictionBook Editor lists (names.ru.txt) do not cover (see missing-names.txt).
+# Same format as names.ru.txt: category<TAB>code<TAB>name, where 'category' is
+# the Russian title of the group (categories.tsv or categories.extra.tsv).
+# Lines starting with '#' are comments. UTF-8, LF. Hand-maintained.
+Фантастика, Фэнтези	city_fantasy	Городское фэнтези
+Фантастика, Фэнтези	dragon_fantasy	Фэнтези о драконах
+Фантастика, Фэнтези	fantasy_fight	Боевое фэнтези
+Фантастика, Фэнтези	historical_fantasy	Историческое фэнтези
+Фантастика, Фэнтези	humor_fantasy	Юмористическое фэнтези
+Фантастика, Фэнтези	love_fantasy	Любовное фэнтези
+Фантастика, Фэнтези	magician_book	Книги о волшебниках
+Фантастика, Фэнтези	popadanec	Попаданцы
+Фантастика, Фэнтези	russian_fantasy	Русское фэнтези
+Фантастика, Фэнтези	vampire_book	Книги о вампирах
+Проза	beginning_authors	Начинающие авторы
+Проза	essays	Эссе
+Проза	literature_18	Литература XVIII века
+Проза	literature_19	Литература XIX века
+Проза	literature_20	Литература XX века
+Проза	narrative	Повести
+Проза	russian_contemporary	Современная русская проза
+Проза	short_story	Рассказы
+Проза	sketch	Очерки
+Любовные романы	love_fantasy	Любовное фэнтези
+Юмор	humor_fantasy	Юмористическое фэнтези
+Научно-образовательная	geography_book	География
+Научно-образовательная	pedagogy_book	Педагогика
+Научно-образовательная	sociology_book	Социология
+Документальное	aphorism_quote	Афоризмы и цитаты
+Документальное	architecture_book	Архитектура
+Документальное	cinema_theatre	Кинематограф и театр
+Документальное	military_special	Военное дело и спецслужбы
+Документальное	music_dancing	Музыка и танцы
+Документальное	visual_arts	Изобразительное искусство
+Дом и Семья	auto_regulations	Автомобили и ПДД
+Дом и Семья	upbringing_book	Воспитание детей
+Психология	psy_alassic	Классики психологии
+Психология	psy_childs	Детская психология
+Психология	psy_generic	Общая психология
+Психология	psy_personal	Личностный рост
+Психология	psy_sex_and_family	Секс и семейная психология
+Психология	psy_social	Социальная психология
+Психология	psy_theraphy	Психотерапия и консультирование
+Периодические издания	newspapers	Газеты
+Периодические издания	periodic	Журналы и периодика
+Зарубежная литература	foreign_action	Зарубежные боевики
+Зарубежная литература	foreign_adventure	Зарубежные приключения
+Зарубежная литература	foreign_antique	Зарубежная старинная литература
+Зарубежная литература	foreign_business	Зарубежная деловая литература
+Зарубежная литература	foreign_children	Зарубежные детские книги
+Зарубежная литература	foreign_comp	Зарубежная компьютерная литература
+Зарубежная литература	foreign_contemporary	Современная зарубежная проза
+Зарубежная литература	foreign_contemporary_lit	Современная зарубежная литература
+Зарубежная литература	foreign_desc	Зарубежная справочная литература
+Зарубежная литература	foreign_detective	Зарубежные детективы
+Зарубежная литература	foreign_dramaturgy	Зарубежная драматургия
+Зарубежная литература	foreign_edu	Зарубежная образовательная литература
+Зарубежная литература	foreign_fantasy	Зарубежное фэнтези
+Зарубежная литература	foreign_home	Зарубежная литература о доме и семье
+Зарубежная литература	foreign_humor	Зарубежный юмор
+Зарубежная литература	foreign_language	Иностранные языки
+Зарубежная литература	foreign_love	Зарубежные любовные романы
+Зарубежная литература	foreign_novel	Зарубежные романы
+Зарубежная литература	foreign_other	Зарубежная литература: прочее
+Зарубежная литература	foreign_poetry	Зарубежная поэзия
+Зарубежная литература	foreign_prose	Зарубежная классика
+Зарубежная литература	foreign_psychology	Зарубежная психология
+Зарубежная литература	foreign_publicism	Зарубежная публицистика
+Зарубежная литература	foreign_religion	Зарубежная религиозная и эзотерическая литература
+Зарубежная литература	foreign_sf	Зарубежная фантастика
+Прочее	unrecognised	Жанр не определён

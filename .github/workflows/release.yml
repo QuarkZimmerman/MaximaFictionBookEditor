@@ -1,0 +1,413 @@
+name: Release
+
+# Tag `vX.Y.Z` (or run by hand): builds the full application on every platform, runs the
+# release gates that CI can run (unit tests, UI checks, end-to-end journeys, shell smoke,
+# licence check), produces the packages with CPack, smoke-tests each package, and attaches
+# MSI / AppImage (+ .zsync) / .deb / .rpm / .dmg with SHA-256 checksums and the installation
+# excerpt to a GitHub Release.
+#
+# Gates that cannot run here (Constitution IV/VI, documented in the release notes):
+#   * the corpus round-trip/validation gate (tests/corpus/run.sh) needs the local book
+#     collection (/book_disk/books) and is run on the development host before tagging;
+#   * the performance budgets (tests/bench/, T150) run when that directory exists.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and publish (leave empty for a dry run without a release)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite"
+
+jobs:
+  build:
+    name: build + package (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-22.04
+            preset: linux-app-release
+            cef: linux64
+          - name: windows
+            os: windows-2025
+            preset: windows-app-release
+            cef: windows64
+          - name: macos-arm64
+            os: macos-15
+            preset: macos-app-release
+            cef: macosarm64
+          - name: macos-x86_64
+            os: macos-15-intel
+            preset: macos-app-release
+            cef: macosx64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config autoconf automake autoconf-archive libtool bison flex \
+            libgtk-3-dev libnss3 libasound2 xvfb file rpm dpkg-dev patchelf python3-yaml shellcheck
+
+      - name: Install Ninja (Windows/macOS)
+        if: runner.os != 'Linux'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        run: brew install autoconf automake autoconf-archive libtool pkg-config
+
+      - name: Set up MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install WiX Toolset (.NET tool)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          dotnet --list-sdks
+          $installed = (dotnet tool list --global) -match "^wix\s"
+          if ($installed) { dotnet tool update --global wix 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/wix.log" }
+          else { dotnet tool install --global wix 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/wix.log" }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          wix --version 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          $version = (wix --version).Trim()
+          $major = $version.Split('.')[0]
+          # WiX v7 asks every machine to acknowledge the Open Source Maintenance Fee EULA
+          # (https://wixtoolset.org/osmf/). The fee applies to organisations above the revenue
+          # threshold only; this independent open-source project is exempt and accepts the EULA.
+          if ([int]$major -ge 7) { wix eula accept "wix$major" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log" }
+          wix extension add -g "WixToolset.UI.wixext/$major.*" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          if ($LASTEXITCODE -ne 0) { wix extension add -g WixToolset.UI.wixext 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log" }
+          wix extension add -g "WixToolset.Util.wixext/$major.*" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          if ($LASTEXITCODE -ne 0) { wix extension add -g WixToolset.Util.wixext 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log" }
+          wix extension list -g 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: WiX failure details
+        if: failure() && runner.os == 'Windows'
+        shell: pwsh
+        run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP/wix.log" -Title "WiX install"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          vcpkgJsonGlob: vcpkg.json
+          runVcpkgInstall: false
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.vcpkg-cache
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ matrix.name }}-
+
+      - name: Cache CEF distribution
+        uses: actions/cache@v4
+        with:
+          path: third_party/downloads
+          key: cef-${{ hashFiles('cmake/CefVersion.cmake') }}-${{ matrix.cef }}
+
+      - name: Configure
+        shell: bash
+        run: |
+          set -o pipefail
+          # vcpkg downloads occasionally fail with DNS errors on hosted runners: retry once.
+          cmake --preset ${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/configure.log" || \
+            { echo "::warning::configure failed once, retrying"; sleep 20; cmake --preset ${{ matrix.preset }} 2>&1 | tee -a "$RUNNER_TEMP/configure.log"; }
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      - name: Configure failure details
+        if: failure()
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/configure.log" "Configure"
+
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build --preset ${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/build.log"
+      - name: Build failure details
+        if: failure()
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build.log" "Build"
+
+      # --- gates -----------------------------------------------------------------------------
+      # The shipped binaries are built without the test-only RPC hooks (constitution: compiled
+      # out of release builds), so the automated gates run against a second, hooks-enabled
+      # core configuration on Linux (the platform exercised end to end). The same vcpkg tree is
+      # reused, so this adds only the core compile time.
+      - name: Configure the test core (hooks enabled)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --preset linux-core-release 2>&1 | tee "$RUNNER_TEMP/configure-tests.log"
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      - name: Build the test core
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build --preset linux-core-release 2>&1 | tee "$RUNNER_TEMP/build-tests.log"
+      - name: Test core failure details
+        if: failure() && runner.os == 'Linux'
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/build-tests.log" "Test core build"
+
+      - name: Unit tests (Catch2)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -o pipefail
+          ctest --preset linux-core-release -LE corpus --output-on-failure 2>&1 | tee "$RUNNER_TEMP/ctest.log"
+      - name: Unit test failure details
+        if: failure() && runner.os == 'Linux'
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/ctest.log" "Unit tests"
+
+      - name: UI checks
+        working-directory: ui
+        shell: bash
+        run: |
+          set -o pipefail
+          { npm ci && npm run typecheck && npm run lint && npm test; } 2>&1 | tee "$RUNNER_TEMP/ui.log"
+      - name: UI check failure details
+        if: failure()
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/ui.log" "UI checks"
+
+      - name: i18n parity
+        if: runner.os == 'Linux'
+        run: |
+          node tools/i18n-check.mjs --strict-identical --accelerators
+          node tools/i18n-literals.mjs
+
+      - name: End-to-end journeys (headless Chromium, real core)
+        if: runner.os == 'Linux'
+        working-directory: ui
+        shell: bash
+        run: |
+          set -o pipefail
+          npx playwright install --with-deps chromium
+          npm run test:e2e 2>&1 | tee "$RUNNER_TEMP/e2e.log"
+        env:
+          MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
+          MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+      - name: E2E failure details
+        if: failure() && runner.os == 'Linux'
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/e2e.log" "End-to-end journeys"
+
+      - name: Shell smoke (Xvfb + CDP)
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
+          MFBE_SMOKE_ABOUT: "1"
+
+      - name: Corpus gate (local only)
+        if: runner.os == 'Linux'
+        run: |
+          echo "::notice::The corpus round-trip/validation gate (tests/corpus/run.sh) needs the local book collection and is run on the development host before tagging."
+
+      - name: Performance budgets (10 MB journeys)
+        if: runner.os == 'Linux'
+        run: tests/bench/run.sh --skip-150 --json
+        env:
+          MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
+          MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+          MFBE_BENCH_WORKDIR: ${{ runner.temp }}/mfbe-bench
+
+      - name: Licence check (blocking, Constitution VI)
+        # Full verification against the installed vcpkg tree of this build: every native,
+        # engine, npm and bundled-data component has an MIT-compatible licence and a licence
+        # text, and THIRD-PARTY-NOTICES.md is the exact output of the tool.
+        if: runner.os == 'Linux'
+        run: python3 tools/licence-check.py --check
+
+      # --- packages ---------------------------------------------------------------------------
+      - name: Package
+        shell: bash
+        run: |
+          set -o pipefail
+          cpack --preset ${{ matrix.preset }} --verbose 2>&1 | tee "$RUNNER_TEMP/package.log"
+      - name: Package failure details
+        if: failure()
+        shell: bash
+        run: |
+          tools/ci/annotate-failure.sh "$RUNNER_TEMP/package.log" "Package"
+          # Generator logs with the actual tool errors (WiX on Windows, rpmbuild/dpkg on Linux).
+          for log in build/${{ matrix.preset }}/packages/_CPack_Packages/*/WIX/wix.log \
+                     build/${{ matrix.preset }}/packages/_CPack_Packages/*/RPM/rpmbuild*.err \
+                     build/${{ matrix.preset }}/packages/_CPack_Packages/*/DEB/*.log; do
+            [ -f "$log" ] && tools/ci/annotate-failure.sh "$log" "$(basename "$log")"
+          done
+          true
+
+      - name: Package smoke (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+          set -eux
+          ls -l build/${{ matrix.preset }}/packages/
+          image=$(ls build/${{ matrix.preset }}/packages/*.AppImage)
+          "$image" --appimage-extract-and-run --version
+          APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$image" MFBE_SMOKE_REAL_UI=1 \
+            MFBE_SMOKE_SCREENSHOT=build/shell-smoke-appimage.png tools/shell-smoke.sh
+          dpkg-deb -I build/${{ matrix.preset }}/packages/mfbe_*_amd64.deb
+          dpkg -x build/${{ matrix.preset }}/packages/mfbe_*_amd64.deb "$RUNNER_TEMP/deb" && "$RUNNER_TEMP/deb/usr/bin/mfbe" --version
+          rpm -qpi build/${{ matrix.preset }}/packages/mfbe-*.rpm
+          rpm -qpR build/${{ matrix.preset }}/packages/mfbe-*.rpm | grep -q 'libgtk-3.so.0'
+          } 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+      - name: Package smoke failure details
+        if: failure() && runner.os == 'Linux'
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/smoke.log" "Package smoke"
+
+      - name: Package smoke (Windows - install, associations, uninstall)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
+          $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /l*v $env:RUNNER_TEMP\install.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $env:RUNNER_TEMP\install.log -Tail 80; throw "msiexec install exit $($p.ExitCode)" }
+          $exe = Join-Path $env:ProgramFiles "Maxima Fiction Book Editor\bin\mfbe.exe"
+          & $exe --version
+          # The renamed CEF bootstrap must carry the editor's own version info and icon
+          # (Start menu / Explorer show the executable's resources).
+          $vi = (Get-Item $exe).VersionInfo
+          if ($vi.ProductName -ne 'Maxima Fiction Book Editor') { throw "version info not stamped: ProductName='$($vi.ProductName)'" }
+          Add-Type -AssemblyName System.Drawing
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
+          if ($null -eq $icon -or $icon.Width -lt 16) { throw "the executable has no icon" }
+          Write-Host "version info: $($vi.ProductName) $($vi.ProductVersion); icon $($icon.Width)x$($icon.Height)"
+          if ((Get-ItemProperty HKLM:\Software\Classes\.fb2).'(default)' -ne 'MaximaFBE.fb2') { throw ".fb2 association missing" }
+          if ((Get-ItemProperty HKLM:\Software\Classes\.fbd).'(default)' -ne 'MaximaFBE.fbd') { throw ".fbd association missing" }
+          $u = Start-Process msiexec -ArgumentList "/x `"$msi`" /qn" -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "msiexec uninstall exit $($u.ExitCode)" }
+          if (Test-Path 'HKLM:\Software\Classes\.fb2') { throw ".fb2 association still present after uninstall" }
+      - name: Package smoke failure details (Windows)
+        if: failure() && runner.os == 'Windows'
+        shell: pwsh
+        run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP\install.log" -Title "MSI install log"
+
+      - name: Package smoke (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+          set -eux
+          dmg=$(ls build/${{ matrix.preset }}/packages/*.dmg)
+          hdiutil attach "$dmg" -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/dmg/mfbe.app" || {
+            codesign -dvvv "$RUNNER_TEMP/dmg/mfbe.app" || true
+            exit 1
+          }
+          "$RUNNER_TEMP/dmg/mfbe.app/Contents/MacOS/mfbe" --version
+          hdiutil detach "$RUNNER_TEMP/dmg"
+          } 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+      - name: Package smoke failure details
+        if: failure() && runner.os == 'macOS'
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/smoke.log" "Package smoke"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.name }}
+          path: |
+            build/${{ matrix.preset }}/packages/*.AppImage
+            build/${{ matrix.preset }}/packages/*.zsync
+            build/${{ matrix.preset }}/packages/*.deb
+            build/${{ matrix.preset }}/packages/*.rpm
+            build/${{ matrix.preset }}/packages/*.msi
+            build/${{ matrix.preset }}/packages/*.dmg
+          if-no-files-found: error
+
+  release:
+    name: publish GitHub Release
+    needs: [build]
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums and release notes
+        run: |
+          set -eux
+          cd dist
+          rm -f SHA256SUMS
+          sha256sum -- * | tee SHA256SUMS
+          cd ..
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          {
+            echo "## Maxima Fiction Book Editor ${tag#v}"
+            echo
+            echo "| Platform | File |"
+            echo "|----------|------|"
+            for f in dist/*; do
+              case "$f" in
+                *.msi) echo "| Windows 10/11 x64 (installer with administrator prompt; \`C:\\Program Files\\Maxima Fiction Book Editor\`) | \`$(basename "$f")\` |" ;;
+                *.AppImage) echo "| Linux x86_64, any distribution (make executable and run) | \`$(basename "$f")\` |" ;;
+                *.deb) echo "| Debian / Ubuntu 22.04+ (\`sudo apt install ./<file>\`) | \`$(basename "$f")\` |" ;;
+                *.rpm) echo "| Fedora 39+ / openSUSE (\`sudo dnf install ./<file>\` / \`sudo zypper install ./<file>\`) | \`$(basename "$f")\` |" ;;
+                *arm64*.dmg) echo "| macOS 13+ on Apple Silicon (drag to Applications; first launch: Privacy & Security > Open Anyway) | \`$(basename "$f")\` |" ;;
+                *x86_64*.dmg) echo "| macOS 13+ on Intel (drag to Applications; first launch: Privacy & Security > Open Anyway) | \`$(basename "$f")\` |" ;;
+              esac
+            done
+            echo
+            echo "Installation and uninstallation steps for every platform, the sandbox notes for Linux and the per-user folder locations: [docs/installing.md](https://github.com/${{ github.repository }}/blob/${tag}/docs/installing.md). \`SHA256SUMS\` lists the checksums of all files."
+            echo
+            echo "Release gates: unit tests, UI checks, end-to-end journeys and the shell smoke test ran in this workflow; the corpus round-trip/validation gate runs on the development host before tagging."
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Create or update the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Maxima Fiction Book Editor ${{ github.event.inputs.tag || github.ref_name }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            dist/*
+          fail_on_unmatched_files: true

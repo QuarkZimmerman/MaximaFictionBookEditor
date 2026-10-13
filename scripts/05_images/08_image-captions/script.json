@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "05/image-captions",
+  "name": {
+    "en": "Mark up image captions...",
+    "ru": "Разметка подписей к иллюстрациям..."
+  },
+  "description": {
+    "en": "Marks the paragraph after each image as a caption (subtitle, bold, italic, superscript or subscript), asking about doubtful ones",
+    "ru": "Размечает абзац после каждой картинки как подпись (subtitle, жирный, курсив, индексы), спрашивая о сомнительных"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Mark up image captions",
+    "ru": "Разметка подписей к картинкам"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/08_Разметка подписей к иллюстрациям....js",
+    "fbeVersion": "2.7"
+  }
+}

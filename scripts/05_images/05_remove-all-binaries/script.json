@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "05/remove-all-binaries",
+  "name": {
+    "en": "Remove all binary objects",
+    "ru": "Удалить все вложения"
+  },
+  "description": {
+    "en": "Removes every binary object of the book after a confirmation (needs a binary-removal call in the script API)",
+    "ru": "После подтверждения удаляет все вложения книги (требует вызов удаления вложений в API скриптов)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Remove all binary objects",
+    "ru": "Удалить все вложения"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/05_Удалить все вложения.js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "06/dot-dash-letter-no-ellipsis",
+  "name": {
+    "en": "Dot, dash, letter (without ellipses)",
+    "ru": "Точка, тире, буква (без поиска многоточий)"
+  },
+  "description": {
+    "en": "From the caret on, finds a full stop or comma (full stops and commas only) followed by a dash and a letter of the wrong case and offers to swap the punctuation or change the letter's case",
+    "ru": "От курсора ищет точку или запятую (без многоточий), за которыми идут тире и буква не того регистра, и предлагает заменить знак или регистр буквы"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Dot, dash, letter (without ellipses)",
+    "ru": "Точка, тире, буква (без поиска многоточий)"
+  },
+  "legacy": {
+    "source": "06_Чистка/16_Точка, тире, буква (без поиска многоточий).js",
+    "fbeVersion": "2.7"
+  }
+}

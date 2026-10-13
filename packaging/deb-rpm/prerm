@@ -1,0 +1,14 @@
+#!/bin/sh
+# Debian prerm of the mfbe package: unload the AppArmor profile before the files disappear
+# (on upgrade the new postinst reloads it).
+set -e
+
+PROFILE=/etc/apparmor.d/mfbe
+
+if [ "$1" = "remove" ] || [ "$1" = "upgrade" ]; then
+    if [ -f "$PROFILE" ] && [ -x /sbin/apparmor_parser ] && [ -d /sys/kernel/security/apparmor ]; then
+        apparmor_parser -R "$PROFILE" 2>/dev/null || true
+    fi
+fi
+
+exit 0

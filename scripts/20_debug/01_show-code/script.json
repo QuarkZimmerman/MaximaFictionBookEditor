@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "20/show-code",
+  "name": {
+    "en": "Show code",
+    "ru": "Показать код"
+  },
+  "description": {
+    "en": "Shows the document-model JSON of the container (section, title, poem, cite…) under the caret in a message box - a debugging aid for script authors",
+    "ru": "Показывает JSON документной модели элемента (секции, заголовка, стиха, цитаты…), в котором стоит курсор, в окне сообщения — для отладки скриптов"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Show code",
+    "ru": "Показать код"
+  },
+  "legacy": {
+    "source": "20_Инструменты отладки/01_Показать код.js",
+    "fbeVersion": "2.7"
+  }
+}

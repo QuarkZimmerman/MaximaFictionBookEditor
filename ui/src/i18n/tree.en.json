@@ -1,0 +1,85 @@
+{
+  "tree": {
+    "menu": {
+      "view": "&View",
+      "viewSource": "View &Source",
+      "moveRight": "Move &Right",
+      "moveWithChildren": "Move With &Children",
+      "moveLeft": "Move &Left",
+      "merge": "&Merge",
+      "delete": "&Delete"
+    },
+    "toolbar": {
+      "right": "Move node once to the right",
+      "rightSmart": "Move one node to the right with smart mode",
+      "left": "Move to the left",
+      "merge": "Merge containers",
+      "delete": "Delete selected node"
+    },
+    "node": {
+      "bodyNumber": "Body {{number}}",
+      "rowCount_one": "{{count}} element",
+      "rowCount_other": "{{count}} elements"
+    },
+    "deleteConfirm": "Delete selected node?",
+    "status": {
+      "noPreviousSibling": "Move Right: the section has no previous section to move into.",
+      "notASection": "Only sections can be moved.",
+      "cannotLift": "Move Left: the section is already at the top level of its body.",
+      "noNextSibling": "Merge: the section has no following section to merge with.",
+      "lastSection": "A body must keep at least one section.",
+      "lastBody": "The book must keep at least one body.",
+      "cannotDelete": "This element cannot be deleted from the tree.",
+      "notFound": "The selected element is no longer in the document.",
+      "invalidResult": "The operation would break the document structure.",
+      "moved": "Section moved.",
+      "merged": "Sections merged.",
+      "deleted": "Element deleted."
+    },
+    "undo": {
+      "moveRight": "Move section right",
+      "moveWithChildren": "Move section with children",
+      "moveLeft": "Move section left",
+      "merge": "Merge sections",
+      "delete": "Delete element"
+    },
+    "a11y": {
+      "toolbar": "Document tree toolbar",
+      "contextMenu": "Document tree menu",
+      "collapse": "Collapse",
+      "expand": "Expand"
+    }
+  },
+  "cmd": {
+    "tree": {
+      "moveRight": {
+        "tooltip": "Tree: move right",
+        "description": "Make the selected section a child of the previous section"
+      },
+      "moveWithChildren": {
+        "tooltip": "Tree: move with children",
+        "description": "Move the selected section with its children into the previous section"
+      },
+      "moveLeft": {
+        "tooltip": "Tree: move left",
+        "description": "Lift the selected section to the level of its parent"
+      },
+      "merge": {
+        "tooltip": "Tree: merge",
+        "description": "Merge the selected section with the following section"
+      },
+      "delete": {
+        "tooltip": "Tree: delete",
+        "description": "Delete the selected tree element"
+      },
+      "view": {
+        "tooltip": "Tree: view",
+        "description": "Show the selected element in the Body view"
+      },
+      "viewSource": {
+        "tooltip": "Tree: view source",
+        "description": "Show the selected element in the Source view"
+      }
+    }
+  }
+}

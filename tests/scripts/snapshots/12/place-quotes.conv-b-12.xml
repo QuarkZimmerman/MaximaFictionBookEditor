@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Тестов</last-name>
+			</author>
+			<book-title>Кавычки</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга про «кавычки»</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава «Первая»</p>
+			</title>
+			<p>Он сказал: «Привет» и ушёл.</p>
+			<p>«Вложенные „кавычки“ внутри» — так бывает.</p>
+			<p>Слово «в конце строки».</p>
+			<p>Многоточие «после слова...» и дальше «ещё…» раз.</p>
+			<p>Уже типографские «ёлочки» и «лапки» будут переставлены заново.</p>
+			<p>«Прямая речь», - сказал он. «Вторая реплика!» - добавил кто-то.</p>
+			<p>Строка с <emphasis>«курсивной цитатой»</emphasis> внутри и сноской<a l:href="#n_1" type="note">[1]</a>.</p>
+			<poem>
+				<stanza>
+					<v>«Стихотворная строка»,</v>
+					<v>и вторая без кавычек.</v>
+				</stanza>
+			</poem>
+			<cite>
+				<p>Цитата со словом «лапки» внутри.</p>
+			</cite>
+			<p>Абзац без кавычек вовсе.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<p>Он начал: «Это длинная цитата, в которой есть „вложенная“ часть, и она заканчивается здесь». Конец.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Сноска с «кавычками».</p>
+		</section>
+	</body>
+</FictionBook>

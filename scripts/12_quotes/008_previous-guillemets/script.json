@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "12/previous-guillemets",
+  "name": {
+    "en": "Go to previous guillemets",
+    "ru": "Переход на пред. елочки"
+  },
+  "description": {
+    "en": "Moves the caret to the previous guillemet («») and selects it; at the beginning of the book offers to continue from the end",
+    "ru": "Переводит курсор на предыдущую ёлочку («») и выделяет её; в начале книги предлагает продолжить с конца"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to previous guillemets",
+    "ru": "Переход на пред. елочки"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/008_Переход на пред. елочки.js",
+    "fbeVersion": "2.7"
+  },
+  "icon": "icon.png"
+}

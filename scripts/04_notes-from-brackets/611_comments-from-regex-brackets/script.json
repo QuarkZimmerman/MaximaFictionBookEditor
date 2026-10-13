@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "04/comments-from-regex-brackets",
+  "name": {
+    "en": "Comments from brackets given as regular expressions",
+    "ru": "Комментарии из скобок, заданных регэкспами"
+  },
+  "description": {
+    "en": "Asks two regular expressions (opening and closing bracket) and turns every bracketed fragment of the book into a comment",
+    "ru": "Запрашивает два регэкспа (открывающая и закрывающая скобки) и превращает каждый фрагмент в таких скобках в комментарий"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Comments from brackets given as regular expressions",
+    "ru": "Комментарии из скобок, заданных регэкспами"
+  },
+  "legacy": {
+    "source": "04_Примечания и комментарии из скобок/611_Комментарии из скобок, заданных регэкспами.js",
+    "fbeVersion": "2.7"
+  }
+}

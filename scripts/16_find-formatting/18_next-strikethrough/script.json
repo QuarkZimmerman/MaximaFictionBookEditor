@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-strikethrough",
+  "name": {
+    "en": "Go to next strikethrough",
+    "ru": "Переход на следующее зачеркивание"
+  },
+  "description": {
+    "en": "Moves the caret to the start of the next run of strikethrough; offers to continue from the beginning of the book when the end is reached",
+    "ru": "Переводит курсор в начало следующего фрагмента (зачеркивание); по достижении конца книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next strikethrough",
+    "ru": "Переход на следующее зачеркивание"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/18_Переход на следующее зачеркивание.js",
+    "fbeVersion": "2.7"
+  }
+}

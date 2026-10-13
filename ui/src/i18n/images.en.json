@@ -1,0 +1,24 @@
+{
+  "$comment": "Image flows (US7, T093/T094): paste / drag-and-drop, Add Binary Object, Save image as.",
+  "images": {
+    "cmd": {
+      "saveAs": {
+        "label": "Save image as...",
+        "tooltip": "Save image as",
+        "description": "Export the selected image to a file"
+      }
+    },
+    "saveAs": {
+      "caption": "Save image as",
+      "filterJpeg": "JPEG files",
+      "filterPng": "PNG files"
+    },
+    "msg": {
+      "binariesAdded_one": "{{count}} binary object added",
+      "binariesAdded_other": "{{count}} binary objects added",
+      "pastedNoPlace": "The image was embedded as binary object \"{{id}}\" but cannot be placed at the caret; insert it through the Add menu or the cover page.",
+      "failed": "The image could not be embedded: {{reason}}",
+      "saved": "Image saved to {{path}}"
+    }
+  }
+}

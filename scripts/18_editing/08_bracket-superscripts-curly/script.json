@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "18/bracket-superscripts-curly",
+  "name": {
+    "en": "Enclose superscripts in {} brackets",
+    "ru": "Обрамить верхние индексы скобками {}"
+  },
+  "description": {
+    "en": "Puts { and } around the content of every superscript in the book",
+    "ru": "Обрамляет содержимое каждого верхнего индекса в книге скобками { }"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Enclose superscripts in {} brackets",
+    "ru": "Обрамить верхние индексы скобками {}"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/08_Обрамить верхние индексы скобками {}.js",
+    "fbeVersion": "2.7"
+  }
+}

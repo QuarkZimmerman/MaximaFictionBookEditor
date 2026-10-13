@@ -1,0 +1,143 @@
+/*
+ * Source view: the CodeMirror editor fills the view; the tools strip and notices sit above it.
+ * The editor's own colours (selection, active line, search matches, gutters, panels) come from
+ * the CodeMirror theme in theme.ts, which reads the same `--mfbe-*` variables of app/layout.css.
+ */
+
+.mfbe-source-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.mfbe-source-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mfbe-source-editor .cm-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  font-family: var(--mfbe-source-font-family);
+  font-size: var(--mfbe-source-font-size);
+  background: var(--mfbe-color-bg);
+}
+
+.mfbe-source-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.mfbe-source-editor .cm-scroller {
+  overflow: auto;
+  font-family: inherit;
+}
+
+.mfbe-source-editor .cm-gutters {
+  background: var(--mfbe-color-chrome-bg);
+  border-right: 1px solid var(--mfbe-color-border);
+  color: var(--mfbe-color-fg-muted);
+}
+
+/* Tools strip: fold level, Go to wrong/matching tag. */
+.mfbe-source-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+  background: var(--mfbe-color-chrome-bg);
+  font: var(--mfbe-font-ui);
+}
+
+.mfbe-source-tools-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mfbe-source-fold-level {
+  font: inherit;
+}
+
+.mfbe-source-tools-button {
+  font: inherit;
+  padding: 1px 8px;
+}
+
+.mfbe-source-tools-spacer {
+  flex: 1 1 auto;
+}
+
+.mfbe-source-notice {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+  border-left: 4px solid var(--mfbe-color-accent);
+  background: var(--mfbe-color-chrome-bg);
+  font: var(--mfbe-font-ui);
+  white-space: pre-wrap;
+}
+
+.mfbe-source-notice-error {
+  border-left-color: var(--mfbe-color-danger);
+}
+
+/* Matched-tag highlighting (Settings > "Highlight matched tags"). */
+.mfbe-source-editor .mfbe-source-tag-match {
+  background: var(--mfbe-color-accent-soft);
+  outline: 1px solid var(--mfbe-color-accent);
+}
+
+.mfbe-source-editor .mfbe-source-tag-unmatched {
+  background: var(--mfbe-color-danger-soft);
+  outline: 1px solid var(--mfbe-color-danger);
+}
+
+/* End-of-line and white-space marks. */
+.mfbe-source-editor .mfbe-source-eol {
+  color: var(--mfbe-color-fg-muted);
+  opacity: 0.7;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mfbe-source-editor .cm-highlightSpace,
+.mfbe-source-editor .cm-highlightTab {
+  opacity: 0.6;
+}
+
+/* Navigation target line (validation issue, parse error, wrong tag). */
+.mfbe-source-editor .mfbe-source-target-line {
+  background: var(--mfbe-color-warning-soft);
+}
+
+/* Collapsed <binary> placeholder. */
+.mfbe-source-editor .mfbe-source-binary {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px dashed var(--mfbe-color-border-strong);
+  border-radius: 3px;
+  background: var(--mfbe-color-chrome-bg-2);
+  color: var(--mfbe-color-fg-muted);
+  font-style: italic;
+  user-select: none;
+}
+
+/* Overtype (Insert) mode: block cursor. */
+.mfbe-source-editor .mfbe-source-overtype .cm-cursor,
+.mfbe-source-editor .mfbe-source-overtype.cm-focused .cm-cursor {
+  border-left-width: 0.6em;
+  margin-left: 0;
+  opacity: 0.5;
+}
+
+.mfbe-source-editor .cm-foldPlaceholder {
+  background: var(--mfbe-color-chrome-bg-2);
+  border-color: var(--mfbe-color-border-strong);
+  color: var(--mfbe-color-fg-muted);
+}

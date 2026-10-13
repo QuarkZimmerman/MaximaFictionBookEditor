@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test.invalid.noentry",
+  "name": {
+    "en": "No entry"
+  },
+  "kind": "menu",
+  "entry": "missing.js"
+}

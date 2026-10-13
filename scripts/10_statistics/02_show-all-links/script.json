@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "10/show-all-links",
+  "name": {
+    "en": "Show all links (in a window)",
+    "ru": "Показать все-все ссылки"
+  },
+  "description": {
+    "en": "Lists every link of the book in a scrollable dialog (the original opened a browser window); links that do not start with # are flagged",
+    "ru": "Показывает список всех ссылок книги в окне с прокруткой (оригинал открывал окно браузера); ссылки не на # помечаются"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Show all links",
+    "ru": "Показать все-все ссылки"
+  },
+  "legacy": {
+    "source": "10_Статистика/02_Показать все-все ссылки.js",
+    "fbeVersion": "2.7"
+  }
+}

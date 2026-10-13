@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "04/footnotes-from-curly",
+  "name": {
+    "en": "Footnotes from {}",
+    "ru": "Примечания из {}"
+  },
+  "description": {
+    "en": "Turns every fragment of the book enclosed in {} into a footnote (link in the text, section in the footnotes body)",
+    "ru": "Превращает каждый фрагмент книги в скобках {} в сноску (ссылка в тексте, секция в body примечаний)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Footnotes from {}",
+    "ru": "Примечания из {}"
+  },
+  "legacy": {
+    "source": "04_Примечания и комментарии из скобок/602_Примечания из {}.js",
+    "fbeVersion": "2.7"
+  }
+}

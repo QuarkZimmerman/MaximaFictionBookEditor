@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "02/add-last-footnote",
+  "name": {
+    "en": "Add the last footnote, staying at its reference",
+    "ru": "Добавить последнюю сноску, оставшись на ее ссылке"
+  },
+  "description": {
+    "en": "Inserts a footnote link at the caret (which must follow every other footnote) and appends the note section without renumbering",
+    "ru": "Вставляет ссылку сноски в позиции курсора (после всех прочих сносок) и добавляет секцию примечания в конец без перенумерации"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Add the last footnote, staying at its reference",
+    "ru": "Добавить последнюю сноску, оставшись на ее ссылке"
+  },
+  "legacy": {
+    "source": "02_Добавление примечания/05_Добавить последнюю сноску, оставшись на ее ссылке.js",
+    "fbeVersion": "2.7"
+  }
+}

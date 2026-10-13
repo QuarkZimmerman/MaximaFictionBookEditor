@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "05/inline-image-to-block",
+  "name": {
+    "en": "Make a block image from an inline image",
+    "ru": "Сделать обычный рисунок из рисунка в тексте"
+  },
+  "description": {
+    "en": "Turns a paragraph that holds only the selected inline image into a block image",
+    "ru": "Превращает абзац, состоящий только из выделенной инлайн-картинки, в обычную картинку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Block image from inline image",
+    "ru": "Обычный рисунок из рисунка в тексте"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/09_Сделать обычный рисунок из рисунка в тексте.js",
+    "fbeVersion": "2.7"
+  }
+}

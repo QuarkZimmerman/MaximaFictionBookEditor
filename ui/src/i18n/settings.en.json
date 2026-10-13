@@ -1,0 +1,63 @@
+{
+  "dialog": {
+    "settings": {
+      "loading": "Loading settings...",
+      "unavailable": "The settings are unavailable: the editor core is not connected.",
+      "browse": "Browse...",
+      "invalidField": "The value of \"{{field}}\" is not valid: {{reason}}",
+      "rangeError": "{{field}} must be a whole number between {{min}} and {{max}}.",
+      "colorError": "{{field}} must be a colour like #rrggbb.",
+      "view": {
+        "languageSystem": "System default",
+        "languageEn": "English",
+        "languageRu": "Russian",
+        "fontDefault": "Default font",
+        "fontFamily": "Font family",
+        "sourceFontSize": "Size:",
+        "fontSizeHint": "Points (6-96)",
+        "customDictionaryFilter": "Hunspell dictionaries",
+        "chooseDictionary": "Choose the custom dictionary"
+      },
+      "other": {
+        "openScriptsFolder": "Open scripts folder",
+        "customFolder": "Custom folder:",
+        "chooseGenresFolder": "Specify genres folder",
+        "genreSources": "Effective genre list: {{sources}}",
+        "genreSourcesUnknown": "Effective genre list: not available (core not connected)",
+        "genreSourceStandard": "standard list ({{count}})",
+        "genreSourceLayer": "{{file}} from the {{layer}} layer ({{count}})",
+        "genreIssues_one": "{{count}} problem in user genre files (see the log).",
+        "genreIssues_other": "{{count}} problems in user genre files (see the log).",
+        "nbspChars": {
+          "degree": "Degree sign (°)",
+          "square": "White square (□)",
+          "smallSquare": "Small white square (▫)",
+          "bullet": "White bullet (◦)",
+          "space": "Plain space (invisible)"
+        }
+      },
+      "hotkeys": {
+        "capturePlaceholder": "Press the new shortcut",
+        "current": "Current shortcut:",
+        "noDescription": "No description.",
+        "groupHelp": "Help",
+        "notPersisted": "The shortcuts are active for this session, but the core could not store them."
+      },
+      "words": {
+        "newWord": "New exclusion word",
+        "counted": "Occurrences in the open book",
+        "noDocument": "—",
+        "empty": "The exclusion list is empty.",
+        "removeConfirm_one": "Remove {{count}} word from the exclusion list?",
+        "removeConfirm_other": "Remove {{count}} words from the exclusion list?"
+      }
+    }
+  },
+  "msg": {
+    "settingsSaved": "Settings saved.",
+    "settingsSaveFailed": "The settings could not be saved: {{reason}}",
+    "openFolderUnavailable": "The folder cannot be opened from here. Its location is:\n{{path}}",
+    "openFolderFailed": "The folder could not be opened: {{reason}}",
+    "hotkeysApplied": "Keyboard shortcuts updated."
+  }
+}

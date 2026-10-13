@@ -1,0 +1,9 @@
+# Additional genre categories for schema codes that the original FictionBook Editor
+# lists do not cover (see names.extra.en.txt / names.extra.ru.txt). Same format as
+# categories.tsv: key<TAB>title_en<TAB>title_ru, header row, '#' comments. Keys never
+# collide with categories.tsv; the loader reads both files.
+key	title_en	title_ru
+foreign	Foreign Literature	Зарубежная литература
+psy	Psychology	Психология
+periodic	Periodicals	Периодические издания
+other	Other	Прочее

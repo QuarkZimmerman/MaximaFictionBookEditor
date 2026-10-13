@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "17/notes-into-brackets-with-space",
+  "name": {
+    "en": "Move notes into brackets (space before the opening bracket)",
+    "ru": "Перенос примечаний в скобки (пробел перед открывающей скобкой)"
+  },
+  "description": {
+    "en": "Same as \"Move notes into brackets\", with a space inserted in front of the opening bracket",
+    "ru": "То же, что «Перенос примечаний в скобки», но перед открывающей скобкой вставляется пробел"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Move notes into brackets (space before the opening bracket)",
+    "ru": "Перенос примечаний в скобки (пробел перед открывающей скобкой)"
+  },
+  "legacy": {
+    "source": "17_Перенос примечаний в скобки/02_Перенос примечаний в скобки (пробел перед открывающей скобкой).js",
+    "fbeVersion": "2.7"
+  }
+}

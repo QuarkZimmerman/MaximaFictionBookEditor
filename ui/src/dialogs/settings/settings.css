@@ -1,0 +1,271 @@
+/* Settings dialog (US9): tabbed pages after IDD_SETTINGS_VIEW / OTHER / HOTKEYS / WORDS. */
+
+.mfbe-settingsdialog {
+  width: min(720px, calc(100vw - 32px));
+  max-width: none;
+}
+
+.mfbe-settingsdialog .mfbe-dialog-body {
+  padding-top: 10px;
+}
+
+.mfbe-settings-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--mfbe-color-border, #c8c8c8);
+}
+
+.mfbe-settings-tab {
+  padding: 5px 14px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mfbe-settings-tab[aria-selected='true'] {
+  border-color: var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-bg, #fff);
+  margin-bottom: -1px;
+}
+
+.mfbe-settings-tab:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: -2px;
+}
+
+.mfbe-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 380px;
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+  padding: 2px;
+}
+
+.mfbe-settings-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mfbe-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 10px 10px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  min-width: 0;
+}
+
+.mfbe-settings-group legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+.mfbe-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mfbe-settings-row .mfbe-inputdialog-input,
+.mfbe-settings-row select {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.mfbe-settings-row .mfbe-number-input {
+  flex: 0 0 auto;
+  width: 84px;
+}
+
+.mfbe-settings-row select {
+  box-sizing: border-box;
+  padding: 3px 4px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.mfbe-settings-label {
+  flex: 0 0 auto;
+  min-width: 96px;
+  white-space: nowrap;
+}
+
+.mfbe-settings-check {
+  margin: 0;
+}
+
+.mfbe-settings-checks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+
+.mfbe-settings-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mfbe-settings-color input[type='color'] {
+  width: 32px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: transparent;
+}
+
+.mfbe-settings-color-text {
+  width: 90px;
+  flex: 0 0 auto !important;
+}
+
+.mfbe-settings-invalid {
+  border-color: var(--mfbe-color-danger, #c42b1c) !important;
+  outline: 1px solid var(--mfbe-color-danger, #c42b1c);
+}
+
+.mfbe-settings-browse {
+  flex: 0 0 auto;
+  min-width: 34px;
+  padding: 3px 8px;
+}
+
+.mfbe-settings-errors {
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--mfbe-color-danger, #c42b1c);
+  color: var(--mfbe-color-danger, #c42b1c);
+  list-style: none;
+}
+
+.mfbe-settings-note {
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+  overflow-wrap: anywhere;
+}
+
+/* Hotkeys page */
+
+.mfbe-hotkeys-lists {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 8px;
+}
+
+.mfbe-hotkeys-listbox {
+  box-sizing: border-box;
+  height: 190px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  list-style: none;
+}
+
+.mfbe-hotkeys-listbox li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 8px;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.mfbe-hotkeys-listbox li[aria-selected='true'] {
+  background: var(--mfbe-color-highlight-bg, #0078d4);
+  color: var(--mfbe-color-highlight-fg, #fff);
+}
+
+.mfbe-hotkeys-listbox:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+}
+
+.mfbe-hotkeys-chord {
+  opacity: 0.8;
+}
+
+.mfbe-hotkeys-bottom {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 8px;
+}
+
+.mfbe-hotkeys-capture {
+  cursor: text;
+}
+
+.mfbe-hotkeys-capture.mfbe-settings-invalid {
+  color: var(--mfbe-color-danger, #c42b1c);
+}
+
+.mfbe-hotkeys-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mfbe-hotkeys-collision,
+.mfbe-hotkeys-description {
+  min-height: 2.6em;
+  white-space: pre-wrap;
+}
+
+/* Words page */
+
+.mfbe-exclusions-table {
+  box-sizing: border-box;
+  height: 200px;
+  overflow: auto;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+}
+
+.mfbe-exclusions-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mfbe-exclusions-table th,
+.mfbe-exclusions-table td {
+  padding: 2px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--mfbe-color-border, #e0e0e0);
+}
+
+.mfbe-exclusions-table th {
+  position: sticky;
+  top: 0;
+  background: var(--mfbe-color-chrome-bg, #f3f3f3);
+}
+
+.mfbe-exclusions-table td.mfbe-exclusions-count {
+  text-align: right;
+  width: 1%;
+  white-space: nowrap;
+}
+
+.mfbe-exclusions-table tr[aria-selected='true'] td {
+  background: var(--mfbe-color-accent-soft, #cce4f7);
+}
+
+.mfbe-exclusions-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mfbe-exclusions-toolbar .mfbe-button {
+  min-width: 0;
+}

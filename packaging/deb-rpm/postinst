@@ -1,0 +1,33 @@
+#!/bin/sh
+# Debian maintainer script of the mfbe package (also used, through a thin wrapper, as the RPM
+# %post scriptlet). Idempotent; every step tolerates a missing tool.
+set -e
+
+HELPER=/usr/lib/mfbe/chrome-sandbox
+PROFILE=/etc/apparmor.d/mfbe
+
+# 1. Chromium's SUID sandbox helper (used when unprivileged user namespaces are unavailable).
+if [ -f "$HELPER" ]; then
+    chown root:root "$HELPER"
+    chmod 4755 "$HELPER"
+fi
+
+# 2. AppArmor profile for Ubuntu 23.10+ / 24.04+ (user-namespace restriction). Loaded only
+#    where the restriction exists; the abi/4.0 profile does not parse on older AppArmor.
+if [ -f "$PROFILE" ] && [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ] \
+   && [ -x /sbin/apparmor_parser ] && [ -d /sys/kernel/security/apparmor ]; then
+    apparmor_parser -r -T -W "$PROFILE" 2>/dev/null || true
+fi
+
+# 3. Desktop integration caches (dpkg/rpm file triggers do the same on most systems).
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database -q /usr/share/applications || true
+fi
+if command -v update-mime-database >/dev/null 2>&1; then
+    update-mime-database /usr/share/mime >/dev/null 2>&1 || true
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1 && [ -f /usr/share/icons/hicolor/index.theme ]; then
+    gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+fi
+
+exit 0

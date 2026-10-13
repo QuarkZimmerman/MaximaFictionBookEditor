@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "11/caption-subtitle",
+  "name": {
+    "en": "Image title to caption (subtitle)",
+    "ru": "Заголовок картинки в подпись (subtitle)"
+  },
+  "description": {
+    "en": "Moves the title of every block image into a subtitle below the image (plus an empty line) and removes the title attribute",
+    "ru": "Переносит заголовок (title) каждой картинки под неё как подзаголовок (плюс пустая строка) и удаляет атрибут title"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Image title to caption (subtitle)",
+    "ru": "Заголовок картинки в подпись (subtitle)"
+  },
+  "legacy": {
+    "source": "11_Заголовки картинок в подписи/602_Заголовок картинки в подпись (subtitle).js",
+    "fbeVersion": "2.7"
+  }
+}

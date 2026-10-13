@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "20/show-whole-code",
+  "name": {
+    "en": "Show whole code",
+    "ru": "Показать весь код"
+  },
+  "description": {
+    "en": "Shows the complete document-model JSON of the container under the caret in a copyable text box - a debugging aid for script authors",
+    "ru": "Показывает полный JSON документной модели элемента, в котором стоит курсор, в текстовом поле, откуда его можно скопировать — для отладки скриптов"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Show whole code",
+    "ru": "Показать весь код"
+  },
+  "legacy": {
+    "source": "20_Инструменты отладки/02_Показать весь код.js",
+    "fbeVersion": "2.7"
+  }
+}

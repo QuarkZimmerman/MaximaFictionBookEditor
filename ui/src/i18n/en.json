@@ -1,0 +1,922 @@
+{
+  "app": {
+    "name": "Maxima Fiction Book Editor",
+    "shortName": "MFBE",
+    "untitled": "Untitled",
+    "windowTitle": "{{document}} - {{app}}",
+    "modifiedMarker": "*"
+  },
+  "status": {
+    "ready": "Ready",
+    "notConnected": "Not connected",
+    "connecting": "Connecting...",
+    "ins": "INS",
+    "ovr": "OVR",
+    "noErrors": "No errors found.",
+    "savedNoErrors": "Document saved - No errors found.",
+    "openedWithWarnings_one": "Document opened with {{count}} warning.",
+    "openedWithWarnings_other": "Document opened with {{count}} warnings.",
+    "incrementalSearch": "Incremental Search: {{text}}",
+    "failingIncrementalSearch": "Failing Incremental Search: {{text}}",
+    "progress": "{{phase}}: {{done}} of {{total}}",
+    "progressPercent": "{{phase}}: {{percent}}%"
+  },
+  "menu": {
+    "file": {
+      "caption": "&File",
+      "new": "&New",
+      "open": "&Open...",
+      "save": "&Save",
+      "saveAs": "Save &As...",
+      "validate": "&Validate",
+      "import": "&Import",
+      "noImportPlugins": "No import plugins installed",
+      "export": "&Export",
+      "noExportPlugins": "No export plugins installed",
+      "recent": "&Recent Files",
+      "noRecent": "No Recent Files",
+      "openThisDocument": "Open this document",
+      "exit": "E&xit"
+    },
+    "edit": {
+      "caption": "&Edit",
+      "undo": "&Undo",
+      "redo": "&Redo",
+      "cut": "Cu&t",
+      "copy": "&Copy",
+      "paste": "&Paste",
+      "find": "&Find...",
+      "findNext": "Find &Next",
+      "replace": "R&eplace...",
+      "gotoFootnote": "&Go to footnote or reference",
+      "gotoMatchTag": "Go to m&atching tag",
+      "gotoWrongTag": "Go to &wrong tag",
+      "clone": "C&lone container",
+      "split": "&Split container",
+      "merge": "&Merge containers",
+      "removeOuter": "Remove outer container"
+    },
+    "view": {
+      "caption": "&View",
+      "toolbarCommands": "&Commands toolbar",
+      "toolbarScripts": "Scripts toolbar",
+      "linksBar": "&Links Bar",
+      "tableBar": "Table Bar",
+      "statusBar": "&Status Bar",
+      "tree": "&Document Tree",
+      "description": "D&escription",
+      "body": "&Body",
+      "source": "So&urce",
+      "fastMode": "Fast Mode"
+    },
+    "add": {
+      "caption": "&Add",
+      "body": "&Body",
+      "title": "&Title",
+      "epigraph": "&Epigraph",
+      "annotation": "A&nnotation",
+      "textAuthor": "Te&xt author",
+      "image": "&Image",
+      "inlineImage": "In&line image",
+      "poem": "&Poem",
+      "cite": "&Cite",
+      "table": "T&able",
+      "sectionImage": "&Section image",
+      "binary": "Add Binary &Object..."
+    },
+    "style": {
+      "caption": "&Style",
+      "normal": "&Normal",
+      "textAuthor": "Text &Author",
+      "subtitle": "&Subtitle",
+      "link": "&Link...",
+      "footnote": "&Footnote...",
+      "removeLink": "&Remove link"
+    },
+    "tools": {
+      "caption": "&Tools",
+      "words": "&Words...",
+      "settings": "&Settings...",
+      "spellcheck": "Spell &check..."
+    },
+    "scripts": {
+      "caption": "Sc&ripts",
+      "none": "No scripts found",
+      "last": "&Last script",
+      "invalid": "invalid script: {{reason}}"
+    },
+    "help": {
+      "caption": "&Help",
+      "about": "&About Maxima Fiction Book Editor..."
+    }
+  },
+  "treeMenu": {
+    "view": "View",
+    "viewSource": "View Source",
+    "moveRight": "Move Right",
+    "moveWithChildren": "Move With Children",
+    "moveLeft": "Move Left",
+    "delete": "Delete",
+    "elements": "Elements",
+    "scripts": "Scripts"
+  },
+  "toolbarMenu": {
+    "customize": "Customize toolbar..."
+  },
+  "toolbar": {
+    "commands": "Commands toolbar",
+    "scripts": "Scripts toolbar",
+    "links": "Links Bar",
+    "table": "Table Bar"
+  },
+  "linksBar": {
+    "id": "ID:",
+    "href": "Href:",
+    "sectionId": "Section ID:",
+    "imageTitle": "Image title:"
+  },
+  "tableBar": {
+    "tableId": "Table ID:",
+    "tableStyle": "Table Style:",
+    "style": "style:",
+    "colspan": "colspan:",
+    "rowspan": "rowspan:",
+    "trAlign": "tr align:",
+    "tdAlign": "th, td align:",
+    "tdValign": "th, td valign:"
+  },
+  "tree": {
+    "caption": "Document structure",
+    "clean": "Clean",
+    "empty": "No document is open."
+  },
+  "views": {
+    "description": {
+      "title": "Description",
+      "empty": "Description view - no document is open."
+    },
+    "body": {
+      "title": "Body",
+      "empty": "Body view - no document is open.",
+      "imageMissing": "Image not available:",
+      "undoLabel": "Body edit",
+      "sourceOnly": "The document is not well-formed XML: correct it in the Source view first.",
+      "bodyNumber": "Body {{number}}",
+      "moreSections_one": "... {{count}} more section",
+      "moreSections_other": "... {{count}} more sections",
+      "conversionProblems_one": "{{count}} element does not match the FB2 structure and is shown as is.",
+      "conversionProblems_other": "{{count}} elements do not match the FB2 structure and are shown as is."
+    },
+    "source": {
+      "title": "Source",
+      "empty": "Source view - no document is open.",
+      "undoLabel": "Source edit",
+      "sourceOnly": "The file is not well-formed XML and was opened in Source mode only. Correct the errors to use the other views.",
+      "loadFailed": "The document source could not be loaded.\n{{reason}}"
+    },
+    "switcher": "Views"
+  },
+  "editing": {
+    "unknownElement": "Unknown element - edit it in the Source view",
+    "cmd": {
+      "insertNbsp": {
+        "tooltip": "Insert non-breaking space",
+        "description": "Insert a non-breaking space at the caret"
+      }
+    },
+    "link": {
+      "caption": "Link",
+      "prompt": "Link target (#id of an element or an address):"
+    },
+    "footnote": {
+      "notesTitle": "Notes",
+      "undoLabel": "Create footnote"
+    },
+    "contextMenu": {
+      "cut": "Cut",
+      "copy": "Copy",
+      "paste": "Paste",
+      "select": "Select {{element}}"
+    },
+    "msg": {
+      "binaryAddUnavailable": "The image file could not be added as a binary object yet; the image refers to #{{name}}."
+    }
+  },
+  "cmd": {
+    "file": {
+      "new": {
+        "tooltip": "New",
+        "description": "Create a new document"
+      },
+      "open": {
+        "tooltip": "Open",
+        "description": "Open an existing document"
+      },
+      "save": {
+        "tooltip": "Save",
+        "description": "Save the active document"
+      },
+      "saveAs": {
+        "tooltip": "Save As",
+        "description": "Save the active document with a new name"
+      },
+      "validate": {
+        "tooltip": "Validate",
+        "description": "Validate current document against FictionBook schema"
+      },
+      "exit": {
+        "tooltip": "Exit",
+        "description": "Quit the application; prompts to save documents"
+      }
+    },
+    "edit": {
+      "undo": {
+        "tooltip": "Undo",
+        "description": "Undo the last action"
+      },
+      "redo": {
+        "tooltip": "Redo",
+        "description": "Redo the previously undone action"
+      },
+      "cut": {
+        "tooltip": "Cut",
+        "description": "Cut the selection and put it on the Clipboard"
+      },
+      "copy": {
+        "tooltip": "Copy",
+        "description": "Copy the selection and put it on the Clipboard"
+      },
+      "paste": {
+        "tooltip": "Paste",
+        "description": "Insert Clipboard contents"
+      },
+      "find": {
+        "tooltip": "Find",
+        "description": "Find the specified text"
+      },
+      "findNext": {
+        "tooltip": "Find next",
+        "description": "Repeats the last find"
+      },
+      "replace": {
+        "tooltip": "Replace",
+        "description": "Replace specific text with different text"
+      },
+      "incrementalSearch": {
+        "tooltip": "Incremental search",
+        "description": "Search while typing; the status bar shows the current match"
+      },
+      "gotoFootnote": {
+        "tooltip": "Go to footnote or reference",
+        "description": "Go to footnote or reference"
+      },
+      "gotoMatchTag": {
+        "tooltip": "Go to matching tag",
+        "description": "Go to matching tag"
+      },
+      "gotoWrongTag": {
+        "tooltip": "Go to wrong tag",
+        "description": "Go to wrong tag"
+      },
+      "clone": {
+        "tooltip": "Clone",
+        "description": "Clone selected object"
+      },
+      "split": {
+        "tooltip": "Split container",
+        "description": "Split parent container at selection"
+      },
+      "merge": {
+        "tooltip": "Merge containers",
+        "description": "Merge selected container with next"
+      },
+      "removeOuter": {
+        "tooltip": "Remove outer section",
+        "description": "Remove the container surrounding the selection, keeping its content"
+      }
+    },
+    "view": {
+      "toolbarCommands": {
+        "tooltip": "Toggle Command ToolBar",
+        "description": "Show or hide the command toolbar"
+      },
+      "toolbarScripts": {
+        "tooltip": "Toggle Scripts ToolBar",
+        "description": "Show or hide the scripts toolbar"
+      },
+      "linksBar": {
+        "tooltip": "Toggle LinksBar",
+        "description": "Show or hide the links bar"
+      },
+      "tableBar": {
+        "tooltip": "Toggle TableBar",
+        "description": "Show or hide the table bar"
+      },
+      "statusBar": {
+        "tooltip": "Toggle StatusBar",
+        "description": "Show or hide the status bar"
+      },
+      "tree": {
+        "tooltip": "Toggle document tree",
+        "description": "Show or hide the document tree"
+      },
+      "description": {
+        "tooltip": "Description",
+        "description": "Show document description"
+      },
+      "body": {
+        "tooltip": "Body",
+        "description": "Show document body"
+      },
+      "source": {
+        "tooltip": "Source",
+        "description": "Show document source code"
+      },
+      "fastMode": {
+        "tooltip": "Toggle fast mode",
+        "description": "Toggle fast mode"
+      }
+    },
+    "insert": {
+      "body": {
+        "tooltip": "Add body",
+        "description": "Add a new body to the document"
+      },
+      "title": {
+        "tooltip": "Add title",
+        "description": "Add a title to the selected object"
+      },
+      "epigraph": {
+        "tooltip": "Add epigraph",
+        "description": "Add epigraph to selected object"
+      },
+      "annotation": {
+        "tooltip": "Add annotation",
+        "description": "Add annotation to the selected object"
+      },
+      "textAuthor": {
+        "tooltip": "Add text author",
+        "description": "Add a text author paragraph to the selected container"
+      },
+      "image": {
+        "tooltip": "Insert image",
+        "description": "Insert an image at cursor"
+      },
+      "inlineImage": {
+        "tooltip": "Insert inline image",
+        "description": "Insert an inline image at cursor"
+      },
+      "poem": {
+        "tooltip": "Insert poem",
+        "description": "Replace selection with a poem container"
+      },
+      "cite": {
+        "tooltip": "Insert cite",
+        "description": "Replace selection with a cite container"
+      },
+      "table": {
+        "tooltip": "Insert table",
+        "description": "Insert a table at cursor"
+      },
+      "sectionImage": {
+        "tooltip": "Add image",
+        "description": "Add an image to the selected object"
+      },
+      "binary": {
+        "tooltip": "Add binary object",
+        "description": "Add a new binary object to the document"
+      }
+    },
+    "style": {
+      "normal": {
+        "tooltip": "Normal",
+        "description": "Normal paragraph style"
+      },
+      "textAuthor": {
+        "tooltip": "Text author",
+        "description": "Text author paragraph style"
+      },
+      "subtitle": {
+        "tooltip": "Subtitle",
+        "description": "Subtitle paragraph style"
+      },
+      "link": {
+        "tooltip": "Hyperlink",
+        "description": "Add a hyperlink"
+      },
+      "footnote": {
+        "tooltip": "Footnote",
+        "description": "Add a footnote"
+      },
+      "removeLink": {
+        "tooltip": "Remove links",
+        "description": "Remove links from selected text"
+      },
+      "strong": {
+        "tooltip": "Strong",
+        "description": "Marks the selection \"strong\" (toggle)"
+      },
+      "emphasis": {
+        "tooltip": "Emphasis",
+        "description": "Marks the selection \"emphasis\" (toggle)"
+      },
+      "strikethrough": {
+        "tooltip": "Strikethrough",
+        "description": "Marks the selection \"strikethrough\" (toggle)"
+      },
+      "sub": {
+        "tooltip": "Sub",
+        "description": "Marks the selection \"sub\" (toggle)"
+      },
+      "sup": {
+        "tooltip": "Sup",
+        "description": "Marks the selection \"sup\" (toggle)"
+      },
+      "code": {
+        "tooltip": "Code",
+        "description": "Marks the selection \"code\" (toggle)"
+      }
+    },
+    "tools": {
+      "words": {
+        "tooltip": "Words",
+        "description": "Word frequency list with replacements"
+      },
+      "settings": {
+        "tooltip": "Display options",
+        "description": "Display options"
+      },
+      "spellcheck": {
+        "tooltip": "Check document spelling",
+        "description": "Check document spelling..."
+      },
+      "spellHighlight": {
+        "tooltip": "Toggle highlight",
+        "description": "Toggle highlighting of misspelled words"
+      }
+    },
+    "scripts": {
+      "last": {
+        "tooltip": "Last script",
+        "description": "Execute last called script"
+      }
+    },
+    "help": {
+      "about": {
+        "tooltip": "About",
+        "description": "Display program information, version number and copyright"
+      }
+    },
+    "nav": {
+      "nextItem": {
+        "tooltip": "Next item",
+        "description": "Move the focus to the next item"
+      },
+      "selectHref": {
+        "tooltip": "Href",
+        "description": "Focus the Href field of the links bar"
+      },
+      "selectId": {
+        "tooltip": "ID",
+        "description": "Focus the ID field of the links bar"
+      },
+      "selectTableId": {
+        "tooltip": "Table ID",
+        "description": "Focus the Table ID field of the table bar"
+      },
+      "selectText": {
+        "tooltip": "Text",
+        "description": "Return the focus to the document text"
+      },
+      "selectTree": {
+        "tooltip": "Tree",
+        "description": "Focus the document tree"
+      }
+    },
+    "source": {
+      "collapse": {
+        "tooltip_one": "Collapse {{count}} tree level",
+        "tooltip_other": "Collapse {{count}} tree levels",
+        "description_one": "Fold the XML source {{count}} level deep",
+        "description_other": "Fold the XML source {{count}} levels deep"
+      },
+      "expand": {
+        "tooltip_one": "Expand {{count}} tree level",
+        "tooltip_other": "Expand {{count}} tree levels",
+        "description_one": "Unfold the XML source {{count}} level deep",
+        "description_other": "Unfold the XML source {{count}} levels deep"
+      }
+    },
+    "symbol": {
+      "description": "Insert the symbol {{name}} ({{char}})"
+    },
+    "script": {
+      "description": "Run the script {{name}}"
+    }
+  },
+  "hotkeys": {
+    "groups": {
+      "file": "File",
+      "edit": "Edit",
+      "navigation": "Navigation",
+      "style": "Style",
+      "view": "View",
+      "tools": "Tools",
+      "symbols": "Symbols",
+      "scripts": "Scripts",
+      "plugins": "Plugins"
+    },
+    "wrong": "Wrong shortcut!",
+    "defaultCollision": "Default hotkey for this command was assigned to \"{{command}}\"! Replace?",
+    "assigned": "Assigned to \"{{command}}\"",
+    "notAssigned": "Not assigned to other command",
+    "scriptConflict": "Script\n{{script}}\n returned a virtual-key that conflicts with previously loaded script\n {{other}}",
+    "none": "None"
+  },
+  "dialog": {
+    "buttons": {
+      "ok": "OK",
+      "cancel": "Cancel",
+      "abort": "&Abort",
+      "retry": "&Retry",
+      "ignore": "&Ignore",
+      "yes": "&Yes",
+      "no": "&No",
+      "close": "Close"
+    },
+    "input": {
+      "caption": "Input",
+      "prompt": "Text:"
+    },
+    "error": {
+      "caption": "Error"
+    },
+    "find": {
+      "caption": "Find",
+      "findWhat": "Fi&nd what:",
+      "wholeWords": "Match &whole words",
+      "matchCase": "Match &case",
+      "regex": "Regular &expression",
+      "direction": "Direction",
+      "up": "&Up",
+      "down": "&Down",
+      "findNext": "&Find Next"
+    },
+    "replace": {
+      "caption": "Replace",
+      "replaceWith": "Replace with:",
+      "replace": "&Replace",
+      "replaceAll": "Replace &All",
+      "replaceAllCaption": "Replace All"
+    },
+    "table": {
+      "caption": "Table properties",
+      "rows": "Number of table cells <tr><td></td></tr>:",
+      "addHeader": "Add table header <tr><th></th></tr>"
+    },
+    "words": {
+      "caption": "Words",
+      "showHideExclusions": "Show/hide exclusions",
+      "process": "Process",
+      "processHighlighted": "Process highlighted",
+      "invert": "Invert",
+      "resetReplaced": "Reset replaced",
+      "toExclusions": "To exclusions",
+      "highlightAll": "Highlight all",
+      "setReplaced": "Set replaced",
+      "setReplacedAll": "Set replaced all",
+      "currentWord": "Current word",
+      "word": "Word:",
+      "replacement": "Replacement:",
+      "find": "Find",
+      "next": "Next",
+      "replace": "Replace",
+      "columns": {
+        "word": "Word",
+        "replacement": "Replacement",
+        "counted": "Counted"
+      }
+    },
+    "spelling": {
+      "caption": "Spelling",
+      "notInDictionary": "Not In Dictionary:",
+      "changeTo": "Change To:",
+      "suggestions": "Suggestions:",
+      "ignore": "Ignore",
+      "ignoreAll": "Ignore All",
+      "change": "Change",
+      "changeAll": "Change All",
+      "add": "Add",
+      "suggest": "Suggest",
+      "undoLast": "Undo last",
+      "addToDictionary": "Add to dictionary",
+      "continue": "Continue",
+      "replaceWord": "Replace word"
+    },
+    "about": {
+      "caption": "About",
+      "build": "Build",
+      "version": "Version {{version}}",
+      "openLogFolder": "Open log folder",
+      "licences": "Licences"
+    },
+    "settings": {
+      "caption": "Settings",
+      "pages": {
+        "view": "View",
+        "other": "Other",
+        "hotkeys": "Hotkeys",
+        "words": "Words"
+      },
+      "apply": "Apply",
+      "view": {
+        "common": "Common",
+        "language": "Language:",
+        "fontSize": "Font size:",
+        "body": "Body",
+        "editorFont": "Editor font:",
+        "textColor": "Text color:",
+        "background": "Background:",
+        "fastMode": "Fast Mode",
+        "sourceEditor": "XML source editor",
+        "wrap": "Wrap lines",
+        "syntaxHighlight": "Syntax highlighting",
+        "showEol": "Show end of line marks",
+        "showWhitespace": "Show white spaces",
+        "lineNumbers": "Show line numbers",
+        "matchTags": "Highlight matched tags",
+        "spellcheck": "Spellcheck",
+        "useSpellchecker": "Use spellchecker",
+        "highlightMisspelled": "Highlight misspelled words",
+        "customDictionary": "Custom dictionary:"
+      },
+      "other": {
+        "saveFile": "Save File",
+        "defaultEncoding": "Default encoding:",
+        "keepEncoding": "Keep Encoding",
+        "openFile": "Open File",
+        "restorePosition": "Restore Position",
+        "scriptsFolder": "Scripts folder",
+        "genresFolder": "Genres folder",
+        "openGenresFolder": "Open genres folder",
+        "defaultFolder": "Default folder",
+        "dialogs": "Dialogs",
+        "askNonClearImage": "Ask for non clear image insertion",
+        "images": "Images",
+        "insertClearImages": "Insert clear images",
+        "pasteImagesAs": "Paste images as",
+        "imageFormat": "Image format:",
+        "jpegQuality": "JPEG quality:",
+        "nbsp": "Non-breaking space",
+        "displayChar": "Display character:"
+      },
+      "hotkeys": {
+        "groups": "Groups:",
+        "commands": "Commands:",
+        "shortcut": "Shortcut:",
+        "default": "Default",
+        "delete": "Delete",
+        "assign": "Assign",
+        "actions": "Actions",
+        "assignedTo": "Assigned to",
+        "description": "Description"
+      },
+      "words": {
+        "exclusionList": "Word-exclusion list",
+        "add": "Add",
+        "showExclusions": "Show exclusions in Words dialog",
+        "selectAll": "Select All",
+        "removeSelected": "Remove selected",
+        "columns": {
+          "counted": "Counted",
+          "word": "Word"
+        }
+      }
+    },
+    "saveFile": {
+      "encoding": "Encoding:",
+      "filterFb2": "FictionBook documents",
+      "filterFbd": "FictionBook descriptors",
+      "filterAll": "All files"
+    },
+    "addImage": {
+      "caption": "Add image",
+      "insertClear": "Insert clear image?",
+      "chooseImage": "Choose image to add:",
+      "chooseBinaries": "Choose binaries to add:",
+      "filterImages": "Images"
+    },
+    "chooseScriptsFolder": "Specify scripts folder",
+    "dontAskAgain": "Don't ask again",
+    "validation": {
+      "caption": "Validation",
+      "severity": "Severity",
+      "line": "Line",
+      "column": "Column",
+      "message": "Message",
+      "error": "Error",
+      "warning": "Warning",
+      "summary": "{{errors}} {{warnings}}",
+      "warningsFound_one": "{{count}} warning.",
+      "warningsFound_other": "{{count}} warnings."
+    }
+  },
+  "validation": {
+    "schema": "{{element}}: {{detail}}",
+    "wellFormed": "XML is not well-formed: {{message}}",
+    "genreUnknown": "Unknown genre \"{{code}}\"",
+    "required": "Required element \"{{element}}\" is missing or empty",
+    "bodies": {
+      "none": "The document has no body"
+    },
+    "link": {
+      "dangling": "Link target \"{{href}}\" does not exist"
+    },
+    "binary": {
+      "missing": "Image \"{{href}}\" refers to a missing binary object",
+      "unreferenced": "Binary object \"{{id}}\" is not referenced",
+      "notImage": "Binary object \"{{id}}\" ({{contentType}}) is not a decodable image and is kept as is",
+      "undecodable": "Binary object \"{{id}}\" ({{contentType}}) is not a decodable image",
+      "invalidBase64": "Binary object \"{{id}}\" is not valid base64 data; it is kept as text",
+      "willConvert": "Binary object \"{{id}}\" ({{contentType}}) will be converted to JPEG/PNG on save",
+      "placeholderMissing": "Binary object \"{{id}}\" ({{size}} bytes) is no longer available",
+      "missingId": "A binary object without id was named \"{{assigned}}\"",
+      "duplicateId": "Duplicate binary id \"{{id}}\" was renamed to \"{{renamed}}\""
+    },
+    "encoding": {
+      "mismatch": "Declared encoding {{declared}} does not match the file content ({{detected}})"
+    },
+    "xml": {
+      "notWellFormed": "XML is not well-formed: {{message}}",
+      "namespaceMissing": "The root element is not in the FictionBook namespace ({{expected}})"
+    },
+    "schemaInvalid": "Schema: {{message}}",
+    "schemaUnavailable": "The FictionBook schema could not be loaded: {{reason}}",
+    "genre": {
+      "unknown": "Unknown genre \"{{code}}\""
+    },
+    "image": {
+      "emptyHref": "Image without a reference (empty href)",
+      "missingBinary": "Image \"{{href}}\" refers to a missing binary object",
+      "externalHref": "Image \"{{href}}\" refers to an external file"
+    },
+    "description": {
+      "emptyRequired": "Required element \"{{element}}\" is missing or empty"
+    }
+  },
+  "error": {
+    "$comment": "JSON-RPC error table of contracts/rpc-api.md §1 (stable names of core/include/mfbe/rpc.hpp) plus the client-side conditions of rpc/client.ts; placeholders follow the documented `data` fields.",
+    "parseError": "The editor core could not parse the request",
+    "invalidRequest": "Invalid request to the editor core",
+    "methodNotFound": "This operation is not supported by the editor core",
+    "invalidParams": "Invalid request parameters: {{detail}}",
+    "internalError": "Internal error in the editor core",
+    "cancelled": "The operation was cancelled",
+    "doc": {
+      "notFound": "The document is no longer open in the editor core",
+      "parseError": "The file is not well-formed XML (line {{line}}, column {{column}}): {{message}}",
+      "ioError": "{{path}} could not be read or written: {{reason}}",
+      "sourceMalformed": "The XML source is not well-formed; correct it in the Source view first",
+      "notFictionBook": "{{path}} is not a FictionBook document"
+    },
+    "binary": {
+      "notFound": "Binary object \"{{id}}\" does not exist in the document"
+    },
+    "spell": {
+      "dictionaryUnavailable": "No spelling dictionary is installed for the language \"{{lang}}\": {{reason}}"
+    },
+    "script": {
+      "notFound": "Script \"{{scriptId}}\" was not found",
+      "invalidManifest": "The script \"{{scriptId}}\" is incomplete: its entry module \"{{entry}}\" is missing"
+    },
+    "settings": {
+      "invalid": "The setting \"{{field}}\" has an invalid value"
+    },
+    "dialog": {
+      "unavailable": "System dialogs are not available in this mode"
+    },
+    "client": {
+      "timeout": "The editor core did not answer in time",
+      "disconnected": "The connection to the editor core was lost",
+      "invalidResponse": "The editor core sent an unexpected answer"
+    }
+  },
+  "genres": {
+    "issue": {
+      "$comment": "resources.genres().issues[].reason (core/include/mfbe/genres.hpp LoadIssue).",
+      "unreadable": "{{file}}: the genre file could not be read",
+      "invalidCode": "{{file}}, line {{line}}: \"{{code}}\" is not a valid genre code",
+      "missingName": "{{file}}, line {{line}}: genre \"{{code}}\" has no name",
+      "duplicate": "{{file}}, line {{line}}: genre \"{{code}}\" is listed more than once"
+    }
+  },
+  "source": {
+    "foldLevel": "Fold level:",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "binaryPlaceholder_one": "binary data, {{count}} byte",
+    "binaryPlaceholder_other": "binary data, {{count}} bytes",
+    "noMatchingTag": "The cursor is not on a tag with a matching pair.",
+    "noWrongTag": "No wrong tag found."
+  },
+  "msg": {
+    "saveChanges": "Save changes to {{name}}?",
+    "validationFailedCaption": "Validation failed",
+    "validationFailed": "{{errors}}\nDo you still want to save the file?\n\nWARNING: Invalid files can be improperly displayed and can cause errors in other applications.",
+    "fileChangedCaption": "File changed",
+    "fileChanged": "{{name}} has been changed by another application.\nDo you want to reload it?",
+    "searchFinished": "Finished searching for '{{text}}'.",
+    "searchFailed": "Cannot find the string '{{text}}'.",
+    "replacementsDone_one": "{{count}} replacement done.",
+    "replacementsDone_other": "{{count}} replacements done.",
+    "replaceWordsCaption": "Replace words",
+    "wordsReplaced_one": "{{count}} replacement done",
+    "wordsReplaced_other": "{{count}} replacements done",
+    "referenceNotFound": "Reference not found.",
+    "spellingComplete": "The spelling check is complete.",
+    "badXml": "You have opened an invalid XML document.\n\nYou should correct all XML errors (use \"Validate\" and \"Go to wrong tag\" commands) before switching from the SOURCE mode.",
+    "needRestart": "In order to process changes the program must be restarted.\nRestart now?",
+    "outOfMemory": "Out of memory",
+    "invalidCommandLine": "Invalid command line option: '{{option}}'",
+    "commandLineNeedsArgument": "Command line option '{{option}}' requires an argument",
+    "scriptMessageCaption": "Script message",
+    "scriptError": "Script error: {{message}} at line {{line}}, column {{column}}",
+    "scriptUnknownError": "Unknown error in script.",
+    "scriptLoadError": "Error loading {{name}}: {{error}}",
+    "scriptStillRunning": "The script is still running. Wait for it to finish or cancel it?",
+    "scriptWait": "&Wait",
+    "scriptCancel": "&Cancel script",
+    "xmlParseErrorCaption": "XML Parse Error",
+    "xmlParseError": "At {{where}}, line {{line}}, column {{column}}: {{message}}",
+    "xmlParseErrorShort": "At {{where}}: {{message}}",
+    "genresFileError": "Can't open genres file {{path}}",
+    "wordExists": "This word is already in list!",
+    "wordAddErrorCaption": "Error adding word",
+    "wordInvalid": "New exclusion word must contain only alpha characters and one '-' between them!",
+    "generateNewId": "Are you sure you want to generate a new ID?\n\nThis will affect library submission.\nPrevious value will be lost!",
+    "notFictionBook": "{{path}} is not a FictionBook (FB2) document and cannot be opened.",
+    "openFailed": "Cannot open {{path}}.\n{{reason}}",
+    "saveFailed": "Cannot save {{path}}.\n{{reason}}",
+    "notConnected": "The editor core is not connected.",
+    "docIssues_one": "{{count}} issue",
+    "docIssues_other": "{{count}} issues",
+    "errorsFound_one": "{{count}} error found.",
+    "errorsFound_other": "{{count}} errors found."
+  },
+  "description": {
+    "titleInfo": "Title info",
+    "srcTitleInfo": "Source Title Info",
+    "documentInfo": "Document Info",
+    "publishInfo": "Publish Info",
+    "customInfo": "Custom Info",
+    "genreMatch": "Genre Match",
+    "keywords": "KeyWords",
+    "authorNickname": "Author NickName",
+    "id": "ID",
+    "binaries": "Binary objects",
+    "fileInfo": "File",
+    "fields": {
+      "bookTitle": "Book title:",
+      "authors": "Authors:",
+      "genres": "Genres:",
+      "sequences": "Sequences:",
+      "lang": "Language:",
+      "srcLang": "Source language:",
+      "translators": "Translators:",
+      "date": "Date:",
+      "coverpage": "Cover page:",
+      "annotation": "Annotation:",
+      "version": "Version:",
+      "programUsed": "Program used:",
+      "documentAuthors": "Document authors:",
+      "srcUrls": "Source URLs:",
+      "srcOcr": "Source OCR:",
+      "history": "History:",
+      "bookName": "Book name:",
+      "publisher": "Publisher:",
+      "city": "City:",
+      "year": "Year:",
+      "isbn": "ISBN:",
+      "binariesCount": "Count:",
+      "bytes_one": "{{count}} byte",
+      "bytes_other": "{{count}} bytes",
+      "willConvert": "converted to JPEG/PNG on save",
+      "notDecodable": "not a decodable image",
+      "path": "Path:",
+      "encoding": "Encoding:",
+      "schemaHint": "Schema:",
+      "bodiesCount": "Bodies:"
+    },
+    "schema": {
+      "current": "FictionBook 2.1",
+      "legacy": "Legacy (normalised to 2.1 on save)",
+      "unknown": "Unknown"
+    }
+  },
+  "lang": {
+    "en": "English",
+    "ru": "Russian",
+    "uk": "Ukrainian",
+    "system": "System default"
+  }
+}

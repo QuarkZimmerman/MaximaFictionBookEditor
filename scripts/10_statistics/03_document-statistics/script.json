@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "10/document-statistics",
+  "name": {
+    "en": "Document statistics",
+    "ru": "Статистика документа"
+  },
+  "description": {
+    "en": "Shows the number of paragraphs, text size, cover/illustrations/footnotes and the size of the attached binary objects",
+    "ru": "Показывает число абзацев, объём текста, наличие обложки, иллюстраций и сносок, а также размер вложенных бинарных объектов"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Document statistics",
+    "ru": "Статистика документа"
+  },
+  "legacy": {
+    "source": "10_Статистика/03_Статистика документа.js",
+    "fbeVersion": "2.7"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "05/empty-lines-near-images",
+  "name": {
+    "en": "Empty lines around illustrations...",
+    "ru": "Пустые строки возле иллюстраций..."
+  },
+  "description": {
+    "en": "Adds exactly one empty line before and after every block image, or removes the empty lines around images",
+    "ru": "Добавляет ровно одну пустую строку до и после каждой картинки или удаляет пустые строки возле картинок"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Empty lines around illustrations",
+    "ru": "Пустые строки возле иллюстраций"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/06_Пустые строки возле иллюстраций....js",
+    "fbeVersion": "2.7"
+  }
+}

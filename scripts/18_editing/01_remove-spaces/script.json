@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "18/remove-spaces",
+  "name": {
+    "en": "Remove spaces",
+    "ru": "Удаление пробелов"
+  },
+  "description": {
+    "en": "Removes spaces and non-breaking spaces from the selected text, keeping the formatting",
+    "ru": "Удаляет пробелы и неразрывные пробелы из выделенного текста, сохраняя форматирование"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Remove spaces",
+    "ru": "Удаление пробелов"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/01_Удаление пробелов.js",
+    "fbeVersion": "2.7"
+  }
+}

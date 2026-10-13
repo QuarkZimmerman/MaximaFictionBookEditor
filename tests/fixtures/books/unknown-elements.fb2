@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink" xmlns:x="urn:example:extension">
+	<description>
+		<title-info>
+			<genre>prose_contemporary</genre>
+			<author><first-name>A</first-name><last-name>B</last-name></author>
+			<book-title>Unknown elements</book-title>
+			<lang>en</lang>
+			<x:rating>5</x:rating>
+		</title-info>
+		<document-info>
+			<author><nickname>fixture</nickname></author>
+			<date value="2026-01-01">2026</date>
+			<id>fixture-unknown</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section id="s1" x:kind="chapter" data-foo="bar">
+			<title><p>Known title</p></title>
+			<p>A paragraph with an <x:marker ref="7">unknown inline</x:marker> element.</p>
+			<footnote-ref target="n_1" l:href="#n_1">unknown FB2-namespace element</footnote-ref>
+			<p>Another paragraph.</p>
+		</section>
+	</body>
+	<x:metadata version="1"><x:item key="a">A</x:item><!-- comment inside --><x:item key="b"/></x:metadata>
+</FictionBook>

@@ -1,0 +1,27 @@
+{
+  "issues": [
+    {
+      "severity": "error",
+      "code": "validation.schema",
+      "params": { "element": "section", "detail": "missing p" },
+      "line": 42,
+      "column": 7,
+      "nodeId": "n10",
+      "path": "body[1]/section[3]"
+    },
+    {
+      "severity": "warning",
+      "code": "validation.genreUnknown",
+      "params": { "code": "sf_litrpg", "count": 1 }
+    },
+    {
+      "severity": "warning",
+      "code": "binary.unreferenced",
+      "params": { "id": "blob.bin" },
+      "path": "binary[4]"
+    }
+  ],
+  "errorCount": 1,
+  "warningCount": 2,
+  "durationMs": 17
+}

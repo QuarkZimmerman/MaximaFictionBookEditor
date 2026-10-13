@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "03/add-comment-go-to-comment",
+  "name": {
+    "en": "Add a comment and go to its section",
+    "ru": "Добавить комментарий, перейти к его разделу"
+  },
+  "description": {
+    "en": "Inserts a comment link at the caret, creates the comment section and moves the caret into it",
+    "ru": "Вставляет ссылку комментария в позиции курсора, создает секцию комментария и переводит курсор в нее"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Add a comment and go to its section",
+    "ru": "Добавить комментарий, перейти к его разделу"
+  },
+  "legacy": {
+    "source": "03_Добавление комментария/03_Добавить комментарий, перейти к его разделу.js",
+    "fbeVersion": "2.7"
+  }
+}

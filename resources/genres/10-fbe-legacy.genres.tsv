@@ -1,0 +1,22 @@
+# Maxima Fiction Book Editor - bundled genre extension (contracts/resource-formats.md §3).
+#
+# Genre codes used by the original FictionBook Editor 2.7 lists (FBE/genres.txt,
+# FBE/genres.rus.txt) that the FB2 2.1 schema (schema/FictionBookGenres.xsd) does not
+# enumerate. They are widespread in real-world libraries, so the editor accepts them in
+# validation and offers them in the genre picker with the source "bundled-extension".
+#
+# Format (identical to user *.genres.tsv files): UTF-8, tab-separated, '#' comments.
+#   code<TAB>category<TAB>name_en<TAB>name_ru
+# 'category' is a key of genres/categories.tsv (or a new key); name_ru falls back to name_en.
+#
+# Note: geo_guides is listed by the contract as a legacy code but the bundled 2.1 schema
+# enumerates it, so it is a standard genre; the line below is kept for completeness and is
+# ignored by the loader (the standard list always wins and is never modified).
+# code	category	name_en	name_ru
+adv_indian	adv	Indians	Приключения: Индейцы
+det_maniac	det	Maniacs	Маньяки
+economics_ref	economics	Economics Reference Book	Справочники
+prose_contemporary	prose	Contemporary Prose	Современная проза
+sci_psychology	sci	Psychology	Психология
+sf_epic	sf	Epic SF	Эпическая фантастика
+geo_guides	home	Geo guides	ГеоПутеводитель

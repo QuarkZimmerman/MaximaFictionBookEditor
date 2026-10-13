@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- shared-mime-info definition for FictionBook 2 documents (installed to
+     share/mime/packages/mfbe.xml; packages run update-mime-database). -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-fictionbook+xml">
+    <comment>FictionBook 2 e-book</comment>
+    <comment xml:lang="ru">Электронная книга FictionBook 2</comment>
+    <sub-class-of type="application/xml"/>
+    <generic-icon name="x-office-document"/>
+    <glob pattern="*.fb2"/>
+    <glob pattern="*.fbd"/>
+    <magic priority="60">
+      <match type="string" offset="0:256" value="&lt;FictionBook"/>
+    </magic>
+  </mime-type>
+</mime-info>

@@ -1,0 +1,19 @@
+{
+  "$comment": "Literal JSX strings that tools/i18n-literals.mjs must not report: brand names, codes and other values that are the same in every language. `values` match exactly (trimmed), `patterns` are regular expressions (u flag), `files` map a path relative to ui/ to values allowed only there. Never list a genuine user-facing string here - give it a catalogue key instead.",
+  "values": [
+    "OK",
+    "Maxima Fiction Book Editor",
+    "MFBE",
+    "FictionBook",
+    "FB2",
+    "ID",
+    "ISBN",
+    "XML",
+    "JPEG",
+    "PNG",
+    "UTF-8",
+    "MIT License"
+  ],
+  "patterns": [],
+  "files": {}
+}

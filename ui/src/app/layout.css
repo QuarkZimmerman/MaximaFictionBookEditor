@@ -1,0 +1,662 @@
+/*
+ * Application shell layout: menu bar, toolbars row, left tree panel, main view area, status
+ * bar. Desktop-application look. Every colour and font is a CSS variable so Settings > View can
+ * drive them (T133 writes the variables on <html>). The UI font stack covers Cyrillic on all
+ * three platforms, in platform order (T153, FR-125): the system UI font, then Windows
+ * (Segoe UI), macOS (-apple-system / Helvetica Neue), Linux (Noto Sans, DejaVu Sans,
+ * Liberation Sans - one of them exists on every minimal desktop), generic fallbacks last.
+ *
+ * Themes (Settings > View > Theme: System / Light / Dark): the light palette is declared on
+ * `:root`, the dark palette on `:root[data-theme='dark']`. `app/theme.ts` resolves the setting
+ * (following the OS preference for "System") and writes `data-theme` on <html>; every other
+ * stylesheet only consumes the variables, so a theme switch repaints without a reload. The
+ * palette of the Body view (the FictionBook Editor look of editor/styles.css), the Description
+ * form, the Words grid and the CodeMirror editor is kept here too so both themes can be read in
+ * one place.
+ */
+
+:root {
+  color-scheme: light;
+
+  --mfbe-font-family:
+    system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans',
+    'Liberation Sans', Roboto, Ubuntu, Cantarell, Arial, sans-serif;
+  --mfbe-font-size: 13px;
+  --mfbe-font-ui: var(--mfbe-font-size) / 1.35 var(--mfbe-font-family);
+  --mfbe-font-mono:
+    'Cascadia Mono', Consolas, 'Noto Sans Mono', 'DejaVu Sans Mono', Menlo, monospace;
+
+  /* Shell chrome: menus, toolbars, tree, status bar, dialogs */
+  --mfbe-color-bg: #ffffff;
+  --mfbe-color-fg: #1b1b1b;
+  --mfbe-color-fg-muted: #6b6b6b;
+  --mfbe-color-disabled: #a0a0a0;
+  --mfbe-color-chrome-bg: #f3f3f3;
+  --mfbe-color-chrome-bg-2: #e9e9e9;
+  --mfbe-color-toolbar-bg: #f3f3f3;
+  --mfbe-color-border: #d0d0d0;
+  --mfbe-color-border-strong: #8a8a8a;
+  --mfbe-color-accent: #0078d4;
+  --mfbe-color-accent-soft: #cce4f7;
+  --mfbe-color-on-accent: #ffffff;
+  --mfbe-color-highlight-bg: #0078d4;
+  --mfbe-color-highlight-fg: #ffffff;
+  --mfbe-color-danger: #c42b1c;
+  --mfbe-color-danger-soft: rgba(220, 53, 69, 0.18);
+  --mfbe-color-warning: #c89b00;
+  --mfbe-color-warning-soft: rgba(255, 193, 7, 0.28);
+  --mfbe-color-dialog-bg: #f0f0f0;
+  --mfbe-color-title-bg: #ffffff;
+  --mfbe-color-button-bg: #e1e1e1;
+  --mfbe-color-button-hover: #e5f1fb;
+  --mfbe-color-input-bg: #ffffff;
+  --mfbe-color-shadow: rgba(0, 0, 0, 0.2);
+  --mfbe-dialog-backdrop: rgba(0, 0, 0, 0.25);
+
+  /* Body editor (Settings > View > Body; the colours are overridden on <html> by the user's
+     text / background settings only when they differ from black on white, see
+     features/settings/apply.ts) */
+  --mfbe-body-font-family: Georgia, 'Noto Serif', 'DejaVu Serif', 'Times New Roman', serif;
+  --mfbe-body-font-size: 14px;
+  --mfbe-body-fg: #000000;
+  --mfbe-body-bg: #ffffff;
+  --mfbe-body-selection: #b4d5fe;
+
+  /* Body view accents (the original editor's main.css: green section frames and title bars,
+     blue epigraphs, brown cites, teal annotations, red history, pink stanzas, dark-red authors,
+     cyan/purple table headers, blue/navy cells, blue links, grey code and NBSP markers) */
+  --mfbe-fb-section: #009600;
+  --mfbe-fb-title-bg: #009600;
+  --mfbe-fb-title-fg: #ffffff;
+  --mfbe-fb-cite: #b46400;
+  --mfbe-fb-epigraph: #0000f0;
+  --mfbe-fb-annotation: #2c6b7b;
+  --mfbe-fb-history: #ff1515;
+  --mfbe-fb-poem: #000000;
+  --mfbe-fb-stanza: #ff1493;
+  --mfbe-fb-author: #c04040;
+  --mfbe-fb-code-bg: #eeeeee;
+  --mfbe-fb-link: #0000ee;
+  --mfbe-fb-note: #0000ff;
+  --mfbe-fb-nbsp: #a0a0a0;
+  --mfbe-fb-table-border: #008080;
+  --mfbe-fb-th-bg: #75ffff;
+  --mfbe-fb-th-fg: #800080;
+  --mfbe-fb-td-bg: #bad5ed;
+  --mfbe-fb-td-fg: #000080;
+  --mfbe-fb-unknown-border: #c08000;
+  --mfbe-fb-unknown-bg: #fff6e0;
+  --mfbe-fb-unknown-fg: #806000;
+
+  /* Description view (the grey form panel of the original, main.css #fbw_desc) */
+  --mfbe-desc-bg: #dcdcdc;
+  --mfbe-desc-fg: #000000;
+  --mfbe-desc-group-bg: #e9e9e9;
+  --mfbe-desc-group-border: #c0c0c0;
+  --mfbe-desc-heading: #0000aa;
+  --mfbe-desc-sub-bg: #f1f1f1;
+  --mfbe-desc-sub-border: #c8c8c8;
+  --mfbe-desc-legend: #333366;
+  --mfbe-desc-label: #333333;
+  --mfbe-desc-input-border: #a0a0a0;
+  --mfbe-desc-required: #888888;
+  --mfbe-desc-note-bg: #f6f6f6;
+  --mfbe-desc-warning: #8a4b00;
+  --mfbe-desc-muted: #777777;
+  --mfbe-desc-item-bg: #f8f8f8;
+  --mfbe-desc-item-border: #b8b8b8;
+  --mfbe-desc-thumb-bg: #ffffff;
+  --mfbe-desc-row-border: #d0d0d0;
+  --mfbe-desc-unreferenced-bg: #fff8e6;
+  --mfbe-desc-badge-bg: #dde6f5;
+  --mfbe-desc-badge-fg: #1f3b73;
+  --mfbe-desc-badge-convert-bg: #e4f1dd;
+  --mfbe-desc-badge-convert-fg: #2f5d1a;
+  --mfbe-desc-badge-warn-bg: #fbe9c6;
+  --mfbe-desc-badge-warn-fg: #7a4a00;
+
+  /* Words dialog grid */
+  --mfbe-words-row-alt-bg: #fffff6;
+  --mfbe-words-excluded-bg: #ff9696;
+
+  /* XML source editor (Settings > View > XML source editor; CodeMirror, views/source/theme.ts) */
+  --mfbe-source-font-family: var(--mfbe-font-mono);
+  --mfbe-source-font-size: 13px;
+  --mfbe-source-caret: #000000;
+  --mfbe-source-selection: #d9d9d9;
+  --mfbe-source-selection-focused: #d7d4f0;
+  --mfbe-source-selection-match: rgba(153, 255, 119, 0.5);
+  --mfbe-source-active-line: rgba(204, 238, 255, 0.27);
+  --mfbe-source-active-gutter: #e2f2ff;
+  --mfbe-source-search-match: rgba(255, 255, 0, 0.33);
+  --mfbe-source-search-selected: rgba(255, 106, 0, 0.33);
+  --mfbe-source-bracket-match: rgba(50, 140, 130, 0.32);
+  --mfbe-source-bracket-mismatch: rgba(187, 85, 85, 0.27);
+
+  --mfbe-tree-width: 260px;
+  --mfbe-menubar-height: 26px;
+  --mfbe-toolbar-height: 32px;
+  --mfbe-statusbar-height: 24px;
+}
+
+/*
+ * Dark palette. Same hue identities as the light one (blue accent, green titles, blue epigraphs,
+ * brown cites...) lifted for a dark canvas; the toolbar row is a little lighter than the rest
+ * of the chrome so the original (unchanged) toolbar bitmaps keep their contrast.
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --mfbe-color-bg: #1e1e1e;
+  --mfbe-color-fg: #e4e4e4;
+  --mfbe-color-fg-muted: #9d9d9d;
+  --mfbe-color-disabled: #6c6c6c;
+  --mfbe-color-chrome-bg: #2b2b2b;
+  --mfbe-color-chrome-bg-2: #383838;
+  --mfbe-color-toolbar-bg: #3c3c3c;
+  --mfbe-color-border: #414141;
+  --mfbe-color-border-strong: #6e6e6e;
+  --mfbe-color-accent: #4cc2ff;
+  --mfbe-color-accent-soft: #1f3f5a;
+  --mfbe-color-on-accent: #161616; /* glyphs on the (bright) accent / warning / danger fills */
+  --mfbe-color-highlight-bg: #0a6ab8;
+  --mfbe-color-highlight-fg: #ffffff;
+  --mfbe-color-danger: #f0665c;
+  --mfbe-color-danger-soft: rgba(240, 102, 92, 0.28);
+  --mfbe-color-warning: #e3b341;
+  --mfbe-color-warning-soft: rgba(227, 179, 65, 0.3);
+  --mfbe-color-dialog-bg: #262626;
+  --mfbe-color-title-bg: #1e1e1e;
+  --mfbe-color-button-bg: #3a3a3a;
+  --mfbe-color-button-hover: #2f4a60;
+  --mfbe-color-input-bg: #171717;
+  --mfbe-color-shadow: rgba(0, 0, 0, 0.6);
+  --mfbe-dialog-backdrop: rgba(0, 0, 0, 0.5);
+
+  --mfbe-body-fg: #d6d6d6;
+  --mfbe-body-bg: #1b1b1b;
+  --mfbe-body-selection: #264f78;
+
+  --mfbe-fb-section: #2e8b3a;
+  --mfbe-fb-title-bg: #1f6b2a;
+  --mfbe-fb-title-fg: #f4f4f4;
+  --mfbe-fb-cite: #e0a04a;
+  --mfbe-fb-epigraph: #8ab4ff;
+  --mfbe-fb-annotation: #6fc3d6;
+  --mfbe-fb-history: #ff6b6b;
+  --mfbe-fb-poem: #9a9a9a;
+  --mfbe-fb-stanza: #ff7ac0;
+  --mfbe-fb-author: #e07a7a;
+  --mfbe-fb-code-bg: #2e2e2e;
+  --mfbe-fb-link: #7fb3ff;
+  --mfbe-fb-note: #7fb3ff;
+  --mfbe-fb-nbsp: #707070;
+  --mfbe-fb-table-border: #3fa7a7;
+  --mfbe-fb-th-bg: #1d4a4a;
+  --mfbe-fb-th-fg: #e2b4ff;
+  --mfbe-fb-td-bg: #243447;
+  --mfbe-fb-td-fg: #b8d0ff;
+  --mfbe-fb-unknown-border: #b08a3a;
+  --mfbe-fb-unknown-bg: #3a3220;
+  --mfbe-fb-unknown-fg: #e8c777;
+
+  --mfbe-desc-bg: #232323;
+  --mfbe-desc-fg: #e0e0e0;
+  --mfbe-desc-group-bg: #2b2b2b;
+  --mfbe-desc-group-border: #454545;
+  --mfbe-desc-heading: #8ab4ff;
+  --mfbe-desc-sub-bg: #303030;
+  --mfbe-desc-sub-border: #484848;
+  --mfbe-desc-legend: #b8c0e8;
+  --mfbe-desc-label: #cfcfcf;
+  --mfbe-desc-input-border: #5c5c5c;
+  --mfbe-desc-required: #9a9a9a;
+  --mfbe-desc-note-bg: #2e2e2e;
+  --mfbe-desc-warning: #e3b341;
+  --mfbe-desc-muted: #9a9a9a;
+  --mfbe-desc-item-bg: #2a2a2a;
+  --mfbe-desc-item-border: #555555;
+  --mfbe-desc-thumb-bg: #1a1a1a;
+  --mfbe-desc-row-border: #3f3f3f;
+  --mfbe-desc-unreferenced-bg: #3a3220;
+  --mfbe-desc-badge-bg: #26354d;
+  --mfbe-desc-badge-fg: #b8d0ff;
+  --mfbe-desc-badge-convert-bg: #27402a;
+  --mfbe-desc-badge-convert-fg: #b6e0b0;
+  --mfbe-desc-badge-warn-bg: #4a3a1c;
+  --mfbe-desc-badge-warn-fg: #f0cf8a;
+
+  --mfbe-words-row-alt-bg: #232323;
+  --mfbe-words-excluded-bg: #6e2a2a;
+
+  --mfbe-source-caret: #f0f0f0;
+  --mfbe-source-selection: #3a3d41;
+  --mfbe-source-selection-focused: #264f78;
+  --mfbe-source-selection-match: rgba(173, 214, 255, 0.2);
+  --mfbe-source-active-line: rgba(255, 255, 255, 0.05);
+  --mfbe-source-active-gutter: #333333;
+  --mfbe-source-search-match: rgba(234, 92, 0, 0.4);
+  --mfbe-source-search-selected: rgba(255, 170, 0, 0.55);
+  --mfbe-source-bracket-match: rgba(80, 180, 160, 0.4);
+  --mfbe-source-bracket-mismatch: rgba(240, 102, 92, 0.4);
+}
+
+/*
+ * Before app/theme.ts has written `data-theme` (the first paint of a fresh page) the canvas
+ * follows the OS preference, so a dark desktop never sees a white flash. The core's
+ * Content-Security-Policy (`script-src 'self'`) rules out an inline pre-paint script.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --mfbe-color-bg: #1e1e1e;
+    --mfbe-color-fg: #e4e4e4;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font: var(--mfbe-font-ui);
+  color: var(--mfbe-color-fg);
+  background: var(--mfbe-color-bg);
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.mfbe-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  user-select: none;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Menu bar                                                               */
+/* ---------------------------------------------------------------------- */
+
+.mfbe-menubar {
+  display: flex;
+  align-items: stretch;
+  height: var(--mfbe-menubar-height);
+  background: var(--mfbe-color-chrome-bg);
+  border-bottom: 1px solid var(--mfbe-color-border);
+  flex: 0 0 auto;
+}
+
+.mfbe-menubar-entry {
+  position: relative;
+  display: flex;
+}
+
+.mfbe-menubar-button {
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.mfbe-menubar-button:hover {
+  background: var(--mfbe-color-chrome-bg-2);
+}
+
+/* F10 / Alt+letter focus must be visible without a mouse (T153). */
+.mfbe-menubar-button:focus-visible {
+  background: var(--mfbe-color-chrome-bg-2);
+  outline: 2px solid var(--mfbe-color-accent);
+  outline-offset: -2px;
+}
+
+.mfbe-menubar-button-open {
+  background: var(--mfbe-color-bg);
+  box-shadow: inset 0 0 0 1px var(--mfbe-color-border);
+}
+
+.mfbe-menu-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 500;
+  min-width: 220px;
+  padding: 4px 0;
+  background: var(--mfbe-color-bg);
+  border: 1px solid var(--mfbe-color-border-strong);
+  box-shadow: 0 6px 16px var(--mfbe-color-shadow);
+  outline: none;
+}
+
+.mfbe-menu-submenu {
+  top: -5px;
+  left: 100%;
+}
+
+.mfbe-menu-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 1fr auto 14px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.mfbe-menu-item-highlighted {
+  background: var(--mfbe-color-highlight-bg);
+  color: var(--mfbe-color-highlight-fg);
+}
+
+.mfbe-menu-item-disabled {
+  color: var(--mfbe-color-disabled);
+}
+
+.mfbe-menu-item-highlighted.mfbe-menu-item-disabled {
+  background: var(--mfbe-color-chrome-bg-2);
+  color: var(--mfbe-color-disabled);
+}
+
+.mfbe-menu-check {
+  text-align: center;
+  font-weight: 700;
+}
+
+.mfbe-menu-hotkey {
+  margin-left: 24px;
+  opacity: 0.75;
+}
+
+.mfbe-menu-arrow {
+  text-align: right;
+}
+
+.mfbe-menu-separator {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--mfbe-color-border);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Toolbars                                                               */
+/* ---------------------------------------------------------------------- */
+
+.mfbe-toolbars {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  background: var(--mfbe-color-toolbar-bg);
+  border-bottom: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-height: var(--mfbe-toolbar-height);
+  padding: 2px 6px;
+}
+
+.mfbe-toolbar + .mfbe-toolbar {
+  border-top: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  cursor: default;
+}
+
+.mfbe-toolbar-scripts .mfbe-toolbar-button {
+  width: 22px;
+  height: 22px;
+}
+
+.mfbe-toolbar-button:hover:not(:disabled) {
+  background: var(--mfbe-color-button-hover);
+  border-color: var(--mfbe-color-accent);
+}
+
+.mfbe-toolbar-button:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent);
+  outline-offset: -1px;
+}
+
+.mfbe-toolbar-button-pressed {
+  background: var(--mfbe-color-accent-soft);
+  border-color: var(--mfbe-color-accent);
+}
+
+.mfbe-toolbar-button:disabled {
+  opacity: 0.4;
+}
+
+.mfbe-toolbar-button img {
+  display: block;
+  image-rendering: auto;
+}
+
+/*
+ * High-DPI (T153): the original toolbar bitmaps exist at 24 px (Commands toolbar) and 16 px
+ * (Scripts toolbar, Document Tree). At integer scale factors the small set is drawn with
+ * nearest-neighbour scaling so its pixel art stays crisp instead of blurring; the 24 px set
+ * keeps the default smooth scaling. Fractional factors (125 %, 150 %) keep smooth scaling,
+ * where nearest-neighbour would produce uneven pixels.
+ */
+@media (min-resolution: 2dppx) {
+  .mfbe-toolbar-scripts .mfbe-toolbar-button img,
+  .mfbe-tree-icon,
+  .mfbe-tree-toolbar-button img {
+    image-rendering: pixelated;
+  }
+}
+
+.mfbe-toolbar-button-text {
+  padding: 0 6px;
+}
+
+.mfbe-toolbar-separator {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--mfbe-color-border-strong);
+  opacity: 0.6;
+}
+
+.mfbe-bar {
+  gap: 12px;
+}
+
+.mfbe-bar-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mfbe-bar-label {
+  white-space: nowrap;
+}
+
+.mfbe-bar-input {
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--mfbe-color-border-strong);
+  background: var(--mfbe-color-input-bg);
+}
+
+.mfbe-bar-input:disabled {
+  background: var(--mfbe-color-chrome-bg-2);
+  color: var(--mfbe-color-disabled);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Main area                                                              */
+/* ---------------------------------------------------------------------- */
+
+.mfbe-main {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mfbe-tree-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--mfbe-tree-width);
+  min-width: 0;
+  border-right: 1px solid var(--mfbe-color-border);
+  background: var(--mfbe-color-chrome-bg);
+}
+
+.mfbe-tree {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.mfbe-tree-caption {
+  padding: 4px 8px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-tree-content {
+  flex: 1 1 auto;
+  overflow: auto;
+  background: var(--mfbe-color-bg);
+}
+
+.mfbe-tree-node {
+  padding: 2px 8px;
+}
+
+.mfbe-view-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mfbe-view-switcher {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 0;
+  background: var(--mfbe-color-chrome-bg);
+  border-bottom: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-view-tab {
+  padding: 4px 14px;
+  border: 1px solid var(--mfbe-color-border);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--mfbe-color-chrome-bg-2);
+  cursor: default;
+}
+
+.mfbe-view-tab-active {
+  background: var(--mfbe-color-bg);
+  font-weight: 600;
+  margin-bottom: -1px;
+}
+
+.mfbe-view-tab:disabled {
+  color: var(--mfbe-color-disabled);
+}
+
+.mfbe-view-tab:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent);
+  outline-offset: -2px;
+}
+
+.mfbe-view-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  user-select: text;
+}
+
+.mfbe-view {
+  height: 100%;
+}
+
+.mfbe-view-body {
+  font-family: var(--mfbe-body-font-family);
+  font-size: var(--mfbe-body-font-size);
+  color: var(--mfbe-body-fg);
+  background: var(--mfbe-body-bg);
+}
+
+.mfbe-view-source {
+  font-family: var(--mfbe-source-font-family);
+  font-size: var(--mfbe-source-font-size);
+}
+
+.mfbe-view-placeholder {
+  padding: 24px;
+  color: var(--mfbe-color-fg-muted);
+}
+
+.mfbe-view-placeholder h2 {
+  margin: 0 0 8px;
+  color: var(--mfbe-color-fg);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Status bar                                                             */
+/* ---------------------------------------------------------------------- */
+
+.mfbe-statusbar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: var(--mfbe-statusbar-height);
+  background: var(--mfbe-color-chrome-bg);
+  border-top: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-status-pane {
+  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-right: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-status-message {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mfbe-status-path {
+  flex: 0 1 40%;
+  min-width: 0;
+}
+
+.mfbe-status-insmode {
+  flex: 0 0 48px;
+  text-align: center;
+  border-right: 0;
+}

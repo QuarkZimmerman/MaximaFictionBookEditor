@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "12/previous-any-quotes",
+  "name": {
+    "en": "Go to previous straight quotes, guillemets or low quotes",
+    "ru": "Переход на пред. прямые кавычки, елочки или лапки"
+  },
+  "description": {
+    "en": "Moves the caret to the previous quote of any kind and selects it; at the beginning of the book offers to continue from the end",
+    "ru": "Переводит курсор на предыдущую кавычку любого вида и выделяет её; в начале книги предлагает продолжить с конца"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to previous straight quotes, guillemets or low quotes",
+    "ru": "Переход на пред. прямые кавычки, елочки или лапки"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/013_Переход на пред. прямые кавычки, елочки или лапки.js",
+    "fbeVersion": "2.7"
+  }
+}

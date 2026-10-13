@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "04/footnotes-from-regex-brackets",
+  "name": {
+    "en": "Footnotes from brackets given as regular expressions",
+    "ru": "Примечания из скобок, заданных регэкспами"
+  },
+  "description": {
+    "en": "Asks two regular expressions (opening and closing bracket) and turns every bracketed fragment of the book into a footnote",
+    "ru": "Запрашивает два регэкспа (открывающая и закрывающая скобки) и превращает каждый фрагмент в таких скобках в сноску"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Footnotes from brackets given as regular expressions",
+    "ru": "Примечания из скобок, заданных регэкспами"
+  },
+  "legacy": {
+    "source": "04_Примечания и комментарии из скобок/605_Примечания из скобок, заданных регэкспами.js",
+    "fbeVersion": "2.7"
+  }
+}

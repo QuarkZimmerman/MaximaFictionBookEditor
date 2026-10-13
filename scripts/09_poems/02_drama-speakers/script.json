@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "09/drama-speakers",
+  "name": {
+    "en": "Drama: mark speaker names...",
+    "ru": "Драма..."
+  },
+  "description": {
+    "en": "Makes the speaker name at the start of every paragraph of a play bold (text up to the first dot or opening parenthesis); asks for the maximum name length and whether to remove letter-spacing",
+    "ru": "Выделяет жирным имя говорящего в начале каждого абзаца пьесы (текст до первой точки или открывающей скобки); спрашивает максимальную длину имени и удалять ли разрядку"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Drama: mark speaker names",
+    "ru": "Разметка имен говорящих в пьесах"
+  },
+  "legacy": {
+    "source": "09_Стихи/02_Драма....js",
+    "fbeVersion": "2.7"
+  }
+}

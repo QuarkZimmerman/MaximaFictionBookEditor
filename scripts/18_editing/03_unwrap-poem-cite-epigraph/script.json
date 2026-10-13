@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "18/unwrap-poem-cite-epigraph",
+  "name": {
+    "en": "Remove poem, cite or epigraph formatting",
+    "ru": "Снятие форматирования стихом, цитатой или эпиграфом"
+  },
+  "description": {
+    "en": "Dissolves the poem, cite or epigraph under the caret into plain paragraphs of its parent",
+    "ru": "Превращает стих, цитату или эпиграф, в котором стоит курсор, в обычные абзацы родительского элемента"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Remove poem, cite or epigraph formatting",
+    "ru": "Снятие форматирования стихом, цитатой или эпиграфом"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/03_Снятие форматирования стихом, цитатой или эпиграфом.js",
+    "fbeVersion": "2.7"
+  }
+}

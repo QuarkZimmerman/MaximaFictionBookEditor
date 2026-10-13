@@ -1,0 +1,22 @@
+# AppArmor profile for Maxima Fiction Book Editor (installed by the .deb/.rpm packages to
+# /etc/apparmor.d/mfbe).
+#
+# Ubuntu 23.10+ / 24.04 LTS restrict unprivileged user namespaces for programs that run
+# unconfined (kernel.apparmor_restrict_unprivileged_userns=1). Chromium's namespace sandbox
+# needs them; without this profile the editor would have to fall back to the SUID
+# chrome-sandbox helper (also installed) or to --no-sandbox. The profile keeps the editor
+# unconfined and grants the user-namespace capability, exactly like Ubuntu's own profiles
+# for Chrome-based applications. On systems without the restriction (Debian, Fedora,
+# openSUSE, Ubuntu 22.04) the post-install script does not load it.
+#
+# The attachment path is the real executable (/usr/bin/mfbe is a symlink to it); Chromium's
+# helper processes are started from the same binary and inherit the profile.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile mfbe /usr/lib/mfbe/mfbe flags=(unconfined) {
+  userns,
+
+  # Site-specific additions and overrides. See local/README for details.
+  include if exists <local/mfbe>
+}

@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "01/sentence-case-simple",
+  "name": {
+    "en": "Sentence (simple)",
+    "ru": "Предложение (простое)"
+  },
+  "description": {
+    "en": "First letter of the selection to upper case, the rest to lower case",
+    "ru": "Первая буква выделенного фрагмента — прописная, остальные — строчные"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Sentence case",
+    "ru": "Предложение"
+  },
+  "legacy": {
+    "source": "01_Регистр/03_Предложение (простое).js",
+    "fbeVersion": "2.7"
+  }
+}

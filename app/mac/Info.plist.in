@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Main bundle Info.plist (configured by CMake: EXECUTABLE_NAME, PRODUCT_NAME, VERSION_SHORT). -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>${PRODUCT_NAME}</string>
+	<key>CFBundleExecutable</key>
+	<string>${EXECUTABLE_NAME}</string>
+	<key>CFBundleIconFile</key>
+	<string>mfbe.icns</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.quarkzimmerman.mfbe</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>${PRODUCT_NAME}</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>${VERSION_SHORT}</string>
+	<key>CFBundleShortVersionString</key>
+	<string>${VERSION_SHORT}</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>FictionBook 2 e-book</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>mfbe.icns</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.quarkzimmerman.mfbe.fb2</string>
+				<string>com.quarkzimmerman.mfbe.fbd</string>
+			</array>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>fb2</string>
+				<string>fbd</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.quarkzimmerman.mfbe.fb2</string>
+			<key>UTTypeDescription</key>
+			<string>FictionBook 2 document</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.xml</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>fb2</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/x-fictionbook+xml</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.quarkzimmerman.mfbe.fbd</string>
+			<key>UTTypeDescription</key>
+			<string>FictionBook 2 description</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.xml</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>fbd</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/x-fictionbook+xml</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>LSEnvironment</key>
+	<dict>
+		<key>MallocNanoZone</key>
+		<string>0</string>
+	</dict>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright (c) 2026 Quark Zimmerman. MIT License.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
+</dict>
+</plist>

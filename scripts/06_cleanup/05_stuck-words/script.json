@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "06/stuck-words",
+  "name": {
+    "en": "Stuck-together words",
+    "ru": "Слипшиеся слова"
+  },
+  "description": {
+    "en": "Interactive search for suspicious places from the caret on: punctuation glued between letters, a capital after a lower-case letter, digits glued to words, misplaced hyphens, apostrophes, slashes, stray symbols; each finding is shown with a proposal",
+    "ru": "Интерактивный поиск подозрительных мест от курсора: знаки препинания между буквами, прописная сразу после строчной, цифры вплотную к словам, дефисы, апострофы, слэши, мусорные символы; каждая находка показывается с предложением замены"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Stuck-together words",
+    "ru": "«Слипшиеся слова»"
+  },
+  "legacy": {
+    "source": "06_Чистка/05_Слипшиеся слова.js",
+    "fbeVersion": "2.7"
+  }
+}

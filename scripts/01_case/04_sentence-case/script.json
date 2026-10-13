@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "id": "01/sentence-case",
+  "name": {
+    "en": "Sentence",
+    "ru": "Предложение"
+  },
+  "description": {
+    "en": "In the selection, every run of equally formatted text gets a capital first letter and lower-case rest",
+    "ru": "В выделении каждый фрагмент с одинаковым форматированием получает прописную первую букву, остальные — строчные"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "defaultHotkey": "Ctrl+Shift+P",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Sentence case",
+    "ru": "Предложение"
+  },
+  "legacy": {
+    "source": "01_Регистр/04_Предложение.js",
+    "fbeVersion": "2.7"
+  }
+}

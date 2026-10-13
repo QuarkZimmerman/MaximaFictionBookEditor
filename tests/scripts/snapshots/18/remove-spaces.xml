@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Мелочи</last-name>
+			</author>
+			<book-title>Мелочи редактирования</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Мелочи редактирования</p>
+		</title>
+		<section>
+			<title>
+				<p>Пробелы и дефисы</p>
+			</title>
+			<p>Словоспро-бе-лами,<strong>жирный</strong>текст и не разрывный пробел.</p>
+			<p>Здесь будет ссылка на мелодию.</p>
+			<p>Абзац с <sup>1</sup> простым индексом, <strong><sup>2</sup></strong> жирным и <sup>34</sup> двумя подряд.</p>
+			<p>Индекс с <sup>курсивом </sup><emphasis><sup>внутри</sup></emphasis><sup> и после</sup> него.</p>
+		</section>
+		<section>
+			<title>
+				<p>Стих, цитата, эпиграф</p>
+			</title>
+			<epigraph>
+				<p>Строка эпиграфа.</p>
+				<text-author>Автор эпиграфа</text-author>
+			</epigraph>
+			<p>Абзац перед стихом.</p>
+			<poem>
+				<title>
+					<p>Название стиха</p>
+				</title>
+				<epigraph>
+					<p>Эпиграф стиха</p>
+				</epigraph>
+				<stanza>
+					<v>Первая строка</v>
+					<v>Вторая строка</v>
+				</stanza>
+				<stanza>
+					<v>Третья строка</v>
+				</stanza>
+				<text-author>Поэт</text-author>
+				<date>1837</date>
+			</poem>
+			<p>Абзац между стихом и цитатой.</p>
+			<cite>
+				<p>Текст цитаты.</p>
+				<subtitle>Подзаголовок в цитате</subtitle>
+				<text-author>Цитируемый</text-author>
+			</cite>
+			<p>Абзац после цитаты.</p>
+		</section>
+		<section>
+			<title>
+				<p>Нумерация</p>
+			</title>
+			<p>1 Первый абзац с номером.</p>
+			<p>12   Второй абзац с несколькими пробелами.</p>
+			<p>3   Третий абзац с неразрывным пробелом и двумя обычными.</p>
+			<p><strong>4</strong> Четвёртый абзац с жирным номером.</p>
+			<p>5Пятый абзац без пробела после номера.</p>
+			<subtitle>6 Подзаголовок не трогаем</subtitle>
+			<p><emphasis>7 курсивный</emphasis> номер и слово.</p>
+			<p>Абзац без номера.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание с <sup>индексом</sup>.</p>
+		</section>
+	</body>
+</FictionBook>

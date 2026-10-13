@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test.dialogs.form",
+  "name": {
+    "en": "Form dialog",
+    "ru": "Диалог с формой"
+  },
+  "kind": "menu",
+  "icon": "icon.png"
+}

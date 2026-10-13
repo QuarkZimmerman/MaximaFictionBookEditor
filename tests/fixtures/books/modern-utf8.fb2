@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<stylesheet type="text/css">p { text-indent: 1em; }</stylesheet>
+	<description>
+		<title-info>
+			<genre>sf</genre>
+			<genre match="30">adventure</genre>
+			<author>
+				<first-name>Анна</first-name>
+				<middle-name>Петровна</middle-name>
+				<last-name>Иванова</last-name>
+				<home-page>https://example.org/anna</home-page>
+				<email>anna@example.org</email>
+				<id>author-1</id>
+			</author>
+			<author>
+				<nickname>Соавтор</nickname>
+			</author>
+			<book-title>Современная книга</book-title>
+			<annotation>
+				<p>Аннотация с <emphasis>курсивом</emphasis>.</p>
+				<empty-line/>
+				<p>Второй абзац аннотации.</p>
+			</annotation>
+			<keywords>фантастика, приключения</keywords>
+			<date value="2020-05-17">май 2020</date>
+			<coverpage>
+				<image l:href="#cover.png" alt="Обложка"/>
+			</coverpage>
+			<lang>ru</lang>
+			<src-lang>en</src-lang>
+			<translator>
+				<first-name>Пётр</first-name>
+				<last-name>Сидоров</last-name>
+			</translator>
+			<sequence name="Серия" number="3">
+				<sequence name="Подсерия" number="1"/>
+			</sequence>
+		</title-info>
+		<src-title-info>
+			<genre>sf</genre>
+			<author>
+				<first-name>Anna</first-name>
+				<last-name>Ivanova</last-name>
+			</author>
+			<book-title>A Modern Book</book-title>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>maker</nickname>
+				<email>maker@example.org</email>
+			</author>
+			<program-used>Maxima Fiction Book Editor</program-used>
+			<date value="2026-10-12">2026-10-12</date>
+			<src-url>https://example.org/source</src-url>
+			<src-ocr>OCR by hand</src-ocr>
+			<id>9b7f2c9d-1e22-4b0b-9a1e-3f0a4b7e2d31</id>
+			<version>2.1</version>
+			<history>
+				<p>v1.0 — создание файла</p>
+				<p>v2.1 — вычитка</p>
+			</history>
+			<publisher>
+				<nickname>Publisher Nick</nickname>
+			</publisher>
+		</document-info>
+		<publish-info>
+			<book-name>Современная книга</book-name>
+			<publisher>Издательство</publisher>
+			<city>Санкт-Петербург</city>
+			<year>2021</year>
+			<isbn>978-5-00000-000-0</isbn>
+			<sequence name="Бумажная серия" number="7"/>
+		</publish-info>
+		<custom-info info-type="source">corpus fixture</custom-info>
+		<custom-info info-type="note" xml:lang="en">English note</custom-info>
+	</description>
+	<body>
+		<image l:href="#cover.png" alt="Обложка" title="Титул"/>
+		<title>
+			<p>Современная книга</p>
+			<empty-line/>
+			<p>Подзаголовок книги</p>
+		</title>
+		<epigraph id="epi1">
+			<p>Эпиграф ко всей книге.</p>
+			<text-author>Неизвестный автор</text-author>
+		</epigraph>
+		<section id="ch1" xml:lang="ru">
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<epigraph>
+				<poem>
+					<stanza>
+						<v>Строка эпиграфа раз,</v>
+						<v>строка эпиграфа два.</v>
+					</stanza>
+				</poem>
+				<text-author>Поэт</text-author>
+			</epigraph>
+			<annotation>
+				<p>Аннотация раздела.</p>
+			</annotation>
+			<p id="p1" style="lead">Текст с <strong>жирным</strong>, <emphasis>курсивом</emphasis>, <strikethrough>зачёркнутым</strikethrough>, H<sub>2</sub>O, x<sup>2</sup>, <code>code()</code>, <style name="note">именованным стилем</style>, <a l:href="https://example.org/" type="simple">ссылкой</a> и сноской<a l:href="#n_1" type="note">[1]</a>.</p>
+			<p>Вложенные стили: <strong>жирный <emphasis>и курсив <strikethrough>и зачёркнутый</strikethrough></emphasis></strong>, <a l:href="#n_2" type="note"><sup>2</sup></a>.</p>
+			<subtitle>Подзаголовок</subtitle>
+			<p>Абзац с инлайн-картинкой <image l:href="#dot.gif" alt="точка"/> внутри.</p>
+			<empty-line/>
+			<poem id="poem1">
+				<title>
+					<p>Стихотворение</p>
+				</title>
+				<epigraph>
+					<p>Эпиграф стихотворения.</p>
+				</epigraph>
+				<stanza>
+					<title>
+						<p>Первая строфа</p>
+					</title>
+					<subtitle>подзаголовок строфы</subtitle>
+					<v>Первая строка,</v>
+					<v>вторая строка.</v>
+				</stanza>
+				<subtitle>между строфами</subtitle>
+				<stanza>
+					<v>Третья строка.</v>
+				</stanza>
+				<text-author>Автор стихов</text-author>
+				<date value="1900-01-01">1900</date>
+			</poem>
+			<cite id="cite1">
+				<p>Цитата.</p>
+				<subtitle>Подзаголовок цитаты</subtitle>
+				<empty-line/>
+				<poem>
+					<stanza>
+						<v>Стих в цитате.</v>
+					</stanza>
+				</poem>
+				<table>
+					<tr>
+						<th>Заголовок</th>
+					</tr>
+					<tr>
+						<td>Ячейка в цитате</td>
+					</tr>
+				</table>
+				<text-author>Цитируемый</text-author>
+			</cite>
+			<table id="t1" style="grid">
+				<tr align="center">
+					<th id="h1" colspan="2" align="center" valign="middle">Шапка</th>
+				</tr>
+				<tr>
+					<td align="right">1</td>
+					<td rowspan="2" valign="bottom">2</td>
+				</tr>
+				<tr>
+					<td style="em">3</td>
+				</tr>
+			</table>
+			<image l:href="#cover.png" alt="Картинка в разделе" title="Подпись" id="img1"/>
+			<p>Последний абзац главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<image l:href="#dot.gif"/>
+			<section>
+				<p>Вложенный раздел A.</p>
+			</section>
+			<section>
+				<p>Вложенный раздел B.</p>
+			</section>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Первая сноска.</p>
+		</section>
+		<section id="n_2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Вторая сноска.</p>
+		</section>
+	</body>
+	<binary id="cover.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGAQMAAADEy024AAAABlBMVEVAYKD/0EA3Gm2JAAAADklE
+QVQI12NgYLCBQgYABawA8UkjcVEAAAAASUVORK5CYII=
+</binary>
+	<binary id="dot.gif" content-type="image/gif">R0lGODlhCAAGAPAAAP/QQEBgoCH5BAAAAAAALAAAAAAIAAYAAAIJjI+gkNv6GJoFADs=
+</binary>
+</FictionBook>

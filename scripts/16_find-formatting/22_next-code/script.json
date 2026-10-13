@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "16/next-code",
+  "name": {
+    "en": "Go to next code",
+    "ru": "Переход на следующий код"
+  },
+  "description": {
+    "en": "Moves the caret to the start of the next run of code; offers to continue from the beginning of the book when the end is reached",
+    "ru": "Переводит курсор в начало следующего фрагмента (код); по достижении конца книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next code",
+    "ru": "Переход на следующий код"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/22_Переход на следующий код.js",
+    "fbeVersion": "2.7"
+  }
+}

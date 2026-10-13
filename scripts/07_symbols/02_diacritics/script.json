@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "07/diacritics",
+  "name": {
+    "en": "Diacritics",
+    "ru": "Диакритика"
+  },
+  "description": {
+    "en": "Inserts a Latin letter with a diacritic (À é ñ ø ß ł ž …) at the caret",
+    "ru": "Вставляет латинскую букву с диакритикой (À é ñ ø ß ł ž …) в позицию курсора"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Diacritics",
+    "ru": "Диакритика"
+  },
+  "legacy": {
+    "source": "07_Символы/02_Диакритика.js",
+    "fbeVersion": "2.7"
+  }
+}

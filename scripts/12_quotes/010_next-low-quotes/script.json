@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "12/next-low-quotes",
+  "name": {
+    "en": "Go to next low quotes",
+    "ru": "Переход на след. лапки"
+  },
+  "description": {
+    "en": "Moves the caret to the next low/high quote („“”) and selects it; at the end of the book offers to continue from the beginning",
+    "ru": "Переводит курсор на следующую лапку („“”) и выделяет её; в конце книги предлагает продолжить с начала"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to next low quotes",
+    "ru": "Переход на след. лапки"
+  },
+  "legacy": {
+    "source": "12_Обработка кавычек/010_Переход на след. лапки.js",
+    "fbeVersion": "2.7"
+  },
+  "icon": "icon.png"
+}

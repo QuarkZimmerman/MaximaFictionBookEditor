@@ -1,0 +1,73 @@
+# Maxima Fiction Book Editor - FB2 genre display names (English), supplement.
+# Names for the 65 codes of schema/FictionBookGenres.xsd that the original
+# FictionBook Editor lists (names.en.txt) do not cover (see missing-names.txt).
+# Same format as names.en.txt: category<TAB>code<TAB>name, where 'category' is
+# the English title of the group (categories.tsv or categories.extra.tsv).
+# Lines starting with '#' are comments. UTF-8, LF. Hand-maintained.
+SF, Fantasy	city_fantasy	Urban Fantasy
+SF, Fantasy	dragon_fantasy	Dragon Fantasy
+SF, Fantasy	fantasy_fight	Combat Fantasy
+SF, Fantasy	historical_fantasy	Historical Fantasy
+SF, Fantasy	humor_fantasy	Humorous Fantasy
+SF, Fantasy	love_fantasy	Romantic Fantasy
+SF, Fantasy	magician_book	Books about Wizards
+SF, Fantasy	popadanec	Portal Fantasy (Accidental Travellers)
+SF, Fantasy	russian_fantasy	Russian Fantasy
+SF, Fantasy	vampire_book	Vampire Fiction
+Prose	beginning_authors	Beginning Authors
+Prose	essays	Essays
+Prose	literature_18	18th Century Literature
+Prose	literature_19	19th Century Literature
+Prose	literature_20	20th Century Literature
+Prose	narrative	Novellas
+Prose	russian_contemporary	Contemporary Russian Prose
+Prose	short_story	Short Stories
+Prose	sketch	Sketches
+Romance	love_fantasy	Romantic Fantasy
+Humor	humor_fantasy	Humorous Fantasy
+Science, Education	geography_book	Geography
+Science, Education	pedagogy_book	Pedagogy
+Science, Education	sociology_book	Sociology
+Nonfiction	aphorism_quote	Aphorisms and Quotations
+Nonfiction	architecture_book	Architecture
+Nonfiction	cinema_theatre	Cinema and Theatre
+Nonfiction	military_special	Military Affairs and Special Services
+Nonfiction	music_dancing	Music and Dance
+Nonfiction	visual_arts	Visual Arts
+Home, Family	auto_regulations	Cars and Traffic Regulations
+Home, Family	upbringing_book	Child Upbringing
+Psychology	psy_alassic	Classics of Psychology
+Psychology	psy_childs	Child Psychology
+Psychology	psy_generic	General Psychology
+Psychology	psy_personal	Personal Growth
+Psychology	psy_sex_and_family	Sex and Family Psychology
+Psychology	psy_social	Social Psychology
+Psychology	psy_theraphy	Psychotherapy and Counselling
+Periodicals	newspapers	Newspapers
+Periodicals	periodic	Magazines and Periodicals
+Foreign Literature	foreign_action	Foreign Action
+Foreign Literature	foreign_adventure	Foreign Adventure
+Foreign Literature	foreign_antique	Foreign Antique Literature
+Foreign Literature	foreign_business	Foreign Business Literature
+Foreign Literature	foreign_children	Foreign Children's Books
+Foreign Literature	foreign_comp	Foreign Computer Literature
+Foreign Literature	foreign_contemporary	Foreign Contemporary Prose
+Foreign Literature	foreign_contemporary_lit	Foreign Contemporary Literature
+Foreign Literature	foreign_desc	Foreign Reference Literature
+Foreign Literature	foreign_detective	Foreign Detectives
+Foreign Literature	foreign_dramaturgy	Foreign Dramaturgy
+Foreign Literature	foreign_edu	Foreign Educational Literature
+Foreign Literature	foreign_fantasy	Foreign Fantasy
+Foreign Literature	foreign_home	Foreign Home and Family Literature
+Foreign Literature	foreign_humor	Foreign Humour
+Foreign Literature	foreign_language	Foreign Languages
+Foreign Literature	foreign_love	Foreign Romance
+Foreign Literature	foreign_novel	Foreign Novels
+Foreign Literature	foreign_other	Foreign Literature: Other
+Foreign Literature	foreign_poetry	Foreign Poetry
+Foreign Literature	foreign_prose	Foreign Classics
+Foreign Literature	foreign_psychology	Foreign Psychology
+Foreign Literature	foreign_publicism	Foreign Publicism
+Foreign Literature	foreign_religion	Foreign Religious and Esoteric Literature
+Foreign Literature	foreign_sf	Foreign Science Fiction
+Other	unrecognised	Unrecognised Genre

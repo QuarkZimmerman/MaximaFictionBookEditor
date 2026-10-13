@@ -1,0 +1,14 @@
+{
+  "$comment": "Interface theme (Settings > View > Theme). Feature catalogue merged into en.json by i18n/index.ts.",
+  "dialog": {
+    "settings": {
+      "view": {
+        "theme": "Theme:",
+        "themeSystem": "System",
+        "themeLight": "Light",
+        "themeDark": "Dark",
+        "themeColorsHint": "Black text on a white background follows the theme; any other colours replace the theme colours."
+      }
+    }
+  }
+}

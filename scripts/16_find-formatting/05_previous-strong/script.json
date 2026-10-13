@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 1,
+  "id": "16/previous-strong",
+  "name": {
+    "en": "Go to previous bold",
+    "ru": "Переход на предыдущую жирность"
+  },
+  "description": {
+    "en": "Moves the caret to the end of the previous run of bold text; offers to continue from the end of the book when the beginning is reached",
+    "ru": "Переводит курсор в конец предыдущего фрагмента (жирность); по достижении начала книги предлагает продолжить с конца"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "en": "Go to previous bold",
+    "ru": "Переход на предыдущую жирность"
+  },
+  "legacy": {
+    "source": "16_Поиск форматирования/05_Переход на предыдущую жирность.js",
+    "fbeVersion": "2.7"
+  }
+}

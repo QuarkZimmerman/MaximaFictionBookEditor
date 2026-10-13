@@ -1,0 +1,216 @@
+/* Dialog framework styles. Colours and fonts come from the variables in app/layout.css. */
+
+.mfbe-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.mfbe-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mfbe-dialog-backdrop, rgba(0, 0, 0, 0.25));
+}
+
+.mfbe-dialog {
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  max-width: min(640px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  background: var(--mfbe-color-dialog-bg, #f0f0f0);
+  color: var(--mfbe-color-fg, #000);
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  box-shadow: 0 8px 24px var(--mfbe-color-shadow, rgba(0, 0, 0, 0.35));
+  font: var(--mfbe-font-ui, 13px system-ui, sans-serif);
+  outline: none;
+}
+
+.mfbe-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  background: var(--mfbe-color-title-bg, #fff);
+  border-bottom: 1px solid var(--mfbe-color-border, #c8c8c8);
+  font-weight: 600;
+  user-select: none;
+}
+
+.mfbe-dialog-title-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mfbe-dialog-close {
+  width: 28px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mfbe-dialog-close:hover {
+  background: var(--mfbe-color-danger, #c42b1c);
+  color: var(--mfbe-color-on-accent, #fff);
+}
+
+.mfbe-dialog-body {
+  display: flex;
+  gap: 14px;
+  padding: 16px 16px 8px;
+  overflow: auto;
+}
+
+.mfbe-dialog-icon {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+}
+
+.mfbe-dialog-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.mfbe-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 16px 14px;
+}
+
+.mfbe-button {
+  min-width: 84px;
+  padding: 4px 14px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  border-radius: 3px;
+  background: var(--mfbe-color-button-bg, #e1e1e1);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mfbe-button:hover:not(:disabled) {
+  background: var(--mfbe-color-button-hover, #e5f1fb);
+  border-color: var(--mfbe-color-accent, #0078d4);
+}
+
+.mfbe-button:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: 1px;
+}
+
+.mfbe-button-default {
+  border-color: var(--mfbe-color-accent, #0078d4);
+  box-shadow: inset 0 0 0 1px var(--mfbe-color-accent, #0078d4);
+}
+
+.mfbe-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Message box */
+
+.mfbe-messagebox-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+  padding-top: 4px;
+}
+
+.mfbe-messagebox-dontask {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.mfbe-messagebox-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--mfbe-color-on-accent, #fff);
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.mfbe-messagebox-glyph-info {
+  background: var(--mfbe-color-accent, #0078d4);
+}
+
+.mfbe-messagebox-glyph-question {
+  background: var(--mfbe-color-accent, #0078d4);
+}
+
+.mfbe-messagebox-glyph-warning {
+  background: var(--mfbe-color-warning, #c89b00);
+}
+
+.mfbe-messagebox-glyph-error {
+  background: var(--mfbe-color-danger, #c42b1c);
+}
+
+/* Input dialog */
+
+.mfbe-inputdialog-prompt {
+  display: block;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+
+.mfbe-inputdialog-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.mfbe-inputdialog-input:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: -1px;
+}
+
+.mfbe-inputdialog-error {
+  margin-top: 6px;
+  color: var(--mfbe-color-danger, #c42b1c);
+}
+
+/* Encoding chooser (Save As) */
+
+.mfbe-encodingdialog-path {
+  margin-bottom: 8px;
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+  overflow-wrap: anywhere;
+}
+
+.mfbe-encodingdialog-select {
+  width: 100%;
+  min-width: 260px;
+  box-sizing: border-box;
+  padding: 2px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.mfbe-encodingdialog-select option {
+  padding: 2px 6px;
+}

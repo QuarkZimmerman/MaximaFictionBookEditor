@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "maxima-fiction-book-editor",
+  "version-string": "0.0.1",
+  "description": "Maxima Fiction Book Editor - cross-platform FictionBook 2 editor",
+  "license": "MIT",
+  "dependencies": [
+    { "name": "libxml2", "default-features": false, "features": [] },
+    "hunspell",
+    "libjpeg-turbo",
+    "libpng",
+    "libwebp",
+    { "name": "tiff", "default-features": false, "features": ["zip", "jpeg"] },
+    "giflib",
+    "stb",
+    "uwebsockets",
+    "nlohmann-json",
+    "spdlog",
+    "cli11",
+    "stduuid",
+    "platform-folders",
+    "zlib"
+  ],
+  "features": {
+    "tests": {
+      "description": "Build the core test suite",
+      "dependencies": ["catch2"]
+    }
+  },
+  "builtin-baseline": "9e593bb18ea69cc5095e012465dcd675a822ed0d"
+}

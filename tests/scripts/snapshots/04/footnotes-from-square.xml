@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Скобки</last-name>
+			</author>
+			<book-title>Книга для проверки примечаний из скобок</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Примечания из скобок</p>
+		</title>
+		<section id="s1">
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Простое примечание <a l:href="#n_1" type="note">[1]</a> посреди абзаца, и второе <a l:href="#n_2" type="note">[2]</a> в том же абзаце.</p>
+			<p>Уже существующая сноска<a l:href="#n_3" type="note">[3]</a> и после неё примечание <a l:href="#n_4" type="note">[4]</a>.</p>
+			<p>Фигурные скобки {для скриптов из фигурных скобок} и особые <a l:href="#n_5" type="note">[5]</a> и <a l:href="#n_6" type="note">[6]</a> скобки.</p>
+			<p>Многоабзацное примечание начинается здесь <a l:href="#n_7" type="note">[7]</a> и текст после закрывающей скобки.</p>
+			<p>Ссылка внутри скобок <a l:href="#n_8" type="note">[8]</a> сохраняется.</p>
+			<empty-line/>
+			<p>Абзац без скобок в конце главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<p>Последняя сноска книги<a l:href="#n_9" type="note">[9]</a> и примечание после неё <a l:href="#n_10" type="note">[10]</a>.</p>
+			<p>Пара «кавычек-ёлочек» для скрипта с текстовыми скобками.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>в квадратных скобках</p>
+		</section>
+		<section id="n_2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>с <emphasis>курсивом</emphasis> внутри</p>
+		</section>
+		<section id="n_3">
+			<title>
+				<p>3</p>
+			</title>
+			<p>Первая существующая сноска.</p>
+		</section>
+		<section id="n_4">
+			<title>
+				<p>4</p>
+			</title>
+			<p>которое должно встать перед существующей секцией</p>
+		</section>
+		<section id="n_5">
+			<title>
+				<p>5</p>
+			</title>
+			<p>! восклицательные !</p>
+		</section>
+		<section id="n_6">
+			<title>
+				<p>6</p>
+			</title>
+			<p>~ тильдовые ~</p>
+		</section>
+		<section id="n_7">
+			<title>
+				<p>7</p>
+			</title>
+			<p>первый абзац примечания</p>
+			<p>второй абзац примечания</p>
+			<p>третий абзац примечания</p>
+		</section>
+		<section id="n_8">
+			<title>
+				<p>8</p>
+			</title>
+			<p>см. <a l:href="https://example.org/">источник</a></p>
+		</section>
+		<section id="n_9">
+			<title>
+				<p>9</p>
+			</title>
+			<p>Вторая существующая сноска.</p>
+		</section>
+		<section id="n_10">
+			<title>
+				<p>10</p>
+			</title>
+			<p>в самом конце</p>
+		</section>
+	</body>
+</FictionBook>

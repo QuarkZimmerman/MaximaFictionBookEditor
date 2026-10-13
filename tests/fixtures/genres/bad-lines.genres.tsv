@@ -1,0 +1,10 @@
+# Fixture with broken lines: every bad line is skipped and reported, the good ones load.
+UPPER_case	sf	Bad code
+spaced code	sf	Bad code too
+noname	sf
+	sf	Empty code
+sf	sf	Duplicate of a standard genre	Дубликат
+sf_litrpg	sf	Duplicate of another user file
+ok_genre	det	Okay genre	Нормальный жанр
+ok_genre	det	Duplicate inside this file
+whitespace_ok	 det 	  Trimmed name  	  Обрезанное имя  
