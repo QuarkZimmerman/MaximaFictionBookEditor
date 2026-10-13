@@ -28,6 +28,8 @@ hotkeys, spell checking (English and Russian), the Words tool and user scripts.
   `.deb`, `.rpm` and AppImage were all affected.
 - Linux: the editor looks for its libraries only in its own folder, never in the folder it is
   started from.
+- Windows: the editor no longer needs the Microsoft Visual C++ Redistributable; on PCs without
+  it, it could not start ("VCRUNTIME140.dll was not found").
 
 ### Behaviour that differs from the original editor
 
