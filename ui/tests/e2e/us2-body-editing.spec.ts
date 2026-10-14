@@ -715,7 +715,9 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(bodyNode.locator('> .fb-section').nth(2).locator('> .fb-title')).toHaveCount(1);
     await page.keyboard.type('Cloned');
     // Merge the second and third sections (Alt+Delete from the second one).
-    await clickInto(page, bodyNode.locator('> .fb-section').nth(1).locator('p').first());
+    await clickInto(page, bodyNode.locator('> .fb-section').nth(1).locator('p').first(), {
+      path: /^body\[1\]\/section\[2\]\/p\[\d+\]$/,
+    });
     await page.keyboard.press('Alt+Delete');
     await expect(bodyNode.locator('> .fb-section')).toHaveCount(2);
     await expect(bodyNode.locator('> .fb-section').nth(1)).toHaveText('Second part.Cloned');
@@ -724,7 +726,9 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     );
     // Remove outer container: wrap the first section's content in a nested section first by
     // merging the first (flat) section with the second after making the first one nested.
-    await clickInto(page, bodyNode.locator('> .fb-section').nth(0).locator('p.fb-p').first());
+    await clickInto(page, bodyNode.locator('> .fb-section').nth(0).locator('p.fb-p').first(), {
+      path: /^body\[1\]\/section\[1\]\//,
+    });
     await page.getByTestId('menu-edit').click();
     await expect(page.getByTestId('menu-edit-removeOuter')).toHaveClass(/mfbe-menu-item-disabled/);
     await page.keyboard.press('Escape');
