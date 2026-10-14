@@ -25,6 +25,7 @@ import path from 'node:path';
 
 import { expect, fixtureBook, test, type CoreHandle, type RpcCallError } from './fixtures/core';
 import type { Locator, Page } from '@playwright/test';
+import { LINE_END, LINE_START, MOD, REPLACE } from './fixtures/keys';
 
 interface ValidationJson {
   errorCount: number;
@@ -74,7 +75,7 @@ async function retype(page: Page, paragraph: Locator, text: string): Promise<voi
 /** Selects `length` characters starting `offset` characters into the paragraph. */
 async function selectIn(page: Page, paragraph: Locator, offset: number, length: number) {
   await clickInto(page, paragraph, { path: /\/p\[\d+\]$/ });
-  await page.keyboard.press('Home');
+  await page.keyboard.press(LINE_START);
   for (let i = 0; i < offset; i += 1) await page.keyboard.press('ArrowRight');
   await page.keyboard.down('Shift');
   for (let i = 0; i < length; i += 1) await page.keyboard.press('ArrowRight');
@@ -244,7 +245,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await menu(page, 'add', 'image');
     await expect(section.locator('> figure.fb-image')).toHaveCount(2);
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await menu(page, 'add', 'inlineImage');
     await expect(paragraph.locator('span.fb-inline-image')).toHaveCount(1);
     // Image title through the Links bar (when the T062 bars are mounted).
@@ -260,14 +261,14 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
 
     // Poem from two paragraphs, cite with a caret, table from the dialog.
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await page.keyboard.press('Enter');
     await page.keyboard.type('Roses are red');
     await page.keyboard.press('Enter');
     await page.keyboard.type('Violets are blue');
     await page.keyboard.down('Shift');
     await page.keyboard.press('ArrowUp');
-    await page.keyboard.press('Home');
+    await page.keyboard.press(LINE_START);
     await page.keyboard.up('Shift');
     await settle(page);
     await menu(page, 'add', 'poem');
@@ -277,7 +278,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(poem).toHaveText('Roses are redViolets are blue');
 
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await menu(page, 'add', 'cite');
     await page.keyboard.type('A quotation');
     await expect(section.locator('> .fb-cite')).toHaveText('A quotation');
@@ -286,7 +287,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(section.locator('> .fb-cite > p.fb-text-author')).toHaveText('Cited author');
 
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await settle(page);
     await page.keyboard.press('Alt+t');
     const tableDialog = page.getByTestId('dialog-table');
@@ -336,13 +337,13 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     const paragraph = firstParagraph(page);
     await retype(page, paragraph, 'Strong emphasis strike sub sup code');
     await selectIn(page, paragraph, 0, 6);
-    await page.keyboard.press('Control+b');
+    await page.keyboard.press(`${MOD}+b`);
     await expect(paragraph.locator('strong')).toHaveText('Strong');
     await expect(page.getByTestId('toolbar-style.strong')).toHaveAttribute('aria-pressed', 'true');
-    await page.keyboard.press('Control+b');
+    await page.keyboard.press(`${MOD}+b`);
     await expect(paragraph.locator('strong')).toHaveCount(0);
     await expect(page.getByTestId('toolbar-style.strong')).toHaveAttribute('aria-pressed', 'false');
-    await page.keyboard.press('Control+b');
+    await page.keyboard.press(`${MOD}+b`);
     await expect(paragraph.locator('strong')).toHaveText('Strong');
 
     await selectIn(page, paragraph, 7, 8);
@@ -439,7 +440,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(paragraph.locator('a.fb-note')).toHaveAttribute('href', '#n_1');
 
     // Go to footnote or reference: from the note back to the reference, and forth again.
-    await page.keyboard.press('Control+Backspace');
+    await page.keyboard.press(`${MOD}+Backspace`);
     await expect(page.getByTestId('status-path')).toHaveText('body[1]/section[1]/p[1]');
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowLeft');
@@ -464,7 +465,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowLeft');
     await settle(page);
-    await page.keyboard.press('Control+Backspace');
+    await page.keyboard.press(`${MOD}+Backspace`);
     const message = page.getByTestId('dialog-reference-not-found');
     await expect(message).toContainText('Reference not found.');
     await page.getByTestId('dialog-reference-not-found-button-ok').click();
@@ -504,16 +505,16 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await undo.click(); // typing "E"
     await undo.click(); // the epigraph
     await expect(section.locator('> .fb-epigraph')).toHaveCount(0);
-    await page.keyboard.press('Control+z'); // typing "T"
-    await page.keyboard.press('Control+z'); // the title
+    await page.keyboard.press(`${MOD}+z`); // typing "T"
+    await page.keyboard.press(`${MOD}+z`); // the title
     await expect(section.locator('> .fb-title')).toHaveCount(0);
     await expect(paragraph).toHaveText('Base text');
     await expect(redo).toBeEnabled();
     await redo.click();
     await redo.click();
     await expect(section.locator('> .fb-title')).toHaveText('T');
-    await page.keyboard.press('Control+y');
-    await page.keyboard.press('Control+y');
+    await page.keyboard.press(`${MOD}+y`);
+    await page.keyboard.press(`${MOD}+y`);
     await expect(section.locator('> .fb-epigraph')).toHaveText('E');
     await redo.click();
     await redo.click();
@@ -544,7 +545,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.keyboard.type('Line two');
     await page.keyboard.down('Shift');
     await page.keyboard.press('ArrowUp');
-    await page.keyboard.press('Home');
+    await page.keyboard.press(LINE_START);
     await page.keyboard.up('Shift');
     await settle(page);
     await menu(page, 'add', 'poem');
@@ -557,21 +558,21 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(contextMenu.getByText('Select poem')).toBeVisible();
     await contextMenu.getByText('Select poem').click();
     await expect(page.getByTestId('body-view')).toHaveAttribute('data-selected-text', /Line one/);
-    await page.keyboard.press('Control+c');
+    await page.keyboard.press(`${MOD}+c`);
 
     // Paste after the intro paragraph: the poem stays a poem.
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await page.keyboard.press('Enter');
     await settle(page);
-    await page.keyboard.press('Control+v');
+    await page.keyboard.press(`${MOD}+v`);
     await expect(section.locator('> .fb-poem')).toHaveCount(2);
     await expect(section.locator('.fb-stanza > p.fb-v')).toHaveCount(4);
 
     // Paste into a title: the schema has no poems there, the verses become title lines.
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
     await menu(page, 'add', 'title');
-    await page.keyboard.press('Control+v');
+    await page.keyboard.press(`${MOD}+v`);
     const title = section.locator('> .fb-title');
     await expect(title.locator('p')).toHaveCount(2);
     await expect(title).toHaveText('Line oneLine two');
@@ -586,7 +587,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
 
     // External HTML (a word processor / browser): paragraphs with supported styles only.
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await page.evaluate(PASTE_EXTERNAL_HTML);
     await expect(section.locator('> p.fb-p', { hasText: 'Keep bold and italic' })).toHaveCount(1);
     const imported = section.locator('> p.fb-p', { hasText: 'Keep bold and italic' });
@@ -607,11 +608,11 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.keyboard.type('Another cat here.');
     const second = editor.locator('.fb-body > .fb-section > p.fb-p').nth(1);
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('Home');
+    await page.keyboard.press(LINE_START);
     await settle(page);
 
     // Find dialog: whole words + match case finds exactly the lowercase words.
-    await page.keyboard.press('Control+f');
+    await page.keyboard.press(`${MOD}+f`);
     const find = page.getByTestId('dialog-find');
     await expect(find).toBeVisible();
     await page.getByTestId('dialog-find-query').fill('cat');
@@ -647,9 +648,9 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
 
     // Find Next (F3) repeats the last search (the history remembered "cat" style queries).
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('Home');
+    await page.keyboard.press(LINE_START);
     await settle(page);
-    await page.keyboard.press('Control+f');
+    await page.keyboard.press(`${MOD}+f`);
     await page.getByTestId('dialog-find-regex').uncheck();
     await page.getByTestId('dialog-find-query').fill('cat');
     await page.getByTestId('dialog-find-button-findNext').click();
@@ -659,7 +660,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(page.getByTestId('status-path')).toHaveText('body[1]/section[1]/p[1]');
 
     // Replace dialog: Replace acts on the current match, Replace All reports the count.
-    await page.keyboard.press('Control+h');
+    await page.keyboard.press(REPLACE);
     const replace = page.getByTestId('dialog-replace');
     await expect(replace).toBeVisible();
     await expect(page.getByTestId('dialog-replace-query')).toHaveValue('cat');
@@ -681,7 +682,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.getByTestId('dialog-search-message-button-ok').click();
     await page.getByTestId('dialog-replace-button-cancel').click();
     // Replace All was one undo step.
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect(second).toHaveText('Another cat here.');
     await expect(paragraph).toContainText('catalog');
   });
@@ -698,7 +699,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.keyboard.type('Chapter');
     // Split at "Second": the text after the caret moves into a new section.
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('Home');
+    await page.keyboard.press(LINE_START);
     for (let i = 0; i < 12; i += 1) await page.keyboard.press('ArrowRight');
     await settle(page);
     await page.keyboard.press('Shift+Enter');
@@ -706,7 +707,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(bodyNode.locator('> .fb-section').nth(1)).toHaveText('Second part.');
     await expect(bodyNode.locator('> .fb-section').nth(0)).toHaveText('ChapterFirst part. ');
     // Clone the second section (Ctrl+Enter): an empty titled section follows it.
-    await page.keyboard.press('Control+Enter');
+    await page.keyboard.press(`${MOD}+Enter`);
     await expect(bodyNode.locator('> .fb-section')).toHaveCount(3);
     await expect(bodyNode.locator('> .fb-section').nth(2).locator('> .fb-title')).toHaveCount(1);
     await page.keyboard.type('Cloned');
@@ -758,7 +759,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(bodyNode.locator('> .fb-section > .fb-section')).toHaveCount(0);
     await expect(bodyNode.locator('> .fb-section').nth(1)).toHaveText('Вложенный раздел A.');
     // Undo restores the outer section.
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect(bodyNode.locator('> .fb-section')).toHaveCount(2);
     await expect(bodyNode.locator('> .fb-section > .fb-section')).toHaveCount(2);
     // Unknown elements of the fixture are shown as read-only boxes and the images as pictures.
@@ -772,7 +773,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     const paragraph = firstParagraph(page);
     await retype(page, paragraph, 'The quick brown fox jumps over the lazy dog.');
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await page.keyboard.press('Home');
+    await page.keyboard.press(LINE_START);
     await settle(page);
     await page.keyboard.press('Alt+i');
     const status = page.getByTestId('status-message');
@@ -790,7 +791,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(status).toHaveText('Ready');
     await expect.poll(() => selectedText(page)).toBe('brown');
     // Escape cancels back to where the search started.
-    await page.keyboard.press('Home');
+    await page.keyboard.press(LINE_START);
     await settle(page);
     await page.keyboard.press('Alt+i');
     await page.keyboard.type('lazy');
@@ -807,7 +808,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     const editor = await newDocument(page);
     const paragraph = firstParagraph(page);
     await retype(page, paragraph, 'Before the table.');
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await settle(page);
     await page.keyboard.press('Alt+t');
     await page.getByTestId('dialog-table-header').check();

@@ -5,6 +5,7 @@
  */
 
 import { expect, test, type RpcCallError } from './fixtures/core';
+import { label } from './fixtures/keys';
 
 const MENUS: ReadonlyArray<[id: string, label: string]> = [
   ['file', 'File'],
@@ -73,7 +74,7 @@ test.describe('smoke', () => {
     await expect(page.getByTestId('menu-add-popup')).toBeVisible();
     await expect(page.getByTestId('menu-add-body').locator('.mfbe-menu-label')).toHaveText('Body');
     await expect(page.getByTestId('menu-add-body').locator('.mfbe-menu-hotkey')).toHaveText(
-      'Alt+Shift+B',
+      label('Alt+Shift+B'),
     );
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('menu-add-popup')).toBeHidden();

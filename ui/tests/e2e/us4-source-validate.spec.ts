@@ -24,6 +24,7 @@ import path from 'node:path';
 
 import { expect, fixtureBook, test, type CoreHandle, type RpcCallError } from './fixtures/core';
 import type { Page } from '@playwright/test';
+import { MOD } from './fixtures/keys';
 
 const APP_TITLE = 'Maxima Fiction Book Editor';
 
@@ -130,7 +131,7 @@ async function replaceSourceText(page: Page, text: string): Promise<void> {
   await showSource(page);
   const editor = page.getByTestId('source-editor');
   await editor.click();
-  await page.keyboard.press('Control+A');
+  await page.keyboard.press(`${MOD}+a`);
   await page.keyboard.insertText(text);
 }
 
@@ -209,7 +210,7 @@ test.describe('US4 - edit the XML source and validate', () => {
 
     // Double-clicking the issue in the panel navigates there as well (line highlighted).
     await page.locator('.mfbe-source-editor .cm-content').click();
-    await page.keyboard.press('Control+End');
+    await page.keyboard.press(`${MOD}+End`);
     await errorRow.dblclick();
     await expect(activeLine(page)).toContainText('<wrongtag>');
 
@@ -274,7 +275,7 @@ test.describe('US4 - edit the XML source and validate', () => {
 
     // Go to wrong tag re-parses the text and puts the cursor on the parse error.
     await page.locator('.mfbe-source-editor .cm-content').click();
-    await page.keyboard.press('Control+Home');
+    await page.keyboard.press(`${MOD}+Home`);
     await page.getByTestId('menu-edit').click();
     await page.getByTestId('menu-edit-gotoWrongTag').click();
     await expect(page.locator('.mfbe-source-target-line')).toHaveCount(1);
@@ -472,7 +473,7 @@ test.describe('US4 - edit the XML source and validate', () => {
 
     // The binary sits at the end of the document: scroll there (only visible lines are drawn).
     await page.locator('.mfbe-source-editor .cm-content').click();
-    await page.keyboard.press('Control+End');
+    await page.keyboard.press(`${MOD}+End`);
     const placeholder = page.getByTestId('source-binary-placeholder');
     await expect(placeholder).toHaveCount(1);
     await expect(placeholder).toContainText('bytes');
@@ -506,7 +507,7 @@ test.describe('US4 - edit the XML source and validate', () => {
     await expect(insMode).toHaveText('INS');
     const content = page.locator('.mfbe-source-editor .cm-content');
     await content.click();
-    await page.keyboard.press('Control+Home');
+    await page.keyboard.press(`${MOD}+Home`);
     await page.keyboard.press('Insert');
     await expect(insMode).toHaveText('OVR');
     await expect(insMode).toHaveAttribute('data-mode', 'overwrite');

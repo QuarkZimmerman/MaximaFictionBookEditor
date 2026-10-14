@@ -28,6 +28,7 @@ import path from 'node:path';
 
 import { expect, fixtureBook, test, type CoreHandle, type RpcCallError } from './fixtures/core';
 import type { Page } from '@playwright/test';
+import { MOD } from './fixtures/keys';
 
 interface DocumentJson {
   docId: string;
@@ -170,7 +171,7 @@ async function replaceSourceText(page: Page, text: string): Promise<void> {
   await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
   const editor = page.getByTestId('source-editor');
   await editor.click();
-  await page.keyboard.press('Control+A');
+  await page.keyboard.press(`${MOD}+a`);
   await page.keyboard.insertText(text);
 }
 
