@@ -133,7 +133,9 @@ export class IncrementalSearch {
       return;
     }
     const options = { ...DEFAULT_FIND_OPTIONS, matchCase: false, query: this.text };
-    const found = target.findNext(options, mode);
+    const result = target.findNext(options, mode);
+    if (result === 'wrapped') this.session.beep();
+    const found = result !== false;
     this.failing = !found;
     if (found) this.session.options = { ...this.session.options, query: this.text };
     this.updateStatus();

@@ -606,6 +606,9 @@ public:
     // file manager. Returning false lets the core try its own opener as a fallback.
     bool open_path(const std::string& path) override { return openFolderInFileManager(path); }
 
+    // app.beep: the system sound of a search that continued from the other end.
+    void beep() override { CefPostTask(TID_UI, base::BindOnce(&systemBeep)); }
+
 private:
     static std::vector<FileFilter> toShellFilters(const std::vector<mfbe::FileFilter>& filters) {
         std::vector<FileFilter> out;

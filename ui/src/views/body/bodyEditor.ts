@@ -22,7 +22,7 @@
  *   the target section is not mounted).
  */
 
-import type { Node as PMNode } from 'prosemirror-model';
+import { Slice, type Node as PMNode } from 'prosemirror-model';
 import { closeHistory, history, redo, redoDepth, undo, undoDepth } from 'prosemirror-history';
 import {
   EditorState,
@@ -33,6 +33,7 @@ import {
 } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 
+import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { baseEditorKeymap, bodyKeymap } from '@/editor/keymap';
 import { createImageNodeViews } from '@/editor/nodeviews/image';
 import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
@@ -41,6 +42,7 @@ import { clipboardPlugin } from '@/editor/plugins/clipboard';
 import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { overtypePlugin } from '@/editor/plugins/overtype';
+import { searchMatchPlugin, withSearchMatch } from '@/editor/plugins/searchMatch';
 import {
   computeSelectionContext,
   EMPTY_SELECTION_CONTEXT,
@@ -115,6 +117,7 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
       clipboardPlugin(),
       nodeIdPlugin(options.nextNodeId ?? createNodeIdGenerator()),
       nbspMarkerPlugin(options.getNbspChar),
+      searchMatchPlugin(),
       ...(options.plugins ?? []),
     ],
   });
@@ -163,6 +166,32 @@ const EMPTY_SNAPSHOT: BodyEditorSnapshot = {
 export interface ModelStep {
   apply(model: Document): Document;
   revert(model: Document): Document;
+  /**
+   * The text blocks the step replaces (Replace, Replace All). Mounted ones are changed through
+   * an editor transaction kept out of the editor history instead of a rebuilt window, which
+   * would drop the history of the edits made before: both stay undoable.
+   */
+  textblocks?: readonly TextblockChange[];
+}
+
+/** The content of one text block before and after a model-level step. */
+export interface TextblockChange {
+  nodeId: string;
+  before: ModelNodeJson;
+  after: ModelNodeJson;
+}
+
+/** Replaces the content of the text block at `pos` by `next`'s, changing only what differs. */
+function patchTextblock(tr: Transaction, pos: number, current: PMNode, next: PMNode): void {
+  const start = current.content.findDiffStart(next.content);
+  if (start === null) return;
+  let { a: endA, b: endB } = current.content.findDiffEnd(next.content)!;
+  const overlap = start - Math.min(endA, endB);
+  if (overlap > 0) {
+    endA += overlap;
+    endB += overlap;
+  }
+  tr.replace(pos + 1 + start, pos + 1 + endA, new Slice(next.content.cut(start, endB), 0, 0));
 }
 
 /** Undo view id of the model-level steps. */
@@ -545,13 +574,41 @@ export class BodyEditorController {
     const current = this.store.getState().document;
     if (!current) return null;
     const next = step.apply(current);
-    this.commitModel(next);
+    this.commitStep(step, next, 'after');
     if (!this.replaying) {
       this.modelUndo.push(step);
       this.modelRedo = [];
       this.undo.record(BODY_MODEL_UNDO_VIEW, label ?? this.translate('views.body.undoLabel'));
     }
     return next;
+  }
+
+  /**
+   * Stores the model a step produced: text blocks of the step that are mounted change through
+   * one editor transaction outside the editor history; anything else refreshes the window.
+   */
+  private commitStep(step: ModelStep, next: Document, side: 'before' | 'after'): void {
+    const state = this.editorState;
+    const mounted =
+      state && step.textblocks
+        ? step.textblocks.filter((change) => findNodeById(state.doc, change.nodeId))
+        : [];
+    if (!state || !this.window || mounted.length === 0) {
+      this.commitModel(next);
+      return;
+    }
+    // The model takes every change first; the editor's transaction then writes the mounted
+    // blocks back into it unchanged.
+    this.model = next;
+    actions.updateDocument(this.store, next);
+    // Closed group: typing after the step is an undo step of its own.
+    const tr = closeHistory(state.tr).setMeta('addToHistory', false);
+    for (const change of mounted) {
+      const found = findNodeById(tr.doc, change.nodeId);
+      const node = nodeFromModel(change[side]);
+      if (found && node) patchTextblock(tr, found.pos, found.node, node);
+    }
+    this.dispatch(tr);
   }
 
   /** Stores a model produced outside the editor and refreshes the window around it. */
@@ -638,7 +695,7 @@ export class BodyEditorController {
     if (!step || !current) return false;
     this.replaying = true;
     try {
-      this.commitModel(step.revert(current));
+      this.commitStep(step, step.revert(current), 'before');
     } finally {
       this.replaying = false;
     }
@@ -652,7 +709,7 @@ export class BodyEditorController {
     if (!step || !current) return false;
     this.replaying = true;
     try {
-      this.commitModel(step.apply(current));
+      this.commitStep(step, step.apply(current), 'after');
     } finally {
       this.replaying = false;
     }
@@ -702,6 +759,34 @@ export class BodyEditorController {
     this.ensureView();
     this.publish();
     this.publishSelection();
+    return true;
+  }
+
+  /**
+   * Shows a Find / Replace match: mounts its section when needed, selects `[from, to)` inside
+   * the text block `nodeId`, highlights it as the current match and scrolls it into view. The
+   * focus stays where it is (the modeless Find dialog keeps it).
+   */
+  showSearchMatch(nodeId: string, from: number, to: number): boolean {
+    if (!this.moveWindowTo(nodeId)) return false;
+    const state = this.editorState;
+    if (!state) return false;
+    const found = findNodeById(state.doc, nodeId);
+    if (!found || !found.node.isTextblock) return false;
+    const base = found.pos + 1;
+    const size = found.node.content.size;
+    const start = base + Math.min(Math.max(from, 0), size);
+    const end = base + Math.min(Math.max(to, from), size);
+    const tr = state.tr.setSelection(TextSelection.create(state.doc, start, end));
+    this.dispatch(withSearchMatch(tr, start, end).scrollIntoView());
+    // ProseMirror scrolls to the selection only while it has the focus.
+    const view = this.view;
+    if (view) {
+      const marked = view.dom.querySelector('.mfbe-search-match');
+      const target = marked ?? view.domAtPos(start).node;
+      const element = target instanceof Element ? target : target.parentElement;
+      element?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
     return true;
   }
 

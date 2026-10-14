@@ -455,13 +455,15 @@ DESCRIPTOR = f"""<?xml version="1.0" encoding="utf-8"?>
 # many-sections.fb2 - Find and Replace journeys (feature 002, User Story 5). 48 top-level
 # sections, so the Body view shows it in windows (more than 40 sections). The word
 # "разыскать" occurs exactly 20 times, in 6 sections spread over the book; two paragraphs hold
-# it twice; an inline image stands right before the 3rd occurrence. The word appears nowhere
-# else (no title, no description field).
+# it twice; an inline image stands right before the 3rd occurrence and a picture of its own
+# (an element without text) between the paragraphs of section 10. The word appears nowhere else
+# (no title, no description field).
 # ----------------------------------------------------------------------------------------------
 SEARCH_WORD = "разыскать"
 MANY_SECTIONS_COUNT = 48
-# Section number (1-based) -> paragraphs with the word; "{w}" marks one occurrence and
-# "{img}" the inline image.
+# Section number (1-based) -> paragraphs with the word; "{w}" marks one occurrence, "{img}" the
+# inline image and BLOCK_IMAGE a picture between paragraphs.
+BLOCK_IMAGE = "{block-img}"
 MANY_SECTIONS_HITS = {
     3: [
         "Утром Анна решила {w} старую карту отца.",
@@ -470,6 +472,7 @@ MANY_SECTIONS_HITS = {
     ],
     10: [
         "Брат обещал {w} фонарь, а сестра — {w} верёвку.",
+        BLOCK_IMAGE,
         "Никто не знал, как {w} дорогу в темноте.",
     ],
     18: [
@@ -509,6 +512,9 @@ def many_sections() -> str:
         paragraphs = MANY_SECTIONS_HITS.get(number, []) + FILLER[: 3 - (number % 2)]
         lines = [f'\t\t<section id="s{number}">', f"\t\t\t<title>\n\t\t\t\t<p>Глава {number}</p>\n\t\t\t</title>"]
         for text in paragraphs:
+            if text == BLOCK_IMAGE:
+                lines.append('\t\t\t<image l:href="#pin.png"/>')
+                continue
             text = text.replace("{w}", SEARCH_WORD).replace("{img}", '<image l:href="#pin.png"/>')
             lines.append(f"\t\t\t<p>{text}</p>")
         lines.append("\t\t</section>")

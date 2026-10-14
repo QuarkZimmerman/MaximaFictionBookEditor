@@ -1,12 +1,13 @@
 /**
  * Replace dialog (T066) after the original `IDD_REPLACE`: Find what / Replace with combos with
  * histories, the Find options, Find Next, Replace, Replace All and Cancel (which becomes
- * "Close" once a match was found, as in the original). Find Next reports "Finished searching
- * for '%s'." when nothing is found; Replace replaces the current match and finds the next one;
- * Replace All reports "%d replacement(s) done." and is a single undo entry.
+ * "Close" once a match was found, as in the original). Modeless like the Find dialog. Find
+ * Next reports "Finished searching for '%s'." when nothing is found; Replace replaces the
+ * current match and finds the next one; Replace All reports "%d replacement(s) done." and is a
+ * single undo entry.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
@@ -15,6 +16,7 @@ import { parseAccelerator } from '@/i18n';
 
 import { Dialog, type DialogButton } from './Dialog';
 import { FindFields } from './FindDialog';
+import { useSearchDialogFocus } from './useSearchDialogFocus';
 
 import './editing.css';
 
@@ -33,6 +35,8 @@ export function ReplaceDialog({ session, ctx, onClose }: ReplaceDialogProps) {
   const [replacement, setReplacement] = useState(session.replacement);
   const [found, setFound] = useState(false);
   const [busy, setBusy] = useState(false);
+  const queryRef = useRef<HTMLInputElement>(null);
+  useSearchDialogFocus(session, 'replace', queryRef);
 
   const run = async (action: () => Promise<void>) => {
     if (busy) return;
@@ -115,9 +119,11 @@ export function ReplaceDialog({ session, ctx, onClose }: ReplaceDialogProps) {
       testId="dialog-replace"
       className="mfbe-finddialog mfbe-replacedialog"
       closeLabel={t('dialog.buttons.close')}
+      modeless
     >
       <FindFields
         idPrefix="dialog-replace"
+        queryRef={queryRef}
         options={options}
         onChange={(next) => {
           setOptions(next);

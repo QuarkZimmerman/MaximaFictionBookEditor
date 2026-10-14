@@ -342,4 +342,60 @@ std::optional<ClipboardImageData> readClipboardImage() {
 
 #endif  // platform clipboard (macOS: native_actions_mac.mm)
 
+#if defined(_WIN32)
+
+void systemBeep() {
+    ::MessageBeep(MB_ICONASTERISK);
+}
+
+#elif defined(__linux__)
+
+namespace {
+
+struct GdkBeepApi {
+    int (*gtk_init_check)(int*, char***) = nullptr;
+    void* (*gdk_display_get_default)() = nullptr;
+    void (*gdk_display_beep)(void*) = nullptr;
+};
+
+const GdkBeepApi* gdkBeepApi() {
+    static GdkBeepApi api;
+    static bool attempted = false;
+    static bool ready = false;
+    if (attempted) {
+        return ready ? &api : nullptr;
+    }
+    attempted = true;
+    void* handle = ::dlopen("libgtk-3.so.0", RTLD_NOW | RTLD_NOLOAD);
+    if (handle == nullptr) {
+        handle = ::dlopen("libgtk-3.so.0", RTLD_NOW | RTLD_GLOBAL);
+    }
+    if (handle == nullptr) {
+        return nullptr;
+    }
+    resolve(handle, "gtk_init_check", &api.gtk_init_check);
+    resolve(handle, "gdk_display_get_default", &api.gdk_display_get_default);
+    resolve(handle, "gdk_display_beep", &api.gdk_display_beep);
+    int argc = 0;
+    ready = api.gtk_init_check && api.gdk_display_get_default && api.gdk_display_beep &&
+            api.gtk_init_check(&argc, nullptr);
+    return ready ? &api : nullptr;
+}
+
+}  // namespace
+
+void systemBeep() {
+    const GdkBeepApi* api = gdkBeepApi();
+    void* display = api != nullptr ? api->gdk_display_get_default() : nullptr;
+    if (display != nullptr) {
+        api->gdk_display_beep(display);
+    }
+}
+
+#elif !defined(__APPLE__)
+
+void systemBeep() {}
+
+#endif  // platform beep (macOS: native_actions_mac.mm)
+
 }  // namespace mfbe::shell

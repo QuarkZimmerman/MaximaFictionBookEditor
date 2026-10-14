@@ -4,7 +4,7 @@ import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
 import type { ReactNode } from 'react';
 
-import { DialogHost, DialogService, createDialogs } from '@/dialogs';
+import { Dialog, DialogHost, DialogService, createDialogs } from '@/dialogs';
 import { initI18n } from '@/i18n';
 
 async function setup(language: 'en' | 'ru' = 'en') {
@@ -164,6 +164,57 @@ describe('MessageBox', () => {
     });
     await expect(promise).resolves.toEqual({ button: 'cancel', dontAskAgain: false });
     expect(service.isOpen).toBe(false);
+  });
+});
+
+describe('modeless dialogs (feature 002: Find and Replace)', () => {
+  function Floating({ close }: { close: () => void }) {
+    return (
+      <Dialog
+        title="Find"
+        buttons={[{ id: 'cancel', label: 'Cancel', onClick: close }]}
+        cancelButtonId="cancel"
+        testId="floating"
+        modeless
+      >
+        <input data-testid="floating-input" />
+      </Dialog>
+    );
+  }
+
+  it('float without a backdrop, keep no focus trap and do not count as modal', async () => {
+    const { dialogs, service, user } = await setup();
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    const { result } = await open(() =>
+      dialogs.openCustom<void>((close) => <Floating close={() => close()} />, { modeless: true }),
+    );
+    expect(service.isOpen).toBe(true);
+    expect(service.isModalOpen).toBe(false);
+    expect(screen.getByTestId('dialog-floating-layer')).toContainElement(
+      screen.getByTestId('floating'),
+    );
+    expect(screen.queryByTestId('dialog-layer')).not.toBeInTheDocument();
+    expect(screen.getByTestId('floating')).toHaveAttribute('aria-modal', 'false');
+    // The focus may leave the dialog (the user works in the document).
+    act(() => outside.focus());
+    expect(outside).toHaveFocus();
+
+    // A modal dialog on top is modal; closing it leaves the modeless one open.
+    const { result: message } = await open(() => dialogs.showMessage({ text: 'Not found' }));
+    expect(service.isModalOpen).toBe(true);
+    expect(screen.getByTestId('dialog-layer')).toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    await message;
+    expect(service.isModalOpen).toBe(false);
+    expect(screen.getByTestId('floating')).toBeInTheDocument();
+
+    // Closing the modeless dialog while the focus is elsewhere leaves the focus there.
+    await user.click(screen.getByTestId('floating-button-cancel'));
+    await result;
+    expect(screen.queryByTestId('floating')).not.toBeInTheDocument();
+    outside.remove();
   });
 });
 

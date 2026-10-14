@@ -152,8 +152,8 @@ describe('DescriptionController binding', () => {
     expect([keywords.selectionStart, keywords.selectionEnd]).toEqual([0, 5]);
     expect(target.findNext(options)).toBe(true);
     expect([keywords.selectionStart, keywords.selectionEnd]).toEqual([11, 16]);
-    // Wraps around to the title.
-    expect(target.findNext(options)).toBe(true);
+    // Wraps around to the title (reported, for the beep).
+    expect(target.findNext(options)).toBe('wrapped');
     expect(document.activeElement).toBe(input);
     expect(target.replaceAll({ ...options, matchCase: true }, 'delta')).toBe(1);
     expect(description(store).titleInfo.keywords).toBe('gamma beta delta');

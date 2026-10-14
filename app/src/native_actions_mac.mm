@@ -1,4 +1,5 @@
-// macOS clipboard image reader (T139); the rest of native_actions.h is in native_actions.cpp.
+// macOS clipboard image reader (T139) and system beep; the rest of native_actions.h is in
+// native_actions.cpp.
 
 #include "native_actions.h"
 
@@ -59,6 +60,10 @@ std::optional<ClipboardImageData> readClipboardImage() {
         }
         return std::nullopt;
     }
+}
+
+void systemBeep() {
+    NSBeep();
 }
 
 }  // namespace mfbe::shell

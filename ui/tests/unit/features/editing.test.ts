@@ -7,12 +7,14 @@
  */
 
 import { createInstance } from 'i18next';
+import { NodeSelection } from 'prosemirror-state';
 
 import type { CommandContext } from '@/app/commands';
 import { createAppServices, type AppServices } from '@/app/services';
 import { getSearchSession } from '@/features/search/search';
 import { IncrementalSearch } from '@/features/search/incremental';
 import { getSymbolsFeature } from '@/features/editing';
+import { findNodeById } from '@/editor/schema';
 import { initI18n } from '@/i18n';
 import type { BodyNode, Document, SectionNode } from '@/model/document';
 import { actions, createAppStore } from '@/model/store';
@@ -58,6 +60,7 @@ interface Harness {
   services: AppServices;
   ctx: CommandContext & { dialogs: FakeDialogs };
   store: ReturnType<typeof createAppStore>;
+  calls: { method: string; params: unknown }[];
 }
 
 async function harness(
@@ -84,7 +87,18 @@ async function harness(
   };
   actions.setConnection(store, 'connected');
   if (document) actions.setDocument(store, document);
-  return { services, ctx, store };
+  return { services, ctx, store, calls: rpc.calls };
+}
+
+/** Text of the text block `nodeId` in the document model. */
+function modelText(h: Harness, nodeId: string): string {
+  let found = '';
+  const visit = (n: { attrs?: { nodeId?: string }; content?: { text?: string }[] }) => {
+    if (n.attrs?.nodeId === nodeId) found = (n.content ?? []).map((c) => c.text ?? '').join('');
+    (n.content as unknown as (typeof n)[])?.forEach(visit);
+  };
+  h.store.getState().document!.bodies.forEach((b) => visit(b as never));
+  return found;
 }
 
 /** Puts the caret inside the text block `nodeId` at `offset`. */
@@ -552,6 +566,103 @@ describe('find / replace (T066)', () => {
     key('Escape');
     expect(incremental.isActive).toBe(false);
     expect(controller.getContext().selectedText).toBe('gam');
+  });
+});
+
+describe('find / replace as in the original (feature 002)', () => {
+  const opts = {
+    query: 'beta',
+    wholeWord: false,
+    matchCase: false,
+    regex: false,
+    direction: 'down' as const,
+  };
+
+  it('beeps when a search continues from the other end of the document', async () => {
+    const h = await harness(twoSectionBook(), { 'app.beep': {} });
+    const session = getSearchSession(h.store);
+    const beeps = () => h.calls.filter((call) => call.method === 'app.beep');
+    caret(h, 'p3', 0);
+    expect(session.find(opts)).toBe(true);
+    expect(beeps()).toHaveLength(0);
+    expect(session.find(opts)).toBe(true);
+    expect(h.store.getState().selectionPath).toBe('body[1]/section[1]/p[1]');
+    expect(beeps()).toHaveLength(1);
+    expect(beeps()[0]!.params).toEqual({ kind: 'searchWrap' });
+  });
+
+  it('starts from a selected picture, after it (down) or before it (up)', async () => {
+    const book = twoSectionBook();
+    const section = book.bodies[0]!.content[1] as SectionNode;
+    section.content.splice(2, 0, {
+      type: 'image',
+      attrs: { nodeId: 'img1', href: '#pic.png' },
+    } as SectionNode['content'][number]);
+    const h = await harness(book);
+    const session = getSearchSession(h.store);
+    const controller = getBodyController(h.store);
+    const selectPicture = () => {
+      const state = controller.editorState!;
+      const picture = findNodeById(state.doc, 'img1')!;
+      controller.apply(state.tr.setSelection(NodeSelection.create(state.doc, picture.pos)));
+    };
+    selectPicture();
+    expect(session.find(opts)).toBe(true);
+    expect(h.store.getState().selectionPath).toBe('body[1]/section[1]/p[2]');
+    expect(controller.editorState!.selection.$from.parentOffset).toBe(0);
+    selectPicture();
+    expect(session.find({ ...opts, direction: 'up' })).toBe(true);
+    expect(h.store.getState().selectionPath).toBe('body[1]/section[1]/p[1]');
+  });
+
+  it('Replace is an undo step of its own between the typing before and after it', async () => {
+    const h = await harness();
+    const { services, store } = h;
+    const controller = getBodyController(store);
+    const session = getSearchSession(store);
+    const type = (text: string, nodeId: string) => {
+      const state = controller.editorState!;
+      controller.apply(state.tr.insertText(text, findNodeById(state.doc, nodeId)!.pos + 1));
+    };
+    type('X', 'p1');
+    caret(h, 'p1', 0);
+    expect(session.find(opts)).toBe(true);
+    expect(session.replace(opts, 'delta')).toEqual({ replaced: true, found: true });
+    expect(modelText(h, 'p1')).toBe('XAlpha delta gamma.');
+    type('Y', 'p1');
+    expect(modelText(h, 'p1')).toBe('YXAlpha delta gamma.');
+    services.undo.undo();
+    expect(modelText(h, 'p1')).toBe('XAlpha delta gamma.');
+    services.undo.undo();
+    expect(modelText(h, 'p1')).toBe('XAlpha beta gamma.');
+    services.undo.undo();
+    expect(modelText(h, 'p1')).toBe('Alpha beta gamma.');
+    services.undo.redo();
+    services.undo.redo();
+    expect(modelText(h, 'p1')).toBe('XAlpha delta gamma.');
+  });
+
+  it('a replacement stays undoable when the next match lies outside the mounted window', async () => {
+    const base = fakeDocument();
+    const sections = Array.from({ length: 45 }, (_, i) => ({
+      type: 'section' as const,
+      attrs: { nodeId: `s${i + 1}` },
+      content: [paragraph(`p${i + 1}`, i === 1 || i === 43 ? 'a beta here' : 'filler')],
+    }));
+    const h = await harness({
+      ...base,
+      bodies: [{ type: 'body', attrs: { nodeId: 'b1' }, content: sections } as BodyNode],
+    });
+    const controller = getBodyController(h.store);
+    const session = getSearchSession(h.store);
+    caret(h, 'p2', 0);
+    expect(controller.currentWindow?.wholeBook).toBe(false);
+    expect(session.find(opts)).toBe(true);
+    expect(session.replace(opts, 'delta')).toEqual({ replaced: true, found: true });
+    expect(h.store.getState().selectionPath).toBe('body[1]/section[44]/p[1]');
+    expect(modelText(h, 'p2')).toBe('a delta here');
+    h.services.undo.undo();
+    expect(modelText(h, 'p2')).toBe('a beta here');
   });
 });
 

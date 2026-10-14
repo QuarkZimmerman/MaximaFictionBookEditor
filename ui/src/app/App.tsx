@@ -33,6 +33,28 @@ import { ViewSwitcher } from './ViewSwitcher';
 
 import './layout.css';
 
+/**
+ * Commands a text field in a modeless dialog keeps for itself, as in the original (its main
+ * window sent Undo, Redo, Cut, Copy and Paste to the focused control).
+ */
+const FIELD_EDIT_COMMANDS: ReadonlySet<string> = new Set([
+  'edit.undo',
+  'edit.redo',
+  'edit.cut',
+  'edit.copy',
+  'edit.paste',
+]);
+
+/** Keys a modeless dialog handles before the application (Enter, Escape, Tab, Alt+letter). */
+function isDialogKey(event: KeyboardEvent): boolean {
+  return (
+    event.key === 'Enter' ||
+    event.key === 'Escape' ||
+    event.key === 'Tab' ||
+    (event.altKey && event.key.length === 1)
+  );
+}
+
 // Theme before the first paint (as far as the CSP allows: no inline script): the mirrored
 // setting of the previous session applies while this module loads, the settings runtime
 // (`features/settings/apply.ts`) switches to `view.theme` once `settings.get` answered.
@@ -155,11 +177,17 @@ function Shell({
 
   // Global hotkeys. Capture phase: as in the original (TranslateAccelerator before the message
   // reaches the view), an enabled command's chord wins over menu mnemonics and editor keymaps.
-  // Not while a modal dialog is open.
+  // Not while a modal dialog is open; in a modeless dialog its own keys and the editing
+  // commands of its fields come first.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || dialogs.service.isOpen) return;
-      hotkeys.handleKeyDown(event, (id) => commands.dispatch(id, ctx));
+      if (event.defaultPrevented || dialogs.service.isModalOpen) return;
+      const inModeless =
+        event.target instanceof Element && event.target.closest('.mfbe-dialog-modeless') !== null;
+      if (inModeless && isDialogKey(event)) return;
+      hotkeys.handleKeyDown(event, (id) =>
+        inModeless && FIELD_EDIT_COMMANDS.has(id) ? false : commands.dispatch(id, ctx),
+      );
     };
     document.addEventListener('keydown', onKeyDown, { capture: true });
     return () => document.removeEventListener('keydown', onKeyDown, { capture: true });
