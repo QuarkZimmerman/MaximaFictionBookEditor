@@ -77,6 +77,7 @@
   border: 1px solid var(--mfbe-color-border);
   border-radius: 3px 3px 0 0;
   background: var(--mfbe-color-chrome-bg-2);
+  color: var(--mfbe-color-fg); /* chrome, not Body text: the Body colours must not reach it */
   cursor: pointer;
 }
 
@@ -91,6 +92,7 @@
   border: 1px solid var(--mfbe-color-border-strong);
   border-left: 4px solid var(--mfbe-color-accent);
   background: var(--mfbe-color-chrome-bg);
+  color: var(--mfbe-color-fg);
   font: var(--mfbe-font-ui);
 }
 
