@@ -1,8 +1,13 @@
 /**
- * About dialog (T149, FR-126 / FR-131): product name, version, build stamp, platform and engine
- * versions from `app.info`, the repository link, the MIT licence line, "Open log folder" with
- * the headless (1050) fallback - and no credits or personal names.
+ * About dialog (T149, FR-126 / FR-131; feature 002 FR-095 to FR-098): product name, version,
+ * build stamp, platform and engine versions from `app.info`, the repository link, the GNU GPL
+ * version 3 notices (copyright, no warranty, where to read the licence) and the original's
+ * contributor notice word for word, "Open log folder" with the headless (1050) fallback.
  */
+
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -16,6 +21,11 @@ import { CaretRegistry } from '@/model/caret';
 import { UndoCoordinator } from '@/model/undo';
 
 import { fakeRpc, makeContext, rpcError } from '../features/testUtils';
+
+const CONTRIBUTORS = readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../CONTRIBUTORS.txt'),
+  'utf8',
+).replace(/\n$/, '');
 
 const INFO = {
   version: '0.0.1',
@@ -43,7 +53,7 @@ async function setup(options: { info?: unknown; openError?: Error; rpc?: boolean
 }
 
 describe('AboutDialog', () => {
-  it('shows name, version, build, platform, engine, repository link and the MIT licence', async () => {
+  it('shows name, version, build, platform, engine, repository link and the GPL-3.0 notices', async () => {
     await setup();
     expect(screen.getByTestId('about-name')).toHaveTextContent('Maxima Fiction Book Editor');
     await waitFor(() =>
@@ -57,12 +67,24 @@ describe('AboutDialog', () => {
     expect(link).toHaveAttribute('href', REPOSITORY_URL);
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noreferrer');
-    expect(screen.getByTestId('about-licence')).toHaveTextContent('MIT License');
+    expect(screen.getByTestId('about-licence')).toHaveTextContent(
+      'Licence: GNU General Public License version 3 (GPL-3.0-only)',
+    );
+    expect(screen.getByTestId('about-copyright')).toHaveTextContent(
+      'Copyright © 2026 Quark Zimmerman',
+    );
+    expect(screen.getByTestId('about-based-on')).toHaveTextContent('FictionBook Editor 2.7');
+    expect(screen.getByTestId('about-gpl-notice')).toHaveTextContent(/WITHOUT ANY WARRANTY/);
+    const licenceLink = screen.getByTestId('about-licence-link');
+    expect(licenceLink).toHaveAttribute('href', 'https://www.gnu.org/licenses/gpl-3.0.html');
+    expect(licenceLink).toHaveAttribute('target', '_blank');
     expect(screen.getByTestId('about-log-folder')).toHaveTextContent(INFO.logDir);
-    // FR-126: no credits, no personal names, no copyright line.
-    const text = screen.getByTestId('dialog-about').textContent ?? '';
-    expect(text).not.toMatch(/copyright|©|contributors|thanks|author/i);
-    expect(text).not.toMatch(/@/);
+    // The original's contributor notice, word for word, in a read-only box.
+    const contributors = screen.getByTestId('about-contributors');
+    expect(contributors).toHaveValue(CONTRIBUTORS);
+    expect(contributors).toHaveAttribute('readonly');
+    expect(CONTRIBUTORS).toContain('Copyright © 2003 Mike Matsnev');
+    expect(screen.getByTestId('dialog-about').textContent ?? '').not.toMatch(/\bMIT\b/);
   });
 
   it('opens the log folder through app.openLogFolder and closes with Close / Escape', async () => {

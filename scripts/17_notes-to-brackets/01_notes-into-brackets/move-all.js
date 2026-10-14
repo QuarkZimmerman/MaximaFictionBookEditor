@@ -39,7 +39,7 @@ export async function moveAllNotes(ctx, { spaceBefore }) {
     }
   }
   const lines = [
-    t(ctx, `Перенесено примечаний и комментариев: ${moved.length}`, `Notes and comments moved into brackets: ${moved.length}`),
+    t(ctx, `Перенос примечаний в скобки v1.1. Автор Sclex.\n\nПеренесено примечаний и комментариев: ${moved.length}`, `Move notes into brackets v1.1. Author: Sclex.\n\nNotes and comments moved into brackets: ${moved.length}`),
   ];
   if (bodiesLeft) {
     lines.push('', t(ctx,

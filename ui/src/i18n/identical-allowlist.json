@@ -13,6 +13,7 @@
     "dialog.buttons.ok",
     "description.id",
     "description.fields.isbn",
-    "description.schema.current"
+    "description.schema.current",
+    "dialog.about.copyright"
   ]
 }

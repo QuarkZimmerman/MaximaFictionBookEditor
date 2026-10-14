@@ -6,6 +6,22 @@
 // as hyphenation, and the doubtful patterns (no final dot, question/exclamation/quote at the
 // end, capital letter next) are offered one by one (Yes = merge / add the dot, No = skip).
 // The pair is processed in the legacy notation "<P>…</P>\r\n<P>…</P>" the original worked on.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//======================================
+//             Поиск разорваных предложений
+//                                                Engine like AlxS™
+//                                                                     17.11.2007…14.04.2008
+//~~~~~~~~~~~~
+// v.1.1 — второй параграф (z) просчитывается до последнего (z<ps.length)
+//~~~~~~~~~~~~
+// v.1.2 — предлагается поставить точку после вложенных кавычек-лапок var re4 (29.02.2008)
+//~~~~~~~~~~~~
+// v.1.3 — предлагается объединение после запятой (добавил левые кавычки после тире в диалогах) var re3 (04.03.2008)
+//~~~~~~~~~~~~
+// v.1.5 — баловство со статистикой (14.04.2008)
+//~~~~~~~~~~~~
+// v.1.6 — баловство со статистикой (16.12.2008)
+//======================================
 import { collectTextBlocks, htmlToPlainText, parseInline, serializeInline } from './lib/legacy-html.js';
 
 const NB = '\u00A0';
@@ -40,8 +56,8 @@ export default async function run(ctx) {
   const started = Date.now();
   const hyphenation = (await MsgBox(
     ru
-      ? 'Будем считать дефисы в конце строк\n                   ПЕРЕНОСАМИ?\n\n     Если «Да»,\nто скрипт прогонит все переносы автоматом,\nно потом нужно будет пройтись и в ручном\nрежиме, чтобы подобрать другие разрывы.'
-      : 'Treat hyphens at the end of a line as\n                   HYPHENATION?\n\n     With "Yes" every hyphenated break is\njoined automatically; the other breaks are\nthen offered one by one.',
+      ? '–= Jürgen Script =–\n\nБудем считать дефисы в конце строк\n                   ПЕРЕНОСАМИ?\n\n     Если «Да»,\nто скрипт прогонит все переносы автоматом,\nно потом нужно будет пройтись и в ручном\nрежиме, чтобы подобрать другие разрывы.'
+      : '–= Jürgen Script =–\n\nTreat hyphens at the end of a line as\n                   HYPHENATION?\n\n     With "Yes" every hyphenated break is\njoined automatically; the other breaks are\nthen offered one by one.',
     ctx.script.name,
     4 + 32,
   )) === 6;
@@ -150,8 +166,8 @@ export default async function run(ctx) {
   const seconds = Math.ceil(((Date.now() - started) / 1000) * 10) / 10;
   await mfbe.ui.message(
     ru
-      ? `«Поиск разорванных предложений» v.1.7\n\n    ${st2}\n       Произведено замен: ………… ${count}\n\n   Время исполнения: ${seconds} сек.\n`
-      : `"Broken sentences" v.1.7\n\n    ${st2}\n       Changes made: ………… ${count}\n\n   Time: ${seconds} s.\n`,
+      ? `           –= Jürgen Script =–\n«Поиск разорванных предложений» v.1.7\n\n    ${st2}\n       Произведено замен: ………… ${count}\n\n   Время исполнения: ${seconds} сек.\n`
+      : `           –= Jürgen Script =–\n"Broken sentences" v.1.7\n\n    ${st2}\n       Changes made: ………… ${count}\n\n   Time: ${seconds} s.\n`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

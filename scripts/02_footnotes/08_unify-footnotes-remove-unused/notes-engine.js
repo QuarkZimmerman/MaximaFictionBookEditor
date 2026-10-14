@@ -13,6 +13,12 @@
 //   5. reports what was done.
 // The whole run is one undo step, so the original's manual clean-up on errors is not needed:
 // every check happens before the first change.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// добавление сноски между уже имеющимися
+// написал Sclex
+// версия 2.8
+// Sclex, помни: данный скрипт имеет собственный код, не такой,
+//   как остальные скрипты в этом наборе
 
 const TEXT_BLOCKS = new Set(['p', 'subtitle', 'v', 'text-author', 'td', 'th']);
 

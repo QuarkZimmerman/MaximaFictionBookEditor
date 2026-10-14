@@ -34,23 +34,6 @@ from pathlib import Path
 
 
 
-def _public_entry(entry: dict) -> dict:
-    """Plan entry as written to disk: file-derived paths carry no author tags."""
-    icon = entry.get("icon")
-    if isinstance(icon, str) and icon:
-        stem, _, ext = icon.rpartition(".")
-        entry["icon"] = anonymise_name(stem) + ("." + ext if ext else "")
-    return entry
-
-
-def anonymise_name(name: str) -> str:
-    """Drops author tags from legacy file names: `_nick` suffixes and `(... от nick, nick ...)`
-    lists. The project ships no personal names or nicknames anywhere."""
-    name = re.sub(r"\s*\((?:регекспы|регэкспы|рег\w*)\s+от\s+[^)]*\)", " (набор регэкспов)", name)
-    name = re.sub(r"_[A-Za-z][A-Za-z0-9]{2,}$", "", name)
-    return name.strip()
-
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SOURCE = Path.home() / "maxfbeditor" / "reference" / "fictionbookeditor" / "FBE" / "files"
 DEFAULT_OUT = REPO_ROOT / "tests" / "scripts" / "audit"
@@ -637,8 +620,8 @@ def audit(source: Path) -> tuple[list[ScriptEntry], list[str]]:
             group_order, group_ru = split_order(group_folder) if group_folder else (None, "")
             group_en = draft_english(group_ru)[0] if group_ru else ""
             kind = "menu"
-            source_rel = anonymise_name(str(rel.with_suffix(""))) + file.suffix
-        stem = anonymise_name(file.stem)
+            source_rel = str(rel)
+        stem = file.stem
         order, name_ru = split_order(stem)
         name_en, draft = draft_english(name_ru)
         apis = detect_apis(text)
@@ -708,7 +691,7 @@ def write_outputs(entries: list[ScriptEntry], problems: list[str], source: Path,
         "source": str(source),
         "scripts": len(entries),
         "tiers": {str(t): sum(1 for e in entries if e.tier == t) for t in (1, 2, 3, 4)},
-        "entries": [_public_entry(asdict(e)) for e in entries],
+        "entries": [asdict(e) for e in entries],
         "problems": problems,
     }
     (out / "conversion-plan.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

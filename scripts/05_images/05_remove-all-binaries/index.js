@@ -6,6 +6,9 @@
 // objects as metadata only and has no call to remove one. The script therefore explains the
 // situation after the confirmation; it removes the objects as soon as `mfbe.doc.removeBinary(id)`
 // exists.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Скрипт "удалить все вложения из книги"
+// Версия 1.3
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

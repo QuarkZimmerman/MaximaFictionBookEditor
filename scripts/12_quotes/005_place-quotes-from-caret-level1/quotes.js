@@ -8,6 +8,11 @@
 //
 // Differences from the original are listed in docs/scripting/conversion-notes-b.md (quotes
 // inside footnote links are left alone; the whole run is one undo step).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Скрипт "Новые кавычки на елочки"
+//Автор Sclex
+//Подробности тут: http://www.fictionbook.org/forum/viewtopic.php?f=7&t=4412
+//И тут: http://scripts.fictionbook.org
 
 const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 const NBSP = '\u00A0';
@@ -97,8 +102,8 @@ class QuoteError extends Error {
 export async function placeQuotes(ctx, options) {
   const ru = ctx.uiLanguage === 'ru';
   const onlyGuillemets = !!options.onlyGuillemets;
-  const titleRu = onlyGuillemets ? 'Скрипт «Расстановка только елочек»\n\n' : 'Скрипт «Расстановка елочек и лапок»\n\n';
-  const titleEn = onlyGuillemets ? 'Script "Guillemets only"\n\n' : 'Script "Guillemets and low quotes"\n\n';
+  const titleRu = onlyGuillemets ? 'Скрипт «Расстановка только елочек v2.9»\nАвтор Sclex.\n\n' : 'Скрипт «Расстановка елочек и лапок v2.9»\nАвтор Sclex.\n\n';
+  const titleEn = onlyGuillemets ? 'Script "Guillemets only" v2.9\nAuthor: Sclex.\n\n' : 'Script "Guillemets and low quotes" v2.9\nAuthor: Sclex.\n\n';
   const versionStr = ru ? titleRu : titleEn;
   const leftCnt = [0, 0, 0, 0];
   const rightCnt = [0, 0, 0, 0];

@@ -12,12 +12,19 @@
 // Errors of the original (a second opening bracket, a closing bracket outside the parent, a
 // link to a missing section) stop the run with the same messages after renumbering what was
 // done, and the caret is put before the faulty bracket.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// извлечение сносок из разных скобок
+// написал Sclex
 
 const TEXT_BLOCKS = new Set(['p', 'subtitle', 'v', 'text-author']);
 const INLINE_BLOCKS = new Set(['p', 'subtitle', 'v', 'text-author', 'td', 'th']);
 
 export function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
+}
+
+function versionStr(ctx) {
+  return t(ctx, 'Примечания из скобок v2.2 by Sclex.\n\n', 'Footnotes from brackets v2.2 by Sclex.\n\n');
 }
 
 function fill(template, n) {
@@ -124,7 +131,7 @@ export async function askBrackets(ctx, mode) {
     try {
       open = new RegExp(s1, 'i');
     } catch {
-      await mfbe.ui.message(t(ctx, 'Вы ввели некорректный регэксп.', 'The regular expression is not valid.'), { icon: 'error' });
+      await mfbe.ui.message(versionStr(ctx) + t(ctx, 'Вы ввели некорректный регэксп.', 'The regular expression is not valid.'), { icon: 'error' });
       return null;
     }
     const s2 = await mfbe.ui.prompt(
@@ -135,7 +142,7 @@ export async function askBrackets(ctx, mode) {
     try {
       return { open, close: new RegExp(s2, 'i') };
     } catch {
-      await mfbe.ui.message(t(ctx, 'Вы ввели некорректный регэксп.', 'The regular expression is not valid.'), { icon: 'error' });
+      await mfbe.ui.message(versionStr(ctx) + t(ctx, 'Вы ввели некорректный регэксп.', 'The regular expression is not valid.'), { icon: 'error' });
       return null;
     }
   }
@@ -146,11 +153,11 @@ export async function askBrackets(ctx, mode) {
   if (!s) return null;
   const groups = s.match(/ +/g);
   if (!groups) {
-    await mfbe.ui.message(t(ctx, 'Ошибка. Во введенной вами строке отсутствует пробел.', 'Error: the entered text contains no space.'), { icon: 'error' });
+    await mfbe.ui.message(versionStr(ctx) + t(ctx, 'Ошибка. Во введенной вами строке отсутствует пробел.', 'Error: the entered text contains no space.'), { icon: 'error' });
     return null;
   }
   if (groups.length > 1) {
-    await mfbe.ui.message(t(ctx, 'Ошибка. Во введенной вами строке более чем одна группа пробелов.', 'Error: the entered text contains more than one group of spaces.'), { icon: 'error' });
+    await mfbe.ui.message(versionStr(ctx) + t(ctx, 'Ошибка. Во введенной вами строке более чем одна группа пробелов.', 'Error: the entered text contains more than one group of spaces.'), { icon: 'error' });
     return null;
   }
   const at = s.search(/ +/);
@@ -318,7 +325,7 @@ export async function runBracketsScript(ctx, options) {
     } catch {
       // the block may be gone; the message still explains the problem
     }
-    await mfbe.ui.message(`${message}\n\n${exitText()}`, { icon: 'error' });
+    await mfbe.ui.message(`${versionStr(ctx)}${message}\n\n${exitText()}`, { icon: 'error' });
   };
   const exitText = () =>
     t(ctx, `Добавлено примечаний: ${added}.\nЗатрачено времени: ${elapsed(started)}`,
@@ -470,7 +477,7 @@ export async function runBracketsScript(ctx, options) {
   }
 
   await finalization();
-  await mfbe.ui.message(exitText());
+  await mfbe.ui.message(versionStr(ctx) + exitText());
 }
 
 export const FOOTNOTES = {

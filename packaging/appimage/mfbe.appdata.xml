@@ -6,7 +6,7 @@
   <name>Maxima Fiction Book Editor</name>
   <summary>Editor for FictionBook 2 (.fb2/.fbd) e-books</summary>
   <metadata_license>MIT</metadata_license>
-  <project_license>MIT</project_license>
+  <project_license>GPL-3.0-only</project_license>
   <description>
     <p>
       A cross-platform editor for FictionBook 2 e-books with Description, Body and Source

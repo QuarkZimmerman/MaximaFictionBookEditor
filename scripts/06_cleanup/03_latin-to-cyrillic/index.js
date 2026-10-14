@@ -8,6 +8,14 @@
 //
 // Deviation: the original `[^\d]` of the "6 -> б" rule had lost its backslash inside a JS
 // string literal (it read `[^d]`); the intended "not a digit" form is used here.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//======================================
+// Замена латинских букв в русских словах на кириллицу
+// Корректировка римских дат
+//                                                          Engine by ©Sclex
+//                                                                    08.02.2008
+// 20.03.2010 — скорректировал скрипт для работы с польз. символом nbsp — Sclex
+//======================================
 
 const RULES = [
   ["(A)([А-яЁё]{2,})", "А$2"], // re1a
@@ -102,8 +110,8 @@ export default async function run(ctx) {
   const seconds = Math.ceil((Date.now() - started) / 100) / 10;
   await mfbe.ui.message(
     ru
-      ? `«Кириллизация латиницы»\n\n      Произведено замен: ${count}\n\n   Время исполнения: ${seconds} сек.\n`
-      : `"Latin to Cyrillic"\n\n      Replacements made: ${count}\n\n   Time: ${seconds} s.\n`,
+      ? `–= Jurgen Script =–\n«Кириллизация латиницы» v1.2\n\n      Произведено замен: ${count}\n\n   Время исполнения: ${seconds} сек.\n`
+      : `–= Jurgen Script =–\n"Latin to Cyrillic" v1.2\n\n      Replacements made: ${count}\n\n   Time: ${seconds} s.\n`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

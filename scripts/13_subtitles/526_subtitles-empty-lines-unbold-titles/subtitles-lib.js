@@ -16,6 +16,9 @@
 // element and a paragraph containing only spaces / non-breaking spaces (inline images count
 // as content). Edits the schema refuses (the only verse of a stanza, a subtitle inside an
 // epigraph, merging into a section that ends with sub-sections) are skipped and reported.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Разметка подзаголовков, чистка пустых строк
+// Автор: Sclex
 
 const CONTAINERS = new Set(['section', 'body', 'poem', 'stanza', 'cite', 'epigraph']);
 /** Element types the original saw as `<P>` inside the containers it walked. */
@@ -324,7 +327,7 @@ export async function markupSubtitles(ctx, options) {
   const seconds = Math.ceil(((Date.now() - started) / 1000) * 10) / 10;
   const lines = ctx.uiLanguage === 'ru'
     ? [
-        'Работа скрипта «Разметка подзаголовков, чистка пустых строк» завершена.',
+        'Работа скрипта «Разметка подзаголовков, чистка пустых строк v4.2» завершена.',
         '',
         'Удалено пустых строк:',
         `– из-за соседства с пустой строкой: ${c.empty}`,
@@ -350,7 +353,7 @@ export async function markupSubtitles(ctx, options) {
         `Время работы: ${seconds} с`,
       ]
     : [
-        'The script "Mark up subtitles, clean up empty lines" has finished.',
+        'The script "Mark up subtitles, clean up empty lines" v4.2 has finished.',
         '',
         'Empty lines removed:',
         `– next to another empty line: ${c.empty}`,

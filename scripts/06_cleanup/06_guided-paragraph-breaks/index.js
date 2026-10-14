@@ -12,6 +12,10 @@
 // 9 join with ":" and a space, 10 add ":". Empty lines between the two paragraphs disappear
 // when they are joined. Titles, tables, poems, epigraphs, annotations and text-author lines
 // are never touched; cites and subtitles only when enabled in the form.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Интерактивная ликвидация разрывов абзацев
+// Автор скрипта: Sclex
+// Сайт скриптов FBE Sclex’а: http://scripts.fictionbook.org
 
 const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 const SKIP_CONTAINERS = new Set(['title', 'table', 'annotation', 'poem']);
@@ -347,7 +351,7 @@ export default async function run(ctx) {
       // best effort
     }
     const answer = await mfbe.ui.form({
-      title: L(`Спорное место ${i + 1} из ${pending.length}`, `Disputed place ${i + 1} of ${pending.length}`),
+      title: L(`Спорное место ${i + 1} из ${pending.length}. Интерактивное удаление разрывов абзацев 3.8`, `Disputed place ${i + 1} of ${pending.length}. Interactive removal of paragraph breaks 3.8`),
       width: 640,
       fields: [
         { kind: 'static', id: 'kind', text: spec.label },
@@ -367,8 +371,8 @@ export default async function run(ctx) {
 
   const seconds = Math.ceil(((Date.now() - started) / 1000) * 10) / 10;
   let msg = ru
-    ? `Ликвидация разрывов абзацев завершена.\nАвтоматических слияний абзацев: ${autoCount}.\n`
-    : `Paragraph breaks processed.\nAutomatic corrections: ${autoCount}.\n`;
+    ? `Версия 3.8.\nЛиквидация разрывов абзацев завершена.\nАвтоматических слияний абзацев: ${autoCount}.\n`
+    : `Version 3.8.\nParagraph breaks processed.\nAutomatic corrections: ${autoCount}.\n`;
   if (pending.length) msg += ru ? `Подтвержденных вручную коррекций: ${manualCount} из ${pending.length}.\n` : `Manually confirmed corrections: ${manualCount} of ${pending.length}.\n`;
   msg += ru ? `Время обработки: ${seconds} с.` : `Time: ${seconds} s.`;
   await mfbe.ui.message(msg, { caption: ctx.script.name, icon: 'info' });

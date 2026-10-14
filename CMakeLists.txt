@@ -56,6 +56,24 @@ endif()
 
 if(MFBE_BUILD_APP)
   add_subdirectory(app)
+  # The packages carry the licence text of every third-party component (MIT, BSD, Apache-2.0
+  # and the others require it with binaries): tools/licence-check.py exports them, failing the
+  # build when a licence breaks the policy. It reads the vcpkg tree, ui/node_modules (after the
+  # UI build's npm ci) and the CEF distribution.
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  set(MFBE_LICENCE_TEXTS_DIR "${CMAKE_BINARY_DIR}/licenses")
+  add_custom_target(mfbe_licence_texts ALL
+    COMMAND "${CMAKE_COMMAND}" -E rm -rf "${MFBE_LICENCE_TEXTS_DIR}"
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/licence-check.py"
+            --vcpkg-installed "${VCPKG_INSTALLED_DIR}" --export-texts "${MFBE_LICENCE_TEXTS_DIR}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Third-party licence texts for the packages"
+    VERBATIM)
+  if(TARGET mfbe_ui)
+    add_dependencies(mfbe_licence_texts mfbe_ui)
+  endif()
+  install(DIRECTORY "${MFBE_LICENCE_TEXTS_DIR}/"
+    DESTINATION "${MFBE_INSTALL_DOCDIR}/licenses" COMPONENT app)
 endif()
 
 add_subdirectory(resources)

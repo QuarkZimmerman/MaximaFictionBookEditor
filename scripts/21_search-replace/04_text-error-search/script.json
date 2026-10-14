@@ -2,8 +2,8 @@
   "manifestVersion": 1,
   "id": "21/text-error-search",
   "name": {
-    "en": "Search for text errors (regexp set)",
-    "ru": "Поиск ошибок текста (набор регэкспов)"
+    "en": "Search for text errors (regular expressions by wotti, Roxana, JonVic et al.)",
+    "ru": "Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.)"
   },
   "description": {
     "en": "Selects the next probable OCR/typing error after the caret (misread words, mixed alphabets, wrong dashes, punctuation slips, formatting inside words) and shows which rule matched in the status bar",
@@ -14,11 +14,11 @@
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Search for text errors (regexp set)",
-    "ru": "Поиск ошибок текста (набор регэкспов)"
+    "en": "Search for text errors (regular expressions by wotti, Roxana, JonVic et al.)",
+    "ru": "Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.)"
   },
   "legacy": {
-    "source": "21_Поиск и замена/04_Поиск ошибок текста (набор регэкспов).js",
+    "source": "21_Поиск и замена/04_Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.).js",
     "fbeVersion": "2.7"
   }
 }

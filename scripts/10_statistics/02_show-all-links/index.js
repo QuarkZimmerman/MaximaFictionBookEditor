@@ -2,6 +2,13 @@
 // Same list as "Показать все ссылки", but the original opened it in a separate browser
 // window (links.htm) so long lists could be scrolled and copied. Scripts cannot open
 // windows here, so the list is shown in a form with a multi-line text field instead.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//======================================
+// Shows all links in browser
+// modified by mkb
+//======================================
+// Notice of the original page Scripts/links.htm (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// <meta name="author" content="Jurgen">
 import { collectLinks, formatLinkReport } from './links.js';
 
 export default async function run(ctx) {

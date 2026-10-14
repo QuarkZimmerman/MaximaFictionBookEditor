@@ -63,8 +63,11 @@ dialog system differ (details per script in the group notes):
 - **Description annotation / history** were part of the editable page in FBE; `mfbe.doc`
   node operations address bodies only, so scripts that must edit them go through
   `doc.setDescription` (06/02) or leave them alone (documented per script).
-- **No credits.** Author banners, version lines and nicknames of the originals are not copied
-  (names, folders and messages are neutral); `legacy.source` keeps the original file name.
+- **Notices kept.** The originals are GPL-3.0 (FictionBook Editor 2.7): every package keeps its
+  original's notice comment block as written, the author and version lines of its messages and
+  undo labels, and names that credit authors (`Предложение_alxs`, `Поиск ошибок текста (регекспы
+  от wotti, Roxana, JonVic и др.)`); `legacy.source` names the original file exactly, and
+  `tests/scripts/tools/check-notices.py` checks the notices in CI.
 - **Language.** `ctx.uiLanguage` selects the original Russian texts or an English rendering.
 
 ## Runtime limits (documented, no code change)

@@ -2,8 +2,8 @@
   "manifestVersion": 1,
   "id": "01/sentence-case-simple",
   "name": {
-    "en": "Sentence (simple)",
-    "ru": "Предложение (простое)"
+    "en": "Sentence (simple) (alxs)",
+    "ru": "Предложение_alxs"
   },
   "description": {
     "en": "First letter of the selection to upper case, the rest to lower case",
@@ -18,7 +18,7 @@
     "ru": "Предложение"
   },
   "legacy": {
-    "source": "01_Регистр/03_Предложение (простое).js",
+    "source": "01_Регистр/03_Предложение_alxs.js",
     "fbeVersion": "2.7"
   }
 }

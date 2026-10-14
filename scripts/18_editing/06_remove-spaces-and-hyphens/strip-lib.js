@@ -2,6 +2,12 @@
 // 01 and 06, FictionBook Editor 2.7, Tier 1): removes the characters matching `pattern` from
 // the selected text while keeping inline formatting, then re-selects the processed text,
 // exactly as the originals did by editing the text nodes between two markers.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//"Удаление пробелов" by Sclex
+//v1.1
+//вид обработки, которой подвергается выделенный текст
+// 1 - перевод в верний регистр
+// 2 - перевод в верний регистр
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous paragraph with subscript",
-    "ru": "Переход на предыдущий абзац с нижним индексом"
+    "en": "Go to previous paragraph with subscript v1.0.",
+    "ru": "Переход на предыдущий абзац с нижним индексом v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/15_Переход на предыдущий абзац с нижним индексом.js",

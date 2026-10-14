@@ -8,6 +8,10 @@
 // Differences from the original (see docs/scripting/conversion-notes-a.md): the leading part of a
 // section that keeps only its title/epigraph, and a new section whose title is followed by nothing,
 // get an <empty-line/> so that the schema stays satisfied; an empty regular expression is refused.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Скрипт «разбиение на секции»
+//Автор Sclex
+//http://www.fictionbook.org/forum/viewtopic.php?t=4412
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
@@ -87,7 +91,7 @@ function splitSection(section, options, stats) {
 export default async function run(ctx) {
   const captureOptions = ['0', '1', '2', '3'].map((v) => ({ value: v, label: v }));
   const form = await mfbe.ui.form({
-    title: t(ctx, 'Разбиение на секции', 'Splitting into sections'),
+    title: t(ctx, 'Разбиение на секции v1.4. Автор Sclex.', 'Splitting into sections v1.4. Author: Sclex.'),
     width: 640,
     fields: [
       {
@@ -118,8 +122,8 @@ export default async function run(ctx) {
     regexp = new RegExp(source, form.caseSensitive ? '' : 'i');
   } catch {
     await mfbe.ui.message(
-      t(ctx, 'Разбиение на секции.\n\nОшибка при компиляции регэкспа.\nПожалуйста, проверьте, верный ли регэксп вы ввели.',
-        'Splitting into sections.\n\nThe regular expression does not compile.\nPlease check what you entered.'),
+      t(ctx, 'Разбиение на секции v1.4.\nАвтор Sclex.\n\nОшибка при компиляции регэкспа.\nПожалуйста, проверьте, верный ли регэксп вы ввели.',
+        'Splitting into sections v1.4.\nAuthor: Sclex.\n\nThe regular expression does not compile.\nPlease check what you entered.'),
       { icon: 'error' },
     );
     return;
@@ -141,7 +145,7 @@ export default async function run(ctx) {
     }
   }
   await mfbe.ui.message(
-    t(ctx, `Разбиение на секции.\n\nОбработка завершена.\nЗаголовков обнаружено: ${stats.titles}.`,
-      `Splitting into sections.\n\nFinished.\nTitles found: ${stats.titles}.`),
+    t(ctx, `Разбиение на секции v1.4.\nАвтор Sclex.\n\nОбработка завершена.\nЗаголовков обнаружено: ${stats.titles}.`,
+      `Splitting into sections v1.4.\nAuthor: Sclex.\n\nFinished.\nTitles found: ${stats.titles}.`),
   );
 }

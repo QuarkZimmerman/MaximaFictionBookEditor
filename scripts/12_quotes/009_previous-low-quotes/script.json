@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous low quotes",
-    "ru": "Переход на пред. лапки"
+    "en": "Go to characters „,“,” v2.8",
+    "ru": "Переход на символы „,“,” v2.8"
   },
   "legacy": {
     "source": "12_Обработка кавычек/009_Переход на пред. лапки.js",

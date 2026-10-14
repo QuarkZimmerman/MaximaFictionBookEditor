@@ -4,6 +4,10 @@
 // block image is a caption candidate. Short candidates that do not end with a sentence mark are
 // marked up at once; for the others the paragraph is selected and the user is asked
 // ("Это подпись" / "Искать дальше" / "Все" / "Закрыть"), as with the dialog's buttons.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт «Разметка подписей к картинкам»
+//автор Sclex
+//сайт скриптов: http://scripts.fictionbook.org
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
@@ -43,7 +47,7 @@ function markup(node, options) {
 export default async function run(ctx) {
   const selection = await mfbe.selection.get();
   const form = await mfbe.ui.form({
-    title: t(ctx, 'Разметка подписей к картинкам', 'Mark up image captions'),
+    title: t(ctx, 'Разметка подписей к картинкам v1.2', 'Mark up image captions v1.2'),
     fields: [
       { kind: 'static', id: 'help', text: t(ctx, 'Как размечать подписи (абзац сразу после картинки):', 'How to mark up a caption (the paragraph right after an image):') },
       { kind: 'checkbox', id: 'strong', label: t(ctx, 'жирный (b)', 'bold (b)'), value: false },

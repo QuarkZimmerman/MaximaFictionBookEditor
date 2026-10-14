@@ -2,6 +2,10 @@
 // "Древнерусский" became a form with a list of the same symbols. The original appended the clicked
 // symbol after the current selection; here the chosen symbol is inserted at the end of the
 // selection (the selected text and its formatting are kept), one symbol per run.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Таблица символов Древнерусского алфавита
+//                                jurgennt™, май 2008 г.
+//                          script engene by Sclex v.1.2
 import { SYMBOLS } from './symbols.js';
 
 export default async function run(ctx) {

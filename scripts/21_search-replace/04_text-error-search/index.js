@@ -1,5 +1,5 @@
-// Converted from 21_Поиск и замена/04_Поиск ошибок текста (…).js (FictionBook Editor 2.7; the
-// full original file name is in script.json → legacy.source), Tier 1. A set of regular
+// Converted from 21_Поиск и замена/04_Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.).js
+// (FictionBook Editor 2.7), Tier 1. A set of regular
 // expressions that catch typical OCR and typing errors in Russian text: misread words ("пего"
 // for "него"), letters mixed with digits or Latin, wrong dashes and quotes, punctuation slips,
 // formatting inside words. Run it
@@ -14,10 +14,16 @@
 //   set.addMacros("<name>", "regexp");                                 // for tagRegExp
 // "keys" is "" (case-sensitive) or "i"; backslashes inside the string literal are doubled;
 // a tag condition like "-title -subtitle" skips paragraphs inside those elements.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Скрипт «Поиск по набору регэкспов»
+//Версия 2.9
+//Автор Sclex
 import { createRegExpSet, searchWithSet } from './regexp-search.js';
 
 function buildSet() {
   const set = createRegExpSet();
+
+  // -------------начало блока TaKir - регэкспы:---------------
 
   // set.tagRegExp("(?<![а-яё])[бвгджзйклмнпрстфхцчшщъ]{2}(?![а-яё])","","Найдено: предлог из 2 согласных типа ст вместо от.");
   set.tagRegExp("(?<![а-яё])[бвгджзйклмнпрстфхцчшщъ]{3}(?![а-яё])","","Найдено: предлог из 3 согласных типа чтб вместо что.");
@@ -226,6 +232,8 @@ function buildSet() {
   set.tagRegExp("[а-яёa-z]<sub>[а-яёa-z]+?</sub>|<sub>[а-яёa-z]+?</sub>[а-яёa-z]","i","Найдено: нижний индекс в слове.");
   set.tagRegExp("<emphasis><strong>[а-яёa-z]+?</strong></emphasis>[а-яёa-z]|[а-яёa-z]<emphasis><strong>[а-яёa-z]+?</strong></emphasis>","","Найдено: жирность и курсивность в слове.");
   set.tagRegExp("<strong><emphasis>[а-яёa-z]+?</emphasis></strong>[а-яёa-z]|[а-яёa-z]<strong><emphasis>[а-яёa-z]+?</emphasis></strong>","","Найдено: курсивность и жирность в слове.");
+
+  // -------------конец блока TaKir - регэкспы:---------------
 
   return set;
 }

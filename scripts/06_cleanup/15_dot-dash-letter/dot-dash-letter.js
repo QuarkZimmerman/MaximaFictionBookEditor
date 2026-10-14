@@ -115,7 +115,7 @@ export async function dotDashLetter(ctx, { withEllipsis }) {
       options.push({ value: 'letter', label: L(`Изменить регистр буквы (${letter} → ${kind === 'comma' ? letter.toLowerCase() : letter.toUpperCase()})`, `Change the letter's case (${letter} → ${kind === 'comma' ? letter.toLowerCase() : letter.toUpperCase()})`) });
       options.push({ value: 'go', label: L('Перейти без замены (и закончить)', 'Go there without changes (and stop)') });
       const answer = await mfbe.ui.form({
-        title: L('Точка, тире, буква', 'Dot, dash, letter'),
+        title: L('Точка, тире, буква v1.3 (скрипт Sclex’а)', 'Dot, dash, letter v1.3 (script by Sclex)'),
         width: 560,
         fields: [
           { kind: 'static', id: 'ctx', text: shown },

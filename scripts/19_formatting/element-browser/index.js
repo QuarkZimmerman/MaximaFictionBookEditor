@@ -20,6 +20,10 @@
 //    become verses;
 //  - subtitles nested in cites are not turned into titles (reported, as the original did);
 //  - edits the FB2 schema refuses are skipped and reported instead of producing invalid XML.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт "Обзор элементов"
+//автор Sclex
+//сайт скриптов: http://scripts.fictionbook.org
 
 const INLINE_KINDS = ['emphasis', 'strong', 'sup', 'sub', 'strikethrough'];
 const TEXT_BLOCKS = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
@@ -444,7 +448,7 @@ export default async function run(ctx) {
   for (;;) {
     if (!kind) {
       const choice = await mfbe.ui.form({
-        title: t(ctx, 'Обзор элементов', 'Element browser'),
+        title: t(ctx, 'Обзор элементов v1.8 (скрипт Sclex’а)', 'Element browser v1.8 (script by Sclex)'),
         width: 420,
         fields: [
           {
@@ -461,7 +465,7 @@ export default async function run(ctx) {
     const elements = await scan(kind);
     const actions = actionsFor(ctx, kind);
     const values = await mfbe.ui.form({
-      title: t(ctx, `Обзор элементов: ${KIND_LABELS[kind][1]}`, `Element browser: ${KIND_LABELS[kind][0]}`),
+      title: t(ctx, `Обзор элементов v1.8 (скрипт Sclex’а): ${KIND_LABELS[kind][1]}`, `Element browser v1.8 (script by Sclex): ${KIND_LABELS[kind][0]}`),
       width: 560,
       fields: [
         { kind: 'static', id: 'count', text: t(ctx, `Всего: ${elements.length}`, `In all: ${elements.length}`) },

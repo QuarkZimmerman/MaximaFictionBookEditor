@@ -5,6 +5,10 @@
 // titles/subtitles to list (the dialog's five checkboxes), (2) tick the elements to change and
 // pick the operation - upper or lower case (the dialog's context menu) plus the two usual title
 // styles, Sentence case and Capitalised Words.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт "Регистр заголовков и подзаголовков"
+//автор Sclex
+//сайт скриптов: http://scripts.fictionbook.org
 import { LETTERS, capitalize, t } from './case-lib.js';
 
 const WORDS = new RegExp(`[${LETTERS}]+`, 'gi');
@@ -88,7 +92,7 @@ function applyCase(block, operation) {
 
 export default async function run(ctx) {
   const filters = await mfbe.ui.form({
-    title: t(ctx, 'Регистр заголовков и подзаголовков', 'Case of titles and subtitles'),
+    title: t(ctx, 'Регистр заголовков и подзаголовков v1.6 (скрипт Sclex’а)', 'Case of titles and subtitles v1.6 (script by Sclex)'),
     fields: [
       { kind: 'static', id: 'help', text: t(ctx, 'Вначале выберите, что показывать.', 'First choose what to list.') },
       { kind: 'checkbox', id: 'bodySectionTitles', label: t(ctx, 'заголовки body и section', 'body and section titles'), value: true },
@@ -113,7 +117,7 @@ export default async function run(ctx) {
     return { value: String(node.attrs.nodeId), label: `${kind === 'title' ? 'T' : 'S'}: ${label}` };
   });
   const choice = await mfbe.ui.form({
-    title: t(ctx, 'Регистр заголовков и подзаголовков', 'Case of titles and subtitles'),
+    title: t(ctx, 'Регистр заголовков и подзаголовков v1.6 (скрипт Sclex’а)', 'Case of titles and subtitles v1.6 (script by Sclex)'),
     width: 640,
     fields: [
       {

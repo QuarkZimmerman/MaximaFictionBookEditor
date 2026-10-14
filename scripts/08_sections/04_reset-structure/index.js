@@ -6,6 +6,8 @@
 // (run the script once more to flatten the next level), exactly like the original.
 // A header-only section gets an <empty-line/> so that it stays valid FB2 (the original wrote
 // sections holding only a title).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//version 1.0
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

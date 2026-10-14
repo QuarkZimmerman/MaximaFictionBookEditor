@@ -1,6 +1,10 @@
 // Converted from 18_Мелочи редактирования/05_Вставить пустую строку за стихом, эпиграфом или цитатой.js
 // (FictionBook Editor 2.7), Tier 2. Inserts an empty line after the poem, epigraph or cite that
 // contains the end of the selection (the original pasted an empty <P>, saved as <empty-line/>).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Скрипт "Вставить пустую строку за стихом, эпиграфом или цитатой"
+// Версия 1.0
+// Автор Sclex
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

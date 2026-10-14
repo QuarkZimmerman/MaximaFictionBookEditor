@@ -7,6 +7,11 @@
 // end (backward); the "paragraph" variants started the search from the next/previous block
 // instead of the caret, i.e. they jump to the next paragraph containing the mark. Here the
 // formatting lives in text marks, so an "element" is a maximal run of text carrying the mark.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Скрипт набора «Поиск форматирования»
+//Автор Sclex
+//Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412
+//Мой сайт про мои скрипты: http://scripts.fictionbook.org
 
 const TEXT_BLOCKS = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 

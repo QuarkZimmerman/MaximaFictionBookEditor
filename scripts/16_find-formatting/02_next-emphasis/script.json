@@ -14,8 +14,8 @@
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to next italics",
-    "ru": "Переход на следующий курсив"
+    "en": "Go to next italics v1.0.",
+    "ru": "Переход на следующий курсив v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/02_Переход на следующий курсив.js",

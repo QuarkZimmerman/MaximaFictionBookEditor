@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Remove poem, cite or epigraph formatting",
-    "ru": "Снятие форматирования стихом, цитатой или эпиграфом"
+    "en": "Remove poem, cite or epigraph formatting (v1.3)",
+    "ru": "снятие форматирования стихом, цитатой или эпиграфом (v1.3)"
   },
   "legacy": {
     "source": "18_Мелочи редактирования/03_Снятие форматирования стихом, цитатой или эпиграфом.js",

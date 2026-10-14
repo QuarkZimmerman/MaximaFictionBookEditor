@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous paragraph with code",
-    "ru": "Переход на предыдущий абзац, содержащий код"
+    "en": "Go to previous paragraph with code v1.0.",
+    "ru": "Переход на предыдущий абзац, содержащий код v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/23_Переход на предыдущий абзац, содержащий код.js",

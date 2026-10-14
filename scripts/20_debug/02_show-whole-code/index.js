@@ -3,6 +3,13 @@
 // container of the caret. Scripts now see the book as the JSON document model, so the complete
 // JSON of the nearest container (section, title, poem, cite, …) is shown in a form with a
 // multi-line box from which it can be copied.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//======================================
+// Отображение HTML кода текущей секции (only for script debugging)
+// THX to mkb (Konstantin Matveev) for ingenious idea
+//======================================
+// Notice of the original page Scripts/debug.htm (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// <meta name="author" content="Jurgen">
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

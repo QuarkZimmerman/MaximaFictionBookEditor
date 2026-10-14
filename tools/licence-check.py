@@ -2,11 +2,13 @@
 """Third-party licence inventory and policy check (T156, Constitution VI).
 
 Collects every component that ships with the editor or is needed to build it, resolves its
-licence and the location of the full licence text, applies the project policy (MIT-compatible
-permissive or weak-copyleft licences only; GPL/AGPL and unknown licences fail) and writes
-``THIRD-PARTY-NOTICES.md``. The notices list component names, versions, licence identifiers
-and the location of the licence texts only - no copyright-holder names are copied (the texts
-stay with the files they belong to).
+licence and the location of the full licence text, applies the project policy (the editor is
+GPL-3.0-only: every distributed component must carry a licence that may be part of a GPL-3.0
+work; licences that may not, and unknown licences, fail; a multi-licensed component is
+recorded under a compatible option) and writes ``THIRD-PARTY-NOTICES.md``. The notices list
+component names, versions, licence identifiers and the location of the licence texts; the
+texts themselves, with the copyright notices they carry, are exported for the packages with
+``--export-texts``.
 
 Sources (all relative to the repository root):
 
@@ -24,8 +26,9 @@ Sources (all relative to the repository root):
   is verified when present.
 * ``resources/README.md`` (table of bundled data files), ``resources/schema/SOURCE.txt`` and
   ``resources/dictionaries/SOURCES.txt`` (versions): FB2 schema (BSD-2-Clause), Hunspell
-  dictionaries (SCOWL / BSD-style), material derived from the original editor (project
-  licence) and the bundled user scripts (project licence).
+  dictionaries (SCOWL / BSD-style), material derived from the original editor and the
+  bundled user scripts converted from it (GPL-3.0-only, the original's licence; its notices
+  are in ``CONTRIBUTORS.txt``).
 
 Usage::
 
@@ -33,7 +36,8 @@ Usage::
     tools/licence-check.py --check              # CI: verify policy and that the committed
                                                 #      notices are up to date (no write)
     tools/licence-check.py --export-texts DIR   # copy every licence text into DIR
-                                                #      (<component>.txt) for packaging
+                                                #      (<component>.txt) for packaging; the
+                                                #      notices file is not rewritten
     tools/licence-check.py --json               # machine-readable inventory on stdout
 
 Exit codes: 0 ok, 1 policy violation / missing licence text / stale notices, 2 usage error.
@@ -50,6 +54,7 @@ same on every platform (pinned vcpkg baseline).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -60,9 +65,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 NOTICES = REPO / "THIRD-PARTY-NOTICES.md"
 
-# Licence identifiers acceptable for distribution (Constitution VI: permissive or weak
-# copyleft, compatible with MIT). Weak-copyleft entries carry a note that is printed next to
-# the component.
+# Licence identifiers that may be distributed as part of a GPL-3.0 work (Constitution VI).
+# Copyleft entries carry a note that is printed next to the component.
 ALLOWED: dict[str, str] = {
     "MIT": "",
     "MIT-0": "",
@@ -83,14 +87,29 @@ ALLOWED: dict[str, str] = {
     "CC0-1.0": "",
     "public-domain": "",
     "SCOWL": "",
-    "MPL-1.1": "weak copyleft: modified files of the component must stay under the MPL",
-    "MPL-2.0": "weak copyleft: modified files of the component must stay under the MPL",
-    "LGPL-2.1-only": "weak copyleft: only acceptable for build-time tooling or dynamic linking",
-    "LGPL-2.1-or-later": "weak copyleft: only acceptable for build-time tooling or dynamic linking",
-    "LGPL-3.0-only": "weak copyleft: only acceptable for build-time tooling or dynamic linking",
-    "LGPL-3.0-or-later": "weak copyleft: only acceptable for build-time tooling or dynamic linking",
+    "MPL-2.0": "weak copyleft: compatible with GPL-3.0 through its secondary-licence clause",
+    "LGPL-2.1-only": "weak copyleft: compatible with GPL-3.0 (LGPL-2.1 section 3)",
+    "LGPL-2.1-or-later": "weak copyleft: compatible with GPL-3.0",
+    "LGPL-3.0-only": "weak copyleft: compatible with GPL-3.0",
+    "LGPL-3.0-or-later": "weak copyleft: compatible with GPL-3.0",
+    "GPL-2.0-or-later": "copyleft: used under GPL-3.0",
+    "GPL-3.0-only": "copyleft: the project's own licence",
+    "GPL-3.0-or-later": "copyleft: used under GPL-3.0",
 }
-FORBIDDEN_RE = re.compile(r"\b(A?GPL)-\d", re.IGNORECASE)
+# Licences that may not be part of a GPL-3.0 work (reported with a specific message; anything
+# else outside ALLOWED is reported as "not in the allowed list").
+INCOMPATIBLE = {"GPL-1.0-only", "GPL-2.0-only", "GPL-2.0", "MPL-1.0", "MPL-1.1", "EPL-1.0",
+                "EPL-2.0", "CDDL-1.0", "CDDL-1.1", "AGPL-1.0", "AGPL-3.0-only",
+                "AGPL-3.0-or-later", "AGPL", "GPL", "LGPL", "Proprietary"}
+
+# The project's own licence (Constitution VI) and the SHA-256 of the FSF text of the GNU GPL
+# version 3 (https://www.gnu.org/licenses/gpl-3.0.txt) that LICENSE must hold.
+PROJECT_LICENCE = "GPL-3.0-only"
+GPL3_TEXT_SHA256 = "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+NOTICE_FILES = ("CONTRIBUTORS.txt", "gpl-3.0.ru.txt", "gpl-3.0.ua.txt")
+# A statement that names MIT as a licence (the editor's own licence statements must name
+# GPL-3.0; AppStream's metadata_license licenses the metadata file itself and is exempt).
+MIT_STATEMENT_RE = re.compile(r"(?i)\blicen[cs]e\b[^\n]{0,24}\bMIT\b|\bMIT\b[^\n]{0,12}\blicen[cs]e\b")
 
 # Ports that are installed for the build only and never linked into or shipped with the editor.
 BUILD_ONLY_PORTS = {
@@ -189,20 +208,24 @@ def split_expression(expression: str) -> list[str]:
 
 def choose_licence(declared: str | None, detected: list[str]) -> tuple[str, str]:
     """Returns (identifier for the notices, note). Prefers the port's declaration; for OR
-    expressions with a forbidden alternative the permissive option is chosen explicitly."""
+    expressions the most permissive option that may be part of a GPL-3.0 work is chosen
+    explicitly (Hunspell's MPL-1.1/GPL/LGPL tri-licence: LGPL-2.1-or-later, because MPL-1.1
+    alone is not compatible with GPL-3.0)."""
     expression = (declared or "").strip()
     if not expression or expression.startswith("LicenseRef-vcpkg-null"):
         expression = " AND ".join(detected)
     if not expression:
         return "unknown", ""
     if "MPL-1.1" in expression and "GPL" in expression:
-        return "MPL-1.1", "MPL-1.1/GPL/LGPL tri-licence (MPL used)"
+        return ("LGPL-2.1-or-later",
+                "MPL-1.1/GPL-2.0-or-later/LGPL-2.1-or-later tri-licence (LGPL-2.1-or-later used; "
+                "MPL-1.1 alone is not compatible with GPL-3.0)")
     if " OR " in expression:
         options = split_expression(expression)
-        permissive = [o for o in options if o in ALLOWED and not ALLOWED[o]]
-        if permissive:
-            others = " / ".join(o for o in options if o != permissive[0])
-            return permissive[0], f"dual licence ({permissive[0]} chosen; alternative: {others})"
+        compatible = sorted((o for o in options if o in ALLOWED), key=lambda o: bool(ALLOWED[o]))
+        if compatible:
+            others = " / ".join(o for o in options if o != compatible[0])
+            return compatible[0], f"dual licence ({compatible[0]} chosen; alternative: {others})"
     # libjpeg-turbo: the port declares the TurboJPEG BSD licence; the libjpeg API code keeps
     # the IJG licence (both in the same copyright file).
     if "IJG" in detected and "IJG" not in expression:
@@ -221,8 +244,8 @@ def policy_problems(component: Component) -> list[str]:
         return problems
     for identifier in split_expression(component.licence):
         identifier = identifier.strip()
-        if FORBIDDEN_RE.search(identifier) or identifier in {"GPL", "AGPL"}:
-            problems.append(f"forbidden licence {identifier}")
+        if identifier in INCOMPATIBLE:
+            problems.append(f"licence {identifier} may not be part of a GPL-3.0 work")
             continue
         if identifier not in ALLOWED:
             problems.append(f"licence {identifier} is not in the allowed list")
@@ -481,7 +504,8 @@ def collect_cef(problems: list[str]) -> list[Component]:
         licence="BSD-3-Clause",
         text=credits_text,
         homepage="https://www.chromium.org/",
-        note="the Chromium third-party components keep their own permissive licences, listed in CREDITS.html",
+        note="the Chromium third-party components keep their own licences (permissive, LGPL and "
+             "MPL; GPL texts only as alternatives of multi-licensed components), listed in CREDITS.html",
     )
     for distribution in distributions:
         licence_file = distribution / "LICENSE.txt"
@@ -570,17 +594,23 @@ def collect_data(problems: list[str]) -> list[Component]:
         "Material derived from the original FictionBook Editor 2.7 (genre lists, symbols, blank "
         "template, icons) and the converted bundled scripts",
         "FBE 2.7",
-        "MIT",
+        "GPL-3.0-only",
         REPO / "LICENSE",
-        "project licence, by permission of the original editor's owner; installed as "
-        "share/doc/mfbe/LICENSE",
+        "the original editor's licence and the project's; its copyright notices and contributor "
+        "list are in CONTRIBUTORS.txt, the scripts keep their authors' notices; installed as "
+        "share/doc/mfbe/LICENSE and CONTRIBUTORS.txt",
     )
+    contributors = REPO / "CONTRIBUTORS.txt"
+    if contributors.is_file():
+        fbe.text_paths.append(contributors)
+    else:
+        fbe.problems.append("CONTRIBUTORS.txt missing")
     components = [schema, en_us, ru_ru, fbe]
 
     # Every README row with a licence must be covered by one of the components above.
     covered = {
-        "BSD 2-clause": schema, "SCOWL": en_us, "BSD-style": ru_ru, "MIT (project)": fbe,
-        "project licence": fbe,
+        "BSD 2-clause": schema, "SCOWL": en_us, "BSD-style": ru_ru,
+        "GPL-3.0-only (original editor)": fbe, "project licence": fbe,
     }
     for path_cell, licence_cell in rows:
         if licence_cell in ("-", ""):
@@ -624,14 +654,17 @@ def render(components: list[Component], vcpkg_available: bool) -> str:
     out.append("# Third-party notices")
     out.append("")
     out.append("Generated by `tools/licence-check.py` - do not edit by hand. Maxima Fiction Book Editor")
-    out.append("is distributed under the MIT licence (`LICENSE`). The components below ship with the")
-    out.append("editor or are embedded in its binaries; each keeps its own licence, which is permissive")
-    out.append("or weak copyleft and compatible with MIT distribution (project policy: no GPL/AGPL code,")
-    out.append("no proprietary engines). This file names components, versions and licence identifiers")
-    out.append("only; the complete licence texts, including the copyright notices they require, are")
-    out.append("the files listed in the \"Full text\" column. They are kept with the component (the")
-    out.append("bundled data files install their texts next to the data) and can be exported as one")
-    out.append("folder for packaging with `python3 tools/licence-check.py --export-texts <dir>`.")
+    out.append("is distributed under the GNU General Public License version 3 only (`LICENSE`), the")
+    out.append("licence of FictionBook Editor 2.7, whose material it includes; the original's copyright")
+    out.append("notices and contributor list are in `CONTRIBUTORS.txt`. The components below ship with")
+    out.append("the editor or are embedded in its binaries; each keeps its own licence, and every one of")
+    out.append("them may be distributed as part of a GPL-3.0 work (project policy: licences that may not,")
+    out.append("and unknown licences, fail the check; a multi-licensed component is listed under a")
+    out.append("compatible option). This file names components, versions and licence identifiers; the")
+    out.append("complete licence texts, including the copyright notices they require, are the files")
+    out.append("listed in the \"Full text\" column, exported with")
+    out.append("`python3 tools/licence-check.py --export-texts <dir>` and installed with the packages")
+    out.append("under `share/doc/mfbe/licenses/`.")
     out.append("Upstream locations are recorded in the vcpkg port metadata (`vcpkg.spdx.json` next to")
     out.append("each copyright file) and in the npm registry; they are not repeated here.")
     out.append("")
@@ -644,7 +677,7 @@ def render(components: list[Component], vcpkg_available: bool) -> str:
     out.append("")
     out.append("Paths of the licence texts are those of the vcpkg installed tree of a build; the version")
     out.append("set is pinned by `builtin-baseline` in `vcpkg.json`, so every platform builds the same")
-    out.append("versions. The Hunspell tri-licence is exercised under its MPL-1.1 option. libxml2 is built")
+    out.append("versions. The Hunspell tri-licence is used under its LGPL-2.1-or-later option. libxml2 is built")
     out.append("without its iconv feature (the editor carries its own encoding tables), so GNU libiconv is")
     out.append("never linked.")
     out.append("")
@@ -720,6 +753,52 @@ def check_committed_native_rows(problems: list[str]) -> None:
 
 
 # --------------------------------------------------------------------------------------------
+# The project's own licence statements
+
+
+def check_project_licence(problems: list[str]) -> None:
+    """LICENSE is the GPL-3.0 text, the original's notices ship next to it, and every licence
+    statement of the editor (package metadata, About dialog, documentation) names GPL-3.0."""
+    licence = REPO / "LICENSE"
+    if not licence.is_file() or hashlib.sha256(licence.read_bytes()).hexdigest() != GPL3_TEXT_SHA256:
+        problems.append("LICENSE is not the FSF text of the GNU General Public License version 3")
+    for name in NOTICE_FILES:
+        if not (REPO / name).is_file():
+            problems.append(f"{name} is missing")
+
+    package = json.loads((REPO / "ui" / "package.json").read_text(encoding="utf-8"))
+    if package.get("license") != PROJECT_LICENCE:
+        problems.append(f"ui/package.json: license is not {PROJECT_LICENCE}")
+    lock = json.loads((REPO / "ui" / "package-lock.json").read_text(encoding="utf-8"))
+    if lock.get("packages", {}).get("", {}).get("license") != PROJECT_LICENCE:
+        problems.append(f"ui/package-lock.json: the root package's license is not {PROJECT_LICENCE}")
+    for relative, needle in (
+        ("packaging/CPackConfig.cmake", f'CPACK_RPM_PACKAGE_LICENSE "{PROJECT_LICENCE}"'),
+        ("packaging/appimage/mfbe.appdata.xml", f"<project_license>{PROJECT_LICENCE}</project_license>"),
+    ):
+        if needle not in (REPO / relative).read_text(encoding="utf-8"):
+            problems.append(f"{relative}: the editor's licence is not given as {PROJECT_LICENCE}")
+    for lang in ("en", "ru"):
+        about = json.loads((REPO / "ui" / "src" / "i18n" / f"about.{lang}.json").read_text(encoding="utf-8"))
+        if PROJECT_LICENCE not in about.get("dialog", {}).get("about", {}).get("licence", ""):
+            problems.append(f"ui/src/i18n/about.{lang}.json: the About dialog does not name {PROJECT_LICENCE}")
+
+    statements = [REPO / "README.md", REPO / "AGENTS.md"]  # CHANGELOG.md is history
+    statements += sorted((REPO / "docs").rglob("*.md"))
+    statements += sorted(p for p in (REPO / "packaging").rglob("*") if p.is_file())
+    statements += sorted((REPO / "ui" / "src" / "i18n").glob("*.json"))
+    for path in statements:
+        if not path.is_file():
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if "metadata_license" in line:
+                continue
+            if MIT_STATEMENT_RE.search(line):
+                problems.append(f"{path.relative_to(REPO).as_posix()}:{number}: names MIT as a licence "
+                                f"(the editor is {PROJECT_LICENCE}): {line.strip()[:90]}")
+
+
+# --------------------------------------------------------------------------------------------
 
 
 def export_texts(components: list[Component], target: Path) -> int:
@@ -754,6 +833,7 @@ def main(argv: list[str]) -> int:
     components += collect_npm(problems)
     components += collect_data(problems)
 
+    check_project_licence(problems)
     for c in components:
         c.problems.extend(policy_problems(c))
         for problem in c.problems:
@@ -797,6 +877,8 @@ def main(argv: list[str]) -> int:
             if not output.is_file() or output.read_text(encoding="utf-8") != rendered:
                 problems.append(f"{output.relative_to(REPO) if output.is_relative_to(REPO) else output} is out of date; "
                                 "run tools/licence-check.py and commit the result")
+    elif args.export_texts:
+        pass  # export-only run (the packaging build): the committed notices are left alone
     else:
         if not vcpkg_available:
             problems.append("cannot regenerate the notices without a vcpkg installed tree (build the core first "

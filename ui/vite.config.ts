@@ -32,6 +32,11 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // The About dialog bundles the original's contributor notice from the repository root
+    // (`?raw` imports are checked by folder, so the folder is allowed, as for a workspace).
+    fs: {
+      allow: [fileURLToPath(new URL('..', import.meta.url))],
+    },
     proxy: {
       '/rpc': { target: core, ws: true },
       '/binary': { target: core },

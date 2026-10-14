@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous strikethrough",
-    "ru": "Переход на предыдущее зачеркивание"
+    "en": "Go to previous strikethrough v1.0.",
+    "ru": "Переход на предыдущее зачеркивание v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/17_Переход на предыдущее зачеркивание.js",

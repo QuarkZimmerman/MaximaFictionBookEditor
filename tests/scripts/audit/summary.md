@@ -35,8 +35,8 @@ Source: `/root/maxfbeditor/reference/fictionbookeditor/FBE/files` — 147 script
 |--------|------|--------------------|------|---------|-------|
 | `01_Регистр/01_Верхний регистр.js` | 1 | Upper case | MsgBox, BeginUndoUnit, EndUndoUnit, document.selection, TextRange, getElementById, removeChild |  |  |
 | `01_Регистр/02_Нижний регистр.js` | 1 | Lower case | MsgBox, BeginUndoUnit, EndUndoUnit, document.selection, TextRange, getElementById, removeChild |  |  |
-| `01_Регистр/03_Предложение.js` | 1 | Sentence case | MsgBox, BeginUndoUnit, EndUndoUnit, document.selection, TextRange, RegExp |  |  |
-| `01_Регистр/04_Предложение.js` | 1 | Sentence case | BeginUndoUnit, EndUndoUnit, document.selection, TextRange, getElementById, removeChild, RegExp |  | id suffixed to stay unique |
+| `01_Регистр/03_Предложение_alxs.js` | 1 | Predlozhenie_alxs *(draft)* | MsgBox, BeginUndoUnit, EndUndoUnit, document.selection, TextRange, RegExp |  |  |
+| `01_Регистр/04_Предложение.js` | 1 | Sentence case | BeginUndoUnit, EndUndoUnit, document.selection, TextRange, getElementById, removeChild, RegExp |  |  |
 | `01_Регистр/05_Капитализация выделения.js` | 1 | Capitalisation of the selection | MsgBox, BeginUndoUnit, EndUndoUnit, document.selection, TextRange, getElementById, removeChild, RegExp |  |  |
 | `01_Регистр/06_Капитализация первого слова.js` | 1 | Capitalisation of the first word | MsgBox, BeginUndoUnit, EndUndoUnit, document.selection, TextRange, getElementById, removeChild, RegExp |  |  |
 | `01_Регистр/07_Циклическое изменение регистра.js` | 1 | Cyclic change of case | MsgBox, BeginUndoUnit, EndUndoUnit, document.selection, TextRange, getElementById, removeChild, RegExp |  |  |
@@ -266,7 +266,7 @@ Source: `/root/maxfbeditor/reference/fictionbookeditor/FBE/files` — 147 script
 
 | Source | Tier | Draft English name | APIs | Dialogs | Notes |
 |--------|------|--------------------|------|---------|-------|
-| `21_Поиск и замена/04_Поиск ошибок текста (набор регэкспов).js` | 1 | Search of errors of the text (nabor regekspov) *(draft)* | MsgBox, alert, GetNBSP, SetStatusBarText, document.selection, TextRange, getElementById, innerHTML, className, RegExp |  |  |
+| `21_Поиск и замена/04_Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.).js` | 1 | Search of errors of the text (regexps by wotti, Roxana, JonVic and dr.) *(draft)* | MsgBox, alert, GetNBSP, SetStatusBarText, document.selection, TextRange, getElementById, innerHTML, className, RegExp |  |  |
 | `21_Поиск и замена/10_Поиск по набору регэкспов (заготовка).js` | 1 | Search po a set of regular expressions (template) *(draft)* | MsgBox, alert, GetNBSP, SetStatusBarText, document.selection, TextRange, getElementById, innerHTML, className, RegExp |  |  |
 
 ### `(root)`

@@ -7,11 +7,15 @@
       "engine": "Browser engine",
       "apiVersion": "API version",
       "repository": "Source code and releases:",
-      "licence": "Licence: MIT License",
-      "licenceNote": "Free and open-source software; the full licence text is in the LICENSE file of the installation.",
+      "licence": "Licence: GNU General Public License version 3 (GPL-3.0-only)",
       "logFolder": "Diagnostics log folder:",
       "logFolderUnknown": "unknown (core not connected)",
-      "dictionaryLicences": "Third-party licence texts stay with the bundled data files (dictionaries, genre lists)."
+      "copyright": "Copyright © 2026 Quark Zimmerman",
+      "basedOn": "A modified re-implementation of FictionBook Editor 2.7 (2026) that includes its scripts, icons, genre and symbol lists and blank document.",
+      "gplNotice": "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3 as published by the Free Software Foundation. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+      "licenceWhere": "The licence text is in the LICENSE file of the installation and at",
+      "thirdParty": "Third-party components keep their own licences, listed in THIRD-PARTY-NOTICES.md of the installation.",
+      "contributors": "FictionBook Editor 2.7: licence, copyright and contributors"
     }
   }
 }

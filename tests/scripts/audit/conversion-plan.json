@@ -75,16 +75,16 @@
       "notes": []
     },
     {
-      "source": "01_Регистр/03_Предложение.js",
+      "source": "01_Регистр/03_Предложение_alxs.js",
       "group": "01_Регистр",
       "group_order": 1,
       "group_name_ru": "Регистр",
       "group_name_en": "Case",
       "order": 3,
-      "name_ru": "Предложение",
-      "name_en": "Sentence case",
-      "name_en_draft": false,
-      "id": "fbe.registr.predlozhenie",
+      "name_ru": "Предложение_alxs",
+      "name_en": "Predlozhenie_alxs",
+      "name_en_draft": true,
+      "id": "fbe.registr.predlozhenie-alxs",
       "kind": "menu",
       "tier": 1,
       "tier_reason": "text/regex over paragraphs with MsgBox/InputBox/undo units -> façade port",
@@ -98,12 +98,12 @@
       ],
       "structure": [],
       "html_dialogs": [],
-      "icon": "Scripts/01_Регистр/03_Предложение.ico",
+      "icon": "Scripts/01_Регистр/03_Предложение_alxs.ico",
       "encoding": "utf-8",
       "lines": 27,
       "bytes": 1000,
       "has_run": true,
-      "target": "01_Регистр/03_Предложение",
+      "target": "01_Регистр/03_Предложение_alxs",
       "notes": []
     },
     {
@@ -116,7 +116,7 @@
       "name_ru": "Предложение",
       "name_en": "Sentence case",
       "name_en_draft": false,
-      "id": "fbe.registr.predlozhenie-2",
+      "id": "fbe.registr.predlozhenie",
       "kind": "menu",
       "tier": 1,
       "tier_reason": "text/regex over paragraphs with MsgBox/InputBox/undo units -> façade port",
@@ -137,9 +137,7 @@
       "bytes": 3993,
       "has_run": true,
       "target": "01_Регистр/04_Предложение",
-      "notes": [
-        "id suffixed to stay unique"
-      ]
+      "notes": []
     },
     {
       "source": "01_Регистр/05_Капитализация выделения.js",
@@ -5705,16 +5703,16 @@
       "notes": []
     },
     {
-      "source": "21_Поиск и замена/04_Поиск ошибок текста (набор регэкспов).js",
+      "source": "21_Поиск и замена/04_Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.).js",
       "group": "21_Поиск и замена",
       "group_order": 21,
       "group_name_ru": "Поиск и замена",
       "group_name_en": "Search and replace",
       "order": 4,
-      "name_ru": "Поиск ошибок текста (набор регэкспов)",
-      "name_en": "Search of errors of the text (nabor regekspov)",
+      "name_ru": "Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.)",
+      "name_en": "Search of errors of the text (regexps by wotti, Roxana, JonVic and dr.)",
       "name_en_draft": true,
-      "id": "fbe.poisk-i-zamena.poisk-oshibok-teksta-nabor-regekspov",
+      "id": "fbe.poisk-i-zamena.poisk-oshibok-teksta-regekspy-ot-wotti-roxana-jonvic-i-dr",
       "kind": "menu",
       "tier": 1,
       "tier_reason": "text/regex over paragraphs with MsgBox/InputBox/undo units -> façade port",
@@ -5734,12 +5732,12 @@
         "subtitle"
       ],
       "html_dialogs": [],
-      "icon": "Scripts/21_Поиск и замена/04_Поиск ошибок текста (набор регэкспов).ico",
+      "icon": "Scripts/21_Поиск и замена/04_Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.).ico",
       "encoding": "utf-8-sig",
       "lines": 681,
       "bytes": 45031,
       "has_run": true,
-      "target": "21_Поиск и замена/04_Поиск ошибок текста (набор регэкспов)",
+      "target": "21_Поиск и замена/04_Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.)",
       "notes": []
     },
     {

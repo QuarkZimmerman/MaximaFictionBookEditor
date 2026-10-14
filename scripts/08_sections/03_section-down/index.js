@@ -3,6 +3,9 @@
 // annotation; everything after them is wrapped into one new nested section.
 // The original happily produced an empty nested section when there was nothing to wrap; here
 // that case is reported instead, because an empty section is not valid FB2.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Опустить секцию
+//версия 1.0
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

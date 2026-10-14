@@ -2,6 +2,12 @@
 // "Sentence" per text run: inside the selection every run of text with the same formatting gets
 // its first letter upper-cased and the rest lower-cased ("Hello <b>WORLD</b>" -> "Hello <b>World</b>").
 // Runs without a letter are left alone (the original stopped there, leaving its markers behind).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт смены регистра by Sclex
+//v1.1
+//вид обработки, которой подвергается выделенный текст
+// 1 - перевод в верний регистр
+// 2 - перевод в верний регистр
 import { NO_SELECTION, selectedBlocks, t, transformSelection } from './case-lib.js';
 
 // The original class `[A-zА-яЁё]` (Latin and basic Cyrillic letters).

@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "Maxima Fiction Book Editor - web user interface (served by mfbe-core)",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "type": "module",
   "engines": {
     "node": ">=24"

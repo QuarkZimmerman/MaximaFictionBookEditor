@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to next paragraph with superscript",
-    "ru": "Переход на следующий абзац с верхним индексом"
+    "en": "Go to next paragraph with superscript v1.0.",
+    "ru": "Переход на следующий абзац с верхним индексом v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/12_Переход на следующий абзац с верхним индексом.js",
