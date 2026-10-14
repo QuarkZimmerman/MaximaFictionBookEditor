@@ -29,7 +29,6 @@
         "genreIssues_one": "{{count}} problem in user genre files (see the log).",
         "genreIssues_other": "{{count}} problems in user genre files (see the log).",
         "nbspChars": {
-          "degree": "Degree sign (°)",
           "square": "White square (□)",
           "smallSquare": "Small white square (▫)",
           "bullet": "White bullet (◦)",

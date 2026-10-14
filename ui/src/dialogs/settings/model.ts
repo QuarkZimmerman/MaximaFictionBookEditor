@@ -71,9 +71,8 @@ export const SOURCE_FONT_SUGGESTIONS: readonly string[] = [
   'Source Code Pro',
 ];
 
-/** Non-breaking space display characters (the original offered °, □, ▫, ◦ and a plain space). */
+/** Non-breaking space display characters: the original's □, ▫, ◦ and the plain space (default). */
 export const NBSP_DISPLAY_CHOICES: readonly { value: string; labelKey: string }[] = [
-  { value: '\u00B0', labelKey: 'dialog.settings.other.nbspChars.degree' },
   { value: '\u25A1', labelKey: 'dialog.settings.other.nbspChars.square' },
   { value: '\u25AB', labelKey: 'dialog.settings.other.nbspChars.smallSquare' },
   { value: '\u25E6', labelKey: 'dialog.settings.other.nbspChars.bullet' },

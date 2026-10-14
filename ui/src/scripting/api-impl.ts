@@ -25,6 +25,7 @@ import {
   findNodeById,
   nodeTypeFor,
 } from '@/editor/schema';
+import { DEFAULT_NBSP_DISPLAY_CHAR } from '@/editor/plugins/nbsp';
 import { nodeToModel } from '@/editor/toModel';
 import { allMatches, buildSearchRegExp, expandReplacement } from '@/features/search/replacement';
 import type { Description, Document } from '@/model/document';
@@ -1006,7 +1007,7 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     settings: async (): Promise<ScriptSettings> => {
       const settings = store.getState().settings;
       return {
-        nbspDisplayChar: settings?.other.nbspDisplayChar ?? '\u00B0',
+        nbspDisplayChar: settings?.other.nbspDisplayChar ?? DEFAULT_NBSP_DISPLAY_CHAR,
         pasteImageFormat: settings?.other.pasteImageFormat ?? 'jpeg',
         jpegQuality: settings?.other.jpegQuality ?? 90,
         uiLanguage: deps.uiLanguage,

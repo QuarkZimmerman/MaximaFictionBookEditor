@@ -18,6 +18,7 @@ import type { EditorView } from 'prosemirror-view';
 
 import { fb2Schema } from '../schema';
 import { N, PARAGRAPH_TYPES } from '../commands/util';
+import { currentNbspMarker, markersToNbsp } from './nbsp';
 
 export const MFBE_CLIPBOARD_MIME = 'application/x-mfbe-fb2+json';
 /** Chromium exposes custom formats written with the async clipboard API under this prefix. */
@@ -234,14 +235,19 @@ export function pasteData(view: EditorView, data: PasteData): boolean {
     view.dispatch(insertSlice(view.state, structured).scrollIntoView());
     return true;
   }
+  // Marker characters of pasted text become non-breaking spaces (the structured flavour and
+  // ProseMirror's own HTML go through the marker plugin's transformPasted).
+  const marker = currentNbspMarker(view.state);
   if (data.html) {
     // ProseMirror's own HTML (another MFBE window) keeps its structure where legal.
     if (/data-pm-slice=/.test(data.html)) return view.pasteHTML(data.html);
-    view.dispatch(insertSlice(view.state, sliceFromExternalHtml(data.html)).scrollIntoView());
+    const slice = markersToNbsp(sliceFromExternalHtml(data.html), marker);
+    view.dispatch(insertSlice(view.state, slice).scrollIntoView());
     return true;
   }
   if (data.text) {
-    view.dispatch(insertSlice(view.state, sliceFromPlainText(data.text)).scrollIntoView());
+    const slice = markersToNbsp(sliceFromPlainText(data.text), marker);
+    view.dispatch(insertSlice(view.state, slice).scrollIntoView());
     return true;
   }
   return false;
@@ -271,15 +277,18 @@ export function clipboardPlugin(): Plugin {
             return true;
           }
         }
+        const marker = currentNbspMarker(view.state);
         const html = data.getData('text/html');
         if (html && !/data-pm-slice=/.test(html)) {
-          view.dispatch(insertSlice(view.state, sliceFromExternalHtml(html)).scrollIntoView());
+          const external = markersToNbsp(sliceFromExternalHtml(html), marker);
+          view.dispatch(insertSlice(view.state, external).scrollIntoView());
           return true;
         }
         if (!html) {
           const text = data.getData('text/plain');
           if (text) {
-            view.dispatch(insertSlice(view.state, sliceFromPlainText(text)).scrollIntoView());
+            const plain = markersToNbsp(sliceFromPlainText(text), marker);
+            view.dispatch(insertSlice(view.state, plain).scrollIntoView());
             return true;
           }
           return false;

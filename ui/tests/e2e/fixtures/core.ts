@@ -310,6 +310,60 @@ async function startCore(binary: string): Promise<CoreServer> {
   };
 }
 
+/**
+ * Starts a second core with extra `serve` arguments (the worker fixture has no hook for them).
+ * Returns its page URL, RPC-less; stopped by the returned function.
+ */
+export async function startCoreWith(
+  binary: string,
+  dataDir: string,
+  extraArgs: string[],
+): Promise<{ url: string; stop: () => Promise<void> }> {
+  const uiDist = process.env.MFBE_UI_DIST ?? path.join(UI_DIR, 'dist');
+  const child = spawn(
+    binary,
+    ['serve', '--test-hooks', '--data-dir', dataDir, '--ui', uiDist, ...extraArgs],
+    { stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  const stderr: string[] = [];
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk: string) => stderr.push(chunk));
+  const ready = await new Promise<{ port: number; token: string }>((resolve, reject) => {
+    let buffer = '';
+    const timer = setTimeout(
+      () => reject(new Error(`second core not ready in 30 s\n${stderr.join('')}`)),
+      30_000,
+    );
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      buffer += chunk;
+      for (const line of buffer.split('\n')) {
+        const parsed = parseReadyLine(line);
+        if (parsed) {
+          clearTimeout(timer);
+          resolve(parsed);
+          return;
+        }
+      }
+    });
+    child.once('exit', (code) => {
+      clearTimeout(timer);
+      reject(new Error(`second core exited with ${code}\n${stderr.join('')}`));
+    });
+  });
+  return {
+    url: `http://127.0.0.1:${ready.port}/?token=${encodeURIComponent(ready.token)}`,
+    stop: async () => {
+      if (child.exitCode === null) {
+        const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
+        child.kill('SIGTERM');
+        await Promise.race([exited, new Promise<void>((r) => setTimeout(r, 5_000))]);
+        if (child.exitCode === null) child.kill('SIGKILL');
+      }
+    },
+  };
+}
+
 function coreLessServer(): CoreServer {
   return {
     hasCore: false,
