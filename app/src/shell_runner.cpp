@@ -24,14 +24,20 @@
 #include <system_error>
 
 #if defined(MFBE_SHELL_TEST_HOOKS)
+#include "include/base/cef_callback.h"
+#include "include/cef_task.h"
+#include "include/wrapper/cef_closure_task.h"
+
 #include <chrono>
 #include <thread>
+#include <vector>
 #endif
 
 #include "clipboard_bridge.h"
 #include "command_line.h"
 #include "core_host.h"
 #include "dialog_provider.h"
+#include "file_dialog_platform.h"
 #include "include/base/cef_logging.h"
 #include "include/cef_version.h"
 #include "include/cef_version_info.h"
@@ -131,13 +137,65 @@ void notifyAssociationsOnce(const std::filesystem::path& data_dir) {
 #endif
 
 #if defined(MFBE_SHELL_TEST_HOOKS)
+#if defined(OS_LINUX)
+// UI thread: the types of the open GTK dialog, as GTK reports them.
+void printOpenGtkFileDialog() {
+    std::vector<std::string> types;
+    std::string active;
+    bool shown = false;
+    if (describeOpenGtkFileDialog(&types, &active, &shown)) {
+        std::string names;
+        for (const auto& type : types) {
+            names += (names.empty() ? "" : "|") + type;
+        }
+        std::printf("selftest: openfile types=%s active=%s shown=%s\n", names.c_str(),
+                    active.c_str(), shown ? "yes" : "no");
+    } else {
+        std::printf("selftest: openfile no GTK dialog\n");
+    }
+    std::fflush(stdout);
+}
+
+void cancelGtkFileDialogForSelfTest() {
+    cancelOpenGtkFileDialog();
+}
+#endif  // OS_LINUX
+
+// MFBE_SHELL_SELFTEST=openfile: the Open dialog with the editor's Open types, "FictionBook files"
+// selected. On Linux the GTK dialog's types and active type are printed after one second and the
+// dialog is cancelled from code after two.
+void runOpenFileSelfTest(const std::shared_ptr<NativeDialogs>& dialogs) {
+    FileDialogRequest request;
+    request.mode = FileDialogMode::kOpen;
+    request.title = "mfbe self-test: open";
+    request.filters = {{"FictionBook files (*.fb2)", {"fb2"}},
+                       {"FictionBook descriptors (*.fbd)", {"fbd"}},
+                       {"All files (*.*)", {"*"}}};
+    request.document_dialog = true;
+#if defined(OS_LINUX)
+    std::thread([] {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        CefPostTask(TID_UI, base::BindOnce(&printOpenGtkFileDialog));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        CefPostTask(TID_UI, base::BindOnce(&cancelGtkFileDialogForSelfTest));
+    }).detach();
+#endif
+    const FileDialogResult result = dialogs->runFileDialogAndWait(request);
+    std::string paths;
+    for (const auto& path : result.paths) {
+        paths += (paths.empty() ? "" : ";") + path;
+    }
+    std::printf("selftest: openfile %s\n", result.cancelled ? "cancelled" : paths.c_str());
+}
+
 // Test hook (dev/test builds only): MFBE_SHELL_SELFTEST=messagebox shows a native message box
 // from a background thread two seconds after start-up, exactly as the core would, and prints
 // `selftest: messagebox button=<id>` once it is answered. tools/shell-smoke.sh clicks the
 // button through CDP. MFBE_SHELL_SELFTEST=openfile does the same with the Open dialog
-// (prints the selected paths; cancel = "cancelled"). MFBE_SHELL_SELFTEST=clipboard reads
-// an image from the OS clipboard through the core's provider path and prints
-// `selftest: clipboard <bytes> <content type>` or `selftest: clipboard none`.
+// (runOpenFileSelfTest; prints the selected paths, cancel = "cancelled").
+// MFBE_SHELL_SELFTEST=clipboard reads an image from the OS clipboard through the core's
+// provider path and prints `selftest: clipboard <bytes> <content type>` or
+// `selftest: clipboard none`.
 void startSelfTest(const std::string& which, std::shared_ptr<NativeDialogs> dialogs) {
     if (which != "messagebox" && which != "openfile" && which != "clipboard") {
         return;
@@ -163,16 +221,7 @@ void startSelfTest(const std::string& which, std::shared_ptr<NativeDialogs> dial
             const MessageResult result = dialogs->showMessageAndWait(request);
             std::printf("selftest: messagebox button=%s\n", result.button.c_str());
         } else {
-            FileDialogRequest request;
-            request.mode = FileDialogMode::kOpenMultiple;
-            request.title = "mfbe self-test: open";
-            request.filters = {{"FictionBook", {"fb2", "fbd"}}, {"", {"image/*"}}};
-            const FileDialogResult result = dialogs->runFileDialogAndWait(request);
-            std::string paths;
-            for (const auto& path : result.paths) {
-                paths += (paths.empty() ? "" : ";") + path;
-            }
-            std::printf("selftest: openfile %s\n", result.cancelled ? "cancelled" : paths.c_str());
+            runOpenFileSelfTest(dialogs);
         }
         std::fflush(stdout);
     }).detach();
@@ -314,6 +363,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     if (lang.empty()) {
         lang = systemLanguageCode();
     }
+    dialogs->setLanguage(lang);
     if (lang == "ru") {
         CefString(&settings.locale) = "ru";  // ignored on Linux (env-based), used elsewhere
         CefString(&settings.accept_language_list) = "ru,en-US,en";

@@ -2,6 +2,7 @@
 
 #include "dialog_provider.h"
 
+#include "file_dialog_platform.h"
 #include "include/base/cef_callback.h"
 #include "include/base/cef_logging.h"
 #include "include/cef_parser.h"
@@ -13,14 +14,19 @@
 #include "include/wrapper/cef_helpers.h"
 #include "native_actions.h"
 
+#include <mfbe/utf8_paths.hpp>
+
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 // The core's dialog provider interface is optional at build time (see dialog_provider.h).
 #if __has_include(<mfbe/dialog_provider.hpp>)
 #include <mfbe/dialog_provider.hpp>
+#include <mfbe/log.hpp>
 #define MFBE_SHELL_HAS_CORE_DIALOGS 1
 #endif
 
@@ -126,6 +132,34 @@ cef_file_dialog_mode_t toCefMode(FileDialogMode mode) {
     }
 }
 
+// The owner window's native handle as a number: HWND / NSView* (pointers) or the X11 window id.
+template <typename Handle>
+std::uintptr_t nativeHandle(Handle handle) {
+    if constexpr (std::is_pointer_v<Handle>) {
+        return reinterpret_cast<std::uintptr_t>(handle);
+    } else {
+        return static_cast<std::uintptr_t>(handle);
+    }
+}
+
+// The platform dialog could not be used: said once per run, in the errors-only log.
+void reportFallback(const std::string& why) {
+    static bool reported = false;  // UI thread only
+    if (reported) {
+        return;
+    }
+    reported = true;
+    const std::string message = "the platform file dialog cannot be used (" + why +
+                                "); CEF's file dialog is shown, without named file types";
+#if defined(MFBE_SHELL_HAS_CORE_DIALOGS)
+    try {
+        mfbe::log::warning("shell", "shell.fileDialogFallback", message);
+    } catch (...) {
+    }
+#endif
+    LOG(WARNING) << "mfbe: " << message;
+}
+
 void runFileDialogOnUiThread(CefRefPtr<CefBrowser> browser, FileDialogRequest request,
                              std::shared_ptr<FileDialogCompletion> completion) {
     CEF_REQUIRE_UI_THREAD();
@@ -134,12 +168,26 @@ void runFileDialogOnUiThread(CefRefPtr<CefBrowser> browser, FileDialogRequest re
         completion->finish(FileDialogResult{});
         return;
     }
+    std::string why;
+    if (runPlatformFileDialog(
+            nativeHandle(host->GetWindowHandle()), request,
+            [completion](FileDialogResult result) { completion->finish(std::move(result)); },
+            &why)) {
+        return;
+    }
+    reportFallback(why);
     std::vector<CefString> accept_filters;
-    for (const auto& filter : NativeDialogs::toAcceptFilters(request.filters)) {
+    for (const auto& filter : cefAcceptFilters(request)) {
         accept_filters.emplace_back(filter);
     }
-    host->RunFileDialog(toCefMode(request.mode), request.title, request.default_path,
-                        accept_filters, new FileDialogCallbackImpl(completion));
+    std::string start = request.folder;
+    if (request.mode == FileDialogMode::kSave) {
+        const SavePlace target = savePlace(request);
+        start = mfbe::platform::utf8_from_path(mfbe::platform::path_from_utf8(target.folder) /
+                                               mfbe::platform::path_from_utf8(target.name));
+    }
+    host->RunFileDialog(toCefMode(request.mode), request.title, start, accept_filters,
+                        new FileDialogCallbackImpl(completion));
 }
 
 // --- message box --------------------------------------------------------------------------
@@ -481,36 +529,14 @@ MessageResult NativeDialogs::showMessageAndWait(const MessageRequest& request) {
     return waiter.wait();
 }
 
-// static
-std::vector<std::string> NativeDialogs::toAcceptFilters(const std::vector<FileFilter>& filters) {
-    std::vector<std::string> result;
-    for (const auto& filter : filters) {
-        std::string joined;
-        for (const auto& raw : filter.extensions) {
-            if (raw.empty()) {
-                continue;
-            }
-            std::string ext = raw;
-            if (ext.find('/') == std::string::npos && ext[0] != '.') {
-                ext.insert(ext.begin(), '.');  // "fb2" -> ".fb2"; MIME types stay as they are
-            }
-            if (ext[0] == '.' && ext.find_first_of("*?") != std::string::npos) {
-                continue;  // globs such as "*.fb2" are not valid CEF filters
-            }
-            if (filter.name.empty()) {
-                result.push_back(ext);
-            } else {
-                if (!joined.empty()) {
-                    joined += ';';
-                }
-                joined += ext;
-            }
-        }
-        if (!filter.name.empty() && !joined.empty()) {
-            result.push_back(filter.name + "|" + joined);
-        }
-    }
-    return result;
+void NativeDialogs::setLanguage(std::string language) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    language_ = std::move(language);
+}
+
+std::string NativeDialogs::language() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return language_;
 }
 
 // --- core adapter -------------------------------------------------------------------------
@@ -535,6 +561,9 @@ public:
         native.mode = request.multiple ? FileDialogMode::kOpenMultiple : FileDialogMode::kOpen;
         native.title = request.title;
         native.filters = toShellFilters(request.filters);
+        native.selected_filter = request.selectedFilter;
+        native.folder = request.folder.value_or(std::string());
+        native.document_dialog = request.documentDialog;
         const bool posted = dialogs_->runFileDialog(native, [done](FileDialogResult result) {
             mfbe::OpenFileResult out;
             out.paths = std::move(result.paths);
@@ -551,13 +580,19 @@ public:
         native.mode = FileDialogMode::kSave;
         native.title = request.title;
         native.default_path = request.defaultPath.value_or(std::string());
+        native.folder = request.folder.value_or(std::string());
         native.filters = toShellFilters(request.filters);
-        // `encodingChoices` cannot be rendered inside CEF's dialog: the result carries no
-        // `encoding`, the UI asks for it after this call returns (see dialog_provider.h).
+        native.selected_filter = request.selectedFilter;
+        native.encodings = request.encodingChoices;
+        native.encoding_label = encodingLabel(dialogs_->language());
+        native.document_dialog = request.documentDialog;
         const bool posted = dialogs_->runFileDialog(native, [done](FileDialogResult result) {
             mfbe::SaveFileResult out;
             if (!result.cancelled && !result.paths.empty()) {
                 out.path = result.paths.front();
+                if (!result.encoding.empty()) {
+                    out.encoding = std::move(result.encoding);
+                }
             }
             done(std::move(out));
         });

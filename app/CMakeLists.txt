@@ -75,9 +75,20 @@ set(MFBE_SHELL_DEFINES
   $<$<BOOL:${MFBE_TEST_HOOKS}>:MFBE_SHELL_TEST_HOOKS=1>)
 
 # ---------------------------------------------------------------------------------------------
+# Pure shell logic without CEF types (file dialog requests in each platform's terms), shared by
+# the bridge and the mfbe_shell_tests executable (tests/shell).
+
+add_library(mfbe_shell_logic STATIC
+  src/file_dialog_request.cpp
+  src/file_dialog_request.h)
+target_include_directories(mfbe_shell_logic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(mfbe_shell_logic PUBLIC mfbe_paths PRIVATE mfbe::options)
+
+# ---------------------------------------------------------------------------------------------
 # Core bridge library (compiled with exceptions; see header comment). native_actions.cpp is
 # plain C++ (file manager, clipboard, external URLs) and lives here so both the bridge and
-# the shell sources can call it.
+# the shell sources can call it. The platform file dialogs (file_dialog_platform.h) are plain
+# C++ too: one implementation per platform.
 
 set(MFBE_BRIDGE_SRCS
   src/clipboard_bridge.cpp
@@ -86,10 +97,15 @@ set(MFBE_BRIDGE_SRCS
   src/core_host.h
   src/dialog_provider.cpp
   src/dialog_provider.h
+  src/file_dialog_platform.h
   src/native_actions.cpp
   src/native_actions.h)
-if(OS_MAC)
-  list(APPEND MFBE_BRIDGE_SRCS src/native_actions_mac.mm)
+if(OS_WINDOWS)
+  list(APPEND MFBE_BRIDGE_SRCS src/file_dialog_win.cpp)
+elseif(OS_MAC)
+  list(APPEND MFBE_BRIDGE_SRCS src/file_dialog_mac.mm src/native_actions_mac.mm)
+elseif(OS_LINUX)
+  list(APPEND MFBE_BRIDGE_SRCS src/file_dialog_gtk.cpp)
 endif()
 
 add_library(mfbe_app_bridge STATIC ${MFBE_BRIDGE_SRCS})
@@ -111,7 +127,8 @@ unset(_bridge_defines)
 # All dependencies are PRIVATE: for a static library CMake still forwards them to the final
 # link ($<LINK_ONLY:...>), but their compile options/defines (mfbe::options warnings, the
 # core's public defines) must not leak into the CEF-flagged executable sources.
-target_link_libraries(mfbe_app_bridge PRIVATE mfbe::options mfbe_paths libcef_dll_wrapper)
+target_link_libraries(mfbe_app_bridge PRIVATE mfbe::options mfbe_paths mfbe_shell_logic
+  libcef_dll_wrapper)
 if(NOT OS_MAC)
   target_link_libraries(mfbe_app_bridge PRIVATE libcef_lib)
 endif()
@@ -120,9 +137,15 @@ if(OS_POSIX)
   find_package(Threads REQUIRED)
   target_link_libraries(mfbe_app_bridge PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
 endif()
+if(OS_WINDOWS)
+  # Common Item Dialog (COM) for the file dialogs.
+  target_link_libraries(mfbe_app_bridge PRIVATE ole32 shell32 uuid)
+endif()
 if(OS_MAC)
-  target_link_libraries(mfbe_app_bridge PRIVATE "-framework Cocoa")
-  set_source_files_properties(src/native_actions_mac.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+  target_link_libraries(mfbe_app_bridge PRIVATE "-framework Cocoa"
+    "-framework UniformTypeIdentifiers")
+  set_source_files_properties(src/native_actions_mac.mm src/file_dialog_mac.mm
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
 endif()
 
 # The in-process core. Linking it makes <mfbe/core_server.hpp> and <mfbe/dialog_provider.hpp>
