@@ -261,3 +261,65 @@ TEST_CASE("unicode paths: folder openers and the corpus sample take non-English 
     CHECK(sample["scanned"] == 1);
     CHECK(sample["paths"] == json::array({utf8(book)}));
 }
+
+TEST_CASE(
+    "unicode paths: Open and Save As share the folder last used on Linux and macOS; every "
+    "dialog that names no folder opens there",
+    "[unicode][server][dialogs]") {
+    UnicodeServer f;
+    const fs::path books = below(f.base, "Книги 书");
+    fs::create_directories(books);
+    const json documents =
+        json::array({{{"name", "FictionBook files (*.fb2)"}, {"extensions", {"fb2"}}},
+                     {{"name", "FictionBook descriptors (*.fbd)"}, {"extensions", {"fbd"}}},
+                     {{"name", "All files (*.*)"}, {"extensions", {"*"}}}});
+    const json images = json::array({{{"name", "Supported images (*.jpg;*.jpeg;*.png)"},
+                                      {"extensions", {"jpg", "jpeg", "png"}}}});
+    auto answer = [&](const char* method, const json& result) {
+        f.result("test.enqueueDialog", json{{"method", method}, {"result", result}});
+    };
+
+    answer("dialog.openFile", json{{"paths", {utf8(below(books, "книга.fb2"))}}});
+    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents}});
+    // An image chosen elsewhere does not move the remembered folder.
+    answer("dialog.openFile", json{{"paths", {utf8(below(f.base, "картинка.png"))}}});
+    f.result("dialog.openFile", json{{"title", "Image"}, {"filters", images}});
+    answer("dialog.openFile", json{{"paths", json::array()}});
+    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents}});
+    answer("dialog.saveFile", json::object());  // Save As of a document never saved
+    f.result("dialog.saveFile", json{{"title", "Save As"}, {"filters", documents}});
+    answer("dialog.saveFile", json::object());  // Save image as: a name without a folder
+    f.result("dialog.saveFile", json{{"title", "Save image"}, {"defaultPath", "обложка.jpg"}});
+    // Save As of a saved document: its own folder; the chosen file's folder is remembered.
+    const fs::path elsewhere = below(f.base, "Другая папка");
+    answer("dialog.saveFile", json{{"path", utf8(below(elsewhere, "копия.fb2"))}});
+    f.result("dialog.saveFile", json{{"title", "Save As"},
+                                     {"filters", documents},
+                                     {"defaultPath", utf8(below(books, "книга.fb2"))}});
+    answer("dialog.openFile", json{{"paths", json::array()}});
+    f.result("dialog.openFile", json{{"title", "Open"}, {"filters", documents}});
+
+    const json requests = f.result("test.dialogRequests");
+    REQUIRE(requests.size() == 7);
+    const json session = f.result("settings.get")["session"];
+#if defined(_WIN32)
+    // Windows keeps the folder in the dialogs themselves (the shell's client GUID).
+    for (const json& request : requests) {
+        CHECK_FALSE(request.contains("folder"));
+    }
+    CHECK(session["lastFileDialogFolder"] == "");
+#else
+    CHECK_FALSE(requests[0].contains("folder"));  // nothing remembered yet
+    CHECK(requests[1]["folder"] == utf8(books));
+    CHECK(requests[2]["folder"] == utf8(books));
+    CHECK(requests[3]["folder"] == utf8(books));
+    CHECK(requests[4]["folder"] == utf8(books));
+    CHECK_FALSE(requests[5].contains("folder"));  // the document's own folder
+    CHECK(requests[5]["defaultPath"] == utf8(below(books, "книга.fb2")));
+    CHECK(session["lastFileDialogFolder"] == utf8(elsewhere));
+    // The remembered folder no longer exists (it was never created): not offered.
+    CHECK_FALSE(requests[6].contains("folder"));
+    const json stored = json::parse(test::read_text(f.data / "settings.json"));
+    CHECK(stored["session"]["lastFileDialogFolder"] == utf8(elsewhere));
+#endif
+}
