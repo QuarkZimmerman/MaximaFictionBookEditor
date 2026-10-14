@@ -46,6 +46,8 @@ const char* error_name(int code) {
             return "settings.invalid";
         case codes::kDialogUnavailable:
             return "dialog.unavailable";
+        case codes::kReleaseUnavailable:
+            return "app.releaseUnavailable";
         case codes::kCancelled:
             return "cancelled";
         default:

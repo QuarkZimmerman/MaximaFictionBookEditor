@@ -41,6 +41,17 @@ std::optional<std::string> opt_str(const json& o, const char* key) {
     return it->get<std::string>();
 }
 
+int index_or(const json& o, const char* key, int fallback) {
+    auto it = o.find(key);
+    if (it == o.end() || it->is_null()) {
+        return fallback;
+    }
+    if (!it->is_number_integer() || it->get<long long>() < 0 || it->get<long long>() > 1000) {
+        throw std::invalid_argument(std::string(key) + " must be a non-negative integer");
+    }
+    return it->get<int>();
+}
+
 bool bool_or(const json& o, const char* key, bool fallback) {
     auto it = o.find(key);
     if (it == o.end() || it->is_null()) {
@@ -104,8 +115,14 @@ json to_json(const FileFilter& f) {
 }
 
 json to_json(const OpenFileRequest& r) {
-    return json{
-        {"title", r.title}, {"filters", filters_to_json(r.filters)}, {"multiple", r.multiple}};
+    json j{{"title", r.title},
+           {"filters", filters_to_json(r.filters)},
+           {"multiple", r.multiple},
+           {"selectedFilter", r.selectedFilter}};
+    if (r.folder) {
+        j["folder"] = *r.folder;
+    }
+    return j;
 }
 
 json to_json(const OpenFileResult& r) {
@@ -118,6 +135,7 @@ json to_json(const SaveFileRequest& r) {
         j["defaultPath"] = *r.defaultPath;
     }
     j["encodingChoices"] = r.encodingChoices;
+    j["selectedFilter"] = r.selectedFilter;
     return j;
 }
 
@@ -152,12 +170,22 @@ json to_json(const MessageResult& r) {
     return json{{"button", r.button}};
 }
 
+json to_json(const ReleaseResult& r) {
+    if (r.release) {
+        return json{
+            {"tag", r.release->tag}, {"version", r.release->version}, {"url", r.release->url}};
+    }
+    return json{{"error", {{"reason", r.error}}}};
+}
+
 OpenFileRequest open_file_request_from_json(const json& j) {
     const json& o = require_object(j);
     OpenFileRequest r;
     r.title = str_or(o, "title");
     r.filters = filters_from_json(o);
     r.multiple = bool_or(o, "multiple", false);
+    r.selectedFilter = index_or(o, "selectedFilter", 0);
+    r.folder = opt_str(o, "folder");
     return r;
 }
 
@@ -178,6 +206,7 @@ SaveFileRequest save_file_request_from_json(const json& j) {
     r.filters = filters_from_json(o);
     r.defaultPath = opt_str(o, "defaultPath");
     r.encodingChoices = strings_or(o, "encodingChoices");
+    r.selectedFilter = index_or(o, "selectedFilter", 0);
     return r;
 }
 
@@ -216,6 +245,32 @@ MessageResult message_result_from_json(const json& j) {
     return r;
 }
 
+ReleaseResult release_result_from_json(const json& j) {
+    const json& o = require_object(j);
+    ReleaseResult r;
+    if (auto error = o.find("error"); error != o.end() && !error->is_null()) {
+        r.error = str_or(require_object(*error), "reason");
+        if (r.error.empty()) {
+            throw std::invalid_argument("error.reason must be a non-empty string");
+        }
+        return r;
+    }
+    auto result = o.find("result");
+    const json& info = result != o.end() ? require_object(*result) : o;
+    ReleaseInfo release;
+    release.tag = str_or(info, "tag");
+    if (release.tag.empty()) {
+        throw std::invalid_argument("tag must be a non-empty string");
+    }
+    const std::string fallback = release.tag[0] == 'v' ? release.tag.substr(1) : release.tag;
+    release.version = str_or(info, "version", fallback);
+    release.url = str_or(
+        info, "url",
+        "https://github.com/QuarkZimmerman/MaximaFictionBookEditor/releases/tag/" + release.tag);
+    r.release = std::move(release);
+    return r;
+}
+
 /* ----------------------------------------------------------------------------------------- */
 /* QueuedDialogProvider                                                                       */
 /* ----------------------------------------------------------------------------------------- */
@@ -246,6 +301,29 @@ std::vector<std::string> QueuedDialogProvider::opened_paths() const {
     return opened_paths_;
 }
 
+std::vector<json> QueuedDialogProvider::dialog_requests() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return requests_;
+}
+
+std::size_t QueuedDialogProvider::beeps() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return beeps_;
+}
+
+std::size_t QueuedDialogProvider::enqueue_release(ReleaseResult result) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    releases_.push_back(std::move(result));
+    return releases_.size();
+}
+
+void QueuedDialogProvider::record(json request, const char* method, const char* mode) {
+    request["method"] = method;
+    request["mode"] = mode;
+    std::lock_guard<std::mutex> lock(mutex_);
+    requests_.push_back(std::move(request));
+}
+
 std::optional<json> QueuedDialogProvider::take(const std::string& method) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (queue_.empty() || queue_.front().method != method) {
@@ -257,7 +335,9 @@ std::optional<json> QueuedDialogProvider::take(const std::string& method) {
     return result;
 }
 
-void QueuedDialogProvider::open_file(const OpenFileRequest&, Callback<OpenFileResult> done) {
+void QueuedDialogProvider::open_file(const OpenFileRequest& request,
+                                     Callback<OpenFileResult> done) {
+    record(to_json(request), "dialog.openFile", request.multiple ? "openMultiple" : "open");
     auto answer = take("dialog.openFile");
     if (!answer) {
         throw DialogUnavailable("no queued answer for dialog.openFile");
@@ -265,7 +345,9 @@ void QueuedDialogProvider::open_file(const OpenFileRequest&, Callback<OpenFileRe
     done(open_file_result_from_json(*answer));
 }
 
-void QueuedDialogProvider::save_file(const SaveFileRequest&, Callback<SaveFileResult> done) {
+void QueuedDialogProvider::save_file(const SaveFileRequest& request,
+                                     Callback<SaveFileResult> done) {
+    record(to_json(request), "dialog.saveFile", "save");
     auto answer = take("dialog.saveFile");
     if (!answer) {
         throw DialogUnavailable("no queued answer for dialog.saveFile");
@@ -273,7 +355,9 @@ void QueuedDialogProvider::save_file(const SaveFileRequest&, Callback<SaveFileRe
     done(save_file_result_from_json(*answer));
 }
 
-void QueuedDialogProvider::pick_folder(const PickFolderRequest&, Callback<PickFolderResult> done) {
+void QueuedDialogProvider::pick_folder(const PickFolderRequest& request,
+                                       Callback<PickFolderResult> done) {
+    record(to_json(request), "dialog.pickFolder", "folder");
     auto answer = take("dialog.pickFolder");
     if (!answer) {
         throw DialogUnavailable("no queued answer for dialog.pickFolder");
@@ -293,6 +377,26 @@ bool QueuedDialogProvider::open_path(const std::string& path) {
     std::lock_guard<std::mutex> lock(mutex_);
     opened_paths_.push_back(path);
     return true;
+}
+
+void QueuedDialogProvider::beep() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    ++beeps_;
+}
+
+void QueuedDialogProvider::latest_release(Callback<ReleaseResult> done) {
+    std::optional<ReleaseResult> answer;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!releases_.empty()) {
+            answer = std::move(releases_.front());
+            releases_.pop_front();
+        }
+    }
+    if (!answer) {
+        throw DialogUnavailable("no queued answer for app.latestRelease");
+    }
+    done(std::move(*answer));
 }
 
 }  // namespace mfbe

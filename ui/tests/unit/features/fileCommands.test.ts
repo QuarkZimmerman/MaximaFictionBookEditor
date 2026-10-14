@@ -36,6 +36,7 @@ const settings = (other: Partial<Settings['other']>): Settings =>
       restorePosition: true,
       scriptsFolder: '',
       genresFolder: '',
+      templateFolder: '',
       askOnNonClearImage: true,
       insertClearImages: false,
       pasteImageFormat: 'jpeg',
@@ -50,6 +51,8 @@ const settings = (other: Partial<Settings['other']>): Settings =>
       treeVisible: true,
       findHistory: [],
       replaceHistory: [],
+      toolbarLayouts: {},
+      lastFileDialogFolder: '',
     },
   }) as Settings;
 

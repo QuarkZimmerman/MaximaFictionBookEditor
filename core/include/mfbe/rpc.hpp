@@ -52,6 +52,7 @@ inline constexpr int kScriptNotFound = 1030;
 inline constexpr int kScriptInvalidManifest = 1031;
 inline constexpr int kSettingsInvalid = 1040;
 inline constexpr int kDialogUnavailable = 1050;
+inline constexpr int kReleaseUnavailable = 1060;
 inline constexpr int kCancelled = 1090;
 }  // namespace codes
 

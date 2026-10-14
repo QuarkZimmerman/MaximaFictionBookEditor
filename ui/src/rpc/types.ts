@@ -1,6 +1,7 @@
 /**
  * Typed surface of the core <-> UI JSON-RPC contract
- * (specs/001-maxima-fb2-editor/contracts/rpc-api.md, version 1).
+ * (specs/001-maxima-fb2-editor/contracts/rpc-api.md, version 1, with the additive changes of
+ * specs/002-tester-feedback-fixes/contracts/rpc-api.md, minor 1).
  *
  * Every method of rpc-api.md §3 and §5 appears in `RpcMethods`; every notification of §4 in
  * `RpcNotifications`. Document types come from the shared model (`@/model/document`).
@@ -12,6 +13,8 @@ import type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
 
 export const RPC_API_VERSION = 1;
+/** Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). */
+export const RPC_API_MINOR = 1;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -36,6 +39,7 @@ export const RpcErrorCode = {
   scriptInvalidManifest: 1031,
   settingsInvalid: 1040,
   dialogUnavailable: 1050,
+  releaseUnavailable: 1060,
   cancelled: 1090,
   // Client-side conditions raised by the RPC client itself (never sent by the core).
   clientTimeout: -32001,
@@ -67,6 +71,10 @@ export interface SpellDictionaryUnavailableData {
 }
 export interface SettingsInvalidData {
   field: string;
+}
+/** `data` of 1060 `app.releaseUnavailable`: why the latest-release request failed. */
+export interface ReleaseUnavailableData {
+  reason: 'offline' | 'timeout' | 'http' | 'format';
 }
 
 /* ------------------------------------------------------------------------ */
@@ -115,6 +123,8 @@ export interface AppInfo {
   logDir: string;
   resourceLayers: ResourceLayer[];
   apiVersion: number;
+  /** Additive contract revision (feature 002: 1); absent from cores before it (= 0). */
+  apiMinor?: number;
 }
 
 export type ImageFormat = 'jpeg' | 'png';
@@ -148,10 +158,13 @@ export interface Settings {
     restorePosition: boolean;
     scriptsFolder: string;
     genresFolder: string;
+    /** Settings > Other "Template folder": where `blank.fb2` is looked up first ("" = default). */
+    templateFolder: string;
     askOnNonClearImage: boolean;
     insertClearImages: boolean;
     pasteImageFormat: ImageFormat;
     jpegQuality: number;
+    /** Marker shown for U+00A0: the plain space (no marker, default), □, ▫ or ◦. */
     nbspDisplayChar: string;
   };
   words: {
@@ -163,6 +176,10 @@ export interface Settings {
     treeVisible: boolean;
     findHistory: string[];
     replaceHistory: string[];
+    /** Customised toolbar layouts ("commands", "scripts"): button ids and "-"; absent = original. */
+    toolbarLayouts: Partial<Record<string, string[]>>;
+    /** Linux and macOS: the folder last used by Open or Save As ("" = none yet). */
+    lastFileDialogFolder: string;
   };
 }
 
@@ -241,6 +258,29 @@ export interface ScriptListEntry {
 export interface FileFilter {
   name: string;
   extensions: string[]; // without the dot
+}
+
+/** A file dialog request as the core received it (`test.dialogRequests`, feature 002). */
+export interface FileDialogRequestRecord {
+  method: 'dialog.openFile' | 'dialog.saveFile' | 'dialog.pickFolder';
+  mode: 'open' | 'openMultiple' | 'save' | 'folder';
+  title: string;
+  filters?: FileFilter[];
+  multiple?: boolean;
+  /** Index of the type selected when the dialog opens. */
+  selectedFilter?: number;
+  folder?: string;
+  defaultPath?: string;
+  encodingChoices?: string[];
+}
+
+/** The latest published release (`app.latestRelease`, feature 002). */
+export interface ReleaseInfo {
+  tag: string;
+  /** The tag without a leading "v". */
+  version: string;
+  /** The release's page, `.../releases/tag/<tag>`. */
+  url: string;
 }
 
 export type MessageButtonSet =
@@ -399,7 +439,15 @@ export interface RpcMethods {
 
   // §3.9 dialog (shell-delegated)
   'dialog.openFile': {
-    params: { title: string; filters: FileFilter[]; multiple?: boolean };
+    params: {
+      title: string;
+      filters: FileFilter[];
+      multiple?: boolean;
+      /** Index of the type selected when the dialog opens (default 0). */
+      selectedFilter?: number;
+      /** Where the dialog opens (default: the folder last used by Open or Save As). */
+      folder?: string;
+    };
     result: { paths: string[] };
   };
   'dialog.saveFile': {
@@ -408,6 +456,8 @@ export interface RpcMethods {
       filters: FileFilter[];
       defaultPath?: string;
       encodingChoices?: string[];
+      /** Index of the type selected when the dialog opens (default 0). */
+      selectedFilter?: number;
     };
     result: { path?: string; encoding?: string };
   };
@@ -435,6 +485,12 @@ export interface RpcMethods {
   'test.metrics': {
     params: void;
     result: { memoryBytes: number; openDurations: number[] } & Record<string, unknown>;
+  };
+  'test.dialogRequests': { params: void; result: FileDialogRequestRecord[] };
+  'test.beeps': { params: void; result: { count: number } };
+  'test.enqueueRelease': {
+    params: { result: Partial<ReleaseInfo> & { tag: string } } | { error: ReleaseUnavailableData };
+    result: { queued: number };
   };
 }
 

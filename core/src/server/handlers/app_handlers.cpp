@@ -51,6 +51,7 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
         info["buildDate"] = version::kBuildDate;
         info["productName"] = version::kProductName;
         info["apiVersion"] = version::kApiVersion;
+        info["apiMinor"] = version::kApiMinor;
         info["platform"] = platform::platform_name();
         info["pid"] = platform::current_pid();
         info["port"] = services.port;

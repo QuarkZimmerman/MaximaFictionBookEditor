@@ -174,6 +174,7 @@ TEST_CASE("server: app.info / settings round trip / notifications over WebSocket
     CHECK(r["version"] == version::kVersion);
     CHECK(r["build"] == version::kBuildId);
     CHECK(r["apiVersion"] == 1);
+    CHECK(r["apiMinor"] == 1);  // feature 002: additive contract revision
     CHECK(r["platform"].is_string());
     CHECK(r["uiLanguage"] == "system");
     CHECK(r["dataDir"] == f.data.path().string());
@@ -269,6 +270,22 @@ TEST_CASE("server: dialogs are unavailable without a provider; queued answers wi
         CHECK(ws.call("test.enqueueDialog", json{{"method", "app.info"}})["error"]["code"] ==
               -32602);
         CHECK(ws.call("dialog.message", json{{"text", 5}})["error"]["code"] == -32602);
+
+        // Feature 002: every file dialog request is recorded, answered or not.
+        const json requests = ws.call("test.dialogRequests")["result"];
+        REQUIRE(requests.size() == 3);
+        CHECK(requests[0]["method"] == "dialog.openFile");
+        CHECK(requests[0]["mode"] == "open");
+        CHECK(requests[0]["selectedFilter"] == 0);
+        CHECK(requests[1]["mode"] == "save");
+        CHECK(requests[2]["mode"] == "folder");
+        CHECK(ws.call("test.beeps")["result"]["count"] == 0);
+        CHECK(ws.call("test.enqueueRelease",
+                      json{{"result", {{"tag", "v0.0.9"}}}})["result"]["queued"] == 1);
+        CHECK(ws.call("test.enqueueRelease",
+                      json{{"error", {{"reason", "offline"}}}})["result"]["queued"] == 2);
+        CHECK(ws.call("test.enqueueRelease", json{{"result", {{"tag", ""}}}})["error"]["code"] ==
+              -32602);
 
         const json metrics = ws.call("test.metrics")["result"];
         CHECK(metrics["memoryBytes"].get<std::int64_t>() > 0);

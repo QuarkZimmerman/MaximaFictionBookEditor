@@ -13,9 +13,22 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace mfbe::platform {
+
+// UTF-8 text <-> filesystem path, independent of the process code page. On Windows
+// std::filesystem::path(std::string) and path::string() convert through the process code page,
+// which is the legacy ANSI code page unless the executable's manifest selects UTF-8; every
+// conversion between paths and text (JSON, logs, CEF strings, command lines) goes through these
+// helpers instead (feature 002, research R1). Invalid UTF-8 input or an unpaired UTF-16
+// surrogate never throws: the offending character becomes U+FFFD. On POSIX the bytes pass
+// through unchanged.
+std::filesystem::path path_from_utf8(std::string_view utf8);
+std::string utf8_from_path(const std::filesystem::path& path);
+// As utf8_from_path, with '/' as the separator on every platform.
+std::string utf8_from_path_generic(const std::filesystem::path& path);
 
 struct Dirs {
     std::filesystem::path config;  // settings.json, hotkeys.json, recent.json, exclusions.txt
