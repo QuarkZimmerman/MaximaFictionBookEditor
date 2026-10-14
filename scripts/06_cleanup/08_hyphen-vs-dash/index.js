@@ -5,6 +5,25 @@
 // "пистолет-пулемёт") get a plain hyphen, known dash pairs get a spaced em dash, everything
 // else is asked (Yes = text of the input box, No = keep and remember, Cancel = stop). Every
 // ~200 kept places the script asks whether to go on.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//===============================================
+//  Поиск и замена дефисов и тире в русских текстах между русскими буквами
+//  Не отлавливаются мульти-комбинации типа: серо-буро-малиновый…
+//                                                   Engine by © Sclex
+//                                                                       14.09.2007–02.05.2008
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.2 — переход на движок от Sclex'а, самообучение…
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.3 — время от времени предлагается завершить процесс, изменения сохраняются
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.4 — переход на следующий абзац — "ready for FBE"
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.5 — кастомизированные nbsp — Sclex (20.03.2010)
+//===============================================
+// v.1.6 — ???
+//======================================
+// v.1.62 — сканирование начинается с "курсорного" абзаца, доработка подсветки для найденных рез-тов поиска — Alex2L, июнь 2012
+//======================================
 import { legacyTimeString } from './lib/legacy-html.js';
 import { piece, runInteractive } from './lib/interactive.js';
 import { DASHED, HYPHENATED, PRE, SUF } from './words.js';
@@ -63,13 +82,13 @@ export default async function run(ctx) {
     },
     confirmContinue: {
       every: 200,
-      text: ru ? 'Что-то процесс затянулся...\n\nПродолжить обработку?' : 'This is taking a while...\n\nContinue?',
+      text: ru ? '–= Jurgen Script =–\n\nЧто-то процесс затянулся...\n\nПродолжить обработку?' : '–= Jurgen Script =–\n\nThis is taking a while...\n\nContinue?',
     },
   });
   await mfbe.ui.message(
     ru
-      ? `«Тире - vs - Дефис» v1.62\n\nПроизведено замен:\n          вручную – ${state.count}\n   автоматически – ${counters.hyphen + counters.dash}\n          дефис – ${counters.hyphen}\n          тире – ${counters.dash}\nоставлено как было – ${counters.kept}\n\nПроверка произведена за ${legacyTimeString(started)}.`
-      : `"Dash vs. hyphen" v1.62\n\nReplacements:\n          manual – ${state.count}\n   automatic – ${counters.hyphen + counters.dash}\n          hyphen – ${counters.hyphen}\n          dash – ${counters.dash}\nleft as they were – ${counters.kept}\n\nChecked in ${legacyTimeString(started)}.`,
+      ? `–= Jurgen Script =–\n«Тире - vs - Дефис» v1.62\n\nПроизведено замен:\n          вручную – ${state.count}\n   автоматически – ${counters.hyphen + counters.dash}\n          дефис – ${counters.hyphen}\n          тире – ${counters.dash}\nоставлено как было – ${counters.kept}\n\nПроверка произведена за ${legacyTimeString(started)}.`
+      : `–= Jurgen Script =–\n"Dash vs. hyphen" v1.62\n\nReplacements:\n          manual – ${state.count}\n   automatic – ${counters.hyphen + counters.dash}\n          hyphen – ${counters.hyphen}\n          dash – ${counters.dash}\nleft as they were – ${counters.kept}\n\nChecked in ${legacyTimeString(started)}.`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

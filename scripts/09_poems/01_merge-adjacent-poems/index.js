@@ -6,6 +6,10 @@
 //
 // The original also removed every empty line after the merged poem up to the end of the
 // enclosing block; that over-reach is not reproduced (see conversion-notes-b.md).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт «Слияние подряд идущих стихов»
+//автор Sclex
+//v1.3
 
 const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 

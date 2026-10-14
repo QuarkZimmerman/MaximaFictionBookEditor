@@ -2,6 +2,9 @@
 // Editor 2.7), Tier 2. The selected inline image, when it is the only content of its paragraph,
 // becomes a block image in place of the paragraph (href and alt are kept). Paragraphs that also
 // hold text are left alone, as in the original.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Скрипт «Сделать обычный рисунок из рисунка в тексте.js»
+//Версия 1.0
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

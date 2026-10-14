@@ -31,6 +31,10 @@
 //       set.tagRegExp("[а-яё]<emphasis>[а-яё]+?</emphasis>|<emphasis>[а-яё]+?</emphasis>[а-яё]", "i", "Found: italics inside a word.");
 //     The old fifth argument (a look-behind length limit) is accepted and ignored: the
 //     editor's JavaScript has real look-behind.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Скрипт «Поиск по набору регэкспов»
+//Версия 2.9
+//Автор Sclex
 import { createRegExpSet, searchWithSet } from './regexp-search.js';
 
 function buildSet(ctx) {

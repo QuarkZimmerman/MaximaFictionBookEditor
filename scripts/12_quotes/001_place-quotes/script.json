@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Place guillemets and low quotes",
-    "ru": "Расстановка елочек и лапок"
+    "en": "Quotes to guillemets v2.0",
+    "ru": "Кавычки на елочки v2.0"
   },
   "legacy": {
     "source": "12_Обработка кавычек/001_Расстановка елочек и лапок.js",

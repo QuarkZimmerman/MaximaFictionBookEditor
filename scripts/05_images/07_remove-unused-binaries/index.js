@@ -6,6 +6,10 @@
 // LIMITATION (documented in docs/scripting/conversion-notes-a.md): the script API has no call to
 // remove a binary object. The unused objects are listed instead; they are removed as soon as
 // `mfbe.doc.removeBinary(id)` exists.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Скрипт «Удаление неиспользуемых картинок»
+//Автор Sclex
+//http://www.fictionbook.org/forum/viewtopic.php?t=4412
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
@@ -62,7 +66,7 @@ export default async function run(ctx) {
   const ms = Date.now() - started;
   const time = `${ms < 1000 ? Math.ceil(ms) / 1000 : Math.ceil(ms / 100) / 10} ${t(ctx, 'сек', 's')}`;
   await mfbe.ui.message(
-    t(ctx, `Удаление неиспользуемых картинок\n\nЗатраченное время: ${time}.\nУдалено вложений: ${unused.length}.`,
-      `Removal of unused binary objects\n\nTime taken: ${time}.\nBinary objects removed: ${unused.length}.`),
+    t(ctx, `Удаление неиспользуемых картинок v1.0\nАвтор Sclex.\n\nЗатраченное время: ${time}.\nУдалено вложений: ${unused.length}.`,
+      `Removal of unused binary objects v1.0\nAuthor: Sclex.\n\nTime taken: ${time}.\nBinary objects removed: ${unused.length}.`),
   );
 }

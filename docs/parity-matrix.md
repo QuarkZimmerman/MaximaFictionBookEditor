@@ -306,8 +306,8 @@ toolbar itself is checked for presence (`00-smoke.spec.ts`) and tooltips (`us8-l
 | `IDC_STATIC_AB_APPICON`, `IDC_STATIC_AB_APPNAMEVER` | application icon, name and version | `about-name`, `about-version` | `about-name` | `00-smoke.spec.ts` | implemented | |
 | `IDC_STATIC_BUILD`, `IDC_BUILDSTAMP` | Build stamp | `about-build` | `dialog-about` | `00-smoke.spec.ts` | implemented | plus engine (`about-engine`), platform and API version |
 | `IDC_SYSLINK_AB_LINKS` | project link | `about-repository` (opened in the OS browser by the shell) | `dialog-about` | `00-smoke.spec.ts` | implemented | |
-| `IDC_CONTRIBS` | contributors text (`ABOUT_FILE`) | - | - | - | dropped | no credits or personal names anywhere in the product (FR-126, requester decision 2026-10-13); the licence (`about-licence`) and "Open log folder" (`about-open-log-folder`, FR-131) take the space |
-| `IDC_AB_STATIC_BANNER`, `IDC_AB_BANNER` | animated OpenGL logo with a bitmap fallback | - | - | - | dropped | decorative artwork of the original; visual styling may differ (Constitution I) and the dialog carries no artwork or credits (FR-126) |
+| `IDC_CONTRIBS` | contributors text (`ABOUT_FILE`) | `about-contributors` (the original's `contributors.txt`, shipped as `CONTRIBUTORS.txt`, word for word in a scrollable read-only box) | `about-contributors` | `us10-licence.spec.ts` | implemented | with the GPL-3.0 notices `about-licence`, `about-copyright`, `about-gpl-notice`, `about-licence-link` (feature 002, FR-095 to FR-098) |
+| `IDC_AB_STATIC_BANNER`, `IDC_AB_BANNER` | animated OpenGL logo with a bitmap fallback | - | - | - | dropped | decorative artwork of the original; visual styling may differ (Constitution I) |
 | `IDC_TEXT_STATUS`, `IDC_PIC_UPDATE`, `IDC_UPDATE` | update check status, icon and "Update now" | - | - | - | dropped | the built-in auto-update checker/downloader is out of scope (spec.md "Out of scope") |
 | `IDOK` | OK | `dialog-about-button-close` | `dialog-about-button-close` | `00-smoke.spec.ts` | implemented | |
 
@@ -413,8 +413,8 @@ the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the orig
 Counts are recomputed by `node tools/parity-check.mjs` (printed as
 "rows - implemented N, implemented-differently N, dropped N"). At the time of writing:
 216 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
-their controls) plus the original UI created in the sources: 206 implemented,
-3 implemented-differently, 7 dropped.
+their controls) plus the original UI created in the sources: 207 implemented,
+3 implemented-differently, 6 dropped.
 
 Dropped items and their references:
 
@@ -423,7 +423,6 @@ Dropped items and their references:
 | File > Import / Export placeholder entries (`IDCANCEL`) | Import/Export COM plugin interface and ExportHTML plugin out of scope (spec.md) - placeholders kept |
 | `ID_TOOLS_CUSTOMIZE` Customize toolbar... | Windows common-control dialog; fixed original order kept - candidate for the requester's decision |
 | `IDC_SPELL_SUGGEST` "Suggets" | permanently disabled, no handler in the original; automatic suggestions |
-| `IDC_CONTRIBS` contributors | no credits or personal names (FR-126, requester decision 2026-10-13) |
 | `IDC_AB_STATIC_BANNER`, `IDC_AB_BANNER` banner | decorative artwork; styling may differ (Constitution I) |
 | `IDC_TEXT_STATUS`, `IDC_PIC_UPDATE`, `IDC_UPDATE` update checker | out of scope (spec.md) |
 | `IDC_CHANGE_KEYB`, `IDC_KEYB_LAYOUT` keyboard layout switch | out of scope (spec.md) |

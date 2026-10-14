@@ -3,6 +3,9 @@
 // from the letters it contains: mixed case -> lower case; lower case only -> UPPER CASE; upper case
 // only -> Sentence case (first word capitalised, the rest lower case). A selection made of single
 // upper-case letters only ("A B C") goes to lower case, as in the original.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт смены регистра by Sclex
+//v1.4
 import { NO_SELECTION, selectedBlocks, selectedText, t, transformSelection } from './case-lib.js';
 
 // Letter classes of the original: Latin and basic Cyrillic only.

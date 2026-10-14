@@ -11,7 +11,8 @@ Conventions used by these groups:
 - `id` = `<NN>/<slug>`; `names.ru` = the original file name without extension; `legacy.source` =
   the original relative path.
 - User-facing strings are the originals in Russian and an English rendering, chosen with
-  `ctx.uiLanguage`; the author banners/credits and version lines of the originals are not copied.
+  `ctx.uiLanguage`; the originals' notices (author banners, credits, version lines) are kept as
+  written (see conversion-notes.md, "Notices kept").
 - Fixture books `tests/scripts/fixtures/books/conv-a-<NN>.fb2`; snapshots
   `tests/scripts/snapshots/<NN>/<slug>[.<variant>].xml` (the exact harness command of every snapshot
   is listed below). All snapshots were re-run without `--update` after recording (they match).
@@ -32,7 +33,7 @@ those have `needsSelection: false` (a caret alone must keep the menu item enable
 |------|----------|------------------------------|-------|
 | `01/upper-case` | 01_Верхний регистр | `upper-case.xml` (`--select n10:20:60`) | |
 | `01/lower-case` | 02_Нижний регистр | `lower-case.xml` (`--select n11:5:5`, caret → word) | |
-| `01/sentence-case-simple` | 03_Предложение (простое) | `sentence-case-simple.xml` (`--select n11`) | folder/name `03_Предложение (простое)` |
+| `01/sentence-case-simple` | 03_Предложение_alxs | `sentence-case-simple.xml` (`--select n11`) | name `Предложение_alxs` as the original's (the file name credits its author) |
 | `01/sentence-case` | 04_Предложение | `sentence-case.xml` (`--select n11`) | per text run: first letter upper, rest lower. A run without letters made the original `return` in the middle of the walk (markers left in the document); the port skips the run. `defaultHotkey: Ctrl+Shift+P` comes from the original's `SetHotkey()` (FBE itself had that mechanism commented out). |
 | `01/capitalize-words` | 05_Капитализация выделения | `capitalize-words.xml` (`--select n12`) | letter class copied verbatim from the original; a word split by formatting stays one word. |
 | `01/capitalize-first-word` | 06_Капитализация первого слова | `capitalize-first-word.xml` (`--select n12`) | |

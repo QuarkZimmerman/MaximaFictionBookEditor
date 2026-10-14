@@ -2,7 +2,7 @@
 
 Read first: `.specify/memory/constitution.md` (workspace `~/maxfbeditor`) — six principles
 (parity before novelty, headless testability, native core behind a versioned contract,
-round-trip safety, fenced scripting, permissive licences / offline). The design artifacts
+round-trip safety, fenced scripting, GPL-3.0 licensing / offline). The design artifacts
 live in `~/maxfbeditor/specs/001-maxima-fb2-editor/` (spec, plan, research, data-model,
 `contracts/` = the JSON-RPC, document-model, script API, resource formats and CLI contracts).
 Original FictionBook Editor sources (behavioural reference): `~/maxfbeditor/reference/`.
@@ -48,3 +48,6 @@ Run the core headless for manual/MCP testing:
 - Tests first for each user story (Playwright journey + Catch2 where the core is involved).
 - Commit messages: imperative, explain why; never commit secrets.
 - No scope beyond the original editor without the requester's approval.
+- Licence: GPL-3.0-only (the original editor's); keep the original's notices
+  (`CONTRIBUTORS.txt`, the scripts' author notices, checked by
+  `tests/scripts/tools/check-notices.py`); a new dependency must pass `tools/licence-check.py`.

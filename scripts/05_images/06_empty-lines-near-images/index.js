@@ -9,6 +9,10 @@
 // the same logic over a doubly linked copy of each section's children and writes the section
 // back with one replaceNode. In the model an empty line is an <empty-line/> node or a paragraph
 // made of spaces / non-breaking spaces (what the original's regular expression matched).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Скрипт "Пустые строки вокруг картинок"
+//Автор Sclex
+//http://www.fictionbook.org/forum/viewtopic.php?t=4412
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
@@ -215,7 +219,7 @@ export default async function run(ctx) {
 
   await mfbe.ui.message(
     t(ctx,
-      `Скрипт «Пустые строки вокруг картинок»\n\nОбработка успешно завершена.\n\nСтатистика пустых строк:\nУдалено: ${stats.removed}\nДобавлено: ${stats.added}`,
-      `Script "Empty lines around images"\n\nFinished.\n\nEmpty lines:\nRemoved: ${stats.removed}\nAdded: ${stats.added}`),
+      `Скрипт «Пустые строки вокруг картинок»\n(Версия 1.5. Автор Sclex)\n\nОбработка успешно завершена.\n\nСтатистика пустых строк:\nУдалено: ${stats.removed}\nДобавлено: ${stats.added}`,
+      `Script "Empty lines around images"\n(Version 1.5. Author: Sclex)\n\nFinished.\n\nEmpty lines:\nRemoved: ${stats.removed}\nAdded: ${stats.added}`),
   );
 }

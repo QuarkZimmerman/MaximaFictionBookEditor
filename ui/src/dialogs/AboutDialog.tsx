@@ -1,8 +1,10 @@
 /**
  * About dialog (T149, FR-126) after the original `IDD_ABOUTBOX`: product name and version,
  * build stamp, platform and browser engine (CEF / Chromium) from `app.info`, the repository
- * link, the licence (MIT) and "Open log folder" (FR-131, `app.openLogFolder`). No credits and
- * no personal names anywhere (requester decision, 2026-10-13).
+ * link, "Open log folder" (FR-131, `app.openLogFolder`), and the notices of the GNU GPL
+ * version 3 (feature 002, FR-095 to FR-098): the licence, the copyright line, no warranty,
+ * where to read the licence, and - in a scrollable read-only box, as the original showed its
+ * `contributors.txt` (`IDC_CONTRIBS`) - the original's contributor notice word for word.
  */
 
 import { useEffect, useState } from 'react';
@@ -16,7 +18,13 @@ import { Dialog, type DialogButton } from './Dialog';
 
 import './about.css';
 
+import contributorsNotice from '../../../CONTRIBUTORS.txt?raw';
+
 export const REPOSITORY_URL = 'https://github.com/QuarkZimmerman/MaximaFictionBookEditor';
+export const LICENCE_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
+
+/** The original's contributor notice as its About dialog showed it (without the final newline). */
+const CONTRIBUTORS_TEXT = contributorsNotice.replace(/\r?\n$/, '');
 
 export interface AboutDialogProps {
   ctx: CommandContext;
@@ -160,9 +168,28 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
             </a>
           </div>
           <div data-testid="about-licence">{t('dialog.about.licence')}</div>
+          <div data-testid="about-copyright">{t('dialog.about.copyright')}</div>
         </div>
-        <p className="mfbe-about-note">
-          {t('dialog.about.licenceNote')} {t('dialog.about.dictionaryLicences')}
+        <p className="mfbe-about-note" data-testid="about-based-on">
+          {t('dialog.about.basedOn')}
+        </p>
+        <textarea
+          className="mfbe-about-contributors"
+          readOnly
+          rows={7}
+          value={CONTRIBUTORS_TEXT}
+          aria-label={t('dialog.about.contributors')}
+          data-testid="about-contributors"
+        />
+        <p className="mfbe-about-note" data-testid="about-gpl-notice">
+          {t('dialog.about.gplNotice')}
+        </p>
+        <p className="mfbe-about-note" data-testid="about-licence-where">
+          {t('dialog.about.licenceWhere')}{' '}
+          <a href={LICENCE_URL} target="_blank" rel="noreferrer" data-testid="about-licence-link">
+            {LICENCE_URL}
+          </a>
+          . {t('dialog.about.thirdParty')}
         </p>
         <div className="mfbe-about-log">
           <button

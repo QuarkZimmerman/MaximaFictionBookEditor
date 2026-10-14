@@ -1,6 +1,12 @@
 // Converted from 06_Чистка/17_Превращение внешних ссылок в текст.js (FictionBook Editor).
 // Every link whose address does not start with "#" or "file://" (the original test
 // `^ *?(file://|#)`, case-insensitive) is unwrapped: the link mark is removed, the text stays.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт "Превращение внешних ссылок в текст"
+//Автор Sclex
+//Версия 1.0
+//Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412
+//Мой сайт про мои скрипты: http://scripts.fictionbook.org
 
 const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 const KEEP = /^ *?(file:\/\/|#)/i;

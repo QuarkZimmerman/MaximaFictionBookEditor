@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous code",
-    "ru": "Переход на предыдущий код"
+    "en": "Go to previous code v1.0.",
+    "ru": "Переход на предыдущий код v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/21_Переход на предыдущий код.js",

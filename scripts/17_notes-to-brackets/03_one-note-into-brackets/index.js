@@ -4,6 +4,8 @@
 // (with a leading space), the note section is removed and the remaining notes and comments
 // are renumbered (ids n_N / c_N, titles N, link texts [N] / {N}). Outside a note the original
 // did nothing at all; a status line says so here.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// var versionStr="Перенос одного примечания в скобки v1.0. Автор Sclex."
 import { indexTargets, loadBodies, localHref, moveReferencesOfBlock, t, textBlocksOf, unify } from './notes-lib.js';
 
 export default async function run(ctx) {

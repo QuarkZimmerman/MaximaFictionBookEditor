@@ -1,4 +1,8 @@
 // Shared implementation of the "image title to caption" scripts (group 11).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//author: Sclex
+//version: 1.1
+//Sclex, не забывай изменять номер версии в переменной versionStr
 
 const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 
@@ -50,8 +54,8 @@ export async function captionsFromImageTitles(ctx, { blockType, mark }) {
     if (ctx.cancelled) return;
   }
   const lines = ru
-    ? [`Встретилось картинок: ${seen}`, `Заменено заголовков картинки на подпись: ${changed}`]
-    : [`Images found: ${seen}`, `Titles turned into captions: ${changed}`];
+    ? ['--== Скрипт Sclex’а ==--', 'Заголовки картинок в подписи 1.1', '', `Встретилось картинок: ${seen}`, `Заменено заголовков картинки на подпись: ${changed}`]
+    : ['--== Script by Sclex ==--', 'Image titles to captions 1.1', '', `Images found: ${seen}`, `Titles turned into captions: ${changed}`];
   if (skipped) lines.push(ru ? `Пропущено (подпись здесь недопустима): ${skipped}` : `Skipped (a caption is not allowed there): ${skipped}`);
   await mfbe.ui.message(lines.join('\n'), { caption: ctx.script.name, icon: 'info' });
 }

@@ -9,6 +9,9 @@
 // to rename a binary object, so the renaming plan is computed and reported but only the parts
 // that do not touch binaries are applied (the "nobin_" prefix of images without a binary). The
 // renames are applied automatically as soon as a `mfbe.doc.renameBinary(id, newId)` call exists.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Унификация вложений и картинок
+// автор Sclex
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
@@ -212,7 +215,7 @@ export default async function run(ctx) {
   const c = plan.counts;
   await mfbe.ui.message(
     t(ctx,
-      ` "Унификация вложений и картинок"\n\nПереименовано иллюстраций: …… ${c.images}\n    Переименовано обложек:  ……… ${c.covers}\n    Нездешние изображения:  ……… ${c.nonLocal}\n    Лишние бинарные объекты: …… ${c.unused}\n    Безбинарные иллюстрации: …… ${c.nobin}\n   Не image/jpeg, не image/png: …… ${c.nonJpegPng}\n\nВремя выполнения: ${time}.${lists}${renames}`,
-      ` "Unification of binaries and images"\n\nIllustrations renamed: …… ${c.images}\n    Covers renamed:  ……… ${c.covers}\n    External images:  ……… ${c.nonLocal}\n    Unused binary objects: …… ${c.unused}\n    Images without binary: …… ${c.nobin}\n   Not image/jpeg, not image/png: …… ${c.nonJpegPng}\n\nTime taken: ${time}.${lists}${renames}`),
+      `            –= Sclex Script =–\n "Унификация вложений и картинок"\n                          v1.4\n\nПереименовано иллюстраций: …… ${c.images}\n    Переименовано обложек:  ……… ${c.covers}\n    Нездешние изображения:  ……… ${c.nonLocal}\n    Лишние бинарные объекты: …… ${c.unused}\n    Безбинарные иллюстрации: …… ${c.nobin}\n   Не image/jpeg, не image/png: …… ${c.nonJpegPng}\n\nВремя выполнения: ${time}.${lists}${renames}`,
+      `            –= Sclex Script =–\n "Unification of binaries and images"\n                          v1.4\n\nIllustrations renamed: …… ${c.images}\n    Covers renamed:  ……… ${c.covers}\n    External images:  ……… ${c.nonLocal}\n    Unused binary objects: …… ${c.unused}\n    Images without binary: …… ${c.nobin}\n   Not image/jpeg, not image/png: …… ${c.nonJpegPng}\n\nTime taken: ${time}.${lists}${renames}`),
   );
 }

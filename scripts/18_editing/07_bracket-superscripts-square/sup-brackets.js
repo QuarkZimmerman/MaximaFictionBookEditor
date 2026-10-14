@@ -3,6 +3,8 @@
 // put an opening bracket before its first text and a closing bracket after its last text (inside
 // the superscript). A <SUP> element corresponds to a maximal run of superscript text here, so
 // `<sup>3</sup><sup>4</sup>` written side by side counts as one run (the editor merges them).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Скрипт «Обрамить верхние индексы скобками []» v1.0
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

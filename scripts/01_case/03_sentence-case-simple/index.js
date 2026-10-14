@@ -1,8 +1,14 @@
-// Converted from 01_Регистр/03_Предложение (простое).js (FictionBook Editor 2.7), Tier 1; the folder
+// Converted from 01_Регистр/03_Предложение_alxs.js (FictionBook Editor 2.7), Tier 1; the folder
 // drops the author tag of the original file name.
 // "Sentence": the first letter of the selected fragment becomes upper case, everything else
 // lower case. The original refused selections that did not start with a letter (it looked at the
 // first character of the selection's HTML), so the same check is made on the selected text.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//======================================
+// Предложение - 1
+// Первая буква выделенного фрагмента текста — Прописная, остальные — строчные
+//                         v.1.0 ©Jurgen, June 2007
+//======================================
 import { selectedBlocks, selectedText, t, transformSelection } from './case-lib.js';
 
 // The original class `[A-zА-яЁё]` (Latin and basic Cyrillic letters).

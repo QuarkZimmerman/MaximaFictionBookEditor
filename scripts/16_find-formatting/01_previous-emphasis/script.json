@@ -14,8 +14,8 @@
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous italics",
-    "ru": "Переход на предыдущий курсив"
+    "en": "Go to previous italics v1.0.",
+    "ru": "Переход на предыдущий курсив v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/01_Переход на предыдущий курсив.js",

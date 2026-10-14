@@ -1,6 +1,10 @@
 // Converted from 18_Мелочи редактирования/04_Вставить пустую строку перед стихом или цитатой.js
 // (FictionBook Editor 2.7), Tier 2. Inserts an empty line before the poem or cite that contains
 // the start of the selection (the original pasted an empty <P>, which FBE saved as <empty-line/>).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Скрипт "Вставить пустую строку перед стихом или цитатой"
+// Версия 1.0
+// Автор Sclex
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

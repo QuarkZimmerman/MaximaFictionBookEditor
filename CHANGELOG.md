@@ -3,6 +3,18 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.2 - unreleased
+
+### Changed
+
+- Licence: the editor is now published under the GNU General Public License version 3
+  (GPL-3.0-only), the licence of the original FictionBook Editor, whose scripts, icons, genre
+  and symbol lists and blank document it includes (0.0.1 was published under the MIT
+  licence). The original's copyright notices and contributor list ship as `CONTRIBUTORS.txt`
+  and are shown in Help > About with the GPL notices, the bundled scripts carry their
+  authors' notices again, and the packages include the licence text of every third-party
+  component under `share/doc/mfbe/licenses/`.
+
 ## 0.0.1 - first public build
 
 A complete re-implementation of the classic FictionBook Editor for Windows 10/11,

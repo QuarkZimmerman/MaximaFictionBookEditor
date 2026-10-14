@@ -3,6 +3,36 @@
 // hyphen or a spaced em dash ("1941-1945", "10 — 15"). Starting at the paragraph with the
 // caret each finding is highlighted and proposed with non-breaking spaces (or an en dash);
 // Yes takes the text of the input box, No keeps the place, Cancel stops the script.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//=========================================
+//     Большие числа, записанные в иностранной манере и пр.
+//                                                           Engine by ©Sclex
+//                                                                           02.05.2008
+//~~~~~~~~~~~~~~~~~~~
+// v.1.1 — исправлена ошибка при наличии более десятка исправлений в одном параграфе
+//~~~~~~~~~~~~~~~~~~~
+// v.1.2 — удаление пробела в четырёхзначных числах
+//~~~~~~~~~~~~~~~~~~~
+// v.1.3 — только точки и пробелы, но не запятые
+//~~~~~~~~~~~~~~~~~~~
+// v.1.4 — дефис между цифрами
+//~~~~~~~~~~~~~~~~~~~
+// v.1.5 — уточнена обработка дефисных номеров: 123-234-345
+//~~~~~~~~~~~~~~~~~~~
+// v.1.6 — тире, пробел между цифрами
+//~~~~~~~~~~~~~~~~~~~
+// v.1.7 — переход на следующий абзац — "ready for FBE"
+//~~~~~~~~~~~~~~~~~~~
+// v.1.8 — кастомизированные неразрывные пробелы — Sclex (20.03.2010)
+//=========================================
+// v.1.9 — прерывание процесса
+//======================================
+// v.2.0 — проверка от курсора — sclex, май 2010
+//======================================
+// v.2.1 — доработка движкапод прерывание и выход — sclex, май 2010
+//======================================
+// v.2.12 — доработка подсветки для найденных рез-тов поиска — Alex2L, июнь 2012
+//======================================
 import { legacyTimeString } from './lib/legacy-html.js';
 import { piece, runInteractive } from './lib/interactive.js';
 import { PATTERNS } from './patterns.js';
@@ -26,8 +56,8 @@ export default async function run(ctx) {
   const state = await runInteractive(ctx, { caption: ctx.script.name, patterns });
   await mfbe.ui.message(
     ru
-      ? `«10.000.000.000» v.2.12\n\nПроизведено замен: ${state.count}\n\nВремя: ${legacyTimeString(started)}\n`
-      : `"10.000.000.000" v.2.12\n\nReplacements made: ${state.count}\n\nTime: ${legacyTimeString(started)}\n`,
+      ? `–= Jürgen Script =–\n«10.000.000.000» v.2.12\n\nПроизведено замен: ${state.count}\n\nВремя: ${legacyTimeString(started)}\n`
+      : `–= Jürgen Script =–\n"10.000.000.000" v.2.12\n\nReplacements made: ${state.count}\n\nTime: ${legacyTimeString(started)}\n`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

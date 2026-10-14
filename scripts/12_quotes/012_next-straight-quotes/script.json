@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to next straight quotes",
-    "ru": "Переход на след. прямые кавычки"
+    "en": "Go to characters \" v2.8",
+    "ru": "Переход на символы \" v2.8"
   },
   "legacy": {
     "source": "12_Обработка кавычек/012_Переход на след. прямые кавычки.js",

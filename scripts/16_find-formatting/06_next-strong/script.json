@@ -14,8 +14,8 @@
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to next bold",
-    "ru": "Переход на следующую жирность"
+    "en": "Go to next bold v1.0.",
+    "ru": "Переход на следующую жирность v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/06_Переход на следующую жирность.js",

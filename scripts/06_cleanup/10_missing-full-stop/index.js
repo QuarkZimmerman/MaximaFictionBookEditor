@@ -4,6 +4,30 @@
 // input box: Yes replaces it by the text of the box, No keeps it and remembers the capitalised
 // word as a proper name (so "увидел Александра" is not asked again), Cancel stops the script.
 // The original shipped a starting dictionary of proper names (names.js).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//======================================
+//     Интерактивный поиск пропущенной точки перед Прописной
+//                                      14 мая 2008 г.
+//                                                         Engine by ©Sclex
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.1 — добавлены двойные угловые кавычки
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.2 — не предлагается по умолчанию добавление точки после строчной;
+//             теперь при «Отмене» запоминается имя собственное, «ОК» — нет.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.3 — в имена добавлены дефисы и апосторофы
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.4 — вложенные кавычки
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.5 — запрос на выход
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.6 — переход на следующий абзац — "ready for FBE"
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.7 — подсветка сомнительного места
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.8 — кастомизированные nbsp — Sclex (20.03.2010)
+//======================================
+// changed by SeNS
 import { legacyTimeString } from './lib/legacy-html.js';
 import { piece, runInteractive } from './lib/interactive.js';
 import { NAMES } from './names.js';
@@ -42,8 +66,8 @@ export default async function run(ctx) {
   });
   await mfbe.ui.message(
     ru
-      ? `«Точка. Точка, запятая» v.1.9\n\n Произведено замен: ${state.count}\n\n Время: ${legacyTimeString(started)}.\n`
-      : `"Full stop. Full stop, comma" v.1.9\n\n Replacements made: ${state.count}\n\n Time: ${legacyTimeString(started)}.\n`,
+      ? `       –= Jurgen Script =–\n«Точка. Точка, запятая» v.1.9\n\n Произведено замен: ${state.count}\n\n Время: ${legacyTimeString(started)}.\n`
+      : `       –= Jurgen Script =–\n"Full stop. Full stop, comma" v.1.9\n\n Replacements made: ${state.count}\n\n Time: ${legacyTimeString(started)}.\n`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

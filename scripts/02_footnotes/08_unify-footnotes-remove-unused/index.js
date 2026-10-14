@@ -2,6 +2,12 @@
 // Removes the footnote sections no link points to, then renumbers the footnote sections and links.
 // The nine scripts of this group share one engine (notes-engine.js) and differ only in these
 // settings, exactly like the originals differed in their settings block.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// добавление сноски между уже имеющимися
+// написал Sclex
+// версия 2.8
+// Sclex, помни: данный скрипт имеет собственный код, не такой,
+//   как остальные скрипты в этом наборе
 import { FOOTNOTES, runNotesScript } from './notes-engine.js';
 
 export default async function run(ctx) {

@@ -2,6 +2,9 @@
 // The original removed every <SPAN> of the rendered book except the ones standing for <code>
 // and inline images, i.e. the FB2 <style name="..."> elements. Here the `style` mark is
 // stripped from every text run; the text itself is kept.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Скрипт «Удаление тегов style» v1.0
+//Автор Sclex
 
 const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 

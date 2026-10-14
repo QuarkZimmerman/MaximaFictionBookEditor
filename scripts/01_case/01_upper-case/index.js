@@ -1,6 +1,9 @@
 // Converted from 01_Регистр/01_Верхний регистр.js (FictionBook Editor 2.7), Tier 1.
 // Upper-cases the selected text; inline formatting is kept. With a caret only (no selection) the
 // word under the caret is processed, as the original did with TextRange.expand("word").
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт смены регистра by Sclex
+//v1.3
 import { NO_SELECTION, selectedBlocks, t, transformSelection } from './case-lib.js';
 
 export default async function run(ctx) {

@@ -4,6 +4,9 @@
 // From the caret on, every such place is selected in the Body view and offered in a form with
 // the recoded proposal (the cp1251 characters mapped to their cp1252 counterparts); the user
 // may replace it with the proposal or an own text, skip it, or go there and stop.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Скрипт «Символы windows-1252 в файле windows-1251
+// Автор Sclex
 
 const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 // cp1251 characters (0x80-0xFF) whose cp1252 counterpart differs, and those counterparts.
@@ -149,7 +152,7 @@ export async function win1252(ctx, { mode }) {
       }
       const shown = `${text.slice(Math.max(0, hit.from - 60), hit.from)}⟦${original}⟧${text.slice(hit.to, hit.to + 60)}`;
       const answer = await mfbe.ui.form({
-        title: L('Символы win-1252 в файле win-1251', 'win-1252 characters in a win-1251 file'),
+        title: L('Символы win-1252 в файле win-1251 v1.2 (скрипт Sclex’а)', 'win-1252 characters in a win-1251 file v1.2 (script by Sclex)'),
         width: 560,
         fields: [
           { kind: 'static', id: 'ctx', text: shown },

@@ -11,7 +11,8 @@ Russian), the Words tool, and user scripts.
 - Writes FB2 schema 2.1, reads 2.0-era files; UTF-8 by default; images stored
   as JPEG/PNG only.
 - Interface languages: English, Russian.
-- Licence: MIT (see `LICENSE`).
+- Licence: GNU General Public License version 3 (GPL-3.0-only, see `LICENSE`), the licence of
+  the original FictionBook Editor, whose material this editor includes.
 
 > Status: under active development. Release packages are produced by the release workflow
 > for every tag (see below); until the first release, build from source.
@@ -80,8 +81,25 @@ cpack --preset linux-app-release          # AppImage, .deb, .rpm in build/linux-
 
 ## Licence
 
-MIT - see [`LICENSE`](LICENSE). Bundled third-party components (Chromium Embedded Framework,
-libxml2, Hunspell and the spelling dictionaries, image libraries, the FictionBook schema and
-genre lists, ...) keep their own permissive licences, which ship with the data files and in
-`THIRD-PARTY-NOTICES.md` (generated and checked by `tools/licence-check.py`); the full licence
-texts are installed under `share/doc/mfbe/licenses/`.
+Copyright © 2026 Quark Zimmerman.
+
+Maxima Fiction Book Editor is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License version 3 as published by the Free Software
+Foundation ([`LICENSE`](LICENSE); unofficial Russian and Ukrainian translations as shipped by
+the original: [`gpl-3.0.ru.txt`](gpl-3.0.ru.txt), [`gpl-3.0.ua.txt`](gpl-3.0.ua.txt)). It is
+distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+It is a modified re-implementation (2026) of FictionBook Editor 2.7 and includes the
+original's material - its scripts, icons, genre and symbol lists and blank document - under
+the original's licence, version 3 of the GNU GPL. The original's copyright notices and
+contributor list are in [`CONTRIBUTORS.txt`](CONTRIBUTORS.txt) (also shown in Help > About),
+and every bundled script keeps its author's notices.
+
+Bundled third-party components (Chromium Embedded Framework, libxml2, Hunspell and the
+spelling dictionaries, image libraries, the FictionBook schema, ...) keep their own licences,
+all of which allow distribution as part of a GPL-3.0 work; they are listed in
+`THIRD-PARTY-NOTICES.md` (generated and checked by `tools/licence-check.py`), and their full
+licence texts are installed under `share/doc/mfbe/licenses/`. The complete source of every
+release is this repository at the release's tag; third-party sources are at the versions
+pinned in `vcpkg.json` and `cmake/CefVersion.cmake`.

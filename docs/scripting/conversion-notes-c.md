@@ -182,13 +182,12 @@ Snapshots (`conv-c-16.fb2`, unchanged document): `20/show-code.xml` (n23), `20/s
 
 ## 21_Поиск и замена (T124, Tier 1) - 2 scripts, one engine
 
-- `04_Поиск ошибок текста (регекспы от …)` → folder `04_Поиск ошибок текста (набор регэкспов)`,
-  id `21/text-error-search`, names "Search for text errors (regexp set)" / «Поиск ошибок текста
-  (набор регэкспов)»: the original file name credits the authors of the expressions by nickname;
-  the display name and folder omit them (no credits policy), `legacy.source` keeps the original
-  file name. The 174 active and 13 commented-out expressions were ported verbatim (the two
-  comment lines naming a contributor were removed); their descriptions stay in Russian because
-  the expressions only make sense for Russian text.
+- `04_Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.)` → id
+  `21/text-error-search`, names «Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.)» /
+  "Search for text errors (regular expressions by wotti, Roxana, JonVic et al.)", as the
+  original's file name credits the authors of the expressions. The 174 active and 13
+  commented-out expressions were ported verbatim with the original's contributor lines; their
+  descriptions stay in Russian because the expressions only make sense for Russian text.
 - `10_Поиск по набору регэкспов (заготовка)` → `21/regexp-set-search-template`: the template with
   the original instructions translated into the header comment and the single placeholder entry
   whose description asks to edit `index.js`.

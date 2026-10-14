@@ -53,10 +53,15 @@ jobs:
           bash -n build/replay-macos.sh
           python3 tools/extract-doc-commands.py windows --output build/replay-windows.ps1
       - name: Licence check (Constitution VI, T156)
-        # Policy (MIT-compatible licences only, no GPL/AGPL/unknown) and up-to-date notices for
-        # the npm, engine and bundled-data sections; the native rows are fully re-verified where
-        # the core is built (release.yml).
+        # Policy (licences that may be part of a GPL-3.0 work only; incompatible or unknown ones
+        # fail), the editor's own licence statements (LICENSE, package metadata, About dialog,
+        # docs) and up-to-date notices for the npm, engine and bundled-data sections; the native
+        # rows are fully re-verified where the core is built (release.yml).
         run: python3 tools/licence-check.py --check
+      - name: Script notices (GPL-3.0, feature 002 FR-097)
+        # Every bundled script keeps the author, copyright and version notices of the original
+        # script it was converted from (tests/scripts/notices.json).
+        run: python3 tests/scripts/tools/check-notices.py
       - uses: actions/setup-node@v4
         with:
           node-version: 24

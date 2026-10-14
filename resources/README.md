@@ -20,13 +20,13 @@ Upstream sources:
 | `schema/FictionBook.xsd`, `FictionBookGenres.xsd`, `FictionBookLang.xsd`, `FictionBookLinks.xsd`, `FictionNotes.xsd` | fb2 repository, byte-exact copies (FictionNotes.xsd keeps its upstream CRLF endings) | BSD 2-clause (`schema/LICENSE.md`, also embedded in FictionBook.xsd) | `cp` from the fb2 checkout, see `schema/SOURCE.txt` (commit + sha256 list) |
 | `schema/LICENSE.md` | fb2 repository `LICENSE.md` | - | same |
 | `schema/SOURCE.txt` | written for this project | - | update commit hash and checksums when the schema is refreshed |
-| `genres/names.en.txt` | FBE `genres.txt` (English genre names, 16 categories, 140 lines, 127 distinct codes) | MIT (project) | `python3 tools/resources-import/import_genres.py` |
-| `genres/names.ru.txt` | FBE `genres.rus.txt` (Russian names; structure and membership taken from `genres.txt`) | MIT (project) | same |
-| `genres/categories.tsv` | derived from both genre lists: `key<TAB>title_en<TAB>title_ru` | MIT (project) | same |
+| `genres/names.en.txt` | FBE `genres.txt` (English genre names, 16 categories, 140 lines, 127 distinct codes) | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_genres.py` |
+| `genres/names.ru.txt` | FBE `genres.rus.txt` (Russian names; structure and membership taken from `genres.txt`) | GPL-3.0-only (original editor) | same |
+| `genres/categories.tsv` | derived from both genre lists: `key<TAB>title_en<TAB>title_ru` | GPL-3.0-only (original editor) | same |
 | `genres/missing-names.txt` | codes of `schema/FictionBookGenres.xsd` (186) that neither FBE list names (65) | - | same |
-| `symbols.ini` | FBE `symbols.ini` (windows-1251) converted to UTF-8, header added | MIT (project) | `python3 tools/resources-import/import_symbols.py` |
-| `blank.fb2` | FBE `blank.fb2` (windows-1251) rewritten in UTF-8 with `{uuid}` / `{date}` placeholders, bilingual texts | MIT (project) | hand-maintained template; check with `python3 -c "import xml.dom.minidom,sys; xml.dom.minidom.parse(sys.argv[1])" resources/blank.fb2` |
-| `icons/` | FBE `res/*.bmp`, `res/*.ico` converted to PNG and split by the `TOOLBAR` button order of FBE `FBE.rc`; `.ico` originals copied | MIT (project) | `python3 tools/resources-import/import_icons.py` (ImageMagick 7); mapping in `icons/README.md` |
+| `symbols.ini` | FBE `symbols.ini` (windows-1251) converted to UTF-8, header added | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_symbols.py` |
+| `blank.fb2` | FBE `blank.fb2` (windows-1251) rewritten in UTF-8 with `{uuid}` / `{date}` placeholders, bilingual texts | GPL-3.0-only (original editor) | hand-maintained template; check with `python3 -c "import xml.dom.minidom,sys; xml.dom.minidom.parse(sys.argv[1])" resources/blank.fb2` |
+| `icons/` | FBE `res/*.bmp`, `res/*.ico` converted to PNG and split by the `TOOLBAR` button order of FBE `FBE.rc`; `.ico` originals copied | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_icons.py` (ImageMagick 7); mapping in `icons/README.md` |
 | `dictionaries/en_US.aff`, `en_US.dic`, `en_US.txt` | LibreOffice `en/en_US.aff`, `en/en_US.dic`, `en/README_en_US.txt`, byte-exact | SCOWL permissive licence + Ispell BSD / WordNet / public-domain parts, see `en_US.txt` | `curl` of the pinned raw URLs in `dictionaries/SOURCES.txt` |
 | `dictionaries/ru_RU.aff`, `ru_RU.dic`, `ru_RU.txt` | LibreOffice `ru_RU/ru_RU.aff`, `ru_RU/ru_RU.dic`, `ru_RU/README_ru_RU.txt`, byte-exact | BSD-style, see `ru_RU.txt` | same |
 | `dictionaries/SOURCES.txt` | written for this project | - | update SHA, sizes and checksums on refresh |

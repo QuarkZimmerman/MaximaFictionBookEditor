@@ -5,6 +5,10 @@
 // original matched `^(tags)*?([0-9]+?)(tags)*?( |nbsp)( |nbsp)*` on the HTML, where the only
 // tags allowed around the number were EM/I/B/STRONG; here that means the number may carry
 // emphasis/strong marks but nothing else (no link, no existing superscript).
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт «Нумерацию в началах строк - надстрочным текстом»
+//автор Sclex
+//v1.0
 
 const PROCESSED = new Set(['p', 'v', 'td', 'th']);
 const SPACE = '[ \u00A0]';

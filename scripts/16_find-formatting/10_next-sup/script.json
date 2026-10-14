@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to next superscript",
-    "ru": "Переход на следующий верхний индекс"
+    "en": "Go to previous superscript v1.0.",
+    "ru": "Переход на предыдущий верхний индекс v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/10_Переход на следующий верхний индекс.js",

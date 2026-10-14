@@ -2,6 +2,9 @@
 // Capitalises every word of the selection (first letter upper case, the rest lower case). A word
 // split by formatting ("сло<b>во</b>") stays one word: a run that starts with a letter right after a
 // run that ended with a letter continues in lower case. With a caret only the word under it is used.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт смены регистра by Sclex
+//v1.3
 import { LETTERS, NO_SELECTION, capitalize, selectedBlocks, t, transformSelection } from './case-lib.js';
 
 const WORDS = new RegExp(`[${LETTERS}]+`, 'gi');

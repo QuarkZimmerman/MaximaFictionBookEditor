@@ -2,6 +2,9 @@
 // Checks the footnotes of the book: every note section has an id, every note link points to an
 // existing note section, no section is referenced twice, the links follow the section order and
 // every section is referenced. The first problem is reported and the offending element selected.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Тест сносок
+// Версия: 1.2
 import { collectLinks, t } from './notes-engine.js';
 
 export default async function run(ctx) {

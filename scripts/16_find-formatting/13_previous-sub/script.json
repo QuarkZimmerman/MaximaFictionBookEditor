@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous subscript",
-    "ru": "Переход на предыдущий нижний индекс"
+    "en": "Go to previous subscript v1.0.",
+    "ru": "Переход на предыдущий нижний индекс v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/13_Переход на предыдующий нижний индекс.js",

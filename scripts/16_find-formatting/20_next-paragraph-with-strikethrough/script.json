@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to next paragraph with strikethrough",
-    "ru": "Переход на следующий абзац, содержащий зачеркивание"
+    "en": "Go to next paragraph with strikethrough v1.0.",
+    "ru": "Переход на следующий абзац, содержащий зачеркивание v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/20_Переход на следующий абзац, содержащий зачеркивание.js",

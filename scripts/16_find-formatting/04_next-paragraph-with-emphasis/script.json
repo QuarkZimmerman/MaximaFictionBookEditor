@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to next paragraph with italics",
-    "ru": "Переход на следующий абзац с курсивом"
+    "en": "Go to next paragraph with italics v1.0.",
+    "ru": "Переход на следующий абзац с курсивом v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/04_Переход на следующий абзац с курсивом.js",

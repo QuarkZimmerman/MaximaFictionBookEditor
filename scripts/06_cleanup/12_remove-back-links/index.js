@@ -8,6 +8,10 @@
 // Deviations (see conversion-notes-b.md): the original removed every link that followed a
 // back link inside the same notes section because of a counter that was never reset; only
 // the links matching the patterns are removed here.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//скрипт "Удаление возвратных ссылок"
+//удаляем ссылки в боди нотесов, которые подходят под регэкспы
+//удаляем id абзацев, которые подходят под регэкспы
 
 const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 const BACK_HREF = [/^_ftnref/i, /^_ednref/i];
@@ -138,8 +142,8 @@ export default async function run(ctx) {
 
   await mfbe.ui.message(
     ru
-      ? ` "Удаление возвратных ссылок"\n\n Удалено\n\n         Возвратных ссылок: ${deletedLinks}\n                     ID абзацев: ${deletedIds}`
-      : ` "Removal of back links"\n\n Removed\n\n         Back links: ${deletedLinks}\n         Paragraph ids: ${deletedIds}`,
+      ? `           –= Sclex Script =–\n "Удаление возвратных ссылок"\n                      v1.2\n\n Удалено\n\n         Возвратных ссылок: ${deletedLinks}\n                     ID абзацев: ${deletedIds}`
+      : `           –= Sclex Script =–\n "Removal of back links"\n                      v1.2\n\n Removed\n\n         Back links: ${deletedLinks}\n         Paragraph ids: ${deletedIds}`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

@@ -4,6 +4,12 @@
 // `limit` characters, no ! ? … inside - is wrapped in <strong>; optionally the letter-spacing
 // of the name ("Г а м л е т") is removed. The paragraph is processed in the legacy inline-HTML
 // notation so the original tag bookkeeping could be kept almost verbatim.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Скрипт "Разметка имен говорящих в пьесах"
+// v.1.2 от 20.03.2010
+//                                                 Автор Sclex
+//
+//обрабатывать ли history
 import { collectTextBlocks, rewriteBlockHtml } from './lib/legacy-html.js';
 
 const NBSP = '\u00A0';
@@ -117,8 +123,8 @@ export default async function run(ctx) {
   }
   await mfbe.ui.message(
     ru
-      ? `«Действующие лица в пьесах»\n\nОбработка завершена.\nРазмечено абзацев: ${count}.`
-      : `"Speakers in plays"\n\nDone.\nParagraphs marked: ${count}.`,
+      ? `–= Sclex Script =–\n«Действующие лица в пьесах»\nv.1.2\n\nОбработка завершена.\nРазмечено абзацев: ${count}.`
+      : `–= Sclex Script =–\n"Speakers in plays"\nv.1.2\n\nDone.\nParagraphs marked: ${count}.`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

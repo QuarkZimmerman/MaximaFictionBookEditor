@@ -3,6 +3,26 @@
 // "Пётр I" is shown to the user with a proposal that joins the parts with non-breaking spaces;
 // Yes takes the text of the input box, No leaves the place alone (and remembers it), Cancel
 // stops the script. Accepted replacements are remembered too and applied automatically later.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//======================================
+//               Инициалы до и после фамилий
+//                                    Engine by ©Sclex
+//                                                                   02.05.2008
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.2 — включена обработка аннотации
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.3 — переход на следующий абзац — "ready for FBE"
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// v.1.4 — кастомизированные неразрывные пробелы — Sclex (20.03.2010)
+//======================================
+// v.1.5 — прерывание процесса
+//======================================
+// v.2.0 — самообучение — jurgennt, май 2010
+//======================================
+// v.2.1 — проверка от курсора — sclex, май 2010
+//======================================
+// v.2.2 — доработка движкапод прерывание и выход — sclex, май 2010
+//======================================
 import { legacyTimeString } from './lib/legacy-html.js';
 import { piece, runInteractive } from './lib/interactive.js';
 
@@ -81,8 +101,8 @@ export default async function run(ctx) {
   });
   await mfbe.ui.message(
     ru
-      ? ` «Фамилия И. О.» v2.2\n\n Произведено замен: ${state.count}\n\n Время: ${legacyTimeString(started)}.\n`
-      : ` "Surname I. O." v2.2\n\n Replacements made: ${state.count}\n\n Time: ${legacyTimeString(started)}.\n`,
+      ? `  –= Jürgen Script =–\n «Фамилия И. О.» v2.2\n\n Произведено замен: ${state.count}\n\n Время: ${legacyTimeString(started)}.\n`
+      : `  –= Jürgen Script =–\n "Surname I. O." v2.2\n\n Replacements made: ${state.count}\n\n Time: ${legacyTimeString(started)}.\n`,
     { caption: ctx.script.name, icon: 'info' },
   );
 }

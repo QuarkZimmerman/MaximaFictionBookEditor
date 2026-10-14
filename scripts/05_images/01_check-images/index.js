@@ -3,6 +3,13 @@
 // images whose binary object is missing. Read-only: the document is not changed.
 // The original only knew the title-info cover; the src-title-info cover is honoured here too so
 // that it is not reported as unused.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//======================================
+// Поиск отсутствующих или неиспользуемых изображений
+//                  Alex Saveliev script for FBW2         version 1.1
+//======================================
+//
+// TO DO: Go to the first broken image if any
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
@@ -46,7 +53,7 @@ export default async function run(ctx) {
 
   await mfbe.ui.message(
     t(ctx,
-      `«Проверка иллюстраций»\n\n\nНеиспользуемые бинарные объекты: \n${unused}\nОтсутствующие иллюстрации: \n${broken}\n`,
-      `"Check illustrations"\n\n\nUnused binary objects: \n${unused}\nMissing illustrations: \n${broken}\n`),
+      `—= AlexS Script=—\n«Проверка иллюстраций» v.1.1\n\n\nНеиспользуемые бинарные объекты: \n${unused}\nОтсутствующие иллюстрации: \n${broken}\n`,
+      `—= AlexS Script=—\n"Check illustrations" v.1.1\n\n\nUnused binary objects: \n${unused}\nMissing illustrations: \n${broken}\n`),
   );
 }

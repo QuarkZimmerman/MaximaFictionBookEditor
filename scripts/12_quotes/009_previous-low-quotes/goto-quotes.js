@@ -2,6 +2,11 @@
 // next / previous occurrence of one of `chars`, selecting that character. At the end (start)
 // of the book the user is asked whether to continue from the other end; the search then
 // stops at the original position.
+// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+//Переход на кавычки v2.7
+//Автор Sclex
+//Подробности тут: http://www.fictionbook.org/forum/viewtopic.php?f=7&t=4412
+//И тут: http://scripts.fictionbook.org
 
 const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 
@@ -41,7 +46,7 @@ function findBackward(text, chars, before) {
 
 export async function goToQuotes(ctx, { direction, chars }) {
   const ru = ctx.uiLanguage === 'ru';
-  const versionStr = ru ? 'Скрипт «Переход на кавычки».\n\n' : 'Script "Go to quotes".\n\n';
+  const versionStr = ru ? 'Скрипт «Переход на кавычки v2.8».\nАвтор Sclex.\n\n' : 'Script "Go to quotes" v2.8.\nAuthor: Sclex.\n\n';
   const selection = await mfbe.selection.get();
   if (!selection) {
     await mfbe.ui.message(

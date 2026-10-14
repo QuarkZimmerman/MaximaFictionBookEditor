@@ -13,8 +13,8 @@
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous paragraph with bold",
-    "ru": "Переход на предыдущий абзац с жирностью"
+    "en": "Go to previous paragraph with bold v1.0.",
+    "ru": "Переход на предыдущий абзац с жирностью v1.0."
   },
   "legacy": {
     "source": "16_Поиск форматирования/07_Переход на предыдущий абзац с жирностью.js",

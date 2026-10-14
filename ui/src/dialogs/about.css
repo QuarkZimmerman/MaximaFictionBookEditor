@@ -1,4 +1,5 @@
-/* About dialog (T149) after IDD_ABOUTBOX: name + version, build stamp, link, licence, log folder. */
+/* About dialog (T149) after IDD_ABOUTBOX: name + version, build stamp, link, licence notices,
+   the original's contributor notice (IDC_CONTRIBS), log folder. */
 
 .mfbe-aboutdialog {
   width: min(520px, calc(100vw - 32px));
@@ -64,6 +65,26 @@
   grid-column: 1 / -1;
   margin: 6px 0 0;
   color: var(--mfbe-color-fg-muted, #6b6b6b);
+}
+
+.mfbe-about-contributors {
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 4px 6px;
+  resize: none;
+  overflow-y: auto;
+  font: inherit;
+  color: inherit;
+  background: var(--mfbe-color-input-bg, #fff);
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  white-space: pre-wrap;
+}
+
+.mfbe-about-note a {
+  color: var(--mfbe-color-accent, #0078d4);
+  overflow-wrap: anywhere;
 }
 
 .mfbe-about-log {

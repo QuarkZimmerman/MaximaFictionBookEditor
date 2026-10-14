@@ -148,7 +148,7 @@ from the pinned baseline in `vcpkg.json`; the UI is built by npm (standalone or 
 | `share/mfbe/ui/` | `share\mfbe\ui\` | `Contents/Resources/ui/` | UI bundle |
 | `share/mfbe/resources/` | `share\mfbe\resources\` | `Contents/Resources/resources/` | schema, genres, dictionaries (with their licence texts), symbols, blank template, messages, icons |
 | `share/mfbe/scripts/` | `share\mfbe\scripts\` | `Contents/Resources/scripts/` | bundled user scripts (read-only layer) |
-| `share/doc/mfbe/` | `share\doc\mfbe\` | `Contents/Resources/` | `LICENSE`, `THIRD-PARTY-NOTICES.md` |
+| `share/doc/mfbe/` | `share\doc\mfbe\` | `Contents/Resources/` | `LICENSE` (GNU GPL version 3) with the original's `gpl-3.0.ru.txt` and `gpl-3.0.ua.txt`, the original's `CONTRIBUTORS.txt`, `THIRD-PARTY-NOTICES.md`, `licenses/` (third-party licence texts) |
 | `share/applications`, `share/mime/packages`, `share/icons` | MSI ProgIds `.fb2` / `.fbd` | `Info.plist` document types | file associations |
 
 Per-user data (settings, recent files, custom dictionary, exclusions, hotkeys, user genres,
@@ -355,4 +355,5 @@ Diagnostics and privacy (`core/src/log/error_log.cpp`, FR-131):
 * Logging: `log::error` / `log::warning` take codes, paths and reasons - never a text
   fragment of the book or a user's word list.
 * Dependencies: run `python3 tools/licence-check.py` and commit the regenerated notices;
-  GPL/AGPL or unknown licences fail CI.
+  licences that may not be part of a GPL-3.0 work (the editor is GPL-3.0-only) and unknown
+  licences fail CI; a multi-licensed component is recorded under a compatible option.

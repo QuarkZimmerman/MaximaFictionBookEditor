@@ -35,7 +35,7 @@ The feature set is identical on every platform.
 ### Install
 
 1. Download `MaximaFictionBookEditor-<version>-win64.msi` and double-click it.
-2. Confirm the administrator prompt, accept the licence (MIT) and the folder, click
+2. Confirm the administrator prompt, accept the licence (GNU GPL version 3) and the folder, click
    **Install**.
 
 The editor is installed for all users of the computer into
