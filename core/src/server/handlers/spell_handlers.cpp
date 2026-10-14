@@ -83,7 +83,7 @@ void register_spell_handlers(rpc::RpcRouter& router, Services& services) {
                 std::ifstream in(*d.readme, std::ios::binary);
                 result["text"] = std::string((std::istreambuf_iterator<char>(in)),
                                              std::istreambuf_iterator<char>());
-                result["path"] = d.readme->string();
+                result["path"] = platform::utf8_from_path(*d.readme);
             }
             return result;
         }
@@ -144,19 +144,21 @@ void register_spell_handlers(rpc::RpcRouter& router, Services& services) {
         "spell.customDictionaryPath", [&services](const json& params, rpc::RpcContext& ctx) {
             spell::SpellService& s = service(services);
             if (const auto path = rpc::params::opt_string(params, "path")) {
-                std::filesystem::path target = *path;
+                std::filesystem::path target = platform::path_from_utf8(*path);
                 if (target.empty()) {
                     target = services.dirs.data / "custom.dic";
                 } else {
                     std::error_code ec;
                     target = std::filesystem::absolute(target, ec);
                 }
-                const auto result = services.settings.apply_patch(json{
-                    {"view", {{"customDictionaryPath", path->empty() ? "" : target.string()}}}});
+                const auto result = services.settings.apply_patch(
+                    json{{"view",
+                          {{"customDictionaryPath",
+                            path->empty() ? "" : platform::utf8_from_path(target)}}}});
                 ctx.notifier.notify("settings.changed", json{{"settings", result.settings}});
                 s.set_custom_path(target);
             }
-            return json{{"path", s.custom().path().string()}};
+            return json{{"path", platform::utf8_from_path(s.custom().path())}};
         });
 }
 

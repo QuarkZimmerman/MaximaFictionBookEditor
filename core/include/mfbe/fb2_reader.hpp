@@ -55,7 +55,7 @@ struct ParseFailure : std::runtime_error {
 struct IoFailure : std::runtime_error {
     IoFailure(std::string path_, std::string reason_)
         : std::runtime_error(reason_), path(std::move(path_)), reason(std::move(reason_)) {}
-    std::string path;
+    std::string path;  // UTF-8
     std::string reason;
 };
 

@@ -6,6 +6,7 @@
 #include <mfbe/encodings.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <libxml/SAX2.h>
 #include <libxml/parser.h>
@@ -947,7 +948,8 @@ void convert_root(xmlNodePtr root, Ctx& ctx) {
 }
 
 model::FileKind kind_from_path(const std::string& path) {
-    return model::file_kind_from_extension(std::filesystem::path(path).extension().string());
+    return model::file_kind_from_extension(
+        platform::utf8_from_path(platform::path_from_utf8(path).extension()));
 }
 
 ParseError to_parse_error(const xml::CollectedError& e) {
@@ -963,28 +965,29 @@ ParseError to_parse_error(const xml::CollectedError& e) {
 std::string read_file_bytes(const std::filesystem::path& path) {
     std::error_code ec;
     if (!std::filesystem::exists(path, ec)) {
-        throw IoFailure(path.string(), "file not found");
+        throw IoFailure(platform::utf8_from_path(path), "file not found");
     }
     if (std::filesystem::is_directory(path, ec)) {
-        throw IoFailure(path.string(), "is a directory");
+        throw IoFailure(platform::utf8_from_path(path), "is a directory");
     }
     std::ifstream in(path, std::ios::binary);
     if (!in) {
-        throw IoFailure(path.string(), "cannot open file for reading");
+        throw IoFailure(platform::utf8_from_path(path), "cannot open file for reading");
     }
     in.seekg(0, std::ios::end);
     const std::streamoff size = in.tellg();
     if (size < 0) {
-        throw IoFailure(path.string(), "cannot determine file size");
+        throw IoFailure(platform::utf8_from_path(path), "cannot determine file size");
     }
     if (static_cast<std::size_t>(size) > xml::kMaxDocumentBytes) {
-        throw IoFailure(path.string(), "file is larger than the supported maximum (512 MB)");
+        throw IoFailure(platform::utf8_from_path(path),
+                        "file is larger than the supported maximum (512 MB)");
     }
     in.seekg(0, std::ios::beg);
     std::string data(static_cast<std::size_t>(size), '\0');
     in.read(data.data(), size);
     if (!in && size > 0) {
-        throw IoFailure(path.string(), "read error");
+        throw IoFailure(platform::utf8_from_path(path), "read error");
     }
     return data;
 }
@@ -1081,8 +1084,8 @@ ReadResult read_bytes(std::string_view bytes, BinaryStore& store, model::NodeIdA
     convert_root(root, ctx);
     if (!display_path.empty()) {
         std::error_code ec;
-        const auto abs = std::filesystem::absolute(display_path, ec);
-        doc.path = ec ? display_path : abs.string();
+        const auto abs = std::filesystem::absolute(platform::path_from_utf8(display_path), ec);
+        doc.path = ec ? display_path : platform::utf8_from_path(abs);
     }
     doc.fileKind = options.file_kind.value_or(kind_from_path(display_path));
     model::assign_node_ids(doc, ids);
@@ -1094,7 +1097,7 @@ ReadResult read_bytes(std::string_view bytes, BinaryStore& store, model::NodeIdA
 ReadResult read_file(const std::filesystem::path& path, BinaryStore& store,
                      model::NodeIdAllocator& ids, const ReadOptions& options) {
     const std::string bytes = read_file_bytes(path);
-    return read_bytes(bytes, store, ids, options, path.string());
+    return read_bytes(bytes, store, ids, options, platform::utf8_from_path(path));
 }
 
 std::optional<ParseError> check_well_formed(std::string_view utf8_text) {

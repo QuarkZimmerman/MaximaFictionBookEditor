@@ -271,7 +271,7 @@ void register_binary_handlers(rpc::RpcRouter& router, Services& services) {
         const std::string path = rpc::params::string(params, "path");
         std::string bytes;
         try {
-            bytes = fb2::read_file_bytes(path);
+            bytes = fb2::read_file_bytes(platform::path_from_utf8(path));
         } catch (const fb2::IoFailure& e) {
             throw rpc::RpcError(rpc::codes::kDocIoError, "",
                                 json{{"path", e.path}, {"reason", e.reason}});
@@ -286,7 +286,7 @@ void register_binary_handlers(rpc::RpcRouter& router, Services& services) {
         }
         std::string suggested = rpc::params::string_or(params, "suggestedId", "");
         if (suggested.empty()) {
-            suggested = std::filesystem::path(path).filename().string();
+            suggested = platform::utf8_from_path(platform::path_from_utf8(path).filename());
         }
         const bool convert_now = rpc::params::boolean_or(params, "convertNow", false);
         return model::to_json(
@@ -397,7 +397,7 @@ void register_binary_handlers(rpc::RpcRouter& router, Services& services) {
             throw rpc::RpcError(rpc::codes::kBinaryNotFound, "", json{{"id", id}});
         }
         try {
-            atomic_file::write_atomic(path, *bytes);
+            atomic_file::write_atomic(platform::path_from_utf8(path), *bytes);
         } catch (const atomic_file::WriteError& e) {
             throw rpc::RpcError(rpc::codes::kDocIoError, "",
                                 json{{"path", e.path}, {"reason", e.reason}});

@@ -2,6 +2,7 @@
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/hotkeys.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <system_error>
@@ -27,12 +28,12 @@ void HotkeysStore::load() {
         parsed = json::parse(atomic_file::read_file(file_));
     } catch (const std::exception& e) {
         log::error("core", "hotkeys.unreadable", "hotkeys.json could not be read",
-                   log::extras({{"path", file_.string()}, {"reason", e.what()}}));
+                   log::extras({{"path", platform::utf8_from_path(file_)}, {"reason", e.what()}}));
         return;
     }
     if (!parsed.is_object() || !parsed.contains("bindings") || !parsed["bindings"].is_array()) {
         log::warning("core", "hotkeys.invalid", "hotkeys.json has an unexpected shape",
-                     log::extras({{"path", file_.string()}}));
+                     log::extras({{"path", platform::utf8_from_path(file_)}}));
         return;
     }
     std::size_t skipped = 0;
@@ -46,7 +47,8 @@ void HotkeysStore::load() {
     }
     if (skipped > 0) {
         log::warning("core", "hotkeys.invalidEntries", "hotkeys.json contains invalid bindings",
-                     log::extras({{"path", file_.string()}, {"skipped", std::to_string(skipped)}}));
+                     log::extras({{"path", platform::utf8_from_path(file_)},
+                                  {"skipped", std::to_string(skipped)}}));
     }
 }
 

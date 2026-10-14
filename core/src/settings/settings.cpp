@@ -3,6 +3,7 @@
 #include <mfbe/log.hpp>
 #include <mfbe/settings.hpp>
 #include <mfbe/unicode.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -403,7 +404,7 @@ void SettingsStore::load() {
         parsed = json::parse(atomic_file::read_file(file_), nullptr, true, true);
     } catch (const std::exception& e) {
         log::error("core", "settings.unreadable", "settings.json could not be read; defaults used",
-                   log::extras({{"path", file_.string()}, {"reason", e.what()}}));
+                   log::extras({{"path", platform::utf8_from_path(file_)}, {"reason", e.what()}}));
         return;
     }
     settings_ = std::move(parsed);

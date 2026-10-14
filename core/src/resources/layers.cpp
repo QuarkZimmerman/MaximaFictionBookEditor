@@ -1,6 +1,7 @@
 // Layered resource lookup (T020). See mfbe/resources.hpp.
 #include <mfbe/log.hpp>
 #include <mfbe/resources.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <map>
@@ -95,7 +96,7 @@ IdFunction default_id_function(Kind kind) {
                 if (!e.is_regular_file(ec)) {
                     return std::nullopt;
                 }
-                const std::string name = e.path().filename().string();
+                const std::string name = platform::utf8_from_path(e.path().filename());
                 if (!ends_with(lower(name), ".genres.tsv")) {
                     return std::nullopt;
                 }
@@ -107,7 +108,7 @@ IdFunction default_id_function(Kind kind) {
                 if (!e.is_regular_file(ec)) {
                     return std::nullopt;
                 }
-                if (lower(e.path().extension().string()) != ".aff") {
+                if (lower(platform::utf8_from_path(e.path().extension())) != ".aff") {
                     return std::nullopt;
                 }
                 fs::path dic = e.path();
@@ -115,7 +116,7 @@ IdFunction default_id_function(Kind kind) {
                 if (!fs::is_regular_file(dic, ec)) {
                     return std::nullopt;
                 }
-                return e.path().stem().string();
+                return platform::utf8_from_path(e.path().stem());
             };
         case Kind::scripts:
             return [](const fs::directory_entry& e) -> std::optional<std::string> {
@@ -126,7 +127,7 @@ IdFunction default_id_function(Kind kind) {
                 if (!fs::is_regular_file(e.path() / "script.json", ec)) {
                     return std::nullopt;
                 }
-                return e.path().filename().string();
+                return platform::utf8_from_path(e.path().filename());
             };
     }
     return [](const fs::directory_entry&) { return std::nullopt; };
@@ -139,7 +140,7 @@ void ResourceLayers::set_roots(Roots roots) {
 }
 
 std::vector<Layer> ResourceLayers::layers(Kind kind) const {
-    const std::string sub = to_string(kind);
+    const char* const sub = to_string(kind);
     std::vector<Layer> result;
     auto add = [&](LayerName name, const fs::path& path) {
         Layer layer;
@@ -182,7 +183,7 @@ nlohmann::json ResourceLayers::report() const {
     for (const auto& layer : all_layers()) {
         arr.push_back({{"kind", to_string(layer.kind)},
                        {"layer", to_string(layer.layer)},
-                       {"path", layer.path.string()},
+                       {"path", platform::utf8_from_path(layer.path)},
                        {"exists", layer.exists},
                        {"writable", layer.writable}});
     }
@@ -227,12 +228,13 @@ std::vector<Entry> ResourceLayers::list(Kind kind, const IdFunction& id_of,
             auto found = index_by_id.find(*id);
             if (found != index_by_id.end()) {
                 Conflict conflict{kind, *id, result[found->second].path, entry.path()};
-                log::warning("core", "resources.conflict",
-                             "resource id present in several layers; higher layer kept",
-                             log::extras({{"kind", to_string(kind)},
-                                          {"id", *id},
-                                          {"kept", conflict.kept.string()},
-                                          {"ignored", conflict.ignored.string()}}));
+                log::warning(
+                    "core", "resources.conflict",
+                    "resource id present in several layers; higher layer kept",
+                    log::extras({{"kind", to_string(kind)},
+                                 {"id", *id},
+                                 {"kept", platform::utf8_from_path(conflict.kept)},
+                                 {"ignored", platform::utf8_from_path(conflict.ignored)}}));
                 if (conflicts != nullptr) {
                     conflicts->push_back(std::move(conflict));
                 }

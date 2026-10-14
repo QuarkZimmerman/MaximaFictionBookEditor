@@ -21,8 +21,15 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/include/mfbe/version.hpp.in"
   "${CMAKE_CURRENT_BINARY_DIR}/generated/mfbe/version.hpp" @ONLY)
 
-# All translation units under src/ are part of the library (layout: see plan.md).
+# UTF-8 text <-> path helpers (mfbe/utf8_paths.hpp): a library of their own because the CEF
+# shell, whose sources do not link the core, needs them too.
+add_library(mfbe_paths STATIC "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/paths.cpp")
+target_include_directories(mfbe_paths PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
+target_link_libraries(mfbe_paths PRIVATE mfbe::options)
+
+# All other translation units under src/ are part of the library (layout: see plan.md).
 file(GLOB_RECURSE _mfbe_existing_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+list(FILTER _mfbe_existing_sources EXCLUDE REGEX "/src/platform/paths\\.cpp$")
 
 add_library(mfbe_core STATIC ${_mfbe_existing_sources})
 add_library(mfbe::core ALIAS mfbe_core)
@@ -39,6 +46,7 @@ target_include_directories(mfbe_core
 target_link_libraries(mfbe_core
   PUBLIC
     mfbe::options
+    mfbe_paths
     nlohmann_json::nlohmann_json
     spdlog::spdlog
   PRIVATE

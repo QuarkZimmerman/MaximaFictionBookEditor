@@ -1,6 +1,6 @@
 // UTF-8 text <-> filesystem path conversions independent of the process code page (feature 002,
-// research R1). See mfbe/platform.hpp.
-#include <mfbe/platform.hpp>
+// research R1). See mfbe/utf8_paths.hpp. Built as mfbe_paths (core/CMakeLists.txt).
+#include <mfbe/utf8_paths.hpp>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -53,6 +53,24 @@ std::string utf8_from_path_generic(const std::filesystem::path& path) {
     return utf8_from_wide(path.generic_wstring());
 }
 
+std::string utf8_error_message(const std::error_code& ec) {
+    if (ec.category() != std::system_category()) {
+        return ec.message();  // generic (errno) messages of the C runtime are ASCII
+    }
+    wchar_t* buffer = nullptr;
+    const DWORD length = FormatMessageW(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr, static_cast<DWORD>(ec.value()), 0, reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
+    std::wstring text = (length != 0 && buffer != nullptr) ? std::wstring(buffer, length) : L"";
+    if (buffer != nullptr) {
+        LocalFree(buffer);
+    }
+    while (!text.empty() && (text.back() == L'\r' || text.back() == L'\n')) {
+        text.pop_back();
+    }
+    return text.empty() ? "system error " + std::to_string(ec.value()) : utf8_from_wide(text);
+}
+
 #else  // POSIX: paths are byte strings, UTF-8 by convention.
 
 std::filesystem::path path_from_utf8(std::string_view utf8) {
@@ -65,6 +83,10 @@ std::string utf8_from_path(const std::filesystem::path& path) {
 
 std::string utf8_from_path_generic(const std::filesystem::path& path) {
     return path.generic_string();  // path-text: POSIX bytes are the UTF-8 text
+}
+
+std::string utf8_error_message(const std::error_code& ec) {
+    return ec.message();
 }
 
 #endif

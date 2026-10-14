@@ -133,8 +133,12 @@ void init(const std::filesystem::path& log_dir) {
         std::error_code ec;
         std::filesystem::create_directories(log_dir, ec);
         const auto path = log_dir / "mfbe-errors.log";
+        // spdlog opens, rotates and removes the files with the C runtime's narrow functions,
+        // which read the name in the process code page (on Windows a folder name outside it
+        // throws here: no file log, stderr only).
         auto sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-            path.string(), kMaxFileBytes, kMaxFiles);
+            path.string(),  // path-text: spdlog's narrow name is in the process code page
+            kMaxFileBytes, kMaxFiles);
         auto logger = std::make_shared<spdlog::logger>("mfbe-errors", sink);
         logger->set_pattern("%v");
         logger->set_level(spdlog::level::warn);
@@ -148,7 +152,7 @@ void init(const std::filesystem::path& log_dir) {
         state().file_logger.reset();
         state().file_path.clear();
         std::fprintf(stderr, "[mfbe error] log: cannot open error log in %s: %s\n",
-                     log_dir.string().c_str(), e.what());
+                     platform::utf8_from_path(log_dir).c_str(), e.what());
     }
 }
 

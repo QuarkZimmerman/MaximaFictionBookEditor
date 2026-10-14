@@ -42,6 +42,10 @@ Run the core headless for manual/MCP testing:
 
 - C++: C++20, `.clang-format` (4 spaces, 100 cols), headers in `core/include/mfbe/`, sources in
   `core/src/<area>/`; errors through `mfbe::log` (errors-only log, never book text).
+- Paths and text: convert only with `platform::path_from_utf8` / `utf8_from_path` /
+  `utf8_error_message` (`mfbe/utf8_paths.hpp`) - Windows converts implicit ones through the
+  legacy code page; `tools/path-conversion-check.py` rejects them (`// path-text: <reason>`
+  marks a deliberate one).
 - TS: strict, 2 spaces, Prettier; every interactive element has a stable `data-testid`;
   all user-visible strings go through i18n (`en.json`/`ru.json` must stay in parity).
 - Contract first: change `specs/.../contracts/*` before changing RPC handlers or the UI client.

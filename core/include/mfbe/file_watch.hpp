@@ -30,7 +30,7 @@ FileStamp stamp_of(const std::filesystem::path& path);
 
 class FileWatcher {
 public:
-    // (docId, path, mtime of the changed file)
+    // (docId, path (UTF-8), mtime of the changed file)
     using Callback =
         std::function<void(const std::string& doc_id, const std::string& path, std::int64_t mtime)>;
 

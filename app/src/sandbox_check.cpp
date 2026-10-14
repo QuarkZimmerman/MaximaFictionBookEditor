@@ -1,5 +1,7 @@
 #include "sandbox_check.h"
 
+#include <mfbe/utf8_paths.hpp>
+
 #include <string>
 
 #if defined(__linux__)
@@ -96,9 +98,10 @@ SandboxProbe probeSandbox(const std::filesystem::path& exe_dir) {
             const bool executable = (st.st_mode & S_IXOTH) != 0;
             if (root_owned && setuid && executable) {
                 probe.suid_helper = true;
-                helper_state = "ok (" + helper.string() + ")";
+                helper_state = "ok (" + mfbe::platform::utf8_from_path(helper) + ")";
             } else {
-                helper_state = "present but not root-owned mode 4755 (" + helper.string() + ")";
+                helper_state = "present but not root-owned mode 4755 (" +
+                               mfbe::platform::utf8_from_path(helper) + ")";
             }
         }
     }

@@ -59,12 +59,12 @@ void LoopbackServer::on_message(WebSocketPtr ws, std::string_view message) {
     // Asynchronous responses are marshalled back to the loop thread and dropped when the
     // client is gone.
     auto sink = [this, client_id](nlohmann::json response) {
-        std::string text = response.dump();
+        std::string text = rpc::RpcRouter::wire_text(response);
         services_.post([this, client_id, text = std::move(text)] { send_to(client_id, text); });
     };
     auto response = router_.dispatch_text(message, ctx, sink);
     if (response) {
-        ws->send(response->dump(), uWS::OpCode::TEXT);
+        ws->send(rpc::RpcRouter::wire_text(*response), uWS::OpCode::TEXT);
     }
 }
 
@@ -91,7 +91,8 @@ void LoopbackServer::notify_open_paths(const std::vector<std::string>& paths) {
         pending_open_paths_.insert(pending_open_paths_.end(), paths.begin(), paths.end());
         return;
     }
-    broadcast(rpc::RpcRouter::make_notification("app.openPaths", {{"paths", paths}}).dump());
+    broadcast(rpc::RpcRouter::wire_text(
+        rpc::RpcRouter::make_notification("app.openPaths", {{"paths", paths}})));
 }
 
 void LoopbackServer::deliver_pending_open_paths() {
@@ -100,7 +101,8 @@ void LoopbackServer::deliver_pending_open_paths() {
     }
     std::vector<std::string> paths;
     paths.swap(pending_open_paths_);
-    broadcast(rpc::RpcRouter::make_notification("app.openPaths", {{"paths", paths}}).dump());
+    broadcast(rpc::RpcRouter::wire_text(
+        rpc::RpcRouter::make_notification("app.openPaths", {{"paths", paths}})));
 }
 
 }  // namespace mfbe::server

@@ -52,10 +52,10 @@ bool spawn_detached(const std::vector<std::string>& argv) {
     const int rc = posix_spawnp(&pid, args[0], &actions, nullptr, args.data(), environ);
     posix_spawn_file_actions_destroy(&actions);
     if (rc != 0) {
-        log::warning(
-            "core", "process.spawnFailed", "cannot start opener",
-            log::extras({{"program", argv[0]},
-                         {"reason", std::error_code(rc, std::generic_category()).message()}}));
+        log::warning("core", "process.spawnFailed", "cannot start opener",
+                     log::extras({{"program", argv[0]},
+                                  {"reason", platform::utf8_error_message(
+                                                 std::error_code(rc, std::generic_category()))}}));
         return false;
     }
     // Reap the opener in the background so it never lingers as a zombie; never block here.
@@ -107,7 +107,7 @@ bool open_folder(const std::filesystem::path& path) {
     if (!std::filesystem::is_directory(path, ec)) {
         return false;
     }
-    return run(opener_command(std::filesystem::absolute(path).string()));
+    return run(opener_command(platform::utf8_from_path(std::filesystem::absolute(path))));
 }
 
 bool open_url(const std::string& url) {

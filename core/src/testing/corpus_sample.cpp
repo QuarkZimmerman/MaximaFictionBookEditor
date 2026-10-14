@@ -1,5 +1,6 @@
 // CPython-compatible seeded sampling of the book corpus. See mfbe/corpus_sample.hpp.
 #include <mfbe/corpus_sample.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -25,7 +26,7 @@ int bit_length(std::uint64_t n) {
 }
 
 std::string lower_ext(const fs::path& p) {
-    std::string ext = p.extension().string();
+    std::string ext = platform::utf8_from_path(p.extension());
     std::transform(ext.begin(), ext.end(), ext.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return ext;
@@ -40,9 +41,11 @@ std::vector<fs::directory_entry> sorted_dirs(const fs::path& parent) {
             dirs.push_back(*it);
         }
     }
+    // UTF-8 byte order is code point order, the order of sample.py's sorted().
     std::sort(dirs.begin(), dirs.end(),
               [](const fs::directory_entry& a, const fs::directory_entry& b) {
-                  return a.path().filename().string() < b.path().filename().string();
+                  return platform::utf8_from_path(a.path().filename()) <
+                         platform::utf8_from_path(b.path().filename());
               });
     return dirs;
 }
@@ -175,7 +178,7 @@ std::vector<std::string> scan_candidates(const fs::path& root, bool include_fbd,
                      it.increment(ec)) {
                     const std::string ext = lower_ext(it->path());
                     if (ext == ".fb2" || (include_fbd && ext == ".fbd")) {
-                        candidates.push_back(it->path().string());
+                        candidates.push_back(platform::utf8_from_path(it->path()));
                         if (max_scan != 0 && candidates.size() >= max_scan) {
                             return candidates;
                         }

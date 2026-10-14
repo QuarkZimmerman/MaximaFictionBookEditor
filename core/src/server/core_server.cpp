@@ -39,36 +39,40 @@ bool is_dir(const fs::path& p) {
     return !p.empty() && fs::is_directory(p, ec);
 }
 
+// The option strings and the build-tree fallbacks are UTF-8 text (the shell converts its own
+// folders with utf8_from_path).
 fs::path resolve_resources_dir(const std::string& override_dir) {
     if (!override_dir.empty()) {
-        return fs::absolute(override_dir);
+        return fs::absolute(platform::path_from_utf8(override_dir));
     }
     const fs::path exe_dir = platform::executable_dir();
-    for (const fs::path& candidate : {exe_dir / ".." / "share" / "mfbe" / "resources",
-                                      exe_dir / "resources", fs::path(MFBE_RESOURCES_SOURCE_DIR)}) {
+    const fs::path source_dir = platform::path_from_utf8(MFBE_RESOURCES_SOURCE_DIR);
+    for (const fs::path& candidate :
+         {exe_dir / ".." / "share" / "mfbe" / "resources", exe_dir / "resources", source_dir}) {
         if (is_dir(candidate)) {
             std::error_code ec;
             auto canonical = fs::weakly_canonical(candidate, ec);
             return ec ? candidate : canonical;
         }
     }
-    return fs::path(MFBE_RESOURCES_SOURCE_DIR);
+    return source_dir;
 }
 
 fs::path resolve_scripts_dir(const std::string& override_dir) {
     if (!override_dir.empty()) {
-        return fs::absolute(override_dir);
+        return fs::absolute(platform::path_from_utf8(override_dir));
     }
     const fs::path exe_dir = platform::executable_dir();
-    for (const fs::path& candidate : {exe_dir / ".." / "share" / "mfbe" / "scripts",
-                                      exe_dir / "scripts", fs::path(MFBE_SCRIPTS_SOURCE_DIR)}) {
+    const fs::path source_dir = platform::path_from_utf8(MFBE_SCRIPTS_SOURCE_DIR);
+    for (const fs::path& candidate :
+         {exe_dir / ".." / "share" / "mfbe" / "scripts", exe_dir / "scripts", source_dir}) {
         if (is_dir(candidate)) {
             std::error_code ec;
             auto canonical = fs::weakly_canonical(candidate, ec);
             return ec ? candidate : canonical;
         }
     }
-    return fs::path(MFBE_SCRIPTS_SOURCE_DIR);
+    return source_dir;
 }
 
 }  // namespace
@@ -97,7 +101,8 @@ Services::Services(CoreServerOptions opts, platform::Dirs dirs_, fs::path resour
     exclusions.load();
     hotkeys.load();
     refresh_layers();
-    std::filesystem::path custom = settings.get_string("view.customDictionaryPath");
+    std::filesystem::path custom =
+        platform::path_from_utf8(settings.get_string("view.customDictionaryPath"));
     if (custom.empty()) {
         custom = dirs.data / "custom.dic";
     }
@@ -115,8 +120,8 @@ void Services::refresh_layers() {
     roots.portable = dirs.portable;
     roots.bundled_resources = resources_dir;
     roots.bundled_scripts = scripts_dir;
-    roots.settings_genres = settings.get_string("other.genresFolder");
-    roots.settings_scripts = settings.get_string("other.scriptsFolder");
+    roots.settings_genres = platform::path_from_utf8(settings.get_string("other.genresFolder"));
+    roots.settings_scripts = platform::path_from_utf8(settings.get_string("other.scriptsFolder"));
     layers.set_roots(std::move(roots));
 }
 
@@ -226,7 +231,8 @@ struct CoreServer::Impl : rpc::Notifier {
     }
 
     void notify(const std::string& method, const nlohmann::json& params) override {
-        std::string text = rpc::RpcRouter::make_notification(method, params).dump();
+        std::string text =
+            rpc::RpcRouter::wire_text(rpc::RpcRouter::make_notification(method, params));
         post([this, text = std::move(text)] {
             if (transport != nullptr) {
                 transport->broadcast(text);

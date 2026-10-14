@@ -636,6 +636,10 @@ json RpcRouter::make_notification(const std::string& method, const json& p) {
     return json{{"jsonrpc", "2.0"}, {"method", method}, {"params", p}};
 }
 
+std::string RpcRouter::wire_text(const json& message) {
+    return message.dump(-1, ' ', false, json::error_handler_t::replace);
+}
+
 std::optional<json> RpcRouter::dispatch_text(std::string_view message, RpcContext& ctx,
                                              Responder::Sink sink) const {
     json request = json::parse(message, nullptr, false);

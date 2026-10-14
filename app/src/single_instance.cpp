@@ -2,6 +2,8 @@
 
 #include "command_line.h"
 
+#include <mfbe/utf8_paths.hpp>
+
 #include <system_error>
 
 #if defined(__linux__)
@@ -32,13 +34,13 @@ std::vector<std::string> relaunchFilePaths(const std::vector<std::string>& args,
         return paths;  // --help/--version or an invalid option: nothing to open
     }
     for (const auto& file : parsed.options.files) {
-        std::filesystem::path path(file);
+        std::filesystem::path path = mfbe::platform::path_from_utf8(file);
         if (path.is_relative() && !current_directory.empty()) {
             path = current_directory / path;
         }
         std::error_code ec;
         const std::filesystem::path absolute = std::filesystem::absolute(path, ec);
-        paths.push_back(ec ? path.string() : absolute.lexically_normal().string());
+        paths.push_back(mfbe::platform::utf8_from_path(ec ? path : absolute.lexically_normal()));
     }
     return paths;
 }
@@ -79,7 +81,7 @@ bool removeStaleSingletonLock(const std::filesystem::path& profile_dir, std::str
         return false;
     }
     // Chromium writes "<hostname>-<pid>"; hostnames may contain '-', so split at the last one.
-    const std::string value = target.string();
+    const std::string value = mfbe::platform::utf8_from_path(target);
     const auto dash = value.rfind('-');
     if (dash == std::string::npos || dash + 1 >= value.size()) {
         return false;

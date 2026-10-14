@@ -83,17 +83,18 @@ bool BinaryStore::spill_entry(Entry& entry, const std::string& id) {
     std::error_code ec;
     if (spill_dir_.empty()) {
         std::random_device rd;
-        const auto dir = std::filesystem::temp_directory_path(ec) /
-                         ("mfbe-binaries-" + std::to_string(platform::current_pid()) + "-" +
-                          hex64((static_cast<std::uint64_t>(rd()) << 32) ^ rd()));
+        const auto dir =
+            std::filesystem::temp_directory_path(ec) /
+            platform::path_from_utf8("mfbe-binaries-" + std::to_string(platform::current_pid()) +
+                                     "-" + hex64((static_cast<std::uint64_t>(rd()) << 32) ^ rd()));
         if (ec || !std::filesystem::create_directories(dir, ec)) {
             log::warning("core", "binary.spillDirFailed", "cannot create the binary spill folder",
-                         log::extras({{"reason", ec.message()}}));
+                         log::extras({{"reason", platform::utf8_error_message(ec)}}));
             return false;
         }
         spill_dir_ = dir;
     }
-    const auto file = spill_dir_ / (hex64(++spill_counter_) + ".bin");
+    const auto file = spill_dir_ / platform::path_from_utf8(hex64(++spill_counter_) + ".bin");
     {
         std::ofstream out(file, std::ios::binary | std::ios::trunc);
         if (!out) {

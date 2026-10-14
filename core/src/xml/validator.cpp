@@ -65,16 +65,16 @@ bool is_dir(const fs::path& p) {
 
 fs::path default_schema_dir() {
     const fs::path exe_dir = platform::executable_dir();
-    for (const fs::path& candidate :
-         {exe_dir / ".." / "share" / "mfbe" / "resources" / "schema",
-          exe_dir / "resources" / "schema", fs::path(MFBE_RESOURCES_SOURCE_DIR) / "schema"}) {
+    const fs::path source_dir = platform::path_from_utf8(MFBE_RESOURCES_SOURCE_DIR) / "schema";
+    for (const fs::path& candidate : {exe_dir / ".." / "share" / "mfbe" / "resources" / "schema",
+                                      exe_dir / "resources" / "schema", source_dir}) {
         if (is_dir(candidate)) {
             std::error_code ec;
             auto canonical = fs::weakly_canonical(candidate, ec);
             return ec ? candidate : canonical;
         }
     }
-    return fs::path(MFBE_RESOURCES_SOURCE_DIR) / "schema";
+    return source_dir;
 }
 
 void collect_schema_error(void* user_data, const xmlError* error) {
@@ -126,7 +126,8 @@ void load_genres_locked(SchemaCache& c) {
     } catch (const fb2::IoFailure&) {
         return;
     }
-    xmlDocPtr doc = xml::parse_memory(bytes, file.string().c_str(), nullptr, errors);
+    xmlDocPtr doc =
+        xml::parse_memory(bytes, platform::utf8_from_path(file).c_str(), nullptr, errors);
     if (doc == nullptr) {
         return;
     }
@@ -163,13 +164,14 @@ void load_locked(SchemaCache& c) {
     const fs::path main = c.dir / "FictionBook.xsd";
     std::error_code ec;
     if (!fs::is_regular_file(main, ec)) {
-        c.error = "schema not found: " + main.string();
+        c.error = "schema not found: " + platform::utf8_from_path(main);
         log::error("core", "validation.schemaMissing", "FictionBook.xsd not found",
-                   log::extras({{"path", main.string()}}));
+                   log::extras({{"path", platform::utf8_from_path(main)}}));
         return;
     }
     std::vector<SchemaError> errors;
-    xmlSchemaParserCtxtPtr pctxt = xmlSchemaNewParserCtxt(main.string().c_str());
+    // libxml2 reads file names as UTF-8 (wide API on Windows).
+    xmlSchemaParserCtxtPtr pctxt = xmlSchemaNewParserCtxt(platform::utf8_from_path(main).c_str());
     if (pctxt == nullptr) {
         c.error = "cannot create schema parser";
         return;
@@ -180,7 +182,7 @@ void load_locked(SchemaCache& c) {
     if (c.schema == nullptr) {
         c.error = errors.empty() ? "schema could not be compiled" : errors.front().message;
         log::error("core", "validation.schemaInvalid", "FictionBook.xsd could not be compiled",
-                   log::extras({{"path", main.string()}, {"reason", c.error}}));
+                   log::extras({{"path", platform::utf8_from_path(main)}, {"reason", c.error}}));
         return;
     }
     load_genres_locked(c);

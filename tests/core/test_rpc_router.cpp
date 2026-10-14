@@ -278,3 +278,16 @@ TEST_CASE("rpc: notification envelope", "[rpc]") {
     CHECK(rpc::RpcRouter::make_notification("settings.changed", json{{"settings", 1}}) ==
           json{{"jsonrpc", "2.0"}, {"method", "settings.changed"}, {"params", {{"settings", 1}}}});
 }
+
+TEST_CASE("rpc: wire text replaces invalid UTF-8 instead of throwing", "[rpc]") {
+    // "Отказано" in Windows-1251, as an operating-system message in a legacy code page reads.
+    const std::string legacy = "\xCE\xF2\xEA\xE0\xE7\xE0\xED\xEE";
+    const json reply{{"jsonrpc", "2.0"}, {"id", 1}, {"error", {{"message", legacy}}}};
+    CHECK_THROWS(reply.dump());
+    const std::string text = rpc::RpcRouter::wire_text(reply);
+    CHECK(json::parse(text)["error"]["message"] ==
+          "\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD"
+          "\xEF\xBF\xBD");
+    CHECK(rpc::RpcRouter::wire_text(json{{"path", "C:\\Users\\Тест"}}) ==
+          R"({"path":"C:\\Users\\Тест"})");
+}

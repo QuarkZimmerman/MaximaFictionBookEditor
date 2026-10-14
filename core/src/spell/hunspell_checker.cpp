@@ -7,6 +7,7 @@
 #include <mfbe/encodings.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/spell.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <hunspell/hunspell.hxx>
 
@@ -15,6 +16,31 @@
 #include <system_error>
 
 namespace mfbe::spell {
+namespace {
+
+// Name under which Hunspell opens a dictionary file. Hunspell 1.7 opens its files by a narrow
+// name (myopen() in src/hunspell/csutil.cxx): on Windows a name that starts with the long-path
+// prefix \\?\ is read as UTF-8 and opened with the wide API, any other name in the process
+// code page. Windows therefore gets the prefixed absolute path (backslashes only: the prefix
+// turns off path normalisation); elsewhere the UTF-8 path is the file name.
+std::string hunspell_file_name(const std::filesystem::path& file) {
+#ifdef _WIN32
+    std::error_code ec;
+    const std::filesystem::path absolute = std::filesystem::absolute(file, ec);
+    const std::string text = platform::utf8_from_path((ec ? file : absolute).lexically_normal());
+    if (text.rfind("\\\\?\\", 0) == 0) {
+        return text;
+    }
+    if (text.rfind("\\\\", 0) == 0) {
+        return "\\\\?\\UNC\\" + text.substr(2);  // \\server\share -> \\?\UNC\server\share
+    }
+    return "\\\\?\\" + text;
+#else
+    return platform::utf8_from_path(file);
+#endif
+}
+
+}  // namespace
 
 struct HunspellChecker::Instance {
     std::mutex mutex;
@@ -59,11 +85,12 @@ std::shared_ptr<HunspellChecker::Instance> HunspellChecker::instance(const std::
     std::error_code ec;
     if (!std::filesystem::is_regular_file(dictionary->aff, ec) ||
         !std::filesystem::is_regular_file(dictionary->dic, ec)) {
-        throw SpellError(tag, "dictionary files missing: " + dictionary->aff.string());
+        throw SpellError(tag,
+                         "dictionary files missing: " + platform::utf8_from_path(dictionary->aff));
     }
     auto inst = std::make_shared<Instance>();
-    inst->engine = std::make_unique<Hunspell>(dictionary->aff.string().c_str(),
-                                              dictionary->dic.string().c_str());
+    inst->engine = std::make_unique<Hunspell>(hunspell_file_name(dictionary->aff).c_str(),
+                                              hunspell_file_name(dictionary->dic).c_str());
     const char* enc = inst->engine->get_dic_encoding();
     const std::string declared = enc == nullptr ? "" : enc;
     const auto canonical = encoding::normalize_name(declared);

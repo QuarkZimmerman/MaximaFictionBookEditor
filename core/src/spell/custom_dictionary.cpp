@@ -3,6 +3,7 @@
 #include <mfbe/log.hpp>
 #include <mfbe/spell.hpp>
 #include <mfbe/unicode.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -79,8 +80,9 @@ void CustomDictionary::load() {
         }
         const std::string error = custom_word_error(word);
         if (!error.empty()) {
-            log::warning("core", "spell.customDictionaryLine", "custom dictionary line skipped",
-                         log::extras({{"path", file_.string()}, {"reason", error}}));
+            log::warning(
+                "core", "spell.customDictionaryLine", "custom dictionary line skipped",
+                log::extras({{"path", platform::utf8_from_path(file_)}, {"reason", error}}));
             continue;
         }
         words_.push_back(std::move(word));

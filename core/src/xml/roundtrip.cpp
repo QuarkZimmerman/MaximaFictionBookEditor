@@ -5,6 +5,7 @@
 #include <mfbe/image_probe.hpp>
 #include <mfbe/json_codec.hpp>
 #include <mfbe/roundtrip.hpp>
+#include <mfbe/utf8_paths.hpp>
 #include <mfbe/validator.hpp>
 
 #include <algorithm>
@@ -338,7 +339,7 @@ Report run(const std::filesystem::path& input, const std::filesystem::path& out_
            const std::string& encoding, const images::ConversionPolicy& policy) {
     const auto started = std::chrono::steady_clock::now();
     Report report;
-    report.path = input.string();
+    report.path = platform::utf8_from_path(input);
     report.output_encoding = encoding;
 
     BinaryStore store_a;
@@ -388,11 +389,11 @@ Report run(const std::filesystem::path& input, const std::filesystem::path& out_
     try {
         atomic_file::write_atomic(out_path, bytes);
     } catch (const atomic_file::WriteError& e) {
-        report.failure = "cannot write " + out_path.string() + ": " + e.reason;
+        report.failure = "cannot write " + platform::utf8_from_path(out_path) + ": " + e.reason;
         report.total_ms = ms_since(started);
         return report;
     }
-    report.written_path = out_path.string();
+    report.written_path = platform::utf8_from_path(out_path);
     report.output_bytes = static_cast<std::int64_t>(bytes.size());
     report.write_ms = ms_since(t1);
 

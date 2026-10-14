@@ -39,7 +39,7 @@ Comparison compare(const model::Document& a, const BinaryStore& store_a, const m
                    const BinaryStore& store_b, std::size_t max_differences = 50);
 
 struct Report {
-    std::string path;
+    std::string path;  // UTF-8, as written_path
     std::optional<std::string> written_path;
     bool opened = false;
     bool reopened = false;

@@ -38,12 +38,13 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services) {
     });
 
     router.add_method("resources.openGenresFolder", [&services](const json&, rpc::RpcContext&) {
-        std::filesystem::path folder = services.settings.get_string("other.genresFolder");
+        std::filesystem::path folder =
+            platform::path_from_utf8(services.settings.get_string("other.genresFolder"));
         if (folder.empty()) {
             folder = services.layers.user_folder(resources::Kind::genres, true);
         }
         json result = open_folder_with_shell(services, folder);
-        result["path"] = folder.string();
+        result["path"] = platform::utf8_from_path(folder);
         return result;
     });
 }

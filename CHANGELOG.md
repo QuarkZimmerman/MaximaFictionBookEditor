@@ -5,6 +5,14 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.2 - unreleased
 
+### Fixed
+
+- Windows: the editor, installed or portable, no longer ends at start-up when the user's
+  profile folder or the program's folder has letters outside English - every Cyrillic user
+  name on Russian Windows. The shipped `mfbe.exe` lacked the editor's manifest, so Windows ran
+  it with the legacy code page and the folder names were converted wrongly; the manifest is
+  now in the executable and every conversion between file names and text is explicit.
+
 ### Changed
 
 - Licence: the editor is now published under the GNU General Public License version 3

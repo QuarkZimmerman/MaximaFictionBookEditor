@@ -112,7 +112,7 @@ int run_serve(const ServeArgs& args) {
 // Points the validator at the resources root and installs the effective genre list (schema +
 // bundled extension + per-user layers) so `genre.unknown` matches the editor's behaviour.
 void apply_resources_override(const std::string& resources) {
-    std::filesystem::path root = resources;
+    std::filesystem::path root = mfbe::platform::path_from_utf8(resources);
     if (!root.empty()) {
         mfbe::validation::set_schema_dir(root / "schema");
     } else {
@@ -140,7 +140,7 @@ int run_convert_images(const std::string& file, const std::string& out, const st
     try {
         mfbe::fb2::ReadOptions options;
         options.compute_schema_hint = false;
-        read = mfbe::fb2::read_file(file, store, ids, options);
+        read = mfbe::fb2::read_file(mfbe::platform::path_from_utf8(file), store, ids, options);
     } catch (const mfbe::fb2::ParseFailure& e) {
         std::fprintf(stderr, "mfbe-core convert-images: %s:%d:%d: %s\n", file.c_str(), e.error.line,
                      e.error.column, e.error.message.c_str());
@@ -156,15 +156,15 @@ int run_convert_images(const std::string& file, const std::string& out, const st
                                 std::chrono::steady_clock::now() - started)
                                 .count();
     // --out names a directory unless it ends with a document extension or is an existing file.
-    std::filesystem::path target(out);
+    std::filesystem::path target = mfbe::platform::path_from_utf8(out);
     std::error_code ec;
-    const std::string ext = target.extension().string();
+    const std::string ext = mfbe::platform::utf8_from_path(target.extension());
     const bool is_file = std::filesystem::is_regular_file(target, ec) ||
                          ((ext == ".fb2" || ext == ".fbd" || ext == ".xml") &&
                           !std::filesystem::is_directory(target, ec));
     if (!is_file) {
         std::filesystem::create_directories(target, ec);
-        target /= std::filesystem::path(file).filename();
+        target /= mfbe::platform::path_from_utf8(file).filename();
     } else if (target.has_parent_path()) {
         std::filesystem::create_directories(target.parent_path(), ec);
     }
@@ -191,7 +191,7 @@ int run_convert_images(const std::string& file, const std::string& out, const st
                 {{"id", c.id}, {"from", c.from}, {"to", c.to}, {"size", c.meta.size}});
         }
         nlohmann::json j{{"path", file},
-                         {"writtenPath", target.string()},
+                         {"writtenPath", mfbe::platform::utf8_from_path(target)},
                          {"converted", converted},
                          {"failed", result.failed},
                          {"binaries", store.size()},
@@ -207,7 +207,7 @@ int run_convert_images(const std::string& file, const std::string& out, const st
         }
         std::printf("%s: %zu of %zu binaries converted in %lld ms -> %s\n", file.c_str(),
                     result.converted.size(), store.size(), static_cast<long long>(convert_ms),
-                    target.string().c_str());
+                    mfbe::platform::utf8_from_path(target).c_str());
     }
     std::fflush(stdout);
     return kExitOk;
@@ -257,7 +257,8 @@ int run_validate(const std::vector<std::string>& files, bool as_json,
         try {
             mfbe::fb2::ReadOptions options;
             options.compute_schema_hint = false;
-            const mfbe::fb2::ReadResult read = mfbe::fb2::read_file(file, store, ids, options);
+            const mfbe::fb2::ReadResult read =
+                mfbe::fb2::read_file(mfbe::platform::path_from_utf8(file), store, ids, options);
             mfbe::model::ValidationReport report =
                 mfbe::validation::validate_document(read.document, &store, read.xlink_prefix);
             // Reader warnings (encoding mismatch, binary problems) belong to the report too,
@@ -321,7 +322,8 @@ int run_roundtrip(const std::string& file, const std::string& out_dir, const std
         std::fprintf(stderr, "mfbe-core roundtrip: unsupported encoding '%s'\n", encoding.c_str());
         return kExitUsage;
     }
-    const mfbe::roundtrip::Report report = mfbe::roundtrip::run(file, out_dir, *canonical);
+    const mfbe::roundtrip::Report report = mfbe::roundtrip::run(
+        mfbe::platform::path_from_utf8(file), mfbe::platform::path_from_utf8(out_dir), *canonical);
     if (as_json) {
         nlohmann::json j = report.to_json();
         j["peakRssBytes"] = peak_rss_bytes();
@@ -355,9 +357,10 @@ std::string first_unexpected(const std::string& what) {
     return rest;
 }
 
-}  // namespace
-
-int main(int argc, char** argv) {
+// Parses the command line and runs the command. Every argument is UTF-8 text: on Windows the
+// narrow argv is in the process code page, so wmain() passes the wide one, which CLI11 converts.
+template <typename Char>
+int run_command_line(int argc, const Char* const* argv) {
     CLI::App app{"Maxima Fiction Book Editor - headless core", "mfbe-core"};
     app.set_version_flag("--version", std::string("mfbe-core ") + mfbe::version::kVersion + " (" +
                                           mfbe::version::kBuildId + ")");
@@ -452,3 +455,15 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "%s", app.help().c_str());
     return kExitUsage;
 }
+
+}  // namespace
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t** argv) {
+    return run_command_line(argc, argv);
+}
+#else
+int main(int argc, char** argv) {
+    return run_command_line(argc, argv);
+}
+#endif

@@ -118,8 +118,9 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
             if (count < 0 || seed < 0 || max_scan < 0) {
                 throw rpc::invalid_params("count, seed and maxScan must be non-negative");
             }
+            const std::filesystem::path root_dir = platform::path_from_utf8(root);
             std::error_code ec;
-            if (!std::filesystem::is_directory(root, ec)) {
+            if (!std::filesystem::is_directory(root_dir, ec)) {
                 throw rpc::RpcError(rpc::codes::kDocIoError, "",
                                     json{{"path", root}, {"reason", "corpus root not found"}});
             }
@@ -136,7 +137,7 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
                     }
                 }
                 if (candidates.empty()) {
-                    candidates = corpus::scan_candidates(root, include_fbd,
+                    candidates = corpus::scan_candidates(root_dir, include_fbd,
                                                          static_cast<std::size_t>(max_scan));
                     std::lock_guard<std::mutex> lock(corpus_cache().mutex);
                     corpus_cache().candidates[key] = candidates;
@@ -182,7 +183,7 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
             }
             std::string bytes;
             try {
-                bytes = fb2::read_file_bytes(path);
+                bytes = fb2::read_file_bytes(platform::path_from_utf8(path));
             } catch (const fb2::IoFailure& e) {
                 throw rpc::RpcError(rpc::codes::kDocIoError, "",
                                     json{{"path", e.path}, {"reason", e.reason}});
