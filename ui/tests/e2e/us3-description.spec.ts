@@ -22,6 +22,7 @@ import path from 'node:path';
 
 import { expect, fixtureBook, test, type CoreHandle, type RpcCallError } from './fixtures/core';
 import type { Page } from '@playwright/test';
+import { MOD } from './fixtures/keys';
 
 interface ValidationJson {
   errorCount: number;
@@ -385,7 +386,7 @@ test.describe('US3 - edit the book description', () => {
     await page.keyboard.press('Enter');
     await page.keyboard.press('Enter'); // an empty paragraph becomes an empty line
     await page.keyboard.type('v1.1 - ');
-    await page.keyboard.press('Control+b');
+    await page.keyboard.press(`${MOD}+b`);
     await page.keyboard.type('proofread');
     // p, <empty-line/> (rendered as an empty paragraph), p
     await expect(history.locator('p')).toHaveCount(3);

@@ -31,6 +31,7 @@ import path from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, fixtureBook, test } from './fixtures/core';
+import { label, LINE_END, LINE_START, MOD, SELECT_TO_LINE_END } from './fixtures/keys';
 
 const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const FIXTURES = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures');
@@ -293,7 +294,7 @@ test.describe('US12 scripts', () => {
         /To upper case/,
       );
       await expect(page.getByTestId('menu-scripts-01_Case-test.case.upper')).toContainText(
-        'Ctrl+Alt+U',
+        label('Ctrl+Alt+U'),
       );
       await page.keyboard.press('Escape');
       await expect(page.getByTestId('scripts-toolbar-test.case.upper')).toBeVisible();
@@ -376,11 +377,11 @@ test.describe('US12 scripts', () => {
     await expect
       .poll(() => paragraphs(page))
       .toEqual([...initial, `Added by script (${n} paragraphs before)`]);
-    await page.keyboard.press('Control+Z');
+    await page.keyboard.press(`${MOD}+Z`);
     await expect.poll(() => paragraphs(page)).toEqual(initial);
     await expect(firstSection(page).locator('> .fb-empty-line')).toHaveCount(emptyLines);
     // Redo restores the first run as a whole.
-    await page.keyboard.press('Control+Y');
+    await page.keyboard.press(`${MOD}+Y`);
     await expect
       .poll(() => paragraphs(page))
       .toEqual([...initial, `Added by script (${n} paragraphs before)`]);
@@ -418,7 +419,7 @@ test.describe('US12 scripts', () => {
     await expect.poll(() => paragraphs(page)).toEqual([...initial, 'before the error']);
     await expect(page.getByTestId('status-message')).toHaveText(/failed/);
     expect(await validate()).toBe(errorsBefore);
-    await page.keyboard.press('Control+Z');
+    await page.keyboard.press(`${MOD}+Z`);
     await expect.poll(() => paragraphs(page)).toEqual(initial);
   });
 
@@ -495,7 +496,7 @@ test.describe('US12 scripts', () => {
       await expect(page.getByTestId('scripts-toolbar-test.case.upper')).toBeDisabled();
     }
     // Select the word "scripts" and press the default hotkey of the manifest.
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await page.keyboard.down('Shift');
     for (let i = 0; i < 7; i += 1) await page.keyboard.press('ArrowLeft');
     await page.keyboard.up('Shift');
@@ -508,8 +509,8 @@ test.describe('US12 scripts', () => {
     expect(await waitIdle(page)).toBe('done');
     // The toolbar button runs the same command (lower case) on the current selection.
     if ((await page.getByTestId('scripts-toolbar-test.case.lower').count()) > 0) {
-      await page.keyboard.press('Home');
-      await page.keyboard.press('Shift+End');
+      await page.keyboard.press(LINE_START);
+      await page.keyboard.press(SELECT_TO_LINE_END);
       await page.getByTestId('scripts-toolbar-test.case.lower').click();
       await expect(paragraph).toHaveText('hello scripts');
     } else {

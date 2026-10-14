@@ -25,6 +25,7 @@ import path from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import { LINE_END } from './fixtures/keys';
 
 function book(lang: string, paragraphs: string[], id: string, title: string): string {
   return `<?xml version="1.0" encoding="utf-8"?>
@@ -128,7 +129,7 @@ test.describe('US6 - check spelling in English and Russian', () => {
     // Typing a misspelled word marks it within a second.
     const first = editor.locator('.fb-section > p.fb-p').first();
     await first.click();
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     const typedAt = Date.now();
     await page.keyboard.type(' ашипка');
     await expect(editor.locator('.mfbe-misspelled', { hasText: 'ашипка' })).toBeVisible({
@@ -188,7 +189,7 @@ test.describe('US6 - check spelling in English and Russian', () => {
     // Add an extra occurrence of the misspelling for Change All.
     const first = editor.locator('.fb-section > p.fb-p').first();
     await first.click();
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await page.keyboard.type(' превет');
     await expect(first).toContainText('превет с ошибкой. превет');
 
@@ -237,7 +238,7 @@ test.describe('US6 - check spelling in English and Russian', () => {
 
     // Undo last: run the dialog again (F7), change a word, undo it inside the dialog.
     await first.click();
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await page.keyboard.type(' ашипка');
     await page.keyboard.press('F7');
     await expect(dialog).toBeVisible();

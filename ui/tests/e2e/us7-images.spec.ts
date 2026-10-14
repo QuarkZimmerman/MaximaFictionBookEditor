@@ -25,6 +25,7 @@ import path from 'node:path';
 
 import { expect, fixtureBook, test, type CoreHandle, type RpcCallError } from './fixtures/core';
 import type { Locator, Page } from '@playwright/test';
+import { LINE_END } from './fixtures/keys';
 
 const IMAGES_DIR = path.resolve(path.dirname(fixtureBook('x')), '..', 'images');
 
@@ -311,7 +312,7 @@ test.describe('US7 - images and binary objects', () => {
     await setSettings(core, { pasteImageFormat: 'png' });
     await page.waitForTimeout(200);
     await clickIntoParagraph(page);
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await dispatchFileEvent(page, 'paste', image('tiny.bmp'), 'shot.bmp', 'image/bmp');
     await expect(
       page.locator('[data-testid="body-inline-image"][data-href="#shot.bmp"]'),

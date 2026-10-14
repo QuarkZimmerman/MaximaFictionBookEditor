@@ -19,6 +19,7 @@ import path from 'node:path';
 
 import { expect, test, type CoreHandle, type RpcCallError } from './fixtures/core';
 import type { Page } from '@playwright/test';
+import { label, MOD, MOD_LABEL, RESERVED_CHORD } from './fixtures/keys';
 
 interface SettingsJson {
   view: Record<string, unknown>;
@@ -208,31 +209,31 @@ test.describe('US9 - configure settings and hotkeys', () => {
     await showPage(page, 'hotkeys');
     await page.getByTestId('settings-hotkeys-group-edit').click();
     await page.getByTestId('settings-hotkeys-command-edit.undo').click();
-    await expect(page.getByTestId('settings-hotkeys-current')).toContainText('Ctrl+Z');
+    await expect(page.getByTestId('settings-hotkeys-current')).toContainText(label('Mod+Z'));
     await expect(page.getByTestId('settings-hotkeys-description')).toHaveText(
       'Undo the last action',
     );
 
     const capture = page.getByTestId('settings-hotkeys-capture');
     await capture.focus();
-    await page.keyboard.press('Control+y');
-    await expect(capture).toHaveValue('Ctrl+Y');
+    await page.keyboard.press(`${MOD}+y`);
+    await expect(capture).toHaveValue(label('Mod+Y'));
     await expect(page.getByTestId('settings-hotkeys-collision')).toHaveText(
       'Assigned to "Edit \\ Redo"',
     );
     await expect(page.getByTestId('settings-hotkeys-assign')).toBeEnabled();
 
     // Platform-reserved chord: "Wrong shortcut!".
-    await page.keyboard.press('Alt+F4');
+    await page.keyboard.press(RESERVED_CHORD);
     await expect(capture).toHaveValue('Wrong shortcut!');
     await expect(page.getByTestId('settings-hotkeys-assign')).toBeDisabled();
 
     // Replace: Undo takes Ctrl+Y, Redo loses it.
-    await page.keyboard.press('Control+y');
+    await page.keyboard.press(`${MOD}+y`);
     await page.getByTestId('settings-hotkeys-assign').click();
-    await expect(page.getByTestId('settings-hotkeys-current')).toContainText('Ctrl+Y');
+    await expect(page.getByTestId('settings-hotkeys-current')).toContainText(label('Mod+Y'));
     await expect(page.getByTestId('settings-hotkeys-command-edit.redo')).not.toContainText(
-      'Ctrl+Y',
+      label('Mod+Y'),
     );
 
     // Default on Redo collides with Undo: "Default hotkey ... Replace?" -> Yes.
@@ -244,8 +245,10 @@ test.describe('US9 - configure settings and hotkeys', () => {
       'Default hotkey for this command was assigned to "Edit \\ Undo"! Replace?',
     );
     await prompt.getByTestId('dialog-hotkey-default-collision-button-yes').click();
-    await expect(page.getByTestId('settings-hotkeys-current')).toContainText('Ctrl+Y');
-    await expect(page.getByTestId('settings-hotkeys-command-edit.undo')).not.toContainText('Ctrl+');
+    await expect(page.getByTestId('settings-hotkeys-current')).toContainText(label('Mod+Y'));
+    await expect(page.getByTestId('settings-hotkeys-command-edit.undo')).not.toContainText(
+      `${MOD_LABEL}+`,
+    );
 
     // Delete removes the shortcut of the selected command.
     await page.getByTestId('settings-hotkeys-delete').click();
@@ -254,8 +257,8 @@ test.describe('US9 - configure settings and hotkeys', () => {
     // Cancel discards all of it: the Edit menu still shows the defaults.
     await page.getByTestId('dialog-settings-button-cancel').click();
     await page.getByTestId('menu-edit').click();
-    await expect(page.getByTestId('menu-edit-undo')).toContainText('Ctrl+Z');
-    await expect(page.getByTestId('menu-edit-redo')).toContainText('Ctrl+Y');
+    await expect(page.getByTestId('menu-edit-undo')).toContainText(label('Mod+Z'));
+    await expect(page.getByTestId('menu-edit-redo')).toContainText(label('Mod+Y'));
     await page.keyboard.press('Escape');
 
     // OK applies to the live map (the Edit menu follows); the core without hotkeys.* keeps them
@@ -265,7 +268,7 @@ test.describe('US9 - configure settings and hotkeys', () => {
     await page.getByTestId('settings-hotkeys-group-edit').click();
     await page.getByTestId('settings-hotkeys-command-edit.undo').click();
     await capture.focus();
-    await page.keyboard.press('Control+Shift+z');
+    await page.keyboard.press(`${MOD}+Shift+z`);
     await expect(page.getByTestId('settings-hotkeys-collision')).toHaveText(
       'Not assigned to other command',
     );
@@ -273,7 +276,7 @@ test.describe('US9 - configure settings and hotkeys', () => {
     await page.getByTestId('dialog-settings-button-ok').click();
     await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
     await page.getByTestId('menu-edit').click();
-    await expect(page.getByTestId('menu-edit-undo')).toContainText('Ctrl+Shift+Z');
+    await expect(page.getByTestId('menu-edit-undo')).toContainText(label('Mod+Shift+Z'));
     await page.keyboard.press('Escape');
   });
 

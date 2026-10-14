@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, type CoreHandle } from './fixtures/core';
+import { LINE_START, MOD, REPLACE } from './fixtures/keys';
 
 const UI_DIR = fileURLToPath(new URL('../..', import.meta.url));
 const SHOTS = path.join(UI_DIR, 'test-results', 'hidpi');
@@ -469,14 +470,14 @@ test.describe('dialogs from the keyboard', () => {
     await openBook(core, page, 'modern-utf8.fb2');
     await focusParagraph(page);
 
-    await page.keyboard.press('Control+f');
+    await page.keyboard.press(`${MOD}+f`);
     const find = page.getByTestId('dialog-find');
     await expect(find).toBeVisible();
     assertCycle(await tabCycle(page, 'dialog-find'), 'Find');
     await page.keyboard.press('Escape');
     await expectClosed(find);
 
-    await page.keyboard.press('Control+h');
+    await page.keyboard.press(REPLACE);
     const replace = page.getByTestId('dialog-replace');
     await expect(replace).toBeVisible();
     assertCycle(await tabCycle(page, 'dialog-replace'), 'Replace');
@@ -485,13 +486,13 @@ test.describe('dialogs from the keyboard', () => {
 
     // Link needs a text selection: select the first word with the keyboard.
     await focusParagraph(page);
-    await page.keyboard.press('Home');
+    await page.keyboard.press(LINE_START);
     await page.keyboard.press('Shift+ArrowRight');
     await page.keyboard.press('Shift+ArrowRight');
     await page.keyboard.press('Shift+ArrowRight');
     // The editor picks the DOM selection up asynchronously (selectionchange).
     await expect(page.getByTestId('body-view')).toHaveAttribute('data-selected-text', /\S/);
-    await page.keyboard.press('Control+l');
+    await page.keyboard.press(`${MOD}+l`);
     const link = page.getByTestId('dialog-link');
     await expect(link).toBeVisible();
     assertCycle(await tabCycle(page, 'dialog-link'), 'Link');
