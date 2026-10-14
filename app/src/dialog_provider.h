@@ -4,37 +4,36 @@
 //
 // Two layers:
 //
-//   NativeDialogs           plain C++ (no core types), usable without the core. Runs
-//                           CefBrowserHost::RunFileDialog (OPEN / OPEN_MULTIPLE / SAVE /
-//                           OPEN_FOLDER) and a message box on the CEF UI thread. The primary
-//                           API is asynchronous (the completion callback runs once on the UI
-//                           thread, matching the core's callback-based DialogProvider); the
-//                           *AndWait helpers block a non-UI caller with a mutex + condition
-//                           variable until the dialog is dismissed.
+//   NativeDialogs           plain C++ (no core types), usable without the core. Shows file
+//                           dialogs (open / open several / save / folder) and a message box on
+//                           the CEF UI thread. The primary API is asynchronous (the completion
+//                           callback runs once on the UI thread, matching the core's
+//                           callback-based DialogProvider); the *AndWait helpers block a non-UI
+//                           caller with a mutex + condition variable until the dialog is
+//                           dismissed.
 //
 //   makeCoreDialogProvider  returns an implementation of the core's `mfbe::DialogProvider`
 //                           (open_file / save_file / pick_folder / message) backed by
 //                           NativeDialogs. Compiled only when <mfbe/dialog_provider.hpp> is
 //                           available (`__has_include`); otherwise returns nullptr.
 //
-// Limitations (documented, by design of CEF's file dialog API):
+// File dialogs (feature 002, decision D14) are the platform's own (file_dialog_platform.h): the
+// named types in order with the selected one active, the folder and name of the request, the
+// document dialogs' shared folder and the "Encoding:" choice inside Save As, as the original
+// editor's dialogs. CEF's RunFileDialog - which drops named types, cannot preselect one and loses
+// the Save As folder - is the fallback when the platform dialog cannot be used (Linux without
+// GTK 3; logged once): it offers the selected type's extensions only, and Save As then returns
+// no encoding, so the interface asks for it in its own window.
 //
-//   * "Encoding:" choice of the original Save As dialog. CEF's RunFileDialog has no extra
-//     controls, so the encoding cannot be chosen inside the native dialog. `dialog.saveFile`
-//     therefore returns `{path}` without `encoding`; the UI shows its own encoding selector
-//     (the `encodingChoices` list from the request) after `dialog.saveFile` returns, and
-//     passes the choice to `doc.save({encoding})`.
-//   * Message boxes (`dialog.message`, fatal cases only; normal message boxes are HTML in
-//     the UI) are implemented as a window-modal Views `CefWindow` hosting a tiny generated
-//     HTML page (CEF Views has no static text or dialog primitives). Buttons report their id
-//     through the page title, which the shell intercepts. Closing the window without a
-//     choice yields an empty button id. Without a window manager (Xvfb) the dialog is shown
-//     non-modally (CEF logs "Window modal dialogs are not supported").
-//   * Filter mapping: `{name, extensions[]}` becomes CEF's "Name|.fb2;.fbd" accept filter;
-//     entries without a name become individual ".ext" filters; MIME patterns such as
-//     "image/*" pass through unchanged.
+// Message boxes (`dialog.message`, fatal cases only; normal message boxes are HTML in the UI)
+// are a window-modal Views `CefWindow` hosting a tiny generated HTML page (CEF Views has no
+// static text or dialog primitives). Buttons report their id through the page title, which the
+// shell intercepts. Closing the window without a choice yields an empty button id. Without a
+// window manager (Xvfb) the dialog is shown non-modally (CEF logs "Window modal dialogs are not
+// supported").
 #pragma once
 
+#include "file_dialog_request.h"
 #include "include/cef_browser.h"
 
 #include <functional>
@@ -49,25 +48,6 @@ class DialogProvider;  // core/include/mfbe/dialog_provider.hpp (forward declara
 
 namespace mfbe::shell {
 
-struct FileFilter {
-    std::string name;                     // e.g. "FictionBook"; may be empty
-    std::vector<std::string> extensions;  // "fb2", ".fbd", "image/*" ...
-};
-
-enum class FileDialogMode { kOpen, kOpenMultiple, kSave, kFolder };
-
-struct FileDialogRequest {
-    FileDialogMode mode = FileDialogMode::kOpen;
-    std::string title;         // empty = CEF default ("Open" / "Save")
-    std::string default_path;  // directory and/or file name initially selected
-    std::vector<FileFilter> filters;
-};
-
-struct FileDialogResult {
-    bool cancelled = true;           // true when dismissed without a selection
-    std::vector<std::string> paths;  // one entry except for kOpenMultiple
-};
-
 struct MessageRequest {
     std::string caption;               // window title
     std::string text;                  // message body (plain text)
@@ -80,7 +60,6 @@ struct MessageResult {
     std::string button;  // id of the pressed button; empty when the window was closed
 };
 
-using FileDialogCallback = std::function<void(FileDialogResult)>;
 using MessageCallback = std::function<void(MessageResult)>;
 
 class NativeDialogs final {
@@ -107,14 +86,18 @@ public:
     FileDialogResult runFileDialogAndWait(const FileDialogRequest& request);
     MessageResult showMessageAndWait(const MessageRequest& request);
 
-    // Maps shell filters to CEF accept_filters (see header comment); exposed for tests.
-    static std::vector<std::string> toAcceptFilters(const std::vector<FileFilter>& filters);
+    // Language of the shell ("ru", "en", ...: --lang or the system's): the language of the
+    // texts the shell writes into native dialogs itself (the Save As "Encoding:" label).
+    // Thread-safe.
+    void setLanguage(std::string language);
+    std::string language();
 
 private:
     CefRefPtr<CefBrowser> ownerBrowser();
 
     std::mutex mutex_;
     CefRefPtr<CefBrowser> owner_;
+    std::string language_;
 };
 
 // Core adapter (see header comment). Returns nullptr when the shell was built without the
