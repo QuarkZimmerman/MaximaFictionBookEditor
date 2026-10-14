@@ -46,6 +46,11 @@
   --mfbe-color-warning: #c89b00;
   --mfbe-color-warning-soft: rgba(255, 193, 7, 0.28);
   --mfbe-color-dialog-bg: #f0f0f0;
+  /* Menus and context menus carry their own palette: a submenu sits inside its highlighted
+     parent item and the Body context menu inside the Body view, whose colours must not reach
+     the items (feature 002, FR-020). */
+  --mfbe-color-menu-bg: #ffffff;
+  --mfbe-color-menu-fg: #1b1b1b;
   --mfbe-color-title-bg: #ffffff;
   --mfbe-color-button-bg: #e1e1e1;
   --mfbe-color-button-hover: #e5f1fb;
@@ -166,6 +171,8 @@
   --mfbe-color-warning: #e3b341;
   --mfbe-color-warning-soft: rgba(227, 179, 65, 0.3);
   --mfbe-color-dialog-bg: #262626;
+  --mfbe-color-menu-bg: #1e1e1e;
+  --mfbe-color-menu-fg: #e4e4e4;
   --mfbe-color-title-bg: #1e1e1e;
   --mfbe-color-button-bg: #3a3a3a;
   --mfbe-color-button-hover: #2f4a60;
@@ -333,7 +340,12 @@ textarea {
   z-index: 500;
   min-width: 220px;
   padding: 4px 0;
-  background: var(--mfbe-color-bg);
+  background: var(--mfbe-color-menu-bg);
+  color: var(--mfbe-color-menu-fg);
+  font: var(--mfbe-font-ui);
+  font-style: normal;
+  font-weight: normal;
+  text-indent: 0;
   border: 1px solid var(--mfbe-color-border-strong);
   box-shadow: 0 6px 16px var(--mfbe-color-shadow);
   outline: none;
@@ -353,6 +365,7 @@ textarea {
   padding: 4px 8px 4px 4px;
   white-space: nowrap;
   cursor: default;
+  color: var(--mfbe-color-menu-fg);
 }
 
 .mfbe-menu-item-highlighted {
@@ -387,6 +400,26 @@ textarea {
   height: 1px;
   margin: 4px 8px;
   background: var(--mfbe-color-border);
+}
+
+/* High contrast (Windows contrast themes, forced colours): the browser repaints backgrounds,
+   which would hide the highlight - the highlighted item keeps the system highlight colours. */
+@media (forced-colors: active) {
+  .mfbe-menu-item-highlighted {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .mfbe-menu-item-highlighted .mfbe-menu-popup {
+    forced-color-adjust: auto;
+  }
+
+  .mfbe-menu-item-disabled,
+  .mfbe-menu-item-highlighted.mfbe-menu-item-disabled {
+    background: Canvas;
+    color: GrayText;
+  }
 }
 
 /* ---------------------------------------------------------------------- */
