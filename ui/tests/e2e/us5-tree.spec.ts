@@ -50,8 +50,27 @@ async function openBook(core: CoreHandle, page: Page, file: string): Promise<voi
   await expect(page.getByTestId('tree-content')).toHaveAttribute('data-section-count', /\d+/);
 }
 
-/** The tree row of the section with the XML id `s<N>`; reveals it by scrolling the virtual list. */
+/** The tree row of the section with the XML id `s<N>`; the tree may still be re-rendering. */
 async function rowOfSection(page: Page, number: number): Promise<Locator> {
+  const message = `section ${number} not found in the tree`;
+  const found = { row: await findSectionRow(page, number) };
+  if (!found.row) {
+    await expect
+      .poll(
+        async () => {
+          found.row = await findSectionRow(page, number);
+          return found.row !== null;
+        },
+        { message, timeout: 30_000 },
+      )
+      .toBe(true);
+  }
+  if (!found.row) throw new Error(message);
+  return found.row;
+}
+
+/** One pass over the virtual list for the section `s<N>`; null when it is not rendered. */
+async function findSectionRow(page: Page, number: number): Promise<Locator | null> {
   const tree = page.getByTestId('tree-content');
   // Rows are virtualised: scroll through the list until the caption is rendered, then address
   // the row by its stable testid (`tree-row-<nodeId>`).
@@ -78,7 +97,7 @@ async function rowOfSection(page: Page, number: number): Promise<Locator> {
     if (atEnd) break;
     await page.waitForTimeout(40);
   }
-  throw new Error(`section ${number} not found in the tree`);
+  return null;
 }
 
 let numbering: Map<number, string> | null = null;

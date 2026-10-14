@@ -262,6 +262,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     // Poem from two paragraphs, cite with a caret, table from the dialog.
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
     await page.keyboard.press(LINE_END);
+    await settle(page);
     await page.keyboard.press('Enter');
     await page.keyboard.type('Roses are red');
     await page.keyboard.press('Enter');
@@ -563,6 +564,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     // Paste after the intro paragraph: the poem stays a poem.
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
     await page.keyboard.press(LINE_END);
+    await settle(page);
     await page.keyboard.press('Enter');
     await settle(page);
     await page.keyboard.press(`${MOD}+v`);
@@ -588,6 +590,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     // External HTML (a word processor / browser): paragraphs with supported styles only.
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
     await page.keyboard.press(LINE_END);
+    await settle(page);
     await page.evaluate(PASTE_EXTERNAL_HTML);
     await expect(section.locator('> p.fb-p', { hasText: 'Keep bold and italic' })).toHaveCount(1);
     const imported = section.locator('> p.fb-p', { hasText: 'Keep bold and italic' });

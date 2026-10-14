@@ -132,11 +132,23 @@ async function findRow(page: Page, word: string): Promise<Locator | null> {
   return (await locator.count()) > 0 ? locator : null;
 }
 
-/** Like `findRow` but the word must be listed. */
+/** Like `findRow` but the word must be listed; the table may still be re-rendering. */
 async function rowOf(page: Page, word: string): Promise<Locator> {
-  const row = await findRow(page, word);
-  if (!row) throw new Error(`the Words dialog does not list "${word}"`);
-  return row;
+  const message = `the Words dialog does not list "${word}"`;
+  const found = { row: await findRow(page, word) };
+  if (!found.row) {
+    await expect
+      .poll(
+        async () => {
+          found.row = await findRow(page, word);
+          return found.row !== null;
+        },
+        { message, timeout: 30_000 },
+      )
+      .toBe(true);
+  }
+  if (!found.row) throw new Error(message);
+  return found.row;
 }
 
 /** Polls until `word` is (not) listed, scrolling through the virtualised rows. */
