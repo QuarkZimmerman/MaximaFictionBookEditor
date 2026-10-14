@@ -134,6 +134,11 @@ test.describe('smoke', () => {
     await core.enqueueDialog('dialog.openFile', { paths: [] });
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-open').click();
+    // The worker's later tests share this core: an answer still queued when the test ends would
+    // cancel their next File > Open.
+    await expect
+      .poll(async () => (await core.rpc<{ pendingDialogs: number }>('test.metrics')).pendingDialogs)
+      .toBe(0);
     await expect(page.getByTestId('panel-body-document')).toBeVisible();
     await expect(page.getByTestId('dialog-layer')).toBeHidden();
   });
