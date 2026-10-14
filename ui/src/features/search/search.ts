@@ -17,6 +17,7 @@ import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
 import type { Dialogs } from '@/dialogs/types';
 import { FindDialog } from '@/dialogs/FindDialog';
 import { ReplaceDialog } from '@/dialogs/ReplaceDialog';
+import { NBSP, nbspMarker } from '@/editor/plugins/nbsp';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import type { ViewId } from '@/rpc/types';
@@ -147,7 +148,7 @@ export class SearchSession {
     this.options = { ...options };
     const target = this.activeTarget();
     if (!target || !options.query) return false;
-    const found = target.findNext(options, mode);
+    const found = target.findNext(this.withNbsp(options), mode);
     this.matchValid = found;
     this.emit();
     return found;
@@ -159,8 +160,10 @@ export class SearchSession {
     this.replacement = replacement;
     const target = this.activeTarget();
     if (!target) return { replaced: false, found: false };
-    const replaced = this.matchValid ? target.replaceCurrent(options, replacement) : false;
-    const found = target.findNext(options, 'next');
+    const replaced = this.matchValid
+      ? target.replaceCurrent(this.withNbsp(options), this.nbspText(replacement))
+      : false;
+    const found = target.findNext(this.withNbsp(options), 'next');
     this.matchValid = found;
     this.emit();
     return { replaced, found };
@@ -175,13 +178,26 @@ export class SearchSession {
     this.undo.beginGroup(label);
     let count: number;
     try {
-      count = target.replaceAll(options, replacement);
+      count = target.replaceAll(this.withNbsp(options), this.nbspText(replacement));
     } finally {
       this.undo.endGroup();
     }
     this.matchValid = false;
     this.emit();
     return count;
+  }
+
+  /**
+   * The non-breaking-space marker in a search or replacement text stands for U+00A0, as the
+   * original's display character did (feature 002 FR-043); the document itself holds U+00A0.
+   */
+  private nbspText(text: string): string {
+    const marker = nbspMarker(this.store.getState().settings?.other.nbspDisplayChar);
+    return marker ? text.split(marker).join(NBSP) : text;
+  }
+
+  private withNbsp(options: FindOptions): FindOptions {
+    return { ...options, query: this.nbspText(options.query) };
   }
 
   /* ----------------------------------------------------------------- dialogs */

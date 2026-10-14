@@ -38,7 +38,7 @@ import { createImageNodeViews } from '@/editor/nodeviews/image';
 import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
 import { clipboardPlugin } from '@/editor/plugins/clipboard';
-import { nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
+import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { overtypePlugin } from '@/editor/plugins/overtype';
 import {
@@ -218,7 +218,7 @@ export class BodyEditorController {
     this.undo = options.undo;
     this.windowSize = options.windowSize ?? DEFAULT_WINDOW_SIZE;
     this.editable = options.editable ?? true;
-    const fallback = options.getNbspChar ?? (() => '\u00B0');
+    const fallback = options.getNbspChar ?? (() => DEFAULT_NBSP_DISPLAY_CHAR);
     this.getNbspChar = () => this.nbspChar ?? fallback();
     this.extraPlugins = options.plugins ?? [];
     this.translate = options.translate ?? ((key) => key);

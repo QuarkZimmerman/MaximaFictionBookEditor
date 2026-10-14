@@ -741,7 +741,7 @@ describe('ui.*, edit.*, env.*', () => {
     ]);
     expect(await call(h, 'edit.label', 'step')).toBeUndefined();
     expect(await call(h, 'env.settings')).toEqual({
-      nbspDisplayChar: '\u00B0',
+      nbspDisplayChar: '\u00A0', // the original's default: the plain space, no marker
       pasteImageFormat: 'jpeg',
       jpegQuality: 90,
       uiLanguage: 'en',

@@ -9,7 +9,7 @@
 
 import { baseKeymap, chainCommands } from 'prosemirror-commands';
 import { keymap } from 'prosemirror-keymap';
-import { EditorState, TextSelection, type Command } from 'prosemirror-state';
+import { EditorState, TextSelection, type Command, type Plugin } from 'prosemirror-state';
 
 import { toggleInlineMark } from '@/editor/commands/marks';
 import { emptyParagraph, N } from '@/editor/commands/util';
@@ -56,6 +56,7 @@ export const richEnter: Command = chainCommands(topLevelEmptyParagraph, enterCom
 export function createRichFieldState(
   value: AnnotationNode | undefined,
   nextId: () => string,
+  extraPlugins: Plugin[] = [],
 ): EditorState {
   let doc = annotationFromModel(value);
   if (doc.childCount === 0) doc = doc.type.create(doc.attrs, emptyParagraph());
@@ -74,7 +75,7 @@ export function createRichFieldState(
   };
   return EditorState.create({
     doc,
-    plugins: [keymap(bindings), keymap(baseKeymap), nodeIdPlugin(nextId)],
+    plugins: [keymap(bindings), keymap(baseKeymap), nodeIdPlugin(nextId), ...extraPlugins],
   });
 }
 

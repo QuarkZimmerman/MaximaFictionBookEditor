@@ -46,6 +46,7 @@ import {
 } from '@codemirror/view';
 
 import type { CommandContext } from '@/app/commands';
+import { nbspMarker } from '@/editor/plugins/nbsp';
 import type { CaretProvider } from '@/model/caret';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator, ViewHistoryAdapter } from '@/model/undo';
@@ -63,6 +64,7 @@ import {
   lineNumbersExtension,
   matchedTagsExtension,
   matchingTagPosition,
+  nbspSourceExtension,
   nextSyntaxError,
   offsetForLineColumn,
   overtypeExtension,
@@ -103,6 +105,8 @@ export interface SourceEditorSettings {
   matchTags: boolean;
   /** Raw `view.sourceFont` setting ("Consolas, 12"); empty = defaults. */
   font: string;
+  /** Non-breaking-space marker (□ ▫ ◦), null for the plain space (`other.nbspDisplayChar`). */
+  nbspMarker: string | null;
 }
 
 export const DEFAULT_SOURCE_SETTINGS: SourceEditorSettings = {
@@ -113,6 +117,7 @@ export const DEFAULT_SOURCE_SETTINGS: SourceEditorSettings = {
   showWhitespace: false,
   matchTags: true,
   font: '',
+  nbspMarker: null,
 };
 
 /** The Source editor settings of the application settings (defaults when unavailable). */
@@ -120,6 +125,7 @@ export function sourceSettingsOf(settings: Settings | null | undefined): SourceE
   const view = settings?.view;
   if (!view) return DEFAULT_SOURCE_SETTINGS;
   return {
+    nbspMarker: nbspMarker(settings?.other?.nbspDisplayChar),
     wrap: view.sourceWrap ?? DEFAULT_SOURCE_SETTINGS.wrap,
     lineNumbers: view.sourceLineNumbers ?? DEFAULT_SOURCE_SETTINGS.lineNumbers,
     highlight: view.sourceSyntaxHighlight ?? DEFAULT_SOURCE_SETTINGS.highlight,
@@ -138,7 +144,8 @@ export function sameSourceSettings(a: SourceEditorSettings, b: SourceEditorSetti
     a.showEol === b.showEol &&
     a.showWhitespace === b.showWhitespace &&
     a.matchTags === b.matchTags &&
-    a.font === b.font
+    a.font === b.font &&
+    a.nbspMarker === b.nbspMarker
   );
 }
 
@@ -222,6 +229,7 @@ export class SourceEditorController {
     matchTags: new Compartment(),
     overtype: new Compartment(),
     theme: new Compartment(),
+    nbsp: new Compartment(),
   };
   private loadToken = 0;
   private revealPending = false;
@@ -250,6 +258,7 @@ export class SourceEditorController {
       c.whitespace.of(whitespaceExtension(this.settings.showWhitespace)),
       c.matchTags.of(matchedTagsExtension(this.settings.matchTags)),
       c.overtype.of(this.isOvertype() ? overtypeAttributes : []),
+      c.nbsp.of(nbspSourceExtension(this.settings.nbspMarker)),
       sourceLanguage(),
       history(),
       foldGutter(),
@@ -451,6 +460,7 @@ export class SourceEditorController {
         c.whitespace.reconfigure(whitespaceExtension(s.showWhitespace)),
         c.matchTags.reconfigure(matchedTagsExtension(s.matchTags)),
         c.overtype.reconfigure(this.isOvertype() ? overtypeAttributes : []),
+        c.nbsp.reconfigure(nbspSourceExtension(s.nbspMarker)),
       ],
     });
   }

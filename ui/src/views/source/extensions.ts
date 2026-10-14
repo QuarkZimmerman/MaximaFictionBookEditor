@@ -44,12 +44,15 @@ import {
   ViewPlugin,
   WidgetType,
   highlightActiveLineGutter,
+  highlightSpecialChars,
   highlightWhitespace,
   lineNumbers,
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
 import type { SyntaxNode, Tree } from '@lezer/common';
+
+import { NBSP } from '@/editor/plugins/nbsp';
 
 import { sourceHighlightExtension } from './theme';
 
@@ -78,6 +81,30 @@ export const lineNumbersExtension = (on: boolean): Extension =>
 export const wrapExtension = (on: boolean): Extension => (on ? EditorView.lineWrapping : []);
 
 export const whitespaceExtension = (on: boolean): Extension => (on ? highlightWhitespace() : []);
+
+/**
+ * Non-breaking-space marker in the Source view (feature 002 FR-042): every U+00A0 is shown as
+ * the chosen marker (□ ▫ ◦) through CodeMirror's special-character rendering, as the original
+ * showed its display character in the source; copied text carries the marker and pasted marker
+ * characters become U+00A0 (feature 002 FR-043). Nothing for the plain space (null).
+ */
+export function nbspSourceExtension(marker: string | null): Extension {
+  if (!marker) return [];
+  return [
+    highlightSpecialChars({
+      addSpecialChars: /\u00a0/g,
+      render: (code, description, placeholder) => {
+        const span = document.createElement('span');
+        span.className = code === 0xa0 ? 'cm-nbspMarker' : 'cm-specialChar';
+        span.textContent = code === 0xa0 ? marker : placeholder;
+        if (description) span.title = description;
+        return span;
+      },
+    }),
+    EditorView.clipboardOutputFilter.of((text) => text.split(NBSP).join(marker)),
+    EditorView.clipboardInputFilter.of((text) => text.split(marker).join(NBSP)),
+  ];
+}
 
 /* ------------------------------------------------------------------------ */
 /* End-of-line marks                                                        */

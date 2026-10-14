@@ -251,7 +251,9 @@ a.fb-note {
   text-decoration: none;
 }
 
-/* Non-breaking space marker: the character stays in the text, the display char is painted over it. */
+/* Non-breaking space marker: the character stays in the text, the display char is painted over
+   it. The absolutely positioned marker becomes a block and would inherit the paragraph's first-line
+   indent (3em in sections, poems, epigraphs) and be drawn over the following text: no indent. */
 .fb-nbsp {
   position: relative;
   color: transparent;
@@ -260,8 +262,10 @@ a.fb-note {
 .fb-nbsp::before {
   content: attr(data-char);
   position: absolute;
+  top: 0;
   left: 0;
   right: 0;
+  text-indent: 0;
   text-align: center;
   color: var(--mfbe-fb-nbsp);
   pointer-events: none;

@@ -7,11 +7,12 @@
  * rebuilds the editor from the restored model.
  */
 
-import type { Command, EditorState, Transaction } from 'prosemirror-state';
+import type { Command, EditorState, Plugin, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useAppServices } from '@/app/services';
 import { iconUrl } from '@/app/toolbarDefinitions';
 import {
   INLINE_MARKS,
@@ -23,7 +24,9 @@ import { M } from '@/editor/commands/util';
 import { createImageNodeViews } from '@/editor/nodeviews/image';
 import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
+import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
 import type { AnnotationNode } from '@/model/document';
+import { useAppState } from '@/model/store';
 
 import { RequiredMark } from './fields';
 import { useDescriptionForm } from './formContext';
@@ -56,10 +59,26 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
   const lastEmitted = useRef<AnnotationNode | undefined | null>(null);
   const docIdRef = useRef(docId);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
+  // Annotation and history show the non-breaking-space marker like the Body text (feature 002
+  // FR-042).
+  const { store } = useAppServices();
+  const nbspChar = useAppState(
+    (s) => s.settings?.other.nbspDisplayChar ?? DEFAULT_NBSP_DISPLAY_CHAR,
+    store,
+  );
+  const nbspCharRef = useRef(nbspChar);
+  // Created with the editor (refs are read only outside render).
+  const pluginsRef = useRef<Plugin[]>([]);
 
   useEffect(() => {
     docIdRef.current = docId;
   }, [docId]);
+
+  useEffect(() => {
+    nbspCharRef.current = nbspChar;
+    const view = viewRef.current;
+    if (view) view.dispatch(view.state.tr.setMeta(nbspPluginKey, 'refresh'));
+  }, [nbspChar]);
 
   // Mount once; the editor state is rebuilt from the model only when the model changed
   // outside this field (undo / redo / document replaced).
@@ -69,8 +88,9 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
     const nextId = richFieldIdGenerator(fieldKey);
     const initial = getAtPath(controller.currentForm, fieldKey) as AnnotationNode | undefined;
     lastEmitted.current = initial;
+    pluginsRef.current = [nbspMarkerPlugin(() => nbspCharRef.current)];
     const view = new EditorView(host, {
-      state: createRichFieldState(initial, nextId),
+      state: createRichFieldState(initial, nextId, pluginsRef.current),
       nodeViews: {
         ...createImageNodeViews({
           getDocId: () => docIdRef.current,
@@ -114,7 +134,7 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
     const view = viewRef.current;
     if (!view || lastEmitted.current === value) return;
     lastEmitted.current = value;
-    const state = createRichFieldState(value, richFieldIdGenerator(fieldKey));
+    const state = createRichFieldState(value, richFieldIdGenerator(fieldKey), pluginsRef.current);
     view.updateState(state);
     setEditorState(state);
   }, [value, fieldKey]);
