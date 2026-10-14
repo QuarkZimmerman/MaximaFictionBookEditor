@@ -37,6 +37,7 @@ packages/
 tests/corpus/sample-*.txt
 tests/corpus/out/
 tests/bench/results/
+tests/bench/books/
 *.log
 !tests/fixtures/**/*.log
 
