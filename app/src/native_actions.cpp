@@ -1,5 +1,7 @@
 #include "native_actions.h"
 
+#include <mfbe/utf8_paths.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -97,7 +99,7 @@ bool openExternalUrl(const std::string& url) {
 
 bool openFolderInFileManager(const std::string& path) {
     std::error_code ec;
-    if (path.empty() || !std::filesystem::is_directory(std::filesystem::path(path), ec)) {
+    if (path.empty() || !std::filesystem::is_directory(mfbe::platform::path_from_utf8(path), ec)) {
         return false;
     }
 #if defined(_WIN32)
@@ -115,7 +117,8 @@ void notifyFileAssociationsChanged() {
 }
 
 bool isDocumentPath(const std::string& path) {
-    std::string ext = std::filesystem::path(path).extension().string();
+    std::string ext =
+        mfbe::platform::utf8_from_path(mfbe::platform::path_from_utf8(path).extension());
     std::transform(ext.begin(), ext.end(), ext.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return ext == ".fb2" || ext == ".fbd" || ext == ".xml";

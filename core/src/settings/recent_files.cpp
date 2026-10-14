@@ -2,6 +2,7 @@
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/recent_files.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -88,12 +89,12 @@ void RecentFiles::load() {
         parsed = json::parse(atomic_file::read_file(file_));
     } catch (const std::exception& e) {
         log::error("core", "recent.unreadable", "recent.json could not be read",
-                   log::extras({{"path", file_.string()}, {"reason", e.what()}}));
+                   log::extras({{"path", platform::utf8_from_path(file_)}, {"reason", e.what()}}));
         return;
     }
     if (!parsed.is_object() || !parsed.contains("items") || !parsed["items"].is_array()) {
         log::warning("core", "recent.invalid", "recent.json has an unexpected shape",
-                     log::extras({{"path", file_.string()}}));
+                     log::extras({{"path", platform::utf8_from_path(file_)}}));
         return;
     }
     for (const auto& item : parsed["items"]) {

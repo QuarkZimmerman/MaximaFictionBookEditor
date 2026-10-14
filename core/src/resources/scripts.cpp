@@ -1,6 +1,7 @@
 // Script package discovery (T101). See mfbe/scripts.hpp.
 #include <mfbe/log.hpp>
 #include <mfbe/scripts.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -17,16 +18,6 @@ using nlohmann::json;
 constexpr const char* kTreeGroup = "tree";
 constexpr int kUngroupedOrder = -1;
 constexpr int kUnnumberedOrder = 10000;
-
-// UTF-8 <-> path conversions (`.string()` would use the ANSI code page on Windows).
-std::string to_utf8(const fs::path& p) {
-    const std::u8string u8 = p.u8string();
-    return std::string(u8.begin(), u8.end());
-}
-
-fs::path from_utf8(std::string_view text) {
-    return fs::path(std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size()));
-}
 
 std::string lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
@@ -74,7 +65,8 @@ std::vector<fs::directory_entry> sorted_entries(const fs::path& dir) {
     }
     std::sort(entries.begin(), entries.end(),
               [](const fs::directory_entry& a, const fs::directory_entry& b) {
-                  return to_utf8(a.path().filename()) < to_utf8(b.path().filename());
+                  return platform::utf8_from_path(a.path().filename()) <
+                         platform::utf8_from_path(b.path().filename());
               });
     return entries;
 }
@@ -317,12 +309,12 @@ fs::path resolve_package_file(const ScriptPackage& package, std::string_view fil
     if (ec) {
         return {};
     }
-    const fs::path candidate = fs::weakly_canonical(base / from_utf8(file), ec);
+    const fs::path candidate = fs::weakly_canonical(base / platform::path_from_utf8(file), ec);
     if (ec) {
         return {};
     }
-    const std::string base_str = base.generic_string();
-    const std::string cand_str = candidate.generic_string();
+    const std::string base_str = platform::utf8_from_path_generic(base);
+    const std::string cand_str = platform::utf8_from_path_generic(candidate);
     if (cand_str.size() <= base_str.size() || cand_str.compare(0, base_str.size(), base_str) != 0 ||
         cand_str[base_str.size()] != '/') {
         return {};
@@ -342,8 +334,8 @@ std::vector<std::string> package_files(const ScriptPackage& package) {
         if (!it->is_regular_file(file_ec)) {
             continue;
         }
-        const std::u8string rel = fs::relative(it->path(), package.dir, file_ec).generic_u8string();
-        files.emplace_back(rel.begin(), rel.end());
+        files.push_back(
+            platform::utf8_from_path_generic(fs::relative(it->path(), package.dir, file_ec)));
     }
     std::sort(files.begin(), files.end());
     return files;
@@ -429,7 +421,8 @@ ParsedManifest parse_manifest(const json& manifest, const std::string& default_i
         if (!icon->is_string() || !is_safe_relative_file(icon->get<std::string>())) {
             warning("icon", "expected a relative file name inside the script folder");
         } else {
-            const std::string ext = lower(fs::path(icon->get<std::string>()).extension().string());
+            const std::string ext = lower(platform::utf8_from_path(
+                platform::path_from_utf8(icon->get<std::string>()).extension()));
             if (ext != ".png" && ext != ".ico" && ext != ".svg") {
                 warning("icon", "expected a PNG, ICO or SVG file");
             } else {
@@ -553,13 +546,13 @@ bool Catalog::add_package(ScriptPackage package) {
         issue.id = package.id;
         issue.reason = "duplicateId";
         issue.severity = "warning";
-        issue.message = "script id already provided by " + to_utf8(existing->dir) + " (" +
-                        resources::to_string(existing->layer) + " layer); ignored";
+        issue.message = "script id already provided by " + platform::utf8_from_path(existing->dir) +
+                        " (" + resources::to_string(existing->layer) + " layer); ignored";
         log::warning("core", "scripts.conflict",
                      "script id present in several layers; kept the first",
                      log::extras({{"id", package.id},
-                                  {"kept", to_utf8(existing->dir)},
-                                  {"ignored", to_utf8(package.dir)}}));
+                                  {"kept", platform::utf8_from_path(existing->dir)},
+                                  {"ignored", platform::utf8_from_path(package.dir)}}));
         issues_.push_back(std::move(issue));
         return false;
     }
@@ -594,8 +587,8 @@ namespace {
 bool folder_less(const fs::path& a, const fs::path& b) {
     std::optional<int> oa;
     std::optional<int> ob;
-    const std::string fa = to_utf8(a.filename());
-    const std::string fb = to_utf8(b.filename());
+    const std::string fa = platform::utf8_from_path(a.filename());
+    const std::string fb = platform::utf8_from_path(b.filename());
     const std::string na = strip_order_prefix(fa, &oa);
     const std::string nb = strip_order_prefix(fb, &ob);
     if (oa.has_value() != ob.has_value()) {
@@ -642,8 +635,8 @@ json Catalog::package_to_json(const ScriptPackage& p) {
            {"entry", m.entry},
            {"needsSelection", m.needsSelection},
            {"group", p.group},
-           {"dir", to_utf8(p.dir)},
-           {"folder", to_utf8(p.dir.filename())},
+           {"dir", platform::utf8_from_path(p.dir)},
+           {"folder", platform::utf8_from_path(p.dir.filename())},
            {"source", resources::to_string(p.layer)},
            {"entryUrl", package_url(p.id, m.entry)},
            {"warnings", json(p.warnings)}};
@@ -680,7 +673,7 @@ json Catalog::to_json() const {
         json jg{{"id", g.id},
                 {"order", g.order},
                 {"names", json(g.names)},
-                {"dir", to_utf8(g.dir)},
+                {"dir", platform::utf8_from_path(g.dir)},
                 {"scripts", std::move(scripts)}};
         if (!g.icon.empty()) {
             jg["icon"] = g.icon;
@@ -689,7 +682,7 @@ json Catalog::to_json() const {
     }
     json issues = json::array();
     for (const Issue& i : issues_) {
-        json ji{{"path", to_utf8(i.path)},
+        json ji{{"path", platform::utf8_from_path(i.path)},
                 {"reason", i.reason},
                 {"message", i.message},
                 {"severity", i.severity}};
@@ -700,7 +693,7 @@ json Catalog::to_json() const {
     }
     json folders = json::object();
     for (const auto& [key, path] : folders_) {
-        folders[key] = to_utf8(path);
+        folders[key] = platform::utf8_from_path(path);
     }
     return json{{"groups", std::move(groups)}, {"issues", std::move(issues)}, {"folders", folders}};
 }
@@ -730,7 +723,7 @@ void load_group_json(const fs::path& dir, Group& group, Catalog& catalog) {
         issue.severity = "warning";
         issue.message = e.what();
         log::warning("core", "scripts.invalidManifest", "group.json could not be parsed",
-                     log::extras({{"path", to_utf8(file)}, {"reason", e.what()}}));
+                     log::extras({{"path", platform::utf8_from_path(file)}, {"reason", e.what()}}));
         catalog.add_issue(std::move(issue));
         return;
     }
@@ -750,7 +743,7 @@ void load_group_json(const fs::path& dir, Group& group, Catalog& catalog) {
     }
     if (j.contains("icon") && j["icon"].is_string() &&
         is_safe_relative_file(j["icon"].get<std::string>()) &&
-        is_file(dir / from_utf8(j["icon"].get<std::string>()))) {
+        is_file(dir / platform::path_from_utf8(j["icon"].get<std::string>()))) {
         group.icon = j["icon"].get<std::string>();
     }
 }
@@ -758,7 +751,7 @@ void load_group_json(const fs::path& dir, Group& group, Catalog& catalog) {
 void load_package(const fs::path& dir, const std::string& group_id, resources::LayerName layer,
                   Catalog& catalog) {
     const fs::path manifest_file = dir / "script.json";
-    const std::string folder = to_utf8(dir.filename());
+    const std::string folder = platform::utf8_from_path(dir.filename());
     const std::string default_id = group_id.empty() ? folder : group_id + "/" + folder;
     const std::string default_kind = group_id == kTreeGroup ? "tree" : "menu";
     const auto text = read_text_file(manifest_file);
@@ -780,7 +773,7 @@ void load_package(const fs::path& dir, const std::string& group_id, resources::L
                            : "invalidManifest";
         issue.message = message;
         log::warning("core", "scripts.invalidManifest", "script package skipped",
-                     log::extras({{"path", to_utf8(dir)}, {"reason", message}}));
+                     log::extras({{"path", platform::utf8_from_path(dir)}, {"reason", message}}));
         catalog.add_issue(std::move(issue));
         return;
     }
@@ -793,18 +786,20 @@ void load_package(const fs::path& dir, const std::string& group_id, resources::L
     for (const std::string& w : parsed.warnings) {
         package.warnings.push_back(w);
     }
-    if (!is_file(dir / from_utf8(package.manifest.entry))) {
+    if (!is_file(dir / platform::path_from_utf8(package.manifest.entry))) {
         Issue issue;
         issue.path = dir;
         issue.id = package.id;
         issue.reason = "entryMissing";
         issue.message = "entry module \"" + package.manifest.entry + "\" not found";
         log::warning("core", "scripts.invalidManifest", "script entry module missing",
-                     log::extras({{"path", to_utf8(dir)}, {"entry", package.manifest.entry}}));
+                     log::extras({{"path", platform::utf8_from_path(dir)},
+                                  {"entry", package.manifest.entry}}));
         catalog.add_issue(std::move(issue));
         return;
     }
-    if (!package.manifest.icon.empty() && !is_file(dir / from_utf8(package.manifest.icon))) {
+    if (!package.manifest.icon.empty() &&
+        !is_file(dir / platform::path_from_utf8(package.manifest.icon))) {
         package.warnings.push_back("iconMissing: icon \"" + package.manifest.icon + "\" not found");
         package.manifest.icon.clear();
     }
@@ -831,7 +826,7 @@ void load_root(const fs::path& root, resources::LayerName layer, Catalog& catalo
             continue;
         }
         Group group;
-        group.id = to_utf8(entry.path().filename());
+        group.id = platform::utf8_from_path(entry.path().filename());
         std::optional<int> order;
         const std::string stripped = strip_order_prefix(group.id, &order);
         group.order = order.value_or(kUnnumberedOrder);
@@ -852,7 +847,7 @@ void load_root(const fs::path& root, resources::LayerName layer, Catalog& catalo
                 issue.message = "script folder without script.json ignored";
                 log::warning("core", "scripts.invalidManifest",
                              "script folder without script.json ignored",
-                             log::extras({{"path", to_utf8(sub.path())}}));
+                             log::extras({{"path", platform::utf8_from_path(sub.path())}}));
                 catalog.add_issue(std::move(issue));
                 continue;
             }

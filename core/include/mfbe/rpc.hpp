@@ -209,6 +209,9 @@ public:
     static json make_result(const json& id, json result);
     static json make_error(const json& id, const RpcError& error);
     static json make_notification(const std::string& method, const json& params);
+    // Text of a message on the wire. A string that is not valid UTF-8 (an operating-system
+    // message in a legacy code page) gets U+FFFD instead of ending the reply with an exception.
+    static std::string wire_text(const json& message);
 
 private:
     struct Entry {

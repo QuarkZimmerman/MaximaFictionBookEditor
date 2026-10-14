@@ -3,6 +3,7 @@
 #include <mfbe/exclusions.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/unicode.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <sstream>
@@ -97,7 +98,8 @@ void ExclusionList::load() {
     words_.erase(std::unique(words_.begin(), words_.end()), words_.end());
     if (skipped > 0) {
         log::warning("core", "exclusions.invalidLines", "exclusions.txt contains invalid words",
-                     log::extras({{"path", file_.string()}, {"skipped", std::to_string(skipped)}}));
+                     log::extras({{"path", platform::utf8_from_path(file_)},
+                                  {"skipped", std::to_string(skipped)}}));
     }
 }
 

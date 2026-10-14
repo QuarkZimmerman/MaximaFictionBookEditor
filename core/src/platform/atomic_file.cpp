@@ -1,5 +1,6 @@
 // Atomic file writes (T014). See mfbe/atomic_file.hpp.
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -31,15 +32,19 @@ bool take_fault(FaultPoint point) {
 }
 
 std::string errno_message(int err) {
-    std::error_code ec(err, std::generic_category());
-    return ec.message();
+    return platform::utf8_error_message(std::error_code(err, std::generic_category()));
 }
 
+// ".<file name>.<random hex>.tmp" next to the target (joined as paths: the name may hold any
+// character).
 std::filesystem::path make_temp_path(const std::filesystem::path& target) {
     static thread_local std::mt19937_64 rng{std::random_device{}()};
-    std::ostringstream name;
-    name << "." << target.filename().string() << "." << std::hex << rng() << ".tmp";
-    return target.parent_path() / name.str();
+    std::ostringstream suffix;
+    suffix << "." << std::hex << rng() << ".tmp";
+    std::filesystem::path name = ".";
+    name += target.filename();
+    name += platform::path_from_utf8(suffix.str());
+    return target.parent_path() / name;
 }
 
 #ifdef _WIN32
@@ -71,12 +76,13 @@ void write_temp_and_replace(const std::filesystem::path& target, const std::file
     HANDLE h = CreateFileW(temp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
                            FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == INVALID_HANDLE_VALUE) {
-        throw WriteError(target.string(), "cannot create temporary file: " + last_error_message());
+        throw WriteError(platform::utf8_from_path(target),
+                         "cannot create temporary file: " + last_error_message());
     }
     auto fail = [&](const std::string& reason) {
         CloseHandle(h);
         DeleteFileW(temp.c_str());
-        throw WriteError(target.string(), reason);
+        throw WriteError(platform::utf8_from_path(target), reason);
     };
     if (take_fault(FaultPoint::before_write)) {
         fail("injected fault: before_write");
@@ -102,7 +108,7 @@ void write_temp_and_replace(const std::filesystem::path& target, const std::file
     CloseHandle(h);
     if (take_fault(FaultPoint::before_rename)) {
         DeleteFileW(temp.c_str());
-        throw WriteError(target.string(), "injected fault: before_rename");
+        throw WriteError(platform::utf8_from_path(target), "injected fault: before_rename");
     }
     BOOL ok;
     if (GetFileAttributesW(target.c_str()) != INVALID_FILE_ATTRIBUTES) {
@@ -115,7 +121,7 @@ void write_temp_and_replace(const std::filesystem::path& target, const std::file
     if (!ok) {
         const std::string reason = "replace failed: " + last_error_message();
         DeleteFileW(temp.c_str());
-        throw WriteError(target.string(), reason);
+        throw WriteError(platform::utf8_from_path(target), reason);
     }
 }
 
@@ -132,12 +138,13 @@ void write_temp_and_replace(const std::filesystem::path& target, const std::file
     }
     const int fd = ::open(temp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
     if (fd < 0) {
-        throw WriteError(target.string(), "cannot create temporary file: " + errno_message(errno));
+        throw WriteError(platform::utf8_from_path(target),
+                         "cannot create temporary file: " + errno_message(errno));
     }
     auto fail = [&](const std::string& reason) {
         ::close(fd);
         ::unlink(temp.c_str());
-        throw WriteError(target.string(), reason);
+        throw WriteError(platform::utf8_from_path(target), reason);
     };
     if (take_fault(FaultPoint::before_write)) {
         fail("injected fault: before_write");
@@ -171,16 +178,16 @@ void write_temp_and_replace(const std::filesystem::path& target, const std::file
     }
     if (::close(fd) != 0) {
         ::unlink(temp.c_str());
-        throw WriteError(target.string(), "close failed: " + errno_message(errno));
+        throw WriteError(platform::utf8_from_path(target), "close failed: " + errno_message(errno));
     }
     if (take_fault(FaultPoint::before_rename)) {
         ::unlink(temp.c_str());
-        throw WriteError(target.string(), "injected fault: before_rename");
+        throw WriteError(platform::utf8_from_path(target), "injected fault: before_rename");
     }
     if (::rename(temp.c_str(), target.c_str()) != 0) {
         const std::string reason = "rename failed: " + errno_message(errno);
         ::unlink(temp.c_str());
-        throw WriteError(target.string(), reason);
+        throw WriteError(platform::utf8_from_path(target), reason);
     }
     // Best effort: persist the directory entry.
     const int dir_fd = ::open(target.parent_path().c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
@@ -209,7 +216,7 @@ void write_atomic(const std::filesystem::path& path, std::string_view bytes) {
     const std::filesystem::path target = std::filesystem::absolute(path);
     std::error_code ec;
     if (!std::filesystem::is_directory(target.parent_path(), ec)) {
-        throw WriteError(target.string(), "directory does not exist");
+        throw WriteError(platform::utf8_from_path(target), "directory does not exist");
     }
     write_temp_and_replace(target, make_temp_path(target), bytes);
 }
@@ -217,11 +224,12 @@ void write_atomic(const std::filesystem::path& path, std::string_view bytes) {
 std::string read_file(const std::filesystem::path& path) {
     std::ifstream in(path, std::ios::binary);
     if (!in) {
-        throw WriteError(path.string(), "cannot open file: " + errno_message(errno));
+        throw WriteError(platform::utf8_from_path(path),
+                         "cannot open file: " + errno_message(errno));
     }
     std::string data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     if (in.bad()) {
-        throw WriteError(path.string(), "read failed");
+        throw WriteError(platform::utf8_from_path(path), "read failed");
     }
     return data;
 }

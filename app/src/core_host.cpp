@@ -17,6 +17,7 @@
 #if __has_include(<mfbe/core_server.hpp>)
 #include <mfbe/core_server.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/utf8_paths.hpp>
 #define MFBE_SHELL_HAS_CORE 1
 #endif
 
@@ -83,13 +84,14 @@ public:
         try {
             mfbe::CoreServerOptions server_options;
             server_options.port = 0;  // OS-assigned loopback port
-            server_options.ui_dir = options.ui_dir.string();
+            // The core takes its folders as UTF-8 text (never the process code page).
+            server_options.ui_dir = mfbe::platform::utf8_from_path(options.ui_dir);
             // data_dir is an override root for tests/--data-dir; empty = the platform
             // locations of contracts/resource-formats.md §1 (same rules the shell applies to
             // the CEF profile, see user_dirs.cpp).
-            server_options.data_dir = options.data_dir_override.string();
-            server_options.resources_dir = options.resources_dir.string();
-            server_options.scripts_dir = options.scripts_dir.string();
+            server_options.data_dir = mfbe::platform::utf8_from_path(options.data_dir_override);
+            server_options.resources_dir = mfbe::platform::utf8_from_path(options.resources_dir);
+            server_options.scripts_dir = mfbe::platform::utf8_from_path(options.scripts_dir);
             server_options.open_paths = options.open_paths;
             server_options.test_hooks = options.test_hooks;
 

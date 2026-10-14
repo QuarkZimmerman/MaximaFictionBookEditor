@@ -1,5 +1,6 @@
 // Dictionary discovery through the resource layers (T086). See mfbe/spell.hpp.
 #include <mfbe/spell.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -41,11 +42,11 @@ json Dictionary::to_json() const {
         {"tag", tag},
         {"lang", underscore == std::string::npos ? normalized : normalized.substr(0, underscore)},
         {"name", tag},
-        {"path", aff.string()},
-        {"dicPath", dic.string()},
+        {"path", platform::utf8_from_path(aff)},
+        {"dicPath", platform::utf8_from_path(dic)},
         {"source", source()}};
     if (readme) {
-        j["readmePath"] = readme->string();
+        j["readmePath"] = platform::utf8_from_path(*readme);
     }
     return j;
 }

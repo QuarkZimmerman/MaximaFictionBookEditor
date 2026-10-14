@@ -29,7 +29,7 @@ void register_settings_handlers(rpc::RpcRouter& router, Services& services) {
         if (services.spell && patch.contains("view") && patch["view"].is_object() &&
             patch["view"].contains("customDictionaryPath")) {
             std::filesystem::path custom =
-                services.settings.get_string("view.customDictionaryPath");
+                platform::path_from_utf8(services.settings.get_string("view.customDictionaryPath"));
             if (custom.empty()) {
                 custom = services.dirs.data / "custom.dic";
             }

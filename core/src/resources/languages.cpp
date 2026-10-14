@@ -1,6 +1,7 @@
 // Language table (T074). See mfbe/resource_tables.hpp.
 #include <mfbe/log.hpp>
 #include <mfbe/resource_tables.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <fstream>
 #include <stdexcept>
@@ -113,7 +114,7 @@ LanguageTable load_languages(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
     if (!in) {
         log::warning("core", "resources.languagesUnavailable", "languages.json not readable",
-                     log::extras({{"path", file.string()}}));
+                     log::extras({{"path", platform::utf8_from_path(file)}}));
         return {};
     }
     const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -121,7 +122,7 @@ LanguageTable load_languages(const std::filesystem::path& file) {
         return parse_languages(text);
     } catch (const std::runtime_error& e) {
         log::warning("core", "resources.languagesUnavailable", "languages.json malformed",
-                     log::extras({{"path", file.string()}, {"reason", e.what()}}));
+                     log::extras({{"path", platform::utf8_from_path(file)}, {"reason", e.what()}}));
         return {};
     }
 }

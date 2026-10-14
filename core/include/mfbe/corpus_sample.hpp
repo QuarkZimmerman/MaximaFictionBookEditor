@@ -40,8 +40,8 @@ private:
 };
 
 // Walks <root>/<range>/<sub>/<id>/ exactly like sample.py (sorted ranges/subs/books,
-// directory order inside a book folder) and returns candidate files (.fb2, optionally .fbd).
-// `max_scan` = 0 means the whole library.
+// directory order inside a book folder) and returns candidate files (.fb2, optionally .fbd;
+// UTF-8 paths). `max_scan` = 0 means the whole library.
 std::vector<std::string> scan_candidates(const std::filesystem::path& root, bool include_fbd,
                                          std::size_t max_scan = 0);
 

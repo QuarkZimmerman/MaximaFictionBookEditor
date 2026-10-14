@@ -111,7 +111,7 @@ unset(_bridge_defines)
 # All dependencies are PRIVATE: for a static library CMake still forwards them to the final
 # link ($<LINK_ONLY:...>), but their compile options/defines (mfbe::options warnings, the
 # core's public defines) must not leak into the CEF-flagged executable sources.
-target_link_libraries(mfbe_app_bridge PRIVATE mfbe::options libcef_dll_wrapper)
+target_link_libraries(mfbe_app_bridge PRIVATE mfbe::options mfbe_paths libcef_dll_wrapper)
 if(NOT OS_MAC)
   target_link_libraries(mfbe_app_bridge PRIVATE libcef_lib)
 endif()
@@ -176,7 +176,7 @@ set(MFBE_TARGET_OUT_DIR "${CMAKE_BINARY_DIR}/bin")
 function(mfbe_shell_configure_target target)
   target_compile_definitions(${target} PRIVATE ${MFBE_SHELL_DEFINES})
   add_dependencies(${target} libcef_dll_wrapper)
-  target_link_libraries(${target} mfbe_app_bridge libcef_dll_wrapper ${CEF_STANDARD_LIBS})
+  target_link_libraries(${target} mfbe_app_bridge mfbe_paths libcef_dll_wrapper ${CEF_STANDARD_LIBS})
   if(NOT OS_MAC)
     target_link_libraries(${target} libcef_lib)
   endif()
@@ -347,9 +347,11 @@ if(OS_WINDOWS)
     set_target_properties(${MFBE_TARGET} PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY "${MFBE_TARGET_OUT_DIR}"
       LIBRARY_OUTPUT_DIRECTORY "${MFBE_TARGET_OUT_DIR}")
-    # Copy and rename the bootstrap binary, then give it the editor's icon and version
-    # information (Explorer, the Start menu and the taskbar show the executable's resources;
-    # the bootstrap carries CEF's generic ones). win/stamp_resources.cpp is a plain Win32 tool.
+    # Copy and rename the bootstrap binary, then give it the editor's icon, version information
+    # and manifest (Explorer, the Start menu and the taskbar show the executable's resources;
+    # Windows reads the process manifest - UTF-8 code page, DPI awareness - only from the
+    # executable; the bootstrap carries CEF's generic ones). win/stamp_resources.cpp is a plain
+    # Win32 tool.
     add_executable(mfbe_stamp_resources win/stamp_resources.cpp)
     target_link_libraries(mfbe_stamp_resources PRIVATE mfbe::options)
     set_target_properties(mfbe_stamp_resources PROPERTIES
@@ -361,7 +363,8 @@ if(OS_WINDOWS)
               "${MFBE_TARGET_OUT_DIR}/${MFBE_TARGET}.exe"
               "${CMAKE_CURRENT_SOURCE_DIR}/win/mfbe.ico"
               "$<TARGET_FILE:${MFBE_TARGET}>"
-      COMMENT "Stamping icon and version information into ${MFBE_TARGET}.exe"
+              "${CMAKE_CURRENT_SOURCE_DIR}/win/app.manifest"
+      COMMENT "Stamping icon, version information and manifest into ${MFBE_TARGET}.exe"
       VERBATIM)
     if(CMAKE_GENERATOR MATCHES "Visual Studio")
       set_target_properties(${MFBE_TARGET} PROPERTIES

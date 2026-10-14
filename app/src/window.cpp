@@ -4,6 +4,8 @@
 #include "include/cef_browser.h"
 #include "include/wrapper/cef_helpers.h"
 
+#include <mfbe/utf8_paths.hpp>
+
 #include <fstream>
 #include <iterator>
 #include <utility>
@@ -36,7 +38,8 @@ std::vector<char> readFile(const std::filesystem::path& path) {
 // Adds <dir>/mfbe-<pixels>.png to `image` at `scale`; returns false when missing/invalid.
 bool addPng(const CefRefPtr<CefImage>& image, const std::filesystem::path& dir, int pixels,
             float scale) {
-    const std::vector<char> data = readFile(dir / ("mfbe-" + std::to_string(pixels) + ".png"));
+    const std::vector<char> data =
+        readFile(dir / mfbe::platform::path_from_utf8("mfbe-" + std::to_string(pixels) + ".png"));
     if (data.empty()) {
         return false;
     }
@@ -66,7 +69,7 @@ WindowIcons loadWindowIcons(const std::filesystem::path& resources_dir) {
         icons.app_icon = app_icon;
     }
     if (!icons.window_icon) {
-        LOG(WARNING) << "mfbe: window icons not found in " << dir.string();
+        LOG(WARNING) << "mfbe: window icons not found in " << mfbe::platform::utf8_from_path(dir);
     }
     return icons;
 }

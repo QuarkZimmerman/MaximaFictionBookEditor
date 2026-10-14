@@ -11,6 +11,7 @@
 
 namespace mfbe {
 
+// Folders and file names are UTF-8 text (mfbe/utf8_paths.hpp).
 struct CoreServerOptions {
     std::string ui_dir;         // static UI bundle dir ("" = none)
     std::string data_dir;       // override per-user config/data root ("" = platform default)

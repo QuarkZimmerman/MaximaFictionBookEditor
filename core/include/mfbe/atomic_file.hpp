@@ -16,7 +16,7 @@ namespace mfbe::atomic_file {
 struct WriteError : std::runtime_error {
     WriteError(std::string path_, std::string reason_)
         : std::runtime_error(reason_), path(std::move(path_)), reason(std::move(reason_)) {}
-    std::string path;    // target path
+    std::string path;    // target path (UTF-8)
     std::string reason;  // human-readable OS reason (no book text)
 };
 

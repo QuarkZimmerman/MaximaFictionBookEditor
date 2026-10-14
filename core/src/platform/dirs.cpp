@@ -29,12 +29,29 @@ constexpr const char* kAppFolder = "Maxima Fiction Book Editor";
 constexpr const char* kAppFolder = "maxfbeditor";
 #endif
 
+// Environment value as UTF-8 (Windows reads the wide environment: the narrow one is converted
+// through the legacy code page).
 std::optional<std::string> env_value(const char* name) {
+#ifdef _WIN32
+    const std::wstring wide_name = path_from_utf8(name).wstring();
+    const DWORD length = GetEnvironmentVariableW(wide_name.c_str(), nullptr, 0);
+    if (length <= 1) {
+        return std::nullopt;
+    }
+    std::wstring value(length, L'\0');
+    const DWORD written = GetEnvironmentVariableW(wide_name.c_str(), value.data(), length);
+    if (written == 0 || written >= length) {
+        return std::nullopt;
+    }
+    value.resize(written);
+    return utf8_from_path(std::filesystem::path(value));  // path-text: wide environment value
+#else
     const char* value = std::getenv(name);
     if (value == nullptr || *value == '\0') {
         return std::nullopt;
     }
     return std::string(value);
+#endif
 }
 
 bool is_dir(const std::filesystem::path& p) {
@@ -88,19 +105,21 @@ std::string system_language() {
 #endif
 }
 
+// platform-folders returns UTF-8 on every platform (on Windows converted from the known folder's
+// wide path).
 std::filesystem::path default_config_root() {
-    return std::filesystem::path(sago::getConfigHome());
+    return path_from_utf8(sago::getConfigHome());
 }
 
 std::filesystem::path default_data_root() {
-    return std::filesystem::path(sago::getDataHome());
+    return path_from_utf8(sago::getDataHome());
 }
 
 std::filesystem::path default_state_root() {
 #ifdef __APPLE__
     return default_data_root();
 #else
-    return std::filesystem::path(sago::getStateDir());
+    return path_from_utf8(sago::getStateDir());
 #endif
 }
 
@@ -108,7 +127,7 @@ std::filesystem::path default_log_root() {
 #ifdef __APPLE__
     // ~/Library/Logs; platform-folders has no public home accessor on macOS.
     if (const auto home = env_value("HOME"); home && !home->empty()) {
-        return std::filesystem::path(*home) / "Library" / "Logs";
+        return path_from_utf8(*home) / "Library" / "Logs";
     }
     return default_data_root();
 #else
@@ -119,7 +138,7 @@ std::filesystem::path default_log_root() {
 Dirs resolve_dirs(const std::string& override_root) {
     Dirs dirs;
     if (!override_root.empty()) {
-        const std::filesystem::path root = std::filesystem::absolute(override_root);
+        const std::filesystem::path root = std::filesystem::absolute(path_from_utf8(override_root));
         dirs.config = root;
         dirs.data = root;
         dirs.state = root;
@@ -154,8 +173,9 @@ void ensure_dirs(const Dirs& dirs) {
         std::error_code ec;
         std::filesystem::create_directories(*p, ec);
         if (ec) {
-            log::warning("core", "io.createDirFailed", "cannot create directory",
-                         log::extras({{"path", p->string()}, {"reason", ec.message()}}));
+            log::warning(
+                "core", "io.createDirFailed", "cannot create directory",
+                log::extras({{"path", utf8_from_path(*p)}, {"reason", utf8_error_message(ec)}}));
         }
     }
 }
@@ -167,18 +187,18 @@ std::filesystem::path executable_path() {
     if (n == 0) {
         return {};
     }
-    return std::filesystem::path(std::wstring(buffer, n));
+    return std::filesystem::path(std::wstring(buffer, n));  // path-text: wide Windows API path
 #elif defined(__APPLE__)
     char small[1024];
     uint32_t size = sizeof(small);
     if (_NSGetExecutablePath(small, &size) == 0) {
         std::error_code ec;
-        auto canonical = std::filesystem::weakly_canonical(small, ec);
-        return ec ? std::filesystem::path(small) : canonical;
+        auto canonical = std::filesystem::weakly_canonical(path_from_utf8(small), ec);
+        return ec ? path_from_utf8(small) : canonical;
     }
     std::string big(size, '\0');
     if (_NSGetExecutablePath(big.data(), &size) == 0) {
-        return std::filesystem::path(big.c_str());
+        return path_from_utf8(big.c_str());
     }
     return {};
 #else
@@ -200,9 +220,11 @@ std::optional<std::filesystem::path> detect_portable_dir(
     const std::filesystem::path& exe_dir, const std::optional<std::string>& appimage) {
     std::vector<std::filesystem::path> candidates;
     if (appimage && !appimage->empty()) {
-        const std::filesystem::path image(*appimage);
-        const std::filesystem::path home = image.string() + ".home";
-        const std::filesystem::path dot_d = image.string() + ".d";
+        const std::filesystem::path image = path_from_utf8(*appimage);
+        std::filesystem::path home = image;
+        home += ".home";
+        std::filesystem::path dot_d = image;
+        dot_d += ".d";
         candidates.push_back(home / "user");
         candidates.push_back(dot_d / "user");
         candidates.push_back(dot_d);

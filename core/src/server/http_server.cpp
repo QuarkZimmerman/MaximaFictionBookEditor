@@ -179,19 +179,19 @@ std::string LoopbackServer::csp_header(int port) {
            "worker-src 'self' blob:; script-src 'self'";
 }
 
-std::string LoopbackServer::resolve_static(const std::string& root, std::string_view url_path) {
+fs::path LoopbackServer::resolve_static(const std::string& root, std::string_view url_path) {
     if (root.empty()) {
-        return "";
+        return {};
     }
     std::string decoded = url_decode_impl(url_path);
     if (decoded.empty() || decoded.front() != '/') {
-        return "";
+        return {};
     }
     if (decoded == "/") {
         decoded = "/index.html";
     }
     if (decoded.find('\0') != std::string::npos || decoded.find('\\') != std::string::npos) {
-        return "";
+        return {};
     }
     // Reject any ".." segment outright.
     std::size_t pos = 0;
@@ -200,32 +200,34 @@ std::string LoopbackServer::resolve_static(const std::string& root, std::string_
         const std::string segment =
             decoded.substr(pos + 1, next == std::string::npos ? std::string::npos : next - pos - 1);
         if (segment == "..") {
-            return "";
+            return {};
         }
         if (next == std::string::npos) {
             break;
         }
         pos = next;
     }
+    // The root and the decoded URL (percent-encoded UTF-8) are UTF-8 text.
     std::error_code ec;
-    const fs::path base = fs::weakly_canonical(fs::path(root), ec);
+    const fs::path base = fs::weakly_canonical(platform::path_from_utf8(root), ec);
     if (ec) {
-        return "";
+        return {};
     }
-    const fs::path candidate = fs::weakly_canonical(base / decoded.substr(1), ec);
+    const fs::path candidate =
+        fs::weakly_canonical(base / platform::path_from_utf8(decoded.substr(1)), ec);
     if (ec) {
-        return "";
+        return {};
     }
-    const std::string base_str = base.generic_string();
-    const std::string cand_str = candidate.generic_string();
+    const std::string base_str = platform::utf8_from_path_generic(base);
+    const std::string cand_str = platform::utf8_from_path_generic(candidate);
     if (cand_str.size() < base_str.size() || cand_str.compare(0, base_str.size(), base_str) != 0 ||
         (cand_str.size() > base_str.size() && cand_str[base_str.size()] != '/')) {
-        return "";
+        return {};
     }
     if (!fs::is_regular_file(candidate, ec)) {
-        return "";
+        return {};
     }
-    return candidate.string();
+    return candidate;
 }
 
 /* ----------------------------------------------------------------------------------------- */
@@ -350,7 +352,7 @@ void LoopbackServer::serve_static(uWS::HttpResponse<false>* res, uWS::HttpReques
         end_with_status(res, "404 Not Found", "no UI bundle configured (start with --ui <dir>)");
         return;
     }
-    const std::string file = resolve_static(services_.options.ui_dir, url);
+    const fs::path file = resolve_static(services_.options.ui_dir, url);
     if (file.empty()) {
         end_with_status(res, "404 Not Found", "not found");
         return;
@@ -364,8 +366,7 @@ void LoopbackServer::serve_static(uWS::HttpResponse<false>* res, uWS::HttpReques
         end_with_status(res, "500 Internal Server Error", "cannot read file");
         return;
     }
-    const std::string ext = fs::path(file).extension().string();
-    const std::string type = mime_type(ext);
+    const std::string type = mime_type(platform::utf8_from_path(file.extension()));
     const bool is_html = type.rfind("text/html", 0) == 0;
     res->writeStatus("200 OK");
     res->writeHeader("Content-Type", type);

@@ -1,6 +1,7 @@
 // Genre catalogue (T073). See mfbe/genres.hpp.
 #include <mfbe/genres.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/utf8_paths.hpp>
 #include <mfbe/validator.hpp>
 
 #include <algorithm>
@@ -335,7 +336,7 @@ json GenreCatalog::to_json() const {
                {"names", json(e.names)},
                {"source", e.source}};
         if (e.file) {
-            j["file"] = e.file->string();
+            j["file"] = platform::utf8_from_path(*e.file);
         }
         if (!e.also_in.empty()) {
             json also = json::array();
@@ -353,18 +354,20 @@ json GenreCatalog::to_json() const {
     json user_files = json::array();
     json sources = json::array();
     for (const SourceInfo& s : sources_) {
-        json j{{"source", s.source}, {"path", s.path.string()}, {"entries", s.entries}};
+        json j{{"source", s.source},
+               {"path", platform::utf8_from_path(s.path)},
+               {"entries", s.entries}};
         if (s.layer) {
             j["layer"] = resources::to_string(*s.layer);
         }
         sources.push_back(std::move(j));
         if (s.source.rfind("user:", 0) == 0) {
-            user_files.push_back(s.path.string());
+            user_files.push_back(platform::utf8_from_path(s.path));
         }
     }
     json issues = json::array();
     for (const LoadIssue& i : issues_) {
-        json j{{"file", i.file.string()}, {"line", i.line}, {"reason", i.reason}};
+        json j{{"file", platform::utf8_from_path(i.file)}, {"line", i.line}, {"reason", i.reason}};
         if (!i.code.empty()) {
             j["code"] = i.code;
         }
@@ -410,8 +413,9 @@ GenreCatalog load_catalog(const std::vector<std::string>& schema_codes,
     // Extension files through the layers (bundled first).
     for (const resources::Entry& file : layers.list(resources::Kind::genres)) {
         const bool bundled = file.layer == resources::LayerName::bundled;
-        const std::string source =
-            bundled ? "bundled-extension" : "user:" + file.path.filename().string();
+        const std::string source = bundled
+                                       ? "bundled-extension"
+                                       : "user:" + platform::utf8_from_path(file.path.filename());
         SourceInfo info;
         info.source = source;
         info.path = file.path;
@@ -419,15 +423,16 @@ GenreCatalog load_catalog(const std::vector<std::string>& schema_codes,
         const auto text = read_text_file(file.path);
         if (!text) {
             catalog.add_issue({file.path, 0, "unreadable", ""});
-            log::warning("core", "genres.parseError", "genre file could not be read",
-                         log::extras({{"file", file.path.string()}, {"line", "0"}}));
+            log::warning(
+                "core", "genres.parseError", "genre file could not be read",
+                log::extras({{"file", platform::utf8_from_path(file.path)}, {"line", "0"}}));
             catalog.add_source(std::move(info));
             continue;
         }
         ParsedTsv parsed = parse_genres_tsv(*text, file.path);
         for (LoadIssue& issue : parsed.issues) {
             log::warning("core", "genres.parseError", "genre file line skipped",
-                         log::extras({{"file", issue.file.string()},
+                         log::extras({{"file", platform::utf8_from_path(issue.file)},
                                       {"line", std::to_string(issue.line)},
                                       {"reason", issue.reason}}));
             catalog.add_issue(std::move(issue));
@@ -443,7 +448,7 @@ GenreCatalog load_catalog(const std::vector<std::string>& schema_codes,
                 }
                 log::warning("core", "genres.duplicate",
                              "genre code already present; additive lookup keeps the first",
-                             log::extras({{"file", file.path.string()},
+                             log::extras({{"file", platform::utf8_from_path(file.path)},
                                           {"code", entry.code},
                                           {"existingSource", existing->source}}));
                 catalog.add_issue({file.path, 0, "duplicate", entry.code});

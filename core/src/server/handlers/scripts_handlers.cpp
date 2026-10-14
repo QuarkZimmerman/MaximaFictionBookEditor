@@ -47,11 +47,6 @@ void end_plain(uWS::HttpResponse<false>* res, const char* status, const std::str
     res->end(body);
 }
 
-std::string to_utf8(const std::filesystem::path& p) {
-    const std::u8string u8 = p.u8string();
-    return std::string(u8.begin(), u8.end());
-}
-
 void serve_script_file(LoopbackServer& server, Services& services, uWS::HttpResponse<false>* res,
                        uWS::HttpRequest* req) {
     if (!server.check_auth(res, req)) {
@@ -93,7 +88,8 @@ void serve_script_file(LoopbackServer& server, Services& services, uWS::HttpResp
         return;
     }
     res->writeStatus("200 OK");
-    res->writeHeader("Content-Type", LoopbackServer::mime_type(path.extension().string()));
+    res->writeHeader("Content-Type",
+                     LoopbackServer::mime_type(platform::utf8_from_path(path.extension())));
     res->writeHeader("Cache-Control", "no-cache");
     res->writeHeader("X-Content-Type-Options", "nosniff");
     if (req->getMethod() == "head") {
@@ -139,7 +135,7 @@ void register_scripts_handlers(rpc::RpcRouter& router, Services& services) {
         }
         return json{{"entryUrl", scripts::package_url(package->id, package->manifest.entry)},
                     {"entry", package->manifest.entry},
-                    {"dir", to_utf8(package->dir)},
+                    {"dir", platform::utf8_from_path(package->dir)},
                     {"files", json(scripts::package_files(*package))}};
     });
 
@@ -181,12 +177,13 @@ void register_scripts_handlers(rpc::RpcRouter& router, Services& services) {
     });
 
     router.add_method("resources.openScriptsFolder", [&services](const json&, rpc::RpcContext&) {
-        std::filesystem::path folder = services.settings.get_string("other.scriptsFolder");
+        std::filesystem::path folder =
+            platform::path_from_utf8(services.settings.get_string("other.scriptsFolder"));
         if (folder.empty()) {
             folder = services.layers.user_folder(resources::Kind::scripts, true);
         }
         json result = open_folder_with_shell(services, folder);
-        result["path"] = to_utf8(folder);
+        result["path"] = platform::utf8_from_path(folder);
         return result;
     });
 }

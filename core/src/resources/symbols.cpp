@@ -2,6 +2,7 @@
 #include <mfbe/log.hpp>
 #include <mfbe/resource_tables.hpp>
 #include <mfbe/unicode.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -117,7 +118,7 @@ std::vector<SymbolEntry> load_symbols(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
     if (!in) {
         log::warning("core", "resources.symbolsUnavailable", "symbols.ini not readable",
-                     log::extras({{"path", file.string()}}));
+                     log::extras({{"path", platform::utf8_from_path(file)}}));
         return {};
     }
     const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());

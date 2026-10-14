@@ -1,5 +1,7 @@
 #include "user_dirs.h"
 
+#include <mfbe/utf8_paths.hpp>
+
 #include <cstdlib>
 #include <system_error>
 
@@ -32,13 +34,13 @@ fs::path envPath(const char* name) {
     if (length == 0 || length >= sizeof(buffer) / sizeof(buffer[0])) {
         return {};
     }
-    return fs::path(buffer);
+    return fs::path(buffer);  // path-text: wide environment value
 #else
     const char* value = std::getenv(name);
     if (value == nullptr || value[0] == '\0') {
         return {};
     }
-    return fs::path(value);
+    return mfbe::platform::path_from_utf8(value);
 #endif
 }
 
@@ -139,14 +141,14 @@ fs::path executableDir() {
     if (length == 0) {
         return {};
     }
-    return fs::path(buffer).parent_path();
+    return fs::path(buffer).parent_path();  // path-text: wide Windows API path
 #elif defined(__APPLE__)
     char buffer[4096];
     uint32_t size = sizeof(buffer);
     if (_NSGetExecutablePath(buffer, &size) != 0) {
         return {};
     }
-    return normalized(fs::path(buffer)).parent_path();
+    return normalized(mfbe::platform::path_from_utf8(buffer)).parent_path();
 #else
     std::error_code ec;
     const fs::path exe = fs::read_symlink("/proc/self/exe", ec);
@@ -158,15 +160,18 @@ fs::path executableDir() {
 }
 
 fs::path resourcesDir() {
-    return findBundledDir("resources", fs::path(MFBE_RESOURCES_SOURCE_DIR), "blank.fb2");
+    return findBundledDir("resources", mfbe::platform::path_from_utf8(MFBE_RESOURCES_SOURCE_DIR),
+                          "blank.fb2");
 }
 
 fs::path uiDistDir() {
-    return findBundledDir("ui", fs::path(MFBE_UI_SOURCE_DIR) / "dist", "index.html");
+    return findBundledDir("ui", mfbe::platform::path_from_utf8(MFBE_UI_SOURCE_DIR) / "dist",
+                          "index.html");
 }
 
 fs::path scriptsDir() {
-    return findBundledDir("scripts", fs::path(MFBE_SCRIPTS_SOURCE_DIR), nullptr);
+    return findBundledDir("scripts", mfbe::platform::path_from_utf8(MFBE_SCRIPTS_SOURCE_DIR),
+                          nullptr);
 }
 
 bool ensureDirectory(const fs::path& dir) {
@@ -189,7 +194,7 @@ fs::path makeTempProfileDir() {
 #else
     const auto pid = static_cast<unsigned long>(::getpid());
 #endif
-    const fs::path dir = base / ("mfbe-shell-" + std::to_string(pid));
+    const fs::path dir = base / mfbe::platform::path_from_utf8("mfbe-shell-" + std::to_string(pid));
     removeDirectory(dir);
     return ensureDirectory(dir) ? dir : fs::path();
 }

@@ -16,20 +16,20 @@ using nlohmann::json;
 // Opens a folder through the shell (dialog provider) or the OS opener; without a shell the
 // call is unavailable in headless mode (1050).
 json open_folder_with_shell(Services& services, const std::filesystem::path& path) {
+    const std::string text = platform::utf8_from_path(path);
     std::error_code ec;
     if (!std::filesystem::is_directory(path, ec)) {
         throw rpc::RpcError(rpc::codes::kDocIoError, "",
-                            json{{"path", path.string()}, {"reason", "not a directory"}});
+                            json{{"path", text}, {"reason", "not a directory"}});
     }
     auto provider = services.dialog_provider();
     if (!provider) {
         throw rpc::RpcError(rpc::codes::kDialogUnavailable, "",
                             json{{"reason", "no shell attached to open folders"}});
     }
-    if (!provider->open_path(path.string()) && !process::open_folder(path)) {
-        throw rpc::RpcError(
-            rpc::codes::kDocIoError, "",
-            json{{"path", path.string()}, {"reason", "cannot start the file manager"}});
+    if (!provider->open_path(text) && !process::open_folder(path)) {
+        throw rpc::RpcError(rpc::codes::kDocIoError, "",
+                            json{{"path", text}, {"reason", "cannot start the file manager"}});
     }
     return json::object();
 }
@@ -57,13 +57,13 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
         info["port"] = services.port;
         info["uiLanguage"] = services.settings.get_string("view.uiLanguage", "system");
         info["systemLanguage"] = platform::system_language();
-        info["dataDir"] = services.dirs.data.string();
-        info["configDir"] = services.dirs.config.string();
-        info["logDir"] = services.dirs.logs.string();
-        info["resourcesDir"] = services.resources_dir.string();
-        info["scriptsDir"] = services.scripts_dir.string();
+        info["dataDir"] = platform::utf8_from_path(services.dirs.data);
+        info["configDir"] = platform::utf8_from_path(services.dirs.config);
+        info["logDir"] = platform::utf8_from_path(services.dirs.logs);
+        info["resourcesDir"] = platform::utf8_from_path(services.resources_dir);
+        info["scriptsDir"] = platform::utf8_from_path(services.scripts_dir);
         if (services.dirs.portable) {
-            info["portableDir"] = services.dirs.portable->string();
+            info["portableDir"] = platform::utf8_from_path(*services.dirs.portable);
         }
         info["resourceLayers"] = services.layers.report();
         info["testHooks"] = services.test_hooks;
@@ -85,8 +85,7 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
     });
 
     router.add_method("app.openFolder", [&services](const json& params, rpc::RpcContext&) {
-        const std::string path = rpc::params::string(params, "path");
-        return open_folder(services, std::filesystem::path(path));
+        return open_folder(services, platform::path_from_utf8(rpc::params::string(params, "path")));
     });
 
     router.add_method("app.setUiLanguage", [&services](const json& params, rpc::RpcContext& ctx) {

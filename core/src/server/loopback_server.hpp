@@ -55,8 +55,9 @@ public:
                          const std::string& token, int port, std::string_view host_header = {});
     static std::string mime_type(const std::string& extension);
     static std::string csp_header(int port);
-    // Maps a URL path to a file below `root`; empty when invalid or escaping the root.
-    static std::string resolve_static(const std::string& root, std::string_view url_path);
+    // Maps a URL path to a file below `root` (UTF-8 text); empty when invalid or escaping the
+    // root.
+    static std::filesystem::path resolve_static(const std::string& root, std::string_view url_path);
     // Percent-decoding of URL components ('+' becomes a space).
     static std::string url_decode(std::string_view in);
 

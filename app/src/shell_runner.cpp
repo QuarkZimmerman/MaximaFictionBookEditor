@@ -13,6 +13,8 @@
 
 #include "shell_runner.h"
 
+#include <mfbe/utf8_paths.hpp>
+
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -214,7 +216,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     }
     if (!ensureDirectory(profile_dir) || !ensureDirectory(log_dir)) {
         std::fprintf(stderr, "mfbe: cannot create the profile directory %s\n",
-                     profile_dir.string().c_str());
+                     mfbe::platform::utf8_from_path(profile_dir).c_str());
         return 1;
     }
     std::string lock_note;
@@ -251,10 +253,14 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     core_options.scripts_dir = scriptsDir();
     core_options.ui_dir = uiDistDir();
     core_options.ui_language = options.lang;
+    // Start-up files: UTF-8 from the command line (main.cpp converts the wide Windows command
+    // line), made absolute without the process code page.
     for (const auto& file : options.files) {
         std::error_code ec;
-        const std::filesystem::path absolute = std::filesystem::absolute(file, ec);
-        core_options.open_paths.push_back(ec ? file : absolute.lexically_normal().string());
+        const std::filesystem::path absolute =
+            std::filesystem::absolute(mfbe::platform::path_from_utf8(file), ec);
+        core_options.open_paths.push_back(
+            ec ? file : mfbe::platform::utf8_from_path(absolute.lexically_normal()));
     }
     core_options.new_document = options.new_document;
 #if defined(MFBE_SHELL_TEST_HOOKS)
@@ -292,9 +298,11 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
 #endif
     settings.command_line_args_disabled = 1;  // the shell owns argv; see MfbeApp
     settings.remote_debugging_port = options.remote_debugging_port;
-    CefString(&settings.root_cache_path) = profile_dir.string();
-    CefString(&settings.cache_path) = profile_dir.string();
-    CefString(&settings.log_file) = (log_dir / "cef-debug.log").string();
+    // CefString reads a std::string as UTF-8: the folders are converted without the process code
+    // page, so a profile folder with non-English letters reaches CEF exactly.
+    CefString(&settings.root_cache_path) = mfbe::platform::utf8_from_path(profile_dir);
+    CefString(&settings.cache_path) = mfbe::platform::utf8_from_path(profile_dir);
+    CefString(&settings.log_file) = mfbe::platform::utf8_from_path(log_dir / "cef-debug.log");
 #if defined(NDEBUG)
     settings.log_severity = LOGSEVERITY_ERROR;
 #else

@@ -66,10 +66,17 @@ rpc::RpcError io_error(const std::string& path, const std::string& reason) {
     return rpc::RpcError(rpc::codes::kDocIoError, "", json{{"path", path}, {"reason", reason}});
 }
 
+// Paths travel as UTF-8 text (RPC parameters, sessions, recent files) and become filesystem
+// paths through platform::path_from_utf8 where a file is touched.
 std::string absolute_path(const std::string& path) {
     std::error_code ec;
-    const fs::path abs = fs::absolute(path, ec);
-    return ec ? path : abs.lexically_normal().string();
+    const fs::path abs = fs::absolute(platform::path_from_utf8(path), ec);
+    return ec ? path : platform::utf8_from_path(abs.lexically_normal());
+}
+
+model::FileKind file_kind_of(const std::string& path) {
+    return model::file_kind_from_extension(
+        platform::utf8_from_path(platform::path_from_utf8(path).extension()));
 }
 
 std::string today_iso_date() {
@@ -173,12 +180,13 @@ struct Opened {
 Opened open_document(const std::string& path, rpc::JobControl* control) {
     Opened opened;
     opened.path = path;
-    opened.stamp = platform::stamp_of(path);
+    const fs::path file = platform::path_from_utf8(path);
+    opened.stamp = platform::stamp_of(file);
     if (control != nullptr) {
         control->progress("read", 0, 100);
     }
     try {
-        opened.read = fb2::read_file(path, *opened.store, opened.ids);
+        opened.read = fb2::read_file(file, *opened.store, opened.ids);
     } catch (const fb2::NotFictionBookFailure& e) {
         throw not_fictionbook(path, e.reason);
     } catch (const fb2::ParseFailure& e) {
@@ -348,13 +356,14 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     }
     progress("write", 70);
     const std::string bytes = fb2::encode_document(text, request.encoding);
+    const fs::path target = platform::path_from_utf8(request.path);
     try {
-        atomic_file::write_atomic(request.path, bytes);
+        atomic_file::write_atomic(target, bytes);
     } catch (const atomic_file::WriteError& e) {
         // Logged once by the router as rpc.doc.ioError (method, docId, path, reason).
         throw io_error(e.path, e.reason);
     }
-    const platform::FileStamp stamp = platform::stamp_of(request.path);
+    const platform::FileStamp stamp = platform::stamp_of(target);
 
     // Session bookkeeping on the loop thread (the session may have been closed meanwhile).
     const std::string doc_id = request.doc_id;
@@ -375,7 +384,7 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
         }
         if (s != nullptr) {
             s->path = path;
-            s->fileKind = model::file_kind_from_extension(fs::path(path).extension().string());
+            s->fileKind = file_kind_of(path);
             s->sourceEncoding = enc;
             if (stamp.exists) {
                 s->lastKnownMtime = stamp.mtime;
@@ -391,7 +400,8 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
                 s->sourceOnly = false;
             }
             if (s->watching && services.watcher) {
-                services.watcher->watch(doc_id, path);  // re-point + refresh after our own save
+                // Re-point + refresh after our own save.
+                services.watcher->watch(doc_id, platform::path_from_utf8(path));
             }
         }
         services.recent.touch(path, caret);
@@ -456,7 +466,7 @@ platform::FileWatcher& file_watcher(Services& services) {
                     if (session::DocumentSession* s = services.documents.find(doc_id)) {
                         s->lastKnownMtime = mtime;
                         std::error_code ec;
-                        s->lastKnownSize = fs::file_size(path, ec);
+                        s->lastKnownSize = fs::file_size(platform::path_from_utf8(path), ec);
                     }
                     services.notifier.notify(
                         "doc.changedOnDisk",
@@ -518,12 +528,13 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("doc.open", [&services](const json& params, rpc::RpcContext& ctx) {
         const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const fs::path file = platform::path_from_utf8(path);
         std::error_code ec;
-        if (!fs::exists(path, ec)) {
+        if (!fs::exists(file, ec)) {
             services.recent.remove(path);  // prune missing files (resource-formats.md §8)
             throw io_error(path, "file not found");
         }
-        const std::uintmax_t size = fs::file_size(path, ec);
+        const std::uintmax_t size = fs::file_size(file, ec);
         if (ec || size < kJobThresholdBytes) {
             Opened opened = open_document(path, nullptr);
             return register_session(services, std::move(opened));
@@ -572,9 +583,10 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("doc.openSource", [&services](const json& params, rpc::RpcContext&) {
         const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const fs::path file = platform::path_from_utf8(path);
         fb2::SourceText source;
         try {
-            source = fb2::read_source(path);
+            source = fb2::read_source(file);
         } catch (const fb2::NotFictionBookFailure& e) {
             throw not_fictionbook(path, e.reason);
         } catch (const fb2::IoFailure& e) {
@@ -583,11 +595,11 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         }
         session::DocumentSession& s = services.documents.create();
         s.path = path;
-        s.fileKind = model::file_kind_from_extension(fs::path(path).extension().string());
+        s.fileKind = file_kind_of(path);
         s.sourceEncoding = source.encoding;
         s.schemaHint = model::SchemaHint::unknown;
         s.sourceOnly = source.error.has_value();
-        const platform::FileStamp stamp = platform::stamp_of(path);
+        const platform::FileStamp stamp = platform::stamp_of(file);
         if (stamp.exists) {
             s.lastKnownMtime = stamp.mtime;
             s.lastKnownSize = stamp.size;
@@ -755,7 +767,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         for (const auto& item : services.recent.items()) {
             json j = settings::to_json(item);
             std::error_code ec;
-            j["exists"] = fs::exists(item.path, ec);
+            j["exists"] = fs::exists(platform::path_from_utf8(item.path), ec);
             out.push_back(std::move(j));
         }
         return out;
@@ -796,7 +808,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                 throw rpc::invalid_params("document has no file to watch",
                                           json{{"field", "docId"}});
             }
-            file_watcher(services).watch(s.docId, *s.path);
+            file_watcher(services).watch(s.docId, platform::path_from_utf8(*s.path));
             s.watching = true;
         } else {
             if (services.watcher) {

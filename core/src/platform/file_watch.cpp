@@ -1,6 +1,7 @@
 // Polling file watcher (T045). See mfbe/file_watch.hpp.
 #include <mfbe/file_watch.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <system_error>
 #include <vector>
@@ -106,7 +107,7 @@ std::size_t FileWatcher::poll() {
             }
             entry.stamp = now;  // report each change once
             if (now.exists) {
-                changes.push_back(Change{doc_id, entry.path.string(), now.mtime});
+                changes.push_back(Change{doc_id, utf8_from_path(entry.path), now.mtime});
             }
         }
     }

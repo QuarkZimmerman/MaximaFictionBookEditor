@@ -1,18 +1,27 @@
 // Build-time tool (Windows only): gives the renamed CEF bootstrap executable the editor's
-// own icon and version information.
+// own icon, version information and manifest.
 //
 // With the Chromium sandbox the browser process is CEF's bootstrap.exe (renamed mfbe.exe),
 // which loads the application DLL. Explorer, the Start menu, the taskbar and "Open with"
 // show the *executable's* resources, so without this step the editor would appear with the
-// bootstrap's generic icon and CEF's version strings.
+// bootstrap's generic icon and CEF's version strings. Windows also reads the process manifest
+// only from the executable: the editor's (app.manifest: UTF-8 as the process code page, DPI
+// awareness, common controls, long paths) must be stamped into it, or the process runs with
+// the legacy code page and paths with letters outside it break (feature 002, research R1).
 //
-//   mfbe_stamp_resources <exe> <icon.ico> [<module-with-VS_VERSION_INFO>]
+//   mfbe_stamp_resources <exe> <icon.ico> [<module-with-VS_VERSION_INFO> [<app.manifest>]]
+//   mfbe_stamp_resources --dump-manifest <exe>
 //
-// Replaces every RT_GROUP_ICON/RT_ICON resource of <exe> with the groups of <icon.ico> and,
-// when the third argument is given, every RT_VERSION resource with the one compiled into the
-// application DLL (app.rc). Exit code 0 on success, 1 with a message on stderr otherwise.
+// Replaces every RT_GROUP_ICON/RT_ICON resource of <exe> with the groups of <icon.ico>; when
+// the third argument is given, every RT_VERSION resource with the one compiled into the
+// application DLL (app.rc); when the fourth is given, every RT_MANIFEST resource with the
+// manifest file as resource 1 (CREATEPROCESS_MANIFEST_RESOURCE_ID). --dump-manifest writes the
+// executable's manifest resource 1 to stdout. Exit code 0 on success, 1 with a message on
+// stderr otherwise.
 #include <cstdio>
 #include <cstring>
+#include <fcntl.h>
+#include <io.h>
 #include <string>
 #include <vector>
 #include <windows.h>
@@ -47,7 +56,9 @@ struct GrpIconDirEntry {
 };
 #pragma pack(pop)
 
-constexpr WORD kLanguage = MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US);
+constexpr WORD kLanguage = MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US);  // as CEF's bootstrap
+// CREATEPROCESS_MANIFEST_RESOURCE_ID (winuser.h defines it as a MAKEINTRESOURCE pointer).
+constexpr WORD kProcessManifestId = 1;
 
 struct ResourceName {
     bool numeric;
@@ -198,13 +209,62 @@ bool stamp_version(HANDLE update, const std::wstring& source_module) {
     return ok;
 }
 
+bool stamp_manifest(HANDLE update, const std::vector<char>& manifest) {
+    if (manifest.empty()) {
+        return fail("the manifest file is empty or unreadable");
+    }
+    std::vector<char> copy = manifest;
+    if (!UpdateResourceW(update, RT_MANIFEST, MAKEINTRESOURCEW(kProcessManifestId), kLanguage,
+                         copy.data(), static_cast<DWORD>(copy.size()))) {
+        return fail("cannot write the manifest resource");
+    }
+    return true;
+}
+
+int dump_manifest(const std::wstring& exe) {
+    HMODULE module = LoadLibraryExW(exe.c_str(), nullptr,
+                                    LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+    if (module == nullptr) {
+        return fail("cannot open the executable") ? 0 : 1;
+    }
+    int result = 1;
+    HRSRC found = FindResourceW(module, MAKEINTRESOURCEW(kProcessManifestId), RT_MANIFEST);
+    if (found == nullptr) {
+        fail("the executable has no manifest resource 1");
+    } else {
+        HGLOBAL loaded = LoadResource(module, found);
+        const DWORD size = SizeofResource(module, found);
+        const void* data = loaded != nullptr ? LockResource(loaded) : nullptr;
+        if (data == nullptr || size == 0) {
+            fail("cannot read the manifest resource");
+        } else {
+            _setmode(_fileno(stdout), _O_BINARY);
+            result = std::fwrite(data, 1, size, stdout) == size ? 0 : 1;
+        }
+    }
+    FreeLibrary(module);
+    return result;
+}
+
 }  // namespace
 
 int wmain(int argc, wchar_t* argv[]) {
+    if (argc == 3 && std::wstring(argv[1]) == L"--dump-manifest") {
+        return dump_manifest(argv[2]);
+    }
     if (argc < 3) {
         std::fprintf(stderr,
-                     "usage: mfbe_stamp_resources <exe> <icon.ico> [<module-with-version>]\n");
+                     "usage: mfbe_stamp_resources <exe> <icon.ico> [<module-with-version> "
+                     "[<app.manifest>]]\n"
+                     "       mfbe_stamp_resources --dump-manifest <exe>\n");
         return 1;
+    }
+    std::vector<char> manifest;
+    if (argc >= 5) {
+        manifest = read_file(argv[4]);
+        if (manifest.empty()) {
+            return fail("cannot read the manifest file") ? 0 : 1;
+        }
     }
     const std::wstring exe = argv[1];
     const std::vector<char> ico = read_file(argv[2]);
@@ -216,11 +276,13 @@ int wmain(int argc, wchar_t* argv[]) {
     std::vector<ResourceEntry> icons;
     std::vector<ResourceEntry> groups;
     std::vector<ResourceEntry> versions;
+    std::vector<ResourceEntry> manifests;
     if (HMODULE module = LoadLibraryExW(
             exe.c_str(), nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE)) {
         icons = collect(module, RT_ICON);
         groups = collect(module, RT_GROUP_ICON);
         versions = collect(module, RT_VERSION);
+        manifests = collect(module, RT_MANIFEST);
         FreeLibrary(module);
     } else {
         return fail("cannot open the executable") ? 0 : 1;
@@ -234,6 +296,9 @@ int wmain(int argc, wchar_t* argv[]) {
               stamp_icon(update, ico);
     if (ok && argc >= 4) {
         ok = remove_all(update, RT_VERSION, versions) && stamp_version(update, argv[3]);
+    }
+    if (ok && argc >= 5) {
+        ok = remove_all(update, RT_MANIFEST, manifests) && stamp_manifest(update, manifest);
     }
     if (!ok) {
         EndUpdateResourceW(update, TRUE);  // discard

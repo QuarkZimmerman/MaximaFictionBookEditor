@@ -13,6 +13,8 @@
 #include "single_instance.h"
 #include "window.h"
 
+#include <mfbe/utf8_paths.hpp>
+
 #include <filesystem>
 #include <sstream>
 #include <utility>
@@ -131,7 +133,7 @@ bool MfbeApp::OnAlreadyRunningAppRelaunch(CefRefPtr<CefCommandLine> command_line
         args.push_back(argv[i].ToString());
     }
     const std::vector<std::string> paths =
-        relaunchFilePaths(args, std::filesystem::path(current_directory.ToString()));
+        relaunchFilePaths(args, mfbe::platform::path_from_utf8(current_directory.ToString()));
     if (!paths.empty() && core_host_ != nullptr) {
         core_host_->notifyOpenPaths(paths);
     }

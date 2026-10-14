@@ -43,6 +43,8 @@ jobs:
             packaging/deb-rpm/rpm-post.sh packaging/deb-rpm/rpm-preun.sh packaging/deb-rpm/rpm-postun.sh
       - name: Path portability (Windows/macOS checkouts)
         run: python3 tools/path-portability-check.py
+      - name: Path conversions (paths <-> text without the Windows code page, feature 002)
+        run: python3 tools/path-conversion-check.py
       - name: Workflow and docs checks
         run: |
           for f in .github/workflows/*.yml; do python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$f"; done
@@ -461,6 +463,14 @@ jobs:
           Write-Host "open command: $cmd"
           if (-not (Test-Path 'HKLM:\Software\Classes\.fbd')) { throw ".fbd association missing" }
           tools/ci/windows-start-smoke.ps1 -Exe $exe
+          # Feature 002: mfbe.exe carries the editor's manifest (UTF-8 process code page), and the
+          # editor starts for standard users whose names hold non-English letters - 0.0.1 ended
+          # at start-up for them (heap corruption 0xC0000374 for "Pröbe").
+          $stamp = Get-ChildItem build\${{ matrix.preset }} -Recurse -Filter mfbe_stamp_resources.exe | Select-Object -First 1
+          $manifest = (& $stamp.FullName --dump-manifest $exe) -join "`n"
+          if ($manifest -notmatch 'activeCodePage[^>]*>UTF-8<') { Write-Host $manifest; throw "mfbe.exe does not carry the editor's manifest (UTF-8 code page)" }
+          $users = @('reprouser', "Pr$([char]0x00F6)be", "$([char]0x0422)$([char]0x0435)$([char]0x0441)$([char]0x0442)")
+          foreach ($user in $users) { tools/ci/windows-start-smoke.ps1 -Exe $exe -AsUser $user }
           Write-Host "Uninstalling"
           $u = Start-Process msiexec -ArgumentList "/x `"$msi`" /qn" -Wait -PassThru
           if ($u.ExitCode -ne 0) { throw "msiexec uninstall exit $($u.ExitCode)" }
@@ -482,6 +492,21 @@ jobs:
           Write-Host "Portable copy: $exe"
           & $exe --version
           tools/ci/windows-start-smoke.ps1 -Exe $exe
+          # Feature 002: standard users with non-English names (their copy lives outside the
+          # runner's profile, which they cannot read), and the program in a folder with Cyrillic
+          # letters ("Книги"; 0.0.1 ended with 0xC0000005 in mfbe.dll there).
+          $shared = 'C:\mfbe-smoke\portable'
+          if (Test-Path $shared) { Remove-Item $shared -Recurse -Force }
+          Expand-Archive -Path $zip -DestinationPath $shared
+          $sharedExe = (Get-ChildItem $shared -Recurse -Filter mfbe.exe | Select-Object -First 1).FullName
+          $users = @('reprouser', "Pr$([char]0x00F6)be", "$([char]0x0422)$([char]0x0435)$([char]0x0441)$([char]0x0442)")
+          foreach ($user in $users) { tools/ci/windows-start-smoke.ps1 -Exe $sharedExe -AsUser $user }
+          $cyrillic = Join-Path 'C:\mfbe-smoke' "$([char]0x041A)$([char]0x043D)$([char]0x0438)$([char]0x0433)$([char]0x0438)"
+          if (Test-Path -LiteralPath $cyrillic) { Remove-Item -LiteralPath $cyrillic -Recurse -Force }
+          Expand-Archive -Path $zip -DestinationPath $cyrillic
+          $cyrillicExe = (Get-ChildItem -LiteralPath $cyrillic -Recurse -Filter mfbe.exe | Select-Object -First 1).FullName
+          Write-Host "Portable copy in a Cyrillic folder: $cyrillicExe"
+          tools/ci/windows-start-smoke.ps1 -Exe $cyrillicExe
 
       - name: Package smoke (macOS)
         if: runner.os == 'macOS'
