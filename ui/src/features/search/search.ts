@@ -5,13 +5,15 @@
  * `edit.replace`).
  *
  * The session is view-agnostic: each view registers a `SearchTarget` (the Body target lives in
- * `bodyTarget.ts`; the Source view (US4) and the Description fields (US3) register theirs).
- * Messages follow the original editor: the Find dialog reports "Cannot find the string '%s'.",
- * the Replace dialog "Finished searching for '%s'." and Replace All "%d replacement(s) done."
- * (or "Finished searching" when nothing matched); search wraps around the document.
+ * `bodyTarget.ts`, the Source one in `sourceTarget.ts`; the Description fields register
+ * theirs). As in the original, the Find and Replace dialogs are modeless (opening one again
+ * brings it to the front), a search that continues from the other end of the document beeps,
+ * the Find dialog reports "Cannot find the string '%s'.", the Replace dialog "Finished
+ * searching for '%s'." and Replace All "%d replacement(s) done." (or "Finished searching" when
+ * nothing matched).
  */
 
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
 import type { Dialogs } from '@/dialogs/types';
@@ -43,11 +45,20 @@ export const DEFAULT_FIND_OPTIONS: FindOptions = {
 /** How a search starts: from the selection (Find Next) or from the incremental-search anchor. */
 export type FindMode = 'next' | 'fromAnchor';
 
+/**
+ * Outcome of one search: false when nothing matches, true when the next occurrence is
+ * selected, `'wrapped'` when it was found after continuing from the other end of the document.
+ */
+export type FindResult = boolean | 'wrapped';
+
+/** The Find and Replace dialogs. */
+export type SearchDialogKind = 'find' | 'replace';
+
 /** What a view offers to the Find / Replace session. */
 export interface SearchTarget {
   readonly view: ViewId;
-  /** Selects the next occurrence (wrapping around); false when there is none. */
-  findNext(options: FindOptions, mode?: FindMode): boolean;
+  /** Selects and shows the next occurrence (continuing from the other end). */
+  findNext(options: FindOptions, mode?: FindMode): FindResult;
   /** Replaces the current match when the selection still is that match; false otherwise. */
   replaceCurrent(options: FindOptions, replacement: string): boolean;
   /** Replaces every occurrence in the view's document; returns the count. */
@@ -76,6 +87,10 @@ export class SearchSession {
   /** True after a successful find in the Replace dialog (the next Replace acts on it). */
   matchValid = false;
   private readonly listeners = new Set<() => void>();
+  /** The system sound of a search that continued from the other end (`app.beep`). */
+  private beepSound: () => void = () => {};
+  /** Open dialogs; the function brings one to the front (set once it is shown). */
+  private readonly openDialogs = new Map<SearchDialogKind, (() => void) | null>();
 
   constructor(options: SearchSessionOptions) {
     this.store = options.store;
@@ -86,6 +101,23 @@ export class SearchSession {
     this.targets.set(target.view, target);
     return () => {
       if (this.targets.get(target.view) === target) this.targets.delete(target.view);
+    };
+  }
+
+  setBeep(beep: () => void): void {
+    this.beepSound = beep;
+  }
+
+  /** Beeps as the original did when a search continued from the other end. */
+  beep(): void {
+    this.beepSound();
+  }
+
+  /** Registers how a shown dialog is brought to the front; returns the unregister function. */
+  attachDialog(kind: SearchDialogKind, focus: () => void): () => void {
+    if (this.openDialogs.has(kind)) this.openDialogs.set(kind, focus);
+    return () => {
+      if (this.openDialogs.get(kind) === focus) this.openDialogs.set(kind, null);
     };
   }
 
@@ -148,10 +180,17 @@ export class SearchSession {
     this.options = { ...options };
     const target = this.activeTarget();
     if (!target || !options.query) return false;
-    const found = target.findNext(this.withNbsp(options), mode);
+    const found = this.searchStep(target, options, mode);
     this.matchValid = found;
     this.emit();
     return found;
+  }
+
+  /** One search on `target`, beeping when it continued from the other end. */
+  private searchStep(target: SearchTarget, options: FindOptions, mode: FindMode): boolean {
+    const result = target.findNext(this.withNbsp(options), mode);
+    if (result === 'wrapped') this.beep();
+    return result !== false;
   }
 
   /** Replace: replaces the current match (if valid) then finds the next one. */
@@ -163,7 +202,7 @@ export class SearchSession {
     const replaced = this.matchValid
       ? target.replaceCurrent(this.withNbsp(options), this.nbspText(replacement))
       : false;
-    const found = target.findNext(this.withNbsp(options), 'next');
+    const found = this.searchStep(target, options, 'next');
     this.matchValid = found;
     this.emit();
     return { replaced, found };
@@ -209,17 +248,35 @@ export class SearchSession {
   }
 
   async openFind(ctx: CommandContext): Promise<void> {
-    const dialogs: Dialogs = ctx.dialogs;
-    await dialogs.openCustom<void>((close) =>
-      createElement(FindDialog, { session: this, ctx, onClose: () => close() }),
+    await this.openDialog(ctx, 'find', (close) =>
+      createElement(FindDialog, { session: this, ctx, onClose: close }),
     );
   }
 
   async openReplace(ctx: CommandContext): Promise<void> {
-    this.matchValid = false;
-    await ctx.dialogs.openCustom<void>((close) =>
-      createElement(ReplaceDialog, { session: this, ctx, onClose: () => close() }),
+    if (!this.openDialogs.has('replace')) this.matchValid = false;
+    await this.openDialog(ctx, 'replace', (close) =>
+      createElement(ReplaceDialog, { session: this, ctx, onClose: close }),
     );
+  }
+
+  /** Shows a modeless dialog, or brings it to the front when it is open (as the original). */
+  private async openDialog(
+    ctx: CommandContext,
+    kind: SearchDialogKind,
+    render: (close: () => void) => ReactNode,
+  ): Promise<void> {
+    if (this.openDialogs.has(kind)) {
+      this.openDialogs.get(kind)?.();
+      return;
+    }
+    this.openDialogs.set(kind, null);
+    const dialogs: Dialogs = ctx.dialogs;
+    try {
+      await dialogs.openCustom<void>((close) => render(() => close()), { modeless: true });
+    } finally {
+      this.openDialogs.delete(kind);
+    }
   }
 
   /** F3: repeats the last search; "Cannot find the string" when nothing matches. */

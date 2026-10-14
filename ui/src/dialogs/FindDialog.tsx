@@ -1,12 +1,13 @@
 /**
  * Find dialog (T066) after the original `IDD_FIND`: "Find what:" combo with the history of
  * the last 20 searches, "Match whole words", "Match case", "Regular expression", Direction
- * Up / Down, Find Next (default) and Cancel. Searches run through the `SearchSession`; a
- * failed search shows "Cannot find the string '%s'." (`FindDialogBody` is shared with the
- * Replace dialog).
+ * Up / Down, Find Next (default) and Cancel. Modeless as in the original (feature 002): the
+ * document stays usable, Find again brings the open dialog to the front. Searches run through
+ * the `SearchSession`; a failed search shows "Cannot find the string '%s'." (`FindFields` is
+ * shared with the Replace dialog).
  */
 
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
@@ -14,6 +15,7 @@ import type { FindOptions, SearchSession } from '@/features/search/search';
 import { parseAccelerator } from '@/i18n';
 
 import { Dialog, type DialogButton } from './Dialog';
+import { useSearchDialogFocus } from './useSearchDialogFocus';
 
 import './editing.css';
 
@@ -30,10 +32,18 @@ export interface FindFieldsProps {
   history: readonly string[];
   /** Rendered between the "Find what" row and the check boxes (the Replace row). */
   extraRow?: ReactNode;
+  queryRef?: RefObject<HTMLInputElement | null>;
 }
 
 /** The shared fields of the Find and Replace dialogs. */
-export function FindFields({ idPrefix, options, onChange, history, extraRow }: FindFieldsProps) {
+export function FindFields({
+  idPrefix,
+  options,
+  onChange,
+  history,
+  extraRow,
+  queryRef,
+}: FindFieldsProps) {
   const { t } = useTranslation();
   const update = (patch: Partial<FindOptions>) => onChange({ ...options, ...patch });
   const listId = `${idPrefix}-history`;
@@ -42,6 +52,7 @@ export function FindFields({ idPrefix, options, onChange, history, extraRow }: F
       <label className="mfbe-field-row" htmlFor={`${idPrefix}-query`}>
         <span className="mfbe-find-label">{parseAccelerator(t('dialog.find.findWhat')).text}</span>
         <input
+          ref={queryRef}
           id={`${idPrefix}-query`}
           className="mfbe-inputdialog-input"
           type="text"
@@ -129,6 +140,8 @@ export function FindDialog({ session, ctx, onClose }: FindDialogProps) {
     query: session.initialQuery(),
   });
   const [busy, setBusy] = useState(false);
+  const queryRef = useRef<HTMLInputElement>(null);
+  useSearchDialogFocus(session, 'find', queryRef);
 
   // The search itself is synchronous; `busy` only guards the modal "not found" message.
   // History persistence is fire-and-forget so rapid Find Next presses are never dropped.
@@ -166,12 +179,14 @@ export function FindDialog({ session, ctx, onClose }: FindDialogProps) {
       testId="dialog-find"
       className="mfbe-finddialog"
       closeLabel={t('dialog.buttons.close')}
+      modeless
     >
       <FindFields
         idPrefix="dialog-find"
         options={options}
         onChange={setOptions}
         history={session.findHistory}
+        queryRef={queryRef}
       />
     </Dialog>
   );

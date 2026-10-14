@@ -4,12 +4,17 @@
  * is the active scope. Self-contained: it only needs a CodeMirror `EditorView` and uses the
  * `@codemirror/search` cursors (literal, whole word, match case, regular expression).
  *
- * The search feature obtains the target of the current document through
- * `getSourceEditor(store)?.searchTarget` (see `sourceEditor.ts`).
+ * The search feature drives it through `features/search/sourceTarget.ts` (the same Find and
+ * Replace dialogs as the Body view, feature 002).
  */
 
 import { RegExpCursor, SearchCursor } from '@codemirror/search';
-import { EditorSelection, type EditorState, type Text } from '@codemirror/state';
+import {
+  EditorSelection,
+  type EditorState,
+  type SelectionRange,
+  type Text,
+} from '@codemirror/state';
 
 import type { EditorTarget } from './extensions';
 
@@ -45,7 +50,7 @@ export interface SourceSearchTarget {
   currentSelection(): SourceMatch | null;
 }
 
-interface Hit {
+export interface Hit {
   from: number;
   to: number;
   match?: RegExpExecArray;
@@ -115,24 +120,33 @@ export function expandReplacement(replacement: string, hit: Hit, regex: boolean)
   });
 }
 
-function nextHit(state: EditorState, query: string, options: SourceSearchOptions): Hit | null {
-  const { main } = state.selection;
+/**
+ * The next match after `range` (before it searching up), continuing from the other end of the
+ * text unless `wrap` is false; `wrapped` tells that it did.
+ */
+export function nextHit(
+  state: EditorState,
+  query: string,
+  options: SourceSearchOptions,
+  range: Pick<SelectionRange, 'from' | 'to'> = state.selection.main,
+): { hit: Hit; wrapped: boolean } | null {
   const wrap = options.wrap ?? true;
   if (options.direction === 'up') {
-    const before = findMatches(state, query, options, 0, main.from);
-    if (before.length > 0) return before[before.length - 1]!;
+    const before = findMatches(state, query, options, 0, range.from);
+    if (before.length > 0) return { hit: before[before.length - 1]!, wrapped: false };
     if (!wrap) return null;
-    const all = findMatches(state, query, options, main.from, state.doc.length);
-    return all.length > 0 ? all[all.length - 1]! : null;
+    const all = findMatches(state, query, options, range.from, state.doc.length);
+    return all.length > 0 ? { hit: all[all.length - 1]!, wrapped: true } : null;
   }
-  const after = findMatches(state, query, options, main.to, state.doc.length, 1);
-  if (after.length > 0) return after[0]!;
+  const after = findMatches(state, query, options, range.to, state.doc.length, 1);
+  if (after.length > 0) return { hit: after[0]!, wrapped: false };
   if (!wrap) return null;
-  const first = findMatches(state, query, options, 0, main.to, 1);
-  return first.length > 0 ? first[0]! : null;
+  const first = findMatches(state, query, options, 0, range.to, 1);
+  return first.length > 0 ? { hit: first[0]!, wrapped: true } : null;
 }
 
-function selectionMatches(
+/** The selection when it is exactly a match of `query`. */
+export function selectionMatches(
   state: EditorState,
   query: string,
   options: SourceSearchOptions,
@@ -160,9 +174,9 @@ export function createSourceSearchTarget(getView: () => EditorTarget | null): So
     findNext(query, options = {}) {
       const view = getView();
       if (!view) return false;
-      const hit = nextHit(view.state, query, options);
-      if (!hit) return false;
-      select(view, hit);
+      const next = nextHit(view.state, query, options);
+      if (!next) return false;
+      select(view, next.hit);
       return true;
     },
     replace(query, replacement, options = {}) {
@@ -171,8 +185,8 @@ export function createSourceSearchTarget(getView: () => EditorTarget | null): So
       const current = selectionMatches(view.state, query, options);
       if (!current) {
         // Nothing selected to replace: behave like Find Next so the user sees the first match.
-        const hit = nextHit(view.state, query, options);
-        if (hit) select(view, hit);
+        const next = nextHit(view.state, query, options);
+        if (next) select(view, next.hit);
         return false;
       }
       const text = expandReplacement(replacement, current, !!options.regex);
@@ -182,7 +196,7 @@ export function createSourceSearchTarget(getView: () => EditorTarget | null): So
         userEvent: 'input.replace',
       });
       const next = nextHit(view.state, query, options);
-      if (next) select(view, next);
+      if (next) select(view, next.hit);
       return true;
     },
     replaceAll(query, replacement, options = {}) {

@@ -67,7 +67,7 @@ export function bodySearchTarget(store: AppStore): SearchTarget | null {
 
 /** Selects the next occurrence of `word` in the body (wrapping); false when there is none. */
 export function findWordNext(target: SearchTarget, word: string): boolean {
-  return target.findNext(wordFindOptions(word), 'next');
+  return target.findNext(wordFindOptions(word), 'next') !== false;
 }
 
 /** Replaces the occurrence selected by `findWordNext` with `replacement`. */

@@ -1,15 +1,19 @@
 /**
- * Dialog framework components: `DialogHost` renders the modal stack of a `DialogService`
+ * Dialog framework components: `DialogHost` renders the dialog stack of a `DialogService`
  * (DialogService.ts); `Dialog` is the frame with focus trap, Escape/Enter handling, Tab
- * cycling, `&` button accelerators and stable testids. No user-visible literals here.
+ * cycling, `&` button accelerators and stable testids. A `modeless` dialog (the original's
+ * Find and Replace) has no backdrop and no focus trap, moves by its title and opens where the
+ * last modeless dialog was closed. No user-visible literals here.
  */
 
 import {
+  Fragment,
   useCallback,
   useId,
   useLayoutEffect,
   useRef,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 
@@ -19,24 +23,72 @@ import { useDialogStack, type DialogService } from './DialogService';
 
 import './dialogs.css';
 
-/** Mounts every open dialog; only the top-most one is interactive (the others are `inert`). */
+/**
+ * Mounts every open dialog. Modal dialogs cover the window with a backdrop and only the
+ * top-most one is interactive (the others are `inert`); modeless dialogs float above the
+ * document and below the menus (a modal dialog's backdrop and focus guard cover them).
+ */
 export function DialogHost({ service }: { service: DialogService }) {
   const stack = useDialogStack(service);
   if (stack.length === 0) return null;
+  const modeless = stack.filter((dialog) => dialog.modeless);
+  const modal = stack.filter((dialog) => !dialog.modeless);
   return (
-    <div className="mfbe-dialog-layer" data-testid="dialog-layer">
-      {stack.map((dialog, index) => (
-        <div
-          key={dialog.id}
-          className="mfbe-dialog-backdrop"
-          inert={index < stack.length - 1 ? true : undefined}
-          data-testid={`dialog-backdrop-${index}`}
-        >
-          {dialog.render((result) => service.close(dialog.id, result))}
+    <>
+      {modeless.length > 0 ? (
+        <div className="mfbe-dialog-floating-layer" data-testid="dialog-floating-layer">
+          {modeless.map((dialog) => (
+            <Fragment key={dialog.id}>
+              {dialog.render((result) => service.close(dialog.id, result))}
+            </Fragment>
+          ))}
         </div>
-      ))}
-    </div>
+      ) : null}
+      {modal.length > 0 ? (
+        <div className="mfbe-dialog-layer" data-testid="dialog-layer">
+          {modal.map((dialog, index) => (
+            <div
+              key={dialog.id}
+              className="mfbe-dialog-backdrop"
+              inert={index < modal.length - 1 ? true : undefined}
+              data-testid={`dialog-backdrop-${index}`}
+            >
+              {dialog.render((result) => service.close(dialog.id, result))}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </>
   );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Modeless placement                                                       */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Where the last modeless dialog was closed: the next one opens there for the rest of the
+ * session (the original kept one place for all its modeless dialogs).
+ */
+let modelessPlace: { left: number; top: number } | null = null;
+
+/** Moves a modeless dialog to `left`/`top`, kept inside the window. */
+function moveModeless(root: HTMLElement, left: number, top: number): void {
+  const { width, height } = root.getBoundingClientRect();
+  const x = Math.max(0, Math.min(left, window.innerWidth - width));
+  const y = Math.max(0, Math.min(top, window.innerHeight - height));
+  root.style.left = `${Math.round(x)}px`;
+  root.style.top = `${Math.round(y)}px`;
+}
+
+/** First placement: the remembered place, or centred in the window like a modal dialog. */
+function placeModeless(root: HTMLElement): void {
+  const { width, height } = root.getBoundingClientRect();
+  if (modelessPlace) {
+    moveModeless(root, modelessPlace.left, modelessPlace.top);
+  } else {
+    moveModeless(root, (window.innerWidth - width) / 2, (window.innerHeight - height) / 2);
+  }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -67,6 +119,8 @@ export interface DialogProps {
   icon?: ReactNode;
   /** Label of the close box (localised by the caller). */
   closeLabel?: string;
+  /** The window stays usable: no focus trap, moved by its title (open it modeless too). */
+  modeless?: boolean;
 }
 
 const FOCUSABLE = [
@@ -114,6 +168,7 @@ export function Dialog({
   className,
   icon,
   closeLabel,
+  modeless = false,
 }: DialogProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -122,11 +177,12 @@ export function Dialog({
   const defaultButton = buttons.find((b) => b.id === defaultButtonId) ?? buttons[0];
   const cancelButton = cancelButtonId ? buttons.find((b) => b.id === cancelButtonId) : undefined;
 
-  // Initial focus, focus guard while open, focus restoration on close.
+  // Initial focus (and place), focus guard while modal, focus restoration on close.
   useLayoutEffect(() => {
     previouslyFocused.current = document.activeElement;
     const root = rootRef.current;
     if (!root) return;
+    if (modeless) placeModeless(root);
     let target: HTMLElement | null = null;
     if (initialFocus) target = root.querySelector<HTMLElement>(initialFocus);
     if (!target && defaultButton) {
@@ -135,20 +191,30 @@ export function Dialog({
     if (!target) target = focusableElements(root)[0] ?? null;
     (target ?? root).focus();
 
-    // Keep focus inside the top-most dialog (clicks outside land on the backdrop). Dialogs
-    // covered by another one are `inert` and must not compete for the focus.
+    // Keep focus inside the top-most modal dialog (clicks outside land on the backdrop).
+    // Dialogs covered by another one are `inert` and must not compete for the focus.
     const onFocusIn = (event: FocusEvent) => {
       if (!root.isConnected || root.closest('[inert]')) return;
       if (root.contains(event.target as Node)) return;
       const first = focusableElements(root)[0];
       (first ?? root).focus();
     };
-    document.addEventListener('focusin', onFocusIn);
+    if (!modeless) document.addEventListener('focusin', onFocusIn);
 
     return () => {
       document.removeEventListener('focusin', onFocusIn);
+      const active = document.activeElement;
+      if (modeless) {
+        const box = root.getBoundingClientRect();
+        modelessPlace = { left: box.left, top: box.top };
+      }
+      // A modeless dialog gives the focus back only when it has it: the user may be working
+      // in the document.
+      const hadFocus = !active || active === document.body || root.contains(active);
       const previous = previouslyFocused.current;
-      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+      if ((!modeless || hadFocus) && previous instanceof HTMLElement && previous.isConnected) {
+        previous.focus();
+      }
     };
     // Only on mount: the dialog content does not change its focus target afterwards.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,18 +281,50 @@ export function Dialog({
     [buttons, cancelButton, defaultButton],
   );
 
+  // A modeless dialog is dragged by its title (the close box excepted).
+  const onTitlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const root = rootRef.current;
+      if (!modeless || !root || event.button !== 0) return;
+      if ((event.target as HTMLElement).closest('.mfbe-dialog-close')) return;
+      event.preventDefault();
+      const start = root.getBoundingClientRect();
+      const offsetX = event.clientX - start.left;
+      const offsetY = event.clientY - start.top;
+      const title = event.currentTarget;
+      title.setPointerCapture(event.pointerId);
+      const onMove = (move: PointerEvent) => {
+        moveModeless(root, move.clientX - offsetX, move.clientY - offsetY);
+      };
+      const onEnd = () => {
+        title.removeEventListener('pointermove', onMove);
+        title.removeEventListener('pointerup', onEnd);
+        title.removeEventListener('pointercancel', onEnd);
+      };
+      title.addEventListener('pointermove', onMove);
+      title.addEventListener('pointerup', onEnd);
+      title.addEventListener('pointercancel', onEnd);
+    },
+    [modeless],
+  );
+
   return (
     <div
       ref={rootRef}
       role="dialog"
-      aria-modal="true"
+      aria-modal={modeless ? 'false' : 'true'}
       aria-labelledby={titleId}
       tabIndex={-1}
-      className={`mfbe-dialog${className ? ` ${className}` : ''}`}
+      className={`mfbe-dialog${modeless ? ' mfbe-dialog-modeless' : ''}${className ? ` ${className}` : ''}`}
       data-testid={testId}
       onKeyDown={onKeyDown}
     >
-      <div className="mfbe-dialog-title" id={titleId} data-testid={`${testId}-title`}>
+      <div
+        className="mfbe-dialog-title"
+        id={titleId}
+        data-testid={`${testId}-title`}
+        onPointerDown={modeless ? onTitlePointerDown : undefined}
+      >
         <span className="mfbe-dialog-title-text">{title}</span>
         {cancelButton ? (
           <button

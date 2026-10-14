@@ -38,6 +38,12 @@ std::optional<ClipboardImageData> readClipboardImage();
 // True for paths the editor opens as documents: .fb2, .fbd, .xml (case-insensitive).
 bool isDocumentPath(const std::string& path);
 
+// The system sound of a search that continued from the other end of the document (the
+// original's MessageBeep(MB_ICONASTERISK)): MessageBeep on Windows, NSBeep on macOS, the GDK
+// display beep on Linux (GTK 3 loaded at run time as for the clipboard; silent without it).
+// MUST be called on the main (CEF UI) thread.
+void systemBeep();
+
 // Windows: tells Explorer that file associations changed (SHChangeNotify SHCNE_ASSOCCHANGED)
 // so .fb2/.fbd icons and "Open with" entries written by the MSI appear without a log-off.
 // The shell calls it once per installed build (marker file in the data folder). No-op

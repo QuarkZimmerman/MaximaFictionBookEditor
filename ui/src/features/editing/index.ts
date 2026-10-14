@@ -107,6 +107,13 @@ export function registerEditingFeature(ctx: FeatureContext): void {
   symbolFeatures.set(store, new SymbolsFeature(commands, hotkeys, store));
 
   const search = getSearchSession(store, undo);
+  search.setBeep(() => {
+    if (ctx.rpc && store.getState().connection === 'connected') {
+      ctx.rpc.call('app.beep', { kind: 'searchWrap' }).catch(() => {
+        // an older core has no beep; the search itself went on
+      });
+    }
+  });
   search.registerTarget(new BodySearchTarget(controller));
   registerSearchCommands(commands, search);
   const incremental = new IncrementalSearch(store, search);

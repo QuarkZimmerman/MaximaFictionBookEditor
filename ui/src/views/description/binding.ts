@@ -28,7 +28,7 @@ import type { CaretProvider } from '@/model/caret';
 import type { Caret } from '@/rpc/types';
 import { findMatch, type Match, type ModelTextblock } from '@/features/search/bodyTarget';
 import { allMatches, buildSearchRegExp, expandReplacement } from '@/features/search/replacement';
-import type { FindMode, FindOptions, SearchTarget } from '@/features/search/search';
+import type { FindMode, FindOptions, FindResult, SearchTarget } from '@/features/search/search';
 
 import {
   cleanDescription,
@@ -387,7 +387,7 @@ export class DescriptionController {
 
   readonly searchTarget: SearchTarget = {
     view: 'description',
-    findNext: (options: FindOptions, mode: FindMode = 'next'): boolean => {
+    findNext: (options: FindOptions, mode: FindMode = 'next'): FindResult => {
       const re = buildSearchRegExp(options);
       if (!re) return false;
       const cursor = mode === 'fromAnchor' && this.anchor ? this.anchor : this.cursor();
@@ -396,7 +396,7 @@ export class DescriptionController {
       if (!match) return false;
       if (!this.focusField(match.nodeId, match.from, match.to)) return false;
       this.lastMatch = match;
-      return true;
+      return match.wrapped ? 'wrapped' : true;
     },
     replaceCurrent: (options: FindOptions, replacement: string): boolean => {
       const match = this.lastMatch;

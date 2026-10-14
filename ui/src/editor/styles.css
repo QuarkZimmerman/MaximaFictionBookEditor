@@ -471,3 +471,10 @@ a.fb-note {
 .mfbe-body-view--fast .fb-nbsp::before {
   content: none;
 }
+
+/* The current Find / Replace match (plugins/searchMatch.ts): drawn like a selection, also while
+   the editor has no focus. */
+.fb-editor .mfbe-search-match {
+  background-color: Highlight;
+  color: HighlightText;
+}

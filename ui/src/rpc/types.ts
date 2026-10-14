@@ -341,6 +341,8 @@ export interface RpcMethods {
   'app.quit': { params: { force?: boolean } | void; result: Empty };
   'app.openLogFolder': { params: void; result: Empty };
   'app.openFolder': { params: { path: string }; result: Empty };
+  /** The system sound of a search that continued from the other end (feature 002). */
+  'app.beep': { params: { kind: 'searchWrap' }; result: Empty };
   'app.setUiLanguage': {
     params: { lang: UiLanguageSetting };
     result: { restartRequired: boolean };

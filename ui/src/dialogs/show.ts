@@ -72,6 +72,6 @@ export function createDialogs(service: DialogService): Dialogs & { service: Dial
     showMessage: (options) => showMessage(service, options),
     showMessageWithResult: (options) => showMessageWithResult(service, options),
     showInput: (options) => showInput(service, options),
-    openCustom: (render) => service.open(render),
+    openCustom: (render, options) => service.open(render, options),
   };
 }

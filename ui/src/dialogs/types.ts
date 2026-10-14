@@ -58,8 +58,12 @@ export interface Dialogs {
   showMessageWithResult(options: MessageBoxOptions): Promise<MessageBoxResult>;
   showInput(options: InputDialogOptions): Promise<InputDialogResult>;
   /**
-   * Opens any modal dialog component; `close(result)` resolves the promise. Used by feature
-   * dialogs (Save changes?, Encoding chooser, ...) that have their own component.
+   * Opens any dialog component (modal unless `modeless`); `close(result)` resolves the
+   * promise. Used by feature dialogs (Save changes?, Encoding chooser, Find, ...) that have
+   * their own component.
    */
-  openCustom<T>(render: (close: (result: T) => void) => ReactNode): Promise<T>;
+  openCustom<T>(
+    render: (close: (result: T) => void) => ReactNode,
+    options?: { modeless?: boolean },
+  ): Promise<T>;
 }

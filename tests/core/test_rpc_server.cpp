@@ -280,6 +280,8 @@ TEST_CASE("server: dialogs are unavailable without a provider; queued answers wi
         CHECK(requests[1]["mode"] == "save");
         CHECK(requests[2]["mode"] == "folder");
         CHECK(ws.call("test.beeps")["result"]["count"] == 0);
+        CHECK(ws.call("app.beep", json{{"kind", "searchWrap"}})["result"] == json::object());
+        CHECK(ws.call("test.beeps")["result"]["count"] == 1);
         CHECK(ws.call("test.enqueueRelease",
                       json{{"result", {{"tag", "v0.0.9"}}}})["result"]["queued"] == 1);
         CHECK(ws.call("test.enqueueRelease",

@@ -186,7 +186,9 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      if (services.dialogs.service.isOpen) return;
+      // A modal dialog blocks the menus; a modeless one keeps its own Alt+letter keys.
+      if (services.dialogs.service.isModalOpen) return;
+      if (event.target instanceof Element && event.target.closest('.mfbe-dialog-modeless')) return;
       if (event.key === 'F10' && !event.altKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
         const first = barRef.current?.querySelector<HTMLElement>('[data-menu-id]');

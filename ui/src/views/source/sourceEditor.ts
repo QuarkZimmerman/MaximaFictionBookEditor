@@ -1,6 +1,7 @@
 /**
  * Imperative controller of the Source editor (T050/T079): owns the CodeMirror 6 state (XML
- * language, folding, bracket/tag matching, search keymap, history) and the loading state.
+ * language, folding, bracket/tag matching, history; Find and Replace go through the shared
+ * dialogs) and the loading state.
  * `SourceView.tsx` mounts it and renders the chrome from `getSnapshot()`.
  *
  * One controller exists per store (`sourceEditorFor(store, undo)`), created by the Source
@@ -29,7 +30,7 @@ import {
   undoDepth,
 } from '@codemirror/commands';
 import { bracketMatching, foldGutter, foldKeymap } from '@codemirror/language';
-import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
+import { highlightSelectionMatches } from '@codemirror/search';
 import {
   Compartment,
   EditorState,
@@ -282,7 +283,6 @@ export class SourceEditorController {
         },
         ...defaultKeymap,
         ...historyKeymap,
-        ...searchKeymap,
         ...foldKeymap,
         indentWithTab,
       ]),

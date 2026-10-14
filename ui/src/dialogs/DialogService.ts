@@ -1,6 +1,8 @@
 /**
- * Modal dialog stack. `DialogService.open()` returns a Promise resolved by the dialog's
- * `close(result)`; `DialogHost` (Dialog.tsx) renders the stack.
+ * Dialog stack. `DialogService.open()` returns a Promise resolved by the dialog's
+ * `close(result)`; `DialogHost` (Dialog.tsx) renders the stack. Dialogs are modal unless
+ * opened `modeless` (Find, Replace): those leave the window usable and only a modal dialog
+ * blocks the application hotkeys and menus (`isModalOpen`).
  */
 
 import { useSyncExternalStore, type ReactNode } from 'react';
@@ -9,6 +11,12 @@ export interface DialogInstance {
   id: number;
   /** Renders the dialog; `close(result)` resolves the promise returned by `open()`. */
   render: (close: (result: unknown) => void) => ReactNode;
+  modeless: boolean;
+}
+
+export interface DialogOpenOptions {
+  /** The window stays usable while the dialog is open (the original's Find and Replace). */
+  modeless?: boolean;
 }
 
 export class DialogService {
@@ -18,13 +26,20 @@ export class DialogService {
   private nextId = 1;
 
   /** Opens a dialog; resolves with whatever the dialog passes to `close()`. */
-  open<T>(render: (close: (result: T) => void) => ReactNode): Promise<T> {
+  open<T>(
+    render: (close: (result: T) => void) => ReactNode,
+    options: DialogOpenOptions = {},
+  ): Promise<T> {
     const id = this.nextId++;
     return new Promise<T>((resolve) => {
       this.resolvers.set(id, resolve as (result: unknown) => void);
       this.stackValue = [
         ...this.stackValue,
-        { id, render: (close) => render(close as (result: T) => void) },
+        {
+          id,
+          render: (close) => render(close as (result: T) => void),
+          modeless: options.modeless ?? false,
+        },
       ];
       this.emit();
     });
@@ -54,6 +69,11 @@ export class DialogService {
 
   get isOpen(): boolean {
     return this.stackValue.length > 0;
+  }
+
+  /** A modal dialog is open: the rest of the window does not take input. */
+  get isModalOpen(): boolean {
+    return this.stackValue.some((dialog) => !dialog.modeless);
   }
 
   subscribe = (listener: () => void): (() => void) => {

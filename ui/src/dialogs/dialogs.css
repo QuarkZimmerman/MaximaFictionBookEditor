@@ -15,6 +15,25 @@
   background: var(--mfbe-dialog-backdrop, rgba(0, 0, 0, 0.25));
 }
 
+/* Modeless dialogs (Find, Replace): above the document, below the menus; the window around
+   them takes clicks. Placed and moved by Dialog.tsx. */
+.mfbe-dialog-floating-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+}
+
+.mfbe-dialog-floating-layer > .mfbe-dialog {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.mfbe-dialog-modeless > .mfbe-dialog-title {
+  cursor: move;
+  touch-action: none;
+}
+
 .mfbe-dialog {
   display: flex;
   flex-direction: column;

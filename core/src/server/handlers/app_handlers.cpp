@@ -88,6 +88,15 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
         return open_folder(services, platform::path_from_utf8(rpc::params::string(params, "path")));
     });
 
+    // The system sound of a search that continued from the other end of the document (as the
+    // original's MessageBeep); without a shell there is nothing to play.
+    router.add_method("app.beep", [&services](const json&, rpc::RpcContext&) {
+        if (auto provider = services.dialog_provider()) {
+            provider->beep();
+        }
+        return json::object();
+    });
+
     router.add_method("app.setUiLanguage", [&services](const json& params, rpc::RpcContext& ctx) {
         const std::string lang = rpc::params::string(params, "lang");
         if (lang != "en" && lang != "ru" && lang != "system") {
