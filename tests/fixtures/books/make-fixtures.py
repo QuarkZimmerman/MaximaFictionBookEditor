@@ -451,6 +451,184 @@ DESCRIPTOR = f"""<?xml version="1.0" encoding="utf-8"?>
 """
 
 
+# ----------------------------------------------------------------------------------------------
+# many-sections.fb2 - Find and Replace journeys (feature 002, User Story 5). 48 top-level
+# sections, so the Body view shows it in windows (more than 40 sections). The word
+# "разыскать" occurs exactly 20 times, in 6 sections spread over the book; two paragraphs hold
+# it twice; an inline image stands right before the 3rd occurrence. The word appears nowhere
+# else (no title, no description field).
+# ----------------------------------------------------------------------------------------------
+SEARCH_WORD = "разыскать"
+MANY_SECTIONS_COUNT = 48
+# Section number (1-based) -> paragraphs with the word; "{w}" marks one occurrence and
+# "{img}" the inline image.
+MANY_SECTIONS_HITS = {
+    3: [
+        "Утром Анна решила {w} старую карту отца.",
+        "Карту следовало {w} до вечера, пока не стемнело.",
+        "{img} На этой картинке видно, где {w} тайник.",
+    ],
+    10: [
+        "Брат обещал {w} фонарь, а сестра — {w} верёвку.",
+        "Никто не знал, как {w} дорогу в темноте.",
+    ],
+    18: [
+        "Старик велел {w} колодец за мельницей.",
+        "Пришлось {w} его по старым приметам.",
+        "Только к полудню удалось {w} тропу.",
+        "Осталось {w} ворота в каменной стене.",
+    ],
+    27: [
+        "В городе предстояло {w} аптеку.",
+        "Затем — {w} почтовую контору.",
+        "И наконец {w} знакомого кузнеца.",
+    ],
+    36: [
+        "Письмо поручало {w} архив и {w} в нём одну папку.",
+        "Папку не удалось {w} с первого раза.",
+        "Пришлось {w} помощника.",
+    ],
+    46: [
+        "Под конец надо было {w} ключ от сундука.",
+        "Анна смогла {w} его в кармане старого пальто.",
+        "А брат так и не смог {w} свой фонарь.",
+    ],
+}
+FILLER = [
+    "Дорога шла через поле, и ветер гнал по небу низкие облака.",
+    "В доме было тихо, только часы на стене отсчитывали время.",
+    "Вечером все собрались у окна и долго смотрели на огни города.",
+]
+
+
+def many_sections() -> str:
+    occurrences = sum(p.count("{w}") for ps in MANY_SECTIONS_HITS.values() for p in ps)
+    assert occurrences == 20, occurrences
+    sections = []
+    for number in range(1, MANY_SECTIONS_COUNT + 1):
+        paragraphs = MANY_SECTIONS_HITS.get(number, []) + FILLER[: 3 - (number % 2)]
+        lines = [f'\t\t<section id="s{number}">', f"\t\t\t<title>\n\t\t\t\t<p>Глава {number}</p>\n\t\t\t</title>"]
+        for text in paragraphs:
+            text = text.replace("{w}", SEARCH_WORD).replace("{img}", '<image l:href="#pin.png"/>')
+            lines.append(f"\t\t\t<p>{text}</p>")
+        lines.append("\t\t</section>")
+        sections.append("\n".join(lines))
+    body = "\n".join(sections)
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Поисковая</first-name>
+				<last-name>Книга</last-name>
+			</author>
+			<book-title>Много разделов</book-title>
+			<annotation>
+				<p>Книга для проверки поиска и замены.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture generator</program-used>
+			<date value="2026-01-01">2026</date>
+			<id>fixture-many-sections</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Много разделов</p>
+		</title>
+{body}
+	</body>
+	<binary id="pin.png" content-type="image/png">{b64("tiny.png")}
+</binary>
+</FictionBook>
+"""
+
+
+# ----------------------------------------------------------------------------------------------
+# nbsp-layout.fb2 - non-breaking-space marker journeys (feature 002, User Story 6). U+00A0 in
+# first-line indented paragraphs, a verse, an epigraph, a section title, the annotation, the
+# history and the book title; two in a row; at the start and the end of a paragraph; next to
+# an inline image and to links. Real □ ▫ ◦ characters in the text and in a sequence name must
+# survive every marker setting.
+# ----------------------------------------------------------------------------------------------
+NB = " "
+NBSP_LAYOUT = f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Мария</first-name>
+				<last-name>Пробелова</last-name>
+			</author>
+			<book-title>Неразрывные{NB}пробелы</book-title>
+			<annotation>
+				<p>Аннотация с{NB}неразрывным пробелом.</p>
+			</annotation>
+			<lang>ru</lang>
+			<sequence name="Серия □ ▫ ◦" number="1"/>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture generator</program-used>
+			<date value="2026-01-01">2026</date>
+			<id>fixture-nbsp-layout</id>
+			<version>1.0</version>
+			<history>
+				<p>v1.0 — создание{NB}файла</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Неразрывные пробелы</p>
+		</title>
+		<section id="s1">
+			<title>
+				<p>Глава{NB}первая</p>
+			</title>
+			<epigraph>
+				<p>Эпиграф с{NB}пробелом.</p>
+				<text-author>Автор эпиграфа</text-author>
+			</epigraph>
+			<p id="p-indent">Первый абзац: до станции 10{NB}км, и ещё{NB}немного пешком.</p>
+			<p id="p-double">Два подряд:{NB}{NB}вот они.</p>
+			<p id="p-start">{NB}В начале абзаца.</p>
+			<p id="p-end">В конце абзаца{NB}</p>
+			<p id="p-image">Рядом с картинкой{NB}<image l:href="#pin.png"/>{NB}и после неё.</p>
+			<p id="p-link">Рядом со <a l:href="https://example.org/">ссылкой</a>{NB}и{NB}сноской<a l:href="#n_1" type="note">[1]</a>.</p>
+			<poem>
+				<stanza>
+					<v>Строка{NB}стиха,</v>
+					<v>вторая строка.</v>
+				</stanza>
+			</poem>
+			<p id="p-real">Настоящие символы: □ квадрат, ▫ малый квадрат, ◦ кружок.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Сноска.</p>
+		</section>
+	</body>
+	<binary id="pin.png" content-type="image/png">{b64("tiny.png")}
+</binary>
+</FictionBook>
+"""
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -461,6 +639,8 @@ def main() -> None:
     write("descriptor.fbd", DESCRIPTOR)
     write("mismatched-declaration.fb2", MISMATCH, "cp1251")
     write("no-declaration.fb2", NODECL)
+    write("many-sections.fb2", many_sections())
+    write("nbsp-layout.fb2", NBSP_LAYOUT)
 
 
 if __name__ == "__main__":
