@@ -21,7 +21,11 @@ TEST_CASE("dialogs: request/result JSON shapes follow rpc-api.md section 3.9", "
     REQUIRE(r.filters.size() == 1);
     CHECK(r.filters[0].extensions == std::vector<std::string>{"fb2", "fbd"});
     CHECK(r.multiple);
-    CHECK(to_json(r) == open_req);
+    CHECK(r.selectedFilter == 0);
+    CHECK_FALSE(r.folder);
+    json open_out = open_req;
+    open_out["selectedFilter"] = 0;
+    CHECK(to_json(r) == open_out);
 
     CHECK(to_json(open_file_result_from_json(json{{"paths", {"/a", "/b"}}})) ==
           json{{"paths", {"/a", "/b"}}});
@@ -45,6 +49,75 @@ TEST_CASE("dialogs: request/result JSON shapes follow rpc-api.md section 3.9", "
     CHECK_THROWS_AS(open_file_request_from_json(json{{"title", 5}}), std::invalid_argument);
     CHECK_THROWS_AS(open_file_result_from_json(json{{"paths", "x"}}), std::invalid_argument);
     CHECK_THROWS_AS(message_request_from_json(json::array()), std::invalid_argument);
+}
+
+TEST_CASE("dialogs: selected type and start folder travel with the request (feature 002)",
+          "[dialogs]") {
+    const OpenFileRequest open = open_file_request_from_json(json{
+        {"title", "Open"}, {"selectedFilter", 1}, {"folder", "/home/тест/书"}, {"multiple", true}});
+    CHECK(open.selectedFilter == 1);
+    REQUIRE(open.folder);
+    CHECK(*open.folder == "/home/тест/书");
+    CHECK(to_json(open)["folder"] == "/home/тест/书");
+    CHECK(to_json(open)["selectedFilter"] == 1);
+    const SaveFileRequest save =
+        save_file_request_from_json(json{{"title", "Save"}, {"selectedFilter", 2}});
+    CHECK(save.selectedFilter == 2);
+    CHECK(to_json(save)["selectedFilter"] == 2);
+    CHECK_THROWS_AS(open_file_request_from_json(json{{"selectedFilter", -1}}),
+                    std::invalid_argument);
+    CHECK_THROWS_AS(save_file_request_from_json(json{{"selectedFilter", "1"}}),
+                    std::invalid_argument);
+}
+
+TEST_CASE("dialogs: the queued provider records requests, counts beeps, answers releases",
+          "[dialogs]") {
+    QueuedDialogProvider provider;
+    OpenFileRequest open;
+    open.title = "Open";
+    open.filters = {FileFilter{"FictionBook files", {"fb2"}}, FileFilter{"All files", {"*"}}};
+    open.multiple = true;
+    CHECK_THROWS_AS(provider.open_file(open, [](OpenFileResult) {}), DialogUnavailable);
+    provider.enqueue("dialog.saveFile", json{{"path", "/b.fb2"}});
+    SaveFileRequest save;
+    save.selectedFilter = 1;
+    std::optional<std::string> saved;
+    provider.save_file(save, [&](SaveFileResult r) { saved = r.path; });
+    CHECK(saved == "/b.fb2");
+    const auto requests = provider.dialog_requests();
+    REQUIRE(requests.size() == 2);  // the unanswered Open is recorded too
+    CHECK(requests[0]["method"] == "dialog.openFile");
+    CHECK(requests[0]["mode"] == "openMultiple");
+    CHECK(requests[0]["filters"][1]["extensions"] == json::array({"*"}));
+    CHECK(requests[1]["mode"] == "save");
+    CHECK(requests[1]["selectedFilter"] == 1);
+
+    provider.beep();
+    provider.beep();
+    CHECK(provider.beeps() == 2);
+
+    CHECK_THROWS_AS(provider.latest_release([](ReleaseResult) {}), DialogUnavailable);
+    CHECK(provider.enqueue_release(
+              release_result_from_json(json{{"result", {{"tag", "v0.0.2"}}}})) == 1);
+    CHECK(provider.enqueue_release(
+              release_result_from_json(json{{"error", {{"reason", "timeout"}}}})) == 2);
+    ReleaseResult first;
+    provider.latest_release([&](ReleaseResult r) { first = std::move(r); });
+    REQUIRE(first.release);
+    CHECK(first.release->version == "0.0.2");
+    CHECK(first.release->url ==
+          "https://github.com/QuarkZimmerman/MaximaFictionBookEditor/releases/tag/v0.0.2");
+    CHECK(to_json(first) == json{{"tag", "v0.0.2"},
+                                 {"version", "0.0.2"},
+                                 {"url",
+                                  "https://github.com/QuarkZimmerman/MaximaFictionBookEditor/"
+                                  "releases/tag/v0.0.2"}});
+    ReleaseResult second;
+    provider.latest_release([&](ReleaseResult r) { second = std::move(r); });
+    CHECK_FALSE(second.release);
+    CHECK(to_json(second) == json{{"error", {{"reason", "timeout"}}}});
+    CHECK_THROWS_AS(release_result_from_json(json{{"error", {{"reason", ""}}}}),
+                    std::invalid_argument);
 }
 
 TEST_CASE("dialogs: queued provider answers in order and fails loudly without an answer",

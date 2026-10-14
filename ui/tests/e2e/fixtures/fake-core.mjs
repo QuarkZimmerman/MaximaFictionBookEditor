@@ -76,11 +76,12 @@ const defaultSettings = {
     restorePosition: true,
     scriptsFolder: '',
     genresFolder: '',
+    templateFolder: '',
     askOnNonClearImage: true,
     insertClearImages: false,
     pasteImageFormat: 'jpeg',
     jpegQuality: 90,
-    nbspDisplayChar: '\u00B0',
+    nbspDisplayChar: '\u00A0',
   },
   words: { showExclusionsInWordsDialog: false },
   session: {
@@ -89,6 +90,8 @@ const defaultSettings = {
     treeVisible: true,
     findHistory: [],
     replaceHistory: [],
+    toolbarLayouts: {},
+    lastFileDialogFolder: '',
   },
 };
 

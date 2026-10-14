@@ -1,5 +1,7 @@
 // test.* handlers (T025) - compiled only with MFBE_TEST_HOOKS, registered only with
-// --test-hooks: test.enqueueDialog, test.corpusSample, test.metrics, test.injectFault.
+// --test-hooks: test.enqueueDialog, test.corpusSample, test.metrics, test.injectFault,
+// test.enqueueClipboardImage; feature 002: test.dialogRequests, test.beeps,
+// test.enqueueRelease.
 #ifdef MFBE_TEST_HOOKS
 
 #include "server/services.hpp"
@@ -70,6 +72,40 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
         const std::size_t queued =
             services.queued_dialogs->enqueue(method, result != nullptr ? *result : json::object());
         return json{{"queued", queued}};
+    });
+
+    // Every file dialog request since start, answered or not (journeys assert the offered types,
+    // the selected type and the folder).
+    router.add_method("test.dialogRequests", [&services](const json&, rpc::RpcContext&) {
+        if (!services.queued_dialogs) {
+            throw rpc::RpcError(rpc::codes::kDialogUnavailable, "",
+                                json{{"reason", "queued dialog provider not active"}});
+        }
+        return json(services.queued_dialogs->dialog_requests());
+    });
+
+    router.add_method("test.beeps", [&services](const json&, rpc::RpcContext&) {
+        if (!services.queued_dialogs) {
+            throw rpc::RpcError(rpc::codes::kDialogUnavailable, "",
+                                json{{"reason", "queued dialog provider not active"}});
+        }
+        return json{{"count", services.queued_dialogs->beeps()}};
+    });
+
+    // test.enqueueRelease({result: {tag, version?, url?}} | {error: {reason}}) -> {queued}:
+    // pre-answers the next app.latestRelease (the checks never contact the release service).
+    router.add_method("test.enqueueRelease", [&services](const json& params, rpc::RpcContext&) {
+        if (!services.queued_dialogs) {
+            throw rpc::RpcError(rpc::codes::kDialogUnavailable, "",
+                                json{{"reason", "queued dialog provider not active"}});
+        }
+        ReleaseResult result;
+        try {
+            result = release_result_from_json(rpc::params::object(params));
+        } catch (const std::invalid_argument& e) {
+            throw rpc::invalid_params(e.what());
+        }
+        return json{{"queued", services.queued_dialogs->enqueue_release(std::move(result))}};
     });
 
     router.add_async_method(

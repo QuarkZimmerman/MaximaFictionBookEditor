@@ -26,7 +26,8 @@ enum class Kind {
     color,
     string_array,
     nullable_object,
-    bool_map
+    bool_map,
+    string_list_map  // object whose values are arrays of strings (toolbar layouts)
 };
 
 struct Field {
@@ -72,17 +73,24 @@ const std::vector<Field>& schema() {
         field("other.restorePosition", Kind::boolean),
         field("other.scriptsFolder", Kind::string),
         field("other.genresFolder", Kind::string),
+        field("other.templateFolder", Kind::string),
         field("other.askOnNonClearImage", Kind::boolean),
         field("other.insertClearImages", Kind::boolean),
         enumeration("other.pasteImageFormat", {"jpeg", "png"}),
         integer("other.jpegQuality", 1, 100),
-        field("other.nbspDisplayChar", Kind::string),
+        // The original's choices: the plain non-breaking space (no marker), □, ▫ and ◦; any
+        // other stored value (0.0.1's "°" default) reads as the default.
+        enumeration("other.nbspDisplayChar", {"\u00A0", "\u25A1", "\u25AB", "\u25E6"}),
         field("words.showExclusionsInWordsDialog", Kind::boolean),
         field("session.windowGeometry", Kind::nullable_object),
         field("session.toolbars", Kind::bool_map),
         field("session.treeVisible", Kind::boolean),
         field("session.findHistory", Kind::string_array),
         field("session.replaceHistory", Kind::string_array),
+        // Toolbar layouts by toolbar ("commands", "scripts"): ordered button ids and "-"; ids
+        // the UI does not know are kept as stored and dropped by the UI when it loads them.
+        field("session.toolbarLayouts", Kind::string_list_map),
+        field("session.lastFileDialogFolder", Kind::string),
     };
     return fields;
 }
@@ -197,6 +205,25 @@ std::string check_value(const Field& field, const json& value) {
             }
             return "";
         }
+        case Kind::string_list_map: {
+            if (!value.is_object()) {
+                return "expected an object";
+            }
+            for (auto it = value.begin(); it != value.end(); ++it) {
+                if (it->is_null()) {
+                    continue;  // a patch resetting one toolbar
+                }
+                if (!it->is_array()) {
+                    return "expected arrays of strings";
+                }
+                for (const auto& item : *it) {
+                    if (!item.is_string()) {
+                        return "expected arrays of strings";
+                    }
+                }
+            }
+            return "";
+        }
     }
     return "invalid";
 }
@@ -244,11 +271,12 @@ json defaults() {
           {"restorePosition", true},
           {"scriptsFolder", ""},
           {"genresFolder", ""},
+          {"templateFolder", ""},
           {"askOnNonClearImage", true},
           {"insertClearImages", false},
           {"pasteImageFormat", "jpeg"},
           {"jpegQuality", 90},
-          {"nbspDisplayChar", "\u00B0"}}},
+          {"nbspDisplayChar", "\u00A0"}}},
         {"words", {{"showExclusionsInWordsDialog", false}}},
         {"session",
          {{"windowGeometry", nullptr},
@@ -260,7 +288,9 @@ json defaults() {
             {"status", true}}},
           {"treeVisible", true},
           {"findHistory", json::array()},
-          {"replaceHistory", json::array()}}},
+          {"replaceHistory", json::array()},
+          {"toolbarLayouts", json::object()},
+          {"lastFileDialogFolder", ""}}},
     };
 }
 

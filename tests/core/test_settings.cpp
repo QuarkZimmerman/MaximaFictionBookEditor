@@ -34,12 +34,13 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["other"]["restorePosition"] == true);
     CHECK(d["other"]["scriptsFolder"] == "");
     CHECK(d["other"]["genresFolder"] == "");
+    CHECK(d["other"]["templateFolder"] == "");
     CHECK(d["other"]["askOnNonClearImage"] == true);
     CHECK(d["other"]["insertClearImages"] == false);
     CHECK(d["other"]["pasteImageFormat"] == "jpeg");
     CHECK(d["other"]["jpegQuality"] == 90);
-    CHECK(d["other"]["nbspDisplayChar"] == "\u00B0");
-    CHECK(d["other"].size() == 10);
+    CHECK(d["other"]["nbspDisplayChar"] == "\u00A0");  // no marker, as in the original
+    CHECK(d["other"].size() == 11);
     CHECK(d["words"] == json{{"showExclusionsInWordsDialog", false}});
     CHECK(d["session"]["windowGeometry"].is_null());
     CHECK(d["session"]["toolbars"] == json{{"commands", true},
@@ -50,6 +51,8 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["session"]["treeVisible"] == true);
     CHECK(d["session"]["findHistory"] == json::array());
     CHECK(d["session"]["replaceHistory"] == json::array());
+    CHECK(d["session"]["toolbarLayouts"] == json::object());
+    CHECK(d["session"]["lastFileDialogFolder"] == "");
     CHECK(d.size() == 5);
 }
 
@@ -172,4 +175,74 @@ TEST_CASE("settings: supported encodings list", "[settings]") {
     CHECK(enc.front() == "utf-8");
     CHECK(enc.size() == 9);
     CHECK(std::find(enc.begin(), enc.end(), "koi8-r") != enc.end());
+}
+
+TEST_CASE("settings: the non-breaking-space marker offers only the original's choices",
+          "[settings]") {
+    test::TempDir tmp;
+    const auto file = tmp / "settings.json";
+    // 0.0.1 stored the degree sign by default; it reads as the default (no marker).
+    test::write_text(file, R"({"schemaVersion": 1, "other": {"nbspDisplayChar": "\u00b0"}})");
+    settings::SettingsStore store(file);
+    store.load();
+    CHECK(store.get_string("other.nbspDisplayChar") == "\u00A0");
+    for (const char* choice : {"\u00A0", "\u25A1", "\u25AB", "\u25E6"}) {
+        auto result = store.apply_patch(json{{"other", {{"nbspDisplayChar", choice}}}});
+        CHECK(result.settings["other"]["nbspDisplayChar"] == choice);
+    }
+    try {
+        store.apply_patch(json{{"other", {{"nbspDisplayChar", "\u00B0"}}}});
+        FAIL("the degree sign is not one of the original's choices");
+    } catch (const settings::SettingsError& e) {
+        CHECK(e.field == "other.nbspDisplayChar");
+    }
+}
+
+TEST_CASE("settings: toolbar layouts are kept per toolbar with unknown items as stored",
+          "[settings]") {
+    test::TempDir tmp;
+    const auto file = tmp / "settings.json";
+    test::write_text(file, R"({"schemaVersion": 1, "session": {"toolbarLayouts": {
+        "commands": ["file.new", "no.such.command", "-"],
+        "scripts": ["script.last", "script.gone/away"],
+        "future": ["x"]}}})");
+    settings::SettingsStore store(file);
+    store.load();
+    const json stored = store.get()["session"]["toolbarLayouts"];
+    CHECK(stored["commands"] == json::array({"file.new", "no.such.command", "-"}));
+    CHECK(stored["scripts"] == json::array({"script.last", "script.gone/away"}));
+    CHECK(stored["future"] == json::array({"x"}));
+
+    // One toolbar is patched at a time; null resets a toolbar to the original layout.
+    auto r1 = store.apply_patch(
+        json{{"session", {{"toolbarLayouts", {{"scripts", {"script.last", "-"}}}}}}});
+    CHECK(r1.settings["session"]["toolbarLayouts"]["scripts"] == json::array({"script.last", "-"}));
+    CHECK(r1.settings["session"]["toolbarLayouts"]["commands"].size() == 3);
+    auto r2 = store.apply_patch(json{{"session", {{"toolbarLayouts", {{"commands", nullptr}}}}}});
+    CHECK_FALSE(r2.settings["session"]["toolbarLayouts"].contains("commands"));
+    CHECK(r2.settings["session"]["toolbarLayouts"]["scripts"] == json::array({"script.last", "-"}));
+
+    try {
+        store.apply_patch(json{{"session", {{"toolbarLayouts", {{"commands", {1, 2}}}}}}});
+        FAIL("toolbar items must be strings");
+    } catch (const settings::SettingsError& e) {
+        CHECK(e.field == "session.toolbarLayouts");
+    }
+
+    test::write_text(file, R"({"schemaVersion": 1, "session": {"toolbarLayouts": "broken"}})");
+    store.load();
+    CHECK(store.get()["session"]["toolbarLayouts"] == json::object());
+}
+
+TEST_CASE("settings: template and last file-dialog folders keep non-English names exactly",
+          "[settings]") {
+    test::TempDir tmp;
+    settings::SettingsStore store(tmp / "settings.json");
+    store.load();
+    store.apply_patch(json{{"other", {{"templateFolder", "C:\\Users\\Тест\\Шаблоны"}}},
+                           {"session", {{"lastFileDialogFolder", "/home/тест/书"}}}});
+    settings::SettingsStore reloaded(tmp / "settings.json");
+    reloaded.load();
+    CHECK(reloaded.get_string("other.templateFolder") == "C:\\Users\\Тест\\Шаблоны");
+    CHECK(reloaded.get_string("session.lastFileDialogFolder") == "/home/тест/书");
 }

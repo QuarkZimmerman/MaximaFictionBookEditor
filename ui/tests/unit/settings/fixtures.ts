@@ -30,6 +30,7 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
       restorePosition: true,
       scriptsFolder: '',
       genresFolder: '',
+      templateFolder: '',
       askOnNonClearImage: true,
       insertClearImages: false,
       pasteImageFormat: 'jpeg',
@@ -43,6 +44,8 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
       treeVisible: true,
       findHistory: [],
       replaceHistory: [],
+      toolbarLayouts: {},
+      lastFileDialogFolder: '',
     },
     ...overrides,
   };

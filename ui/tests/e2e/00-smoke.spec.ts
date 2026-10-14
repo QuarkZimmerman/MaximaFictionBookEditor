@@ -106,8 +106,11 @@ test.describe('smoke', () => {
 
   test('the core answers app.info over the test RPC helper', async ({ core }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
-    const info = await core.rpc<{ apiVersion: number; version: string }>('app.info');
+    const info = await core.rpc<{ apiVersion: number; apiMinor: number; version: string }>(
+      'app.info',
+    );
     expect(info.apiVersion).toBe(1);
+    expect(info.apiMinor).toBe(1);
     expect(typeof info.version).toBe('string');
   });
 

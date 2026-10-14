@@ -48,8 +48,10 @@ TEST_CASE("rpc: error table matches rpc-api.md section 1", "[rpc]") {
     CHECK(kScriptInvalidManifest == 1031);
     CHECK(kSettingsInvalid == 1040);
     CHECK(kDialogUnavailable == 1050);
+    CHECK(kReleaseUnavailable == 1060);
     CHECK(kCancelled == 1090);
     CHECK(std::string(rpc::error_name(kDialogUnavailable)) == "dialog.unavailable");
+    CHECK(std::string(rpc::error_name(kReleaseUnavailable)) == "app.releaseUnavailable");
     CHECK(std::string(rpc::error_name(kCancelled)) == "cancelled");
     CHECK(std::string(rpc::error_name(-32601)) == "methodNotFound");
     CHECK(std::string(rpc::error_name(4242)).empty());
