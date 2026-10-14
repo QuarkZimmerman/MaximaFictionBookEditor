@@ -309,6 +309,10 @@ function menuOfCommands() {
 
 function evidenceTokens(commandIds, evidence, menus) {
   const tokens = new Set(evidence);
+  // The journeys press `Mod` chords as `${MOD}+x` (Ctrl, Cmd on macOS: tests/e2e/fixtures/keys.ts).
+  for (const item of evidence) {
+    if (item.startsWith('Control+')) tokens.add(`\${MOD}+${item.slice('Control+'.length)}`);
+  }
   for (const id of commandIds) {
     tokens.add(`'${id}'`);
     tokens.add(`"${id}"`);
