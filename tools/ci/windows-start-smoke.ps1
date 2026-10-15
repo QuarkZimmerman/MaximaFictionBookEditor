@@ -17,49 +17,7 @@ param(
     [int]$Port = 9333
 )
 $ErrorActionPreference = 'Stop'
-
-function Get-UserFolders {
-    @(Get-ChildItem -LiteralPath 'C:\Users' -Force -Directory | ForEach-Object { $_.Name })
-}
-
-function New-StandardUser([string]$name) {
-    $secret = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 20 | ForEach-Object { [char]$_ }) + '!a1'
-    $password = ConvertTo-SecureString $secret -AsPlainText -Force
-    if (Get-LocalUser -Name $name -ErrorAction SilentlyContinue) {
-        Set-LocalUser -Name $name -Password $password
-    } else {
-        New-LocalUser -Name $name -Password $password -PasswordNeverExpires | Out-Null
-    }
-    Add-LocalGroupMember -Group 'Users' -Member $name -ErrorAction SilentlyContinue
-    $credential = New-Object System.Management.Automation.PSCredential(".\$name", $password)
-    # A first logon creates the user's real profile folder.
-    Start-Process -FilePath "$env:WINDIR\System32\cmd.exe" -ArgumentList '/c', 'exit' -Credential $credential `
-        -LoadUserProfile -Wait
-    $sid = (Get-LocalUser -Name $name).SID.Value
-    $profileDir = (Get-CimInstance Win32_UserProfile | Where-Object { $_.SID -eq $sid }).LocalPath
-    if (-not $profileDir) { throw "no profile folder was created for $name" }
-    [pscustomobject]@{ Credential = $credential; Profile = $profileDir; Sid = $sid }
-}
-
-function Show-Logs([string]$profileDir, [string]$stdout, [string]$stderr, [datetime]$since) {
-    Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = $since } -ErrorAction SilentlyContinue |
-        Where-Object { $_.Id -in 1000, 1001, 1026 -and $_.Message -match 'mfbe' } |
-        ForEach-Object { Write-Host ("Windows Error Reporting {0}: {1}" -f $_.Id, ($_.Message -replace "`r?`n", ' | ')) }
-    $logs = @($stdout, $stderr, (Join-Path (Split-Path -Parent $Exe) 'debug.log'))
-    foreach ($base in @('AppData\Local', 'AppData\Roaming')) {
-        $folder = Join-Path $profileDir "$base\Maxima Fiction Book Editor"
-        if (Test-Path -LiteralPath $folder) {
-            $logs += @(Get-ChildItem -LiteralPath $folder -Recurse -Filter '*.log' -ErrorAction SilentlyContinue |
-                ForEach-Object { $_.FullName })
-        }
-    }
-    foreach ($log in $logs) {
-        if ($log -and (Test-Path -LiteralPath $log)) {
-            Write-Host "----- $log (last 40 lines) -----"
-            Get-Content -LiteralPath $log -Tail 40 | ForEach-Object { Write-Host "    $_" }
-        }
-    }
-}
+. (Join-Path $PSScriptRoot 'windows-users.ps1')
 
 $usersBefore = Get-UserFolders
 $account = $null
@@ -80,27 +38,8 @@ $since = (Get-Date).AddSeconds(-1)
 
 Write-Host "Starting $Exe$(if ($AsUser) { " as $AsUser" })"
 if ($account) {
-    # A process started with other credentials inherits this environment: give it the user's
-    # own folders. (-WindowStyle cannot be combined with -Credential.)
-    $saved = @{}
-    $environment = @{
-        USERPROFILE  = $profileDir
-        APPDATA      = Join-Path $profileDir 'AppData\Roaming'
-        LOCALAPPDATA = Join-Path $profileDir 'AppData\Local'
-        TEMP         = Join-Path $profileDir 'AppData\Local\Temp'
-        TMP          = Join-Path $profileDir 'AppData\Local\Temp'
-    }
-    foreach ($key in $environment.Keys) {
-        $saved[$key] = [Environment]::GetEnvironmentVariable($key)
-        [Environment]::SetEnvironmentVariable($key, $environment[$key])
-    }
-    try {
-        $proc = Start-Process -FilePath $Exe -ArgumentList "--remote-debugging-port=$Port" `
-            -Credential $account.Credential -LoadUserProfile -WorkingDirectory (Split-Path -Parent $Exe) `
-            -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
-    } finally {
-        foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key, $saved[$key]) }
-    }
+    $proc = Start-ProcessAsUser -Account $account -FilePath $Exe -ArgumentList "--remote-debugging-port=$Port" `
+        -WorkingDirectory (Split-Path -Parent $Exe) -StandardOutput $stdout -StandardError $stderr
 } else {
     $proc = Start-Process -FilePath $Exe -ArgumentList "--remote-debugging-port=$Port" -PassThru
 }
@@ -139,17 +78,8 @@ try {
         throw "the editor's data folder was not created in the user's profile ($dataFolder)"
     }
 } catch {
-    Show-Logs $profileDir $stdout $stderr $since
+    Show-EditorLogs $Exe $profileDir @($stdout, $stderr) $since
     throw
 } finally {
-    & taskkill.exe /PID $proc.Id /T /F 2>&1 | Out-Null
-    # taskkill only requests the end: wait until no process runs from the editor's folder, so its
-    # files are released (uninstall, deleting the folder).
-    $folder = Split-Path -Parent $Exe
-    $stopDeadline = (Get-Date).AddSeconds(30)
-    while ((Get-Date) -lt $stopDeadline -and
-           (Get-Process -IncludeUserName -ErrorAction SilentlyContinue |
-               Where-Object { $_.Path -and $_.Path.StartsWith($folder, [StringComparison]::OrdinalIgnoreCase) })) {
-        Start-Sleep -Milliseconds 500
-    }
+    Stop-Editor $proc $Exe
 }
