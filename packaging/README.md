@@ -126,7 +126,11 @@ registered, no installer.
 Both are produced and smoke-tested by the `windows-app-release` jobs of the CI and release
 workflows: the MSI is installed (`msiexec /i ... /qn`), the ZIP is unpacked into a folder of
 the user profile, and each copy runs `mfbe.exe --version` and is started until its window shows
-the interface (`tools/ci/windows-start-smoke.ps1`). Neither can be built on Linux hosts.
+the interface (`tools/ci/windows-start-smoke.ps1`), also by standard users with non-English
+names. Each copy then runs a journey in a Russian environment (`tools/ci/windows-russian-journey.ps1`):
+a user with a Cyrillic name and Russian regional formats opens a Cyrillic-named book from a
+Cyrillic folder, saves it, hides the status bar from the View menu and restarts. Neither can be
+built on Linux hosts.
 
 ## macOS (`packaging/macos`, `app/mac`)
 

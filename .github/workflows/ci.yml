@@ -38,7 +38,7 @@ jobs:
             | xargs clang-format --dry-run --Werror
       - name: Shell scripts
         run: |
-          shellcheck tools/*.sh packaging/appimage/build.sh packaging/appimage/AppRun tests/corpus/run.sh
+          shellcheck tools/*.sh tools/ci/*.sh packaging/appimage/build.sh packaging/appimage/AppRun tests/corpus/run.sh
           shellcheck -s sh packaging/deb-rpm/postinst packaging/deb-rpm/prerm packaging/deb-rpm/postrm \
             packaging/deb-rpm/rpm-post.sh packaging/deb-rpm/rpm-preun.sh packaging/deb-rpm/rpm-postun.sh
       - name: Path portability (Windows/macOS checkouts)
