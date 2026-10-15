@@ -49,6 +49,8 @@ export interface AppState {
   statusMessage: string | null;
   /** Progress of the running long operation, if any. */
   progress: JobProgress | null;
+  /** A script is running: the user cannot change the document until it ends. */
+  scriptRunning: boolean;
   /** Result shown in the non-modal validation panel (null = panel hidden). */
   validation: ValidationReport | null;
   toolbars: ToolbarVisibility;
@@ -83,6 +85,7 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     insertMode: 'insert',
     statusMessage: null,
     progress: null,
+    scriptRunning: false,
     validation: null,
     toolbars: { ...DEFAULT_TOOLBARS },
     treeVisible: true,
@@ -274,6 +277,10 @@ export const actions = {
 
   setProgress(store: AppStore, progress: JobProgress | null): void {
     store.setState({ progress });
+  },
+
+  setScriptRunning(store: AppStore, scriptRunning: boolean): void {
+    store.setState({ scriptRunning });
   },
 
   /** Shows (report) or hides (null) the validation panel. */

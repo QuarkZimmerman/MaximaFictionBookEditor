@@ -77,3 +77,38 @@
   border: 1px solid var(--mfbe-color-border-strong, #8a8a8a);
   border-radius: 3px;
 }
+
+/* Run bar (RunBar.tsx): in place of the status message while a script runs, above the modal
+   dialog layer (z-index 1000) so that Cancel stays available while the script asks something. */
+.mfbe-runbar {
+  position: relative;
+  z-index: 1001;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  align-self: stretch;
+  min-width: 0;
+  padding: 0 4px 0 8px;
+  background: var(--mfbe-color-chrome-bg);
+  border-right: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-runbar-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mfbe-runbar[data-silent] .mfbe-runbar-text {
+  font-weight: 600;
+}
+
+.mfbe-runbar-cancel {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 0 12px;
+  line-height: 1.4;
+}

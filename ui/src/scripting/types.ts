@@ -185,6 +185,12 @@ export interface SymbolInfo {
   name: string;
 }
 
+/** The end of a script run as its dialogs see it: one still open when the run ends closes. */
+export interface RunEnd {
+  readonly ended: boolean;
+  subscribe(listener: () => void): () => void;
+}
+
 /** `ctx` handed to `run(ctx)`; `cancelled` is a live getter in the worker. */
 export interface ScriptContextData {
   script: { id: string; name: string; group: string; kind: ScriptKind };

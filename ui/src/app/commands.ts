@@ -83,6 +83,7 @@ export interface Command {
 export class CommandRegistry {
   private readonly commands = new Map<string, Command>();
   private readonly listeners = new Set<() => void>();
+  private locked = false;
 
   register(command: Command): () => void {
     if (this.commands.has(command.id)) {
@@ -121,8 +122,18 @@ export class CommandRegistry {
 
   isEnabled(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
-    if (!command || command.stub) return false;
+    if (!command || command.stub || this.locked) return false;
     return command.enabled ? command.enabled(ctx) : true;
+  }
+
+  /**
+   * While locked no command is enabled: a running script blocks every command, as a running
+   * script blocked the original editor's window.
+   */
+  setLocked(locked: boolean): void {
+    if (this.locked === locked) return;
+    this.locked = locked;
+    this.emit();
   }
 
   isChecked(id: string, ctx: CommandContext): boolean {

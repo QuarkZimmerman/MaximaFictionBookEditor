@@ -75,10 +75,12 @@ export function installBodyEditor(ctx: FeatureContext): BodyEditorController {
 
   const initial = store.getState();
   controller.setModel(initial.document, initial.docId);
+  controller.setLocked(initial.scriptRunning);
   store.subscribe((state, previous) => {
     if (state.document !== previous.document || state.docId !== previous.docId) {
       controller.setModel(state.document, state.docId);
     }
+    if (state.scriptRunning !== previous.scriptRunning) controller.setLocked(state.scriptRunning);
   });
   return controller;
 }
