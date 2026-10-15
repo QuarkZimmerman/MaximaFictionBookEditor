@@ -24,7 +24,7 @@ One JSON object per line:
 
 ```json
 {"ts":"2026-10-13T04:40:22.857Z","level":"error","source":"core","code":"rpc.doc.ioError",
- "message":"doc.ioError","context":{"version":"0.0.1","platform":"linux","docId":"d3",
+ "message":"doc.ioError","context":{"version":"0.0.2","platform":"linux","docId":"d3",
  "method":"doc.save","path":"/books/novel.fb2","reason":"cannot create temp file: Not a directory",
  "rpcCode":"1002"}}
 ```
