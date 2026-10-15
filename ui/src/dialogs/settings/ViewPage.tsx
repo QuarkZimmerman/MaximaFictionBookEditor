@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
-import { dictionaryFileTypes, parentFolder } from '@/dialogs/fileTypes';
+import { dictionaryFileTypes } from '@/dialogs/fileTypes';
 import { RpcError } from '@/rpc/client';
 import {
   RpcErrorCode,
@@ -60,13 +60,13 @@ export function ViewPage({ draft, onChange, ctx }: ViewPageProps) {
   const browseDictionary = async () => {
     if (!ctx.rpc) return;
     try {
-      // dialog.openFile proposes no file name: the dialog opens on the dictionary's folder.
-      const folder = parentFolder(view.customDictionaryPath);
+      // The current dictionary is proposed, as in the original.
+      const current = view.customDictionaryPath.trim();
       const { paths } = await ctx.rpc.call('dialog.openFile', {
         title: t('dialog.settings.view.chooseDictionary'),
         filters: dictionaryFileTypes(t),
         selectedFilter: 0,
-        ...(folder ? { folder } : {}),
+        ...(current ? { defaultPath: current } : {}),
       });
       if (paths[0]) onChange({ customDictionaryPath: paths[0] });
     } catch (error) {

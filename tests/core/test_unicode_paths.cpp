@@ -392,4 +392,16 @@ TEST_CASE(
     const json stored = json::parse(test::read_text(f.data / "settings.json"));
     CHECK(stored["session"]["lastFileDialogFolder"] == utf8(elsewhere));
 #endif
+
+    // A proposed file names its own folder: no other folder is added.
+    const fs::path dictionary = below(below(f.base, "Словари"), "мой.dic");
+    answer("dialog.openFile", json{{"paths", json::array()}});
+    f.result("dialog.openFile",
+             json{{"title", "Dictionary"},
+                  {"filters",
+                   json::array({{{"name", "Dictionaries (*.dic)"}, {"extensions", {"dic"}}}})},
+                  {"defaultPath", utf8(dictionary)}});
+    const json proposed = f.result("test.dialogRequests").back();
+    CHECK(proposed["defaultPath"] == utf8(dictionary));
+    CHECK_FALSE(proposed.contains("folder"));
 }

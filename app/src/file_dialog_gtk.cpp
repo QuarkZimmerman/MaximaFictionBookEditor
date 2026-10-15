@@ -10,6 +10,8 @@
 
 #if defined(__linux__)
 
+#include <mfbe/utf8_paths.hpp>
+
 #include <algorithm>
 #include <dlfcn.h>
 #include <string>
@@ -57,6 +59,7 @@ struct GtkApi {
     GSList* (*gtk_file_chooser_list_filters)(void*) = nullptr;
     int (*gtk_file_chooser_set_current_folder)(void*, const char*) = nullptr;
     void (*gtk_file_chooser_set_current_name)(void*, const char*) = nullptr;
+    int (*gtk_file_chooser_set_filename)(void*, const char*) = nullptr;  // optional
     void (*gtk_file_chooser_set_select_multiple)(void*, int) = nullptr;
     void (*gtk_file_chooser_set_do_overwrite_confirmation)(void*, int) = nullptr;
     GSList* (*gtk_file_chooser_get_filenames)(void*) = nullptr;
@@ -129,6 +132,7 @@ void resolveAll(void* handle, GtkApi& api) {
     resolve(handle, "gtk_file_chooser_set_current_folder",
             &api.gtk_file_chooser_set_current_folder);
     resolve(handle, "gtk_file_chooser_set_current_name", &api.gtk_file_chooser_set_current_name);
+    resolve(handle, "gtk_file_chooser_set_filename", &api.gtk_file_chooser_set_filename);
     resolve(handle, "gtk_file_chooser_set_select_multiple",
             &api.gtk_file_chooser_set_select_multiple);
     resolve(handle, "gtk_file_chooser_set_do_overwrite_confirmation",
@@ -315,21 +319,21 @@ void addTypes(const GtkApi& api, void* chooser, const FileDialogRequest& request
     }
 }
 
-// Save As: the folder and name of the current file, or the request's folder and name; Open:
-// the request's folder. Paths are passed as their bytes (GLib's file name encoding on Linux).
+// Save As: the folder and name of the current file, or the request's folder and name. Open: the
+// proposed file selected in its folder (the original's dictionary dialog), or the request's
+// folder. Paths are passed as their bytes (GLib's file name encoding on Linux).
 void place(const GtkApi& api, void* chooser, const FileDialogRequest& request) {
-    if (request.mode != FileDialogMode::kSave) {
-        if (!request.folder.empty()) {
-            api.gtk_file_chooser_set_current_folder(chooser, request.folder.c_str());
-        }
+    const ProposedFile file = proposedFile(request);
+    if (request.mode != FileDialogMode::kSave && api.gtk_file_chooser_set_filename != nullptr &&
+        mfbe::platform::path_from_utf8(request.default_path).has_parent_path() &&
+        api.gtk_file_chooser_set_filename(chooser, request.default_path.c_str())) {
         return;
     }
-    const SavePlace target = savePlace(request);
-    if (!target.folder.empty()) {
-        api.gtk_file_chooser_set_current_folder(chooser, target.folder.c_str());
+    if (!file.folder.empty()) {
+        api.gtk_file_chooser_set_current_folder(chooser, file.folder.c_str());
     }
-    if (!target.name.empty()) {
-        api.gtk_file_chooser_set_current_name(chooser, target.name.c_str());
+    if (request.mode == FileDialogMode::kSave && !file.name.empty()) {
+        api.gtk_file_chooser_set_current_name(chooser, file.name.c_str());
     }
 }
 
@@ -345,7 +349,8 @@ bool addEncodings(const GtkApi& api, void* chooser, const FileDialogRequest& req
     options.push_back(nullptr);
     api.gtk_file_chooser_add_choice(chooser, kEncodingChoice, request.encoding_label.c_str(),
                                     options.data(), options.data());
-    api.gtk_file_chooser_set_choice(chooser, kEncodingChoice, request.encodings.front().c_str());
+    api.gtk_file_chooser_set_choice(chooser, kEncodingChoice,
+                                    request.encodings[selectedEncodingIndex(request)].c_str());
     return true;
 }
 

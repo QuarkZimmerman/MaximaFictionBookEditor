@@ -2,8 +2,7 @@
  * File types of the native file dialogs (spec FR-010): the original editor's lists, in its
  * order, plus the kinds this editor adds (`.fbd` documents, WebP images). The dialogs show a
  * name as written (rpc-api.md §3.9), so each carries its patterns: "FictionBook files (*.fb2)".
- * Extensions travel without the dot; `*` lists every file. `parentFolder` gives the folder a
- * dialog opens on for a file it proposes.
+ * Extensions travel without the dot; `*` lists every file.
  */
 
 import type { TFunction } from 'i18next';
@@ -61,13 +60,4 @@ export function dictionaryFileTypes(t: TFunction): FileFilter[] {
     fileType(t('fileDialogs.types.dictionaries'), ['dic']),
     fileType(t('fileDialogs.types.all'), ['*']),
   ];
-}
-
-/** The folder that holds `path` ("" for a bare name): `/a/b.dic` -> `/a`, `C:\b.dic` -> `C:\`. */
-export function parentFolder(path: string): string {
-  const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-  if (cut < 0) return '';
-  const folder = path.slice(0, cut);
-  if (folder === '') return path.slice(0, 1);
-  return /^[A-Za-z]:$/.test(folder) ? `${folder}\\` : folder;
 }

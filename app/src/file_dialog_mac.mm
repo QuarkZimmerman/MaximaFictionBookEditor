@@ -129,7 +129,7 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
         for (const auto& encoding : request.encodings) {
             [encoding_popup addItemWithTitle:toNSString(encoding)];
         }
-        [encoding_popup selectItemAtIndex:0];
+        [encoding_popup selectItemAtIndex:static_cast<NSInteger>(selectedEncodingIndex(request))];
         NSTextField* label = [NSTextField labelWithString:toNSString(request.encoding_label)];
         NSStackView* row = [NSStackView stackViewWithViews:@[ label, encoding_popup ]];
         row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
@@ -146,16 +146,13 @@ bool runPlatformFileDialog(std::uintptr_t owner, const FileDialogRequest& reques
         }
     }
 
-    if (mode == FileDialogMode::kSave) {
-        const SavePlace target = savePlace(request);
-        if (!target.folder.empty()) {
-            panel.directoryURL = folderURL(target.folder);
-        }
-        if (!target.name.empty()) {
-            panel.nameFieldStringValue = toNSString(target.name);
-        }
-    } else if (!request.folder.empty()) {
-        panel.directoryURL = folderURL(request.folder);
+    // The proposed file: its folder, its name in the name field (save panels show it).
+    const ProposedFile file = proposedFile(request);
+    if (!file.folder.empty()) {
+        panel.directoryURL = folderURL(file.folder);
+    }
+    if (!file.name.empty()) {
+        panel.nameFieldStringValue = toNSString(file.name);
     }
 
     auto callback = std::make_shared<FileDialogCallback>(std::move(done));
