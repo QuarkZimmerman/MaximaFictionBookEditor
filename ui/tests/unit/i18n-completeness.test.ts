@@ -240,8 +240,6 @@ describe('i18n catalogue completeness', () => {
       for (const group of [...groups.keys()].filter((name) => name.startsWith('dialog.'))) {
         for (const button of ['ok', 'cancel', 'close']) add(group, `dialog.buttons.${button}`);
       }
-      add('scripting.running', 'scripting.running.wait');
-      add('scripting.running', 'scripting.running.cancel');
       add('msg.scriptStillRunning', 'msg.scriptWait');
       add('msg.scriptStillRunning', 'msg.scriptCancel');
       for (const [group, letters] of groups) {

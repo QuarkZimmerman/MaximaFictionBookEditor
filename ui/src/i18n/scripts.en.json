@@ -22,17 +22,17 @@
       "reloaded_one": "{{count}} script found",
       "reloaded_other": "{{count}} scripts found"
     },
+    "runBar": {
+      "label": "Script run",
+      "count": "{{phase}}: {{done}}",
+      "silent": "The script \"{{name}}\" has been running for a while without reporting progress.",
+      "cancel": "Cancel"
+    },
     "error": {
       "caption": "Script error",
       "atLine": "Script error: {{message}} at line {{line}}, column {{column}}",
       "noLocation": "Script error: {{message}}",
       "loadFailed": "The script \"{{name}}\" could not be loaded: {{reason}}"
-    },
-    "running": {
-      "caption": "Script is still running",
-      "text": "The script \"{{name}}\" has been running for a while without reporting progress. Wait for it or cancel it?",
-      "wait": "&Wait",
-      "cancel": "&Cancel script"
     },
     "issue": {
       "$comment": "scripts.list().issues[].reason (core/src/resources/scripts.cpp): why a script package or group was skipped or loaded with warnings.",
@@ -46,9 +46,6 @@
       "warning": "{{path}}: {{reason}} - {{message}}"
     },
     "busy": "Another script (\"{{name}}\") is still running. Wait for it to finish or cancel it first.",
-    "noDocument": "Open a document before running a script.",
-    "undo": {
-      "description": "Script: description"
-    }
+    "noDocument": "Open a document before running a script."
   }
 }

@@ -213,8 +213,6 @@ function acceleratorGroups(flat) {
   for (const [set, buttons] of Object.entries(MESSAGE_BOX_SETS)) {
     for (const button of buttons) add(`messageBox.${set}`, `dialog.buttons.${button}`);
   }
-  add('scripting.running', 'scripting.running.wait');
-  add('scripting.running', 'scripting.running.cancel');
   add('msg.scriptStillRunning', 'msg.scriptWait');
   add('msg.scriptStillRunning', 'msg.scriptCancel');
   return groups;

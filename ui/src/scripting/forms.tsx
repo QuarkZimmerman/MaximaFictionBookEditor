@@ -2,20 +2,41 @@
  * Script dialog components (T104): the declarative form renderer behind `mfbe.ui.form(spec)`
  * (text, number, checkbox, select, radio, list and static fields; OK returns the values,
  * Cancel / Escape returns null), the message box with script-defined buttons behind
- * `mfbe.ui.message` and the "script is still running - wait / cancel" prompt of the host.
- * They open through the application's modal dialog stack: see `dialogs.ts` (`showScriptForm`,
- * `showScriptMessage`, `showRunningPrompt`); the pure field model lives in `formModel.ts`.
+ * `mfbe.ui.message` and the input prompt behind `mfbe.ui.prompt`. They open through the
+ * application's modal dialog stack: see `dialogs.ts` (`showScriptForm`, `showScriptMessage`,
+ * `showScriptPrompt`); the pure field model lives in `formModel.ts`. A dialog still open when
+ * its run ends (Cancel, a failure) closes itself.
  */
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
+import { InputDialog } from '@/dialogs/InputDialog';
+import type { InputDialogOptions, InputDialogResult } from '@/dialogs/types';
 
 import { initialValues, normaliseFields } from './formModel';
-import type { ButtonSpec, FormField, FormSpec, FormValue, FormValues } from './types';
+import type { ButtonSpec, FormField, FormSpec, FormValue, FormValues, RunEnd } from './types';
 
 import './scripting.css';
+
+/** Calls `close` when the run ends while the dialog is open. */
+function useCloseWhenRunEnds(runEnd: RunEnd | undefined, close: () => void): void {
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  });
+  useEffect(() => {
+    if (!runEnd) return undefined;
+    if (runEnd.ended) {
+      closeRef.current();
+      return undefined;
+    }
+    return runEnd.subscribe(() => {
+      if (runEnd.ended) closeRef.current();
+    });
+  }, [runEnd]);
+}
 
 /* ------------------------------------------------------------------------ */
 /* Form                                                                     */
@@ -25,14 +46,17 @@ export interface ScriptFormDialogProps {
   spec: FormSpec;
   onClose: (values: FormValues | null) => void;
   testId?: string;
+  runEnd?: RunEnd;
 }
 
 export function ScriptFormDialog({
   spec,
   onClose,
   testId = 'dialog-script-form',
+  runEnd,
 }: ScriptFormDialogProps) {
   const { t } = useTranslation();
+  useCloseWhenRunEnds(runEnd, () => onClose(null));
   const fields = normaliseFields(spec.fields);
   const [values, setValues] = useState<FormValues>(() => initialValues(fields));
   const idPrefix = useId();
@@ -254,11 +278,14 @@ const ICON_GLYPHS = { info: 'i', question: '?', warning: '!', error: '\u00D7' } 
 export function ScriptMessageDialog({
   options,
   onClose,
+  runEnd,
 }: {
   options: ScriptMessageOptions;
   onClose: (buttonId: string) => void;
+  runEnd?: RunEnd;
 }) {
   const { t } = useTranslation();
+  useCloseWhenRunEnds(runEnd, () => onClose(''));
   const testId = 'dialog-script-message';
   const buttons: DialogButton[] = options.buttons.map((b) => ({
     id: b.id,
@@ -295,55 +322,18 @@ export function ScriptMessageDialog({
 }
 
 /* ------------------------------------------------------------------------ */
-/* "Still running" prompt                                                   */
+/* Input prompt                                                              */
 /* ------------------------------------------------------------------------ */
 
-export interface RunningPromptProps {
-  scriptName: string;
-  /** Subscribes to run-state changes; the prompt closes itself when the run ended. */
-  subscribe: (listener: () => void) => () => void;
-  isRunning: () => boolean;
-  onClose: (answer: 'wait' | 'cancel' | 'ended') => void;
-}
-
-export function ScriptRunningPrompt({
-  scriptName,
-  subscribe,
-  isRunning,
+export function ScriptPromptDialog({
+  options,
   onClose,
-}: RunningPromptProps) {
-  const { t } = useTranslation();
-  useEffect(() => {
-    if (!isRunning()) {
-      onClose('ended');
-      return undefined;
-    }
-    return subscribe(() => {
-      if (!isRunning()) onClose('ended');
-    });
-  }, [subscribe, isRunning, onClose]);
-  const buttons: DialogButton[] = [
-    { id: 'wait', label: t('scripting.running.wait'), onClick: () => onClose('wait') },
-    { id: 'cancel', label: t('scripting.running.cancel'), onClick: () => onClose('cancel') },
-  ];
-  return (
-    <Dialog
-      title={t('scripting.running.caption')}
-      buttons={buttons}
-      defaultButtonId="wait"
-      cancelButtonId="wait"
-      testId="dialog-script-running"
-      className="mfbe-messagebox"
-      closeLabel={t('dialog.buttons.close')}
-      icon={
-        <span className="mfbe-messagebox-glyph mfbe-messagebox-glyph-question" aria-hidden="true">
-          ?
-        </span>
-      }
-    >
-      <div className="mfbe-messagebox-text" data-testid="dialog-script-running-text">
-        {t('scripting.running.text', { name: scriptName })}
-      </div>
-    </Dialog>
-  );
+  runEnd,
+}: {
+  options: InputDialogOptions;
+  onClose: (result: InputDialogResult) => void;
+  runEnd?: RunEnd;
+}) {
+  useCloseWhenRunEnds(runEnd, () => onClose({ button: 'cancel', value: '' }));
+  return <InputDialog options={options} onClose={onClose} />;
 }

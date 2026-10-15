@@ -4,7 +4,7 @@
  * "Close" once a match was found, as in the original). Modeless like the Find dialog. Find
  * Next reports "Finished searching for '%s'." when nothing is found; Replace replaces the
  * current match and finds the next one; Replace All reports "%d replacement(s) done." and is a
- * single undo entry.
+ * single undo entry. Nothing is replaced while a script runs.
  */
 
 import { useRef, useState } from 'react';
@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import type { CommandContext } from '@/app/commands';
 import type { FindOptions, SearchSession } from '@/features/search/search';
 import { parseAccelerator } from '@/i18n';
+import { useAppState } from '@/model/store';
 
 import { Dialog, type DialogButton } from './Dialog';
 import { FindFields } from './FindDialog';
@@ -35,6 +36,7 @@ export function ReplaceDialog({ session, ctx, onClose }: ReplaceDialogProps) {
   const [replacement, setReplacement] = useState(session.replacement);
   const [found, setFound] = useState(false);
   const [busy, setBusy] = useState(false);
+  const scriptRunning = useAppState((s) => s.scriptRunning, ctx.store);
   const queryRef = useRef<HTMLInputElement>(null);
   useSearchDialogFocus(session, 'replace', queryRef);
 
@@ -93,13 +95,13 @@ export function ReplaceDialog({ session, ctx, onClose }: ReplaceDialogProps) {
     {
       id: 'replace',
       label: t('dialog.replace.replace'),
-      disabled: !options.query,
+      disabled: !options.query || scriptRunning,
       onClick: () => void replace(),
     },
     {
       id: 'replaceAll',
       label: t('dialog.replace.replaceAll'),
-      disabled: !options.query,
+      disabled: !options.query || scriptRunning,
       onClick: () => void replaceAll(),
     },
     {

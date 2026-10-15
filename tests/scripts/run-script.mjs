@@ -12,9 +12,7 @@
  *
  *   --answer        pre-answers the script's dialogs in order: a button id for message boxes
  *                   (`ok`, `yes`, `no`, `cancel`...), text for prompts (`cancel` cancels) and a
- *                   JSON object for forms (`{"prefix":"n_"}`; `cancel` cancels). The "script is
- *                   still running" prompt (30 s without `mfbe` activity) takes the next answer
- *                   only when it is `wait` or `cancel`; otherwise it is answered with Wait
+ *                   JSON object for forms (`{"prefix":"n_"}`; `cancel` cancels)
  *   --select        selects a text block (whole block or `[from, to)`) before the run
  *   --select-range  selects from an offset in one text block to an offset in another (both in
  *                   the mounted window) - the multi-block selections of 09/01, 09/03, 18/09
@@ -342,17 +340,6 @@ async function answerDialogs(page, answers, log, runPromise) {
           }
         }
         await form.getByTestId("dialog-script-form-button-ok").click();
-      }
-    } else {
-      const stillRunning = page.getByTestId("dialog-script-running");
-      if (await stillRunning.count()) {
-        // The watchdog prompt: `wait` / `cancel` from the queue when given, else Wait.
-        const answer =
-          queue[0] === "wait" || queue[0] === "cancel" ? queue.shift() : "wait";
-        log(`still-running prompt -> ${answer}`);
-        await stillRunning
-          .getByTestId(`dialog-script-running-button-${answer}`)
-          .click();
       }
     }
     await page.waitForTimeout(50);

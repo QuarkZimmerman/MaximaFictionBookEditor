@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "runs.prompt",
+  "name": {
+    "en": "Ask in the middle of a run",
+    "ru": "Вопрос посреди работы"
+  },
+  "kind": "menu"
+}
