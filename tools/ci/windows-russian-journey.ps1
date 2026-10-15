@@ -102,14 +102,17 @@ function Get-FreePort {
 }
 
 # Russian regional formats and display language for the user, set as the user (both live in the
-# user's own registry and apply to the processes the user starts afterwards), then shown by a new
-# process of the user. The display language takes effect only where Windows has the Russian
-# language pack; the editor does not read it.
+# user's own registry), then shown by a new process of the user. Windows gives every process in
+# a session the regional format of the session's logged-on user, also the processes of other
+# users, so the runner's own account gets the Russian regional format too. The display language
+# takes effect only where Windows has the Russian language pack; the editor does not read it.
 function Set-RussianEnvironment {
     $powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    & $powershell -NoProfile -NonInteractive -Command 'Set-Culture ru-RU'
+    if ($LASTEXITCODE -ne 0) { throw "Set-Culture for the runner's account ended with exit code $LASTEXITCODE" }
     $commands = @(
         'Set-Culture ru-RU; try { Set-WinUILanguageOverride -Language ru-RU } catch { "Set-WinUILanguageOverride: $($_.Exception.Message)" }',
-        '"regional format $((Get-Culture).Name), display language override $(Get-WinUILanguageOverride)"; if ((Get-Culture).Name -ne ''ru-RU'') { exit 3 }'
+        '"regional format $((Get-Culture).Name) (registry $((Get-ItemProperty ''HKCU:\Control Panel\International'').LocaleName)), display language override $(Get-WinUILanguageOverride)"; if ((Get-Culture).Name -ne ''ru-RU'') { exit 3 }'
     )
     foreach ($command in $commands) {
         $source = "`$ErrorActionPreference = 'Stop'; `$ProgressPreference = 'SilentlyContinue'; $command"
