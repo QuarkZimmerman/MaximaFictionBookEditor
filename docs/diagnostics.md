@@ -13,7 +13,8 @@ book text or personal data. The About dialog's **Open log folder** button opens 
 | Windows | `%LOCALAPPDATA%\Maxima Fiction Book Editor\logs\` |
 | Linux | `$XDG_STATE_HOME/maxfbeditor/logs/` (default `~/.local/state/maxfbeditor/logs/`) |
 | macOS | `~/Library/Logs/Maxima Fiction Book Editor/` |
-| `mfbe-core serve --data-dir DIR` (tests, portable folder) | `DIR/logs/` |
+| portable copy (a `user` folder next to the program) | `user/logs/` |
+| `mfbe-core serve --data-dir DIR` (tests) | `DIR/logs/` |
 
 The file is `mfbe-errors.log`; it rotates at 1 MB and keeps five files (`mfbe-errors.1.log`
 … `.4.log`), so the log is bounded to about 5 MB. `app.info` reports the folder as `logDir`.

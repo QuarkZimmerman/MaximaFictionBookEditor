@@ -15,10 +15,11 @@
 
 1. папка, выбранная в **Сервис > Настройки > Другое > Папка скриптов** (необязательно),
 2. личная папка скриптов (**Скрипты > Открыть папку скриптов** открывает её):
-   - Windows: `%LOCALAPPDATA%\Maxima Fiction Book Editor\scripts\`
+   - Windows: `%APPDATA%\Maxima Fiction Book Editor\scripts\`
    - Linux: `~/.local/share/maxfbeditor/scripts/`
    - macOS: `~/Library/Application Support/Maxima Fiction Book Editor/scripts/`
-3. переносная папка рядом с программой (`user/scripts/`),
+   - переносная копия: `user/scripts/` рядом с программой,
+3. переносная папка рядом с программой, в которую редактор не может писать (`user/scripts/`),
 4. скрипты, поставляемые с редактором (только для чтения, внутри установки).
 
 Внутри папки скриптов каждая **группа** — подпапка, а каждый **скрипт** — подпапка группы.

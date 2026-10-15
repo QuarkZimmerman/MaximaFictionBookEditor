@@ -67,7 +67,8 @@ CPack integration: the `External` generator stages the tree with
 `build.sh` and reports the image and its `.zsync` file as built packages.
 
 Portable mode (`contracts/resource-formats.md` §2): the core reads `$APPIMAGE` (set by the
-runtime) and uses `<image>.home/user`, `<image>.d/user` or `<image>.d` next to the file.
+runtime) and uses `<image>.home/user`, `<image>.d/user` or `<image>.d` next to the file; when
+it can write there, the editor keeps all of its data in that folder (§1a).
 
 ### .deb and .rpm (`packaging/deb-rpm`)
 
@@ -120,8 +121,9 @@ v7 share the v4 schema). Requirements on the build machine: .NET SDK,
   code page, version info) are in `app/win/`.
 
 The same tree is also packed as `MaximaFictionBookEditor-<version>-win64-portable.zip` (CPack
-ZIP, `packaging/CPackConfig.cmake`): one top-level folder with `bin\mfbe.exe`, nothing
-registered, no installer.
+ZIP, `packaging/CPackConfig.cmake`): one top-level folder with `bin\mfbe.exe` and an empty
+`bin\user` folder where the portable copy keeps all of its data (added to the ZIP only, by
+`packaging/zip/CPackPreBuild.cmake`), nothing registered, no installer.
 
 Both are produced and smoke-tested by the `windows-app-release` jobs of the CI and release
 workflows: the MSI is installed (`msiexec /i ... /qn`), the ZIP is unpacked into a folder of
@@ -129,7 +131,8 @@ the user profile, and each copy runs `mfbe.exe --version` and is started until i
 the interface (`tools/ci/windows-start-smoke.ps1`), also by standard users with non-English
 names. Each copy then runs a journey in a Russian environment (`tools/ci/windows-russian-journey.ps1`):
 a user with a Cyrillic name and Russian regional formats opens a Cyrillic-named book from a
-Cyrillic folder, saves it, hides the status bar from the View menu and restarts. Neither can be
+Cyrillic folder, saves it, hides the status bar from the View menu and restarts; the installed
+copy keeps its data in the user's profile, the portable copy in its `bin\user` folder. Neither can be
 built on Linux hosts.
 
 ## macOS (`packaging/macos`, `app/mac`)

@@ -46,6 +46,10 @@ Run the core headless for manual/MCP testing:
   `utf8_error_message` (`mfbe/utf8_paths.hpp`) - Windows converts implicit ones through the
   legacy code page; `tools/path-conversion-check.py` rejects them (`// path-text: <reason>`
   marks a deliberate one).
+- Stored data: only in the folders of `platform::Dirs` (core) and `userDirs()` (shell) - the
+  per-user folders for an installed copy, never its program folder; everything in the `user`
+  folder of a portable copy, so the copy moves with its folder (constitution, data locations;
+  resource-formats contract §1, §1a).
 - TS: strict, 2 spaces, Prettier; every interactive element has a stable `data-testid`;
   all user-visible strings go through i18n (`en.json`/`ru.json` must stay in parity).
 - Contract first: change `specs/.../contracts/*` before changing RPC handlers or the UI client.
