@@ -38,17 +38,19 @@ cd ui && MFBE_CORE=http://127.0.0.1:41237 MFBE_TOKEN=<token> npm run dev
 
 Environment variables read by the tooling:
 
-| Variable              | Used by                      | Meaning                                                                                                                                |
-| --------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `MFBE_CORE`           | `vite.config.ts`             | Origin of the core the dev server proxies `/rpc` (WebSocket), `/binary`, `/scripts` and `/health` to. Default `http://127.0.0.1:41237` |
-| `MFBE_TOKEN`          | `vite.config.ts`             | Core session token, compiled into the bundle as `__MFBE_TOKEN__` (empty when unset)                                                    |
-| `VITE_MFBE_CORE`      | `src/rpc/client.ts`          | Dev override of the core origin for the in-page RPC client (otherwise the page's own origin is used)                                   |
-| `MFBE_CORE_BIN`       | `tests/e2e/fixtures/core.ts` | Path to `mfbe-core`; when set every Playwright worker starts its own core (`serve --test-hooks --data-dir <tmp> --ui <dist>`)          |
-| `MFBE_UI_DIST`        | `tests/e2e/fixtures/core.ts` | UI bundle directory passed to `mfbe-core --ui` (default `ui/dist`)                                                                     |
-| `MFBE_RESOURCES`      | `tests/e2e/fixtures/core.ts` | Optional `--resources` directory for the test core                                                                                     |
-| `MFBE_CORE_LOG_LEVEL` | `tests/e2e/fixtures/core.ts` | Optional `--log-level` for the test core                                                                                               |
-| `MFBE_UI_URL`         | `playwright.config.ts`       | `baseURL` of an already running UI, e.g. `http://127.0.0.1:41237/?token=...` or `http://127.0.0.1:5173/`                               |
-| `MFBE_PREVIEW_PORT`   | `playwright.config.ts`       | Port of the `vite preview` server used in core-less e2e mode (default 4173)                                                            |
+| Variable              | Used by                          | Meaning                                                                                                                                |
+| --------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `MFBE_CORE`           | `vite.config.ts`                 | Origin of the core the dev server proxies `/rpc` (WebSocket), `/binary`, `/scripts` and `/health` to. Default `http://127.0.0.1:41237` |
+| `MFBE_TOKEN`          | `vite.config.ts`                 | Core session token, compiled into the bundle as `__MFBE_TOKEN__` (empty when unset)                                                    |
+| `VITE_MFBE_CORE`      | `src/rpc/client.ts`              | Dev override of the core origin for the in-page RPC client (otherwise the page's own origin is used)                                   |
+| `MFBE_CORE_BIN`       | `tests/e2e/fixtures/core.ts`     | Path to `mfbe-core`; when set every Playwright worker starts its own core (`serve --test-hooks --data-dir <tmp> --ui <dist>`)          |
+| `MFBE_UI_DIST`        | `tests/e2e/fixtures/core.ts`     | UI bundle directory passed to `mfbe-core --ui` (default `ui/dist`)                                                                     |
+| `MFBE_RESOURCES`      | `tests/e2e/fixtures/core.ts`     | Optional `--resources` directory for the test core                                                                                     |
+| `MFBE_CORE_LOG_LEVEL` | `tests/e2e/fixtures/core.ts`     | Optional `--log-level` for the test core                                                                                               |
+| `MFBE_UI_URL`         | `playwright.config.ts`           | `baseURL` of an already running UI, e.g. `http://127.0.0.1:41237/?token=...` or `http://127.0.0.1:5173/`                               |
+| `MFBE_PREVIEW_PORT`   | `playwright.config.ts`           | Port of the `vite preview` server used in core-less e2e mode (default 4173)                                                            |
+| `MFBE_PERF_FACTOR`    | `tests/e2e/perf-scripts.spec.ts` | Allowance of the script benchmark's 1 MB budget: 5 s × the factor (default 2; `docs/performance.md`)                                   |
+| `MFBE_PERF_RESULTS`   | `tests/e2e/perf-scripts.spec.ts` | File the script benchmark writes its measured times to (JSON)                                                                          |
 
 Compile-time constants (declared in `src/vite-env.d.ts`): `__MFBE_TOKEN__` and
 `__MFBE_UI_VERSION__` (the `version` from `package.json`).
@@ -76,6 +78,10 @@ reconnects with exponential backoff (0.5 s to 10 s) and reports `connecting` / `
    WebSocket reconnect attempts reaching the absent core - expected in this mode.
 
 Specs import `test`/`expect` from `./fixtures/core` instead of `@playwright/test`.
+
+The script benchmark `perf-scripts.spec.ts` is tagged `@perf`: CI runs the journeys with
+`--grep-invert @perf` and the benchmark alone with `--grep @perf --workers=1`
+(`docs/performance.md`).
 
 A dependency-free stand-in core, `tests/e2e/fixtures/fake-core.mjs` (+ `fake-doc.mjs`), serves
 the bundle and answers `app.*`, `settings.*`, `hotkeys.*`, `dialog.*` (from the `test.enqueueDialog`
