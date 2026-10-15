@@ -159,7 +159,9 @@ std::vector<Layer> ResourceLayers::layers(Kind kind) const {
     }
     add(LayerName::settings, settings_folder);
     add(LayerName::user, roots_.user_data.empty() ? fs::path() : roots_.user_data / sub);
-    add(LayerName::portable, roots_.portable ? *roots_.portable / sub : fs::path());
+    // A portable folder that holds the data is the user layer already.
+    const bool portable_layer = roots_.portable && *roots_.portable != roots_.user_data;
+    add(LayerName::portable, portable_layer ? *roots_.portable / sub : fs::path());
     if (kind == Kind::scripts) {
         add(LayerName::bundled, roots_.bundled_scripts);
     } else {

@@ -1,8 +1,10 @@
 #include "user_dirs.h"
 
+#include <mfbe/portable.hpp>
 #include <mfbe/utf8_paths.hpp>
 
 #include <cstdlib>
+#include <optional>
 #include <system_error>
 
 #if defined(_WIN32)
@@ -95,6 +97,17 @@ fs::path findBundledDir(const char* name, const fs::path& build_tree_fallback, c
 
 UserDirs userDirs() {
     UserDirs dirs;
+    // A portable copy keeps all of its data in its own folder; the core decides alike.
+    const fs::path appimage = envPath("APPIMAGE");
+    const auto portable = mfbe::platform::portable_data_dir(mfbe::platform::detect_portable_dir(
+        executableDir(),
+        appimage.empty() ? std::nullopt : std::optional(mfbe::platform::utf8_from_path(appimage))));
+    if (portable) {
+        dirs.config = *portable;
+        dirs.data = *portable;
+        dirs.logs = *portable / "logs";
+        return dirs;
+    }
 #if defined(_WIN32)
     fs::path roaming = envPath("APPDATA");
     fs::path local = envPath("LOCALAPPDATA");

@@ -6,6 +6,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <cstdlib>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 using namespace mfbe;
 
 namespace {
@@ -125,6 +129,66 @@ TEST_CASE("dirs: AppImage portable folder candidates", "[dirs]") {
         std::filesystem::create_directories(tmp.path() / "user");
         CHECK_FALSE(platform::detect_portable_dir(tmp.path(), image).has_value());
     }
+}
+
+TEST_CASE("dirs: a portable folder the editor can write to holds every directory", "[dirs]") {
+    test::TempDir tmp;
+    const auto portable = tmp / "user";
+    std::filesystem::create_directories(portable);
+    const auto dirs = platform::resolve_dirs("", portable);
+    CHECK(dirs.config == portable);
+    CHECK(dirs.data == portable);
+    CHECK(dirs.state == portable);
+    CHECK(dirs.logs == portable / "logs");
+    CHECK(dirs.portable == portable);
+    CHECK(std::filesystem::is_empty(portable));  // the write probe is gone
+}
+
+TEST_CASE("dirs: without a portable folder, the per-user folders", "[dirs]") {
+    test::TempDir tmp;
+    const auto per_user = platform::resolve_dirs("", std::nullopt);
+    CHECK(per_user.config != tmp / "user");
+    const auto dirs = platform::resolve_dirs("", tmp / "user");
+    CHECK(dirs.config == per_user.config);
+    CHECK(dirs.data == per_user.data);
+    CHECK(dirs.logs == per_user.logs);
+}
+
+#ifndef _WIN32
+TEST_CASE("dirs: a portable folder the editor cannot write to only adds resources", "[dirs]") {
+    if (::geteuid() == 0) {
+        SKIP("root writes into read-only folders");
+    }
+    test::TempDir tmp;
+    const auto portable = tmp / "user";
+    std::filesystem::create_directories(portable);
+    std::filesystem::permissions(
+        portable, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec);
+    const auto dirs = platform::resolve_dirs("", portable);
+    std::filesystem::permissions(portable, std::filesystem::perms::owner_all);
+    CHECK(dirs.data == platform::resolve_dirs("", std::nullopt).data);
+    CHECK(dirs.portable == portable);
+}
+#endif
+
+TEST_CASE("dirs: an override root wins over a portable folder", "[dirs]") {
+    test::TempDir tmp;
+    const auto portable = tmp / "user";
+    std::filesystem::create_directories(portable);
+    const auto dirs = platform::resolve_dirs(platform::utf8_from_path(tmp / "data"), portable);
+    CHECK(dirs.data == tmp / "data");
+    CHECK(dirs.logs == tmp / "data" / "logs");
+    CHECK(dirs.portable == portable);
+}
+
+TEST_CASE("dirs: a folder is writable when a file can be created in it", "[dirs]") {
+    test::TempDir tmp;
+    CHECK(platform::directory_writable(tmp.path()));
+    CHECK(std::filesystem::is_empty(tmp.path()));
+    CHECK_FALSE(platform::directory_writable(tmp / "missing"));
+    CHECK_FALSE(platform::directory_writable({}));
+    CHECK_FALSE(platform::portable_data_dir(std::nullopt).has_value());
+    CHECK(platform::portable_data_dir(tmp.path()) == tmp.path());
 }
 
 #ifndef _WIN32

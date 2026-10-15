@@ -101,6 +101,29 @@ TEST_CASE("layers: effective set is additive; bundled wins conflicts; others by 
     }
 }
 
+TEST_CASE("layers: a portable folder that holds the data is listed once, as the user layer",
+          "[layers]") {
+    test::TempDir tmp;
+    auto roots = make_roots(tmp);
+    roots.portable = roots.user_data;
+    touch(tmp / "data" / "genres" / "mine.genres.tsv");
+    resources::ResourceLayers layers(roots);
+
+    const auto genres = layers.layers(resources::Kind::genres);
+    REQUIRE(genres.size() == 4);
+    CHECK(genres[1].layer == resources::LayerName::user);
+    CHECK(genres[1].path == tmp / "data" / "genres");
+    CHECK(genres[2].layer == resources::LayerName::portable);
+    CHECK(genres[2].path.empty());
+    CHECK_FALSE(genres[2].exists);
+
+    std::vector<resources::Conflict> conflicts;
+    const auto entries = layers.list(resources::Kind::genres, &conflicts);
+    REQUIRE(entries.size() == 1);
+    CHECK(entries[0].layer == resources::LayerName::user);
+    CHECK(conflicts.empty());
+}
+
 TEST_CASE("layers: dictionaries need .aff + .dic, scripts need script.json", "[layers]") {
     test::TempDir tmp;
     auto roots = make_roots(tmp);
