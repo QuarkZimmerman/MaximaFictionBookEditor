@@ -14,16 +14,30 @@
  *  - `boundary()` is called on view switches: it closes open groups and prevents coalescing;
  *  - `undo()` / `redo()` pop the global top entry (the whole group when grouped), call the owning
  *    view's adapter and push the entry on the opposite stack;
- *  - steps performed by the adapters while undoing/redoing are not recorded again.
+ *  - steps performed by the adapters while undoing/redoing are not recorded again;
+ *  - a snapshot entry (`recordSnapshot`, a script run) carries the document before and after
+ *    the change itself, so it does not depend on any view history; it is dropped when a change
+ *    made after it can no longer be undone (or redone before it), since restoring its snapshot
+ *    would then silently discard that change.
  */
 
 export type UndoView = 'body' | 'source' | 'description' | (string & {});
+
+/** A change kept as the document before and after it (a script run). */
+export interface SnapshotChange {
+  /** Shows the document as it was before the change. */
+  undo(): void;
+  /** Shows the document as it was after the change. */
+  redo(): void;
+}
 
 export interface UndoEntry {
   view: UndoView;
   label: string;
   /** Non-zero for entries that belong to a batch group; equal within the group. */
   groupId: number;
+  /** Set for snapshot entries: undone and redone by itself, not by the view's adapter. */
+  snapshot?: SnapshotChange;
 }
 
 export interface ViewHistoryAdapter {
@@ -140,6 +154,20 @@ export class UndoCoordinator {
       groupId: this.openGroup ? this.openGroup.id : 0,
     };
     if (this.openGroup) this.openGroup.entries += 1;
+    this.push(entry);
+  }
+
+  /**
+   * Records a whole-document change as one entry that holds its own undo and redo (a script
+   * run): it is independent of the view's history and of how many steps the change took.
+   * `view` is activated before it is undone or redone.
+   */
+  recordSnapshot(view: UndoView, label: string, change: SnapshotChange): void {
+    if (this.replaying) return;
+    this.push({ view, label, groupId: 0, snapshot: change });
+  }
+
+  private push(entry: UndoEntry): void {
     this.undoStack.push(entry);
     if (this.undoStack.length > this.limit) this.undoStack.shift();
     this.redoStack.length = 0;
@@ -225,6 +253,7 @@ export class UndoCoordinator {
       if (!this.applyUndo(entry)) {
         // The view's history is out of sync (e.g. the view was unmounted): drop the entry and
         // report what was actually undone so far.
+        dropSnapshotsBelow(this.undoStack, this.undoStack.length);
         break;
       }
       undone.push(entry);
@@ -243,7 +272,10 @@ export class UndoCoordinator {
     const groupId = top.groupId;
     do {
       const entry = this.redoStack.pop()!;
-      if (!this.applyRedo(entry)) break;
+      if (!this.applyRedo(entry)) {
+        dropSnapshotsBelow(this.redoStack, this.redoStack.length);
+        break;
+      }
       redone.push(entry);
     } while (groupId !== 0 && this.peekRedo()?.groupId === groupId);
     // Pushed in redo order, which restores the original chronological order on the undo stack.
@@ -260,38 +292,52 @@ export class UndoCoordinator {
     this.emit();
   }
 
-  /** Drops the entries of one view (e.g. after Source re-parse re-created the model). */
+  /**
+   * Drops the entries of one view (e.g. after Source re-parse re-created the model). Snapshot
+   * entries are kept unless an entry dropped here lies above them.
+   */
   clearView(view: UndoView): void {
-    const keep = (entry: UndoEntry) => entry.view !== view;
-    const undo = this.undoStack.filter(keep);
-    const redo = this.redoStack.filter(keep);
-    this.undoStack.length = 0;
-    this.undoStack.push(...undo);
-    this.redoStack.length = 0;
-    this.redoStack.push(...redo);
+    const drop = (entry: UndoEntry) => entry.view === view && !entry.snapshot;
+    for (const stack of [this.undoStack, this.redoStack]) {
+      const kept: UndoEntry[] = [];
+      for (const entry of stack) {
+        if (!drop(entry)) kept.push(entry);
+        else dropSnapshotsBelow(kept, kept.length);
+      }
+      stack.length = 0;
+      stack.push(...kept);
+    }
     this.emit();
   }
 
   /* ---------------------------------------------------------------------- */
 
   private applyUndo(entry: UndoEntry): boolean {
-    return this.replay(entry, (adapter) => adapter.undo());
+    return this.replay(entry, (adapter) => adapter.undo(), 'undo');
   }
 
   private applyRedo(entry: UndoEntry): boolean {
-    return this.replay(entry, (adapter) => adapter.redo());
+    return this.replay(entry, (adapter) => adapter.redo(), 'redo');
   }
 
-  private replay(entry: UndoEntry, step: (adapter: ViewHistoryAdapter) => boolean): boolean {
+  private replay(
+    entry: UndoEntry,
+    step: (adapter: ViewHistoryAdapter) => boolean,
+    direction: 'undo' | 'redo',
+  ): boolean {
     const adapter = this.adapters.get(entry.view);
-    if (!adapter) return false;
+    if (!adapter && !entry.snapshot) return false;
     if (this.activeView !== entry.view) {
       this.activateView(entry.view);
       this.activeView = entry.view;
     }
     this.replaying = true;
     try {
-      return step(adapter);
+      if (entry.snapshot) {
+        entry.snapshot[direction]();
+        return true;
+      }
+      return step(adapter!);
     } finally {
       this.replaying = false;
     }
@@ -300,6 +346,18 @@ export class UndoCoordinator {
   private emit(): void {
     for (const listener of [...this.listeners]) listener();
   }
+}
+
+/** Removes the snapshot entries among `stack[0 .. end)`: a change above them was lost. */
+function dropSnapshotsBelow(stack: UndoEntry[], end: number): void {
+  let write = 0;
+  for (let read = 0; read < stack.length; read += 1) {
+    const entry = stack[read]!;
+    if (read < end && entry.snapshot) continue;
+    stack[write] = entry;
+    write += 1;
+  }
+  stack.length = write;
 }
 
 /** In-memory adapter: useful for tests and for simple form-diff histories. */

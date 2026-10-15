@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "id": "runs.bulk",
+  "name": {
+    "en": "Mark every paragraph",
+    "ru": "Пометить все абзацы"
+  },
+  "kind": "menu",
+  "undoLabel": {
+    "en": "Mark paragraphs",
+    "ru": "Пометка абзацев"
+  }
+}

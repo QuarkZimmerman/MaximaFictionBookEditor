@@ -47,6 +47,8 @@ export interface ScriptsFeatureOptions {
   undo: UndoCoordinator;
   /** Worker factory (tests inject a fake); defaults to the inline sandbox worker. */
   createWorker?: () => Worker;
+  /** Inactivity after which a run counts as silent (tests; default 30 s). */
+  watchdogMs?: number;
 }
 
 export class ScriptsFeature {
@@ -77,13 +79,17 @@ export class ScriptsFeature {
       store: options.store,
       undo: options.undo,
       createWorker: options.createWorker ?? createSandboxWorker,
+      watchdogMs: options.watchdogMs,
       getController: () =>
         hasBodyController(options.store) ? getBodyController(options.store) : null,
       onLog: (level, args) => {
         if (import.meta.env.DEV) console.log(`[script:${level}]`, ...args);
       },
     });
-    this.host.subscribe(() => this.emit());
+    this.host.subscribe(() => {
+      this.commands.setLocked(this.host.isRunning);
+      this.emit();
+    });
     this.registerStaticCommands();
   }
 

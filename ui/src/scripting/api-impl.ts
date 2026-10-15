@@ -1,18 +1,18 @@
 /**
  * Host side of the `mfbe` script API (T103) - exactly the members of
  * contracts/script-api.d.ts, nothing else. Every call arrives from the sandbox worker as
- * `{method, args}` (see sandbox.ts) and is validated here before touching the editor.
+ * `{method, args}` (see sandbox.ts) and is validated here before touching the document.
  *
- * Document access goes through the Body controller: nodes mounted in the ProseMirror window
- * are edited with transactions (they stay in the Body history), nodes outside the window
- * through reversible model steps (`BodyEditorController.applyModelStep`). Either way the
- * whole run is wrapped in one undo group by the host (host.ts). Reads work on the store's
- * document model, which is always in sync with the editor.
+ * The run reads and writes its working copy of the document (workingCopy.ts): a write costs
+ * no editor transaction, store notification or render. Before the script's dialogs and
+ * selection calls the working copy is shown in the editor (`showChanges`), so they see what
+ * the script did so far; the host replaces the document with the result when the run ends
+ * and keeps the run as one undo entry (host.ts).
  */
 
 import type { TFunction } from 'i18next';
 import { Fragment, type Node as PMNode, type NodeType } from 'prosemirror-model';
-import { TextSelection, type Transaction } from 'prosemirror-state';
+import { Selection, TextSelection, type Transaction } from 'prosemirror-state';
 import { Transform } from 'prosemirror-transform';
 
 import type { Dialogs } from '@/dialogs/types';
@@ -27,13 +27,14 @@ import {
 } from '@/editor/schema';
 import { DEFAULT_NBSP_DISPLAY_CHAR } from '@/editor/plugins/nbsp';
 import { nodeToModel } from '@/editor/toModel';
+import { replaceSectionsInModel } from '@/editor/virtualization';
 import { allMatches, buildSearchRegExp, expandReplacement } from '@/features/search/replacement';
 import type { Description, Document } from '@/model/document';
 import { actions, type AppStore } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
-import type { BodyEditorController, ModelStep } from '@/views/body/bodyEditor';
+import type { BodyEditorController } from '@/views/body/bodyEditor';
 
-import { showScriptForm, showScriptMessage } from './dialogs';
+import { showScriptForm, showScriptMessage, showScriptPrompt } from './dialogs';
 import {
   API_METHODS,
   type ApiMethod,
@@ -47,13 +48,18 @@ import {
   type NodeRef,
   type Position,
   type PromptOptions,
+  type RunEnd,
   type ScriptSettings,
   type SelectionInfo,
   type SymbolInfo,
 } from './types';
+import { WorkingCopy, type NodePlace } from './workingCopy';
 
 /** Document snapshots above this JSON size are refused (script-manifest.md §3.5). */
 export const SNAPSHOT_LIMIT_BYTES = 64 * 1024 * 1024;
+
+/** `jobId` of the progress a script reports (`mfbe.ui.progress`). */
+export const SCRIPT_PROGRESS_JOB = 'script';
 
 const TEXTBLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
 const MARK_NAMES = new Set(['strong', 'emphasis', 'strikethrough', 'sub', 'sup', 'code']);
@@ -94,7 +100,7 @@ export class JsonText {
 
 export interface ScriptApiDeps {
   store: AppStore;
-  /** Body controller (null without an editing feature: document access then fails cleanly). */
+  /** Body controller (null without an editing feature: selection calls then fail cleanly). */
   controller: BodyEditorController | null;
   dialogs: Dialogs;
   rpc: RpcClient | null;
@@ -108,6 +114,8 @@ export interface ScriptApiDeps {
   onProgress?: (done: number, total: number | undefined, label: string | undefined) => void;
   /** Read by `ui.progress` to let cooperative scripts observe a pending cancellation. */
   isCancelRequested?: () => boolean;
+  /** The end of the run: closes the script's dialogs that are still open (Cancel, failure). */
+  runEnd?: RunEnd;
   /** Snapshot size guard override (tests). */
   snapshotLimit?: number;
 }
@@ -118,36 +126,13 @@ export interface ScriptApi {
   readonly stickyStatus: boolean;
   /** Clears transient UI state at the end of the run (progress, non-sticky status). */
   finish(): void;
+  /** The document the run produced; null when the script changed nothing. */
+  result(): Document | null;
 }
 
 /* ------------------------------------------------------------------------ */
 /* Model helpers (pure)                                                     */
 /* ------------------------------------------------------------------------ */
-
-interface IndexEntry {
-  node: ModelNodeJson;
-  parent: ModelNodeJson | null;
-  index: number;
-}
-
-const indexCache = new WeakMap<Document, Map<string, IndexEntry>>();
-
-/** nodeId -> node/parent/index over every body (built once per document instance). */
-export function nodeIndex(document: Document): Map<string, IndexEntry> {
-  let index = indexCache.get(document);
-  if (index) return index;
-  index = new Map();
-  const visit = (node: ModelNodeJson, parent: ModelNodeJson | null, position: number) => {
-    const id = node.attrs?.nodeId;
-    if (typeof id === 'string' && id) index!.set(id, { node, parent, index: position });
-    node.content?.forEach((child, i) => {
-      if (child.type !== 'text') visit(child, node, i);
-    });
-  };
-  document.bodies.forEach((body, i) => visit(body as unknown as ModelNodeJson, null, i));
-  indexCache.set(document, index);
-  return index;
-}
 
 export function refOf(node: ModelNodeJson): NodeRef {
   return { nodeId: String(node.attrs?.nodeId ?? ''), type: node.type };
@@ -170,91 +155,6 @@ export function plainText(node: ModelNodeJson): string {
     if (text || TEXTBLOCK_TYPES.has(child.type)) parts.push(text);
   }
   return parts.join('\n');
-}
-
-/** Replaces the node `nodeId` anywhere in the model (structural copy; unchanged -> same). */
-export function replaceInModel<D extends Pick<Document, 'bodies'>>(
-  model: D,
-  nodeId: string,
-  replacement: ModelNodeJson | null,
-): D {
-  const visit = (json: ModelNodeJson): ModelNodeJson => {
-    if (!json.content) return json;
-    let changed = false;
-    const content: ModelNodeJson[] = [];
-    for (const child of json.content) {
-      if (child.type !== 'text' && child.attrs?.nodeId === nodeId) {
-        changed = true;
-        if (replacement) content.push(replacement);
-        continue;
-      }
-      const next = child.type === 'text' ? child : visit(child);
-      if (next !== child) changed = true;
-      content.push(next);
-    }
-    return changed ? { ...json, content } : json;
-  };
-  let changed = false;
-  const bodies = model.bodies.map((body) => {
-    const json = body as unknown as ModelNodeJson;
-    if (json.attrs?.nodeId === nodeId) {
-      changed = true;
-      return replacement as unknown as D['bodies'][number];
-    }
-    const next = visit(json);
-    if (next !== json) changed = true;
-    return next as unknown as D['bodies'][number];
-  });
-  if (!changed) return model;
-  return { ...model, bodies: bodies.filter((b) => b !== null && b !== undefined) };
-}
-
-/**
- * Inserts `node` before/after the node `refId` or as the last child of it. A body reference
- * with `before`/`after` inserts at the body level (`model.bodies`), which is how scripts create
- * a `notes`/`comments` body in windowed mode (bodies are never mounted there).
- */
-export function insertInModel<D extends Pick<Document, 'bodies'>>(
-  model: D,
-  where: 'before' | 'after' | 'append',
-  refId: string,
-  node: ModelNodeJson,
-): D {
-  if (where !== 'append') {
-    const bodyIndex = model.bodies.findIndex((body) => body.attrs?.nodeId === refId);
-    if (bodyIndex >= 0) {
-      const bodies = [...model.bodies] as unknown as ModelNodeJson[];
-      bodies.splice(where === 'before' ? bodyIndex : bodyIndex + 1, 0, node);
-      return { ...model, bodies: bodies as unknown as D['bodies'] };
-    }
-  }
-  const visit = (json: ModelNodeJson): ModelNodeJson => {
-    if (!json.content) return json;
-    if (where === 'append' && json.attrs?.nodeId === refId) {
-      return { ...json, content: [...json.content, node] };
-    }
-    let changed = false;
-    const content: ModelNodeJson[] = [];
-    for (const child of json.content) {
-      const isRef = child.type !== 'text' && child.attrs?.nodeId === refId;
-      if (isRef && where === 'before') {
-        content.push(node);
-        changed = true;
-      }
-      const next = child.type === 'text' ? child : visit(child);
-      if (next !== child) changed = true;
-      content.push(next);
-      if (isRef && where === 'after') {
-        content.push(node);
-        changed = true;
-      }
-    }
-    return changed ? { ...json, content } : json;
-  };
-  const bodies = model.bodies.map((body) => visit(body as unknown as ModelNodeJson));
-  const changed = bodies.some((b, i) => b !== (model.bodies[i] as unknown as ModelNodeJson));
-  if (!changed) return model;
-  return { ...model, bodies: bodies as unknown as D['bodies'] };
 }
 
 /** Schema node type of a model child in the content of `parentType` (null for unknown types). */
@@ -371,15 +271,20 @@ function optionalObject<T extends object>(value: unknown, what: string): T {
 export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
   const { store, controller, dialogs, rpc, t } = deps;
   const nextNodeId = createNodeIdGenerator('sc_');
+  const start = store.getState().document;
+  const copy = start ? new WorkingCopy(start) : null;
+  /** Whether a children list, as it is, fits its parent (reused while only same-type nodes replace its children). */
+  const checkedContent = new WeakMap<readonly ModelNodeJson[], boolean>();
   let stickyStatus = false;
   let touchedStatus = false;
   let touchedProgress = false;
 
-  const requireDocument = (): Document => {
-    const document = store.getState().document;
-    if (!document) throw new ScriptApiError('no document is open');
-    return document;
+  const requireCopy = (): WorkingCopy => {
+    if (!copy) throw new ScriptApiError('no document is open');
+    return copy;
   };
+
+  const requireDocument = (): Document => requireCopy().document;
 
   const requireController = (): BodyEditorController => {
     if (!controller || !controller.editorState) {
@@ -388,17 +293,25 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     return controller;
   };
 
-  const entryOf = (value: unknown, what = 'node'): IndexEntry => {
+  /** Shows the changes made so far in the editor (before the script's dialogs and selection calls). */
+  const showChanges = () => {
+    if (!copy?.pending) return;
+    const next = copy.release();
+    if (controller) controller.showModel(next);
+    else actions.updateDocument(store, next);
+  };
+
+  const placeOf = (value: unknown, what = 'node'): NodePlace => {
     const id = refId(value, what);
-    const entry = nodeIndex(requireDocument()).get(id);
-    if (!entry) throw new ScriptApiError(`${what}: unknown nodeId "${id}"`, 'unknownNode');
-    return entry;
+    const place = requireCopy().place(id);
+    if (!place) throw new ScriptApiError(`${what}: unknown nodeId "${id}"`, 'unknownNode');
+    return place;
   };
 
   /**
    * Converts script-supplied JSON into a checked ProseMirror node with node ids. The whole
    * subtree is validated first (`nodeFromModel` runs `createChecked` on every node and
-   * collects each violation with its path); nothing reaches the editor unless the subtree is
+   * collects each violation with its path); nothing reaches the document unless the subtree is
    * schema-valid, so an invalid node is a clear `invalidNode` error instead of an unchecked
    * node in the document.
    */
@@ -425,95 +338,20 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     return assignNodeIds(node, nextNodeId);
   };
 
-  /** True when `nodeId` can be edited through a ProseMirror transaction right now. */
-  const mountedPos = (ctrl: BodyEditorController, nodeId: string) => {
-    const state = ctrl.editorState;
-    if (!state) return null;
-    const found = findNodeById(state.doc, nodeId);
-    if (!found) return null;
-    // Bodies are only partially mounted in windowed mode: appending would land inside the
-    // window, a sibling body would be lost on write-back. Body-level edits then go through
-    // the model (`insertInModel` / `replaceInModel` handle `model.bodies`).
-    if (found.node.type.name === 'body' && ctrl.currentWindow && !ctrl.currentWindow.wholeBook) {
-      return null;
-    }
-    return found;
-  };
-
-  const applyTransaction = (ctrl: BodyEditorController, build: (tr: Transaction) => void) => {
-    const state = ctrl.editorState!;
-    const tr = state.tr;
-    build(tr);
-    if (!tr.docChanged) return;
-    ctrl.apply(tr);
-  };
-
-  const applyModel = (ctrl: BodyEditorController, step: ModelStep, label?: string) => {
-    const next = ctrl.applyModelStep(step, label);
-    if (!next) throw new ScriptApiError('no document is open');
-  };
-
-  /**
-   * Runs a body-level model step (insert/remove a body) and keeps the window on the body the
-   * user was looking at when its index shifted (windowed mode shows one body at a time).
-   */
-  const applyBodyLevelModel = (ctrl: BodyEditorController, step: ModelStep) => {
-    const window = ctrl.currentWindow;
-    const mountedBody =
-      window && !window.wholeBook ? requireDocument().bodies[window.bodyIndex] : undefined;
-    const mountedId = mountedBody?.attrs.nodeId;
-    const caret = ctrl.getCaret();
-    applyModel(ctrl, step);
-    const after = ctrl.currentWindow;
-    if (!mountedId || !after || after.wholeBook) return;
-    const nowMounted = requireDocument().bodies[after.bodyIndex]?.attrs.nodeId;
-    if (nowMounted === mountedId) return;
-    // The body under the window moved (or went away): follow the caret, else the body itself.
-    if (caret?.nodeId) {
-      try {
-        setBodySelection(ctrl, { nodeId: caret.nodeId, offset: caret.offset ?? 0 }, undefined);
-        return;
-      } catch {
-        // the caret's node is gone with the removed body
-      }
-    }
-    ctrl.moveWindowTo(mountedId);
-  };
-
   const notAllowed = (what: string, node: NodeType, parent: NodeType) =>
     new ScriptApiError(
       `${what}: a "${fb2NameFor(node)}" is not allowed inside "${fb2NameFor(parent)}" at this position`,
       'notAllowed',
     );
 
+  /** Schema type of the parent of a place (the `doc` for a body). */
+  const parentTypeOf = (place: NodePlace): NodeType =>
+    place.parent
+      ? (nodeTypeFor(place.parent.type) ?? fb2Schema.nodes.raw_xml!)
+      : fb2Schema.nodes.doc!;
+
+  /** Refuses `node` at `[index, index + replaced)` of `siblings` when the parent would not allow it. */
   const checkParent = (
-    parent: PMNode,
-    index: number,
-    replaced: number,
-    node: PMNode,
-    what: string,
-  ) => {
-    if (!parent.canReplaceWith(index, index + replaced, node.type)) {
-      throw notAllowed(what, node.type, parent.type);
-    }
-  };
-
-  /** Parent node type and child list of an index entry (the `doc` and its bodies for a body). */
-  const modelParentOf = (entry: IndexEntry) => {
-    if (entry.parent) {
-      return {
-        type: nodeTypeFor(entry.parent.type) ?? fb2Schema.nodes.raw_xml!,
-        children: entry.parent.content ?? [],
-      };
-    }
-    return {
-      type: fb2Schema.nodes.doc!,
-      children: requireDocument().bodies as unknown as ModelNodeJson[],
-    };
-  };
-
-  /** `checkParent` for a parent outside the mounted window (works on the model JSON). */
-  const checkModelParent = (
     parentType: NodeType,
     siblings: readonly ModelNodeJson[],
     index: number,
@@ -524,6 +362,21 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     if (!contentFits(parentType, siblings, index, replaced, [node.type])) {
       throw notAllowed(what, node.type, parentType);
     }
+  };
+
+  /**
+   * `checkParent` for a node that takes the place of one of the same type: the children keep
+   * their types, so the check of the children as they are is reused (a clean-up replacing
+   * every paragraph of a long section checks the section once).
+   */
+  const checkSameType = (place: NodePlace, node: PMNode, what: string) => {
+    const parentType = parentTypeOf(place);
+    let fits = checkedContent.get(place.siblings);
+    if (fits === undefined) {
+      fits = contentFits(parentType, place.siblings, place.index, 1, [node.type]);
+      checkedContent.set(place.siblings, fits);
+    }
+    if (!fits) throw notAllowed(what, node.type, parentType);
   };
 
   /* ------------------------------------------------------------- doc */
@@ -541,32 +394,17 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       return new JsonText(text);
     },
 
-    getNode: async (ref: unknown) => entryOf(ref).node,
+    getNode: async (ref: unknown) => placeOf(ref).node,
 
     replaceNode: async (ref: unknown, value: unknown): Promise<NodeRef> => {
-      const ctrl = requireController();
-      const entry = entryOf(ref);
+      const place = placeOf(ref);
       const id = refId(ref);
       const node = nodeFromScript(value, 'replaceNode', id);
-      const found = mountedPos(ctrl, id);
-      if (found) {
-        const $pos = ctrl.editorState!.doc.resolve(found.pos);
-        checkParent($pos.parent, $pos.index(), 1, node, 'replaceNode');
-        applyTransaction(ctrl, (tr) =>
-          tr.replaceWith(found.pos, found.pos + found.node.nodeSize, node),
-        );
-      } else {
-        const parent = modelParentOf(entry);
-        checkModelParent(parent.type, parent.children, entry.index, 1, node, 'replaceNode');
-        const before = entry.node;
-        const after = nodeToModel(node);
-        const step: ModelStep = {
-          apply: (m) => replaceInModel(m, id, after),
-          revert: (m) => replaceInModel(m, id, before),
-        };
-        if (entry.parent) applyModel(ctrl, step);
-        else applyBodyLevelModel(ctrl, step);
-      }
+      const sameType = childNodeType(place.node, parentTypeOf(place)) === node.type;
+      if (sameType) checkSameType(place, node, 'replaceNode');
+      else checkParent(parentTypeOf(place), place.siblings, place.index, 1, node, 'replaceNode');
+      requireCopy().replace(id, nodeToModel(node));
+      if (!sameType) checkedContent.delete(place.siblings);
       return { nodeId: id, type: fb2NameFor(node.type) };
     },
 
@@ -574,91 +412,41 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       if (where !== 'before' && where !== 'after' && where !== 'append') {
         throw new ScriptApiError('insertNode: where must be "before", "after" or "append"');
       }
-      const ctrl = requireController();
-      const entry = entryOf(ref);
+      const place = placeOf(ref);
       const id = refId(ref);
       const node = nodeFromScript(value, 'insertNode');
       const newId = String(node.attrs.nodeId);
-      const found = mountedPos(ctrl, id);
-      if (found) {
-        const state = ctrl.editorState!;
-        if (where === 'append') {
-          const index = found.node.childCount;
-          checkParent(found.node, index, 0, node, 'insertNode');
-          const pos = found.pos + found.node.nodeSize - 1;
-          applyTransaction(ctrl, (tr) => tr.insert(pos, node));
-        } else {
-          const $pos = state.doc.resolve(found.pos);
-          const index = $pos.index() + (where === 'after' ? 1 : 0);
-          checkParent($pos.parent, index, 0, node, 'insertNode');
-          const pos = where === 'before' ? found.pos : found.pos + found.node.nodeSize;
-          applyTransaction(ctrl, (tr) => tr.insert(pos, node));
-        }
+      if (where === 'append') {
+        const children = place.node.content ?? [];
+        const type = nodeTypeFor(place.node.type) ?? fb2Schema.nodes.raw_xml!;
+        checkParent(type, children, children.length, 0, node, 'insertNode');
+        requireCopy().insert(where, id, nodeToModel(node));
+        checkedContent.delete(children);
       } else {
-        // Outside the window (or a body in windowed mode): the same schema check on the model.
-        if (where === 'append') {
-          const children = entry.node.content ?? [];
-          const type = nodeTypeFor(entry.node.type) ?? fb2Schema.nodes.raw_xml!;
-          checkModelParent(type, children, children.length, 0, node, 'insertNode');
-        } else {
-          const parent = modelParentOf(entry);
-          const index = entry.index + (where === 'after' ? 1 : 0);
-          checkModelParent(parent.type, parent.children, index, 0, node, 'insertNode');
-        }
-        const json = nodeToModel(node);
-        const step: ModelStep = {
-          apply: (m) => insertInModel(m, where, id, json),
-          revert: (m) => replaceInModel(m, newId, null),
-        };
-        // A sibling of a body is a new body: keep the window on the body the user sees.
-        if (where !== 'append' && !entry.parent) applyBodyLevelModel(ctrl, step);
-        else applyModel(ctrl, step);
+        const index = place.index + (where === 'after' ? 1 : 0);
+        checkParent(parentTypeOf(place), place.siblings, index, 0, node, 'insertNode');
+        requireCopy().insert(where, id, nodeToModel(node));
+        checkedContent.delete(place.siblings);
       }
       return { nodeId: newId, type: fb2NameFor(node.type) };
     },
 
     removeNode: async (ref: unknown): Promise<void> => {
-      const ctrl = requireController();
-      const entry = entryOf(ref);
+      const place = placeOf(ref);
       const id = refId(ref);
       // FB2 needs at least one body and the first one is the book itself; any other body
       // (notes, comments, a stray copy) may go, like any node whose parent stays valid.
-      if (!entry.parent && entry.index === 0) {
+      if (!place.parent && place.index === 0) {
         throw new ScriptApiError('removeNode: the first body cannot be removed', 'notAllowed');
       }
-      const needed = () =>
-        new ScriptApiError(
-          `removeNode: "${entry.parent ? entry.parent.type : 'doc'}" needs this "${entry.node.type}"`,
+      if (!contentFits(parentTypeOf(place), place.siblings, place.index, 1, [])) {
+        throw new ScriptApiError(
+          `removeNode: "${place.parent ? place.parent.type : 'doc'}" needs this "${place.node.type}"`,
           'notAllowed',
         );
-      const found = mountedPos(ctrl, id);
-      if (found) {
-        const $pos = ctrl.editorState!.doc.resolve(found.pos);
-        if (!$pos.parent.canReplace($pos.index(), $pos.index() + 1)) throw needed();
-        applyTransaction(ctrl, (tr) => tr.delete(found.pos, found.pos + found.node.nodeSize));
-      } else {
-        const parent = modelParentOf(entry);
-        if (!contentFits(parent.type, parent.children, entry.index, 1, [])) throw needed();
-        const removed = entry.node;
-        const parentId = String(entry.parent?.attrs?.nodeId ?? '');
-        const siblings = parent.children;
-        const next = siblings[entry.index + 1];
-        const previous = siblings[entry.index - 1];
-        const step: ModelStep = {
-          apply: (m) => replaceInModel(m, id, null),
-          revert: (m) => {
-            if (next && next.type !== 'text' && next.attrs?.nodeId) {
-              return insertInModel(m, 'before', String(next.attrs.nodeId), removed);
-            }
-            if (previous && previous.type !== 'text' && previous.attrs?.nodeId) {
-              return insertInModel(m, 'after', String(previous.attrs.nodeId), removed);
-            }
-            return insertInModel(m, 'append', parentId, removed);
-          },
-        };
-        if (entry.parent) applyModel(ctrl, step);
-        else applyBodyLevelModel(ctrl, step);
       }
+      requireCopy().remove(id);
+      checkedContent.delete(place.siblings);
     },
 
     setDescription: async (value: unknown): Promise<void> => {
@@ -666,31 +454,22 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       if (!description.titleInfo || !description.documentInfo) {
         throw new ScriptApiError('setDescription: titleInfo and documentInfo are required');
       }
-      const ctrl = requireController();
       const previous = requireDocument().description;
-      const next: Description = {
+      requireCopy().setDescription({
         titleInfo: description.titleInfo,
         documentInfo: description.documentInfo,
         customInfo: description.customInfo ?? [],
         outputs: description.outputs ?? previous.outputs,
         ...(description.srcTitleInfo ? { srcTitleInfo: description.srcTitleInfo } : {}),
         ...(description.publishInfo ? { publishInfo: description.publishInfo } : {}),
-      };
-      applyModel(
-        ctrl,
-        {
-          apply: (m) => ({ ...m, description: next }),
-          revert: (m) => ({ ...m, description: previous }),
-        },
-        t('scripting.undo.description'),
-      );
+      });
     },
 
     getElementsByTagName: async (name: unknown, within?: unknown): Promise<NodeRef[]> => {
       const tag = asString(name, 'getElementsByTagName');
       const document = requireDocument();
       const roots: ModelNodeJson[] = within
-        ? [entryOf(within, 'within').node]
+        ? [placeOf(within, 'within').node]
         : (document.bodies as unknown as ModelNodeJson[]);
       const out: NodeRef[] = [];
       const isMark = MARK_NAMES.has(tag) || tag === 'style' || tag === 'link' || tag === 'a';
@@ -710,44 +489,27 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       return out;
     },
 
-    textOf: async (ref: unknown): Promise<string> => plainText(entryOf(ref).node),
+    textOf: async (ref: unknown): Promise<string> => plainText(placeOf(ref).node),
 
     setText: async (ref: unknown, value: unknown): Promise<void> => {
       const text = asString(value, 'setText');
-      const ctrl = requireController();
-      const entry = entryOf(ref);
-      const id = refId(ref);
-      if (!TEXTBLOCK_TYPES.has(entry.node.type)) {
-        throw new ScriptApiError(`setText: "${entry.node.type}" is not a text block`);
+      const place = placeOf(ref);
+      if (!TEXTBLOCK_TYPES.has(place.node.type)) {
+        throw new ScriptApiError(`setText: "${place.node.type}" is not a text block`);
       }
-      const found = mountedPos(ctrl, id);
-      if (found) {
-        applyTransaction(ctrl, (tr) => {
-          const from = found.pos + 1;
-          const to = found.pos + found.node.nodeSize - 1;
-          if (text) tr.replaceWith(from, to, fb2Schema.text(text));
-          else tr.delete(from, to);
-        });
-      } else {
-        const before = entry.node;
-        const after: ModelNodeJson = {
-          ...before,
-          content: text ? [{ type: 'text', text }] : [],
-        };
-        applyModel(ctrl, {
-          apply: (m) => replaceInModel(m, id, after),
-          revert: (m) => replaceInModel(m, id, before),
-        });
-      }
+      requireCopy().replace(refId(ref), {
+        ...place.node,
+        content: text ? [{ type: 'text', text }] : [],
+      });
     },
 
     parentOf: async (ref: unknown): Promise<NodeRef | null> => {
-      const entry = entryOf(ref);
-      return entry.parent ? refOf(entry.parent) : null;
+      const place = placeOf(ref);
+      return place.parent ? refOf(place.parent) : null;
     },
 
     childrenOf: async (ref: unknown): Promise<NodeRef[]> =>
-      (entryOf(ref).node.content ?? [])
+      (placeOf(ref).node.content ?? [])
         .filter((c) => c.type !== 'text' && c.attrs?.nodeId)
         .map(refOf),
 
@@ -757,7 +519,7 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       const out: Match[] = [];
       for (const block of textblocksIn(
         requireDocument(),
-        q.within ? entryOf(q.within, 'within').node : null,
+        q.within ? placeOf(q.within, 'within').node : null,
       )) {
         for (const m of allMatches(re, block.text)) {
           out.push({ nodeId: block.nodeId, from: m.index, to: m.index + m[0].length, text: m[0] });
@@ -770,46 +532,21 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       const q = asObject<FindQuery>(query, 'replaceAll');
       const repl = asString(replacement, 'replaceAll');
       const re = searchRegExp(q, 'replaceAll');
-      const ctrl = requireController();
+      const working = requireCopy();
       const blocks = textblocksIn(
-        requireDocument(),
-        q.within ? entryOf(q.within, 'within').node : null,
+        working.document,
+        q.within ? placeOf(q.within, 'within').node : null,
       );
       let count = 0;
-      const changes: { nodeId: string; before: ModelNodeJson; after: ModelNodeJson }[] = [];
       for (const block of blocks) {
         const matches = allMatches(re, block.text);
         if (matches.length === 0) continue;
-        const node = nodeFromModel(block.json);
-        if (!node) continue;
-        const found = mountedPos(ctrl, block.nodeId);
-        if (found) {
-          applyTransaction(ctrl, (tr) => {
-            for (let i = matches.length - 1; i >= 0; i -= 1) {
-              const m = matches[i]!;
-              const expanded = q.regex ? expandReplacement(repl, m) : { text: repl, ranges: [] };
-              replaceRange(
-                tr,
-                tr.mapping.map(found.pos) + 1,
-                m.index,
-                m.index + m[0].length,
-                expanded,
-              );
-            }
-          });
-        } else {
-          const after = rebuildBlock(block.json, matches, (m) =>
-            q.regex ? expandReplacement(repl, m) : { text: repl, ranges: [] },
-          );
-          changes.push({ nodeId: block.nodeId, before: block.json, after });
-        }
+        const after = rebuildBlock(block.json, matches, (m) =>
+          q.regex ? expandReplacement(repl, m) : { text: repl, ranges: [] },
+        );
+        if (after === block.json) continue;
+        working.replace(block.nodeId, after);
         count += matches.length;
-      }
-      if (changes.length > 0) {
-        applyModel(ctrl, {
-          apply: (m) => changes.reduce((acc, c) => replaceInModel(acc, c.nodeId, c.after), m),
-          revert: (m) => changes.reduce((acc, c) => replaceInModel(acc, c.nodeId, c.before), m),
-        });
       }
       return { count };
     },
@@ -821,11 +558,30 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
 
   /* ------------------------------------------------------- selection */
 
+  /**
+   * A selection edit (replaceText, wrap, unwrap) is built on the editor, which shows the
+   * working copy; the edited part goes into the working copy and is shown at once, with the
+   * selection the edit leaves.
+   */
+  const applySelectionEdit = (ctrl: BodyEditorController, tr: Transaction) => {
+    if (!tr.docChanged) return;
+    const window = ctrl.currentWindow;
+    if (!window) throw new ScriptApiError('the Body editor is not available');
+    const working = requireCopy();
+    working.reset(replaceSectionsInModel(working.document, window, tr.doc).model);
+    showChanges();
+    const state = ctrl.editorState!;
+    if (state.doc.eq(tr.doc)) {
+      ctrl.apply(state.tr.setSelection(Selection.fromJSON(state.doc, tr.selection.toJSON())));
+    }
+  };
+
   const selection = {
     get: async (): Promise<SelectionInfo | null> => {
       if (!controller) return null;
+      showChanges();
       const state = controller.selectionState;
-      if (!state || !store.getState().document) return null;
+      if (!state || !copy) return null;
       const { $anchor, $head, from, to } = state.selection;
       const idOf = ($pos: typeof $anchor) => {
         for (let depth = $pos.depth; depth >= 1; depth -= 1) {
@@ -846,53 +602,58 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
         }
         return true;
       });
-      return { anchor, head, text: state.doc.textBetween(from, to, '\n', '\uFFFC'), nodes };
+      return { anchor, head, text: state.doc.textBetween(from, to, '\n', '￼'), nodes };
     },
 
     set: async (anchor: unknown, head?: unknown): Promise<void> => {
       const ctrl = requireController();
       const a = asObject<Position>(anchor, 'selection.set');
       const h = head ? asObject<Position>(head, 'selection.set') : undefined;
+      showChanges();
       setBodySelection(ctrl, a, h, 'selection.set');
     },
 
     replaceText: async (value: unknown): Promise<void> => {
       const text = asString(value, 'selection.replaceText');
       const ctrl = requireController();
+      showChanges();
       const state = ctrl.editorState!;
       const { from, to, $from } = state.selection;
       if (!$from.parent.inlineContent) {
         throw new ScriptApiError('selection.replaceText: the selection is not inside text');
       }
-      applyTransaction(ctrl, (tr) => {
-        if (text) tr.replaceWith(from, to, fb2Schema.text(text, $from.marks()));
-        else tr.delete(from, to);
-      });
+      const tr = state.tr;
+      if (text) tr.replaceWith(from, to, fb2Schema.text(text, $from.marks()));
+      else tr.delete(from, to);
+      applySelectionEdit(ctrl, tr);
     },
 
     wrap: async (mark: unknown): Promise<void> => {
       const ctrl = requireController();
+      showChanges();
       const state = ctrl.editorState!;
       const { from, to, empty } = state.selection;
       if (empty) throw new ScriptApiError('selection.wrap: nothing is selected');
       const type = markFor(mark, 'selection.wrap');
-      applyTransaction(ctrl, (tr) => tr.addMark(from, to, type));
+      applySelectionEdit(ctrl, state.tr.addMark(from, to, type));
     },
 
     unwrap: async (mark: unknown): Promise<void> => {
       const ctrl = requireController();
+      showChanges();
       const state = ctrl.editorState!;
       const { from, to, empty } = state.selection;
       if (empty) throw new ScriptApiError('selection.unwrap: nothing is selected');
       const name = asString(mark, 'selection.unwrap');
       const markType = fb2Schema.marks[name];
       if (!markType) throw new ScriptApiError(`selection.unwrap: unknown mark "${name}"`);
-      applyTransaction(ctrl, (tr) => tr.removeMark(from, to, markType));
+      applySelectionEdit(ctrl, state.tr.removeMark(from, to, markType));
     },
 
     selectNode: async (ref: unknown): Promise<void> => {
       const ctrl = requireController();
       const id = refId(ref, 'selection.selectNode');
+      showChanges();
       if (!ctrl.moveWindowTo(id)) throw new ScriptApiError(`selectNode: unknown nodeId "${id}"`);
       const state = ctrl.editorState!;
       const found = findNodeById(state.doc, id);
@@ -904,6 +665,7 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
 
     scrollIntoView: async (): Promise<void> => {
       const ctrl = requireController();
+      showChanges();
       ctrl.apply(ctrl.editorState!.tr.scrollIntoView());
     },
   };
@@ -911,6 +673,7 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
   /* -------------------------------------------------------------- ui */
 
   const withDialog = async <T>(fn: () => Promise<T>): Promise<T> => {
+    showChanges();
     deps.onUiActivity?.(true);
     try {
       return await fn();
@@ -929,25 +692,33 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
         label: b.label || (STANDARD_BUTTONS.has(b.id) ? t(`dialog.buttons.${b.id}`) : b.id),
       }));
       return withDialog(() =>
-        showScriptMessage(dialogs, {
-          text: asString(text, 'ui.message'),
-          caption: o.caption ?? deps.scriptName,
-          buttons,
-          icon: o.icon,
-        }),
+        showScriptMessage(
+          dialogs,
+          {
+            text: asString(text, 'ui.message'),
+            caption: o.caption ?? deps.scriptName,
+            buttons,
+            icon: o.icon,
+          },
+          deps.runEnd,
+        ),
       );
     },
 
     prompt: async (text: unknown, options?: unknown): Promise<string | null> => {
       const o = optionalObject<PromptOptions>(options, 'ui.prompt');
       return withDialog(async () => {
-        const result = await dialogs.showInput({
-          prompt: asString(text, 'ui.prompt'),
-          caption: o.caption ?? deps.scriptName,
-          defaultValue: o.defaultValue === undefined ? undefined : String(o.defaultValue),
-          buttons: o.yesNoCancel ? 'yesNoCancel' : 'okCancel',
-          testId: 'dialog-script-prompt',
-        });
+        const result = await showScriptPrompt(
+          dialogs,
+          {
+            prompt: asString(text, 'ui.prompt'),
+            caption: o.caption ?? deps.scriptName,
+            defaultValue: o.defaultValue === undefined ? undefined : String(o.defaultValue),
+            buttons: o.yesNoCancel ? 'yesNoCancel' : 'okCancel',
+            testId: 'dialog-script-prompt',
+          },
+          deps.runEnd,
+        );
         if (result.button === 'cancel') return null;
         if (result.button === 'no') return '';
         return result.value;
@@ -957,7 +728,9 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     form: async (spec: unknown): Promise<FormValues | null> => {
       const s = asObject<FormSpec>(spec, 'ui.form');
       if (!Array.isArray(s.fields)) throw new ScriptApiError('ui.form: fields must be an array');
-      return withDialog(() => showScriptForm(dialogs, { ...s, title: s.title ?? deps.scriptName }));
+      return withDialog(() =>
+        showScriptForm(dialogs, { ...s, title: s.title ?? deps.scriptName }, deps.runEnd),
+      );
     },
 
     status: async (text: unknown, options?: unknown): Promise<void> => {
@@ -977,7 +750,7 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       const tot = total === undefined || total === null ? undefined : Number(total) || 0;
       const text = label === undefined || label === null ? undefined : String(label);
       actions.setProgress(store, {
-        jobId: 'script',
+        jobId: SCRIPT_PROGRESS_JOB,
         phase: text ?? deps.scriptName,
         done: d,
         total: tot ?? 0,
@@ -1068,6 +841,9 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     finish() {
       if (touchedProgress) actions.setProgress(store, null);
       if (touchedStatus && !stickyStatus) actions.setStatusMessage(store, null);
+    },
+    result() {
+      return copy?.changed ? copy.release() : null;
     },
   };
 }

@@ -13,12 +13,13 @@
  *     found" for an empty folder
  *  2. a script produces the expected document changes (checked against the normalised XML)
  *  3. one Undo reverts a whole run
- *  4. "Script error: <message> at line L, column C", document consistent
+ *  4. "Script error: <message> at line L, column C", the document as it was before the run
  *  5. message box / input prompt / form dialog
  *  6. hotkey runs a script (`defaultHotkey`), `needsSelection` disables it without a selection
  *  7. tree command receives the selected node
  *  8. documentation describes every capability with an example
- *  + cancel of a runaway script rolls back, the sandbox hides the host APIs, "Last script".
+ *  + Cancel of a runaway script restores the document, the sandbox hides the host APIs,
+ *    "Last script".
  *
  * The Scripts menu / toolbar items are rendered through `useScriptsMenu()` / `<ScriptsToolbar/>`
  * mounted by App.tsx; when the mount is missing the journeys fall back to the hotkey and the
@@ -394,7 +395,7 @@ test.describe('US12 scripts', () => {
       .toEqual([...initial, `Added by script (${n} paragraphs before)`]);
   });
 
-  test('4. a failing script reports "Script error: <message> at line L, column C" and leaves the document consistent', async ({
+  test('4. a failing script reports "Script error: <message> at line L, column C" and leaves the document as it was', async ({
     page,
     core,
   }) => {
@@ -422,12 +423,11 @@ test.describe('US12 scripts', () => {
     await dialog.getByTestId('dialog-script-error-button-ok').click();
     await expect(dialog).toHaveCount(0);
     expect(await waitIdle(page)).toBe('failed');
-    // Changes made before the error stay, as one undoable step; the document validates.
-    await expect.poll(() => paragraphs(page)).toEqual([...initial, 'before the error']);
+    // The change made before the error is gone (feature 002): nothing to undo.
+    await expect.poll(() => paragraphs(page)).toEqual(initial);
     await expect(page.getByTestId('status-message')).toHaveText(/failed/);
     expect(await validate()).toBe(errorsBefore);
-    await page.keyboard.press(`${MOD}+Z`);
-    await expect.poll(() => paragraphs(page)).toEqual(initial);
+    await expect(page.getByTestId('toolbar-edit.undo')).toBeDisabled();
   });
 
   test('5. scripts show message boxes, input prompts and form dialogs', async ({ page, core }) => {
@@ -621,15 +621,14 @@ test.describe('US12 scripts', () => {
     expect(existsSync(examples)).toBe(true);
   });
 
-  test('cancel terminates a runaway script and rolls its changes back', async ({ page, core }) => {
+  test('Cancel terminates a runaway script and restores the document', async ({ page, core }) => {
     await openApp(page, core);
     const initial = await newDocumentParagraphs(page);
     await startViaHook(page, 'test.errors.infinite');
-    // The script added a paragraph before entering the loop...
-    await expect.poll(() => paragraphs(page)).toEqual([...initial, 'LOOP']);
-    await expect(page.getByTestId('status-message')).toHaveText(/Running script/);
-    // ...cancelling terminates the worker and rolls the open undo group back.
-    await page.evaluate(() => window.__mfbeTest!.scripts!.cancel());
+    // The script adds a paragraph to its working copy, then loops without end: the run bar
+    // offers Cancel, which terminates the worker and leaves the document as it was.
+    await expect(page.getByTestId('script-run-text')).toHaveText(/Running script/);
+    await page.getByTestId('script-run-cancel').click();
     expect(await waitIdle(page)).toBe('cancelled');
     await expect.poll(() => paragraphs(page)).toEqual(initial);
     await expect(page.getByTestId('status-message')).toHaveText(/cancelled/);

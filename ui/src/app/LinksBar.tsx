@@ -5,7 +5,8 @@
  *  - Href edits the link at the caret or the selected image's reference (a target without `#`
  *    or a scheme gets `http://`);
  *  - Section ID edits the enclosing section; Image title the selected block image.
- * Fields are disabled when the selection offers no such element. Changes apply on Enter / blur.
+ * Fields are disabled when the selection offers no such element and while a script runs.
+ * Changes apply on Enter / blur.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -103,8 +104,9 @@ export function LinksBar() {
   const { t } = useTranslation();
   const { store } = useAppServices();
   const activeView = useAppState((s) => s.activeView, store);
+  const scriptRunning = useAppState((s) => s.scriptRunning, store);
   const { controller, context } = useBodySelectionContext();
-  const bodyActive = activeView === 'body' && !!controller && !!context;
+  const bodyActive = activeView === 'body' && !scriptRunning && !!controller && !!context;
 
   const attr = (node: { attrs: Record<string, unknown> } | null | undefined, name: string) =>
     node && typeof node.attrs[name] === 'string' ? (node.attrs[name] as string) : '';

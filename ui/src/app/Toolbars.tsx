@@ -142,17 +142,24 @@ function dropLayout(
   return null;
 }
 
-/** Shift+drag of a toolbar button (not a separator); the release decides (`dropLayout`). */
-function useButtonDrag(items: readonly string[], save: (items: string[]) => void) {
+/**
+ * Shift+drag of a toolbar button (not a separator); the release decides (`dropLayout`). Not
+ * while `blocked`.
+ */
+function useButtonDrag(
+  items: readonly string[],
+  save: (items: string[]) => void,
+  blocked: boolean,
+) {
   const [dragging, setDragging] = useState(false);
   const suppressClick = useRef(false);
-  const latest = useRef({ items, save });
+  const latest = useRef({ items, save, blocked });
   useEffect(() => {
-    latest.current = { items, save };
+    latest.current = { items, save, blocked };
   });
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || !event.shiftKey) return;
+    if (event.button !== 0 || !event.shiftKey || latest.current.blocked) return;
     const toolbar = event.currentTarget;
     const element = (event.target as Element).closest<HTMLElement>('[data-toolbar-index]');
     if (!element || !toolbar.contains(element)) return;
@@ -211,12 +218,15 @@ function CustomizableToolbarView({
   const services = useAppServices();
   const ctx = useCommandContext();
   const settings = useAppState((s) => s.settings, services.store);
+  // A running script blocks the whole window, as in the original.
+  const scriptRunning = useAppState((s) => s.scriptRunning, services.store);
   const items = shownLayout(settings, toolbar, scriptButtons);
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const label = t(toolbar === 'commands' ? 'toolbar.commands' : 'toolbar.scripts');
-  const drag = useButtonDrag(items, (next) => void saveLayout(ctx, toolbar, next));
+  const drag = useButtonDrag(items, (next) => void saveLayout(ctx, toolbar, next), scriptRunning);
 
   const customize = () => {
+    if (scriptRunning) return;
     void services.dialogs.openCustom((close) => (
       <CustomizeToolbarDialog
         ctx={ctx}
@@ -258,7 +268,14 @@ function CustomizableToolbarView({
       </div>
       {menuAt ? (
         <PopupMenu
-          items={[{ id: 'customize', label: t('toolbarMenu.customize'), run: customize }]}
+          items={[
+            {
+              id: 'customize',
+              label: t('toolbarMenu.customize'),
+              enabled: !scriptRunning,
+              run: customize,
+            },
+          ]}
           position={menuAt}
           onClose={() => setMenuAt(null)}
           testId="toolbar-menu"

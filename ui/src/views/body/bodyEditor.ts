@@ -20,6 +20,8 @@
  *   Links / Table bars as a `SelectionContext`; `getCaret()` / `setCaret()` expose it as
  *   `{view: 'body', nodeId, offset}` for Restore position and go-to-issue (moving the window when
  *   the target section is not mounted).
+ * - While a script runs (`setLocked`) the user cannot change the document: the view is not
+ *   editable and every change but the run's own (`showModel`) is refused.
  */
 
 import { Slice, type Node as PMNode } from 'prosemirror-model';
@@ -29,6 +31,7 @@ import {
   type Plugin,
   TextSelection,
   type Command,
+  type Selection,
   type Transaction,
 } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
@@ -95,6 +98,53 @@ export function selectionFor(doc: PMNode, nodeId: string, offset: number | undef
     return TextSelection.create(doc, target);
   }
   return TextSelection.near(doc.resolve(Math.min(inside, doc.content.size)));
+}
+
+/** A position inside a text block as its node id and text offset (null elsewhere). */
+function textPoint(doc: PMNode, pos: number): { nodeId: string; offset: number } | null {
+  const $pos = doc.resolve(pos);
+  const id = $pos.parent.isTextblock ? $pos.parent.attrs.nodeId : null;
+  return typeof id === 'string' && id ? { nodeId: id, offset: $pos.parentOffset } : null;
+}
+
+/** The position of a text point in `doc`; null when its text block is not there. */
+function textPointPos(doc: PMNode, point: { nodeId: string; offset: number }): number | null {
+  const found = findNodeById(doc, point.nodeId);
+  if (!found || !found.node.isTextblock) return null;
+  return found.pos + 1 + Math.min(point.offset, found.node.content.size);
+}
+
+/** A text selection of `oldDoc` placed in `doc` on the same text blocks and offsets. */
+function selectionOnSameNodes(selection: Selection, oldDoc: PMNode, doc: PMNode): Selection | null {
+  if (!(selection instanceof TextSelection)) return null;
+  const anchor = textPoint(oldDoc, selection.anchor);
+  const head = textPoint(oldDoc, selection.head);
+  const from = anchor && textPointPos(doc, anchor);
+  const to = head && textPointPos(doc, head);
+  return typeof from === 'number' && typeof to === 'number'
+    ? TextSelection.create(doc, from, to)
+    : null;
+}
+
+/** Turns `tr.doc` (equal to `current`) into `next` with one step over the part that differs. */
+function replaceDifferences(tr: Transaction, current: PMNode, next: PMNode): void {
+  const start = current.content.findDiffStart(next.content);
+  if (start === null) return;
+  let { a: endA, b: endB } = current.content.findDiffEnd(next.content)!;
+  const overlap = start - Math.min(endA, endB);
+  if (overlap > 0) {
+    endA += overlap;
+    endB += overlap;
+  }
+  tr.replace(start, endA, next.slice(start, endB));
+  if (!tr.doc.eq(next)) tr.replaceWith(0, tr.doc.content.size, next.content);
+}
+
+/** Top-level sections of a body of the model. */
+function sectionsOf(
+  body: Document['bodies'][number] | undefined,
+): Document['bodies'][number]['content'] {
+  return body ? body.content.filter((child) => child.type === 'section') : [];
 }
 
 export interface EditorStateOptions {
@@ -215,6 +265,8 @@ export class BodyEditorController {
   private readonly undo: UndoCoordinator;
   private readonly windowSize: number;
   private editable: boolean;
+  /** A script is running: only its own changes (`showModel`) reach the document. */
+  private locked = false;
   private nbspChar: string | null = null;
   private readonly getNbspChar: () => string;
   private readonly extraPlugins: Plugin[];
@@ -372,7 +424,7 @@ export class BodyEditorController {
     }
     this.view = new EditorView(this.container, {
       state: this.state!,
-      editable: () => this.editable,
+      editable: () => this.isEditable,
       nodeViews: {
         ...createImageNodeViews({
           getDocId: () => this.store.getState().docId,
@@ -400,8 +452,18 @@ export class BodyEditorController {
   /* ------------------------------------------------------------- dispatch */
 
   private dispatch(tr: Transaction): void {
+    this.applyToEditor(tr, false);
+  }
+
+  /**
+   * Applies a transaction and writes the edited window back into the model, unless
+   * `modelShown`: the store already holds the document the transaction shows (`showModel`).
+   * While locked only such transactions may change the document.
+   */
+  private applyToEditor(tr: Transaction, modelShown: boolean): void {
     const before = this.editorState;
     if (!before) return;
+    if (tr.docChanged && this.locked && !modelShown) return;
     if (tr.docChanged && this.closeNextHistory) closeHistory(tr);
     this.closeNextHistory = false;
     const { state: after, transactions } = before.applyTransaction(tr);
@@ -410,7 +472,9 @@ export class BodyEditorController {
     const docChanged = transactions.some((t) => t.docChanged);
     if (docChanged) {
       const currentModel = this.store.getState().document;
-      if (currentModel && this.window) {
+      if (modelShown && transactions.length === 1 && this.window) {
+        this.window = { ...this.window, doc: after.doc };
+      } else if (currentModel && this.window) {
         const result = replaceSectionsInModel(currentModel, this.window, after.doc);
         this.window = result.window;
         this.model = result.model;
@@ -572,7 +636,7 @@ export class BodyEditorController {
    */
   applyModelStep(step: ModelStep, label?: string): Document | null {
     const current = this.store.getState().document;
-    if (!current) return null;
+    if (!current || this.locked) return null;
     const next = step.apply(current);
     this.commitStep(step, next, 'after');
     if (!this.replaying) {
@@ -611,6 +675,61 @@ export class BodyEditorController {
     this.dispatch(tr);
   }
 
+  /**
+   * Shows `next` - this document as a script run left it, or as the run's undo or redo restores
+   * it - through one editor transaction kept out of the editor history, so the edits made
+   * before stay undoable. The window stays on the body and sections the user was looking at
+   * (followed by their node ids), the selection on its text blocks.
+   */
+  showModel(next: Document): void {
+    const previous = this.model;
+    const state = this.editorState;
+    if (next === previous) return;
+    if (!previous || !state || !this.window) {
+      this.model = next;
+      actions.updateDocument(this.store, next);
+      this.rebuildWindow();
+      return;
+    }
+    this.followWindow(previous, next);
+    let window = createWindow(next, this.windowOptions());
+    const head = textPoint(state.doc, state.selection.head);
+    if (head && !findNodeById(window.doc, head.nodeId)) {
+      // The change moved the caret's block out of the window: show the part around it.
+      const around = windowAround(next, head.nodeId, { windowSize: this.windowSize });
+      if (around) {
+        window = around;
+        this.bodyIndex = around.bodyIndex;
+        this.range = around.wholeBook ? null : { start: around.start, count: around.count };
+      }
+    }
+    const tr = closeHistory(state.tr).setMeta('addToHistory', false);
+    replaceDifferences(tr, state.doc, window.doc);
+    const selection = selectionOnSameNodes(state.selection, state.doc, tr.doc);
+    if (selection) tr.setSelection(selection);
+    this.model = next;
+    this.window = window;
+    actions.updateDocument(this.store, next);
+    this.applyToEditor(tr, true);
+    this.publish();
+    this.publishSelection();
+  }
+
+  /** Keeps a section window on the same body and first section when the model changed. */
+  private followWindow(previous: Document, next: Document): void {
+    const window = this.window;
+    if (!window || window.wholeBook) return;
+    const bodyId = previous.bodies[window.bodyIndex]?.attrs.nodeId;
+    const bodyIndex = next.bodies.findIndex((body) => body.attrs.nodeId === bodyId);
+    if (bodyIndex < 0) return;
+    this.bodyIndex = bodyIndex;
+    const firstId = sectionsOf(previous.bodies[window.bodyIndex])[window.start]?.attrs.nodeId;
+    const start = sectionsOf(next.bodies[bodyIndex]).findIndex(
+      (section) => section.attrs.nodeId === firstId,
+    );
+    if (start >= 0) this.range = { start, count: window.count };
+  }
+
   /** Stores a model produced outside the editor and refreshes the window around it. */
   private commitModel(next: Document): void {
     const unchanged =
@@ -629,11 +748,19 @@ export class BodyEditorController {
 
   setEditable(editable: boolean): void {
     this.editable = editable;
-    this.view?.setProps({ editable: () => this.editable });
+    this.view?.setProps({ editable: () => this.isEditable });
   }
 
+  /** The user can change the document (editable and no script running). */
   get isEditable(): boolean {
-    return this.editable;
+    return this.editable && !this.locked;
+  }
+
+  /** Locks the document while a script runs (the run itself changes it through `showModel`). */
+  setLocked(locked: boolean): void {
+    if (this.locked === locked) return;
+    this.locked = locked;
+    this.view?.setProps({ editable: () => this.isEditable });
   }
 
   setTranslate(translate: (key: string) => string): void {

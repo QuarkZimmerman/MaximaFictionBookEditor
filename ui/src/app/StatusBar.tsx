@@ -1,11 +1,14 @@
 /**
  * Status bar: message pane ("Ready" / "Not connected" / explicit message / job progress),
- * element path pane and the INS/OVR pane, as in the original frame window.
+ * element path pane and the INS/OVR pane, as in the original frame window. While a script runs
+ * the run bar (progress and Cancel) takes the message pane's place, shown even when the status
+ * bar is hidden.
  */
 
 import { useTranslation } from 'react-i18next';
 
 import { useAppState } from '@/model/store';
+import { RunBar } from '@/scripting/RunBar';
 
 import { useAppServices } from './services';
 
@@ -18,8 +21,9 @@ export function StatusBar() {
   const progress = useAppState((s) => s.progress, store);
   const selectionPath = useAppState((s) => s.selectionPath, store);
   const insertMode = useAppState((s) => s.insertMode, store);
+  const scriptRunning = useAppState((s) => s.scriptRunning, store);
 
-  if (!visible) return null;
+  if (!visible && !scriptRunning) return null;
 
   let text: string;
   if (progress) {
@@ -46,23 +50,31 @@ export function StatusBar() {
 
   return (
     <div className="mfbe-statusbar" role="status" data-testid="statusbar">
-      <span className="mfbe-status-pane mfbe-status-message" data-testid="status-message">
-        {text}
-      </span>
-      <span
-        className="mfbe-status-pane mfbe-status-path"
-        data-testid="status-path"
-        title={selectionPath}
-      >
-        {selectionPath}
-      </span>
-      <span
-        className="mfbe-status-pane mfbe-status-insmode"
-        data-testid="status-insmode"
-        data-mode={insertMode}
-      >
-        {insertMode === 'insert' ? t('status.ins') : t('status.ovr')}
-      </span>
+      {scriptRunning ? (
+        <RunBar />
+      ) : (
+        <span className="mfbe-status-pane mfbe-status-message" data-testid="status-message">
+          {text}
+        </span>
+      )}
+      {visible ? (
+        <>
+          <span
+            className="mfbe-status-pane mfbe-status-path"
+            data-testid="status-path"
+            title={selectionPath}
+          >
+            {selectionPath}
+          </span>
+          <span
+            className="mfbe-status-pane mfbe-status-insmode"
+            data-testid="status-insmode"
+            data-mode={insertMode}
+          >
+            {insertMode === 'insert' ? t('status.ins') : t('status.ovr')}
+          </span>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -1,26 +1,31 @@
 /**
  * Script host (T102): the run lifecycle on the editor side. One worker per run, created by the
- * injected factory and bound to the host through a private MessageChannel; one undo group per
- * run (`UndoCoordinator.beginGroup`/`endGroup`, rolled back with `rollbackGroup()` when the
- * user cancels and the worker is terminated); a watchdog that shows "script is still running -
- * wait / cancel" after 30 s without activity; errors reported as `Script error: <message> at
- * line L, column C`, logged through `log.error`; the "Last script" memory (`scripts.lastRun`).
+ * injected factory and bound to the host through a private MessageChannel. A run works on a
+ * working copy of the document (api-impl.ts) while the document is locked for the user
+ * (`scriptRunning`); at the end the document is replaced by the result, kept as one undo entry
+ * holding the document before the run. Cancel terminates the worker, closes the script's open
+ * dialogs and restores the document; a failure restores it too and is reported as
+ * `Script error: <message> at line L, column C`, logged through `log.error`. A run whose
+ * document is replaced (opened, reloaded or closed from outside) ends as cancelled and leaves
+ * the new document alone. After 30 s without activity the run is marked silent (the run bar
+ * says so). "Last script" memory: `scripts.lastRun`.
  */
 
 import type { TFunction } from 'i18next';
 
 import type { Dialogs } from '@/dialogs/types';
+import type { Document } from '@/model/document';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
 
 import { createScriptApi, JsonText, ScriptApiError, type ScriptApi } from './api-impl';
-import { showRunningPrompt } from './dialogs';
 import type {
   HostMessage,
   InitMessage,
   NodeRef,
+  RunEnd,
   ScriptErrorInfo,
   ScriptInfo,
   ScriptSourceResult,
@@ -35,6 +40,8 @@ export interface RunState {
   status: RunStatus;
   startedAt: number;
   error?: ScriptErrorInfo;
+  /** The running script has shown no activity for the watchdog delay (30 s). */
+  silent?: boolean;
 }
 
 export interface RunResult {
@@ -58,7 +65,7 @@ export interface ScriptHostDeps {
   getController: () => BodyEditorController | null;
   /** Page origin used to absolutise `/scripts/...` URLs (default `window.location.origin`). */
   origin?: () => string;
-  /** Inactivity threshold of the "still running" prompt (default 30 s). */
+  /** Inactivity after which a run counts as silent (default 30 s). */
   watchdogMs?: number;
   /** Receives `console.*` output of scripts (development builds log it to the console). */
   onLog?: (level: string, args: unknown[]) => void;
@@ -73,6 +80,9 @@ export interface RunOptions {
 }
 
 export const DEFAULT_WATCHDOG_MS = 30_000;
+
+/** Undo view of a script run: undoing it shows the Body view. */
+const SCRIPT_RUN_UNDO_VIEW = 'body';
 
 /** Localised display name of a script (falls back to English, then the id). */
 export function scriptName(script: ScriptInfo, language: string): string {
@@ -100,12 +110,42 @@ interface ActiveRun {
   port: MessagePort;
   api: ScriptApi;
   entryUrl: string;
+  /** Label of the run's undo entry. */
+  label: string;
+  /** The document before the run (restored by Cancel and failures) and its state. */
+  before: Document;
+  modifiedBefore: boolean;
   watchdog: ReturnType<typeof setTimeout> | null;
+  lastActivity: number;
   dialogDepth: number;
-  promptOpen: boolean;
   cancelRequested: boolean;
   finished: boolean;
+  /** Stops watching the store for a replaced document. */
+  unwatch: () => void;
+  end: RunEnd & { finish(): void };
   resolve: (result: RunResult) => void;
+}
+
+/** The end of a run, observed by its open dialogs. */
+function createRunEnd(): RunEnd & { finish(): void } {
+  const listeners = new Set<() => void>();
+  let ended = false;
+  return {
+    get ended() {
+      return ended;
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    finish() {
+      if (ended) return;
+      ended = true;
+      for (const listener of [...listeners]) listener();
+    },
+  };
 }
 
 export class ScriptHost {
@@ -153,6 +193,7 @@ export class ScriptHost {
   /** Runs `script` to completion (resolves when the run is done, cancelled or failed). */
   async run(script: ScriptInfo, options: RunOptions): Promise<RunResult> {
     const { t, dialogs, rpc } = options;
+    const { store } = this.deps;
     const name = scriptName(script, options.uiLanguage);
     if (this.active) {
       await dialogs.showMessage({
@@ -183,6 +224,9 @@ export class ScriptHost {
       });
       return { status: 'failed', message };
     }
+    const before = store.getState().document;
+    if (!before) return { status: 'unavailable', message: 'no document' };
+    if (this.active) return { status: 'busy' };
     const origin = this.deps.origin?.() ?? window.location.origin;
     const entryUrl = new URL(source.entryUrl, origin).toString();
 
@@ -193,6 +237,7 @@ export class ScriptHost {
     worker.postMessage(init, [channel.port2]);
 
     return new Promise<RunResult>((resolve) => {
+      const end = createRunEnd();
       const run: ActiveRun = {
         state: { scriptId: script.id, name, status: 'running', startedAt: Date.now() },
         script,
@@ -200,14 +245,19 @@ export class ScriptHost {
         worker,
         port: channel.port1,
         entryUrl,
+        label,
+        before,
+        modifiedBefore: store.getState().modified,
         watchdog: null,
+        lastActivity: Date.now(),
         dialogDepth: 0,
-        promptOpen: false,
         cancelRequested: false,
         finished: false,
+        unwatch: () => {},
+        end,
         resolve,
         api: createScriptApi({
-          store: this.deps.store,
+          store,
           controller: this.deps.getController(),
           dialogs,
           rpc,
@@ -215,13 +265,17 @@ export class ScriptHost {
           scriptName: name,
           uiLanguage: options.uiLanguage,
           onUiActivity: (active) => this.onUiActivity(run, active),
-          onProgress: () => this.armWatchdog(run),
+          onProgress: () => this.onActivity(run),
           isCancelRequested: () => run.cancelRequested,
+          runEnd: end,
         }),
       };
       this.active = run;
-      this.deps.undo.beginGroup(label);
-      actions.setStatusMessage(this.deps.store, t('scripting.status.running', { name }) as string);
+      run.unwatch = store.subscribe((state) => {
+        if (state.docId !== before.docId) queueMicrotask(() => this.cancel());
+      });
+      actions.setScriptRunning(store, true);
+      actions.setStatusMessage(store, t('scripting.status.running', { name }) as string);
       this.emit();
 
       channel.port1.onmessage = (event: MessageEvent<WorkerMessage>) => {
@@ -241,11 +295,14 @@ export class ScriptHost {
         }
         void this.finish(run, 'failed', error);
       };
-      this.armWatchdog(run);
+      this.armWatchdog(run, this.watchdogMs);
     });
   }
 
-  /** Cancels the running script: terminates the worker and rolls the undo group back. */
+  /**
+   * Cancels the running script: terminates the worker, closes its open dialogs and restores
+   * the document as it was before the run.
+   */
   cancel(): void {
     const run = this.active;
     if (!run || run.finished) return;
@@ -260,6 +317,10 @@ export class ScriptHost {
   }
 
   /* ------------------------------------------------------------ internals */
+
+  private get watchdogMs(): number {
+    return this.deps.watchdogMs ?? DEFAULT_WATCHDOG_MS;
+  }
 
   private post(run: ActiveRun, message: HostMessage): void {
     if (run.finished) return;
@@ -288,7 +349,7 @@ export class ScriptHost {
         return;
       }
       case 'call': {
-        this.armWatchdog(run);
+        this.onActivity(run);
         try {
           const value = await run.api.call(message.method, message.args);
           if (value instanceof JsonText) {
@@ -304,7 +365,6 @@ export class ScriptHost {
             ...(error instanceof ScriptApiError ? { name: error.name, code: error.code } : {}),
           });
         }
-        this.armWatchdog(run);
         return;
       }
       case 'done':
@@ -323,71 +383,95 @@ export class ScriptHost {
 
   private onUiActivity(run: ActiveRun, active: boolean): void {
     run.dialogDepth += active ? 1 : -1;
-    if (run.dialogDepth > 0) this.clearWatchdog(run);
-    else this.armWatchdog(run);
+    this.onActivity(run);
   }
 
-  private clearWatchdog(run: ActiveRun): void {
-    if (run.watchdog) {
-      clearTimeout(run.watchdog);
-      run.watchdog = null;
-    }
+  /** The script did something: it is not silent, the watchdog starts over. */
+  private onActivity(run: ActiveRun): void {
+    run.lastActivity = Date.now();
+    if (run.state.silent) this.setSilent(run, false);
+    if (!run.watchdog && !run.finished) this.armWatchdog(run, this.watchdogMs);
   }
 
-  private armWatchdog(run: ActiveRun): void {
-    this.clearWatchdog(run);
-    if (run.finished || run.dialogDepth > 0 || run.promptOpen) return;
-    const delay = this.deps.watchdogMs ?? DEFAULT_WATCHDOG_MS;
+  private setSilent(run: ActiveRun, silent: boolean): void {
+    run.state = { ...run.state, silent };
+    this.emit();
+  }
+
+  /** Marks the run silent once nothing happened for the watchdog delay (dialogs excepted). */
+  private armWatchdog(run: ActiveRun, delay: number): void {
     run.watchdog = setTimeout(() => {
       run.watchdog = null;
-      void this.promptStillRunning(run);
+      if (run.finished || run.state.silent) return;
+      const quiet = Date.now() - run.lastActivity;
+      if (run.dialogDepth > 0) this.armWatchdog(run, this.watchdogMs);
+      else if (quiet < this.watchdogMs) this.armWatchdog(run, this.watchdogMs - quiet);
+      else this.setSilent(run, true);
     }, delay);
   }
 
-  private async promptStillRunning(run: ActiveRun): Promise<void> {
-    if (run.finished || run.promptOpen || run.dialogDepth > 0) return;
-    run.promptOpen = true;
-    const answer = await showRunningPrompt(run.options.dialogs, {
-      scriptName: run.state.name,
-      subscribe: this.subscribe,
-      isRunning: () => this.active === run && !run.finished,
-    });
-    run.promptOpen = false;
-    if (run.finished) return;
-    if (answer === 'cancel') this.cancel();
-    else this.armWatchdog(run);
+  /** Shows `document` in the editor (and the store). */
+  private show(document: Document): void {
+    const controller = this.deps.getController();
+    if (controller) controller.showModel(document);
+    else actions.updateDocument(this.deps.store, document);
   }
 
   private async finish(run: ActiveRun, status: RunStatus, error?: ScriptErrorInfo): Promise<void> {
     if (run.finished) return;
     run.finished = true;
-    this.clearWatchdog(run);
+    run.unwatch();
+    if (run.watchdog) {
+      clearTimeout(run.watchdog);
+      run.watchdog = null;
+    }
     try {
       run.port.close();
     } catch {
       // ignore
     }
     run.worker.terminate();
+    run.end.finish();
     const { undo, store } = this.deps;
     const { t, dialogs, rpc } = run.options;
-    if (status === 'cancelled') undo.rollbackGroup();
-    else undo.endGroup();
+
+    // The run's document may have been replaced meanwhile (opened, reloaded, closed): the run
+    // then leaves it alone.
+    const own = store.getState().docId === run.before.docId && store.getState().document !== null;
+    let outcome = status;
+    if (status === 'done' && own) {
+      const after = run.api.result();
+      if (after) {
+        this.show(after);
+        const before = run.before;
+        undo.recordSnapshot(SCRIPT_RUN_UNDO_VIEW, run.label, {
+          undo: () => this.show(before),
+          redo: () => this.show(after),
+        });
+      }
+    } else if (status === 'done') {
+      outcome = 'cancelled';
+    } else if (own && store.getState().document !== run.before) {
+      this.show(run.before);
+      actions.setModified(store, run.modifiedBefore);
+    }
+    actions.setScriptRunning(store, false);
     run.api.finish();
 
-    run.state = { ...run.state, status, error };
+    run.state = { ...run.state, status: outcome, error, silent: false };
     this.lastState = run.state;
     this.active = null;
     this.emit();
 
     let message: string | undefined;
-    if (status === 'done') {
+    if (outcome === 'done') {
       if (!run.api.stickyStatus) {
         actions.setStatusMessage(
           store,
           t('scripting.status.finished', { name: run.state.name }) as string,
         );
       }
-    } else if (status === 'cancelled') {
+    } else if (outcome === 'cancelled') {
       actions.setStatusMessage(
         store,
         t('scripting.status.cancelled', { name: run.state.name }) as string,
@@ -432,6 +516,6 @@ export class ScriptHost {
         testId: 'dialog-script-error',
       });
     }
-    run.resolve({ status, error, message });
+    run.resolve({ status: outcome, error, message });
   }
 }

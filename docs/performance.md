@@ -88,3 +88,66 @@ tests/bench/run.sh --skip-150 --json # what CI runs (Linux e2e job)
 
 Options and the full method are in `tests/bench/README.md`. CI runs the 10 MB part on every
 push; the 150 MB part is a local/nightly run (hosted runners are slow and short on memory).
+
+## Script runs (feature 002, T054–T058)
+
+Budget (SC-008, FR-050): every bundled non-interactive clean-up script finishes on a typical
+1 MB book in under 5 s on a 2020-era laptop, and on a 10 MB book in at most 12 times its 1 MB
+time.
+
+`ui/tests/e2e/perf-scripts.spec.ts` (tag `@perf`) opens the books of
+`tests/bench/gen-text-book.py` — `clean-1mb.fb2` (5,000 paragraphs in 100 sections) and
+`clean-10mb.fb2` (50,000 in 1,000), generated into `tests/bench/books/` (git-ignored) when
+missing — and runs each script through `window.__mfbeTest.scripts.run` on the unchanged book
+(one Undo after every run), timed in the page from the start of the run to its end; the final
+report message is answered at once.
+
+- Every change (`.github/workflows/ci.yml`, apart from the journeys, one worker): each 10 MB
+  time at most 12 times its 1 MB time, each 1 MB time under 5 s × `MFBE_PERF_FACTOR`.
+- Release (`.github/workflows/release.yml`): the same run; the times go to the job summary and
+  the `script-benchmark` artifact (`MFBE_PERF_RESULTS=<file>` writes them as JSON).
+- The 5-second budget itself is confirmed on the reference laptop in the requester's release
+  smoke test.
+- `MFBE_PERF_FACTOR` (default 2) allows for the hosted CI runners against a 2020-era laptop:
+  the runners are 2–3 times slower than the development host (`ui/playwright.config.ts`).
+
+```bash
+cd ui && MFBE_CORE_BIN=<mfbe-core> npx playwright test --grep @perf --workers=1
+```
+
+Measured: the four 06 clean-ups below, place quotes and guillemets (12/001, 12/015) and the
+non-asking subtitle and empty-line clean-ups (13/525, 13/526, 13/528). Not measured: the 06
+scripts that ask about every place they change (04, 05, 06, 07, 08, 10, 14, 15, 16, 19, 20),
+13/527 (asks first), 06/12 (works on a notes body, which the generated books do not have),
+the other place-quotes variants (12/002–006: the 12/001 engine started at another level or at
+the caret) and 12/007–014, which only move the selection.
+
+Development host (4 vCPU VM shared with other jobs, Debug core, headless Chromium), four runs
+on 2026-10-15, milliseconds:
+
+| Script | 1 MB before | 1 MB after | 10 MB after | 10 MB / 1 MB |
+| --- | ---: | ---: | ---: | ---: |
+| 06/general-cleanup | 8 473 | 564–1 184 | 3 848–5 188 | 3.4–6.8 |
+| 06/latin-to-cyrillic | 282 | 287–487 | 1 588–1 862 | 3.4–6.1 |
+| 06/external-links-to-text | 88 | 101–160 | 690–971 | 5.1–6.8 |
+| 06/remove-style-tags | 103 | 100–172 | 742–875 | 4.8–7.8 |
+| 12/place-quotes | 3 219 | 84–155 | 492–686 | 4.2–7.3 |
+| 12/place-guillemets-only | 3 136 | 86–145 | 502–613 | 3.7–6.8 |
+| 13/subtitles-empty-lines | 32 | 32–55 | 101–120 | 2.0–3.8 |
+| 13/subtitles-empty-lines-unbold-titles | 24 | 32–81 | 98–158 | 1.4–4.4 |
+| 13/subtitles-empty-lines-plain-titles | 27 | 44–76 | 112–140 | 1.5–3.2 |
+
+"Before" is release 0.0.1's run model (commit `d5581a8`, one run); its 10 MB times were not
+taken: every change cost time in proportion to the whole book. During the 10 MB runs of
+06/general-cleanup, 12/place-quotes and 06/latin-to-cyrillic no frame of the window took longer
+than 40 ms.
+
+What changed: a run reads and writes a working copy of the document
+(`ui/src/scripting/workingCopy.ts`) whose node index is kept current by every write and whose
+writes copy only the nodes on the way to the change; before the script's dialogs and
+selection calls the working copy is shown in the editor without an undo step; at the end the
+document is replaced in one editor transaction and the run is one undo entry holding the
+documents before and after it (`recordSnapshot` in `ui/src/model/undo.ts`). Before, every
+write was an editor transaction (decorations, the window converted back to JSON, the store
+updated and the window re-rendered) or a model step walking the whole book, and the node index
+was rebuilt after each write.

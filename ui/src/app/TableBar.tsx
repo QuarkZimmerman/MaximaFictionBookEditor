@@ -2,7 +2,8 @@
  * Table bar (T062/T063, FR-023/FR-036): attributes of the table around the caret - Table ID,
  * Table Style, cell ID and style, colspan, rowspan, tr align, th/td align and valign - bound
  * two-way to the Body selection as the original's two table toolbars. Fields are disabled
- * outside a table. Text fields apply on Enter / blur, the alignment lists immediately.
+ * outside a table and while a script runs. Text fields apply on Enter / blur, the alignment
+ * lists immediately.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -51,8 +52,9 @@ export function TableBar() {
   const { t } = useTranslation();
   const { store } = useAppServices();
   const activeView = useAppState((s) => s.activeView, store);
+  const scriptRunning = useAppState((s) => s.scriptRunning, store);
   const { controller, context } = useBodySelectionContext();
-  const inTable = activeView === 'body' && !!controller && !!context?.table;
+  const inTable = activeView === 'body' && !scriptRunning && !!controller && !!context?.table;
   const table = context?.table ?? null;
   const row = context?.row ?? null;
   const cell = context?.cell ?? null;
