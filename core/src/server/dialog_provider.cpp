@@ -143,6 +143,9 @@ json to_json(const OpenFileRequest& r) {
     if (r.folder) {
         j["folder"] = *r.folder;
     }
+    if (r.defaultPath) {
+        j["defaultPath"] = *r.defaultPath;
+    }
     return j;
 }
 
@@ -156,6 +159,12 @@ json to_json(const SaveFileRequest& r) {
         j["defaultPath"] = *r.defaultPath;
     }
     j["encodingChoices"] = r.encodingChoices;
+    if (r.selectedEncoding) {
+        j["selectedEncoding"] = *r.selectedEncoding;
+    }
+    if (r.encodingLabel) {
+        j["encodingLabel"] = *r.encodingLabel;
+    }
     j["selectedFilter"] = r.selectedFilter;
     if (r.folder) {
         j["folder"] = *r.folder;
@@ -210,6 +219,7 @@ OpenFileRequest open_file_request_from_json(const json& j) {
     r.multiple = bool_or(o, "multiple", false);
     r.selectedFilter = index_or(o, "selectedFilter", 0);
     r.folder = opt_str(o, "folder");
+    r.defaultPath = opt_str(o, "defaultPath");
     r.documentDialog = offers_fictionbook_files(r.filters);
     return r;
 }
@@ -231,6 +241,8 @@ SaveFileRequest save_file_request_from_json(const json& j) {
     r.filters = filters_from_json(o);
     r.defaultPath = opt_str(o, "defaultPath");
     r.encodingChoices = strings_or(o, "encodingChoices");
+    r.selectedEncoding = opt_str(o, "selectedEncoding");
+    r.encodingLabel = opt_str(o, "encodingLabel");
     r.selectedFilter = index_or(o, "selectedFilter", 0);
     r.documentDialog = offers_fictionbook_files(r.filters);
     return r;

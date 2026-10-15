@@ -70,6 +70,36 @@ TEST_CASE("dialogs: selected type and start folder travel with the request (feat
                     std::invalid_argument);
 }
 
+TEST_CASE("dialogs: a proposed file, the selected encoding and its label travel with the request",
+          "[dialogs]") {
+    // Open proposes a file (the custom dictionary); Save As selects an encoding and labels it.
+    const OpenFileRequest open =
+        open_file_request_from_json(json{{"title", "Dictionary"}, {"defaultPath", "/д/my.dic"}});
+    REQUIRE(open.defaultPath);
+    CHECK(*open.defaultPath == "/д/my.dic");
+    CHECK(to_json(open)["defaultPath"] == "/д/my.dic");
+    CHECK_FALSE(to_json(open_file_request_from_json(json::object())).contains("defaultPath"));
+
+    const SaveFileRequest save =
+        save_file_request_from_json(json{{"title", "Save As"},
+                                         {"encodingChoices", {"utf-8", "windows-1251", "koi8-r"}},
+                                         {"selectedEncoding", "windows-1251"},
+                                         {"encodingLabel", "Кодировка:"}});
+    CHECK(save.encodingChoices == std::vector<std::string>{"utf-8", "windows-1251", "koi8-r"});
+    CHECK(save.selectedEncoding == "windows-1251");
+    CHECK(save.encodingLabel == "Кодировка:");
+    const json emitted = to_json(save);
+    CHECK(emitted["selectedEncoding"] == "windows-1251");
+    CHECK(emitted["encodingLabel"] == "Кодировка:");
+    const json plain = to_json(save_file_request_from_json(json{{"title", "Save"}}));
+    CHECK_FALSE(plain.contains("selectedEncoding"));
+    CHECK_FALSE(plain.contains("encodingLabel"));
+    CHECK_THROWS_AS(save_file_request_from_json(json{{"selectedEncoding", 1}}),
+                    std::invalid_argument);
+    CHECK_THROWS_AS(open_file_request_from_json(json{{"defaultPath", false}}),
+                    std::invalid_argument);
+}
+
 TEST_CASE("dialogs: Open and Save As are the dialogs that offer FictionBook files (feature 002)",
           "[dialogs]") {
     CHECK(offers_fictionbook_files(

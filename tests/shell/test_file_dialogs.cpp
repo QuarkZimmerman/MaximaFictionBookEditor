@@ -115,18 +115,18 @@ TEST_CASE("file dialogs: macOS extension lists are lower case; all files is an e
     CHECK(macExtensions(FileFilter{"All files (*.*)", {"*"}}).empty());
 }
 
-TEST_CASE("file dialogs: Save As opens on the current file, or the folder last used with no name",
+TEST_CASE("file dialogs: a dialog opens on the proposed file, or the folder last used with no name",
           "[shell][dialogs]") {
     FileDialogRequest saved = request(FileDialogMode::kSave, documentTypes(), 0);
     saved.default_path = "/книги/Толстой/Война и мир.fb2";
     saved.folder = "/ignored";
-    const SavePlace current = savePlace(saved);
+    const ProposedFile current = proposedFile(saved);
     CHECK(current.folder == "/книги/Толстой");
     CHECK(current.name == "Война и мир.fb2");
 
     FileDialogRequest never_saved = request(FileDialogMode::kSave, documentTypes(), 0);
     never_saved.folder = "/книги";
-    const SavePlace last_used = savePlace(never_saved);
+    const ProposedFile last_used = proposedFile(never_saved);
     CHECK(last_used.folder == "/книги");
     CHECK(last_used.name.empty());
 
@@ -134,24 +134,46 @@ TEST_CASE("file dialogs: Save As opens on the current file, or the folder last u
     FileDialogRequest image = request(FileDialogMode::kSave, {}, 0);
     image.default_path = "обложка.jpg";
     image.folder = "/книги";
-    const SavePlace named = savePlace(image);
+    const ProposedFile named = proposedFile(image);
     CHECK(named.folder == "/книги");
     CHECK(named.name == "обложка.jpg");
     image.folder.clear();
-    CHECK(savePlace(image).folder.empty());
-    CHECK(savePlace(image).name == "обложка.jpg");
+    CHECK(proposedFile(image).folder.empty());
+    CHECK(proposedFile(image).name == "обложка.jpg");
+
+    // Open proposing a file (the custom dictionary): its folder and name.
+    FileDialogRequest dictionary =
+        request(FileDialogMode::kOpen, {{"Dictionaries (*.dic)", {"dic"}}}, 0);
+    dictionary.default_path = "/home/пользователь/словари/мой.dic";
+    const ProposedFile dic = proposedFile(dictionary);
+    CHECK(dic.folder == "/home/пользователь/словари");
+    CHECK(dic.name == "мой.dic");
+    // Open without one: the folder the core gave, no name.
+    FileDialogRequest open = request(FileDialogMode::kOpen, documentTypes(), 0);
+    open.folder = "/книги";
+    CHECK(proposedFile(open).folder == "/книги");
+    CHECK(proposedFile(open).name.empty());
 }
 
-TEST_CASE("file dialogs: the Save As encoding choice - label, items, the first preselected",
+TEST_CASE("file dialogs: the Save As encoding choice - label, items, the selected one",
           "[shell][dialogs]") {
     CHECK(encodingLabel("ru") == "Кодировка:");
     CHECK(encodingLabel("ru-RU") == "Кодировка:");
     CHECK(encodingLabel("en") == "Encoding:");
     CHECK(encodingLabel("") == "Encoding:");
 
+    // The original's order with the document's encoding selected.
     FileDialogRequest save = request(FileDialogMode::kSave, documentTypes(), 0);
-    save.encodings = {"windows-1251", "utf-8", "utf-16", "koi8-r"};
-    CHECK(encodingOfItem(save, kEncodingItemBase) == "windows-1251");
+    save.encodings = {"utf-8", "utf-16", "windows-1251", "koi8-r"};
+    CHECK(selectedEncodingIndex(save) == 0);  // none named: the first
+    save.selected_encoding = "windows-1251";
+    CHECK(selectedEncodingIndex(save) == 2);
+    save.selected_encoding = "koi8-r";
+    CHECK(selectedEncodingIndex(save) == 3);
+    save.selected_encoding = "iso-8859-5";  // not offered: the first
+    CHECK(selectedEncodingIndex(save) == 0);
+    CHECK(encodingOfItem(save, kEncodingItemBase) == "utf-8");
+    CHECK(encodingOfItem(save, kEncodingItemBase + 2) == "windows-1251");
     CHECK(encodingOfItem(save, kEncodingItemBase + 3) == "koi8-r");
     CHECK(encodingOfItem(save, kEncodingItemBase + 4).empty());
     CHECK(encodingOfItem(save, kEncodingItemBase - 1).empty());

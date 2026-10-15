@@ -109,14 +109,6 @@ export function saveAsSelectedType(kind: FileKind | null): number {
   return 0;
 }
 
-/**
- * The encodings of the Save As dialog. The dialog preselects the first one, so the encoding a
- * plain Save would use (`defaultSaveEncoding`) comes first, the others in the original's order.
- */
-export function saveAsEncodingChoices(preselected: string): string[] {
-  return [preselected, ...ENCODING_CHOICES.filter((encoding) => encoding !== preselected)];
-}
-
 /** Encoding for a plain Save: "Keep encoding" ? the file's encoding : the default encoding. */
 export function defaultSaveEncoding(store: AppStore): string {
   const state = store.getState();
@@ -447,7 +439,9 @@ export class FileFeature {
         filters: documentFilters(ctx),
         selectedFilter: saveAsSelectedType(state.fileKind),
         defaultPath: path,
-        encodingChoices: saveAsEncodingChoices(defaultSaveEncoding(store)),
+        encodingChoices: [...ENCODING_CHOICES],
+        selectedEncoding: defaultSaveEncoding(store),
+        encodingLabel: ctx.t('dialog.saveFile.encoding'),
       });
       if (!choice.path) return false;
       path = choice.path;

@@ -122,7 +122,7 @@ void register_dialog_handlers(rpc::RpcRouter& router, Services& services) {
         } catch (const std::invalid_argument& e) {
             throw rpc::invalid_params(e.what());
         }
-        if (!request.folder) {
+        if (!request.folder && !names_folder(request.defaultPath)) {
             request.folder = start_folder(services, request.documentDialog);
         }
         const bool remember = request.documentDialog;

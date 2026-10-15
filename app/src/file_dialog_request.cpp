@@ -131,7 +131,7 @@ std::vector<std::string> macExtensions(const FileFilter& filter) {
     return extensions;
 }
 
-SavePlace savePlace(const FileDialogRequest& request) {
+ProposedFile proposedFile(const FileDialogRequest& request) {
     if (request.default_path.empty()) {
         return {request.folder, {}};
     }
@@ -145,6 +145,15 @@ SavePlace savePlace(const FileDialogRequest& request) {
 
 std::string encodingLabel(const std::string& language) {
     return language.rfind("ru", 0) == 0 ? "Кодировка:" : "Encoding:";
+}
+
+std::size_t selectedEncodingIndex(const FileDialogRequest& request) {
+    for (std::size_t i = 0; i < request.encodings.size(); ++i) {
+        if (request.encodings[i] == request.selected_encoding) {
+            return i;
+        }
+    }
+    return 0;
 }
 
 std::string encodingOfItem(const FileDialogRequest& request, unsigned item_id) {

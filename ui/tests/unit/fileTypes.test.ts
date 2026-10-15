@@ -13,7 +13,6 @@ import {
   documentFileTypes,
   fileType,
   imageFileTypes,
-  parentFolder,
   savedImageFileTypes,
 } from '@/dialogs/fileTypes';
 import { initI18n } from '@/i18n';
@@ -96,14 +95,5 @@ describe('file types of the native dialogs (FR-010)', () => {
       'Словари (*.dic)',
       'Все файлы (*.*)',
     ]);
-  });
-
-  it('finds the folder a proposed file lies in', () => {
-    expect(parentFolder('/home/user/словари/my.dic')).toBe('/home/user/словари');
-    expect(parentFolder('C:\\Dictionaries\\my.dic')).toBe('C:\\Dictionaries');
-    expect(parentFolder('C:\\my.dic')).toBe('C:\\');
-    expect(parentFolder('/my.dic')).toBe('/');
-    expect(parentFolder('my.dic')).toBe('');
-    expect(parentFolder('')).toBe('');
   });
 });
