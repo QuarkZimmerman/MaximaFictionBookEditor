@@ -192,7 +192,7 @@ upgrades and never need administrator rights:
 | Purpose | Windows | Linux | macOS |
 |---------|---------|-------|-------|
 | Configuration: `settings.json`, `hotkeys.json`, `recent.json`, `exclusions.txt` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_CONFIG_HOME/maxfbeditor/` (default `~/.config/maxfbeditor/`) | `~/Library/Application Support/Maxima Fiction Book Editor/` |
-| User content: custom dictionary `custom.dic`, user folders `genres/`, `scripts/`, `dictionaries/` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_DATA_HOME/maxfbeditor/` (default `~/.local/share/maxfbeditor/`) | same as configuration |
+| User content: custom dictionary `custom.dic`, your own template of new documents `blank.fb2`, user folders `genres/`, `scripts/`, `dictionaries/` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_DATA_HOME/maxfbeditor/` (default `~/.local/share/maxfbeditor/`) | same as configuration |
 | Machine-local state: errors-only log `logs/mfbe-errors.log` (5 x 1 MB, rotating), browser cache | `%LOCALAPPDATA%\Maxima Fiction Book Editor\` | `$XDG_STATE_HOME/maxfbeditor/` (default `~/.local/state/maxfbeditor/`) and `$XDG_DATA_HOME/maxfbeditor/cef/` | `~/Library/Logs/Maxima Fiction Book Editor/`, `~/Library/Application Support/Maxima Fiction Book Editor/cef/` |
 
 On Windows this follows the platform guidelines: the installation under `C:\Program Files` is
@@ -207,6 +207,12 @@ dialog's *Open log folder* open the right place in the file manager.
 
 Genre files are `*.genres.tsv` text files in the `genres` folder (UTF-8, tab-separated:
 `code`, `category`, `name_en`, `name_ru`); the picker shows which file a genre comes from.
+
+New documents start from `blank.fb2`, the original editor's blank document. A `blank.fb2` of
+your own - in the template folder chosen in *Settings > Other*, the per-user data folder or the
+portable folder, looked up in that order - is used instead, as written; one that cannot be
+used is named and the bundled template used. *Settings > Other* shows the template in effect
+and *Open template folder* opens its folder.
 
 **Portable folder** (no installation, data next to the program):
 
