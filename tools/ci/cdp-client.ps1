@@ -3,8 +3,9 @@
 # Release builds have no test hooks, so the checks read the page and send input through it.
 # Dot-sourced by the scripts that use it (pwsh 7).
 
-# Connects to the editor's page, the interface the core serves on 127.0.0.1. Fails when $Process
-# ends first or no page appears within $TimeoutSeconds.
+# Connects to the editor's page, the interface the core serves on 127.0.0.1, and returns the
+# session (a hashtable: Socket, LastId). Fails when $Process ends first or no page appears within
+# $TimeoutSeconds.
 function Connect-CdpPage([int]$Port, [System.Diagnostics.Process]$Process, [int]$TimeoutSeconds = 120) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
@@ -22,8 +23,8 @@ function Connect-CdpPage([int]$Port, [System.Diagnostics.Process]$Process, [int]
         }
         if ($page) {
             $socket = [System.Net.WebSockets.ClientWebSocket]::new()
-            $socket.ConnectAsync([uri]$page.webSocketDebuggerUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
-            return [pscustomobject]@{ Socket = $socket; LastId = 0 }
+            $null = $socket.ConnectAsync([uri]$page.webSocketDebuggerUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
+            return @{ Socket = $socket; LastId = 0 }
         }
         Start-Sleep -Seconds 1
     }
@@ -57,6 +58,10 @@ function Receive-CdpMessage([System.Net.WebSockets.ClientWebSocket]$Socket, [Tim
 # Sends the command $Method and returns its result; events arriving meanwhile are skipped. The
 # message is ASCII (non-ASCII text as \u escapes), the answers are read as UTF-8.
 function Invoke-Cdp($Session, [string]$Method, [hashtable]$Params = @{}, [int]$TimeoutSeconds = 30) {
+    if ($Session -isnot [hashtable]) {
+        $kinds = @($Session) | ForEach-Object { if ($null -eq $_) { 'nothing' } else { $_.GetType().FullName } }
+        throw "${Method}: not a DevTools session ($(@($Session).Count) object(s): $($kinds -join ', '))"
+    }
     $Session.LastId += 1
     $id = $Session.LastId
     $message = ConvertTo-Json -InputObject @{ id = $id; method = $Method; params = $Params } -Depth 10 -Compress `
