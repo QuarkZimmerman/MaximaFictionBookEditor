@@ -27,7 +27,7 @@ import { MenuBar } from './MenuBar';
 import type { DynamicMenuItems } from './menus';
 import { forcedLanguage } from './startup';
 import { StatusBar } from './StatusBar';
-import { textFieldOf } from './textFields';
+import { followTextFieldFocus, textFieldOf } from './textFields';
 import { applyStoredTheme } from './theme';
 import { Toolbars } from './Toolbars';
 import { ViewSwitcher } from './ViewSwitcher';
@@ -203,6 +203,9 @@ function Shell({
     document.addEventListener('contextmenu', onContextMenu);
     return () => document.removeEventListener('contextmenu', onContextMenu);
   }, []);
+
+  // The Edit menu and the toolbar act on the text field the focus left for them.
+  useEffect(() => followTextFieldFocus(), []);
 
   // Window title: "<file>[*] - Maxima Fiction Book Editor".
   useEffect(() => {

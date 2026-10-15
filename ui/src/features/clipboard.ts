@@ -1,14 +1,24 @@
 /**
  * Clipboard commands of the Edit menu, the toolbar and the context menu (T065): Cut / Copy /
- * Paste for the Body editor. Copy and Cut go through the browser's clipboard events (so the
- * editor plugin in `editor/plugins/clipboard.ts` writes the structured, HTML and plain
- * flavours); Paste reads the async clipboard API when available and falls back to the
- * `paste` command. Enable states: Cut/Copy need a selection, Paste an editable Body view.
- * An image on the clipboard is handed to the images feature (`features/images/paste.ts`),
- * which uploads it as a binary and inserts an image node (US7).
+ * Paste for the Body editor and, as in the original, for the Source editor and the Description
+ * view's text fields (feature 002). In the Body, Copy and Cut go through the browser's
+ * clipboard events (so the editor plugin in `editor/plugins/clipboard.ts` writes the
+ * structured, HTML and plain flavours); Paste reads the async clipboard API when available and
+ * falls back to the `paste` command. Enable states: Cut/Copy need a selection, Paste an
+ * editable target. An image on the clipboard is handed to the images feature
+ * (`features/images/paste.ts`), which uploads it as a binary and inserts an image node (US7).
  */
 
+import type { EditorView } from '@codemirror/view';
+
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
+import {
+  cutOrCopy,
+  hasSelectedText,
+  isWritable,
+  lastFocusedTextField,
+  pasteIntoField,
+} from '@/app/textFields';
 import {
   MFBE_CLIPBOARD_MIME,
   MFBE_CLIPBOARD_WEB_MIME,
@@ -17,6 +27,8 @@ import {
   type PasteData,
 } from '@/editor/plugins/clipboard';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
+import { pasteIntoSource } from '@/views/source/sourceClipboard';
+import { getSourceEditor } from '@/views/source/sourceEditor';
 
 import { bodyController, bodyEditable, cmdKeys } from './editing/common';
 import { pasteImageFile, reportImageFailure } from './images/paste';
@@ -34,6 +46,43 @@ function hasSelection(ctx: CommandContext): boolean {
   const controller = bodyController(ctx.store);
   const state = controller?.selectionState;
   return !!state && bodyEditable(ctx) && !state.selection.empty;
+}
+
+/** The Source editor the commands act on in the Source view. */
+function sourceView(ctx: CommandContext): EditorView | null {
+  if (ctx.store.getState().activeView !== 'source') return null;
+  return getSourceEditor(ctx.store)?.editorView ?? null;
+}
+
+/** The Description view's text field the commands act on: the one that had the focus last. */
+function descriptionField(ctx: CommandContext): HTMLElement | null {
+  if (ctx.store.getState().activeView !== 'description') return null;
+  const field = lastFocusedTextField();
+  return field?.closest('[data-testid="description-view"]') ? field : null;
+}
+
+function sourceSelected(view: EditorView): boolean {
+  return view.state.selection.ranges.some((range) => !range.empty);
+}
+
+function canCopy(ctx: CommandContext, cut: boolean): boolean {
+  const source = sourceView(ctx);
+  if (source) return sourceSelected(source) && !(cut && source.state.readOnly);
+  const field = descriptionField(ctx);
+  if (field) return hasSelectedText(field) && !(cut && !isWritable(field));
+  return hasSelection(ctx);
+}
+
+function cutOrCopyIn(ctx: CommandContext, cut: boolean): Promise<void> | void {
+  const source = sourceView(ctx);
+  if (source) {
+    source.focus();
+    document.execCommand(cut ? 'cut' : 'copy');
+    return;
+  }
+  const field = descriptionField(ctx);
+  if (field) return cutOrCopy(field, cut);
+  return copySelection(bodyController(ctx.store)!, cut);
 }
 
 /** Clipboard content: the text flavours plus an image blob when the clipboard holds one (US7). */
@@ -152,24 +201,34 @@ export function registerClipboardCommands(registry: CommandRegistry): void {
       group: 'edit',
       ...cmdKeys('edit.cut', 'menu.edit.cut'),
       icon: 'id_edit_cut',
-      enabled: hasSelection,
-      run: (ctx) => copySelection(bodyController(ctx.store)!, true),
+      enabled: (ctx) => canCopy(ctx, true),
+      run: (ctx) => cutOrCopyIn(ctx, true),
     },
     {
       id: 'edit.copy',
       group: 'edit',
       ...cmdKeys('edit.copy', 'menu.edit.copy'),
       icon: 'id_edit_copy',
-      enabled: hasSelection,
-      run: (ctx) => copySelection(bodyController(ctx.store)!, false),
+      enabled: (ctx) => canCopy(ctx, false),
+      run: (ctx) => cutOrCopyIn(ctx, false),
     },
     {
       id: 'edit.paste',
       group: 'edit',
       ...cmdKeys('edit.paste', 'menu.edit.paste'),
       icon: 'id_edit_paste',
-      enabled: (ctx) => bodyEditable(ctx) && !!bodyController(ctx.store)?.isMounted,
+      enabled: (ctx) => {
+        const source = sourceView(ctx);
+        if (source) return !source.state.readOnly;
+        const field = descriptionField(ctx);
+        if (field) return isWritable(field);
+        return bodyEditable(ctx) && !!bodyController(ctx.store)?.isMounted;
+      },
       run: (ctx) => {
+        const source = sourceView(ctx);
+        if (source) return pasteIntoSource(source);
+        const field = descriptionField(ctx);
+        if (field) return pasteIntoField(field);
         const controller = bodyController(ctx.store)!;
         return pasteIntoEditor(controller, {
           onImage: async (image) => {

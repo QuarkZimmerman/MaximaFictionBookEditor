@@ -612,4 +612,49 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await page.getByTestId('source-context-menu-undo').click();
     await expect(source).toContainText('FictionBook');
   });
+
+  test('6. Edit > Cut, Copy and Paste act on the Description field and the Source editor', async ({
+    page,
+    context,
+    uiLang,
+  }) => {
+    // As in the original: its Edit menu worked on the source editor and on the Description
+    // form's fields, not only on the Body.
+    core = await ownCore();
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
+      origin: new URL(core.url).origin,
+    });
+    await openOwn(page, core, uiLang);
+    const editMenu = page.getByTestId('menu-edit');
+
+    // Description: the field that had the focus before the menu opened.
+    await page.getByTestId('view-description').click();
+    const title = page.getByTestId('description-book-title');
+    await title.fill('Menu title');
+    await title.selectText();
+    await editMenu.click();
+    await expect(page.getByTestId('menu-edit-copy')).not.toHaveAttribute('aria-disabled', 'true');
+    await page.getByTestId('menu-edit-cut').click();
+    await expect(title).toHaveValue('');
+    await editMenu.click();
+    await expect(page.getByTestId('menu-edit-cut')).toHaveAttribute('aria-disabled', 'true');
+    await page.getByTestId('menu-edit-paste').click();
+    await expect(title).toHaveValue('Menu title');
+
+    // Source: the editor's selection.
+    await page.getByTestId('view-source').click();
+    const source = page.getByTestId('source-editor');
+    await expect(source).toContainText('FictionBook');
+    await source.click({ button: 'right' });
+    await page.getByTestId('source-context-menu-selectAll').click();
+    await editMenu.click();
+    await page.getByTestId('menu-edit-copy').click();
+    await source.click({ button: 'right' });
+    await page.getByTestId('source-context-menu-delete').click();
+    await expect(source).not.toContainText('FictionBook');
+    await editMenu.click();
+    await expect(page.getByTestId('menu-edit-copy')).toHaveAttribute('aria-disabled', 'true');
+    await page.getByTestId('menu-edit-paste').click();
+    await expect(source).toContainText('FictionBook');
+  });
 });

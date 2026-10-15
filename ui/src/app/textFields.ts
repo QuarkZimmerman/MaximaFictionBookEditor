@@ -50,6 +50,28 @@ export function cutOrCopy(field: HTMLElement, cut: boolean): void {
   document.execCommand(cut ? 'cut' : 'copy');
 }
 
+/** The text field that had the focus last (followed by `followTextFieldFocus`). */
+let lastField: WeakRef<HTMLElement> | null = null;
+
+/**
+ * Follows the focus into text fields, so that the Edit menu and the toolbar act on the field the
+ * focus left for them, as the original's did. Returns the function that stops it.
+ */
+export function followTextFieldFocus(doc: Document = document): () => void {
+  const onFocusIn = (event: FocusEvent) => {
+    const field = textFieldOf(event.target);
+    if (field) lastField = new WeakRef(field);
+  };
+  doc.addEventListener('focusin', onFocusIn);
+  return () => doc.removeEventListener('focusin', onFocusIn);
+}
+
+/** The text field that had the focus last, while it is still in the page. */
+export function lastFocusedTextField(): HTMLElement | null {
+  const field = lastField?.deref() ?? null;
+  return field?.isConnected ? field : null;
+}
+
 /** The clipboard's text; null when the clipboard cannot be read. */
 export async function clipboardText(): Promise<string | null> {
   try {

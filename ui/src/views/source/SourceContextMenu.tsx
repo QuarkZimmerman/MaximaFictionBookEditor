@@ -10,28 +10,14 @@ import { useTranslation } from 'react-i18next';
 
 import { PopupMenu, type PopupMenuEntry, type PopupMenuItem } from '@/app/PopupMenu';
 import { useAppServices, useCommandContext } from '@/app/services';
-import { clipboardText } from '@/app/textFields';
 
+import { pasteIntoSource } from './sourceClipboard';
 import type { SourceEditorController } from './sourceEditor';
 
 export interface SourceContextMenuProps {
   controller: SourceEditorController;
   position: { x: number; y: number };
   onClose: () => void;
-}
-
-async function paste(view: EditorView): Promise<void> {
-  view.focus();
-  const text = await clipboardText();
-  if (text === null) {
-    document.execCommand('paste');
-    return;
-  }
-  view.dispatch({
-    ...view.state.replaceSelection(text),
-    scrollIntoView: true,
-    userEvent: 'input.paste',
-  });
 }
 
 export function SourceContextMenu({ controller, position, onClose }: SourceContextMenuProps) {
@@ -76,7 +62,7 @@ export function SourceContextMenu({ controller, position, onClose }: SourceConte
       label: t('source.contextMenu.paste'),
       enabled: writable,
       run: () => {
-        if (view) void paste(view);
+        if (view) void pasteIntoSource(view);
       },
     },
     {
