@@ -73,10 +73,11 @@ longer want them.
    ZIP file's *Properties* before unzipping).
 
 The portable version has no Start menu entry and registers no file associations: open books
-with *File > Open* or by dropping them on the window. Settings and user data are kept in the
-same per-user folders as with the installer (see [User folders](#user-folders)); a `user`
-folder next to `mfbe.exe` adds genres, scripts and dictionaries. To remove the editor, delete
-the folder.
+with *File > Open* or by dropping them on the window. It keeps everything it stores in the
+`bin\user` folder of the unzipped folder - settings, recent files, logs, the browser cache, the
+custom dictionary and your own template, genres, scripts and dictionaries - and nothing in your
+user profile, so copying or moving the folder (to another computer, onto a USB stick) takes all
+of it along. To remove the editor, delete the folder.
 
 ## Linux: AppImage
 
@@ -186,8 +187,9 @@ Drag `/Applications/mfbe.app` to the Trash. Your user folders are kept.
 
 ## User folders
 
-The editor keeps its settings and user data outside the installation so that they survive
-upgrades and never need administrator rights:
+An installed editor keeps its settings and user data outside the installation so that they
+survive upgrades and never need administrator rights; a portable copy keeps all of them in its
+own folder instead (see *Portable folder* below):
 
 | Purpose | Windows | Linux | macOS |
 |---------|---------|-------|-------|
@@ -221,6 +223,12 @@ and *Open template folder* opens its folder.
 - AppImage: `<name>.AppImage.home/user` or `<name>.AppImage.d/user` (or `<name>.AppImage.d`)
   next to the image,
 - macOS: a `user` folder next to `mfbe.app`.
+
+When the editor can write to that folder, it keeps all of its data there - everything the
+table above lists - and nothing in your profile; the Windows portable ZIP comes with it. A
+portable folder the editor cannot write to (one an administrator put next to an installed copy,
+or a read-only medium) only adds genres, scripts, dictionaries and a template, and the per-user
+folders of the table are used.
 
 ## Command line
 

@@ -15,10 +15,11 @@ lower layer is ever hidden or replaced):
 
 1. the folder chosen in **Tools > Settings > Other > Scripts folder** (optional),
 2. your personal scripts folder (`Scripts > Open scripts folder` opens it):
-   - Windows: `%LOCALAPPDATA%\Maxima Fiction Book Editor\scripts\`
+   - Windows: `%APPDATA%\Maxima Fiction Book Editor\scripts\`
    - Linux: `~/.local/share/maxfbeditor/scripts/`
    - macOS: `~/Library/Application Support/Maxima Fiction Book Editor/scripts/`
-3. a portable folder next to the program (`user/scripts/`),
+   - a portable copy: `user/scripts/` next to the program,
+3. a portable folder next to the program that the editor cannot write to (`user/scripts/`),
 4. the scripts bundled with the editor (read-only, inside the installation).
 
 Inside a scripts folder every **group** is a sub-folder and every **script** is a sub-folder
