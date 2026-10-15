@@ -4,32 +4,18 @@
  *  - `uploadBinary()`: `POST /binary/{docId}` with the raw bytes (`Content-Type` = source type,
  *    optional `X-MFBE-Suggested-Id`) for clipboard paste and drag-and-drop - binary payloads
  *    never travel through JSON-RPC (rpc-api.md §2);
- *  - `addBinaryFromFile()`: `dialog.openFile` with the image filters + `binary.add` (the core
- *    reads the file, sniffs the type, assigns a unique id);
+ *  - `addBinaryFromFile()`: `dialog.openFile` with the image types (`dialogs/fileTypes.ts`) +
+ *    `binary.add` (the core reads the file, sniffs the type, assigns a unique id);
  *  - model bookkeeping: `addBinaryToModel()` / `removeBinaryFromModel()` keep
  *    `document.binaries` in sync with the core's store without marking the document modified
  *    by themselves (the inserted image node / the cover reference does that), and
  *    `referenceCounts()` counts `href="#id"` references in bodies and cover pages.
  */
 
-import type { TFunction } from 'i18next';
-
 import type { BinaryMeta, Document } from '@/model/document';
 import type { AppStore } from '@/model/store';
 import { resolveToken, type RpcClient } from '@/rpc/client';
 import type { FileFilter } from '@/rpc/types';
-
-/** Extensions offered by the image file dialogs (FR-110 input formats). */
-export const IMAGE_EXTENSIONS = [
-  'jpg',
-  'jpeg',
-  'png',
-  'gif',
-  'bmp',
-  'webp',
-  'tif',
-  'tiff',
-] as const;
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   jpg: 'image/jpeg',
@@ -41,13 +27,6 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   tif: 'image/tiff',
   tiff: 'image/tiff',
 };
-
-export function imageFileFilters(t: TFunction): FileFilter[] {
-  return [
-    { name: t('dialog.addImage.filterImages'), extensions: [...IMAGE_EXTENSIONS] },
-    { name: t('dialog.saveFile.filterAll'), extensions: ['*'] },
-  ];
-}
 
 /** File name part of a path (used as the suggested binary id, like the original editor). */
 export function fileName(path: string): string {
@@ -126,6 +105,8 @@ function encodeHeaderValue(value: string): string {
 export interface AddFileOptions {
   title: string;
   filters: FileFilter[];
+  /** Index of the type selected when the dialog opens. */
+  selectedFilter: number;
   multiple?: boolean;
   convertNow?: boolean;
 }
@@ -139,6 +120,7 @@ export async function addBinariesFromFiles(
   const { paths } = await rpc.call('dialog.openFile', {
     title: options.title,
     filters: options.filters,
+    selectedFilter: options.selectedFilter,
     multiple: options.multiple,
   });
   const out: BinaryMeta[] = [];

@@ -1,0 +1,20 @@
+{
+  "$comment": "File types of the native file dialogs (feature 002, spec FR-010): the original editor's lists plus .fbd documents and WebP images. Each name is shown followed by its patterns, e.g. \"FictionBook files (*.fb2)\".",
+  "fileDialogs": {
+    "types": {
+      "fictionBook": "FictionBook files",
+      "fictionBookDescriptors": "FictionBook descriptors",
+      "all": "All files",
+      "supportedImages": "Supported images",
+      "jpeg": "JPEG",
+      "png": "PNG",
+      "bitmap": "Bitmap",
+      "gif": "GIF",
+      "tiff": "TIFF",
+      "webp": "WebP",
+      "jpegFiles": "JPEG files",
+      "pngFiles": "PNG files",
+      "dictionaries": "Dictionaries"
+    }
+  }
+}

@@ -13,6 +13,7 @@
 
 import type { TFunction } from 'i18next';
 
+import { documentFileTypes } from '@/dialogs/fileTypes';
 import type { Dialogs } from '@/dialogs/types';
 import { toggleFastMode } from '@/editor/fastMode';
 import { parseAccelerator } from '@/i18n';
@@ -283,11 +284,7 @@ const ENCODING_CHOICES = [
 ];
 
 function fileFilters(ctx: CommandContext) {
-  return [
-    { name: ctx.t('dialog.saveFile.filterFb2'), extensions: ['fb2'] },
-    { name: ctx.t('dialog.saveFile.filterFbd'), extensions: ['fbd'] },
-    { name: ctx.t('dialog.saveFile.filterAll'), extensions: ['*'] },
-  ];
+  return documentFileTypes(ctx.t);
 }
 
 function loadDocument(ctx: CommandContext, document: Document): void {

@@ -9,9 +9,7 @@
       }
     },
     "saveAs": {
-      "caption": "Сохранить картинку как",
-      "filterJpeg": "Файлы JPEG",
-      "filterPng": "Файлы PNG"
+      "caption": "Сохранить картинку как"
     },
     "msg": {
       "binariesAdded_one": "Прикреплён {{count}} бинарный объект",

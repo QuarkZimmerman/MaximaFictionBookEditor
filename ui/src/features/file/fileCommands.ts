@@ -28,6 +28,7 @@ import {
 } from '@/app/commands';
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
 import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
+import { documentFileTypes } from '@/dialogs/fileTypes';
 import { showEncodingDialog, showSaveChangesPrompt } from '@/dialogs/show';
 import { confirmSaveWithErrors } from '@/dialogs/validation';
 import type { Document, ValidationReport } from '@/model/document';
@@ -87,21 +88,27 @@ function parseErrorData(error: unknown): DocParseErrorData | null {
   };
 }
 
-/** Open dialog filters: FictionBook documents (*.fb2, preselected), descriptors, All files. */
-export function openFilters(ctx: Pick<CommandContext, 't'>): FileFilter[] {
-  return [
-    { name: ctx.t('dialog.saveFile.filterFb2'), extensions: ['fb2'] },
-    { name: ctx.t('dialog.saveFile.filterFbd'), extensions: ['fbd'] },
-    { name: ctx.t('dialog.saveFile.filterAll'), extensions: ['*'] },
-  ];
+/** Open and Save As types: FictionBook files, FictionBook descriptors, All files (FR-010). */
+export function documentFilters(ctx: Pick<CommandContext, 't'>): FileFilter[] {
+  return documentFileTypes(ctx.t);
 }
 
-/** Save dialog filters with the current file kind first (preselected by the native dialog). */
-export function saveFilters(ctx: Pick<CommandContext, 't'>, kind: FileKind | null): FileFilter[] {
-  const fb2 = { name: ctx.t('dialog.saveFile.filterFb2'), extensions: ['fb2'] };
-  const fbd = { name: ctx.t('dialog.saveFile.filterFbd'), extensions: ['fbd'] };
-  const all = { name: ctx.t('dialog.saveFile.filterAll'), extensions: ['*'] };
-  return kind === 'fbd' ? [fbd, fb2, all] : [fb2, fbd, all];
+/**
+ * The type Save As selects: the document's kind - FictionBook descriptors for a `.fbd` file, All
+ * files for an `.xml` file, FictionBook files otherwise (Open always selects FictionBook files).
+ */
+export function saveAsSelectedType(kind: FileKind | null): number {
+  if (kind === 'fbd') return 1;
+  if (kind === 'xml') return 2;
+  return 0;
+}
+
+/**
+ * The encodings of the Save As dialog. The dialog preselects the first one, so the encoding a
+ * plain Save would use (`defaultSaveEncoding`) comes first, the others in the original's order.
+ */
+export function saveAsEncodingChoices(preselected: string): string[] {
+  return [preselected, ...ENCODING_CHOICES.filter((encoding) => encoding !== preselected)];
 }
 
 /** Encoding for a plain Save: "Keep encoding" ? the file's encoding : the default encoding. */
@@ -245,7 +252,8 @@ export class FileFeature {
     if (!(await this.confirmDiscardChanges(ctx))) return false;
     const { paths } = await ctx.rpc.call('dialog.openFile', {
       title: ctx.t('cmd.file.open.tooltip'),
-      filters: openFilters(ctx),
+      filters: documentFilters(ctx),
+      selectedFilter: 0,
     });
     const path = paths[0];
     if (!path) return false;
@@ -389,13 +397,16 @@ export class FileFeature {
     if (options.saveAs || !path) {
       const choice = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.saveAs.tooltip'),
-        filters: saveFilters(ctx, state.fileKind),
+        filters: documentFilters(ctx),
+        selectedFilter: saveAsSelectedType(state.fileKind),
         defaultPath: path,
-        encodingChoices: [...ENCODING_CHOICES],
+        encodingChoices: saveAsEncodingChoices(defaultSaveEncoding(store)),
       });
       if (!choice.path) return false;
       path = choice.path;
       encoding = normalizeEncoding(choice.encoding);
+      // The platform dialogs return the encoding chosen inside them; answers without one (the
+      // queued test dialogs, CEF's fallback dialog) get the original's choice in a window.
       if (!encoding) {
         encoding = await showEncodingDialog(ctx.dialogs, {
           defaultEncoding: defaultSaveEncoding(store),

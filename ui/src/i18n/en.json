@@ -694,17 +694,13 @@
       }
     },
     "saveFile": {
-      "encoding": "Encoding:",
-      "filterFb2": "FictionBook documents",
-      "filterFbd": "FictionBook descriptors",
-      "filterAll": "All files"
+      "encoding": "Encoding:"
     },
     "addImage": {
       "caption": "Add image",
       "insertClear": "Insert clear image?",
       "chooseImage": "Choose image to add:",
-      "chooseBinaries": "Choose binaries to add:",
-      "filterImages": "Images"
+      "chooseBinaries": "Choose binaries to add:"
     },
     "chooseScriptsFolder": "Specify scripts folder",
     "dontAskAgain": "Don't ask again",
