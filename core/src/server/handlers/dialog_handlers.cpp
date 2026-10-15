@@ -2,8 +2,9 @@
 //
 // Linux and macOS: the folder of the file chosen in Open or Save As (the dialogs that offer
 // FictionBook files) is kept in session.lastFileDialogFolder, and every file dialog that names no
-// folder opens there. Windows keeps that folder itself (the shell's client GUID for both
-// dialogs, as the original editor did).
+// folder opens there; Open and Save As open in the user's documents folder while none is kept.
+// Windows keeps that folder itself (the shell's client GUID for both dialogs, as the original
+// editor did).
 #include "server/services.hpp"
 
 #include <mfbe/dialog_provider.hpp>
@@ -38,6 +39,20 @@ std::optional<std::string> last_folder(const Services& services) {
         return std::nullopt;
     }
     return folder;
+}
+
+// Where a dialog that names no folder opens: the folder last used by Open or Save As; for those
+// two, the user's documents folder while none is kept.
+std::optional<std::string> start_folder(const Services& services, bool document_dialog) {
+    if (auto folder = last_folder(services); folder || !document_dialog) {
+        return folder;
+    }
+    const std::filesystem::path documents = platform::documents_dir();
+    std::error_code ec;
+    if (!kKeepsLastFolder || documents.empty() || !std::filesystem::is_directory(documents, ec)) {
+        return std::nullopt;
+    }
+    return platform::utf8_from_path(documents);
 }
 
 bool names_folder(const std::optional<std::string>& path) {
@@ -108,7 +123,7 @@ void register_dialog_handlers(rpc::RpcRouter& router, Services& services) {
             throw rpc::invalid_params(e.what());
         }
         if (!request.folder) {
-            request.folder = last_folder(services);
+            request.folder = start_folder(services, request.documentDialog);
         }
         const bool remember = request.documentDialog;
         guarded(respond, [&] {
@@ -131,7 +146,7 @@ void register_dialog_handlers(rpc::RpcRouter& router, Services& services) {
             throw rpc::invalid_params(e.what());
         }
         if (!names_folder(request.defaultPath)) {
-            request.folder = last_folder(services);
+            request.folder = start_folder(services, request.documentDialog);
         }
         const bool remember = request.documentDialog;
         guarded(respond, [&] {
