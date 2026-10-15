@@ -32,6 +32,48 @@ const UI_DIR = fileURLToPath(new URL('../../..', import.meta.url));
 const REPO_ROOT = path.resolve(UI_DIR, '..');
 
 /** Absolute path of a fixture book under `tests/fixtures/books/`. */
+/** The window title of the editor without a document. */
+export const APP_TITLE = 'Maxima Fiction Book Editor';
+
+/**
+ * Waits for the new document the editor shows at start-up when no file was named (feature
+ * 002): tests that switch views or start editing act on it.
+ */
+export async function waitForStartupDocument(page: Page): Promise<void> {
+  await expect(page).toHaveTitle(`Untitled - ${APP_TITLE}`);
+}
+
+/**
+ * Resolves once `file` is the open document (its name heads the window title). After File >
+ * Open an assertion on the editor alone would also match the start-up document.
+ */
+export async function waitForBook(page: Page, file: string, timeout?: number): Promise<void> {
+  const name = path.basename(file).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await expect(page).toHaveTitle(new RegExp(`^${name}\\*? - `), { timeout });
+}
+
+/** Id of the document the Body view shows (null without one). */
+function shownDocId(page: Page): Promise<string | null> {
+  return page.evaluate<string | null>(
+    `document.querySelector('[data-testid="body-view"]')?.getAttribute('data-doc-id') ?? null`,
+  );
+}
+
+/**
+ * File > New from the menu; resolves once its document replaced the one shown before. The
+ * editor starts with a new document (feature 002), which an assertion on the editor alone
+ * would also match.
+ */
+export async function fileNew(page: Page): Promise<void> {
+  await expect(page).not.toHaveTitle(APP_TITLE);
+  await expect.poll(() => shownDocId(page)).not.toBeNull();
+  const before = await shownDocId(page);
+  await page.getByTestId('menu-file').click();
+  await page.getByTestId('menu-file-new').click();
+  await expect.poll(() => shownDocId(page)).not.toBe(before);
+  await expect.poll(() => shownDocId(page)).not.toBeNull();
+}
+
 export function fixtureBook(name: string): string {
   return path.join(REPO_ROOT, 'tests', 'fixtures', 'books', name);
 }

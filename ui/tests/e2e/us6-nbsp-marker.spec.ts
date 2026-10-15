@@ -16,7 +16,14 @@ import path from 'node:path';
 
 import type { Page } from '@playwright/test';
 
-import { expect, fixtureBook, startCoreWith, test, type CoreHandle } from './fixtures/core';
+import {
+  expect,
+  fixtureBook,
+  startCoreWith,
+  test,
+  waitForBook,
+  type CoreHandle,
+} from './fixtures/core';
 import { MOD } from './fixtures/keys';
 
 const NBSP = ' ';
@@ -77,6 +84,7 @@ async function openBook(core: CoreHandle, page: Page): Promise<void> {
   await core.enqueueDialog('dialog.openFile', { paths: [BOOK] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
+  await waitForBook(page, BOOK);
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
 }
 

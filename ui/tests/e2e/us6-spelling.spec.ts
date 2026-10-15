@@ -24,7 +24,7 @@ import path from 'node:path';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import { expect, test, waitForBook, type CoreHandle, type RpcCallError } from './fixtures/core';
 import { LINE_END } from './fixtures/keys';
 
 function book(lang: string, paragraphs: string[], id: string, title: string): string {
@@ -80,6 +80,7 @@ async function openBook(core: CoreHandle, page: Page, file: string): Promise<Loc
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
+  await waitForBook(page, file);
   const editor = page.getByTestId('body-editor');
   await expect(editor).toHaveAttribute('contenteditable', 'true');
   return editor;

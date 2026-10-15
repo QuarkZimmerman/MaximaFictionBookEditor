@@ -2,7 +2,8 @@
  * Settings > Other (T130) after `IDD_SETTINGS_OTHER`: Save File (default encoding, Keep
  * Encoding), Open File (Restore Position), Scripts folder (default / custom with "..." through
  * `dialog.pickFolder` and "Open scripts folder"), Genres folder (default / custom, "Open genres
- * folder", the sources of the effective genre list), Dialogs (ask for non-clear image
+ * folder", the sources of the effective genre list), Template folder (feature 002: default /
+ * custom, "Open template folder", the blank.fb2 in effect), Dialogs (ask for non-clear image
  * insertion), Images (insert clear images), Paste images as (format, JPEG quality 1-100) and
  * Non-breaking space (display character).
  */
@@ -12,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
 import { RpcError } from '@/rpc/client';
-import { RpcErrorCode, type ImageFormat, type Settings } from '@/rpc/types';
+import { RpcErrorCode, type ImageFormat, type Settings, type TemplateInfo } from '@/rpc/types';
 
 import { CheckField, FieldRow, GroupBox, NumberField } from './controls';
 import {
@@ -37,6 +38,7 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
   const other = draft.other;
   const [qualityText, setQualityText] = useState(String(other.jpegQuality));
   const [genres, setGenres] = useState<GenresInfo | null>(null);
+  const [template, setTemplate] = useState<TemplateInfo | null>(null);
   const rpc = ctx.rpc;
 
   // The effective genre-list sources (rebuilt by the core on every call).
@@ -50,6 +52,15 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
       })
       .catch(() => {
         if (!cancelled) setGenres(null);
+      });
+    // The template a new document uses (resolved by the core on every call).
+    rpc
+      .call('resources.template')
+      .then((result) => {
+        if (!cancelled) setTemplate(result);
+      })
+      .catch(() => {
+        if (!cancelled) setTemplate(null);
       });
     return () => {
       cancelled = true;
@@ -109,6 +120,26 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
       await reportFolderError(error, other.genresFolder);
     }
   };
+
+  const openTemplateFolder = async () => {
+    if (!rpc) return;
+    try {
+      await rpc.call('resources.openTemplateFolder');
+    } catch (error) {
+      await reportFolderError(error, other.templateFolder);
+    }
+  };
+
+  const templateNote = !template
+    ? t('dialog.settings.other.templateUnknown')
+    : template.issue
+      ? t('dialog.settings.other.templateRejected', {
+          path: template.issue.path,
+          reason: t(`msg.templateReason.${template.issue.reason}`),
+        })
+      : template.layer === 'bundled'
+        ? t('dialog.settings.other.templateBuiltIn')
+        : t('dialog.settings.other.templateUser', { path: template.path });
 
   const nbspValue = other.nbspDisplayChar;
   const nbspKnown = NBSP_DISPLAY_CHOICES.some((choice) => choice.value === nbspValue);
@@ -187,6 +218,26 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
             {t('dialog.settings.other.genreIssues', { count: genres.issues.length })}
           </div>
         ) : null}
+      </div>
+
+      <FolderGroup
+        kind="template"
+        title={t('dialog.settings.other.templateFolder')}
+        value={other.templateFolder}
+        onApply={(path) => onChange({ templateFolder: path })}
+        onBrowse={(apply) =>
+          void pickFolder(
+            t('dialog.settings.other.chooseTemplateFolder'),
+            apply,
+            other.templateFolder,
+          )
+        }
+        openLabel={t('dialog.settings.other.openTemplateFolder')}
+        onOpen={() => void openTemplateFolder()}
+        connected={rpc !== null}
+      />
+      <div className="mfbe-settings-note" data-testid="settings-other-template-in-use">
+        {templateNote}
       </div>
 
       <div className="mfbe-settings-columns">
@@ -270,7 +321,7 @@ function codePointHex(text: string): string {
   return cp === undefined ? '0000' : cp.toString(16).toUpperCase().padStart(4, '0');
 }
 
-/** "Default folder" checkbox + custom path + "..." + "Open ... folder" (scripts and genres). */
+/** "Default folder" checkbox + custom path + "..." + "Open ... folder" (scripts, genres, template). */
 function FolderGroup({
   kind,
   title,
@@ -281,7 +332,7 @@ function FolderGroup({
   onOpen,
   connected,
 }: {
-  kind: 'scripts' | 'genres';
+  kind: 'scripts' | 'genres' | 'template';
   title: string;
   /** The setting: '' = default folder. */
   value: string;

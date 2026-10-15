@@ -6,7 +6,8 @@
 //   mfbe [options] [FILE...]
 //     FILE                           .fb2 / .fbd / .xml to open
 //     --lang <en|ru>                 override interface language for this run
-//     --new                          start with a new document even if recent-restore is on
+//     --new                          start with a new document from the blank template (the
+//                                    same as starting without FILE)
 //     --remote-debugging-port <n>    enable Chromium DevTools/CDP on 127.0.0.1:<n> (dev/test)
 //     --no-sandbox                   skip the Chromium sandbox (logged)
 //     --ozone-platform <wayland|x11> Linux: force a display backend (default: auto)

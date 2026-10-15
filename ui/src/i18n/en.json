@@ -659,6 +659,8 @@
         "scriptsFolder": "Scripts folder",
         "genresFolder": "Genres folder",
         "openGenresFolder": "Open genres folder",
+        "templateFolder": "Template folder",
+        "openTemplateFolder": "Open template folder",
         "defaultFolder": "Default folder",
         "dialogs": "Dialogs",
         "askNonClearImage": "Ask for non clear image insertion",
@@ -856,6 +858,13 @@
     "generateNewId": "Are you sure you want to generate a new ID?\n\nThis will affect library submission.\nPrevious value will be lost!",
     "notFictionBook": "{{path}} is not a FictionBook (FB2) document and cannot be opened.",
     "openFailed": "Cannot open {{path}}.\n{{reason}}",
+    "templateIssue": "The template {{path}} cannot be used: {{reason}}. The built-in template was used for the new document.",
+    "templateReason": {
+      "unreadable": "the file cannot be read",
+      "empty": "the file is empty",
+      "notWellFormed": "it is not well-formed XML",
+      "notFictionBook": "it is not a FictionBook document"
+    },
     "saveFailed": "Cannot save {{path}}.\n{{reason}}",
     "notConnected": "The editor core is not connected.",
     "docIssues_one": "{{count}} issue",

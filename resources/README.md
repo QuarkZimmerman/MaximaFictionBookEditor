@@ -25,7 +25,7 @@ Upstream sources:
 | `genres/categories.tsv` | derived from both genre lists: `key<TAB>title_en<TAB>title_ru` | GPL-3.0-only (original editor) | same |
 | `genres/missing-names.txt` | codes of `schema/FictionBookGenres.xsd` (186) that neither FBE list names (65) | - | same |
 | `symbols.ini` | FBE `symbols.ini` (windows-1251) converted to UTF-8, header added | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_symbols.py` |
-| `blank.fb2` | FBE `blank.fb2` (windows-1251) rewritten in UTF-8 with `{uuid}` / `{date}` placeholders, bilingual texts | GPL-3.0-only (original editor) | hand-maintained template; check with `python3 -c "import xml.dom.minidom,sys; xml.dom.minidom.parse(sys.argv[1])" resources/blank.fb2` |
+| `blank.fb2` | FBE `blank.fb2` (windows-1251) converted to UTF-8; only the XML declaration's encoding differs | GPL-3.0-only (original editor) | hand-maintained template; check with `python3 -c "import xml.dom.minidom,sys; xml.dom.minidom.parse(sys.argv[1])" resources/blank.fb2` |
 | `icons/` | FBE `res/*.bmp`, `res/*.ico` converted to PNG and split by the `TOOLBAR` button order of FBE `FBE.rc`; `.ico` originals copied | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_icons.py` (ImageMagick 7); mapping in `icons/README.md` |
 | `dictionaries/en_US.aff`, `en_US.dic`, `en_US.txt` | LibreOffice `en/en_US.aff`, `en/en_US.dic`, `en/README_en_US.txt`, byte-exact | SCOWL permissive licence + Ispell BSD / WordNet / public-domain parts, see `en_US.txt` | `curl` of the pinned raw URLs in `dictionaries/SOURCES.txt` |
 | `dictionaries/ru_RU.aff`, `ru_RU.dic`, `ru_RU.txt` | LibreOffice `ru_RU/ru_RU.aff`, `ru_RU/ru_RU.dic`, `ru_RU/README_ru_RU.txt`, byte-exact | BSD-style, see `ru_RU.txt` | same |
@@ -45,9 +45,11 @@ Upstream sources:
 * `symbols.ini`: `[symbols]` section, `symN = <decimal code point>`,
   `symN_9 = <English label>`, `symN_25 = <Russian label>` (9/25 are the Windows
   LANG_ENGLISH / LANG_RUSSIAN ids of the original).
-* `blank.fb2`: FB2 template; `{uuid}` in `document-info/id` and `{date}` in the
-  `value` attribute of `document-info/date` are replaced when a new document
-  is created.
+* `blank.fb2`: the template of new documents, the original's field for field
+  (blank wherever the original is blank); the document id, version, program used
+  and date are filled in by the core on every load. A user's `blank.fb2` in the
+  Settings template folder, `<Data>` or the portable folder replaces it for new
+  documents. The shell finds the resources folder by this file name.
 
 ## Known upstream discrepancies (kept or normalised by the scripts)
 

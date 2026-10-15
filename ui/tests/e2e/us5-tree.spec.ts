@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import { expect, test, waitForBook, type CoreHandle, type RpcCallError } from './fixtures/core';
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-sections.py');
@@ -46,6 +46,7 @@ async function openBook(core: CoreHandle, page: Page, file: string): Promise<voi
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
+  await waitForBook(page, file);
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
   await expect(page.getByTestId('tree-content')).toHaveAttribute('data-section-count', /\d+/);
 }

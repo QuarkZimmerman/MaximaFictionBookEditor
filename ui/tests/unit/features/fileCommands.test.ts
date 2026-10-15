@@ -490,16 +490,19 @@ describe('file flows (T052)', () => {
     expect(rpc.calls[1]!.params).toEqual({ docId: 'doc-1', text: '<broken>' });
   });
 
-  it('?new=1 creates a blank document at start-up; helpers build filters and placeholders', async () => {
+  it('start-up: a new document from the template, not marked modified by the filled-in details', async () => {
     const { feature, rpc } = setup({
-      'doc.new': fakeDocument({ docId: 'doc-7', path: undefined }),
+      'app.info': {},
+      'doc.new': {
+        ...fakeDocument({ docId: 'doc-7', path: undefined }),
+        filledIn: ['documentInfo.id', 'documentInfo.version'],
+      },
     });
     const ctx = await makeContext({ rpc: rpc.client });
     actions.setConnection(ctx.store, 'connected');
-    await feature.handleStartup(ctx, '?token=abc');
-    expect(ctx.store.getState().document).toBeNull();
-    await feature.handleStartup(ctx, '?new=1&token=abc');
-    expect(ctx.store.getState().docId).toBe('doc-7');
+    await feature.handleStartup(ctx);
+    expect(ctx.store.getState()).toMatchObject({ docId: 'doc-7', modified: false });
+    expect(ctx.store.getState().document).not.toHaveProperty('filledIn');
 
     expect(openFilters(ctx).map((f) => f.extensions)).toEqual([['fb2'], ['fbd'], ['*']]);
     expect(saveFilters(ctx, 'fb2').map((f) => f.extensions)).toEqual([['fb2'], ['fbd'], ['*']]);
@@ -513,6 +516,59 @@ describe('file flows (T052)', () => {
       schemaHint: 'unknown',
     });
     expect(stub.bodies).toEqual([]);
+  });
+
+  it('start-up: a file that cannot be opened is reported, then a new document is shown', async () => {
+    const { feature, rpc, dialogs } = setup({
+      'app.info': {},
+      'doc.open': rpcError(1002, 'doc.ioError', {
+        path: '/books/missing.fb2',
+        reason: 'file not found',
+      }),
+      'doc.new': fakeDocument({ docId: 'doc-8', path: undefined }),
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    const off = feature.subscribeNotifications(rpc.client, () => ctx);
+    rpc.notify('app.openPaths', { paths: ['/books/missing.fb2'] });
+    await feature.handleStartup(ctx);
+    off();
+    expect(dialogs.shown.map((m) => m.testId)).toEqual(['dialog-open-failed']);
+    expect(ctx.store.getState()).toMatchObject({ docId: 'doc-8', modified: false });
+  });
+
+  it('start-up: a malformed file opens in the Source view, without a new document', async () => {
+    const { feature, rpc, dialogs } = setup({
+      'app.info': {},
+      'doc.open': rpcError(1001, 'doc.parseError', { line: 2, column: 3, message: 'mismatch' }),
+      'doc.openSource': { docId: 'doc-9', text: '<FictionBook>', encoding: 'utf-8' },
+      'doc.new': fakeDocument({ docId: 'doc-10', path: undefined }),
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    const off = feature.subscribeNotifications(rpc.client, () => ctx);
+    rpc.notify('app.openPaths', { paths: ['/books/broken.fb2'] });
+    await feature.handleStartup(ctx);
+    off();
+    expect(ctx.store.getState()).toMatchObject({ docId: 'doc-9', sourceOnly: true });
+    expect(rpc.calls.map((c) => c.method)).not.toContain('doc.new');
+  });
+
+  it('File > New names a user template that could not be used', async () => {
+    const { feature, rpc, dialogs } = setup({
+      'doc.new': {
+        ...fakeDocument({ docId: 'doc-11', path: undefined }),
+        templateIssue: { path: '/data/blank.fb2', reason: 'notWellFormed', detail: 'mismatch' },
+      },
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    expect(await feature.newDocument(ctx)).toBe(true);
+    expect(ctx.store.getState().document).not.toHaveProperty('templateIssue');
+    expect(dialogs.shown.at(-1)).toMatchObject({
+      testId: 'dialog-template-issue',
+      text: 'The template /data/blank.fb2 cannot be used: it is not well-formed XML. The built-in template was used for the new document.',
+    });
   });
 
   it('commitPendingSource replaces the model after a successful parse and clears the Body history', async () => {

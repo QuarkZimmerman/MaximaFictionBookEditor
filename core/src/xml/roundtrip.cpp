@@ -1,5 +1,6 @@
 // Structural document comparison and the round-trip procedure (T046). See mfbe/roundtrip.hpp.
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/document_details.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/fb2_writer.hpp>
 #include <mfbe/image_probe.hpp>
@@ -263,6 +264,15 @@ Comparison compare(const model::Document& a, const BinaryStore& store_a, const m
     model::Description db = b.description;
     normalise_description(da);
     normalise_description(db);
+    // The document details the editor fills in on load (feature 002, constitution principle
+    // IV) are not compared.
+    for (model::DocumentInfo* info : {&da.documentInfo, &db.documentInfo}) {
+        info->id.clear();
+        info->version.clear();
+        info->programUsed.reset();
+        info->date.text.clear();
+        info->date.value.reset();
+    }
     json ja = model::to_json(da);
     json jb = model::to_json(db);
     strip_node_ids(ja);
@@ -382,7 +392,10 @@ Report run(const std::filesystem::path& input, const std::filesystem::path& out_
     fb2::WriteOptions options;
     options.encoding = encoding;
     options.xlink_prefix = first.xlink_prefix;
-    const fb2::WriteResult written = fb2::write_document(first.document, &store_a, options);
+    // Open and save as the editor does: the document details filled in on load are written.
+    model::Document edited = first.document;
+    model::fill_in_document_details(edited, model::details_context_now(false));
+    const fb2::WriteResult written = fb2::write_document(edited, &store_a, options);
     const std::string bytes = fb2::encode_document(written.text, options.encoding);
     std::filesystem::create_directories(out_dir, ec);
     const std::filesystem::path out_path = out_dir / input.filename();

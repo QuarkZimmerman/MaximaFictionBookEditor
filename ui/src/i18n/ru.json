@@ -673,6 +673,8 @@
         "scriptsFolder": "Папка скриптов",
         "genresFolder": "Папка жанров",
         "openGenresFolder": "Открыть папку жанров",
+        "templateFolder": "Папка шаблона",
+        "openTemplateFolder": "Открыть папку шаблона",
         "defaultFolder": "Папка по умолчанию",
         "dialogs": "Диалоги",
         "askNonClearImage": "Спрашивать о вставке непустого изображения",
@@ -878,6 +880,13 @@
     "generateNewId": "Вы уверены, что хотите изменить ID?\n\nЭто повлияет на уникальность книги в библиотеке.\nПредыдущее значение будет утеряно!",
     "notFictionBook": "Файл {{path}} не является документом FictionBook (FB2) и не может быть открыт.",
     "openFailed": "Не удалось открыть {{path}}.\n{{reason}}",
+    "templateIssue": "Шаблон {{path}} не может быть использован: {{reason}}. Новый документ создан по встроенному шаблону.",
+    "templateReason": {
+      "unreadable": "файл не читается",
+      "empty": "файл пуст",
+      "notWellFormed": "это не правильно оформленный XML",
+      "notFictionBook": "это не документ FictionBook"
+    },
     "saveFailed": "Не удалось сохранить {{path}}.\n{{reason}}",
     "notConnected": "Нет соединения с ядром редактора.",
     "docIssues_one": "{{count}} замечание",
