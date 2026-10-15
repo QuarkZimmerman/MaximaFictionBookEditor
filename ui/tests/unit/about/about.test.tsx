@@ -22,10 +22,13 @@ import { UndoCoordinator } from '@/model/undo';
 
 import { fakeRpc, makeContext, rpcError } from '../features/testUtils';
 
+// A text area's value has LF line ends; a Windows checkout gives the file CRLF.
 const CONTRIBUTORS = readFileSync(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../CONTRIBUTORS.txt'),
   'utf8',
-).replace(/\n$/, '');
+)
+  .replace(/\r\n/g, '\n')
+  .replace(/\n$/, '');
 
 const INFO = {
   version: '0.0.1',
