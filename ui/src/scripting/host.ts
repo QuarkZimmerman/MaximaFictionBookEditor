@@ -5,9 +5,10 @@
  * (`scriptRunning`); at the end the document is replaced by the result, kept as one undo entry
  * holding the document before the run. Cancel terminates the worker, closes the script's open
  * dialogs and restores the document; a failure restores it too and is reported as
- * `Script error: <message> at line L, column C`, logged through `log.error`. After 30 s
- * without activity the run is marked silent (the run bar says so). "Last script" memory:
- * `scripts.lastRun`.
+ * `Script error: <message> at line L, column C`, logged through `log.error`. A run whose
+ * document is replaced (opened, reloaded or closed from outside) ends as cancelled and leaves
+ * the new document alone. After 30 s without activity the run is marked silent (the run bar
+ * says so). "Last script" memory: `scripts.lastRun`.
  */
 
 import type { TFunction } from 'i18next';
@@ -119,6 +120,8 @@ interface ActiveRun {
   dialogDepth: number;
   cancelRequested: boolean;
   finished: boolean;
+  /** Stops watching the store for a replaced document. */
+  unwatch: () => void;
   end: RunEnd & { finish(): void };
   resolve: (result: RunResult) => void;
 }
@@ -250,6 +253,7 @@ export class ScriptHost {
         dialogDepth: 0,
         cancelRequested: false,
         finished: false,
+        unwatch: () => {},
         end,
         resolve,
         api: createScriptApi({
@@ -267,6 +271,9 @@ export class ScriptHost {
         }),
       };
       this.active = run;
+      run.unwatch = store.subscribe((state) => {
+        if (state.docId !== before.docId) queueMicrotask(() => this.cancel());
+      });
       actions.setScriptRunning(store, true);
       actions.setStatusMessage(store, t('scripting.status.running', { name }) as string);
       this.emit();
@@ -413,6 +420,7 @@ export class ScriptHost {
   private async finish(run: ActiveRun, status: RunStatus, error?: ScriptErrorInfo): Promise<void> {
     if (run.finished) return;
     run.finished = true;
+    run.unwatch();
     if (run.watchdog) {
       clearTimeout(run.watchdog);
       run.watchdog = null;

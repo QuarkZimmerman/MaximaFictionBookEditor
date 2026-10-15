@@ -356,6 +356,26 @@ describe('ScriptHost', () => {
     );
   });
 
+  it('ends as cancelled when its document is replaced, leaving the new document alone', async () => {
+    const h = await harness({ customAnswers: ['ok'] });
+    const { done } = await started(h);
+    h.worker.send(APPEND_CALL);
+    h.worker.send({ type: 'call', id: 2, method: 'ui.message', args: ['Shown'] });
+    await waitUntil(
+      () => h.worker.received.some((m) => m.type === 'result' && m.id === 2),
+      'the message answer',
+    );
+    expect(paragraphTexts(h.store)).toEqual(['Hello', 'Added']);
+    // Another book is opened from outside (a file passed to the running editor).
+    actions.setDocument(h.store, fakeDocument({ docId: 'doc-2' }));
+    await expect(done).resolves.toMatchObject({ status: 'cancelled' });
+    expect(h.worker.terminated).toBe(1);
+    expect(h.store.getState().docId).toBe('doc-2');
+    expect(paragraphTexts(h.store)).toEqual(['Hello']);
+    expect(h.store.getState().scriptRunning).toBe(false);
+    expect(h.services.undo.canUndo).toBe(false);
+  });
+
   it('marks a run silent after the watchdog delay (information only) until it acts again', async () => {
     const h = await harness({ watchdogMs: 150 });
     const { done } = await started(h);
