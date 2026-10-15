@@ -6,11 +6,12 @@
 // its transport thread. Without a provider every dialog.* RPC fails with 1050
 // `dialog.unavailable`.
 //
-// JSON shapes (as on the wire; feature 002 adds selectedFilter and folder):
+// JSON shapes (as on the wire; feature 002 adds selectedFilter, folder, the Open defaultPath,
+// selectedEncoding and encodingLabel):
 //   openFile   {title, filters: [{name, extensions: ["fb2","fbd"]}], multiple?, selectedFilter?,
-//               folder?} -> {paths: []}
-//   saveFile   {title, filters, defaultPath?, encodingChoices?: [], selectedFilter?}
-//              -> {path?, encoding?}
+//               folder?, defaultPath?} -> {paths: []}
+//   saveFile   {title, filters, defaultPath?, encodingChoices?: [], selectedEncoding?,
+//               encodingLabel?, selectedFilter?} -> {path?, encoding?}
 //   pickFolder {title} -> {path?}
 //   message    {text, caption, buttons: ["OK","Cancel"]} -> {button}
 //   latest release (app.latestRelease) -> {tag, version, url} | 1060 {reason}
@@ -43,9 +44,10 @@ struct OpenFileRequest {
     std::string title;
     std::vector<FileFilter> filters;
     bool multiple = false;
-    int selectedFilter = 0;             // index of the type selected when the dialog opens
-    std::optional<std::string> folder;  // where the dialog opens (UTF-8); default: last used
-    bool documentDialog = false;        // offers FictionBook files (derived from `filters`)
+    int selectedFilter = 0;                  // index of the type selected when the dialog opens
+    std::optional<std::string> folder;       // where the dialog opens (UTF-8); default: last used
+    std::optional<std::string> defaultPath;  // the file proposed: its folder, its name filled in
+    bool documentDialog = false;             // offers FictionBook files (derived from `filters`)
 };
 struct OpenFileResult {
     std::vector<std::string> paths;  // empty = cancelled
@@ -55,10 +57,12 @@ struct SaveFileRequest {
     std::string title;
     std::vector<FileFilter> filters;
     std::optional<std::string> defaultPath;
-    std::vector<std::string> encodingChoices;  // the "Encoding:" extra control, first selected
-    int selectedFilter = 0;                    // index of the type selected when it opens
-    std::optional<std::string> folder;         // where it opens when defaultPath names no folder
-    bool documentDialog = false;               // offers FictionBook files (derived from `filters`)
+    std::vector<std::string> encodingChoices;     // the "Encoding:" extra control
+    std::optional<std::string> selectedEncoding;  // the choice selected (default: the first)
+    std::optional<std::string> encodingLabel;     // its label (default: the shell's own text)
+    int selectedFilter = 0;                       // index of the type selected when it opens
+    std::optional<std::string> folder;            // where it opens when defaultPath names no folder
+    bool documentDialog = false;  // offers FictionBook files (derived from `filters`)
 };
 struct SaveFileResult {
     std::optional<std::string> path;  // nullopt = cancelled

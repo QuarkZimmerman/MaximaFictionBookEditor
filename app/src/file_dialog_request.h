@@ -1,7 +1,7 @@
 // The shell's file dialog request and its conversion into each platform dialog's terms (feature
 // 002, decision D14): Windows filter specs and the 1-based type index, GTK glob patterns that
-// ignore letter case, macOS extension lists, the folder and name Save As opens on, the encoding
-// choice of Save As and the accept filters of CEF's own dialog (the fallback).
+// ignore letter case, macOS extension lists, the folder and file name a dialog opens on, the
+// encoding choice of Save As and the accept filters of CEF's own dialog (the fallback).
 //
 // Plain C++ without CEF types or exceptions (library mfbe_shell_logic): used by the platform
 // dialogs (file_dialog_win.cpp, file_dialog_gtk.cpp, file_dialog_mac.mm), by dialog_provider.cpp
@@ -28,8 +28,9 @@ struct FileDialogRequest {
     std::vector<FileFilter> filters;     // in display order
     int selected_filter = 0;             // index of the type selected when the dialog opens
     std::string folder;                  // where the dialog opens ("" = the platform's choice)
-    std::string default_path;            // Save: the current file, or a name without a folder
-    std::vector<std::string> encodings;  // Save As: the "Encoding:" choice, the first selected
+    std::string default_path;            // the file proposed, or a name without a folder
+    std::vector<std::string> encodings;  // Save As: the "Encoding:" choice
+    std::string selected_encoding;       // the choice selected ("" = the first)
     std::string encoding_label;          // label of that choice
     bool document_dialog = false;        // Open / Save As of a document: one remembered folder
 };
@@ -70,16 +71,20 @@ std::vector<std::string> gtkPatterns(const FileFilter& filter);
 // macOS: the lower-case extensions of a type; empty for all files.
 std::vector<std::string> macExtensions(const FileFilter& filter);
 
-// Where a save dialog opens and the name it proposes: the folder and name of `default_path`, or
+// Where a dialog opens and the file name it proposes: the folder and name of `default_path`, or
 // `folder` and a name without a folder (or no name).
-struct SavePlace {
+struct ProposedFile {
     std::string folder;
     std::string name;
 };
-SavePlace savePlace(const FileDialogRequest& request);
+ProposedFile proposedFile(const FileDialogRequest& request);
 
 // Label of the Save As encoding choice in the shell's language, as the original's IDS_ENCODING.
 std::string encodingLabel(const std::string& language);
+
+// The index of the encoding selected when Save As opens: `selected_encoding` among `encodings`,
+// otherwise 0.
+std::size_t selectedEncodingIndex(const FileDialogRequest& request);
 
 // Windows IFileDialogCustomize items of the encoding choice: 1100 + index, as the original.
 inline constexpr unsigned kEncodingItemBase = 1100;

@@ -180,12 +180,9 @@ void runFileDialogOnUiThread(CefRefPtr<CefBrowser> browser, FileDialogRequest re
     for (const auto& filter : cefAcceptFilters(request)) {
         accept_filters.emplace_back(filter);
     }
-    std::string start = request.folder;
-    if (request.mode == FileDialogMode::kSave) {
-        const SavePlace target = savePlace(request);
-        start = mfbe::platform::utf8_from_path(mfbe::platform::path_from_utf8(target.folder) /
-                                               mfbe::platform::path_from_utf8(target.name));
-    }
+    const ProposedFile file = proposedFile(request);
+    const std::string start = mfbe::platform::utf8_from_path(
+        mfbe::platform::path_from_utf8(file.folder) / mfbe::platform::path_from_utf8(file.name));
     host->RunFileDialog(toCefMode(request.mode), request.title, start, accept_filters,
                         new FileDialogCallbackImpl(completion));
 }
@@ -563,6 +560,7 @@ public:
         native.filters = toShellFilters(request.filters);
         native.selected_filter = request.selectedFilter;
         native.folder = request.folder.value_or(std::string());
+        native.default_path = request.defaultPath.value_or(std::string());
         native.document_dialog = request.documentDialog;
         const bool posted = dialogs_->runFileDialog(native, [done](FileDialogResult result) {
             mfbe::OpenFileResult out;
@@ -584,7 +582,12 @@ public:
         native.filters = toShellFilters(request.filters);
         native.selected_filter = request.selectedFilter;
         native.encodings = request.encodingChoices;
-        native.encoding_label = encodingLabel(dialogs_->language());
+        native.selected_encoding = request.selectedEncoding.value_or(std::string());
+        // The interface's label; the shell's own text for a request without one.
+        native.encoding_label = request.encodingLabel.value_or(std::string());
+        if (native.encoding_label.empty()) {
+            native.encoding_label = encodingLabel(dialogs_->language());
+        }
         native.document_dialog = request.documentDialog;
         const bool posted = dialogs_->runFileDialog(native, [done](FileDialogResult result) {
             mfbe::SaveFileResult out;
