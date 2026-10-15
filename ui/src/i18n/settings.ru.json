@@ -15,7 +15,6 @@
         "fontFamily": "Гарнитура",
         "sourceFontSize": "Размер:",
         "fontSizeHint": "Пункты (6-96)",
-        "customDictionaryFilter": "Словари Hunspell",
         "chooseDictionary": "Выберите пользовательский словарь"
       },
       "other": {

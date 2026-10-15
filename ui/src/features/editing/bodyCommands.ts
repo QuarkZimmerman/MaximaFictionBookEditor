@@ -11,6 +11,7 @@ import type { Command as PMCommand } from 'prosemirror-state';
 import { createElement } from 'react';
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
+import { imageFileTypes } from '@/dialogs/fileTypes';
 import { TablePropertiesDialog, type TableProperties } from '@/dialogs/TablePropertiesDialog';
 import type { Dialogs } from '@/dialogs/types';
 import {
@@ -119,13 +120,8 @@ export async function chooseImage(ctx: CommandContext): Promise<ImageAttrs | nul
   if (!rpc) return null;
   const { paths } = await rpc.call('dialog.openFile', {
     title: ctx.t('dialog.addImage.caption'),
-    filters: [
-      {
-        name: ctx.t('dialog.addImage.filterImages'),
-        extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff'],
-      },
-      { name: ctx.t('dialog.saveFile.filterAll'), extensions: ['*'] },
-    ],
+    filters: imageFileTypes(ctx.t),
+    selectedFilter: 0,
   });
   const path = paths[0];
   if (!path) return null;

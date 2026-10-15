@@ -708,17 +708,13 @@
       }
     },
     "saveFile": {
-      "encoding": "Кодировка:",
-      "filterFb2": "Документы FictionBook",
-      "filterFbd": "Описания FictionBook",
-      "filterAll": "Все файлы"
+      "encoding": "Кодировка:"
     },
     "addImage": {
       "caption": "Вставить картинку",
       "insertClear": "Вставить пустую картинку?",
       "chooseImage": "Выберите картинку для вставки:",
-      "chooseBinaries": "Выберите один или несколько бинарных файлов:",
-      "filterImages": "Изображения"
+      "chooseBinaries": "Выберите один или несколько бинарных файлов:"
     },
     "chooseScriptsFolder": "Выберите папку со скриптами",
     "dontAskAgain": "Больше не спрашивать",

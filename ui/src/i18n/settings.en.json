@@ -15,7 +15,6 @@
         "fontFamily": "Font family",
         "sourceFontSize": "Size:",
         "fontSizeHint": "Points (6-96)",
-        "customDictionaryFilter": "Hunspell dictionaries",
         "chooseDictionary": "Choose the custom dictionary"
       },
       "other": {
