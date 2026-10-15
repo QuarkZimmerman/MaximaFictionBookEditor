@@ -12,6 +12,7 @@
 #include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 #include "native_actions.h"
+#include "permission_policy.h"
 
 #include <string>
 #include <utility>
@@ -213,6 +214,18 @@ bool MfbeClient::IsAllowedUrl(const std::string& url) const {
         return next == '/' || next == '?' || next == '#';
     }
     return false;
+}
+
+bool MfbeClient::OnShowPermissionPrompt(CefRefPtr<CefBrowser> /*browser*/, uint64_t /*prompt_id*/,
+                                        const CefString& requesting_origin,
+                                        uint32_t requested_permissions,
+                                        CefRefPtr<CefPermissionPromptCallback> callback) {
+    const bool clipboard_only = requested_permissions == CEF_PERMISSION_TYPE_CLIPBOARD;
+    callback->Continue(
+        allowPermission(requesting_origin.ToString(), config_.app_origin, clipboard_only)
+            ? CEF_PERMISSION_RESULT_ACCEPT
+            : CEF_PERMISSION_RESULT_DENY);
+    return true;
 }
 
 bool MfbeClient::OnBeforeBrowse(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,

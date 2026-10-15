@@ -290,6 +290,9 @@ Desktop shell (`app/src/`):
   local UI only; no remote pages are ever loaded.
 * The CEF profile is the per-user data folder, a portable copy's `user` folder, or a temporary
   folder in `--url` developer mode; nothing is shared with other browsers.
+* Permission requests: the editor's own page may use the clipboard (Edit > Paste and the
+  right-click menus read it); every other request is refused without a browser prompt
+  (`app/src/permission_policy.cpp`).
 
 Diagnostics and privacy (`core/src/log/error_log.cpp`, FR-131):
 

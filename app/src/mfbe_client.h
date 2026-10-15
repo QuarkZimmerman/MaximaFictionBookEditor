@@ -3,8 +3,9 @@
 // marker set by the UI), inline load-error page, navigation policy (stay on the loopback
 // origin, external links go to the OS browser), OS drag-and-drop of documents onto the
 // window (opened through app.openPaths; images and other files reach the page as HTML5
-// drops), the right-click menu (a text box's edit menu, nothing elsewhere: context_menu.h) and
-// F12 -> DevTools in development builds.
+// drops), the right-click menu (a text box's edit menu, nothing elsewhere: context_menu.h),
+// permission requests (the clipboard for the editor's page, nothing else: permission_policy.h)
+// and F12 -> DevTools in development builds.
 #pragma once
 
 #include "include/cef_client.h"
@@ -26,6 +27,7 @@ class MfbeClient : public CefClient,
                    public CefDragHandler,
                    public CefLifeSpanHandler,
                    public CefLoadHandler,
+                   public CefPermissionHandler,
                    public CefRequestHandler,
                    public CefKeyboardHandler {
 public:
@@ -51,6 +53,7 @@ public:
     CefRefPtr<CefDragHandler> GetDragHandler() override { return this; }
     CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
     CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
+    CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
     CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
     CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
 
@@ -84,6 +87,11 @@ public:
     // CefLoadHandler methods:
     void OnLoadError(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, ErrorCode error_code,
                      const CefString& error_text, const CefString& failed_url) override;
+
+    // CefPermissionHandler methods:
+    bool OnShowPermissionPrompt(CefRefPtr<CefBrowser> browser, uint64_t prompt_id,
+                                const CefString& requesting_origin, uint32_t requested_permissions,
+                                CefRefPtr<CefPermissionPromptCallback> callback) override;
 
     // CefRequestHandler methods:
     bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
