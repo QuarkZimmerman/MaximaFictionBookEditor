@@ -131,10 +131,11 @@ void openIn(IFileDialog* dialog, const std::string& folder) {
     }
 }
 
-// Save: the current file (its folder and name, as the original's SetSaveAsItem) or the folder
-// and name of the request.
-void placeSave(IFileDialog* dialog, const FileDialogRequest& request) {
-    if (mfbe::platform::path_from_utf8(request.default_path).has_parent_path()) {
+// The proposed file: Save As shows the current file as the original's SetSaveAsItem did; other
+// dialogs open on its folder with its name filled in (the original's dictionary dialog).
+void placeFile(IFileDialog* dialog, const FileDialogRequest& request) {
+    if (request.mode == FileDialogMode::kSave &&
+        mfbe::platform::path_from_utf8(request.default_path).has_parent_path()) {
         ComRef<IShellItem> item;
         ComRef<IFileSaveDialog> save;
         if (shellItem(request.default_path, item) &&
@@ -143,10 +144,10 @@ void placeSave(IFileDialog* dialog, const FileDialogRequest& request) {
             return;
         }
     }
-    const SavePlace place = savePlace(request);
-    openIn(dialog, place.folder);
-    if (!place.name.empty()) {
-        dialog->SetFileName(wideText(place.name).c_str());
+    const ProposedFile file = proposedFile(request);
+    openIn(dialog, file.folder);
+    if (!file.name.empty()) {
+        dialog->SetFileName(wideText(file.name).c_str());
     }
 }
 
@@ -247,11 +248,7 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
         dialog->SetDefaultExtension(wideText(extension).c_str());
     }
 
-    if (save) {
-        placeSave(dialog.get(), request);
-    } else {
-        openIn(dialog.get(), request.folder);
-    }
+    placeFile(dialog.get(), request);
 
     ComRef<IFileDialogCustomize> customize;
     const bool offers_encodings = save && !request.encodings.empty() &&
@@ -263,7 +260,8 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
             customize->AddControlItem(kEncodingCombo, static_cast<DWORD>(kEncodingItemBase + i),
                                       wideText(request.encodings[i]).c_str());
         }
-        customize->SetSelectedControlItem(kEncodingCombo, kEncodingItemBase);
+        customize->SetSelectedControlItem(
+            kEncodingCombo, static_cast<DWORD>(kEncodingItemBase + selectedEncodingIndex(request)));
         customize->EndVisualGroup();
     }
 

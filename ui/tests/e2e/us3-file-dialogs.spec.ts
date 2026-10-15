@@ -20,7 +20,15 @@ import path from 'node:path';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, fixtureBook, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  fileNew,
+  fixtureBook,
+  test,
+  waitForBook,
+  type CoreHandle,
+  type RpcCallError,
+} from './fixtures/core';
 
 interface FileType {
   name: string;
@@ -37,9 +45,14 @@ interface DialogRequest {
   folder?: string;
   defaultPath?: string;
   encodingChoices?: string[];
+  selectedEncoding?: string;
+  encodingLabel?: string;
 }
 
 type Language = 'en' | 'ru';
+
+/** The label of the encoding choice inside Save As, in the interface language. */
+const ENCODING_LABEL: Record<Language, string> = { en: 'Encoding:', ru: 'Кодировка:' };
 
 /** The type names the dialogs must show (FR-010, FR-011). */
 const NAMES: Record<Language, Record<string, string>> = {
@@ -156,7 +169,7 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
 async function openBook(core: CoreHandle, page: Page, file: string): Promise<DialogRequest> {
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   const request = await requestOf(core, () => menu(page, 'file', 'open'));
-  await expect(page).toHaveTitle(new RegExp(`^${path.basename(file).replace('.', '\\.')} - `));
+  await waitForBook(page, file);
   return request;
 }
 
@@ -226,7 +239,8 @@ for (const language of ['en', 'ru'] as const) {
       expect(open.folder).not.toBe(books);
 
       // Save As of a saved book: its folder and name, FictionBook files selected, the encoding
-      // choice inside the dialog with the Save encoding first.
+      // choice inside the dialog - the original's list, the Save encoding selected, labelled in
+      // the interface language.
       const saved = await saveAsCancelled(core, page);
       expect(saved).toMatchObject({
         method: 'dialog.saveFile',
@@ -235,6 +249,8 @@ for (const language of ['en', 'ru'] as const) {
         selectedFilter: 0,
         defaultPath: book,
         encodingChoices: ENCODINGS,
+        selectedEncoding: 'utf-8',
+        encodingLabel: ENCODING_LABEL[language],
       });
       expect(saved.folder).toBeUndefined();
       await expect(page.getByTestId('dialog-encoding')).toHaveCount(0);
@@ -252,18 +268,14 @@ for (const language of ['en', 'ru'] as const) {
       expect(fbd).toMatchObject({ filters: documentTypes(names), selectedFilter: 1 });
       expect(fbd.defaultPath).toBe(descriptor);
 
-      // "Keep encoding": the book's own encoding comes first (it is preselected).
+      // "Keep encoding": the book's own encoding is selected, the list keeps its order.
       await core.rpc('settings.set', { patch: { other: { keepEncoding: true } } });
       await openBook(core, page, path.join(books, 'legacy.fb2'));
       const kept = await saveAsCancelled(core, page);
-      expect(kept.encodingChoices).toEqual([
-        'windows-1251',
-        ...ENCODINGS.filter((encoding) => encoding !== 'windows-1251'),
-      ]);
+      expect(kept).toMatchObject({ encodingChoices: ENCODINGS, selectedEncoding: 'windows-1251' });
 
       // A document never saved: no file proposed, the folder last used, FictionBook files.
-      await page.getByTestId('toolbar-file.new').click();
-      await expect(page).toHaveTitle(/^(Untitled|Без имени)/);
+      await fileNew(page);
       const fresh = await saveAsCancelled(core, page);
       expect(fresh).toMatchObject({ filters: documentTypes(names), selectedFilter: 0 });
       expect(fresh.defaultPath).toBeUndefined();
@@ -360,17 +372,15 @@ for (const language of ['en', 'ru'] as const) {
       }
     });
 
-    test('the custom dictionary dialog offers Dictionaries on the dictionary folder', async ({
+    test('the custom dictionary dialog offers Dictionaries and proposes the current dictionary', async ({
       core,
       page,
     }) => {
       await openApp(core, page, language);
       await menu(page, 'tools', 'settings');
       await expect(page.getByTestId('settings-page-view')).toBeVisible();
-      const dictionaries = path.join(dir, 'Словари');
-      await page
-        .getByTestId('settings-view-custom-dictionary')
-        .fill(path.join(dictionaries, 'my.dic'));
+      const dictionary = path.join(dir, 'Словари', 'мой словарь.dic');
+      await page.getByTestId('settings-view-custom-dictionary').fill(dictionary);
       await core.enqueueDialog('dialog.openFile', { paths: [] });
       const request = await requestOf(core, () =>
         page.getByTestId('settings-view-custom-dictionary-browse').click(),
@@ -385,9 +395,74 @@ for (const language of ['en', 'ru'] as const) {
         ],
         selectedFilter: 0,
         multiple: false,
-        folder: dictionaries,
+        defaultPath: dictionary,
       });
       await page.getByTestId('dialog-settings-button-cancel').click();
     });
   });
 }
+
+/** The JSON-RPC message of a WebSocket frame (null for anything else). */
+function rpcMessage(frame: string | Buffer): { id?: unknown; method?: unknown } | null {
+  try {
+    const message: unknown = JSON.parse(frame.toString());
+    return typeof message === 'object' && message !== null ? message : null;
+  } catch {
+    return null;
+  }
+}
+
+test.describe('US3 (feature 002) - the editor waits for an open file dialog', () => {
+  test.beforeEach(async ({ core }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+  });
+
+  test('clicks and keys reach nothing while a file dialog is open, as behind a modal dialog', async ({
+    core,
+    page,
+  }) => {
+    // The answer of File > Open is held back: the dialog stays "open" until the test lets it go.
+    const dialog = { requestId: null as unknown, held: [] as (string | Buffer)[], holding: true };
+    const answers: { send: (frame: string | Buffer) => void }[] = [];
+    await page.routeWebSocket(/\/rpc\?/, (ws) => {
+      const server = ws.connectToServer();
+      answers.push(ws);
+      ws.onMessage((frame) => {
+        const request = rpcMessage(frame);
+        if (request?.method === 'dialog.openFile') dialog.requestId = request.id;
+        server.send(frame);
+      });
+      server.onMessage((frame) => {
+        const answer = rpcMessage(frame);
+        if (dialog.holding && answer?.id !== undefined && answer.id === dialog.requestId) {
+          dialog.held.push(frame);
+          return;
+        }
+        ws.send(frame);
+      });
+    });
+    await openApp(core, page, 'en');
+    await expect(paragraph(page)).toBeVisible();
+    const before = await page.getByTestId('body-editor').innerText();
+
+    await core.enqueueDialog('dialog.openFile', { paths: [] });
+    await menu(page, 'file', 'open');
+    await expect.poll(() => dialog.held.length).toBe(1);
+    const root = page.locator('#root');
+    await expect(root).toHaveAttribute('inert', '');
+    await page.getByTestId('menu-file').click({ force: true });
+    await expect(page.getByTestId('menu-file-popup')).toHaveCount(0);
+    await paragraph(page).click({ force: true });
+    await page.keyboard.type('typed behind the dialog');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('body-editor')).toHaveText(before);
+
+    // The dialog closes: the editor takes input again.
+    dialog.holding = false;
+    for (const frame of dialog.held.splice(0)) answers.at(-1)!.send(frame);
+    await expect(root).not.toHaveAttribute('inert');
+    await clickIntoParagraph(page);
+    await page.keyboard.type('after');
+    await expect(page.getByTestId('body-editor')).toContainText('after');
+  });
+});

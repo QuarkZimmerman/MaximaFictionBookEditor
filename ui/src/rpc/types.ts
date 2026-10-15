@@ -272,6 +272,8 @@ export interface FileDialogRequestRecord {
   folder?: string;
   defaultPath?: string;
   encodingChoices?: string[];
+  selectedEncoding?: string;
+  encodingLabel?: string;
 }
 
 /** The latest published release (`app.latestRelease`, feature 002). */
@@ -481,6 +483,8 @@ export interface RpcMethods {
       selectedFilter?: number;
       /** Where the dialog opens (default: the folder last used by Open or Save As). */
       folder?: string;
+      /** The file proposed: the dialog opens on its folder with its name filled in. */
+      defaultPath?: string;
     };
     result: { paths: string[] };
   };
@@ -490,6 +494,10 @@ export interface RpcMethods {
       filters: FileFilter[];
       defaultPath?: string;
       encodingChoices?: string[];
+      /** The entry of `encodingChoices` selected when the dialog opens (default: the first). */
+      selectedEncoding?: string;
+      /** Label of the encoding choice in the interface language (default: the shell's own). */
+      encodingLabel?: string;
       /** Index of the type selected when the dialog opens (default 0). */
       selectedFilter?: number;
     };

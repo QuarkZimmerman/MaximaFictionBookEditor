@@ -4,7 +4,6 @@ import {
   defaultSaveEncoding,
   documentFilters,
   registerFileCommands,
-  saveAsEncodingChoices,
   saveAsSelectedType,
   sourceOnlyDocument,
 } from '@/features/file/fileCommands';
@@ -264,10 +263,11 @@ describe('file flows (T052)', () => {
       defaultPath: '/books/alpha.fbd',
       filters: [{ extensions: ['fb2'] }, { extensions: ['fbd'] }, { extensions: ['*'] }],
       selectedFilter: 1,
+      // The original's list in its order, "Keep encoding" selecting the file's encoding.
       encodingChoices: [
-        'windows-1251',
         'utf-8',
         'utf-16',
+        'windows-1251',
         'windows-1252',
         'iso-8859-1',
         'iso-8859-2',
@@ -275,6 +275,8 @@ describe('file flows (T052)', () => {
         'iso-8859-15',
         'koi8-r',
       ],
+      selectedEncoding: 'windows-1251',
+      encodingLabel: 'Encoding:',
     });
     expect(dialogs.custom[0]).toMatchObject({
       name: 'EncodingDialog',
@@ -317,6 +319,7 @@ describe('file flows (T052)', () => {
     const dialog = rpc.calls.find((c) => c.method === 'dialog.saveFile')!;
     expect(dialog.params).not.toHaveProperty('defaultPath', expect.anything());
     expect(dialog.params).toMatchObject({ selectedFilter: 0 });
+    expect(dialog.params).toMatchObject({ selectedEncoding: 'utf-8', encodingLabel: 'Encoding:' });
     expect((dialog.params as { encodingChoices: string[] }).encodingChoices[0]).toBe('utf-8');
     expect(dialogs.custom).toEqual([]);
     expect(rpc.calls.find((c) => c.method === 'doc.save')!.params).toMatchObject({
@@ -555,9 +558,6 @@ describe('file flows (T052)', () => {
     expect(saveAsSelectedType(null)).toBe(0);
     expect(saveAsSelectedType('fbd')).toBe(1);
     expect(saveAsSelectedType('xml')).toBe(2);
-    expect(saveAsEncodingChoices('utf-8').slice(0, 3)).toEqual(['utf-8', 'utf-16', 'windows-1251']);
-    expect(saveAsEncodingChoices('koi8-r')).toHaveLength(9);
-    expect(saveAsEncodingChoices('koi8-r')[0]).toBe('koi8-r');
     const stub = sourceOnlyDocument('doc-x', '/a/b.fbd', 'koi8-r');
     expect(stub).toMatchObject({
       docId: 'doc-x',
