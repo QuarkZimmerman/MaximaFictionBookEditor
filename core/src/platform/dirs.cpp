@@ -55,11 +55,6 @@ std::optional<std::string> env_value(const char* name) {
 #endif
 }
 
-bool is_dir(const std::filesystem::path& p) {
-    std::error_code ec;
-    return std::filesystem::is_directory(p, ec);
-}
-
 }  // namespace
 
 std::string platform_name() {
@@ -145,9 +140,20 @@ std::filesystem::path default_log_root() {
 }
 
 Dirs resolve_dirs(const std::string& override_root) {
+    return resolve_dirs(override_root, detect_portable_dir());
+}
+
+Dirs resolve_dirs(const std::string& override_root,
+                  const std::optional<std::filesystem::path>& portable) {
     Dirs dirs;
+    std::filesystem::path root;
     if (!override_root.empty()) {
-        const std::filesystem::path root = std::filesystem::absolute(path_from_utf8(override_root));
+        root = std::filesystem::absolute(path_from_utf8(override_root));
+    } else if (const auto portable_data = portable_data_dir(portable)) {
+        // A portable copy keeps all of its data in its own folder, so it moves with the folder.
+        root = *portable_data;
+    }
+    if (!root.empty()) {
         dirs.config = root;
         dirs.data = root;
         dirs.state = root;
@@ -173,7 +179,7 @@ Dirs resolve_dirs(const std::string& override_root) {
         dirs.logs = dirs.state / "logs";
 #endif
     }
-    dirs.portable = detect_portable_dir();
+    dirs.portable = portable;
     return dirs;
 }
 
@@ -223,35 +229,6 @@ std::filesystem::path executable_path() {
 std::filesystem::path executable_dir() {
     const auto exe = executable_path();
     return exe.empty() ? std::filesystem::current_path() : exe.parent_path();
-}
-
-std::optional<std::filesystem::path> detect_portable_dir(
-    const std::filesystem::path& exe_dir, const std::optional<std::string>& appimage) {
-    std::vector<std::filesystem::path> candidates;
-    if (appimage && !appimage->empty()) {
-        const std::filesystem::path image = path_from_utf8(*appimage);
-        std::filesystem::path home = image;
-        home += ".home";
-        std::filesystem::path dot_d = image;
-        dot_d += ".d";
-        candidates.push_back(home / "user");
-        candidates.push_back(dot_d / "user");
-        candidates.push_back(dot_d);
-    } else if (!exe_dir.empty()) {
-        candidates.push_back(exe_dir / "user");
-#ifdef __APPLE__
-        // <App>.app/Contents/MacOS/<exe> -> <App>.app/../user
-        candidates.push_back(exe_dir / ".." / ".." / ".." / "user");
-#endif
-    }
-    for (const auto& c : candidates) {
-        if (is_dir(c)) {
-            std::error_code ec;
-            auto canonical = std::filesystem::weakly_canonical(c, ec);
-            return ec ? c : canonical;
-        }
-    }
-    return std::nullopt;
 }
 
 std::optional<std::filesystem::path> detect_portable_dir() {

@@ -6,9 +6,11 @@
 //   $XDG_STATE_HOME/maxfbeditor/logs macOS:   ~/Library/Application Support/Maxima Fiction Book
 //   Editor, ~/Library/Logs/...
 // A portable folder (`<dir of executable>/user`, `<AppImage>.home/user`, `<AppImage>.d`) is
-// detected automatically and participates in the layered resource lookup.
+// detected automatically: when the editor can write to it, every directory is inside it
+// (resource-formats §1a); otherwise it only adds a layer to the resource lookup.
 #pragma once
 
+#include <mfbe/portable.hpp>
 #include <mfbe/utf8_paths.hpp>
 
 #include <filesystem>
@@ -29,7 +31,8 @@ struct Dirs {
     std::filesystem::path state;   // machine-local state: caches, logs (XDG_STATE_HOME,
                                    // %LOCALAPPDATA%); equals data on macOS
     std::filesystem::path logs;    // errors-only log folder
-    std::optional<std::filesystem::path> portable;  // portable user folder when detected
+    std::optional<std::filesystem::path> portable;  // portable user folder when detected; it is
+                                                    // `data` when the editor can write to it
 };
 
 // Platform id as reported by app.info: "windows" | "linux" | "macos".
@@ -39,10 +42,14 @@ std::string platform_name();
 // POSIX, the user default UI language on Windows. Used to resolve uiLanguage "system".
 std::string system_language();
 
-// Resolves the per-user directories. When `override_root` is non-empty every directory lives
-// below it (config = data = state = root, logs = root/logs) - used by tests and `--data-dir`.
+// Resolves the directories. When `override_root` is non-empty every directory lives below it
+// (config = data = state = root, logs = root/logs) - used by tests and `--data-dir`; otherwise a
+// portable folder the editor can write to is that root; otherwise the per-user platform folders.
 // Directories are NOT created here; see ensure_dirs().
 Dirs resolve_dirs(const std::string& override_root = "");
+// The same for the given portable folder instead of the one next to the running executable.
+Dirs resolve_dirs(const std::string& override_root,
+                  const std::optional<std::filesystem::path>& portable);
 
 // Creates every directory of `dirs` (best effort; errors are logged, not thrown).
 void ensure_dirs(const Dirs& dirs);
@@ -61,11 +68,7 @@ std::filesystem::path default_log_root();
 std::filesystem::path executable_path();
 std::filesystem::path executable_dir();
 
-// Portable folder detection (pure function for tests): returns the first existing candidate
-//   - `appimage` set:  <appimage>.home/user, <appimage>.d/user, <appimage>.d
-//   - otherwise:       <exe_dir>/user (and <bundle>.app/../user on macOS)
-std::optional<std::filesystem::path> detect_portable_dir(
-    const std::filesystem::path& exe_dir, const std::optional<std::string>& appimage);
+// The portable folder of the running executable (mfbe/portable.hpp, with $APPIMAGE).
 std::optional<std::filesystem::path> detect_portable_dir();
 
 // Process id of the current process.

@@ -4,6 +4,8 @@
 // The core has its own implementation of the same rules (core/src/platform/dirs.cpp); the
 // shell only needs the Chromium profile location, the CEF debug log location and where to
 // find the bundled UI/resources, and must be able to compute them before the core starts.
+// Whether a portable copy keeps everything in its own folder is decided by the functions both
+// share (mfbe/portable.hpp).
 #pragma once
 
 #include <filesystem>
@@ -14,11 +16,13 @@ namespace mfbe::shell {
 struct UserDirs {
     std::filesystem::path config;  // settings, hotkeys, recent, exclusions (core-owned)
     std::filesystem::path data;    // machine-local state used by the shell: CEF profile/cache,
-                                   // first-start markers (Windows %LOCALAPPDATA%, XDG data dir)
+                                   // first-start markers (Windows %LOCALAPPDATA%, XDG data dir,
+                                   // or the portable folder)
     std::filesystem::path logs;    // errors-only log, CEF debug log
 };
 
-// Resolves the per-user locations for the current platform (environment variables
+// Resolves the shell's locations: all of them in the portable folder when the editor can write
+// to it, otherwise the per-user locations of the current platform (environment variables
 // XDG_*/APPDATA/LOCALAPPDATA/HOME). Nothing is created.
 UserDirs userDirs();
 
