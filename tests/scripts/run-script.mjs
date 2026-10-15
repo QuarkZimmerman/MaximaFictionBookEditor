@@ -426,6 +426,15 @@ async function main() {
     });
     await page.getByTestId("menu-file").click();
     await page.getByTestId("menu-file-open").click();
+    // The editor shows a new document from the start: wait for the book itself, whose file
+    // name heads the window title.
+    await page.waitForFunction(
+      (name) =>
+        document.title.startsWith(`${name} - `) ||
+        document.title.startsWith(`${name}* - `),
+      path.basename(book),
+      { timeout: 60_000 },
+    );
     await page.getByTestId("body-editor").waitFor({ timeout: 60_000 });
     await page.waitForFunction(
       () => window.__mfbeTest.scripts.document() !== null,
