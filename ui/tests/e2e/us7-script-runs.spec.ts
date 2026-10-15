@@ -1,7 +1,8 @@
 /**
  * Feature 002, User Story 7 - scripts stay under the user's control (T055; FR-051 to FR-053,
- * SC-009). On the generated 1 MB book (5,000 paragraphs, `tests/bench/gen-text-book.py`) with
- * the fixture scripts of `tests/scripts/fixtures/05_Runs` copied into the user scripts folder:
+ * SC-009). On the 1 MB book of `tests/bench/gen-text-book.py` (5,000 paragraphs, generated into a
+ * temporary folder) with the fixture scripts of `tests/scripts/fixtures/05_Runs` copied into
+ * the user scripts folder:
  *
  *  - the run bar shows the progress and Cancel; the editor refuses typing during the run;
  *    Cancel restores the document within 2 s, also while the script is busy;
@@ -14,7 +15,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,8 +27,6 @@ import { expect, test, type CoreHandle } from './fixtures/core';
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const FIXTURES = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures', '05_Runs');
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'bench', 'gen-text-book.py');
-const BOOKS_DIR = path.join(REPO_ROOT, 'tests', 'bench', 'books');
-const BOOK = path.join(BOOKS_DIR, 'clean-1mb.fb2');
 
 /** FR-051: Cancel restores the document within 2 seconds. */
 const CANCEL_BUDGET_MS = 2_000;
@@ -41,21 +41,25 @@ interface ScriptHooks {
 
 declare const window: { __mfbeTest?: { scripts?: ScriptHooks } };
 
+let booksDir = '';
+let book = '';
+
 test.beforeAll(async ({ coreServer }) => {
-  if (!existsSync(BOOK)) {
-    mkdirSync(BOOKS_DIR, { recursive: true });
-    spawnSync('python3', [GENERATOR, '--out-dir', BOOKS_DIR, '--only', '1mb'], {
-      encoding: 'utf8',
-    });
-  }
+  booksDir = mkdtempSync(path.join(tmpdir(), 'mfbe-us7-'));
+  spawnSync('python3', [GENERATOR, '--out-dir', booksDir, '--only', '1mb'], { encoding: 'utf8' });
+  book = path.join(booksDir, 'clean-1mb.fb2');
   if (!coreServer.hasCore || !coreServer.dataDir) return;
   const target = path.join(coreServer.dataDir, 'scripts', '05_Runs');
   if (!existsSync(target)) cpSync(FIXTURES, target, { recursive: true });
 });
 
+test.afterAll(() => {
+  rmSync(booksDir, { recursive: true, force: true });
+});
+
 test.beforeEach(async ({ core }) => {
   test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
-  test.skip(!existsSync(BOOK), 'python3 / the book generator are not available');
+  test.skip(!existsSync(book), 'python3 / the book generator are not available');
 });
 
 async function openBook(page: Page, core: CoreHandle): Promise<void> {
@@ -66,14 +70,14 @@ async function openBook(page: Page, core: CoreHandle): Promise<void> {
       timeout: 15_000,
     })
     .toBeGreaterThan(0);
-  await core.enqueueDialog('dialog.openFile', { paths: [BOOK] });
+  await core.enqueueDialog('dialog.openFile', { paths: [book] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
   await expect
     .poll(() => page.evaluate(() => window.__mfbeTest?.scripts?.document()?.path ?? null), {
       timeout: 30_000,
     })
-    .toBe(BOOK);
+    .toBe(book);
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
 }
 
