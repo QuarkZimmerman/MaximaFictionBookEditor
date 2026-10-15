@@ -102,7 +102,10 @@ struct Layers {
 
 TEST_CASE("template: the bundled template is the original's blank document in UTF-8",
           "[template]") {
-    CHECK(test::read_text(resources_root() / resources::kTemplateFileName) == kOriginalBlank);
+    // Line ends aside: a Windows checkout gives the file CRLF, which the XML reader reads as LF.
+    std::string text = test::read_text(resources_root() / resources::kTemplateFileName);
+    std::erase(text, '\r');
+    CHECK(text == kOriginalBlank);
 }
 
 TEST_CASE("template: Settings folder, then <Data>, then the portable folder, then bundled",
