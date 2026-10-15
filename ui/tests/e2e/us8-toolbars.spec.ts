@@ -20,13 +20,22 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import {
-  APP_TITLE,
   expect,
   NodeRpcClient,
   startCoreWith,
   test,
   waitForStartupDocument,
+  withUiLang,
 } from './fixtures/core';
+import {
+  pageLang,
+  pageText,
+  scriptName,
+  uiAccelerator,
+  uiText,
+  type UiLang,
+} from './fixtures/i18n';
+import { pressAlt } from './fixtures/keys';
 
 const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const SCRIPT_FIXTURES = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures');
@@ -123,12 +132,9 @@ async function ownCore(scriptGroups: readonly string[] = []): Promise<OwnCore> {
   return own;
 }
 
-async function openOwn(page: Page, core: OwnCore, lang?: string): Promise<void> {
-  const url = new URL(core.url);
-  if (lang) url.searchParams.set('lang', lang);
-  await page.goto(url.toString());
-  if (lang === 'ru') await expect(page).toHaveTitle(`Без имени - ${APP_TITLE}`);
-  else await waitForStartupDocument(page);
+async function openOwn(page: Page, core: OwnCore, lang: UiLang | undefined): Promise<void> {
+  await page.goto(withUiLang(core.url, lang));
+  await waitForStartupDocument(page);
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
 }
 
@@ -146,6 +152,13 @@ function listItems(page: Page, list: 'available' | 'current'): Promise<string[]>
     .getByTestId(`customize-toolbar-${list}`)
     .locator('option')
     .evaluateAll((options) => options.map((option) => option.getAttribute('data-item') ?? ''));
+}
+
+/** Selects `item` in one of the Customize dialog's lists. */
+async function selectItem(page: Page, list: 'available' | 'current', item: string): Promise<void> {
+  const index = (await listItems(page, list)).indexOf(item);
+  expect(index, `${item} in the ${list} list`).toBeGreaterThanOrEqual(0);
+  await page.getByTestId(`customize-toolbar-${list}`).selectOption({ index });
 }
 
 /** The stored layouts of settings.json (`session.toolbarLayouts`). */
@@ -228,9 +241,10 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
 
   test('1. the Commands and Scripts toolbars offer "Customize toolbar..." alone; other bars nothing', async ({
     page,
+    uiLang,
   }) => {
     core = await ownCore();
-    await openOwn(page, core);
+    await openOwn(page, core, uiLang);
     await page.evaluate(RECORD_RIGHT_CLICKS);
     const menu = page.getByTestId('toolbar-menu');
 
@@ -252,7 +266,9 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
       await rightClick();
       await expect(menu).toBeVisible();
       await expect(menu.getByRole('menuitem')).toHaveCount(1);
-      await expect(page.getByTestId('toolbar-menu-customize')).toHaveText('Customize toolbar...');
+      await expect(page.getByTestId('toolbar-menu-customize')).toHaveText(
+        await pageText(page, 'toolbarMenu.customize'),
+      );
       await page.keyboard.press('Escape');
       await expect(menu).toHaveCount(0);
     }
@@ -283,45 +299,48 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     // In Russian.
     await openOwn(page, core, 'ru');
     await page.getByTestId('toolbar-file.save').click({ button: 'right' });
-    await expect(page.getByTestId('toolbar-menu-customize')).toHaveText('Настройка панели...');
+    await expect(page.getByTestId('toolbar-menu-customize')).toHaveText(
+      uiText('ru', 'toolbarMenu.customize'),
+    );
     await page.getByTestId('toolbar-menu-customize').click();
     await expect(
       page.getByTestId('dialog-customize-toolbar-title').locator('.mfbe-dialog-title-text'),
-    ).toHaveText('Настройка панели инструментов');
+    ).toHaveText(uiText('ru', 'dialog.customizeToolbar.caption'));
   });
 
   test('2. the Customize dialog edits the layout at once, by mouse and keyboard; kept after reload and restart', async ({
     page,
+    uiLang,
   }) => {
     core = await ownCore();
-    await openOwn(page, core);
+    await openOwn(page, core, uiLang);
     await expect.poll(() => layout(page, 'commands')).toEqual(ORIGINAL_COMMANDS);
 
     await openCustomize(page, 'commands');
     await expect(
       page.getByTestId('dialog-customize-toolbar-title').locator('.mfbe-dialog-title-text'),
-    ).toHaveText('Customize Toolbar');
+    ).toHaveText(await pageText(page, 'dialog.customizeToolbar.caption'));
     // Every button is shown: only the separator is available; the end entry closes the list.
     expect(await listItems(page, 'available')).toEqual(['-']);
     expect(await listItems(page, 'current')).toEqual([...ORIGINAL_COMMANDS, 'end']);
     await expect(page.getByTestId('customize-toolbar-current').locator('option').nth(2)).toHaveText(
-      'Save',
+      await pageText(page, 'cmd.file.save.tooltip'),
     );
 
     // Remove Save: back in the available list, off the toolbar at once.
-    await page.getByTestId('customize-toolbar-current').selectOption({ label: 'Save' });
+    await selectItem(page, 'current', 'file.save');
     await page.getByTestId('dialog-customize-toolbar-button-remove').click();
     await expect(page.getByTestId('toolbar-file.save')).toHaveCount(0);
     expect(await listItems(page, 'available')).toEqual(['-', 'file.save']);
 
     // Add it before New; Move Down twice puts it back in its place.
-    await page.getByTestId('customize-toolbar-current').selectOption({ label: 'New' });
-    await page.getByTestId('customize-toolbar-available').selectOption({ label: 'Save' });
+    await selectItem(page, 'current', 'file.new');
+    await selectItem(page, 'available', 'file.save');
     await page.getByTestId('dialog-customize-toolbar-button-add').click();
     await expect
       .poll(async () => (await layout(page, 'commands')).slice(0, 3))
       .toEqual(['file.save', 'file.new', 'file.open']);
-    await page.getByTestId('customize-toolbar-current').selectOption({ label: 'Save' });
+    await selectItem(page, 'current', 'file.save');
     await page.getByTestId('dialog-customize-toolbar-button-moveDown').click();
     await page.getByTestId('dialog-customize-toolbar-button-moveDown').click();
     await expect.poll(() => layout(page, 'commands')).toEqual(ORIGINAL_COMMANDS);
@@ -329,6 +348,9 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     // Keyboard: a separator at the end (the end entry), removed again; Move Up; Reset.
     const current = page.getByTestId('customize-toolbar-current');
     const available = page.getByTestId('customize-toolbar-available');
+    const lang = await pageLang(page);
+    const press = (button: string) =>
+      pressAlt(page, uiAccelerator(lang, `dialog.customizeToolbar.${button}`));
     await available.focus();
     await page.keyboard.press('Tab');
     await expect(current).toBeFocused();
@@ -336,28 +358,28 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await page.keyboard.press('Shift+Tab');
     await expect(available).toBeFocused();
     await page.keyboard.press('Home');
-    await page.keyboard.press('Alt+a');
+    await press('add');
     await expect.poll(() => layout(page, 'commands')).toEqual([...ORIGINAL_COMMANDS, '-']);
     await current.focus();
     await page.keyboard.press('ArrowUp');
-    await page.keyboard.press('Alt+r');
+    await press('remove');
     await expect.poll(() => layout(page, 'commands')).toEqual(ORIGINAL_COMMANDS);
     await page.keyboard.press('Home');
     await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Alt+u');
+    await press('moveUp');
     await expect
       .poll(async () => (await layout(page, 'commands')).slice(0, 2))
       .toEqual(['file.open', 'file.new']);
-    await page.keyboard.press('Alt+e');
+    await press('reset');
     await expect.poll(() => layout(page, 'commands')).toEqual(ORIGINAL_COMMANDS);
     await expect.poll(() => storedLayouts(core!).commands).toBeUndefined();
 
     // A layout of the user's: Save removed, a separator first; kept after reload and restart.
-    await current.selectOption({ label: 'Save' });
-    await page.keyboard.press('Alt+r');
-    await current.selectOption({ label: 'New' });
+    await selectItem(page, 'current', 'file.save');
+    await press('remove');
+    await selectItem(page, 'current', 'file.new');
     await available.selectOption({ index: 0 });
-    await page.keyboard.press('Alt+a');
+    await press('add');
     const customised = [
       '-',
       ...ORIGINAL_COMMANDS.filter((item, index) => item !== 'file.save' || index !== 2),
@@ -370,7 +392,7 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await waitForStartupDocument(page);
     await expect.poll(() => layout(page, 'commands')).toEqual(customised);
     await core.restart();
-    await openOwn(page, core);
+    await openOwn(page, core, uiLang);
     await expect.poll(() => layout(page, 'commands')).toEqual(customised);
     // The Scripts toolbar kept its own (original) layout.
     await expect.poll(() => layout(page, 'scripts')).toEqual(['scripts.last']);
@@ -385,9 +407,10 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
 
   test('3. Shift+drag moves a button or drops it off the toolbar; a double-click opens the dialog', async ({
     page,
+    uiLang,
   }) => {
     core = await ownCore();
-    await openOwn(page, core);
+    await openOwn(page, core, uiLang);
 
     // Open onto New: Open takes New's place, and no Open dialog was asked for.
     await shiftDrag(
@@ -454,9 +477,10 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
 
   test('4. the Scripts toolbar: "Last script" alone at first; scripts with icons by name; scripts added or removed later', async ({
     page,
+    uiLang,
   }) => {
     core = await ownCore(['01_Case', '04_Model']);
-    await openOwn(page, core);
+    await openOwn(page, core, uiLang);
     const body = page.getByTestId('body-editor');
     await expect.poll(() => layout(page, 'scripts')).toEqual(['scripts.last']);
 
@@ -473,17 +497,18 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     );
     // Offered under the script's name; a script without an icon is not offered.
     const availableList = page.getByTestId('customize-toolbar-available');
+    const lang = await pageLang(page);
     await expect(availableList.locator('option[data-item="script.test.case.upper"]')).toHaveText(
-      'To upper case',
+      scriptName('01_Case/01_Upper', lang),
     );
     await expect(availableList.locator('option[data-item="script.test.model.append"]')).toHaveText(
-      'Append paragraph',
+      scriptName('04_Model/01_Append', lang),
     );
     // "Last script" first, then upper case and append.
     await page.getByTestId('customize-toolbar-current').selectOption({ index: 1 });
-    await availableList.selectOption({ label: 'To upper case' });
+    await selectItem(page, 'available', 'script.test.case.upper');
     await page.getByTestId('dialog-customize-toolbar-button-add').click();
-    await availableList.selectOption({ label: 'Append paragraph' });
+    await selectItem(page, 'available', 'script.test.model.append');
     await page.getByTestId('dialog-customize-toolbar-button-add').click();
     await closeCustomize(page);
     await expect
@@ -525,12 +550,13 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
   test('5. a Description field shows the Body menu; the Source view its edit menu', async ({
     page,
     context,
+    uiLang,
   }) => {
     core = await ownCore();
     await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
       origin: new URL(core.url).origin,
     });
-    await openOwn(page, core);
+    await openOwn(page, core, uiLang);
     await page.evaluate(RECORD_RIGHT_CLICKS);
 
     // Description: Undo, Cut, Copy, Paste on the field under the pointer.
@@ -541,7 +567,12 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await title.click({ button: 'right' });
     const menu = page.getByTestId('context-menu');
     await expect(menu).toBeVisible();
-    await expect(menu.getByRole('menuitem')).toHaveText(['Undo', 'Cut', 'Copy', 'Paste']);
+    await expect(menu.getByRole('menuitem')).toHaveText([
+      await pageText(page, 'menu.edit.undo'),
+      await pageText(page, 'editing.contextMenu.cut'),
+      await pageText(page, 'editing.contextMenu.copy'),
+      await pageText(page, 'editing.contextMenu.paste'),
+    ]);
     await page.getByTestId('context-menu-edit.cut').click();
     await expect(title).toHaveValue('');
     await title.click({ button: 'right' });
@@ -563,15 +594,12 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await expect(source).toContainText('FictionBook');
     await source.click({ button: 'right' });
     const sourceMenu = page.getByTestId('source-context-menu');
-    await expect(sourceMenu.getByRole('menuitem')).toHaveText([
-      'Undo',
-      'Redo',
-      'Cut',
-      'Copy',
-      'Paste',
-      'Delete',
-      'Select All',
-    ]);
+    const sourceEntries = ['undo', 'redo', 'cut', 'copy', 'paste', 'delete', 'selectAll'];
+    await expect(sourceMenu.getByRole('menuitem')).toHaveText(
+      await Promise.all(
+        sourceEntries.map((entry) => pageText(page, `source.contextMenu.${entry}`)),
+      ),
+    );
     await page.getByTestId('source-context-menu-selectAll').click();
     await source.click({ button: 'right' });
     await expect(page.getByTestId('source-context-menu-copy')).not.toHaveAttribute(

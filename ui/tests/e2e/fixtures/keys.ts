@@ -4,6 +4,9 @@
  * for Meta, a few defaults differ, and the caret moves to the line start/end with Cmd+Left/Right
  * (Home and End only scroll).
  */
+
+import type { Page } from '@playwright/test';
+
 export const MAC = process.platform === 'darwin';
 
 /** Modifier of the `Mod` shortcuts: the editor's own ones and the clipboard. */
@@ -36,4 +39,22 @@ export function label(chord: string): string {
     .filter((mod) => mods.has(mod))
     .map((mod) => (mod === 'Alt' && MAC ? 'Option' : mod));
   return [...shown, key].join('+');
+}
+
+/**
+ * Alt+letter, as a dialog's accelerator: a letter the US keyboard does not have (the Russian
+ * interface's accelerators) is sent through the DevTools protocol as the key that types it.
+ */
+export async function pressAlt(page: Page, letter: string): Promise<void> {
+  if (/^[a-z0-9]$/i.test(letter)) {
+    await page.keyboard.press(`Alt+${letter}`);
+    return;
+  }
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', modifiers: 1, key: letter });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', modifiers: 1, key: letter });
+  } finally {
+    await cdp.detach();
+  }
 }

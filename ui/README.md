@@ -79,6 +79,11 @@ reconnects with exponential backoff (0.5 s to 10 s) and reports `connecting` / `
 
 Specs import `test`/`expect` from `./fixtures/core` instead of `@playwright/test`.
 
+Two Playwright projects run: `chromium` (the interface in the system's language) and
+`chromium-ru`, the main journeys again with the Russian interface (`?lang=ru`, option
+`uiLang`). Journeys assert the interface's texts through `fixtures/i18n.ts`, which reads them
+from the catalogues in the language the page shows, never as English literals.
+
 The script benchmark `perf-scripts.spec.ts` is tagged `@perf`: CI runs the journeys with
 `--grep-invert @perf` and the benchmark alone with `--grep @perf --workers=1`
 (`docs/performance.md`).

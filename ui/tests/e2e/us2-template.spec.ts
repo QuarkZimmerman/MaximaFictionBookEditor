@@ -16,7 +16,6 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 
 import {
-  APP_TITLE,
   expect,
   fileNew,
   fixtureBook,
@@ -24,6 +23,7 @@ import {
   test,
   waitForStartupDocument,
 } from './fixtures/core';
+import { pageText, untitledTitle } from './fixtures/i18n';
 
 /** Browser-side test hooks (`src/scripting/testHooks.ts`); the e2e tsconfig has no DOM lib. */
 declare const window: {
@@ -114,7 +114,7 @@ test.describe('US2 - start with the original blank document, replaceable by the 
     await expect(page.getByTestId('description-doc-date-text')).toHaveValue(text);
     await expect(page.getByTestId('description-doc-date-value')).toHaveValue(value);
     // Filling these in does not mark the document modified.
-    await expect(page).toHaveTitle(`Untitled - ${APP_TITLE}`);
+    await expect(page).toHaveTitle(await untitledTitle(page));
   });
 
   test('2. File > New takes a blank.fb2 from the data folder as written', async ({
@@ -138,7 +138,7 @@ test.describe('US2 - start with the original blank document, replaceable by the 
     expect(binaries).toEqual(['cover.png']);
     await expect(page.getByTestId('description-version')).toHaveValue('1.0');
     await expect(page.getByTestId('description-id')).toHaveValue(UUID);
-    await expect(page).toHaveTitle(`Untitled - ${APP_TITLE}`);
+    await expect(page).toHaveTitle(await untitledTitle(page));
   });
 
   test('3. a template folder chosen in Settings wins and is shown there', async ({
@@ -189,11 +189,11 @@ test.describe('US2 - start with the original blank document, replaceable by the 
     await page.getByTestId('menu-file-new').click();
     const message = page.getByTestId('dialog-template-issue');
     await expect(message).toContainText(file);
-    await expect(message).toContainText('not well-formed XML');
+    await expect(message).toContainText(await pageText(page, 'msg.templateReason.notWellFormed'));
     await page.getByTestId('dialog-template-issue-button-ok').click();
     await showDescription(page);
     await expect(page.getByTestId('description-lang')).toHaveValue('ru');
-    await expect(page).toHaveTitle(`Untitled - ${APP_TITLE}`);
+    await expect(page).toHaveTitle(await untitledTitle(page));
   });
 
   test('5. a start-up file that does not exist is reported, then a new document is shown', async ({
