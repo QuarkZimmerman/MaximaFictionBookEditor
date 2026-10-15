@@ -235,9 +235,20 @@ async function openMenuByKeyboard(page: Page, menuId: string): Promise<Locator> 
 async function activateItemByKeyboard(page: Page, popup: Locator, itemTestId: string) {
   const item = popup.getByTestId(itemTestId);
   await expect(item).toBeVisible();
+  const highlighted = () =>
+    popup
+      .locator('.mfbe-menu-item-highlighted')
+      .first()
+      .getAttribute('data-testid', {
+        timeout: 1_000,
+      })
+      .catch(() => null);
   for (let i = 0; i < 40; i += 1) {
-    if ((await item.getAttribute('class'))?.includes('mfbe-menu-item-highlighted')) break;
+    const before = await highlighted();
+    if (before === itemTestId) break;
     await page.keyboard.press('ArrowDown');
+    // The menu redraws after the key: look again only once the highlight has moved.
+    await expect.poll(highlighted).not.toBe(before);
   }
   await expect(item).toHaveClass(/mfbe-menu-item-highlighted/);
   await page.keyboard.press('Enter');
