@@ -18,6 +18,7 @@
 import type { Command as PMCommand } from 'prosemirror-state';
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
+import { BINARY_SELECTED_TYPE, binaryFileTypes, imageFileTypes } from '@/dialogs/fileTypes';
 import {
   addSectionImage,
   CLEAR_IMAGE_HREF,
@@ -31,7 +32,7 @@ import { RpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
 
-import { addBinariesFromFiles, addBinaryToModel, fileName, imageFileFilters } from './binaries';
+import { addBinariesFromFiles, addBinaryToModel, fileName } from './binaries';
 import { rememberCommandContext } from './context';
 
 export type ImageKind = 'block' | 'inline' | 'section';
@@ -88,7 +89,8 @@ export async function chooseImage(ctx: CommandContext): Promise<ImageAttrs | nul
   if (!rpc || !docId) return null;
   const { paths } = await rpc.call('dialog.openFile', {
     title: ctx.t('dialog.addImage.chooseImage'),
-    filters: imageFileFilters(ctx.t),
+    filters: imageFileTypes(ctx.t),
+    selectedFilter: 0,
   });
   const path = paths[0];
   if (!path) return null;
@@ -181,7 +183,8 @@ export async function addBinaryObjects(ctx: CommandContext): Promise<number> {
   if (!rpc || !docId) return 0;
   const added = await addBinariesFromFiles(rpc, docId, {
     title: ctx.t('dialog.addImage.chooseBinaries'),
-    filters: imageFileFilters(ctx.t),
+    filters: binaryFileTypes(ctx.t),
+    selectedFilter: BINARY_SELECTED_TYPE,
     multiple: true,
   });
   for (const meta of added) addBinaryToModel(store, meta);

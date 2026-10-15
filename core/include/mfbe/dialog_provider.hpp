@@ -14,6 +14,12 @@
 //   pickFolder {title} -> {path?}
 //   message    {text, caption, buttons: ["OK","Cancel"]} -> {button}
 //   latest release (app.latestRelease) -> {tag, version, url} | 1060 {reason}
+//
+// The document dialogs - Open and Save As, the dialogs that offer FictionBook files - share one
+// remembered folder, the user's documents folder until one is kept: Windows keeps it through the
+// shell's client GUID, Linux and macOS in the setting session.lastFileDialogFolder, which the
+// dialog.* handlers apply as the folder of every file dialog that names none
+// (`SaveFileRequest::folder` is set by the core only, never read from the wire).
 #pragma once
 
 #include <nlohmann/json.hpp>
@@ -39,6 +45,7 @@ struct OpenFileRequest {
     bool multiple = false;
     int selectedFilter = 0;             // index of the type selected when the dialog opens
     std::optional<std::string> folder;  // where the dialog opens (UTF-8); default: last used
+    bool documentDialog = false;        // offers FictionBook files (derived from `filters`)
 };
 struct OpenFileResult {
     std::vector<std::string> paths;  // empty = cancelled
@@ -48,8 +55,10 @@ struct SaveFileRequest {
     std::string title;
     std::vector<FileFilter> filters;
     std::optional<std::string> defaultPath;
-    std::vector<std::string> encodingChoices;  // the "Encoding:" extra control
+    std::vector<std::string> encodingChoices;  // the "Encoding:" extra control, first selected
     int selectedFilter = 0;                    // index of the type selected when it opens
+    std::optional<std::string> folder;         // where it opens when defaultPath names no folder
+    bool documentDialog = false;               // offers FictionBook files (derived from `filters`)
 };
 struct SaveFileResult {
     std::optional<std::string> path;  // nullopt = cancelled
@@ -83,6 +92,10 @@ struct ReleaseResult {
     std::string error;                   // otherwise "offline" | "timeout" | "http" | "format"
 };
 
+// True when one of the types offers FictionBook files (.fb2 or .fbd, any letter case, with or
+// without a leading "." or "*."): the dialog is Open or Save As of a document.
+bool offers_fictionbook_files(const std::vector<FileFilter>& filters);
+
 nlohmann::json to_json(const FileFilter& f);
 nlohmann::json to_json(const OpenFileRequest& r);
 nlohmann::json to_json(const OpenFileResult& r);
@@ -95,6 +108,7 @@ nlohmann::json to_json(const MessageResult& r);
 nlohmann::json to_json(const ReleaseResult& r);  // {tag, version, url} or {error: {reason}}
 
 // Tolerant parsers (missing fields -> defaults); throw std::invalid_argument on wrong types.
+// The request parsers set documentDialog from the filters.
 OpenFileRequest open_file_request_from_json(const nlohmann::json& j);
 OpenFileResult open_file_result_from_json(const nlohmann::json& j);
 SaveFileRequest save_file_request_from_json(const nlohmann::json& j);

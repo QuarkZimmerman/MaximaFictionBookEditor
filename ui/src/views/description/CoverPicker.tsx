@@ -11,8 +11,9 @@ import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '@/app/services';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
+import { imageFileTypes } from '@/dialogs/fileTypes';
 import { binaryPreviewUrl } from '@/editor/nodeviews/image';
-import { addBinaryFromFile, imageFileFilters } from '@/features/images/binaries';
+import { addBinaryFromFile } from '@/features/images/binaries';
 import type { BinaryMeta, ImageRef } from '@/model/document';
 import type { RpcClient } from '@/rpc/client';
 
@@ -203,7 +204,8 @@ export function CoverPickerDialog({
     try {
       const meta = await addBinaryFromFile(rpc, docId, {
         title: t('descriptionForm.cover.addFile'),
-        filters: imageFileFilters(t),
+        filters: imageFileTypes(t),
+        selectedFilter: 0,
       });
       if (!meta) return;
       onBinaryAdded(meta);

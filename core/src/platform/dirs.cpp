@@ -6,6 +6,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <exception>
 #include <system_error>
 
 #ifdef _WIN32
@@ -107,6 +108,14 @@ std::string system_language() {
 
 // platform-folders returns UTF-8 on every platform (on Windows converted from the known folder's
 // wide path).
+std::filesystem::path documents_dir() {
+    try {
+        return path_from_utf8(sago::getDocumentsFolder());
+    } catch (const std::exception&) {
+        return {};  // no home folder
+    }
+}
+
 std::filesystem::path default_config_root() {
     return path_from_utf8(sago::getConfigHome());
 }

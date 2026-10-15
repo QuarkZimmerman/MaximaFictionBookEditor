@@ -9,9 +9,7 @@
       }
     },
     "saveAs": {
-      "caption": "Save image as",
-      "filterJpeg": "JPEG files",
-      "filterPng": "PNG files"
+      "caption": "Save image as"
     },
     "msg": {
       "binariesAdded_one": "{{count}} binary object added",

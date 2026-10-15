@@ -39,7 +39,7 @@ mouse and the keyboard.
 | `ID_FILE_NEW` | New | `file.new` (`features/file/fileCommands.ts`) | `menu-file-new`, `toolbar-file.new` | `us1-open-save.spec.ts`, `00-smoke.spec.ts` | implemented | "Save changes to X?" prompt before discarding (scenario 4) |
 | `ID_FILE_OPEN` | Open... | `file.open` | `menu-file-open` | `us1-open-save.spec.ts`, `00-smoke.spec.ts` | implemented | native dialog through `dialog.openFile`; malformed files open Source-only (scenario 3) |
 | `ID_FILE_SAVE` | Save | `file.save` | `menu-file-save`, `toolbar-file.save` | `us1-open-save.spec.ts` | implemented | atomic write, validation prompt (`dialog-validation-failed`) |
-| `ID_FILE_SAVE_AS` | Save As... | `file.saveAs` | `menu-file-saveAs`, `dialog-encoding` | `us1-open-save.spec.ts` | implemented | encoding chooser after the native dialog, see `IDD_CUSTOMSAVEDLG` |
+| `ID_FILE_SAVE_AS` | Save As... | `file.saveAs` | `menu-file-saveAs`, `dialog-encoding` | `us1-open-save.spec.ts`, `us3-file-dialogs.spec.ts` | implemented | the platform's dialog on the document's file with the encoding choice inside it, see `IDD_CUSTOMSAVEDLG` |
 | `ID_FILE_VALIDATE` | Validate | `file.validate` | `menu-file-validate`, `validation-panel` | `us1-open-save.spec.ts`, `us4-source-validate.spec.ts` | implemented | result list with line/column/message instead of a message box (FR-010) |
 | `IDCANCEL` | Import > "No import plugins installed", Export > "No export plugins installed" | placeholder submenus `menu-file-import`, `menu-file-export` (`menus.ts`) | `menu-file-import`, `menu-file-export` | `us8-language.spec.ts` | dropped | the Import/Export COM plugin interface and the ExportHTML plugin are out of scope (spec.md "Out of scope"); the two submenus stay as disabled placeholders so the menu layout matches, walked by us8 1a |
 | `ID_FILE_MRU_FIRST` | Recent Files > ... | dynamic submenu `menu-file-recent` (`features/file/recent.ts`, `doc.recent`) | `menu-file-recent`, `menu-file-recent-recent1` | `us11-launch.spec.ts`, `us1-open-save.spec.ts` | implemented | ten most recent files, persisted by the core |
@@ -291,12 +291,12 @@ toolbar itself is checked for presence (`00-smoke.spec.ts`) and tooltips (`us8-l
 | `IDYES`, `IDNO` | Yes / No (yes-no-cancel variant) | `dialog-script-prompt-button-yes`, `dialog-script-prompt-button-no` (`yesNoCancel` option of `mfbe.ui.prompt`); OK variant `dialog-script-prompt-button-ok` | `dialog-script-prompt-button-ok` | `us12-scripts.spec.ts` | implemented | the journey uses the OK variant; the Yes/No/Cancel variant is covered by the unit tests of `InputDialog` |
 | `IDCANCEL` | Cancel | `dialog-script-prompt-button-cancel` | `dialog-script-prompt` | `us12-scripts.spec.ts` | implemented | returns `null` to the script |
 
-### `IDD_CUSTOMSAVEDLG` - encoding chooser of the Save dialog (`dialogs/EncodingDialog.tsx`, `dialog-encoding`)
+### `IDD_CUSTOMSAVEDLG` - encoding choice of the Save As dialog (`dialog.saveFile` `encodingChoices`, `app/src/file_dialog_*`)
 
 | Original | Label | MFBE | Evidence | e2e spec | Status | Notes |
 |---|---|---|---|---|---|---|
-| `IDD_CUSTOMSAVEDLG` | "Encoding:" combo embedded in the Windows Save As dialog (`IFileDialogCustomize`) | `EncodingDialog` shown after the native Save As dialog | `dialog-encoding` | `us1-open-save.spec.ts` | implemented-differently | the native dialogs of Linux and macOS cannot host a custom control, so the same choice is offered in a small dialog right after the file is picked; "Keep encoding" preselects the file's encoding (scenario 2) |
-| `IDC_ENCODING` | encoding list | `dialog-encoding-select` (`dialog-encoding-option-<enc>`) | `dialog-encoding-select` | `us1-open-save.spec.ts` | implemented | the nine encodings of `IDS_ENCODINGS` |
+| `IDD_CUSTOMSAVEDLG` | "Encoding:" combo embedded in the Windows Save As dialog (`IFileDialogCustomize`) | `file.saveAs`: the "Encoding:" choice inside the platform's Save As dialog - Windows `IFileDialogCustomize`, the GTK file chooser's choice, a macOS accessory pop-up | `menu-file-saveAs`, `dialog-encoding` | `us3-file-dialogs.spec.ts`, `us1-open-save.spec.ts` | implemented | as the original (feature 002, decision D14); "Keep encoding" preselects the file's encoding; `EncodingDialog` (`dialog-encoding`) asks only when a dialog answers without an encoding - the queued test dialogs and CEF's fallback dialog |
+| `IDC_ENCODING` | encoding list | the nine encodings of `IDS_ENCODINGS` in the dialog's combo, the Save encoding first; `dialog-encoding-select` (`dialog-encoding-option-<enc>`) in `EncodingDialog` | `dialog-encoding-select` | `us1-open-save.spec.ts`, `us3-file-dialogs.spec.ts` | implemented | the preselected encoding leads the list (the contract passes no separate selection), the others keep the original's order |
 
 ### `IDD_ABOUTBOX` - About (`dialogs/AboutDialog.tsx`, `dialog-about`)
 
@@ -413,8 +413,8 @@ the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the orig
 Counts are recomputed by `node tools/parity-check.mjs` (printed as
 "rows - implemented N, implemented-differently N, dropped N"). At the time of writing:
 216 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
-their controls) plus the original UI created in the sources: 207 implemented,
-3 implemented-differently, 6 dropped.
+their controls) plus the original UI created in the sources: 208 implemented,
+2 implemented-differently, 6 dropped.
 
 Dropped items and their references:
 
@@ -427,5 +427,5 @@ Dropped items and their references:
 | `IDC_TEXT_STATUS`, `IDC_PIC_UPDATE`, `IDC_UPDATE` update checker | out of scope (spec.md) |
 | `IDC_CHANGE_KEYB`, `IDC_KEYB_LAYOUT` keyboard layout switch | out of scope (spec.md) |
 
-Implemented differently: `IDR_MAINFRAME_SMALL` (menu icons), `IDD_CUSTOMSAVEDLG` (encoding
-chooser after the native dialog), `IDC_EDIT_LV` (exclusion list editing).
+Implemented differently: `IDR_MAINFRAME_SMALL` (menu icons), `IDC_EDIT_LV` (exclusion list
+editing).
