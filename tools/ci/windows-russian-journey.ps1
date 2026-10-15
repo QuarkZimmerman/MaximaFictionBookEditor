@@ -11,8 +11,9 @@
 #   - File > Exit (F10, Down, В) ends the editor with exit code 0, and after a restart the status
 #     bar is still hidden;
 #   - recent.json in the user's profile lists the book's path byte for byte in UTF-8;
-#   - no folder appeared under C:\Users or C:\, next to the book or in the program's folder, and
-#     the profile holds no folder of the editor's other than the two in AppData.
+#   - no folder appeared under C:\Users or C:\ or next to the book, the installed copy wrote
+#     nothing into its program folder (a portable copy may write into its own), and the profile
+#     holds no folder of the editor's other than the two in AppData.
 #
 # -Exe runs an installed copy; -Zip unpacks the portable ZIP into the user's Downloads folder and
 # runs that copy, which keeps its settings in the same profile folders. Each call starts without
@@ -236,7 +237,8 @@ if ($Zip) {
     $Exe = (Get-ChildItem -LiteralPath $unpacked -Recurse -Filter mfbe.exe | Select-Object -First 1).FullName
     if (-not $Exe) { throw "bin\mfbe.exe not found in $Zip" }
 }
-$programFolder = Split-Path -Parent (Split-Path -Parent $Exe)
+# The installed copy's program folder, which it never writes to.
+$programFolder = if (-not $Zip) { Split-Path -Parent (Split-Path -Parent $Exe) }
 
 $booksFolder = Join-Path $profileDir "Documents\$booksFolderName"
 if (Test-Path -LiteralPath $booksFolder) { Remove-Item -LiteralPath $booksFolder -Recurse -Force }
@@ -248,7 +250,7 @@ $planted = [datetime]::new(2001, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
 (Get-Item -LiteralPath $bookPath).LastWriteTimeUtc = $planted
 $documentsFolder = Split-Path -Parent $booksFolder
 $documentsBefore = Get-Entries $documentsFolder
-$programBefore = Get-Entries $programFolder -Recurse
+$programBefore = @(if ($programFolder) { Get-Entries $programFolder -Recurse })
 $settingsFile = Join-Path $dataFolder 'settings.json'
 $recentFile = Join-Path $dataFolder 'recent.json'
 
@@ -306,8 +308,10 @@ $unexpected = @(Get-Entries $documentsFolder | Where-Object { $_ -notin $documen
 if ($unexpected.Count -gt 0) { throw "entries appeared next to the book's folder: $($unexpected -join ', ')" }
 $inBooks = @(Get-Entries $booksFolder)
 if ($inBooks.Count -ne 1 -or $inBooks[0] -cne "\$bookName") { throw "the book's folder holds: $($inBooks -join ', ')" }
-$unexpected = @(Get-Entries $programFolder -Recurse | Where-Object { $_ -notin $programBefore })
-if ($unexpected.Count -gt 0) { throw "the editor wrote into its program folder: $($unexpected -join ', ')" }
+if ($programFolder) {
+    $unexpected = @(Get-Entries $programFolder -Recurse | Where-Object { $_ -notin $programBefore })
+    if ($unexpected.Count -gt 0) { throw "the installed editor wrote into its program folder: $($unexpected -join ', ')" }
+}
 $unexpected = @(Get-ChildItem -LiteralPath $profileDir -Recurse -Force -Directory -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -eq $appName -and $_.FullName -notin $dataFolder, $localFolder } |
     ForEach-Object { $_.FullName })
