@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "runs.busy",
+  "name": {
+    "en": "Mark every paragraph, then keep busy",
+    "ru": "Пометить все абзацы и работать дальше"
+  },
+  "kind": "menu"
+}

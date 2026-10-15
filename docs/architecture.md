@@ -117,9 +117,12 @@ asks `scripts.source` for the entry URL, creates a dedicated Web Worker from an 
 hands it one end of a private `MessageChannel`, and the worker bootstrap scrubs the global
 scope and defines the frozen `mfbe` object before `import()`-ing the entry module from
 `/scripts/{id}/index.js`. Every `mfbe.*` call is a message to the host, validated against the
-allow-list and applied as ProseMirror transactions inside one undo group
-(`ui/src/scripting/api-impl.ts`). Cancel terminates the worker and rolls the group back;
-uncaught errors become "Script error: <message> at line L, column C".
+allow-list and applied to the run's working copy of the document (`ui/src/scripting/api-impl.ts`,
+`workingCopy.ts`); the working copy is shown in the editor before the script's dialogs and
+selection calls and replaces the document in one transaction at the end, as one undo entry.
+During the run the document is locked and the status bar shows the progress and Cancel;
+Cancel terminates the worker and restores the document, and uncaught errors become "Script
+error: <message> at line L, column C" with the document left as it was.
 
 ## 5. Contracts
 
@@ -263,9 +266,9 @@ contract `script-manifest.md` §3):
   `API_METHODS` allow-list (`ui/tests/unit/security/sandbox-surface.test.ts` compares it with
   the contract declaration file member by member) and rejects anything else with "unknown API
   method". Scripts never see the editor's DOM, the RPC client, the token or file paths.
-* One undo group per run; cancellation terminates the worker and rolls the group back; a
-  watchdog offers wait / cancel after 30 s without activity; document snapshots over 64 MB
-  are refused.
+* One undo entry per run (the document before and after it); cancellation terminates the
+  worker and restores the document; after 30 s without activity the run bar says so; document
+  snapshots over 64 MB are refused.
 
 Desktop shell (`app/src/`):
 
@@ -314,7 +317,7 @@ Diagnostics and privacy (`core/src/log/error_log.cpp`, FR-131):
   script-manifest.md §3; `scrubGlobals` removes and pins every blocked name on a realistic
   worker scope.
 * `ui/tests/unit/scripting/*.test.ts`, `ui/tests/e2e/us12-scripts.spec.ts` ("the sandbox hides
-  every host capability except mfbe", cancel rolls back).
+  every host capability except mfbe", Cancel restores the document).
 
 ### 7.4 Residual risks and known limitations
 

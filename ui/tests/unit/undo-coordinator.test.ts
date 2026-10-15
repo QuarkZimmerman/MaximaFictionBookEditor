@@ -242,6 +242,92 @@ describe('UndoCoordinator', () => {
   });
 });
 
+describe('UndoCoordinator snapshot entries', () => {
+  /** A change kept as "before" / "after" states of one value, like a script run. */
+  function snapshot(state: { value: string }, before: string, after: string, log: string[]) {
+    return {
+      undo: () => {
+        state.value = before;
+        log.push(`undo:${after}`);
+      },
+      redo: () => {
+        state.value = after;
+        log.push(`redo:${after}`);
+      },
+    };
+  }
+
+  it('undoes and redoes a snapshot entry by itself, activating its view', () => {
+    const activated: UndoView[] = [];
+    const log: string[] = [];
+    const undo = new UndoCoordinator({ activateView: (view) => activated.push(view) });
+    const state = { value: 'A' };
+    undo.boundary('description');
+    state.value = 'B';
+    undo.recordSnapshot('body', 'Run', snapshot(state, 'A', 'B', log));
+    expect(undo.peekUndo()).toMatchObject({ view: 'body', label: 'Run', groupId: 0 });
+    // No adapter is registered for the view: the entry needs none.
+    expect(undo.undo()).toBe(true);
+    expect(state.value).toBe('A');
+    expect(activated).toEqual(['body']);
+    expect(undo.redo()).toBe(true);
+    expect(state.value).toBe('B');
+    expect(log).toEqual(['undo:B', 'redo:B']);
+  });
+
+  it('keeps a snapshot entry when its view history is cleared, unless a later change is lost', () => {
+    const log: string[] = [];
+    const undo = new UndoCoordinator();
+    const body = makeView(undo, 'body', log);
+    const state = { value: 'A' };
+    body.edit('typed before');
+    undo.recordSnapshot('body', 'Run', snapshot(state, 'A', 'B', log));
+    // The editor history is reset (the section window moved): the run stays undoable.
+    undo.clearView('body');
+    expect(undo.entries().map((e) => e.label)).toEqual(['Run']);
+    // A change made after the run whose history is then lost: undoing the run would discard
+    // it, so the run is no longer undoable.
+    body.edit('typed after');
+    undo.clearView('body');
+    expect(undo.canUndo).toBe(false);
+  });
+
+  it('drops a snapshot entry below an entry that could not be undone or redone', () => {
+    const log: string[] = [];
+    const undo = new UndoCoordinator();
+    const source = makeView(undo, 'source', log);
+    const state = { value: 'A' };
+    undo.recordSnapshot('body', 'Run', snapshot(state, 'A', 'B', log));
+    source.edit('s1');
+    // The Source history lost its step: the undo fails and the run below it is dropped too.
+    source.adapter.undo();
+    expect(undo.undo()).toBe(false);
+    expect(undo.canUndo).toBe(false);
+    expect(state.value).toBe('A');
+
+    const redoState = { value: 'B' };
+    const redo = new UndoCoordinator();
+    const view = makeView(redo, 'source', log);
+    view.edit('s0');
+    redo.recordSnapshot('body', 'Run', snapshot(redoState, 'A', 'B', log));
+    expect(redo.undo()).toBe(true);
+    expect(redo.undo()).toBe(true);
+    // The step before the run cannot be redone: redoing the run would bring it back.
+    view.adapter.redo();
+    expect(redo.redo()).toBe(false);
+    expect(redo.canRedo).toBe(false);
+    expect(redoState.value).toBe('A');
+  });
+
+  it('counts as one entry however large the change was', () => {
+    const undo = new UndoCoordinator({ limit: 3 });
+    const state = { value: 'A' };
+    undo.recordSnapshot('body', 'Run', snapshot(state, 'A', 'B', []));
+    expect(undo.undoDepth).toBe(1);
+    expect(undo.canRedo).toBe(false);
+  });
+});
+
 describe('ArrayHistoryAdapter', () => {
   it('tracks past and future', () => {
     const applied: string[] = [];

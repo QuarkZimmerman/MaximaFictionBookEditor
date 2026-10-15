@@ -214,7 +214,7 @@ jobs:
         run: |
           set -o pipefail
           npx playwright install --with-deps chromium
-          npm run test:e2e 2>&1 | tee "$RUNNER_TEMP/e2e.log"
+          npm run test:e2e -- --grep-invert @perf 2>&1 | tee "$RUNNER_TEMP/e2e.log"
         env:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
@@ -244,6 +244,38 @@ jobs:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
           MFBE_BENCH_WORKDIR: ${{ runner.temp }}/mfbe-bench
+
+      - name: Script benchmark (SC-008, times recorded)
+        # As in CI (12 x ratio, 1 MB budget x MFBE_PERF_FACTOR); the measured times go to the job
+        # summary and the script-benchmark artifact. The 5 s budget itself is confirmed on the
+        # reference laptop in the release smoke test (docs/performance.md).
+        if: runner.os == 'Linux'
+        working-directory: ui
+        shell: bash
+        run: |
+          set -o pipefail
+          npx playwright test --grep @perf --workers=1 --reporter=list 2>&1 | tee "$RUNNER_TEMP/script-bench.log"
+          node -e '
+            const { perfFactor, results } = require(process.argv[1]);
+            console.log(`### Script benchmark (MFBE_PERF_FACTOR ${perfFactor})\n`);
+            console.log("| Script | 1 MB (ms) | 10 MB (ms) |\n| --- | ---: | ---: |");
+            for (const r of results) console.log(`| ${r.script} | ${r["1mb"]} | ${r["10mb"]} |`);
+          ' "$MFBE_PERF_RESULTS" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
+          MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+          MFBE_PERF_RESULTS: ${{ github.workspace }}/tests/bench/results/script-benchmark.json
+      - name: Script benchmark failure details
+        if: failure() && runner.os == 'Linux'
+        shell: bash
+        run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/script-bench.log" "Script benchmark"
+      - name: Upload script benchmark
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: script-benchmark
+          path: tests/bench/results/script-benchmark.json
+          if-no-files-found: ignore
 
       - name: Licence check (blocking, Constitution VI)
         # Full verification against the installed vcpkg tree of this build: every native,

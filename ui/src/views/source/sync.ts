@@ -16,7 +16,8 @@
  *   cursor there, and reports `'error'` so the caller stays put.
  * - `requestViewSwitch()` implements the switching rules: `* -> source` remembers the Body caret
  *   and serialises; `source -> *` requires a successful parse; every switch commits an undo
- *   boundary (`switchView`), and the remapped Body caret is restored when Body comes back.
+ *   boundary (`switchView`), and the remapped Body caret is restored when Body comes back; no
+ *   switch while a script runs.
  * - `registerViewCommands()` replaces the `view.*` commands so leaving Source goes through the
  *   commit.
  *
@@ -308,6 +309,9 @@ export async function requestViewSwitch(ctx: CommandContext, view: ViewId): Prom
   const { store } = ctx;
   const state = store.getState();
   if (state.activeView === view) return true;
+  // A running script keeps the Body view (its changes are shown there; the other views would
+  // show the document as it was).
+  if (state.scriptRunning) return false;
   const session = sourceSession(store);
   if (view === 'source' && state.activeView === 'body') {
     // The Body view is still mounted: remember where the user was for the way back.

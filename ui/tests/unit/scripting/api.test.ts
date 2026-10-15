@@ -1,8 +1,10 @@
 /**
- * T099 - the host side of every `mfbe` member (api-impl.ts) against a fixture document loaded
- * into the real, headless Body controller: reads, structural edits (mounted = ProseMirror
- * transactions, unmounted = model steps), search/replace, selection, dialogs, status/progress,
- * environment, the 64 MB snapshot guard and the allow-list (unknown methods are rejected).
+ * T099 / feature 002 T056 - the host side of every `mfbe` member (api-impl.ts) against a
+ * fixture document loaded into the real, headless Body controller: reads, structural edits on
+ * the run's working copy (the document and the editor change only when the working copy is
+ * shown: before dialogs and selection calls, and by the host at the end), search/replace,
+ * selection, dialogs, status/progress, environment, the 64 MB snapshot guard and the
+ * allow-list (unknown methods are rejected).
  */
 
 import { createInstance } from 'i18next';
@@ -13,6 +15,7 @@ import { initI18n } from '@/i18n';
 import type { BodyNode, Document, SectionNode } from '@/model/document';
 import { actions, createAppStore, type AppStore } from '@/model/store';
 import { createScriptApi, JsonText, setBodySelection, type ScriptApi } from '@/scripting/api-impl';
+import type { RunEnd } from '@/scripting/types';
 import type { Match, NodeRef, SelectionInfo } from '@/scripting/types';
 import { getBodyController } from '@/views/body/bodyEditor';
 
@@ -105,7 +108,10 @@ interface Harness {
   uiActivity: boolean[];
 }
 
-async function harness(document: Document = book(), options: { snapshotLimit?: number } = {}) {
+async function harness(
+  document: Document = book(),
+  options: { snapshotLimit?: number; runEnd?: RunEnd } = {},
+) {
   const i18n = await initI18n({ instance: createInstance(), react: false, language: 'en' });
   const store = createAppStore();
   const rpc = fakeRpc({
@@ -131,6 +137,7 @@ async function harness(document: Document = book(), options: { snapshotLimit?: n
     onProgress: (...args) => progress.push(args),
     onUiActivity: (active) => uiActivity.push(active),
     snapshotLimit: options.snapshotLimit,
+    runEnd: options.runEnd,
   });
   const ctx: CommandContext = {
     store,
@@ -156,6 +163,27 @@ function sectionTypes(h: Harness, sectionId: string): Promise<string[]> {
   return (call(h, 'doc.childrenOf', sectionId) as Promise<NodeRef[]>).then((refs) =>
     refs.map((r) => r.type),
   );
+}
+
+/** Plain text of a text block in the document the store holds (what the editor shows). */
+function shownText(h: Harness, nodeId: string): string | null {
+  let found: string | null = null;
+  const visit = (node: {
+    type: string;
+    text?: string;
+    attrs?: { nodeId?: unknown };
+    content?: unknown[];
+  }) => {
+    if (found !== null || node.type === 'text') return;
+    if (node.attrs?.nodeId === nodeId) {
+      found = (node.content ?? []).map((c) => (c as { text?: string }).text ?? '').join('');
+      return;
+    }
+    for (const child of node.content ?? []) visit(child as typeof node);
+  };
+  for (const body of h.store.getState().document!.bodies)
+    visit(body as unknown as Parameters<typeof visit>[0]);
+  return found;
 }
 
 describe('doc.* reads', () => {
@@ -217,15 +245,53 @@ describe('doc.* reads', () => {
   });
 });
 
-describe('doc.* edits (mounted window)', () => {
-  it('setText replaces the inline content and is undoable', async () => {
+describe('doc.* edits (working copy)', () => {
+  it('setText replaces the inline content of the working copy only', async () => {
     const h = await harness();
     await call(h, 'doc.setText', 'p1', 'Replaced text');
     expect(await textOfNode(h, 'p1')).toBe('Replaced text');
-    expect(h.services.undo.canUndo).toBe(true);
-    h.services.undo.undo();
-    expect(await textOfNode(h, 'p1')).toBe('Alpha beta gamma.');
+    // No editor transaction, store change or undo entry per write.
+    expect(shownText(h, 'p1')).toBe('Alpha beta gamma.');
+    expect(h.services.undo.canUndo).toBe(false);
     await expect(call(h, 'doc.setText', 's1', 'x')).rejects.toThrow('not a text block');
+  });
+
+  it('result() hands out the changed document; null when nothing changed', async () => {
+    const untouched = await harness();
+    await call(untouched, 'doc.getNode', 'p1');
+    expect(untouched.api.result()).toBeNull();
+
+    const h = await harness();
+    const before = h.store.getState().document!;
+    await call(h, 'doc.setText', 'p1', 'One');
+    const first = h.api.result()!;
+    expect(first).not.toBe(before);
+    // Later writes leave a handed-out document as it is.
+    await call(h, 'doc.setText', 'p1', 'Two');
+    expect(JSON.stringify(first)).toContain('"One"');
+    expect(JSON.stringify(h.api.result())).toContain('"Two"');
+    expect(JSON.stringify(before)).toContain('Alpha beta gamma.');
+  });
+
+  it('dialogs and selection calls show the changes made so far, without an undo entry', async () => {
+    const h = await harness();
+    await call(h, 'doc.setText', 'p1', 'Shown before the message');
+    expect(shownText(h, 'p1')).toBe('Alpha beta gamma.');
+    h.dialogs.customAnswers.push('ok');
+    await call(h, 'ui.message', 'So far');
+    expect(shownText(h, 'p1')).toBe('Shown before the message');
+    const editor = getBodyController(h.store).editorState!.doc.textContent;
+    expect(editor).toContain('Shown before the message');
+
+    await call(h, 'doc.setText', 'p3', 'Shown before the selection');
+    await call(h, 'selection.get');
+    expect(shownText(h, 'p3')).toBe('Shown before the selection');
+    expect(h.services.undo.canUndo).toBe(false);
+    // Status and progress do not show anything.
+    await call(h, 'doc.setText', 'p3', 'Not shown yet');
+    await call(h, 'ui.status', 'Working');
+    await call(h, 'ui.progress', 1, 2);
+    expect(shownText(h, 'p3')).toBe('Shown before the selection');
   });
 
   it('insertNode places nodes before / after / inside and rejects schema violations', async () => {
@@ -262,9 +328,7 @@ describe('doc.* edits (mounted window)', () => {
     await expect(call(h, 'doc.insertNode', 'append', 's1', 'text')).rejects.toThrow(
       'expected an object',
     );
-    // The whole sequence is undoable step by step (the host groups them per run).
-    while (h.services.undo.canUndo) h.services.undo.undo();
-    expect(await sectionTypes(h, 's1')).toEqual(['title', 'p', 'p', 'p']);
+    expect(h.services.undo.canUndo).toBe(false);
   });
 
   it('replaceNode keeps the node id; removeNode deletes and protects bodies', async () => {
@@ -282,21 +346,22 @@ describe('doc.* edits (mounted window)', () => {
     expect(await sectionTypes(h, 's1')).toEqual(['title', 'p', 'subtitle']);
     await expect(call(h, 'doc.getNode', 'p2b')).rejects.toThrow('unknown nodeId');
     await expect(call(h, 'doc.removeNode', 'b1')).rejects.toThrow('body cannot be removed');
-    h.services.undo.undo();
-    expect(await sectionTypes(h, 's1')).toEqual(['title', 'p', 'subtitle', 'p']);
+    // A paragraph may again replace the subtitle (the parent's check is not cached wrongly).
+    await call(h, 'doc.replaceNode', 'p2', paragraph('p2', 'Back'));
+    expect(await sectionTypes(h, 's1')).toEqual(['title', 'p', 'p']);
+    expect(shownText(h, 'p2b')).toBe('Plain and emphasised');
   });
 
-  it('setDescription replaces the description block (undoable)', async () => {
+  it('setDescription replaces the description block', async () => {
     const h = await harness();
     const current = h.store.getState().document!.description;
     await call(h, 'doc.setDescription', {
       ...current,
       titleInfo: { ...current.titleInfo, bookTitle: 'Renamed', lang: 'ru' },
     });
-    expect(h.store.getState().document!.description.titleInfo.bookTitle).toBe('Renamed');
     expect(await call(h, 'env.docLanguage')).toBe('ru');
-    h.services.undo.undo();
     expect(h.store.getState().document!.description.titleInfo.bookTitle).toBe('Alpha');
+    expect(h.api.result()!.description.titleInfo.bookTitle).toBe('Renamed');
     await expect(call(h, 'doc.setDescription', { titleInfo: {} })).rejects.toThrow('required');
   });
 });
@@ -340,7 +405,8 @@ function bodyJson(name: string, sectionId: string, text: string) {
 }
 
 async function bodyNames(h: Harness): Promise<(string | undefined)[]> {
-  return h.store.getState().document!.bodies.map((b) => b.attrs.name);
+  const snapshot = JSON.parse(((await call(h, 'doc.get')) as JsonText).text) as Document;
+  return snapshot.bodies.map((b) => b.attrs.name);
 }
 
 describe('schema-invalid nodes are refused before anything is applied', () => {
@@ -415,7 +481,7 @@ describe('schema-invalid nodes are refused before anything is applied', () => {
 });
 
 describe('body-level edits', () => {
-  it('creates a body after the last one in windowed mode (model path, window kept)', async () => {
+  it('creates a body after the last one in windowed mode (window kept when shown)', async () => {
     const h = await harness(book(40));
     const controller = getBodyController(h.store);
     expect(controller.currentWindow?.wholeBook).toBe(false);
@@ -440,18 +506,16 @@ describe('body-level edits', () => {
     expect(children.map((c) => c.type)).toEqual(['title', 'section']);
     expect(await textOfNode(h, children[1]!.nodeId)).toBe('A comment.');
     expect(await call(h, 'doc.parentOf', created.nodeId)).toBeNull();
-    // The window still shows the first body; the PM history of the block edit survived.
+    // Shown: the window still shows the first body, with the edited block.
+    controller.showModel(h.api.result()!);
     expect(controller.currentWindow?.bodyIndex).toBe(0);
     expect(controller.currentWindow?.bodyCount).toBe(3);
-    expect(h.services.undo.peekUndo()?.view).toBe('body-model');
-    h.services.undo.undo();
-    expect(await bodyNames(h)).toEqual([undefined, 'notes']);
-    h.services.undo.undo();
-    expect(await textOfNode(h, 'p1')).toBe('Alpha beta gamma.');
-    expect(h.services.undo.canUndo).toBe(false);
-    h.services.undo.redo();
-    h.services.undo.redo();
-    expect(await bodyNames(h)).toEqual([undefined, 'notes', 'comments']);
+    expect(controller.editorState!.doc.textContent).toContain('Alpha [1] gamma.');
+    expect(h.store.getState().document!.bodies.map((b) => b.attrs.name)).toEqual([
+      undefined,
+      'notes',
+      'comments',
+    ]);
   });
 
   it('creates a body in whole-book mode too, and keeps the window on the visible body', async () => {
@@ -465,17 +529,19 @@ describe('body-level edits', () => {
     )) as NodeRef;
     expect(await bodyNames(small)).toEqual([undefined, 'notes', 'comments']);
     expect(((await call(small, 'doc.getNode', ref)) as { type: string }).type).toBe('body');
-    small.services.undo.undo();
-    expect(await bodyNames(small)).toEqual([undefined, 'notes']);
 
-    // Windowed: a body inserted before the mounted one shifts the indexes; the window follows.
+    // Windowed: a body inserted before the mounted one shifts the indexes; once shown (at the
+    // next selection call) the window follows its body and the caret stays on its block.
     const large = await harness(book(40));
     const controller = getBodyController(large.store);
     await call(large, 'selection.set', { nodeId: 'xp3', offset: 2 });
     await call(large, 'doc.insertNode', 'before', 'b1', bodyJson('extra', 'e_1', 'First'));
     expect(await bodyNames(large)).toEqual(['extra', undefined, 'notes']);
+    expect(((await call(large, 'selection.get')) as SelectionInfo).anchor).toEqual({
+      nodeId: 'xp3',
+      offset: 2,
+    });
     expect(controller.currentWindow?.bodyIndex).toBe(1);
-    expect(((await call(large, 'selection.get')) as SelectionInfo).anchor.nodeId).toBe('xp3');
   });
 
   it('removeNode removes any body but the first and still protects the last section', async () => {
@@ -490,12 +556,10 @@ describe('body-level edits', () => {
       await call(h, 'doc.removeNode', 'b2');
       expect(await bodyNames(h)).toEqual([undefined]);
       await expect(call(h, 'doc.getNode', 'n1')).rejects.toThrow('unknown nodeId');
-      expect(h.services.undo.canUndo).toBe(true);
-      h.services.undo.undo();
-      expect(await bodyNames(h)).toEqual([undefined, 'notes']);
-      expect(await textOfNode(h, 'np1')).toBe('A note.');
-      h.services.undo.redo();
-      expect(await bodyNames(h)).toEqual([undefined]);
+      await expect(call(h, 'doc.getNode', 'np1')).rejects.toThrow('unknown nodeId');
+      getBodyController(h.store).showModel(h.api.result()!);
+      expect(h.store.getState().document!.bodies).toHaveLength(1);
+      expect(getBodyController(h.store).currentWindow?.bodyIndex).toBe(0);
     }
   });
 
@@ -509,13 +573,12 @@ describe('body-level edits', () => {
     )) as NodeRef;
     expect(ref).toEqual({ nodeId: 'b2', type: 'body' });
     expect(await textOfNode(h, 'b2')).toBe('Notes\nRewritten');
-    h.services.undo.undo();
-    expect(await textOfNode(h, 'b2')).toBe('A note.');
+    await expect(call(h, 'doc.getNode', 'np1')).rejects.toThrow('unknown nodeId');
   });
 });
 
 describe('doc.* edits outside the mounted window', () => {
-  it('uses model steps for unmounted sections (windowed book) with the same undo semantics', async () => {
+  it('edits unmounted sections of a windowed book like mounted ones', async () => {
     const h = await harness(book(40));
     const controller = getBodyController(h.store);
     expect(controller.currentWindow?.wholeBook).toBe(false);
@@ -536,11 +599,8 @@ describe('doc.* edits outside the mounted window', () => {
       content: [{ type: 'text', text: 'S' }],
     });
     expect(await sectionTypes(h, 'x39')).toEqual(['subtitle']);
-    expect(h.services.undo.peekUndo()?.view).toBe('body-model');
-    while (h.services.undo.canUndo) h.services.undo.undo();
-    expect(await sectionTypes(h, 'x39')).toEqual(['p']);
-    expect(await textOfNode(h, 'xp39')).toBe('Extra 39 beta');
-    // Appending to the body itself in windowed mode goes through the model (true end).
+    expect(shownText(h, 'xp39')).toBe('Extra 39 beta');
+    // Appending to the body itself in windowed mode appends after its last section.
     const appended = (await call(h, 'doc.insertNode', 'append', 'b1', {
       type: 'section',
       attrs: {},
@@ -576,7 +636,7 @@ describe('doc.find / doc.replaceAll', () => {
     await expect(call(h, 'doc.find', { text: '' })).rejects.toThrow('required');
   });
 
-  it('replaceAll counts replacements, expands regex groups and stays undoable', async () => {
+  it('replaceAll counts replacements and expands regex groups', async () => {
     const h = await harness(book(40));
     const { count } = (await call(h, 'doc.replaceAll', { text: 'beta', wholeWord: true }, 'X')) as {
       count: number;
@@ -593,9 +653,8 @@ describe('doc.find / doc.replaceAll', () => {
     )) as { count: number };
     expect(regex.count).toBe(1);
     expect(await textOfNode(h, 'p1')).toBe('X-Alpha gamma.');
-    while (h.services.undo.canUndo) h.services.undo.undo();
-    expect(await textOfNode(h, 'p1')).toBe('Alpha beta gamma.');
-    expect(await textOfNode(h, 'xp39')).toBe('Extra 39 beta');
+    expect(shownText(h, 'p1')).toBe('Alpha beta gamma.');
+    expect(shownText(h, 'xp39')).toBe('Extra 39 beta');
   });
 });
 
@@ -705,9 +764,46 @@ describe('ui.*, edit.*, env.*', () => {
     const plain = h.dialogs.custom[2]!.props.options as { buttons: { label: string }[] };
     expect(plain.buttons[0]!.label).toBe('OK');
 
-    // prompt: the fake input dialog cancels -> null.
+    // prompt: Cancel -> null, No -> '' (the original's yes/no/cancel InputBox), OK -> text.
+    h.dialogs.customAnswers.push(
+      { button: 'cancel', value: 'typed' },
+      { button: 'no', value: 'typed' },
+      { button: 'ok', value: 'typed' },
+    );
     expect(await call(h, 'ui.prompt', 'Text?')).toBeNull();
-    expect(h.uiActivity).toEqual([true, false, true, false, true, false, true, false]);
+    expect(await call(h, 'ui.prompt', 'Text?', { yesNoCancel: true })).toBe('');
+    expect(await call(h, 'ui.prompt', 'Text?', { defaultValue: 'x' })).toBe('typed');
+    expect(h.dialogs.custom[3]!.name).toBe('ScriptPromptDialog');
+    expect(h.dialogs.custom[4]!.props.options).toMatchObject({
+      prompt: 'Text?',
+      caption: 'Fixture',
+      buttons: 'yesNoCancel',
+      testId: 'dialog-script-prompt',
+    });
+    expect(h.uiActivity).toEqual([
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+    ]);
+  });
+
+  it('hands the end of the run to the dialogs it opens', async () => {
+    const runEnd: RunEnd = { ended: false, subscribe: () => () => {} };
+    const h = await harness(book(), { runEnd });
+    h.dialogs.customAnswers.push('ok', null, { button: 'cancel', value: '' });
+    await call(h, 'ui.message', 'Hi');
+    await call(h, 'ui.form', { title: 'F', fields: [] });
+    await call(h, 'ui.prompt', 'Text?');
+    expect(h.dialogs.custom.map((d) => d.props.runEnd)).toEqual([runEnd, runEnd, runEnd]);
   });
 
   it('status / progress drive the status bar and are cleared at the end unless sticky', async () => {
