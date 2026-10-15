@@ -160,9 +160,10 @@ from the pinned baseline in `vcpkg.json`; the UI is built by npm (standalone or 
 | `share/applications`, `share/mime/packages`, `share/icons` | MSI ProgIds `.fb2` / `.fbd` | `Info.plist` document types | file associations |
 
 Per-user data (settings, recent files, custom dictionary, exclusions, hotkeys, user genres,
-user scripts, the errors-only log, the CEF profile) lives in the platform's user folders, see
-`docs/installing.md`. Packages: AppImage (static runtime), `.deb`, `.rpm`, WiX MSI, `.dmg`
-(`packaging/`), all produced by `.github/workflows/release.yml`.
+user scripts, the errors-only log, the CEF profile) lives in the platform's user folders, or
+all of it in the `user` folder of a portable copy (`mfbe/portable.hpp`), see
+`docs/installing.md`. Packages: AppImage (static runtime), `.deb`, `.rpm`, WiX MSI, portable
+ZIP, `.dmg` (`packaging/`), all produced by `.github/workflows/release.yml`.
 
 Third-party components and their licences are inventoried by `tools/licence-check.py`
 (`THIRD-PARTY-NOTICES.md`); the parity of menus, toolbars and dialogs with the original editor
@@ -287,8 +288,8 @@ Desktop shell (`app/src/`):
   falls back to `--no-sandbox` and writes a warning to the errors-only log
   (`shell.sandboxDisabled`) and to stderr. The content rendered without the sandbox is the
   local UI only; no remote pages are ever loaded.
-* The CEF profile is the per-user data folder (or a temporary folder in `--url` developer
-  mode); nothing is shared with other browsers.
+* The CEF profile is the per-user data folder, a portable copy's `user` folder, or a temporary
+  folder in `--url` developer mode; nothing is shared with other browsers.
 
 Diagnostics and privacy (`core/src/log/error_log.cpp`, FR-131):
 
