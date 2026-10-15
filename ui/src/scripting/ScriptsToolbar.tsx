@@ -1,7 +1,7 @@
 /**
- * Scripts toolbar buttons (T105): one button per menu script that ships an icon, in menu
- * order, next to the built-in "Last script" button of the Scripts toolbar container
- * (`app/Toolbars.tsx`). Mounting (App.tsx): `<Toolbars scripts={<ScriptsToolbar />} />`.
+ * A script's button on the Scripts toolbar (T105; feature 002 FR-063): the script's icon (or its
+ * initial), its name and hotkey as the tooltip, enabled as its command. Which scripts the toolbar
+ * shows is the user's layout (`useScriptToolbarButtons`, `app/Toolbars.tsx`).
  */
 
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,6 @@ import { useTranslation } from 'react-i18next';
 import { commandDescription, commandTooltip, scriptCommandId } from '@/app/commands';
 import { useAppRevision, useAppServices, useCommandContext } from '@/app/services';
 import { scriptIconUrl } from './icons';
-import { useScriptsFeature, useScriptsRevision } from './ScriptsMenu';
 import type { ScriptInfo } from './types';
 
 export function ScriptToolbarButton({ script }: { script: ScriptInfo }) {
@@ -51,21 +50,5 @@ export function ScriptToolbarButton({ script }: { script: ScriptInfo }) {
         </span>
       )}
     </button>
-  );
-}
-
-/** The dynamic part of the Scripts toolbar. */
-export function ScriptsToolbar() {
-  const feature = useScriptsFeature();
-  useScriptsRevision(feature);
-  if (!feature) return null;
-  const scripts = feature.toolbarScripts();
-  if (scripts.length === 0) return null;
-  return (
-    <span className="mfbe-scripts-toolbar-items" data-testid="scripts-toolbar-items">
-      {scripts.map((script) => (
-        <ScriptToolbarButton key={script.id} script={script} />
-      ))}
-    </span>
   );
 }

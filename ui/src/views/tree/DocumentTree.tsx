@@ -286,6 +286,9 @@ export function DocumentTree() {
         onKeyDown={onKeyDown}
         onContextMenu={(event) => {
           event.preventDefault();
+          // A right-click below the items shows nothing, as in the original; the keyboard's
+          // menu key (button -1) opens the selected item's menu.
+          if (event.button === 2) return;
           openMenuAt(event.clientX, event.clientY);
         }}
       >

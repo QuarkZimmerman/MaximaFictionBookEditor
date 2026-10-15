@@ -204,23 +204,25 @@ TEST_CASE("settings: toolbar layouts are kept per toolbar with unknown items as 
     const auto file = tmp / "settings.json";
     test::write_text(file, R"({"schemaVersion": 1, "session": {"toolbarLayouts": {
         "commands": ["file.new", "no.such.command", "-"],
-        "scripts": ["script.last", "script.gone/away"],
+        "scripts": ["scripts.last", "script.gone/away"],
         "future": ["x"]}}})");
     settings::SettingsStore store(file);
     store.load();
     const json stored = store.get()["session"]["toolbarLayouts"];
     CHECK(stored["commands"] == json::array({"file.new", "no.such.command", "-"}));
-    CHECK(stored["scripts"] == json::array({"script.last", "script.gone/away"}));
+    CHECK(stored["scripts"] == json::array({"scripts.last", "script.gone/away"}));
     CHECK(stored["future"] == json::array({"x"}));
 
     // One toolbar is patched at a time; null resets a toolbar to the original layout.
     auto r1 = store.apply_patch(
-        json{{"session", {{"toolbarLayouts", {{"scripts", {"script.last", "-"}}}}}}});
-    CHECK(r1.settings["session"]["toolbarLayouts"]["scripts"] == json::array({"script.last", "-"}));
+        json{{"session", {{"toolbarLayouts", {{"scripts", {"scripts.last", "-"}}}}}}});
+    CHECK(r1.settings["session"]["toolbarLayouts"]["scripts"] ==
+          json::array({"scripts.last", "-"}));
     CHECK(r1.settings["session"]["toolbarLayouts"]["commands"].size() == 3);
     auto r2 = store.apply_patch(json{{"session", {{"toolbarLayouts", {{"commands", nullptr}}}}}});
     CHECK_FALSE(r2.settings["session"]["toolbarLayouts"].contains("commands"));
-    CHECK(r2.settings["session"]["toolbarLayouts"]["scripts"] == json::array({"script.last", "-"}));
+    CHECK(r2.settings["session"]["toolbarLayouts"]["scripts"] ==
+          json::array({"scripts.last", "-"}));
 
     try {
         store.apply_patch(json{{"session", {{"toolbarLayouts", {{"commands", {1, 2}}}}}}});

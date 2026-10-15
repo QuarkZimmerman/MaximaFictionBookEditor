@@ -3,7 +3,8 @@
 // marker set by the UI), inline load-error page, navigation policy (stay on the loopback
 // origin, external links go to the OS browser), OS drag-and-drop of documents onto the
 // window (opened through app.openPaths; images and other files reach the page as HTML5
-// drops) and F12 -> DevTools in development builds.
+// drops), the right-click menu (a text box's edit menu, nothing elsewhere: context_menu.h) and
+// F12 -> DevTools in development builds.
 #pragma once
 
 #include "include/cef_client.h"
@@ -20,6 +21,7 @@ class CoreHost;
 class NativeDialogs;
 
 class MfbeClient : public CefClient,
+                   public CefContextMenuHandler,
                    public CefDisplayHandler,
                    public CefDragHandler,
                    public CefLifeSpanHandler,
@@ -44,12 +46,21 @@ public:
     static MfbeClient* GetInstance();
 
     // CefClient methods:
+    CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
     CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
     CefRefPtr<CefDragHandler> GetDragHandler() override { return this; }
     CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
     CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
     CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
     CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
+
+    // CefContextMenuHandler methods:
+    void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+                             CefRefPtr<CefContextMenuParams> params,
+                             CefRefPtr<CefMenuModel> model) override;
+    bool OnContextMenuCommand(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+                              CefRefPtr<CefContextMenuParams> params, int command_id,
+                              EventFlags event_flags) override;
 
     // CefDisplayHandler methods:
     void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString& title) override;

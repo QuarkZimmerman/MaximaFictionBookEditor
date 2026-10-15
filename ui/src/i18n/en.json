@@ -539,6 +539,18 @@
     "none": "None"
   },
   "dialog": {
+    "customizeToolbar": {
+      "caption": "Customize Toolbar",
+      "available": "Available toolbar buttons:",
+      "current": "Current toolbar buttons:",
+      "separator": "Separator",
+      "add": "&Add ->",
+      "remove": "<- &Remove",
+      "moveUp": "Move &Up",
+      "moveDown": "Move &Down",
+      "reset": "R&eset",
+      "close": "&Close"
+    },
     "buttons": {
       "ok": "OK",
       "cancel": "Cancel",
@@ -814,6 +826,15 @@
     }
   },
   "source": {
+    "contextMenu": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "cut": "Cut",
+      "copy": "Copy",
+      "paste": "Paste",
+      "delete": "Delete",
+      "selectAll": "Select All"
+    },
     "foldLevel": "Fold level:",
     "collapse": "Collapse",
     "expand": "Expand",

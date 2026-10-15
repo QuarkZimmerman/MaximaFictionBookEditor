@@ -233,3 +233,31 @@
 .mfbe-encodingdialog-select option {
   padding: 2px 6px;
 }
+
+/* Customize Toolbar (feature 002): the available and the current buttons side by side. */
+.mfbe-customize-toolbar-lists {
+  display: flex;
+  gap: 12px;
+}
+
+.mfbe-customize-toolbar-list {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.mfbe-customize-toolbar-list select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.mfbe-customize-toolbar-list option {
+  padding: 2px 6px;
+}

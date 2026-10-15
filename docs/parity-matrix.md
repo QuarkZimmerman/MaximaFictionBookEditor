@@ -148,7 +148,7 @@ Tree-command scripts are appended to the context menu (`tree-menu-script-<id>`, 
 
 | Original | Label | MFBE | Evidence | e2e spec | Status | Notes |
 |---|---|---|---|---|---|---|
-| `ID_TOOLS_CUSTOMIZE` | Customize toolbar... (right-click on the Commands or Scripts toolbar) | - | - | - | dropped | the entry opened the Windows common-control "Customize Toolbar" dialog (`CCS_ADJUSTABLE` rebar band); the MFBE toolbars keep the original button order and are shown/hidden from the View menu. Not listed in spec.md "Out of scope" - recorded here as a candidate for the requester's decision (keep dropped, or add a button-visibility page to Settings) |
+| `ID_TOOLS_CUSTOMIZE` | Customize toolbar... (right-click on the Commands or Scripts toolbar) | `app/Toolbars.tsx` (`toolbar-menu-customize`) opening `dialogs/CustomizeToolbarDialog.tsx` | `toolbar-menu-customize`, `dialog-customize-toolbar` | `us8-toolbars.spec.ts` | implemented | as the original's Windows "Customize Toolbar" dialog (feature 002): available and current buttons by their tooltips with separators, Add, Remove, Move Up, Move Down, Reset, Close; Shift+drag moves a button or removes it when dropped off the toolbar, a double-click on an empty part opens the dialog; the layouts are kept per toolbar (`session.toolbarLayouts`); the Scripts toolbar starts with "Last script" alone and offers every script with an icon |
 
 ## 4. Toolbars
 
@@ -383,6 +383,9 @@ with the same checks.
 | Original | Label | MFBE | Evidence | e2e spec | Status | Notes |
 |---|---|---|---|---|---|---|
 | `BODY_CONTEXT_MENU*` | Body view context menu: Undo, Cut, Copy, Paste | `views/body/ContextMenu.tsx` running `edit.undo`, `edit.cut`, `edit.copy`, `edit.paste` | `context-menu` | `us2-body-editing.spec.ts` | implemented | |
+| `DESCRIPTION_CONTEXT_MENU*` | Description view text fields: the Body view's menu (Undo, Cut, Copy, Paste; one browser view held both) | `views/description/FieldContextMenu.tsx` running `edit.undo` and the field's own Cut, Copy, Paste | `context-menu`, `description-book-title` | `us8-toolbars.spec.ts` | implemented | feature 002; nothing elsewhere in the view |
+| `SOURCE_CONTEXT_MENU*` | Source view (Scintilla) menu: Undo, Redo, Cut, Copy, Paste, Delete, Select All | `views/source/SourceContextMenu.tsx` | `source-context-menu` | `us8-toolbars.spec.ts` | implemented | feature 002 |
+| `EDIT_CONTEXT_MENU*` | text boxes of dialogs and of the Links and Table bars: the Windows edit menu (Undo, Cut, Copy, Paste, Delete, Select All) | shell `app/src/context_menu.h` (CEF `OnBeforeContextMenu`); the page cancels the browser's menu everywhere else (`app/App.tsx`) | `links-bar-id` | `us8-toolbars.spec.ts` | implemented | feature 002; the menu's items are checked by `tests/shell/test_context_menu.cpp` |
 | `ID_SEL_BASE*` | "Select <element>" entries for every ancestor | `select-<depth>` entries (`contextMenuExtensions.ts`) | `context-menu` | `us2-body-editing.spec.ts` | implemented | scenario 6 selects a poem through the entry |
 | `IDC_SPELL_ADD2DICT*` | spelling suggestions and "Add to dictionary" in the context menu | `features/spell/index.ts` (`context-menu-spelling-<n>`, `context-menu-spelling-add`, `context-menu-spelling-ignore-all`) | `context-menu-spelling-add` | `us6-spelling.spec.ts` | implemented | |
 | `ID_SAVEIMG_AS*` | Save image as... | `image.saveAs` (`features/images/saveAs.ts`) | `context-menu-save-image-as` | `us7-images.spec.ts` | implemented | `binary.export` |
@@ -412,16 +415,15 @@ the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the orig
 
 Counts are recomputed by `node tools/parity-check.mjs` (printed as
 "rows - implemented N, implemented-differently N, dropped N"). At the time of writing:
-216 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
-their controls) plus the original UI created in the sources: 208 implemented,
-2 implemented-differently, 6 dropped.
+219 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
+their controls) plus the original UI created in the sources: 212 implemented,
+2 implemented-differently, 5 dropped.
 
 Dropped items and their references:
 
 | Original | Reason |
 |---|---|
 | File > Import / Export placeholder entries (`IDCANCEL`) | Import/Export COM plugin interface and ExportHTML plugin out of scope (spec.md) - placeholders kept |
-| `ID_TOOLS_CUSTOMIZE` Customize toolbar... | Windows common-control dialog; fixed original order kept - candidate for the requester's decision |
 | `IDC_SPELL_SUGGEST` "Suggets" | permanently disabled, no handler in the original; automatic suggestions |
 | `IDC_AB_STATIC_BANNER`, `IDC_AB_BANNER` banner | decorative artwork; styling may differ (Constitution I) |
 | `IDC_TEXT_STATUS`, `IDC_PIC_UPDATE`, `IDC_UPDATE` update checker | out of scope (spec.md) |

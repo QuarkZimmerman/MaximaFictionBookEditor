@@ -7,6 +7,7 @@
   padding: 2px 4px;
   border-bottom: 1px solid var(--mfbe-color-border);
   background: var(--mfbe-color-toolbar-bg);
+  user-select: none;
 }
 
 .mfbe-tree-toolbar-button {

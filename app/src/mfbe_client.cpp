@@ -1,5 +1,6 @@
 #include "mfbe_client.h"
 
+#include "context_menu.h"
 #include "dialog_provider.h"
 #include "include/base/cef_callback.h"
 #include "include/base/cef_logging.h"
@@ -22,6 +23,9 @@ namespace {
 MfbeClient* g_instance = nullptr;
 
 constexpr int kVkF12 = 0x7B;
+
+// Command ids of the edit menu (context_menu.h): one per EditCommand, in the user range.
+constexpr int kEditCommandFirstId = MENU_ID_USER_FIRST;
 
 bool startsWith(const std::string& text, const char* prefix) {
     return text.rfind(prefix, 0) == 0;
@@ -237,6 +241,63 @@ bool MfbeClient::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFr
         return false;  // e.g. middle-click on an in-app link: let CEF handle it
     }
     OpenExternal(url);
+    return true;
+}
+
+void MfbeClient::OnBeforeContextMenu(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
+                                     CefRefPtr<CefContextMenuParams> params,
+                                     CefRefPtr<CefMenuModel> model) {
+    CEF_REQUIRE_UI_THREAD();
+    const int flags = params->GetEditStateFlags();
+    EditState state;
+    state.editable = params->IsEditable();
+    state.can_undo = (flags & CM_EDITFLAG_CAN_UNDO) != 0;
+    state.can_cut = (flags & CM_EDITFLAG_CAN_CUT) != 0;
+    state.can_copy = (flags & CM_EDITFLAG_CAN_COPY) != 0;
+    state.can_paste = (flags & CM_EDITFLAG_CAN_PASTE) != 0;
+    state.can_delete = (flags & CM_EDITFLAG_CAN_DELETE) != 0;
+    state.can_select_all = (flags & CM_EDITFLAG_CAN_SELECT_ALL) != 0;
+    // The browser's own menu goes entirely; an empty menu is not shown.
+    model->Clear();
+    const std::string language = dialogs_ ? dialogs_->language() : std::string();
+    for (const ContextMenuItem& item : contextMenuItems(state)) {
+        if (item.separator) {
+            model->AddSeparator();
+            continue;
+        }
+        const int id = kEditCommandFirstId + static_cast<int>(item.command);
+        model->AddItem(id, contextMenuLabel(item.command, language));
+        model->SetEnabled(id, item.enabled);
+    }
+}
+
+bool MfbeClient::OnContextMenuCommand(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
+                                      CefRefPtr<CefContextMenuParams>, int command_id, EventFlags) {
+    CEF_REQUIRE_UI_THREAD();
+    const int index = command_id - kEditCommandFirstId;
+    if (index < 0 || index > static_cast<int>(EditCommand::SelectAll)) {
+        return false;
+    }
+    switch (static_cast<EditCommand>(index)) {
+        case EditCommand::Undo:
+            frame->Undo();
+            break;
+        case EditCommand::Cut:
+            frame->Cut();
+            break;
+        case EditCommand::Copy:
+            frame->Copy();
+            break;
+        case EditCommand::Paste:
+            frame->Paste();
+            break;
+        case EditCommand::Delete:
+            frame->Delete();
+            break;
+        case EditCommand::SelectAll:
+            frame->SelectAll();
+            break;
+    }
     return true;
 }
 

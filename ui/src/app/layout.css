@@ -356,6 +356,12 @@ textarea {
   left: 100%;
 }
 
+/* Context menus at the pointer (inline left/top), above the dialogs' floating layer. */
+.mfbe-menu-popup.mfbe-popup-menu {
+  position: fixed;
+  z-index: 600;
+}
+
 .mfbe-menu-item {
   position: relative;
   display: grid;
@@ -432,6 +438,8 @@ textarea {
   flex: 0 0 auto;
   background: var(--mfbe-color-toolbar-bg);
   border-bottom: 1px solid var(--mfbe-color-border);
+  /* Buttons and labels are never selected as text (text fields still are). */
+  user-select: none;
 }
 
 .mfbe-toolbar {
@@ -445,6 +453,17 @@ textarea {
 
 .mfbe-toolbar + .mfbe-toolbar {
   border-top: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-toolbar-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* A button dragged with Shift held (moved, or removed when dropped off the toolbar). */
+.mfbe-toolbar-dragging,
+.mfbe-toolbar-dragging * {
+  cursor: move;
 }
 
 .mfbe-toolbar-button {
