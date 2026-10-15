@@ -37,6 +37,13 @@
 #                               (MFBE_SHELL_SELFTEST=clipboard) and prints
 #                               "selftest: clipboard <bytes> image/png"; exclusive with
 #                               MFBE_SMOKE_MESSAGEBOX
+#   MFBE_SMOKE_OPENFILE         1 = file dialog check (dev/test builds, Linux; feature 002): the
+#                               shell shows the Open dialog through GTK 3
+#                               (MFBE_SHELL_SELFTEST=openfile), prints the file types and the
+#                               active type GTK received and cancels the dialog from code after
+#                               2 s; the script checks the editor's Open types, "FictionBook
+#                               files (*.fb2)" active and the dialog on the screen. Exclusive
+#                               with MFBE_SMOKE_MESSAGEBOX and MFBE_SMOKE_CLIPBOARD
 #   MFBE_SMOKE_NO_SANDBOX       1 = pass --no-sandbox explicitly. By default the shell decides
 #                               itself (T140, app/src/sandbox_check.cpp): the sandbox stays on
 #                               when unprivileged user namespaces or the SUID chrome-sandbox
@@ -190,6 +197,13 @@ SELFTEST=""
 if [[ "${MFBE_SMOKE_MESSAGEBOX:-0}" == "1" ]]; then
   SELFTEST="messagebox"
 fi
+if [[ "${MFBE_SMOKE_OPENFILE:-0}" == "1" ]]; then
+  if [[ -n "$SELFTEST" || "${MFBE_SMOKE_CLIPBOARD:-0}" == "1" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_OPENFILE is exclusive with MFBE_SMOKE_MESSAGEBOX and MFBE_SMOKE_CLIPBOARD" >&2
+    exit 1
+  fi
+  SELFTEST="openfile"
+fi
 # Clipboard check: a GTK clipboard owner must live on the same virtual display as the shell,
 # so both are started by one wrapper script under xvfb-run.
 LAUNCHER="$MFBE_APP_BIN"
@@ -281,6 +295,19 @@ if [[ "$SELFTEST" == "messagebox" ]]; then
     echo "shell-smoke: native message box answered: button=ok"
   else
     echo "shell-smoke: the shell did not report the message box answer" >&2
+    exit 1
+  fi
+elif [[ "$SELFTEST" == "openfile" ]]; then
+  # The shell prints the dialog's types after 1 s and "cancelled" once it closed it after 2 s.
+  for _ in $(seq 1 60); do
+    grep -q "selftest: openfile cancelled" "$TMP/mfbe.log" 2>/dev/null && break
+    sleep 0.25
+  done
+  expected="selftest: openfile types=FictionBook files (*.fb2)|FictionBook descriptors (*.fbd)|All files (*.*) active=FictionBook files (*.fb2) shown=yes"
+  if grep -qxF "$expected" "$TMP/mfbe.log" && grep -q "selftest: openfile cancelled" "$TMP/mfbe.log"; then
+    echo "shell-smoke: GTK Open dialog: $(grep -o "selftest: openfile types=.*" "$TMP/mfbe.log" | head -n1)"
+  else
+    echo "shell-smoke: the GTK Open dialog did not show the editor's file types ($(grep -o "selftest: openfile.*" "$TMP/mfbe.log" | tr '\n' ' '))" >&2
     exit 1
   fi
 elif [[ "$SELFTEST" == "clipboard" ]]; then

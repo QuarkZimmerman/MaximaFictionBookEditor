@@ -70,6 +70,35 @@ TEST_CASE("dialogs: selected type and start folder travel with the request (feat
                     std::invalid_argument);
 }
 
+TEST_CASE("dialogs: Open and Save As are the dialogs that offer FictionBook files (feature 002)",
+          "[dialogs]") {
+    CHECK(offers_fictionbook_files(
+        {FileFilter{"FictionBook files (*.fb2)", {"fb2"}}, FileFilter{"All files (*.*)", {"*"}}}));
+    CHECK(offers_fictionbook_files({FileFilter{"Descriptors", {"FBD"}}}));
+    CHECK(offers_fictionbook_files({FileFilter{"", {"*.Fb2"}}}));
+    CHECK(offers_fictionbook_files({FileFilter{"", {".fb2"}}}));
+    CHECK_FALSE(offers_fictionbook_files({}));
+    CHECK_FALSE(offers_fictionbook_files({FileFilter{"Supported images", {"jpg", "jpeg", "png"}},
+                                          FileFilter{"All files (*.*)", {"*"}}}));
+    CHECK_FALSE(offers_fictionbook_files({FileFilter{"Books", {"fb2.zip", "epub"}}}));
+
+    const json document_filters =
+        json::array({{{"name", "FictionBook files (*.fb2)"}, {"extensions", {"fb2"}}},
+                     {{"name", "FictionBook descriptors (*.fbd)"}, {"extensions", {"fbd"}}},
+                     {{"name", "All files (*.*)"}, {"extensions", {"*"}}}});
+    CHECK(open_file_request_from_json(json{{"filters", document_filters}}).documentDialog);
+    CHECK(save_file_request_from_json(json{{"filters", document_filters}}).documentDialog);
+    CHECK_FALSE(open_file_request_from_json(json{{"title", "Image"}}).documentDialog);
+
+    // The folder of a save dialog is the core's own (never read from the wire) and is recorded.
+    SaveFileRequest save = save_file_request_from_json(json{{"folder", "/ignored"}});
+    CHECK_FALSE(save.folder);
+    CHECK_FALSE(to_json(save).contains("folder"));
+    save.folder = "/home/тест";
+    CHECK(to_json(save)["folder"] == "/home/тест");
+    CHECK_FALSE(to_json(save).contains("documentDialog"));
+}
+
 TEST_CASE("dialogs: the queued provider records requests, counts beeps, answers releases",
           "[dialogs]") {
     QueuedDialogProvider provider;

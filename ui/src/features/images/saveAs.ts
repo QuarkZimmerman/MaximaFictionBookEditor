@@ -2,14 +2,15 @@
  * "Save image as..." (T093, US7 scenario 6, FR-023): the `image` slot of the Body context menu
  * and the `image.saveAs` command behind it. The image is the selected image node or the one
  * under the pointer when the menu opened (tracked through a capture-phase `contextmenu`
- * listener); `dialog.saveFile` (JPEG / PNG / All files, default name = binary id) then
- * `binary.export` write the stored bytes to the chosen file.
+ * listener); `dialog.saveFile` (JPEG files / PNG files / All files, JPEG selected, default name
+ * = binary id) then `binary.export` write the stored bytes to the chosen file.
  */
 
 import i18next from 'i18next';
 import { NodeSelection } from 'prosemirror-state';
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
+import { savedImageFileTypes } from '@/dialogs/fileTypes';
 import { bodyController, bodyEditable } from '@/features/editing/common';
 import { actions, type AppStore } from '@/model/store';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
@@ -86,11 +87,8 @@ export async function saveImageAs(ctx: CommandContext, href: string): Promise<bo
   if (!rpc || !state.docId || !binary) return false;
   const choice = await rpc.call('dialog.saveFile', {
     title: ctx.t('images.saveAs.caption'),
-    filters: [
-      { name: ctx.t('images.saveAs.filterJpeg'), extensions: ['jpg', 'jpeg'] },
-      { name: ctx.t('images.saveAs.filterPng'), extensions: ['png'] },
-      { name: ctx.t('dialog.saveFile.filterAll'), extensions: ['*'] },
-    ],
+    filters: savedImageFileTypes(ctx.t),
+    selectedFilter: 0,
     defaultPath: suggestedFileName(id, binary.contentType),
   });
   if (!choice.path) return false;

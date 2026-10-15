@@ -394,6 +394,10 @@ jobs:
 
       # The shipped configuration is built without the test-only RPC hooks, so the core test
       # suite (which drives them) runs in the `core` job; here the application is exercised.
+      - name: Shell unit tests (file dialog requests in each platform's terms, feature 002)
+        shell: bash
+        run: ctest --preset ${{ matrix.preset }} -L shell --output-on-failure
+
       - name: Version (Linux)
         if: runner.os == 'Linux'
         run: build/${{ matrix.preset }}/bin/mfbe --version

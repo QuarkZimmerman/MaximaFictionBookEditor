@@ -237,6 +237,19 @@ describe('Add-menu image commands (T093)', () => {
       testId: 'dialog-insert-clear-image',
     });
     expect(flowCalls(rpc).map((c) => c.method)).toEqual(['dialog.openFile', 'binary.add']);
+    // The original's image types plus WebP, "Supported images" selected, no "All files".
+    expect(flowCalls(rpc)[0]!.params).toMatchObject({ selectedFilter: 0 });
+    expect(
+      (flowCalls(rpc)[0]!.params as { filters: { name: string }[] }).filters.map((f) => f.name),
+    ).toEqual([
+      'Supported images (*.jpg;*.jpeg;*.png)',
+      'JPEG (*.jpg)',
+      'PNG (*.png)',
+      'Bitmap (*.bmp)',
+      'GIF (*.gif)',
+      'TIFF (*.tif)',
+      'WebP (*.webp)',
+    ]);
     expect(flowCalls(rpc)[1]!.params).toMatchObject({
       docId: 'doc-1',
       path: '/pictures/tiny.png',
@@ -284,10 +297,17 @@ describe('Add-menu image commands (T093)', () => {
     });
     expect(services.commands.isEnabled('insert.binary', ctx)).toBe(true);
     await services.commands.execute('insert.binary', ctx);
+    // The original's list: All files first, "Supported images" selected, several files.
     expect(flowCalls(rpc)[0]).toMatchObject({
       method: 'dialog.openFile',
-      params: { multiple: true },
+      params: { multiple: true, selectedFilter: 1 },
     });
+    const filters = (flowCalls(rpc)[0]!.params as { filters: unknown[] }).filters;
+    expect(filters).toHaveLength(8);
+    expect(filters.slice(0, 2)).toEqual([
+      { name: 'All files (*.*)', extensions: ['*'] },
+      { name: 'Supported images (*.jpg;*.jpeg;*.png)', extensions: ['jpg', 'jpeg', 'png'] },
+    ]);
     expect(store.getState().document!.binaries.map((b) => b.id)).toEqual(['a.gif', 'b.webp']);
     expect(section(store).content.map((c) => c.type)).toEqual(['p']);
     expect(store.getState().modified).toBe(true);
@@ -433,7 +453,15 @@ describe('Save image as... (T093)', () => {
     await vi.waitFor(() =>
       expect(flowCalls(rpc).map((c) => c.method)).toEqual(['dialog.saveFile', 'binary.export']),
     );
-    expect(flowCalls(rpc)[0]!.params).toMatchObject({ defaultPath: 'tiny.png' });
+    expect(flowCalls(rpc)[0]!.params).toMatchObject({
+      defaultPath: 'tiny.png',
+      selectedFilter: 0,
+      filters: [
+        { name: 'JPEG files (*.jpg)', extensions: ['jpg'] },
+        { name: 'PNG files (*.png)', extensions: ['png'] },
+        { name: 'All files (*.*)', extensions: ['*'] },
+      ],
+    });
     expect(flowCalls(rpc)[1]!.params).toEqual({
       docId: 'doc-1',
       id: 'tiny.png',

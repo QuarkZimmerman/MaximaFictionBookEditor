@@ -2,9 +2,10 @@ import type { ValidationReport } from '@/model/document';
 import {
   FileFeature,
   defaultSaveEncoding,
-  openFilters,
+  documentFilters,
   registerFileCommands,
-  saveFilters,
+  saveAsEncodingChoices,
+  saveAsSelectedType,
   sourceOnlyDocument,
 } from '@/features/file/fileCommands';
 import { actions } from '@/model/store';
@@ -114,8 +115,14 @@ describe('file flows (T052)', () => {
       'doc.recent',
       'doc.caret',
     ]);
-    expect(rpc.calls[0]!.params).toMatchObject({
-      filters: [{ extensions: ['fb2'] }, { extensions: ['fbd'] }, { extensions: ['*'] }],
+    expect(rpc.calls[0]!.params).toEqual({
+      title: 'Open',
+      filters: [
+        { name: 'FictionBook files (*.fb2)', extensions: ['fb2'] },
+        { name: 'FictionBook descriptors (*.fbd)', extensions: ['fbd'] },
+        { name: 'All files (*.*)', extensions: ['*'] },
+      ],
+      selectedFilter: 0,
     });
     expect(ctx.store.getState()).toMatchObject({
       docId: 'doc-1',
@@ -235,7 +242,7 @@ describe('file flows (T052)', () => {
     });
   });
 
-  it('Save As: file dialog with the current kind first, encoding chooser when the dialog gives none', async () => {
+  it('Save As: the document kind selected, the Save encoding first, the chooser when the dialog gives none', async () => {
     const { feature, rpc, dialogs } = setup({
       'dialog.saveFile': { path: '/books/out.fbd' },
       'doc.save': (params: { encoding?: string; path?: string }) => ({
@@ -255,9 +262,20 @@ describe('file flows (T052)', () => {
     const dialog = rpc.calls.find((c) => c.method === 'dialog.saveFile')!;
     expect(dialog.params).toMatchObject({
       defaultPath: '/books/alpha.fbd',
-      filters: [{ extensions: ['fbd'] }, { extensions: ['fb2'] }, { extensions: ['*'] }],
+      filters: [{ extensions: ['fb2'] }, { extensions: ['fbd'] }, { extensions: ['*'] }],
+      selectedFilter: 1,
+      encodingChoices: [
+        'windows-1251',
+        'utf-8',
+        'utf-16',
+        'windows-1252',
+        'iso-8859-1',
+        'iso-8859-2',
+        'iso-8859-5',
+        'iso-8859-15',
+        'koi8-r',
+      ],
     });
-    expect((dialog.params as { encodingChoices: string[] }).encodingChoices).toHaveLength(9);
     expect(dialogs.custom[0]).toMatchObject({
       name: 'EncodingDialog',
       props: { defaultEncoding: 'windows-1251', path: '/books/out.fbd' },
@@ -277,6 +295,34 @@ describe('file flows (T052)', () => {
     const before = rpc.calls.length;
     expect(await feature.saveDocument(ctx, { saveAs: true })).toBe(false);
     expect(rpc.calls.slice(before).map((c) => c.method)).toEqual(['dialog.saveFile']);
+  });
+
+  it('Save As: the encoding chosen inside the native dialog is used without the chooser', async () => {
+    const { feature, rpc, dialogs } = setup({
+      'dialog.saveFile': { path: '/books/new.fb2', encoding: 'KOI8-R' },
+      'doc.save': (params: { encoding?: string; path?: string }) => ({
+        path: params.path,
+        encoding: params.encoding,
+        converted: [],
+        validation: CLEAN_REPORT,
+      }),
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setSettings(ctx.store, settings({ defaultEncoding: 'utf-8', keepEncoding: false }));
+    // A document never saved: no file proposed, FictionBook files selected.
+    actions.setDocument(ctx.store, fakeDocument({ path: undefined }));
+
+    expect(await feature.saveDocument(ctx, { saveAs: true })).toBe(true);
+    const dialog = rpc.calls.find((c) => c.method === 'dialog.saveFile')!;
+    expect(dialog.params).not.toHaveProperty('defaultPath', expect.anything());
+    expect(dialog.params).toMatchObject({ selectedFilter: 0 });
+    expect((dialog.params as { encodingChoices: string[] }).encodingChoices[0]).toBe('utf-8');
+    expect(dialogs.custom).toEqual([]);
+    expect(rpc.calls.find((c) => c.method === 'doc.save')!.params).toMatchObject({
+      path: '/books/new.fb2',
+      encoding: 'koi8-r',
+    });
   });
 
   it('Save: validation failure asks "Do you still want to save" and retries with force', async () => {
@@ -504,9 +550,14 @@ describe('file flows (T052)', () => {
     expect(ctx.store.getState()).toMatchObject({ docId: 'doc-7', modified: false });
     expect(ctx.store.getState().document).not.toHaveProperty('filledIn');
 
-    expect(openFilters(ctx).map((f) => f.extensions)).toEqual([['fb2'], ['fbd'], ['*']]);
-    expect(saveFilters(ctx, 'fb2').map((f) => f.extensions)).toEqual([['fb2'], ['fbd'], ['*']]);
-    expect(saveFilters(ctx, null).map((f) => f.extensions)).toEqual([['fb2'], ['fbd'], ['*']]);
+    expect(documentFilters(ctx).map((f) => f.extensions)).toEqual([['fb2'], ['fbd'], ['*']]);
+    expect(saveAsSelectedType('fb2')).toBe(0);
+    expect(saveAsSelectedType(null)).toBe(0);
+    expect(saveAsSelectedType('fbd')).toBe(1);
+    expect(saveAsSelectedType('xml')).toBe(2);
+    expect(saveAsEncodingChoices('utf-8').slice(0, 3)).toEqual(['utf-8', 'utf-16', 'windows-1251']);
+    expect(saveAsEncodingChoices('koi8-r')).toHaveLength(9);
+    expect(saveAsEncodingChoices('koi8-r')[0]).toBe('koi8-r');
     const stub = sourceOnlyDocument('doc-x', '/a/b.fbd', 'koi8-r');
     expect(stub).toMatchObject({
       docId: 'doc-x',

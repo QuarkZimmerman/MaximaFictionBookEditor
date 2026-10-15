@@ -1,6 +1,8 @@
 // Dialog request/result JSON shapes and the queued test provider (T025).
 #include <mfbe/dialog_provider.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <stdexcept>
 
 namespace mfbe {
@@ -110,6 +112,25 @@ json filters_to_json(const std::vector<FileFilter>& filters) {
 
 }  // namespace
 
+bool offers_fictionbook_files(const std::vector<FileFilter>& filters) {
+    for (const auto& filter : filters) {
+        for (const auto& raw : filter.extensions) {
+            std::string extension = raw;
+            if (extension.rfind("*.", 0) == 0) {
+                extension.erase(0, 2);
+            } else if (extension.rfind('.', 0) == 0) {
+                extension.erase(0, 1);
+            }
+            std::transform(extension.begin(), extension.end(), extension.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (extension == "fb2" || extension == "fbd") {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 json to_json(const FileFilter& f) {
     return json{{"name", f.name}, {"extensions", f.extensions}};
 }
@@ -136,6 +157,9 @@ json to_json(const SaveFileRequest& r) {
     }
     j["encodingChoices"] = r.encodingChoices;
     j["selectedFilter"] = r.selectedFilter;
+    if (r.folder) {
+        j["folder"] = *r.folder;
+    }
     return j;
 }
 
@@ -186,6 +210,7 @@ OpenFileRequest open_file_request_from_json(const json& j) {
     r.multiple = bool_or(o, "multiple", false);
     r.selectedFilter = index_or(o, "selectedFilter", 0);
     r.folder = opt_str(o, "folder");
+    r.documentDialog = offers_fictionbook_files(r.filters);
     return r;
 }
 
@@ -207,6 +232,7 @@ SaveFileRequest save_file_request_from_json(const json& j) {
     r.defaultPath = opt_str(o, "defaultPath");
     r.encodingChoices = strings_or(o, "encodingChoices");
     r.selectedFilter = index_or(o, "selectedFilter", 0);
+    r.documentDialog = offers_fictionbook_files(r.filters);
     return r;
 }
 
