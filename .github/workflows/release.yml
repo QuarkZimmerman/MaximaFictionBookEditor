@@ -392,6 +392,23 @@ jobs:
           Write-Host "Portable copy in a Cyrillic folder: $cyrillicExe"
           tools/ci/windows-start-smoke.ps1 -Exe $cyrillicExe
 
+      - name: Russian-environment journey (Windows - installed and portable)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Feature 002: a standard user with a Cyrillic name, Russian regional formats and display
+          # language opens a Cyrillic-named book in a Cyrillic folder with each package, saves it,
+          # hides the status bar from the View menu and restarts (tools/ci/windows-russian-journey.ps1).
+          # The MSI is installed again for it: the smoke step above removed it.
+          $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
+          $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /l*v $env:RUNNER_TEMP\install-journey.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $env:RUNNER_TEMP\install-journey.log -Tail 80; throw "msiexec install exit $($p.ExitCode)" }
+          tools/ci/windows-russian-journey.ps1 -Exe (Join-Path $env:ProgramFiles 'Maxima Fiction Book Editor\bin\mfbe.exe')
+          $u = Start-Process msiexec -ArgumentList "/x `"$msi`" /qn" -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "msiexec uninstall exit $($u.ExitCode)" }
+          $zip = (Get-ChildItem build\${{ matrix.preset }}\packages\*-portable.zip | Select-Object -First 1).FullName
+          tools/ci/windows-russian-journey.ps1 -Zip $zip
+
       - name: Package smoke (macOS)
         if: runner.os == 'macOS'
         shell: bash
