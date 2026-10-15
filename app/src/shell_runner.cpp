@@ -38,7 +38,6 @@
 #include "core_host.h"
 #include "dialog_provider.h"
 #include "file_dialog_platform.h"
-#include "include/base/cef_logging.h"
 #include "include/cef_version.h"
 #include "include/cef_version_info.h"
 #include "mfbe_app.h"
@@ -97,6 +96,12 @@ namespace {
 // The core host of the running browser process (set for the lifetime of the message loop) so
 // platform entry points (macOS open-file events) can forward paths without a CEF handle.
 CoreHost* g_core_host = nullptr;
+
+// A note made before CefInitialize, written to stderr: until then Chromium logs on Windows into
+// a debug.log next to the program, outside the user's folders.
+void earlyNote(const std::string& note) {
+    std::fprintf(stderr, "mfbe: %s\n", note.c_str());
+}
 
 CefVersionInfo cefVersions() {
     CefVersionInfo info;
@@ -270,7 +275,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     }
     std::string lock_note;
     if (removeStaleSingletonLock(profile_dir, &lock_note)) {
-        LOG(WARNING) << "mfbe: " << lock_note;
+        earlyNote(lock_note);
     }
 
     // Sandbox prerequisites (Linux). Probed before the core starts its threads.
@@ -283,7 +288,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
             sandbox_note = "Chromium sandbox unavailable (" + describeSandboxProbe(probe) +
                            "); running without the sandbox";
         } else {
-            LOG(INFO) << "mfbe: sandbox available (" << describeSandboxProbe(probe) << ")";
+            earlyNote("sandbox available (" + describeSandboxProbe(probe) + ")");
         }
     }
 
@@ -333,8 +338,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     if (!sandbox_note.empty()) {
         // Errors-only log (FR-131) + stderr; the AppImage/containers hit this path.
         core_host->logWarning("shell.sandboxDisabled", sandbox_note);
-        std::fprintf(stderr, "mfbe: %s\n", sandbox_note.c_str());
-        LOG(WARNING) << "mfbe: " << sandbox_note;
+        earlyNote(sandbox_note);
     }
 
     // CEF settings.
@@ -386,7 +390,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     app_config.devtools_enabled = options.remote_debugging_port != 0;
 #endif
     if (options.no_sandbox) {
-        LOG(WARNING) << "mfbe: running without the Chromium sandbox (--no-sandbox)";
+        earlyNote("running without the Chromium sandbox (--no-sandbox)");
     }
 
     CefRefPtr<MfbeApp> app(new MfbeApp(app_config, core_host.get(), dialogs));

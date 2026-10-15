@@ -44,7 +44,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   profile folder or the program's folder has letters outside English - every Cyrillic user
   name on Russian Windows. The shipped `mfbe.exe` lacked the editor's manifest, so Windows ran
   it with the legacy code page and the folder names were converted wrongly; the manifest is
-  now in the executable and every conversion between file names and text is explicit.
+  now in the executable and every conversion between file names and text is explicit. The
+  editor also no longer writes a `debug.log` next to `mfbe.exe`: its logs stay in the user's
+  own folders.
 - Every menu item is readable without moving the pointer over it. The items of submenus -
   every Scripts group, File > Recent Files - and of the Body context menu took the colours of
   the item or view around them, white on white or the Body's text colour; menus now carry
