@@ -209,22 +209,22 @@ TEST_CASE("scripts: discovery walks groups in NN order and reports invalid packa
     const scripts::Catalog catalog = scripts::load_catalog(layers);
 
     // Valid packages, in group order, tree group last.
-    CHECK(ids_of(catalog) == std::vector<std::string>{"test.case.upper", "test.case.lower",
-                                                      "test.dialogs.form", "test.dialogs.message",
-                                                      "test.errors.throws", "test.errors.infinite",
-                                                      "test.errors.sandbox", "test.model.append",
-                                                      "test.model.replaceAll",
-                                                      "test.invalid.warnings", "test.tree.mark"});
-    REQUIRE(catalog.groups().size() == 6);
+    CHECK(ids_of(catalog) == std::vector<std::string>{
+                                 "test.case.upper", "test.case.lower", "test.dialogs.form",
+                                 "test.dialogs.message", "test.errors.throws",
+                                 "test.errors.infinite", "test.errors.sandbox", "test.model.append",
+                                 "test.model.replaceAll", "runs.bulk", "runs.busy", "runs.prompt",
+                                 "test.invalid.warnings", "test.tree.mark"});
+    REQUIRE(catalog.groups().size() == 7);
     CHECK(catalog.groups()[0].id == "01_Case");
     CHECK(catalog.groups()[0].order == 1);
     CHECK(catalog.groups()[0].names.at("en") == "Case");  // group.json
     CHECK(catalog.groups()[0].names.at("ru") == "Регистр");
     CHECK(catalog.groups()[1].names.at("en") == "Dialogs");  // folder name without prefix
     CHECK(catalog.groups()[1].names.count("ru") == 0);
-    CHECK(catalog.groups()[4].id == "invalid");
-    CHECK(catalog.groups()[4].order == 10000);  // unnumbered after numbered
-    CHECK(catalog.groups()[5].id == "tree");
+    CHECK(catalog.groups()[5].id == "invalid");
+    CHECK(catalog.groups()[5].order == 10000);  // unnumbered after numbered
+    CHECK(catalog.groups()[6].id == "tree");
 
     const scripts::ScriptPackage* upper = catalog.find("test.case.upper");
     REQUIRE(upper != nullptr);
@@ -270,7 +270,7 @@ TEST_CASE("scripts: discovery walks groups in NN order and reports invalid packa
 
     // JSON shape of scripts.list.
     const json j = catalog.to_json();
-    CHECK(j["groups"].size() == 6);
+    CHECK(j["groups"].size() == 7);
     const json& first = j["groups"][0]["scripts"][0];
     CHECK(first["id"] == "test.case.upper");
     CHECK(first["name"]["ru"] == "К верхнему регистру");
@@ -380,7 +380,7 @@ TEST_CASE("scripts: scripts.* RPCs, Last script memory and the /scripts endpoint
 
     json list = ws.call("scripts.list")["result"];
     REQUIRE(list.contains("groups"));
-    CHECK(list["groups"].size() == 6);
+    CHECK(list["groups"].size() == 7);
     CHECK(list["groups"][0]["scripts"][0]["id"] == "test.case.upper");
     // Paths are compared as paths: separators and the UTF-8/native spelling differ per OS.
     CHECK(std::filesystem::path(list["folders"]["bundled"].get<std::string>()).lexically_normal() ==
@@ -448,7 +448,7 @@ TEST_CASE("scripts: scripts.* RPCs, Last script memory and the /scripts endpoint
         data / "scripts" / "09_User" / "01_Added" / "script.json",
         R"json({"manifestVersion":1,"id":"user.added","name":{"en":"Added"},"kind":"menu"})json");
     const json reloaded = ws.call("scripts.reload");
-    CHECK(reloaded["result"]["count"] == 12);
+    CHECK(reloaded["result"]["count"] == 15);
     const auto changed = ws.wait_notification("resources.changed");
     REQUIRE(changed.has_value());
     CHECK((*changed)["params"]["what"] == "scripts");
