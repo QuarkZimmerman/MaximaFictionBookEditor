@@ -24,7 +24,14 @@ import { fileURLToPath } from 'node:url';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import {
+  expect,
+  fixtureBook,
+  test,
+  waitForBook,
+  waitForStartupDocument,
+  type CoreHandle,
+} from './fixtures/core';
 import { LINE_START, MOD, REPLACE } from './fixtures/keys';
 
 const UI_DIR = fileURLToPath(new URL('../..', import.meta.url));
@@ -343,6 +350,8 @@ test.describe('small CSS viewports (200 % and 300 % scaling of a laptop panel)',
         test.skip(!core.hasCore, 'the Settings dialog needs the core');
         await core.openApp(page);
         await expect(page.getByTestId('status-message')).toHaveText('Ready');
+        // The start-up document takes the focus when it arrives (it would close an open menu).
+        await waitForStartupDocument(page);
         const popup = await openMenuByKeyboard(page, 'tools');
         await activateItemByKeyboard(page, popup, 'menu-tools-settings');
         const dialog = page.getByTestId('dialog-settings');
@@ -416,6 +425,7 @@ test.describe('menus from the keyboard', () => {
     page,
   }) => {
     await core.openApp(page);
+    await waitForStartupDocument(page);
     await page.keyboard.press('Alt+f');
     const popup = page.getByTestId('menu-file-popup');
     await expect(popup).toBeVisible();
@@ -455,8 +465,10 @@ test.describe('menus from the keyboard', () => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
     await core.openApp(page);
     await expect(page.getByTestId('status-message')).toHaveText('Ready');
-    await page.keyboard.press('Alt+h');
-    await expect(page.getByTestId('menu-help-popup')).toBeVisible();
+    await waitForStartupDocument(page);
+    // With a document open Alt+H is the original's "Select Href" hotkey: Help opens through the
+    // menu bar (F10).
+    await openMenuByKeyboard(page, 'help');
     await page.keyboard.press('a'); // About's accelerator (after Check for new version)
     const about = page.getByTestId('dialog-about');
     await expect(about).toBeVisible();
