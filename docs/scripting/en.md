@@ -99,13 +99,14 @@ export default async function run(ctx) {
 
 Everything the script does with the editor goes through the global `mfbe` object, and
 **every call returns a Promise** - always `await` it. The whole run is one undo step: one
-**Edit > Undo** reverts everything the script changed. A running script shows "Running script
-..." in the status bar; after 30 seconds without any `mfbe` call the editor asks whether to
-wait or cancel; cancelling stops the script immediately and rolls its changes back. Errors
-are reported as `Script error: <message> at line L, column C` (line/column inside the
-script's file) and written to the error log. The script can `import` other modules placed
-in its own folder (`import { helper } from './lib/helper.js'`); nothing outside the folder
-can be loaded.
+**Edit > Undo** reverts everything the script changed. While a script runs, the book cannot
+be edited and the status bar shows the run with a **Cancel** button; after 30 seconds without
+any `mfbe` call (time in the script's own dialogs aside) it says that the script has not
+reported progress for a while. Cancel stops the script and leaves the book exactly as it was
+before the run, and so does an error. Errors are reported as
+`Script error: <message> at line L, column C` (line/column inside the script's file) and
+written to the error log. The script can `import` other modules placed in its own folder
+(`import { helper } from './lib/helper.js'`); nothing outside the folder can be loaded.
 
 Run a script from **Scripts > <group> > <name>**, its toolbar button, its hotkey, or
 **Scripts > Last script** (the most recently run one). Tree scripts appear under
@@ -171,7 +172,7 @@ the bodies only: the description's annotation and history are edited through
 | `ui.prompt(text, options?)` | Single-line input; resolves with the text or `null` on Cancel; with `yesNoCancel: true` the buttons are Yes / No / Cancel (No resolves with `''`) | [07-legacy-port.js](examples/07-legacy-port.js) |
 | `ui.form(spec)` | Declarative modal dialog with `text` (optionally `multiline`), `number` (`min`/`max`), `checkbox`, `select`, `radio`, `list` (`multiple`; its value is always an array) and `static` fields; resolves with `{ fieldId: value }` or `null` on Cancel. One form at a time - a palette or a live list is a loop of forms | [05-footnotes-form.js](examples/05-footnotes-form.js) |
 | `ui.status(text, options?)` | Status-bar text; cleared when the script ends unless `{ sticky: true }` | [01-upper-case.js](examples/01-upper-case.js) |
-| `ui.progress(done, total?, label?)` | Progress in the status bar; also resets the 30-second "still running" timer, so call it in long loops | [09-long-running.js](examples/09-long-running.js) |
+| `ui.progress(done, total?, label?)` | Progress in the status bar, next to the Cancel button; like every `mfbe` call it shows that the script is still working, so call it in long loops | [09-long-running.js](examples/09-long-running.js) |
 
 ### 4.4 Editing helpers - `mfbe.edit`
 
