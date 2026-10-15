@@ -288,6 +288,18 @@ TEST_CASE("server: dialogs are unavailable without a provider; queued answers wi
                       json{{"error", {{"reason", "offline"}}}})["result"]["queued"] == 2);
         CHECK(ws.call("test.enqueueRelease", json{{"result", {{"tag", ""}}}})["error"]["code"] ==
               -32602);
+        // Feature 002: Help > Check for new version, answered by the queue in order.
+        CHECK(
+            ws.call("app.latestRelease")["result"] ==
+            json{
+                {"tag", "v0.0.9"},
+                {"version", "0.0.9"},
+                {"url",
+                 "https://github.com/QuarkZimmerman/MaximaFictionBookEditor/releases/tag/v0.0.9"}});
+        const json offline = ws.call("app.latestRelease");
+        CHECK(offline["error"]["code"] == 1060);
+        CHECK(offline["error"]["data"]["reason"] == "offline");
+        CHECK(ws.call("app.latestRelease")["error"]["code"] == 1050);  // nothing queued
 
         const json metrics = ws.call("test.metrics")["result"];
         CHECK(metrics["memoryBytes"].get<std::int64_t>() > 0);

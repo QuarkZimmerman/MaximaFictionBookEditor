@@ -301,3 +301,26 @@ TEST_CASE("corpus: scan + sample of the mini corpus matches sample.py", "[corpus
     CHECK(corpus::scan_candidates(root, true, 5).size() == 5);
     CHECK(corpus::scan_candidates(root / "missing", false).empty());
 }
+
+TEST_CASE("dialogs: the release service's answer becomes the latest release (feature 002)",
+          "[dialogs]") {
+    const ReleaseResult ok = release_from_github(
+        200, R"({"tag_name": "v0.0.3", "name": "0.0.3", "draft": false, "prerelease": false,
+                 "html_url": "https://github.com/QuarkZimmerman/MaximaFictionBookEditor/releases/tag/v0.0.3"})");
+    REQUIRE(ok.release);
+    CHECK(ok.release->tag == "v0.0.3");
+    CHECK(ok.release->version == "0.0.3");
+    CHECK(ok.release->url ==
+          "https://github.com/QuarkZimmerman/MaximaFictionBookEditor/releases/tag/v0.0.3");
+    CHECK(ok.error.empty());
+
+    CHECK(release_from_github(404, R"({"message": "Not Found"})").error == "http");
+    CHECK(release_from_github(403, "").error == "http");
+    CHECK(release_from_github(200, "<html>").error == "format");
+    CHECK(release_from_github(200, R"({"name": "no tag"})").error == "format");
+    CHECK(release_from_github(200, R"({"tag_name": 3})").error == "format");
+    CHECK(release_from_github(200, R"({"tag_name": "v1.0", "prerelease": true})").error ==
+          "format");
+    CHECK(release_from_github(200, R"({"tag_name": "v1.0", "draft": true})").error == "format");
+    CHECK_FALSE(release_from_github(200, R"(["tag_name"])").release);
+}

@@ -149,7 +149,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
   {
     id: 'help',
     labelKey: 'menu.help.caption',
-    items: [cmd('help.about')],
+    items: [cmd('help.checkVersion'), cmd('help.about')],
   },
 ];
 

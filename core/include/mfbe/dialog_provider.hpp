@@ -30,6 +30,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace mfbe {
@@ -106,6 +107,11 @@ nlohmann::json to_json(const PickFolderResult& r);
 nlohmann::json to_json(const MessageRequest& r);
 nlohmann::json to_json(const MessageResult& r);
 nlohmann::json to_json(const ReleaseResult& r);  // {tag, version, url} or {error: {reason}}
+
+// Reads the release service's answer to the latest-release request (the GitHub REST "latest
+// release" object): the release, or the error "http" (a status other than 200) or "format"
+// (not JSON, no tag, a draft or a pre-release).
+ReleaseResult release_from_github(int http_status, std::string_view body);
 
 // Tolerant parsers (missing fields -> defaults); throw std::invalid_argument on wrong types.
 // The request parsers set documentDialog from the filters.

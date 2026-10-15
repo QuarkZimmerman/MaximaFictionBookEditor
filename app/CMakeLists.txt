@@ -80,7 +80,9 @@ set(MFBE_SHELL_DEFINES
 
 add_library(mfbe_shell_logic STATIC
   src/file_dialog_request.cpp
-  src/file_dialog_request.h)
+  src/file_dialog_request.h
+  src/release_request.cpp
+  src/release_request.h)
 target_include_directories(mfbe_shell_logic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(mfbe_shell_logic PUBLIC mfbe_paths PRIVATE mfbe::options)
 

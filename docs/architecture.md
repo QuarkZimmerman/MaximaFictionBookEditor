@@ -50,8 +50,13 @@ display (Constitution II).
 * HTTP serves the UI bundle (`GET /`, assets), binaries by id (`/binary/{docId}/{id}` and
   scaled `/preview`), raw uploads (`POST /binary/{docId}` for paste and drag-and-drop), script
   package files (`/scripts/{scriptId}/{file}`) and `/health`.
-* Nothing else is network: the editor has no outbound connections, no telemetry, no update
-  checks (FR-125, Constitution VI).
+* Nothing else is network: no telemetry and no outbound connection of its own (FR-125,
+  Constitution VI) - except Help > Check for new version (feature 002, decision D15): only on
+  that command the shell sends one `GET .../releases/latest` to GitHub with CEF's network stack
+  (Accept and User-Agent headers only, no cookies or credentials, 15-second limit;
+  `app/src/release_request.*`, `dialog_provider.cpp`) and the core relays the answer as
+  `app.latestRelease`. The page and user scripts keep the engine-level network block; the
+  release page and About links open in the system browser.
 
 Files: `core/src/server/http_server.cpp` (auth, static files, CSP), `ws_rpc.cpp` (WebSocket
 endpoint), `rpc_router.cpp` (dispatcher, jobs), `handlers/*.cpp` (one file per contract

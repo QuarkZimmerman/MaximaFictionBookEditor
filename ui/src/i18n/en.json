@@ -107,6 +107,7 @@
     },
     "help": {
       "caption": "&Help",
+      "checkVersion": "Check for new &version...",
       "about": "&About Maxima Fiction Book Editor..."
     }
   },
@@ -462,6 +463,10 @@
       }
     },
     "help": {
+      "checkVersion": {
+        "tooltip": "Check for new version",
+        "description": "Look for a newer release of the editor on its release page"
+      },
       "about": {
         "tooltip": "About",
         "description": "Display program information, version number and copyright"
@@ -854,6 +859,11 @@
     "generateNewId": "Are you sure you want to generate a new ID?\n\nThis will affect library submission.\nPrevious value will be lost!",
     "notFictionBook": "{{path}} is not a FictionBook (FB2) document and cannot be opened.",
     "openFailed": "Cannot open {{path}}.\n{{reason}}",
+    "versionCheck": {
+      "newVersion": "A new version of Maxima Fiction Book Editor is available: {{version}}.\nOpen its page?",
+      "latest": "You have the latest version of Maxima Fiction Book Editor.",
+      "cantConnect": "Can't connect to server"
+    },
     "templateIssue": "The template {{path}} cannot be used: {{reason}}. The built-in template was used for the new document.",
     "templateReason": {
       "unreadable": "the file cannot be read",

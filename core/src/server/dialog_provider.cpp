@@ -297,6 +297,26 @@ ReleaseResult release_result_from_json(const json& j) {
     return r;
 }
 
+ReleaseResult release_from_github(int http_status, std::string_view body) {
+    ReleaseResult r;
+    if (http_status != 200) {
+        r.error = "http";
+        return r;
+    }
+    const json answer = json::parse(body, nullptr, false);
+    const auto flag = [&answer](const char* name) {
+        const auto it = answer.find(name);
+        return it != answer.end() && it->is_boolean() && it->get<bool>();
+    };
+    const auto tag = answer.is_object() ? answer.find("tag_name") : answer.end();
+    if (!answer.is_object() || tag == answer.end() || !tag->is_string() ||
+        tag->get<std::string>().empty() || flag("draft") || flag("prerelease")) {
+        r.error = "format";
+        return r;
+    }
+    return release_result_from_json(json{{"tag", tag->get<std::string>()}});
+}
+
 /* ----------------------------------------------------------------------------------------- */
 /* QueuedDialogProvider                                                                       */
 /* ----------------------------------------------------------------------------------------- */

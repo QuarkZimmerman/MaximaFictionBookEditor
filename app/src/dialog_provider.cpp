@@ -6,6 +6,9 @@
 #include "include/base/cef_callback.h"
 #include "include/base/cef_logging.h"
 #include "include/cef_parser.h"
+#include "include/cef_request.h"
+#include "include/cef_response.h"
+#include "include/cef_urlrequest.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_browser_view_delegate.h"
 #include "include/views/cef_window.h"
@@ -13,6 +16,7 @@
 #include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 #include "native_actions.h"
+#include "release_request.h"
 
 #include <mfbe/utf8_paths.hpp>
 
@@ -545,6 +549,98 @@ std::string NativeDialogs::language() {
 
 namespace {
 
+// Sends the latest-release request (release_request.h) on the UI thread and hands the answer to
+// the core exactly once: the release (read by mfbe::release_from_github, "http" / "format" on a
+// bad answer), "offline" when no answer came, "timeout" when it was cancelled after the limit.
+class ReleaseRequestClient final : public CefURLRequestClient {
+public:
+    using Done = mfbe::DialogProvider::Callback<mfbe::ReleaseResult>;
+
+    explicit ReleaseRequestClient(Done done) : done_(std::move(done)) {}
+
+    static void start(Done done) {
+        CEF_REQUIRE_UI_THREAD();
+        const ReleaseRequest spec = releaseRequest(MFBE_VERSION);
+        CefRefPtr<CefRequest> request = CefRequest::Create();
+        request->SetURL(spec.url);
+        request->SetMethod(spec.method);
+        CefRequest::HeaderMap headers;
+        for (const auto& [name, value] : spec.headers) {
+            headers.insert({name, value});
+        }
+        request->SetHeaderMap(headers);
+        int flags = UR_FLAG_DISABLE_CACHE;
+        if (spec.send_credentials) {
+            flags |= UR_FLAG_ALLOW_STORED_CREDENTIALS;
+        }
+        request->SetFlags(flags);
+        CefRefPtr<ReleaseRequestClient> client = new ReleaseRequestClient(std::move(done));
+        CefRefPtr<CefURLRequest> sent = CefURLRequest::Create(request, client, nullptr);
+        CefPostDelayedTask(TID_UI,
+                           base::BindOnce(&ReleaseRequestClient::cancelAfterLimit, client, sent),
+                           spec.timeout_ms);
+    }
+
+    void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
+        CEF_REQUIRE_UI_THREAD();
+        mfbe::ReleaseResult result;
+        if (too_large_) {
+            result.error = "format";
+        } else if (request->GetRequestStatus() == UR_SUCCESS) {
+            CefRefPtr<CefResponse> response = request->GetResponse();
+            result = mfbe::release_from_github(response ? response->GetStatus() : 0, body_);
+        } else {
+            result.error = timed_out_ ? "timeout" : "offline";
+        }
+        finish(std::move(result));
+    }
+
+    void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+    void OnDownloadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+
+    void OnDownloadData(CefRefPtr<CefURLRequest> request, const void* data,
+                        size_t data_length) override {
+        // A release description is a few kilobytes; anything far larger is not one.
+        if (body_.size() + data_length > kMaxBodyBytes) {
+            too_large_ = true;
+            request->Cancel();
+            return;
+        }
+        body_.append(static_cast<const char*>(data), data_length);
+    }
+
+    bool GetAuthCredentials(bool, const CefString&, int, const CefString&, const CefString&,
+                            CefRefPtr<CefAuthCallback>) override {
+        return false;  // never answers an authentication request
+    }
+
+private:
+    static constexpr size_t kMaxBodyBytes = 1024 * 1024;
+
+    void cancelAfterLimit(CefRefPtr<CefURLRequest> request) {
+        if (done_) {
+            timed_out_ = true;
+            request->Cancel();
+        }
+    }
+
+    void finish(mfbe::ReleaseResult result) {
+        if (!done_) {
+            return;
+        }
+        Done done = std::move(done_);
+        done_ = nullptr;
+        done(std::move(result));
+    }
+
+    Done done_;
+    std::string body_;
+    bool timed_out_ = false;
+    bool too_large_ = false;
+
+    IMPLEMENT_REFCOUNTING(ReleaseRequestClient);
+};
+
 // Implements the core's asynchronous DialogProvider (core/include/mfbe/dialog_provider.hpp)
 // on top of NativeDialogs: each call posts the dialog to the CEF UI thread and invokes the
 // core's callback exactly once from there (the core marshals the result to its own thread).
@@ -643,6 +739,13 @@ public:
 
     // app.beep: the system sound of a search that continued from the other end.
     void beep() override { CefPostTask(TID_UI, base::BindOnce(&systemBeep)); }
+
+    // app.latestRelease (Help > Check for new version): the only request the editor sends.
+    void latest_release(Callback<mfbe::ReleaseResult> done) override {
+        if (!CefPostTask(TID_UI, base::BindOnce(&ReleaseRequestClient::start, std::move(done)))) {
+            throw mfbe::DialogUnavailable("the shell message loop is not running");
+        }
+    }
 
 private:
     static std::vector<FileFilter> toShellFilters(const std::vector<mfbe::FileFilter>& filters) {

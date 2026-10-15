@@ -47,7 +47,9 @@ instead of a second window starting.
 - macOS 13 and newer (Apple Silicon and Intel), best effort: built and smoke-tested by CI.
 
 The interface is available in English and Russian; the feature set is the same on every
-platform. The editor works offline and sends no telemetry.
+platform. The editor works offline and sends no telemetry. Its only network request is Help >
+Check for new version, made only when you choose it: it asks GitHub for the latest release of
+the editor and sends nothing else (no identifiers, settings or usage data).
 
 ## Build from source
 

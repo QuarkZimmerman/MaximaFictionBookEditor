@@ -446,7 +446,7 @@ test.describe('menus from the keyboard', () => {
     await expect(page.getByTestId('status-message')).toHaveText('Ready');
     await page.keyboard.press('Alt+h');
     await expect(page.getByTestId('menu-help-popup')).toBeVisible();
-    await page.keyboard.press('Enter'); // first item: About
+    await page.keyboard.press('a'); // About's accelerator (after Check for new version)
     const about = page.getByTestId('dialog-about');
     await expect(about).toBeVisible();
     assertCycle(await tabCycle(page, 'dialog-about'), 'About');

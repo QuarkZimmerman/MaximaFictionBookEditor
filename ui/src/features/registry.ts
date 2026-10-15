@@ -2,6 +2,7 @@ import type { FeatureContext } from '@/app/services';
 
 import { registerDescriptionFeature } from './description';
 import { registerEditingFeature } from './editing';
+import { registerHelpFeature } from './help';
 import { registerImagesFeature } from './images';
 import { registerScriptsFeature } from './scripts';
 import { registerSettingsFeature } from './settings';
@@ -25,4 +26,5 @@ export const featureRegistrars: Array<(ctx: FeatureContext) => void> = [
   registerWordsFeature,
   registerSettingsFeature,
   registerScriptsFeature,
+  registerHelpFeature,
 ];

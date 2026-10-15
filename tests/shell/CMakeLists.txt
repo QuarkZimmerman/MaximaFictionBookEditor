@@ -1,5 +1,5 @@
 # Unit tests of the CEF shell's logic without CEF types (feature 002): how a file dialog request
-# becomes each platform's dialog. Built with the application presets; the CI app jobs run them
+# becomes each platform's dialog, and the latest-release request. Built with the application presets; the CI app jobs run them
 # with `ctest -L shell`.
 find_package(Catch2 3 CONFIG REQUIRED)
 
