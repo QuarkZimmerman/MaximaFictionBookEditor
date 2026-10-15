@@ -161,6 +161,48 @@ describe('RpcClient', () => {
     socket().receive({ jsonrpc: '2.0', id: 1, result: {} });
   });
 
+  it('lets file dialog requests wait without a time limit and reports while they are open', async () => {
+    const { client, socket } = setup();
+    client.connect();
+    socket().open();
+    const changes: boolean[] = [];
+    const off = client.onFileDialog((open) => changes.push(open));
+    expect(client.fileDialogOpen).toBe(false);
+
+    // The user may take minutes in the dialog: no client timeout (the default here is 1 s).
+    const open = client.call('dialog.openFile', { title: 'Open', filters: [] });
+    const save = client.call('dialog.saveFile', { title: 'Save As', filters: [] });
+    expect(client.fileDialogOpen).toBe(true);
+    expect(changes).toEqual([true]);
+    vi.advanceTimersByTime(120_000);
+    socket().receive({ jsonrpc: '2.0', id: 1, result: { paths: ['/книги/a.fb2'] } });
+    await expect(open).resolves.toEqual({ paths: ['/книги/a.fb2'] });
+    expect(client.fileDialogOpen).toBe(true); // Save As still waits
+    socket().receive({
+      jsonrpc: '2.0',
+      id: 2,
+      error: { code: 1050, message: 'dialog.unavailable' },
+    });
+    await expect(save).rejects.toMatchObject({ code: 1050 });
+    expect(client.fileDialogOpen).toBe(false);
+    expect(changes).toEqual([true, false]);
+
+    // Other requests keep their time limit and are not reported.
+    const info = client.call('app.info');
+    const rejection = expect(info).rejects.toMatchObject({ code: RpcErrorCode.clientTimeout });
+    vi.advanceTimersByTime(1000);
+    await rejection;
+    expect(changes).toEqual([true, false]);
+
+    // A lost connection ends the wait.
+    const folder = client.call('dialog.pickFolder', { title: 'Folder' });
+    expect(changes).toEqual([true, false, true]);
+    socket().serverClose();
+    await expect(folder).rejects.toMatchObject({ code: RpcErrorCode.clientDisconnected });
+    expect(changes).toEqual([true, false, true, false]);
+    off();
+  });
+
   it('ignores malformed frames and unexpected ids', async () => {
     const { client, socket } = setup();
     client.connect();

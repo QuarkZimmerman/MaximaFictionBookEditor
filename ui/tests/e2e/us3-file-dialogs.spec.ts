@@ -401,3 +401,68 @@ for (const language of ['en', 'ru'] as const) {
     });
   });
 }
+
+/** The JSON-RPC message of a WebSocket frame (null for anything else). */
+function rpcMessage(frame: string | Buffer): { id?: unknown; method?: unknown } | null {
+  try {
+    const message: unknown = JSON.parse(frame.toString());
+    return typeof message === 'object' && message !== null ? message : null;
+  } catch {
+    return null;
+  }
+}
+
+test.describe('US3 (feature 002) - the editor waits for an open file dialog', () => {
+  test.beforeEach(async ({ core }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+  });
+
+  test('clicks and keys reach nothing while a file dialog is open, as behind a modal dialog', async ({
+    core,
+    page,
+  }) => {
+    // The answer of File > Open is held back: the dialog stays "open" until the test lets it go.
+    const dialog = { requestId: null as unknown, held: [] as (string | Buffer)[], holding: true };
+    const answers: { send: (frame: string | Buffer) => void }[] = [];
+    await page.routeWebSocket(/\/rpc\?/, (ws) => {
+      const server = ws.connectToServer();
+      answers.push(ws);
+      ws.onMessage((frame) => {
+        const request = rpcMessage(frame);
+        if (request?.method === 'dialog.openFile') dialog.requestId = request.id;
+        server.send(frame);
+      });
+      server.onMessage((frame) => {
+        const answer = rpcMessage(frame);
+        if (dialog.holding && answer?.id !== undefined && answer.id === dialog.requestId) {
+          dialog.held.push(frame);
+          return;
+        }
+        ws.send(frame);
+      });
+    });
+    await openApp(core, page, 'en');
+    await expect(paragraph(page)).toBeVisible();
+    const before = await page.getByTestId('body-editor').innerText();
+
+    await core.enqueueDialog('dialog.openFile', { paths: [] });
+    await menu(page, 'file', 'open');
+    await expect.poll(() => dialog.held.length).toBe(1);
+    const root = page.locator('#root');
+    await expect(root).toHaveAttribute('inert', '');
+    await page.getByTestId('menu-file').click({ force: true });
+    await expect(page.getByTestId('menu-file-popup')).toHaveCount(0);
+    await paragraph(page).click({ force: true });
+    await page.keyboard.type('typed behind the dialog');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('body-editor')).toHaveText(before);
+
+    // The dialog closes: the editor takes input again.
+    dialog.holding = false;
+    for (const frame of dialog.held.splice(0)) answers.at(-1)!.send(frame);
+    await expect(root).not.toHaveAttribute('inert');
+    await clickIntoParagraph(page);
+    await page.keyboard.type('after');
+    await expect(page.getByTestId('body-editor')).toContainText('after');
+  });
+});
