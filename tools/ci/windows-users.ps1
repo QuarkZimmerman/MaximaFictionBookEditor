@@ -99,6 +99,8 @@ function Show-EditorLogs([string]$Exe, [string]$ProfileDir, [string[]]$Outputs, 
 # released (uninstall, deleting the folder).
 function Stop-Editor([System.Diagnostics.Process]$Process, [string]$Exe) {
     & taskkill.exe /PID $Process.Id /T /F 2>&1 | Out-Null
+    # The editor may have ended on its own (File > Exit): taskkill's failure is not the caller's.
+    $global:LASTEXITCODE = 0
     $folder = Split-Path -Parent $Exe
     $stopDeadline = (Get-Date).AddSeconds(30)
     while ((Get-Date) -lt $stopDeadline -and
