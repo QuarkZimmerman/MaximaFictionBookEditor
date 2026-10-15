@@ -122,19 +122,19 @@ scripts that ask about every place they change (04, 05, 06, 07, 08, 10, 14, 15, 
 the other place-quotes variants (12/002–006: the 12/001 engine started at another level or at
 the caret) and 12/007–014, which only move the selection.
 
-Development host (4 vCPU VM shared with other jobs, Debug core, headless Chromium), three runs
+Development host (4 vCPU VM shared with other jobs, Debug core, headless Chromium), four runs
 on 2026-10-15, milliseconds:
 
 | Script | 1 MB before | 1 MB after | 10 MB after | 10 MB / 1 MB |
 | --- | ---: | ---: | ---: | ---: |
 | 06/general-cleanup | 8 473 | 564–1 184 | 3 848–5 188 | 3.4–6.8 |
-| 06/latin-to-cyrillic | 282 | 299–487 | 1 588–1 862 | 3.4–5.3 |
-| 06/external-links-to-text | 88 | 104–160 | 705–971 | 5.1–6.8 |
-| 06/remove-style-tags | 103 | 102–172 | 742–875 | 4.8–7.3 |
-| 12/place-quotes | 3 219 | 84–155 | 610–686 | 4.2–7.3 |
-| 12/place-guillemets-only | 3 136 | 86–145 | 531–613 | 3.7–6.8 |
-| 13/subtitles-empty-lines | 32 | 32–55 | 108–120 | 2.0–3.8 |
-| 13/subtitles-empty-lines-unbold-titles | 24 | 36–81 | 111–158 | 1.4–4.4 |
+| 06/latin-to-cyrillic | 282 | 287–487 | 1 588–1 862 | 3.4–6.1 |
+| 06/external-links-to-text | 88 | 101–160 | 690–971 | 5.1–6.8 |
+| 06/remove-style-tags | 103 | 100–172 | 742–875 | 4.8–7.8 |
+| 12/place-quotes | 3 219 | 84–155 | 492–686 | 4.2–7.3 |
+| 12/place-guillemets-only | 3 136 | 86–145 | 502–613 | 3.7–6.8 |
+| 13/subtitles-empty-lines | 32 | 32–55 | 101–120 | 2.0–3.8 |
+| 13/subtitles-empty-lines-unbold-titles | 24 | 32–81 | 98–158 | 1.4–4.4 |
 | 13/subtitles-empty-lines-plain-titles | 27 | 44–76 | 112–140 | 1.5–3.2 |
 
 "Before" is release 0.0.1's run model (commit `d5581a8`, one run); its 10 MB times were not
