@@ -206,6 +206,7 @@ The app presets download the pinned CEF binary distribution once (about 300 MB, 
 cmake --preset linux-app-release
 cmake --build --preset linux-app-release
 build/linux-app-release/bin/mfbe --version
+ctest --preset linux-app-release -L shell
 ```
 
 <!-- replay:windows -->
@@ -218,6 +219,7 @@ wix extension add -g WixToolset.Util.wixext
 cmake --preset windows-app-release
 cmake --build --preset windows-app-release
 build\windows-app-release\bin\mfbe.exe --version
+ctest --preset windows-app-release -L shell
 ```
 
 <!-- replay:macos -->
@@ -225,11 +227,14 @@ build\windows-app-release\bin\mfbe.exe --version
 cmake --preset macos-app-release
 cmake --build --preset macos-app-release
 build/macos-app-release/bin/mfbe.app/Contents/MacOS/mfbe --version
+ctest --preset macos-app-release -L shell
 ```
 
 `mfbe --version` prints the editor version together with the CEF and Chromium versions
-(on Windows the output appears in the terminal the command was started from). The WiX
-commands are only needed for the MSI package (section 4); `dotnet tool update` installs the
+(on Windows the output appears in the terminal the command was started from); `ctest -L
+shell` runs the shell's unit tests (how a file dialog request becomes each platform's
+dialog). The WiX commands are only needed for the MSI package (section 4); `dotnet tool
+update` installs the
 tool when it is missing and updates it otherwise, and the `PATH` line makes it available in
 the current terminal right away (new terminals pick it up automatically). WiX v7 asks every
 machine to acknowledge its Open Source Maintenance Fee EULA once (`wix eula accept wix7`,
