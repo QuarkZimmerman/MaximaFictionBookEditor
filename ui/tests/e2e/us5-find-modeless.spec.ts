@@ -15,7 +15,7 @@ import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { pageText } from './fixtures/i18n';
-import { MOD } from './fixtures/keys';
+import { MOD, REPLACE } from './fixtures/keys';
 
 const WORD = 'разыскать';
 const OCCURRENCES = 20;
@@ -156,7 +156,7 @@ test.describe('US5 - Find and Replace work on the visible text', () => {
     );
     await page.getByTestId('dialog-search-message-button-ok').click();
     await page.getByTestId('dialog-find-button-cancel').click();
-    await page.keyboard.press(`${MOD}+h`);
+    await page.keyboard.press(REPLACE);
     await page.getByTestId('dialog-replace-query').fill('отсутствует');
     await page.getByTestId('dialog-replace-button-findNext').click();
     await expect(page.getByTestId('dialog-search-message')).toContainText(
@@ -227,7 +227,7 @@ test.describe('US5 - Find and Replace work on the visible text', () => {
     expect(Math.round(moved.y - before.y)).toBe(-100);
     await page.getByTestId('dialog-find-button-cancel').click();
 
-    await page.keyboard.press(`${MOD}+h`);
+    await page.keyboard.press(REPLACE);
     const replace = (await page.getByTestId('dialog-replace').boundingBox())!;
     expect(Math.round(replace.x)).toBe(Math.round(moved.x));
     expect(Math.round(replace.y)).toBe(Math.round(moved.y));
@@ -282,7 +282,7 @@ test.describe('US5 - Find and Replace work on the visible text', () => {
   }) => {
     test.setTimeout(120_000);
     await openBook(core, page);
-    await page.keyboard.press(`${MOD}+h`);
+    await page.keyboard.press(REPLACE);
     await page.getByTestId('dialog-replace-query').fill(WORD);
     await page.getByTestId('dialog-replace-with').fill('найти');
     await page.getByTestId('dialog-replace-button-findNext').click();
@@ -300,7 +300,7 @@ test.describe('US5 - Find and Replace work on the visible text', () => {
     expect(await occurrences(page, WORD)).toBe(OCCURRENCES);
 
     // Replace All: one undo step for the whole book.
-    await page.keyboard.press(`${MOD}+h`);
+    await page.keyboard.press(REPLACE);
     await page.getByTestId('dialog-replace-query').fill(WORD);
     await page.getByTestId('dialog-replace-with').fill('найти');
     await page.getByTestId('dialog-replace-button-replaceAll').click();
