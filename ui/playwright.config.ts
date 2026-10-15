@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 
 import { defineConfig, devices } from '@playwright/test';
 
+import type { CoreOptions } from './tests/e2e/fixtures/core';
+
 /**
  * How the UI under test is served (see tests/e2e/fixtures/core.ts):
  *  - MFBE_CORE_BIN=/path/to/mfbe-core  -> each worker starts its own core serving ui/dist;
@@ -18,7 +20,7 @@ const previewUrl = `http://127.0.0.1:${previewPort}/`;
 const distReady = existsSync(fileURLToPath(new URL('./dist/index.html', import.meta.url)));
 const useVitePreview = !coreBin && !uiUrl;
 
-export default defineConfig({
+export default defineConfig<CoreOptions>({
   testDir: 'tests/e2e',
   testIgnore: ['**/shell/**'], // CEF shell specs run through tools/shell-smoke.sh
   // Hosted CI runners are 2-3x slower than the development host: longer budgets there.
@@ -38,6 +40,19 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      // The main journeys again with the Russian interface (feature 002).
+      name: 'chromium-ru',
+      testMatch: [
+        'us1-open-save.spec.ts',
+        'us2-body-editing.spec.ts',
+        'us2-template.spec.ts',
+        'us5-find-modeless.spec.ts',
+        'us8-toolbars.spec.ts',
+        'us12-scripts.spec.ts',
+      ],
+      use: { ...devices['Desktop Chrome'], locale: 'ru-RU', uiLang: 'ru' },
     },
   ],
   webServer: useVitePreview

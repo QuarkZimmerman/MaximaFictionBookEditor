@@ -26,7 +26,15 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { expect, fixtureBook, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  fixtureBook,
+  test,
+  waitForBook,
+  type CoreHandle,
+  type RpcCallError,
+} from './fixtures/core';
+import { pagePattern, pageText, untitledTitle } from './fixtures/i18n';
 import type { Page } from '@playwright/test';
 import { MOD } from './fixtures/keys';
 
@@ -230,7 +238,9 @@ test.describe('US1 - open, review and save a book without loss', () => {
     const source = legacyBook(dir);
     const target = path.join(dir, 'scenario1-utf8.fb2');
     await core.openApp(page);
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
 
     await openViaDialog(core, page, source);
     await expect(page.getByTestId('body-view')).toBeVisible();
@@ -255,7 +265,7 @@ test.describe('US1 - open, review and save a book without loss', () => {
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-saveAs').click();
     await expect(page.getByTestId('status-message')).toHaveText(
-      'Document saved - No errors found.',
+      await pageText(page, 'status.savedNoErrors'),
     );
     await expect(page).toHaveTitle(`scenario1-utf8.fb2 - ${APP_TITLE}`);
 
@@ -294,14 +304,16 @@ test.describe('US1 - open, review and save a book without loss', () => {
     await core.rpc('settings.set', { patch: { other: { keepEncoding: true } } });
     try {
       await core.openApp(page);
-      await expect(page.getByTestId('status-message')).toHaveText('Ready');
+      await expect(page.getByTestId('status-message')).toHaveText(
+        await pageText(page, 'status.ready'),
+      );
       await openViaDialog(core, page, copy);
-      await expect(page.getByTestId('body-view')).toBeVisible();
+      await waitForBook(page, copy);
 
       // Plain Save: no dialog, the file stays windows-1251.
       await page.getByTestId('toolbar-file.save').click();
       await expect(page.getByTestId('status-message')).toHaveText(
-        'Document saved - No errors found.',
+        await pageText(page, 'status.savedNoErrors'),
       );
       const savedBytes = readFileSync(copy);
       expect(savedBytes.toString('latin1')).toMatch(/encoding="windows-1251"/i);
@@ -332,12 +344,16 @@ test.describe('US1 - open, review and save a book without loss', () => {
   }) => {
     const file = malformedBook(dir);
     await core.openApp(page);
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
 
     await openViaDialog(core, page, file);
     const error = page.getByTestId('dialog-parse-error');
     await expect(error).toBeVisible();
-    await expect(page.getByTestId('dialog-parse-error-text')).toHaveText(/line \d+, column \d+/);
+    await expect(page.getByTestId('dialog-parse-error-text')).toHaveText(
+      await pagePattern(page, 'msg.xmlParseError'),
+    );
     await page.getByTestId('dialog-parse-error-button-ok').click();
 
     await expect(page.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
@@ -350,7 +366,9 @@ test.describe('US1 - open, review and save a book without loss', () => {
     await page.getByTestId('view-body').click();
     const badXml = page.getByTestId('dialog-bad-xml');
     await expect(badXml).toBeVisible();
-    await expect(page.getByTestId('dialog-bad-xml-text')).toContainText('invalid XML document');
+    await expect(page.getByTestId('dialog-bad-xml-text')).toContainText(
+      (await pageText(page, 'msg.badXml')).split('\n')[0]!,
+    );
     await page.getByTestId('dialog-bad-xml-button-ok').click();
     await expect(page.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('source-parse-error')).toBeVisible();
@@ -372,7 +390,9 @@ test.describe('US1 - open, review and save a book without loss', () => {
     page,
   }) => {
     await core.openApp(page);
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
 
     // Plain text, another XML vocabulary and binary content: one message each, no document.
     const notes = path.join(dir, 'notes.txt');
@@ -385,8 +405,8 @@ test.describe('US1 - open, review and save a book without loss', () => {
       await openViaDialog(core, page, file);
       const refused = page.getByTestId('dialog-not-fictionbook');
       await expect(refused).toBeVisible();
-      await expect(page.getByTestId('dialog-not-fictionbook-text')).toContainText(
-        'not a FictionBook',
+      await expect(page.getByTestId('dialog-not-fictionbook-text')).toHaveText(
+        await pagePattern(page, 'msg.notFictionBook'),
       );
       await refused.getByTestId('dialog-not-fictionbook-button-ok').click();
       await expect(refused).toBeHidden();
@@ -408,9 +428,11 @@ test.describe('US1 - open, review and save a book without loss', () => {
     const copy = path.join(dir, 'scenario4-prompt.fb2');
     copyFileSync(legacyBook(dir), copy);
     await core.openApp(page);
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
     await openViaDialog(core, page, copy);
-    await expect(page.getByTestId('body-view')).toBeVisible();
+    await waitForBook(page, copy);
     await editInSource(page, copy, 'scenario four');
 
     // New -> Cancel keeps the document.
@@ -418,7 +440,7 @@ test.describe('US1 - open, review and save a book without loss', () => {
     const prompt = page.getByTestId('dialog-save-changes');
     await expect(prompt).toBeVisible();
     await expect(page.getByTestId('dialog-save-changes-text')).toHaveText(
-      'Save changes to scenario4-prompt.fb2?',
+      await pageText(page, 'msg.saveChanges', { name: 'scenario4-prompt.fb2' }),
     );
     await page.getByTestId('dialog-save-changes-button-cancel').click();
     await expect(prompt).toBeHidden();
@@ -447,7 +469,7 @@ test.describe('US1 - open, review and save a book without loss', () => {
     await expect(prompt).toBeVisible();
     await page.getByTestId('dialog-save-changes-button-yes').click();
     await expect(prompt).toBeHidden();
-    await expect(page).toHaveTitle(`Untitled - ${APP_TITLE}`);
+    await expect(page).toHaveTitle(await untitledTitle(page));
     await expect(page.getByTestId('body-view')).toBeVisible();
     expect(readFileSync(copy, 'latin1')).toContain('scenario four');
   });
@@ -459,9 +481,11 @@ test.describe('US1 - open, review and save a book without loss', () => {
     const copy = path.join(dir, 'scenario5-external.fb2');
     copyFileSync(legacyBook(dir), copy);
     await core.openApp(page);
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
     await openViaDialog(core, page, copy);
-    await expect(page.getByTestId('body-view')).toBeVisible();
+    await waitForBook(page, copy);
 
     // Another program rewrites the file (new size + mtime) with a changed title.
     await page.waitForTimeout(1200);
@@ -473,7 +497,7 @@ test.describe('US1 - open, review and save a book without loss', () => {
     const prompt = page.getByTestId('dialog-file-changed');
     await expect(prompt).toBeVisible({ timeout: 5_000 });
     await expect(page.getByTestId('dialog-file-changed-text')).toContainText(
-      'scenario5-external.fb2 has been changed by another application',
+      (await pageText(page, 'msg.fileChanged', { name: 'scenario5-external.fb2' })).split('\n')[0]!,
     );
     await page.getByTestId('dialog-file-changed-button-yes').click();
     await expect(prompt).toBeHidden();
@@ -489,16 +513,20 @@ test.describe('US1 - open, review and save a book without loss', () => {
     copyFileSync(legacyBook(dir), copy);
     const before = readFileSync(copy);
     await core.openApp(page);
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
     await openViaDialog(core, page, copy);
-    await expect(page.getByTestId('body-view')).toBeVisible();
+    await waitForBook(page, copy);
     await editInSource(page, copy, 'scenario six');
 
     await core.rpc('test.injectFault', { point: 'before_rename' });
     await page.getByTestId('toolbar-file.save').click();
     const failed = page.getByTestId('dialog-save-failed');
     await expect(failed).toBeVisible();
-    await expect(page.getByTestId('dialog-save-failed-text')).toContainText('Cannot save');
+    await expect(page.getByTestId('dialog-save-failed-text')).toHaveText(
+      await pagePattern(page, 'msg.saveFailed'),
+    );
     await page.getByTestId('dialog-save-failed-button-ok').click();
 
     expect(readFileSync(copy).equals(before)).toBe(true);
@@ -508,7 +536,7 @@ test.describe('US1 - open, review and save a book without loss', () => {
     await core.rpc('test.injectFault', { point: 'none' });
     await page.getByTestId('toolbar-file.save').click();
     await expect(page.getByTestId('status-message')).toHaveText(
-      'Document saved - No errors found.',
+      await pageText(page, 'status.savedNoErrors'),
     );
     await expect(page).toHaveTitle(`scenario6-fault.fb2 - ${APP_TITLE}`);
     expect(readFileSync(copy).equals(before)).toBe(false);
@@ -521,15 +549,19 @@ test.describe('US1 - open, review and save a book without loss', () => {
     const copy = path.join(dir, 'scenario7-recent.fb2');
     copyFileSync(legacyBook(dir), copy);
     await core.openApp(page);
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
     await openViaDialog(core, page, copy);
-    await expect(page.getByTestId('body-view')).toBeVisible();
+    await waitForBook(page, copy);
 
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-validate').click();
     const panel = page.getByTestId('validation-panel');
     await expect(panel).toBeVisible();
-    await expect(page.getByTestId('validation-summary')).toContainText('No errors found.');
+    await expect(page.getByTestId('validation-summary')).toContainText(
+      await pageText(page, 'status.noErrors'),
+    );
     await page.getByTestId('validation-close').click();
     await expect(panel).toBeHidden();
 

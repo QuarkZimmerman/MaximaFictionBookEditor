@@ -14,6 +14,7 @@
 import type { Page } from '@playwright/test';
 
 import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { pageText } from './fixtures/i18n';
 import { MOD } from './fixtures/keys';
 
 const WORD = 'разыскать';
@@ -52,7 +53,7 @@ const MATCH_PROBE = `(() => {
 
 async function openBook(core: CoreHandle, page: Page): Promise<void> {
   await core.openApp(page);
-  await expect(page.getByTestId('status-message')).toHaveText('Ready');
+  await expect(page.getByTestId('status-message')).toHaveText(await pageText(page, 'status.ready'));
   await core.enqueueDialog('dialog.openFile', { paths: [BOOK] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
@@ -151,7 +152,7 @@ test.describe('US5 - Find and Replace work on the visible text', () => {
     await openFind(page, 'отсутствует');
     await page.getByTestId('dialog-find-button-findNext').click();
     await expect(page.getByTestId('dialog-search-message')).toContainText(
-      "Cannot find the string 'отсутствует'.",
+      await pageText(page, 'msg.searchFailed', { text: 'отсутствует' }),
     );
     await page.getByTestId('dialog-search-message-button-ok').click();
     await page.getByTestId('dialog-find-button-cancel').click();
@@ -159,7 +160,7 @@ test.describe('US5 - Find and Replace work on the visible text', () => {
     await page.getByTestId('dialog-replace-query').fill('отсутствует');
     await page.getByTestId('dialog-replace-button-findNext').click();
     await expect(page.getByTestId('dialog-search-message')).toContainText(
-      "Finished searching for 'отсутствует'.",
+      await pageText(page, 'msg.searchFinished', { text: 'отсутствует' }),
     );
   });
 

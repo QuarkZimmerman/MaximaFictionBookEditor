@@ -26,6 +26,8 @@ import { fileURLToPath } from 'node:url';
 
 import { test as base, expect, type Page } from '@playwright/test';
 
+import { uiText, type UiLang } from './i18n';
+
 export { expect };
 
 const UI_DIR = fileURLToPath(new URL('../../..', import.meta.url));
@@ -40,8 +42,13 @@ export const APP_TITLE = 'Maxima Fiction Book Editor';
  * 002): tests that switch views or start editing act on it.
  */
 export async function waitForStartupDocument(page: Page): Promise<void> {
-  await expect(page).toHaveTitle(`Untitled - ${APP_TITLE}`);
+  await expect(page).toHaveTitle(UNTITLED_TITLE);
 }
+
+/** The window title of the start-up document in either interface language. */
+const UNTITLED_TITLE = new RegExp(
+  `^(${uiText('en', 'app.untitled')}|${uiText('ru', 'app.untitled')}) - ${APP_TITLE}$`,
+);
 
 /**
  * Resolves once `file` is the open document (its name heads the window title). After File >
@@ -436,7 +443,23 @@ export interface CoreHandle {
   openApp(page: Page): Promise<void>;
 }
 
-export const test = base.extend<{ core: CoreHandle }, { coreServer: CoreServer }>({
+/** Options of the Playwright projects (playwright.config.ts). */
+export interface CoreOptions {
+  /** Interface language forced through `?lang=` on every page; undefined: the system's. */
+  uiLang: UiLang | undefined;
+}
+
+/** `url` with the interface language forced, when one is. */
+export function withUiLang(url: string, lang: UiLang | undefined): string {
+  if (!lang) return url;
+  const forced = new URL(url);
+  forced.searchParams.set('lang', lang);
+  return forced.toString();
+}
+
+export const test = base.extend<{ core: CoreHandle } & CoreOptions, { coreServer: CoreServer }>({
+  uiLang: [undefined, { option: true }],
+
   coreServer: [
     // Playwright requires the object-destructuring form even without dependencies.
     // eslint-disable-next-line no-empty-pattern
@@ -449,20 +472,21 @@ export const test = base.extend<{ core: CoreHandle }, { coreServer: CoreServer }
     { scope: 'worker' },
   ],
 
-  baseURL: async ({ coreServer }, use) => {
-    await use(coreServer.baseURL);
+  baseURL: async ({ coreServer, uiLang }, use) => {
+    await use(withUiLang(coreServer.baseURL, uiLang));
   },
 
-  core: async ({ coreServer }, use) => {
+  core: async ({ coreServer, uiLang }, use) => {
     const requireCore = (): NodeRpcClient => {
       if (!coreServer.rpcClient) {
         throw new Error('This test needs mfbe-core: set MFBE_CORE_BIN=/path/to/mfbe-core');
       }
       return coreServer.rpcClient;
     };
+    const baseURL = withUiLang(coreServer.baseURL, uiLang);
     const handle: CoreHandle = {
       hasCore: coreServer.hasCore,
-      baseURL: coreServer.baseURL,
+      baseURL,
       port: coreServer.port,
       token: coreServer.token,
       dataDir: coreServer.dataDir,
@@ -472,7 +496,7 @@ export const test = base.extend<{ core: CoreHandle }, { coreServer: CoreServer }
         await requireCore().call('test.enqueueDialog', { method, result });
       },
       openApp: async (page) => {
-        await page.goto(coreServer.baseURL);
+        await page.goto(baseURL);
         await page.getByTestId('app-root').waitFor();
       },
     };

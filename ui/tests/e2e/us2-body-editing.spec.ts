@@ -31,6 +31,7 @@ import {
   type CoreHandle,
   type RpcCallError,
 } from './fixtures/core';
+import { pageAnyPattern, pageText } from './fixtures/i18n';
 import type { Locator, Page } from '@playwright/test';
 import { LINE_END, LINE_START, MOD, REPLACE } from './fixtures/keys';
 
@@ -146,16 +147,17 @@ async function saveAs(core: CoreHandle, page: Page, file: string): Promise<strin
   await menu(page, 'file', 'saveAs');
   // The blank document's description is incomplete: confirm "save anyway" when asked.
   const prompt = page.getByTestId('dialog-validation-failed');
+  const saved = await pageAnyPattern(page, 'status.savedNoErrors', 'msg.errorsFound');
   await expect
     .poll(
       async () =>
         (await prompt.count()) > 0 ||
-        /saved|found/i.test(await page.getByTestId('status-message').innerText()),
+        saved.test(await page.getByTestId('status-message').innerText()),
     )
     .toBe(true);
   if ((await prompt.count()) > 0)
     await page.getByTestId('dialog-validation-failed-button-yes').click();
-  await expect(page.getByTestId('status-message')).toContainText(/saved|found/i);
+  await expect(page.getByTestId('status-message')).toContainText(saved);
   await expect(page).toHaveTitle(new RegExp(`^${path.basename(file).replace('.', '\\.')} - `));
   return readFileSync(file, 'utf8');
 }
@@ -199,7 +201,9 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
     test.skip(!(await supportsDocuments(core)), 'the core does not implement doc.* yet');
     await core.openApp(page);
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
   });
 
   test('1. Add menu: title, epigraph, annotation, text author, images, poem, cite, table, body', async ({
@@ -440,7 +444,9 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await menu(page, 'style', 'footnote');
     const notes = editor.locator('.fb-body[data-name="notes"]');
     await expect(notes).toHaveCount(1);
-    await expect(notes.locator('> .fb-title')).toHaveText('Notes');
+    await expect(notes.locator('> .fb-title')).toHaveText(
+      await pageText(page, 'editing.footnote.notesTitle'),
+    );
     await expect(notes.locator('> .fb-section[data-id="n_1"] > .fb-title')).toHaveText('1');
     await expect(page.getByTestId('status-path')).toHaveText('body[2]/section[1]/p[1]');
     await page.keyboard.type('The footnote text.');
@@ -474,7 +480,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await settle(page);
     await page.keyboard.press(`${MOD}+Backspace`);
     const message = page.getByTestId('dialog-reference-not-found');
-    await expect(message).toContainText('Reference not found.');
+    await expect(message).toContainText(await pageText(page, 'msg.referenceNotFound'));
     await page.getByTestId('dialog-reference-not-found-button-ok').click();
 
     const file = path.join(dir, 'scenario4.fb2');
@@ -562,8 +568,11 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await section.locator('.fb-stanza > p.fb-v').first().click({ button: 'right' });
     const contextMenu = page.getByTestId('context-menu');
     await expect(contextMenu).toBeVisible();
-    await expect(contextMenu.getByText('Select poem')).toBeVisible();
-    await contextMenu.getByText('Select poem').click();
+    const selectPoem = contextMenu.getByText(
+      await pageText(page, 'editing.contextMenu.select', { element: 'poem' }),
+    );
+    await expect(selectPoem).toBeVisible();
+    await selectPoem.click();
     await expect(page.getByTestId('body-view')).toHaveAttribute('data-selected-text', /Line one/);
     await page.keyboard.press(`${MOD}+c`);
 
@@ -649,7 +658,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.getByTestId('dialog-find-query').fill('zebra');
     await page.getByTestId('dialog-find-button-findNext').click();
     await expect(page.getByTestId('dialog-search-message')).toContainText(
-      "Cannot find the string 'zebra'.",
+      await pageText(page, 'msg.searchFailed', { text: 'zebra' }),
     );
     await page.getByTestId('dialog-search-message-button-ok').click();
     await page.getByTestId('dialog-find-button-cancel').click();
@@ -675,18 +684,20 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await expect(page.getByTestId('dialog-replace-query')).toHaveValue('cat');
     await page.getByTestId('dialog-replace-with').fill('dog');
     await page.getByTestId('dialog-replace-button-findNext').click();
-    await expect(page.getByTestId('dialog-replace-button-cancel')).toHaveText('Close');
+    await expect(page.getByTestId('dialog-replace-button-cancel')).toHaveText(
+      await pageText(page, 'dialog.buttons.close'),
+    );
     await page.getByTestId('dialog-replace-button-replace').click();
     await page.getByTestId('dialog-replace-button-replaceAll').click();
     const done = page.getByTestId('dialog-replace-all-done');
-    await expect(done).toContainText(/\d+ replacements? done\./);
+    await expect(done).toContainText(await pageAnyPattern(page, 'msg.replacementsDone'));
     await page.getByTestId('dialog-replace-all-done-button-ok').click();
     await expect(paragraph).toHaveText('dog dogalog dog dogegory dog.');
     await expect(second).toHaveText('Another dog here.');
     // Nothing left: Find Next in the Replace dialog says "Finished searching".
     await page.getByTestId('dialog-replace-button-findNext').click();
     await expect(page.getByTestId('dialog-search-message')).toContainText(
-      "Finished searching for 'cat'.",
+      await pageText(page, 'msg.searchFinished', { text: 'cat' }),
     );
     await page.getByTestId('dialog-search-message-button-ok').click();
     await page.getByTestId('dialog-replace-button-cancel').click();
@@ -790,18 +801,24 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await settle(page);
     await page.keyboard.press('Alt+i');
     const status = page.getByTestId('status-message');
-    await expect(status).toHaveText('Incremental Search: ');
+    await expect(status).toHaveText(await pageText(page, 'status.incrementalSearch', { text: '' }));
     await page.keyboard.type('bro');
-    await expect(status).toHaveText('Incremental Search: bro');
+    await expect(status).toHaveText(
+      await pageText(page, 'status.incrementalSearch', { text: 'bro' }),
+    );
     await expect.poll(() => selectedText(page)).toBe('bro');
     await page.keyboard.type('x');
-    await expect(status).toHaveText('Failing Incremental Search: brox');
+    await expect(status).toHaveText(
+      await pageText(page, 'status.failingIncrementalSearch', { text: 'brox' }),
+    );
     await page.keyboard.press('Backspace');
     await page.keyboard.type('wn');
-    await expect(status).toHaveText('Incremental Search: brown');
+    await expect(status).toHaveText(
+      await pageText(page, 'status.incrementalSearch', { text: 'brown' }),
+    );
     await expect.poll(() => selectedText(page)).toBe('brown');
     await page.keyboard.press('Enter');
-    await expect(status).toHaveText('Ready');
+    await expect(status).toHaveText(await pageText(page, 'status.ready'));
     await expect.poll(() => selectedText(page)).toBe('brown');
     // Escape cancels back to where the search started.
     await page.keyboard.press(LINE_START);
@@ -810,7 +827,7 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.keyboard.type('lazy');
     await expect.poll(() => selectedText(page)).toBe('lazy');
     await page.keyboard.press('Escape');
-    await expect(status).toHaveText('Ready');
+    await expect(status).toHaveText(await pageText(page, 'status.ready'));
     await expect.poll(() => selectedText(page)).toBe('');
   });
 

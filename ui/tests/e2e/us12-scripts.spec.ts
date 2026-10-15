@@ -32,6 +32,7 @@ import path from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, fileNew, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import { pageLang, pagePattern, pageText, scriptName } from './fixtures/i18n';
 import { label, LINE_END, LINE_START, MOD, SELECT_TO_LINE_END } from './fixtures/keys';
 
 const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
@@ -102,7 +103,7 @@ test.beforeEach(async ({ core }) => {
 
 async function openApp(page: Page, core: { openApp(page: Page): Promise<void> }) {
   await core.openApp(page);
-  await expect(page.getByTestId('status-message')).toHaveText('Ready');
+  await expect(page.getByTestId('status-message')).toHaveText(await pageText(page, 'status.ready'));
   // The catalogue is loaded once the feature attached to the connected client.
   await expect
     .poll(async () => page.evaluate(() => window.__mfbeTest?.scripts?.list().length ?? -1), {
@@ -291,8 +292,8 @@ test.describe('US12 scripts', () => {
       await expect(page.getByTestId('menu-scripts-openFolder')).toBeVisible();
       await expect(page.getByTestId('menu-scripts-reload')).toBeVisible();
       await page.getByTestId('menu-scripts-01_Case').hover();
-      await expect(page.getByTestId('menu-scripts-01_Case-test.case.upper')).toHaveText(
-        /To upper case/,
+      await expect(page.getByTestId('menu-scripts-01_Case-test.case.upper')).toContainText(
+        scriptName('01_Case/01_Upper', await pageLang(page)),
       );
       await expect(page.getByTestId('menu-scripts-01_Case-test.case.upper')).toContainText(
         label('Ctrl+Alt+U'),
@@ -418,14 +419,16 @@ test.describe('US12 scripts', () => {
     const dialog = page.getByTestId('dialog-script-error');
     await expect(dialog).toBeVisible();
     await expect(dialog.getByTestId('dialog-script-error-text')).toHaveText(
-      'Script error: boom at line 4, column 9',
+      await pageText(page, 'scripting.error.atLine', { message: 'boom', line: 4, column: 9 }),
     );
     await dialog.getByTestId('dialog-script-error-button-ok').click();
     await expect(dialog).toHaveCount(0);
     expect(await waitIdle(page)).toBe('failed');
     // The change made before the error is gone (feature 002): nothing to undo.
     await expect.poll(() => paragraphs(page)).toEqual(initial);
-    await expect(page.getByTestId('status-message')).toHaveText(/failed/);
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pagePattern(page, 'scripting.status.failed'),
+    );
     expect(await validate()).toBe(errorsBefore);
     await expect(page.getByTestId('toolbar-edit.undo')).toBeDisabled();
   });
@@ -554,7 +557,7 @@ test.describe('US12 scripts', () => {
     expect(commands).toContainEqual({
       id: 'script.test.tree.mark',
       scriptId: 'test.tree.mark',
-      label: 'Mark section (tree)',
+      label: scriptName('tree/01_MarkSection', await pageLang(page)),
     });
     expect(commands.filter((c) => c.scriptId.startsWith('test.'))).toHaveLength(1);
     // Tree scripts never appear in the Scripts menu (checked in scenario 1); run with the node.
@@ -627,11 +630,15 @@ test.describe('US12 scripts', () => {
     await startViaHook(page, 'test.errors.infinite');
     // The script adds a paragraph to its working copy, then loops without end: the run bar
     // offers Cancel, which terminates the worker and leaves the document as it was.
-    await expect(page.getByTestId('script-run-text')).toHaveText(/Running script/);
+    await expect(page.getByTestId('script-run-text')).toHaveText(
+      await pagePattern(page, 'scripting.status.running'),
+    );
     await page.getByTestId('script-run-cancel').click();
     expect(await waitIdle(page)).toBe('cancelled');
     await expect.poll(() => paragraphs(page)).toEqual(initial);
-    await expect(page.getByTestId('status-message')).toHaveText(/cancelled/);
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pagePattern(page, 'scripting.status.cancelled'),
+    );
     await expect(page.getByTestId('toolbar-edit.undo')).toBeDisabled();
     // The editor keeps working: the next run succeeds.
     expect((await runViaHook(page, 'test.model.append')).status).toBe('done');
@@ -667,13 +674,17 @@ test.describe('US12 scripts', () => {
     try {
       await core.rpc('scripts.reload');
       await core.openApp(page);
-      await expect(page.getByTestId('status-message')).toHaveText('Ready');
+      await expect(page.getByTestId('status-message')).toHaveText(
+        await pageText(page, 'status.ready'),
+      );
       await expect.poll(fixtureCount, { timeout: 15_000 }).toBe(0);
       await page.getByTestId('menu-scripts').click();
       if ((await bundledCount()) === 0) {
         // Every layer empty (a core without the bundled scripts folder): the placeholder.
         await expect(page.getByTestId('menu-scripts-none')).toBeVisible();
-        await expect(page.getByTestId('menu-scripts-none')).toHaveText('No scripts found');
+        await expect(page.getByTestId('menu-scripts-none')).toHaveText(
+          await pageText(page, 'menu.scripts.none'),
+        );
       } else {
         // The bundled layer still fills the menu; only the fixture groups are gone.
         note('bundled scripts present: the empty-folder placeholder cannot appear');
