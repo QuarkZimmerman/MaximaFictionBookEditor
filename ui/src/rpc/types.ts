@@ -368,6 +368,8 @@ export interface RpcMethods {
   'app.openFolder': { params: { path: string }; result: Empty };
   /** The system sound of a search that continued from the other end (feature 002). */
   'app.beep': { params: { kind: 'searchWrap' }; result: Empty };
+  /** Help > Check for new version: the latest published release (feature 002, 1060 on failure). */
+  'app.latestRelease': { params: void; result: ReleaseInfo };
   'app.setUiLanguage': {
     params: { lang: UiLanguageSetting };
     result: { restartRequired: boolean };

@@ -1,5 +1,5 @@
 // app.* handlers (T024): app.info, app.quit, app.openLogFolder, app.openFolder,
-// app.setUiLanguage.
+// app.setUiLanguage; feature 002: app.latestRelease, app.beep.
 #include "server/services.hpp"
 
 #include <mfbe/log.hpp>
@@ -86,6 +86,31 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("app.openFolder", [&services](const json& params, rpc::RpcContext&) {
         return open_folder(services, platform::path_from_utf8(rpc::params::string(params, "path")));
+    });
+
+    // Help > Check for new version (feature 002, decision D15): the shell asks the release
+    // service for the latest release; the core relays its answer. Never sent on its own.
+    router.add_async_method("app.latestRelease", [&services](const json&, rpc::RpcContext&,
+                                                             rpc::Responder respond) {
+        auto provider = services.dialog_provider();
+        if (!provider) {
+            respond.fail(rpc::RpcError(rpc::codes::kDialogUnavailable, "",
+                                       json{{"reason", "no shell to ask for the latest release"}}));
+            return;
+        }
+        try {
+            provider->latest_release([respond](ReleaseResult result) {
+                if (result.release) {
+                    respond.ok(to_json(result));
+                } else {
+                    respond.fail(rpc::RpcError(rpc::codes::kReleaseUnavailable, "",
+                                               json{{"reason", result.error}}));
+                }
+            });
+        } catch (const DialogUnavailable& e) {
+            respond.fail(
+                rpc::RpcError(rpc::codes::kDialogUnavailable, "", json{{"reason", e.what()}}));
+        }
     });
 
     // The system sound of a search that continued from the other end of the document (as the

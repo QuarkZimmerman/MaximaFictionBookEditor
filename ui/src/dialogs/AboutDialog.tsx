@@ -1,7 +1,7 @@
 /**
  * About dialog (T149, FR-126) after the original `IDD_ABOUTBOX`: product name and version,
  * build stamp, platform and browser engine (CEF / Chromium) from `app.info`, the repository
- * link, "Open log folder" (FR-131, `app.openLogFolder`), and the notices of the GNU GPL
+ * and Maxima Library links (opened in the system browser), "Open log folder" (FR-131, `app.openLogFolder`), and the notices of the GNU GPL
  * version 3 (feature 002, FR-095 to FR-098): the licence, the copyright line, no warranty,
  * where to read the licence, and - in a scrollable read-only box, as the original showed its
  * `contributors.txt` (`IDC_CONTRIBS`) - the original's contributor notice word for word.
@@ -21,6 +21,7 @@ import './about.css';
 import contributorsNotice from '../../../CONTRIBUTORS.txt?raw';
 
 export const REPOSITORY_URL = 'https://github.com/QuarkZimmerman/MaximaFictionBookEditor';
+export const MAXIMA_LIBRARY_URL = 'https://www.maxima-library.com';
 export const LICENCE_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
 
 /** The original's contributor notice as its About dialog showed it (without the final newline). */
@@ -165,6 +166,17 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
               data-testid="about-repository"
             >
               {REPOSITORY_URL}
+            </a>
+          </div>
+          <div className="mfbe-about-link">
+            {t('dialog.about.maximaLibrary')}{' '}
+            <a
+              href={MAXIMA_LIBRARY_URL}
+              target="_blank"
+              rel="noreferrer"
+              data-testid="about-maxima-library"
+            >
+              {MAXIMA_LIBRARY_URL}
             </a>
           </div>
           <div data-testid="about-licence">{t('dialog.about.licence')}</div>

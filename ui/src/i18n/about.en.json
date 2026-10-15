@@ -7,6 +7,7 @@
       "engine": "Browser engine",
       "apiVersion": "API version",
       "repository": "Source code and releases:",
+      "maximaLibrary": "Maxima Library:",
       "licence": "Licence: GNU General Public License version 3 (GPL-3.0-only)",
       "logFolder": "Diagnostics log folder:",
       "logFolderUnknown": "unknown (core not connected)",
