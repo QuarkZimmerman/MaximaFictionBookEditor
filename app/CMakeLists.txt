@@ -84,6 +84,8 @@ add_library(mfbe_shell_logic STATIC
   src/context_menu.h
   src/file_dialog_request.cpp
   src/file_dialog_request.h
+  src/permission_policy.cpp
+  src/permission_policy.h
   src/release_request.cpp
   src/release_request.h)
 target_include_directories(mfbe_shell_logic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
