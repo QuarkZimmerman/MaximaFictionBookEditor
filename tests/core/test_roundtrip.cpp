@@ -124,3 +124,39 @@ TEST_CASE("roundtrip: the comparison reports real differences", "[roundtrip]") {
     }
     CHECK(roundtrip::compare(a.document, store_a, c2.document, store_a).identical());
 }
+
+TEST_CASE("roundtrip: the document details filled in on load are written and not compared",
+          "[roundtrip]") {
+    // Feature 002: open and save fill in the id, version, program used and date as the
+    // original did; the comparison leaves exactly those fields out.
+    test::TempDir tmp{"mfbe-roundtrip-details"};
+    const std::filesystem::path input = tmp / "details.fb2";
+    test::write_text(input,
+                     "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+                     "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+                     "xmlns:l=\"http://www.w3.org/1999/xlink\"><description><title-info>"
+                     "<genre>sf</genre><book-title>Details</book-title><lang>en</lang>"
+                     "</title-info><document-info><program-used>FB Tools</program-used>"
+                     "<date/><id/><version/></document-info></description><body><section>"
+                     "<p>Text.</p></section></body></FictionBook>");
+    test::TempDir out{"mfbe-roundtrip-details-out"};
+    const roundtrip::Report report = roundtrip::run(input, out.path());
+    CHECK(report.comparison.identical());
+    const std::string written = test::read_text(out / "details.fb2");
+    CHECK(written.find("<program-used>FB Tools, Maxima Fiction Book Editor ") != std::string::npos);
+    CHECK(written.find("<version>1.0</version>") != std::string::npos);
+    CHECK(written.find("<id></id>") == std::string::npos);
+
+    // Anything else in document-info still counts.
+    MemoryBinaryStore store_a;
+    MemoryBinaryStore store_b;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const auto a = fb2::read_file(input, store_a, ids_a);
+    auto b = fb2::read_file(input, store_b, ids_b);
+    b.document.description.documentInfo.version = "7.0";
+    b.document.description.documentInfo.srcOcr = "scanned";
+    const roundtrip::Comparison c = roundtrip::compare(a.document, store_a, b.document, store_b);
+    REQUIRE(c.differences.size() == 1);
+    CHECK(c.differences[0].where == "description/documentInfo/srcOcr");
+}

@@ -10,9 +10,16 @@
 //   resources.openGenresFolder() -> {path}   (shell-delegated; 1050 in headless mode; the
 //                                           folder is the custom genres folder from settings
 //                                           or <Data>/genres, created on demand)
+//   resources.template() -> {path, layer, issue?}   (feature 002: the template a new document
+//                                                   would use now)
+//   resources.openTemplateFolder() -> {path}        (shell-delegated; the template folder from
+//                                                   settings or <Data>, created on demand)
 #include "server/services.hpp"
 
 #include <mfbe/log.hpp>
+#include <mfbe/templates.hpp>
+
+#include <system_error>
 
 namespace mfbe::server {
 
@@ -47,6 +54,26 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services) {
         result["path"] = platform::utf8_from_path(folder);
         return result;
     });
+
+    const auto template_setting = [&services] {
+        return platform::path_from_utf8(services.settings.get_string("other.templateFolder"));
+    };
+
+    router.add_method("resources.template", [&services, template_setting](const json&,
+                                                                          rpc::RpcContext&) {
+        return resources::to_json(resources::resolve_template(services.layers, template_setting()));
+    });
+
+    router.add_method("resources.openTemplateFolder",
+                      [&services, template_setting](const json&, rpc::RpcContext&) {
+                          const std::filesystem::path folder =
+                              resources::template_folder(services.layers, template_setting());
+                          std::error_code ec;
+                          std::filesystem::create_directories(folder, ec);
+                          json result = open_folder_with_shell(services, folder);
+                          result["path"] = platform::utf8_from_path(folder);
+                          return result;
+                      });
 }
 
 }  // namespace mfbe::server

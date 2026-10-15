@@ -335,6 +335,31 @@ export interface SaveNeedsConfirmation {
 
 type Empty = Record<string, never>;
 
+/** A user template that could not be used; the bundled one was used instead (feature 002). */
+export interface TemplateIssue {
+  path: string;
+  reason: 'unreadable' | 'empty' | 'notWellFormed' | 'notFictionBook';
+  /** The core's reader message (English). */
+  detail?: string;
+}
+
+/** The template a new document uses (resource-formats §2a). */
+export interface TemplateInfo {
+  path: string;
+  layer: 'settings' | 'user' | 'portable' | 'bundled';
+  issue?: TemplateIssue;
+}
+
+/**
+ * Sent with a document the core loaded (feature 002): the document details it filled in, as
+ * the original did, and for a new document a user template it could not use. Not part of the
+ * document model (`loadedDocument()` removes them).
+ */
+export interface LoadReport {
+  filledIn?: string[];
+  templateIssue?: TemplateIssue;
+}
+
 export interface RpcMethods {
   // §3.1 app
   'app.info': { params: void; result: AppInfo };
@@ -349,10 +374,10 @@ export interface RpcMethods {
   };
 
   // §3.2 doc
-  'doc.new': { params: void; result: Document };
+  'doc.new': { params: void; result: Document & LoadReport };
   'doc.open': {
     params: { path: string };
-    result: MaybeJob<{ document: Document; warnings: ValidationIssue[] }>;
+    result: MaybeJob<{ document: Document & LoadReport; warnings: ValidationIssue[] }>;
   };
   'doc.openSource': {
     params: { path: string };
@@ -363,7 +388,10 @@ export interface RpcMethods {
     params: { docId: string; document: Document; elideBinaries?: boolean };
     result: { text: string };
   };
-  'doc.fromXml': { params: { docId: string; text: string }; result: { document: Document } };
+  'doc.fromXml': {
+    params: { docId: string; text: string };
+    result: { document: Document & LoadReport };
+  };
   'doc.save': {
     params: {
       docId: string;
@@ -419,6 +447,8 @@ export interface RpcMethods {
   'resources.symbols': { params: void; result: SymbolEntry[] };
   'resources.layers': { params: void; result: ResourceLayer[] };
   'resources.openGenresFolder': { params: void; result: Empty };
+  'resources.template': { params: void; result: TemplateInfo };
+  'resources.openTemplateFolder': { params: void; result: { path: string } };
 
   // §3.7 settings / hotkeys
   'settings.get': { params: void; result: Settings };

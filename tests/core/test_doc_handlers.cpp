@@ -7,6 +7,7 @@
 #include <mfbe/core_server.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/platform.hpp>
+#include <mfbe/version.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
@@ -93,12 +94,23 @@ TEST_CASE(
     CHECK(doc["sourceEncoding"] == "utf-8");
     CHECK_FALSE(doc.contains("path"));
     CHECK(doc["schemaHint"] == "legacy");  // the blank template has an empty genre
-    CHECK(uuid::is_valid(doc["description"]["documentInfo"]["id"].get<std::string>()));
-    const std::string date = doc["description"]["documentInfo"]["date"]["value"];
+    // The original's template, with the document details filled in on load (feature 002).
+    const json& info = doc["description"]["documentInfo"];
+    const std::string id = info["id"];
+    CHECK(uuid::is_valid(id));
+    CHECK(id.find_first_of("abcdef") == std::string::npos);  // upper case, as the original
+    CHECK(info["version"] == "1.0");
+    const std::string program = std::string(version::kProductName) + " " + version::kVersion;
+    CHECK(info["programUsed"] == program);
+    const std::string date = info["date"]["value"];
     CHECK(date.size() == 10);
-    CHECK(date.find("{date}") == std::string::npos);
+    CHECK(info["date"]["text"].get<std::string>().size() >= 13);  // "14 October 2026"
+    CHECK(doc["filledIn"] == json{"documentInfo.id", "documentInfo.version",
+                                  "documentInfo.programUsed", "documentInfo.date.text",
+                                  "documentInfo.date.value"});
+    CHECK_FALSE(doc.contains("templateIssue"));
     CHECK(doc["description"]["titleInfo"]["lang"] == "ru");
-    CHECK(doc["description"]["documentInfo"]["programUsed"] == "Maxima Fiction Book Editor");
+    CHECK(doc["description"]["titleInfo"]["genres"][0]["code"] == "");
     REQUIRE(doc["bodies"].size() == 1);
     CHECK(doc["bodies"][0]["content"][0]["type"] == "section");
     CHECK(doc["binaries"].is_array());
@@ -112,7 +124,7 @@ TEST_CASE(
                      "xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
                      "xmlns:l=\"http://www.w3.org/1999/xlink\">",
                      0) == 0);
-    CHECK_THAT(text, ContainsSubstring("<program-used>Maxima Fiction Book Editor</program-used>"));
+    CHECK_THAT(text, ContainsSubstring("<program-used>" + program + "</program-used>"));
     CHECK_THAT(text, ContainsSubstring("\t\t<section>\n\t\t\t<p>"));
 
     // Back from Source: same document (fresh nodeIds, remap provided).
@@ -121,6 +133,7 @@ TEST_CASE(
     CHECK(back["result"]["document"]["docId"] == doc_id);
     CHECK(back["result"]["document"]["description"]["titleInfo"]["lang"] == "ru");
     CHECK(back["result"]["document"]["bodies"][0]["content"][0]["type"] == "section");
+    CHECK(back["result"]["document"]["filledIn"] == json::array());  // nothing left empty
     CHECK(back["result"]["remap"]["map"].is_object());
     CHECK_FALSE(back["result"]["remap"]["map"].empty());
     CHECK(back["result"]["warnings"] == json::array());

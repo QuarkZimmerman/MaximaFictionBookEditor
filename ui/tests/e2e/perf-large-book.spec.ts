@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { expect, test, type RpcCallError } from './fixtures/core';
+import { expect, test, waitForBook, type RpcCallError } from './fixtures/core';
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
@@ -67,6 +67,8 @@ test.describe('performance - 10 MB text book', () => {
     const started = Date.now();
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-open').click();
+    // The book, not the new document the editor starts with.
+    await waitForBook(page, book, EDITABLE_BUDGET_MS * 4);
     const editor = page.getByTestId('body-editor');
     await expect(editor).toHaveAttribute('contenteditable', 'true', {
       timeout: EDITABLE_BUDGET_MS * 4,

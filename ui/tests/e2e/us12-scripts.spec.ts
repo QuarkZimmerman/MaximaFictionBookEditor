@@ -30,7 +30,7 @@ import path from 'node:path';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, fixtureBook, test } from './fixtures/core';
+import { expect, fileNew, fixtureBook, test, waitForBook } from './fixtures/core';
 import { label, LINE_END, LINE_START, MOD, SELECT_TO_LINE_END } from './fixtures/keys';
 
 const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
@@ -111,8 +111,7 @@ async function openApp(page: Page, core: { openApp(page: Page): Promise<void> })
 }
 
 async function newDocument(page: Page): Promise<Locator> {
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-new').click();
+  await fileNew(page);
   const editor = page.getByTestId('body-editor');
   await expect(editor).toHaveAttribute('contenteditable', 'true');
   return editor;
@@ -133,6 +132,7 @@ async function openBook(
   await core.enqueueDialog('dialog.openFile', { paths: [fixtureBook(name)] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
+  await waitForBook(page, name);
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
 }
 

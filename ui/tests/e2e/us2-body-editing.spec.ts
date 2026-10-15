@@ -23,7 +23,14 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { expect, fixtureBook, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  fileNew,
+  fixtureBook,
+  test,
+  type CoreHandle,
+  type RpcCallError,
+} from './fixtures/core';
 import type { Locator, Page } from '@playwright/test';
 import { LINE_END, LINE_START, MOD, REPLACE } from './fixtures/keys';
 
@@ -43,8 +50,7 @@ async function supportsDocuments(core: CoreHandle): Promise<boolean> {
 
 /** File > New and the editable Body editor. */
 async function newDocument(page: Page): Promise<Locator> {
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-new').click();
+  await fileNew(page);
   const editor = page.getByTestId('body-editor');
   await expect(editor).toHaveAttribute('contenteditable', 'true');
   return editor;

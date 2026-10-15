@@ -11,7 +11,7 @@
 
 import type { Page } from '@playwright/test';
 
-import { expect, fixtureBook, test, type CoreHandle } from './fixtures/core';
+import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 
 const MENUS = ['file', 'edit', 'view', 'add', 'style', 'tools', 'scripts', 'help'];
 
@@ -157,6 +157,7 @@ async function prepare(core: CoreHandle, page: Page, view: Record<string, unknow
   await core.enqueueDialog('dialog.openFile', { paths: [fixtureBook('modern-utf8.fb2')] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
+  await waitForBook(page, 'modern-utf8.fb2');
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
   await expect
     .poll(async () => page.evaluate(() => window.__mfbeTest?.scripts?.list().length ?? -1), {

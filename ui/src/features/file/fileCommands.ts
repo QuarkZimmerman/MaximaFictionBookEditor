@@ -35,7 +35,13 @@ import { actions, kindFromPath, type AppStore, type FileKind } from '@/model/sto
 import i18next from 'i18next';
 
 import { RpcError, type RpcClient } from '@/rpc/client';
-import { RpcErrorCode, type DocParseErrorData, type FileFilter } from '@/rpc/types';
+import { loadedDocument } from '@/rpc/loaded';
+import {
+  RpcErrorCode,
+  type DocParseErrorData,
+  type FileFilter,
+  type LoadReport,
+} from '@/rpc/types';
 import {
   commitPendingSource,
   isSourceTextDirty,
@@ -164,6 +170,11 @@ export class FileFeature {
   private lastSaveAt = 0;
   private reloadPromptOpen = false;
   private readonly selfSaveGraceMs: number;
+  /** The open of the file named at start-up (`app.openPaths` before the start-up check). */
+  private startupOpen: Promise<boolean> | null = null;
+  private startupChecked = false;
+  /** Bumped by File > New, Open and Recent Files: the start-up document is no longer wanted. */
+  private userRequests = 0;
 
   constructor(registry: CommandRegistry, options: FileFeatureOptions = {}) {
     this.selfSaveGraceMs = options.selfSaveGraceMs ?? 1500;
@@ -208,10 +219,14 @@ export class FileFeature {
     actions.setStatusMessage(store, null);
   }
 
-  private loadDocument(ctx: CommandContext, document: Document): void {
+  /**
+   * Shows a document the core loaded. The details it filled in on load (`filledIn`) do not
+   * mark it modified, as in the original; they are written at the next save.
+   */
+  private loadDocument(ctx: CommandContext, document: Document & LoadReport): void {
     resetSourceSession(ctx.store);
     ctx.undo.clear();
-    actions.setDocument(ctx.store, document);
+    actions.setDocument(ctx.store, loadedDocument(document));
     actions.setStatusMessage(ctx.store, null);
     if (ctx.store.getState().activeView === 'source') {
       // A new document always starts in the Body view unless it is Source-only.
@@ -231,17 +246,48 @@ export class FileFeature {
 
   async newDocument(ctx: CommandContext): Promise<boolean> {
     if (!ctx.rpc) return false;
+    this.userRequests += 1;
     if (!(await this.confirmDiscardChanges(ctx))) return false;
     await this.closeCurrentDocument(ctx);
-    const document = await ctx.rpc.call('doc.new');
-    this.loadDocument(ctx, document);
+    await this.createFromTemplate(ctx);
     return true;
+  }
+
+  /**
+   * A new document from the effective template; a user template that was rejected is named.
+   * `wanted` is asked again once the core answered (the start-up document gives way to a
+   * document the user asked for meanwhile).
+   */
+  private async createFromTemplate(
+    ctx: CommandContext,
+    wanted: () => boolean = () => true,
+  ): Promise<void> {
+    if (!ctx.rpc) return;
+    const document = await ctx.rpc.call('doc.new');
+    if (!wanted()) {
+      await ctx.rpc.call('doc.close', { docId: document.docId }).catch(() => {});
+      return;
+    }
+    this.loadDocument(ctx, document);
+    const issue = document.templateIssue;
+    if (issue) {
+      await ctx.dialogs.showMessage({
+        text: ctx.t('msg.templateIssue', {
+          path: issue.path,
+          reason: ctx.t(`msg.templateReason.${issue.reason}`),
+        }),
+        caption: ctx.t('app.name'),
+        icon: 'warning',
+        testId: 'dialog-template-issue',
+      });
+    }
   }
 
   /* ------------------------------------------------------------------- open */
 
   async openWithDialog(ctx: CommandContext): Promise<boolean> {
     if (!ctx.rpc) return false;
+    this.userRequests += 1;
     if (!(await this.confirmDiscardChanges(ctx))) return false;
     const { paths } = await ctx.rpc.call('dialog.openFile', {
       title: ctx.t('cmd.file.open.tooltip'),
@@ -253,6 +299,7 @@ export class FileFeature {
   }
 
   private async openFromRecent(ctx: CommandContext, path: string): Promise<boolean> {
+    this.userRequests += 1;
     if (!(await this.confirmDiscardChanges(ctx))) return false;
     return this.openDocument(ctx, path);
   }
@@ -518,9 +565,10 @@ export class FileFeature {
       const path = payload.paths[0];
       if (!path) return;
       const ctx = getContext();
-      void this.confirmDiscardChanges(ctx).then((ok) =>
+      const opening = this.confirmDiscardChanges(ctx).then((ok) =>
         ok ? this.openDocument(ctx, path) : false,
       );
+      if (!this.startupChecked) this.startupOpen = opening;
     });
     return () => {
       offChanged();
@@ -547,13 +595,28 @@ export class FileFeature {
     }
   }
 
-  /** `?new=1` at start-up creates a blank document once the core is connected. */
-  async handleStartup(ctx: CommandContext, search: string): Promise<void> {
-    const params = new URLSearchParams(search);
-    if (params.get('new') === '1' && ctx.rpc && !ctx.store.getState().document) {
-      const document = await ctx.rpc.call('doc.new');
-      this.loadDocument(ctx, document);
+  /**
+   * Start-up, once the core is connected (feature 002 FR-001, FR-003): as in the original, a
+   * new document from the template unless the file named at start-up opened (a malformed one
+   * opens in the Source view); a file that does not exist, cannot be read or is not FictionBook
+   * is reported first. `--new` (`?new=1`) asks for the same.
+   */
+  async handleStartup(ctx: CommandContext): Promise<void> {
+    if (!ctx.rpc) return;
+    const requests = this.userRequests;
+    const wanted = () => this.userRequests === requests && !ctx.store.getState().document;
+    // The core sends the start-up files as soon as the connection opens, before any answer:
+    // after one round trip their open has begun.
+    try {
+      await ctx.rpc.call('app.info');
+    } catch {
+      // an older core: no start-up files to wait for
     }
+    this.startupChecked = true;
+    const opened = this.startupOpen ? await this.startupOpen : false;
+    this.startupOpen = null;
+    if (opened || !wanted()) return;
+    await this.createFromTemplate(ctx, wanted);
   }
 
   /* --------------------------------------------------------------- commands */

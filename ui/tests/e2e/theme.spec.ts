@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 import type { Page } from '@playwright/test';
 
-import { expect, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import { expect, fileNew, test, type CoreHandle, type RpcCallError } from './fixtures/core';
 
 const UI_DIR = fileURLToPath(new URL('../..', import.meta.url));
 const SHOTS = path.join(UI_DIR, 'test-results', 'theme');
@@ -105,8 +105,7 @@ async function resetView(core: CoreHandle): Promise<void> {
 }
 
 async function newDocument(page: Page): Promise<void> {
-  await page.getByTestId('menu-file').click();
-  await page.getByTestId('menu-file-new').click();
+  await fileNew(page);
   await expect(page.getByTestId('body-editor')).toBeVisible();
 }
 

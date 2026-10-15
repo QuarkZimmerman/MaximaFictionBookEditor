@@ -1,6 +1,6 @@
 // doc.* handlers (T045) - contracts/rpc-api.md §3.2.
 //
-//   doc.new() -> Document                        blank.fb2 with a fresh UUID and today's date
+//   doc.new() -> Document + {filledIn, templateIssue?}   from the effective template
 //   doc.open({path}) -> {document, warnings} | {jobId}   (job above kJobThresholdBytes)
 //   doc.openSource({path}) -> {docId, text, encoding, error?, warnings}
 //   doc.close({docId}) -> {}
@@ -11,6 +11,8 @@
 //          | {needsConfirmation: true, validation} | {jobId}
 //       Model saves convert every non-JPEG/PNG image binary in place before writing (FR-110,
 //       same ids); Source-only text saves are written verbatim.
+//   Every document loaded into the model (doc.new, doc.open, doc.fromXml) gets the details the
+//   original filled in on load (feature 002 FR-005); its JSON lists them in `filledIn`.
 //   doc.validate({docId, document?, text?}) -> ValidationReport | {jobId}
 //   doc.recent() -> RecentFile[] (+ exists), doc.clearRecent() -> {}
 //   doc.caret({docId, caret?}) -> {caret?}
@@ -21,6 +23,7 @@
 #include "server/services.hpp"
 
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/document_details.hpp>
 #include <mfbe/encodings.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/fb2_writer.hpp>
@@ -29,10 +32,10 @@
 #include <mfbe/log.hpp>
 #include <mfbe/node_ids.hpp>
 #include <mfbe/platform.hpp>
+#include <mfbe/templates.hpp>
 #include <mfbe/validator.hpp>
 
 #include <chrono>
-#include <ctime>
 #include <exception>
 #include <filesystem>
 #include <functional>
@@ -77,19 +80,6 @@ std::string absolute_path(const std::string& path) {
 model::FileKind file_kind_of(const std::string& path) {
     return model::file_kind_from_extension(
         platform::utf8_from_path(platform::path_from_utf8(path).extension()));
-}
-
-std::string today_iso_date() {
-    const std::time_t now = std::time(nullptr);
-    std::tm tm{};
-#ifdef _WIN32
-    gmtime_s(&tm, &now);
-#else
-    gmtime_r(&now, &tm);
-#endif
-    char buf[16];
-    std::strftime(buf, sizeof(buf), "%Y-%m-%d", &tm);
-    return buf;
 }
 
 json issues_json(const std::vector<model::ValidationIssue>& issues) {
@@ -175,7 +165,16 @@ struct Opened {
     model::NodeIdAllocator ids;
     platform::FileStamp stamp;
     std::string path;
+    // Document details filled in on load (see the header).
+    std::vector<std::string> filled_in;
 };
+
+// The document JSON of a loaded document, with the details filled in on load.
+json loaded_document_json(const model::Document& doc, const std::vector<std::string>& filled_in) {
+    json result = model::to_json(doc);
+    result["filledIn"] = filled_in;
+    return result;
+}
 
 Opened open_document(const std::string& path, rpc::JobControl* control) {
     Opened opened;
@@ -194,6 +193,8 @@ Opened open_document(const std::string& path, rpc::JobControl* control) {
     } catch (const fb2::IoFailure& e) {
         throw io_error(e.path, e.reason);
     }
+    opened.filled_in =
+        model::fill_in_document_details(opened.read.document, model::details_context_now(false));
     if (control != nullptr) {
         control->check_cancelled();
         control->progress("model", 90, 100);
@@ -227,7 +228,7 @@ void fill_session(Services& services, session::DocumentSession& s, Opened& opene
 json register_session(Services& services, Opened&& opened) {
     session::DocumentSession& s = services.documents.create();
     opened.read.document.docId = s.docId;
-    json result{{"document", model::to_json(opened.read.document)},
+    json result{{"document", loaded_document_json(opened.read.document, opened.filled_in)},
                 {"warnings", issues_json(opened.read.warnings)}};
     fill_session(services, s, opened);
     return result;
@@ -488,34 +489,43 @@ platform::FileWatcher& file_watcher(Services& services) {
 
 void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
     router.add_method("doc.new", [&services](const json&, rpc::RpcContext&) {
-        const fs::path blank = services.resources_dir / "blank.fb2";
-        std::string text;
-        try {
-            text = fb2::read_file_bytes(blank);
-        } catch (const fb2::IoFailure& e) {
-            throw io_error(e.path, "blank template unreadable: " + e.reason);
-        }
-        const auto replace_all = [&](const std::string& from, const std::string& to) {
-            for (std::size_t pos = text.find(from); pos != std::string::npos;
-                 pos = text.find(from, pos + to.size())) {
-                text.replace(pos, from.size(), to);
-            }
-        };
-        replace_all("{uuid}", uuid::generate_v4());
-        replace_all("{date}", today_iso_date());
+        // The first blank.fb2 of the template layers; a user file that turns out unusable
+        // gives way to the bundled one (resource-formats §2a).
+        resources::EffectiveTemplate effective = resources::resolve_template(
+            services.layers,
+            platform::path_from_utf8(services.settings.get_string("other.templateFolder")));
         Opened opened;
-        try {
+        const auto read_template = [&opened](const fs::path& file) {
+            opened = Opened{};
             fb2::ReadOptions options;
             options.file_kind = model::FileKind::fb2;
-            opened.read = fb2::read_bytes(text, *opened.store, opened.ids, options);
-        } catch (const fb2::ParseFailure& e) {
-            throw rpc::internal_error("blank template is not well-formed: " + e.error.message);
+            opened.read =
+                fb2::read_bytes(fb2::read_file_bytes(file), *opened.store, opened.ids, options);
+        };
+        try {
+            read_template(effective.path);
+        } catch (const std::exception& e) {
+            if (effective.layer == resources::LayerName::bundled) {
+                throw rpc::internal_error(std::string("blank template unusable: ") + e.what());
+            }
+            effective.issue = resources::TemplateIssue{effective.path, "notWellFormed", e.what()};
+            effective.path =
+                services.layers.roots().bundled_resources / resources::kTemplateFileName;
+            effective.layer = resources::LayerName::bundled;
+            try {
+                read_template(effective.path);
+            } catch (const std::exception& bundled) {
+                throw rpc::internal_error(std::string("blank template unusable: ") +
+                                          bundled.what());
+            }
         }
         session::DocumentSession& s = services.documents.create();
         model::Document& doc = opened.read.document;
         doc.docId = s.docId;
         doc.path.reset();
         doc.sourceEncoding = "utf-8";
+        const std::vector<std::string> filled_in =
+            model::fill_in_document_details(doc, model::details_context_now(true));
         s.fileKind = model::FileKind::fb2;
         s.sourceEncoding = "utf-8";
         s.xlinkPrefix = opened.read.xlink_prefix;
@@ -523,7 +533,11 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         s.binaries = std::move(opened.store);
         s.ids = opened.ids;
         s.snapshot = doc;
-        return model::to_json(doc);
+        json result = loaded_document_json(doc, filled_in);
+        if (effective.issue) {
+            result["templateIssue"] = resources::to_json(*effective.issue);
+        }
+        return result;
     });
 
     router.add_method("doc.open", [&services](const json& params, rpc::RpcContext& ctx) {
@@ -558,8 +572,9 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                     throw;
                 }
                 opened->read.document.docId = doc_id;
-                json result{{"document", model::to_json(opened->read.document)},
-                            {"warnings", issues_json(opened->read.warnings)}};
+                json result{
+                    {"document", loaded_document_json(opened->read.document, opened->filled_in)},
+                    {"warnings", issues_json(opened->read.warnings)}};
                 const bool registered = on_loop_thread(
                     services,
                     [&services, doc_id, opened] {
@@ -662,6 +677,8 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         doc.path = s.path;
         doc.fileKind = s.fileKind;
         doc.sourceEncoding = s.sourceEncoding;
+        const std::vector<std::string> filled_in =
+            model::fill_in_document_details(doc, model::details_context_now(false));
         json result{{"document", nullptr}, {"warnings", issues_json(read.warnings)}};
         if (s.snapshot) {
             result["remap"] = model::build_remap(*s.snapshot, doc).to_json();
@@ -671,7 +688,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         s.schemaHint = doc.schemaHint;
         s.sourceOnly = false;
         s.snapshot = doc;
-        result["document"] = model::to_json(doc);
+        result["document"] = loaded_document_json(doc, filled_in);
         return result;
     });
 

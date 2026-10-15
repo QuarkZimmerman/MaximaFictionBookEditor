@@ -20,7 +20,14 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { expect, fixtureBook, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  fixtureBook,
+  test,
+  waitForBook,
+  type CoreHandle,
+  type RpcCallError,
+} from './fixtures/core';
 import type { Page } from '@playwright/test';
 import { MOD } from './fixtures/keys';
 
@@ -73,6 +80,7 @@ async function openViaDialog(core: CoreHandle, page: Page, file: string): Promis
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
+  await waitForBook(page, file);
   await expect(page.getByTestId('body-view')).toBeVisible();
 }
 

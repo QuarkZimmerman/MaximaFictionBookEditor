@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 import type { Page } from '@playwright/test';
 
-import { expect, fixtureBook, test, type CoreHandle } from './fixtures/core';
+import { expect, fileNew, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const SCRIPT_FIXTURES = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures');
@@ -97,8 +97,7 @@ test.describe('diagnostics log (FR-131)', () => {
         timeout: 15_000,
       })
       .toBe('function');
-    await page.getByTestId('menu-file').click();
-    await page.getByTestId('menu-file-new').click();
+    await fileNew(page);
     await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
     const before = readLog(core).length;
 
@@ -133,6 +132,7 @@ test.describe('diagnostics log (FR-131)', () => {
     await core.enqueueDialog('dialog.openFile', { paths: [fixtureBook('modern-utf8.fb2')] });
     await page.getByTestId('menu-file').click();
     await page.getByTestId('menu-file-open').click();
+    await waitForBook(page, 'modern-utf8.fb2');
     await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
     const docId = await page.getByTestId('body-view').getAttribute('data-doc-id');
     expect(docId).toBeTruthy();

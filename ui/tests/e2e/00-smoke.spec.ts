@@ -4,7 +4,7 @@
  * core connection ("Ready" with a core, "Not connected" in core-less mode).
  */
 
-import { expect, test, type RpcCallError } from './fixtures/core';
+import { expect, fileNew, test, waitForStartupDocument, type RpcCallError } from './fixtures/core';
 import { label } from './fixtures/keys';
 
 const MENUS: ReadonlyArray<[id: string, label: string]> = [
@@ -24,7 +24,9 @@ test.describe('smoke', () => {
     page,
   }) => {
     await core.openApp(page);
-    await expect(page).toHaveTitle('Maxima Fiction Book Editor');
+    // With a core the editor starts with a new document (feature 002).
+    if (core.hasCore) await waitForStartupDocument(page);
+    else await expect(page).toHaveTitle('Maxima Fiction Book Editor');
 
     for (const [id, label] of MENUS) {
       const menu = page.getByTestId(`menu-${id}`);
@@ -82,6 +84,7 @@ test.describe('smoke', () => {
 
   test('the view switcher and View menu change the active view', async ({ core, page }) => {
     await core.openApp(page);
+    if (core.hasCore) await waitForStartupDocument(page);
     await page.getByTestId('view-source').click();
     await expect(page.getByTestId('panel-source')).toBeVisible();
     await expect(page.getByTestId('toolbar-view.source')).toHaveAttribute('aria-pressed', 'true');
@@ -129,7 +132,7 @@ test.describe('smoke', () => {
     await core.openApp(page);
     await expect(page.getByTestId('status-message')).toHaveText('Ready');
 
-    await page.getByTestId('toolbar-file.new').click();
+    await fileNew(page);
     await expect(page.getByTestId('panel-body-document')).toBeVisible();
     await expect(page).toHaveTitle('Untitled - Maxima Fiction Book Editor');
 

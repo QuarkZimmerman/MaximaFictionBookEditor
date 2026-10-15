@@ -157,7 +157,7 @@ function Shell({
     void getSettingsFeature(store)?.attach(rpc);
     if (!startupHandled.current) {
       startupHandled.current = true;
-      void files.handleStartup(ctxRef.current, search).catch(() => {
+      void files.handleStartup(ctxRef.current).catch(() => {
         // a failing doc.new at start-up leaves the editor empty; File > New reports errors
       });
     }

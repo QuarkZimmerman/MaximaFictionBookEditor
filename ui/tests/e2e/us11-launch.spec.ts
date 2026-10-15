@@ -25,7 +25,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { expect, startCoreWith, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  fileNew,
+  startCoreWith,
+  test,
+  type CoreHandle,
+  type RpcCallError,
+} from './fixtures/core';
 import type { Page } from '@playwright/test';
 
 const APP_TITLE = 'Maxima Fiction Book Editor';
@@ -269,7 +276,7 @@ test.describe('US11 - launch from the operating system', () => {
     // The genre picker (Description view) offers it, marked as coming from a user file.
     await core.openApp(page);
     await expect(page.getByTestId('status-message')).toHaveText('Ready');
-    await page.getByTestId('toolbar-file.new').click();
+    await fileNew(page);
     await page.getByTestId('view-description').click();
     await page.getByTestId('description-genre-add').click();
     const picker = page.getByTestId('genre-picker');

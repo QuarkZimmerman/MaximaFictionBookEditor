@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, fixtureBook, test, type CoreHandle } from './fixtures/core';
+import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { LINE_START, MOD, REPLACE } from './fixtures/keys';
 
 const UI_DIR = fileURLToPath(new URL('../..', import.meta.url));
@@ -249,6 +249,7 @@ async function openBook(core: CoreHandle, page: Page, name: string): Promise<voi
   await core.enqueueDialog('dialog.openFile', { paths: [fixtureBook(name)] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
+  await waitForBook(page, name);
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
 }
 

@@ -1,12 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Maxima Fiction Book Editor - template for new documents.
-  UTF-8 rewrite of the original FictionBook Editor 2.7 template (which was
-  windows-1251 encoded). Same element structure as the original.
-  Placeholders replaced by the editor when a new document is created:
-    {uuid}  - document-info/id   (a fresh UUID)
-    {date}  - document-info/date value attribute (ISO date, YYYY-MM-DD)
--->
 <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
 	<description>
 		<title-info>
@@ -18,7 +10,7 @@
 			</author>
 			<book-title/>
 			<annotation>
-				<p>Enter a short annotation here. Введите сюда краткую аннотацию.</p>
+				<p>Введите сюда краткую аннотацию</p>
 			</annotation>
 			<date/>
 			<coverpage>
@@ -31,13 +23,13 @@
 				<first-name>Your</first-name>
 				<last-name>Name</last-name>
 			</author>
-			<program-used>Maxima Fiction Book Editor</program-used>
-			<date value="{date}"/>
+			<program-used/>
+			<date value=""/>
 			<src-ocr/>
-			<id>{uuid}</id>
-			<version>1.0</version>
+			<id/>
+			<version/>
 			<history>
-				<p>1.0 — file created. 1.0 — создание файла.</p>
+				<p>1.0 — создание файла</p>
 			</history>
 		</document-info>
 		<publish-info>
@@ -50,7 +42,7 @@
 	</description>
 	<body>
 		<section>
-			<p>To change the default document, edit the file "blank.fb2" by hand. Чтобы изменить документ по умолчанию, отредактируйте файл «blank.fb2» вручную.</p>
+			<p>Чтобы изменить документ по умолчанию, отредактируйте файл &quot;blank.fb2&quot; вручную.</p>
 			<empty-line/>
 		</section>
 	</body>
