@@ -233,6 +233,23 @@ jobs:
         env:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+      - name: Russian environment (feature 002; ru_RU.UTF-8, Cyrillic home and temp)
+        # The start-up, open/save and Find journeys with the Russian system locale - the
+        # interface follows it - and the folders the core and the journeys use under Cyrillic
+        # names. The browsers stay where the previous step installed them (HOME moves).
+        run: |
+          sudo locale-gen ru_RU.UTF-8
+          mkdir -p "$HOME_RU/tmp"
+          HOME="$HOME_RU" TMPDIR="$HOME_RU/tmp" \
+            npx playwright test --project=chromium us2-template us1-open-save us5-find-modeless
+        working-directory: ui
+        env:
+          HOME_RU: /tmp/Пользователь
+          LANG: ru_RU.UTF-8
+          LC_ALL: ru_RU.UTF-8
+          PLAYWRIGHT_BROWSERS_PATH: /home/runner/.cache/ms-playwright
+          MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
+          MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
       - name: Script benchmark (SC-008)
         # Bundled clean-up scripts on the generated 1 MB and 10 MB books, alone on one worker:
         # each 10 MB time at most 12 x its 1 MB time, each 1 MB time under 5 s x
@@ -425,6 +442,25 @@ jobs:
           MFBE_SMOKE_REAL_UI: "1"
           MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
           MFBE_SMOKE_ABOUT: "1"
+
+      - name: Shell smoke in a Russian environment (feature 002)
+        # ru_RU.UTF-8, the shell's home and temporary folders under a Cyrillic name (the smoke
+        # keeps its home in TMPDIR) and a Cyrillic-named book in a Cyrillic folder as the
+        # start-up file.
+        if: runner.os == 'Linux'
+        run: |
+          sudo locale-gen ru_RU.UTF-8
+          mkdir -p "$HOME_RU/tmp" "$HOME_RU/Книги"
+          cp tests/fixtures/books/modern-utf8.fb2 "$HOME_RU/Книги/Новая книга.fb2"
+          TMPDIR="$HOME_RU/tmp" MFBE_SMOKE_OPEN_FILE="$HOME_RU/Книги/Новая книга.fb2" \
+            tools/shell-smoke.sh
+        env:
+          HOME_RU: /tmp/Пользователь
+          LANG: ru_RU.UTF-8
+          LC_ALL: ru_RU.UTF-8
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-ru.png
 
       - name: Installed tree (Linux)
         if: runner.os == 'Linux'
