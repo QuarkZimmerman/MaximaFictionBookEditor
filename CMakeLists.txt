@@ -65,7 +65,8 @@ if(MFBE_BUILD_APP)
   add_custom_target(mfbe_licence_texts ALL
     COMMAND "${CMAKE_COMMAND}" -E rm -rf "${MFBE_LICENCE_TEXTS_DIR}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/licence-check.py"
-            --vcpkg-installed "${VCPKG_INSTALLED_DIR}" --export-texts "${MFBE_LICENCE_TEXTS_DIR}"
+            --vcpkg-installed "${VCPKG_INSTALLED_DIR}" --vcpkg-triplet "${VCPKG_TARGET_TRIPLET}"
+            --export-texts "${MFBE_LICENCE_TEXTS_DIR}"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "Third-party licence texts for the packages"
     VERBATIM)

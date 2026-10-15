@@ -59,6 +59,7 @@ import json
 import re
 import shutil
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -267,12 +268,15 @@ def vcpkg_triplets(installed: Path) -> list[Path]:
     return sorted(p for p in installed.iterdir() if p.is_dir() and (p / "share").is_dir())
 
 
-def parse_status(installed: Path) -> dict[str, dict[str, str]]:
-    """`vcpkg/status`: port -> fields (version, depends); feature paragraphs are skipped."""
+def parse_status(installed: Path, triplet: str | None) -> dict[str, dict[str, str]]:
+    """`vcpkg/status`: port -> fields (version, depends, architecture) of the target triplet;
+    feature paragraphs are skipped. Where the host triplet differs (Windows: x64-windows next to
+    x64-windows-static), ports installed for it are build tools; without `triplet` the target is
+    the triplet of the editor's direct dependencies."""
     status = installed / "vcpkg" / "status"
-    ports: dict[str, dict[str, str]] = {}
+    found: dict[str, list[dict[str, str]]] = {}
     if not status.is_file():
-        return ports
+        return {}
     for paragraph in status.read_text(encoding="utf-8").split("\n\n"):
         fields: dict[str, str] = {}
         for line in paragraph.splitlines():
@@ -283,7 +287,18 @@ def parse_status(installed: Path) -> dict[str, dict[str, str]]:
             continue
         if "installed" not in fields.get("status", ""):
             continue
-        ports[fields["package"]] = fields
+        found.setdefault(fields["package"], []).append(fields)
+    if not triplet:
+        runtime, _ = manifest_dependencies()
+        counts = Counter(f.get("architecture") for name in runtime for f in found.get(name, []))
+        triplet = counts.most_common(1)[0][0] if counts else None
+    ports: dict[str, dict[str, str]] = {}
+    for name, entries in found.items():
+        target = [f for f in entries if f.get("architecture") == triplet]
+        if target:
+            ports[name] = target[0]
+        elif not triplet or len({f.get("architecture") for f in found.get(name, [])}) == 1:
+            ports[name] = entries[0]
     return ports
 
 
@@ -304,7 +319,8 @@ def manifest_dependencies() -> tuple[set[str], set[str]]:
     return runtime, tests
 
 
-def collect_vcpkg(installed: Path | None, problems: list[str]) -> list[Component]:
+def collect_vcpkg(installed: Path | None, triplet_name: str | None,
+                  problems: list[str]) -> list[Component]:
     runtime_direct, test_only = manifest_dependencies()
     components: list[Component] = []
     if installed is None:
@@ -317,10 +333,10 @@ def collect_vcpkg(installed: Path | None, problems: list[str]) -> list[Component
     # The notices are committed, so paths are written with a <triplet> placeholder: the version
     # set is the same on every platform (pinned baseline) and only the folder name differs.
     rel_installed = installed.relative_to(REPO).as_posix() if installed.is_relative_to(REPO) else installed.as_posix()
-    ports = parse_status(installed)
+    ports = parse_status(installed, triplet_name)
     for name in sorted(ports):
         version = ports[name].get("version", "")
-        share = triplet / "share" / name
+        share = installed / ports[name].get("architecture", triplet.name) / "share" / name
         copyright_file = share / "copyright"
         spdx_file = share / "vcpkg.spdx.json"
         declared: str | None = None
@@ -760,7 +776,9 @@ def check_project_licence(problems: list[str]) -> None:
     """LICENSE is the GPL-3.0 text, the original's notices ship next to it, and every licence
     statement of the editor (package metadata, About dialog, documentation) names GPL-3.0."""
     licence = REPO / "LICENSE"
-    if not licence.is_file() or hashlib.sha256(licence.read_bytes()).hexdigest() != GPL3_TEXT_SHA256:
+    # Line ends aside: a Windows checkout gives the file CRLF.
+    text = licence.read_bytes().replace(b"\r\n", b"\n") if licence.is_file() else b""
+    if hashlib.sha256(text).hexdigest() != GPL3_TEXT_SHA256:
         problems.append("LICENSE is not the FSF text of the GNU General Public License version 3")
     for name in NOTICE_FILES:
         if not (REPO / name).is_file():
@@ -820,6 +838,8 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="verify only; fail when the notices are stale")
     parser.add_argument("--vcpkg-installed", help="vcpkg installed tree (default build/vcpkg_installed)")
+    parser.add_argument("--vcpkg-triplet", help="target triplet of the installed tree (default: the "
+                        "triplet of the editor's direct dependencies)")
     parser.add_argument("--export-texts", metavar="DIR", help="copy the licence texts into DIR")
     parser.add_argument("--json", action="store_true", help="print the inventory as JSON")
     parser.add_argument("--output", default=str(NOTICES), help="notices file to write/compare")
@@ -828,7 +848,7 @@ def main(argv: list[str]) -> int:
     problems: list[str] = []
     installed = find_vcpkg_installed(args.vcpkg_installed)
     components: list[Component] = []
-    components += collect_vcpkg(installed, problems)
+    components += collect_vcpkg(installed, args.vcpkg_triplet or None, problems)
     components += collect_cef(problems)
     components += collect_npm(problems)
     components += collect_data(problems)
