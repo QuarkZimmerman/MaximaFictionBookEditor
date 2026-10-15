@@ -37,7 +37,7 @@ mouse and the keyboard.
 | Original | Label | MFBE | Evidence | e2e spec | Status | Notes |
 |---|---|---|---|---|---|---|
 | `ID_FILE_NEW` | New | `file.new` (`features/file/fileCommands.ts`) | `menu-file-new`, `toolbar-file.new` | `us1-open-save.spec.ts`, `00-smoke.spec.ts` | implemented | "Save changes to X?" prompt before discarding (scenario 4) |
-| `ID_FILE_OPEN` | Open... | `file.open` | `menu-file-open` | `us1-open-save.spec.ts`, `00-smoke.spec.ts` | implemented | native dialog through `dialog.openFile`; malformed files open Source-only (scenario 3) |
+| `ID_FILE_OPEN` | Open... | `file.open` | `menu-file-open` | `us1-open-save.spec.ts`, `00-smoke.spec.ts`, `us3-file-dialogs.spec.ts` | implemented | the platform's own dialog through `dialog.openFile` with "FictionBook files (*.fb2)" selected, then `*.fbd` and all files, as the original (feature 002); malformed files open Source-only (scenario 3) |
 | `ID_FILE_SAVE` | Save | `file.save` | `menu-file-save`, `toolbar-file.save` | `us1-open-save.spec.ts` | implemented | atomic write, validation prompt (`dialog-validation-failed`) |
 | `ID_FILE_SAVE_AS` | Save As... | `file.saveAs` | `menu-file-saveAs`, `dialog-encoding` | `us1-open-save.spec.ts`, `us3-file-dialogs.spec.ts` | implemented | the platform's dialog on the document's file with the encoding choice inside it, see `IDD_CUSTOMSAVEDLG` |
 | `ID_FILE_VALIDATE` | Validate | `file.validate` | `menu-file-validate`, `validation-panel` | `us1-open-save.spec.ts`, `us4-source-validate.spec.ts` | implemented | result list with line/column/message instead of a message box (FR-010) |
@@ -211,9 +211,9 @@ toolbar itself is checked for presence (`00-smoke.spec.ts`) and tooltips (`us8-l
 
 | Original | Label | MFBE | Evidence | e2e spec | Status | Notes |
 |---|---|---|---|---|---|---|
-| `IDD_FIND` | Find | `edit.find`, `FindDialog` | `dialog-find`, `dialog-find-title` | `us2-body-editing.spec.ts`, `us8-language.spec.ts` | implemented | modeless-like HTML dialog; works in Body, Source and Description fields (FR-035) |
+| `IDD_FIND` | Find | `edit.find`, `FindDialog` | `dialog-find`, `dialog-find-title` | `us2-body-editing.spec.ts`, `us8-language.spec.ts`, `us5-find-modeless.spec.ts` | implemented | modeless as the original (feature 002): the document stays usable, the dialog moves by its title and the next one opens where the last one was closed; the match is selected and scrolled into view; works in Body, Source and Description fields (FR-035) |
 | `IDC_TEXT` | Find what (combo with history) | `dialog-find-query` + `dialog-find-history` datalist | `dialog-find-query` | `us2-body-editing.spec.ts` | implemented | history persisted in settings |
-| `ID_FIND_NEXT` | Find Next | `dialog-find-button-findNext` | `dialog-find-button-findNext` | `us2-body-editing.spec.ts` | implemented | "Finished searching" / "Failing" messages |
+| `ID_FIND_NEXT` | Find Next | `dialog-find-button-findNext` | `dialog-find-button-findNext` | `us2-body-editing.spec.ts`, `us5-find-modeless.spec.ts` | implemented | from the selection; continues from the other end with a beep; no match: "Cannot find the string '...'." (feature 002) |
 | `IDC_WHOLE` | Match whole words | `dialog-find-whole-words` | `dialog-find-whole-words` | `us2-body-editing.spec.ts` | implemented | |
 | `IDC_MATCHCASE` | Match case | `dialog-find-match-case` | `dialog-find-match-case` | `us2-body-editing.spec.ts` | implemented | |
 | `IDC_REGEXP` | Regular expression | `dialog-find-regex` | `dialog-find-regex` | `us2-body-editing.spec.ts` | implemented | |
@@ -224,12 +224,12 @@ toolbar itself is checked for presence (`00-smoke.spec.ts`) and tooltips (`us8-l
 
 | Original | Label | MFBE | Evidence | e2e spec | Status | Notes |
 |---|---|---|---|---|---|---|
-| `IDD_REPLACE` | Replace | `edit.replace`, `ReplaceDialog` | `dialog-replace`, `dialog-replace-title` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | |
+| `IDD_REPLACE` | Replace | `edit.replace`, `ReplaceDialog` | `dialog-replace`, `dialog-replace-title` | `us2-body-editing.spec.ts`, `us3-description.spec.ts`, `us5-find-modeless.spec.ts` | implemented | modeless as Find (feature 002); Replace and Replace All are undoable steps, also in parts of a large book not displayed |
 | `IDC_TEXT` | Find what | `dialog-replace-query` | `dialog-replace-query` | `us2-body-editing.spec.ts` | implemented | |
 | `IDC_REPLACE` | Replace with (combo with history) | `dialog-replace-with` | `dialog-replace-with` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | |
 | `IDC_WHOLE`, `IDC_MATCHCASE`, `IDC_REGEXP` | Match whole words / Match case / Regular expression | `dialog-replace-whole-words`, `dialog-replace-match-case`, `dialog-replace-regex` | `dialog-replace-query` | `us2-body-editing.spec.ts` | implemented | same option set as Find (shared `FindDialog` body); the Replace options are set through the Find options in the journey |
 | `IDC_UP`, `IDC_DOWN` | Direction | `dialog-replace-up`, `dialog-replace-down` | `dialog-replace-query` | `us2-body-editing.spec.ts` | implemented | |
-| `ID_FIND_NEXT` | Find Next | `dialog-replace-button-findNext` | `dialog-replace-button-findNext` | `us2-body-editing.spec.ts` | implemented | |
+| `ID_FIND_NEXT` | Find Next | `dialog-replace-button-findNext` | `dialog-replace-button-findNext` | `us2-body-editing.spec.ts`, `us5-find-modeless.spec.ts` | implemented | nothing left: "Finished searching for '...'." (feature 002) |
 | `IDC_REPLACE_ONE` | Replace | `dialog-replace-button-replace` | `dialog-replace-button-replace` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | |
 | `IDC_REPLACE_ALL` | Replace All | `dialog-replace-button-replaceAll` | `dialog-replace-button-replaceAll`, `dialog-replace-all-done` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | reports the number of replacements, one undo step |
 | `IDCANCEL` | Cancel | `dialog-replace-button-cancel` | `dialog-replace-button-cancel` | `us2-body-editing.spec.ts` | implemented | |
@@ -308,7 +308,7 @@ toolbar itself is checked for presence (`00-smoke.spec.ts`) and tooltips (`us8-l
 | `IDC_SYSLINK_AB_LINKS` | project link | `about-repository` (opened in the OS browser by the shell) | `dialog-about` | `00-smoke.spec.ts` | implemented | |
 | `IDC_CONTRIBS` | contributors text (`ABOUT_FILE`) | `about-contributors` (the original's `contributors.txt`, shipped as `CONTRIBUTORS.txt`, word for word in a scrollable read-only box) | `about-contributors` | `us10-licence.spec.ts` | implemented | with the GPL-3.0 notices `about-licence`, `about-copyright`, `about-gpl-notice`, `about-licence-link` (feature 002, FR-095 to FR-098) |
 | `IDC_AB_STATIC_BANNER`, `IDC_AB_BANNER` | animated OpenGL logo with a bitmap fallback | - | - | - | dropped | decorative artwork of the original; visual styling may differ (Constitution I) |
-| `IDC_TEXT_STATUS`, `IDC_PIC_UPDATE`, `IDC_UPDATE` | update check status, icon and "Update now" | - | - | - | dropped | the built-in auto-update checker/downloader is out of scope (spec.md "Out of scope") |
+| `IDC_TEXT_STATUS`, `IDC_PIC_UPDATE`, `IDC_UPDATE` | update check status, icon and "Update now" | - | - | - | dropped | the About dialog's downloader and installer are not reproduced (feature 002 FR-082: the check downloads and installs nothing); Help > Check for new version... (`help.checkVersion`) names a newer release with the original's messages and opens its page in the system browser |
 | `IDOK` | OK | `dialog-about-button-close` | `dialog-about-button-close` | `00-smoke.spec.ts` | implemented | |
 
 ### `IDD_SETTINGS_VIEW` - Settings, View page (`dialogs/settings/ViewPage.tsx`, `settings-page-view`)
@@ -345,7 +345,7 @@ toolbar itself is checked for presence (`00-smoke.spec.ts`) and tooltips (`us8-l
 | `IDC_OPTIONS_CLEARIMGS` | Insert clear images | `settings-other-insert-clear` | `settings-other-insert-clear` | `us9-settings.spec.ts` | implemented | |
 | `IDC_IMAGETYPE` | Paste images as: Image format | `settings-other-image-format` | `settings-other-image-format` | `us9-settings.spec.ts`, `us7-images.spec.ts` | implemented | |
 | `IDC_JPEGQUALITY`, `IDC_JPEGSPIN` | JPEG quality + spinner | `settings-other-jpeg-quality` (number input with spinner) | `settings-other-jpeg-quality` | `us9-settings.spec.ts` | implemented | |
-| `IDC_NBSP_CHAR` | Non-breaking space display character | `settings-other-nbsp` | `settings-other-nbsp` | `us9-settings.spec.ts` | implemented | |
+| `IDC_NBSP_CHAR` | Non-breaking space display character | `settings-other-nbsp` | `settings-other-nbsp` | `us9-settings.spec.ts`, `us6-nbsp-marker.spec.ts` | implemented | as the original (feature 002): the plain space by default, markers □ ▫ ◦ drawn in place in the Body, annotation, history and Source views; a ° stored by 0.0.1 reads as the plain space |
 | `IDC_CHANGE_KEYB`, `IDC_KEYB_LAYOUT` | Keyboard layout: Change on start / Change to | - | - | - | dropped | the Windows keyboard-layout auto-switch option is out of scope (spec.md "Out of scope") |
 
 ### `IDD_SETTINGS_HOTKEYS` - Settings, Hotkeys page (`dialogs/settings/HotkeysPage.tsx`, `settings-page-hotkeys`)
@@ -426,7 +426,7 @@ Dropped items and their references:
 | File > Import / Export placeholder entries (`IDCANCEL`) | Import/Export COM plugin interface and ExportHTML plugin out of scope (spec.md) - placeholders kept |
 | `IDC_SPELL_SUGGEST` "Suggets" | permanently disabled, no handler in the original; automatic suggestions |
 | `IDC_AB_STATIC_BANNER`, `IDC_AB_BANNER` banner | decorative artwork; styling may differ (Constitution I) |
-| `IDC_TEXT_STATUS`, `IDC_PIC_UPDATE`, `IDC_UPDATE` update checker | out of scope (spec.md) |
+| `IDC_TEXT_STATUS`, `IDC_PIC_UPDATE`, `IDC_UPDATE` update downloader | not reproduced (feature 002 FR-082); Help > Check for new version... names a newer release and opens its page |
 | `IDC_CHANGE_KEYB`, `IDC_KEYB_LAYOUT` keyboard layout switch | out of scope (spec.md) |
 
 Implemented differently: `IDR_MAINFRAME_SMALL` (menu icons), `IDC_EDIT_LV` (exclusion list
