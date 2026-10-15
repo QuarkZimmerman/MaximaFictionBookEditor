@@ -229,8 +229,15 @@ test.describe('US5 - navigate and restructure with the Document Tree', () => {
     await paragraph.click({ position: { x: 8, y: 8 } });
     const selected = page.locator('[data-testid^="tree-row-"][data-selected="true"]');
     await expect(selected).toHaveCount(1);
-    const otherRow = await rowOfSection(page, Number(paragraphSection.slice(1)));
-    await expect(otherRow).toHaveAttribute('data-selected', 'true');
+    // The row is looked up again on every try: following the caret, the tree scrolls and its
+    // virtualised rows unmount.
+    const otherSection = Number(paragraphSection.slice(1));
+    await expect
+      .poll(async () => (await rowOfSection(page, otherSection)).getAttribute('data-selected'), {
+        timeout: 15_000,
+      })
+      .toBe('true');
+    const otherRow = await rowOfSection(page, otherSection);
     // The previously selected row (virtualised away) is no longer the selection.
     const otherTestId = (await otherRow.getAttribute('data-testid'))!;
     await expect(tree).toHaveAttribute('data-selected-id', otherTestId.replace('tree-row-', ''));
