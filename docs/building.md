@@ -250,13 +250,16 @@ installed.
 ### 3.4 End-to-end tests (Linux, macOS)
 
 The Playwright journeys drive the real UI in a headless Chromium against `mfbe-core`, which
-the test harness starts itself:
+the test harness starts itself. The script benchmark (tagged `@perf`) measures times, so it runs
+on its own after the journeys:
 
 <!-- replay:linux -->
 ```bash
 cd ui
 npx playwright install --with-deps chromium
-MFBE_CORE_BIN=../build/linux-core-release/bin/mfbe-core MFBE_UI_DIST=../ui/dist npm run test:e2e
+export MFBE_CORE_BIN=../build/linux-core-release/bin/mfbe-core MFBE_UI_DIST=../ui/dist
+npm run test:e2e -- --grep-invert @perf
+npx playwright test --grep @perf --workers=1
 cd ..
 ```
 
@@ -264,7 +267,9 @@ cd ..
 ```bash
 cd ui
 npx playwright install chromium
-MFBE_CORE_BIN=../build/macos-core-release/bin/mfbe-core MFBE_UI_DIST=../ui/dist npm run test:e2e
+export MFBE_CORE_BIN=../build/macos-core-release/bin/mfbe-core MFBE_UI_DIST=../ui/dist
+npm run test:e2e -- --grep-invert @perf
+npx playwright test --grep @perf --workers=1
 cd ..
 ```
 
