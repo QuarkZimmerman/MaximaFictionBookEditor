@@ -1,14 +1,15 @@
 name: CI
 
-# Every push / pull request: core unit tests on all three platforms, UI checks, headless
-# end-to-end journeys against the real core, the CEF application on all three platforms
-# (with the shell smoke test under Xvfb on Linux) and a packaging dry run per platform.
+# Every push to master/main or to a feature branch (NNN-name) and every pull request: core unit
+# tests on all three platforms, UI checks, headless end-to-end journeys against the real core,
+# the CEF application on all three platforms (with the shell smoke test under Xvfb on Linux) and
+# a packaging dry run per platform.
 # Release packages are produced by release.yml; docs/building.md is replayed by
 # docs-build.yml.
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, '[0-9][0-9][0-9]-*']
   pull_request:
   workflow_dispatch:
 
