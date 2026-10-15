@@ -131,14 +131,23 @@ if ((Get-ItemProperty $key).LocaleName -ne 'ru-RU') {
 if ((Get-Culture).Name -ne 'ru-RU') { exit 3 }
 '@
     )
+    # Each step runs from a script file in the user's temporary folder: a command line started with
+    # other credentials holds at most 1024 characters.
+    $userTemp = Join-Path $account.Profile 'AppData\Local\Temp'
+    New-Item -ItemType Directory -Force -Path $userTemp | Out-Null
     foreach ($command in $commands) {
-        $source = "`$ErrorActionPreference = 'Stop'; `$ProgressPreference = 'SilentlyContinue'`n$command"
-        $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($source))
         $stamp = Get-Date -Format 'HHmmssfff'
+        $script = Join-Path $userTemp "mfbe-journey-$stamp.ps1"
+        Set-Content -LiteralPath $script -Encoding utf8BOM `
+            -Value "`$ErrorActionPreference = 'Stop'; `$ProgressPreference = 'SilentlyContinue'`n$command"
         $outputs = @((Join-Path $temp "mfbe-journey-culture-$stamp-out.txt"), (Join-Path $temp "mfbe-journey-culture-$stamp-err.txt"))
-        $shell = Start-ProcessAsUser -Account $account -FilePath $powershell `
-            -ArgumentList "-NoProfile -NonInteractive -EncodedCommand $encoded" -WorkingDirectory $account.Profile `
-            -StandardOutput $outputs[0] -StandardError $outputs[1] -Wait
+        try {
+            $shell = Start-ProcessAsUser -Account $account -FilePath $powershell `
+                -ArgumentList "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$script`"" `
+                -WorkingDirectory $account.Profile -StandardOutput $outputs[0] -StandardError $outputs[1] -Wait
+        } finally {
+            Remove-Item -LiteralPath $script -Force -ErrorAction SilentlyContinue
+        }
         Get-Content -LiteralPath $outputs | ForEach-Object { Write-Host "  $_" }
         if ($shell.ExitCode -eq 3) { throw "a new process of $userName does not have the ru-RU regional format" }
         if ($shell.ExitCode -ne 0) { throw "Windows PowerShell as $userName ended with exit code $($shell.ExitCode)" }
