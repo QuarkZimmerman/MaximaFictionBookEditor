@@ -72,14 +72,15 @@ function Start-ProcessAsUser {
 }
 
 # Prints the Windows Error Reporting events about the editor since $Since, then the last lines of
-# the $Outputs files, of a debug.log next to the program and of the editor's logs in the profile.
+# the $Outputs files, of a debug.log next to the program and of the editor's logs in the profile
+# and in a portable copy's `user` folder.
 function Show-EditorLogs([string]$Exe, [string]$ProfileDir, [string[]]$Outputs, [datetime]$Since) {
     Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = $Since } -ErrorAction SilentlyContinue |
         Where-Object { $_.Id -in 1000, 1001, 1026 -and $_.Message -match 'mfbe' } |
         ForEach-Object { Write-Host ("Windows Error Reporting {0}: {1}" -f $_.Id, ($_.Message -replace "`r?`n", ' | ')) }
     $logs = @($Outputs) + (Join-Path (Split-Path -Parent $Exe) 'debug.log')
-    foreach ($base in @('AppData\Local', 'AppData\Roaming')) {
-        $folder = Join-Path $ProfileDir "$base\Maxima Fiction Book Editor"
+    $folders = @('AppData\Local', 'AppData\Roaming') | ForEach-Object { Join-Path $ProfileDir "$_\Maxima Fiction Book Editor" }
+    foreach ($folder in @($folders) + (Join-Path (Split-Path -Parent $Exe) 'user')) {
         if (Test-Path -LiteralPath $folder) {
             $logs += @(Get-ChildItem -LiteralPath $folder -Recurse -Filter '*.log' -ErrorAction SilentlyContinue |
                 ForEach-Object { $_.FullName })

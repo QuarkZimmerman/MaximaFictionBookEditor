@@ -7,7 +7,8 @@
 #                  tree by packaging/deb-rpm/CPackPreBuild.cmake (T144)
 #   External       AppImage via packaging/appimage/CPackExternal.cmake + build.sh (T143)
 #   WIX            MSI via WiX .NET tool (T142; template/fragments in packaging/wix)
-#   ZIP            Windows portable copy of the MSI's installation tree (no installer)
+#   ZIP            Windows portable copy of the MSI's installation tree (no installer) with an
+#                  empty bin/user folder for the copy's own data (packaging/zip/CPackPreBuild.cmake)
 #   DragNDrop      .dmg with the ad-hoc signed bundle (T145; packaging/macos)
 
 set(_mfbe_source "${CPACK_MFBE_SOURCE_DIR}")
@@ -112,6 +113,7 @@ if(CPACK_GENERATOR STREQUAL "ZIP")
   set(CPACK_PACKAGE_FILE_NAME "MaximaFictionBookEditor-${_mfbe_version}-win64-portable")
   set(CPACK_MONOLITHIC_INSTALL ON)
   set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY ON)
+  list(APPEND CPACK_PRE_BUILD_SCRIPTS "${_mfbe_source}/packaging/zip/CPackPreBuild.cmake")
 endif()
 
 # --- macOS ------------------------------------------------------------------------------------
