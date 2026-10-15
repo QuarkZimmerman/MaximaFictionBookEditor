@@ -463,6 +463,17 @@ jobs:
           MFBE_SMOKE_REAL_UI: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-ru.png
 
+      - name: Shell smoke of a portable copy (feature 002)
+        # A `user` folder next to the shell holds the browser profile and the logs; nothing goes
+        # into the per-user folders.
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_PORTABLE: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-portable.png
+
       - name: Installed tree (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -498,6 +509,8 @@ jobs:
           if ($p.ExitCode -ne 0) { Get-Content $env:RUNNER_TEMP\install.log -Tail 80; throw "msiexec install exit $($p.ExitCode)" }
           $exe = Join-Path $env:ProgramFiles "Maxima Fiction Book Editor\bin\mfbe.exe"
           if (-not (Test-Path $exe)) { throw "mfbe.exe not found at $exe" }
+          # Feature 002: only the portable package has the `user` folder of a portable copy.
+          if (Test-Path (Join-Path (Split-Path -Parent $exe) 'user')) { throw "the installed program has a user folder" }
           & $exe --version
           # The renamed CEF bootstrap must carry the editor's own version info and icon
           # (Start menu / Explorer show the executable's resources).
@@ -539,6 +552,8 @@ jobs:
           Expand-Archive -Path $zip -DestinationPath $dest
           $exe = (Get-ChildItem $dest -Recurse -Filter mfbe.exe | Select-Object -First 1).FullName
           if (-not $exe) { throw "bin\mfbe.exe not found in $zip" }
+          # Feature 002: the portable copy keeps all of its data in its `user` folder.
+          if (-not (Test-Path (Join-Path (Split-Path -Parent $exe) 'user') -PathType Container)) { throw "bin\user not found in $zip" }
           Write-Host "Portable copy: $exe"
           & $exe --version
           tools/ci/windows-start-smoke.ps1 -Exe $exe

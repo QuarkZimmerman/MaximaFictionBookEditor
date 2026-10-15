@@ -11,6 +11,10 @@
 # folder appears directly under C:\Users other than the users' profiles (a path mis-converted
 # through the legacy code page creates a sibling such as C:\Users\PÃ¶be). Build non-ASCII names
 # from character codes, e.g. "Pr$([char]0x00F6)be".
+#
+# A portable copy (a `user` folder next to the program) must keep its browser profile in that
+# folder and leave the profile without the editor's folders; an installed copy must create its
+# data folder in the profile.
 param(
     [Parameter(Mandatory = $true)][string]$Exe,
     [string]$AsUser = '',
@@ -29,8 +33,17 @@ if ($AsUser) {
     $profileDir = $account.Profile
     Write-Host "Profile folder: $profileDir"
 }
-$cefLog = Join-Path $profileDir 'AppData\Local\Maxima Fiction Book Editor\logs\cef-debug.log'
+$portableData = Join-Path (Split-Path -Parent $Exe) 'user'
+$portable = Test-Path -LiteralPath $portableData
+$profileFolders = @('AppData\Roaming', 'AppData\Local') |
+    ForEach-Object { Join-Path $profileDir "$_\Maxima Fiction Book Editor" }
+$logFolder = if ($portable) { Join-Path $portableData 'logs' } else { Join-Path $profileFolders[1] 'logs' }
+$cefLog = Join-Path $logFolder 'cef-debug.log'
 Remove-Item -LiteralPath $cefLog -Force -ErrorAction SilentlyContinue
+if ($portable) {
+    # Runs of the installed copy left the editor's folders in the profile.
+    $profileFolders | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force -ErrorAction SilentlyContinue }
+}
 $stamp = Get-Date -Format 'HHmmss'
 $stdout = Join-Path $env:RUNNER_TEMP "mfbe-stdout-$stamp.txt"
 $stderr = Join-Path $env:RUNNER_TEMP "mfbe-stderr-$stamp.txt"
@@ -74,9 +87,14 @@ try {
     if ($unexpected.Count -gt 0) {
         throw "folders appeared under C:\Users: $($unexpected -join ', ')"
     }
-    $dataFolder = Join-Path $profileDir 'AppData\Roaming\Maxima Fiction Book Editor'
-    if (-not (Test-Path -LiteralPath $dataFolder)) {
-        throw "the editor's data folder was not created in the user's profile ($dataFolder)"
+    if ($portable) {
+        if (-not (Test-Path -LiteralPath (Join-Path $portableData 'cef'))) {
+            throw "the portable copy did not keep its browser profile in $portableData"
+        }
+        $written = @($profileFolders | Where-Object { Test-Path -LiteralPath $_ })
+        if ($written.Count -gt 0) { throw "the portable copy wrote into the user's profile: $($written -join ', ')" }
+    } elseif (-not (Test-Path -LiteralPath $profileFolders[0])) {
+        throw "the editor's data folder was not created in the user's profile ($($profileFolders[0]))"
     }
 } catch {
     Show-EditorLogs $Exe $profileDir @($stdout, $stderr) $since

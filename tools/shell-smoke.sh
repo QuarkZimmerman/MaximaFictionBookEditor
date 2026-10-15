@@ -44,6 +44,10 @@
 #                               2 s; the script checks the editor's Open types, "FictionBook
 #                               files (*.fb2)" active and the dialog on the screen. Exclusive
 #                               with MFBE_SMOKE_MESSAGEBOX and MFBE_SMOKE_CLIPBOARD
+#   MFBE_SMOKE_PORTABLE         1 = portable copy (real UI only, feature 002): a `user` folder
+#                               created next to the shell (and removed afterwards) must receive
+#                               the browser profile (cef/) and the logs (logs/), and no per-user
+#                               folder of the editor may appear in the isolated HOME
 #   MFBE_SMOKE_NO_SANDBOX       1 = pass --no-sandbox explicitly. By default the shell decides
 #                               itself (T140, app/src/sandbox_check.cpp): the sandbox stays on
 #                               when unprivileged user namespaces or the SUID chrome-sandbox
@@ -87,6 +91,7 @@ fi
 TMP=$(mktemp -d -t mfbe-smoke.XXXXXX)
 HTTP_PID=""
 APP_PID=""
+PORTABLE_DIR=""
 cleanup() {
   local status=$?
   set +e
@@ -102,6 +107,9 @@ cleanup() {
   fi
   if [[ -n "$HTTP_PID" ]]; then
     kill "$HTTP_PID" 2>/dev/null
+  fi
+  if [[ -n "$PORTABLE_DIR" ]]; then
+    rm -rf "$PORTABLE_DIR"
   fi
   if [[ $status -ne 0 || "${MFBE_SMOKE_KEEP_LOGS:-0}" == "1" ]]; then
     if [[ -s "$TMP/mfbe.log" ]]; then
@@ -192,6 +200,18 @@ if [[ -n "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
   FILE_ARGS=("$MFBE_SMOKE_OPEN_FILE")
   export MFBE_SMOKE_OPEN_FILE
 fi
+if [[ "${MFBE_SMOKE_PORTABLE:-0}" == "1" ]]; then
+  if [[ "${MFBE_SMOKE_REAL_UI:-0}" != "1" || "$MFBE_APP_BIN" == *.AppImage ]]; then
+    echo "shell-smoke: MFBE_SMOKE_PORTABLE needs MFBE_SMOKE_REAL_UI=1 and an unpacked shell" >&2
+    exit 1
+  fi
+  if [[ -e "$(dirname "$MFBE_APP_BIN")/user" ]]; then
+    echo "shell-smoke: $(dirname "$MFBE_APP_BIN")/user exists already" >&2
+    exit 1
+  fi
+  PORTABLE_DIR="$(dirname "$MFBE_APP_BIN")/user"
+  mkdir "$PORTABLE_DIR"
+fi
 echo "shell-smoke: $MFBE_APP_BIN --remote-debugging-port=$CDP_PORT ${SANDBOX_ARGS[*]:-} ${URL_ARGS[*]:-} ${FILE_ARGS[*]:-} (page: $MFBE_SMOKE_URL)"
 SELFTEST=""
 if [[ "${MFBE_SMOKE_MESSAGEBOX:-0}" == "1" ]]; then
@@ -274,6 +294,24 @@ print("CDP Protocol:   ", info.get("Protocol-Version"))
 
 # --- Playwright over CDP ----------------------------------------------------------------------
 node "$ROOT/tools/shell-smoke.mjs" "$CDP_PORT"
+
+if [[ -n "$PORTABLE_DIR" ]]; then
+  for sub in cef logs; do
+    if [[ ! -d "$PORTABLE_DIR/$sub" ]]; then
+      echo "shell-smoke: the portable copy has no $sub/ in $PORTABLE_DIR" >&2
+      exit 1
+    fi
+  done
+  for folder in "$TMP/home/.config/maxfbeditor" "$TMP/home/.local/share/maxfbeditor" \
+                "$TMP/home/.local/state/maxfbeditor"; do
+    if [[ -e "$folder" ]]; then
+      echo "shell-smoke: the portable copy wrote into the per-user folder $folder" >&2
+      exit 1
+    fi
+  done
+  echo "shell-smoke: portable copy keeps its data in $PORTABLE_DIR:" \
+    "$(find "$PORTABLE_DIR" -mindepth 1 -maxdepth 1 -printf '%f ')"
+fi
 
 # Sandbox decision of the shell (T140): "sandbox available (...)" or "Chromium sandbox
 # unavailable (...); running without the sandbox".

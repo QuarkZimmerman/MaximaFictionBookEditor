@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Start of the macOS editor in a Russian environment (feature 002, best effort in CI): Russian as
 # the system language (AppleLanguages, restored afterwards) and the bundle from the .dmg copied
-# into a folder with Cyrillic letters next to a "user" folder, the portable data folder the core
-# finds beside the bundle (<bundle>.app/../user). The editor is started as from Finder, without
-# LANG, LC_ALL or LC_MESSAGES (the variables it reads on macOS), with its DevTools port open.
-# Fails when no editor window (page title over the DevTools protocol) appears; a window whose
-# interface is not Russian is reported as a warning.
+# into a folder with Cyrillic letters next to a "user" folder, the portable folder beside the
+# bundle (<bundle>.app/../user), where the copy keeps all of its data. The editor is started as
+# from Finder, without LANG, LC_ALL or LC_MESSAGES (the variables it reads on macOS), with its
+# DevTools port open. Fails when no editor window (page title over the DevTools protocol)
+# appears or the browser profile is not in the portable folder; a window whose interface is not
+# Russian is reported as a warning.
 # Usage: tools/ci/macos-russian-start.sh <.dmg>
 set -euo pipefail
 
@@ -64,7 +65,7 @@ done
 
 if [ -z "$title" ]; then
   echo "No editor window within 120 s (editor process $pid $(kill -0 "$pid" 2>/dev/null && echo running || echo ended))"
-  for log in "$work/stdout.txt" "$work/stderr.txt" "$HOME/Library/Logs/Maxima Fiction Book Editor/cef-debug.log"; do
+  for log in "$work/stdout.txt" "$work/stderr.txt" "$folder/user/logs/cef-debug.log"; do
     if [ -f "$log" ]; then
       echo "----- $log (last 40 lines) -----"
       tail -n 40 "$log"
@@ -73,6 +74,10 @@ if [ -z "$title" ]; then
   exit 1
 fi
 echo "Editor window: $title"
+if [ ! -d "$folder/user/cef" ]; then
+  echo "The portable copy did not keep its browser profile in $folder/user"
+  exit 1
+fi
 # A new document is "Без имени" (untitled) in the Russian interface (ui/src/i18n/ru.json).
 case "$title" in
   "Без имени - "*) echo "The interface is Russian." ;;
