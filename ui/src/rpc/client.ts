@@ -5,6 +5,8 @@
  * - Server notifications dispatched to `on(name, handler)` subscribers.
  * - Job helpers: `runJob()` resolves on `job.done` / rejects on `job.failed`.
  * - Automatic reconnect with exponential backoff and `onStatus()` callbacks.
+ * - File dialog requests (`FILE_DIALOG_METHODS`) wait without a time limit and are reported
+ *   while pending (`fileDialogOpen`, `onFileDialog()`).
  *
  * The client never touches binary payloads: images travel over the HTTP endpoints.
  */
@@ -116,6 +118,17 @@ interface JobWaiter {
   onProgress?: (progress: JobProgress) => void;
 }
 
+/**
+ * Methods that show one of the platform's file dialogs (rpc-api.md §3.9): the core answers when
+ * the user closes the dialog, so they wait without a time limit, and while one is pending the
+ * editor takes no input (`app/fileDialogBlock.ts`).
+ */
+export const FILE_DIALOG_METHODS: ReadonlySet<string> = new Set([
+  'dialog.openFile',
+  'dialog.saveFile',
+  'dialog.pickFolder',
+]);
+
 const DEFAULT_BACKOFF: BackoffOptions = { initialMs: 500, maxMs: 10_000, factor: 2 };
 const UNCLAIMED_JOB_LIMIT = 32;
 
@@ -188,6 +201,8 @@ export class RpcClient {
   private readonly jobWaiters = new Map<string, JobWaiter>();
   private readonly unclaimedJobs = new Map<string, JobOutcome>();
   private nextId = 1;
+  private pendingFileDialogs = 0;
+  private readonly fileDialogListeners = new Set<(open: boolean) => void>();
   private closedByUser = false;
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -250,6 +265,22 @@ export class RpcClient {
     };
   }
 
+  /** True while a file dialog request (`FILE_DIALOG_METHODS`) waits for its answer. */
+  get fileDialogOpen(): boolean {
+    return this.pendingFileDialogs > 0;
+  }
+
+  /**
+   * Called with true when a file dialog request starts waiting and with false once no file
+   * dialog request is pending any more (answered, failed or disconnected).
+   */
+  onFileDialog(listener: (open: boolean) => void): () => void {
+    this.fileDialogListeners.add(listener);
+    return () => {
+      this.fileDialogListeners.delete(listener);
+    };
+  }
+
   /** Subscribes to a server notification. Returns the unsubscribe function. */
   on<N extends RpcNotificationName>(name: N, handler: NotificationHandler<N>): () => void {
     let set = this.notificationListeners.get(name);
@@ -281,9 +312,10 @@ export class RpcClient {
     const body: Record<string, unknown> = { jsonrpc: '2.0', id, method };
     if (params !== undefined) body.params = params;
     const payload = JSON.stringify(body);
-    const timeoutMs = options.timeoutMs ?? this.timeoutMs;
+    const fileDialog = FILE_DIALOG_METHODS.has(method);
+    const timeoutMs = options.timeoutMs ?? (fileDialog ? 0 : this.timeoutMs);
 
-    return new Promise<unknown>((resolve, reject) => {
+    const answer = new Promise<unknown>((resolve, reject) => {
       const entry: PendingRequest = { method, resolve, reject, timer: null, payload, sent: false };
       if (timeoutMs > 0) {
         entry.timer = setTimeout(() => {
@@ -302,6 +334,17 @@ export class RpcClient {
       }
       // otherwise the request is flushed by onopen (status 'connecting')
     });
+    if (!fileDialog) return answer;
+    this.countFileDialog(1);
+    return answer.finally(() => this.countFileDialog(-1));
+  }
+
+  private countFileDialog(change: 1 | -1): void {
+    const wasOpen = this.pendingFileDialogs > 0;
+    this.pendingFileDialogs += change;
+    const open = this.pendingFileDialogs > 0;
+    if (open === wasOpen) return;
+    for (const listener of [...this.fileDialogListeners]) listener(open);
   }
 
   /**
