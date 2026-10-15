@@ -549,6 +549,13 @@ jobs:
           "$RUNNER_TEMP/dmg/mfbe.app/Contents/MacOS/mfbe" --version
           hdiutil detach "$RUNNER_TEMP/dmg"
 
+      - name: Russian environment (macOS, best effort)
+        if: runner.os == 'macOS'
+        # Feature 002: Russian as the system language and a Cyrillic folder holding the bundle and
+        # its portable data folder; the editor window must appear (tools/ci/macos-russian-start.sh).
+        continue-on-error: true
+        run: tools/ci/macos-russian-start.sh "$(ls build/${{ matrix.preset }}/packages/*.dmg)"
+
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
