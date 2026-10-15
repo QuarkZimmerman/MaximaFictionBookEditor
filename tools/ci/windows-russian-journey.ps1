@@ -4,20 +4,21 @@
 # opened book. The release build has no test hooks: the run uses the command line, the DevTools
 # protocol (cdp-client.ps1) and files only, and fails unless
 #   - the window title shows the book's name and the interface is Russian (the editor takes its
-#     language from the user's regional format, GetUserDefaultLocaleName, which Set-Culture sets);
+#     language from the user's regional format, GetUserDefaultLocaleName);
 #   - Save (F2, the original editor's key; Ctrl+S has no command) rewrites the book in place;
 #   - View > Status Bar, chosen with the Russian accelerators (Alt+В, С), hides the status bar and
-#     settings.json in the user's profile records it;
+#     settings.json records it;
 #   - File > Exit (F10, Down, В) ends the editor with exit code 0, and after a restart the status
 #     bar is still hidden;
-#   - recent.json in the user's profile lists the book's path byte for byte in UTF-8;
+#   - recent.json lists the book's path byte for byte in UTF-8;
 #   - no folder appeared under C:\Users or C:\ or next to the book, the installed copy wrote
 #     nothing into its program folder (a portable copy may write into its own), and the profile
-#     holds no folder of the editor's other than the two in AppData.
+#     holds no folder of the editor's other than the installed copy's two in AppData.
 #
-# -Exe runs an installed copy; -Zip unpacks the portable ZIP into the user's Downloads folder and
-# runs that copy, which keeps its settings in the same profile folders. Each call starts without
-# editor data in the profile, as at a first start.
+# -Exe runs an installed copy, which keeps settings.json and recent.json in the user's profile;
+# -Zip unpacks the portable ZIP into the user's Downloads folder and runs that copy, which keeps
+# all of its data in its `user` folder. Each call starts without editor data in the profile, as
+# at a first start.
 param(
     [string]$Exe = '',
     [string]$Zip = '',
@@ -101,17 +102,16 @@ function Get-FreePort {
     try { $listener.LocalEndpoint.Port } finally { $listener.Stop() }
 }
 
-# Russian regional formats and display language for the user, set as the user (both live in the
-# user's own registry), then shown by a new process of the user. Windows gives every process in
-# a session the regional format of the session's logged-on user, also the processes of other
-# users, so the runner's own account gets the Russian regional format too. The display language
-# takes effect only where Windows has the Russian language pack; the editor does not read it.
+# Russian regional format and display language for the user, set as the user (both live in the
+# user's own registry), then shown by a new process of the user. The regional format is written
+# where Windows keeps it (Control Panel\International: LocaleName, Locale): Set-Culture run in a
+# process started with other credentials leaves the user's setting unchanged. The display
+# language takes effect only where Windows has the Russian language pack; the editor does not
+# read it.
 function Set-RussianEnvironment {
     $powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    & $powershell -NoProfile -NonInteractive -Command 'Set-Culture ru-RU'
-    if ($LASTEXITCODE -ne 0) { throw "Set-Culture for the runner's account ended with exit code $LASTEXITCODE" }
     $commands = @(
-        'Set-Culture ru-RU; try { Set-WinUILanguageOverride -Language ru-RU } catch { "Set-WinUILanguageOverride: $($_.Exception.Message)" }',
+        '$key = ''HKCU:\Control Panel\International''; Set-ItemProperty $key -Name LocaleName -Value ''ru-RU''; Set-ItemProperty $key -Name Locale -Value ''00000419''; try { Set-WinUILanguageOverride -Language ru-RU } catch { "Set-WinUILanguageOverride: $($_.Exception.Message)" }',
         '"regional format $((Get-Culture).Name) (registry $((Get-ItemProperty ''HKCU:\Control Panel\International'').LocaleName)), display language override $(Get-WinUILanguageOverride)"; if ((Get-Culture).Name -ne ''ru-RU'') { exit 3 }'
     )
     foreach ($command in $commands) {
@@ -123,7 +123,7 @@ function Set-RussianEnvironment {
             -ArgumentList "-NoProfile -NonInteractive -EncodedCommand $encoded" -WorkingDirectory $account.Profile `
             -StandardOutput $outputs[0] -StandardError $outputs[1] -Wait
         Get-Content -LiteralPath $outputs | ForEach-Object { Write-Host "  $_" }
-        if ($shell.ExitCode -eq 3) { throw "a new process of $userName does not have the ru-RU regional format after Set-Culture" }
+        if ($shell.ExitCode -eq 3) { throw "a new process of $userName does not have the ru-RU regional format of its registry" }
         if ($shell.ExitCode -ne 0) { throw "Windows PowerShell as $userName ended with exit code $($shell.ExitCode)" }
     }
 }
@@ -227,9 +227,8 @@ $profileDir = $account.Profile
 Write-Host "Profile folder: $profileDir"
 Set-RussianEnvironment
 
-$dataFolder = Join-Path $profileDir "AppData\Roaming\$appName"
-$localFolder = Join-Path $profileDir "AppData\Local\$appName"
-foreach ($folder in $dataFolder, $localFolder) {
+$profileFolders = @((Join-Path $profileDir "AppData\Roaming\$appName"), (Join-Path $profileDir "AppData\Local\$appName"))
+foreach ($folder in $profileFolders) {
     if (Test-Path -LiteralPath $folder) { Remove-Item -LiteralPath $folder -Recurse -Force }
 }
 if ($Zip) {
@@ -242,6 +241,8 @@ if ($Zip) {
 }
 # The installed copy's program folder, which it never writes to.
 $programFolder = if (-not $Zip) { Split-Path -Parent (Split-Path -Parent $Exe) }
+# Where the copy keeps settings.json and recent.json.
+$dataFolder = if ($Zip) { Join-Path (Split-Path -Parent $Exe) 'user' } else { $profileFolders[0] }
 
 $booksFolder = Join-Path $profileDir "Documents\$booksFolderName"
 if (Test-Path -LiteralPath $booksFolder) { Remove-Item -LiteralPath $booksFolder -Recurse -Force }
@@ -289,7 +290,7 @@ Invoke-EditorRun 'Restart' '' {
 }
 
 if ((Read-Json $settingsFile).session.toolbars.status -ne $false) {
-    throw "settings.json in the user's profile does not hold the hidden status bar ($settingsFile)"
+    throw "settings.json does not hold the hidden status bar ($settingsFile)"
 }
 $recent = Read-Json $recentFile
 $first = if ($recent) { @($recent.items)[0].path }
@@ -315,8 +316,9 @@ if ($programFolder) {
     $unexpected = @(Get-Entries $programFolder -Recurse | Where-Object { $_ -notin $programBefore })
     if ($unexpected.Count -gt 0) { throw "the installed editor wrote into its program folder: $($unexpected -join ', ')" }
 }
+$allowedFolders = if ($Zip) { @() } else { $profileFolders }
 $unexpected = @(Get-ChildItem -LiteralPath $profileDir -Recurse -Force -Directory -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -eq $appName -and $_.FullName -notin $dataFolder, $localFolder } |
+    Where-Object { $_.Name -eq $appName -and $_.FullName -notin $allowedFolders } |
     ForEach-Object { $_.FullName })
 if ($unexpected.Count -gt 0) { throw "folders of the editor's outside AppData: $($unexpected -join ', ')" }
 
