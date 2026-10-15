@@ -47,6 +47,10 @@ Dirs resolve_dirs(const std::string& override_root = "");
 // Creates every directory of `dirs` (best effort; errors are logged, not thrown).
 void ensure_dirs(const Dirs& dirs);
 
+// The user's documents folder (Windows: Documents; Linux: XDG_DOCUMENTS_DIR of user-dirs.dirs,
+// else ~/Documents; macOS: ~/Documents); empty when it cannot be determined.
+std::filesystem::path documents_dir();
+
 // Default platform locations without the application sub-folder (exposed for tests).
 std::filesystem::path default_config_root();
 std::filesystem::path default_data_root();

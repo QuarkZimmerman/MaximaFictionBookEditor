@@ -16,10 +16,10 @@
 //   latest release (app.latestRelease) -> {tag, version, url} | 1060 {reason}
 //
 // The document dialogs - Open and Save As, the dialogs that offer FictionBook files - share one
-// remembered folder: Windows keeps it through the shell's client GUID, Linux and macOS in the
-// setting session.lastFileDialogFolder, which the dialog.* handlers apply as the folder of every
-// file dialog that names none (`SaveFileRequest::folder` is set by the core only, never read
-// from the wire).
+// remembered folder, the user's documents folder until one is kept: Windows keeps it through the
+// shell's client GUID, Linux and macOS in the setting session.lastFileDialogFolder, which the
+// dialog.* handlers apply as the folder of every file dialog that names none
+// (`SaveFileRequest::folder` is set by the core only, never read from the wire).
 #pragma once
 
 #include <nlohmann/json.hpp>

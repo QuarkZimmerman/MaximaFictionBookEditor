@@ -12,6 +12,7 @@
 #include <windows.h>
 
 #include <objbase.h>
+#include <shlobj.h>
 #include <shobjidl.h>
 // clang-format on
 
@@ -114,6 +115,15 @@ std::string itemPath(IShellItem* item) {
     return utf8;
 }
 
+// Open and Save As: the user's documents folder while the client GUID keeps no folder.
+void defaultToDocuments(IFileDialog* dialog) {
+    ComRef<IShellItem> documents;
+    if (SUCCEEDED(::SHGetKnownFolderItem(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr,
+                                         IID_PPV_ARGS(documents.put())))) {
+        dialog->SetDefaultFolder(documents.get());
+    }
+}
+
 void openIn(IFileDialog* dialog, const std::string& folder) {
     ComRef<IShellItem> item;
     if (!folder.empty() && shellItem(folder, item)) {
@@ -209,6 +219,7 @@ bool showDialog(HWND owner, const FileDialogRequest& request, FileDialogResult& 
     dialog->SetOptions(options);
     if (request.document_dialog) {
         dialog->SetClientGuid(kDocumentDialogsGuid);
+        defaultToDocuments(dialog.get());
     }
     if (!request.title.empty()) {
         dialog->SetTitle(wideText(request.title).c_str());

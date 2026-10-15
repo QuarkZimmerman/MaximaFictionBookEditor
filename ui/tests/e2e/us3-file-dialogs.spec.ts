@@ -8,9 +8,10 @@
  * the proposed file, several files, the encoding choice of Save As - for Open, Save As (saved
  * and never-saved document), block / inline / section image, cover image, Add Binary Object,
  * Save image as and the custom dictionary, in English and with `?lang=ru`. On Linux and macOS
- * the core opens every dialog that names no folder in the folder last used by Open or Save As
- * (Windows keeps it in the dialogs). The platform dialogs themselves are covered by the shell
- * tests (tests/shell) and the shell's self-test.
+ * the core opens every dialog that names no folder in the folder last used by Open or Save As,
+ * Open and Save As in the user's documents folder while none is kept (Windows keeps the folder
+ * in the dialogs). The platform dialogs themselves are covered by the shell tests (tests/shell)
+ * and the shell's self-test.
  */
 
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
@@ -212,7 +213,8 @@ for (const language of ['en', 'ru'] as const) {
       await openApp(core, page, language);
       const book = path.join(books, 'book.fb2');
 
-      // Open: FictionBook files selected; nothing remembered yet.
+      // Open: FictionBook files selected; nothing kept yet (Linux and macOS: the user's documents
+      // folder, when there is one).
       const open = await openBook(core, page, book);
       expect(open).toMatchObject({
         method: 'dialog.openFile',
@@ -221,7 +223,7 @@ for (const language of ['en', 'ru'] as const) {
         selectedFilter: 0,
         multiple: false,
       });
-      expect(open.folder).toBeUndefined();
+      expect(open.folder).not.toBe(books);
 
       // Save As of a saved book: its folder and name, FictionBook files selected, the encoding
       // choice inside the dialog with the Save encoding first.
