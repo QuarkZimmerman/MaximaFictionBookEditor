@@ -1,5 +1,6 @@
 # Starts the Windows editor (installed or unpacked) and waits until its window shows the editor
-# interface, read over the DevTools protocol (page title), then stops it with all its processes.
+# interface, read over the DevTools protocol (page title ending with the editor's name, e.g.
+# "Untitled - Maxima Fiction Book Editor"), then stops it with all its processes.
 # Fails when the editor exits early, when the interface does not appear in time, or when
 # Chromium reports that its sandboxed helper processes cannot read the program folder.
 #
@@ -50,7 +51,7 @@ try {
         if ($proc.HasExited) { throw ("mfbe.exe exited early (exit code 0x{0:X8})" -f $proc.ExitCode) }
         try {
             $pages = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/json/list" -TimeoutSec 5
-            $page = $pages | Where-Object { $_.type -eq 'page' -and $_.title -like 'Maxima Fiction Book Editor*' } |
+            $page = $pages | Where-Object { $_.type -eq 'page' -and $_.title -like '*Maxima Fiction Book Editor' } |
                 Select-Object -First 1
             if ($page) { $title = $page.title }
         } catch {

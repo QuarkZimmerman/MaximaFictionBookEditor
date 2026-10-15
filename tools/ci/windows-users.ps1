@@ -18,9 +18,10 @@ function New-StandardUser([string]$name) {
     }
     Add-LocalGroupMember -Group 'Users' -Member $name -ErrorAction SilentlyContinue
     $credential = New-Object System.Management.Automation.PSCredential(".\$name", $password)
-    # A first logon creates the user's real profile folder.
+    # A first logon creates the user's real profile folder. The working directory is one every
+    # user can read (the job's folder may not be).
     Start-Process -FilePath "$env:WINDIR\System32\cmd.exe" -ArgumentList '/c', 'exit' -Credential $credential `
-        -LoadUserProfile -Wait
+        -LoadUserProfile -WorkingDirectory $env:WINDIR -Wait
     $sid = (Get-LocalUser -Name $name).SID.Value
     $profileDir = (Get-CimInstance Win32_UserProfile | Where-Object { $_.SID -eq $sid }).LocalPath
     if (-not $profileDir) { throw "no profile folder was created for $name" }
