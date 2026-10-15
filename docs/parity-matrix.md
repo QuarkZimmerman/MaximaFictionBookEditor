@@ -51,9 +51,9 @@ mouse and the keyboard.
 |---|---|---|---|---|---|---|
 | `ID_EDIT_UNDO` | Undo | `edit.undo` (`model/undo.ts` coordinator) | `menu-edit-undo`, `toolbar-edit.undo` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | multi-level across views, dialogs and scripts (FR-034) |
 | `ID_EDIT_REDO` | Redo | `edit.redo` | `menu-edit-redo`, `toolbar-edit.redo` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | |
-| `ID_EDIT_CUT` | Cut | `edit.cut` (`features/clipboard.ts`) | `menu-edit-cut` | `us2-body-editing.spec.ts` | implemented | structure-preserving clipboard (scenario 6) |
-| `ID_EDIT_COPY` | Copy | `edit.copy` | `Control+c` | `us2-body-editing.spec.ts` | implemented | exercised through the hotkey |
-| `ID_EDIT_PASTE` | Paste | `edit.paste` | `menu-edit-paste` | `us2-body-editing.spec.ts`, `us7-images.spec.ts` | implemented | pasted images go through `POST /binary` (us7 scenario 2) |
+| `ID_EDIT_CUT` | Cut | `edit.cut` (`features/clipboard.ts`) | `menu-edit-cut` | `us2-body-editing.spec.ts`, `us8-toolbars.spec.ts` | implemented | structure-preserving clipboard (scenario 6); also the Source editor and the Description fields, as the original's (feature 002) |
+| `ID_EDIT_COPY` | Copy | `edit.copy` | `Control+c`, `menu-edit-copy` | `us2-body-editing.spec.ts`, `us8-toolbars.spec.ts` | implemented | Body, Source editor and Description fields |
+| `ID_EDIT_PASTE` | Paste | `edit.paste` | `menu-edit-paste` | `us2-body-editing.spec.ts`, `us7-images.spec.ts`, `us8-toolbars.spec.ts` | implemented | pasted images go through `POST /binary` (us7 scenario 2); Body, Source editor and Description fields; the shell grants the clipboard to the editor's page (`app/src/permission_policy.cpp`) |
 | `ID_EDIT_FIND` | Find... | `edit.find` (`features/search/search.ts`, `dialogs/FindDialog.tsx`) | `dialog-find`, `Control+f` | `us2-body-editing.spec.ts`, `us8-language.spec.ts` | implemented | see `IDD_FIND` |
 | `ID_EDIT_FINDNEXT` | Find Next | `edit.findNext` | `F3`, `dialog-find-button-findNext` | `us2-body-editing.spec.ts` | implemented | repeats the last search |
 | `ID_EDIT_REPLACE` | Replace... | `edit.replace` (`dialogs/ReplaceDialog.tsx`) | `dialog-replace`, `menu-edit-replace` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | see `IDD_REPLACE`; also works in Description text fields |
