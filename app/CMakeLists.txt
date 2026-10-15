@@ -75,10 +75,13 @@ set(MFBE_SHELL_DEFINES
   $<$<BOOL:${MFBE_TEST_HOOKS}>:MFBE_SHELL_TEST_HOOKS=1>)
 
 # ---------------------------------------------------------------------------------------------
-# Pure shell logic without CEF types (file dialog requests in each platform's terms), shared by
-# the bridge and the mfbe_shell_tests executable (tests/shell).
+# Pure shell logic without CEF types (file dialog requests in each platform's terms, the
+# right-click menu, the latest-release request), shared by the bridge, the shell and the
+# mfbe_shell_tests executable (tests/shell).
 
 add_library(mfbe_shell_logic STATIC
+  src/context_menu.cpp
+  src/context_menu.h
   src/file_dialog_request.cpp
   src/file_dialog_request.h
   src/release_request.cpp
@@ -201,7 +204,8 @@ set(MFBE_TARGET_OUT_DIR "${CMAKE_BINARY_DIR}/bin")
 function(mfbe_shell_configure_target target)
   target_compile_definitions(${target} PRIVATE ${MFBE_SHELL_DEFINES})
   add_dependencies(${target} libcef_dll_wrapper)
-  target_link_libraries(${target} mfbe_app_bridge mfbe_paths libcef_dll_wrapper ${CEF_STANDARD_LIBS})
+  target_link_libraries(${target} mfbe_app_bridge mfbe_paths mfbe_shell_logic libcef_dll_wrapper
+    ${CEF_STANDARD_LIBS})
   if(NOT OS_MAC)
     target_link_libraries(${target} libcef_lib)
   endif()

@@ -30,6 +30,7 @@ import { currentTheme, subscribeTheme } from '@/app/theme';
 import { useAppState } from '@/model/store';
 
 import { parseSourceFont } from './extensions';
+import { SourceContextMenu } from './SourceContextMenu';
 import { sourceEditorFor, sourceSettingsOf } from './sourceEditor';
 
 import './source.css';
@@ -50,6 +51,7 @@ export function SourceView() {
   const settings = useMemo(() => sourceSettingsOf(appSettings), [appSettings]);
   const theme = useSyncExternalStore(subscribeTheme, currentTheme, currentTheme);
   const [foldLevel, setFoldLevel] = useState(2);
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
 
   const controller = useMemo(() => sourceEditorFor(store, undo), [store, undo]);
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -234,8 +236,19 @@ export function SourceView() {
           className="mfbe-source-editor"
           data-testid="panel-source-document"
           aria-busy={snapshot.status === 'loading'}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            setMenuAt({ x: event.clientX, y: event.clientY });
+          }}
         />
       </div>
+      {menuAt ? (
+        <SourceContextMenu
+          controller={controller}
+          position={menuAt}
+          onClose={() => setMenuAt(null)}
+        />
+      ) : null}
     </div>
   );
 }

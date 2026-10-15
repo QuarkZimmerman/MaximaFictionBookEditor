@@ -349,6 +349,8 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
 
   const onTopClick = (event: ReactMouseEvent, menu: MenuSpec) => {
     event.preventDefault();
+    // Only the left button opens a menu: a right-click on the menu bar shows nothing.
+    if (event.button !== 0) return;
     if (openMenuId === menu.id) close();
     else open(menu.id, false);
   };

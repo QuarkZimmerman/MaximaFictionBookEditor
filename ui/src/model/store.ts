@@ -55,6 +55,8 @@ export interface AppState {
   treeVisible: boolean;
   fastMode: boolean;
   settings: Settings | null;
+  /** Toolbar layout changes sent to the core and not answered yet (app/toolbarLayouts.ts). */
+  layoutSavesPending: number;
   uiLanguage: UiLanguage;
 }
 
@@ -88,6 +90,7 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     treeVisible: true,
     fastMode: false,
     settings: null,
+    layoutSavesPending: 0,
     uiLanguage: 'en',
     ...overrides,
   };
@@ -301,14 +304,30 @@ export const actions = {
     store.setState((s) => ({ fastMode: !s.fastMode }));
   },
 
-  /** Applies settings received from the core (settings.get / settings.changed). */
+  /**
+   * Applies settings received from the core (settings.get / settings.changed). While a toolbar
+   * layout change is on its way to the core, the layouts shown stay: the settings reported for
+   * an earlier change would undo it until the core reports the latest.
+   */
   setSettings(store: AppStore, settings: Settings): void {
+    const { layoutSavesPending, settings: current } = store.getState();
+    if (layoutSavesPending > 0 && current) {
+      settings = {
+        ...settings,
+        session: { ...settings.session, toolbarLayouts: current.session.toolbarLayouts },
+      };
+    }
     store.setState({
       settings,
       toolbars: { ...settings.session.toolbars },
       treeVisible: settings.session.treeVisible,
       fastMode: settings.view.fastMode,
     });
+  },
+
+  /** Counts a toolbar layout change sent to the core (1) or answered (-1). */
+  countLayoutSave(store: AppStore, step: 1 | -1): void {
+    store.setState((s) => ({ layoutSavesPending: s.layoutSavesPending + step }));
   },
 
   setUiLanguage(store: AppStore, uiLanguage: UiLanguage): void {

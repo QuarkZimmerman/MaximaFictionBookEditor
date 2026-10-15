@@ -1,20 +1,52 @@
 /**
- * Toolbars row: the Commands toolbar (buttons exactly as the original `IDR_MAINFRAME TOOLBAR`,
- * with its 24 px icons), the Scripts toolbar, the Links bar and the Table bar. Each toolbar is
- * toggled from the View menu (store `toolbars.*`). Links/Table bar fields are placeholders until
- * T062 binds them to the selection.
+ * Toolbars row: the Commands toolbar (the buttons of the original `IDR_MAINFRAME TOOLBAR` with
+ * their 24 px icons), the Scripts toolbar, the Links bar and the Table bar, each toggled from the
+ * View menu (store `toolbars.*`). The Commands and Scripts toolbars show the user's layout
+ * (toolbarLayouts.ts) and are customised as the original's: a right-click anywhere on them
+ * offers "Customize toolbar...", a double-click on an empty part opens that dialog, and a button
+ * dragged with Shift held moves to where it is dropped or leaves the toolbar when dropped off it.
  */
 
-import type { ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { CustomizeToolbarDialog } from '@/dialogs/CustomizeToolbarDialog';
 import { useAppState } from '@/model/store';
 
 import { useAppServices, useCommandContext, useAppRevision } from './services';
 import { commandDescription, commandTooltip } from './commands';
 import { LinksBar } from './LinksBar';
+import { PopupMenu } from './PopupMenu';
 import { TableBar } from './TableBar';
-import { COMMANDS_TOOLBAR, iconUrl } from './toolbarDefinitions';
+import { iconUrl } from './toolbarDefinitions';
+import {
+  LAST_SCRIPT,
+  SEPARATOR,
+  saveLayout,
+  shownLayout,
+  type CustomizableToolbar,
+} from './toolbarLayouts';
+
+/** The script buttons the Scripts toolbar can show (supplied by the scripting module). */
+export interface ScriptToolbarButtons {
+  /** Command ids of the menu scripts with an icon, in menu order. */
+  commandIds: readonly string[];
+  /** The button of one of them. */
+  render: (commandId: string) => ReactNode;
+}
+
+const NO_SCRIPTS: readonly string[] = [];
+
+/** Half the space between two toolbar items: a drop there lands on the nearer one (pixels). */
+const HALF_ITEM_GAP = 2;
 
 export interface ToolbarButtonProps {
   commandId: string;
@@ -66,51 +98,209 @@ function ToolbarSeparator() {
   return <span className="mfbe-toolbar-separator" role="separator" aria-orientation="vertical" />;
 }
 
-export function CommandsToolbar() {
+/**
+ * The layout after a Shift+drag of item `from` released at (x, y), as the Windows toolbar the
+ * original used: dropped off the toolbar the button is removed; on another item it takes that
+ * item's place; on an empty part it goes first or last; on itself, its right half puts a
+ * separator before it and its left half removes the separator before it. Null: no change.
+ */
+function dropLayout(
+  toolbar: HTMLElement,
+  items: readonly string[],
+  from: number,
+  x: number,
+  y: number,
+): string[] | null {
+  const moved = items[from]!;
+  const others = items.filter((_, index) => index !== from);
+  const bounds = toolbar.getBoundingClientRect();
+  if (x < bounds.left || x >= bounds.right || y < bounds.top || y >= bounds.bottom) return others;
+  const elements = [...toolbar.querySelectorAll<HTMLElement>('[data-toolbar-index]')];
+  const hit = elements.find((element) => {
+    const box = element.getBoundingClientRect();
+    return (
+      x >= box.left - HALF_ITEM_GAP &&
+      x < box.right + HALF_ITEM_GAP &&
+      y >= box.top &&
+      y < box.bottom
+    );
+  });
+  if (!hit) {
+    const first = elements[0]?.getBoundingClientRect();
+    const to = first && x < first.left ? 0 : items.length - 1;
+    return to === from ? null : [...others.slice(0, to), moved, ...others.slice(to)];
+  }
+  const to = Number(hit.dataset.toolbarIndex);
+  if (to !== from) return [...others.slice(0, to), moved, ...others.slice(to)];
+  const box = hit.getBoundingClientRect();
+  if (x >= box.left + box.width / 2) {
+    return [...items.slice(0, from), SEPARATOR, ...items.slice(from)];
+  }
+  if (from > 0 && items[from - 1] === SEPARATOR) {
+    return items.filter((_, index) => index !== from - 1);
+  }
+  return null;
+}
+
+/** Shift+drag of a toolbar button (not a separator); the release decides (`dropLayout`). */
+function useButtonDrag(items: readonly string[], save: (items: string[]) => void) {
+  const [dragging, setDragging] = useState(false);
+  const suppressClick = useRef(false);
+  const latest = useRef({ items, save });
+  useEffect(() => {
+    latest.current = { items, save };
+  });
+
+  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || !event.shiftKey) return;
+    const toolbar = event.currentTarget;
+    const element = (event.target as Element).closest<HTMLElement>('[data-toolbar-index]');
+    if (!element || !toolbar.contains(element)) return;
+    const from = Number(element.dataset.toolbarIndex);
+    if (latest.current.items[from] === SEPARATOR) return;
+    event.preventDefault();
+    suppressClick.current = true;
+    toolbar.setPointerCapture(event.pointerId);
+    setDragging(true);
+    const finish = (release: PointerEvent | null) => {
+      toolbar.removeEventListener('pointerup', onUp);
+      toolbar.removeEventListener('pointercancel', onCancel);
+      setDragging(false);
+      // The click that follows the release belongs to the drag.
+      window.setTimeout(() => {
+        suppressClick.current = false;
+      }, 0);
+      if (!release) return;
+      const next = dropLayout(
+        toolbar,
+        latest.current.items,
+        from,
+        release.clientX,
+        release.clientY,
+      );
+      if (next) latest.current.save(next);
+    };
+    const onUp = (release: PointerEvent) => finish(release);
+    const onCancel = () => finish(null);
+    toolbar.addEventListener('pointerup', onUp);
+    toolbar.addEventListener('pointercancel', onCancel);
+  }, []);
+
+  const onClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!suppressClick.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+
+  return { dragging, onPointerDown, onClickCapture };
+}
+
+interface CustomizableToolbarViewProps {
+  toolbar: CustomizableToolbar;
+  /** Command ids of the scripts the Scripts toolbar can show. */
+  scriptButtons: readonly string[];
+  renderButton: (item: string) => ReactNode;
+}
+
+function CustomizableToolbarView({
+  toolbar,
+  scriptButtons,
+  renderButton,
+}: CustomizableToolbarViewProps) {
   const { t } = useTranslation();
+  const services = useAppServices();
+  const ctx = useCommandContext();
+  const settings = useAppState((s) => s.settings, services.store);
+  const items = shownLayout(settings, toolbar, scriptButtons);
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const label = t(toolbar === 'commands' ? 'toolbar.commands' : 'toolbar.scripts');
+  const drag = useButtonDrag(items, (next) => void saveLayout(ctx, toolbar, next));
+
+  const customize = () => {
+    void services.dialogs.openCustom((close) => (
+      <CustomizeToolbarDialog
+        ctx={ctx}
+        toolbar={toolbar}
+        scriptButtons={scriptButtons}
+        onClose={() => close(undefined)}
+      />
+    ));
+  };
+
   return (
-    <div
-      className="mfbe-toolbar mfbe-toolbar-commands"
-      role="toolbar"
-      aria-label={t('toolbar.commands')}
-      data-testid="toolbar-commands"
-    >
-      {COMMANDS_TOOLBAR.map((id, index) =>
-        id === null ? (
-          <ToolbarSeparator key={`sep-${index}`} />
-        ) : (
-          <ToolbarButton key={id} commandId={id} />
-        ),
-      )}
-    </div>
+    <>
+      <div
+        className={`mfbe-toolbar mfbe-toolbar-${toolbar}${drag.dragging ? ' mfbe-toolbar-dragging' : ''}`}
+        role="toolbar"
+        aria-label={label}
+        data-testid={`toolbar-${toolbar}`}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setMenuAt({ x: event.clientX, y: event.clientY });
+        }}
+        onDoubleClick={(event) => {
+          // A double-click on a button presses it twice; elsewhere it opens the dialog.
+          if (!(event.target as Element).closest('button')) customize();
+        }}
+        onPointerDown={drag.onPointerDown}
+        onClickCapture={drag.onClickCapture}
+      >
+        {items.map((item, index) => (
+          <span
+            key={item === SEPARATOR ? `separator-${index}` : item}
+            className="mfbe-toolbar-item"
+            data-toolbar-index={index}
+            data-toolbar-item={item}
+          >
+            {item === SEPARATOR ? <ToolbarSeparator /> : renderButton(item)}
+          </span>
+        ))}
+      </div>
+      {menuAt ? (
+        <PopupMenu
+          items={[{ id: 'customize', label: t('toolbarMenu.customize'), run: customize }]}
+          position={menuAt}
+          onClose={() => setMenuAt(null)}
+          testId="toolbar-menu"
+          ariaLabel={label}
+        />
+      ) : null}
+    </>
   );
 }
 
-/** Scripts toolbar: "Last script" plus one button per script with an icon (added by T105). */
-export function ScriptsToolbar({ children }: { children?: ReactNode }) {
-  const { t } = useTranslation();
+export function CommandsToolbar() {
   return (
-    <div
-      className="mfbe-toolbar mfbe-toolbar-scripts"
-      role="toolbar"
-      aria-label={t('toolbar.scripts')}
-      data-testid="toolbar-scripts"
-    >
-      <ToolbarButton commandId="scripts.last" size={16} />
-      {children}
-    </div>
+    <CustomizableToolbarView
+      toolbar="commands"
+      scriptButtons={NO_SCRIPTS}
+      renderButton={(id) => <ToolbarButton commandId={id} />}
+    />
+  );
+}
+
+/** Scripts toolbar: "Last script" and the scripts the user put on it. */
+export function ScriptsToolbar({ scripts }: { scripts?: ScriptToolbarButtons }) {
+  return (
+    <CustomizableToolbarView
+      toolbar="scripts"
+      scriptButtons={scripts?.commandIds ?? NO_SCRIPTS}
+      renderButton={(id) =>
+        id === LAST_SCRIPT ? <ToolbarButton commandId={id} size={16} /> : scripts?.render(id)
+      }
+    />
   );
 }
 
 /** All toolbars, each shown according to the View menu toggles. */
-export function Toolbars({ scripts }: { scripts?: ReactNode }) {
+export function Toolbars({ scripts }: { scripts?: ScriptToolbarButtons }) {
   const services = useAppServices();
   const toolbars = useAppState((s) => s.toolbars, services.store);
   if (!toolbars.commands && !toolbars.scripts && !toolbars.links && !toolbars.table) return null;
   return (
     <div className="mfbe-toolbars" data-testid="toolbars">
       {toolbars.commands ? <CommandsToolbar /> : null}
-      {toolbars.scripts ? <ScriptsToolbar>{scripts}</ScriptsToolbar> : null}
+      {toolbars.scripts ? <ScriptsToolbar scripts={scripts} /> : null}
       {toolbars.links ? <LinksBar /> : null}
       {toolbars.table ? <TableBar /> : null}
     </div>

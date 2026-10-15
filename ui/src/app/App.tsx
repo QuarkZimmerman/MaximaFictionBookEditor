@@ -18,7 +18,7 @@ import { SourceView } from '@/views/source/SourceView';
 import { DocumentTree } from '@/views/tree/DocumentTree';
 import { getSettingsFeature } from '@/features/settings';
 import { useScriptsMenu } from '@/scripting/ScriptsMenu';
-import { ScriptsToolbar } from '@/scripting/ScriptsToolbar';
+import { useScriptToolbarButtons } from '@/scripting/useScriptToolbarButtons';
 
 import { AppProvider } from './AppContext';
 import { installGlobalErrorLogging } from './diagnostics';
@@ -27,6 +27,7 @@ import { MenuBar } from './MenuBar';
 import type { DynamicMenuItems } from './menus';
 import { forcedLanguage } from './startup';
 import { StatusBar } from './StatusBar';
+import { textFieldOf } from './textFields';
 import { applyStoredTheme } from './theme';
 import { Toolbars } from './Toolbars';
 import { ViewSwitcher } from './ViewSwitcher';
@@ -193,6 +194,16 @@ function Shell({
     return () => document.removeEventListener('keydown', onKeyDown, { capture: true });
   }, [commands, ctx, dialogs.service, hotkeys]);
 
+  // No browser menu anywhere (FR-064): the places with a menu of their own show it, text
+  // fields keep the shell's edit menu, everything else shows nothing.
+  useEffect(() => {
+    const onContextMenu = (event: MouseEvent) => {
+      if (!textFieldOf(event.target)) event.preventDefault();
+    };
+    document.addEventListener('contextmenu', onContextMenu);
+    return () => document.removeEventListener('contextmenu', onContextMenu);
+  }, []);
+
   // Window title: "<file>[*] - Maxima Fiction Book Editor".
   useEffect(() => {
     const name = hasDocument ? (documentFileName({ path }) ?? t('app.untitled')) : null;
@@ -215,6 +226,7 @@ function Shell({
     () => files.recent.files,
   );
   const scriptsMenu = useScriptsMenu();
+  const scriptToolbarButtons = useScriptToolbarButtons();
   const menuItems = useMemo<DynamicMenuItems>(
     () => ({
       ...dynamicMenuItems,
@@ -229,7 +241,7 @@ function Shell({
   return (
     <div className="mfbe-app" data-testid="app-root" data-active-view={activeView}>
       <MenuBar dynamicItems={menuItems} />
-      <Toolbars scripts={<ScriptsToolbar />} />
+      <Toolbars scripts={scriptToolbarButtons} />
       <div className="mfbe-main">
         {treeVisible ? (
           <aside className="mfbe-tree-panel" data-testid="tree-panel">

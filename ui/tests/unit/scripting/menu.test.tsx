@@ -1,10 +1,11 @@
 /**
  * T105 - the Scripts menu / toolbar integration rendered through the real `MenuBar` and the
- * `useScriptsMenu()` / `<ScriptsToolbar/>` hooks exactly as App.tsx mounts them: groups become
- * sub-menus in `NN` order with the manifest names, scripts become `script.<id>` commands with
- * their default hotkeys, tree scripts stay out of the menu, "No scripts found" appears for an
- * empty catalogue, the housekeeping entries (Last script / Open scripts folder / Reload
- * scripts) follow, toolbar buttons exist for scripts with icons and `needsSelection` disables.
+ * `useScriptsMenu()` / `useScriptToolbarButtons()` hooks exactly as App.tsx mounts them: groups
+ * become sub-menus in `NN` order with the manifest names, scripts become `script.<id>` commands
+ * with their default hotkeys, tree scripts stay out of the menu, "No scripts found" appears for
+ * an empty catalogue, the housekeeping entries (Last script / Open scripts folder / Reload
+ * scripts) follow, a fresh Scripts toolbar shows "Last script" alone, the scripts with icons
+ * appear once the user's layout names them and `needsSelection` disables.
  */
 
 import { act, render, screen, within } from '@testing-library/react';
@@ -19,10 +20,11 @@ import { changeLanguage, initI18n } from '@/i18n';
 import { actions, createAppStore } from '@/model/store';
 import { getScriptsFeature, type ScriptsFeature } from '@/scripting/catalog';
 import { useScriptsMenu } from '@/scripting/ScriptsMenu';
-import { ScriptsToolbar } from '@/scripting/ScriptsToolbar';
+import { useScriptToolbarButtons } from '@/scripting/useScriptToolbarButtons';
 import type { ScriptInfo, ScriptsListResult } from '@/scripting/types';
 
 import { fakeDocument, fakeRpc } from '../features/testUtils';
+import { defaultSettings } from '../settings/fixtures';
 
 function script(id: string, group: string, extra: Partial<ScriptInfo> = {}): ScriptInfo {
   return {
@@ -83,10 +85,11 @@ const LIST: ScriptsListResult = {
 function Shell() {
   const scripts = useScriptsMenu();
   const items = useMemo(() => ({ scripts }), [scripts]);
+  const scriptButtons = useScriptToolbarButtons();
   return (
     <>
       <MenuBar dynamicItems={items} />
-      <Toolbars scripts={<ScriptsToolbar />} />
+      <Toolbars scripts={scriptButtons} />
     </>
   );
 }
@@ -113,6 +116,13 @@ async function renderShell(list: ScriptsListResult | null = LIST) {
     await feature.refresh();
   });
   return { store, services, user, feature, rpc };
+}
+
+/** Test ids of the Scripts toolbar's buttons, in order. */
+function scriptsToolbarButtons(): (string | undefined)[] {
+  return within(screen.getByTestId('toolbar-scripts'))
+    .getAllByRole('button')
+    .map((button) => button.dataset.testid);
 }
 
 describe('Scripts menu and toolbar', () => {
@@ -152,11 +162,32 @@ describe('Scripts menu and toolbar', () => {
     expect(within(popup).getByTestId('menu-scripts-none')).toHaveTextContent('No scripts found');
     expect(within(popup).getByTestId('menu-scripts-last')).toHaveAttribute('aria-disabled', 'true');
     expect(within(popup).getByTestId('menu-scripts-openFolder')).toBeInTheDocument();
-    expect(screen.queryByTestId('scripts-toolbar-items')).not.toBeInTheDocument();
+    expect(scriptsToolbarButtons()).toEqual(['toolbar-scripts.last']);
   });
 
-  it('puts icon scripts on the toolbar and enables them with a document', async () => {
+  it('puts icon scripts on the toolbar the user chose and enables them with a document', async () => {
     const { store, user, feature } = await renderShell();
+    // A fresh Scripts toolbar shows "Last script" alone.
+    expect(scriptsToolbarButtons()).toEqual(['toolbar-scripts.last']);
+    await act(async () => {
+      const settings = defaultSettings();
+      // A script without an icon is not offered, so the layout cannot show it.
+      settings.session.toolbarLayouts = {
+        scripts: [
+          'scripts.last',
+          'script.test.case.upper',
+          '-',
+          'script.test.model.append',
+          'script.test.case.lower',
+        ],
+      };
+      actions.setSettings(store, settings);
+    });
+    expect(scriptsToolbarButtons()).toEqual([
+      'toolbar-scripts.last',
+      'scripts-toolbar-test.case.upper',
+      'scripts-toolbar-test.model.append',
+    ]);
     expect(screen.getByTestId('scripts-toolbar-test.case.upper')).toBeDisabled();
     expect(screen.getByTestId('scripts-toolbar-test.model.append')).toBeDisabled();
     expect(screen.queryByTestId('scripts-toolbar-test.case.lower')).not.toBeInTheDocument();

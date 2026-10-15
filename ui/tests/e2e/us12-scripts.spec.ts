@@ -30,7 +30,7 @@ import path from 'node:path';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, fileNew, fixtureBook, test, waitForBook } from './fixtures/core';
+import { expect, fileNew, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
 import { label, LINE_END, LINE_START, MOD, SELECT_TO_LINE_END } from './fixtures/keys';
 
 const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
@@ -297,10 +297,17 @@ test.describe('US12 scripts', () => {
         label('Ctrl+Alt+U'),
       );
       await page.keyboard.press('Escape');
-      await expect(page.getByTestId('scripts-toolbar-test.case.upper')).toBeVisible();
-      await expect(page.getByTestId('scripts-toolbar-test.model.append')).toBeVisible();
-      // Scripts without an icon stay off the toolbar.
-      await expect(page.getByTestId('scripts-toolbar-test.errors.throws')).toHaveCount(0);
+      // The Scripts toolbar starts with "Last script" alone; its Customize dialog offers the
+      // scripts with an icon and not those without one (feature 002).
+      await expect(page.getByTestId('toolbar-scripts').getByRole('button')).toHaveCount(1);
+      await page.getByTestId('toolbar-scripts.last').click({ button: 'right', force: true });
+      await page.getByTestId('toolbar-menu-customize').click();
+      const offered = page.getByTestId('customize-toolbar-available');
+      await expect(offered.locator('option[data-item="script.test.case.upper"]')).toHaveCount(1);
+      await expect(offered.locator('option[data-item="script.test.model.append"]')).toHaveCount(1);
+      await expect(offered.locator('option[data-item="script.test.errors.throws"]')).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('dialog-customize-toolbar')).toHaveCount(0);
     } else {
       note('Scripts menu/toolbar not mounted by App.tsx yet; catalogue checked through the hooks');
     }
@@ -480,6 +487,24 @@ test.describe('US12 scripts', () => {
     page,
     core,
   }) => {
+    // The case scripts on the Scripts toolbar (put back to the original layout at the end).
+    await core.rpc('settings.set', {
+      patch: {
+        session: {
+          toolbarLayouts: {
+            scripts: ['scripts.last', 'script.test.case.upper', 'script.test.case.lower'],
+          },
+        },
+      },
+    });
+    try {
+      await hotkeysAndToolbar(page, core);
+    } finally {
+      await core.rpc('settings.set', { patch: { session: { toolbarLayouts: { scripts: null } } } });
+    }
+  });
+
+  async function hotkeysAndToolbar(page: Page, core: CoreHandle): Promise<void> {
     await openApp(page, core);
     const editor = await newDocument(page);
     const paragraph = editor.locator('.fb-body > .fb-section > p.fb-p').first();
@@ -492,34 +517,26 @@ test.describe('US12 scripts', () => {
     await page.keyboard.press('Control+Alt+U');
     await page.waitForTimeout(200);
     await expect(paragraph).toHaveText('hello scripts');
-    if ((await page.getByTestId('scripts-toolbar-test.case.upper').count()) > 0) {
-      await expect(page.getByTestId('scripts-toolbar-test.case.upper')).toBeDisabled();
-    }
+    await expect(page.getByTestId('scripts-toolbar-test.case.upper')).toBeDisabled();
     // Select the word "scripts" and press the default hotkey of the manifest.
     await page.keyboard.press(LINE_END);
     await page.keyboard.down('Shift');
     for (let i = 0; i < 7; i += 1) await page.keyboard.press('ArrowLeft');
     await page.keyboard.up('Shift');
     await expect(page.getByTestId('body-view')).toHaveAttribute('data-selected-text', 'scripts');
-    if ((await page.getByTestId('scripts-toolbar-test.case.upper').count()) > 0) {
-      await expect(page.getByTestId('scripts-toolbar-test.case.upper')).toBeEnabled();
-    }
+    await expect(page.getByTestId('scripts-toolbar-test.case.upper')).toBeEnabled();
     await page.keyboard.press('Control+Alt+U');
     await expect(paragraph).toHaveText('hello SCRIPTS');
     expect(await waitIdle(page)).toBe('done');
     // The toolbar button runs the same command (lower case) on the current selection.
-    if ((await page.getByTestId('scripts-toolbar-test.case.lower').count()) > 0) {
-      await page.keyboard.press(LINE_START);
-      await page.keyboard.press(SELECT_TO_LINE_END);
-      await page.getByTestId('scripts-toolbar-test.case.lower').click();
-      await expect(paragraph).toHaveText('hello scripts');
-    } else {
-      note('Scripts toolbar not mounted: toolbar run skipped');
-    }
+    await page.keyboard.press(LINE_START);
+    await page.keyboard.press(SELECT_TO_LINE_END);
+    await page.getByTestId('scripts-toolbar-test.case.lower').click();
+    await expect(paragraph).toHaveText('hello scripts');
     // The bound chord is part of the Hotkeys "Scripts" group (script.<id> command id).
     const hotkeys = (await core.rpc('hotkeys.get').catch(() => [])) as unknown[];
     expect(Array.isArray(hotkeys)).toBe(true);
-  });
+  }
 
   test('7. tree commands appear for a node and receive it', async ({ page, core }) => {
     await openApp(page, core);

@@ -191,9 +191,20 @@ export interface ToolbarVisibility {
   status: boolean;
 }
 
-/** Recursive partial used by `settings.set({patch})`. */
+/** Recursive partial used by `settings.set({patch})`; a patch replaces arrays whole. */
 export type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
+  [K in keyof T]?: T[K] extends readonly unknown[]
+    ? T[K]
+    : T[K] extends object
+      ? DeepPartial<T[K]>
+      : T[K];
+};
+
+/** `settings.set` patch; a toolbar layout set to `null` restores the original layout. */
+export type SettingsPatch = DeepPartial<Omit<Settings, 'session'>> & {
+  session?: DeepPartial<Omit<Settings['session'], 'toolbarLayouts'>> & {
+    toolbarLayouts?: Partial<Record<string, string[] | null>>;
+  };
 };
 
 /** data-model.md §3.1. `keys` is a platform-normalised chord (resource-formats.md §7). */
@@ -457,7 +468,7 @@ export interface RpcMethods {
   // §3.7 settings / hotkeys
   'settings.get': { params: void; result: Settings };
   'settings.set': {
-    params: { patch: DeepPartial<Settings> };
+    params: { patch: SettingsPatch };
     result: { settings: Settings; restartRequired: boolean };
   };
   'hotkeys.defaults': { params: void; result: HotkeyBinding[] };

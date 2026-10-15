@@ -8,16 +8,18 @@
  * `description-id-new`, `binary-objects-row-<id>`...).
  */
 
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '@/app/services';
+import { textFieldOf } from '@/app/textFields';
 import { useAppState } from '@/model/store';
 
 import { BinaryObjects } from './BinaryObjects';
 import { descriptionControllerFor } from './binding';
 import { CustomInfoList } from './CustomInfoList';
 import { DocumentInfoForm } from './DocumentInfoForm';
+import { FieldContextMenu } from './FieldContextMenu';
 import { Section, SmallButton } from './fields';
 import { DescriptionFormContext, type DescriptionFormContextValue } from './formContext';
 import { descriptionExtrasCount, emptyTitleInfo } from './model';
@@ -39,6 +41,10 @@ export function DescriptionView() {
   const connection = useAppState((s) => s.connection, store);
   const language = useAppState((s) => s.uiLanguage, store);
   const { genres, languages, reloadGenres } = useResourceCatalogs(rpc, connection === 'connected');
+  const [fieldMenu, setFieldMenu] = useState<{
+    field: HTMLElement;
+    position: { x: number; y: number };
+  } | null>(null);
 
   useEffect(() => {
     controller.setTranslate((key) => t(key));
@@ -82,7 +88,17 @@ export function DescriptionView() {
       data-testid="panel-description"
     >
       <DescriptionFormContext.Provider value={context}>
-        <div className="mfbe-desc" data-testid="description-view" data-revision={snapshot.revision}>
+        <div
+          className="mfbe-desc"
+          data-testid="description-view"
+          data-revision={snapshot.revision}
+          onContextMenu={(event) => {
+            const field = textFieldOf(event.target);
+            if (!field) return;
+            event.preventDefault();
+            setFieldMenu({ field, position: { x: event.clientX, y: event.clientY } });
+          }}
+        >
           {sourceOnly ? (
             <div className="mfbe-desc-note mfbe-desc-warning" data-testid="description-source-only">
               {t('views.body.sourceOnly')}
@@ -167,6 +183,13 @@ export function DescriptionView() {
           </Section>
         </div>
       </DescriptionFormContext.Provider>
+      {fieldMenu ? (
+        <FieldContextMenu
+          field={fieldMenu.field}
+          position={fieldMenu.position}
+          onClose={() => setFieldMenu(null)}
+        />
+      ) : null}
     </div>
   );
 }
