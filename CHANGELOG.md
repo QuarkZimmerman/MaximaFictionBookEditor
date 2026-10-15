@@ -3,7 +3,7 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## 0.0.2 - unreleased
+## 0.0.2 - 2026-10-15
 
 ### Added
 
@@ -92,6 +92,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   in the Description fields, the source editor's edit menu in the Source view, the edit menu
   of a text box in text boxes - or nothing; toolbar icons can no longer be dragged or selected
   as pictures.
+- Paste from the menus works in the desktop editor: Edit > Paste, its toolbar button and the
+  right-click menus waited for a browser permission that was never given, so in 0.0.1 Edit >
+  Paste in the Body view did nothing. As in the original, Edit > Cut, Copy and Paste and their
+  toolbar buttons also act on the Source view and on the Description view's fields; 0.0.1
+  kept them disabled there.
 
 ## 0.0.1 - first public build
 
