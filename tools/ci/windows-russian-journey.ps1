@@ -102,20 +102,37 @@ function Get-FreePort {
     try { $listener.LocalEndpoint.Port } finally { $listener.Stop() }
 }
 
-# Russian regional format and display language for the user, set as the user (both live in the
-# user's own registry), then shown by a new process of the user. The regional format is written
-# where Windows keeps it (Control Panel\International: LocaleName, Locale): Set-Culture run in a
-# process started with other credentials leaves the user's setting unchanged. The display
-# language takes effect only where Windows has the Russian language pack; the editor does not
-# read it.
+# Russian display language and regional format for the user, set as the user (both live in the
+# user's own registry), each in a logon of its own, then shown by a new process of the user. The
+# display language override comes first: changing the user's language list can put the regional
+# format back. The regional format is set with Set-Culture and, where that leaves the user's
+# setting unchanged, written where Windows keeps it (Control Panel\International: LocaleName,
+# Locale). The display language takes effect only where Windows has the Russian language pack;
+# the editor does not read it.
 function Set-RussianEnvironment {
     $powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
     $commands = @(
-        '$key = ''HKCU:\Control Panel\International''; Set-ItemProperty $key -Name LocaleName -Value ''ru-RU''; Set-ItemProperty $key -Name Locale -Value ''00000419''; try { Set-WinUILanguageOverride -Language ru-RU } catch { "Set-WinUILanguageOverride: $($_.Exception.Message)" }',
-        '"regional format $((Get-Culture).Name) (registry $((Get-ItemProperty ''HKCU:\Control Panel\International'').LocaleName)), display language override $(Get-WinUILanguageOverride)"; if ((Get-Culture).Name -ne ''ru-RU'') { exit 3 }'
+        @'
+try { Set-WinUILanguageOverride -Language ru-RU } catch { "Set-WinUILanguageOverride: $($_.Exception.Message)" }
+'@,
+        @'
+$key = 'HKCU:\Control Panel\International'
+"regional format at logon: $((Get-ItemProperty $key).LocaleName)"
+Set-Culture ru-RU
+"regional format after Set-Culture: $((Get-ItemProperty $key).LocaleName)"
+if ((Get-ItemProperty $key).LocaleName -ne 'ru-RU') {
+    Set-ItemProperty $key -Name LocaleName -Value 'ru-RU'
+    Set-ItemProperty $key -Name Locale -Value '00000419'
+    "regional format written into the registry: $((Get-ItemProperty $key).LocaleName)"
+}
+'@,
+        @'
+"regional format $((Get-Culture).Name) (registry $((Get-ItemProperty 'HKCU:\Control Panel\International').LocaleName)), display language override $(Get-WinUILanguageOverride)"
+if ((Get-Culture).Name -ne 'ru-RU') { exit 3 }
+'@
     )
     foreach ($command in $commands) {
-        $source = "`$ErrorActionPreference = 'Stop'; `$ProgressPreference = 'SilentlyContinue'; $command"
+        $source = "`$ErrorActionPreference = 'Stop'; `$ProgressPreference = 'SilentlyContinue'`n$command"
         $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($source))
         $stamp = Get-Date -Format 'HHmmssfff'
         $outputs = @((Join-Path $temp "mfbe-journey-culture-$stamp-out.txt"), (Join-Path $temp "mfbe-journey-culture-$stamp-err.txt"))
@@ -123,7 +140,7 @@ function Set-RussianEnvironment {
             -ArgumentList "-NoProfile -NonInteractive -EncodedCommand $encoded" -WorkingDirectory $account.Profile `
             -StandardOutput $outputs[0] -StandardError $outputs[1] -Wait
         Get-Content -LiteralPath $outputs | ForEach-Object { Write-Host "  $_" }
-        if ($shell.ExitCode -eq 3) { throw "a new process of $userName does not have the ru-RU regional format of its registry" }
+        if ($shell.ExitCode -eq 3) { throw "a new process of $userName does not have the ru-RU regional format" }
         if ($shell.ExitCode -ne 0) { throw "Windows PowerShell as $userName ended with exit code $($shell.ExitCode)" }
     }
 }
