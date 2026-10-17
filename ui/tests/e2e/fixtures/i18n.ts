@@ -131,7 +131,14 @@ export function uiAccelerator(lang: UiLang, key: string): string {
 
 /** The language the page's interface shows (`<html lang>`; English for anything else). */
 export async function pageLang(page: Page): Promise<UiLang> {
-  const lang = await page.evaluate<string>('document.documentElement.lang');
+  // The page shows the browser's language until the core has answered app.info and the
+  // start-up language is resolved (`data-lang-resolved` on <html>); read it only from then on.
+  // A locator wait (a string expression would be refused by the page's CSP, no 'unsafe-eval').
+  await page
+    .locator('html[data-lang-resolved="1"]')
+    .waitFor({ state: 'attached', timeout: 10_000 })
+    .catch(() => undefined);
+  const lang = (await page.locator('html').getAttribute('lang')) ?? '';
   return isUiLang(lang) ? lang : 'en';
 }
 

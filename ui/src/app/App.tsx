@@ -8,7 +8,7 @@
  * US5) and the global hotkey dispatcher.
  */
 
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { DialogHost, ValidationPanel, createIssueNavigator } from '@/dialogs';
@@ -138,6 +138,8 @@ function Shell({
   // Once connected: settings (toolbars, language, fonts), the Recent Files list, `?new=1`.
   const connection = useAppState((s) => s.connection, store);
   const startupHandled = useRef(false);
+  const languageResolved = useRef<string | null>(null);
+  const [languageResolvedTick, setLanguageResolvedTick] = useState(0);
   useEffect(() => {
     if (!rpc || connection !== 'connected') return;
     let cancelled = false;
@@ -157,10 +159,15 @@ function Shell({
         const language =
           forced ?? resolveUiLanguage(settings.view.uiLanguage, undefined, systemLanguage);
         actions.setUiLanguage(store, language);
+        languageResolved.current = language;
         await changeLanguage(language, i18n);
       })
       .catch(() => {
         // The core is older/newer or settings are unavailable: keep the defaults.
+      })
+      .finally(() => {
+        // The start-up language is settled; the <html lang> effect below publishes it.
+        setLanguageResolvedTick((tick) => tick + 1);
       });
     void files.recent.refresh(rpc);
     void getSettingsFeature(store)?.attach(rpc);
@@ -238,10 +245,15 @@ function Shell({
       : t('app.name');
   }, [hasDocument, path, modified, t]);
 
-  // <html lang> follows the interface language.
+  // <html lang> follows the interface language; once the start-up language is settled the
+  // page says so (`data-lang-resolved`): the journeys read texts in the page's language only
+  // from then on, as the page shows the browser's language until the core has answered.
   useEffect(() => {
     document.documentElement.lang = i18n.language;
-  }, [i18n.language]);
+    if (languageResolved.current === i18n.language) {
+      document.documentElement.dataset.langResolved = '1';
+    }
+  }, [i18n.language, languageResolvedTick]);
 
   const recentFiles = useSyncExternalStore(
     files.recent.subscribe,
