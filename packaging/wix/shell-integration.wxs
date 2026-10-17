@@ -19,6 +19,12 @@
   Compiled by CPack through CPACK_WIX_EXTRA_SOURCES; INSTALL_ROOT is the directory id CPack
   generates for the installation folder (…\Maxima Fiction Book Editor\), the executable is
   bin\mfbe.exe (cmake/InstallLayout.cmake).
+
+  The second fragment is the optional desktop shortcut (feature 003, User Story 7; FR-060 to
+  FR-062, contracts/installer.md): the public property INSTALLDESKTOPSHORTCUT, its memory in the
+  registry and the two components it drives (MfbeDesktopShortcutChoice, MfbeDesktopShortcut),
+  attached to the root feature by feature.patch.xml as the group MfbeDesktopShortcutGroup. The
+  checkbox that edits the property in the interactive installer is in ui.wxs.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Fragment>
@@ -133,5 +139,83 @@
       </Component>
 
     </ComponentGroup>
+  </Fragment>
+
+  <!-- ===== Desktop shortcut (feature 003, User Story 7) ===================================
+
+       INSTALLDESKTOPSHORTCUT ("1" = create the shortcut, "0" = do not) is decided in this order:
+         1. a value given on the msiexec command line (FR-062);
+         2. the checkbox of MfbeInstallDirDlg (ui.wxs) in an interactive installation;
+         3. the value the installed version recorded in
+            HKLM\Software\Maxima Fiction Book Editor\DesktopShortcut, read by the RegistrySearch
+            below at the start of an upgrade (FR-061);
+         4. "1" (FR-060: ticked by default).
+
+       Why the property has no Property-table default and the search writes a separate
+       property: Windows Installer gives a property set on the command line to AppSearch
+       afterwards, and the search would overwrite it, so the search fills
+       DESKTOPSHORTCUT_PREVIOUS and the type-51 actions below copy it only when
+       INSTALLDESKTOPSHORTCUT is still empty - a command-line value is never empty, so it wins.
+       A Property-table default would also defeat the checkbox: an unticked checkbox *clears*
+       its property, nothing is handed over to the execute sequence for it, and the execute
+       sequence would fall back to the table default and create the shortcut after all. With
+       no default, "empty in the execute sequence of a full-UI installation (UILevel 5)" can
+       only mean "unticked" and is turned into "0"; in a silent or basic-UI installation (no
+       dialogs, UILevel below 5) "empty" means "not given" and the recorded value or "1"
+       applies. The interface sequence applies steps 3 and 4 before the dialogs so the checkbox
+       is preset. Secure="yes" lets the value chosen in the interface reach the elevated
+       execute sequence of this per-machine package. -->
+  <Fragment>
+    <Property Id="INSTALLDESKTOPSHORTCUT" Secure="yes" />
+    <Property Id="DESKTOPSHORTCUT_PREVIOUS">
+      <RegistrySearch Id="MfbeDesktopShortcutPrevious" Root="HKLM" Key="Software\Maxima Fiction Book Editor" Name="DesktopShortcut" Type="raw" />
+    </Property>
+
+    <!-- Interface sequence: preset the checkbox (recorded choice, else on). -->
+    <SetProperty Id="INSTALLDESKTOPSHORTCUT" Action="MfbeDesktopShortcutUiPrevious" Value="[DESKTOPSHORTCUT_PREVIOUS]"
+                 Sequence="ui" After="AppSearch"
+                 Condition="NOT INSTALLDESKTOPSHORTCUT AND DESKTOPSHORTCUT_PREVIOUS" />
+    <SetProperty Id="INSTALLDESKTOPSHORTCUT" Action="MfbeDesktopShortcutUiDefault" Value="1"
+                 Sequence="ui" After="MfbeDesktopShortcutUiPrevious"
+                 Condition="NOT INSTALLDESKTOPSHORTCUT" />
+
+    <!-- Execute sequence: an empty property after the full interface is the unticked checkbox;
+         otherwise the recorded choice, else on. All three run before CostFinalize (component
+         conditions) and WriteRegistryValues (the recorded value). -->
+    <SetProperty Id="INSTALLDESKTOPSHORTCUT" Action="MfbeDesktopShortcutUnticked" Value="0"
+                 Sequence="execute" After="AppSearch"
+                 Condition="NOT INSTALLDESKTOPSHORTCUT AND UILevel = 5" />
+    <SetProperty Id="INSTALLDESKTOPSHORTCUT" Action="MfbeDesktopShortcutPrevious" Value="[DESKTOPSHORTCUT_PREVIOUS]"
+                 Sequence="execute" After="MfbeDesktopShortcutUnticked"
+                 Condition="NOT INSTALLDESKTOPSHORTCUT AND DESKTOPSHORTCUT_PREVIOUS" />
+    <SetProperty Id="INSTALLDESKTOPSHORTCUT" Action="MfbeDesktopShortcutDefault" Value="1"
+                 Sequence="execute" After="MfbeDesktopShortcutPrevious"
+                 Condition="NOT INSTALLDESKTOPSHORTCUT" />
+
+    <ComponentGroup Id="MfbeDesktopShortcutGroup">
+      <!-- The recorded choice: always installed, so "0" is remembered as well as "1"; its
+           removal on uninstall and its rewrite by an upgrade follow the component rules. -->
+      <Component Id="MfbeDesktopShortcutChoice" Directory="INSTALL_ROOT" Guid="CC69486F-B95D-496A-86C4-B75F2D164379">
+        <RegistryValue Root="HKMU" Key="Software\Maxima Fiction Book Editor" Name="DesktopShortcut" Type="string" Value="[INSTALLDESKTOPSHORTCUT]" KeyPath="yes"/>
+      </Component>
+      <ComponentRef Id="MfbeDesktopShortcut"/>
+    </ComponentGroup>
+
+    <!-- The shortcut itself, on the desktop of all users (DesktopFolder of a per-machine
+         package = C:\Users\Public\Desktop), installed only when the property is "1" and
+         removed with the product. A shortcut cannot be a key path; like the Start menu entry
+         CPack generates, the component uses a registry value under HKCU (what the ICE rules
+         for components in profile folders, ICE38/ICE43, ask for). The icon is the product icon
+         of the template (CPACK_WIX_PRODUCT_ICON), the target the executable the shell
+         integration above registers. -->
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="MfbeDesktopShortcut" Guid="23EC487F-4A8B-4C0E-8CF9-02BFB917A72C" Condition="INSTALLDESKTOPSHORTCUT = &quot;1&quot;">
+        <Shortcut Id="MfbeDesktopShortcutLnk" Name="Maxima Fiction Book Editor"
+                  Description="Editor for FictionBook 2 (.fb2/.fbd) e-books"
+                  Target="[INSTALL_ROOT]bin\mfbe.exe" WorkingDirectory="INSTALL_ROOT"
+                  Icon="ProductIcon.ico" IconIndex="0"/>
+        <RegistryValue Root="HKCU" Key="Software\Maxima Fiction Book Editor" Name="DesktopShortcutLink" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </StandardDirectory>
   </Fragment>
 </Wix>

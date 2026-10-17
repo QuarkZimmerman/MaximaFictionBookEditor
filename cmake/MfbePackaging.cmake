@@ -73,15 +73,22 @@ set(CPACK_WIX_VERSION 4)
 set(CPACK_WIX_UPGRADE_GUID "4EE6A25D-B378-4A18-83A4-01A5F62C214E")
 set(CPACK_WIX_PRODUCT_ICON "${CMAKE_SOURCE_DIR}/app/win/mfbe.ico")
 set(CPACK_WIX_TEMPLATE "${CMAKE_SOURCE_DIR}/packaging/wix/mfbe.template.in")
-set(CPACK_WIX_EXTRA_SOURCES "${CMAKE_SOURCE_DIR}/packaging/wix/shell-integration.wxs")
+# shell-integration.wxs: file associations, Default Programs, the optional desktop shortcut and
+# its INSTALLDESKTOPSHORTCUT property; ui.wxs: the dialog set WixUI_MfbeInstallDir (the stock
+# InstallDir flow with the "Create a shortcut on the desktop" checkbox), referenced by the
+# template through CPACK_WIX_UI_REF (feature 003, User Story 7).
+set(CPACK_WIX_EXTRA_SOURCES
+  "${CMAKE_SOURCE_DIR}/packaging/wix/shell-integration.wxs"
+  "${CMAKE_SOURCE_DIR}/packaging/wix/ui.wxs")
 set(CPACK_WIX_PATCH_FILE "${CMAKE_SOURCE_DIR}/packaging/wix/feature.patch.xml")
-set(CPACK_WIX_UI_REF "WixUI_InstallDir")
+set(CPACK_WIX_UI_REF "WixUI_MfbeInstallDir")
 set(CPACK_WIX_PROGRAM_MENU_FOLDER "${MFBE_PRODUCT_NAME}")
 set(CPACK_WIX_ARCHITECTURE "x64")
 set(CPACK_WIX_CULTURES "en-US")
 set(CPACK_WIX_PROPERTY_ARPHELPLINK "${MFBE_URL}")
 set(CPACK_WIX_PROPERTY_ARPURLINFOABOUT "${MFBE_URL}")
-# ARPNOMODIFY is already defined by WixUI_InstallDir in WiX v5+ (duplicate Property otherwise).
+# ARPNOMODIFY is defined by the dialog set (packaging/wix/ui.wxs, as the stock WixUI_InstallDir
+# does in WiX v5+) - a duplicate Property otherwise.
 set(CPACK_WIX_ROOT_FEATURE_TITLE "${MFBE_PRODUCT_NAME}")
 set(CPACK_WIX_ROOT_FEATURE_DESCRIPTION "${PROJECT_DESCRIPTION}")
 

@@ -15,14 +15,32 @@
 # A portable copy (a `user` folder next to the program) must keep its browser profile in that
 # folder and leave the profile without the editor's folders; an installed copy must create its
 # data folder in the profile.
+#
+# -Shortcut <file.lnk> (instead of -Exe; feature 003, the installer's desktop shortcut) starts
+# the editor through the shortcut as a double-click does - the shell resolves the .lnk - after
+# checking that its target exists; the target is then the program for every other check. The
+# shell may hand back no process object for a .lnk, so the started mfbe.exe is looked up by its
+# path, and the interface counts as shown also when the window's title carries a document name
+# ("Untitled - Maxima Fiction Book Editor"), in case the DevTools argument is not passed on.
 param(
-    [Parameter(Mandatory = $true)][string]$Exe,
+    [string]$Exe = '',
+    [string]$Shortcut = '',
     [string]$AsUser = '',
     [int]$TimeoutSeconds = 120,
     [int]$Port = 9333
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'windows-users.ps1')
+
+if ([string]::IsNullOrEmpty($Exe) -eq [string]::IsNullOrEmpty($Shortcut)) { throw 'give either -Exe or -Shortcut' }
+if ($Shortcut) {
+    if ($AsUser) { throw '-Shortcut cannot be combined with -AsUser' }
+    if (-not (Test-Path -LiteralPath $Shortcut)) { throw "shortcut not found: $Shortcut" }
+    $link = (New-Object -ComObject WScript.Shell).CreateShortcut($Shortcut)
+    Write-Host "Shortcut $Shortcut -> '$($link.TargetPath)' (arguments '$($link.Arguments)', start in '$($link.WorkingDirectory)', icon '$($link.IconLocation)')"
+    if (-not $link.TargetPath -or -not (Test-Path -LiteralPath $link.TargetPath)) { throw "the shortcut's target does not exist: '$($link.TargetPath)'" }
+    $Exe = $link.TargetPath
+}
 
 $usersBefore = Get-UserFolders
 $account = $null
@@ -50,10 +68,29 @@ $stderr = Join-Path $env:RUNNER_TEMP "mfbe-stderr-$stamp.txt"
 if (-not $env:RUNNER_TEMP) { $stdout = Join-Path $env:TEMP "mfbe-stdout-$stamp.txt"; $stderr = Join-Path $env:TEMP "mfbe-stderr-$stamp.txt" }
 $since = (Get-Date).AddSeconds(-1)
 
-Write-Host "Starting $Exe$(if ($AsUser) { " as $AsUser" })"
+Write-Host "Starting $(if ($Shortcut) { "$Shortcut (-> $Exe)" } else { $Exe })$(if ($AsUser) { " as $AsUser" })"
 if ($account) {
     $proc = Start-ProcessAsUser -Account $account -FilePath $Exe -ArgumentList "--remote-debugging-port=$Port" `
         -WorkingDirectory (Split-Path -Parent $Exe) -StandardOutput $stdout -StandardError $stderr
+} elseif ($Shortcut) {
+    # Through the shell, as a double-click; the argument is appended to the shortcut's own.
+    $started = Start-Process -FilePath $Shortcut -ArgumentList "--remote-debugging-port=$Port" -PassThru
+    # The shell's own process object is not necessarily the editor: take the first mfbe.exe
+    # started from the shortcut's target (the browser process; its helpers start later).
+    $proc = $null
+    $findDeadline = (Get-Date).AddSeconds(30)
+    while (-not $proc -and (Get-Date) -lt $findDeadline) {
+        $candidates = @(Get-Process -Name mfbe -ErrorAction SilentlyContinue | ForEach-Object {
+            # A helper process may end between the listing and the look-up of its start time.
+            try { if ($_.Path -eq $Exe -and $_.StartTime -ge $since) { [pscustomobject]@{ Process = $_; Started = $_.StartTime } } } catch { }
+        })
+        $proc = ($candidates | Sort-Object Started | Select-Object -First 1).Process
+        if (-not $proc) { Start-Sleep -Milliseconds 500 }
+    }
+    if (-not $proc) {
+        if ($started -and $started.HasExited) { throw ("the shortcut's process exited early (exit code 0x{0:X8})" -f $started.ExitCode) }
+        throw "no mfbe.exe was started from $Shortcut within 30 s"
+    }
 } else {
     $proc = Start-Process -FilePath $Exe -ArgumentList "--remote-debugging-port=$Port" -PassThru
 }
@@ -69,6 +106,12 @@ try {
             if ($page) { $title = $page.title }
         } catch {
             # The DevTools endpoint is not up yet.
+        }
+        if (-not $title -and $Shortcut) {
+            # The window takes the page's title once the interface is loaded ("<document> - Maxima
+            # Fiction Book Editor"); before that it shows the bare product name.
+            $proc.Refresh()
+            if ($proc.MainWindowTitle -like '* - Maxima Fiction Book Editor') { $title = $proc.MainWindowTitle }
         }
         if (-not $title) { Start-Sleep -Seconds 1 }
     }
