@@ -3,13 +3,17 @@
  * input with the controller for Find / Replace and caret restore), section frames, inline
  * rows, list row chrome (remove / add buttons as in the original `fb2.xsl` rows) and the
  * required-field marker.
+ *
+ * While a script runs (`readOnly` of the form context, feature 003 FR-011) every text field is
+ * `readOnly` - not `disabled`, so its text stays selectable and copyable and nothing is
+ * greyed - and the small buttons (add, remove, choose, today...) are unavailable.
  */
 
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { FormInput } from './binding';
-import { useDescriptionForm, useFieldValue } from './formContext';
+import { useDescriptionForm, useFieldValue, useFormReadOnly } from './formContext';
 import type { FieldKey } from './model';
 
 /* ------------------------------------------------------------------------ */
@@ -52,7 +56,7 @@ export function TextField({
   title,
   inputRef,
 }: TextFieldProps) {
-  const { controller } = useDescriptionForm();
+  const { controller, readOnly: formReadOnly } = useDescriptionForm();
   const value = useFieldValue(fieldKey);
   const ref = useRef<FormInput | null>(null);
   useEffect(() => {
@@ -78,14 +82,16 @@ export function TextField({
     value,
     placeholder,
     maxLength,
-    readOnly,
+    readOnly: readOnly || formReadOnly,
     title: invalid ?? title,
     'aria-invalid': invalid ? true : undefined,
     'aria-required': required || undefined,
     'data-testid': testId,
     'data-field': fieldKey,
-    onChange: (event: React.ChangeEvent<FormInput>) =>
-      controller.setField(fieldKey, event.target.value),
+    onChange: (event: React.ChangeEvent<FormInput>) => {
+      if (formReadOnly) return; // the quiet lock refuses every change
+      controller.setField(fieldKey, event.target.value);
+    },
     onBlur: () => controller.closeEntry(),
   };
   const input = multiline ? (
@@ -201,6 +207,9 @@ export function SmallButton({
   disabled?: boolean;
   kind?: 'default' | 'remove';
 }) {
+  // Every small button changes the description (add, remove, choose, today, new id...):
+  // unavailable under the quiet lock of a script run.
+  const readOnly = useFormReadOnly();
   return (
     <button
       type="button"
@@ -209,7 +218,7 @@ export function SmallButton({
       onClick={onClick}
       title={title}
       aria-label={title}
-      disabled={disabled}
+      disabled={disabled || readOnly}
     >
       {children}
     </button>

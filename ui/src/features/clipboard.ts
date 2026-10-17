@@ -30,7 +30,7 @@ import type { BodyEditorController } from '@/views/body/bodyEditor';
 import { pasteIntoSource } from '@/views/source/sourceClipboard';
 import { getSourceEditor } from '@/views/source/sourceEditor';
 
-import { bodyController, bodyEditable, cmdKeys } from './editing/common';
+import { bodyActive, bodyController, bodyEditable, cmdKeys } from './editing/common';
 import { pasteImageFile, reportImageFailure } from './images/paste';
 
 export {
@@ -42,10 +42,15 @@ export {
   sliceFromPlainText,
 } from '@/editor/plugins/clipboard';
 
-function hasSelection(ctx: CommandContext): boolean {
+/**
+ * A non-empty Body selection. Copy needs only that (copying stays available under the quiet
+ * lock of a script run, feature 003 FR-011); Cut additionally needs an editable Body.
+ */
+function hasSelection(ctx: CommandContext, cut: boolean): boolean {
   const controller = bodyController(ctx.store);
   const state = controller?.selectionState;
-  return !!state && bodyEditable(ctx) && !state.selection.empty;
+  if (!state || state.selection.empty) return false;
+  return cut ? bodyEditable(ctx) : bodyActive(ctx) && !!controller?.editorState;
 }
 
 /** The Source editor the commands act on in the Source view. */
@@ -70,7 +75,7 @@ function canCopy(ctx: CommandContext, cut: boolean): boolean {
   if (source) return sourceSelected(source) && !(cut && source.state.readOnly);
   const field = descriptionField(ctx);
   if (field) return hasSelectedText(field) && !(cut && !isWritable(field));
-  return hasSelection(ctx);
+  return hasSelection(ctx, cut);
 }
 
 function cutOrCopyIn(ctx: CommandContext, cut: boolean): Promise<void> | void {
@@ -210,6 +215,8 @@ export function registerClipboardCommands(registry: CommandRegistry): void {
       ...cmdKeys('edit.copy', 'menu.edit.copy'),
       icon: 'id_edit_copy',
       enabled: (ctx) => canCopy(ctx, false),
+      // Copying never changes the document: available under the quiet lock of a script run.
+      duringScriptRun: 'allowed',
       run: (ctx) => cutOrCopyIn(ctx, false),
     },
     {

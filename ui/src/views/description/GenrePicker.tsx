@@ -44,7 +44,7 @@ export interface GenreListProps {
 export function GenreList({ fieldKey, testPrefix, testId, required }: GenreListProps) {
   const { t } = useTranslation();
   const { dialogs, rpc } = useAppServices();
-  const { controller, form, genres, language, issues } = useDescriptionForm();
+  const { controller, form, genres, language, issues, readOnly } = useDescriptionForm();
   const list = (getAtPath(form, fieldKey) as GenreRef[] | undefined) ?? [];
   const missing = required && issues.missing.has(fieldKey as never);
   const catalogs = rpc ? resourceCatalogsFor(rpc) : null;
@@ -126,7 +126,10 @@ export function GenreList({ fieldKey, testPrefix, testId, required }: GenreListP
                 className={`mfbe-desc-genre-code${name ? '' : ' mfbe-desc-genre-unknown'}`}
                 data-testid={`${testPrefix}-${index}-code`}
                 title={name ? genre.code : t('descriptionForm.genres.unknown')}
-                onClick={() => void change(index)}
+                aria-disabled={readOnly || undefined}
+                onClick={() => {
+                  if (!readOnly) void change(index); // the quiet lock: the code stays readable
+                }}
               >
                 <code>{genre.code}</code>
                 {name ? <span className="mfbe-desc-genre-name"> {name}</span> : null}
@@ -153,7 +156,9 @@ export function GenreList({ fieldKey, testPrefix, testId, required }: GenreListP
                   data-testid={`${testPrefix}-${index}-match`}
                   value={genre.match === undefined ? '' : String(genre.match)}
                   placeholder="100"
+                  readOnly={readOnly}
                   onChange={(event) => {
+                    if (readOnly) return;
                     const digits = event.target.value.replace(/\D/g, '').slice(0, 3);
                     controller.setValue(
                       `${fieldKey}.${index}.match`,
@@ -163,7 +168,9 @@ export function GenreList({ fieldKey, testPrefix, testId, required }: GenreListP
                   }}
                   onBlur={() => {
                     // Normalise on leaving the field: 100 (the default) and garbage are omitted.
-                    controller.setValue(`${fieldKey}.${index}.match`, cleanMatch(genre.match));
+                    if (!readOnly) {
+                      controller.setValue(`${fieldKey}.${index}.match`, cleanMatch(genre.match));
+                    }
                     controller.closeEntry();
                   }}
                 />

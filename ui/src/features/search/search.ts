@@ -333,6 +333,8 @@ export function getSearchSession(store: AppStore, undo?: UndoCoordinator): Searc
 export function registerSearchCommands(registry: CommandRegistry, session: SearchSession): void {
   const hasTarget = (ctx: CommandContext) =>
     ctx.store.getState().document !== null && session.activeTarget() !== null;
+  // Find reads the document only: it stays available while a script runs (feature 003 FR-011,
+  // "Find (not Replace)"); Replace keeps the default `blocked` policy.
   const commands: Command[] = [
     {
       id: 'edit.find',
@@ -340,6 +342,7 @@ export function registerSearchCommands(registry: CommandRegistry, session: Searc
       ...cmdKeys('edit.find', 'menu.edit.find'),
       icon: 'id_edit_find',
       enabled: hasTarget,
+      duringScriptRun: 'allowed',
       run: (ctx) => session.openFind(ctx),
     },
     {
@@ -348,6 +351,7 @@ export function registerSearchCommands(registry: CommandRegistry, session: Searc
       ...cmdKeys('edit.findNext', 'menu.edit.findNext'),
       icon: 'id_edit_findnext',
       enabled: hasTarget,
+      duringScriptRun: 'allowed',
       run: (ctx) => session.findNextCommand(ctx),
     },
     {

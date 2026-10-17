@@ -4,7 +4,9 @@
  * behaviour, plus a small toolbar offering the six inline styles. The field has no history of
  * its own: every change goes to the Description controller (coalesced per burst) and
  * Edit > Undo / Redo replays it through the `description` view of the undo coordinator, which
- * rebuilds the editor from the restored model.
+ * rebuilds the editor from the restored model. While a script runs (form `readOnly`, feature
+ * 003 FR-011) the editor is not editable - selecting and copying keep working, nothing is
+ * greyed - and the style buttons are unavailable.
  */
 
 import type { Command, EditorState, Plugin, Transaction } from 'prosemirror-state';
@@ -52,12 +54,14 @@ export interface RichFieldProps {
 
 export function RichField({ fieldKey, testId, label, required }: RichFieldProps) {
   const { t } = useTranslation();
-  const { controller, form, docId } = useDescriptionForm();
+  const { controller, form, docId, readOnly } = useDescriptionForm();
   const value = getAtPath(form, fieldKey) as AnnotationNode | undefined;
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const lastEmitted = useRef<AnnotationNode | undefined | null>(null);
   const docIdRef = useRef(docId);
+  // The editor asks `editable()` on every update; the ref carries the current lock.
+  const readOnlyRef = useRef(readOnly);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   // Annotation and history show the non-breaking-space marker like the Body text (feature 002
   // FR-042).
@@ -80,6 +84,12 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
     if (view) view.dispatch(view.state.tr.setMeta(nbspPluginKey, 'refresh'));
   }, [nbspChar]);
 
+  useEffect(() => {
+    readOnlyRef.current = readOnly;
+    // Re-evaluates `editable()` (the view re-reads its props on setProps).
+    viewRef.current?.setProps({ editable: () => !readOnlyRef.current });
+  }, [readOnly]);
+
   // Mount once; the editor state is rebuilt from the model only when the model changed
   // outside this field (undo / redo / document replaced).
   useEffect(() => {
@@ -91,6 +101,7 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
     pluginsRef.current = [nbspMarkerPlugin(() => nbspCharRef.current)];
     const view = new EditorView(host, {
       state: createRichFieldState(initial, nextId, pluginsRef.current),
+      editable: () => !readOnlyRef.current,
       nodeViews: {
         ...createImageNodeViews({
           getDocId: () => docIdRef.current,
@@ -109,6 +120,8 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
       dispatchTransaction: (tr: Transaction) => {
         const current = viewRef.current;
         if (!current) return;
+        // The quiet lock refuses every change (selection changes still apply).
+        if (tr.docChanged && readOnlyRef.current) return;
         const next = current.state.apply(tr);
         current.updateState(next);
         if (tr.docChanged) {
@@ -164,6 +177,7 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
                 data-testid={`${testId}-mark-${name}`}
                 aria-pressed={active}
                 title={t(`cmd.style.${name}.tooltip`)}
+                disabled={readOnly}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => run(toggleInlineMark(name))}
               >

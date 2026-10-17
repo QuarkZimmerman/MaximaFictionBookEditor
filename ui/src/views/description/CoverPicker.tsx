@@ -3,7 +3,9 @@
  * with a thumbnail (served by `GET /binary/{docId}/{id}/preview?w=`), a drop-down of the
  * document's binaries (plus free text for external references) and Remove; "Add cover..." opens
  * the picker dialog - a thumbnail grid of the existing image binaries and an "Add file..."
- * button that embeds a new image through `binary.add` and selects it.
+ * button that embeds a new image through `binary.add` and selects it. While a script runs
+ * (form `readOnly`, feature 003 FR-011) the list is read-only: Add, Remove, the thumbnail
+ * button and the drop-down are unavailable, the reference text stays selectable.
  */
 
 import { useState } from 'react';
@@ -18,7 +20,7 @@ import type { BinaryMeta, ImageRef } from '@/model/document';
 import type { RpcClient } from '@/rpc/client';
 
 import { AddButton, EmptyHint, RemoveButton, SmallButton, SubSection, TextField } from './fields';
-import { useDescriptionForm } from './formContext';
+import { readOnlySelectProps, useDescriptionForm } from './formContext';
 import { getAtPath, setAtPath, type FieldKey } from './model';
 
 export interface CoverListProps {
@@ -31,7 +33,7 @@ export interface CoverListProps {
 export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
   const { t } = useTranslation();
   const { dialogs, rpc, store } = useAppServices();
-  const { controller, form, binaries, docId } = useDescriptionForm();
+  const { controller, form, binaries, docId, readOnly } = useDescriptionForm();
   const covers = (getAtPath(form, fieldKey) as ImageRef[] | undefined) ?? [];
   const images = binaries.filter((b) => b.decodable);
 
@@ -115,6 +117,7 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                 className="mfbe-desc-thumb-button"
                 title={t('descriptionForm.cover.choose')}
                 data-testid={`${testPrefix}-${index}-thumb`}
+                disabled={readOnly}
                 onClick={() => void change(index)}
               >
                 {url && !dangling ? (
@@ -132,9 +135,9 @@ export function CoverList({ fieldKey, testPrefix }: CoverListProps) {
                   data-testid={`${testPrefix}-${index}-href`}
                   value={cover.href}
                   title={dangling ? t('descriptionForm.cover.dangling') : undefined}
-                  onChange={(event) =>
-                    controller.setValue(`${fieldKey}.${index}.href`, event.target.value)
-                  }
+                  {...readOnlySelectProps(readOnly, (event) =>
+                    controller.setValue(`${fieldKey}.${index}.href`, event.target.value),
+                  )}
                 >
                   {!images.some((b) => `#${b.id}` === cover.href) ? (
                     <option value={cover.href}>{cover.href}</option>

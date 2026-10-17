@@ -8,7 +8,7 @@
 
 import { useTranslation } from 'react-i18next';
 
-import { useDescriptionForm } from './formContext';
+import { readOnlySelectProps, useDescriptionForm } from './formContext';
 import { getAtPath, type FieldKey } from './model';
 import { localName } from './resources';
 import { RequiredMark, TextField } from './fields';
@@ -24,7 +24,7 @@ export interface LanguagePickerProps {
 
 export function LanguagePicker({ fieldKey, testId, label, required }: LanguagePickerProps) {
   const { t } = useTranslation();
-  const { controller, form, languages, language, issues } = useDescriptionForm();
+  const { controller, form, languages, language, issues, readOnly } = useDescriptionForm();
   const raw = getAtPath(form, fieldKey);
   const value = typeof raw === 'string' ? raw : '';
   const code = value.trim();
@@ -42,7 +42,9 @@ export function LanguagePicker({ fieldKey, testId, label, required }: LanguagePi
         data-testid={testId}
         value={code}
         aria-invalid={missing ? true : undefined}
-        onChange={(event) => controller.setValue(fieldKey, event.target.value)}
+        {...readOnlySelectProps(readOnly, (event) =>
+          controller.setValue(fieldKey, event.target.value),
+        )}
       >
         <option value="">{t('descriptionForm.language.none')}</option>
         {code && !known ? (

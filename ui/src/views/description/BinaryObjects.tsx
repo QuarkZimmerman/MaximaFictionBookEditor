@@ -5,7 +5,9 @@
  * dangling image references (from the model and from the last validation report), Remove with
  * the reference check of `binary.remove` (confirmation before `force`) and Add (the
  * `insert.binary` flow). The list is refreshed from `binary.list` when the section mounts so
- * conversions performed by a save are reflected.
+ * conversions performed by a save are reflected. While a script runs (form `readOnly`,
+ * feature 003 FR-011) Add and Remove are unavailable - Add through the command registry's run
+ * policy, Remove through the form's lock - and the list stays readable.
  */
 
 import { useEffect, useMemo } from 'react';
@@ -38,7 +40,7 @@ export function BinaryObjects() {
   const ctx = useCommandContext();
   const runCommand = useRunCommand();
   const addState = useCommandState('insert.binary');
-  const { docId, binaries } = useDescriptionForm();
+  const { docId, binaries, readOnly } = useDescriptionForm();
   const document = useAppState((s) => s.document, store);
   const validation = useAppState((s) => s.validation, store);
   const connected = useAppState((s) => s.connection === 'connected', store);
@@ -219,7 +221,7 @@ export function BinaryObjects() {
                       onClick={() => void remove(binary)}
                       title={t('descriptionForm.remove')}
                       kind="remove"
-                      disabled={!rpc || !connected}
+                      disabled={!rpc || !connected || readOnly}
                     >
                       {t('descriptionForm.remove')}
                     </SmallButton>

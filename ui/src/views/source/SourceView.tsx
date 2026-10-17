@@ -47,6 +47,9 @@ export function SourceView() {
   const docId = useAppState((s) => s.docId, store);
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const parseError = useAppState((s) => s.sourceParseError, store);
+  // The quiet lock of a script run (feature 003 FR-011): the controller follows the flag
+  // itself (read-only editor); the view only exposes it for styling hooks and tests.
+  const scriptRunning = useAppState((s) => s.scriptRunning, store);
   const appSettings = useAppState((s) => s.settings, store);
   const settings = useMemo(() => sourceSettingsOf(appSettings), [appSettings]);
   const theme = useSyncExternalStore(subscribeTheme, currentTheme, currentTheme);
@@ -146,6 +149,7 @@ export function SourceView() {
         data-show-whitespace={settings.showWhitespace ? 'true' : 'false'}
         data-match-tags={settings.matchTags ? 'true' : 'false'}
         data-theme={theme}
+        data-locked={scriptRunning ? 'true' : 'false'}
       >
         <div className="mfbe-source-tools" data-testid="source-tools">
           <label className="mfbe-source-tools-label">

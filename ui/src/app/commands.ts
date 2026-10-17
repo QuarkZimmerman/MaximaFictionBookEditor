@@ -488,6 +488,7 @@ export function createBuiltinCommands(): Command[] {
       id: 'file.exit',
       group: 'file',
       ...cmdKeys('file.exit', 'menu.file.exit'),
+      duringScriptRun: 'allowed',
       async run(ctx) {
         if (!(await confirmDiscardChanges(ctx))) return;
         if (ctx.rpc && ctx.store.getState().connection === 'connected') {
@@ -662,6 +663,7 @@ export function createBuiltinCommands(): Command[] {
       id: 'help.about',
       group: 'help',
       ...cmdKeys('help.about', 'menu.help.about'),
+      duringScriptRun: 'allowed',
       async run(ctx) {
         await ctx.dialogs.showMessage({
           text: `${ctx.t('app.name')}\n${ctx.t('dialog.about.version', { version: ctx.version })}`,

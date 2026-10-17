@@ -175,6 +175,8 @@ export function registerIncrementalSearch(
     group: 'edit',
     ...cmdKeys('edit.incrementalSearch'),
     enabled: (ctx) => ctx.store.getState().document !== null && session.activeTarget() !== null,
+    // A Find variant: reads and selects only, so it stays available while a script runs.
+    duringScriptRun: 'allowed',
     run: (ctx) => incremental.toggle(ctx),
   };
   registry.replace(command);

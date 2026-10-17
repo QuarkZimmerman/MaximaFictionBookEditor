@@ -214,6 +214,59 @@ to the editor's HTML, no storage. The full JavaScript language and its built-ins
 `console` - routed to the editor log in development builds) remain available. Widening the
 `mfbe` interface is a product decision; a script cannot grant itself more.
 
+## 5a. While a script runs
+
+From the moment a script starts until it ends the editor shows a banner above the document
+with the script's name, the time elapsed, the progress it reports (`ui.progress`) and a
+**Cancel** button; the status bar keeps its run line. The document is under a *quiet lock*:
+nothing is greyed and the places the script highlights (`selection.selectNode`) stay visible,
+but the user's edits are refused in every view until the run ends.
+
+What stays available while a script runs:
+
+- reading, scrolling, selecting and copying text in the Body, Source and Description views;
+- **Find**, **Find Next** and the incremental search (not Replace: the Replace and Replace All
+  buttons of the Replace dialog are disabled for the run);
+- the **Help** menu, including **Check for new version**, and **About**;
+- **Exit** and closing the window - see below;
+- the script's own messages, prompts and forms, and **Cancel**, at any time (also while the
+  script is busy without reporting progress).
+
+What is unavailable until the run ends:
+
+- typing, pasting, dragging and deleting in the Body, Source and Description views; the
+  Description form's fields are read-only (not disabled), its add / remove / choose buttons
+  and the cover and binary controls are disabled;
+- every menu, toolbar and hotkey command that changes the document: Cut, Paste, Undo, Redo,
+  the Add and Style menus, the Document Tree operations (move, merge, delete), the table and
+  links bars, spelling and the Words dialog;
+- switching the view (Description / Body / Source) and the toolbar toggles;
+- **New**, **Open**, the recent files, **Reload**, **Save** and **Save As** - the book is never
+  written in an in-between state of a run;
+- **Settings** and the Hotkeys configuration (applying them could switch the view or the
+  language);
+- starting another script, by menu, toolbar, "Last script", a tree command or a hotkey: the
+  editor says that a script is already running.
+
+The pointer over the document shows the busy state while the script is computing, not while
+it waits in one of its dialogs.
+
+**Exit and closing the window.** File > Exit and the window's close button first ask
+"A script is running. Cancel it and exit?". **Yes** cancels the run - the document returns to
+its state before the run within two seconds - and the usual "Save changes?" prompt follows;
+**No** keeps the run going and nothing closes. Cancelling the save prompt abandons the exit as
+well. The window's close button behaves exactly like Exit: the shell defers the close, lets the
+editor run these prompts and closes only once they are answered.
+
+**When the run ends** the banner disappears, the document becomes editable again and the
+status bar says whether the script finished (and how long it took), was cancelled or failed
+(with the error, as before). A run longer than five seconds additionally shows a short notice
+in the work area that disappears by itself without taking the focus.
+
+For script authors this means: no script can wait for the user to edit the text directly -
+interact through `ui.message`, `ui.prompt`, `ui.form` and `ui.progress`, and check
+`ctx.cancelled` inside long loops so that Cancel takes effect promptly.
+
 ## 6. Porting scripts from the original FictionBook Editor
 
 The original scripts were JScript running inside Internet Explorer's rendering of the book;
