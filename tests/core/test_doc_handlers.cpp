@@ -1,10 +1,12 @@
 // T042/T045: doc.* and binary.* over the real loopback server - new, toXml, fromXml, save
 // (needsConfirmation and force), recent, open (direct and as a job), openSource for malformed
-// files, validate, caret, watch + doc.changedOnDisk, keepEncoding, HTTP /binary GET/POST.
+// files, validate, caret, watch + doc.changedOnDisk, keepEncoding, HTTP /binary GET/POST,
+// formatDate (feature 003).
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
 #include <mfbe/core_server.hpp>
+#include <mfbe/document_details.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/version.hpp>
@@ -104,7 +106,11 @@ TEST_CASE(
     CHECK(info["programUsed"] == program);
     const std::string date = info["date"]["value"];
     CHECK(date.size() == 10);
-    CHECK(info["date"]["text"].get<std::string>().size() >= 13);  // "14 October 2026"
+    // The date text is the regional long date of today (feature 003 FR-051), by the formatter
+    // the Today button uses; the uiLanguage setting is "system" here, as in the formatter call.
+    const model::DetailsContext today = model::details_context_now(true);
+    CHECK(info["date"]["text"] ==
+          platform::format_long_date(today.year, today.month, today.day, today.ui_language));
     CHECK(doc["filledIn"] == json{"documentInfo.id", "documentInfo.version",
                                   "documentInfo.programUsed", "documentInfo.date.text",
                                   "documentInfo.date.value"});
@@ -574,4 +580,62 @@ TEST_CASE("binary handlers: /binary GET with ETag/304, POST upload, binary.list/
     CHECK(f.ws.call("binary.add",
                     json{{"docId", doc_id},
                          {"path", (f.data / "nope.png").string()}})["error"]["code"] == 1002);
+}
+
+TEST_CASE("doc handlers: doc.formatDate writes the regional long date and rejects bad values",
+          "[server][doc][date]") {
+    ServerFixture f;
+    struct Restore {
+        ~Restore() { platform::set_date_locale_for_tests(nullptr); }
+    } restore;
+    const auto format = [&f](const char* value) {
+        return f.ws.call("doc.formatDate", json{{"value", value}});
+    };
+
+    // Without regional settings (the C locale) the text follows the interface language setting
+    // (feature 003 FR-050), "system" resolved through the OS language.
+    REQUIRE(platform::set_date_locale_for_tests("C"));
+    REQUIRE(f.ws.call("settings.set", json{{"patch", {{"view", {{"uiLanguage", "uk"}}}}}})
+                .contains("result"));
+    CHECK(format("2026-10-17")["result"] == json{{"text", "17 жовтня 2026"}});
+    CHECK(format("2026-10-07")["result"] == json{{"text", "7 жовтня 2026"}});
+    CHECK(format("2024-02-29")["result"] == json{{"text", "29 лютого 2024"}});  // leap day
+    REQUIRE(f.ws.call("settings.set", json{{"patch", {{"view", {{"uiLanguage", "ru"}}}}}})
+                .contains("result"));
+    CHECK(format("2026-10-17")["result"] == json{{"text", "17 октября 2026"}});
+    REQUIRE(f.ws.call("settings.set", json{{"patch", {{"view", {{"uiLanguage", "en"}}}}}})
+                .contains("result"));
+    CHECK(format("2026-10-17")["result"] == json{{"text", "October 17, 2026"}});
+
+    // The regional settings win over the interface language (FR-050: the user's date settings,
+    // not the interface language).
+#if defined(_WIN32)
+    REQUIRE(platform::set_date_locale_for_tests("ru-RU"));
+    CHECK(format("2026-10-17")["result"] == json{{"text", "17 октября 2026 г."}});
+#elif defined(__APPLE__)
+    REQUIRE(platform::set_date_locale_for_tests("ru_RU"));
+    CHECK(format("2026-10-17")["result"] == json{{"text", "17 октября 2026 г."}});
+#else
+    REQUIRE(platform::set_date_locale_for_tests("ru_RU.UTF-8"));
+    CHECK(format("2026-10-17")["result"] == json{{"text", "17 октября 2026"}});
+#endif
+    // The same function fills in the date of a new document (FR-051).
+    const json created = f.ws.call("doc.new");
+    REQUIRE(created.contains("result"));
+    const model::DetailsContext now = model::details_context_now(false, "en");
+    CHECK(created["result"]["description"]["documentInfo"]["date"]["text"] ==
+          platform::format_long_date(now.year, now.month, now.day, "en"));
+
+    // Anything but a calendar date in the schema's form is invalidParams naming the field.
+    for (const char* bad :
+         {"2026-02-30", "2026-13-01", "2023-02-29", "2026-00-10", "17.10.2026", "2026-10-7",
+          "2026-1-07", "", "today", "20261017", "2026-10-17T00:00:00Z", " 2026-10-17"}) {
+        INFO(bad);
+        const json response = format(bad);
+        REQUIRE(response.contains("error"));
+        CHECK(response["error"]["code"] == -32602);
+        CHECK(response["error"]["data"]["field"] == "value");
+    }
+    CHECK(f.ws.call("doc.formatDate", json::object())["error"]["code"] == -32602);
+    CHECK(f.ws.call("doc.formatDate", json{{"value", 20261017}})["error"]["code"] == -32602);
 }

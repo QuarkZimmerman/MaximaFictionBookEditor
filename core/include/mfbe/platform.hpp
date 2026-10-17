@@ -42,6 +42,24 @@ std::string platform_name();
 // POSIX, the user default UI language on Windows. Used to resolve uiLanguage "system".
 std::string system_language();
 
+// A date in the long date format of the operating system's regional settings without the day
+// of the week (feature 003 FR-050/FR-051, data-model §6): "17 октября 2026 г." on a Russian
+// Windows, "October 17, 2026" on a US-English one, "17 октября 2026" on a Russian Linux - each
+// system its own form (Windows: the user's long date picture minus its weekday part; macOS:
+// the long date style; POSIX: the LC_TIME locale's month name, the day and the year unpadded,
+// the month first where the locale's short date puts it first). When the regional settings
+// cannot be determined (`C`/`POSIX` locale, an API failure) the text is the interface
+// language's long form from the core's own month tables: `ui_language` is "en", "ru" or "uk"
+// (anything else is written as English; a "system" setting is resolved by the caller through
+// system_language()). `month` is 1-12, `day` 1-31; values outside are clamped.
+std::string format_long_date(int year, int month, int day, std::string_view ui_language);
+
+// Test hook: the regional settings format_long_date follows instead of the user's - a locale
+// name of the platform ("ru_RU.UTF-8" on POSIX, "ru-RU" on Windows, "ru_RU" on macOS; "C" or
+// "POSIX" everywhere for "no regional settings", the fallback); nullptr restores the user's.
+// Returns false, changing nothing, when the machine does not have that locale.
+bool set_date_locale_for_tests(const char* locale_name);
+
 // Resolves the directories. When `override_root` is non-empty every directory lives below it
 // (config = data = state = root, logs = root/logs) - used by tests and `--data-dir`; otherwise a
 // portable folder the editor can write to is that root; otherwise the per-user platform folders.

@@ -2,11 +2,12 @@
  * US2 (feature 002) - the editor starts with the original's blank document, replaceable by the
  * user (FR-001 to FR-009): at start-up and on File > New a new, untitled, unmodified document
  * from the effective template, with the document details the original filled in on load (id,
- * version 1.0, program used, today's date); a user `blank.fb2` in the per-user data folder or in
- * the template folder chosen in Settings replaces the built-in one as written; a damaged one is
- * named and the built-in one used; a start-up file that does not exist is reported, then a new
- * document is shown; validating the new document reports only the values the author still has
- * to fill in, no structure errors.
+ * version 1.0, program used, today's date - its text in the regional long date format since
+ * feature 003, FR-051); a user `blank.fb2` in the per-user data folder or in the template
+ * folder chosen in Settings replaces the built-in one as written; a damaged one is named and
+ * the built-in one used; a start-up file that does not exist is reported, then a new document
+ * is shown; validating the new document reports only the values the author still has to fill
+ * in, no structure errors.
  */
 
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -23,6 +24,7 @@ import {
   test,
   waitForStartupDocument,
 } from './fixtures/core';
+import { todaysDocumentDate } from './fixtures/dates';
 import { pageText, untitledTitle } from './fixtures/i18n';
 
 /** Browser-side test hooks (`src/scripting/testHooks.ts`); the e2e tsconfig has no DOM lib. */
@@ -32,34 +34,9 @@ declare const window: {
 
 const PROGRAM = /^Maxima Fiction Book Editor \d+\.\d+\.\d+/;
 const UUID = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/;
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
 const COVER = readFileSync(
   path.join(path.dirname(fixtureBook('modern-utf8.fb2')), '..', 'images', 'tiny.png'),
 ).toString('base64');
-
-/** The document date the original wrote: "09 October 2026" and "2026-10-09" (local date). */
-function today(): { text: string; value: string } {
-  const now = new Date();
-  const day = String(now.getDate()).padStart(2, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return {
-    text: `${day} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`,
-    value: `${now.getFullYear()}-${month}-${day}`,
-  };
-}
 
 function userTemplate(title: string): string {
   return `<?xml version="1.0" encoding="utf-8"?>
@@ -110,7 +87,9 @@ test.describe('US2 - start with the original blank document, replaceable by the 
     await expect(page.getByTestId('description-version')).toHaveValue('1.0');
     await expect(page.getByTestId('description-program-used')).toHaveValue(PROGRAM);
     await expect(page.getByTestId('description-id')).toHaveValue(UUID);
-    const { text, value } = today();
+    // The date text in the long date format of the regional settings the core runs under
+    // (feature 003 FR-051): "17 октября 2026" under ru_RU, "October 17, 2026" under en_US.
+    const { text, value } = todaysDocumentDate();
     await expect(page.getByTestId('description-doc-date-text')).toHaveValue(text);
     await expect(page.getByTestId('description-doc-date-value')).toHaveValue(value);
     // Filling these in does not mark the document modified.
