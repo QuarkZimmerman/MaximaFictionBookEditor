@@ -1,0 +1,53 @@
+{
+  "scripting": {
+    "menu": {
+      "openFolder": "&Відкрити теку скриптів",
+      "reload": "Пере&читати скрипти"
+    },
+    "cmd": {
+      "openFolder": {
+        "tooltip": "Відкрити теку скриптів",
+        "description": "Відкрити теку, у якій зберігаються ваші власні скрипти"
+      },
+      "reload": {
+        "tooltip": "Перечитати скрипти",
+        "description": "Заново переглянути теки зі скриптами"
+      }
+    },
+    "status": {
+      "running": "Виконується скрипт «{{name}}»...",
+      "finished": "Скрипт «{{name}}» завершено",
+      "cancelled": "Скрипт «{{name}}» перервано",
+      "failed": "Скрипт «{{name}}» завершився з помилкою",
+      "reloaded_one": "Знайдено {{count}} скрипт",
+      "reloaded_few": "Знайдено {{count}} скрипти",
+      "reloaded_many": "Знайдено {{count}} скриптів",
+      "reloaded_other": "Знайдено {{count}} скрипту"
+    },
+    "runBar": {
+      "label": "Виконання скрипту",
+      "count": "{{phase}}: {{done}}",
+      "silent": "Скрипт «{{name}}» давно працює й не повідомляє про хід виконання.",
+      "cancel": "Перервати"
+    },
+    "error": {
+      "caption": "Помилка скрипту",
+      "atLine": "Помилка скрипту: {{message}} у рядку {{line}}, позиція {{column}}",
+      "noLocation": "Помилка скрипту: {{message}}",
+      "loadFailed": "Не вдалося завантажити скрипт «{{name}}»: {{reason}}"
+    },
+    "issue": {
+      "$comment": "scripts.list().issues[].reason (core/src/resources/scripts.cpp): чому пакет скрипту або групу пропущено чи завантажено з попередженнями.",
+      "invalidJson": "{{path}}: script.json не є коректним JSON ({{message}})",
+      "invalidManifest": "{{path}}: script.json не є коректним маніфестом ({{message}})",
+      "entryMissing": "{{path}}: відсутній головний модуль скрипту ({{message}})",
+      "iconMissing": "{{path}}: відсутній файл значка скрипту ({{message}})",
+      "duplicateId": "{{path}}: скрипт з ідентифікатором \"{{id}}\" уже завантажено ({{message}})",
+      "invalidGroupJson": "{{path}}: не вдалося прочитати group.json ({{message}})",
+      "missingManifest": "{{path}}: у теці немає файлу script.json ({{message}})",
+      "warning": "{{path}}: {{reason}} - {{message}}"
+    },
+    "busy": "Інший скрипт («{{name}}») ще виконується. Дочекайтеся його завершення або перервіть його.",
+    "noDocument": "Перш ніж запускати скрипт, відкрийте документ."
+  }
+}

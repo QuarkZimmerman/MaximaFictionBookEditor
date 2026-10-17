@@ -1,0 +1,36 @@
+{
+  "spell": {
+    "status": {
+      "noDictionary": "Немає словника для мови {{lang}}",
+      "disabled": "Перевірку орфографії вимкнено в налаштуваннях.",
+      "notConnected": "Для перевірки орфографії потрібне підключення до ядра.",
+      "wordAdded": "Слово «{{word}}» додано до словника користувача.",
+      "wordRemoved": "Слово «{{word}}» видалено зі словника користувача.",
+      "replacedAll_one": "Замінено {{count}} входження.",
+      "replacedAll_few": "Замінено {{count}} входження.",
+      "replacedAll_many": "Замінено {{count}} входжень.",
+      "replacedAll_other": "Замінено {{count}} входження."
+    },
+    "menu": {
+      "loading": "Пошук варіантів...",
+      "noSuggestions": "(немає варіантів)",
+      "ignoreAll": "Пропустити всі"
+    },
+    "dialog": {
+      "dictionaries": "Словники:",
+      "noDictionaries": "Словники не встановлено.",
+      "checking": "Перевірка...",
+      "noSuggestions": "(немає варіантів)",
+      "where": {
+        "annotation": "анотація",
+        "history": "історія",
+        "body": "текст книги"
+      },
+      "location": "Де: {{where}}"
+    },
+    "undo": {
+      "replaceWord": "Заміна слова з помилкою",
+      "replaceAll": "Заміна всіх входжень слова"
+    }
+  }
+}

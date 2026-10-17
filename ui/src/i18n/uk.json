@@ -1,0 +1,986 @@
+{
+  "app": {
+    "name": "Maxima Fiction Book Editor",
+    "shortName": "MFBE",
+    "untitled": "Без назви",
+    "windowTitle": "{{document}} - {{app}}",
+    "modifiedMarker": "*"
+  },
+  "status": {
+    "ready": "Готово",
+    "notConnected": "Немає з'єднання",
+    "connecting": "Підключення...",
+    "ins": "ВСТ",
+    "ovr": "ЗАМ",
+    "noErrors": "Помилок не виявлено.",
+    "savedNoErrors": "Документ збережено. Помилок не виявлено.",
+    "openedWithWarnings_one": "Документ відкрито з {{count}} попередженням.",
+    "openedWithWarnings_few": "Документ відкрито з {{count}} попередженнями.",
+    "openedWithWarnings_many": "Документ відкрито з {{count}} попередженнями.",
+    "openedWithWarnings_other": "Документ відкрито з {{count}} попередженнями.",
+    "incrementalSearch": "Інкрементальний пошук: {{text}}",
+    "failingIncrementalSearch": "Інкрементальний пошук (не знайдено): {{text}}",
+    "progress": "{{phase}}: {{done}} з {{total}}",
+    "progressPercent": "{{phase}}: {{percent}}%"
+  },
+  "menu": {
+    "file": {
+      "caption": "&Файл",
+      "new": "&Створити",
+      "open": "&Відкрити...",
+      "save": "&Зберегти",
+      "saveAs": "Зберегти &як...",
+      "validate": "&Перевірити",
+      "import": "&Імпорт",
+      "noImportPlugins": "Немає жодного модуля",
+      "export": "&Експорт",
+      "noExportPlugins": "Немає жодного модуля",
+      "recent": "&Останні документи",
+      "noRecent": "Порожньо",
+      "openThisDocument": "Відкрити цей документ",
+      "exit": "Ви&йти"
+    },
+    "edit": {
+      "caption": "&Правка",
+      "undo": "&Скасувати дію",
+      "redo": "&Повторити дію",
+      "cut": "В&ирізати",
+      "copy": "&Копіювати",
+      "paste": "&Вставити",
+      "find": "З&найти...",
+      "findNext": "Знайти &далі",
+      "replace": "&Замінити...",
+      "gotoFootnote": "П&ерейти до примітки або до посилання",
+      "gotoMatchTag": "Перейти до парного &тегу",
+      "gotoWrongTag": "Перейти до по&милкового тегу",
+      "clone": "К&лонувати",
+      "split": "Розр&ізати",
+      "merge": "&Об'єднати",
+      "removeOuter": "За&брати зовнішній"
+    },
+    "view": {
+      "caption": "&Вигляд",
+      "toolbarCommands": "&Панель інструментів",
+      "toolbarScripts": "Панель скриптів",
+      "linksBar": "Па&нель посилань",
+      "tableBar": "П&анель таблиць",
+      "statusBar": "&Смуга стану",
+      "tree": "Стр&уктура книги",
+      "description": "&Опис документа",
+      "body": "&Тіло документа",
+      "source": "&Код",
+      "fastMode": "Прискорений &режим"
+    },
+    "add": {
+      "caption": "В&ставка",
+      "body": "&Тіло",
+      "title": "&Заголовок",
+      "epigraph": "&Епіграф",
+      "annotation": "&Анотація",
+      "textAuthor": "А&втор",
+      "image": "&Малюнок",
+      "inlineImage": "Малюнок у те&ксті",
+      "poem": "В&ірш",
+      "cite": "&Цитата",
+      "table": "Та&блиця",
+      "sectionImage": "Ма&люнок секції",
+      "binary": "&Долучити"
+    },
+    "style": {
+      "caption": "С&тиль",
+      "normal": "&Звичайний",
+      "textAuthor": "&Автор",
+      "subtitle": "&Підзаголовок",
+      "link": "По&силання...",
+      "footnote": "При&мітка...",
+      "removeLink": "&Видалити посилання"
+    },
+    "tools": {
+      "caption": "&Інструменти",
+      "words": "&Слова...",
+      "settings": "&Налаштування...",
+      "spellcheck": "&Орфографія..."
+    },
+    "scripts": {
+      "caption": "С&крипти",
+      "none": "Не знайдено жодного скрипту",
+      "last": "&Останній скрипт",
+      "invalid": "некоректний скрипт: {{reason}}"
+    },
+    "help": {
+      "caption": "&Довідка",
+      "checkVersion": "Перевірити &нову версію...",
+      "about": "&Про програму..."
+    }
+  },
+  "treeMenu": {
+    "view": "Перейти до елемента",
+    "viewSource": "Перейти до коду",
+    "moveRight": "Перемістити праворуч",
+    "moveWithChildren": "Зробити дочірнім елементом",
+    "moveLeft": "Перемістити ліворуч",
+    "delete": "Видалити",
+    "elements": "Елементи",
+    "scripts": "Скрипти"
+  },
+  "toolbarMenu": {
+    "customize": "Налаштування панелі..."
+  },
+  "toolbar": {
+    "commands": "Панель інструментів",
+    "scripts": "Панель скриптів",
+    "links": "Панель посилань",
+    "table": "Панель таблиць"
+  },
+  "linksBar": {
+    "id": "ID:",
+    "href": "Посилання:",
+    "sectionId": "ID секції:",
+    "imageTitle": "Підпис до малюнка:"
+  },
+  "tableBar": {
+    "tableId": "ID таблиці:",
+    "tableStyle": "Стиль таблиці:",
+    "style": "Стиль:",
+    "colspan": "colspan:",
+    "rowspan": "rowspan:",
+    "trAlign": "tr align:",
+    "tdAlign": "th, td align:",
+    "tdValign": "th, td valign:"
+  },
+  "tree": {
+    "caption": "Структура документа",
+    "clean": "Очистити",
+    "empty": "Документ не відкрито."
+  },
+  "views": {
+    "description": {
+      "title": "Опис",
+      "empty": "Опис документа - документ не відкрито."
+    },
+    "body": {
+      "title": "Тіло документа",
+      "empty": "Тіло документа - документ не відкрито.",
+      "imageMissing": "Малюнок недоступний:",
+      "undoLabel": "Правка тексту",
+      "sourceOnly": "Документ не є коректним XML: спочатку виправте його в режимі «Код».",
+      "bodyNumber": "Тіло {{number}}",
+      "moreSections_one": "... ще {{count}} розділ",
+      "moreSections_few": "... ще {{count}} розділи",
+      "moreSections_many": "... ще {{count}} розділів",
+      "moreSections_other": "... ще {{count}} розділу",
+      "conversionProblems_one": "{{count}} елемент не відповідає структурі FB2 і показаний як є.",
+      "conversionProblems_few": "{{count}} елементи не відповідають структурі FB2 і показані як є.",
+      "conversionProblems_many": "{{count}} елементів не відповідають структурі FB2 і показані як є.",
+      "conversionProblems_other": "{{count}} елемента не відповідає структурі FB2 і показано як є."
+    },
+    "source": {
+      "title": "Код",
+      "empty": "Код - документ не відкрито.",
+      "undoLabel": "Правка коду",
+      "sourceOnly": "Файл не є коректним XML і відкритий лише в режимі «Код». Виправте помилки, щоб користуватися іншими режимами.",
+      "loadFailed": "Не вдалося завантажити вихідний код документа.\n{{reason}}"
+    },
+    "switcher": "Режими"
+  },
+  "editing": {
+    "unknownElement": "Невідомий елемент - редагується в режимі «Код»",
+    "cmd": {
+      "insertNbsp": {
+        "tooltip": "Вставити нерозривний пробіл",
+        "description": "Вставити нерозривний пробіл у позиції курсора"
+      }
+    },
+    "link": {
+      "caption": "Посилання",
+      "prompt": "Адреса посилання (#id елемента або адреса):"
+    },
+    "footnote": {
+      "notesTitle": "Примітки",
+      "undoLabel": "Створення примітки"
+    },
+    "contextMenu": {
+      "cut": "Вирізати",
+      "copy": "Копіювати",
+      "paste": "Вставити",
+      "select": "Виділити {{element}}"
+    },
+    "msg": {
+      "binaryAddUnavailable": "Файл зображення поки не можна додати як двійковий об'єкт; зображення посилається на #{{name}}."
+    }
+  },
+  "cmd": {
+    "file": {
+      "new": {
+        "tooltip": "Створити",
+        "description": "Створити новий документ"
+      },
+      "open": {
+        "tooltip": "Відкрити",
+        "description": "Відкрити документ"
+      },
+      "save": {
+        "tooltip": "Зберегти",
+        "description": "Зберегти документ"
+      },
+      "saveAs": {
+        "tooltip": "Зберегти як",
+        "description": "Зберегти активний документ з іншим ім'ям"
+      },
+      "validate": {
+        "tooltip": "Перевірити",
+        "description": "Перевірити документ на відповідність формату FictionBook"
+      },
+      "exit": {
+        "tooltip": "Вийти",
+        "description": "Закрити програму; перед закриттям буде запропоновано зберегти документ"
+      }
+    },
+    "edit": {
+      "undo": {
+        "tooltip": "Скасувати дію",
+        "description": "Скасувати останню виконану дію"
+      },
+      "redo": {
+        "tooltip": "Повторити дію",
+        "description": "Повторити останню скасовану дію"
+      },
+      "cut": {
+        "tooltip": "Вирізати",
+        "description": "Вирізати виділений фрагмент і помістити його до буфера обміну"
+      },
+      "copy": {
+        "tooltip": "Копіювати",
+        "description": "Копіювати виділений фрагмент до буфера обміну"
+      },
+      "paste": {
+        "tooltip": "Вставити",
+        "description": "Вставити вміст буфера обміну"
+      },
+      "find": {
+        "tooltip": "Знайти",
+        "description": "Знайти текст"
+      },
+      "findNext": {
+        "tooltip": "Знайти далі",
+        "description": "Повторити останній пошук"
+      },
+      "replace": {
+        "tooltip": "Замінити",
+        "description": "Знайти текст і замінити його іншим текстом"
+      },
+      "incrementalSearch": {
+        "tooltip": "Інкрементальний пошук",
+        "description": "Пошук під час набору; поточний збіг показується у смузі стану"
+      },
+      "gotoFootnote": {
+        "tooltip": "Перейти до тексту примітки або до посилання",
+        "description": "Перейти до тексту примітки або до посилання"
+      },
+      "gotoMatchTag": {
+        "tooltip": "Перейти до парного тегу",
+        "description": "Перейти до парного тегу"
+      },
+      "gotoWrongTag": {
+        "tooltip": "Перейти до помилкового тегу",
+        "description": "Перейти до помилкового тегу"
+      },
+      "clone": {
+        "tooltip": "Клонувати",
+        "description": "Клонувати контейнер"
+      },
+      "split": {
+        "tooltip": "Розрізати контейнер",
+        "description": "Розрізати контейнер"
+      },
+      "merge": {
+        "tooltip": "Об'єднати контейнери",
+        "description": "Об'єднати виділений контейнер з наступним"
+      },
+      "removeOuter": {
+        "tooltip": "Видалити зовнішню секцію",
+        "description": "Забрати контейнер навколо виділення, зберігши його вміст"
+      }
+    },
+    "view": {
+      "toolbarCommands": {
+        "tooltip": "Панель інструментів",
+        "description": "Показати чи сховати панель інструментів"
+      },
+      "toolbarScripts": {
+        "tooltip": "Панель скриптів",
+        "description": "Показати чи сховати панель скриптів"
+      },
+      "linksBar": {
+        "tooltip": "Панель посилань",
+        "description": "Показати чи сховати панель посилань"
+      },
+      "tableBar": {
+        "tooltip": "Панель таблиць",
+        "description": "Показати чи сховати панель редагування параметрів таблиць"
+      },
+      "statusBar": {
+        "tooltip": "Смуга стану",
+        "description": "Показати чи сховати смугу стану"
+      },
+      "tree": {
+        "tooltip": "Структура документа",
+        "description": "Показати чи сховати структуру документа"
+      },
+      "description": {
+        "tooltip": "Опис документа",
+        "description": "Перейти до опису документа"
+      },
+      "body": {
+        "tooltip": "Тіло документа",
+        "description": "Перейти до тіла документа"
+      },
+      "source": {
+        "tooltip": "Перейти до коду",
+        "description": "Перейти до коду"
+      },
+      "fastMode": {
+        "tooltip": "Перемкнути в прискорений режим",
+        "description": "Перемкнути в прискорений режим"
+      }
+    },
+    "insert": {
+      "body": {
+        "tooltip": "Додати тіло",
+        "description": "Додати нове тіло документа"
+      },
+      "title": {
+        "tooltip": "Додати заголовок",
+        "description": "Додати заголовок до виділеного елемента"
+      },
+      "epigraph": {
+        "tooltip": "Додати епіграф",
+        "description": "Додати епіграф до виділеного фрагмента"
+      },
+      "annotation": {
+        "tooltip": "Додати анотацію",
+        "description": "Додати анотацію до виділеного фрагмента"
+      },
+      "textAuthor": {
+        "tooltip": "Додати автора тексту",
+        "description": "Додати автора тексту до контейнера"
+      },
+      "image": {
+        "tooltip": "Вставити малюнок",
+        "description": "Вставити малюнок на місці курсора"
+      },
+      "inlineImage": {
+        "tooltip": "Вставити малюнок у текст",
+        "description": "Вставити малюнок у текст на місці курсора"
+      },
+      "poem": {
+        "tooltip": "Додати вірш",
+        "description": "Додати вірш"
+      },
+      "cite": {
+        "tooltip": "Вставити цитату",
+        "description": "Вставити цитату"
+      },
+      "table": {
+        "tooltip": "Вставити таблицю",
+        "description": "Вставити таблицю на місце курсора"
+      },
+      "sectionImage": {
+        "tooltip": "Додати малюнок",
+        "description": "Додати малюнок"
+      },
+      "binary": {
+        "tooltip": "Долучити двійковий файл",
+        "description": "Долучити до документа двійковий файл"
+      }
+    },
+    "style": {
+      "normal": {
+        "tooltip": "Звичайний текст",
+        "description": "Звичайний текст"
+      },
+      "textAuthor": {
+        "tooltip": "Автор тексту",
+        "description": "Стиль абзацу «Автор тексту»"
+      },
+      "subtitle": {
+        "tooltip": "Підзаголовок",
+        "description": "Підзаголовок"
+      },
+      "link": {
+        "tooltip": "Гіперпосилання",
+        "description": "Додати гіперпосилання"
+      },
+      "footnote": {
+        "tooltip": "Примітка",
+        "description": "Додати примітку"
+      },
+      "removeLink": {
+        "tooltip": "Видалити посилання",
+        "description": "Видалити посилання з виділеного тексту"
+      },
+      "strong": {
+        "tooltip": "Жирний",
+        "description": "Жирний"
+      },
+      "emphasis": {
+        "tooltip": "Курсив",
+        "description": "Курсив"
+      },
+      "strikethrough": {
+        "tooltip": "Закреслений текст",
+        "description": "Закреслений текст"
+      },
+      "sub": {
+        "tooltip": "Нижній індекс",
+        "description": "Нижній індекс"
+      },
+      "sup": {
+        "tooltip": "Верхній індекс",
+        "description": "Верхній індекс"
+      },
+      "code": {
+        "tooltip": "Код",
+        "description": "Код"
+      }
+    },
+    "tools": {
+      "words": {
+        "tooltip": "Слова",
+        "description": "Частотний список слів книги із замінами"
+      },
+      "settings": {
+        "tooltip": "Налаштування",
+        "description": "Налаштування редактора"
+      },
+      "spellcheck": {
+        "tooltip": "Перевірка орфографії",
+        "description": "Перевірка орфографії документа..."
+      },
+      "spellHighlight": {
+        "tooltip": "Перемкнути виділення слів з помилками",
+        "description": "Увімкнути або вимкнути виділення слів з помилками"
+      }
+    },
+    "scripts": {
+      "last": {
+        "tooltip": "Останній скрипт",
+        "description": "Виконати останній запущений скрипт"
+      }
+    },
+    "help": {
+      "checkVersion": {
+        "tooltip": "Перевірити нову версію",
+        "description": "Знайти новіший випуск редактора на його сторінці випусків"
+      },
+      "about": {
+        "tooltip": "Про програму",
+        "description": "Показати інформацію про програму, номер версії та авторські права"
+      }
+    },
+    "nav": {
+      "nextItem": {
+        "tooltip": "Наступний елемент",
+        "description": "Перейти до наступного елемента"
+      },
+      "selectHref": {
+        "tooltip": "Посилання",
+        "description": "Перейти в поле «Посилання» панелі посилань"
+      },
+      "selectId": {
+        "tooltip": "ID",
+        "description": "Перейти в поле «ID» панелі посилань"
+      },
+      "selectTableId": {
+        "tooltip": "ID таблиці",
+        "description": "Перейти в поле «ID таблиці» панелі таблиць"
+      },
+      "selectText": {
+        "tooltip": "Текст",
+        "description": "Повернути фокус у текст документа"
+      },
+      "selectTree": {
+        "tooltip": "Дерево",
+        "description": "Перейти в дерево документа"
+      }
+    },
+    "source": {
+      "collapse": {
+        "tooltip_one": "Згорнути дерево на {{count}} рівень",
+        "tooltip_few": "Згорнути дерево на {{count}} рівні",
+        "tooltip_many": "Згорнути дерево на {{count}} рівнів",
+        "tooltip_other": "Згорнути дерево на {{count}} рівня",
+        "description_one": "Згорнути XML-код на {{count}} рівень вкладеності",
+        "description_few": "Згорнути XML-код на {{count}} рівні вкладеності",
+        "description_many": "Згорнути XML-код на {{count}} рівнів вкладеності",
+        "description_other": "Згорнути XML-код на {{count}} рівня вкладеності"
+      },
+      "expand": {
+        "tooltip_one": "Розгорнути дерево на {{count}} рівень",
+        "tooltip_few": "Розгорнути дерево на {{count}} рівні",
+        "tooltip_many": "Розгорнути дерево на {{count}} рівнів",
+        "tooltip_other": "Розгорнути дерево на {{count}} рівня",
+        "description_one": "Розгорнути XML-код на {{count}} рівень вкладеності",
+        "description_few": "Розгорнути XML-код на {{count}} рівні вкладеності",
+        "description_many": "Розгорнути XML-код на {{count}} рівнів вкладеності",
+        "description_other": "Розгорнути XML-код на {{count}} рівня вкладеності"
+      }
+    },
+    "symbol": {
+      "description": "Вставити символ {{name}} ({{char}})"
+    },
+    "script": {
+      "description": "Виконати скрипт {{name}}"
+    }
+  },
+  "hotkeys": {
+    "groups": {
+      "file": "Файл",
+      "edit": "Редагування",
+      "navigation": "Навігація",
+      "style": "Стиль",
+      "view": "Перегляд",
+      "tools": "Інструменти",
+      "symbols": "Символи",
+      "scripts": "Скрипти",
+      "plugins": "Модулі"
+    },
+    "wrong": "Хибне сполучення!",
+    "defaultCollision": "Типове сполучення для цієї команди було зарезервовано для «{{command}}»! Замінити?",
+    "assigned": "Зарезервовано «{{command}}»",
+    "notAssigned": "Не зарезервовано для інших команд",
+    "scriptConflict": "Скрипт\n{{script}}\n має код клавіші швидкого доступу, який збігається з уже завантаженим скриптом\n {{other}}",
+    "none": "Немає"
+  },
+  "dialog": {
+    "customizeToolbar": {
+      "caption": "Налаштування панелі інструментів",
+      "available": "Наявні кнопки:",
+      "current": "Кнопки панелі інструментів:",
+      "separator": "Розділювач",
+      "add": "&Додати ->",
+      "remove": "<- &Видалити",
+      "moveUp": "В&гору",
+      "moveDown": "В&низ",
+      "reset": "&Скинути",
+      "close": "&Закрити"
+    },
+    "buttons": {
+      "ok": "Гаразд",
+      "cancel": "Скасувати",
+      "abort": "Пе&рервати",
+      "retry": "&Повторити",
+      "ignore": "&Ігнорувати",
+      "yes": "&Так",
+      "no": "&Ні",
+      "close": "Закрити"
+    },
+    "input": {
+      "caption": "Введення",
+      "prompt": "Текст:"
+    },
+    "error": {
+      "caption": "Помилка"
+    },
+    "find": {
+      "caption": "Пошук",
+      "findWhat": "&Що шукати:",
+      "wholeWords": "Слова &повністю",
+      "matchCase": "&Враховувати регістр",
+      "regex": "&Регулярний вираз",
+      "direction": "Напрямок",
+      "up": "В&гору",
+      "down": "В&низ",
+      "findNext": "Знайти &далі"
+    },
+    "replace": {
+      "caption": "Пошук і заміна",
+      "replaceWith": "Замінити на:",
+      "replace": "&Замінити",
+      "replaceAll": "Замінити &усі",
+      "replaceAllCaption": "Замінити усі"
+    },
+    "table": {
+      "caption": "Параметри таблиці",
+      "rows": "Кількість рядків таблиці <tr><td></td></tr>:",
+      "addHeader": "Вставити рядок заголовків <tr><th></th></tr>"
+    },
+    "words": {
+      "caption": "Слова",
+      "showHideExclusions": "Показати/сховати виключення",
+      "process": "Обробка",
+      "processHighlighted": "Виділені",
+      "invert": "Обернути виділення",
+      "resetReplaced": "Не замінювати",
+      "toExclusions": "До виключень",
+      "highlightAll": "Позначити усі",
+      "setReplaced": "До замінюваних",
+      "setReplacedAll": "Заміна для усіх",
+      "currentWord": "Поточне слово",
+      "word": "Слово:",
+      "replacement": "Заміна:",
+      "find": "Знайти",
+      "next": "Далі",
+      "replace": "Замінити",
+      "columns": {
+        "word": "Слово",
+        "replacement": "Заміна",
+        "counted": "Кількість"
+      }
+    },
+    "spelling": {
+      "caption": "Орфографія",
+      "notInDictionary": "Немає у словнику:",
+      "changeTo": "Змінити на:",
+      "suggestions": "Варіанти:",
+      "ignore": "Пропустити",
+      "ignoreAll": "Пропустити усі",
+      "change": "Замінити",
+      "changeAll": "Замінити усі",
+      "add": "Додати",
+      "suggest": "Варіант",
+      "undoLast": "Скасувати дію",
+      "addToDictionary": "Додати до словника",
+      "continue": "Продовжити",
+      "replaceWord": "Замінити слово"
+    },
+    "about": {
+      "caption": "Про програму",
+      "build": "Збірка",
+      "version": "Версія {{version}}",
+      "openLogFolder": "Відкрити теку журналу",
+      "licences": "Ліцензії"
+    },
+    "settings": {
+      "caption": "Налаштування",
+      "pages": {
+        "view": "Вигляд",
+        "other": "Інше",
+        "hotkeys": "Клавіші",
+        "words": "Слова"
+      },
+      "apply": "Застосувати",
+      "view": {
+        "common": "Загальне",
+        "language": "Мова:",
+        "fontSize": "Розмір шрифту:",
+        "body": "Тіло",
+        "editorFont": "Шрифт:",
+        "textColor": "Колір тексту:",
+        "background": "Колір тла:",
+        "fastMode": "Прискорений режим",
+        "sourceEditor": "Редактор коду",
+        "wrap": "Перенесення рядків",
+        "syntaxHighlight": "Підсвітка синтаксису",
+        "showEol": "Показувати символи кінця рядків",
+        "showWhitespace": "Показувати пробіли",
+        "lineNumbers": "Показувати номери рядків",
+        "matchTags": "Підсвітка парних тегів",
+        "spellcheck": "Перевірка орфографії",
+        "useSpellchecker": "Перевіряти орфографію",
+        "highlightMisspelled": "Виділяти помилки",
+        "customDictionary": "Словник користувача:"
+      },
+      "other": {
+        "saveFile": "Параметри збереження",
+        "defaultEncoding": "Кодування:",
+        "keepEncoding": "Зберігати оригінальне кодування",
+        "openFile": "Параметри відкриття",
+        "restorePosition": "Відновлювати позицію курсора",
+        "scriptsFolder": "Тека скриптів",
+        "genresFolder": "Тека жанрів",
+        "openGenresFolder": "Відкрити теку жанрів",
+        "templateFolder": "Тека шаблону",
+        "openTemplateFolder": "Відкрити теку шаблону",
+        "defaultFolder": "Типова тека",
+        "dialogs": "Діалоги",
+        "askNonClearImage": "Запитувати про вставку непорожнього малюнка",
+        "images": "Малюнки",
+        "insertClearImages": "Вставляти порожні малюнки",
+        "pasteImagesAs": "Вставляти малюнки як",
+        "imageFormat": "Формат:",
+        "jpegQuality": "Якість JPEG:",
+        "nbsp": "Нерозривні пробіли",
+        "displayChar": "Використовувати символ:"
+      },
+      "hotkeys": {
+        "groups": "Групи:",
+        "commands": "Команди:",
+        "shortcut": "Клавіші:",
+        "default": "Типово",
+        "delete": "Видалити",
+        "assign": "Присвоїти",
+        "actions": "Дії",
+        "assignedTo": "Присвоєно",
+        "description": "Опис"
+      },
+      "words": {
+        "exclusionList": "Список слів-виключень",
+        "add": "Додати",
+        "showExclusions": "Показувати слова-виключення у вікні «Слова»",
+        "selectAll": "Виділити усі",
+        "removeSelected": "Видалити виділене",
+        "columns": {
+          "counted": "Зустрілося",
+          "word": "Слово"
+        }
+      }
+    },
+    "saveFile": {
+      "encoding": "Кодування:"
+    },
+    "addImage": {
+      "caption": "Вставити малюнок",
+      "insertClear": "Вставити порожній малюнок?",
+      "chooseImage": "Оберіть малюнок, який слід вставити:",
+      "chooseBinaries": "Оберіть один або декілька двійкових файлів:"
+    },
+    "chooseScriptsFolder": "Оберіть теку зі скриптами",
+    "dontAskAgain": "Більше не запитувати",
+    "validation": {
+      "caption": "Перевірка",
+      "severity": "Тип",
+      "line": "Рядок",
+      "column": "Стовпець",
+      "message": "Повідомлення",
+      "error": "Помилка",
+      "warning": "Попередження",
+      "summary": "{{errors}} {{warnings}}",
+      "warningsFound_one": "{{count}} попередження.",
+      "warningsFound_few": "{{count}} попередження.",
+      "warningsFound_many": "{{count}} попереджень.",
+      "warningsFound_other": "{{count}} попередження."
+    }
+  },
+  "validation": {
+    "schema": "{{element}}: {{detail}}",
+    "wellFormed": "XML некоректний: {{message}}",
+    "genreUnknown": "Невідомий жанр «{{code}}»",
+    "required": "Обов'язковий елемент «{{element}}» відсутній або порожній",
+    "bodies": {
+      "none": "У документі немає тіла (body)"
+    },
+    "link": {
+      "dangling": "Ціль посилання «{{href}}» не існує"
+    },
+    "binary": {
+      "missing": "Зображення «{{href}}» посилається на відсутній двійковий об'єкт",
+      "unreferenced": "Двійковий об'єкт «{{id}}» ніде не використовується",
+      "notImage": "Двійковий об'єкт «{{id}}» ({{contentType}}) не є розпізнаваним зображенням і зберігається як є",
+      "undecodable": "Двійковий об'єкт «{{id}}» ({{contentType}}) не є розпізнаваним зображенням",
+      "invalidBase64": "Двійковий об'єкт «{{id}}» містить некоректні дані base64; його збережено як текст",
+      "willConvert": "Двійковий об'єкт «{{id}}» ({{contentType}}) буде перетворено на JPEG/PNG під час збереження",
+      "placeholderMissing": "Двійковий об'єкт «{{id}}» ({{size}} байт) більше недоступний",
+      "missingId": "Двійковому об'єкту без id присвоєно ім'я «{{assigned}}»",
+      "duplicateId": "Повторюваний id двійкового об'єкта «{{id}}» перейменовано на «{{renamed}}»"
+    },
+    "encoding": {
+      "mismatch": "Оголошене кодування {{declared}} не відповідає вмісту файлу ({{detected}})"
+    },
+    "xml": {
+      "notWellFormed": "XML некоректний: {{message}}",
+      "namespaceMissing": "Кореневий елемент не належить до простору імен FictionBook ({{expected}})"
+    },
+    "schemaInvalid": "Схема: {{message}}",
+    "schemaUnavailable": "Не вдалося завантажити схему FictionBook: {{reason}}",
+    "genre": {
+      "unknown": "Невідомий жанр «{{code}}»"
+    },
+    "image": {
+      "emptyHref": "Зображення без посилання (порожній href)",
+      "missingBinary": "Зображення «{{href}}» посилається на відсутній двійковий об'єкт",
+      "externalHref": "Зображення «{{href}}» посилається на зовнішній файл"
+    },
+    "description": {
+      "emptyRequired": "Обов'язковий елемент «{{element}}» відсутній або порожній"
+    }
+  },
+  "error": {
+    "$comment": "Таблиця помилок JSON-RPC з contracts/rpc-api.md §1 (стабільні імена з core/include/mfbe/rpc.hpp) та помилки клієнта rpc/client.ts; підстановки відповідають задокументованим полям `data`.",
+    "parseError": "Ядро редактора не змогло розібрати запит",
+    "invalidRequest": "Некоректний запит до ядра редактора",
+    "methodNotFound": "Ця операція не підтримується ядром редактора",
+    "invalidParams": "Некоректні параметри запиту: {{detail}}",
+    "internalError": "Внутрішня помилка ядра редактора",
+    "cancelled": "Операцію скасовано",
+    "doc": {
+      "notFound": "Документ більше не відкритий у ядрі редактора",
+      "parseError": "Файл не є коректним XML (рядок {{line}}, стовпець {{column}}): {{message}}",
+      "ioError": "Не вдалося прочитати або записати {{path}}: {{reason}}",
+      "sourceMalformed": "XML-код документа некоректний; спочатку виправте його в режимі «Код»",
+      "notFictionBook": "{{path}} не є документом FictionBook"
+    },
+    "binary": {
+      "notFound": "Двійковий об'єкт «{{id}}» відсутній у документі"
+    },
+    "spell": {
+      "dictionaryUnavailable": "Для мови «{{lang}}» не встановлено орфографічний словник: {{reason}}"
+    },
+    "script": {
+      "notFound": "Скрипт «{{scriptId}}» не знайдено",
+      "invalidManifest": "Скрипт «{{scriptId}}» неповний: відсутній його головний модуль «{{entry}}»"
+    },
+    "settings": {
+      "invalid": "Неприпустиме значення налаштування «{{field}}»"
+    },
+    "dialog": {
+      "unavailable": "Системні діалоги недоступні в цьому режимі"
+    },
+    "client": {
+      "timeout": "Ядро редактора не відповіло вчасно",
+      "disconnected": "З'єднання з ядром редактора втрачено",
+      "invalidResponse": "Ядро редактора надіслало неочікувану відповідь"
+    }
+  },
+  "genres": {
+    "issue": {
+      "$comment": "resources.genres().issues[].reason (core/include/mfbe/genres.hpp LoadIssue).",
+      "unreadable": "{{file}}: не вдалося прочитати файл жанрів",
+      "invalidCode": "{{file}}, рядок {{line}}: «{{code}}» не є припустимим кодом жанру",
+      "missingName": "{{file}}, рядок {{line}}: жанр «{{code}}» не має назви",
+      "duplicate": "{{file}}, рядок {{line}}: жанр «{{code}}» вказано кілька разів"
+    }
+  },
+  "source": {
+    "contextMenu": {
+      "undo": "Скасувати дію",
+      "redo": "Повторити дію",
+      "cut": "Вирізати",
+      "copy": "Копіювати",
+      "paste": "Вставити",
+      "delete": "Видалити",
+      "selectAll": "Виділити все"
+    },
+    "foldLevel": "Рівень згортання:",
+    "collapse": "Згорнути",
+    "expand": "Розгорнути",
+    "binaryPlaceholder_one": "двійкові дані, {{count}} байт",
+    "binaryPlaceholder_few": "двійкові дані, {{count}} байти",
+    "binaryPlaceholder_many": "двійкові дані, {{count}} байтів",
+    "binaryPlaceholder_other": "двійкові дані, {{count}} байта",
+    "noMatchingTag": "Курсор не стоїть на тегу, який має парний тег.",
+    "noWrongTag": "Помилкових тегів не знайдено."
+  },
+  "msg": {
+    "saveChanges": "Зберегти зміни у {{name}}?",
+    "validationFailedCaption": "Помилка",
+    "validationFailed": "{{errors}}\nВсе одно зберегти файл?\n\nУВАГА! Файли, що містять помилки, можуть хибно відображатися й спричиняти помилки при відкритті іншими програмами.",
+    "fileChangedCaption": "Файл змінено",
+    "fileChanged": "Файл {{name}} було змінено іншою програмою.\nЗавантажити змінений файл?",
+    "searchFinished": "Пошук рядка «{{text}}» завершено",
+    "searchFailed": "Рядок «{{text}}» не знайдено.",
+    "replacementsDone_one": "Пошук завершено. Виконано {{count}} заміну.",
+    "replacementsDone_few": "Пошук завершено. Виконано {{count}} заміни.",
+    "replacementsDone_many": "Пошук завершено. Виконано {{count}} замін.",
+    "replacementsDone_other": "Пошук завершено. Виконано {{count}} заміни.",
+    "replaceWordsCaption": "Заміна слів",
+    "wordsReplaced_one": "Замінено {{count}} слово",
+    "wordsReplaced_few": "Замінено {{count}} слова",
+    "wordsReplaced_many": "Замінено {{count}} слів",
+    "wordsReplaced_other": "Замінено {{count}} слова",
+    "referenceNotFound": "У документі немає жодного посилання на примітки!",
+    "spellingComplete": "Перевірку орфографії завершено.",
+    "badXml": "Було відкрито некоректний XML-документ.\n\nВи повинні виправити усі помилки XML (використовуйте команди «Перевірити» і «Перейти до помилкового тегу») перед тим, як перейти в інший режим редактора.",
+    "needRestart": "Зміни наберуть чинності після перезапуску програми.\nПерезапустити негайно?",
+    "outOfMemory": "Для виконання операції бракує пам'яті",
+    "invalidCommandLine": "Хибний параметр командного рядка: '{{option}}'",
+    "commandLineNeedsArgument": "Для параметра командного рядка '{{option}}' потрібен аргумент",
+    "scriptMessageCaption": "Повідомлення скрипту",
+    "scriptError": "Помилка виконання скрипту: {{message}} у рядку {{line}}, стовпці {{column}}",
+    "scriptUnknownError": "Невідома помилка виконання скрипту.",
+    "scriptLoadError": "При завантаженні скрипту {{name}} виникла помилка: {{error}}",
+    "scriptStillRunning": "Скрипт усе ще виконується. Зачекати на його завершення чи перервати?",
+    "scriptWait": "&Зачекати",
+    "scriptCancel": "Пе&рервати скрипт",
+    "xmlParseErrorCaption": "Помилка розбору XML",
+    "xmlParseError": "У {{where}}, рядок {{line}}, стовпець {{column}}: {{message}}",
+    "xmlParseErrorShort": "У {{where}}: {{message}}",
+    "genresFileError": "Не знайдено файлу зі списком жанрів {{path}}",
+    "wordExists": "Це слово вже є у списку!",
+    "wordAddErrorCaption": "Помилка додавання слова",
+    "wordInvalid": "Нові виключення можуть містити лише літерні символи та один «-» між ними!",
+    "generateNewId": "Ви впевнені, що хочете змінити ID?\n\nЦе вплине на унікальність книги в бібліотеці.\nПопереднє значення буде втрачено!",
+    "notFictionBook": "Файл {{path}} не є документом FictionBook (FB2) і не може бути відкритий.",
+    "openFailed": "Не вдалося відкрити {{path}}.\n{{reason}}",
+    "versionCheck": {
+      "newVersion": "Нова версія Maxima Fiction Book Editor доступна для завантаження: {{version}}.\nВідкрити її сторінку?",
+      "latest": "У вас встановлена остання версія Maxima Fiction Book Editor.",
+      "cantConnect": "Не можу підключитися до сервера"
+    },
+    "templateIssue": "Шаблон {{path}} не може бути використаний: {{reason}}. Новий документ створено за вбудованим шаблоном.",
+    "templateReason": {
+      "unreadable": "файл не читається",
+      "empty": "файл порожній",
+      "notWellFormed": "це не коректно оформлений XML",
+      "notFictionBook": "це не документ FictionBook"
+    },
+    "saveFailed": "Не вдалося зберегти {{path}}.\n{{reason}}",
+    "notConnected": "Немає з'єднання з ядром редактора.",
+    "docIssues_one": "{{count}} зауваження",
+    "docIssues_few": "{{count}} зауваження",
+    "docIssues_many": "{{count}} зауважень",
+    "docIssues_other": "{{count}} зауваження",
+    "errorsFound_one": "Знайдено {{count}} помилку.",
+    "errorsFound_few": "Знайдено {{count}} помилки.",
+    "errorsFound_many": "Знайдено {{count}} помилок.",
+    "errorsFound_other": "Знайдено {{count}} помилки."
+  },
+  "description": {
+    "titleInfo": "Інформація про твір",
+    "srcTitleInfo": "Інформація про оригінал твору",
+    "documentInfo": "Інформація про документ",
+    "publishInfo": "Інформація про видання",
+    "customInfo": "Додаткова інформація",
+    "genreMatch": "Відповідність жанру",
+    "keywords": "Ключові слова",
+    "authorNickname": "Псевдонім автора",
+    "id": "ID",
+    "binaries": "Двійкові об'єкти",
+    "fileInfo": "Файл",
+    "fields": {
+      "bookTitle": "Назва книги:",
+      "authors": "Автори:",
+      "genres": "Жанри:",
+      "sequences": "Серії:",
+      "lang": "Мова:",
+      "srcLang": "Мова оригіналу:",
+      "translators": "Перекладачі:",
+      "date": "Дата:",
+      "coverpage": "Обкладинка:",
+      "annotation": "Анотація:",
+      "version": "Версія:",
+      "programUsed": "Програма:",
+      "documentAuthors": "Автори документа:",
+      "srcUrls": "Адреси джерела:",
+      "srcOcr": "OCR джерела:",
+      "history": "Історія:",
+      "bookName": "Назва видання:",
+      "publisher": "Видавництво:",
+      "city": "Місто:",
+      "year": "Рік:",
+      "isbn": "ISBN:",
+      "binariesCount": "Кількість:",
+      "bytes_one": "{{count}} байт",
+      "bytes_few": "{{count}} байти",
+      "bytes_many": "{{count}} байтів",
+      "bytes_other": "{{count}} байта",
+      "willConvert": "буде перетворено на JPEG/PNG під час збереження",
+      "notDecodable": "не є розпізнаваним зображенням",
+      "path": "Шлях:",
+      "encoding": "Кодування:",
+      "schemaHint": "Схема:",
+      "bodiesCount": "Тіл документа:"
+    },
+    "schema": {
+      "current": "FictionBook 2.1",
+      "legacy": "Застаріла (приводиться до 2.1 під час збереження)",
+      "unknown": "Невідомо"
+    }
+  },
+  "lang": {
+    "en": "Англійська",
+    "ru": "Російська",
+    "uk": "Українська",
+    "system": "Як у системі"
+  }
+}
