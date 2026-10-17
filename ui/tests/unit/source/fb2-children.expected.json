@@ -1,0 +1,45 @@
+{
+  "_comment": "Hand-written from resources/schema/FictionBook.xsd (feature 003 US8, T065): the element children each content model allows, flattened and sorted by code point. Independent of tools/fb2-schema-elements.py; the unit test compares both.",
+  "FictionBook": ["binary", "body", "description", "stylesheet"],
+  "description": [
+    "custom-info",
+    "document-info",
+    "output",
+    "publish-info",
+    "src-title-info",
+    "title-info"
+  ],
+  "title-info": [
+    "annotation",
+    "author",
+    "book-title",
+    "coverpage",
+    "date",
+    "genre",
+    "keywords",
+    "lang",
+    "sequence",
+    "src-lang",
+    "translator"
+  ],
+  "body": ["epigraph", "image", "section", "title"],
+  "section": [
+    "annotation",
+    "cite",
+    "empty-line",
+    "epigraph",
+    "image",
+    "p",
+    "poem",
+    "section",
+    "subtitle",
+    "table",
+    "title"
+  ],
+  "title": ["empty-line", "p"],
+  "p": ["a", "code", "emphasis", "image", "strikethrough", "strong", "style", "sub", "sup"],
+  "poem": ["date", "epigraph", "stanza", "subtitle", "text-author", "title"],
+  "stanza": ["subtitle", "title", "v"],
+  "table": ["tr"],
+  "binary": []
+}

@@ -421,6 +421,8 @@ export const DEFAULT_HOTKEYS: readonly DefaultHotkey[] = [
   { commandId: 'edit.split', keys: 'Shift+Enter' },
   { commandId: 'edit.merge', keys: 'Alt+Delete' },
   { commandId: 'edit.removeOuter', keys: 'Mod+Alt+Space' },
+  // Addition of this editor (feature 003 US8): Ctrl on every platform - Cmd+Space is Spotlight.
+  { commandId: 'edit.completeTag', keys: 'Ctrl+Space' },
   { commandId: 'insert.annotation', keys: 'Mod+J' },
   { commandId: 'insert.body', keys: 'Alt+Shift+B' },
   { commandId: 'insert.epigraph', keys: 'Mod+N' },

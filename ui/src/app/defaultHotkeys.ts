@@ -22,6 +22,8 @@
  *  - The Plugins group (`LastPlugin`, Alt+`) is dropped: the editor has no plug-in system.
  *  - Symbols (`symN` from `symbols.ini`) get their defaults at run time from
  *    `resources.symbols()` (`features/symbols.ts`), so they are not part of this table.
+ *  - Commands this editor added have no original counterpart; they are listed with an empty
+ *    `fbeName` so the Hotkeys page shows them in their group (`edit.completeTag`, feature 003).
  */
 
 import type { CommandGroup } from './commands';
@@ -31,7 +33,7 @@ import type { Platform } from './hotkeys';
 export interface FbeDefaultHotkey extends DefaultHotkey {
   /** FBE's hotkey group (`CHotkeysGroup` name). */
   group: CommandGroup;
-  /** FBE's registry name of the hotkey (`CHotkey::m_reg_name`). */
+  /** FBE's registry name of the hotkey (`CHotkey::m_reg_name`); empty for an addition. */
   fbeName: string;
 }
 
@@ -87,6 +89,9 @@ export const FBE_DEFAULT_HOTKEYS: readonly FbeDefaultHotkey[] = [
     commandId: 'edit.removeOuter',
     keys: 'Mod+Alt+Space',
   },
+  // Source view tag completion (feature 003 US8): Ctrl+Space on every platform, the usual
+  // completion chord (Cmd+Space is Spotlight on macOS).
+  { group: 'edit', fbeName: '', commandId: 'edit.completeTag', keys: 'Ctrl+Space' },
 
   // ---- Navigation ------------------------------------------------------
   {

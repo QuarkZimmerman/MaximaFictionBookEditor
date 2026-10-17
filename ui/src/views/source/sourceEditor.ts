@@ -13,10 +13,11 @@
  * Text changes go to the Source session (`sync.ts`) which keeps the `sourceDirty` / `modified`
  * flags; one `UndoCoordinator` entry is recorded per CodeMirror history event.
  * `getCaret()` / `setCaret()` expose the selection as `{view: 'source', line, column}`.
- * Settings (wrap, line numbers, syntax highlighting, EOL / white-space marks, matched tags, font)
- * are applied live through compartments, as is the interface theme (`setDark()`: CodeMirror's
- * dark flag and the dark highlight style of theme.ts); Insert toggles the store's `insertMode`
- * (INS/OVR).
+ * Settings (wrap, line numbers, syntax highlighting, EOL / white-space marks, matched tags, tag
+ * completion, font) are applied live through compartments, as is the interface theme
+ * (`setDark()`: CodeMirror's dark flag and the dark highlight style of theme.ts); Insert toggles
+ * the store's `insertMode` (INS/OVR). Tag completion (feature 003 US8, `completion.ts`) sits
+ * before the editor keymaps so its Enter / Tab / Escape bindings win while a list is open.
  *
  * While a script runs (`store.scriptRunning`, the quiet lock of feature 003 FR-011) the editor
  * is read-only (`EditorState.readOnly` + `EditorView.editable(false)` in a compartment): typing,
@@ -58,6 +59,7 @@ import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator, ViewHistoryAdapter } from '@/model/undo';
 import type { Caret, Settings } from '@/rpc/types';
 
+import { registerCompletionEditor, sourceCompletionExtension } from './completion';
 import {
   binaryPlaceholdersExtension,
   collapseLevel,
@@ -109,6 +111,8 @@ export interface SourceEditorSettings {
   showEol: boolean;
   showWhitespace: boolean;
   matchTags: boolean;
+  /** Tag completion after `<` and `</` (`view.sourceTagCompletion`, feature 003). */
+  tagCompletion: boolean;
   /** Raw `view.sourceFont` setting ("Consolas, 12"); empty = defaults. */
   font: string;
   /** Non-breaking-space marker (□ ▫ ◦), null for the plain space (`other.nbspDisplayChar`). */
@@ -122,6 +126,7 @@ export const DEFAULT_SOURCE_SETTINGS: SourceEditorSettings = {
   showEol: false,
   showWhitespace: false,
   matchTags: true,
+  tagCompletion: true,
   font: '',
   nbspMarker: null,
 };
@@ -138,6 +143,7 @@ export function sourceSettingsOf(settings: Settings | null | undefined): SourceE
     showEol: view.sourceShowEol ?? DEFAULT_SOURCE_SETTINGS.showEol,
     showWhitespace: view.sourceShowWhitespace ?? DEFAULT_SOURCE_SETTINGS.showWhitespace,
     matchTags: view.sourceMatchTags ?? DEFAULT_SOURCE_SETTINGS.matchTags,
+    tagCompletion: view.sourceTagCompletion ?? DEFAULT_SOURCE_SETTINGS.tagCompletion,
     font: view.sourceFont ?? '',
   };
 }
@@ -150,6 +156,7 @@ export function sameSourceSettings(a: SourceEditorSettings, b: SourceEditorSetti
     a.showEol === b.showEol &&
     a.showWhitespace === b.showWhitespace &&
     a.matchTags === b.matchTags &&
+    a.tagCompletion === b.tagCompletion &&
     a.font === b.font &&
     a.nbspMarker === b.nbspMarker
   );
@@ -242,6 +249,7 @@ export class SourceEditorController {
     eol: new Compartment(),
     whitespace: new Compartment(),
     matchTags: new Compartment(),
+    completion: new Compartment(),
     overtype: new Compartment(),
     theme: new Compartment(),
     nbsp: new Compartment(),
@@ -289,6 +297,8 @@ export class SourceEditorController {
         this.translate('source.binaryPlaceholder', { count: size }),
       ),
       overtypeExtension(() => this.isOvertype()),
+      // Before the editor keymaps: Enter, Tab and Escape go to an open completion list first.
+      c.completion.of(sourceCompletionExtension(this.settings.tagCompletion)),
       keymap.of([
         {
           key: 'Insert',
@@ -309,6 +319,8 @@ export class SourceEditorController {
     ];
     this.headless = EditorState.create({ doc: '', extensions: this.extensions });
     this.searchTarget = createSourceSearchTarget(() => this.target);
+    // `edit.completeTag` opens the list of the mounted editor (nothing while unmounted).
+    registerCompletionEditor(this.store, () => this.view);
     this.store.subscribe((state, previous) => {
       if (state.insertMode !== previous.insertMode) this.applyOvertype();
       // The quiet lock of a script run applies mounted or not (the kept state is what the
@@ -485,6 +497,7 @@ export class SourceEditorController {
         c.eol.reconfigure(eolMarksExtension(s.showEol)),
         c.whitespace.reconfigure(whitespaceExtension(s.showWhitespace)),
         c.matchTags.reconfigure(matchedTagsExtension(s.matchTags)),
+        c.completion.reconfigure(sourceCompletionExtension(s.tagCompletion)),
         c.overtype.reconfigure(this.isOvertype() ? overtypeAttributes : []),
         c.nbsp.reconfigure(nbspSourceExtension(s.nbspMarker)),
         c.lock.reconfigure(lockExtension(this.isLocked())),

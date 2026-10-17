@@ -1,11 +1,11 @@
 /**
  * Settings > View (T129) after `IDD_SETTINGS_VIEW`: Common (interface language, theme), Body
  * (editor font, size, text colour, background, Fast Mode), XML source editor (font, wrap,
- * syntax highlighting, end-of-line marks, white spaces, line numbers, matched tags) and
- * Spellcheck (use, highlight, custom dictionary path with a "Browse..." button through
- * `dialog.openFile`). The theme (System / Light / Dark) is applied as soon as the settings are
- * saved (OK / Apply), like the other fields; the Body colours follow the theme while they are
- * the defaults (black on white).
+ * syntax highlighting, end-of-line marks, white spaces, line numbers, matched tags, tag
+ * completion - feature 003) and Spellcheck (use, highlight, custom dictionary path with a
+ * "Browse..." button through `dialog.openFile`). The theme (System / Light / Dark) is applied
+ * as soon as the settings are saved (OK / Apply), like the other fields; the Body colours
+ * follow the theme while they are the defaults (black on white).
  */
 
 import { useState } from 'react';
@@ -237,6 +237,12 @@ export function ViewPage({ draft, onChange, ctx }: ViewPageProps) {
             checked={view.sourceMatchTags}
             onChange={(checked) => onChange({ sourceMatchTags: checked })}
             testId="settings-view-source-match-tags"
+          />
+          <CheckField
+            label={t('dialog.settings.view.tagCompletion')}
+            checked={view.sourceTagCompletion ?? true}
+            onChange={(checked) => onChange({ sourceTagCompletion: checked })}
+            testId="settings-view-source-tag-completion"
           />
         </div>
       </GroupBox>

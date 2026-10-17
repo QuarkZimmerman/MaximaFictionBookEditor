@@ -46,6 +46,9 @@ jobs:
         run: python3 tools/path-portability-check.py
       - name: Path conversions (paths <-> text without the Windows code page, feature 002)
         run: python3 tools/path-conversion-check.py
+      - name: Source completion table (feature 003 US8)
+        # ui/src/views/source/fb2Elements.json is generated from resources/schema/*.xsd and committed.
+        run: python3 tools/fb2-schema-elements.py --check
       - name: Workflow and docs checks
         run: |
           for f in .github/workflows/*.yml; do python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$f"; done
