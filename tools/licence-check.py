@@ -29,6 +29,11 @@ Sources (all relative to the repository root):
   dictionaries (SCOWL / BSD-style), material derived from the original editor and the
   bundled user scripts converted from it (GPL-3.0-only, the original's licence; its notices
   are in ``CONTRIBUTORS.txt``).
+* Aggregated data (Constitution VI, decision D16): run-time data files the editor only reads
+  and never combines into the program - an aggregate in the sense of GPLv3 section 5, today
+  the dict_uk Ukrainian dictionary ``resources/dictionaries/uk_UA.*`` (MPL-1.1). They are not
+  judged for GPL-3.0 compatibility; their licence must allow free redistribution with the
+  notice that ships next to them (``<tag>.txt``), and that notice file must exist.
 
 Usage::
 
@@ -102,6 +107,12 @@ ALLOWED: dict[str, str] = {
 INCOMPATIBLE = {"GPL-1.0-only", "GPL-2.0-only", "GPL-2.0", "MPL-1.0", "MPL-1.1", "EPL-1.0",
                 "EPL-2.0", "CDDL-1.0", "CDDL-1.1", "AGPL-1.0", "AGPL-3.0-only",
                 "AGPL-3.0-or-later", "AGPL", "GPL", "LGPL", "Proprietary"}
+# Aggregated data (group "aggregate"): run-time data files that are not combined into the
+# program need no GPL-3.0 compatibility, only a licence that allows free redistribution with
+# their notice - every ALLOWED licence plus the ones below (Constitution VI, D16). Licences
+# forbidding redistribution or commercial use (CC BY-NC-*, "no redistribution") are not here
+# and fail like any other licence outside the lists.
+AGGREGATE_ALLOWED = {"MPL-1.1"}
 
 # The project's own licence (Constitution VI) and the SHA-256 of the FSF text of the GNU GPL
 # version 3 (https://www.gnu.org/licenses/gpl-3.0.txt) that LICENSE must hold.
@@ -138,7 +149,7 @@ KNOWN_LICENCES = {
 
 @dataclass
 class Component:
-    group: str  # native | engine | npm | data | tooling
+    group: str  # native | engine | npm | data | aggregate | tooling
     name: str
     version: str
     licence: str  # effective SPDX-like identifier(s) as recorded in the notices
@@ -236,12 +247,21 @@ def choose_licence(declared: str | None, detected: list[str]) -> tuple[str, str]
 
 def policy_problems(component: Component) -> list[str]:
     """Policy violations of one component (empty when it passes). Build/test-only components
-    are recorded but not judged: nothing of them is distributed."""
+    are recorded but not judged: nothing of them is distributed. Aggregated data is judged
+    only for free redistribution with its notice, which must exist."""
     problems: list[str] = []
     if component.licence == "unknown":
         problems.append("licence could not be determined")
         return problems
     if not component.distributed:
+        return problems
+    if component.group == "aggregate":
+        for identifier in split_expression(component.licence):
+            identifier = identifier.strip()
+            if identifier not in ALLOWED and identifier not in AGGREGATE_ALLOWED:
+                problems.append(f"licence {identifier} does not allow free redistribution of aggregated data")
+        if not component.text_paths:
+            problems.append("aggregated data must ship with its notice file")
         return problems
     for identifier in split_expression(component.licence):
         identifier = identifier.strip()
@@ -573,10 +593,12 @@ def collect_data(problems: list[str]) -> list[Component]:
     schema_commit = read_commit(REPO / "resources" / "schema" / "SOURCE.txt", r"Git commit\s*:\s*([0-9a-f]{7,40})")
     dict_commit = read_commit(REPO / "resources" / "dictionaries" / "SOURCES.txt", r"Commit\s*:\s*([0-9a-f]{7,40})")
     en_version = read_commit(REPO / "resources" / "dictionaries" / "SOURCES.txt", r"version\s+(\d{4}\.\d{2}\.\d{2})")
+    uk_release = read_commit(REPO / "resources" / "dictionaries" / "SOURCES.txt", r"Release\s*:\s*(v\d+(?:\.\d+)+)")
 
-    def component(name: str, version: str, licence: str, text: Path | None, note: str) -> Component:
+    def component(name: str, version: str, licence: str, text: Path | None, note: str,
+                  group: str = "data") -> Component:
         rel = text.relative_to(REPO).as_posix() if text else "LICENSE"
-        c = Component(group="data", name=name, version=version, licence=licence, text=rel, note=note)
+        c = Component(group=group, name=name, version=version, licence=licence, text=rel, note=note)
         if text is not None:
             if text.is_file():
                 c.text_paths.append(text)
@@ -606,6 +628,17 @@ def collect_data(problems: list[str]) -> list[Component]:
         REPO / "resources" / "dictionaries" / "ru_RU.txt",
         "installed as share/mfbe/resources/dictionaries/ru_RU.txt",
     )
+    uk_ua = component(
+        "Hunspell dictionary uk_UA (dict_uk)",
+        f"dict_uk release {uk_release}",
+        "MPL-1.1",
+        REPO / "resources" / "dictionaries" / "uk_UA.txt",
+        "uk_UA.aff and uk_UA.dic are read at run time by Hunspell and not combined into the "
+        "program (aggregate, GPLv3 section 5; decision D16); the upstream generator notice also "
+        "names GPL-3.0-or-later and LGPL-2.1-or-later; notice installed as "
+        "share/mfbe/resources/dictionaries/uk_UA.txt and shown in About",
+        group="aggregate",
+    )
     fbe = component(
         "Material derived from the original FictionBook Editor 2.7 (genre lists, symbols, blank "
         "template, icons) and the converted bundled scripts",
@@ -621,11 +654,11 @@ def collect_data(problems: list[str]) -> list[Component]:
         fbe.text_paths.append(contributors)
     else:
         fbe.problems.append("CONTRIBUTORS.txt missing")
-    components = [schema, en_us, ru_ru, fbe]
+    components = [schema, en_us, ru_ru, uk_ua, fbe]
 
     # Every README row with a licence must be covered by one of the components above.
     covered = {
-        "BSD 2-clause": schema, "SCOWL": en_us, "BSD-style": ru_ru,
+        "BSD 2-clause": schema, "SCOWL": en_us, "BSD-style": ru_ru, "MPL": uk_ua,
         "GPL-3.0-only (original editor)": fbe, "project licence": fbe,
     }
     for path_cell, licence_cell in rows:
@@ -676,7 +709,10 @@ def render(components: list[Component], vcpkg_available: bool) -> str:
     out.append("the editor or are embedded in its binaries; each keeps its own licence, and every one of")
     out.append("them may be distributed as part of a GPL-3.0 work (project policy: licences that may not,")
     out.append("and unknown licences, fail the check; a multi-licensed component is listed under a")
-    out.append("compatible option). This file names components, versions and licence identifiers; the")
+    out.append("compatible option) - except the aggregated data files of their own section: data the")
+    out.append("editor only reads at run time and never combines into the program (GPLv3 section 5),")
+    out.append("which needs a licence that allows free redistribution with its notice. This file names")
+    out.append("components, versions and licence identifiers; the")
     out.append("complete licence texts, including the copyright notices they require, are the files")
     out.append("listed in the \"Full text\" column, exported with")
     out.append("`python3 tools/licence-check.py --export-texts <dir>` and installed with the packages")
@@ -711,6 +747,17 @@ def render(components: list[Component], vcpkg_available: bool) -> str:
     out.append("## Bundled data")
     out.append("")
     out.extend(notice_table(by_group.get("data", []), ["Component", "Version", "Licence", "Full text", "Notes"]))
+    out.append("")
+    out.append("## Aggregated data files")
+    out.append("")
+    out.extend(notice_table(by_group.get("aggregate", []), ["Component", "Version", "Licence", "Full text", "Notes"]))
+    out.append("")
+    out.append("Data files the editor's libraries read at run time and that are never combined into the")
+    out.append("program: aggregates in the sense of GPLv3 section 5 (constitution principle VI, decision")
+    out.append("D16). Their licences need not be GPL-3.0-compatible; they must allow free redistribution")
+    out.append("with the notice that ships next to each file (MPL-1.1 qualifies; licences forbidding")
+    out.append("redistribution or commercial use do not). The notice is installed with the file and shown")
+    out.append("in Help > About like the other dictionaries' notices.")
     out.append("")
     out.append("## Build and test tooling (not distributed)")
     out.append("")

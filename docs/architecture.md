@@ -166,8 +166,12 @@ all of it in the `user` folder of a portable copy (`mfbe/portable.hpp`), see
 ZIP, `.dmg` (`packaging/`), all produced by `.github/workflows/release.yml`.
 
 Third-party components and their licences are inventoried by `tools/licence-check.py`
-(`THIRD-PARTY-NOTICES.md`); the parity of menus, toolbars and dialogs with the original editor
-is tracked in `docs/parity-matrix.md` (`tools/parity-check.mjs`). Fast mode (`View > Fast
+(`THIRD-PARTY-NOTICES.md`); run-time data files the editor only reads and never combines into
+the program, such as spelling dictionaries, are aggregates (GPLv3 section 5) listed in their own
+section of the notices and ship with their own notice next to the file - the Ukrainian
+dictionary of dict_uk under the MPL 1.1 (`resources/dictionaries/uk_UA.txt`, decision D16); the
+parity of menus, toolbars and dialogs with the original editor is tracked in
+`docs/parity-matrix.md` (`tools/parity-check.mjs`). Fast mode (`View > Fast
 Mode`, F5, FR-025 "MAY") is kept, as in the original: a reduced-fidelity rendering of the Body
 view (`ui/src/editor/fastMode.ts`, CSS only - frames, colours, image previews and
 non-breaking-space markers are dropped while the document and every command behave as in

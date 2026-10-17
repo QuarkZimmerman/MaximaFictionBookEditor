@@ -1,0 +1,58 @@
+Ukrainian spelling dictionary (uk_UA) for Hunspell
+==================================================
+
+Ukrainian spelling dictionary (uk_UA) from the dict_uk project (ВЕСУМ - Великий
+електронний словник української мови; VESUM - Large Electronic Dictionary of
+Ukrainian), https://github.com/brown-uk/dict_uk, release v6.8.6
+(hunspell-uk_UA_6.8.6.zip, published 2026-09-19). uk_UA.aff and uk_UA.dic are
+unmodified copies of the files in that release.
+
+Authors and copyright
+---------------------
+From the project README at tag v6.8.6:
+
+  Copyright (c) 2026 Andriy Rysin (arysin@gmail.com), Vasyl Starko, BrUK team
+
+  Rysin, A., Starko, V. Large Electronic Dictionary of Ukrainian (VESUM).
+  2005-2026. Available at: https://vesum.nlp.net.ua/
+
+From the notice kept with the Hunspell dictionary generator
+(distr/hunspell/header/README_uk_UA.txt at tag v6.8.6):
+
+  This is Ukrainian spelling dictionary for myspell & hunspell
+  This dictionary based on spell-uk project
+
+  Copyright (C) 1999
+      Vladimir Yakovchuk
+      Oleg Podgurniy
+  Copyright (C) 2001
+      Dmytro Kovalyov
+      Maksym Polyakov
+      Andriy Rysin
+  Copyright (C) 2002
+      Valentyn Solomko
+      Volodymyr M. Lisivka
+  Copyright (C) 2005
+      Andriy Rysin
+      Eugeniy Meshcheryakov
+      Dmytro Kovalyov
+  Copyright (C) 2006-2023
+      Andriy Rysin
+      Vasyl Starko
+
+Licence
+-------
+The Hunspell dictionary files are distributed under the Mozilla Public License
+version 1.1. The project's Hunspell README (distr/hunspell/README.md) states:
+"Поширюється за умов ліцензії MPL (Mozilla Public License) 1.1" - distributed
+under the terms of the MPL (Mozilla Public License) 1.1. The generator notice
+quoted above adds: "This dictionary is licensed under GPL 3.0 or above, LGPL 2.1
+or above and MPL (Mozilla Public License) 1.1 licenses."
+
+Full text of the Mozilla Public License 1.1: https://www.mozilla.org/MPL/1.1/
+
+Maxima Fiction Book Editor bundles uk_UA.aff and uk_UA.dic unmodified as
+run-time data read by Hunspell - an aggregate, not a part of the program -
+under the Mozilla Public License 1.1, together with this notice. The files
+themselves are their source form; the release they come from is at
+https://github.com/brown-uk/dict_uk/releases/tag/v6.8.6.

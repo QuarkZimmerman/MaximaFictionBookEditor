@@ -226,13 +226,13 @@ TEST_CASE(
     CHECK(f.result("settings.get")["view"]["customDictionaryPath"] == utf8(other));
 
     // A dictionary pair in the data folder is opened by Hunspell.
-    test::write_text(f.data / "dictionaries" / "uk_UA.aff", "SET UTF-8\n");
-    test::write_text(f.data / "dictionaries" / "uk_UA.dic", "2\nслово\nмова\n");
+    test::write_text(f.data / "dictionaries" / "be_BY.aff", "SET UTF-8\n");
+    test::write_text(f.data / "dictionaries" / "be_BY.dic", "2\nслова\nмова\n");
     const json dictionaries = f.result("spell.dictionaries");
-    REQUIRE(dictionaries.size() == 3);
-    CHECK(dictionaries[2]["path"] == utf8(f.data / "dictionaries" / "uk_UA.aff"));
-    CHECK(f.result("spell.check", json{{"words", {"слово", "слва"}},
-                                       {"langs", {"uk"}}})["misspelled"] == json::array({"слва"}));
+    REQUIRE(dictionaries.size() == 4);
+    CHECK(dictionaries[3]["path"] == utf8(f.data / "dictionaries" / "be_BY.aff"));
+    CHECK(f.result("spell.check", json{{"words", {"слова", "слва"}},
+                                       {"langs", {"be"}}})["misspelled"] == json::array({"слва"}));
 }
 
 TEST_CASE("unicode paths: folder openers and the corpus sample take non-English folders exactly",
