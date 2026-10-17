@@ -1,5 +1,6 @@
 // Dialog request/result JSON shapes and the queued test provider (T025).
 #include <mfbe/dialog_provider.hpp>
+#include <mfbe/recent_files.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -375,6 +376,26 @@ std::size_t QueuedDialogProvider::enqueue_release(ReleaseResult result) {
     return releases_.size();
 }
 
+std::vector<json> QueuedDialogProvider::network_requests() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return network_requests_;
+}
+
+void QueuedDialogProvider::record_restart(std::optional<std::string> reopen,
+                                          std::vector<std::string> argv) {
+    json request{{"argv", std::move(argv)}};
+    if (reopen) {
+        request["reopen"] = std::move(*reopen);
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    restart_requests_.push_back(std::move(request));
+}
+
+std::vector<json> QueuedDialogProvider::restart_requests() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return restart_requests_;
+}
+
 void QueuedDialogProvider::record(json request, const char* method, const char* mode) {
     request["method"] = method;
     request["mode"] = mode;
@@ -446,6 +467,8 @@ void QueuedDialogProvider::latest_release(Callback<ReleaseResult> done) {
     std::optional<ReleaseResult> answer;
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        network_requests_.push_back(
+            json{{"method", "app.latestRelease"}, {"at", settings::now_iso8601_utc()}});
         if (!releases_.empty()) {
             answer = std::move(releases_.front());
             releases_.pop_front();

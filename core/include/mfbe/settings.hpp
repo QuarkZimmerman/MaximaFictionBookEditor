@@ -1,10 +1,12 @@
 // Per-user settings store (T018) - `settings.json`, schemaVersion 1.
 //
-// Defaults are exactly contracts/resource-formats.md §6. Unknown keys are preserved on load,
-// patch and save; missing keys take defaults; invalid values are replaced by defaults and
-// logged (`settings.invalidValue`). `settings.set` patches are deep-merged: objects merge
-// recursively, scalars/arrays replace, `null` resets a known key to its default (and removes
-// an unknown one). Invalid patch values raise SettingsError (RPC error 1040 {field}).
+// Defaults are exactly contracts/resource-formats.md §6 (feature 003 adds its keys). Unknown
+// keys are preserved on load, patch and save; missing keys take defaults; invalid values are
+// replaced by defaults and logged (`settings.invalidValue`). `settings.set` patches are
+// deep-merged: objects merge recursively, scalars/arrays replace, `null` resets a known key to
+// its default (and removes an unknown one). `session.lastVersionCheck` is the one optional key:
+// absent by default, `null` removes it. Invalid patch values raise SettingsError (RPC error
+// 1040 {field}).
 #pragma once
 
 #include <nlohmann/json.hpp>

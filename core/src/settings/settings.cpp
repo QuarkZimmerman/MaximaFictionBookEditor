@@ -28,7 +28,8 @@ enum class Kind {
     string_array,
     nullable_object,
     bool_map,
-    string_list_map  // object whose values are arrays of strings (toolbar layouts)
+    string_list_map,    // object whose values are arrays of strings (toolbar layouts)
+    optional_timestamp  // "YYYY-MM-DDTHH:MM:SS[.sss]Z" or absent: no default, null removes it
 };
 
 struct Field {
@@ -52,7 +53,7 @@ Field enumeration(const char* path, std::vector<std::string> values) {
 const std::vector<Field>& schema() {
     static const std::vector<Field> fields = {
         integer("schemaVersion", 1, 1),
-        enumeration("view.uiLanguage", {"system", "en", "ru"}),
+        enumeration("view.uiLanguage", {"system", "en", "ru", "uk"}),
         enumeration("view.theme", {"system", "light", "dark"}),
         field("view.bodyFont", Kind::string),
         integer("view.bodyFontSize", 6, 96),
@@ -65,6 +66,7 @@ const std::vector<Field>& schema() {
         field("view.sourceShowWhitespace", Kind::boolean),
         field("view.sourceLineNumbers", Kind::boolean),
         field("view.sourceMatchTags", Kind::boolean),
+        field("view.sourceTagCompletion", Kind::boolean),
         field("view.spellEnabled", Kind::boolean),
         field("view.spellHighlight", Kind::boolean),
         field("view.customDictionaryPath", Kind::string),
@@ -74,6 +76,7 @@ const std::vector<Field>& schema() {
         field("other.restorePosition", Kind::boolean),
         field("other.scriptsFolder", Kind::string),
         field("other.genresFolder", Kind::string),
+        field("other.dictionariesFolder", Kind::string),
         field("other.templateFolder", Kind::string),
         field("other.askOnNonClearImage", Kind::boolean),
         field("other.insertClearImages", Kind::boolean),
@@ -82,7 +85,11 @@ const std::vector<Field>& schema() {
         // The original's choices: the plain non-breaking space (no marker), □, ▫ and ◦; any
         // other stored value (0.0.1's "°" default) reads as the default.
         enumeration("other.nbspDisplayChar", {"\u00A0", "\u25A1", "\u25AB", "\u25E6"}),
+        // How often the editor checks for a new version at start-up (feature 003).
+        enumeration("other.versionCheck", {"everyStart", "daily", "weekly", "monthly", "never"}),
         field("words.showExclusionsInWordsDialog", Kind::boolean),
+        // {x, y, width, height, maximized?: boolean} | null - the normal bounds plus the
+        // maximised state, written by the shell at quit; replaced as a whole, not validated.
         field("session.windowGeometry", Kind::nullable_object),
         field("session.toolbars", Kind::bool_map),
         field("session.treeVisible", Kind::boolean),
@@ -92,6 +99,8 @@ const std::vector<Field>& schema() {
         // the UI does not know are kept as stored and dropped by the UI when it loads them.
         field("session.toolbarLayouts", Kind::string_list_map),
         field("session.lastFileDialogFolder", Kind::string),
+        // When the last version check got an answer (feature 003); absent until one did.
+        field("session.lastVersionCheck", Kind::optional_timestamp),
     };
     return fields;
 }
@@ -137,6 +146,24 @@ json* find_or_create_path(json& root, const std::string& dotted) {
     return node;
 }
 
+void erase_path(json& root, const std::string& dotted) {
+    const auto parts = split_path(dotted);
+    json* node = &root;
+    for (std::size_t i = 0; i + 1 < parts.size(); ++i) {
+        if (!node->is_object()) {
+            return;
+        }
+        auto it = node->find(parts[i]);
+        if (it == node->end()) {
+            return;
+        }
+        node = &*it;
+    }
+    if (node->is_object()) {
+        node->erase(parts.back());
+    }
+}
+
 bool is_color(const json& v) {
     if (!v.is_string()) {
         return false;
@@ -147,6 +174,31 @@ bool is_color(const json& v) {
     }
     return std::all_of(s.begin() + 1, s.end(),
                        [](unsigned char c) { return std::isxdigit(c) != 0; });
+}
+
+// "YYYY-MM-DDTHH:MM:SSZ", optionally with three fractional digits before the "Z" (the form
+// JavaScript's Date.toISOString() writes).
+bool is_utc_timestamp(const std::string& s) {
+    if (s.size() != 20 && s.size() != 24) {
+        return false;
+    }
+    const auto digits = [&s](std::size_t from, std::size_t count) {
+        return std::all_of(s.begin() + static_cast<std::ptrdiff_t>(from),
+                           s.begin() + static_cast<std::ptrdiff_t>(from + count),
+                           [](unsigned char c) { return std::isdigit(c) != 0; });
+    };
+    const bool shape = digits(0, 4) && s[4] == '-' && digits(5, 2) && s[7] == '-' && digits(8, 2) &&
+                       s[10] == 'T' && digits(11, 2) && s[13] == ':' && digits(14, 2) &&
+                       s[16] == ':' && digits(17, 2) && s.back() == 'Z' &&
+                       (s.size() == 20 || (s[19] == '.' && digits(20, 3)));
+    if (!shape) {
+        return false;
+    }
+    const auto number = [&s](std::size_t from) { return std::stoi(s.substr(from, 2)); };
+    const int month = number(5);
+    const int day = number(8);
+    return month >= 1 && month <= 12 && day >= 1 && day <= 31 && number(11) <= 23 &&
+           number(14) <= 59 && number(17) <= 60;
 }
 
 // Returns an empty string when valid, otherwise the reason.
@@ -225,6 +277,10 @@ std::string check_value(const Field& field, const json& value) {
             }
             return "";
         }
+        case Kind::optional_timestamp:
+            return (value.is_string() && is_utc_timestamp(value.get<std::string>()))
+                       ? ""
+                       : "expected an ISO 8601 UTC timestamp like 2026-10-17T12:34:56Z";
     }
     return "invalid";
 }
@@ -262,6 +318,7 @@ json defaults() {
           {"sourceShowWhitespace", false},
           {"sourceLineNumbers", true},
           {"sourceMatchTags", true},
+          {"sourceTagCompletion", true},
           {"spellEnabled", true},
           {"spellHighlight", true},
           {"customDictionaryPath", ""},
@@ -272,12 +329,14 @@ json defaults() {
           {"restorePosition", true},
           {"scriptsFolder", ""},
           {"genresFolder", ""},
+          {"dictionariesFolder", ""},
           {"templateFolder", ""},
           {"askOnNonClearImage", true},
           {"insertClearImages", false},
           {"pasteImageFormat", "jpeg"},
           {"jpegQuality", 90},
-          {"nbspDisplayChar", "\u00A0"}}},
+          {"nbspDisplayChar", "\u00A0"},
+          {"versionCheck", "monthly"}}},
         {"words", {{"showExclusionsInWordsDialog", false}}},
         {"session",
          {{"windowGeometry", nullptr},
@@ -308,6 +367,17 @@ std::vector<Invalid> sanitize(json& settings) {
     for (const auto& field : schema()) {
         const json* default_value = find_path(def, field.path);
         json* value = find_or_create_path(settings, field.path);
+        if (field.kind == Kind::optional_timestamp) {
+            // No default: a missing or null value leaves the key out, an invalid one is removed.
+            const std::string reason = value->is_null() ? "" : check_value(field, *value);
+            if (!reason.empty()) {
+                invalid.push_back({field.path, reason});
+            }
+            if (value->is_null() || !reason.empty()) {
+                erase_path(settings, field.path);
+            }
+            continue;
+        }
         const bool missing = value->is_null() && field.kind != Kind::nullable_object;
         if (missing) {
             *value = *default_value;

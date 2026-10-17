@@ -1,7 +1,8 @@
 /**
  * Typed surface of the core <-> UI JSON-RPC contract
  * (specs/001-maxima-fb2-editor/contracts/rpc-api.md, version 1, with the additive changes of
- * specs/002-tester-feedback-fixes/contracts/rpc-api.md, minor 1).
+ * specs/002-tester-feedback-fixes/contracts/rpc-api.md, minor 1, and
+ * specs/003-second-feedback-batch/contracts/rpc-api.md, minor 2).
  *
  * Every method of rpc-api.md §3 and §5 appears in `RpcMethods`; every notification of §4 in
  * `RpcNotifications`. Document types come from the shared model (`@/model/document`).
@@ -13,8 +14,11 @@ import type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
 
 export const RPC_API_VERSION = 1;
-/** Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). */
-export const RPC_API_MINOR = 1;
+/**
+ * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
+ * revision this UI was written for; it accepts any core answering minor >= 1 (rpc-api.md §6).
+ */
+export const RPC_API_MINOR = 2;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -82,9 +86,11 @@ export interface ReleaseUnavailableData {
 /* ------------------------------------------------------------------------ */
 
 export type ViewId = 'description' | 'body' | 'source';
-export type UiLanguage = 'en' | 'ru';
+export type UiLanguage = 'en' | 'ru' | 'uk';
 export type ThemeSetting = 'system' | 'light' | 'dark';
 export type UiLanguageSetting = UiLanguage | 'system';
+/** How often the editor checks for a new version at start-up (feature 003, data-model §5). */
+export type VersionCheckSchedule = 'everyStart' | 'daily' | 'weekly' | 'monthly' | 'never';
 
 export type Platform = 'windows' | 'linux' | 'mac';
 
@@ -123,7 +129,7 @@ export interface AppInfo {
   logDir: string;
   resourceLayers: ResourceLayer[];
   apiVersion: number;
-  /** Additive contract revision (feature 002: 1); absent from cores before it (= 0). */
+  /** Additive contract revision (feature 002: 1, feature 003: 2); absent before it (= 0). */
   apiMinor?: number;
 }
 
@@ -147,6 +153,8 @@ export interface Settings {
     sourceShowWhitespace: boolean;
     sourceLineNumbers: boolean;
     sourceMatchTags: boolean;
+    /** Source view: offer tag names after `<` and the closing tag after `</` (feature 003). */
+    sourceTagCompletion: boolean;
     spellEnabled: boolean;
     spellHighlight: boolean;
     customDictionaryPath: string;
@@ -158,6 +166,8 @@ export interface Settings {
     restorePosition: boolean;
     scriptsFolder: string;
     genresFolder: string;
+    /** Settings > Other "Dictionaries folder": the settings layer of dictionaries ("" = default). */
+    dictionariesFolder: string;
     /** Settings > Other "Template folder": where `blank.fb2` is looked up first ("" = default). */
     templateFolder: string;
     askOnNonClearImage: boolean;
@@ -166,12 +176,24 @@ export interface Settings {
     jpegQuality: number;
     /** Marker shown for U+00A0: the plain space (no marker, default), □, ▫ or ◦. */
     nbspDisplayChar: string;
+    /** Automatic check for a new version at start-up (feature 003, default `monthly`). */
+    versionCheck: VersionCheckSchedule;
   };
   words: {
     showExclusionsInWordsDialog: boolean;
   };
   session: {
-    windowGeometry: { x: number; y: number; width: number; height: number } | null;
+    /**
+     * Window placement (feature 003: recorded by the shell at quit): the normal bounds plus
+     * `maximized` when the window was maximised.
+     */
+    windowGeometry: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      maximized?: boolean;
+    } | null;
     toolbars: ToolbarVisibility;
     treeVisible: boolean;
     findHistory: string[];
@@ -180,6 +202,11 @@ export interface Settings {
     toolbarLayouts: Partial<Record<string, string[]>>;
     /** Linux and macOS: the folder last used by Open or Save As ("" = none yet). */
     lastFileDialogFolder: string;
+    /**
+     * ISO 8601 UTC time of the last version check that got an answer (manual or automatic);
+     * absent until one did, never written on failure (feature 003, data-model §5).
+     */
+    lastVersionCheck?: string;
   };
 }
 
@@ -545,6 +572,12 @@ export interface RpcMethods {
     params: { result: Partial<ReleaseInfo> & { tag: string } } | { error: ReleaseUnavailableData };
     result: { queued: number };
   };
+  /** Shell-delegated network requests (`app.latestRelease`) made since start (feature 003). */
+  'test.requests': { params: void; result: { method: string; at: string }[] };
+  /** The `app.restart` calls the test provider recorded (feature 003). */
+  'test.restartRequests': { params: void; result: { reopen?: string; argv: string[] }[] };
+  /** Emits `app.closeRequested` exactly as the shell's close handshake does (feature 003). */
+  'test.requestClose': { params: void; result: Empty };
 }
 
 export type RpcMethodName = keyof RpcMethods;
