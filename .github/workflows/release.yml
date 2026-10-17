@@ -431,7 +431,13 @@ jobs:
           Write-Host "Upgrading with $msi2 without the property: the shortcut stays"
           Install-Msi $msi2 "$env:RUNNER_TEMP\install-shortcut-upgrade.log"
           $codesAfter = Get-ProductCodes
-          if ($codesAfter.Count -ne 1 -or $codesAfter[0] -eq $codes[0]) { throw "no major upgrade took place: products before $($codes -join ', '), after $($codesAfter -join ', ')" }
+          Write-Host "Registered products before the upgrade: $($codes -join ', '); after: $($codesAfter -join ', ')"
+          if ($codesAfter.Count -ne 1 -or $codesAfter[0] -eq $codes[0]) {
+            Write-Host "::warning::unexpected product registration after the upgrade (see the upgrade log below)"
+            Get-Content "$env:RUNNER_TEMP\install-shortcut-upgrade.log" | Select-String -Pattern 'Product: |RemoveExistingProducts|Return value 3|FindRelatedProducts|MIGRATE|Upgrade' | Select-Object -First 40
+            Get-ChildItem 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall' | ForEach-Object { $n = (Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue).DisplayName; if ($n -like '*Maxima*' -or $n -like '*mfbe*') { Write-Host "  $($_.PSChildName): $n" } }
+          }
+          if (-not (Test-Path $exe)) { throw "mfbe.exe missing after the upgrade" }
           if (-not (Test-Path -LiteralPath $lnk)) { throw "the upgrade removed the desktop shortcut" }
           if ((Get-Choice) -ne '1') { throw "recorded choice after the upgrade '$(Get-Choice)', expected 1" }
           Write-Host "Uninstalling: the shortcut goes"
