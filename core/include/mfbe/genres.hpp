@@ -5,10 +5,11 @@
 //   1. the standard list: the codes enumerated by the bundled FictionBookGenres.xsd
 //      (`source: "standard"`, always present, never modified);
 //   2. the bundled name tables resources/genres/names.<lang>.txt + names.extra.<lang>.txt
-//      (`category<TAB>code<TAB>name`, category = localised title mapped to a key through
-//      categories.tsv / categories.extra.tsv); the primary category of a cross-listed code is
-//      the one whose key is the code's prefix, else its first listing; other listings are
-//      reported in `also_in`;
+//      for en, ru and uk (`category<TAB>code<TAB>name`, category = localised title mapped to
+//      a key through categories.tsv / categories.extra.tsv, whose columns are
+//      key/title_en/title_ru/title_uk); the primary category of a cross-listed code is the
+//      one whose key is the code's prefix, else its first listing; other listings are
+//      reported in `also_in`; a name missing in a language falls back to the English one;
 //   3. `*.genres.tsv` files found through the layered lookup: the bundled layer first
 //      (`source: "bundled-extension"`, resources/genres/10-fbe-legacy.genres.tsv), then the
 //      settings / user / portable layers (`source: "user:<file name>"`).
@@ -20,6 +21,9 @@
 // TSV line format: `code<TAB>category<TAB>name_en<TAB>name_ru`; `code` `[a-z0-9_]+` and
 // `name_en` are required, `name_ru` falls back to `name_en`, `category` may be a known key or
 // a new one (its title defaults to the key); UTF-8 (BOM optional), `#` comments, CRLF ok.
+// The languages the line does not carry (`uk`) come from the bundled name tables when they
+// list the code (the legacy codes of the original have Ukrainian names there), else from
+// `name_en`.
 #pragma once
 
 #include <mfbe/resources.hpp>
@@ -37,18 +41,18 @@ namespace mfbe::genres {
 
 struct Category {
     std::string key;                            // "sf", "det", ... ("" = unknown)
-    std::map<std::string, std::string> titles;  // "en" / "ru" -> title (key when unknown)
+    std::map<std::string, std::string> titles;  // "en" / "ru" / "uk" -> title (key when unknown)
 };
 
 struct Listing {
     std::string category;                      // key
-    std::map<std::string, std::string> names;  // "en" / "ru"
+    std::map<std::string, std::string> names;  // "en" / "ru" / "uk"
 };
 
 struct GenreEntry {
     std::string code;
     std::string category;                       // primary category key ("" when unknown)
-    std::map<std::string, std::string> names;   // "en" / "ru" (the code itself when unnamed)
+    std::map<std::string, std::string> names;   // "en" / "ru" / "uk" (the code when unnamed)
     std::string source;                         // "standard" | "bundled-extension" | "user:<file>"
     std::optional<std::filesystem::path> file;  // the TSV that added an extension entry
     std::vector<Listing> also_in;               // cross-listings under other categories

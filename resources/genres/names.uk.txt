@@ -1,0 +1,153 @@
+# Maxima Fiction Book Editor - FB2 genre display names (Ukrainian).
+# Format: one genre per line, three TAB-separated fields:
+#   category<TAB>code<TAB>name
+# 'category' is the Ukrainian title of the group the genre is listed under
+# (see categories.tsv for the stable category keys); 'code' is the FB2
+# genre code (FictionBookGenres.xsd); 'name' is the display name.
+# A code may appear under several categories (cross-listing); category
+# and genre order follow the original lists. Lines starting with '#' are
+# comments. UTF-8, LF.
+#
+# Derived from the original FictionBook Editor 2.7 sources,
+# file(s) FBE/genres.ukr.txt (structure from FBE/genres.txt), by tools/resources-import/import_genres.py.
+# Do not edit by hand - rerun the script instead.
+Химерна	sf_history	Альтернативна історія
+Химерна	sf_action	Бойова фантастика
+Химерна	sf_epic	Епічна фантастика
+Химерна	sf_heroic	Героїчна фантастика
+Химерна	sf_detective	Детективна фантастика
+Химерна	sf_cyberpunk	Кіберпанк
+Химерна	sf_space	Космічна фантастика
+Химерна	sf_social	Соціально-філософська фантастика
+Химерна	sf_horror	Жахи й Містика
+Химерна	sf_humor	Гумористична фантастика
+Химерна	sf_fantasy	Фентезі
+Химерна	sf	Наукова фантастика
+Химерна	child_sf	Дитяча фантастика
+Химерна	love_sf	Любовна фантастика
+Детективи і Бойовики	det_classic	Класичні детективи
+Детективи і Бойовики	det_police	Поліцейські детективи
+Детективи і Бойовики	det_action	Бойовики
+Детективи і Бойовики	det_irony	Іронічні детективи
+Детективи і Бойовики	det_history	Історичні детективи
+Детективи і Бойовики	det_espionage	Шпіонські детективи
+Детективи і Бойовики	det_crime	Кримінальні детективи
+Детективи і Бойовики	det_political	Політичні детективи
+Детективи і Бойовики	det_maniac	Маньяки
+Детективи і Бойовики	det_hard	Крутий детектив
+Детективи і Бойовики	thriller	Трилери
+Детективи і Бойовики	detective	Детективи
+Детективи і Бойовики	sf_detective	НФ детективи
+Детективи і Бойовики	child_det	Дитячі детективи
+Детективи і Бойовики	love_detective	Гостросюжетні любовні романи
+Проза	prose_classic	Класична проза
+Проза	prose_history	Історична проза
+Проза	prose_contemporary	Сучасна проза
+Проза	prose_counter	Контркультура
+Проза	prose_rus_classic	Російська класика
+Проза	prose_su_classics	Совєтська класика
+Проза	prose_military	Воєнна проза
+Проза	humor_prose	Гумористична проза
+Проза	child_prose	Дитяча проза
+Любовні романи	love_contemporary	Сучасні любовні романи
+Любовні романи	love_history	Історичні любовні романи
+Любовні романи	love_detective	Гостросюжетні любовні романи
+Любовні романи	love_short	Короткі любовні романи
+Любовні романи	love_erotica	Еротика
+Любовні романи	love_sf	Любовна фантастика
+Пригоди	adv_western	Вестерни
+Пригоди	adv_history	Історичні пригоди
+Пригоди	adv_indian	Пригоди: Індіанці
+Пригоди	adv_maritime	Морські пригоди
+Пригоди	adv_geo	Подорожі та Географія
+Пригоди	adv_animal	Природа і Тварини
+Пригоди	adventure	Пригоди: Інше
+Пригоди	child_adv	Дитячі пригоди
+Дитячі	child_tale	Казки
+Дитячі	child_verse	Дитячі вірші
+Дитячі	child_prose	Дитяча проза
+Дитячі	child_sf	Дитяча фантастика
+Дитячі	child_det	Дитячі гостросюжетні
+Дитячі	child_adv	Дитячі пригоди
+Дитячі	child_education	Дитяча освітня
+Дитячі	children	Дитячі: Інше
+Поезія і Драматургія	poetry	Поезія
+Поезія і Драматургія	dramaturgy	Драматургія
+Поезія і Драматургія	humor_verse	Гумористичні вірші
+Поезія і Драматургія	child_verse	Дитячі вірші
+Старовинна література	antique_ant	Антична література
+Старовинна література	antique_european	Європейська старовинна література
+Старовинна література	antique_russian	Давньоукраїнська література
+Старовинна література	antique_east	Давньосхідна література
+Старовинна література	antique_myths	Міфи. Легенди. Епос
+Старовинна література	antique	Старовинна література: Інше
+Науково-освітня	sci_history	Історія
+Науково-освітня	sci_psychology	Психологія
+Науково-освітня	sci_culture	Культурологія
+Науково-освітня	sci_religion	Релігієзнавство
+Науково-освітня	sci_philosophy	Філософія
+Науково-освітня	sci_politics	Політика
+Науково-освітня	sci_juris	Юриспруденція
+Науково-освітня	sci_linguistic	Мовознавство
+Науково-освітня	sci_medicine	Медицина
+Науково-освітня	sci_phys	Фізика
+Науково-освітня	sci_math	Математика
+Науково-освітня	sci_chem	Хімія
+Науково-освітня	sci_biology	Біологія
+Науково-освітня	sci_tech	Технічні
+Науково-освітня	science	Науково-освітня: Інше
+Науково-освітня	adv_animal	Природа і Тварини
+Комп'ютери й Інтернет	comp_www	Інтернет
+Комп'ютери й Інтернет	comp_programming	Програмування
+Комп'ютери й Інтернет	comp_hard	Комп'ютерне залізо
+Комп'ютери й Інтернет	comp_soft	Програми
+Комп'ютери й Інтернет	comp_db	Бази даних
+Комп'ютери й Інтернет	comp_osnet	ОС і мережі
+Комп'ютери й Інтернет	computers	Комп'ютери й Інтернет: Інше
+Довідкова література	ref_encyc	Енциклопедії
+Довідкова література	ref_dict	Словники
+Довідкова література	ref_ref	Довідники
+Довідкова література	ref_guide	Путівники
+Довідкова література	reference	Довідкова література: Інше
+Документальне	nonf_biography	Біографії й Мемуари
+Документальне	nonf_publicism	Публіцистика
+Документальне	nonf_criticism	Критика
+Документальне	nonfiction	Документальне: Інше
+Документальне	design	Мистецтво
+Документальне	adv_animal	Природа і Тварини
+Релігія і Духовність	religion_rel	Релігія
+Релігія і Духовність	religion_esoterics	Езотерика
+Релігія і Духовність	religion_self	Самовдосконалення
+Релігія і Духовність	religion	Релігія і Духовність: Інше
+Релігія і Духовність	sci_religion	Релігійна освіта
+Гумор	humor_anecdote	Анекдоти
+Гумор	humor_prose	Гумористична проза
+Гумор	humor_verse	Гумористичні вірші
+Гумор	humor	Гумор: Інше
+Дім та Сім'я	home_cooking	Кулінарія
+Дім та Сім'я	home_pets	Домашні тварини
+Дім та Сім'я	home_crafts	Захоплення і Ремесла
+Дім та Сім'я	home_entertain	Розваги
+Дім та Сім'я	home_health	Здоров'я
+Дім та Сім'я	home_garden	Сад і город
+Дім та Сім'я	home_diy	Саморобки
+Дім та Сім'я	home_sport	Спорт
+Дім та Сім'я	home_sex	Еротика і Секс
+Дім та Сім'я	home	Дім та Сім'я: Інше
+Дім та Сім'я	geo_guides	Геопутівник
+Економіка і Бізнес	job_hunting	Пошук роботи, кар'єра
+Економіка і Бізнес	management	Управління, підбір персоналу
+Економіка і Бізнес	marketing	Маркетинг, PR, реклама
+Економіка і Бізнес	banking	Банківська справа
+Економіка і Бізнес	stock	Цінні папери, інвестиції
+Економіка і Бізнес	accounting	Бухоблік, оподаткування, аудит
+Економіка і Бізнес	global_economy	Зовнішньоекономічна діяльність
+Економіка і Бізнес	economics	Економіка
+Економіка і Бізнес	industries	Галузеві видання
+Економіка і Бізнес	org_behavior	Корпоративна культура
+Економіка і Бізнес	personal_finance	Особисті фінанси
+Економіка і Бізнес	real_estate	Нерухомість
+Економіка і Бізнес	popular_business	Про бізнес популярно
+Економіка і Бізнес	small_business	Малий бізнес
+Економіка і Бізнес	paper_work	Діловодство
+Економіка і Бізнес	economics_ref	Довідники

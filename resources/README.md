@@ -22,7 +22,10 @@ Upstream sources:
 | `schema/SOURCE.txt` | written for this project | - | update commit hash and checksums when the schema is refreshed |
 | `genres/names.en.txt` | FBE `genres.txt` (English genre names, 16 categories, 140 lines, 127 distinct codes) | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_genres.py` |
 | `genres/names.ru.txt` | FBE `genres.rus.txt` (Russian names; structure and membership taken from `genres.txt`) | GPL-3.0-only (original editor) | same |
-| `genres/categories.tsv` | derived from both genre lists: `key<TAB>title_en<TAB>title_ru` | GPL-3.0-only (original editor) | same |
+| `genres/names.uk.txt` | FBE `genres.ukr.txt` (Ukrainian names, 156 lines, UTF-8; structure and membership taken from `genres.txt`; `geo_guides`, which the Ukrainian list lacks, is named in the script's `UK_MISSING_NAMES` table) | GPL-3.0-only (original editor) | same |
+| `genres/names.extra.uk.txt` | rows of the hand-maintained `names.extra.ru.txt` with the Ukrainian names of the script's `UK_EXTRA_NAMES` table (translated from the Russian supplement, `genres.ukr.txt` as the glossary) | project licence | same |
+| `genres/categories.tsv` | derived from the three genre lists: `key<TAB>title_en<TAB>title_ru<TAB>title_uk` | GPL-3.0-only (original editor) | same |
+| `genres/categories.extra.tsv`, `names.extra.en.txt`, `names.extra.ru.txt` | written for this project (categories and names of the schema codes the original lists do not name; `categories.extra.tsv` carries the `title_uk` column the script reads) | project licence | hand-maintained |
 | `genres/missing-names.txt` | codes of `schema/FictionBookGenres.xsd` (186) that neither FBE list names (65) | - | same |
 | `symbols.ini` | FBE `symbols.ini` (windows-1251) converted to UTF-8, header added | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_symbols.py` |
 | `blank.fb2` | FBE `blank.fb2` (windows-1251) converted to UTF-8; only the XML declaration's encoding differs | GPL-3.0-only (original editor) | hand-maintained template; check with `python3 -c "import xml.dom.minidom,sys; xml.dom.minidom.parse(sys.argv[1])" resources/blank.fb2` |
@@ -38,10 +41,12 @@ Upstream sources:
 * `genres/names.*.txt`: `category<TAB>code<TAB>name`, `#` comments; category
   and genre order follow the original lists; a code may appear under several
   categories (cross-listing), possibly with a category-specific name.
-* `genres/categories.tsv`: `key<TAB>title_en<TAB>title_ru` with a header row;
-  keys are the code prefix of the category's first genre (`sf`, `det`, `prose`,
-  `love`, `adv`, `child`, `poetry`, `antique`, `sci`, `comp`, `ref`, `nonf`,
-  `religion`, `humor`, `home`) plus `economics` for "Economy, Business".
+* `genres/categories.tsv`: `key<TAB>title_en<TAB>title_ru<TAB>title_uk` with a
+  header row; keys are the code prefix of the category's first genre (`sf`,
+  `det`, `prose`, `love`, `adv`, `child`, `poetry`, `antique`, `sci`, `comp`,
+  `ref`, `nonf`, `religion`, `humor`, `home`) plus `economics` for "Economy,
+  Business"; `categories.extra.tsv` has the same columns for the supplement's
+  categories.
 * `symbols.ini`: `[symbols]` section, `symN = <decimal code point>`,
   `symN_9 = <English label>`, `symN_25 = <Russian label>` (9/25 are the Windows
   LANG_ENGLISH / LANG_RUSSIAN ids of the original).
@@ -62,6 +67,11 @@ Upstream sources:
   leaked English word (corrected); genre order differs from `genres.txt` in
   "Prose" and "Poetry, Dramaturgy" (`genres.txt` order kept); every code of
   `genres.txt` has a Russian name (no English fallback was needed).
+* `genres.ukr.txt`: same order differences as the Russian list; `geo_guides`
+  is missing ("Home, Family"), named by the script's table instead; the
+  "SF, Fantasy" category is titled "Химерна" and `antique_russian`
+  "Давньоукраїнська література" - the original's Ukrainian texts, kept
+  verbatim as the specification asks.
 * `symbols.ini`: `sym2` (8226 = U+2022 BULLET) is labelled "Quotation mark",
   `sym1_9` misspells "acute" - kept verbatim.
 * `Toolbar.bmp` has 33 cells but `IDR_MAINFRAME` defines 31 buttons; the two

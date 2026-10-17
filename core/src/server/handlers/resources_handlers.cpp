@@ -1,11 +1,14 @@
 // resources.* handlers (T073/T074) - contracts/rpc-api.md §3.6.
 //
 //   resources.genres() -> {entries: GenreEntry[], categories, userFiles, effectiveSources,
-//                          issues}      (GenreEntry = {code, category, names{en,ru}, source,
+//                          issues}      (GenreEntry = {code, category, names{en,ru,uk}, source,
 //                          file?, alsoIn?}; rebuilt from the layers on every call)
-//   resources.languages() -> {groups: [{key, title{en,ru}, languages: [{code, name{en,ru}}]}],
-//                             entries: [{code, names{en,ru}, group}]}
-//   resources.symbols() -> [{index, codepoint, char, names{en,ru}}]
+//   resources.languages() -> {groups: [{key, title{en,ru,uk},
+//                             languages: [{code, name{en,ru,uk}}]}],
+//                             entries: [{code, names{en,ru,uk}, group}]}
+//   resources.symbols() -> [{index, codepoint, char, names{en,ru,uk}}]
+//   (the names carry every interface language - the Ukrainian ones since feature 003 US1;
+//   the UI picks the interface language's name with English as the fallback)
 //   resources.layers() -> [{kind, layer, path, exists, writable}]
 //   resources.openGenresFolder() -> {path}   (shell-delegated; 1050 in headless mode; the
 //                                           folder is the custom genres folder from settings

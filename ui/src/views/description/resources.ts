@@ -7,8 +7,8 @@
  *  - `resources.languages()` -> `{groups: [{key, title, languages: [{code, name}]}], entries}`.
  *
  * Both are cached per RPC client and refreshed on the `resources.changed` notification. Names
- * are shown in the interface language with an English fallback; codes unknown to the list are
- * shown as-is (and preserved).
+ * are shown in the interface language (`en`, `ru`, `uk` - the core serves every one of them)
+ * with an English fallback; codes unknown to the list are shown as-is (and preserved).
  */
 
 import { useEffect, useState } from 'react';
@@ -59,7 +59,10 @@ export const EMPTY_GENRES: GenreCatalog = {
 
 export const EMPTY_LANGUAGES: LanguageCatalog = { groups: [] };
 
-/** Localised name with English fallback (then the first available name, then the code). */
+/**
+ * The name in the interface language (`names.uk` under the Ukrainian interface, ...) with
+ * English fallback (then the first available name, then the code).
+ */
 export function localName(
   names: Record<string, string> | undefined,
   language: UiLanguage,

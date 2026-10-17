@@ -16,7 +16,11 @@ namespace {
 namespace fs = std::filesystem;
 using nlohmann::json;
 
-constexpr const char* kLanguages[] = {"en", "ru"};
+// The interface languages: English is the reference table, the others are merged into it
+// (resources/genres/names.<lang>.txt + names.extra.<lang>.txt, categories*.tsv columns in
+// this order).
+constexpr const char* kLanguages[] = {"en", "ru", "uk"};
+constexpr const char* kLocalisedLanguages[] = {"ru", "uk"};
 
 std::string trim(std::string s) {
     const auto not_space = [](unsigned char c) { return !std::isspace(c); };
@@ -87,12 +91,14 @@ std::string code_prefix(const std::string& code) {
 /* Bundled name tables                                                                        */
 /* ----------------------------------------------------------------------------------------- */
 
+using ListingTable = std::map<std::string, std::vector<Listing>>;  // code -> listings
+
 struct NameTables {
-    std::vector<Category> categories;                        // in file order
-    std::map<std::string, std::string> key_by_title;         // any language title -> key
-    std::map<std::string, std::vector<Listing>> listings;    // code -> listings (EN order)
-    std::vector<std::string> code_order;                     // codes in EN table order
-    std::map<std::string, std::vector<Listing>> ru_listing;  // code -> RU listings
+    std::vector<Category> categories;                 // in file order
+    std::map<std::string, std::string> key_by_title;  // any language title -> key
+    ListingTable listings;                            // code -> listings (EN order)
+    std::vector<std::string> code_order;              // codes in EN table order
+    std::map<std::string, ListingTable> localised;    // "ru" / "uk" -> code -> listings
 };
 
 void read_categories(const fs::path& file, NameTables& tables) {
@@ -111,7 +117,12 @@ void read_categories(const fs::path& file, NameTables& tables) {
         Category category;
         category.key = fields[0];
         category.titles["en"] = fields[1];
-        category.titles["ru"] = fields.size() > 2 && !fields[2].empty() ? fields[2] : fields[1];
+        // key<TAB>title_en<TAB>title_ru<TAB>title_uk; a missing title falls back to English.
+        for (std::size_t i = 0; i < std::size(kLocalisedLanguages); ++i) {
+            const std::size_t column = i + 2;
+            category.titles[kLocalisedLanguages[i]] =
+                fields.size() > column && !fields[column].empty() ? fields[column] : fields[1];
+        }
         for (const auto& [lang, title] : category.titles) {
             tables.key_by_title.emplace(title, category.key);
         }
@@ -161,40 +172,81 @@ NameTables load_name_tables(const fs::path& dir) {
     read_categories(dir / "categories.extra.tsv", tables);
     read_names(dir / "names.en.txt", "en", tables, tables.listings, &tables.code_order);
     read_names(dir / "names.extra.en.txt", "en", tables, tables.listings, &tables.code_order);
-    read_names(dir / "names.ru.txt", "ru", tables, tables.ru_listing, nullptr);
-    read_names(dir / "names.extra.ru.txt", "ru", tables, tables.ru_listing, nullptr);
-    // Merge the Russian names into the English listings (same code + category; else any
-    // Russian listing of the code; else the English name is the fallback).
+    for (const char* lang : kLocalisedLanguages) {
+        ListingTable& table = tables.localised[lang];
+        const std::string suffix = std::string(".") + lang + ".txt";
+        read_names(dir / ("names" + suffix), lang, tables, table, nullptr);
+        read_names(dir / ("names.extra" + suffix), lang, tables, table, nullptr);
+    }
+    // Merge the localised names into the English listings (same code + category; else any
+    // listing of the code in that language; else the English name is the fallback).
     for (auto& [code, listings] : tables.listings) {
-        auto ru = tables.ru_listing.find(code);
-        for (Listing& listing : listings) {
-            std::string ru_name;
-            if (ru != tables.ru_listing.end()) {
-                for (const Listing& r : ru->second) {
-                    if (r.category == listing.category) {
-                        ru_name = r.names.at("ru");
-                        break;
+        for (const auto& [lang, table] : tables.localised) {
+            auto loc = table.find(code);
+            for (Listing& listing : listings) {
+                std::string name;
+                if (loc != table.end()) {
+                    for (const Listing& l : loc->second) {
+                        if (l.category == listing.category) {
+                            name = l.names.at(lang);
+                            break;
+                        }
+                    }
+                    if (name.empty() && !loc->second.empty()) {
+                        name = loc->second.front().names.at(lang);
                     }
                 }
-                if (ru_name.empty() && !ru->second.empty()) {
-                    ru_name = ru->second.front().names.at("ru");
-                }
+                listing.names[lang] = name.empty() ? listing.names["en"] : name;
             }
-            listing.names["ru"] = ru_name.empty() ? listing.names["en"] : ru_name;
         }
     }
-    // Codes only present in the Russian tables.
-    for (const auto& [code, listings] : tables.ru_listing) {
-        if (tables.listings.count(code) == 0) {
-            auto& list = tables.listings[code];
-            tables.code_order.push_back(code);
-            for (Listing l : listings) {
-                l.names["en"] = l.names["ru"];
-                list.push_back(std::move(l));
+    // Codes only present in a localised table: that name stands in for every language.
+    for (const auto& [lang, table] : tables.localised) {
+        for (const auto& [code, listings] : table) {
+            if (tables.listings.count(code) == 0) {
+                auto& list = tables.listings[code];
+                tables.code_order.push_back(code);
+                for (Listing l : listings) {
+                    const std::string name = l.names.at(lang);
+                    for (const char* each : kLanguages) {
+                        l.names.emplace(each, name);
+                    }
+                    list.push_back(std::move(l));
+                }
             }
         }
     }
     return tables;
+}
+
+// Fills in the interface languages a `*.genres.tsv` line does not carry (the user format has
+// English and Russian columns only): the bundled name tables when they list the code - the
+// original's legacy codes have Ukrainian names there - else the English name.
+void complete_names(GenreEntry& entry, const NameTables& tables) {
+    auto it = tables.listings.find(entry.code);
+    const Listing* listing = nullptr;
+    if (it != tables.listings.end() && !it->second.empty()) {
+        listing = &it->second.front();
+        for (const Listing& l : it->second) {
+            if (l.category == entry.category) {
+                listing = &l;
+                break;
+            }
+        }
+    }
+    for (const char* lang : kLanguages) {
+        if (entry.names.count(lang) > 0) {
+            continue;
+        }
+        if (listing != nullptr) {
+            auto name = listing->names.find(lang);
+            if (name != listing->names.end() && !name->second.empty()) {
+                entry.names[lang] = name->second;
+                continue;
+            }
+        }
+        entry.names[lang] = entry.names.at("en");
+    }
 }
 
 GenreEntry standard_entry(const std::string& code, const NameTables& tables) {
@@ -454,6 +506,7 @@ GenreCatalog load_catalog(const std::vector<std::string>& schema_codes,
                 catalog.add_issue({file.path, 0, "duplicate", entry.code});
                 continue;
             }
+            complete_names(entry, tables);
             catalog.add(std::move(entry));
             ++info.entries;
         }
