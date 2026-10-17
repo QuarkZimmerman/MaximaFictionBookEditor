@@ -234,7 +234,13 @@
   padding: 2px 6px;
 }
 
-/* Customize Toolbar (feature 002): the available and the current buttons side by side. */
+/* Customize Toolbar (feature 002): the available and the current buttons side by side. The
+   dialog is as wide as Settings so the longest Ukrainian command names fit the lists. */
+.mfbe-dialog.mfbe-customize-toolbar {
+  width: min(720px, calc(100vw - 32px));
+  max-width: none;
+}
+
 .mfbe-customize-toolbar-lists {
   display: flex;
   gap: 12px;

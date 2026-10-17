@@ -15,7 +15,7 @@
 .mfbe-words-header,
 .mfbe-words-row {
   display: grid;
-  grid-template-columns: 32px minmax(120px, 2fr) minmax(120px, 2fr) 72px 32px 96px;
+  grid-template-columns: 32px minmax(120px, 2fr) minmax(120px, 2fr) 96px 32px 96px;
   /* Cells stretch to the row height (an empty replacement cell stays clickable). */
   align-items: stretch;
   min-height: 24px;
