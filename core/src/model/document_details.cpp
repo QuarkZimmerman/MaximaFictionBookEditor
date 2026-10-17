@@ -4,21 +4,13 @@
 #include <mfbe/version.hpp>
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <cstdio>
 #include <ctime>
 
 namespace mfbe::model {
-namespace {
 
-constexpr std::array<const char*, 12> kMonths = {"January",   "February", "March",    "April",
-                                                 "May",       "June",     "July",     "August",
-                                                 "September", "October",  "November", "December"};
-
-}  // namespace
-
-DetailsContext details_context_now(bool is_new) {
+DetailsContext details_context_now(bool is_new, std::string_view ui_language) {
     const std::time_t now = std::time(nullptr);
     std::tm tm{};
 #ifdef _WIN32
@@ -32,6 +24,9 @@ DetailsContext details_context_now(bool is_new) {
     context.month = tm.tm_mon + 1;
     context.day = tm.tm_mday;
     context.is_new = is_new;
+    context.ui_language = ui_language == "system" || ui_language.empty()
+                              ? platform::system_language()
+                              : std::string(ui_language);
     context.new_id = [] {
         std::string id = uuid::generate_v4();
         std::transform(id.begin(), id.end(), id.begin(),
@@ -61,10 +56,8 @@ std::vector<std::string> fill_in_document_details(Document& doc, const DetailsCo
     }
     const int month = std::clamp(context.month, 1, 12);
     if (info.date.text.empty()) {
-        char text[64];
-        std::snprintf(text, sizeof(text), "%02d %s %d", context.day, kMonths[month - 1],
-                      context.year);
-        info.date.text = text;
+        info.date.text =
+            platform::format_long_date(context.year, month, context.day, context.ui_language);
         filled.emplace_back("documentInfo.date.text");
     }
     if (!info.date.value || info.date.value->empty()) {

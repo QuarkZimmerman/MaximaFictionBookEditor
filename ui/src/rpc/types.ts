@@ -453,6 +453,11 @@ export interface RpcMethods {
     params: { docId: string; text: string };
     result: { document: Document & LoadReport };
   };
+  /**
+   * A `YYYY-MM-DD` value as the system's regional long date without the weekday (feature 003,
+   * the Today button); `invalidParams` unless a calendar date.
+   */
+  'doc.formatDate': { params: { value: string }; result: { text: string } };
   'doc.save': {
     params: {
       docId: string;

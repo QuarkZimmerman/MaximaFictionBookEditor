@@ -13,6 +13,8 @@
 //       same ids); Source-only text saves are written verbatim.
 //   Every document loaded into the model (doc.new, doc.open, doc.fromXml) gets the details the
 //   original filled in on load (feature 002 FR-005); its JSON lists them in `filledIn`.
+//   doc.formatDate({value}) -> {text}   the regional long date of a YYYY-MM-DD value (feature
+//       003 FR-050, the Today button); invalidParams unless a calendar date
 //   doc.validate({docId, document?, text?}) -> ValidationReport | {jobId}
 //   doc.recent() -> RecentFile[] (+ exists), doc.clearRecent() -> {}
 //   doc.caret({docId, caret?}) -> {caret?}
@@ -35,11 +37,14 @@
 #include <mfbe/templates.hpp>
 #include <mfbe/validator.hpp>
 
+#include <cctype>
 #include <chrono>
 #include <exception>
 #include <filesystem>
 #include <functional>
 #include <future>
+#include <optional>
+#include <string>
 #include <system_error>
 
 namespace mfbe::server {
@@ -130,6 +135,51 @@ auto on_loop_thread(Services& services, Fn fn, rpc::JobControl* control = nullpt
     return future.get();
 }
 
+// The interface language setting (`view.uiLanguage`, "system" included) the filled-in date text
+// follows when the regional settings cannot be determined (feature 003 FR-050). Read on the
+// loop thread - the settings store is not shared with workers - and passed along by value.
+std::string ui_language_setting(const Services& services) {
+    return services.settings.get_string("view.uiLanguage", "system");
+}
+
+// The interface language resolved for format_long_date ("system" -> the OS language).
+std::string resolved_ui_language(const Services& services) {
+    const std::string setting = ui_language_setting(services);
+    return setting == "system" || setting.empty() ? platform::system_language() : setting;
+}
+
+struct CalendarDate {
+    int year = 0;
+    int month = 0;
+    int day = 0;
+};
+
+// A date value in the FB2 schema's form, YYYY-MM-DD, that exists in the calendar.
+std::optional<CalendarDate> parse_calendar_date(const std::string& value) {
+    if (value.size() != 10 || value[4] != '-' || value[7] != '-') {
+        return std::nullopt;
+    }
+    for (std::size_t i : {0u, 1u, 2u, 3u, 5u, 6u, 8u, 9u}) {
+        if (!std::isdigit(static_cast<unsigned char>(value[i]))) {
+            return std::nullopt;
+        }
+    }
+    CalendarDate date;
+    date.year = std::stoi(value.substr(0, 4));
+    date.month = std::stoi(value.substr(5, 2));
+    date.day = std::stoi(value.substr(8, 2));
+    if (date.month < 1 || date.month > 12 || date.day < 1) {
+        return std::nullopt;
+    }
+    constexpr int kDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    const bool leap = (date.year % 4 == 0 && date.year % 100 != 0) || date.year % 400 == 0;
+    const int days = date.month == 2 && leap ? 29 : kDays[date.month - 1];
+    if (date.day > days) {
+        return std::nullopt;
+    }
+    return date;
+}
+
 // Encoding a document is written in: explicit request, else the "Keep encoding" setting picks
 // the opened file's encoding, else the configured default (utf-8 out of the box).
 std::string effective_encoding(Services& services, const session::DocumentSession& s,
@@ -176,7 +226,9 @@ json loaded_document_json(const model::Document& doc, const std::vector<std::str
     return result;
 }
 
-Opened open_document(const std::string& path, rpc::JobControl* control) {
+// `ui_language` is the interface language setting for the filled-in date (see above).
+Opened open_document(const std::string& path, const std::string& ui_language,
+                     rpc::JobControl* control) {
     Opened opened;
     opened.path = path;
     const fs::path file = platform::path_from_utf8(path);
@@ -193,8 +245,8 @@ Opened open_document(const std::string& path, rpc::JobControl* control) {
     } catch (const fb2::IoFailure& e) {
         throw io_error(e.path, e.reason);
     }
-    opened.filled_in =
-        model::fill_in_document_details(opened.read.document, model::details_context_now(false));
+    opened.filled_in = model::fill_in_document_details(
+        opened.read.document, model::details_context_now(false, ui_language));
     if (control != nullptr) {
         control->check_cancelled();
         control->progress("model", 90, 100);
@@ -524,8 +576,8 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         doc.docId = s.docId;
         doc.path.reset();
         doc.sourceEncoding = "utf-8";
-        const std::vector<std::string> filled_in =
-            model::fill_in_document_details(doc, model::details_context_now(true));
+        const std::vector<std::string> filled_in = model::fill_in_document_details(
+            doc, model::details_context_now(true, ui_language_setting(services)));
         s.fileKind = model::FileKind::fb2;
         s.sourceEncoding = "utf-8";
         s.xlinkPrefix = opened.read.xlink_prefix;
@@ -549,18 +601,19 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             throw io_error(path, "file not found");
         }
         const std::uintmax_t size = fs::file_size(file, ec);
+        const std::string ui_language = ui_language_setting(services);
         if (ec || size < kJobThresholdBytes) {
-            Opened opened = open_document(path, nullptr);
+            Opened opened = open_document(path, ui_language, nullptr);
             return register_session(services, std::move(opened));
         }
         // The session (and its docId) exists from the start; the worker parses and builds the
         // JSON result, the loop thread only moves the data into the session at the end.
         const std::string doc_id = services.documents.create().docId;
-        const std::string job_id =
-            ctx.jobs.start([&services, path, doc_id](rpc::JobControl& control) -> json {
+        const std::string job_id = ctx.jobs.start(
+            [&services, path, doc_id, ui_language](rpc::JobControl& control) -> json {
                 auto opened = std::make_shared<Opened>();
                 try {
-                    *opened = open_document(path, &control);
+                    *opened = open_document(path, ui_language, &control);
                 } catch (...) {
                     on_loop_thread(
                         services,
@@ -677,8 +730,8 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         doc.path = s.path;
         doc.fileKind = s.fileKind;
         doc.sourceEncoding = s.sourceEncoding;
-        const std::vector<std::string> filled_in =
-            model::fill_in_document_details(doc, model::details_context_now(false));
+        const std::vector<std::string> filled_in = model::fill_in_document_details(
+            doc, model::details_context_now(false, ui_language_setting(services)));
         json result{{"document", nullptr}, {"warnings", issues_json(read.warnings)}};
         if (s.snapshot) {
             result["remap"] = model::build_remap(*s.snapshot, doc).to_json();
@@ -690,6 +743,19 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         s.snapshot = doc;
         result["document"] = loaded_document_json(doc, filled_in);
         return result;
+    });
+
+    // The Today button's date text (feature 003 FR-050): the same function that fills in the
+    // date of a loaded document, so both write the system's regional long date.
+    router.add_method("doc.formatDate", [&services](const json& params, rpc::RpcContext&) {
+        const std::string value = rpc::params::string(params, "value");
+        const std::optional<CalendarDate> date = parse_calendar_date(value);
+        if (!date) {
+            throw rpc::invalid_params("value must be a calendar date as YYYY-MM-DD",
+                                      json{{"field", "value"}});
+        }
+        return json{{"text", platform::format_long_date(date->year, date->month, date->day,
+                                                        resolved_ui_language(services))}};
     });
 
     router.add_method("doc.save", [&services](const json& params, rpc::RpcContext& ctx) {

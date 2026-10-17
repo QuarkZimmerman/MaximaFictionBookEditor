@@ -14,6 +14,9 @@
  *    `test.skip(!core.hasCore, ...)`.
  *
  * Optional: `MFBE_RESOURCES` (passed as `--resources`), `MFBE_CORE_LOG_LEVEL` (`--log-level`).
+ * The option `coreEnv` (`test.use({ coreEnv: { LC_ALL: 'ru_RU.UTF-8' } })` in a describe group)
+ * gives a test a core of its own started with those environment variables - the regional
+ * settings of the date journeys (feature 003).
  * Fixture books live in `tests/fixtures/books/` at the repository root (`fixtureBook(name)`).
  */
 
@@ -280,7 +283,10 @@ export interface CoreServer {
   stop(): Promise<void>;
 }
 
-async function startCore(binary: string): Promise<CoreServer> {
+async function startCore(
+  binary: string,
+  extraEnv: Record<string, string> | undefined,
+): Promise<CoreServer> {
   const uiDist = process.env.MFBE_UI_DIST ?? path.join(UI_DIR, 'dist');
   if (!existsSync(path.join(uiDist, 'index.html'))) {
     throw new Error(`UI bundle not found at ${uiDist}; run "npm run build" first`);
@@ -292,7 +298,7 @@ async function startCore(binary: string): Promise<CoreServer> {
 
   const child = spawn(binary, args, {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, MFBE_E2E: '1' },
+    env: { ...process.env, MFBE_E2E: '1', ...extraEnv },
   });
   const stderr: string[] = [];
   child.stderr.setEncoding('utf8');
@@ -443,10 +449,16 @@ export interface CoreHandle {
   openApp(page: Page): Promise<void>;
 }
 
-/** Options of the Playwright projects (playwright.config.ts). */
+/** Options of the Playwright projects (playwright.config.ts) and of `test.use()` in a spec. */
 export interface CoreOptions {
   /** Interface language forced through `?lang=` on every page; undefined: the system's. */
   uiLang: UiLang | undefined;
+  /**
+   * Environment variables added to the core process (`LC_ALL` for the regional settings the
+   * date journeys need). A test that sets this option gets a core of its own, started with
+   * them, instead of the worker's; undefined: the worker's core.
+   */
+  coreEnv: Record<string, string> | undefined;
 }
 
 /** `url` with the interface language forced, when one is. */
@@ -457,39 +469,56 @@ export function withUiLang(url: string, lang: UiLang | undefined): string {
   return forced.toString();
 }
 
-export const test = base.extend<{ core: CoreHandle } & CoreOptions, { coreServer: CoreServer }>({
+export const test = base.extend<
+  { core: CoreHandle; testCore: CoreServer } & CoreOptions,
+  { coreServer: CoreServer }
+>({
   uiLang: [undefined, { option: true }],
+  coreEnv: [undefined, { option: true }],
 
   coreServer: [
     // Playwright requires the object-destructuring form even without dependencies.
     // eslint-disable-next-line no-empty-pattern
     async ({}, use) => {
       const binary = process.env.MFBE_CORE_BIN;
-      const server = binary ? await startCore(binary) : coreLessServer();
+      const server = binary ? await startCore(binary, undefined) : coreLessServer();
       await use(server);
       await server.stop();
     },
     { scope: 'worker' },
   ],
 
-  baseURL: async ({ coreServer, uiLang }, use) => {
-    await use(withUiLang(coreServer.baseURL, uiLang));
+  // The core of this test: the worker's, or - with `coreEnv` set - one started for the test
+  // alone with those environment variables (stopped when the test ends).
+  testCore: async ({ coreServer, coreEnv }, use) => {
+    const binary = process.env.MFBE_CORE_BIN;
+    if (!coreEnv || !binary) {
+      await use(coreServer);
+      return;
+    }
+    const own = await startCore(binary, coreEnv);
+    await use(own);
+    await own.stop();
   },
 
-  core: async ({ coreServer, uiLang }, use) => {
+  baseURL: async ({ testCore, uiLang }, use) => {
+    await use(withUiLang(testCore.baseURL, uiLang));
+  },
+
+  core: async ({ testCore, uiLang }, use) => {
     const requireCore = (): NodeRpcClient => {
-      if (!coreServer.rpcClient) {
+      if (!testCore.rpcClient) {
         throw new Error('This test needs mfbe-core: set MFBE_CORE_BIN=/path/to/mfbe-core');
       }
-      return coreServer.rpcClient;
+      return testCore.rpcClient;
     };
-    const baseURL = withUiLang(coreServer.baseURL, uiLang);
+    const baseURL = withUiLang(testCore.baseURL, uiLang);
     const handle: CoreHandle = {
-      hasCore: coreServer.hasCore,
+      hasCore: testCore.hasCore,
       baseURL,
-      port: coreServer.port,
-      token: coreServer.token,
-      dataDir: coreServer.dataDir,
+      port: testCore.port,
+      token: testCore.token,
+      dataDir: testCore.dataDir,
       rpc: (method, params) => requireCore().call(method, params),
       rpcJob: (method, params, timeoutMs) => runJob(requireCore(), method, params, timeoutMs),
       enqueueDialog: async (method, result) => {

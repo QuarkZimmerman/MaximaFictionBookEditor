@@ -33,6 +33,16 @@ target_link_libraries(mfbe_paths PRIVATE mfbe::options)
 # All other translation units under src/ are part of the library (layout: see plan.md).
 file(GLOB_RECURSE _mfbe_existing_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 list(FILTER _mfbe_existing_sources EXCLUDE REGEX "/src/platform/(paths|portable)\\.cpp$")
+# The regional date formatter (feature 003 US6) has one source per platform: the Windows
+# long-date picture, CoreFoundation on macOS, the LC_TIME locale elsewhere.
+list(FILTER _mfbe_existing_sources EXCLUDE REGEX "/src/platform/date_format_(win|mac|posix)\\.cpp$")
+if(WIN32)
+  list(APPEND _mfbe_existing_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/date_format_win.cpp")
+elseif(APPLE)
+  list(APPEND _mfbe_existing_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/date_format_mac.cpp")
+else()
+  list(APPEND _mfbe_existing_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/date_format_posix.cpp")
+endif()
 
 add_library(mfbe_core STATIC ${_mfbe_existing_sources})
 add_library(mfbe::core ALIAS mfbe_core)
