@@ -13,6 +13,11 @@
  *  2. switching the language in Settings asks for a restart (in Russian), the menus switch live
  *     and the choice survives a reload; a fresh installation (`uiLanguage: "system"`) follows a
  *     Russian system language on first start.
+ *
+ * Feature 003 (T014, FR-001): the language choice offers Ukrainian as the fourth entry, the
+ * switch journey goes on to Ukrainian (restart prompt in Ukrainian, live switch, reload), and a
+ * fresh installation follows a Ukrainian system language. The Ukrainian walk of every menu,
+ * dialog and message is us1-ukrainian.spec.ts.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -20,6 +25,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { expect, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import { uiText } from './fixtures/i18n';
 import type { Locator, Page } from '@playwright/test';
 
 /* ------------------------------------------------------------------------ */
@@ -371,6 +377,13 @@ test.describe('US8 - the interface in Russian (?lang=ru)', () => {
     await expect(language.locator('option:checked')).toHaveText('Как в системе');
     await expect(language.locator('option[value="ru"]')).toHaveText('Русский');
     await expect(language.locator('option[value="en"]')).toHaveText('Английский');
+    // Feature 003 FR-001: System default, English, Russian and Ukrainian - the original's three.
+    await expect(language.locator('option[value="uk"]')).toHaveText('Украинский');
+    expect(
+      await language
+        .locator('option')
+        .evaluateAll((options) => options.map((option) => option.getAttribute('value'))),
+    ).toEqual(['system', 'en', 'ru', 'uk']);
     await settings.getByTestId('dialog-settings-button-cancel').click();
     await expect(settings).toBeHidden();
   });
@@ -567,6 +580,49 @@ test.describe('US8 - switching the language', () => {
     await expect(page.getByTestId('menu-file')).toHaveText('Файл');
     await expect(page.getByTestId('menu-help')).toHaveText('Справка');
     await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
+
+    // On to Ukrainian through the (Russian) dialog (feature 003, FR-001): the prompt in the
+    // language just selected, the live switch, the stored choice and the reload. ("Файл" reads
+    // the same in Russian and Ukrainian: the Help menu tells them apart.)
+    await menu(page, 'tools', 'settings');
+    await expect(page.getByTestId('dialog-settings-title')).toContainText('Настройки');
+    await expect(
+      page.getByTestId('settings-view-language').locator('option[value="uk"]'),
+      'the language choice offers Ukrainian (FR-001)',
+    ).toHaveCount(1);
+    await page.getByTestId('settings-view-language').selectOption('uk');
+    await page.getByTestId('dialog-settings-button-ok').click();
+    await expect(prompt).toBeVisible();
+    await expect(prompt.getByTestId('dialog-restart-prompt-text')).toHaveText(
+      uiText('uk', 'msg.needRestart'),
+    );
+    await expect(prompt.getByTestId('dialog-restart-prompt-button-yes')).toHaveText(
+      /^(Так|Да|Yes)$/,
+    );
+    await expect(prompt.getByTestId('dialog-restart-prompt-button-no')).toHaveText(/^(Ні|Нет|No)$/);
+    await prompt.getByTestId('dialog-restart-prompt-button-no').click();
+    await expect(prompt).toBeHidden();
+    await expect(page.getByTestId('menu-help')).toHaveText(uiText('uk', 'menu.help.caption'));
+    await expect(page.getByTestId('menu-tools')).toHaveText(uiText('uk', 'menu.tools.caption'));
+    await expect(page.getByTestId('status-message')).toHaveText(uiText('uk', 'status.ready'));
+    settings = await core.rpc<{ view: { uiLanguage: string } }>('settings.get');
+    expect(settings.view.uiLanguage).toBe('uk');
+    await page.reload();
+    await page.getByTestId('app-root').waitFor();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'uk');
+    await expect(page.getByTestId('menu-help')).toHaveText(uiText('uk', 'menu.help.caption'));
+    await expect(page.getByTestId('panel-tree-caption')).toHaveText(uiText('uk', 'tree.caption'));
+    // The Settings dialog is Ukrainian now and shows the stored choice.
+    await menu(page, 'tools', 'settings');
+    await expect(page.getByTestId('dialog-settings-title')).toContainText(
+      uiText('uk', 'dialog.settings.caption'),
+    );
+    const language = page.getByTestId('settings-view-language');
+    await expect(language).toHaveValue('uk');
+    await expect(language.locator('option:checked')).toHaveText(
+      uiText('uk', 'dialog.settings.view.languageUk'),
+    );
+    await page.getByTestId('dialog-settings-button-cancel').click();
   });
 
   test('2b. "?lang=" of the shell wins over the stored setting for this session only', async ({
@@ -613,6 +669,51 @@ test.describe('US8 - first start follows the system language', () => {
       await page.getByTestId('dialog-settings-button-cancel').click();
     } else {
       await expect(page.getByTestId('status-message')).toHaveText('Нет соединения');
+    }
+  });
+});
+
+test.describe('US8 - first start follows the system language (Ukrainian, feature 003)', () => {
+  test.use({ locale: 'uk-UA' });
+
+  test.beforeEach(async ({ core }) => {
+    if (core.hasCore) await resetSettings(core);
+  });
+
+  test.afterEach(async ({ core }) => {
+    if (core.hasCore) await resetSettings(core).catch(() => {});
+  });
+
+  test('2d. a fresh installation on a Ukrainian system starts in Ukrainian', async ({
+    core,
+    page,
+  }) => {
+    // The browser prefers Ukrainian (`uk-UA`, what the shell derives from a Ukrainian desktop);
+    // the start under a Ukrainian core locale (`LANG=uk_UA.UTF-8`) is us1-ukrainian.spec.ts.
+    await openApp(core, page);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'uk');
+    await expect(page.getByTestId('menu-file')).toHaveText(uiText('uk', 'menu.file.caption'));
+    await expect(page.getByTestId('menu-tools')).toHaveText(uiText('uk', 'menu.tools.caption'));
+    await expect(page.getByTestId('menu-help')).toHaveText(uiText('uk', 'menu.help.caption'));
+    await expect(page.getByTestId('panel-tree-caption')).toHaveText(uiText('uk', 'tree.caption'));
+    if (core.hasCore) {
+      await expect(page.getByTestId('status-message')).toHaveText(uiText('uk', 'status.ready'));
+      const settings = await core.rpc<{ view: { uiLanguage: string } }>('settings.get');
+      expect(settings.view.uiLanguage).toBe('system'); // nothing was written: still "system"
+      await menu(page, 'tools', 'settings');
+      await expect(page.getByTestId('dialog-settings-title')).toContainText(
+        uiText('uk', 'dialog.settings.caption'),
+      );
+      const language = page.getByTestId('settings-view-language');
+      await expect(language).toHaveValue('system');
+      await expect(language.locator('option:checked')).toHaveText(
+        uiText('uk', 'dialog.settings.view.languageSystem'),
+      );
+      await page.getByTestId('dialog-settings-button-cancel').click();
+    } else {
+      await expect(page.getByTestId('status-message')).toHaveText(
+        uiText('uk', 'status.notConnected'),
+      );
     }
   });
 });

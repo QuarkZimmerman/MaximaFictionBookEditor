@@ -12,6 +12,11 @@
  *  3. every changed setting is preserved across a restart (the core persists `settings.json`;
  *     the page is reloaded and `settings.get` re-read) and takes effect (Body font variables,
  *     Source line numbers, interface language)
+ *
+ * Feature 003 (T014, FR-001): the language choice offers Ukrainian, and the language journey
+ * (4.) switches to Ukrainian as well - restart prompt, live switch, reload, back through the
+ * Ukrainian dialog. The interface texts the journeys wait for come from the catalogues
+ * (fixtures/i18n.ts), so the journey reads the same in every interface language.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -19,6 +24,7 @@ import path from 'node:path';
 
 import { expect, test, type CoreHandle, type RpcCallError } from './fixtures/core';
 import type { Page } from '@playwright/test';
+import { pageText, uiText } from './fixtures/i18n';
 import { label, MOD, MOD_LABEL, RESERVED_CHORD } from './fixtures/keys';
 
 interface SettingsJson {
@@ -87,7 +93,9 @@ test.describe('US9 - configure settings and hotkeys', () => {
     test.skip(!(await supportsSettings(core)), 'the core does not implement settings.* yet');
     await resetSettings(core);
     await core.openApp(page);
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
   });
 
   test.afterEach(async ({ core }) => {
@@ -124,11 +132,19 @@ test.describe('US9 - configure settings and hotkeys', () => {
     ]) {
       await expect(page.getByTestId(control), control).toBeVisible();
     }
+    // The interface languages: System default, English, Russian and Ukrainian (feature 003).
     await expect(page.getByTestId('settings-view-language').locator('option')).toHaveText([
       'System default',
       'English',
       'Russian',
+      'Ukrainian',
     ]);
+    expect(
+      await page
+        .getByTestId('settings-view-language')
+        .locator('option')
+        .evaluateAll((options) => options.map((option) => option.getAttribute('value'))),
+    ).toEqual(['system', 'en', 'ru', 'uk']);
 
     // Other (FR-091).
     await showPage(page, 'other');
@@ -365,7 +381,9 @@ test.describe('US9 - configure settings and hotkeys', () => {
     // "Restart": reload the page; the UI reads settings.get again and re-applies everything.
     await page.reload();
     await page.getByTestId('app-root').waitFor();
-    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
     await expect
       .poll(() => page.evaluate<Vars>(HTML_VARIABLES))
       .toEqual({
@@ -453,12 +471,40 @@ test.describe('US9 - configure settings and hotkeys', () => {
     await expect(page.getByTestId('menu-file')).toHaveText('Файл');
     await expect(page.getByTestId('status-message')).toHaveText('Готово');
 
-    // Back to English through the dialog (its labels are Russian now).
+    // On to Ukrainian through the (Russian) dialog (feature 003, FR-001). "Файл" reads the same
+    // in Russian and Ukrainian: the Help menu and the tree caption tell them apart.
     await menu(page, 'tools', 'settings');
     await expect(page.getByTestId('dialog-settings-title')).toContainText('Настройки');
+    await expect(
+      page.getByTestId('settings-view-language').locator('option[value="uk"]'),
+      'the language choice offers Ukrainian (FR-001)',
+    ).toHaveCount(1);
+    await page.getByTestId('settings-view-language').selectOption('uk');
+    await page.getByTestId('dialog-settings-button-ok').click();
+    await expect(prompt).toBeVisible();
+    await expect(prompt.getByTestId('dialog-restart-prompt-text')).toContainText(
+      /must be restarted|перезагруз|перезапуск/i,
+    );
+    await prompt.getByTestId('dialog-restart-prompt-button-no').click();
+    await expect(page.getByTestId('menu-help')).toHaveText(uiText('uk', 'menu.help.caption'));
+    await expect(page.getByTestId('panel-tree-caption')).toHaveText(uiText('uk', 'tree.caption'));
+    expect((await core.rpc<SettingsJson>('settings.get')).view.uiLanguage).toBe('uk');
+    await page.reload();
+    await page.getByTestId('app-root').waitFor();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'uk');
+    await expect(page.getByTestId('menu-help')).toHaveText(uiText('uk', 'menu.help.caption'));
+    await expect(page.getByTestId('status-message')).toHaveText(uiText('uk', 'status.ready'));
+
+    // Back to English through the dialog (its labels are Ukrainian now).
+    await menu(page, 'tools', 'settings');
+    await expect(page.getByTestId('dialog-settings-title')).toContainText(
+      uiText('uk', 'dialog.settings.caption'),
+    );
+    await expect(page.getByTestId('settings-view-language')).toHaveValue('uk');
     await page.getByTestId('settings-view-language').selectOption('en');
     await page.getByTestId('dialog-settings-button-ok').click();
     await page.getByTestId('dialog-restart-prompt-button-no').click();
     await expect(page.getByTestId('menu-file')).toHaveText('File');
+    await expect(page.getByTestId('menu-help')).toHaveText('Help');
   });
 });

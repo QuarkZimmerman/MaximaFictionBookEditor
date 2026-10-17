@@ -7,7 +7,8 @@
  * editor asks the platform to show - the file types in order, the selected type, the folder or
  * the proposed file, several files, the encoding choice of Save As - for Open, Save As (saved
  * and never-saved document), block / inline / section image, cover image, Add Binary Object,
- * Save image as and the custom dictionary, in English and with `?lang=ru`. On Linux and macOS
+ * Save image as and the custom dictionary, in English, with `?lang=ru` and with `?lang=uk`
+ * (feature 003, FR-002: the file-type names in Ukrainian). On Linux and macOS
  * the core opens every dialog that names no folder in the folder last used by Open or Save As,
  * Open and Save As in the user's documents folder while none is kept (Windows keeps the folder
  * in the dialogs). The platform dialogs themselves are covered by the shell tests (tests/shell)
@@ -29,6 +30,7 @@ import {
   type CoreHandle,
   type RpcCallError,
 } from './fixtures/core';
+import { uiText, type UiLang } from './fixtures/i18n';
 
 interface FileType {
   name: string;
@@ -49,10 +51,14 @@ interface DialogRequest {
   encodingLabel?: string;
 }
 
-type Language = 'en' | 'ru';
+type Language = UiLang;
 
 /** The label of the encoding choice inside Save As, in the interface language. */
-const ENCODING_LABEL: Record<Language, string> = { en: 'Encoding:', ru: 'Кодировка:' };
+const ENCODING_LABEL: Record<Language, string> = {
+  en: 'Encoding:',
+  ru: 'Кодировка:',
+  uk: 'Кодування:',
+};
 
 /** The type names the dialogs must show (FR-010, FR-011). */
 const NAMES: Record<Language, Record<string, string>> = {
@@ -85,6 +91,21 @@ const NAMES: Record<Language, Record<string, string>> = {
     jpegFiles: 'Файлы JPEG (*.jpg)',
     pngFiles: 'Файлы PNG (*.png)',
     dictionaries: 'Словари (*.dic)',
+  },
+  uk: {
+    fb2: 'Файли FictionBook (*.fb2)',
+    fbd: 'Описи FictionBook (*.fbd)',
+    all: 'Усі файли (*.*)',
+    supported: 'Підтримувані зображення (*.jpg;*.jpeg;*.png)',
+    jpeg: 'JPEG (*.jpg)',
+    png: 'PNG (*.png)',
+    bmp: 'Точкові рисунки (*.bmp)',
+    gif: 'GIF (*.gif)',
+    tiff: 'TIFF (*.tif)',
+    webp: 'WebP (*.webp)',
+    jpegFiles: 'Файли JPEG (*.jpg)',
+    pngFiles: 'Файли PNG (*.png)',
+    dictionaries: 'Словники (*.dic)',
   },
 };
 
@@ -152,12 +173,11 @@ async function requestOf(core: CoreHandle, action: () => Promise<void>): Promise
 
 async function openApp(core: CoreHandle, page: Page, language: Language): Promise<void> {
   const url = new URL(core.baseURL);
-  if (language === 'ru') url.searchParams.set('lang', 'ru');
+  url.searchParams.set('lang', language);
   await page.goto(url.toString());
   await page.getByTestId('app-root').waitFor();
-  await expect(page.getByTestId('status-message')).toHaveText(
-    language === 'ru' ? 'Готово' : 'Ready',
-  );
+  await expect(page.locator('html')).toHaveAttribute('lang', language);
+  await expect(page.getByTestId('status-message')).toHaveText(uiText(language, 'status.ready'));
 }
 
 async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
@@ -190,7 +210,7 @@ async function clickIntoParagraph(page: Page): Promise<void> {
   await page.waitForTimeout(80);
 }
 
-for (const language of ['en', 'ru'] as const) {
+for (const language of ['en', 'ru', 'uk'] as const) {
   const names = NAMES[language];
 
   test.describe(`US3 (feature 002) - file dialogs show book files by default (${language})`, () => {

@@ -9,6 +9,9 @@
  * same dialogs. Book: tests/fixtures/books/many-sections.fb2 (48 sections, shown in windows of
  * 20; "разыскать" 20 times in sections 3, 10, 18, 27, 36 and 46, twice in two paragraphs; an
  * inline image before the 3rd occurrence; a picture between the paragraphs of section 10).
+ * The messages the journey waits for come from the catalogues in the language the page shows
+ * (fixtures/i18n.ts): the `chromium-ru` and `chromium-uk` projects run it with `?lang=ru` and
+ * `?lang=uk` (feature 002 FR-091, feature 003 FR-005).
  */
 
 import type { Page } from '@playwright/test';

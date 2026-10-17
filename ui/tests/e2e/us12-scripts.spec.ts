@@ -24,6 +24,12 @@
  * The Scripts menu / toolbar items are rendered through `useScriptsMenu()` / `<ScriptsToolbar/>`
  * mounted by App.tsx; when the mount is missing the journeys fall back to the hotkey and the
  * `window.__mfbeTest.scripts` hooks (core started with `--test-hooks`) and record a note.
+ *
+ * The editor's own texts (status lines, the run messages, "No scripts found") come from the
+ * catalogues in the language the page shows and the scripts' names from their manifests
+ * (`name.<lang>`, English when a script has no name in that language - the rule of
+ * `scripting/host.ts`): the `chromium-ru` and `chromium-uk` projects run the same journey with
+ * `?lang=ru` and `?lang=uk` (feature 002 FR-091, feature 003 FR-002, FR-005).
  */
 
 import { cpSync, existsSync, readFileSync, renameSync } from 'node:fs';
