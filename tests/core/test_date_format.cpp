@@ -220,7 +220,9 @@ TEST_CASE("date format: the Windows long date without the weekday", "[date]") {
     CHECK(date(2026, 10, 17, "en") == "17 October 2026");
     REQUIRE(platform::set_date_locale_for_tests("de-DE"));
     CHECK(date(2026, 10, 17, "en") == "17. Oktober 2026");
-    CHECK_FALSE(platform::set_date_locale_for_tests("xx-XX"));
+    // IsValidLocaleName accepts any well-formed BCP 47 name (custom locales), so only a
+    // malformed name is refused.
+    CHECK_FALSE(platform::set_date_locale_for_tests("not a locale!"));
 }
 #endif
 
