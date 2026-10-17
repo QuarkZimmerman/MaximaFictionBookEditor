@@ -115,9 +115,10 @@ void MainWindowDelegate::OnWindowDestroyed(CefRefPtr<CefWindow> window) {
 
 bool MainWindowDelegate::CanClose(CefRefPtr<CefWindow> window) {
     CEF_REQUIRE_UI_THREAD();
-    // Hook for the unsaved-changes prompt: the UI owns the document state, so later the shell
-    // will ask the page (app.quit flow) before allowing the close. For now the window closes
-    // when the browser agrees (TryCloseBrowser -> DoClose -> OnBeforeClose).
+    // The window closes when the browser agrees (TryCloseBrowser -> DoClose -> OnBeforeClose).
+    // The UI owns the document state: MfbeClient::DoClose defers the main window's first close
+    // and asks the page (app.closeRequested -> cancel-script prompt, save prompt -> app.quit),
+    // see close_handshake.h.
     if (browser_view_) {
         if (CefRefPtr<CefBrowser> browser = browser_view_->GetBrowser()) {
             return browser->GetHost()->TryCloseBrowser();

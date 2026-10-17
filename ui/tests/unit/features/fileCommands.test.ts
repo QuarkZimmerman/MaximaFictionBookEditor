@@ -14,7 +14,7 @@ import {
   sourceSession,
   updateSourceText,
 } from '@/views/source/sourceSession';
-import type { Settings } from '@/rpc/types';
+import type { MessageButtonId, Settings } from '@/rpc/types';
 
 import {
   CLEAN_REPORT,
@@ -641,5 +641,139 @@ describe('file flows (T052)', () => {
     expect(ctx.store.getState().document).toBe(parsed);
     expect(sourceSession(ctx.store).baseline).toBe('<a/>');
     expect(new FileFeature(createCommandRegistry()).recent.files).toEqual([]);
+  });
+});
+
+describe('Exit and window close while a script runs (feature 003 FR-013)', () => {
+  /** A quit flow started while `scriptRunning` is set; the fake "host" ends the run on cancel. */
+  async function runningSetup() {
+    const { registry, feature, rpc, dialogs } = setup({ 'app.quit': {} });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setDocument(ctx.store, fakeDocument());
+    actions.setScriptRunning(ctx.store, true);
+    return { registry, feature, rpc, dialogs, ctx };
+  }
+
+  const methods = (rpc: ReturnType<typeof fakeRpc>) => rpc.calls.map((c) => c.method);
+
+  it('keeps Exit available while every file command is blocked', async () => {
+    const { registry, ctx } = await runningSetup();
+    expect(registry.get('file.exit')?.duringScriptRun).toBe('allowed');
+    expect(registry.isEnabled('file.exit', ctx)).toBe(true);
+    for (const id of ['file.new', 'file.open', 'file.save', 'file.saveAs', 'file.validate']) {
+      expect(registry.isEnabled(id, ctx), id).toBe(false);
+    }
+  });
+
+  it('Exit: "A script is running. Cancel it and exit?" - No keeps the run and the editor', async () => {
+    const { feature, rpc, dialogs, ctx } = await runningSetup();
+    actions.setModified(ctx.store, true);
+    dialogs.messageAnswers.push('no');
+    await feature.exitApplication(ctx);
+    expect(dialogs.shown).toHaveLength(1);
+    expect(dialogs.shown[0]).toMatchObject({
+      testId: 'cancel-run-prompt',
+      buttons: 'yesNo',
+      icon: 'question',
+      text: 'A script is running. Cancel it and exit?',
+    });
+    expect(dialogs.custom).toHaveLength(0); // no save prompt
+    expect(ctx.store.getState().scriptRunning).toBe(true);
+    expect(methods(rpc)).not.toContain('app.quit');
+  });
+
+  it('Exit: Yes waits for the run to end, then the usual save prompt follows', async () => {
+    const { feature, rpc, dialogs, ctx } = await runningSetup();
+    actions.setModified(ctx.store, true);
+    dialogs.messageAnswers.push('yes');
+    // No script host in this test: the run "ends" when the flag drops (as the host does on
+    // cancel, restoring the document first).
+    dialogs.customAnswers.push('cancel');
+    const exiting = feature.exitApplication(ctx);
+    await vi.waitFor(() => expect(dialogs.shown).toHaveLength(1));
+    expect(dialogs.custom).toHaveLength(0); // the save prompt waits for the run to end
+    actions.setScriptRunning(ctx.store, false);
+    await exiting;
+    expect(dialogs.custom[0]).toMatchObject({
+      name: 'SaveChangesPrompt',
+      props: { name: 'alpha.fb2' },
+    });
+    expect(methods(rpc)).not.toContain('app.quit'); // Cancel in the save prompt abandons Exit
+
+    // A clean document: Yes cancels the run and quits without a save prompt.
+    actions.setModified(ctx.store, false);
+    actions.setScriptRunning(ctx.store, true);
+    dialogs.messageAnswers.push('yes');
+    const quitting = feature.exitApplication(ctx);
+    await vi.waitFor(() => expect(dialogs.shown).toHaveLength(2));
+    actions.setScriptRunning(ctx.store, false);
+    await quitting;
+    expect(dialogs.custom).toHaveLength(1);
+    expect(rpc.calls.filter((c) => c.method === 'app.quit')).toEqual([
+      { method: 'app.quit', params: {} },
+    ]);
+  });
+
+  it('Exit without a running script shows no cancel-run prompt', async () => {
+    const { feature, rpc, dialogs, ctx } = await runningSetup();
+    actions.setScriptRunning(ctx.store, false);
+    await feature.exitApplication(ctx);
+    expect(dialogs.shown).toHaveLength(0);
+    expect(methods(rpc)).toContain('app.quit');
+  });
+
+  it('app.closeRequested runs the same flow and ends in app.quit({force: true})', async () => {
+    const { feature, rpc, dialogs, ctx } = await runningSetup();
+    actions.setModified(ctx.store, true);
+    const off = feature.subscribeNotifications(rpc.client, () => ctx);
+
+    // No: nothing closes, the run goes on.
+    dialogs.messageAnswers.push('no');
+    rpc.notify('app.closeRequested', {});
+    await vi.waitFor(() => expect(dialogs.shown).toHaveLength(1));
+    expect(dialogs.shown[0]!.testId).toBe('cancel-run-prompt');
+    await new Promise((resolve) => setTimeout(resolve, 0)); // the declined flow has ended
+    expect(ctx.store.getState().scriptRunning).toBe(true);
+    expect(methods(rpc)).not.toContain('app.quit');
+
+    // Yes, then Don't save: the shell is told to close for real.
+    dialogs.messageAnswers.push('yes');
+    dialogs.customAnswers.push('no');
+    rpc.notify('app.closeRequested', {});
+    await vi.waitFor(() => expect(dialogs.shown).toHaveLength(2));
+    actions.setScriptRunning(ctx.store, false);
+    await vi.waitFor(() =>
+      expect(rpc.calls.filter((c) => c.method === 'app.quit')).toEqual([
+        { method: 'app.quit', params: { force: true } },
+      ]),
+    );
+    expect(dialogs.custom).toHaveLength(1);
+    off();
+  });
+
+  it('a second close request while the prompts are up is ignored', async () => {
+    const { feature, rpc, dialogs, ctx } = await runningSetup();
+    const off = feature.subscribeNotifications(rpc.client, () => ctx);
+    const prompt: { answer?: (button: MessageButtonId) => void } = {};
+    dialogs.showMessage = (options) => {
+      dialogs.shown.push(options);
+      return new Promise((resolve) => {
+        prompt.answer = resolve;
+      });
+    };
+    rpc.notify('app.closeRequested', {});
+    rpc.notify('app.closeRequested', {});
+    await vi.waitFor(() => expect(dialogs.shown).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(dialogs.shown).toHaveLength(1);
+    prompt.answer?.('no');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(methods(rpc)).not.toContain('app.quit');
+    // Answered: the next request asks again.
+    rpc.notify('app.closeRequested', {});
+    await vi.waitFor(() => expect(dialogs.shown).toHaveLength(2));
+    prompt.answer?.('no');
+    off();
   });
 });

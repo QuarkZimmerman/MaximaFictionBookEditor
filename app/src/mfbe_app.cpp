@@ -16,6 +16,7 @@
 #include <mfbe/utf8_paths.hpp>
 
 #include <filesystem>
+#include <functional>
 #include <sstream>
 #include <utility>
 
@@ -93,6 +94,16 @@ void MfbeApp::OnContextInitialized() {
     client_config.open_paths = [](const std::vector<std::string>& paths) {
         forwardOpenPaths(paths);
     };
+    // The main window's close is offered to the UI first (app.closeRequested, feature 003
+    // FR-013); the core host outlives the message loop, so the client may call it at any time.
+    if (CoreHost* core_host = core_host_) {
+        client_config.request_close = [core_host](std::function<void(bool)> on_delivered) {
+            core_host->requestClose(std::move(on_delivered));
+        };
+        client_config.query_ui_connected = [core_host](std::function<void(bool)> on_result) {
+            core_host->queryUiConnected(std::move(on_result));
+        };
+    }
     CefRefPtr<MfbeClient> client(new MfbeClient(client_config, dialogs_));
     client_ = client;
 

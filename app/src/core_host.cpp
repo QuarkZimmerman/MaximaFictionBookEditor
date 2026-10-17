@@ -46,6 +46,17 @@ public:
     bool hasCore() const override { return false; }
     void attachDialogs(std::shared_ptr<NativeDialogs> /*dialogs*/) override {}
     void notifyOpenPaths(const std::vector<std::string>& /*paths*/) override {}
+    // No core in this process: the page cannot be asked, the window closes at once.
+    void requestClose(std::function<void(bool)> on_delivered) override {
+        if (on_delivered) {
+            on_delivered(false);
+        }
+    }
+    void queryUiConnected(std::function<void(bool)> on_result) override {
+        if (on_result) {
+            on_result(false);
+        }
+    }
     void logWarning(const std::string& code, const std::string& message) override {
         std::fprintf(stderr, "mfbe: warning %s: %s\n", code.c_str(), message.c_str());
     }
@@ -164,6 +175,37 @@ public:
         } catch (const std::exception& e) {
             std::fprintf(stderr, "mfbe: failed to forward paths to the core: %s\n", e.what());
         }
+    }
+
+    void requestClose(std::function<void(bool)> on_delivered) override {
+        if (server_) {
+            try {
+                server_->request_close(on_delivered);  // a copy: the fallback below may need it
+                return;
+            } catch (const std::exception& e) {
+                std::fprintf(stderr, "mfbe: failed to ask the UI to close: %s\n", e.what());
+            } catch (...) {
+            }
+        }
+        if (on_delivered) {
+            on_delivered(false);
+        }
+    }
+
+    void queryUiConnected(std::function<void(bool)> on_result) override {
+        if (!on_result) {
+            return;
+        }
+        if (server_) {
+            try {
+                server_->count_clients([on_result](std::size_t count) { on_result(count > 0); });
+                return;
+            } catch (const std::exception& e) {
+                std::fprintf(stderr, "mfbe: failed to query the UI connection: %s\n", e.what());
+            } catch (...) {
+            }
+        }
+        on_result(false);
     }
 
     void stop() override {

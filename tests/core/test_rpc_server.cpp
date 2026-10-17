@@ -11,6 +11,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <filesystem>
+#include <future>
 #include <regex>
 #include <thread>
 
@@ -463,6 +464,56 @@ TEST_CASE("server: notifications are broadcast to every connection; open paths a
     a.send_close();
     a.close();
     CHECK(b.call("app.info")["result"]["apiVersion"] == 1);
+}
+
+TEST_CASE("server: the shell's close request reaches every UI and reports whether one listens",
+          "[server]") {
+    ServerFixture f;
+    std::promise<bool> delivered_promise;
+    auto delivered = delivered_promise.get_future();
+
+    // Nobody connected: the request is reported as undelivered (the shell closes at once).
+    f.server->request_close([&](bool ok) { delivered_promise.set_value(ok); });
+    REQUIRE(delivered.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK_FALSE(delivered.get());
+    std::promise<std::size_t> none_promise;
+    auto none = none_promise.get_future();
+    f.server->count_clients([&](std::size_t count) { none_promise.set_value(count); });
+    REQUIRE(none.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(none.get() == 0);
+
+    // Two UIs connected: both receive app.closeRequested {}, the request counts as delivered,
+    // and nothing closes by itself - the UI answers with app.quit after its prompts.
+    test::WsClient a;
+    test::WsClient b;
+    REQUIRE(a.open(f.port(), f.ws_path()) == 101);
+    REQUIRE(b.open(f.port(), f.ws_path()) == 101);
+    std::promise<bool> again_promise;
+    auto again = again_promise.get_future();
+    f.server->request_close([&](bool ok) { again_promise.set_value(ok); });
+    REQUIRE(again.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(again.get());
+    auto on_a = a.wait_notification("app.closeRequested");
+    REQUIRE(on_a);
+    CHECK((*on_a)["params"] == json::object());
+    CHECK_FALSE(on_a->contains("id"));
+    REQUIRE(b.wait_notification("app.closeRequested"));
+    std::promise<std::size_t> two_promise;
+    auto two = two_promise.get_future();
+    f.server->count_clients([&](std::size_t count) { two_promise.set_value(count); });
+    REQUIRE(two.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(two.get() == 2);
+    CHECK_FALSE(f.server->stopped());
+
+    // A stopped server answers at once: nothing is delivered, nobody is connected.
+    f.server->stop();
+    f.server->wait();
+    bool late_delivered = true;
+    f.server->request_close([&](bool ok) { late_delivered = ok; });
+    CHECK_FALSE(late_delivered);
+    std::size_t late_count = 99;
+    f.server->count_clients([&](std::size_t count) { late_count = count; });
+    CHECK(late_count == 0);
 }
 
 TEST_CASE("server: app.quit answers, closes clients with 1001 and stops the server", "[server]") {

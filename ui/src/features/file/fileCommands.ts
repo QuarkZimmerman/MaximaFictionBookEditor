@@ -17,6 +17,11 @@
  *    text refuses the save, as the original editor did ("do not save bad xml").
  *  - `doc.watch` is enabled for opened files; `doc.changedOnDisk` asks to reload.
  *  - `doc.caret` get/set implements Restore position (recent.ts).
+ *  - Exit and the shell's window-close request (`app.closeRequested`, feature 003 FR-013) share
+ *    one quit flow: while a script runs it first asks whether to cancel the run (Yes cancels it
+ *    and waits for the document to be restored, No keeps the editor open), then the usual save
+ *    prompt, then `app.quit`. While a script runs New, Open, Recent, Reload, Save and Save As
+ *    are unavailable (the registry's default `duringScriptRun` policy); only Exit is allowed.
  */
 
 import {
@@ -31,6 +36,7 @@ import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
 import { documentFileTypes } from '@/dialogs/fileTypes';
 import { showEncodingDialog, showSaveChangesPrompt } from '@/dialogs/show';
 import { confirmSaveWithErrors } from '@/dialogs/validation';
+import { getScriptsFeature } from '@/features/scripts';
 import type { Document, ValidationReport } from '@/model/document';
 import { actions, kindFromPath, type AppStore, type FileKind } from '@/model/store';
 import i18next from 'i18next';
@@ -155,6 +161,32 @@ export function sourceOnlyDocument(docId: string, path: string, encoding: string
   };
 }
 
+/**
+ * Longest wait for a cancelled script run to restore the document before the quit flow goes
+ * on (the host restores it at once; FR-015 allows 2 s).
+ */
+export const CANCEL_RUN_WAIT_MS = 5000;
+
+/** Resolves once no script runs any more (or after `timeoutMs`). */
+function waitForScriptRunEnd(store: AppStore, timeoutMs = CANCEL_RUN_WAIT_MS): Promise<void> {
+  if (!store.getState().scriptRunning) return Promise.resolve();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    const unsubscribe = store.subscribe((state) => {
+      if (!state.scriptRunning) finish();
+    });
+    if (!store.getState().scriptRunning) finish();
+  });
+}
+
 /* ------------------------------------------------------------------------ */
 /* The feature                                                              */
 /* ------------------------------------------------------------------------ */
@@ -162,6 +194,14 @@ export function sourceOnlyDocument(docId: string, path: string, encoding: string
 export interface FileFeatureOptions {
   /** Delay during which `doc.changedOnDisk` after our own save is ignored (ms). */
   selfSaveGraceMs?: number;
+}
+
+export interface QuitOptions {
+  /**
+   * The shell asked for the close (`app.closeRequested`): `app.quit` is called with
+   * `force: true`, telling the shell the UI has finished its prompts (rpc-api.md §3.1).
+   */
+  force?: boolean;
 }
 
 export class FileFeature {
@@ -174,6 +214,8 @@ export class FileFeature {
   private startupChecked = false;
   /** Bumped by File > New, Open and Recent Files: the start-up document is no longer wanted. */
   private userRequests = 0;
+  /** A window-close request is being answered (its prompts are up). */
+  private closeRequestPending = false;
 
   constructor(registry: CommandRegistry, options: FileFeatureOptions = {}) {
     this.selfSaveGraceMs = options.selfSaveGraceMs ?? 1500;
@@ -190,6 +232,28 @@ export class FileFeature {
     const answer = await showSaveChangesPrompt(ctx.dialogs, currentDocumentName(ctx));
     if (answer === 'cancel') return false;
     if (answer === 'yes') return this.saveDocument(ctx, {});
+    return true;
+  }
+
+  /**
+   * Exit or window close while a script runs (feature 003 FR-013): "A script is running.
+   * Cancel it and exit?" - Yes cancels the run through the script host and waits until the
+   * document is restored (true), No keeps the run going (false). True at once when no script
+   * runs.
+   */
+  async confirmCancelRunningScript(ctx: CommandContext): Promise<boolean> {
+    if (!ctx.store.getState().scriptRunning) return true;
+    const answer = await ctx.dialogs.showMessage({
+      text: ctx.t('msg.cancelRunningScript'),
+      caption: ctx.t('app.name'),
+      buttons: 'yesNo',
+      icon: 'question',
+      testId: 'cancel-run-prompt',
+    });
+    if (answer !== 'yes') return false;
+    const host = getScriptsFeature(ctx.store)?.host;
+    if (host?.isRunning) host.cancel();
+    await waitForScriptRunEnd(ctx.store);
     return true;
   }
 
@@ -545,22 +609,45 @@ export class FileFeature {
 
   /* ------------------------------------------------------------------- exit */
 
-  async exitApplication(ctx: CommandContext): Promise<void> {
+  /**
+   * The quit flow of File > Exit and of the window's close request: the cancel-run prompt
+   * while a script runs, the save prompt, then `app.quit`. Either prompt's refusal keeps the
+   * editor open and the run going.
+   */
+  async exitApplication(ctx: CommandContext, options: QuitOptions = {}): Promise<void> {
+    if (!(await this.confirmCancelRunningScript(ctx))) return;
     if (!(await this.confirmDiscardChanges(ctx))) return;
     const state = ctx.store.getState();
     if (state.docId) await rememberCaret(ctx, state.docId);
     if (ctx.rpc && state.connection === 'connected') {
-      await ctx.rpc.call('app.quit', {});
+      await ctx.rpc.call('app.quit', options.force ? { force: true } : {});
     } else {
       window.close();
+    }
+  }
+
+  /**
+   * `app.closeRequested` (rpc-api.md §3.1, feature 003): the shell deferred the close of its
+   * window - title-bar close, system shutdown - and waits for the UI to run its quit flow,
+   * which ends in `app.quit({force: true})`; a refused prompt leaves the window open. One
+   * request at a time: a second one while the prompts are up is ignored.
+   */
+  async handleCloseRequested(ctx: CommandContext): Promise<void> {
+    if (this.closeRequestPending) return;
+    this.closeRequestPending = true;
+    try {
+      await this.exitApplication(ctx, { force: true });
+    } finally {
+      this.closeRequestPending = false;
     }
   }
 
   /* ---------------------------------------------------------- notifications */
 
   /**
-   * Subscribes to `doc.changedOnDisk` (reload prompt) and `app.openPaths` (open the forwarded
-   * file). Returns the unsubscribe function.
+   * Subscribes to `doc.changedOnDisk` (reload prompt), `app.openPaths` (open the forwarded
+   * file) and `app.closeRequested` (the window-close quit flow). Returns the unsubscribe
+   * function.
    */
   subscribeNotifications(rpc: RpcClient, getContext: () => CommandContext): () => void {
     const offChanged = rpc.on('doc.changedOnDisk', (payload) => {
@@ -575,9 +662,13 @@ export class FileFeature {
       );
       if (!this.startupChecked) this.startupOpen = opening;
     });
+    const offClose = rpc.on('app.closeRequested', () => {
+      void this.handleCloseRequested(getContext());
+    });
     return () => {
       offChanged();
       offOpen();
+      offClose();
     };
   }
 
@@ -686,6 +777,8 @@ export class FileFeature {
         id: 'file.exit',
         group: 'file',
         ...keys('file.exit', 'menu.file.exit'),
+        // The quiet lock (FR-011) keeps Exit available; the flow asks about the run first.
+        duringScriptRun: 'allowed',
         run: async (ctx) => {
           await this.exitApplication(ctx);
         },
