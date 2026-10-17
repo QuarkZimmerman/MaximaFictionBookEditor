@@ -457,4 +457,78 @@ describe('command registry', () => {
     await Promise.resolve();
     expect(ctx.store.getState().activeView).toBe('source');
   });
+
+  it('blocks a command while a script runs unless its policy allows it', async () => {
+    const ctx = await makeContext();
+    const registry = createCommandRegistry();
+    let selectionAvailable = true;
+    registry.register({
+      id: 'test.copy',
+      group: 'edit',
+      duringScriptRun: 'allowed',
+      enabled: () => selectionAvailable,
+      run: () => {},
+    });
+    registry.register({
+      id: 'test.replace',
+      group: 'edit',
+      duringScriptRun: 'blocked',
+      run: () => {},
+    });
+    registry.register({
+      id: 'test.later',
+      group: 'edit',
+      duringScriptRun: 'allowed',
+      stub: true,
+      run: () => {},
+    });
+    expect(registry.isEnabled('view.source', ctx)).toBe(true);
+    expect(registry.isEnabled('test.copy', ctx)).toBe(true);
+    expect(registry.isEnabled('test.replace', ctx)).toBe(true);
+
+    actions.setScriptRunning(ctx.store, true);
+    expect(registry.isEnabled('view.source', ctx)).toBe(false); // default policy: blocked
+    expect(registry.isEnabled('test.replace', ctx)).toBe(false);
+    expect(registry.isEnabled('test.copy', ctx)).toBe(true);
+    selectionAvailable = false;
+    expect(registry.isEnabled('test.copy', ctx)).toBe(false); // its own predicate still counts
+    selectionAvailable = true;
+    expect(registry.isEnabled('test.later', ctx)).toBe(false); // a stub is never enabled
+
+    actions.setScriptRunning(ctx.store, false);
+    expect(registry.isEnabled('view.source', ctx)).toBe(true);
+    expect(registry.isEnabled('test.replace', ctx)).toBe(true);
+    expect(registry.isEnabled('test.later', ctx)).toBe(false);
+  });
+
+  it('execute() and dispatch() refuse a blocked command during a run and accept an allowed one', async () => {
+    const ctx = await makeContext();
+    const registry = createCommandRegistry();
+    const run = vi.fn();
+    registry.register({ id: 'test.copy', group: 'edit', duringScriptRun: 'allowed', run });
+    actions.setScriptRunning(ctx.store, true);
+
+    expect(await registry.execute('view.source', ctx)).toBe(false);
+    expect(registry.dispatch('view.source', ctx)).toBe(false);
+    await Promise.resolve();
+    expect(ctx.store.getState().activeView).toBe('body');
+
+    expect(await registry.execute('test.copy', ctx)).toBe(true);
+    expect(registry.dispatch('test.copy', ctx)).toBe(true);
+    await Promise.resolve();
+    expect(run).toHaveBeenCalledTimes(2);
+
+    actions.setScriptRunning(ctx.store, false);
+    expect(await registry.execute('view.source', ctx)).toBe(true);
+    expect(ctx.store.getState().activeView).toBe('source');
+  });
+
+  it('refresh() notifies the subscribers so the run policies are re-evaluated', () => {
+    const registry = createCommandRegistry();
+    const listener = vi.fn();
+    registry.subscribe(listener);
+    registry.refresh();
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(registry.all().length).toBeGreaterThan(0); // the set of commands is untouched
+  });
 });
