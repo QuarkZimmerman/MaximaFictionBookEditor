@@ -7,7 +7,9 @@
 #include <map>
 #include <system_error>
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
 #endif
 
@@ -29,7 +31,16 @@ bool dir_writable(const fs::path& p) {
         return false;
     }
 #ifdef _WIN32
-    // No cheap portable probe without creating a file; assume per-user folders are writable.
+    // access() knows nothing of ACLs on Windows: probe by creating and removing an empty file.
+    const fs::path probe =
+        p / (L".mfbe-write-probe-" + std::to_wstring(::GetCurrentProcessId()) + L".tmp");
+    const HANDLE handle =
+        ::CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
+                      FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
+    if (handle == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    ::CloseHandle(handle);  // FILE_FLAG_DELETE_ON_CLOSE removes the probe
     return true;
 #else
     return ::access(p.c_str(), W_OK) == 0;

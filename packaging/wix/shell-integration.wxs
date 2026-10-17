@@ -196,7 +196,7 @@
       <!-- The recorded choice: always installed, so "0" is remembered as well as "1"; its
            removal on uninstall and its rewrite by an upgrade follow the component rules. -->
       <Component Id="MfbeDesktopShortcutChoice" Directory="INSTALL_ROOT" Guid="CC69486F-B95D-496A-86C4-B75F2D164379">
-        <RegistryValue Root="HKMU" Key="Software\Maxima Fiction Book Editor" Name="DesktopShortcut" Type="string" Value="[INSTALLDESKTOPSHORTCUT]" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="Software\Maxima Fiction Book Editor" Name="DesktopShortcut" Type="string" Value="[INSTALLDESKTOPSHORTCUT]" KeyPath="yes"/>
       </Component>
       <ComponentRef Id="MfbeDesktopShortcut"/>
     </ComponentGroup>
