@@ -53,6 +53,13 @@
   gap: 8px;
 }
 
+/* Long Russian and Ukrainian checkbox labels wrap inside their column instead of running
+   into the neighbouring column (feature 003, Settings > Other "Dialogs"). */
+.mfbe-settings-group .mfbe-check-field {
+  align-items: flex-start;
+  white-space: normal;
+}
+
 .mfbe-settings-group {
   display: flex;
   flex-direction: column;
@@ -159,13 +166,14 @@
 
 .mfbe-hotkeys-lists {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 8px;
 }
 
 .mfbe-hotkeys-listbox {
   box-sizing: border-box;
   height: 190px;
+  min-width: 0;
   margin: 0;
   padding: 0;
   overflow: auto;
@@ -183,6 +191,14 @@
   white-space: nowrap;
 }
 
+/* A long command name (the Ukrainian and Russian tooltips) is cut with an ellipsis instead
+   of widening the page; the hotkey column keeps its full width. */
+.mfbe-hotkeys-listbox li > :first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .mfbe-hotkeys-listbox li[aria-selected='true'] {
   background: var(--mfbe-color-highlight-bg, #0078d4);
   color: var(--mfbe-color-highlight-fg, #fff);
@@ -198,7 +214,7 @@
 
 .mfbe-hotkeys-bottom {
   display: grid;
-  grid-template-columns: 1fr 140px;
+  grid-template-columns: 1fr minmax(140px, auto);
   gap: 8px;
 }
 
