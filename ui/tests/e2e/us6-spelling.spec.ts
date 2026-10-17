@@ -16,6 +16,13 @@
  *     and accepted by a fresh `spell.check` of the core;
  *  plus the edge case: combining accents, hyphens and non-breaking spaces produce no false
  *  positives.
+ *
+ * Feature 003, User Story 1 (T013; spec FR-004, acceptance scenarios 5 and 6): the built-in
+ * Ukrainian dictionary `uk_UA` checks `tests/fixtures/books/ukrainian-20-misspellings.fb2` -
+ * its 20 misspellings (`ukrainian-20-misspellings.expected.json`, the apostrophe words included)
+ * are marked within a second and the Spelling dialog offers the correct spelling of each, the
+ * correct apostrophe words are not marked, a word added to the custom dictionary stays accepted
+ * after a reload, and About lists the dictionary's notice beside the English and Russian ones.
  */
 
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -24,7 +31,14 @@ import path from 'node:path';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, test, waitForBook, type CoreHandle, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  fixtureBook,
+  test,
+  waitForBook,
+  type CoreHandle,
+  type RpcCallError,
+} from './fixtures/core';
 import { LINE_END } from './fixtures/keys';
 
 function book(lang: string, paragraphs: string[], id: string, title: string): string {
@@ -311,5 +325,136 @@ test.describe('US6 - check spelling in English and Russian', () => {
     expect(words).toContain('превет');
     // Clean up so the other scenarios of this worker start from an empty dictionary.
     await core.rpc('spell.removeWord', { word: 'превет' });
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 003, User Story 1: the built-in Ukrainian dictionary (T013)       */
+/* ------------------------------------------------------------------------ */
+
+interface UkrainianExpectations {
+  lang: string;
+  misspelled: { word: string; correct: string }[];
+  correctWithApostrophe: string[];
+}
+
+const UK_BOOK = fixtureBook('ukrainian-20-misspellings.fb2');
+const UK_EXPECTED = JSON.parse(
+  readFileSync(fixtureBook('ukrainian-20-misspellings.expected.json'), 'utf8'),
+) as UkrainianExpectations;
+const UK_MISSPELLED = UK_EXPECTED.misspelled.map((entry) => entry.word);
+const APOSTROPHE = /['\u2019]/;
+
+/** Hunspell suggests with the ASCII apostrophe whatever the book wrote: compare folded. */
+function foldApostrophes(word: string): string {
+  return word.replace(/[\u2019\u02bc\u2018`]/g, "'");
+}
+
+test.describe('US1 (feature 003) - the built-in Ukrainian dictionary checks a Ukrainian book', () => {
+  test.beforeEach(async ({ core }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+    test.skip(!(await supportsSpelling(core)), 'the core has no spell.* / dictionaries');
+    const words = await core.rpc<string[]>('spell.customWords');
+    for (const word of words) await core.rpc('spell.removeWord', { word });
+  });
+
+  test('5. the 20 misspellings are marked within a second, the Spelling dialog offers each correct spelling', async ({
+    core,
+    page,
+  }) => {
+    // FR-004: uk_UA ships with the editor like en_US and ru_RU - nothing to download or install.
+    const dictionaries = await core.rpc<{ tag: string; source: string }[]>('spell.dictionaries');
+    expect(dictionaries.map((dictionary) => dictionary.tag)).toEqual(
+      expect.arrayContaining(['en_US', 'ru_RU', 'uk_UA']),
+    );
+    expect(dictionaries.find((dictionary) => dictionary.tag === 'uk_UA')?.source).toBe('bundled');
+    expect(UK_EXPECTED.lang).toBe('uk');
+    expect(UK_MISSPELLED).toHaveLength(20);
+
+    const editor = await openBook(core, page, UK_BOOK);
+    const shownAt = Date.now();
+    await expect.poll(() => misspelledWords(editor), { timeout: 1000 }).toEqual(UK_MISSPELLED);
+    expect(Date.now() - shownAt).toBeLessThan(1500);
+    // Apostrophes: the misspelt words with ’ and ' are marked, the correct ones are not.
+    const marked = await misspelledWords(editor);
+    expect(marked.filter((word) => APOSTROPHE.test(word))).toEqual(
+      UK_MISSPELLED.filter((word) => APOSTROPHE.test(word)),
+    );
+    expect(UK_EXPECTED.correctWithApostrophe.length).toBeGreaterThan(0);
+    for (const word of UK_EXPECTED.correctWithApostrophe) expect(marked).not.toContain(word);
+
+    // The Spelling dialog stops at each of the 20 words in document order, the Ukrainian
+    // dictionary in use, with the correct spelling among the suggestions (Hunspell writes the
+    // apostrophe words with the ASCII apostrophe).
+    await page.getByTestId('menu-tools').click();
+    await page.getByTestId('menu-tools-spellcheck').click();
+    const dialog = page.getByTestId('dialog-spelling');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByTestId('spelling-dictionary-uk_UA')).toBeChecked();
+    await expect(dialog.getByTestId('spelling-dictionary-ru_RU')).not.toBeChecked();
+    await expect(dialog.getByTestId('spelling-dictionary-en_US')).not.toBeChecked();
+    const word = dialog.getByTestId('spelling-not-in-dictionary');
+    const suggestions = () =>
+      dialog.locator('[data-testid^="spelling-suggestion-"]').allInnerTexts();
+    for (const { word: misspelt, correct } of UK_EXPECTED.misspelled) {
+      await expect(word).toHaveValue(misspelt);
+      await expect
+        .poll(async () => (await suggestions()).map(foldApostrophes), {
+          message: `suggestions for "${misspelt}"`,
+        })
+        .toContain(foldApostrophes(correct));
+      await dialog.getByTestId('spelling-ignore').click();
+    }
+    const complete = page.getByTestId('spelling-complete');
+    await expect(complete).toBeVisible();
+    await complete.getByTestId('spelling-complete-button-ok').click();
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test('6. a word added to the custom dictionary stays accepted after a reload; About lists the uk_UA notice', async ({
+    core,
+    page,
+  }) => {
+    const editor = await openBook(core, page, UK_BOOK);
+    await expect.poll(() => misspelledWords(editor)).toEqual(UK_MISSPELLED);
+    const added = UK_MISSPELLED[0]!;
+    await editor.locator('.mfbe-misspelled', { hasText: added }).click({ button: 'right' });
+    await expect(page.getByTestId('context-menu-spelling-add')).toBeVisible();
+    await page.getByTestId('context-menu-spelling-add').click();
+    await expect.poll(() => misspelledWords(editor)).not.toContain(added);
+    expect(await core.rpc<string[]>('spell.customWords')).toContain(added);
+
+    // A reload (the page starts over and opens the book again): the word stays accepted.
+    const reloaded = await openBook(core, page, UK_BOOK);
+    await expect
+      .poll(() => misspelledWords(reloaded), { timeout: 3000 })
+      .toEqual(UK_MISSPELLED.filter((word) => word !== added));
+    const check = await core.rpc<{ misspelled: string[] }>('spell.check', {
+      words: [added, UK_MISSPELLED[1]!],
+      langs: ['uk'],
+    });
+    expect(check.misspelled).toEqual([UK_MISSPELLED[1]!]);
+
+    // About: the Ukrainian dictionary's notice like the English and Russian ones (scenario 6).
+    await page.getByTestId('menu-help').click();
+    await page.getByTestId('menu-help-about').click();
+    const about = page.getByTestId('dialog-about');
+    await expect(about).toBeVisible();
+    for (const tag of ['en_US', 'ru_RU', 'uk_UA']) {
+      const notice = about.getByTestId(`about-dictionary-${tag}`);
+      await expect(notice, `About lists ${tag}`).toBeVisible();
+      await expect(notice).toContainText(tag);
+    }
+    await expect(about.getByTestId('about-dictionary-uk_UA')).toContainText(
+      /MPL|Mozilla Public License/i,
+    );
+    const licence = await core.rpc<{ tag: string; text: string }>('spell.dictionaryLicense', {
+      tag: 'uk_UA',
+    });
+    expect(licence.text).toMatch(/MPL|Mozilla Public License/i);
+    await page.keyboard.press('Escape');
+    await expect(about).toBeHidden();
+    // Clean up so the other scenarios of this worker start from an empty dictionary.
+    await core.rpc('spell.removeWord', { word: added });
   });
 });

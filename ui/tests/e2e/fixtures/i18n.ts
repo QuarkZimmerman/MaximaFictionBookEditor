@@ -1,9 +1,9 @@
 /**
  * The interface's own texts for the journeys: the catalogues of `ui/src/i18n` merged as the
  * application merges them (`<lang>.json` plus every `<feature>.<lang>.json`), in the language
- * the page shows (`<html lang>`), so one journey asserts the same text in English and in Russian.
- * `{{name}}` placeholders are filled, `&` accelerator markers removed (`&&` is a literal `&`),
- * and a `count` picks the plural form as i18next does.
+ * the page shows (`<html lang>`), so one journey asserts the same text in English, in Russian
+ * and in Ukrainian (feature 003). `{{name}}` placeholders are filled, `&` accelerator markers
+ * removed (`&&` is a literal `&`), and a `count` picks the plural form as i18next does.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -11,7 +11,14 @@ import path from 'node:path';
 
 import type { Page } from '@playwright/test';
 
-export type UiLang = 'en' | 'ru';
+export type UiLang = 'en' | 'ru' | 'uk';
+
+/** The interface languages, in the order of the Settings choice (after "System default"). */
+export const UI_LANGS: readonly UiLang[] = ['en', 'ru', 'uk'];
+
+export function isUiLang(value: string | null | undefined): value is UiLang {
+  return value === 'en' || value === 'ru' || value === 'uk';
+}
 
 type Catalogue = { [key: string]: string | Catalogue };
 
@@ -58,6 +65,45 @@ function lookup(lang: UiLang, key: string): string | undefined {
   return typeof node === 'string' ? node : undefined;
 }
 
+function flatten(node: Catalogue, prefix: string, out: Map<string, string>): void {
+  for (const [key, value] of Object.entries(node)) {
+    const full = prefix ? `${prefix}.${key}` : key;
+    if (typeof value === 'string') out.set(full, value);
+    else flatten(value, full, out);
+  }
+}
+
+const flatCatalogues = new Map<UiLang, ReadonlyMap<string, string>>();
+
+/**
+ * Every text of the `lang` catalogues (base plus features), flattened to `a.b.c` keys, as
+ * written: `&` markers and `{{name}}` placeholders included (`$comment` entries skipped).
+ */
+export function catalogueEntries(lang: UiLang): ReadonlyMap<string, string> {
+  let flat = flatCatalogues.get(lang);
+  if (!flat) {
+    const out = new Map<string, string>();
+    flatten(catalogue(lang), '', out);
+    flat = out;
+    flatCatalogues.set(lang, flat);
+  }
+  return flat;
+}
+
+/** A catalogue value as the user sees it: `&x` -> `x`, `&&` -> `&`. */
+export function plainText(value: string): string {
+  return value.replace(/&(&?)/g, (_, literal: string) => literal);
+}
+
+/**
+ * The `&` accelerator letter of a raw catalogue value (lower case), null when it has none;
+ * mirrors `parseAccelerator()` of ui/src/i18n/index.ts (the first `&x` wins, `&&` is literal).
+ */
+export function acceleratorOf(value: string): string | null {
+  const match = /&([^&])/.exec(value.replace(/&&/g, ''));
+  return match ? match[1]!.toLowerCase() : null;
+}
+
 /** The interface text `key` in `lang`, as the user sees it. */
 export function uiText(
   lang: UiLang,
@@ -78,16 +124,15 @@ export function uiText(
 
 /** The `&` accelerator letter of the label `key` in `lang` (lower case). */
 export function uiAccelerator(lang: UiLang, key: string): string {
-  const value = lookup(lang, key) ?? '';
-  const match = /&([^&])/.exec(value.replace(/&&/g, ''));
-  if (!match) throw new Error(`"${key}" has no accelerator in the ${lang} catalogue`);
-  return match[1]!.toLowerCase();
+  const letter = acceleratorOf(lookup(lang, key) ?? '');
+  if (letter === null) throw new Error(`"${key}" has no accelerator in the ${lang} catalogue`);
+  return letter;
 }
 
-/** The language the page's interface shows. */
+/** The language the page's interface shows (`<html lang>`; English for anything else). */
 export async function pageLang(page: Page): Promise<UiLang> {
   const lang = await page.evaluate<string>('document.documentElement.lang');
-  return lang === 'ru' ? 'ru' : 'en';
+  return isUiLang(lang) ? lang : 'en';
 }
 
 /** `uiText` in the language the page shows. */

@@ -54,6 +54,20 @@ export default defineConfig<CoreOptions>({
       ],
       use: { ...devices['Desktop Chrome'], locale: 'ru-RU', uiLang: 'ru' },
     },
+    {
+      // ... and with the Ukrainian interface (feature 003, FR-005): the same journeys as the
+      // Russian project, started with `?lang=uk` on a Ukrainian browser locale.
+      name: 'chromium-uk',
+      testMatch: [
+        'us1-open-save.spec.ts',
+        'us2-body-editing.spec.ts',
+        'us2-template.spec.ts',
+        'us5-find-modeless.spec.ts',
+        'us8-toolbars.spec.ts',
+        'us12-scripts.spec.ts',
+      ],
+      use: { ...devices['Desktop Chrome'], locale: 'uk-UA', uiLang: 'uk' },
+    },
   ],
   webServer: useVitePreview
     ? {

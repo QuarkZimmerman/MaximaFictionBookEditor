@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 
 import { test as base, expect, type Page } from '@playwright/test';
 
-import { uiText, type UiLang } from './i18n';
+import { UI_LANGS, uiText, type UiLang } from './i18n';
 
 export { expect };
 
@@ -45,9 +45,9 @@ export async function waitForStartupDocument(page: Page): Promise<void> {
   await expect(page).toHaveTitle(UNTITLED_TITLE);
 }
 
-/** The window title of the start-up document in either interface language. */
+/** The window title of the start-up document in any interface language. */
 const UNTITLED_TITLE = new RegExp(
-  `^(${uiText('en', 'app.untitled')}|${uiText('ru', 'app.untitled')}) - ${APP_TITLE}$`,
+  `^(${UI_LANGS.map((lang) => uiText(lang, 'app.untitled')).join('|')}) - ${APP_TITLE}$`,
 );
 
 /**

@@ -13,6 +13,10 @@
  *  4. unsaved changes -> "Save changes to X?" on New / Open / Exit, answers honoured
  *  5. external change -> "has been changed by another application" prompt, reload on Yes
  *  6. failed save -> error message, original bytes intact, document still modified
+ *
+ * The interface texts the journey waits for come from the catalogues in the language the page
+ * shows (fixtures/i18n.ts): the `chromium-ru` and `chromium-uk` projects run the same journey
+ * with `?lang=ru` and `?lang=uk` (feature 002 FR-091, feature 003 FR-005).
  */
 
 import {
