@@ -260,8 +260,11 @@ function Exit-Editor([hashtable]$ExitKey = $keyVe) {
         Write-Host "DevTools connection ended with the window: $($_.Exception.Message)"
     }
     if (-not $script:editor.WaitForExit(60000)) { throw 'the editor did not end after File > Exit' }
-    if ($script:editor.ExitCode -ne 0) {
-        throw ('the editor ended with exit code 0x{0:X8} after File > Exit' -f $script:editor.ExitCode)
+    # The editor the restart started (found with Get-Process, another user's process) exposes no
+    # exit code to this session; only a code that is readable and non-zero is a failure.
+    $exitCode = try { $script:editor.ExitCode } catch { $null }
+    if ($null -ne $exitCode -and $exitCode -ne 0) {
+        throw ('the editor ended with exit code 0x{0:X8} after File > Exit' -f $exitCode)
     }
 }
 
