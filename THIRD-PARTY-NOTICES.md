@@ -7,7 +7,10 @@ notices and contributor list are in `CONTRIBUTORS.txt`. The components below shi
 the editor or are embedded in its binaries; each keeps its own licence, and every one of
 them may be distributed as part of a GPL-3.0 work (project policy: licences that may not,
 and unknown licences, fail the check; a multi-licensed component is listed under a
-compatible option). This file names components, versions and licence identifiers; the
+compatible option) - except the aggregated data files of their own section: data the
+editor only reads at run time and never combines into the program (GPLv3 section 5),
+which needs a licence that allows free redistribution with its notice. This file names
+components, versions and licence identifiers; the
 complete licence texts, including the copyright notices they require, are the files
 listed in the "Full text" column, exported with
 `python3 tools/licence-check.py --export-texts <dir>` and installed with the packages
@@ -101,6 +104,19 @@ distributed and are therefore not listed.
 | Hunspell dictionary ru_RU | LibreOffice dictionaries commit 67032ee95763 | BSD-style | `resources/dictionaries/ru_RU.txt` | installed as share/mfbe/resources/dictionaries/ru_RU.txt |
 | Material derived from the original FictionBook Editor 2.7 (genre lists, symbols, blank template, icons) and the converted bundled scripts | FBE 2.7 | GPL-3.0-only | `LICENSE` | the original editor's licence and the project's; its copyright notices and contributor list are in CONTRIBUTORS.txt, the scripts keep their authors' notices; installed as share/doc/mfbe/LICENSE and CONTRIBUTORS.txt |
 
+## Aggregated data files
+
+| Component | Version | Licence | Full text | Notes |
+|---|---|---|---|---|
+| Hunspell dictionary uk_UA (dict_uk) | dict_uk release v6.8.6 | MPL-1.1 | `resources/dictionaries/uk_UA.txt` | uk_UA.aff and uk_UA.dic are read at run time by Hunspell and not combined into the program (aggregate, GPLv3 section 5; decision D16); the upstream generator notice also names GPL-3.0-or-later and LGPL-2.1-or-later; notice installed as share/mfbe/resources/dictionaries/uk_UA.txt and shown in About |
+
+Data files the editor's libraries read at run time and that are never combined into the
+program: aggregates in the sense of GPLv3 section 5 (constitution principle VI, decision
+D16). Their licences need not be GPL-3.0-compatible; they must allow free redistribution
+with the notice that ships next to each file (MPL-1.1 qualifies; licences forbidding
+redistribution or commercial use do not). The notice is installed with the file and shown
+in Help > About like the other dictionaries' notices.
+
 ## Build and test tooling (not distributed)
 
 | Component | Version | Licence | Full text | Notes |
@@ -125,6 +141,7 @@ distributed and are therefore not listed.
 | BSD-style | 1 |
 | GPL-3.0-only | 1 |
 | LGPL-2.1-or-later | 1 |
+| MPL-1.1 | 1 |
 | SCOWL AND BSD-style AND public-domain | 1 |
 | Zlib | 1 |
 | libpng-2.0 | 1 |

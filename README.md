@@ -102,6 +102,10 @@ Bundled third-party components (Chromium Embedded Framework, libxml2, Hunspell a
 spelling dictionaries, image libraries, the FictionBook schema, ...) keep their own licences,
 all of which allow distribution as part of a GPL-3.0 work; they are listed in
 `THIRD-PARTY-NOTICES.md` (generated and checked by `tools/licence-check.py`), and their full
-licence texts are installed under `share/doc/mfbe/licenses/`. The complete source of every
-release is this repository at the release's tag; third-party sources are at the versions
-pinned in `vcpkg.json` and `cmake/CefVersion.cmake`.
+licence texts are installed under `share/doc/mfbe/licenses/`. Run-time data files that the
+editor only reads and never combines into the program, such as spelling dictionaries, are
+aggregates listed in their own section of `THIRD-PARTY-NOTICES.md` and ship with their own
+notice next to the file (the Ukrainian dictionary of dict_uk, Mozilla Public License 1.1,
+`resources/dictionaries/uk_UA.txt`). The complete source of every release is this repository
+at the release's tag; third-party sources are at the versions pinned in `vcpkg.json` and
+`cmake/CefVersion.cmake`.

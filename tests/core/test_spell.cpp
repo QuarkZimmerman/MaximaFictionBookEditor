@@ -42,11 +42,11 @@ TEST_CASE("spell: dictionaries are discovered through the layers; ru -> ru_RU, e
           "[spell]") {
     test::TempDir tmp{"mfbe-spell"};
     resources::Roots roots = roots_for(tmp);
-    // A user dictionary pair (uk_UA) and a lone .aff (ignored) in <Data>/dictionaries.
+    // A user dictionary pair (be_BY) and a lone .aff (ignored) in <Data>/dictionaries.
     std::filesystem::create_directories(tmp / "data" / "dictionaries");
-    test::write_text(tmp / "data" / "dictionaries" / "uk_UA.aff", "SET UTF-8\n");
-    test::write_text(tmp / "data" / "dictionaries" / "uk_UA.dic", "2\nслово\nмова\n");
-    test::write_text(tmp / "data" / "dictionaries" / "uk_UA.txt", "licence text");
+    test::write_text(tmp / "data" / "dictionaries" / "be_BY.aff", "SET UTF-8\n");
+    test::write_text(tmp / "data" / "dictionaries" / "be_BY.dic", "2\nслова\nмова\n");
+    test::write_text(tmp / "data" / "dictionaries" / "be_BY.txt", "licence text");
     test::write_text(tmp / "data" / "dictionaries" / "lonely.aff", "SET UTF-8\n");
     // A portable copy of en_US conflicts with the bundled one: bundled wins.
     std::filesystem::create_directories(tmp / "portable" / "dictionaries");
@@ -54,15 +54,17 @@ TEST_CASE("spell: dictionaries are discovered through the layers; ru -> ru_RU, e
     test::write_text(tmp / "portable" / "dictionaries" / "en_US.dic", "1\nzzz\n");
     const resources::ResourceLayers layers(roots);
     spell::DictionaryRegistry registry(layers);
-    REQUIRE(registry.dictionaries().size() == 3);
+    REQUIRE(registry.dictionaries().size() == 4);
     CHECK(registry.dictionaries()[0].tag == "en_US");
     CHECK(registry.dictionaries()[0].layer == resources::LayerName::bundled);
     CHECK(registry.dictionaries()[0].aff == resources_root() / "dictionaries" / "en_US.aff");
     CHECK(registry.dictionaries()[0].readme == resources_root() / "dictionaries" / "en_US.txt");
     CHECK(registry.dictionaries()[1].tag == "ru_RU");
     CHECK(registry.dictionaries()[2].tag == "uk_UA");
-    CHECK(registry.dictionaries()[2].layer == resources::LayerName::user);
-    CHECK(registry.dictionaries()[2].readme == tmp / "data" / "dictionaries" / "uk_UA.txt");
+    CHECK(registry.dictionaries()[2].layer == resources::LayerName::bundled);
+    CHECK(registry.dictionaries()[3].tag == "be_BY");
+    CHECK(registry.dictionaries()[3].layer == resources::LayerName::user);
+    CHECK(registry.dictionaries()[3].readme == tmp / "data" / "dictionaries" / "be_BY.txt");
     CHECK(registry.resolve("ru")->tag == "ru_RU");
     CHECK(registry.resolve("RU")->tag == "ru_RU");
     CHECK(registry.resolve("ru-RU")->tag == "ru_RU");
@@ -70,19 +72,21 @@ TEST_CASE("spell: dictionaries are discovered through the layers; ru -> ru_RU, e
     CHECK(registry.resolve("en")->tag == "en_US");
     CHECK(registry.resolve("en_US")->tag == "en_US");
     CHECK(registry.resolve("uk")->tag == "uk_UA");
+    CHECK(registry.resolve("be")->tag == "be_BY");
     CHECK(registry.resolve("de") == nullptr);
     CHECK(registry.resolve("") == nullptr);
     const json j = registry.to_json();
-    CHECK(j.size() == 3);
+    CHECK(j.size() == 4);
     CHECK(j[0]["tag"] == "en_US");
     CHECK(j[0]["lang"] == "en");
     CHECK(j[0]["source"] == "bundled");
     CHECK(j[0]["readmePath"].is_string());
-    CHECK(j[2]["source"] == "user");
+    CHECK(j[2]["source"] == "bundled");
+    CHECK(j[3]["source"] == "user");
     // Spelling with the tiny user dictionary works too.
     spell::SpellService service(layers, tmp / "custom.dic");
-    const auto checked = service.check({"слово", "мова", "nope"}, {"uk"});
-    CHECK(checked.langs == std::vector<std::string>{"uk_UA"});
+    const auto checked = service.check({"слова", "мова", "nope"}, {"be"});
+    CHECK(checked.langs == std::vector<std::string>{"be_BY"});
     CHECK(checked.misspelled == std::vector<std::string>{"nope"});
 }
 
@@ -249,10 +253,11 @@ TEST_CASE("spell.* RPC: dictionaries, check, suggest, custom words, custom path"
     REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
 
     const json dictionaries = ws.call("spell.dictionaries")["result"];
-    REQUIRE(dictionaries.size() == 2);
+    REQUIRE(dictionaries.size() == 3);
     CHECK(dictionaries[0]["tag"] == "en_US");
     CHECK(dictionaries[0]["source"] == "bundled");
     CHECK(dictionaries[1]["tag"] == "ru_RU");
+    CHECK(dictionaries[2]["tag"] == "uk_UA");
     const json licence = ws.call("spell.dictionaryLicense", json{{"tag", "ru_RU"}})["result"];
     CHECK(licence["text"].get<std::string>().find("Lebedev") != std::string::npos);
     CHECK(ws.call("spell.dictionaryLicense", json{{"tag", "xx"}})["error"]["code"] == 1020);

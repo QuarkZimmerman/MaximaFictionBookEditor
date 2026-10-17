@@ -193,7 +193,7 @@ TEST_CASE(
     CHECK(report["result"]["errorCount"] == 0);
     CHECK(ws.call("resources.genres")["result"]["entries"].size() == 192);
     const json dictionaries = ws.call("spell.dictionaries")["result"];
-    REQUIRE(dictionaries.size() == 2);
+    REQUIRE(dictionaries.size() == 3);
     CHECK(dictionaries[1]["path"] == utf8(resources / "dictionaries" / "ru_RU.aff"));
     const json checked = ws.call("spell.check", json{{"words", {"превет", "привет", "мир", "teh"}},
                                                      {"langs", {"ru", "en"}}});
