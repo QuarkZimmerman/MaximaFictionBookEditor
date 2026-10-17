@@ -99,6 +99,10 @@ jobs:
           sudo apt-get install -y ninja-build pkg-config autoconf automake autoconf-archive libtool bison flex \
             libgtk-3-dev libnss3 libasound2 xvfb file
 
+      - name: Generate the regional locales the core tests format dates under (feature 003)
+        if: runner.os == 'Linux'
+        run: sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
+
       - name: Install Ninja (Windows/macOS)
         if: runner.os != 'Linux'
         uses: seanmiddleditch/gha-setup-ninja@v5
@@ -229,6 +233,8 @@ jobs:
         working-directory: ui
       - run: npx playwright install --with-deps chromium
         working-directory: ui
+      # The regional locales the date journeys start the core under (feature 003).
+      - run: sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
       - run: npm run test:e2e -- --grep-invert @perf
         working-directory: ui
         env:
@@ -239,7 +245,7 @@ jobs:
         # interface follows it - and the folders the core and the journeys use under Cyrillic
         # names. The browsers stay where the previous step installed them (HOME moves).
         run: |
-          sudo locale-gen ru_RU.UTF-8
+          sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
           mkdir -p "$HOME_RU/tmp"
           HOME="$HOME_RU" TMPDIR="$HOME_RU/tmp" \
             npx playwright test --project=chromium us2-template us1-open-save us5-find-modeless
@@ -349,9 +355,13 @@ jobs:
         run: |
           $ErrorActionPreference = "Continue"
           dotnet --list-sdks
+          # The WiX tool and its extensions are pinned to one exact version (feature 003, T005:
+          # the version the last green release run installed, 7.0.0+b8977d6). Bump deliberately,
+          # together with packaging/README.md, after a packaging smoke on this branch.
+          $wixVersion = "7.0.0"
           $installed = (dotnet tool list --global) -match "^wix\s"
-          if ($installed) { dotnet tool update --global wix 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/wix.log" }
-          else { dotnet tool install --global wix 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/wix.log" }
+          if ($installed) { dotnet tool update --global wix --version $wixVersion 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/wix.log" }
+          else { dotnet tool install --global wix --version $wixVersion 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/wix.log" }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           wix --version 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
           $version = (wix --version).Trim()
@@ -360,9 +370,9 @@ jobs:
           # (https://wixtoolset.org/osmf/). The fee applies to organisations above the revenue
           # threshold only; this independent open-source project is exempt and accepts the EULA.
           if ([int]$major -ge 7) { wix eula accept "wix$major" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log" }
-          wix extension add -g "WixToolset.UI.wixext/$major.*" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          wix extension add -g "WixToolset.UI.wixext/$wixVersion" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
           if ($LASTEXITCODE -ne 0) { wix extension add -g WixToolset.UI.wixext 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log" }
-          wix extension add -g "WixToolset.Util.wixext/$major.*" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
+          wix extension add -g "WixToolset.Util.wixext/$wixVersion" 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
           if ($LASTEXITCODE -ne 0) { wix extension add -g WixToolset.Util.wixext 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log" }
           wix extension list -g 2>&1 | Tee-Object -Append -FilePath "$env:RUNNER_TEMP/wix.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -450,7 +460,7 @@ jobs:
         # start-up file.
         if: runner.os == 'Linux'
         run: |
-          sudo locale-gen ru_RU.UTF-8
+          sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
           mkdir -p "$HOME_RU/tmp" "$HOME_RU/Книги"
           cp tests/fixtures/books/modern-utf8.fb2 "$HOME_RU/Книги/Новая книга.fb2"
           TMPDIR="$HOME_RU/tmp" MFBE_SMOKE_OPEN_FILE="$HOME_RU/Книги/Новая книга.fb2" \
