@@ -1,0 +1,486 @@
+id	scope	ru	uk	en
+DIALOG:IDD_ABOUTBOX:CAPTION	caption	О программе	Про програму	About
+DIALOG:IDD_FIND:CAPTION	caption	Поиск	Пошук	Find
+DIALOG:IDD_INPUTBOX:CAPTION	caption	Ввод	Введення	Input
+DIALOG:IDD_REPLACE:CAPTION	caption	Заменить	Пошук і заміна	Replace
+DIALOG:IDD_SPELL_CHECK:CAPTION	caption	Орфография	Орфографія	Spelling
+DIALOG:IDD_TABLE:CAPTION	caption	Параметры таблицы	Параметри таблиці	Table properties
+DIALOG:IDD_WORDS:CAPTION	caption	Слова	Слова	Words
+IDD_ABOUTBOX:IDC_STATIC_BUILD	control	Сборка	Збірка	Build
+IDD_ABOUTBOX:IDC_SYSLINK_AB_LINKS	control	<a href="http://code.google.com/p/fictionbookeditor/">http://code.google.com/p/fictionbookeditor/</a>	<a href="http://code.google.com/p/fictionbookeditor/">http://code.google.com/p/fictionbookeditor/</a>	<a href="http://code.google.com/p/fictionbookeditor/">http://code.google.com/p/fictionbookeditor/</a>
+IDD_ABOUTBOX:IDC_TEXT_STATUS	control	Static	Static	Static
+IDD_ABOUTBOX:IDC_UPDATE	control	Обновить	Обновити	Update now
+IDD_ABOUTBOX:IDOK	control	OK	Гаразд	OK
+IDD_CUSTOMSAVEDLG:STATIC:1	control	Кодировка:	Кодування:	Encoding:
+IDD_FIND:IDCANCEL	control	Отмена	Скасувати	Cancel
+IDD_FIND:IDC_DOWN	control	В&низ	Вниз	&Down
+IDD_FIND:IDC_MATCHCASE	control	&Учитывать регистр	&Враховувати регістр	Match &case
+IDD_FIND:IDC_REGEXP	control	&Регулярное выражение	&Регулярний вираз	Regular &expression
+IDD_FIND:IDC_UP	control	&Вверх	В&гору	&Up
+IDD_FIND:IDC_WHOLE	control	&Только целые слова	Слова &повністю	Match &whole words
+IDD_FIND:ID_FIND_NEXT	control	&Искать далее	З&найти далі	&Find Next
+IDD_FIND:STATIC:1	control	Что искать:	Знайти:	Fi&nd what:
+IDD_FIND:STATIC:2	control	Направление	Напрямок	Direction
+IDD_INPUTBOX:IDCANCEL	control	&Отмена	&Скасувати	&Cancel
+IDD_INPUTBOX:IDC_PROMPT	control	Текст:	Текст:	Text:
+IDD_INPUTBOX:IDNO	control	&Нет	&Ні	&No
+IDD_INPUTBOX:IDYES	control	&Да	&Так	&Yes
+IDD_REPLACE:IDCANCEL	control	Отмена	Скасувати	Cancel
+IDD_REPLACE:IDC_DOWN	control	В&низ	Вниз	&Down
+IDD_REPLACE:IDC_MATCHCASE	control	&Учитывать регистр	&Враховувати регістр	Match &case
+IDD_REPLACE:IDC_REGEXP	control	&Регулярное выражение	&Регулярний вираз	Regular &expression
+IDD_REPLACE:IDC_REPLACE_ALL	control	Заменить &все	Замінити &усі	Replace &All
+IDD_REPLACE:IDC_REPLACE_ONE	control	&Заменить	&Замінити	&Replace
+IDD_REPLACE:IDC_UP	control	&Вверх	В&гору	&Up
+IDD_REPLACE:IDC_WHOLE	control	&Только слова целиком	&Слова повністю	Match &whole words
+IDD_REPLACE:ID_FIND_NEXT	control	&Искать далее	З&найти далі	&Find Next
+IDD_REPLACE:STATIC:1	control	Найти:	Знайти:	Fi&nd what:
+IDD_REPLACE:STATIC:2	control	Заменить:	Замінити на:	Replace with:
+IDD_REPLACE:STATIC:3	control	Направление	Напрямок	Direction
+IDD_SETTINGS_HOTKEYS:IDC_BUTTON_DEFAULT	control	По умолчанию	Типово	Default
+IDD_SETTINGS_HOTKEYS:IDC_BUTTON_HOTKEY_ASSIGN	control	Присвоить	Присвоїти	Assign
+IDD_SETTINGS_HOTKEYS:IDC_BUTTON_HOTKEY_DELETE	control	Удалить	Видалити	Delete
+IDD_SETTINGS_HOTKEYS:IDC_STATIC_HOTKEYS	control	Команды:	Команди:	Commands:
+IDD_SETTINGS_HOTKEYS:IDC_STATIC_HOTKEYS_GROUPS	control	Группы:	Гурти:	Groups:
+IDD_SETTINGS_HOTKEYS:IDC_STATIC_HOTKEY_COLLISION	control	Присвоено	Присвоєно	Assigned to
+IDD_SETTINGS_HOTKEYS:IDC_STATIC_HOTKEY_DESCRIPTION	control	Описание	Опис	Description
+IDD_SETTINGS_HOTKEYS:STATIC:1	control	Клавиши:	Клавіші:	Shortcut:
+IDD_SETTINGS_HOTKEYS:STATIC:2	control	Действия	Дії	
+IDD_SETTINGS_OTHER:IDC_CHANGE_KEYB	control	Менять при старте	Змінювати при старті	Change on start
+IDD_SETTINGS_OTHER:IDC_DEFAULT_SCRIPTS_FOLDER	control	Папка по-умолчанию	Типова тека	Default folder
+IDD_SETTINGS_OTHER:IDC_KEEP	control	Сохранять оригинальную кодировку	Зберігати оригінальне кодування	Keep Encoding
+IDD_SETTINGS_OTHER:IDC_OPTIONS_CLEARIMGS	control	Вставлять пустые изображения	Вставляти порожні малюнки	Insert clear images
+IDD_SETTINGS_OTHER:IDC_RESTORE_POS	control	Восстанавливать позицию курсора	Відновлювати позицію курсору	Restore Position
+IDD_SETTINGS_OTHER:IDC_SELECT_SCRIPTS_FOLDER_BUTTON	control	...	...	...
+IDD_SETTINGS_OTHER:IDC_SETTINGS_ASKIMAGE	control	Спрашивать о вставке непустого изображения	Запитувати про вставку непорожнього малюнка	Ask for non clear image insertion
+IDD_SETTINGS_OTHER:STATIC:1	control	Опции сохранения	Параметри збереження	Save File
+IDD_SETTINGS_OTHER:STATIC:2	control	Кодировка:	Кодування:	Default encoding:
+IDD_SETTINGS_OTHER:STATIC:3	control	Опции открытия	Параметри відкриття	Open File
+IDD_SETTINGS_OTHER:STATIC:4	control	Папка скриптов	Тека скриптів	Scripts folder
+IDD_SETTINGS_OTHER:STATIC:5	control	Диалоги	Діалоги	Dialogs
+IDD_SETTINGS_OTHER:STATIC:6	control	Изображения	Малюнки	Images
+IDD_SETTINGS_OTHER:STATIC:7	control	Неразрывные пробелы	Нерозривні пробіли	Paste images as
+IDD_SETTINGS_OTHER:STATIC:8	control	Использовать символ:	Використати символ:	Image format:
+IDD_SETTINGS_OTHER:STATIC:9	control	Раскладка клавиатуры	Розкладка клавіатури	JPEG quality:
+IDD_SETTINGS_OTHER:STATIC:10	control	Вставлять изображения, как	Вставляти малюнки, як	Non-breaking space
+IDD_SETTINGS_OTHER:STATIC:11	control	Формат:	Формат:	Display character:
+IDD_SETTINGS_OTHER:STATIC:12	control	Качество JPEG:	Якість JPEG:	Keyboard layout
+IDD_SETTINGS_OTHER:STATIC:13	control	Менять на:	Міняти на:	Change to:
+IDD_SETTINGS_VIEW:IDC_BACKGROUNDSPELLCHECK	control	Выделять ошибки	Виділяти помилки	Highlight misspelled words
+IDD_SETTINGS_VIEW:IDC_DICTPATH	control	..	..	..
+IDD_SETTINGS_VIEW:IDC_FAST_MODE	control	Быстрый режим	Швидкий режим	Fast Mode
+IDD_SETTINGS_VIEW:IDC_SHOWEOL	control	Показывать символы конца строк	Показувати символи кінця рядків	Show end of line marks
+IDD_SETTINGS_VIEW:IDC_SHOWLINENUMBERS	control	Показывать номера строк	Показувати номери рядків	Show line numbers
+IDD_SETTINGS_VIEW:IDC_SHOWWHITESPACE	control	Показывать пробелы	Показувати пробіли	Show white spaces
+IDD_SETTINGS_VIEW:IDC_SYNTAXHL	control	Подсветка синтаксиса	Підсвітка синтаксису	Syntax highlighting
+IDD_SETTINGS_VIEW:IDC_TAGHL	control	Подсветка парных тегов	Підсвітка парних тегів	Highlight matched tags
+IDD_SETTINGS_VIEW:IDC_USESPELLCHECKER	control	Проверять орфографию	Перевіряти орфографію	Use spellchecker
+IDD_SETTINGS_VIEW:IDC_WRAP	control	Перенос строк	Переноси рядків	Wrap lines
+IDD_SETTINGS_VIEW:IDS_SPELL_CUSTOM_DICT	control	Пользовательский словарь:	Словник користувача:	Custom dictionary:
+IDD_SETTINGS_VIEW:STATIC:1	control	Цвет текста:	Колір тексту:	Text color:
+IDD_SETTINGS_VIEW:STATIC:2	control	Цвет фона:	Колір тла:	Background:
+IDD_SETTINGS_VIEW:STATIC:3	control	Шрифт:	Шрифт:	Editor font:
+IDD_SETTINGS_VIEW:STATIC:4	control	Размер шрифта:	Розмір шрифту:	Font size:
+IDD_SETTINGS_VIEW:STATIC:5	control	Общее	Загальне	Common
+IDD_SETTINGS_VIEW:STATIC:6	control	Тело	Тіло	Body
+IDD_SETTINGS_VIEW:STATIC:7	control	Редактор кода	Редактор коду	XML source editor
+IDD_SETTINGS_VIEW:STATIC:8	control	Язык:	Мова:	Language:
+IDD_SETTINGS_VIEW:STATIC:9	control	Проверка орфографии	Перевірка орфографії	Spellcheck
+IDD_SETTINGS_VIEW:STATIC:10	control	Шрифт:	Шрифт:	Editor font:
+IDD_SETTINGS_WORDS:IDC_BUTTON_ADD	control	Добавить	Додати	Add
+IDD_SETTINGS_WORDS:IDC_BUTTON_REMOVESEL	control	Убрать выделенное	Видалити виділене	Remove selected
+IDD_SETTINGS_WORDS:IDC_CHECK_SELALL	control	Выделить всё	Виділити усі	Select All
+IDD_SETTINGS_WORDS:IDC_CHECK_SHOW_EXCLUSIONS	control	Показывать слова-исключения в диалоге "Слова"	Показувати слова-виключення у вікні «Слова»	Show exclusions in Words dialog
+IDD_SETTINGS_WORDS:IDC_STATIC_WORDS_CHEVRON	control	Список слов-исключений	Список слів-виключень	Word-exclusion list
+IDD_SPELL_CHECK:IDCANCEL	control	Отмена	Скасувати	Cancel
+IDD_SPELL_CHECK:IDC_SPELL_ADD	control	Добавить	Додати	Add
+IDD_SPELL_CHECK:IDC_SPELL_CHANGE	control	Заменить	Замінити	Change
+IDD_SPELL_CHECK:IDC_SPELL_CHANGEALL	control	Замена всех	Замінити усі	Change All
+IDD_SPELL_CHECK:IDC_SPELL_IGNORE	control	Пропустить	Пропустити	Ignore
+IDD_SPELL_CHECK:IDC_SPELL_IGNOREALL	control	Пропуск всех	Пропуст. усі	Ignore All
+IDD_SPELL_CHECK:IDC_SPELL_SUGGEST	control	Вариант	Варіант	Suggets
+IDD_SPELL_CHECK:IDC_SPELL_UNDO	control	Вернуть	Скас. дію	Undo last
+IDD_SPELL_CHECK:STATIC:1	control	Нет в словаре:	Немає у словнику:	Not In Dictionary:
+IDD_SPELL_CHECK:STATIC:2	control	Изменить на:	Змінити на:	Change To:
+IDD_SPELL_CHECK:STATIC:3	control	Варианты:	Варіанти:	Suggestions:
+IDD_TABLE:IDCANCEL	control	Cancel	Скасувати	Cancel
+IDD_TABLE:IDC_CHECK_TABLE_TITLE	control	Вставить строку заголовков <tr><th></th></tr>	Вставити рядків заголовків <tr><th></th></tr>	Add table header <tr><th></th></tr>
+IDD_TABLE:IDOK	control	OK	Гаразд	OK
+IDD_TABLE:STATIC:1	control	Число строк таблицы <tr><td></td></tr>:	К-сть рядків таблиці <tr><td></td></tr>:	Number of table cells <tr><td></td></tr>:
+IDD_WORDS:IDCANCEL	control	Cancel	Скасувати	Cancel
+IDD_WORDS:IDC_BUTTON_ADDHLTOEXCLS	control	В исключения	До виключень	To exclusions
+IDD_WORDS:IDC_BUTTON_DESEL	control	Обратить	Оберн. виділ.	Invert
+IDD_WORDS:IDC_BUTTON_REMOVEHLREPL	control	Не заменять	Не замінювати	Reset replaced
+IDD_WORDS:IDC_BUTTON_SELALL	control	Выбрать все	Позначити усі	Highlight all
+IDD_WORDS:IDC_BUTTON_SELALLREPL	control	Замена для всех	Заміна для усіх	Set replaced all
+IDD_WORDS:IDC_BUTTON_SETHLREPL	control	В заменяемые	До замінюваних	Set replaced
+IDD_WORDS:IDC_CHECK_SHOWHIDE_EXCLS	control	Показать/скрыть исключения	Показати/Сховати виключення	Show/hide exclusions
+IDD_WORDS:IDC_WLIST	control	List1	List1	List1
+IDD_WORDS:IDC_WORDS_FR_BTN_FIND	control	Найти	Знайти	Find
+IDD_WORDS:IDC_WORDS_FR_BTN_REPL	control	Заменить	Замінити	Replace
+IDD_WORDS:IDC_WORDS_FR_GBOX_CURWORD	control	Текущее слово	Поточне слово	Current word
+IDD_WORDS:IDC_WORDS_FR_TEXT_REPL	control	Замена:	Заміна:	Replacement:
+IDD_WORDS:IDC_WORDS_FR_TEXT_WORD	control	Слово:	Слово:	Word:
+IDD_WORDS:IDOK	control	OK	Гаразд	OK
+IDD_WORDS:STATIC:1	control	Обработка	Обробка	Process
+IDD_WORDS:STATIC:2	control	Выделенные	Виділені	Process highlited
+60161	menu	&Панель инструментов	&Панель інструментів	&Commands toolbar
+60162	menu	Панель скриптов	Панель скриптів	Scripts toolbar
+60163	menu	Па&нель ссылок	Па&нель посилань	&Links Bar
+60164	menu	П&анель таблиц	П&анель таблиць	Table Bar
+IDCANCEL	menu	Не установлено ни одного плагина	Немає жодного модуля	No import plugins installed
+IDCANCEL#2	menu	Не установлено ни одного плагина	Немає жодного модуля	No export plugins installed
+IDCANCEL#3	menu	Пусто	Порожньо	No scripts found
+ID_APP_ABOUT	menu	&О программе...	&Про програму...	&About FBE...
+ID_APP_EXIT	menu	&Выход	&Вийти	E&xit
+ID_DT_DELETE	menu	Удалить	Видалити	Delete
+ID_DT_LEFT	menu	Сдвинуть влево	Перемістити ліворуч	Move Left
+ID_DT_RIGHT_ONE	menu	Сдвинуть вправо	Перемістити праворуч	Move Right
+ID_DT_RIGHT_SMART	menu	Сделать дочерним элементом	Зробити дочірнім елементом	Move With Children
+ID_DT_VIEW	menu	&Перейти к элементу	&Перейти до елементу	View
+ID_DT_VIEWSOURCE	menu	П&ерейти к коду	П&ерейти до коду	View Source
+ID_EDIT_ADDBINARY	menu	&Прикрепить	&Долучити	Add &Binary Object...
+ID_EDIT_ADD_ANN	menu	&Аннотация	&Анотація	A&nnotation
+ID_EDIT_ADD_BODY	menu	&Тело	&Тіло	&Body
+ID_EDIT_ADD_EPIGRAPH	menu	&Эпиграф	&Епіграф	&Epigraph
+ID_EDIT_ADD_IMAGE	menu	Р&исунок секции	Ма&люнок секції	&Section image
+ID_EDIT_ADD_TA	menu	А&втор	А&втор	T&ext author
+ID_EDIT_ADD_TITLE	menu	&Заголовок	&Заголовок	&Title
+ID_EDIT_CLONE	menu	К&лонировать	К&лонувати	C&lone container
+ID_EDIT_COPY	menu	&Копировать	&Копіювати	&Copy
+ID_EDIT_CUT	menu	В&ырезать	В&ирізати	Cu&t
+ID_EDIT_FIND	menu	&Найти...	З&найти...	&Find...
+ID_EDIT_FINDNEXT	menu	Н&айти далее	Знайти &далі	Find &Next
+ID_EDIT_INS_CITE	menu	&Цитата	&Цитата	&Cite
+ID_EDIT_INS_IMAGE	menu	&Рисунок	&Малюнок	&Image
+ID_EDIT_INS_INLINEIMAGE	menu	Рисунок в т&екст	Малюнок у т&ексті	In&line image
+ID_EDIT_INS_POEM	menu	&Стихи	&Вірш	&Poem
+ID_EDIT_MERGE	menu	Ск&леить	&Об'єднати	&Merge containers
+ID_EDIT_PASTE	menu	В&ставить	В&ставити	&Paste
+ID_EDIT_REDO	menu	&Вернуть	&Повторити дію	&Redo
+ID_EDIT_REMOVE_OUTER_SECTION	menu	&Убрать внешний	За&брати зовнішній	Remove outer container
+ID_EDIT_REPLACE	menu	&Заменить...	&Замінити...	R&eplace...
+ID_EDIT_SPLIT	menu	Разр&езать	Розр&ізати	Sp&lit container
+ID_EDIT_UNDO	menu	&Отменить	&Скасувати дію	&Undo
+ID_FILE_MRU_FIRST	menu	Пусто	Порожньо	No Recent Files
+ID_FILE_NEW	menu	&Создать	&Створити	&New
+ID_FILE_OPEN	menu	&Открыть...	&Відкрити...	&Open...
+ID_FILE_SAVE	menu	Со&хранить	&Зберегти	&Save
+ID_FILE_SAVE_AS	menu	Сохранить &как...	Зберегти &як...	Save &As...
+ID_FILE_VALIDATE	menu	&Проверить	&Перевірити	&Validate
+ID_GOTO_FOOTNOTE	menu	&Перейти к сноске или к ссылке	&Перейти до примітки або до посилання	&Go to footnote or reference
+ID_GOTO_MATCHTAG	menu	Перейти к парному &тегу	Перейти до парного тегу	Go to matching &tag
+ID_GOTO_WRONGTAG	menu	Перейти к о&шибочному тегу	Перейти до помилкового тегу	Go to &wrong tag
+ID_INSERT_TABLE	menu	Та&блица	Та&блиця	T&able
+ID_STYLE_LINK	menu	&Ссылка...	По&силання...	&Link...
+ID_STYLE_NOLINK	menu	&Удалить ссылку	&Видалити посилання	&Remove link
+ID_STYLE_NORMAL	menu	&Обычный	&Звичайний	&Normal
+ID_STYLE_NOTE	menu	С&носка...	При&мітка...	&Footnote...
+ID_STYLE_SUBTITLE	menu	&Подзаголовок	&Підзаголовок	&Subtitle
+ID_STYLE_TEXTAUTHOR	menu	&Автор	&Автор	Text &Author
+ID_TOOLS_CUSTOMIZE	menu	Настройка панели...	Налаштування панелі...	Customize toolbar...
+ID_TOOLS_SPELLCHECK	menu	Орфография...	Орфографія...	Spell &check...
+ID_TOOLS_WORDS	menu	&Слова...	&Слова...	&Words...
+ID_VIEW_BODY	menu	&Дизайн	&Тіло документу	&Body
+ID_VIEW_DESC	menu	&Описание документа	&Опис документу	D&escription
+ID_VIEW_FASTMODE	menu	&Ускоренный режим	Прискорений &режим	Fast Mode
+ID_VIEW_OPTIONS	menu	&Настройки...	&Налаштування...	&Settings...
+ID_VIEW_SOURCE	menu	&Код	&Код-сирець	So&urce
+ID_VIEW_STATUS_BAR	menu	&Строка состояния	&Смуга стану	&Status Bar
+ID_VIEW_TREE	menu	С&труктура книги	С&труктура книги	&Document Tree
+POPUP:IDR_DOCUMENT_TREE/0	popup	DT	DT	DT
+POPUP:IDR_MAINFRAME/0	popup	&Файл	&Файл	&File
+POPUP:IDR_MAINFRAME/0/0	popup	&Импорт	&Імпорт	&Import
+POPUP:IDR_MAINFRAME/0/1	popup	&Экспорт	&Експорт	&Export
+POPUP:IDR_MAINFRAME/0/2	popup	П&редыдущие документы	&Останні документи	&Recent Files
+POPUP:IDR_MAINFRAME/1	popup	&Правка	&Правка	&Edit
+POPUP:IDR_MAINFRAME/2	popup	&Вид	&Вигляд	&View
+POPUP:IDR_MAINFRAME/3	popup	В&ставка	В&ставка	&Add
+POPUP:IDR_MAINFRAME/4	popup	С&тиль	С&тиль	&Style
+POPUP:IDR_MAINFRAME/5	popup	Се&рвис	&Інструменти	&Tools
+POPUP:IDR_MAINFRAME/6	popup	С&крипты	С&крипти	&Scripts
+POPUP:IDR_MAINFRAME/7	popup	Спр&авка	&Довідка	&Help
+POPUP:IDR_TOOLBAR_MENU/0	popup	CUSTOMIZE	CUSTOMIZE	CUSTOMIZE
+60161	stringtable	Показать или скрыть панель инструментов\nПанель инструментов	Показати чи сховати панель інструментів\nПанель інструментів	Show or hide the command toolbar\nToggle Command ToolBar
+60162	stringtable	Показать или скрыть панель скриптов\nПанель скриптов	Показати чи сховати панель скриптів\nПанель скриптів	Show or hide the scripts toolbar\nToggle Scripts ToolBar
+60163	stringtable	Показать или скрыть панель ссылок\nПанель ссылок	Показати чи сховати панель посилань\nПанель посилань	Show or hide the links bar\nToggle LinksBar
+60164	stringtable	Показать или скрыть панель редактирования параметров таблиц\nПанель таблиц	Показати чи сховати панель редагування параметрів таблиць\nПанель таблиць	Show or hide the table bar\nToggle TableBar
+ATL_IDS_IDLEMESSAGE	stringtable	Готово	Готово	Ready
+ATL_IDS_MRU_FILE	stringtable	Открыть этот документ	Відкрити цей документ	Open this document
+IDC_SPELL_ADD2DICT	stringtable	Добавить в словарь	Додати до словника	Add to dictionary
+IDC_SPELL_IGNORE	stringtable	Пропустить	Пропустити	Ignore
+IDC_SPELL_IGNOREALL	stringtable	Пропустить все	Пропустити усі	Ignore All
+IDC_SPELL_REPLACE	stringtable	Заменить слово	Замінити слово	Replace word
+IDR_MAINFRAME	stringtable	FBE	FB Editor	FBE
+IDS_ABOUT_LOGOCAPTION	stringtable	Анимированное лого FB2 » нажмите клавишу ? для справки	Анімоване FB2 лого  »  Натисніть клавішу ? для довідки 	FB2 animated logo » press ? for help
+IDS_ADD_BINARIES_FILEDLG	stringtable	Выберите один или несколько бинарных файлов:	Оберіть один або декілька двійкових файлів:	Choose binaries to add:
+IDS_ADD_CLEARIMG_CAPTION	stringtable	Вставить картинку	Вставити малюнок	Add image
+IDS_ADD_CLEARIMG_TEXT	stringtable	Вставить пустую картинку?	Вставити порожній малюнок?	Insert clear image?
+IDS_ADD_IMAGE_FILEDLG	stringtable	Выберите картинку для вставки:	Оберіть малюнок, який слід вставити:	Choose image to add:
+IDS_BAD_XML_MSG	stringtable	Был открыт некорректный XML документ.\n\nВы должны исправить все ошибки XML (используйте команды "Проверить" и "Перейти к ошибочному тегу") перед тем, как переключиться в другой режим редактора.	Був відкритий некоректний XML документ.\n\nВи повинні виправити усі помилки XML (використовуйте команди "Перевірити" і "Перейти до помилкового тегу") перед тим, як перейти у інший режим редактора	You have opened an invalid XML document.\n\nYou should correct all XML errors (use "Validate" and "Go to wrong tag" commands) before switching from the SOURCE mode.
+IDS_CHOOSE_SCRIPTS_FLD	stringtable	Выберите папку со скриптами	Оберіть теку зі скриптами	Specify scripts folder
+IDS_CML_ARGS_MSG	stringtable	Для параметра коммандной строки %c нужен аргумент	Для параметра командного рядка %c потрібен аргумент	Command line option '%c' requires an argument
+IDS_COM_ERR_CPT	stringtable	COM Error	Помилка COM	COM Error
+IDS_CTXMENU_COPY	stringtable	Копировать	Копіювати	Copy
+IDS_CTXMENU_CUT	stringtable	Вырезать	Вирізати	Cut
+IDS_CTXMENU_IMG_SAVEAS	stringtable	Сохранить изображение как...	Зберегти малюнок як...	Save image as...
+IDS_CTXMENU_PASTE	stringtable	Вставить	Вставити	Paste
+IDS_CTXMENU_SELECT	stringtable	Выделить	Виділити	Select
+IDS_DMS_AUTHOR	stringtable	Ник автора	Псевдо автора	Author NickName
+IDS_DMS_CI	stringtable	Дополнительная информация	Додаткова інформація	Custom Info
+IDS_DMS_DI	stringtable	Информация о документе	Інформація про документ	Document Info
+IDS_DMS_GENRE_M	stringtable	Соответствие жанру	Відповідність жанру	Genre Match
+IDS_DMS_ID	stringtable	ID	ID	ID
+IDS_DMS_KW	stringtable	Ключевые слова	Ключові слова	KeyWords
+IDS_DMS_STI	stringtable	Информация о оригинальном тексте	Інфа про оригінал твору	Source Title Info
+IDS_DMS_TI	stringtable	Информация о произведении	Інформація про твір	Title info
+IDS_DOCTREE_MENU_ELEMENTS	stringtable	Элементы	Елементи	Elements
+IDS_DOCTREE_MENU_SCRIPTS	stringtable	Скрипты	Скрипти	Scripts
+IDS_DOCUMENT_TREE_CAPTION	stringtable	Структура документа	Структура документу	Document structure
+IDS_DOC_TREE_CLEANUP	stringtable	Очистить	Очистити	Clean
+IDS_DONT_ASK_AGAIN	stringtable	Больше не спрашивать	Більше не запитувати	Don't ask again
+IDS_ENCODING	stringtable	Кодировка:	Кодування:	Encoding:
+IDS_ENCODINGS	stringtable	utf-8,utf-16,windows-1251,windows-1252,iso-8859-1,iso-8859-2,iso-8859-5,iso-8859-15,koi8-r	UTF-8,UTF-16,Windows-1251,Windows-1252,ISO-8859-1,ISO-8859-2,ISO-8859-5,ISO-8859-15,KOI8-R	utf-8,utf-16,windows-1251,windows-1252,iso-8859-1,iso-8859-2,iso-8859-5,iso-8859-15,koi8-r
+IDS_ERRMSGBOX_CAPTION	stringtable	Ошибка	Помилка	Error
+IDS_EXPORT_ERR_CPT	stringtable	Ошибка экспорта	Помилка експорту	Export Error
+IDS_EXPORT_ERR_MSG	stringtable	Неправильный интерфейс плагина	Хибний інтерфейс модуля	Plugin does not support the required interface
+IDS_FILE_CHANGED_CPT	stringtable	Файл изменен	Файл змінено	File changed
+IDS_FILE_CHANGED_MSG	stringtable	Файл %s был изменен другим приложением.\nЗагрузить измененный файл?	Файл %s було змінено іншою програмою.\nЗавантажити змінений файл?	%s has been changed by anouther application.\nDo you want to reload it?
+IDS_GENRES_LIST_MSG	stringtable	Не найден файл со списком жанров %s	Не знайдено файлу зі списком жанрів %s	Can't open genres file %s
+IDS_GOTO_REF_FAIL_MSG	stringtable	В документе нет ни одной ссылки на сноски!	В документі немає жодного посилання на примітки!	Reference not found.
+IDS_HOTKEY_ASSIGN_COLLISION	stringtable	Зарезервировано "%s"	Зарезервовано «%s»	Assigned to "%s"
+IDS_HOTKEY_ASSIGN_NO_COLLISION	stringtable	Не зарезервировано для других команд	Не зарезервовано для інших коменд	Not assigned to other command
+IDS_HOTKEY_DEFAULT_COLLISION	stringtable	Сочетание по умолчанию для этой команды было зарезервировано для "%s"! Заменить?	Типове сполучення для цієї команди було зарезервовано для «%s»! Замінити?	Default hotkey for this command was assigned to "%s"! Replace?
+IDS_HOTKEY_EDIT_ADD_ANNOTATION	stringtable	Добавить аннотацию	Додати анотацію	Add annotation
+IDS_HOTKEY_EDIT_ADD_BODY	stringtable	Добавить элемент body	Додати елемент body	Add body
+IDS_HOTKEY_EDIT_ADD_EPIGRAPH	stringtable	Добавить эпиграф	Додати епіграф	Add epigraph
+IDS_HOTKEY_EDIT_ADD_IMAGE	stringtable	Вставить картинку секции	Вставити малюнок секції	Add section image
+IDS_HOTKEY_EDIT_ADD_TA	stringtable	Добавить автора текста	Додати автора тексту	Add text author
+IDS_HOTKEY_EDIT_ADD_TITLE	stringtable	Добавить заголовок	Додати заголовок	Add title
+IDS_HOTKEY_EDIT_BOLD	stringtable	Жирный	Жирний	Bold
+IDS_HOTKEY_EDIT_CLONE	stringtable	Клонировать	Клонувати	Clone
+IDS_HOTKEY_EDIT_COPY	stringtable	Копировать	Копіювати	Copy
+IDS_HOTKEY_EDIT_CUT	stringtable	Вырезать	Вирізати	Cut
+IDS_HOTKEY_EDIT_FIND	stringtable	Найти	Знайти	Find
+IDS_HOTKEY_EDIT_FIND_NEXT	stringtable	Найти следующий	Знайти далі	Find next
+IDS_HOTKEY_EDIT_INCREMENTAL_SEARCH	stringtable	Инкрементальный поиск	Інкрементальний пошук	Incremental search
+IDS_HOTKEY_EDIT_INSERT_CITE	stringtable	Вставить цитату	Вставити цитату	Insert cite
+IDS_HOTKEY_EDIT_INSERT_IMAGE	stringtable	Вставить изображение	Вставити малюнок	Insert image
+IDS_HOTKEY_EDIT_INSERT_INLINEIMAGE	stringtable	Вставить изображение в текст	Додати малюнок до тексту	Insert inline image
+IDS_HOTKEY_EDIT_INSERT_POEM	stringtable	Вставить поэму	Вставити вірш	Insert poem
+IDS_HOTKEY_EDIT_INSERT_TABLE	stringtable	Вставить таблицу	Вставити таблицю	Insert table
+IDS_HOTKEY_EDIT_ITALIC	stringtable	Курсив	Курсив	Italic
+IDS_HOTKEY_EDIT_MERGE	stringtable	Слить	Об'єднати	Merge
+IDS_HOTKEY_EDIT_PASTE	stringtable	Вставить	Вставити	Paste
+IDS_HOTKEY_EDIT_REDO	stringtable	Вернуть	Повторити дію	Redo
+IDS_HOTKEY_EDIT_REMOVE_OUTER_SECTION	stringtable	Удалить внешнюю секцию	Видалити зовнішню секцію	Remove outer section
+IDS_HOTKEY_EDIT_REPLACE	stringtable	Заменить	Замінити	Replace
+IDS_HOTKEY_EDIT_SPLIT	stringtable	Разделить	Розділити	Split
+IDS_HOTKEY_EDIT_SUB	stringtable	Субскрипт	Субскріпт	Subscript
+IDS_HOTKEY_EDIT_SUP	stringtable	Суперскрипт	Суперскріпт	Superscript
+IDS_HOTKEY_EDIT_UNDO	stringtable	Отменить	Скасувати дію	Undo
+IDS_HOTKEY_FASTMODE	stringtable	Ускоренный режим	Прискорений режим	Fast mode
+IDS_HOTKEY_FILE_OPEN	stringtable	Открыть	Відкрити	Open
+IDS_HOTKEY_FILE_SAVE	stringtable	Сохранить	Зберегти	Save
+IDS_HOTKEY_FILE_SAVEAS	stringtable	Сохранить как...	Зберегти як...	Save as...
+IDS_HOTKEY_FILE_VALIDATE	stringtable	Проверить	Перевірити	Validate
+IDS_HOTKEY_GROUP_EDIT	stringtable	Редактировать	Редагування	Edit
+IDS_HOTKEY_GROUP_FILE	stringtable	Файл	Файл	File
+IDS_HOTKEY_GROUP_NAVIGATION	stringtable	Навигация	Навіґація	Navigation
+IDS_HOTKEY_GROUP_PLUGINS	stringtable	Плагины	Модулі	Plugins
+IDS_HOTKEY_GROUP_SCRIPTS	stringtable	Скрипты	Скрипти	Scripts
+IDS_HOTKEY_GROUP_STYLE	stringtable	Стиль	Стиль	Style
+IDS_HOTKEY_GROUP_SYMBOLS	stringtable	Символы	Символи	Symbols
+IDS_HOTKEY_GROUP_TOOLS	stringtable	Инструменты	Інструменти	Tools
+IDS_HOTKEY_GROUP_VIEW	stringtable	Просмотр	Перегляд	View
+IDS_HOTKEY_NAVIGATION_GOTO_FOOTNOTE	stringtable	Переход к сноске или к ссылке	Перехід до виноски або до посилання	Go to footnote or reference
+IDS_HOTKEY_NAVIGATION_GOTO_MATCHTAG	stringtable	Переход на парный тег	Перехід на парний тег	Go to matchig tag
+IDS_HOTKEY_NAVIGATION_GOTO_WRONGTAG	stringtable	Переход к ошибочному тегу	Перехід до помилкового тегу	Go to wrong tag
+IDS_HOTKEY_NAVIGATION_NEXT_ITEM	stringtable	Следующий элемент	Наступний елемент	Next item
+IDS_HOTKEY_NAVIGATION_SCI_COLLAPSE1	stringtable	Свернуть дерево на 1 уровень	Згорнути дерево на 1 рівень	Collapse 1 tree level
+IDS_HOTKEY_NAVIGATION_SCI_COLLAPSE2	stringtable	Свернуть дерево на 2 уровня	Згорнути дерево на 2 рівні	Collapse 2 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_COLLAPSE3	stringtable	Свернуть дерево на 3 уровня	Згорнути дерево на 3 рівні	Collapse 3 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_COLLAPSE4	stringtable	Свернуть дерево на 4 уровня	Згорнути дерево на 4 рівні	Collapse 4 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_COLLAPSE5	stringtable	Свернуть дерево на 5 уровней	Згорнути дерево на 5 рівнів	Collapse 5 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_COLLAPSE6	stringtable	Свернуть дерево на 6 уровней	Згорнути дерево на 6 рівнів	Collapse 6 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_COLLAPSE7	stringtable	Свернуть дерево на 7 уровней	Згорнути дерево на 7 рівнів	Collapse 7 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_COLLAPSE8	stringtable	Свернуть дерево на 8 уровней	Згорнути дерево на 8 рівнів	Collapse 8 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_COLLAPSE9	stringtable	Свернуть дерево на 9 уровней	Згорнути дерево на 9 рівнів	Collapse 9 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_EXPAND1	stringtable	Развернуть дерево на 1 уровень	Розгорнути дерево на 1 рівень	Expand 1 tree level
+IDS_HOTKEY_NAVIGATION_SCI_EXPAND2	stringtable	Развернуть дерево на 2 уровня	Розгорнути дерево на 2 рівні	Expand 2 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_EXPAND3	stringtable	Развернуть дерево на 3 уровня	Розгорнути дерево на 3 рівні	Expand 3 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_EXPAND4	stringtable	Развернуть дерево на 4 уровня	Розгорнути дерево на 4 рівні	Expand 4 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_EXPAND5	stringtable	Развернуть дерево на 5 уровней	Розгорнути дерево на 5 рівнів	Expand 5 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_EXPAND6	stringtable	Развернуть дерево на 6 уровней	Розгорнути дерево на 6 рівнів	Expand 6 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_EXPAND7	stringtable	Развернуть дерево на 7 уровней	Розгорнути дерево на 7 рівнів	Expand 7 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_EXPAND8	stringtable	Развернуть дерево на 8 уровней	Розгорнути дерево на 8 рівнів	Expand 8 tree levels
+IDS_HOTKEY_NAVIGATION_SCI_EXPAND9	stringtable	Развернуть дерево на 9 уровней	Розгорнути дерево на 9 рівнів	Expand 9 tree levels
+IDS_HOTKEY_NAVIGATION_SELECT_HREF	stringtable	Ссылка	Посилання	Href
+IDS_HOTKEY_NAVIGATION_SELECT_ID	stringtable	ID 	ID 	ID 
+IDS_HOTKEY_NAVIGATION_SELECT_ID_TABLE	stringtable	ID таблицы	ID таблиці	Table ID
+IDS_HOTKEY_NAVIGATION_SELECT_TEXT	stringtable	Текст	Текст	Text
+IDS_HOTKEY_NAVIGATION_SELECT_TREE	stringtable	Дерево	Дерево	Tree
+IDS_HOTKEY_PLUGINS_LAST_PLUGIN	stringtable	Последний плагин	Останній модуль	Last plugin
+IDS_HOTKEY_SCRIPTS_LAST_SCRIPT	stringtable	Последний запущенный	Останній запущений	Last script
+IDS_HOTKEY_STYLE_LINK	stringtable	Ссылка	Посилання	Link
+IDS_HOTKEY_STYLE_NORMAL	stringtable	Нормализованный	Нормалізований	Normal
+IDS_HOTKEY_STYLE_NOTE	stringtable	Сноска	Примітка	Note
+IDS_HOTKEY_STYLE_NO_LINK	stringtable	Без ссылки	Без посилання	No link
+IDS_HOTKEY_STYLE_SUBTITLE	stringtable	Подзаголовок	Підзаголовок	Subtitle
+IDS_HOTKEY_STYLE_TEXT_AUTHOR	stringtable	Автор текста	Автор тексту	Text author
+IDS_HOTKEY_TOOLS_SPELL	stringtable	Орфография	Орфографія	Spell check
+IDS_HOTKEY_TOOLS_SPELLHIGHLIGHT	stringtable	Переключить выделение слов с ошибками	Переключити виділення помилок	Toggle highlight
+IDS_HOTKEY_TOOLS_WORDS	stringtable	Слова	Слова	Words
+IDS_HOTKEY_TREEVIEW	stringtable	Дерево вкл/выкл	Дерево увімк./вимк.	Toggle tree view
+IDS_HOTKEY_VIEW_BODY	stringtable	Дизайн	Дизайн	Body
+IDS_HOTKEY_VIEW_DESCRIPTION	stringtable	Описание	Опис	Description
+IDS_HOTKEY_VIEW_SOURCE	stringtable	Код	Код	Source
+IDS_HOTKEY_WRONG	stringtable	Неправильное сочетание!	Хибне сполучення!	Wrong shortcut!
+IDS_IMPORT_ERR_CPT	stringtable	Ошибка импорта	Помилка імпорту	Import Error
+IDS_IMPORT_ERR_MSG	stringtable	Неправильный интерфейс плагина	Хибний інтерфейс модуля	Plugin does not support the required interface
+IDS_IMPORT_XML_ERR_MSG	stringtable	Импортируемый объект не поддерживает интерфейс IXMLDOMDocument2	Об'єкт, що імпортується, не підтримує інтерфейс IXMLDOMDocument2	Imported object does not support IXMLDOMDocument2 interface
+IDS_INVALID_CML_MSG	stringtable	Неправильный параметр коммандной строки: %c	Хибний параметр командного рядка: %c	Invalid command line option: '%c'
+IDS_LANG_ENGLISH	stringtable	Английский	Англійська	English
+IDS_LANG_RUSSIAN	stringtable	Русский	Російська	Russian
+IDS_LANG_UKRAINIAN	stringtable	Украинский	Українська	Ukrainian
+IDS_MB_ABORT	stringtable	П&рервать	Пе&рервати	&Abort
+IDS_MB_CANCEL	stringtable	Отмена	Скасувати	Cancel
+IDS_MB_CLOSE	stringtable	&Закрыть	&Закрити	Close
+IDS_MB_IGNORE	stringtable	&Игнорировать	&Ігнорувати	&Ignore
+IDS_MB_NO	stringtable	&Нет	&Ні	&No
+IDS_MB_OK	stringtable	OK	Гаразд	OK
+IDS_MB_RETRY	stringtable	&Повторить	&Повторити	&Retry
+IDS_MB_YES	stringtable	&Да	&Так	&Yes
+IDS_NO_SCRIPTS	stringtable	Не найдено ни одного скрипта	Не знайдено жодного скрипту	No scripts found
+IDS_OUT_OF_MEM_MSG	stringtable	Для выполнения операции не хватает памяти	Для виконання операції бракує пам'яті.	Out of memory
+IDS_PANE_INS	stringtable	ВСТ	ВСТ	INS
+IDS_PANE_OVR	stringtable	ЗАМ	ЗАМ	OVR
+IDS_REPL_ALL_CAPT	stringtable	Заменить все	Замінити усі	Replace All
+IDS_REPL_DONE_MSG	stringtable	Поиск завершен. Произведено замен: %d	Пошук завершено. Виконано замін: %d	%d replacement(s) done.
+IDS_REPL_WORDS_CPT	stringtable	Замена слов	Заміна слів	Replace words
+IDS_REPL_WORDS_MSG	stringtable	Заменено слов: %d	Замінено слів: %d	%d replacement(s) done
+IDS_SAVE_DLG_MSG	stringtable	Сохранить изменения в %s?	Зберегти зміни у %s?	Save changes to %s?
+IDS_SB_NO_ERR	stringtable	Ошибок не обнаружено.	Помилок не виявлено.	No errors found.
+IDS_SB_SAVED_NO_ERR	stringtable	Документ сохранен. Ошибок не обнаружено.	Документ збережено. Помилок не виявлено.	Document saved - No errors found.
+IDS_SCINTILLA_LOAD_ERR_MSG	stringtable	Не удалось загрузить текстовый движок Scintilla.	Не вдалося завантажити текстовий двигун Scintilla.	Can't load Scintilla.
+IDS_SCRIPT_ERRD_MSG	stringtable	Ошибка выполнения скрипта: %s в строке %d, столбце %d	Помилка виконання скрипту: %s в рядку %d, символ %d	Script error: %s at line %d, column %d
+IDS_SCRIPT_ERRX_MSG	stringtable	Ошибка выполнения скрипта: %08X в строке %d, столбце %d	Помилка виконання скрипту: %08X в рядку %d, символ %d	Script error: %08X at line %d, column %d
+IDS_SCRIPT_HOTKEY_CONFLICT	stringtable	Скрипт\n%s\n имеет код клавишы быстрого доступа, совпадающий с уже загруженным скриптом\n %s	Скрипт\n%s\n має код клавіші швидкого доступу, який співпадає з вже завантаженим (працюючим) скриптом\n %s	Script\n%s\n returned a virtual-key that conflicts with previously loaded script\n %s
+IDS_SCRIPT_LOAD_ERR_MSG	stringtable	При загрузке скрипта %s возникла ошибка: %s	При завантаженні скрипту %s виникла помилка: %s	Error loading %s: %s
+IDS_SCRIPT_MSG	stringtable	Неизвестная ошибка выполнения скрипта.	Невідома помилка виконання скрипту.	Unknown error in script.
+IDS_SCRIPT_MSG_CPT	stringtable	FBE скрипт	Скрипт FBE	FBE Script message
+IDS_SEARCH_END_MSG	stringtable	Поиск строки "%s" завершен	Пошук рядка «%s» завершено	Finished searching for '%s'.
+IDS_SEARCH_FAIL_MSG	stringtable	Строка '%s' не найдена.	Рядок «%s» не знайдено.	Cannot find the string '%s'.
+IDS_SETTINGS	stringtable	Настройки	Налаштування	Settings
+IDS_SETTINGS_HOTKEYS_CAPTION	stringtable	Клавиши	Клавіші	Hotkeys
+IDS_SETTINGS_NEED_RESTART	stringtable	Изменения вступят в силу после перезагрузки программы.\nПерезагрузить сейчас?	Зміни наберуть чинності після перезапуску програми.\nПерезапустити негайно?	In order to process changes the program must be restarted.\nRestart now?
+IDS_SETTINGS_OTHER_CAPTION	stringtable	Другое	Інше	Other
+IDS_SETTINGS_VIEW_CAPTION	stringtable	Вид	Вигляд	View
+IDS_SETTINGS_WLIST_COUNTED	stringtable	Встретилось	Зустрілося	Counted
+IDS_SETTINGS_WLIST_WORD	stringtable	Слово	Слово	Word
+IDS_SETTINGS_WORDS_ADD_ERR_CAP	stringtable	Ошибка добавления слова	Помилка додавання слова	Error adding word
+IDS_SETTINGS_WORDS_ADD_ERR_SYM	stringtable	Новые исключения могут содержать только буквенные символы и один "-" между ними!	Нові виключення можуть містити лише літерні символи та один «-» між ними!	New exclusion word must contain only alpha characters and one '-' between them!
+IDS_SETTINGS_WORDS_ADD_ERR_TEXT	stringtable	Это слово уже есть в списке!	Це слово вже є у списку!	This word is already in list!
+IDS_SETTINGS_WORDS_CAPTION	stringtable	Слова	Слова	Words
+IDS_SPELL_CHECK_COMPLETED	stringtable	Проверка орфографии завершена.	Перевірку орфографії завершено.	The spelling check is complete.
+IDS_SPELL_CONTINUE	stringtable	Продолжить	Продовжити	Continue
+IDS_TB_CAPT_COLSPAN	stringtable	colspan:	colspan:	colspan:
+IDS_TB_CAPT_HREF	stringtable	Ссылка:	Посилання:	Href:
+IDS_TB_CAPT_ID	stringtable	ID:	ID:	ID:
+IDS_TB_CAPT_IMAGE_TITLE	stringtable	Подпись к картинке:	Підпис до малюнка:	Image title:
+IDS_TB_CAPT_ROWSPAN	stringtable	rowspan:	rowspan:	rowspan:
+IDS_TB_CAPT_SECTION_ID	stringtable	ID секции:	ID секції:	Section ID:
+IDS_TB_CAPT_STYLE	stringtable	Стиль:	Стиль:	style:
+IDS_TB_CAPT_TABLE_ID	stringtable	ID таблицы:	ID таблиці:	Table ID:
+IDS_TB_CAPT_TABLE_STYLE	stringtable	Стиль таблицы:	Стиль таблиці:	Table Style:
+IDS_TB_CAPT_TD_ALIGN	stringtable	th, td align:	th, td align:	th, td align:
+IDS_TB_CAPT_TD_VALIGN	stringtable	th, td valign:	th, td valign:	th, td valign:
+IDS_TB_CAPT_TR_ALIGN	stringtable	tr align:	tr align:	tr align:
+IDS_UPDATEEXISTS	stringtable	Файл обновления %s обнаружен на диске. Желаете запустить этот файл?	Оновлення %s вже існує.\r\nВи хочете запустити цей файл?	Update file %s is already exists.\r\nWould you like to execute this file?
+IDS_UPDATE_403ERROR	stringtable	Ошибка 403 : доступ запрещен	Помилка 403: доступ заборонений	403 error : Forbidden
+IDS_UPDATE_404ERROR	stringtable	Ошибка 404 : файл не найден	Помилка 404: файл не знайден	404 error : Not Found
+IDS_UPDATE_407ERROR	stringtable	Ошибка 407 : требуется аутентификация прокси-сервера	Помилка 407: потрібна аутентифікація проксі-сервера	407 error : proxy authentication required
+IDS_UPDATE_CANTCONNECT	stringtable	Не могу подключиться к серверу	Не можу підключитися до сервера.	Can't connect to server
+IDS_UPDATE_CHECK	stringtable	Проверяю обновление...	Перевіряю оновлення ...	Checking for update...
+IDS_UPDATE_CLOSE	stringtable	FBE должен быть закрыт для продолжения установки.\r\n\r\nВы можете позже удалить инсталляционный файл, находящийся в "%s".\r\n\r\nЗакрыть FBE и продолжить инсталляцию новой версии?	FBE повинен бути закритий для продовження встановлення.\r\n\r\nВи можете пізніше видалити інсталяційний файл, що знаходиться у "%s".\r\n\r\nЗакрити FBE і продовжити інсталяцію нової версії?	FBE must be closed to continue installation.\r\n\r\nYou may delete installation file at download location "%s" later.\r\n\r\nQuit FBE now and continue installation?
+IDS_UPDATE_CONNECTING	stringtable	Подключаюсь к серверу...	Підключаюься до сервера ...	Connecting to server...
+IDS_UPDATE_DOWNLOADCOMPLETE	stringtable	Загрузка завершена, записываю файл...	Завантаження завершено, записую файл ...	Download completed, writing setup file...
+IDS_UPDATE_DOWNLOADED	stringtable	Загружено %d Kb	Завантажено %d Kb	%d Kb downloaded
+IDS_UPDATE_DOWNLOADEDFROM	stringtable	Загружено %d Kb из %d Kb (%d%%)	Завантажено %d Kb з %d Kb ( %d%%)	%d Kb from %d Kb downloaded (%d%%)
+IDS_UPDATE_DOWNLOADERROR	stringtable	Ошибка загрузки	Помилка завантаження	Download error
+IDS_UPDATE_DOWNLOADERRORSTATUS	stringtable	Ошибка загрузки, код статуса : %d	Помилка завантаження, код статусу: %d	Download error, status code : %d
+IDS_UPDATE_DOWNLOADREADY	stringtable	Обновление готово.	Обновлення готове.	Update is ready.
+IDS_UPDATE_HAVELATESTVERSION	stringtable	У Вас установлена последняя версия FBE.	У Вас встановлена остання версія FBE.	You have a latest version of FBE.
+IDS_UPDATE_INCORRECTMD5	stringtable	Ошибка, не верна контрольная сумма.	Помилка, не вірна контрольна сума.	Error, incorrect MD5 checksum
+IDS_UPDATE_NEWVERSIONAVAILABLE	stringtable	Новая версия FBE доступна для загрузки.	Нова версія FBE доступна для завантаження.	A new version of FBE is available.
+IDS_UPDATE_NOTSUPPORTEDRANGE	stringtable	 ( не поддерживаемая область )	 (не підтримувана область)	 ( not support range )
+IDS_VALIDATION_FAIL_CPT	stringtable	Ошибка	Помилка	Validation failed
+IDS_VALIDATION_FAIL_MSG	stringtable	%s\r\nВсе равно сохранить файл?\r\n\r\nВНИМАНИЕ: Файлы, содержащие ошибки, могут неправильно отображаться и вызывать ошибки при открытиии другими программами.	%s\r\nВсе одно зберегти файл?\r\n\r\nУВАГА! Файли, що містять помилки, можуть хибно відображатися й спричиняти помилки при відкритті іншими програмами.	%s\r\nDo you still want to save the file?\r\n\r\nWARNING: Invalid files can be improperly displayed and can cause errors in other applications.
+IDS_WORDS_FR_BTN_FIND0	stringtable	Найти	Знайти	Find
+IDS_WORDS_FR_BTN_FIND1	stringtable	Далее	Далі	Next
+IDS_WORDS_WLIST_COUNTED	stringtable	Количество	Кількість	Counted
+IDS_WORDS_WLIST_REPLACEMENT	stringtable	Замена	Заміна	Replacement
+IDS_WORDS_WLIST_WORD	stringtable	Слово	Слово	Word
+IDS_XML_PARSE_ERRQ_MSG	stringtable	At %s: %s	At %s: %s	At %s: %s
+IDS_XML_PARSE_ERR_CPT	stringtable	XML Parse Error	XML Parse Error	XML Parse Error
+IDS_XML_PARSE_ERR_MSG	stringtable	At %s, line %d, column %d: %s	At %s, line %d, column %d: %s	At %s, line %d, column %d: %s
+ID_APP_ABOUT	stringtable	Показать информацию о программе, номер версии и копирайт\nО программе	Показати інформацію про програму, номер версії та авторські права\nПро програму	Display program information, version number and copyright\nAbout
+ID_APP_EXIT	stringtable	Закрыть программу; будет предложено сохранить документ перед закрытием\nВыход	Закрити програму. Перед закриттям буде запропоновано зберегти документ\nВийти	Quit the application; prompts to save documents\nExit
+ID_DT_DELETE	stringtable	\nУдалить выделенный узел	\nВидалити позначений вузол	\nDelete selected node
+ID_DT_LEFT	stringtable	\nПеренести влево	\nПеренести ліворуч	\nMove to the left
+ID_DT_MERGE	stringtable	\nСлить контейнеры	\nОб'єднати контейнери	\nMerge containers
+ID_DT_RIGHT_ONE	stringtable	\nПеренести узел вправо	\nПеренести вузол праворуч	\nMove node once to the right
+ID_DT_RIGHT_SMART	stringtable	\nПеренести узел вправо в smart режиме	\nПеренести вузол праворуч у smart-режимі	\nMove one node to the right with smart mode
+ID_EDIT_ADDBINARY	stringtable	Прикрепить бинарный файл к документу\nПрикрепить бинарный файл	Долучити до документу двійковий файл\nДолучити двійковий файл	Add a new binary object to the document\nAdd binary object
+ID_EDIT_ADD_ANN	stringtable	Добавить аннотацию выделенному фрагменту\nДобавить аннотацию	Додати анотацію до виділеного фрагменту\nДодати анотацію	Add annotation to the selected obejct\nAdd annotation
+ID_EDIT_ADD_BODY	stringtable	Добавить новое тело документа\nДобавить тело	Додати нове тіло документа\nДодати тіло	Add a new body to the document\nAdd body
+ID_EDIT_ADD_EPIGRAPH	stringtable	Добавить эпиграф к выделенному фрагменту\nДобавить эпиграф	Додати епіграф до виділеного фрагменту\nДодати епіграф	Add epigraph to selected object\nAdd epigraph
+ID_EDIT_ADD_IMAGE	stringtable	Добавить изображение\nДобавить изображение	Додати малюнок\nДодати малюнок	Add an image to the selected object\nAdd image
+ID_EDIT_ADD_TA	stringtable	Добавить автора текста в контейнер\nДобавить автора текста	Додати автора тексту до контейнера\nДодати автора тексту	Add a text author paragraph to the selected container\nAdd text author
+ID_EDIT_ADD_TITLE	stringtable	Добавить заголовок к выделенному элементу\nДобавить заголовок	Додати заголовок до виділеного елементу\nДодати заголовок	Add a title to the selected object\nAdd title
+ID_EDIT_BOLD	stringtable	Жирный\nЖирный	Жирний\nЖирний	Marks the selection "strong" (toggle)\nStrong
+ID_EDIT_CLONE	stringtable	Клонировать контейнер\nКлонировать	Клонувати контейнер\nКлонувати	Clone selected object\nClone
+ID_EDIT_CODE	stringtable	Код\nКод	Код\nКод	Marks the selection ""code"" (toggle)\nCode
+ID_EDIT_COPY	stringtable	Скопировать выделенный фрагмент в буфер обмена\nКопировать	Копіювати виділений фрагмент до буфера обміну\nКопіювати	Copy the selection and put it on the Clipboard\nCopy
+ID_EDIT_CUT	stringtable	Вырезать выделенный врагмент и положить его в буфер обмена\nВырезать	Вирізати виділений фрагмент і помістити його до буфера обміну\nВирізати	Cut the selection and put it on the Clipboard\nCut
+ID_EDIT_FIND	stringtable	Найти текст\nНайти	Знайти текст\nЗнайти	Find the specified text\nFind
+ID_EDIT_FINDNEXT	stringtable	Повторить последний поиск\nНайти далее	Повторити останній пошук\nЗнайти далі	Repeats the last find\nFind next
+ID_EDIT_INS_CITE	stringtable	Вставить цитату\nВставить цитату	Вставити цитату\nВставити цитату	Replace selection with a cite container\nInsert cite
+ID_EDIT_INS_IMAGE	stringtable	Вставить изображение на месте курсора\nВставить изображение	Вставити малюнок на місці курсору\nВставити малюнок	Insert an image at cursor\nInsert image
+ID_EDIT_INS_INLINEIMAGE	stringtable	Вставить изображение в текст на месте курсора\nВставить изображение в текст	Вставити малюнок у текст на місці курсору\nВставити малюнок у текст	Insert an inline image at cursor\nInsert inline image
+ID_EDIT_INS_POEM	stringtable	Добавить стихи\nДобавить стихи	Додати вірш\nДодати вірш	Replace selection with a poem container\nInsert poem
+ID_EDIT_ITALIC	stringtable	Курсив\nКурсив	Курсив\nКурсив	Marks the selection "emphasis" (toggle)\nEmphasis
+ID_EDIT_MERGE	stringtable	Слить выделенный контейнер со следующим\nСлить контейнеры	Об'єднати виділений контейнер з наступним\nОб'єднати контейнери	Merge selected container with next\nMerge containers
+ID_EDIT_PASTE	stringtable	Вставить содержимое буфера обмена\nВставить	Вставити вміст буфера обмену\nВставити	Insert Clipboard contents\nPaste
+ID_EDIT_REDO	stringtable	Вернуть последнее отмененное действие\nВернуть	Повторити останню скасовану дію\nПовторити дію	Redo the previously undone action\nRedo
+ID_EDIT_REPLACE	stringtable	Найти текст и заменить его другим текстом\nЗаменить	Знайти текст і замінити його іншим текстом\nЗамінити	Replace specific text with different text\nReplace
+ID_EDIT_SPLIT	stringtable	Разрезать контейнер\nРазрезать контейнер	Розрізати контейнер\nРозрізати контейнер	Split parent container at selection\nSplit container
+ID_EDIT_STRIK	stringtable	Зачеркнутый текст\nЗачеркнутый текст	Закреслений текст\nЗакреслений текст	Marks the selection ""strikethrough"" (toggle)\nStrikethrough
+ID_EDIT_SUB	stringtable	Нижний индекс\nНижний индекс	Нижній індекс\nНижній індекс	Marks the selection ""sub"" (toggle)\nSub
+ID_EDIT_SUP	stringtable	Верхний индекс\nВерхний индекс	Верхній індекс\nВерхній індекс	Marks the selection ""sup"" (toggle)\nSup
+ID_EDIT_UNDO	stringtable	Отменить последнее действие\nОтменить	Скасувати останню виконану дію\nСкасувати дію	Undo the last action\nUndo
+ID_FILE_NEW	stringtable	Создать новый документ\nНовый	Створити новий документ\nСтворити	Create a new document\nNew
+ID_FILE_OPEN	stringtable	Открыть документ\nОткрыть	Відкрити документ\nВідкрити	Open an existing document\nOpen
+ID_FILE_SAVE	stringtable	Сохранить документ\nСохранить	Зберегти документ\nЗберегти	Save the active document\nSave
+ID_FILE_SAVE_AS	stringtable	Сохранить активный документ под новым именем\nСохранить как	Зберегти активний документ з іншим ім'ям\nЗберегти як	Save the active document with a new name\nSave As
+ID_FILE_VALIDATE	stringtable	Проверить документ на соответствие формату Fiction Book\nПроверить	Перевірити документ на відповідність формату Fiction Book\nПеревірити	Validate current document against FictionBook schema\nValidate
+ID_GOTO_FOOTNOTE	stringtable	Перейти на текст сноски или к ссылке\nПерейти на текст сноски или к ссылке	Перейти до тексту примітки або до посилання\nПерейти до тексту примітки або до посилання	Go to footnote or reference\nGo to footnote or reference
+ID_GOTO_MATCHTAG	stringtable	Перейти к парному тегу\nПерейти к парному тегу	Перейти до парного тегу\nПерейти до парного тегу	Go to matching tag\nGo to matching tag
+ID_GOTO_WRONGTAG	stringtable	Перейти к ошибочному тегу\nПерейти к ошибочному тегу	Перейти до помилкового тегу\nПерейти до помилкового тегу	Go to wrong tag\nGo to wrong tag
+ID_INSERT_TABLE	stringtable	Вставить таблицу на место курсора\nВставить таблицу	Вставити таблицю на місце курсору\nВставити таблицю	Insert an table at cursor\nInsert table
+ID_LAST_SCRIPT	stringtable	Выполнить последний запущенный скрипт\nПоследний скрипт	Виконати останній запущений скрипт \\ nОстанній скрипт	Execute last called script\nLast script
+ID_PANE_INS	stringtable	ЗАМ	ЗАМ	OVR
+ID_STYLE_LINK	stringtable	Добавить гиперссылку\nГиперссылка	Додати гіперпосилання\nГіперпосилання	Add a hyperlink\nHyperlink
+ID_STYLE_NOLINK	stringtable	Удалить ссылки из выделенного текста\nУдалить ссылки	Видалити посилання з виділеного тексту\nВидалити посилання	Remove links from selected text\nRemove links
+ID_STYLE_NORMAL	stringtable	Обычный текст\nОбычный текст	Звичайний текст\nЗвичайний текст	Normal paragraph style\nNormal
+ID_STYLE_NOTE	stringtable	Добавить сноску\nСноска	Додати примітку\nПримітка	Add a footnote\nFootnote
+ID_STYLE_SUBTITLE	stringtable	Подзаголовок\nПодзаголовок	Підзаголовок\nПідзаголовок	Subtitle paragraph style\nSubtitle
+ID_STYLE_TEXTAUTHOR	stringtable	Автор текста параграфа\nАвтор текста	Автор тексту параграфа\nАвтор тексту	Text author paragraph style\nText author
+ID_TOOLS_SPELLCHECK	stringtable	Проверка орфографии документа...\nПроверка орфографии	Перевірка орфографії документа...\nПеревірка орфографії	Check document spelling...\nCheck document spelling
+ID_VIEW_BODY	stringtable	Перейти к телу документа\nТело	Перейти до тіла документу\nТіло документу	Show document body\nBody
+ID_VIEW_DESC	stringtable	Перейти к описанию документа\nОписание документа	Перейти до опису документу\nОпис документу	Show document description\nDescription
+ID_VIEW_FASTMODE	stringtable	Переключить в ускоренный режим\nПереключить в ускоренный режим	Перемкнути в прискорений режим\nПеремкнути в прискорений режим	Toggle fast mode\nToggle fast mode
+ID_VIEW_OPTIONS	stringtable	Настройки редактора\nНатройки	Налаштування редактора\nНалаштування	Display options\nDisplay options
+ID_VIEW_SOURCE	stringtable	Перейти к коду\nПерейти к коду	Показати код\nПоказати код-сирець	Show document source code\nSource
+ID_VIEW_STATUS_BAR	stringtable	Показать или скрыть панель статуса\nПанель статуса	Показати чи сховати панель стану\nПанель стану	Show or hide the status bar\nToggle StatusBar
+ID_VIEW_TREE	stringtable	Показать или скрыть структуру документа\nСтруктура документа	Показати чи сховати структуру документа\nСтруктура документа	Show or hide the document tree\nToggle document tree
