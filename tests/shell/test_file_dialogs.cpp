@@ -159,6 +159,7 @@ TEST_CASE("file dialogs: the Save As encoding choice - label, items, the selecte
           "[shell][dialogs]") {
     CHECK(encodingLabel("ru") == "Кодировка:");
     CHECK(encodingLabel("ru-RU") == "Кодировка:");
+    CHECK(encodingLabel("uk") == "Кодування:");
     CHECK(encodingLabel("en") == "Encoding:");
     CHECK(encodingLabel("") == "Encoding:");
 

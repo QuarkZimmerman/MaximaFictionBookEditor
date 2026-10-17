@@ -342,7 +342,7 @@ cmake --install build/linux-app-release --prefix /tmp/mfbe --strip
   against them (handled by `cmake/FindCEFDistribution.cmake`). `libcef.so` ships with debug
   information (1.4 GB); stripped copies are produced at build time for installation and
   packaging (`MFBE_STRIP_CEF_BINARIES`, default on).
-- Only the `en-US` and `ru` CEF locale packs are installed (`MFBE_CEF_LOCALES`); Chromium
+- Only the `en-US`, `ru` and `uk` CEF locale packs are installed (`MFBE_CEF_LOCALES`); Chromium
   falls back to `en-US` for other system locales. Set `-DMFBE_CEF_LOCALES=` (empty) to ship
   all of them.
 - `MFBE_BUILD_UI=OFF` skips the npm build inside CMake; an existing `ui/dist` (from

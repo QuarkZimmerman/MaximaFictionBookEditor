@@ -76,8 +76,8 @@ ParseResult parseArguments(const std::vector<std::string>& args) {
         }
 
         if (name == "--lang") {
-            if (value != "en" && value != "ru") {
-                return error("Invalid value for --lang: '" + value + "' (expected en or ru)");
+            if (value != "en" && value != "ru" && value != "uk") {
+                return error("Invalid value for --lang: '" + value + "' (expected en, ru or uk)");
             }
             options.lang = value;
         } else if (name == "--remote-debugging-port") {
@@ -139,7 +139,7 @@ std::string usageText() {
     text +=
         "Usage: mfbe [options] [FILE...]\n"
         "  FILE                           .fb2 / .fbd / .xml document(s) to open\n"
-        "  --lang <en|ru>                 override the interface language for this run\n"
+        "  --lang <en|ru|uk>              override the interface language for this run\n"
         "  --new                          start with a new document from the blank template (the "
         "same as starting without FILE)\n"
         "  --remote-debugging-port <n>    enable Chromium DevTools/CDP on 127.0.0.1:<n>\n"

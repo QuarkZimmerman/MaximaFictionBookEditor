@@ -1,7 +1,7 @@
 /**
- * i18next setup: English and Russian catalogues (i18next JSON v4 with `Intl.PluralRules`
- * plural suffixes `_one/_few/_many/_other`), missing-key reporting in development and
- * loud failures in tests.
+ * i18next setup: English, Russian and Ukrainian catalogues (i18next JSON v4 with
+ * `Intl.PluralRules` plural suffixes `_one/_few/_many/_other`), missing-key reporting in
+ * development and loud failures in tests.
  *
  * Catalogue conventions: nested keys by area (`menu.file.new`, `dialog.find.caption`,
  * `msg.saveChanges`), `{{name}}` placeholders, `&` marks the keyboard accelerator of menu and
@@ -13,6 +13,7 @@ import { initReactI18next } from 'react-i18next';
 
 import en from './en.json';
 import ru from './ru.json';
+import uk from './uk.json';
 import {
   DEFAULT_LANGUAGE,
   SUPPORTED_LANGUAGES,
@@ -37,11 +38,12 @@ type Catalogue = Record<string, unknown>;
 
 /**
  * Feature catalogues: every `<feature>.<lang>.json` file next to this module is deep-merged
- * into the base catalogue of its language (`en.json` / `ru.json`). Features own their files,
- * so independent work never edits the same catalogue. Keys must not collide across files
- * (`tools/i18n-check.mjs` verifies parity and collisions).
+ * into the base catalogue of its language (`en.json` / `ru.json` / `uk.json`). Features own
+ * their files, so independent work never edits the same catalogue. Keys must not collide across
+ * files (`tools/i18n-check.mjs` verifies parity and collisions). The glob must name every
+ * language of `SUPPORTED_LANGUAGES` (a glob pattern cannot be built from the array).
  */
-const featureCatalogues = import.meta.glob<Catalogue>('./*.{en,ru}.json', {
+const featureCatalogues = import.meta.glob<Catalogue>('./*.{en,ru,uk}.json', {
   eager: true,
   import: 'default',
 });
@@ -76,10 +78,12 @@ function buildCatalogue(language: UiLanguage, base: Catalogue): Catalogue {
   return merged;
 }
 
+/** One entry per language of `SUPPORTED_LANGUAGES` (checked by the completeness test). */
 export const resources = {
   en: { translation: buildCatalogue('en', en as Catalogue) },
   ru: { translation: buildCatalogue('ru', ru as Catalogue) },
-} as const;
+  uk: { translation: buildCatalogue('uk', uk as Catalogue) },
+} as const satisfies Record<UiLanguage, { translation: Catalogue }>;
 
 export type TranslationCatalogue = typeof en;
 
@@ -118,9 +122,9 @@ function browserLanguages(): readonly string[] {
 }
 
 /**
- * Resolves the setting (`en`, `ru` or `system`) to a concrete UI language. "system" follows the
- * browser/OS language when it is supported (see `switch.ts` for the detection order); everything
- * else falls back to English.
+ * Resolves the setting (`en`, `ru`, `uk` or `system`) to a concrete UI language. "system"
+ * follows the browser/OS language when it is supported (see `switch.ts` for the detection
+ * order); everything else falls back to English.
  *
  * @param systemLanguage browser preferences (`navigator.languages` by default)
  * @param coreSystemLanguage the OS language reported by the core (`app.info.systemLanguage`)

@@ -95,9 +95,10 @@ TEST_CASE("context menu: labels in the shell's language with distinct accelerato
     CHECK(contextMenuLabel(EditCommand::Undo, "en") == "&Undo");
     CHECK(contextMenuLabel(EditCommand::SelectAll, "en") == "Select &All");
     CHECK(contextMenuLabel(EditCommand::Paste, "ru") == "Вст&авить");
+    CHECK(contextMenuLabel(EditCommand::Paste, "uk") == "&Вставити");
     CHECK(contextMenuLabel(EditCommand::Copy, "de") == "&Copy");
     CHECK(contextMenuLabel(EditCommand::Copy, "") == "&Copy");
-    for (const char* language : {"en", "ru"}) {
+    for (const char* language : {"en", "ru", "uk"}) {
         std::set<std::string> accelerators;
         for (const EditCommand command : kCommands) {
             const std::string label = contextMenuLabel(command, language);

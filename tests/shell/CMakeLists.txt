@@ -1,6 +1,7 @@
 # Unit tests of the CEF shell's logic without CEF types (feature 002): how a file dialog request
-# becomes each platform's dialog, the right-click menu and the latest-release request. Built with
-# the application presets; the CI app jobs run them with `ctest -L shell`.
+# becomes each platform's dialog, the right-click menu, the latest-release request and (feature
+# 003) the command line. Built with the application presets; the CI app jobs run them with
+# `ctest -L shell`.
 find_package(Catch2 3 CONFIG REQUIRED)
 
 file(GLOB MFBE_SHELL_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp")

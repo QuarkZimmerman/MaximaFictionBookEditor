@@ -18,10 +18,16 @@ export { ENCODING_CHOICES };
 /* Option lists                                                             */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * Interface language (`view.uiLanguage`): follow the system, or one of `SUPPORTED_LANGUAGES`
+ * (ui/src/i18n/switch.ts) in that order; the completeness test checks that every supported
+ * language has its `dialog.settings.view.language<Lang>` label.
+ */
 export const LANGUAGE_OPTIONS: readonly { value: UiLanguageSetting; labelKey: string }[] = [
   { value: 'system', labelKey: 'dialog.settings.view.languageSystem' },
   { value: 'en', labelKey: 'dialog.settings.view.languageEn' },
   { value: 'ru', labelKey: 'dialog.settings.view.languageRu' },
+  { value: 'uk', labelKey: 'dialog.settings.view.languageUk' },
 ];
 
 /** Interface theme (`view.theme`): follow the OS, or force light / dark. */
