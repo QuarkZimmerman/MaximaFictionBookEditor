@@ -10,6 +10,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <limits>
 #include <string>
 #include <vector>
@@ -162,8 +163,12 @@ TEST_CASE("relaunch: a program that cannot be started is reported, not thrown", 
     CHECK_FALSE(mfbe::shell::spawnDetached("/nonexistent/folder/mfbe", {"--no-sandbox"}, &reason));
     CHECK_FALSE(reason.empty());
 #if !defined(_WIN32)
+    // /usr/bin/true on macOS and merged-/usr Linux, /bin/true elsewhere.
+    const char* truth = std::filesystem::exists("/usr/bin/true") ? "/usr/bin/true" : "/bin/true";
     reason.clear();
-    CHECK(mfbe::shell::spawnDetached("/bin/true", {}, &reason));
+    INFO("reason: " << reason);
+    CHECK(mfbe::shell::spawnDetached(truth, {}, &reason));
+    INFO("reason: " << reason);
     CHECK(reason.empty());
 #endif
 }

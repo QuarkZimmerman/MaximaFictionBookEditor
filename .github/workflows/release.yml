@@ -303,6 +303,12 @@ jobs:
         shell: bash
         run: |
           tools/ci/annotate-failure.sh "$RUNNER_TEMP/package.log" "Package"
+      - name: Package failure details (WiX log)
+        if: failure() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $log = "build\${{ matrix.preset }}\packages\_CPack_Packages\win64\WIX\wix.log"
+          if (Test-Path $log) { Get-Content $log | Select-String -Pattern 'error|warning' -Context 0,2 | Select-Object -First 80 } else { Write-Host "no $log" }
           # Generator logs with the actual tool errors (WiX on Windows, rpmbuild/dpkg on Linux).
           for log in build/${{ matrix.preset }}/packages/_CPack_Packages/*/WIX/wix.log \
                      build/${{ matrix.preset }}/packages/_CPack_Packages/*/RPM/rpmbuild*.err \
