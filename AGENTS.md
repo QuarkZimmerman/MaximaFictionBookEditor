@@ -61,7 +61,8 @@ Run the core headless for manual/MCP testing:
   settings; pass it per commit:
   `git -c user.name="Quark Zimmerman" -c user.email="quark_zimmerman@proton.me" commit ...`.
   Commit at natural checkpoints (a completed task or user story, a finished Spec Kit phase);
-  push only when the requester asks.
+  push only when the requester asks. Hard rule (requester, 2026-10-17): commit messages carry
+  no `Co-Authored-By` trailer and no mention of Claude, Devin or any other AI tool.
 - No scope beyond the original editor without the requester's approval.
 - Licence: GPL-3.0-only (the original editor's); keep the original's notices
   (`CONTRIBUTORS.txt`, the scripts' author notices, checked by
