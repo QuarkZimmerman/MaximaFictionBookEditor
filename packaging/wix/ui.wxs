@@ -17,7 +17,7 @@
   across upgrades and the components it drives live in shell-integration.wxs, so that they are
   part of the package even without this dialog set (unattended installations never run it).
 
-  Every other dialog (WelcomeDlg, LicenseAgreementDlg, BrowseDlg, InvalidDirDlg, VerifyReadyDlg,
+  Every other dialog (WelcomeDlg, LicenseAgreementDlg, BrowseDlg, VerifyReadyDlg,
   the maintenance, progress and error dialogs) is the stock one from WixToolset.UI.wixext, which
   CPack passes to `wix build` for every dialog set. The texts of MfbeInstallDirDlg are English
   literals rather than the extension's !(loc.*) strings: the package is built for en-US only
@@ -27,36 +27,31 @@
   How the set is referenced: the template (mfbe.template.in) carries
   `<ui:WixUI Id="$(var.CPACK_WIX_UI_REF)" />` with CPACK_WIX_UI_REF = WixUI_MfbeInstallDir
   (cmake/MfbePackaging.cmake). In WiX v4+ that element references the UI element named
-  "<Id>_<platform>" (X86, X64 or A64), because the two custom actions a dialog set needs - the
-  licence printing and the install-path validation of WixToolset.UI.wixext - exist once per
-  platform (WixUIPrintEula_X64, WixUIValidatePath_X64, ...), and the stock sets are split into
-  a per-platform UI with those Publish rows and a platform-independent UI with the rest. This
-  file defines the per-platform ids as plain aliases of the one UI WixUI_MfbeInstallDir, which
-  holds the complete set and picks the custom actions of the platform being built from
-  $(sys.BUILDARCH): whichever of the two ids the reference resolves to, the whole set is
-  linked (a half-linked set would leave the Next button of the folder page dead, something the
-  unattended CI installation can never show).
+  "<Id>_<platform>" (X86, X64 or A64): the stock sets are split into a per-platform UI with
+  the platform-specific rows and a platform-independent UI with the rest. Like the stock
+  WixUI_InstallDir of WiX 7.0.0 (src/ext/UI/wixlib/WixUI_InstallDir.wxs), the per-platform
+  UI here carries the CheckTargetPath rows and a UIRef to the platform-independent
+  WixUI_MfbeInstallDir, which holds everything else; the folder is validated by the installer's
+  own CheckTargetPath event and the licence printed by the dialog's own MsiPrint event, so no
+  custom action of the UI extension is referenced.
 
   The dialog set is pinned, like the rest of the MSI, to the WiX tool version the workflows
-  install (7.0.0; see packaging/README.md): the stock dialog ids, control ids and the custom
-  action names above are those of WiX v4 and later.
+  install (7.0.0; see packaging/README.md): the stock dialog ids, control ids and events above
+  are those of that version.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
-  <!-- Platform suffix of the UI extension's custom actions (loud failure for an unknown one). -->
-  <?if $(sys.BUILDARCH) ~= "x64" ?>
-    <?define MfbeUiArch = "X64" ?>
-  <?elseif $(sys.BUILDARCH) ~= "x86" ?>
-    <?define MfbeUiArch = "X86" ?>
-  <?elseif $(sys.BUILDARCH) ~= "arm64" ?>
-    <?define MfbeUiArch = "A64" ?>
-  <?else ?>
-    <?error ui.wxs: no WixUI custom actions known for the platform "$(sys.BUILDARCH)" ?>
-  <?endif ?>
-
+  <!-- The per-platform entry points the ui:WixUI reference resolves to (stock layout): the
+       folder page's path check, then the platform-independent rest of the set. -->
   <?foreach WIXUIARCH in X86;X64;A64 ?>
   <Fragment>
-    <UI Id="WixUI_MfbeInstallDir_$(var.WIXUIARCH)" />
+    <UI Id="WixUI_MfbeInstallDir_$(var.WIXUIARCH)">
+      <Publish Dialog="BrowseDlg" Control="OK" Event="CheckTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
+
+      <Publish Dialog="MfbeInstallDirDlg" Control="Next" Event="CheckTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
+      <Publish Dialog="MfbeInstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4" />
+    </UI>
+
     <UIRef Id="WixUI_MfbeInstallDir" />
   </Fragment>
   <?endforeach?>
@@ -112,13 +107,7 @@
       </Dialog>
 
       <!-- Navigation: the stock InstallDir sequence with MfbeInstallDirDlg in place of
-           InstallDirDlg. The licence printing and the path validation (WIXUI_INSTALLDIR_VALID)
-           are the UI extension's custom actions of the platform being built. -->
-      <Publish Dialog="LicenseAgreementDlg" Control="Print" Event="DoAction" Value="WixUIPrintEula_$(var.MfbeUiArch)" />
-
-      <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_$(var.MfbeUiArch)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" />
-      <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
-
+           InstallDirDlg (the path check rows live in the per-platform UI above). -->
       <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
 
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
@@ -128,12 +117,12 @@
       <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="MfbeInstallDirDlg" Condition="LicenseAccepted = &quot;1&quot;" />
 
       <Publish Dialog="MfbeInstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" />
-      <Publish Dialog="MfbeInstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
-      <Publish Dialog="MfbeInstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath_$(var.MfbeUiArch)" Order="2" Condition="NOT WIXUI_DONTVALIDATEPATH" />
-      <Publish Dialog="MfbeInstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
-      <Publish Dialog="MfbeInstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4" Condition="WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+      <Publish Dialog="MfbeInstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="3" />
       <Publish Dialog="MfbeInstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1" />
       <Publish Dialog="MfbeInstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2" />
+
+      <Publish Dialog="BrowseDlg" Control="OK" Event="SetTargetPath" Value="[_BrowseProperty]" Order="3" />
+      <Publish Dialog="BrowseDlg" Control="OK" Event="EndDialog" Value="Return" Order="4" />
 
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MfbeInstallDirDlg" Order="1" Condition="NOT Installed" />
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" Condition="Installed AND NOT PATCH" />
