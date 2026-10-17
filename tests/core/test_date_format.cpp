@@ -122,18 +122,26 @@ TEST_CASE("date format: the regional long date of the LC_TIME locale without the
           "[date]") {
     LocaleGuard guard;
     // The interface language is deliberately another one: the regional settings win.
-    REQUIRE(platform::set_date_locale_for_tests("ru_RU.UTF-8"));
+    if (!platform::set_date_locale_for_tests("ru_RU.UTF-8")) {
+        SKIP("ru_RU.UTF-8 is not generated on this machine");
+    }
     CHECK(date(2026, 10, 17, "en") == "17 октября 2026");
     CHECK(date(2026, 10, 7, "en") == "7 октября 2026");
-    REQUIRE(platform::set_date_locale_for_tests("uk_UA.UTF-8"));
+    if (!platform::set_date_locale_for_tests("uk_UA.UTF-8")) {
+        SKIP("uk_UA.UTF-8 is not generated on this machine");
+    }
     CHECK(date(2026, 10, 17, "en") == "17 жовтня 2026");
     CHECK(date(2026, 10, 7, "ru") == "7 жовтня 2026");
     // en_US puts the month first because its short date (D_FMT "%m/%d/%Y") does.
-    REQUIRE(platform::set_date_locale_for_tests("en_US.UTF-8"));
+    if (!platform::set_date_locale_for_tests("en_US.UTF-8")) {
+        SKIP("en_US.UTF-8 is not generated on this machine");
+    }
     CHECK(date(2026, 10, 17, "ru") == "October 17, 2026");
     CHECK(date(2026, 1, 7, "uk") == "January 7, 2026");
     // The year is written in full even where the short date abbreviates it (uk_UA "%d.%m.%y").
-    REQUIRE(platform::set_date_locale_for_tests("uk_UA.UTF-8"));
+    if (!platform::set_date_locale_for_tests("uk_UA.UTF-8")) {
+        SKIP("uk_UA.UTF-8 is not generated on this machine");
+    }
     CHECK(date(2031, 12, 31, "en") == "31 грудня 2031");
 }
 
@@ -151,6 +159,11 @@ TEST_CASE(
     "would",
     "[date]") {
     LocaleGuard guard;
+    for (const char* locale : {"ru_RU.UTF-8", "uk_UA.UTF-8", "en_US.UTF-8"}) {
+        if (!platform::set_date_locale_for_tests(locale)) {
+            SKIP(locale << " is not generated on this machine");
+        }
+    }
     REQUIRE(platform::set_date_locale_for_tests(nullptr));  // the environment decides
     SECTION("LC_ALL wins") {
         EnvVar all("LC_ALL", "uk_UA.UTF-8");
