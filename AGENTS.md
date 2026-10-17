@@ -1,11 +1,14 @@
 # Maxima Fiction Book Editor — guidance for AI agents and contributors
 
-Read first: `.specify/memory/constitution.md` (workspace `~/maxfbeditor`) — six principles
-(parity before novelty, headless testability, native core behind a versioned contract,
-round-trip safety, fenced scripting, GPL-3.0 licensing / offline). The design artifacts
-live in `~/maxfbeditor/specs/001-maxima-fb2-editor/` (spec, plan, research, data-model,
-`contracts/` = the JSON-RPC, document-model, script API, resource formats and CLI contracts).
-Original FictionBook Editor sources (behavioural reference): `~/maxfbeditor/reference/`.
+Read first: `.specify/memory/constitution.md` (workspace `~/maxfbeditor`, version 3.0.0) — six
+principles (specification first with the original as reference, headless testability, native
+core behind a versioned contract, round-trip safety, fenced scripting, GPL-3.0 licensing /
+offline). The design artifacts live in `~/maxfbeditor/specs/<feature>/` (spec, plan, research,
+data-model, `contracts/` = the JSON-RPC, document-model, script API, resource formats and CLI
+contracts; feature 001 holds the base contracts, later features their additive changes).
+Original FictionBook Editor sources: `~/maxfbeditor/reference/` — a reference and source of
+examples where a specification points to it or leaves a behaviour open; since 2026-10-17 the
+editor no longer needs to match the original (requester decision, constitution 3.0.0).
 
 ## Layout
 
@@ -63,7 +66,8 @@ Run the core headless for manual/MCP testing:
   Commit at natural checkpoints (a completed task or user story, a finished Spec Kit phase);
   push only when the requester asks. Hard rule (requester, 2026-10-17): commit messages carry
   no `Co-Authored-By` trailer and no mention of Claude, Devin or any other AI tool.
-- No scope beyond the original editor without the requester's approval.
+- No scope beyond the specifications without the requester's approval (a request in a feature
+  description is that approval); the original editor is a reference, not a target to match.
 - Licence: GPL-3.0-only (the original editor's); keep the original's notices
   (`CONTRIBUTORS.txt`, the scripts' author notices, checked by
   `tests/scripts/tools/check-notices.py`); a new dependency must pass `tools/licence-check.py`.
