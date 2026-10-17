@@ -104,9 +104,8 @@ taken deliberately, by changing the pin in both workflows and here after a packa
 the branch, never by an unpinned install. The project's own dialog set (`ui.wxs`, below) is
 written against that tool's v4 schema and relies on ids of the stock WixUI library that have
 been stable since WiX v4 (the dialogs `WelcomeDlg`, `LicenseAgreementDlg`, `BrowseDlg`,
-`InvalidDirDlg`, `VerifyReadyDlg`, `MaintenanceWelcomeDlg`, `MaintenanceTypeDlg`, the
-per-platform custom actions `WixUIPrintEula_<arch>` / `WixUIValidatePath_<arch>`, the
-`WixUI_Common` fragment); a bump re-checks the interactive installer, which the CI (`/qn`)
+`VerifyReadyDlg`, `MaintenanceWelcomeDlg`, `MaintenanceTypeDlg`, the `WixUI_Common` fragment,
+the built-in `CheckTargetPath` and `MsiPrint` events); a bump re-checks the interactive installer, which the CI (`/qn`)
 never shows.
 
 - `mfbe.template.in` is CMake's own WiX v4 template kept in the repository with
@@ -130,10 +129,9 @@ never shows.
   stock controls plus the checkbox **Create a shortcut on the desktop** bound to the public
   property `INSTALLDESKTOPSHORTCUT` (feature 003, `contracts/installer.md`). The template
   references the set through `<ui:WixUI Id="$(var.CPACK_WIX_UI_REF)"/>`, which in WiX v4+
-  resolves to the per-platform UI id `WixUI_MfbeInstallDir_X64` (the licence-print and
-  path-validation custom actions of the UI extension exist per platform, so the stock sets are
-  split per platform); `ui.wxs` defines those ids as empty aliases of the one complete UI,
-  which picks `WixUIPrintEula_<arch>` / `WixUIValidatePath_<arch>` from `$(sys.BUILDARCH)`,
+  resolves to the per-platform UI id `WixUI_MfbeInstallDir_X64`; like the stock set of WiX
+  7.0.0, `ui.wxs` defines the three per-platform ids with the folder page's `CheckTargetPath`
+  rows and a `UIRef` to the platform-independent `WixUI_MfbeInstallDir` holding the rest,
   so the whole set is linked whichever id the reference resolves to. The set defines the three
   `WixUI_Font_*` text styles, `DefaultUIFont` and `ARPNOMODIFY` like the stock set (never add
   `ARPNOMODIFY` to `CPACK_WIX_PROPERTY_*`). Its texts are English literals (the package is
