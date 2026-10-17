@@ -356,8 +356,11 @@ textarea {
   left: 100%;
 }
 
-/* Context menus at the pointer (inline left/top), above the dialogs' floating layer. */
-.mfbe-menu-popup.mfbe-popup-menu {
+/* Context menus at the pointer (inline left/top, viewport coordinates), above the dialogs'
+   floating layer. Fixed: the view area is a positioned box (the transient notice's containing
+   block), so an absolutely positioned menu would be offset and could scroll the document. */
+.mfbe-menu-popup.mfbe-popup-menu,
+.mfbe-menu-popup.mfbe-context-menu {
   position: fixed;
   z-index: 600;
 }
