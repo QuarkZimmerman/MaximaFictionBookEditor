@@ -5,7 +5,7 @@
 //
 //   mfbe [options] [FILE...]
 //     FILE                           .fb2 / .fbd / .xml to open
-//     --lang <en|ru>                 override interface language for this run
+//     --lang <en|ru|uk>              override interface language for this run
 //     --new                          start with a new document from the blank template (the
 //                                    same as starting without FILE)
 //     --remote-debugging-port <n>    enable Chromium DevTools/CDP on 127.0.0.1:<n> (dev/test)
@@ -26,7 +26,7 @@ namespace mfbe::shell {
 
 struct ShellOptions {
     std::vector<std::string> files;  // positional FILE arguments (as given, not resolved)
-    std::string lang;                // "" (system), "en" or "ru"
+    std::string lang;                // "" (system), "en", "ru" or "uk"
     bool new_document = false;
     int remote_debugging_port = 0;  // 0 = disabled
     bool no_sandbox = false;

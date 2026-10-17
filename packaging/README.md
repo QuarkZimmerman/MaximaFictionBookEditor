@@ -31,8 +31,8 @@ The Linux shell lives in `lib/mfbe` because Chromium resolves its resources, the
 and the SUID helper relative to the executable/module directory; `/proc/self/exe` resolves
 the `bin/mfbe` symlink, and both the shell (`app/src/user_dirs.cpp`) and the core find
 `share/mfbe/...` from there. `libcef.so` is stripped at build time for installation
-(1.4 GB with debug info, ~260 MB stripped; `MFBE_STRIP_CEF_BINARIES`), and only the `en-US`
-and `ru` locale packs are installed (`MFBE_CEF_LOCALES`).
+(1.4 GB with debug info, ~260 MB stripped; `MFBE_STRIP_CEF_BINARIES`), and only the `en-US`,
+`ru` and `uk` locale packs are installed (`MFBE_CEF_LOCALES`).
 
 ## Linux
 

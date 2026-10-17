@@ -55,8 +55,8 @@ else()
 endif()
 
 # CEF locale packs to ship ("" = all ~50 of them, +47 MB). The editor's own interface is
-# English/Russian; Chromium falls back to en-US for any other system locale.
-set(MFBE_CEF_LOCALES "en-US;ru" CACHE STRING
+# English/Russian/Ukrainian; Chromium falls back to en-US for any other system locale.
+set(MFBE_CEF_LOCALES "en-US;ru;uk" CACHE STRING
   "CEF locale .pak files to install (semicolon list; empty = all)")
 
 # Strip the CEF shared libraries when installing (the Linux minimal distribution ships

@@ -371,6 +371,9 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     if (lang == "ru") {
         CefString(&settings.locale) = "ru";  // ignored on Linux (env-based), used elsewhere
         CefString(&settings.accept_language_list) = "ru,en-US,en";
+    } else if (lang == "uk") {
+        CefString(&settings.locale) = "uk";
+        CefString(&settings.accept_language_list) = "uk,en-US,en";
     } else if (lang == "en") {
         CefString(&settings.locale) = "en-US";
         CefString(&settings.accept_language_list) = "en-US,en";

@@ -75,11 +75,14 @@ set(MFBE_SHELL_DEFINES
   $<$<BOOL:${MFBE_TEST_HOOKS}>:MFBE_SHELL_TEST_HOOKS=1>)
 
 # ---------------------------------------------------------------------------------------------
-# Pure shell logic without CEF types (file dialog requests in each platform's terms, the
-# right-click menu, the latest-release request), shared by the bridge, the shell and the
-# mfbe_shell_tests executable (tests/shell).
+# Pure shell logic without CEF types (the command line, file dialog requests in each platform's
+# terms, the right-click menu, the latest-release request), shared by the bridge, the shell and
+# the mfbe_shell_tests executable (tests/shell). command_line.cpp prints the version stamps in
+# --help / --version, hence the version defines.
 
 add_library(mfbe_shell_logic STATIC
+  src/command_line.cpp
+  src/command_line.h
   src/context_menu.cpp
   src/context_menu.h
   src/file_dialog_request.cpp
@@ -88,6 +91,7 @@ add_library(mfbe_shell_logic STATIC
   src/permission_policy.h
   src/release_request.cpp
   src/release_request.h)
+target_compile_definitions(mfbe_shell_logic PRIVATE ${MFBE_SHELL_VERSION_DEFINES})
 target_include_directories(mfbe_shell_logic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(mfbe_shell_logic PUBLIC mfbe_paths PRIVATE mfbe::options)
 
@@ -175,8 +179,6 @@ endif()
 # Shell sources (compiled with CEF's flags: -fno-exceptions -fno-rtti -Werror ...).
 
 set(MFBE_SHELL_SRCS
-  src/command_line.cpp
-  src/command_line.h
   src/mfbe_app.cpp
   src/mfbe_app.h
   src/mfbe_client.cpp

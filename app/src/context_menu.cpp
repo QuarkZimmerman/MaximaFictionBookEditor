@@ -24,19 +24,20 @@ std::vector<ContextMenuItem> contextMenuItems(const EditState& state) {
 
 std::string contextMenuLabel(EditCommand command, std::string_view language) {
     const bool russian = language == "ru";
+    const bool ukrainian = language == "uk";
     switch (command) {
         case EditCommand::Undo:
-            return russian ? "&Отменить" : "&Undo";
+            return russian ? "&Отменить" : ukrainian ? "&Скасувати дію" : "&Undo";
         case EditCommand::Cut:
-            return russian ? "&Вырезать" : "Cu&t";
+            return russian ? "&Вырезать" : ukrainian ? "Ви&різати" : "Cu&t";
         case EditCommand::Copy:
-            return russian ? "&Копировать" : "&Copy";
+            return russian ? "&Копировать" : ukrainian ? "&Копіювати" : "&Copy";
         case EditCommand::Paste:
-            return russian ? "Вст&авить" : "&Paste";
+            return russian ? "Вст&авить" : ukrainian ? "&Вставити" : "&Paste";
         case EditCommand::Delete:
-            return russian ? "&Удалить" : "&Delete";
+            return russian ? "&Удалить" : ukrainian ? "Ви&далити" : "&Delete";
         case EditCommand::SelectAll:
-            return russian ? "Выделить &все" : "Select &All";
+            return russian ? "Выделить &все" : ukrainian ? "Виділити вс&е" : "Select &All";
     }
     return {};
 }

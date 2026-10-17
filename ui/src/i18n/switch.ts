@@ -1,33 +1,39 @@
 /**
- * Interface language selection (US8, T097) - pure helpers shared by the start-up code
- * (`app/App.tsx`), the settings feature (`features/settings/apply.ts`) and the tests.
+ * Interface language selection (US8, T097; Ukrainian added by feature 003, FR-001) - pure
+ * helpers shared by the start-up code (`app/App.tsx`), the settings feature
+ * (`features/settings/apply.ts`) and the tests.
  *
  * Inputs and their meaning:
- *  - the setting `view.uiLanguage` (`en` | `ru` | `system`, contracts/rpc-api.md §3.8);
+ *  - the setting `view.uiLanguage` (`en` | `ru` | `uk` | `system`, contracts/rpc-api.md §3.8);
  *  - the browser preference list (`navigator.languages`; the CEF shell derives it from its
  *    locale, which follows the OS on Linux and `--lang` elsewhere);
  *  - the operating-system language reported by the core (`app.info.systemLanguage`: the Windows
  *    user locale, `LC_ALL`/`LC_MESSAGES`/`LANG` on POSIX).
  *
- * First start (FR-100): the editor follows the system language when it is English or Russian
- * and falls back to English otherwise. {@link detectSystemLanguage} combines the two signals so
- * that the result is right in every environment:
+ * First start (FR-100): the editor follows the system language when it is one of the supported
+ * languages (English, Russian, Ukrainian) and falls back to English otherwise.
+ * {@link detectSystemLanguage} combines the two signals so that the result is right in every
+ * environment:
  *  1. the first supported language of the browser list wins when it is not English - somebody
- *     set it on purpose (the shell's `--lang ru`, a Russian browser profile, a Russian desktop
- *     on Linux where CEF reads `LANG`);
+ *     set it on purpose (the shell's `--lang ru`, a Russian browser profile, a Ukrainian
+ *     desktop on Linux where CEF reads `LANG`);
  *  2. when the browser list names nothing but English - the built-in default of every browser
  *     engine, and what CEF reports on Windows/macOS unless the shell passes a locale - the
  *     core's OS language decides if it is supported;
  *  3. otherwise the first supported browser language, then the OS language, then
  *     {@link DEFAULT_LANGUAGE}.
  *
- * Adding a language means extending {@link SUPPORTED_LANGUAGES}, the `UiLanguage` type and a
- * new `<lang>.json` / `<feature>.<lang>.json` catalogue set - nothing else.
+ * Adding a language means extending {@link SUPPORTED_LANGUAGES}, the `UiLanguage` type, the
+ * `resources` map of `index.ts` (with its `<lang>.json` / `<feature>.<lang>.json` catalogue
+ * set, picked up by the feature-catalogue glob there), the Settings option list
+ * (`dialogs/settings/model.ts`, `LANGUAGE_OPTIONS`) and the `lang.<lang>` /
+ * `dialog.settings.view.language<Lang>` names in every catalogue - the completeness test
+ * (`tests/unit/i18n-completeness.test.ts`) checks the new language automatically.
  */
 
 import type { UiLanguage, UiLanguageSetting } from '@/rpc/types';
 
-export const SUPPORTED_LANGUAGES: readonly UiLanguage[] = ['en', 'ru'];
+export const SUPPORTED_LANGUAGES: readonly UiLanguage[] = ['en', 'ru', 'uk'];
 export const DEFAULT_LANGUAGE: UiLanguage = 'en';
 
 export function isSupportedLanguage(value: string | undefined | null): value is UiLanguage {
@@ -82,8 +88,8 @@ export function detectSystemLanguage(
 }
 
 /**
- * The language the interface actually uses for a setting: `en`/`ru` as such, `system` (or an
- * absent/unknown value from an older settings file) -> `system`.
+ * The language the interface actually uses for a setting: `en`/`ru`/`uk` as such, `system` (or
+ * an absent/unknown value from an older settings file) -> `system`.
  */
 export function effectiveLanguage(
   setting: UiLanguageSetting | string | null | undefined,

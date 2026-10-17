@@ -144,7 +144,10 @@ ProposedFile proposedFile(const FileDialogRequest& request) {
 }
 
 std::string encodingLabel(const std::string& language) {
-    return language.rfind("ru", 0) == 0 ? "Кодировка:" : "Encoding:";
+    if (language.rfind("ru", 0) == 0) {
+        return "Кодировка:";
+    }
+    return language.rfind("uk", 0) == 0 ? "Кодування:" : "Encoding:";
 }
 
 std::size_t selectedEncodingIndex(const FileDialogRequest& request) {

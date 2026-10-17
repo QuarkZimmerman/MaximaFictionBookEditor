@@ -124,7 +124,7 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("app.setUiLanguage", [&services](const json& params, rpc::RpcContext& ctx) {
         const std::string lang = rpc::params::string(params, "lang");
-        if (lang != "en" && lang != "ru" && lang != "system") {
+        if (lang != "en" && lang != "ru" && lang != "uk" && lang != "system") {
             throw rpc::RpcError(rpc::codes::kSettingsInvalid, "",
                                 json{{"field", "view.uiLanguage"}});
         }
