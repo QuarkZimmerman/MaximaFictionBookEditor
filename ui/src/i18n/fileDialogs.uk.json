@@ -1,0 +1,20 @@
+{
+  "$comment": "Типи файлів у системних діалогах вибору файлу (feature 002, spec FR-010): списки оригінального редактора, а також описи .fbd і зображення WebP. Кожна назва показується разом із шаблонами, наприклад «Файли FictionBook (*.fb2)».",
+  "fileDialogs": {
+    "types": {
+      "fictionBook": "Файли FictionBook",
+      "fictionBookDescriptors": "Описи FictionBook",
+      "all": "Усі файли",
+      "supportedImages": "Підтримувані зображення",
+      "jpeg": "JPEG",
+      "png": "PNG",
+      "bitmap": "Точкові рисунки",
+      "gif": "GIF",
+      "tiff": "TIFF",
+      "webp": "WebP",
+      "jpegFiles": "Файли JPEG",
+      "pngFiles": "Файли PNG",
+      "dictionaries": "Словники"
+    }
+  }
+}

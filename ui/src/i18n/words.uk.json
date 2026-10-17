@@ -1,0 +1,38 @@
+{
+  "dialog": {
+    "words": {
+      "analyzing": "Аналіз слів книги...",
+      "analyzeFailed": "Не вдалося проаналізувати слова: {{reason}}",
+      "noDocument": "Спочатку відкрийте книгу.",
+      "empty": "Слів не знайдено.",
+      "summary": "Різних слів: {{distinct}}, усього: {{total}} ({{duration}} мс)",
+      "visibleRows_one": "Показано {{count}} слово",
+      "visibleRows_few": "Показано {{count}} слова",
+      "visibleRows_many": "Показано {{count}} слів",
+      "visibleRows_other": "Показано {{count}} слова",
+      "hiddenExclusions_one": "Приховано {{count}} виключення",
+      "hiddenExclusions_few": "Приховано {{count}} виключення",
+      "hiddenExclusions_many": "Приховано {{count}} виключень",
+      "hiddenExclusions_other": "Приховано {{count}} виключення",
+      "columns": {
+        "highlight": "Виділити",
+        "replaced": "Замінювати",
+        "state": "Стан"
+      },
+      "states": {
+        "normal": "Звичайний",
+        "highlighted": "Виділено",
+        "replaced": "Замінюється",
+        "excluded": "Виключено"
+      },
+      "editReplacement": "Змінити заміну для \"{{word}}\"",
+      "toggleExclusion": "Перемкнути виключення \"{{word}}\"",
+      "toggleHighlight": "Виділити \"{{word}}\"",
+      "toggleReplaced": "Замінювати \"{{word}}\"",
+      "sortBy": "Сортувати за стовпцем «{{column}}»",
+      "nothingToReplace": "Жодної заміни не позначено: нічого робити.",
+      "exclusionsRejected": "Ці слова не можна додати до списку виключень (лише літери та один дефіс усередині слова):\n{{words}}",
+      "noCurrentWord": "Спочатку виберіть слово в списку."
+    }
+  }
+}

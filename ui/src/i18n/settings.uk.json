@@ -1,0 +1,71 @@
+{
+  "dialog": {
+    "settings": {
+      "loading": "Завантаження налаштувань...",
+      "unavailable": "Налаштування недоступні: ядро редактора не підключено.",
+      "browse": "Огляд...",
+      "invalidField": "Неприпустиме значення поля \"{{field}}\": {{reason}}",
+      "rangeError": "{{field}}: потрібне ціле число від {{min}} до {{max}}.",
+      "colorError": "{{field}}: потрібен колір у форматі #rrggbb.",
+      "view": {
+        "languageSystem": "Як у системі",
+        "languageEn": "Англійська",
+        "languageRu": "Російська",
+        "languageUk": "Українська",
+        "fontDefault": "Типовий шрифт",
+        "fontFamily": "Гарнітура",
+        "sourceFontSize": "Розмір:",
+        "fontSizeHint": "Пункти (6-96)",
+        "chooseDictionary": "Виберіть словник користувача"
+      },
+      "other": {
+        "openScriptsFolder": "Відкрити теку скриптів",
+        "customFolder": "Власна тека:",
+        "chooseGenresFolder": "Укажіть теку жанрів",
+        "chooseTemplateFolder": "Укажіть теку шаблону",
+        "templateBuiltIn": "Шаблон нових документів: вбудований blank.fb2",
+        "templateUser": "Шаблон нових документів: {{path}}",
+        "templateRejected": "Шаблон нових документів: вбудований blank.fb2 - {{path}} не можна використати: {{reason}}",
+        "templateUnknown": "Шаблон нових документів: недоступний (ядро не підключено)",
+        "genreSources": "Чинний список жанрів: {{sources}}",
+        "genreSourcesUnknown": "Чинний список жанрів: недоступний (ядро не підключено)",
+        "genreSourceStandard": "стандартний список ({{count}})",
+        "genreSourceLayer": "{{file}} із шару {{layer}} ({{count}})",
+        "genreIssues_one": "{{count}} помилка у файлах жанрів користувача (див. журнал).",
+        "genreIssues_few": "{{count}} помилки у файлах жанрів користувача (див. журнал).",
+        "genreIssues_many": "{{count}} помилок у файлах жанрів користувача (див. журнал).",
+        "genreIssues_other": "{{count}} помилки у файлах жанрів користувача (див. журнал).",
+        "nbspChars": {
+          "square": "Білий квадрат (□)",
+          "smallSquare": "Малий білий квадрат (▫)",
+          "bullet": "Білий маркер (◦)",
+          "space": "Звичайний пробіл (невидимий)"
+        }
+      },
+      "hotkeys": {
+        "capturePlaceholder": "Натисніть нове сполучення клавіш",
+        "current": "Поточне сполучення:",
+        "noDescription": "Опис відсутній.",
+        "groupHelp": "Довідка",
+        "notPersisted": "Сполучення діють у цьому сеансі, але ядро не змогло їх зберегти."
+      },
+      "words": {
+        "newWord": "Нове слово-виключення",
+        "counted": "Входжень у відкритій книзі",
+        "noDocument": "—",
+        "empty": "Список виключень порожній.",
+        "removeConfirm_one": "Видалити зі списку виключень {{count}} слово?",
+        "removeConfirm_few": "Видалити зі списку виключень {{count}} слова?",
+        "removeConfirm_many": "Видалити зі списку виключень {{count}} слів?",
+        "removeConfirm_other": "Видалити зі списку виключень {{count}} слова?"
+      }
+    }
+  },
+  "msg": {
+    "settingsSaved": "Налаштування збережено.",
+    "settingsSaveFailed": "Не вдалося зберегти налаштування: {{reason}}",
+    "openFolderUnavailable": "Теку не можна відкрити звідси. Вона розташована тут:\n{{path}}",
+    "openFolderFailed": "Не вдалося відкрити теку: {{reason}}",
+    "hotkeysApplied": "Сполучення клавіш оновлено."
+  }
+}
