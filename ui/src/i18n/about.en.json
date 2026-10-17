@@ -16,7 +16,17 @@
       "gplNotice": "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3 as published by the Free Software Foundation. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
       "licenceWhere": "The licence text is in the LICENSE file of the installation and at",
       "thirdParty": "Third-party components keep their own licences, listed in THIRD-PARTY-NOTICES.md of the installation.",
-      "contributors": "FictionBook Editor 2.7: licence, copyright and contributors"
+      "contributors": "FictionBook Editor 2.7: licence, copyright and contributors",
+      "dictionaries": "Spelling dictionaries and their notices:",
+      "dictionariesUnknown": "unknown (core not connected)",
+      "dictionariesNone": "no dictionaries are installed.",
+      "dictionarySource": {
+        "bundled": "built in",
+        "user": "user folder",
+        "portable": "portable folder",
+        "settings": "chosen folder"
+      },
+      "dictionaryNoNotice": "This dictionary has no notice file."
     }
   }
 }

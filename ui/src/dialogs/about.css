@@ -1,5 +1,6 @@
 /* About dialog (T149) after IDD_ABOUTBOX: name + version, build stamp, link, licence notices,
-   the original's contributor notice (IDC_CONTRIBS), log folder. */
+   the original's contributor notice (IDC_CONTRIBS), the spelling dictionaries' notices
+   (feature 003, FR-033), log folder. */
 
 .mfbe-aboutdialog {
   width: min(520px, calc(100vw - 32px));
@@ -85,6 +86,54 @@
 .mfbe-about-note a {
   color: var(--mfbe-color-accent, #0078d4);
   overflow-wrap: anywhere;
+}
+
+/* The dictionaries' notices: the same read-only box as the contributor notice, one section per
+   dictionary (tag and origin as its heading, the notice text below). */
+.mfbe-about-notices {
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 10.5em;
+  margin: 4px 0 0;
+  padding: 4px 6px;
+  overflow-y: auto;
+  color: inherit;
+  background: var(--mfbe-color-input-bg, #fff);
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+}
+
+.mfbe-about-notices:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: -2px;
+}
+
+.mfbe-about-dictionary + .mfbe-about-dictionary {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--mfbe-color-border, #c8c8c8);
+}
+
+.mfbe-about-dictionary-title {
+  margin: 0 0 4px;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.mfbe-about-dictionary-source {
+  font-weight: 400;
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
+}
+
+.mfbe-about-dictionary-text {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-about-dictionary-none {
+  color: var(--mfbe-color-fg-muted, #6b6b6b);
 }
 
 .mfbe-about-log {

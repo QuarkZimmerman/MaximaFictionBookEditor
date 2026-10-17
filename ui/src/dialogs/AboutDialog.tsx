@@ -5,13 +5,18 @@
  * version 3 (feature 002, FR-095 to FR-098): the licence, the copyright line, no warranty,
  * where to read the licence, and - in a scrollable read-only box, as the original showed its
  * `contributors.txt` (`IDC_CONTRIBS`) - the original's contributor notice word for word.
+ *
+ * Spelling dictionaries (feature 003, FR-004 / FR-033): every dictionary of
+ * `spell.dictionaries()` - built in or found in the user, portable or chosen folder - is listed
+ * with its tag and origin, and its `<tag>.txt` notice (`spell.dictionaryLicense`) is shown in a
+ * second scrollable box, one section per dictionary (`about-dictionary-<tag>`).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
-import { RpcError } from '@/rpc/client';
+import { RpcError, type RpcClient } from '@/rpc/client';
 import { RpcErrorCode, type AppInfo } from '@/rpc/types';
 
 import { Dialog, type DialogButton } from './Dialog';
@@ -38,17 +43,65 @@ interface EngineInfo {
   chromiumVersion?: string;
 }
 
+/** A dictionary of `spell.dictionaries()` with the text of its notice file. */
+interface DictionaryNotice {
+  /** `uk_UA` - the file stem of the `.aff`/`.dic` pair. */
+  tag: string;
+  /** Resource layer: `bundled`, `user`, `portable` or `settings` (the chosen folder). */
+  source: string;
+  /** The `<tag>.txt` text without the final newline; empty when the dictionary has none. */
+  text: string;
+}
+
+/**
+ * Origin labels by resource layer (core `resources::LayerName`, `spell.dictionaries().source`);
+ * an unknown layer name of a newer core is shown as it is.
+ */
+const DICTIONARY_SOURCE_KEYS: Readonly<Record<string, string>> = {
+  bundled: 'dialog.about.dictionarySource.bundled',
+  user: 'dialog.about.dictionarySource.user',
+  portable: 'dialog.about.dictionarySource.portable',
+  settings: 'dialog.about.dictionarySource.settings',
+};
+
 /** Chromium version from the user agent when the shell did not report one. */
 function chromiumVersionFromUserAgent(userAgent: string): string | undefined {
   const match = /(?:Chrome|Chromium)\/(\d+(?:\.\d+)*)/.exec(userAgent);
   return match ? match[1] : undefined;
 }
 
+/**
+ * The dictionaries in effect with their notices, in the core's order (built in first, then the
+ * other folders, alphabetically by tag). A notice that cannot be read is shown as absent; a
+ * dictionary list the core cannot give rejects (the dialog then says "unknown"). An entry of an
+ * older core without `tag` is listed under its `name` (the tag as well, rpc-api.md §3.4).
+ */
+async function loadDictionaryNotices(rpc: RpcClient): Promise<DictionaryNotice[]> {
+  const dictionaries = await rpc.call('spell.dictionaries');
+  return Promise.all(
+    dictionaries.map(async (dictionary) => {
+      const tag = dictionary.tag || dictionary.name;
+      let text = '';
+      try {
+        text = (await rpc.call('spell.dictionaryLicense', { tag })).text ?? '';
+      } catch {
+        // no notice file (or an older core without the method): the dictionary is still listed
+      }
+      return { tag, source: dictionary.source, text: text.replace(/\r?\n$/, '') };
+    }),
+  );
+}
+
 export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
   const { t } = useTranslation();
   const { rpc } = ctx;
   const [info, setInfo] = useState<(AppInfo & EngineInfo) | null>(null);
+  /** `unknown`: no core, or the core could not list the dictionaries. */
+  const [dictionaries, setDictionaries] = useState<DictionaryNotice[] | 'loading' | 'unknown'>(
+    rpc ? 'loading' : 'unknown',
+  );
   const [opening, setOpening] = useState(false);
+  const dictionariesCaptionId = useId();
 
   useEffect(() => {
     if (!rpc) return;
@@ -61,10 +114,22 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
       .catch(() => {
         // the dialog shows what it knows locally
       });
+    loadDictionaryNotices(rpc)
+      .then((list) => {
+        if (!cancelled) setDictionaries(list);
+      })
+      .catch(() => {
+        if (!cancelled) setDictionaries('unknown');
+      });
     return () => {
       cancelled = true;
     };
   }, [rpc]);
+
+  const dictionarySource = (source: string): string => {
+    const key = DICTIONARY_SOURCE_KEYS[source];
+    return key ? t(key) : source;
+  };
 
   const version = info?.version ?? ctx.version;
   const chromium =
@@ -203,6 +268,63 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
           </a>
           . {t('dialog.about.thirdParty')}
         </p>
+        <p
+          className="mfbe-about-note"
+          id={dictionariesCaptionId}
+          data-testid="about-dictionaries-caption"
+        >
+          {t('dialog.about.dictionaries')}
+          {dictionaries === 'unknown' ? ` ${t('dialog.about.dictionariesUnknown')}` : null}
+          {Array.isArray(dictionaries) && dictionaries.length === 0
+            ? ` ${t('dialog.about.dictionariesNone')}`
+            : null}
+        </p>
+        {Array.isArray(dictionaries) && dictionaries.length > 0 ? (
+          <div
+            className="mfbe-about-notices"
+            role="region"
+            tabIndex={0}
+            aria-labelledby={dictionariesCaptionId}
+            data-testid="about-dictionaries"
+          >
+            {dictionaries.map((dictionary) => (
+              <section
+                key={dictionary.tag}
+                className="mfbe-about-dictionary"
+                data-testid={`about-dictionary-${dictionary.tag}`}
+              >
+                <h3 className="mfbe-about-dictionary-title">
+                  <span data-testid={`about-dictionary-${dictionary.tag}-tag`}>
+                    {dictionary.tag}
+                  </span>
+                  {' ('}
+                  <span
+                    className="mfbe-about-dictionary-source"
+                    data-testid={`about-dictionary-${dictionary.tag}-source`}
+                  >
+                    {dictionarySource(dictionary.source)}
+                  </span>
+                  {')'}
+                </h3>
+                {dictionary.text ? (
+                  <pre
+                    className="mfbe-about-dictionary-text"
+                    data-testid={`about-dictionary-${dictionary.tag}-notice`}
+                  >
+                    {dictionary.text}
+                  </pre>
+                ) : (
+                  <p
+                    className="mfbe-about-dictionary-text mfbe-about-dictionary-none"
+                    data-testid={`about-dictionary-${dictionary.tag}-notice`}
+                  >
+                    {t('dialog.about.dictionaryNoNotice')}
+                  </p>
+                )}
+              </section>
+            ))}
+          </div>
+        ) : null}
         <div className="mfbe-about-log">
           <button
             type="button"
