@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Jane</first-name>
+				<last-name>Walker</last-name>
+			</author>
+			<book-title>Nested Sections</book-title>
+			<annotation>
+				<p>A small book whose sections nest three levels deep, for Source view completion tests.</p>
+			</annotation>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>Maxima Fiction Book Editor</program-used>
+			<date value="2026-10-17">2026-10-17</date>
+			<id>fixture-nested-sections</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Nested Sections</p>
+		</title>
+		<epigraph>
+			<p>Every part has a chapter, and every chapter has a scene.</p>
+			<text-author>The fixture</text-author>
+		</epigraph>
+		<section id="part1">
+			<title>
+				<p>Part One</p>
+				<empty-line/>
+				<p>The House</p>
+			</title>
+			<epigraph>
+				<p>Nothing is simple when a door stands open.</p>
+				<text-author>An old proverb</text-author>
+			</epigraph>
+			<section id="part1-ch1">
+				<title>
+					<p>Chapter 1. Arrival</p>
+				</title>
+				<section id="part1-ch1-s1">
+					<title>
+						<p>The Gate</p>
+					</title>
+					<p>The road ended at a wooden gate, and behind it a narrow path led up to the house.</p>
+					<subtitle>At the door</subtitle>
+					<p>Nobody answered the knock, so Anna pushed the door and stepped inside.</p>
+					<empty-line/>
+					<poem id="poem1">
+						<title>
+							<p>The Lantern</p>
+						</title>
+						<stanza>
+							<v>A lantern in the hall,</v>
+							<v>a shadow on the wall,</v>
+						</stanza>
+						<stanza>
+							<v>a step upon the stair,</v>
+							<v>and no one waiting there.</v>
+						</stanza>
+						<text-author>Anonymous</text-author>
+					</poem>
+				</section>
+				<section id="part1-ch1-s2">
+					<title>
+						<p>The Letter</p>
+					</title>
+					<p>On the table lay a letter, folded twice and sealed with red wax.</p>
+					<cite id="cite1">
+						<p>Whoever reads this has come too late, or just in time.</p>
+						<text-author>From the letter</text-author>
+					</cite>
+					<p>Anna read it twice and put it in her pocket.</p>
+				</section>
+			</section>
+			<section id="part1-ch2">
+				<title>
+					<p>Chapter 2. The Inventory</p>
+				</title>
+				<section id="part1-ch2-s1">
+					<title>
+						<p>What the House Held</p>
+					</title>
+					<p>She counted everything she found in the three rooms.</p>
+					<table id="table1">
+						<tr>
+							<th>Room</th>
+							<th>Item</th>
+							<th>Count</th>
+						</tr>
+						<tr>
+							<td>Hall</td>
+							<td>Lantern</td>
+							<td>1</td>
+						</tr>
+						<tr>
+							<td>Study</td>
+							<td>Books</td>
+							<td>212</td>
+						</tr>
+					</table>
+					<p>The books, she decided, would take the longest.</p>
+				</section>
+			</section>
+		</section>
+	</body>
+</FictionBook>

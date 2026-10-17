@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "id": "runs.failing",
+  "name": {
+    "en": "Failing run",
+    "ru": "Запуск с ошибкой"
+  },
+  "kind": "menu",
+  "undoLabel": {
+    "en": "Change the first paragraph (failing run)",
+    "ru": "Изменение первого абзаца (запуск с ошибкой)"
+  }
+}

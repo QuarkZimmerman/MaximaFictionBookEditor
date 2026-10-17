@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "id": "runs.short",
+  "name": {
+    "en": "Short run",
+    "ru": "Короткий запуск"
+  },
+  "kind": "menu",
+  "undoLabel": {
+    "en": "Change one paragraph",
+    "ru": "Изменение одного абзаца"
+  }
+}

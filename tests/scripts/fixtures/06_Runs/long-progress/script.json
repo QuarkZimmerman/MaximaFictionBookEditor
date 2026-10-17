@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "id": "runs.longProgress",
+  "name": {
+    "en": "Long run with progress",
+    "ru": "Долгий запуск с отчётом о ходе"
+  },
+  "kind": "menu",
+  "undoLabel": {
+    "en": "Change the first paragraph (run with progress)",
+    "ru": "Изменение первого абзаца (запуск с отчётом)"
+  }
+}
