@@ -97,7 +97,11 @@ It is a Debian conffile (kept on `remove`, deleted on `purge`).
 
 Built by CPack's WIX generator in WiX .NET-tool mode (`CPACK_WIX_VERSION 4`; WiX v4, v5 and
 v7 share the v4 schema). Requirements on the build machine: .NET SDK,
-`dotnet tool install --global wix`, `wix eula accept wix7` (WiX v7 Open Source Maintenance Fee EULA, https://wixtoolset.org/osmf/ - fee applies to organisations above the revenue threshold only), `wix extension add -g WixToolset.UI.wixext WixToolset.Util.wixext`.
+`dotnet tool install --global wix --version 7.0.0`, `wix eula accept wix7` (WiX v7 Open Source Maintenance Fee EULA, https://wixtoolset.org/osmf/ - fee applies to organisations above the revenue threshold only), `wix extension add -g WixToolset.UI.wixext/7.0.0 WixToolset.Util.wixext/7.0.0`.
+The WiX tool version is pinned to exactly **7.0.0** in `.github/workflows/ci.yml` and
+`release.yml` (`$wixVersion`; the version the release run of 0.0.2 installed): a newer WiX is
+taken deliberately, by changing the pin in both workflows and here after a packaging smoke on
+the branch, never by an unpinned install.
 
 - `mfbe.template.in` is CMake's own WiX v4 template kept in the repository with
   `Package/@Scope="perMachine"`: the installer asks for administrator rights and installs
