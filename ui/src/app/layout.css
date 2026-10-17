@@ -604,6 +604,8 @@ textarea {
 }
 
 .mfbe-view-area {
+  /* The containing block of the transient notice (app/transientNotice.css). */
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -648,6 +650,14 @@ textarea {
   min-height: 0;
   overflow: auto;
   user-select: text;
+}
+
+/* A script is computing (feature 003, FR-011): the pointer over the document pane shows the
+   busy state; the editors' own text cursor gives way to it. Not while the script waits in a
+   dialog of its own (App.tsx drops the class). */
+.mfbe-view-content.mfbe-busy,
+.mfbe-view-content.mfbe-busy * {
+  cursor: progress;
 }
 
 .mfbe-view {

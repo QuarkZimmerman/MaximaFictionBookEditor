@@ -1,0 +1,43 @@
+/* Transient notice (TransientNotice.tsx): a small panel floating over the lower edge of the view
+   area (`.mfbe-view-area` is its containing block), above the document, below menus and
+   dialogs. Not focusable; a click dismisses it. */
+
+.mfbe-transient-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 10;
+  max-width: calc(100% - 32px);
+  padding: 6px 14px;
+  border: 1px solid var(--mfbe-color-border-strong);
+  border-radius: 4px;
+  background: var(--mfbe-color-chrome-bg);
+  color: var(--mfbe-color-fg);
+  box-shadow: 0 4px 12px var(--mfbe-color-shadow);
+  font: var(--mfbe-font-ui);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: translateX(-50%);
+  cursor: default;
+  user-select: none;
+  animation: mfbe-transient-notice-in 160ms ease-out;
+}
+
+@keyframes mfbe-transient-notice-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mfbe-transient-notice {
+    animation: none;
+  }
+}

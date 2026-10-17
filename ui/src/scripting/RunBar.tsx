@@ -3,7 +3,10 @@
  * (`mfbe.ui.progress`, else its status text) and a Cancel command that stays available
  * throughout the run, above the script's own dialogs too. After 30 s without activity it says
  * so - information only, Cancel is the way to stop the script. Rendered by the status bar
- * (app/StatusBar.tsx), also when the status bar is hidden.
+ * (app/StatusBar.tsx), also when the status bar is hidden. Since feature 003 the run banner
+ * above the document (ScriptRunBanner.tsx) is the primary indicator; this line remains in
+ * addition (FR-010), its Cancel as `script-run-bar-cancel` beside the banner's
+ * `script-run-cancel`.
  */
 
 import { useSyncExternalStore } from 'react';
@@ -59,7 +62,7 @@ export function RunBar() {
       <button
         type="button"
         className="mfbe-button mfbe-runbar-cancel"
-        data-testid="script-run-cancel"
+        data-testid="script-run-bar-cancel"
         // A click must not take the focus away from a dialog the script has open.
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => feature.host.cancel()}

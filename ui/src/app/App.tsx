@@ -1,6 +1,7 @@
 /**
  * Application shell: menu bar, toolbars, document tree, view area with the Description / Body /
- * Source switcher, the validation panel, status bar and the dialog layer. Wires the RPC client
+ * Source switcher, the script run banner and the transient notice (feature 003), the
+ * validation panel, status bar and the dialog layer. Wires the RPC client
  * lifecycle (status, settings, job progress notifications), the document notifications
  * (`doc.changedOnDisk`, `app.openPaths`), the Recent Files list, the `?new=1` / `?lang=` start-up
  * parameters and the global hotkey dispatcher.
@@ -17,6 +18,8 @@ import { DescriptionView } from '@/views/description/DescriptionView';
 import { SourceView } from '@/views/source/SourceView';
 import { DocumentTree } from '@/views/tree/DocumentTree';
 import { getSettingsFeature } from '@/features/settings';
+import { getScriptsFeature } from '@/scripting/catalog';
+import { ScriptRunBanner } from '@/scripting/ScriptRunBanner';
 import { useScriptsMenu } from '@/scripting/ScriptsMenu';
 import { useScriptToolbarButtons } from '@/scripting/useScriptToolbarButtons';
 
@@ -30,9 +33,12 @@ import { StatusBar } from './StatusBar';
 import { followTextFieldFocus, textFieldOf } from './textFields';
 import { applyStoredTheme } from './theme';
 import { Toolbars } from './Toolbars';
+import { TransientNotice } from './TransientNotice';
 import { ViewSwitcher } from './ViewSwitcher';
 
 import './layout.css';
+
+const NO_SUBSCRIPTION = () => () => {};
 
 /**
  * Commands a text field in a modeless dialog keeps for itself, as in the original (its main
@@ -241,6 +247,15 @@ function Shell({
 
   const navigateToIssue = useMemo(() => createIssueNavigator(ctx), [ctx]);
 
+  // Busy pointer over the document pane while a script computes - not while it waits for the
+  // user in one of its own dialogs (feature 003, FR-011).
+  const scriptsFeature = getScriptsFeature(store);
+  const scriptBusy = useSyncExternalStore(
+    scriptsFeature?.host.subscribe ?? NO_SUBSCRIPTION,
+    () => !!scriptsFeature?.host.isRunning && !scriptsFeature.host.current?.waiting,
+    () => false,
+  );
+
   return (
     <div className="mfbe-app" data-testid="app-root" data-active-view={activeView}>
       <MenuBar dynamicItems={menuItems} />
@@ -253,11 +268,13 @@ function Shell({
         ) : null}
         <section className="mfbe-view-area" data-testid="view-area">
           <ViewSwitcher />
-          <div className="mfbe-view-content">
+          <ScriptRunBanner />
+          <div className={`mfbe-view-content${scriptBusy ? ' mfbe-busy' : ''}`}>
             {activeView === 'description' ? <DescriptionView /> : null}
             {activeView === 'body' ? <BodyView /> : null}
             {activeView === 'source' ? <SourceView /> : null}
           </div>
+          <TransientNotice />
           {validation ? (
             <ValidationPanel
               report={validation}

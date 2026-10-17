@@ -5,15 +5,26 @@
  * Cancel and failures restoring the document and closing the script's dialogs, errors
  * reported as "Script error: <message> at line L, column C" (dialog + log.error), the
  * Last-script memory (`scripts.lastRun`), the silent-run notice after the watchdog delay and
- * the busy guard.
+ * the busy guard. Feature 003 (T027): the run's duration set at the end and announced as
+ * "finished in N s" (with a transient notice after a run longer than 5 s), the `waiting` flag
+ * following the script's dialogs, the elapsed-time ticks while running and their end.
  */
 
 import { createInstance } from 'i18next';
 
 import { createAppServices, type AppServices } from '@/app/services';
+import { transientNotices } from '@/app/transientNotices';
 import { initI18n } from '@/i18n';
 import { actions, createAppStore, type AppStore } from '@/model/store';
-import { ScriptHost, formatScriptError, type RunResult, type WorkerLike } from '@/scripting/host';
+import {
+  ScriptHost,
+  durationSeconds,
+  formatElapsed,
+  formatRunProgress,
+  formatScriptError,
+  type RunResult,
+  type WorkerLike,
+} from '@/scripting/host';
 import type { HostMessage, InitMessage, ScriptInfo, WorkerMessage } from '@/scripting/types';
 import { getBodyController } from '@/views/body/bodyEditor';
 
@@ -91,7 +102,9 @@ interface Harness {
   run(options?: { treeNode?: { nodeId: string; type: string } }): Promise<RunResult>;
 }
 
-async function harness(options: { watchdogMs?: number; customAnswers?: unknown[] } = {}) {
+async function harness(
+  options: { watchdogMs?: number; tickMs?: number; customAnswers?: unknown[] } = {},
+) {
   const i18n = await initI18n({ instance: createInstance(), react: false, language: 'en' });
   const store = createAppStore();
   const rpc = fakeRpc({
@@ -113,6 +126,7 @@ async function harness(options: { watchdogMs?: number; customAnswers?: unknown[]
     getController: () => getBodyController(store),
     origin: () => 'http://127.0.0.1:4100',
     watchdogMs: options.watchdogMs,
+    tickMs: options.tickMs,
   });
   const h: Harness = {
     services,
@@ -206,7 +220,8 @@ describe('ScriptHost', () => {
     expect(h.calls.find((c) => c.method === 'scripts.lastRun')?.params).toEqual({
       scriptId: 'test.append',
     });
-    expect(h.store.getState().statusMessage).toBe('Script "Append paragraph" finished');
+    // The status says how long the run took: rounded to whole seconds, at least one.
+    expect(h.store.getState().statusMessage).toBe('Script "Append paragraph" finished in 1 s');
     expect(paragraphTexts(h.store)).toEqual(['Hello', 'Added']);
     // The whole run is one undo entry; Redo applies it again.
     expect(h.services.undo.undoDepth).toBe(1);
@@ -424,5 +439,176 @@ describe('ScriptHost', () => {
     expect(result.status).toBe('failed');
     expect(result.message).toContain('could not be loaded');
     expect(broken.services.undo.isGrouping).toBe(false);
+  });
+
+  /* ------------------------------------------- feature 003: duration, waiting, ticks */
+
+  /** Moves `Date.now()` forward by `offsetMs` from the real clock (timers stay real). */
+  function shiftClock(): { by(offsetMs: number): void; restore(): void } {
+    const realNow = Date.now.bind(Date);
+    let offset = 0;
+    const spy = vi.spyOn(Date, 'now').mockImplementation(() => realNow() + offset);
+    return {
+      by(offsetMs) {
+        offset = offsetMs;
+      },
+      restore() {
+        spy.mockRestore();
+      },
+    };
+  }
+
+  it('sets the duration at the end and says "finished in N s"; a run over 5 s also shows a notice', async () => {
+    const clock = shiftClock();
+    try {
+      // A short run: no duration while running, the duration at the end, no notice.
+      const short = await harness();
+      const notices = transientNotices(short.store);
+      const { done } = await started(short);
+      expect(short.host.current?.durationMs).toBeUndefined();
+      expect(short.host.current?.waiting).toBe(false);
+      clock.by(1_400);
+      short.worker.send({ type: 'done' });
+      await done;
+      expect(short.host.current?.status).toBe('done');
+      expect(short.host.current?.durationMs).toBeGreaterThanOrEqual(1_400);
+      expect(short.host.current?.durationMs).toBeLessThan(5_000);
+      expect(short.host.current?.elapsedMs).toBe(short.host.current?.durationMs);
+      expect(short.store.getState().statusMessage).toBe(
+        'Script "Append paragraph" finished in 1 s',
+      );
+      expect(notices.get()).toBeNull();
+
+      // A long run: the status carries the rounded duration and a notice appears.
+      clock.by(0);
+      const long = await harness();
+      const longNotices = transientNotices(long.store);
+      const longRun = await started(long);
+      clock.by(8_400);
+      long.worker.send({ type: 'done' });
+      await longRun.done;
+      expect(long.host.current?.durationMs).toBeGreaterThanOrEqual(8_400);
+      expect(long.store.getState().statusMessage).toBe('Script "Append paragraph" finished in 8 s');
+      expect(longNotices.get()).toMatchObject({
+        text: 'Script "Append paragraph" finished in 8 s',
+        kind: 'info',
+        ttlMs: 6_000,
+      });
+      longNotices.dismiss();
+      expect(longNotices.get()).toBeNull();
+
+      // A cancelled run: the duration is recorded, nothing is announced as finished.
+      clock.by(0);
+      const cancelled = await harness();
+      const cancelledRun = await started(cancelled);
+      clock.by(9_000);
+      cancelled.host.cancel();
+      await cancelledRun.done;
+      expect(cancelled.host.current?.durationMs).toBeGreaterThanOrEqual(9_000);
+      expect(cancelled.store.getState().statusMessage).toBe(
+        'Script "Append paragraph" was cancelled',
+      );
+      expect(transientNotices(cancelled.store).get()).toBeNull();
+    } finally {
+      clock.restore();
+    }
+  });
+
+  it('keeps a sticky status of the script instead of "finished in N s"', async () => {
+    const h = await harness();
+    const { done } = await started(h);
+    h.worker.send({
+      type: 'call',
+      id: 1,
+      method: 'ui.status',
+      args: ['Kept by the script', { sticky: true }],
+    });
+    await h.worker.waitFor('result');
+    h.worker.send({ type: 'done' });
+    await done;
+    expect(h.store.getState().statusMessage).toBe('Kept by the script');
+    expect(h.host.current?.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('flags the run as waiting while the script holds one of its dialogs open', async () => {
+    const h = await harness({ customAnswers: ['ok', new Promise(() => {})] });
+    const changes: boolean[] = [];
+    let last = false;
+    h.host.subscribe(() => {
+      const waiting = h.host.current?.waiting ?? false;
+      if (waiting !== last) {
+        last = waiting;
+        changes.push(waiting);
+      }
+    });
+    const { done } = await started(h);
+    expect(h.host.current?.waiting).toBe(false);
+
+    // A message box the fake answers at once: waiting goes up and back down.
+    h.worker.send({ type: 'call', id: 1, method: 'ui.message', args: ['Quick'] });
+    await waitUntil(
+      () => h.worker.received.some((m) => m.type === 'result' && m.id === 1),
+      'the first answer',
+    );
+    expect(h.host.current?.waiting).toBe(false);
+    expect(changes).toEqual([true, false]);
+
+    // One the user has not answered yet: the run waits until Cancel ends it.
+    h.worker.send({ type: 'call', id: 2, method: 'ui.message', args: ['Waiting'] });
+    await waitUntil(() => h.host.current?.waiting === true, 'the waiting flag');
+    expect(h.dialogs.custom).toHaveLength(2);
+    h.host.cancel();
+    await expect(done).resolves.toMatchObject({ status: 'cancelled' });
+    expect(h.host.current?.waiting).toBe(false);
+  });
+
+  it('ticks the elapsed time while running and stops ticking at the end', async () => {
+    const h = await harness({ tickMs: 20 });
+    let notified = 0;
+    h.host.subscribe(() => {
+      notified += 1;
+    });
+    const { done } = await started(h);
+    expect(h.host.current?.elapsedMs).toBe(0);
+    await waitUntil(() => (h.host.current?.elapsedMs ?? 0) > 0, 'an elapsed-time tick');
+    const first = h.host.current!.elapsedMs;
+    await waitUntil(() => h.host.current!.elapsedMs > first, 'the next tick');
+    expect(h.host.current!.elapsedMs).toBeGreaterThanOrEqual(
+      Date.now() - h.host.current!.startedAt - 50,
+    );
+
+    h.worker.send({ type: 'done' });
+    await done;
+    const afterEnd = notified;
+    const finalElapsed = h.host.current!.elapsedMs;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    // No tick after the end: nothing notified, the elapsed time frozen at the duration.
+    expect(notified).toBe(afterEnd);
+    expect(h.host.current!.elapsedMs).toBe(finalElapsed);
+    expect(h.host.current!.elapsedMs).toBe(h.host.current!.durationMs);
+  });
+
+  it('formats the banner texts: elapsed mm:ss, progress with a total, a bare count, a phase', async () => {
+    const h = await harness();
+    expect(formatElapsed(0)).toBe('00:00');
+    expect(formatElapsed(999)).toBe('00:00');
+    expect(formatElapsed(65_000)).toBe('01:05');
+    expect(formatElapsed(3_725_000)).toBe('62:05');
+    expect(durationSeconds(0)).toBe(1);
+    expect(durationSeconds(1_499)).toBe(1);
+    expect(durationSeconds(1_500)).toBe(2);
+    expect(durationSeconds(8_400)).toBe(8);
+    const progress = (done: number, total: number, phase: string) => ({
+      jobId: 'script',
+      phase,
+      done,
+      total,
+    });
+    expect(formatRunProgress(h.t, progress(20, 40, 'Counting'))).toBe('Counting — 20/40 (50 %)');
+    expect(formatRunProgress(h.t, progress(50, 40, 'Over'))).toBe('Over — 50/40 (100 %)');
+    expect(formatRunProgress(h.t, progress(12, 0, 'Still working'))).toBe('Still working — 12');
+    expect(formatRunProgress(h.t, progress(0, 0, 'Preparing'))).toBe('Preparing');
+    expect(formatRunProgress(h.t, null)).toBeNull();
+    expect(formatRunProgress(h.t, { ...progress(1, 2, 'Other'), jobId: 'job-7' })).toBeNull();
   });
 });
