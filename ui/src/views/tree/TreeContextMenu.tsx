@@ -6,7 +6,7 @@
  * the menu.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAppRevision, useAppServices, useCommandContext } from '@/app/services';
@@ -72,6 +72,16 @@ export function TreeContextMenu({ position, onClose }: TreeContextMenuProps) {
     left: Math.min(position.x, Math.max(0, window.innerWidth - 240)),
     top: Math.min(position.y, Math.max(0, window.innerHeight - 24 * (TREE_MENU.length + 1))),
   };
+
+  // Kept inside the window by its measured size (the estimate above only places the first
+  // paint): the Ukrainian and Russian labels make the menu taller than 24 px per item.
+  useLayoutEffect(() => {
+    const menu = ref.current;
+    if (!menu) return;
+    const { width, height } = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(0, Math.min(position.x, window.innerWidth - width))}px`;
+    menu.style.top = `${Math.max(0, Math.min(position.y, window.innerHeight - height))}px`;
+  }, [position]);
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     switch (event.key) {
