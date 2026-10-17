@@ -21,6 +21,12 @@
 //   MFBE_SMOKE_ABOUT            1 = open Help > About when the menu exists and check the
 //                               dialog ([data-testid="dialog-about"]); a UI without the
 //                               dialog is reported, not failed
+//   MFBE_SMOKE_SETTINGS_FILE    the settings.json of this run (real UI): View > Status Bar
+//                               hides the status bar and the file records it
+//                               (session.toolbars.status = false) within 10 s, although the
+//                               core reports the settings right after the click (a settings.set
+//                               of another key, as the start-up version check's record); then
+//                               the status bar is shown again and recorded so
 //   MFBE_SMOKE_RESTART          normal | max: the editor's restart of itself (feature 003 US3,
 //                               SC-005) - Settings > View > Language = Ukrainian (Russian when
 //                               the interface is Ukrainian already), OK, Yes in the restart
@@ -77,6 +83,10 @@ const expectSelector = process.env.MFBE_SMOKE_EXPECT_SELECTOR ?? '#menubar';
 const openFile = process.env.MFBE_SMOKE_OPEN_FILE ?? '';
 const expectText = process.env.MFBE_SMOKE_EXPECT_TEXT ?? '';
 const checkAbout = process.env.MFBE_SMOKE_ABOUT === '1';
+const settingsFile = process.env.MFBE_SMOKE_SETTINGS_FILE ?? '';
+// The hidden status bar is in the settings file within this time (the UI saves the toolbar
+// flags with a short delay; the Windows journey allows 30 s).
+const settingsBudgetMs = 10_000;
 const restartVariant = process.env.MFBE_SMOKE_RESTART ?? '';
 const restartMustFail = process.env.MFBE_SMOKE_RESTART_FAIL === '1';
 // SC-005: the restarted editor is back with the document within 15 s of the user's Yes.
@@ -450,6 +460,64 @@ async function checkRestart(page) {
   }
 }
 
+/* ---------------------------------------------------------------------------------------- */
+/* View > Status Bar reaches settings.json (the Windows journey's step, feature 002)         */
+/* ---------------------------------------------------------------------------------------- */
+
+// `session.toolbars.status` as the settings file has it (undefined while the file is missing,
+// being rewritten or without the key).
+function storedStatusFlag() {
+  try {
+    return JSON.parse(fs.readFileSync(settingsFile, 'utf8'))?.session?.toolbars?.status;
+  } catch {
+    return undefined;
+  }
+}
+
+async function toggleStatusBar(page) {
+  await page.locator('[data-testid="menu-view"]').click();
+  const item = page.locator('[data-testid="menu-view-statusBar"]');
+  await item.waitFor({ state: 'visible', timeout: timeoutMs });
+  await item.click();
+}
+
+// View > Status Bar hides the status bar, and the settings file records it within
+// settingsBudgetMs - although the core reports the settings right after the click, as it does
+// after every settings.set (here one of another key, like the start-up version check's record
+// of its time on a networked machine), with the status bar still shown in that report: the
+// window's own flags must not follow such a report (0.0.3 regression seen in the Windows
+// journey). Then the status bar is shown again and recorded so, for the runs sharing the file.
+async function checkStatusBarSetting(page) {
+  const statusbar = page.locator('[data-testid="statusbar"]');
+  await statusbar.waitFor({ state: 'visible', timeout: timeoutMs });
+  if (storedStatusFlag() === false) {
+    throw new Error(`${settingsFile} records a hidden status bar while the status bar is shown`);
+  }
+  await toggleStatusBar(page);
+  await coreRpc(page.url(), 'settings.set', {
+    patch: { session: { lastVersionCheck: new Date().toISOString() } },
+  });
+  await statusbar.waitFor({ state: 'hidden', timeout: timeoutMs });
+  const hiddenAt = Date.now();
+  await waitUntil(
+    `session.toolbars.status = false in ${settingsFile}`,
+    () => storedStatusFlag() === false,
+    settingsBudgetMs,
+  );
+  if ((await statusbar.count()) !== 0) {
+    throw new Error('the status bar came back after it was hidden');
+  }
+  console.log(`status bar:    hidden; recorded in ${settingsFile} after ${Date.now() - hiddenAt} ms`);
+  await toggleStatusBar(page);
+  await statusbar.waitFor({ state: 'visible', timeout: timeoutMs });
+  await waitUntil(
+    `session.toolbars.status = true in ${settingsFile}`,
+    () => storedStatusFlag() === true,
+    settingsBudgetMs,
+  );
+  console.log('status bar:    shown again and recorded');
+}
+
 let browser;
 try {
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: timeoutMs });
@@ -497,6 +565,12 @@ try {
 
   if (checkAbout) {
     await checkAboutDialog(page);
+  }
+
+  // View > Status Bar is recorded in the settings file (real UI; not in the restart scenario,
+  // whose runs are about the restart alone).
+  if (settingsFile && !restartVariant) {
+    await checkStatusBarSetting(page);
   }
 
   // The editor restarts itself (feature 003 US3): the first connection ends with the old

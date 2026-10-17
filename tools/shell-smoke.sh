@@ -48,6 +48,12 @@
 #                               created next to the shell (and removed afterwards) must receive
 #                               the browser profile (cef/) and the logs (logs/), and no per-user
 #                               folder of the editor may appear in the isolated HOME
+#   (real UI, always)           View > Status Bar hides the status bar and the run's settings.json
+#                               (per-user folder or the portable `user` folder) records it within
+#                               10 s - also when the core reports the settings right after the
+#                               click (settings.changed after another settings.set, as the
+#                               start-up version check's record) - then shown and recorded again:
+#                               the step of tools/ci/windows-russian-journey.ps1 on this host
 #   MFBE_SMOKE_NO_SANDBOX       1 = pass --no-sandbox explicitly. By default the shell decides
 #                               itself (T140, app/src/sandbox_check.cpp): the sandbox stays on
 #                               when unprivileged user namespaces or the SUID chrome-sandbox
@@ -348,6 +354,12 @@ if [[ -z "$PORTABLE_DIR" ]]; then
   mkdir -p "$TMP/home/.config/maxfbeditor"
   printf '{ "schemaVersion": 1, "other": { "versionCheck": "never" } }\n' \
     >"$TMP/home/.config/maxfbeditor/settings.json"
+fi
+# The real UI's View > Status Bar must reach that settings file (shell-smoke.mjs,
+# MFBE_SMOKE_SETTINGS_FILE): the step of the Windows journey (tools/ci/windows-russian-journey.ps1)
+# on this host.
+if [[ "${MFBE_SMOKE_REAL_UI:-0}" == "1" ]]; then
+  export MFBE_SMOKE_SETTINGS_FILE="${PORTABLE_DIR:-$TMP/home/.config/maxfbeditor}/settings.json"
 fi
 # GTK decodes this PNG while the shell starts, as it does for the images of many desktop themes.
 mkdir -p "$TMP/home/.config/gtk-3.0"

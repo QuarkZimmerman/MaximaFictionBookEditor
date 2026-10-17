@@ -507,4 +507,41 @@ test.describe('US9 - configure settings and hotkeys', () => {
     await expect(page.getByTestId('menu-file')).toHaveText('File');
     await expect(page.getByTestId('menu-help')).toHaveText('Help');
   });
+
+  test('5. View > Status Bar is kept in session.toolbars, also when another settings change is reported meanwhile', async ({
+    core,
+    page,
+  }) => {
+    const statusFlag = async () =>
+      (await core.rpc<SettingsJson>('settings.get')).session.toolbars as { status: boolean };
+    const storedStatusFlag = () =>
+      (JSON.parse(readFileSync(path.join(core.dataDir!, 'settings.json'), 'utf8')) as SettingsJson)
+        .session.toolbars as { status: boolean };
+    try {
+      await menu(page, 'view', 'statusBar');
+      // Another write of the settings right after the toggle - as the start-up version check's
+      // record of its time, the shell's window placement or a second client: the core reports
+      // the settings as they are to every client, with the status bar still shown, since the
+      // hidden one is on its way (the visibility is saved with a short delay). The report must
+      // not undo what the user just did.
+      await core.rpc('settings.set', {
+        patch: { session: { lastVersionCheck: new Date().toISOString() } },
+      });
+      await expect(page.getByTestId('statusbar')).toHaveCount(0);
+      await expect.poll(statusFlag).toMatchObject({ status: false });
+      expect(storedStatusFlag()).toMatchObject({ status: false });
+      await expect(page.getByTestId('statusbar')).toHaveCount(0);
+
+      // Shown again: recorded as well.
+      await menu(page, 'view', 'statusBar');
+      await expect(page.getByTestId('statusbar')).toBeVisible();
+      await expect.poll(statusFlag).toMatchObject({ status: true });
+      expect(storedStatusFlag()).toMatchObject({ status: true });
+    } finally {
+      // The tests of this worker start with the status bar shown.
+      await core
+        .rpc('settings.set', { patch: { session: { toolbars: { status: true } } } })
+        .catch(() => {});
+    }
+  });
 });

@@ -119,6 +119,51 @@ describe('SettingsFeature session persistence', () => {
     expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(1);
   });
 
+  it('saves a hidden status bar although the core reports the settings before the delayed save', async () => {
+    let current = defaultSettings();
+    const rpc = fakeRpc({
+      'hotkeys.get': rpcError(-32601, 'Method not found'),
+      'settings.set': (params: unknown) => {
+        current = mergeSettings(current, (params as { patch: unknown }).patch);
+        return { settings: current, restartRequired: false };
+      },
+    });
+    const store = createAppStore();
+    const feature = new SettingsFeature(
+      { store, hotkeys: new HotkeyMap('linux') },
+      { root: null, window: null, search: '' },
+    );
+    feature.install();
+    actions.setSettings(store, current);
+    await feature.attach(rpc.client);
+
+    // View > Status Bar; before the delayed save goes out, the core reports the settings
+    // (settings.changed after another settings.set - the start-up version check recording its
+    // time, say) with the status bar still shown, as it is in its store at that moment.
+    actions.toggleToolbar(store, 'status');
+    expect(store.getState().toolbars.status).toBe(false);
+    const reported = mergeSettings(current, {
+      session: { lastVersionCheck: '2026-10-17T12:00:00.000Z' },
+    });
+    actions.setSettings(store, reported);
+    expect(store.getState().toolbars.status).toBe(false);
+    expect(store.getState().settings?.session.lastVersionCheck).toBe('2026-10-17T12:00:00.000Z');
+
+    await vi.advanceTimersByTimeAsync(300);
+    const calls = rpc.calls.filter((c) => c.method === 'settings.set');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.params).toEqual({
+      patch: {
+        session: {
+          toolbars: { commands: true, scripts: true, links: true, table: true, status: false },
+        },
+      },
+    });
+    expect(current.session.toolbars.status).toBe(false);
+    expect(store.getState().toolbars.status).toBe(false);
+    expect(store.getState().settings?.session.toolbars.status).toBe(false);
+  });
+
   it('leaves the window placement to the shell: a resize writes nothing (feature 003 US3)', async () => {
     let current = defaultSettings();
     const rpc = fakeRpc({

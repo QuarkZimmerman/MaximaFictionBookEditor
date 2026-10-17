@@ -312,9 +312,17 @@ export const actions = {
   },
 
   /**
-   * Applies settings received from the core (settings.get / settings.changed). While a toolbar
-   * layout change is on its way to the core, the layouts shown stay: the settings reported for
-   * an earlier change would undo it until the core reports the latest.
+   * Applies settings received from the core (settings.get, settings.changed, the result of a
+   * settings.set). The toolbar and tree flags are taken from the first snapshot only - the
+   * start-up read of the stored session: from then on they are the window's own state, which
+   * the settings runtime writes back to `session.*` with a short delay
+   * (features/settings/apply.ts). A later snapshot - the core reports the settings after every
+   * settings.set, the UI's own ones included (the version check's record, Fast mode, the
+   * dialog) - may still show the flags as they were before a change that is on its way, and
+   * would undo it: the status bar hidden a moment ago came back and its hiding was never
+   * saved. While a toolbar layout change is on its way to the core, the layouts shown stay for
+   * the same reason: the settings reported for an earlier change would undo it until the core
+   * reports the latest.
    */
   setSettings(store: AppStore, settings: Settings): void {
     const { layoutSavesPending, settings: current } = store.getState();
@@ -326,9 +334,13 @@ export const actions = {
     }
     store.setState({
       settings,
-      toolbars: { ...settings.session.toolbars },
-      treeVisible: settings.session.treeVisible,
       fastMode: settings.view.fastMode,
+      ...(current
+        ? {}
+        : {
+            toolbars: { ...settings.session.toolbars },
+            treeVisible: settings.session.treeVisible,
+          }),
     });
   },
 

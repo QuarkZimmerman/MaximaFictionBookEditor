@@ -10,6 +10,8 @@ import {
   useAppState,
 } from '@/model/store';
 
+import { defaultSettings } from './settings/fixtures';
+
 function fakeDocument(overrides: Partial<Document> = {}): Document {
   return {
     modelVersion: 1,
@@ -114,6 +116,33 @@ describe('store', () => {
       selectionPath: 'body[1]/section[2]/p[3]',
       selectionNodeId: 'n12',
     });
+  });
+
+  it('adopts the toolbar and tree flags from the first settings snapshot only', () => {
+    const store = createAppStore();
+    const stored = defaultSettings();
+    stored.session.toolbars.status = false;
+    stored.session.treeVisible = false;
+    // The start-up read: the stored session applies.
+    actions.setSettings(store, stored);
+    expect(store.getState().toolbars.status).toBe(false);
+    expect(store.getState().treeVisible).toBe(false);
+
+    // The user shows both again; the core reports the settings meanwhile (after a settings.set
+    // of another key, before the delayed save of the flags): the window's own flags stay, the
+    // rest of the snapshot applies.
+    actions.toggleToolbar(store, 'status');
+    actions.toggleTree(store);
+    const reported = defaultSettings();
+    reported.session.toolbars.status = false;
+    reported.session.treeVisible = false;
+    reported.session.lastVersionCheck = '2026-10-17T12:00:00.000Z';
+    reported.view.fastMode = true;
+    actions.setSettings(store, reported);
+    expect(store.getState().toolbars.status).toBe(true);
+    expect(store.getState().treeVisible).toBe(true);
+    expect(store.getState().settings).toBe(reported);
+    expect(store.getState().fastMode).toBe(true);
   });
 
   it('useAppState re-renders on selected changes only', () => {

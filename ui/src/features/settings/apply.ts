@@ -22,7 +22,11 @@
  *    prompt (Yes restarts the editor through `app.restart` - the shell starts it again with
  *    the same document and window - or reloads the page in browser mode; feature 003 US3).
  *  - **Session**: toolbar visibility and the document tree flag are written back to
- *    `session.*` through `settings.set` (debounced). The Find/Replace histories are persisted
+ *    `session.*` through `settings.set` (debounced). They are the window's own state: the
+ *    store adopts them from the start-up read only, and the snapshots the core reports later
+ *    (`settings.changed` after any `settings.set`, the results of `settings.set`) leave them
+ *    alone - such a snapshot may predate a change still waiting for its delayed save and
+ *    would undo it (`actions.setSettings`). The Find/Replace histories are persisted
  *    by the search feature itself. The window placement (`session.windowGeometry`) is the
  *    shell's: it records the native window's bounds and maximised state at quit and before a
  *    restart and applies them at window creation (feature 003 US3); browser mode has no native
