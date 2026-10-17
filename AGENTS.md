@@ -54,7 +54,8 @@ Run the core headless for manual/MCP testing:
   all user-visible strings go through i18n (`en.json`/`ru.json` must stay in parity).
 - Contract first: change `specs/.../contracts/*` before changing RPC handlers or the UI client.
 - Tests first for each user story (Playwright journey + Catch2 where the core is involved).
-- Commit messages: imperative, explain why; never commit secrets.
+- Commit messages: imperative, explain why; never commit secrets. Commit at natural
+  checkpoints (a completed task or user story, a finished Spec Kit phase).
 - No scope beyond the original editor without the requester's approval.
 - Licence: GPL-3.0-only (the original editor's); keep the original's notices
   (`CONTRIBUTORS.txt`, the scripts' author notices, checked by
