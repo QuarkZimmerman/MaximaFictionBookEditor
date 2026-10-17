@@ -129,8 +129,8 @@ export interface AppInfo {
   logDir: string;
   resourceLayers: ResourceLayer[];
   apiVersion: number;
-  /** Additive contract revision (feature 002: 1, feature 003: 2); absent before it (= 0). */
-  apiMinor?: number;
+  /** Additive contract revision (feature 002: 1, feature 003: 2); the UI accepts minor >= 1. */
+  apiMinor: number;
 }
 
 export type ImageFormat = 'jpeg' | 'png';
@@ -264,10 +264,29 @@ export interface SymbolEntry {
   defaultHotkey?: string;
 }
 
+/**
+ * `spell.dictionaries()` entry (rpc-api.md §3.4). `source` is the resource layer the pair was
+ * found in: `bundled` (built in), `user` (per-user folder), `portable` (portable folder) or
+ * `settings` (the folder chosen in Settings). The path fields are optional for older cores.
+ */
 export interface SpellDictionary {
+  /** Dictionary tag = file stem of the `.aff`/`.dic` pair (`uk_UA`). */
+  tag?: string;
   lang: string;
   name: string;
   source: string;
+  /** `.aff` file. */
+  path?: string;
+  dicPath?: string;
+  /** `<tag>.txt` notice next to the pair, when present (shown in About). */
+  readmePath?: string;
+}
+
+/** `spell.dictionaryLicense` result: the `<tag>.txt` notice text (empty when there is none). */
+export interface SpellDictionaryLicense {
+  tag: string;
+  text: string;
+  path?: string;
 }
 
 /** script.json, script-manifest.md §2. */
@@ -469,6 +488,8 @@ export interface RpcMethods {
 
   // §3.4 spell
   'spell.dictionaries': { params: void; result: SpellDictionary[] };
+  /** Notice (`<tag>.txt`) of a dictionary for About; 1020 for an unknown tag. */
+  'spell.dictionaryLicense': { params: { tag: string }; result: SpellDictionaryLicense };
   'spell.check': { params: { words: string[]; langs: string[] }; result: { misspelled: string[] } };
   'spell.suggest': { params: { word: string; langs: string[] }; result: { suggestions: string[] } };
   'spell.addWord': { params: { word: string }; result: Empty };

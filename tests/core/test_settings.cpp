@@ -131,9 +131,11 @@ TEST_CASE("settings: apply_patch merges deeply, persists and reports restartRequ
     CHECK_FALSE(r4.settings.contains("custom"));
 
     // windowGeometry is replaced as a whole, arrays too.
-    store.apply_patch(json{{"session", {{"windowGeometry", {{"x", 1}, {"y", 2}}}}}});
-    auto r5 = store.apply_patch(json{{"session", {{"windowGeometry", {{"w", 3}}}}}});
-    CHECK(r5.settings["session"]["windowGeometry"] == json{{"w", 3}});
+    const json bounds1{{"x", 1}, {"y", 2}, {"width", 300}, {"height", 200}, {"maximized", true}};
+    const json bounds2{{"x", 5}, {"y", 6}, {"width", 700}, {"height", 500}};
+    store.apply_patch(json{{"session", {{"windowGeometry", bounds1}}}});
+    auto r5 = store.apply_patch(json{{"session", {{"windowGeometry", bounds2}}}});
+    CHECK(r5.settings["session"]["windowGeometry"] == bounds2);
     auto r6 = store.apply_patch(json{{"session", {{"findHistory", {"a", "b"}}}}});
     CHECK(r6.settings["session"]["findHistory"] == json::array({"a", "b"}));
 
@@ -279,6 +281,22 @@ TEST_CASE("settings: feature 003 keys are validated with the field name", "[sett
                      "session.lastVersionCheck");
     }
     expect_field(json{{"session", {{"lastVersionCheck", 1760704496}}}}, "session.lastVersionCheck");
+    // Calendar-aware: February 30th and a 31st of a 30-day month are no dates.
+    expect_field(json{{"session", {{"lastVersionCheck", "2026-02-30T12:00:00Z"}}}},
+                 "session.lastVersionCheck");
+    expect_field(json{{"session", {{"lastVersionCheck", "2026-04-31T12:00:00Z"}}}},
+                 "session.lastVersionCheck");
+    CHECK(store.apply_patch(json{{"session", {{"lastVersionCheck", "2028-02-29T00:00:00Z"}}}})
+              .settings["session"]["lastVersionCheck"] == "2028-02-29T00:00:00Z");
+    store.apply_patch(json{{"session", {{"lastVersionCheck", nullptr}}}});
+    // The window placement is {x, y, width, height, maximized?} or null, nothing else.
+    for (const json malformed :
+         {json::object(), json{{"x", "10"}, {"y", 20}, {"width", 800}, {"height", 600}},
+          json{{"x", 10}, {"y", 20}, {"width", 800}},
+          json{{"x", 10}, {"y", 20}, {"width", 800}, {"height", 600}, {"maximized", "yes"}},
+          json(7)}) {
+        expect_field(json{{"session", {{"windowGeometry", malformed}}}}, "session.windowGeometry");
+    }
     CHECK(store.get() == before);  // nothing applied
 
     for (const char* choice : {"everyStart", "daily", "weekly", "monthly", "never"}) {
