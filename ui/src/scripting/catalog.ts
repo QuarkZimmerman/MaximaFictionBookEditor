@@ -310,12 +310,16 @@ export class ScriptsFeature {
   }
 
   private registerDynamicLabels(): void {
+    // A group names itself per language in group.json; a language it does not name shows the
+    // English name (the scripts' own texts follow the script, not the interface - FR-002).
     const en: Record<string, string> = {};
     const ru: Record<string, string> = {};
+    const uk: Record<string, string> = {};
     for (const group of this.groupsValue) {
       const key = dynamicLabelKey('group', group.id || 'root');
       en[key] = group.names.en ?? group.id;
       ru[key] = group.names.ru ?? group.names.en ?? group.id;
+      uk[key] = group.names.uk ?? group.names.en ?? group.id;
     }
     const add = (lang: string, entries: Record<string, string>) => {
       const nested: Record<string, unknown> = {};
@@ -332,6 +336,7 @@ export class ScriptsFeature {
     if (typeof i18next.addResourceBundle === 'function' && i18next.isInitialized) {
       add('en', en);
       add('ru', ru);
+      add('uk', uk);
     }
   }
 
