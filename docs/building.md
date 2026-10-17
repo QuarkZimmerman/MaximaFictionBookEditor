@@ -38,6 +38,9 @@ sudo apt-get install -y build-essential g++ ninja-build pkg-config curl zip unzi
   rpm dpkg-dev shellcheck patchelf
 # ALSA: Ubuntu 22.04 ships "libasound2", Ubuntu 24.04 / Debian 13 ship "libasound2t64"
 sudo apt-get install -y libasound2 || sudo apt-get install -y libasound2t64
+# The core tests format dates under the Russian, Ukrainian and US-English regional settings
+# (release 0.0.3); a locale the machine lacks makes its test skip.
+sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
 ```
 
 CMake 3.30 or newer is required (`cmake --version`). Ubuntu 22.04 ships 3.22 and Ubuntu

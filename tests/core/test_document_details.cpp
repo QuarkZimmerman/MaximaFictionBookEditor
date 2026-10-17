@@ -108,7 +108,9 @@ TEST_CASE("document details: the date text follows the regional settings, not th
     REQUIRE(platform::set_date_locale_for_tests("ru_RU"));
     const std::string expected = "14 октября 2026 г.";
 #else
-    REQUIRE(platform::set_date_locale_for_tests("ru_RU.UTF-8"));
+    if (!platform::set_date_locale_for_tests("ru_RU.UTF-8")) {
+        SKIP("ru_RU.UTF-8 is not generated on this machine");
+    }
     const std::string expected = "14 октября 2026";
 #endif
     model::Document doc;
