@@ -2,7 +2,7 @@
 //
 // One JSON object per line in `<log dir>/mfbe-errors.log` (spdlog rotating sink, 5 x 1 MB):
 //   {"ts":"2026-10-12T20:00:00.123Z","level":"error","source":"core","code":"io.writeFailed",
-//    "message":"...","context":{"version":"0.0.2","platform":"linux","docId":"d1"},"stack":"..."}
+//    "message":"...","context":{"version":"0.0.3","platform":"linux","docId":"d1"},"stack":"..."}
 // Only `error` and `warning` entries reach the file. `info`/`debug` exist for the console
 // (stderr) at the verbosity selected with `set_console_level` and never touch the file.
 // Callers MUST NOT pass book text or personal data in `message`/`context`/`stack`.

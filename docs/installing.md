@@ -35,7 +35,12 @@ sources (`docs/building.md` explains how to build them yourself).
 - **macOS 13 (Ventura) and newer**, Apple Silicon and Intel - best effort: the bundles are
   built and smoke-tested by CI only.
 
-The feature set is identical on every platform.
+The feature set is identical on every platform. The interface is available in English, Russian
+and Ukrainian: the first start follows the system language (English otherwise) and *Settings >
+View* changes it; the editor then offers to restart itself, with the open book and the same
+window, so that the new language applies at once. Spell checking comes with dictionaries for
+the same three languages; others are added as described under
+[Spelling dictionaries](#spelling-dictionaries).
 
 ## Windows
 
@@ -218,6 +223,8 @@ View > Open dictionaries folder* (see *Spelling dictionaries* below) and the Abo
 
 Genre files are `*.genres.tsv` text files in the `genres` folder (UTF-8, tab-separated:
 `code`, `category`, `name_en`, `name_ru`); the picker shows which file a genre comes from.
+Under the Ukrainian interface a genre of your own shows the bundled Ukrainian name of its code
+when there is one, else its English name.
 
 New documents start from `blank.fb2`, the original editor's blank document. A `blank.fb2` of
 your own - in the template folder chosen in *Settings > Other*, the per-user data folder or the
@@ -285,14 +292,19 @@ Tools > Spell check uses it.
 ## Command line
 
 ```text
-mfbe [FILE...] [--lang en|ru] [--new] [--remote-debugging-port N] [--no-sandbox]
-     [--ozone-platform x11|wayland] [--version] [--help]
+mfbe [FILE...] [--lang en|ru|uk] [--new] [--remote-debugging-port N] [--no-sandbox]
+     [--ozone-platform x11|wayland] [--wait-for-exit PID] [--window-geometry X,Y,W,H[,max]]
+     [--version] [--help]
 ```
 
 `FILE` is the `.fb2` / `.fbd` / `.xml` document to open (this is how the operating system's
 file associations start the editor). When an instance is already running, a second start
 hands the file to it and brings its window to the front instead of opening a second copy.
-Unknown options print `Invalid command line option: '<option>'` and exit with code 2.
+`--lang` overrides the interface language for this one run only. `--wait-for-exit` and
+`--window-geometry` are the options the editor gives itself when it restarts after a settings
+change (the new copy waits for the old one to end, then opens at the same window placement);
+you will not normally need them. Unknown options print
+`Invalid command line option: '<option>'` and exit with code 2.
 On Windows the `mfbe.exe` executable is in the `bin` folder of the installation directory (or
 of the unzipped portable folder).
 

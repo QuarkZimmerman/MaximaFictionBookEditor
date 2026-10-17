@@ -35,6 +35,9 @@ cd ui && npm ci && npm run typecheck && npm run lint && npm test && npm run buil
 cd ui && npx playwright test                                                  # e2e, headless, starts mfbe-core itself
 tools/shell-smoke.sh                                                          # CEF shell under Xvfb + CDP
 tools/format.sh [--check]
+python3 tools/path-conversion-check.py && python3 tools/path-portability-check.py  # explicit path/text conversions; file names that survive Windows/macOS checkouts
+python3 tools/fb2-schema-elements.py --check                                  # Source-view completion table current with resources/schema
+node tools/i18n-check.mjs --languages en,ru,uk --strict-identical --accelerators   # catalogue parity (CI runs it this strict)
 ```
 
 Run the core headless for manual/MCP testing:
@@ -54,7 +57,9 @@ Run the core headless for manual/MCP testing:
   folder of a portable copy, so the copy moves with its folder (constitution, data locations;
   resource-formats contract §1, §1a).
 - TS: strict, 2 spaces, Prettier; every interactive element has a stable `data-testid`;
-  all user-visible strings go through i18n (`en.json`/`ru.json` must stay in parity).
+  all user-visible strings go through i18n (`en.json`/`ru.json`/`uk.json` must stay in parity,
+  and the feature catalogues `<feature>.<lang>.json`; `tools/i18n-check.mjs --languages`
+  checks any set of languages, `en,ru,uk` by default).
 - Contract first: change `specs/.../contracts/*` before changing RPC handlers or the UI client.
 - Tests first for each user story (Playwright journey + Catch2 where the core is involved).
 - Commit messages: imperative, explain why; never commit secrets. Deploy key host alias:

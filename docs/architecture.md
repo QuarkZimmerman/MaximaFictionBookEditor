@@ -30,7 +30,7 @@ Three parts, one product:
 | Unit | Folder | Builds | Role |
 |------|--------|--------|------|
 | core | `core/` | static library `mfbe_core`, executable `mfbe-core` | Everything that touches files or needs native code: FB2 parsing and serialisation (libxml2), XSD validation, encodings, the binary (image) store and conversions, Hunspell spell checking, the Words engine, settings / recent files / exclusions / hotkeys, the layered resource lookup (genres, scripts, dictionaries), the errors-only log, and the loopback HTTP + WebSocket server exposing all of it as JSON-RPC. No UI, no Chromium. |
-| ui | `ui/` | web bundle `ui/dist` (Vite) | The whole user interface: menus, toolbars, bars, status bar, Description form, Body editor (ProseMirror, section-windowed), Source editor (CodeMirror), Document Tree, every dialog, the Find/Replace/Spelling/Words tools, settings pages, i18n (EN/RU), the user-script host and sandbox. It talks to the core only through the JSON-RPC contract and runs unchanged in the packaged shell, in a developer's browser and under Playwright. |
+| ui | `ui/` | web bundle `ui/dist` (Vite) | The whole user interface: menus, toolbars, bars, status bar, Description form, Body editor (ProseMirror, section-windowed), Source editor (CodeMirror, with FB2 tag completion), Document Tree, every dialog, the Find/Replace/Spelling/Words tools, settings pages, i18n (EN/RU/UK), the user-script host and sandbox. It talks to the core only through the JSON-RPC contract and runs unchanged in the packaged shell, in a developer's browser and under Playwright. |
 | app | `app/` | executable `mfbe` (+ CEF helper processes) | A thin desktop shell: starts the core in-process, opens one CEF window on the core's URL, provides native file dialogs, the clipboard image reader, "open folder" actions, OS file associations and the single-instance hand-over, and probes the Linux sandbox. It never interprets book data. |
 
 The headless `mfbe-core serve` executable runs the same server without the shell; that is how
@@ -45,8 +45,8 @@ display (Constitution II).
   browser. Chromium's renderer and GPU helpers are separate OS processes managed by CEF.
 * The UI opens one WebSocket to `/rpc` for JSON-RPC 2.0 requests, responses and server
   notifications (`doc.changedOnDisk`, `job.progress`, `settings.changed`, `app.openPaths`,
-  `resources.changed`). Long operations (open, save, validate, Words analysis of big books)
-  return a `jobId` and report progress; the UI never blocks.
+  `resources.changed`, `app.closeRequested`). Long operations (open, save, validate, Words
+  analysis of big books) return a `jobId` and report progress; the UI never blocks.
 * HTTP serves the UI bundle (`GET /`, assets), binaries by id (`/binary/{docId}/{id}` and
   scaled `/preview`), raw uploads (`POST /binary/{docId}` for paste and drag-and-drop), script
   package files (`/scripts/{scriptId}/{file}`) and `/health`.
@@ -76,7 +76,7 @@ section), `core_server.cpp` (wiring); `ui/src/rpc/client.ts` (typed client).
 | Files on disk, encodings, the authoritative XML | core | `doc.open` parses FB2 into the JSON document model; `doc.save` serialises the UI's model to FB2 2.1, validates, converts images and writes atomically; `doc.toXml` / `doc.fromXml` move text between the Source view and the model. |
 | Binary objects (images) | core | Decoded from base64 while parsing, kept in a per-document `BinaryStore`, never sent as base64 to the UI; the UI receives metadata (`BinaryMeta`) and fetches bytes or scaled previews over HTTP by id. |
 | Validation | core | XSD validation against the bundled FB2 2.1 schema set plus consistency checks (dangling links, missing or unreferenced binaries, image formats, unknown genres) with line/column mapped back to node ids. |
-| Spell checking, Words analysis | core | Hunspell with the bundled en_US / ru_RU dictionaries and the user's custom dictionary; word frequency and replacement engine. |
+| Spell checking, Words analysis | core | Hunspell with the bundled en_US / ru_RU / uk_UA dictionaries, the `.aff`/`.dic` pairs of the dictionary folders (`spell.dictionaryReport` tells which are in effect and which files were rejected and why) and the user's custom dictionary; word frequency and replacement engine. |
 | Settings, recent files, hotkeys, exclusions | core | Per-user JSON files; the UI edits them through `settings.*` / `hotkeys.*` and receives `settings.changed`. |
 | Genres, scripts, dictionaries | core | Layered lookup (settings folder -> per-user folder -> portable folder -> bundled), additive, no admin rights (FR-127). |
 | Diagnostics | core | Errors-only rolling log (`logs/mfbe-errors.log`); the UI and the shell report their failures through `log.error`. |
@@ -126,9 +126,18 @@ scope and defines the frozen `mfbe` object before `import()`-ing the entry modul
 allow-list and applied to the run's working copy of the document (`ui/src/scripting/api-impl.ts`,
 `workingCopy.ts`); the working copy is shown in the editor before the script's dialogs and
 selection calls and replaces the document in one transaction at the end, as one undo entry.
-During the run the document is locked and the status bar shows the progress and Cancel;
-Cancel terminates the worker and restores the document, and uncaught errors become "Script
-error: <message> at line L, column C" with the document left as it was.
+During the run a banner above the document (`ui/src/scripting/ScriptRunBanner.tsx`, in every
+view, independent of the status bar) shows the script's name, the elapsed time, the reported
+progress, a busy sign and Cancel, the status bar keeps its run line, and the document is under
+a quiet lock (feature 003 FR-011): the Body and Source editors are read-only and the
+Description fields refuse input without being greyed, so the script's highlights stay visible,
+and each command of the registry declares whether it is `blocked` (everything that changes the
+document, switches the view, opens or saves a file, Settings, other scripts) or `allowed`
+(Find, Copy, Help, About, Exit) while a script runs (`duringScriptRun` in
+`ui/src/app/commands.ts`). The host records the run's duration; a run longer than 5 s ends with
+a short notice in the work area (`ui/src/app/TransientNotice.tsx`) that hides by itself and
+never takes the focus. Cancel terminates the worker and restores the document, and uncaught
+errors become "Script error: <message> at line L, column C" with the document left as it was.
 
 **Restart.** "Restart now?" after a language change (feature 003 US3) really restarts the
 editor. The UI runs the usual save prompt and calls `app.restart({reopen: path})` (no `reopen`
@@ -154,14 +163,34 @@ reloads itself with `?open=<path>` added to its query; a spawn failure answers 1
 `MFBE_SMOKE_RESTART=1` exercises the real restart under Xvfb (normal and maximised window,
 and the failure path with `MFBE_SMOKE_RESTART_FAIL=1`).
 
+**Closing the window.** The window never closes behind the UI's back (feature 003 FR-017).
+The first close request - the title-bar button, a system shutdown, Cmd+Q - is deferred by the
+shell (`MfbeClient::DoClose`, driven by the state machine `app/src/close_handshake.cpp`): it
+asks the core to emit the notification `app.closeRequested`, and the UI runs exactly the Exit
+flow (`FileFeature.handleCloseRequested`) - "Cancel the running script?" while a script runs
+(Yes cancels the run and restores the document), then "Save changes to X?" whose Cancel keeps
+the editor open with nothing lost - and ends it with `app.quit({force: true})`, on which the
+shell closes for real. One request is answered at a time; a request that arrives while a prompt
+of New/Open, Settings or a native file dialog is open is ignored, as a native window refuses to
+close behind its modal dialog, until the user has finished that dialog and closes again. The
+shell closes on its own only when no page is connected to answer: the notification could not
+be delivered, or no client is connected when the 10 s timeout (`CloseHandshake::kAnswerTimeout`)
+passes - a connected UI keeps the window however long the user takes over the prompt, so a
+window whose interface is gone can be closed but a prompt can never be skipped.
+`test.requestClose` emits the same notification headless so the journeys cover the path, and
+`tests/shell/test_close_handshake.cpp` drives the state machine.
+
 ## 5. Contracts
 
 The core/UI boundary is a documented, versioned contract (Constitution III); the source of
-truth is `specs/001-maxima-fb2-editor/contracts/` in the planning workspace:
+truth is `specs/001-maxima-fb2-editor/contracts/` in the planning workspace, with the
+additive changes of later features in `specs/<feature>/contracts/` (feature 003: `app.restart`,
+`app.closeRequested`, `doc.formatDate`, `spell.dictionaryReport`, the new settings keys and
+test hooks - API minor 2 - and the installer's public property):
 
 | Contract | Mirrors in this repository |
 |----------|----------------------------|
-| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
+| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1, minor 2) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
 | `document-model.d.ts` (JSON document model) | `ui/src/model/document.ts` (verbatim copy with a header), `core/include/mfbe/document.hpp` + `json_codec.hpp` |
 | `script-api.d.ts` (the complete `mfbe` allow-list) | `docs/scripting/mfbe.d.ts` (copy shipped with the editor), `ui/src/scripting/types.ts` (`API_METHODS`), `ui/src/scripting/sandbox.ts` |
 | `script-manifest.md` (package layout, `script.json`, sandbox rules) | `core/src/resources/scripts.cpp`, `ui/src/scripting/sandbox*.ts` |
@@ -190,8 +219,8 @@ from the pinned baseline in `vcpkg.json`; the UI is built by npm (standalone or 
 | `share/applications`, `share/mime/packages`, `share/icons` | MSI ProgIds `.fb2` / `.fbd` | `Info.plist` document types | file associations |
 
 Per-user data (settings, recent files, custom dictionary, exclusions, hotkeys, user genres,
-user scripts, the errors-only log, the CEF profile) lives in the platform's user folders, or
-all of it in the `user` folder of a portable copy (`mfbe/portable.hpp`), see
+user scripts, user dictionaries, the errors-only log, the CEF profile) lives in the platform's
+user folders, or all of it in the `user` folder of a portable copy (`mfbe/portable.hpp`), see
 `docs/installing.md`. Packages: AppImage (static runtime), `.deb`, `.rpm`, WiX MSI, portable
 ZIP, `.dmg` (`packaging/`), all produced by `.github/workflows/release.yml`.
 
