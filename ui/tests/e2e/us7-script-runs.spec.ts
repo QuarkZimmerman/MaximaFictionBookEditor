@@ -217,6 +217,44 @@ async function effectiveOpacity(page: Page, selector: string, index = 0): Promis
   return page.evaluate<number>(`(${EFFECTIVE_OPACITY})(${JSON.stringify(selector)}, ${index})`);
 }
 
+/**
+ * Points of the element `testId` that something else receives the pointer at, sampled every
+ * 8 px along the middle line of the run banner's band: `x:what` for each covered point. Empty
+ * when nothing covers the element there; `['no overlap']` when it does not reach into the band.
+ */
+const COVERED_IN_BANNER_BAND = `(testId) => {
+  const banner = document.querySelector(${JSON.stringify(BANNER_SELECTOR)});
+  const element = document.querySelector('[data-testid="' + testId + '"]');
+  if (!banner || !element) return ['missing'];
+  const band = banner.getBoundingClientRect();
+  const box = element.getBoundingClientRect();
+  const y = (band.top + band.bottom) / 2;
+  if (y <= box.top || y >= box.bottom) return ['no overlap'];
+  const covered = [];
+  for (let x = box.left + 2; x < box.right - 2; x += 8) {
+    const hit = document.elementFromPoint(x, y);
+    if (element.contains(hit)) continue;
+    covered.push(Math.round(x) + ':' + (hit ? hit.getAttribute('data-testid') || hit.className : 'none'));
+  }
+  return covered;
+}`;
+
+async function coveredInBannerBand(page: Page, testId: string): Promise<string[]> {
+  return page.evaluate<string[]>(`(${COVERED_IN_BANNER_BAND})(${JSON.stringify(testId)})`);
+}
+
+/** Whether the element `testId` itself receives the pointer at its centre. */
+const RECEIVES_POINTER = `(testId) => {
+  const element = document.querySelector('[data-testid="' + testId + '"]');
+  if (!element) return false;
+  const box = element.getBoundingClientRect();
+  return element.contains(document.elementFromPoint((box.left + box.right) / 2, (box.top + box.bottom) / 2));
+}`;
+
+async function receivesPointer(page: Page, testId: string): Promise<boolean> {
+  return page.evaluate<boolean>(`(${RECEIVES_POINTER})(${JSON.stringify(testId)})`);
+}
+
 /** Simulates a paste of `text` into the Body editor (the editor's paste handler is the target). */
 const PASTE_INTO_BODY = `(text) => {
   const editor = document.querySelector('[data-testid="body-editor"]');
@@ -756,6 +794,19 @@ test.describe('US2 (003) a running script is unmistakable and can be stopped', (
       'data-selected-text',
       'Highlighted by the prompting fixture',
     );
+
+    // A dialog reaching into the banner's band stays in front of the banner, and the banner's
+    // Cancel stays reachable beside it: a window just high enough to centre the prompt on the
+    // band (the 05/image-captions form of the script suite was covered by the banner).
+    const viewport = page.viewportSize()!;
+    const band = (await banner.boundingBox())!;
+    await page.setViewportSize({
+      width: viewport.width,
+      height: Math.round(2 * (band.y + band.height / 2)),
+    });
+    expect(await coveredInBannerBand(page, 'dialog-script-prompt')).toEqual([]);
+    expect(await receivesPointer(page, 'script-run-cancel')).toBe(true);
+    await page.setViewportSize(viewport);
 
     // The prompt works; its answer lands in the third paragraph and the run finishes.
     await prompt.getByTestId('dialog-script-prompt-input').fill('Answered in the prompt');

@@ -3,9 +3,10 @@
  * pane - in every view, with or without the status bar - shows the script's name, the elapsed
  * time (`mm:ss`, refreshed every second by the host), the progress the script reports
  * (`mfbe.ui.progress`: phase and percentage or count), a moving busy sign and Cancel. The
- * banner covers and greys nothing of the document; it stays above the script's own modal
- * dialogs so Cancel is available while the script asks something (FR-015). Rendered by App.tsx
- * in the view area; the status-bar run line (RunBar.tsx) remains in addition.
+ * banner covers and greys nothing of the document; its Cancel button alone stays above the
+ * script's own modal dialogs, so Cancel is available while the script asks something (FR-015)
+ * and a tall dialog reaching into the strip is still operable (scripting.css). Rendered by
+ * App.tsx in the view area; the status-bar run line (RunBar.tsx) remains in addition.
  */
 
 import { useSyncExternalStore } from 'react';

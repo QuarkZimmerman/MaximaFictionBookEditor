@@ -114,12 +114,12 @@
 }
 
 /* Run banner (ScriptRunBanner.tsx, feature 003 FR-010): a strip between the view tabs and the
-   document pane. It takes its own room, so it covers none of the document, and it sits above
-   the modal dialog layer (z-index 1000) so that Cancel stays available while the script waits
-   in one of its dialogs. */
+   document pane. It takes its own room, so it covers none of the document. The strip stays
+   below the modal dialog layer (z-index 1000) and the menus: a tall dialog of the script (or
+   an open menu) may reach into the strip and must stay visible and operable (FR-011). Only
+   the Cancel button sits above the modal layer, so that Cancel stays available while the
+   script waits in one of its dialogs (FR-015). */
 .mfbe-script-banner {
-  position: relative;
-  z-index: 1001;
   display: flex;
   flex: 0 0 auto;
   align-items: center;
@@ -181,7 +181,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Above the modal dialog layer (see the banner's note); the strip around it is not. */
 .mfbe-script-banner-cancel {
+  position: relative;
+  z-index: 1001;
   flex: 0 0 auto;
   min-width: 0;
   padding: 0 12px;
