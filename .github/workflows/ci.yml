@@ -498,6 +498,12 @@ jobs:
 
       - name: Package
         run: cpack --preset ${{ matrix.preset }}
+      - name: Package failure details (WiX log)
+        if: failure() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $log = "build\${{ matrix.preset }}\packages\_CPack_Packages\win64\WIX\wix.log"
+          if (Test-Path $log) { Get-Content $log | Select-String -Pattern 'error|warning' -Context 0,2 | Select-Object -First 80 } else { Write-Host "no $log" }
 
       - name: Package smoke (Linux)
         if: runner.os == 'Linux'
