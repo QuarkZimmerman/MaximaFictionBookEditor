@@ -4,8 +4,10 @@
  * `dialog.pickFolder` and "Open scripts folder"), Genres folder (default / custom, "Open genres
  * folder", the sources of the effective genre list), Template folder (feature 002: default /
  * custom, "Open template folder", the blank.fb2 in effect), Dialogs (ask for non-clear image
- * insertion), Images (insert clear images), Paste images as (format, JPEG quality 1-100) and
- * Non-breaking space (display character).
+ * insertion), Images (insert clear images), Paste images as (format, JPEG quality 1-100),
+ * Non-breaking space (display character) and Version check (feature 003 US5: how often the
+ * editor checks for a new version at start-up - at every start, once a day / week / month,
+ * never).
  */
 
 import { useEffect, useState } from 'react';
@@ -13,7 +15,13 @@ import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
 import { RpcError } from '@/rpc/client';
-import { RpcErrorCode, type ImageFormat, type Settings, type TemplateInfo } from '@/rpc/types';
+import {
+  RpcErrorCode,
+  type ImageFormat,
+  type Settings,
+  type TemplateInfo,
+  type VersionCheckSchedule,
+} from '@/rpc/types';
 
 import { CheckField, FieldRow, GroupBox, NumberField } from './controls';
 import {
@@ -21,6 +29,7 @@ import {
   IMAGE_FORMATS,
   JPEG_QUALITY_RANGE,
   NBSP_DISPLAY_CHOICES,
+  VERSION_CHECK_OPTIONS,
   describeGenreSources,
   genresInfoFrom,
   parseIntegerField,
@@ -309,6 +318,28 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
             {nbspKnown ? null : (
               <option value={nbspValue}>{`${nbspValue} (U+${codePointHex(nbspValue)})`}</option>
             )}
+          </select>
+        </FieldRow>
+      </GroupBox>
+
+      <GroupBox title={t('dialog.settings.other.versionCheck')}>
+        <FieldRow
+          label={t('dialog.settings.other.versionCheckSchedule')}
+          htmlFor="settings-other-version-check"
+        >
+          <select
+            id="settings-other-version-check"
+            value={other.versionCheck}
+            onChange={(event) =>
+              onChange({ versionCheck: event.target.value as VersionCheckSchedule })
+            }
+            data-testid="settings-other-version-check"
+          >
+            {VERSION_CHECK_OPTIONS.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {t(choice.labelKey)}
+              </option>
+            ))}
           </select>
         </FieldRow>
       </GroupBox>

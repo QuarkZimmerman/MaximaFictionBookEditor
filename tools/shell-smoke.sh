@@ -239,6 +239,9 @@ if [[ "${MFBE_SMOKE_PORTABLE:-0}" == "1" ]]; then
   fi
   PORTABLE_DIR="$(dirname "$MFBE_APP_BIN")/user"
   mkdir "$PORTABLE_DIR"
+  # Offline like the per-user scenarios: no start-up version check (feature 003).
+  printf '{ "schemaVersion": 1, "other": { "versionCheck": "never" } }\n' \
+    >"$PORTABLE_DIR/settings.json"
 fi
 SELFTEST=""
 if [[ "${MFBE_SMOKE_MESSAGEBOX:-0}" == "1" ]]; then
@@ -336,6 +339,15 @@ done
 SH
   chmod +x "$TMP/launch.sh"
   LAUNCHER="$TMP/launch.sh"
+fi
+# The smoke stays offline: a fresh settings file would make the start-up version check due
+# (feature 003, default monthly), so the schedule is preset to "never" - in the per-user
+# config folder, or in the portable copy's own settings file (preset above; the per-user
+# folders must stay untouched in that scenario).
+if [[ -z "$PORTABLE_DIR" ]]; then
+  mkdir -p "$TMP/home/.config/maxfbeditor"
+  printf '{ "schemaVersion": 1, "other": { "versionCheck": "never" } }\n' \
+    >"$TMP/home/.config/maxfbeditor/settings.json"
 fi
 # GTK decodes this PNG while the shell starts, as it does for the images of many desktop themes.
 mkdir -p "$TMP/home/.config/gtk-3.0"

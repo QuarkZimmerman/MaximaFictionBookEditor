@@ -231,6 +231,34 @@ describe('SettingsDialog - View / Other / Words mapping', () => {
     expect(root.style.getPropertyValue('--mfbe-body-bg')).toBe('');
   });
 
+  it('offers the five version-check schedules (feature 003 US5) and applies the choice on OK', async () => {
+    const { rpc, user, onClose, ctx } = await setup({ page: 'other' });
+    const select = screen.getByTestId('settings-other-version-check');
+    // The default: once a month (FR-040), for new and for older settings files alike.
+    expect(select).toHaveValue('monthly');
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((o) => [o.getAttribute('value'), o.textContent]),
+    ).toEqual([
+      ['everyStart', 'at every start'],
+      ['daily', 'once a day'],
+      ['weekly', 'once a week'],
+      ['monthly', 'once a month'],
+      ['never', 'never'],
+    ]);
+    expect(screen.getByText('Version check')).toBeInTheDocument();
+
+    await user.selectOptions(select, 'never');
+    expect(select).toHaveValue('never');
+    await user.click(screen.getByTestId('dialog-settings-button-ok'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const calls = settingsSetCalls(rpc);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.patch).toEqual({ other: { versionCheck: 'never' } });
+    expect(ctx.store.getState().settings?.other.versionCheck).toBe('never');
+  });
+
   it('Cancel discards the draft without calling settings.set', async () => {
     const { rpc, user, onClose } = await setup();
     await user.type(screen.getByTestId('settings-view-body-font'), 'Georgia');

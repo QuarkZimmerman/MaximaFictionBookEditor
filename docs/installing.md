@@ -13,13 +13,16 @@ repository (https://github.com/QuarkZimmerman/MaximaFictionBookEditor/releases),
 | Fedora / openSUSE family | `mfbe-<version>-1.x86_64.rpm` | package with menu entry and file associations |
 | macOS 13+ | `MaximaFictionBookEditor-<version>-macos-arm64.dmg` (Apple Silicon), `...-macos-x86_64.dmg` (Intel) | application bundle in a disk image |
 
-The editor works offline and sends nothing anywhere on its own. The one exception is Help >
-Check for new version: when you choose it, the editor asks GitHub
+The editor works offline and sends nothing anywhere on its own. The one exception is the check
+for a new version: when you choose Help > Check for new version, the editor asks GitHub
 (`api.github.com/repos/QuarkZimmerman/MaximaFictionBookEditor/releases/latest`) for the latest
 release and, if it is newer, offers to open its page in your web browser; the request carries
-nothing about you or your books. Nothing is downloaded or installed. All packages are built by
-the project's CI from the repository sources (`docs/building.md` explains how to build them
-yourself).
+nothing about you or your books. Nothing is downloaded or installed. The editor can also make
+this same single request by itself when it starts, as often as Settings > Other > Version check
+says - once a month unless you change it, or at every start, once a day or once a week; it then
+speaks up only when a newer version exists, and "never" switches the automatic check off (the
+manual command keeps working). All packages are built by the project's CI from the repository
+sources (`docs/building.md` explains how to build them yourself).
 
 ## Supported platforms
 

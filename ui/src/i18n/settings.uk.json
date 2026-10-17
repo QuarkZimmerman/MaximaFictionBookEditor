@@ -50,6 +50,15 @@
           "smallSquare": "Малий білий квадрат (▫)",
           "bullet": "Білий маркер (◦)",
           "space": "Звичайний пробіл (невидимий)"
+        },
+        "versionCheck": "Перевірка нової версії",
+        "versionCheckSchedule": "Перевіряти нову версію:",
+        "versionCheckChoices": {
+          "everyStart": "при кожному запуску",
+          "daily": "щодня",
+          "weekly": "щотижня",
+          "monthly": "щомісяця",
+          "never": "ніколи"
         }
       },
       "hotkeys": {
