@@ -268,6 +268,8 @@ interface WalkOptions {
   skip?: string;
   /** Unknown texts fail (default); false: only verbatim English / Russian and Latin-only texts. */
   strict?: boolean;
+  /** A region that may legitimately show no text (an empty dynamic submenu's placeholder). */
+  allowEmpty?: boolean;
 }
 
 /** The texts of the region `testId` that are wrong in `lang`, each with where it was found. */
@@ -282,7 +284,9 @@ async function walkProblems(
     collectorSnippet(`[data-testid="${testId}"]`, options.skip ?? ''),
   );
   if (entries === null) return [`${name}: no element with data-testid="${testId}"`];
-  if (entries.length === 0) return [`${name}: no visible text found in ${testId}`];
+  if (entries.length === 0) {
+    return options.allowEmpty ? [] : [`${name}: no visible text found in ${testId}`];
+  }
   const target = textsOf(lang);
   const strict = options.strict ?? true;
   const problems: string[] = [];
@@ -520,9 +524,14 @@ async function walkMenus(page: Page, lang: UiLang): Promise<{ problems: string[]
       // The popup's items render a frame after the popup itself (the first entry may also be
       // the "(none)" placeholder of the Recent submenu).
       await expect(page.getByTestId(submenuId).locator('[role="menuitem"]').first()).toBeVisible();
+      // A fresh core has no recent files: the submenu shows only its placeholder, which the
+      // dynamic-entry filter removes together with the entries it stands in for.
+      const placeholderOnly =
+        (await page.getByTestId(submenuId).locator('[data-testid$="-none"]').count()) > 0;
       problems.push(
         ...(await walkProblems(page, lang, submenuId, `submenu ${itemId}`, {
           skip: DYNAMIC_MENU_ENTRIES,
+          allowEmpty: placeholderOnly,
         })),
       );
       const subItems = await page.evaluate<AccessKeyEntry[] | null>(
