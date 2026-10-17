@@ -9,18 +9,32 @@
  * document is replaced (opened, reloaded or closed from outside) ends as cancelled and leaves
  * the new document alone. After 30 s without activity the run is marked silent (the run bar
  * says so). "Last script" memory: `scripts.lastRun`.
+ *
+ * Feature 003 (FR-010, FR-014): the run state carries the elapsed time (a tick every second,
+ * shown by the run banner), whether the script waits in one of its own dialogs (`waiting`: the
+ * busy cursor is shown only while it computes) and, at the end, the run's duration; a finished
+ * run is announced as "finished in N s" - in the status bar and, for a run longer than 5 s, by
+ * a transient notice in the work area.
  */
 
 import type { TFunction } from 'i18next';
 
+import { showTransientNotice } from '@/app/transientNotices';
 import type { Dialogs } from '@/dialogs/types';
 import type { Document } from '@/model/document';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
+import type { JobProgress } from '@/rpc/types';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
 
-import { createScriptApi, JsonText, ScriptApiError, type ScriptApi } from './api-impl';
+import {
+  createScriptApi,
+  JsonText,
+  SCRIPT_PROGRESS_JOB,
+  ScriptApiError,
+  type ScriptApi,
+} from './api-impl';
 import type {
   HostMessage,
   InitMessage,
@@ -39,6 +53,12 @@ export interface RunState {
   name: string;
   status: RunStatus;
   startedAt: number;
+  /** Time since the start, refreshed once a second while the run is in progress. */
+  elapsedMs: number;
+  /** The script waits for the user in one of its own dialogs (message, prompt, form). */
+  waiting: boolean;
+  /** Length of the run; set when it ends. */
+  durationMs?: number;
   error?: ScriptErrorInfo;
   /** The running script has shown no activity for the watchdog delay (30 s). */
   silent?: boolean;
@@ -67,6 +87,8 @@ export interface ScriptHostDeps {
   origin?: () => string;
   /** Inactivity after which a run counts as silent (default 30 s). */
   watchdogMs?: number;
+  /** Interval of the elapsed-time ticks (default 1 s; tests shorten it). */
+  tickMs?: number;
   /** Receives `console.*` output of scripts (development builds log it to the console). */
   onLog?: (level: string, args: unknown[]) => void;
 }
@@ -81,8 +103,51 @@ export interface RunOptions {
 
 export const DEFAULT_WATCHDOG_MS = 30_000;
 
+/** The elapsed time shown by the banner is refreshed this often (FR-010: at least every second). */
+export const DEFAULT_TICK_MS = 1_000;
+
+/** A finished run longer than this is also announced by a transient notice (FR-014). */
+export const NOTICE_THRESHOLD_MS = 5_000;
+
 /** Undo view of a script run: undoing it shows the Body view. */
 const SCRIPT_RUN_UNDO_VIEW = 'body';
+
+/** Whole seconds of a run's duration for "finished in N s": rounded, at least 1. */
+export function durationSeconds(durationMs: number): number {
+  return Math.max(1, Math.round(durationMs / 1000));
+}
+
+/** `mm:ss` of an elapsed time for the run banner (the minutes may pass 59). */
+export function formatElapsed(elapsedMs: number): string {
+  const total = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+/**
+ * Banner text of a script's progress report (data-model §3): "phase — done/total (NN %)" with a
+ * total, "phase — done" for a bare count, the phase alone when nothing was counted yet; null
+ * for a progress that is not the running script's.
+ */
+export function formatRunProgress(t: TFunction, progress: JobProgress | null): string | null {
+  if (!progress || progress.jobId !== SCRIPT_PROGRESS_JOB) return null;
+  if (progress.total > 0) {
+    return t('scripting.banner.progressPercent', {
+      phase: progress.phase,
+      done: progress.done,
+      total: progress.total,
+      percent: Math.min(100, Math.round((progress.done / progress.total) * 100)),
+    }) as string;
+  }
+  if (progress.done > 0) {
+    return t('scripting.banner.progressCount', {
+      phase: progress.phase,
+      done: progress.done,
+    }) as string;
+  }
+  return progress.phase;
+}
 
 /** Localised display name of a script (falls back to English, then the id). */
 export function scriptName(script: ScriptInfo, language: string): string {
@@ -116,6 +181,8 @@ interface ActiveRun {
   before: Document;
   modifiedBefore: boolean;
   watchdog: ReturnType<typeof setTimeout> | null;
+  /** Refreshes `state.elapsedMs` once a second (stopped at the end). */
+  ticker: ReturnType<typeof setInterval> | null;
   lastActivity: number;
   dialogDepth: number;
   cancelRequested: boolean;
@@ -238,8 +305,16 @@ export class ScriptHost {
 
     return new Promise<RunResult>((resolve) => {
       const end = createRunEnd();
+      const startedAt = Date.now();
       const run: ActiveRun = {
-        state: { scriptId: script.id, name, status: 'running', startedAt: Date.now() },
+        state: {
+          scriptId: script.id,
+          name,
+          status: 'running',
+          startedAt,
+          elapsedMs: 0,
+          waiting: false,
+        },
         script,
         options,
         worker,
@@ -249,7 +324,8 @@ export class ScriptHost {
         before,
         modifiedBefore: store.getState().modified,
         watchdog: null,
-        lastActivity: Date.now(),
+        ticker: null,
+        lastActivity: startedAt,
         dialogDepth: 0,
         cancelRequested: false,
         finished: false,
@@ -296,6 +372,7 @@ export class ScriptHost {
         void this.finish(run, 'failed', error);
       };
       this.armWatchdog(run, this.watchdogMs);
+      run.ticker = setInterval(() => this.tick(run), this.deps.tickMs ?? DEFAULT_TICK_MS);
     });
   }
 
@@ -383,7 +460,19 @@ export class ScriptHost {
 
   private onUiActivity(run: ActiveRun, active: boolean): void {
     run.dialogDepth += active ? 1 : -1;
+    const waiting = run.dialogDepth > 0;
+    if (!run.finished && run.state.waiting !== waiting) {
+      run.state = { ...run.state, waiting };
+      this.emit();
+    }
     this.onActivity(run);
+  }
+
+  /** One elapsed-time tick (the banner's clock). */
+  private tick(run: ActiveRun): void {
+    if (run.finished) return;
+    run.state = { ...run.state, elapsedMs: Date.now() - run.state.startedAt };
+    this.emit();
   }
 
   /** The script did something: it is not silent, the watchdog starts over. */
@@ -420,10 +509,15 @@ export class ScriptHost {
   private async finish(run: ActiveRun, status: RunStatus, error?: ScriptErrorInfo): Promise<void> {
     if (run.finished) return;
     run.finished = true;
+    const durationMs = Date.now() - run.state.startedAt;
     run.unwatch();
     if (run.watchdog) {
       clearTimeout(run.watchdog);
       run.watchdog = null;
+    }
+    if (run.ticker) {
+      clearInterval(run.ticker);
+      run.ticker = null;
     }
     try {
       run.port.close();
@@ -458,19 +552,30 @@ export class ScriptHost {
     actions.setScriptRunning(store, false);
     run.api.finish();
 
-    run.state = { ...run.state, status: outcome, error, silent: false };
+    run.state = {
+      ...run.state,
+      status: outcome,
+      error,
+      silent: false,
+      waiting: false,
+      elapsedMs: durationMs,
+      durationMs,
+    };
     this.lastState = run.state;
     this.active = null;
     this.emit();
 
     let message: string | undefined;
     if (outcome === 'done') {
-      if (!run.api.stickyStatus) {
-        actions.setStatusMessage(
-          store,
-          t('scripting.status.finished', { name: run.state.name }) as string,
-        );
-      }
+      // "finished in N s" (FR-014): in the status bar - unless the script left a sticky status
+      // of its own - and, for a run longer than 5 s, as a notice in the work area, which the
+      // user sees whether or not the status bar is shown.
+      const finished = t('scripting.status.finishedIn', {
+        name: run.state.name,
+        seconds: durationSeconds(durationMs),
+      }) as string;
+      if (!run.api.stickyStatus) actions.setStatusMessage(store, finished);
+      if (durationMs > NOTICE_THRESHOLD_MS) showTransientNotice(store, { text: finished });
     } else if (outcome === 'cancelled') {
       actions.setStatusMessage(
         store,

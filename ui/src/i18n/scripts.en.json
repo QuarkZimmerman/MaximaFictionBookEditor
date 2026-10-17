@@ -17,6 +17,7 @@
     "status": {
       "running": "Running script \"{{name}}\"...",
       "finished": "Script \"{{name}}\" finished",
+      "finishedIn": "Script \"{{name}}\" finished in {{seconds}} s",
       "cancelled": "Script \"{{name}}\" was cancelled",
       "failed": "Script \"{{name}}\" failed",
       "reloaded_one": "{{count}} script found",
@@ -27,6 +28,14 @@
       "count": "{{phase}}: {{done}}",
       "silent": "The script \"{{name}}\" has been running for a while without reporting progress.",
       "cancel": "Cancel"
+    },
+    "banner": {
+      "$comment": "Run banner above the document (ScriptRunBanner.tsx, feature 003 FR-010).",
+      "label": "Running script",
+      "running": "Script \"{{name}}\" is running",
+      "elapsed": "Time since the start",
+      "progressPercent": "{{phase}} — {{done}}/{{total}} ({{percent}} %)",
+      "progressCount": "{{phase}} — {{done}}"
     },
     "error": {
       "caption": "Script error",

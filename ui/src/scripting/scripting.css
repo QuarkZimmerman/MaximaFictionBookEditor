@@ -112,3 +112,92 @@
   padding: 0 12px;
   line-height: 1.4;
 }
+
+/* Run banner (ScriptRunBanner.tsx, feature 003 FR-010): a strip between the view tabs and the
+   document pane. It takes its own room, so it covers none of the document, and it sits above
+   the modal dialog layer (z-index 1000) so that Cancel stays available while the script waits
+   in one of its dialogs. */
+.mfbe-script-banner {
+  position: relative;
+  z-index: 1001;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px 8px 4px 10px;
+  background: var(--mfbe-color-accent-soft);
+  color: var(--mfbe-color-fg);
+  border-bottom: 1px solid var(--mfbe-color-accent);
+  user-select: none;
+}
+
+/* The busy sign: a ring with a gap, turning continuously while the script runs. */
+.mfbe-script-banner-busy {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--mfbe-color-accent);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: mfbe-script-banner-spin 0.9s linear infinite;
+}
+
+@keyframes mfbe-script-banner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mfbe-script-banner-text {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.mfbe-script-banner-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mfbe-script-banner-progress {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mfbe-script-banner-elapsed {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.mfbe-script-banner-cancel {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 0 12px;
+  line-height: 1.4;
+}
+
+/* Reduced motion: the sign still changes - a slow pulse instead of the turning ring. */
+@keyframes mfbe-script-banner-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mfbe-script-banner-busy {
+    border-right-color: var(--mfbe-color-accent);
+    animation: mfbe-script-banner-pulse 2s ease-in-out infinite;
+  }
+}

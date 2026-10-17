@@ -17,6 +17,7 @@
     "status": {
       "running": "Виконується скрипт «{{name}}»...",
       "finished": "Скрипт «{{name}}» завершено",
+      "finishedIn": "Скрипт «{{name}}» завершено за {{seconds}} с",
       "cancelled": "Скрипт «{{name}}» перервано",
       "failed": "Скрипт «{{name}}» завершився з помилкою",
       "reloaded_one": "Знайдено {{count}} скрипт",
@@ -29,6 +30,14 @@
       "count": "{{phase}}: {{done}}",
       "silent": "Скрипт «{{name}}» давно працює й не повідомляє про хід виконання.",
       "cancel": "Перервати"
+    },
+    "banner": {
+      "$comment": "Смуга виконання скрипту над документом (ScriptRunBanner.tsx, feature 003 FR-010).",
+      "label": "Скрипт, що виконується",
+      "running": "Виконується скрипт «{{name}}»",
+      "elapsed": "Час від початку виконання",
+      "progressPercent": "{{phase}} — {{done}}/{{total}} ({{percent}} %)",
+      "progressCount": "{{phase}} — {{done}}"
     },
     "error": {
       "caption": "Помилка скрипту",

@@ -617,6 +617,8 @@ export interface RpcNotifications {
   'resources.changed': { what: 'genres' | 'scripts' | 'dictionaries' };
   'app.openPaths': { paths: string[] };
   'settings.changed': { settings: Settings };
+  /** The shell was asked to close its window; the UI runs its quit flow (feature 003). */
+  'app.closeRequested': Record<string, never>;
 }
 
 export type RpcNotificationName = keyof RpcNotifications;

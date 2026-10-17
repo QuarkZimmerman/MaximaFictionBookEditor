@@ -143,7 +143,8 @@ describe('Run bar', () => {
     const result = await start();
     expect(screen.queryByTestId('status-message')).not.toBeInTheDocument();
     expect(screen.getByTestId('script-run-text')).toHaveTextContent('Running script "Long run"...');
-    expect(screen.getByTestId('script-run-cancel')).toHaveTextContent('Cancel');
+    // The status-bar line's Cancel; the banner above the document owns `script-run-cancel`.
+    expect(screen.getByTestId('script-run-bar-cancel')).toHaveTextContent('Cancel');
 
     worker.send({ type: 'call', id: 1, method: 'ui.progress', args: [25, 100, 'Phase'] });
     await waitFor(
@@ -160,7 +161,7 @@ describe('Run bar', () => {
     expect(screen.getByTestId('script-run-bar')).toBeInTheDocument();
     expect(screen.queryByTestId('status-path')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByTestId('script-run-cancel'));
+    await userEvent.click(screen.getByTestId('script-run-bar-cancel'));
     await expect(result()).resolves.toMatchObject({ status: 'cancelled' });
     expect(worker.terminated).toBe(1);
     expect(screen.queryByTestId('statusbar')).not.toBeInTheDocument();
@@ -178,7 +179,7 @@ describe('Run bar', () => {
       () => screen.getByTestId('script-run-bar').dataset.silent === undefined,
       'activity',
     );
-    await act(async () => screen.getByTestId('script-run-cancel').click());
+    await act(async () => screen.getByTestId('script-run-bar-cancel').click());
     await result();
   });
 
