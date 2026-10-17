@@ -7,7 +7,7 @@ if(MFBE_BUILD_TESTS)
 endif()
 
 project(MaximaFictionBookEditor
-  VERSION 0.0.2
+  VERSION 0.0.3
   DESCRIPTION "Maxima Fiction Book Editor - cross-platform FictionBook 2 editor"
   HOMEPAGE_URL "https://github.com/QuarkZimmerman/MaximaFictionBookEditor"
   LANGUAGES C CXX)

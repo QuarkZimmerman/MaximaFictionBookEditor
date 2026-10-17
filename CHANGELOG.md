@@ -3,6 +3,125 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.3 - 2026-10-17
+
+### Added
+
+- Ukrainian interface, as the original offered: Settings > View lists System default, English,
+  Russian and Ukrainian, and a first start on a Ukrainian system is in Ukrainian. Every menu,
+  dialog, tooltip, message, file-type name, genre name, language name and symbol name exists in
+  Ukrainian - the original editor's own Ukrainian wording wherever it had the text, the rest
+  translated from the Russian texts - with access keys unique in every menu and dialog; the
+  desktop shell's own right-click menu and the save dialog's encoding label follow. Script
+  groups named in Ukrainian in their `group.json` show that name; the bundled scripts' own
+  messages, prompts and forms stay as the scripts have them (English under the Ukrainian
+  interface), while the buttons and captions the editor adds are Ukrainian. The automated
+  parity check covers the three catalogues.
+- Built-in Ukrainian spelling dictionary (`uk_UA`, the dict_uk dictionary): books in Ukrainian
+  are checked, suggestions offered, words with the apostrophe handled, in every package without
+  a download. The dictionary is run-time data the editor only reads and ships as an aggregate
+  with its Mozilla Public License 1.1 notice, shown in Help > About like the other notices.
+- Spelling dictionaries from a folder. Settings > View shows the dictionaries folder - the
+  per-user folder of an installed editor, the `dictionaries` subfolder of the `user` folder of
+  a portable one, or a folder of your own - with "Open dictionaries folder", which creates it
+  when needed; a Hunspell `.aff`/`.dic` pair copied there (the dictionaries LibreOffice and
+  Firefox use, any encoding the editor reads: UTF-8, UTF-16, Windows-1251/1252, ISO-8859-1/2/5/15,
+  KOI8-R) is in effect after Apply or the next start, without administrator rights. The list
+  "Dictionaries in effect" names every dictionary with its origin and every file the editor
+  could not use with the reason - a missing partner file, an unreadable file, an encoding it
+  cannot convert, a pair whose tag a built-in dictionary already has (built-in dictionaries are
+  never replaced). Help > About lists every dictionary in effect with its origin and notice.
+- Check for a new version on a schedule: Settings > Other > Version check offers at every
+  start, once a day, once a week, once a month (the default, also for settings files of 0.0.2)
+  and never. When the chosen interval has passed since the last answered check, the editor
+  makes the same single request as Help > Check for new version in the background once the
+  window is usable, and speaks up only when a newer version exists - after any open dialog,
+  never over a script run or a file dialog; the latest version and a failed check are silent,
+  and a failed check is retried at the next start. The manual command works as before; both
+  record when they got an answer, in the per-user settings or the portable `user` folder.
+- Windows installer: "Create a shortcut on the desktop", ticked by default as in the original's
+  installer; the shortcut carries the editor's name and icon, goes to the desktop of all users,
+  is removed by uninstalling, and an upgrade keeps the choice. Unattended installations choose
+  with `INSTALLDESKTOPSHORTCUT=1` or `=0` (`msiexec /i <msi> /qn INSTALLDESKTOPSHORTCUT=0`).
+- Tag completion in the Source view: after `<` the editor offers the FB2 elements the schema
+  allows inside the enclosing element (every element where the enclosing one cannot be
+  determined, the root element only at the root); after `</` only the elements open at the
+  cursor and not yet closed, innermost first, each completing to the whole closing tag. Enter
+  and Tab accept, Esc dismisses, typing filters, Ctrl+Space (the "Complete tag" hotkey,
+  rebindable in the Hotkeys settings) asks on demand; nothing is offered inside comments,
+  processing instructions, CDATA, attribute values or binary data. The "Tag completion" switch
+  of Settings > View > XML source editor turns it off. In a 10 MB book the list appears well
+  within its 300 ms budget (about 130 ms on the development host) and typing stays responsive.
+
+### Changed
+
+- A running script is unmistakable. A banner above the document - in every view, with the
+  status bar shown or hidden - shows the script's name, the elapsed time, the progress it
+  reports ("phase - done/total (NN %)", or the bare count without a total), a moving busy sign
+  and Cancel; the status-bar line of 0.0.2 stays. The document is under a quiet lock: nothing
+  is greyed and the places the script highlights stay visible, but typing, pasting, dragging
+  and deleting are refused in the Body, Source and Description views and in the Document Tree,
+  and every command that changes the document, switches the view, opens or saves a file (New,
+  Open, Recent files, Reload, Save, Save As) or opens Settings or the Hotkeys configuration is
+  unavailable; no second script can start. Reading, scrolling, selecting, copying, Find, Find
+  Next, the incremental search, the Help menu, About and Exit stay available, and the pointer
+  shows the busy state only while the script computes, not while it waits in its own dialog.
+  When the run ends the status bar says "finished in N s", and a run longer than 5 seconds also
+  ends with a short notice in the work area that disappears by itself and never takes the
+  focus. Exit and closing the window during a run first ask whether to cancel the script. The
+  scripting guide describes what is available while a script runs; no bundled script's
+  behaviour changes.
+- Closing the window by its title-bar button (or a system shutdown) runs exactly the Exit
+  flow: the cancel-script prompt while a script runs, then "Save changes to X?" - Yes saves and
+  closes, No closes without saving, Cancel keeps the editor open with nothing lost. A close
+  request that arrives behind an open dialog (New/Open prompt, Settings, a file dialog) is
+  ignored until that dialog is finished, like a native window behind its modal dialog.
+- "Restart now?" after a language change restarts the editor, as the original did. Yes - after
+  the usual save prompt, whose Cancel abandons the restart - closes the editor and starts the
+  same program again from the same place with its own start-up options, the same data folder
+  (a portable copy stays portable), the open document, the same window position and size
+  (maximised if it was) and the new language; a new document never saved is not carried over.
+  The new copy starts only after the old one has fully exited. When the editor cannot start
+  itself again it says so and stays open. In 0.0.2 Yes only closed the editor.
+- Dates follow the system's regional settings. "Today" in the Description view writes today's
+  date into the date value as `YYYY-MM-DD` and into the date text in the long date form of the
+  operating system's regional settings without the day of the week - "17 октября 2026 г." on a
+  Russian Windows, "17 жовтня 2026 р." on a Ukrainian one, "October 17, 2026" on a US-English
+  one, "17 октября 2026" on a Russian Linux - replacing whatever both fields held (0.0.2 kept an
+  existing text and wrote English month names). The document date the editor fills in when it
+  loads a document with an empty date is written the same way. When the system has no regional
+  settings the interface language's long form is used. The text stays free text, saved as
+  written.
+- Licence policy: run-time data files the editor only reads and never combines into the
+  program - spelling dictionaries - are aggregates: their licence must allow free
+  redistribution with notice (the Ukrainian dictionary's MPL 1.1 does), the licence check lists
+  them in their own section of `THIRD-PARTY-NOTICES.md`, and their notice ships next to the file
+  and is shown in Help > About.
+- Menus stay inside the window: a submenu that does not fit to the right of its item (the
+  Scripts groups under the longer Ukrainian labels, already the case in Russian at 1280 px)
+  opens to the left, a menu that does not fit below moves up and scrolls when the window is
+  too small, and the Document Tree's context menu is placed by its measured height.
+- Room for longer labels, found by a screenshot pass over every screen in the three languages:
+  the Settings > Other checkbox labels, the Hotkeys page with the scripts group, the About
+  dialog's "Open log folder" button beside a long log path, the Customize Toolbar lists and the
+  Words dialog's count column no longer run into their neighbours or clip; labels wrap or end in
+  an ellipsis inside their column, the Customize Toolbar dialog is as wide as Settings.
+
+### Fixed
+
+- The window opens where it was closed. 0.0.2 recorded the window position and size at every
+  change but never applied them, so every start opened a centred 1200 x 800 window; the
+  placement - maximised state included, as the original restored its window placement - is now
+  applied at every start and clamped to the visible screen.
+- Closing the window by its title-bar button no longer skips the editor's quit flow: in 0.0.2
+  unsaved changes were lost without a prompt and a running script was torn down silently.
+- A book whose language has a region the dictionaries do not know (`de-AT`, `pt-BR`) is checked
+  with the dictionary of its language (`de_DE`); 0.0.2 found no dictionary for it.
+- A dictionary whose `.aff` names an encoding the editor cannot convert is reported in Settings
+  as unusable instead of being read as UTF-8 (0.0.2 fell back silently, with a line in the
+  log); a removed or replaced dictionary file is dropped when Settings are applied instead of
+  staying in use from the cache.
+
 ## 0.0.2 - 2026-10-15
 
 ### Added

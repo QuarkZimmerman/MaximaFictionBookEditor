@@ -79,10 +79,12 @@ reconnects with exponential backoff (0.5 s to 10 s) and reports `connecting` / `
 
 Specs import `test`/`expect` from `./fixtures/core` instead of `@playwright/test`.
 
-Two Playwright projects run: `chromium` (the interface in the system's language) and
-`chromium-ru`, the main journeys again with the Russian interface (`?lang=ru`, option
-`uiLang`). Journeys assert the interface's texts through `fixtures/i18n.ts`, which reads them
-from the catalogues in the language the page shows, never as English literals.
+Three Playwright projects run: `chromium` (the interface in the system's language),
+`chromium-ru` and `chromium-uk`, the main journeys again with the Russian and the Ukrainian
+interface (`?lang=ru` / `?lang=uk`, option `uiLang`). Journeys assert the interface's texts
+through `fixtures/i18n.ts`, which reads them from the catalogues in the language the page
+shows, never as English literals; `us1-ukrainian.spec.ts` additionally fails on any visible
+text that is not a Ukrainian catalogue value.
 
 The script benchmark `perf-scripts.spec.ts` is tagged `@perf`: CI runs the journeys with
 `--grep-invert @perf` and the benchmark alone with `--grep @perf --workers=1`
@@ -129,8 +131,10 @@ ui/
   src/app/                shell: App.tsx, MenuBar.tsx (+ menus.ts model), Toolbars.tsx
                           (+ toolbars.ts), StatusBar.tsx, ViewSwitcher.tsx, layout.css (CSS
                           variables for fonts/colours), commands.ts (registry + built-in
-                          commands), hotkeys.ts (chord grammar, defaults, HotkeyMap),
-                          services.ts / AppContext.tsx (service wiring + hooks)
+                          commands, each with its duringScriptRun policy), hotkeys.ts (chord
+                          grammar, defaults, HotkeyMap), services.ts / AppContext.tsx (service
+                          wiring + hooks), TransientNotice.tsx (+ transientNotices.ts: the
+                          short self-hiding notice of the work area, e.g. "finished in N s")
   src/dialogs/            Dialog.tsx (frame, focus trap, DialogHost), DialogService.ts (modal
                           stack), MessageBox.tsx, InputDialog.tsx, SaveChangesPrompt.tsx,
                           EncodingDialog.tsx (+ encodings.ts), ValidationPanel.tsx (+ validation.ts:
@@ -141,8 +145,16 @@ ui/
                           (lossless model <-> editor conversion), virtualization.ts (section
                           windowing), plugins/nbsp.ts (NBSP marker), styles.css (the original
                           main.css look)
-  src/features/file/      fileCommands.ts (New/Open/Save/Save As/Validate/Exit, notifications,
-                          start-up parameters), recent.ts (Recent Files, caret restore)
+  src/features/file/      fileCommands.ts (New/Open/Save/Save As/Validate/Exit and the window-close
+                          quit flow of app.closeRequested, notifications, start-up parameters),
+                          recent.ts (Recent Files, caret restore)
+  src/features/help/      versionCheck.ts (Help > Check for new version, the prompt),
+                          schedule.ts (when a start-up check is due: other.versionCheck and
+                          session.lastVersionCheck)
+  src/scripting/          host.ts (one run at a time, working copy, cancel, duration), api-impl.ts
+                          (the mfbe allow-list), sandbox*.ts, ScriptRunBanner.tsx (banner above
+                          the document: name, elapsed time, progress, busy sign, Cancel), RunBar.tsx
+                          (the status-bar line), ScriptsMenu.tsx / ScriptsToolbar.tsx
   src/i18n/               index.ts (i18next setup, parseAccelerator), en.json, ru.json,
                           uk.json, <feature>.<lang>.json, identical-allowlist.json
   src/model/              document.ts (copy of contracts/document-model.d.ts), store.ts

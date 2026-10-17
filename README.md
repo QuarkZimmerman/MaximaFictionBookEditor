@@ -3,14 +3,16 @@
 A cross-platform editor for FictionBook 2 (FB2) e-books — a modern
 re-implementation of the classic FictionBook Editor (FBE) with the same views,
 menus and dialogs: **Description** (metadata form), **Body** (structured
-text editor), **Source** (XML), Document Tree, spell checking (English and
-Russian), the Words tool, and user scripts.
+text editor), **Source** (XML, with FB2 tag completion), Document Tree, spell checking
+(English, Russian and Ukrainian built in, more languages from a folder), the Words tool, and
+user scripts.
 
 - Platforms: Windows 10/11 (x64), Linux from Ubuntu 22.04 (X11 and Wayland),
   macOS (best effort).
 - Writes FB2 schema 2.1, reads 2.0-era files; UTF-8 by default; images stored
   as JPEG/PNG only.
-- Interface languages: English, Russian.
+- Interface languages: English, Russian, Ukrainian (the first start follows the system
+  language).
 - Licence: GNU General Public License version 3 (GPL-3.0-only, see `LICENSE`), the licence of
   the original FictionBook Editor, whose material this editor includes.
 
@@ -24,7 +26,7 @@ Packages for every platform are attached to each release on the
 
 | Platform | Package | Install | Uninstall |
 |----------|---------|---------|-----------|
-| Windows 10/11 x64 | `MaximaFictionBookEditor-<version>-win64.msi` | double-click (administrator prompt); installs into `C:\Program Files\Maxima Fiction Book Editor` for all users and registers `.fb2`/`.fbd`; unattended: `msiexec /i <msi> /qn` | *Settings > Apps* or `msiexec /x <msi>` - associations are removed |
+| Windows 10/11 x64 | `MaximaFictionBookEditor-<version>-win64.msi` | double-click (administrator prompt); installs into `C:\Program Files\Maxima Fiction Book Editor` for all users, registers `.fb2`/`.fbd` and offers a desktop shortcut (ticked by default, remembered at upgrades); unattended: `msiexec /i <msi> /qn` (`INSTALLDESKTOPSHORTCUT=0` for no shortcut) | *Settings > Apps* or `msiexec /x <msi>` - associations and the shortcut are removed |
 | Windows 10/11 x64, portable | `MaximaFictionBookEditor-<version>-win64-portable.zip` | unzip anywhere (no installation, no administrator rights) and start `bin\mfbe.exe`; no Start menu entry or file associations; keeps everything it stores in its `bin\user` folder | delete the folder |
 | Linux, any distribution | `MaximaFictionBookEditor-<version>-x86_64.AppImage` | `chmod +x` and run (X11 and Wayland, no extra packages, no FUSE needed) | delete the file |
 | Debian / Ubuntu 22.04+ | `mfbe_<version>_amd64.deb` | `sudo apt install ./mfbe_<version>_amd64.deb` (menu entry, file associations, sandbox helper, AppArmor profile) | `sudo apt remove mfbe` (`purge` also drops the profile) |
@@ -50,8 +52,9 @@ instead of a second window starting.
   other distributions of the same era with a GTK 3 desktop), X11 and Wayland sessions.
 - macOS 13 and newer (Apple Silicon and Intel), best effort: built and smoke-tested by CI.
 
-The interface is available in English and Russian; the feature set is the same on every
-platform. The editor works offline and sends no telemetry. Its only network request is the check
+The interface is available in English, Russian and Ukrainian (Settings > View; a change takes
+effect after the restart the editor offers); the feature set is the same on every platform.
+The editor works offline and sends no telemetry. Its only network request is the check
 for a new version - Help > Check for new version, and the same single request at start-up on
 the schedule chosen in Settings > Other > Version check (once a month by default; "never"
 switches it off): it asks GitHub for the latest release of the editor and sends nothing else
@@ -85,7 +88,7 @@ cpack --preset linux-app-release          # AppImage, .deb, .rpm in build/linux-
 | `packaging/` | Installer and package definitions |
 | `tests/` | Core tests, fixtures, corpus tooling, benchmarks |
 | `tools/` | Developer tooling (never shipped) |
-| `docs/` | [Building](docs/building.md), [installing](docs/installing.md) and [scripting](docs/scripting/en.md) guides, the [architecture and security review](docs/architecture.md), performance and diagnostics notes |
+| `docs/` | [Building](docs/building.md), [installing](docs/installing.md) and [scripting](docs/scripting/en.md) guides, the [architecture and security review](docs/architecture.md), performance and diagnostics notes, release notes (`docs/releases/`) |
 
 ## Licence
 
