@@ -39,30 +39,35 @@ The feature set is identical on every platform.
 ### Install
 
 1. Download `MaximaFictionBookEditor-<version>-win64.msi` and double-click it.
-2. Confirm the administrator prompt, accept the licence (GNU GPL version 3) and the folder, click
-   **Install**.
+2. Confirm the administrator prompt, accept the licence (GNU GPL version 3) and the folder,
+   leave **Create a shortcut on the desktop** ticked or untick it, click **Install**.
 
 The editor is installed for all users of the computer into
 `C:\Program Files\Maxima Fiction Book Editor` (the folder can be changed in the installer).
 Unattended installation from an elevated terminal:
 
 ```powershell
-msiexec /i MaximaFictionBookEditor-<version>-win64.msi /qn
+msiexec /i MaximaFictionBookEditor-<version>-win64.msi /qn                          # desktop shortcut created
+msiexec /i MaximaFictionBookEditor-<version>-win64.msi /qn INSTALLDESKTOPSHORTCUT=0 # no desktop shortcut
 ```
 
-The installer creates a Start menu entry, registers the `.fb2` and `.fbd` extensions with the
-editor's icon and the **Open** and **Edit** verbs (double-click opens the book; the editor is
-also listed under *Settings > Apps > Default apps*), and installing a newer version over an
-older one upgrades it in place. Windows SmartScreen may show "Windows protected your PC"
-for an unsigned installer: click *More info* > *Run anyway*.
+The installer creates a Start menu entry and, unless declined, a shortcut named *Maxima
+Fiction Book Editor* with the editor's icon on the desktop of all users; it registers the
+`.fb2` and `.fbd` extensions with the editor's icon and the **Open** and **Edit** verbs
+(double-click opens the book; the editor is also listed under *Settings > Apps > Default
+apps*). Installing a newer version over an older one upgrades it in place and keeps your
+desktop-shortcut choice: an existing shortcut stays, none is added where you declined one -
+unless you change the choice in the installer or give `INSTALLDESKTOPSHORTCUT=1` or `=0` on
+the command line. Windows SmartScreen may show "Windows protected your PC" for an unsigned
+installer: click *More info* > *Run anyway*.
 
 ### Uninstall
 
 *Settings > Apps > Installed apps > Maxima Fiction Book Editor > Uninstall* (or
 `msiexec /x MaximaFictionBookEditor-<version>-win64.msi`). This removes the program files,
-the Start menu entry and the `.fb2` / `.fbd` associations. Your settings, dictionary and
-user folders (see [User folders](#user-folders)) are kept; delete them by hand if you no
-longer want them.
+the Start menu entry, the desktop shortcut and the `.fb2` / `.fbd` associations. Your
+settings, dictionary and user folders (see [User folders](#user-folders)) are kept; delete
+them by hand if you no longer want them.
 
 ### Portable version (no installation)
 

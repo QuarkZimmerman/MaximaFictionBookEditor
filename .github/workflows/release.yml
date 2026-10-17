@@ -369,6 +369,76 @@ jobs:
         shell: pwsh
         run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP\install.log" -Title "MSI install log"
 
+      - name: Package smoke (Windows - desktop shortcut, upgrade)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Feature 003 (US7, contracts/installer.md): the MSI creates a desktop shortcut by default,
+          # INSTALLDESKTOPSHORTCUT=0 declines it, a major upgrade keeps the recorded choice either
+          # way, and uninstalling removes the shortcut and the record. The upgrade needs a second
+          # MSI of the same version with another ProductCode (re-running the same file is only a
+          # maintenance install): cpack builds the WIX package again into another folder.
+          $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
+          $upgradeDir = Join-Path $env:RUNNER_TEMP 'mfbe-upgrade'
+          $ErrorActionPreference = 'Continue'  # cpack's messages on stderr are not errors
+          cpack -G WIX -B $upgradeDir --config build\${{ matrix.preset }}\CPackConfig.cmake 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\package-upgrade.log"
+          $cpackExit = $LASTEXITCODE
+          $ErrorActionPreference = 'Stop'
+          if ($cpackExit -ne 0) { exit $cpackExit }
+          $msi2 = (Get-ChildItem (Join-Path $upgradeDir '*.msi') | Select-Object -First 1).FullName
+          if (-not $msi2) { throw "no second MSI in $upgradeDir" }
+          $lnk = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) 'Maxima Fiction Book Editor.lnk'
+          $exe = Join-Path $env:ProgramFiles 'Maxima Fiction Book Editor\bin\mfbe.exe'
+          function Install-Msi([string]$Path, [string]$Log, [string]$Properties = '') {
+            $p = Start-Process msiexec -ArgumentList "/i `"$Path`" /qn $Properties /l*v `"$Log`"" -Wait -PassThru
+            if ($p.ExitCode -ne 0) { Get-Content $Log -Tail 80; throw "msiexec install exit $($p.ExitCode)" }
+          }
+          function Uninstall-Msi([string]$Path) {
+            $u = Start-Process msiexec -ArgumentList "/x `"$Path`" /qn" -Wait -PassThru
+            if ($u.ExitCode -ne 0) { throw "msiexec uninstall exit $($u.ExitCode)" }
+            if (Test-Path -LiteralPath $lnk) { throw "the desktop shortcut survived the uninstall" }
+            if ($null -ne (Get-Choice)) { throw "the recorded choice survived the uninstall" }
+            if (Test-Path $exe) { throw "mfbe.exe still present after uninstall" }
+          }
+          # The recorded choice (HKLM\Software\Maxima Fiction Book Editor\DesktopShortcut) and the
+          # ProductCodes registered under Uninstall (one, and a new one after the upgrade).
+          function Get-Choice { (Get-ItemProperty -LiteralPath 'HKLM:\Software\Maxima Fiction Book Editor' -Name DesktopShortcut -ErrorAction SilentlyContinue).DesktopShortcut }
+          function Get-ProductCodes {
+            @(Get-ChildItem 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue | Where-Object {
+              (Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue).DisplayName -like '*Fiction*Book*Editor*' } | ForEach-Object { $_.PSChildName })
+          }
+          Write-Host "Installing $msi with the default: a desktop shortcut"
+          Install-Msi $msi "$env:RUNNER_TEMP\install-shortcut.log"
+          if (-not (Test-Path -LiteralPath $lnk)) { throw "no desktop shortcut at $lnk" }
+          $link = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+          Write-Host "Shortcut target '$($link.TargetPath)', icon '$($link.IconLocation)', start in '$($link.WorkingDirectory)'"
+          if ($link.TargetPath -ne $exe) { throw "the shortcut points to '$($link.TargetPath)', not to $exe" }
+          $iconFile = ($link.IconLocation -split ',')[0]
+          if (-not $iconFile -or -not (Test-Path -LiteralPath $iconFile)) { throw "the shortcut has no icon file ('$($link.IconLocation)')" }
+          if ((Get-Choice) -ne '1') { throw "recorded choice '$(Get-Choice)', expected 1" }
+          $codes = Get-ProductCodes
+          if ($codes.Count -ne 1) { throw "expected one registered product, found $($codes.Count): $($codes -join ', ')" }
+          tools/ci/windows-start-smoke.ps1 -Shortcut $lnk
+          Write-Host "Upgrading with $msi2 without the property: the shortcut stays"
+          Install-Msi $msi2 "$env:RUNNER_TEMP\install-shortcut-upgrade.log"
+          $codesAfter = Get-ProductCodes
+          if ($codesAfter.Count -ne 1 -or $codesAfter[0] -eq $codes[0]) { throw "no major upgrade took place: products before $($codes -join ', '), after $($codesAfter -join ', ')" }
+          if (-not (Test-Path -LiteralPath $lnk)) { throw "the upgrade removed the desktop shortcut" }
+          if ((Get-Choice) -ne '1') { throw "recorded choice after the upgrade '$(Get-Choice)', expected 1" }
+          Write-Host "Uninstalling: the shortcut goes"
+          Uninstall-Msi $msi2
+          Write-Host "Installing $msi with INSTALLDESKTOPSHORTCUT=0"
+          Install-Msi $msi "$env:RUNNER_TEMP\install-noshortcut.log" 'INSTALLDESKTOPSHORTCUT=0'
+          if (Test-Path -LiteralPath $lnk) { throw "INSTALLDESKTOPSHORTCUT=0 created a desktop shortcut" }
+          if ((Get-Choice) -ne '0') { throw "recorded choice '$(Get-Choice)', expected 0" }
+          if (-not (Test-Path $exe)) { throw "mfbe.exe not found at $exe" }
+          Write-Host "Upgrading with $msi2 without the property: still no shortcut"
+          Install-Msi $msi2 "$env:RUNNER_TEMP\install-noshortcut-upgrade.log"
+          if (Test-Path -LiteralPath $lnk) { throw "the upgrade added a declined desktop shortcut" }
+          if ((Get-Choice) -ne '0') { throw "recorded choice after the upgrade '$(Get-Choice)', expected 0" }
+          Write-Host "Uninstalling"
+          Uninstall-Msi $msi2
+
       - name: Package smoke (Windows - portable ZIP)
         if: runner.os == 'Windows'
         shell: pwsh

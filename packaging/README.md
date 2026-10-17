@@ -10,7 +10,7 @@ cmake/MfbePackaging.cmake        CPack settings common to all generators, WiX co
 packaging/CPackConfig.cmake      per-generator settings (evaluated by cpack for each generator)
 packaging/appimage/              build.sh, AppRun, AppStream metadata, CPack External script
 packaging/deb-rpm/               Debian maintainer scripts, RPM scriptlets, AppArmor profile
-packaging/wix/                   MSI template, shell-integration fragment, feature patch
+packaging/wix/                   MSI template, shell-integration fragment, dialog set, feature patch
 packaging/macos/                 ad-hoc codesign step for the .dmg
 ```
 
@@ -101,7 +101,13 @@ v7 share the v4 schema). Requirements on the build machine: .NET SDK,
 The WiX tool version is pinned to exactly **7.0.0** in `.github/workflows/ci.yml` and
 `release.yml` (`$wixVersion`; the version the release run of 0.0.2 installed): a newer WiX is
 taken deliberately, by changing the pin in both workflows and here after a packaging smoke on
-the branch, never by an unpinned install.
+the branch, never by an unpinned install. The project's own dialog set (`ui.wxs`, below) is
+written against that tool's v4 schema and relies on ids of the stock WixUI library that have
+been stable since WiX v4 (the dialogs `WelcomeDlg`, `LicenseAgreementDlg`, `BrowseDlg`,
+`InvalidDirDlg`, `VerifyReadyDlg`, `MaintenanceWelcomeDlg`, `MaintenanceTypeDlg`, the
+per-platform custom actions `WixUIPrintEula_<arch>` / `WixUIValidatePath_<arch>`, the
+`WixUI_Common` fragment); a bump re-checks the interactive installer, which the CI (`/qn`)
+never shows.
 
 - `mfbe.template.in` is CMake's own WiX v4 template kept in the repository with
   `Package/@Scope="perMachine"`: the installer asks for administrator rights and installs
@@ -117,6 +123,34 @@ the branch, never by an unpinned install.
   values are used instead of advertised ProgIds to avoid MSI self-repair on double-click.
   Explorer's association cache is refreshed by the application on its first start after an
   installation (`SHChangeNotify(SHCNE_ASSOCCHANGED)`, `app/src/native_actions.cpp`).
+- `ui.wxs` (`CPACK_WIX_EXTRA_SOURCES`, `CPACK_WIX_UI_REF WixUI_MfbeInstallDir`) is the
+  project's own WixUI dialog set: the flow of the stock `WixUI_InstallDir` (Welcome, licence,
+  install folder, Verify Ready; the maintenance and patch pages), hand-written from the
+  documented sequence, with the install-folder page replaced by `MfbeInstallDirDlg` = the
+  stock controls plus the checkbox **Create a shortcut on the desktop** bound to the public
+  property `INSTALLDESKTOPSHORTCUT` (feature 003, `contracts/installer.md`). The template
+  references the set through `<ui:WixUI Id="$(var.CPACK_WIX_UI_REF)"/>`, which in WiX v4+
+  resolves to the per-platform UI id `WixUI_MfbeInstallDir_X64` (the licence-print and
+  path-validation custom actions of the UI extension exist per platform, so the stock sets are
+  split per platform); `ui.wxs` defines those ids as empty aliases of the one complete UI,
+  which picks `WixUIPrintEula_<arch>` / `WixUIValidatePath_<arch>` from `$(sys.BUILDARCH)`,
+  so the whole set is linked whichever id the reference resolves to. The set defines the three
+  `WixUI_Font_*` text styles, `DefaultUIFont` and `ARPNOMODIFY` like the stock set (never add
+  `ARPNOMODIFY` to `CPACK_WIX_PROPERTY_*`). Its texts are English literals (the package is
+  built for `en-US` only).
+- The desktop shortcut itself lives in `shell-integration.wxs`: `INSTALLDESKTOPSHORTCUT`
+  (`1`/`0`, no Property-table default) is taken from the command line, else from the checkbox,
+  else from the value the installed version recorded in
+  `HKLM\Software\Maxima Fiction Book Editor\DesktopShortcut` (a `RegistrySearch` into
+  `DESKTOPSHORTCUT_PREVIOUS` plus `SetProperty` actions after `AppSearch` - the search writes
+  a separate property so that a command-line value is never overwritten), else `1`. The
+  execute sequence treats an empty property after a full-UI run (`UILevel = 5`) as the
+  unticked checkbox (`0`). Component `MfbeDesktopShortcutChoice` (always installed) records
+  the value; component `MfbeDesktopShortcut` (`DesktopFolder`, condition
+  `INSTALLDESKTOPSHORTCUT = "1"`, HKCU key path like CPack's Start menu component) holds
+  `Maxima Fiction Book Editor.lnk` -> `bin\mfbe.exe` with the product icon; both are in the
+  group `MfbeDesktopShortcutGroup` of `feature.patch.xml`, so uninstalling removes the
+  shortcut and the value, and a major upgrade re-applies the recorded choice.
 - `MajorUpgrade` with the constant `CPACK_WIX_UPGRADE_GUID` (cmake/MfbePackaging.cmake)
   replaces an older installation in place; downgrades are refused.
 - Start menu shortcut from `CPACK_PACKAGE_EXECUTABLES`, product icon from
@@ -136,8 +170,15 @@ the interface (`tools/ci/windows-start-smoke.ps1`), also by standard users with 
 names. Each copy then runs a journey in a Russian environment (`tools/ci/windows-russian-journey.ps1`):
 a user with a Cyrillic name and Russian regional formats opens a Cyrillic-named book from a
 Cyrillic folder, saves it, hides the status bar from the View menu and restarts; the installed
-copy keeps its data in the user's profile, the portable copy in its `bin\user` folder. Neither can be
-built on Linux hosts.
+copy keeps its data in the user's profile, the portable copy in its `bin\user` folder. A
+desktop-shortcut step (feature 003) installs `/qn` and checks
+`C:\Users\Public\Desktop\Maxima Fiction Book Editor.lnk` (target, icon, the editor started
+through it with `windows-start-smoke.ps1 -Shortcut`), upgrades with a second MSI built from
+the same commit (`cpack -G WIX -B <other folder>`: a new ProductCode, so `MajorUpgrade` with
+`AllowSameVersionUpgrades` runs - re-running the same file would only be a maintenance
+install) and expects the shortcut kept, uninstalls and expects it gone, then repeats with
+`INSTALLDESKTOPSHORTCUT=0` (absent, recorded `0`, still absent after the upgrade). Neither
+package can be built on Linux hosts.
 
 ## macOS (`packaging/macos`, `app/mac`)
 
