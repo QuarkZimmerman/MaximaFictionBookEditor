@@ -1,0 +1,27 @@
+{
+  "$comment": "Hand-maintained with ukrainian-20-misspellings.fb2 (feature 003, T002): the 20 words the uk_UA dictionary must flag, each with the correct spelling, plus the correct apostrophe words that must not be flagged. Verified against dict_uk v6.8.6.",
+  "lang": "uk",
+  "misspelled": [
+    { "word": "дощь", "correct": "дощ" },
+    { "word": "яблоні", "correct": "яблуні" },
+    { "word": "малоко", "correct": "молоко" },
+    { "word": "хлеб", "correct": "хліб" },
+    { "word": "сказла", "correct": "сказала" },
+    { "word": "тіждень", "correct": "тиждень" },
+    { "word": "комп'ютор", "correct": "комп'ютер" },
+    { "word": "дівчіна", "correct": "дівчина" },
+    { "word": "падушку", "correct": "подушку" },
+    { "word": "вуліцю", "correct": "вулицю" },
+    { "word": "лістя", "correct": "листя" },
+    { "word": "сусед", "correct": "сусід" },
+    { "word": "сьогодня", "correct": "сьогодні" },
+    { "word": "тіхо", "correct": "тихо" },
+    { "word": "завтар", "correct": "завтра" },
+    { "word": "дерво", "correct": "дерево" },
+    { "word": "м’ягкий", "correct": "м’який" },
+    { "word": "телифон", "correct": "телефон" },
+    { "word": "розмва", "correct": "розмова" },
+    { "word": "будінок", "correct": "будинок" }
+  ],
+  "correctWithApostrophe": ["обов'язково", "сім’я"]
+}

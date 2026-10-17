@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "id": "runs.longSilent",
+  "name": {
+    "en": "Long silent run",
+    "ru": "Долгий запуск без отчёта о ходе"
+  },
+  "kind": "menu",
+  "undoLabel": {
+    "en": "Change the first paragraph (silent run)",
+    "ru": "Изменение первого абзаца (запуск без отчёта)"
+  }
+}

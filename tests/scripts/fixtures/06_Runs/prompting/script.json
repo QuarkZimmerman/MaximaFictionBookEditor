@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "id": "runs.prompting",
+  "name": {
+    "en": "Highlight and ask",
+    "ru": "Выделить и спросить"
+  },
+  "kind": "menu",
+  "undoLabel": {
+    "en": "Highlight and answer",
+    "ru": "Выделение и ответ"
+  }
+}
