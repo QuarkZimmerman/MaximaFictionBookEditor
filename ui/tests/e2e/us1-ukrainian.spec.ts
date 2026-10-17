@@ -524,9 +524,10 @@ async function walkMenus(page: Page, lang: UiLang): Promise<{ problems: string[]
       // The popup's items render a frame after the popup itself (the first entry may also be
       // the "(none)" placeholder of the Recent submenu).
       await expect(page.getByTestId(submenuId).locator('[role="menuitem"]').first()).toBeVisible();
-      // A fresh core has no recent files: the submenu shows only its placeholder, which the
-      // dynamic-entry filter removes together with the entries it stands in for.
+      // The Recent submenu holds only dynamic entries (file names, removed by the filter) or,
+      // on a fresh core, its placeholder: either way it may yield no text to check.
       const placeholderOnly =
+        itemId === 'menu-file-recent' ||
         (await page.getByTestId(submenuId).locator('[data-testid$="-none"]').count()) > 0;
       problems.push(
         ...(await walkProblems(page, lang, submenuId, `submenu ${itemId}`, {

@@ -105,6 +105,26 @@ const TAG_START = /<\/?[\w.:-]*$/;
 const LOOKBEHIND = 256;
 /** Time the parser may spend reaching the cursor before the context counts as unknown (ms). */
 const PARSE_BUDGET_MS = 50;
+/** How far back the lexical check looks when the tree is not ready (a comment or CDATA block). */
+const LEXICAL_WINDOW = 20_000;
+
+/**
+ * Without a syntax tree up to the cursor (a 10 MB book on a slow machine): is the cursor inside
+ * a comment, a CDATA section or a processing instruction? The last opener before the cursor
+ * that has no closer after it decides.
+ */
+function insideOpaqueBlock(state: EditorState, pos: number): boolean {
+  const text = state.doc.sliceString(Math.max(0, pos - LEXICAL_WINDOW), pos);
+  for (const [open, close] of [
+    ['<!--', '-->'],
+    ['<![CDATA[', ']]>'],
+    ['<?', '?>'],
+  ] as const) {
+    const opened = text.lastIndexOf(open);
+    if (opened >= 0 && text.lastIndexOf(close) < opened) return true;
+  }
+  return false;
+}
 /** Nodes in which no completion is offered (FR-073). */
 const FORBIDDEN = new Set(['Comment', 'ProcessingInst', 'Cdata', 'DoctypeDecl', 'AttributeValue']);
 /** Typing or deleting within the name keeps the result and filters it synchronously. */
@@ -136,9 +156,14 @@ export function tagContextAt(state: EditorState, pos: number): TagContext | null
   const prefix = match[0].slice(close ? 2 : 1);
 
   const tree = ensureSyntaxTree(state, pos, PARSE_BUDGET_MS);
-  // Without a tree up to the cursor the forbidden contexts (comments, CDATA...) cannot be
-  // told apart: offer nothing this time; the next keystroke or Ctrl+Space asks again.
-  if (!tree) return null;
+  if (!tree) {
+    // No tree up to the cursor within the budget: a lexical look back keeps comments, CDATA
+    // and processing instructions quiet; elsewhere the context counts as unknown.
+    if (insideOpaqueBlock(state, pos)) return null;
+    return close
+      ? { kind: 'close', from, prefix, open: [] }
+      : { kind: 'open', from, prefix, enclosing: null, resolved: false };
+  }
   const node = tree.resolveInner(pos, -1);
   for (let cur: SyntaxNode | null = node; cur; cur = cur.parent) {
     if (FORBIDDEN.has(cur.name)) return null;
