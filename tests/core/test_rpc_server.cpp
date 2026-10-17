@@ -12,6 +12,7 @@
 #include <chrono>
 #include <filesystem>
 #include <future>
+#include <optional>
 #include <regex>
 #include <thread>
 
@@ -549,4 +550,151 @@ TEST_CASE("server: stop() from the owner thread shuts down even with idle HTTP c
     const auto elapsed = std::chrono::steady_clock::now() - t0;
     CHECK(elapsed < std::chrono::seconds(3));
     CHECK(f.server->stopped());
+}
+
+namespace {
+
+void wait_until_stopped(CoreServer& server) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!server.stopped() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
+
+}  // namespace
+
+// Feature 003 US3 (rpc-api.md §3.1, codes 1070/1071): app.restart is the shell's to carry out;
+// the core relays it, records it for the journeys and performs the normal quit once the new
+// instance was started.
+TEST_CASE("server: app.restart without a shell is unavailable (1070) and recorded", "[server]") {
+    SECTION("headless with test hooks: recorded with an empty argv, then 1070") {
+        ServerFixture f(true);
+        test::WsClient ws;
+        REQUIRE(ws.open(f.port(), f.ws_path()) == 101);
+        json answer = ws.call("app.restart", json{{"reopen", "/books/книга.fb2"}});
+        CHECK(answer["error"]["code"] == 1070);
+        CHECK(answer["error"]["message"] == "app.restartUnavailable");
+        CHECK(answer["error"]["data"]["reason"].is_string());
+        // A never-saved document: no reopen at all.
+        answer = ws.call("app.restart", json::object());
+        CHECK(answer["error"]["code"] == 1070);
+        answer = ws.call("app.restart");
+        CHECK(answer["error"]["code"] == 1070);
+
+        const json requests = ws.call("test.restartRequests")["result"];
+        REQUIRE(requests.size() == 3);
+        CHECK(requests[0] == json{{"reopen", "/books/книга.fb2"}, {"argv", json::array()}});
+        CHECK(requests[1] == json{{"argv", json::array()}});
+        CHECK(requests[2] == json{{"argv", json::array()}});
+        CHECK_FALSE(f.server->stopped());  // the UI reloads its page; nothing quits here
+        // The reopen path must be a string when given.
+        CHECK(ws.call("app.restart", json{{"reopen", 5}})["error"]["code"] == -32602);
+    }
+    SECTION("headless without test hooks: 1070, nothing to record") {
+        ServerFixture f(false);
+        test::WsClient ws;
+        REQUIRE(ws.open(f.port(), f.ws_path()) == 101);
+        CHECK(ws.call("app.restart", json{{"reopen", "/books/a.fb2"}})["error"]["code"] == 1070);
+        CHECK(ws.call("test.restartRequests")["error"]["code"] == -32601);
+        CHECK_FALSE(f.server->stopped());
+    }
+}
+
+TEST_CASE("server: app.restart with a shell starts the new instance, then quits normally",
+          "[server]") {
+    test::TempDir data{"mfbe-server"};
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.test_hooks = true;
+    std::optional<std::string> seen_reopen;
+    int calls = 0;
+    bool start = true;
+    options.on_restart = [&](const std::optional<std::string>& reopen) {
+        ++calls;
+        seen_reopen = reopen;
+        RestartOutcome outcome;
+        outcome.argv = {"--no-sandbox", "--wait-for-exit", "4242", "--window-geometry",
+                        "10,20,1200,800"};
+        if (reopen) {
+            outcome.argv.push_back(*reopen);
+        }
+        outcome.started = start;
+        outcome.reason = start ? "" : "posix_spawn: No such file or directory";
+        return outcome;
+    };
+
+    SECTION("the shell could not start it: 1071 with the reason, the editor stays open") {
+        start = false;
+        auto server = CoreServer::start(options);
+        test::WsClient ws;
+        REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
+        const json answer = ws.call("app.restart", json{{"reopen", "/books/a.fb2"}});
+        CHECK(answer["error"]["code"] == 1071);
+        CHECK(answer["error"]["message"] == "app.restartFailed");
+        CHECK(answer["error"]["data"]["reason"] == "posix_spawn: No such file or directory");
+        CHECK(calls == 1);
+        CHECK(seen_reopen == std::optional<std::string>("/books/a.fb2"));
+        CHECK_FALSE(server->stopped());
+        // Recorded with the argv the shell built, so journeys can assert it.
+        const json requests = ws.call("test.restartRequests")["result"];
+        REQUIRE(requests.size() == 1);
+        CHECK(requests[0]["reopen"] == "/books/a.fb2");
+        CHECK(requests[0]["argv"] == json({"--no-sandbox", "--wait-for-exit", "4242",
+                                           "--window-geometry", "10,20,1200,800", "/books/a.fb2"}));
+        CHECK(ws.call("app.info")["result"]["apiVersion"] == 1);  // still serving
+    }
+    SECTION("started: {} is answered, then the server stops as after app.quit") {
+        auto server = CoreServer::start(options);
+        test::WsClient ws;
+        REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
+        CHECK(ws.call("app.restart")["result"] == json::object());
+        CHECK(calls == 1);
+        CHECK_FALSE(seen_reopen.has_value());
+        wait_until_stopped(*server);
+        CHECK(server->stopped());
+    }
+}
+
+// The shell embeds the core and owns the window placement (data-model §4): it reads
+// session.windowGeometry before window creation and writes it at quit and before a restart
+// through in-process accessors, not through JSON-RPC.
+TEST_CASE("server: in-process settings accessors read and write a setting by dotted path",
+          "[server]") {
+    ServerFixture f;
+    CHECK(f.server->setting("session.windowGeometry").is_null());
+    CHECK(f.server->setting("view.uiLanguage") == "system");
+    CHECK(f.server->setting("no.such.key").is_null());
+    CHECK(f.server->setting("").is_null());
+
+    test::WsClient ws;
+    REQUIRE(ws.open(f.port(), f.ws_path()) == 101);
+    const json placement{
+        {"x", 10}, {"y", 20}, {"width", 1200}, {"height", 800}, {"maximized", true}};
+    std::string error;
+    CHECK(f.server->set_setting("session.windowGeometry", placement, &error));
+    CHECK(error.empty());
+    CHECK(f.server->setting("session.windowGeometry") == placement);
+    // Clients see the change as after settings.set.
+    auto changed = ws.wait_notification("settings.changed");
+    REQUIRE(changed);
+    CHECK((*changed)["params"]["settings"]["session"]["windowGeometry"] == placement);
+    CHECK(ws.call("settings.get")["result"]["session"]["windowGeometry"] == placement);
+
+    // The core validates as for settings.set: a wrong shape is refused with the reason.
+    CHECK_FALSE(f.server->set_setting("session.windowGeometry", json{{"x", "ten"}}, &error));
+    CHECK_FALSE(error.empty());
+    CHECK(f.server->setting("session.windowGeometry") == placement);
+    CHECK_FALSE(f.server->set_setting("", placement, &error));
+
+    // After the server stopped (app.quit ran) the shell still records the placement, which
+    // reaches settings.json for the next start.
+    f.server->stop();
+    f.server->wait();
+    const json last{{"x", 1}, {"y", 2}, {"width", 640}, {"height", 400}, {"maximized", false}};
+    error.clear();
+    CHECK(f.server->set_setting("session.windowGeometry", last, &error));
+    CHECK(error.empty());
+    CHECK(f.server->setting("session.windowGeometry") == last);
+    const json on_disk = json::parse(test::read_text(f.data.path() / "settings.json"));
+    CHECK(on_disk["session"]["windowGeometry"] == last);
 }

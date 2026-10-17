@@ -695,12 +695,19 @@ export class FileFeature {
    * Start-up, once the core is connected (feature 002 FR-001, FR-003): as in the original, a
    * new document from the template unless the file named at start-up opened (a malformed one
    * opens in the Source view); a file that does not exist, cannot be read or is not FictionBook
-   * is reported first. `--new` (`?new=1`) asks for the same.
+   * is reported first. `--new` (`?new=1`) asks for the same. `?open=<path>` (feature 003 US3:
+   * the browser-mode restart reopening its document) is opened first, before any other
+   * start-up work; when it fails the usual path follows.
    */
-  async handleStartup(ctx: CommandContext): Promise<void> {
+  async handleStartup(ctx: CommandContext, openPath: string | null = null): Promise<void> {
     if (!ctx.rpc) return;
     const requests = this.userRequests;
     const wanted = () => this.userRequests === requests && !ctx.store.getState().document;
+    if (openPath && (await this.openDocument(ctx, openPath))) {
+      this.startupChecked = true;
+      this.startupOpen = null;
+      return;
+    }
     // The core sends the start-up files as soon as the connection opens, before any answer:
     // after one round trip their open has begun.
     try {

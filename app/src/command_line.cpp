@@ -28,6 +28,19 @@ bool parsePort(std::string_view text, int* port) {
     return true;
 }
 
+// A positive process id.
+bool parsePid(std::string_view text, long long* pid) {
+    long long value = 0;
+    const auto* begin = text.data();
+    const auto* end = text.data() + text.size();
+    const auto result = std::from_chars(begin, end, value);
+    if (result.ec != std::errc() || result.ptr != end || value <= 0) {
+        return false;
+    }
+    *pid = value;
+    return true;
+}
+
 ParseResult error(std::string message) {
     ParseResult result;
     result.status = ParseStatus::kExitError;
@@ -66,7 +79,8 @@ ParseResult parseArguments(const std::vector<std::string>& args) {
 
         // Options that take a value; the value may also be the next argument.
         const bool takes_value = name == "--lang" || name == "--remote-debugging-port" ||
-                                 name == "--ozone-platform" || name == "--url";
+                                 name == "--ozone-platform" || name == "--url" ||
+                                 name == "--wait-for-exit" || name == "--window-geometry";
         if (takes_value && !has_value) {
             if (i + 1 >= args.size()) {
                 return error("Missing value for command line option: '" + name + "'");
@@ -98,6 +112,17 @@ ParseResult parseArguments(const std::vector<std::string>& args) {
                              "' (expected an http(s) URL or about:blank)");
             }
             options.url_override = value;
+        } else if (name == "--wait-for-exit") {
+            if (!parsePid(value, &options.wait_for_exit_pid)) {
+                return error("Invalid value for --wait-for-exit: '" + value +
+                             "' (expected a process id)");
+            }
+        } else if (name == "--window-geometry") {
+            options.window_geometry = parseWindowGeometry(value);
+            if (!options.window_geometry) {
+                return error("Invalid value for --window-geometry: '" + value +
+                             "' (expected x,y,w,h or x,y,w,h,max)");
+            }
         } else if (has_value) {
             // Flags never take a value ("--new=1" is not accepted).
             return error("Invalid command line option: '" + arg + "'");
@@ -147,6 +172,12 @@ std::string usageText() {
         "  --ozone-platform <wayland|x11> Linux: force a display backend (default: auto)\n"
         "  --url <http url>               development only: load this URL instead of the "
         "in-process core\n"
+        "  --wait-for-exit <pid>          wait (at most 30 s) for the given process to end before "
+        "initialising the browser engine; used by the editor's own restart\n"
+        "  --window-geometry <x,y,w,h[,max]>\n"
+        "                                 initial window placement: normal position and size, "
+        "max = shown maximised (used by restart; otherwise the saved placement, else centred "
+        "1200x800)\n"
         "  --version                      print version information and exit\n"
         "  --help                         show this help and exit\n"
         "\n"

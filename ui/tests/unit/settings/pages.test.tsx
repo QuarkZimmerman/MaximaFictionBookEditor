@@ -1,6 +1,8 @@
 /**
  * Settings dialog pages (T128): field <-> settings mapping, range validation (`jpegQuality`
- * 1-100, `bodyFontSize` 6-96), the restart prompt, the Hotkeys page collision / reserved /
+ * 1-100, `bodyFontSize` 6-96), the restart prompt and the restart flow of feature 003 US3
+ * (`app.restart` with the open document's path after the save prompt; the page reload of
+ * browser mode on 1070; the failure message on 1071), the Hotkeys page collision / reserved /
  * default flows against a `HotkeyMap`, and the Words page exclusion-list validation.
  */
 
@@ -15,7 +17,15 @@ import { changeLanguage, initI18n } from '@/i18n';
 import { actions } from '@/model/store';
 import type { Settings } from '@/rpc/types';
 
-import { fakeRpc, makeContext, type FakeDialogs, type FakeRpc } from '../features/testUtils';
+import {
+  fakeDocument,
+  fakeRpc,
+  makeContext,
+  rpcError,
+  type FakeDialogs,
+  type FakeRpc,
+  type Responder,
+} from '../features/testUtils';
 
 import { defaultSettings, mergeSettings } from './fixtures';
 
@@ -27,15 +37,23 @@ interface Harness {
   onClose: ReturnType<typeof vi.fn>;
   user: ReturnType<typeof userEvent.setup>;
   current: () => Settings;
+  reloads: string[];
 }
 
 async function setup(
-  options: { page?: SettingsPageId; settings?: Settings; restartOnLanguage?: boolean } = {},
+  options: {
+    page?: SettingsPageId;
+    settings?: Settings;
+    restartOnLanguage?: boolean;
+    /** Extra RPC answers (`app.restart`, `doc.save`...). */
+    responses?: Record<string, Responder>;
+  } = {},
 ): Promise<Harness> {
   await initI18n({ language: 'en' });
   await changeLanguage('en');
   let current = options.settings ?? defaultSettings();
   const rpc = fakeRpc({
+    ...(options.responses ?? {}),
     'settings.get': () => current,
     'settings.set': (params: unknown) => {
       const before = current.view.uiLanguage;
@@ -78,11 +96,18 @@ async function setup(
   await feature.attach(rpc.client);
   const onClose = vi.fn();
   const user = userEvent.setup();
+  const reloads: string[] = [];
   render(
-    <SettingsDialog ctx={ctx} feature={feature} onClose={onClose} initialPage={options.page} />,
+    <SettingsDialog
+      ctx={ctx}
+      feature={feature}
+      onClose={onClose}
+      initialPage={options.page}
+      reloadPage={(url) => reloads.push(url)}
+    />,
   );
   await screen.findByTestId('settings-page-view');
-  return { ctx, rpc, feature, root, onClose, user, current: () => current };
+  return { ctx, rpc, feature, root, onClose, user, current: () => current, reloads };
 }
 
 function settingsSetCalls(rpc: FakeRpc): { patch: Record<string, unknown> }[] {
@@ -257,7 +282,7 @@ describe('SettingsDialog - View / Other / Words mapping', () => {
   });
 
   it('shows the restart prompt when the core reports restartRequired (language change)', async () => {
-    const { ctx, user, onClose } = await setup();
+    const { ctx, user, onClose, rpc } = await setup();
     ctx.dialogs.messageAnswers.push('no');
     await user.selectOptions(screen.getByTestId('settings-view-language'), 'ru');
     await user.click(screen.getByTestId('dialog-settings-button-ok'));
@@ -266,8 +291,113 @@ describe('SettingsDialog - View / Other / Words mapping', () => {
     // The prompt is shown in the language that was just selected (Russian here).
     expect(ctx.dialogs.shown[0]!.text).toMatch(/must be restarted|перезагрузки программы/i);
     expect(ctx.dialogs.shown[0]!.buttons).toBe('yesNo');
-    // "No": the application keeps running (no app.quit).
+    // "No": the application keeps running (nothing is restarted or quit).
     expect(ctx.store.getState().settings?.view.uiLanguage).toBe('ru');
+    expect(rpc.calls.map((c) => c.method)).not.toContain('app.restart');
+    expect(rpc.calls.map((c) => c.method)).not.toContain('app.quit');
+  });
+});
+
+/** The restart flow of feature 003 US3 (rpc-api.md §3.1 app.restart). */
+describe('SettingsDialog - "Restart now?" restarts the editor', () => {
+  const restartCalls = (rpc: FakeRpc) => rpc.calls.filter((c) => c.method === 'app.restart');
+
+  /** Yes in the restart prompt; `thenAnswer` answers the save prompt that may follow. */
+  async function chooseLanguageAndAnswerYes(harness: Harness, thenAnswer?: 'no' | 'cancel') {
+    const { ctx, user, onClose } = harness;
+    ctx.dialogs.messageAnswers.push('yes');
+    if (thenAnswer) ctx.dialogs.messageAnswers.push(thenAnswer);
+    await user.selectOptions(screen.getByTestId('settings-view-language'), 'ru');
+    await user.click(screen.getByTestId('dialog-settings-button-ok'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  }
+
+  it('Yes with a saved book asks the shell to restart with that book', async () => {
+    const harness = await setup({ responses: { 'app.restart': {} } });
+    actions.setDocument(harness.ctx.store, fakeDocument({ path: '/books/книга.fb2' }));
+    await chooseLanguageAndAnswerYes(harness);
+    await waitFor(() => expect(restartCalls(harness.rpc)).toHaveLength(1));
+    expect(restartCalls(harness.rpc)[0]!.params).toEqual({ reopen: '/books/книга.fb2' });
+    // An unmodified document: no save prompt, no quit of our own (the shell quits).
+    expect(harness.ctx.dialogs.shown.map((m) => m.testId)).toEqual(['dialog-restart-prompt']);
+    expect(harness.rpc.calls.map((c) => c.method)).not.toContain('app.quit');
+    expect(harness.reloads).toEqual([]);
+  });
+
+  it("Yes with a never-saved document carries no path; Don't save comes first", async () => {
+    const harness = await setup({ responses: { 'app.restart': {} } });
+    actions.setDocument(harness.ctx.store, fakeDocument({ path: undefined }));
+    harness.ctx.store.setState({ modified: true });
+    await chooseLanguageAndAnswerYes(harness, 'no'); // the save prompt after Yes: Don't save
+    await waitFor(() => expect(restartCalls(harness.rpc)).toHaveLength(1));
+    expect(restartCalls(harness.rpc)[0]!.params).toEqual({});
+    expect(harness.ctx.dialogs.shown.map((m) => m.testId)).toEqual([
+      'dialog-restart-prompt',
+      'save-changes-prompt',
+    ]);
+  });
+
+  it('Cancel in the save prompt abandons the restart', async () => {
+    const harness = await setup({ responses: { 'app.restart': {} } });
+    actions.setDocument(harness.ctx.store, fakeDocument({ path: '/books/a.fb2' }));
+    harness.ctx.store.setState({ modified: true });
+    await chooseLanguageAndAnswerYes(harness, 'cancel');
+    await waitFor(() =>
+      expect(harness.ctx.dialogs.shown.map((m) => m.testId)).toEqual([
+        'dialog-restart-prompt',
+        'save-changes-prompt',
+      ]),
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(restartCalls(harness.rpc)).toEqual([]);
+    expect(harness.reloads).toEqual([]);
+    expect(harness.ctx.store.getState().modified).toBe(true);
+  });
+
+  it('without a shell (1070) the page reloads itself with the document to reopen', async () => {
+    const harness = await setup({
+      responses: {
+        'app.restart': rpcError(1070, 'app.restartUnavailable', { reason: 'no shell' }),
+      },
+    });
+    actions.setDocument(harness.ctx.store, fakeDocument({ path: '/books/a b.fb2' }));
+    await chooseLanguageAndAnswerYes(harness);
+    await waitFor(() => expect(harness.reloads).toHaveLength(1));
+    const url = new URL(harness.reloads[0]!);
+    expect(url.searchParams.get('open')).toBe('/books/a b.fb2');
+    expect(url.origin + url.pathname).toBe(window.location.origin + window.location.pathname);
+    // No error is shown: this is the browser-mode restart, not a failure.
+    expect(harness.ctx.dialogs.shown.map((m) => m.testId)).toEqual(['dialog-restart-prompt']);
+  });
+
+  it('without a shell and without a saved document the reload carries no open=', async () => {
+    const harness = await setup({
+      responses: { 'app.restart': rpcError(1070, 'app.restartUnavailable') },
+    });
+    actions.setDocument(harness.ctx.store, fakeDocument({ path: undefined }));
+    await chooseLanguageAndAnswerYes(harness);
+    await waitFor(() => expect(harness.reloads).toHaveLength(1));
+    expect(new URL(harness.reloads[0]!).searchParams.has('open')).toBe(false);
+  });
+
+  it('a shell that could not start the new instance (1071) is reported and the editor stays', async () => {
+    const harness = await setup({
+      responses: {
+        'app.restart': rpcError(1071, 'app.restartFailed', {
+          reason: 'posix_spawn: No such file or directory',
+        }),
+      },
+    });
+    actions.setDocument(harness.ctx.store, fakeDocument({ path: '/books/a.fb2' }));
+    await chooseLanguageAndAnswerYes(harness);
+    await waitFor(() => expect(harness.ctx.dialogs.shown).toHaveLength(2));
+    const failure = harness.ctx.dialogs.shown[1]!;
+    expect(failure.testId).toBe('dialog-restart-failed');
+    expect(failure.icon).toBe('error');
+    expect(failure.text).toMatch(/could not be restarted|Не удалось перезапустить/);
+    expect(failure.text).toContain('posix_spawn: No such file or directory');
+    expect(harness.reloads).toEqual([]);
+    expect(harness.rpc.calls.map((c) => c.method)).not.toContain('app.quit');
   });
 });
 

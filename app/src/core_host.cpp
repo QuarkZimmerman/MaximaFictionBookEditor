@@ -60,6 +60,10 @@ public:
     void logWarning(const std::string& code, const std::string& message) override {
         std::fprintf(stderr, "mfbe: warning %s: %s\n", code.c_str(), message.c_str());
     }
+    // No settings store in this process: the window opens centred, nothing is remembered.
+    std::optional<WindowPlacement> windowPlacement() override { return std::nullopt; }
+    bool saveWindowPlacement(const WindowPlacement& /*placement*/) override { return false; }
+    std::string uiLanguageSetting() override { return std::string(); }
     void stop() override {}
 
 private:
@@ -75,7 +79,7 @@ private:
 std::string withUiHints(std::string url, const CoreHostOptions& options) {
     const char separator = url.find('?') == std::string::npos ? '?' : '&';
     std::string query;
-    if (options.ui_language == "en" || options.ui_language == "ru") {
+    if (options.ui_language == "en" || options.ui_language == "ru" || options.ui_language == "uk") {
         query += "&lang=" + options.ui_language;
     }
     if (options.new_document) {
@@ -105,6 +109,25 @@ public:
             server_options.scripts_dir = mfbe::platform::utf8_from_path(options.scripts_dir);
             server_options.open_paths = options.open_paths;
             server_options.test_hooks = options.test_hooks;
+            if (options.on_restart) {
+                // The shell's relaunch; exceptions stay on this side of the core's boundary.
+                server_options.on_restart =
+                    [on_restart = options.on_restart](
+                        const std::optional<std::string>& reopen) -> mfbe::RestartOutcome {
+                    mfbe::RestartOutcome outcome;
+                    try {
+                        RelaunchOutcome result = on_restart(reopen);
+                        outcome.started = result.started;
+                        outcome.reason = std::move(result.reason);
+                        outcome.argv = std::move(result.argv);
+                    } catch (const std::exception& e) {
+                        outcome.reason = std::string("relaunch failed: ") + e.what();
+                    } catch (...) {
+                        outcome.reason = "relaunch failed";
+                    }
+                    return outcome;
+                };
+            }
 
             std::unique_ptr<mfbe::CoreServer> server = mfbe::CoreServer::start(server_options);
             if (!server) {
@@ -206,6 +229,77 @@ public:
             }
         }
         on_result(false);
+    }
+
+    // settings.session.windowGeometry <-> WindowPlacement (data-model §4: {x, y, width, height,
+    // maximized?} or null).
+    std::optional<WindowPlacement> windowPlacement() override {
+        if (!server_) {
+            return std::nullopt;
+        }
+        try {
+            const nlohmann::json value = server_->setting("session.windowGeometry");
+            if (!value.is_object()) {
+                return std::nullopt;
+            }
+            WindowPlacement placement;
+            placement.x = value.value("x", 0);
+            placement.y = value.value("y", 0);
+            placement.width = value.value("width", 0);
+            placement.height = value.value("height", 0);
+            placement.maximized = value.value("maximized", false);
+            if (placement.width <= 0 || placement.height <= 0) {
+                return std::nullopt;
+            }
+            return placement;
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "mfbe: failed to read the window placement: %s\n", e.what());
+        } catch (...) {
+        }
+        return std::nullopt;
+    }
+
+    bool saveWindowPlacement(const WindowPlacement& placement) override {
+        if (!server_) {
+            return false;
+        }
+        try {
+            std::string error;
+            const bool saved =
+                server_->set_setting("session.windowGeometry",
+                                     nlohmann::json{{"x", placement.x},
+                                                    {"y", placement.y},
+                                                    {"width", placement.width},
+                                                    {"height", placement.height},
+                                                    {"maximized", placement.maximized}},
+                                     &error);
+            if (!saved) {
+                std::fprintf(stderr, "mfbe: the window placement was not stored: %s\n",
+                             error.c_str());
+            }
+            return saved;
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "mfbe: failed to store the window placement: %s\n", e.what());
+        } catch (...) {
+        }
+        return false;
+    }
+
+    std::string uiLanguageSetting() override {
+        if (!server_) {
+            return std::string();
+        }
+        try {
+            const nlohmann::json value = server_->setting("view.uiLanguage");
+            if (value.is_string()) {
+                const std::string lang = value.get<std::string>();
+                if (lang == "en" || lang == "ru" || lang == "uk") {
+                    return lang;
+                }
+            }
+        } catch (...) {
+        }
+        return std::string();  // "system" or unknown: the OS language decides
     }
 
     void stop() override {

@@ -28,7 +28,7 @@ import { installGlobalErrorLogging } from './diagnostics';
 import { createAppServices, useAppServices, useCommandContext, type AppServices } from './services';
 import { MenuBar } from './MenuBar';
 import type { DynamicMenuItems } from './menus';
-import { forcedLanguage } from './startup';
+import { forcedLanguage, openPathAtStartup } from './startup';
 import { StatusBar } from './StatusBar';
 import { followTextFieldFocus, textFieldOf } from './textFields';
 import { applyStoredTheme } from './theme';
@@ -164,7 +164,8 @@ function Shell({
     void getSettingsFeature(store)?.attach(rpc);
     if (!startupHandled.current) {
       startupHandled.current = true;
-      void files.handleStartup(ctxRef.current).catch(() => {
+      // `?open=<path>` (feature 003 US3): the browser-mode restart reopens its document first.
+      void files.handleStartup(ctxRef.current, openPathAtStartup(search)).catch(() => {
         // a failing doc.new at start-up leaves the editor empty; File > New reports errors
       });
     }

@@ -8,15 +8,27 @@
 // `--url` developer override so the shell can be built and smoke-tested before the core lands.
 #pragma once
 
+#include "window_placement.h"
+
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace mfbe::shell {
 
 class NativeDialogs;
+
+// The shell's answer to app.restart (feature 003 US3): whether the new instance was started,
+// the reason when not (reported to the UI as error 1071) and the arguments it was started with
+// (recorded by the core's test provider for the journeys).
+struct RelaunchOutcome {
+    bool started = false;
+    std::string reason;
+    std::vector<std::string> argv;
+};
 
 struct CoreHostOptions {
     // Development override: when non-empty no core is started and this URL is loaded as is.
@@ -26,13 +38,19 @@ struct CoreHostOptions {
     // so the shell can close its windows. Not invoked for CoreHost::stop().
     std::function<void()> on_core_stopped;
 
+    // app.restart({reopen?}) (feature 003 US3, rpc-api.md §3.1): starts the same program again
+    // with the shell's own options, the window placement and `reopen` as FILE, and reports the
+    // outcome; when it was started the core performs the normal quit (as after app.quit).
+    // Called on a core thread. Unset = the call is unavailable (1070).
+    std::function<RelaunchOutcome(const std::optional<std::string>& reopen)> on_restart;
+
     // Override root for all per-user folders (CoreServerOptions.data_dir; tests/portable
     // runs). Empty = the platform locations of contracts/resource-formats.md §1.
     std::filesystem::path data_dir_override;
     std::filesystem::path resources_dir;  // bundled resources ("" = core auto-detects)
     std::filesystem::path scripts_dir;    // bundled scripts ("" = core auto-detects)
     std::filesystem::path ui_dir;         // built UI bundle (index.html); may be empty in dev
-    std::string ui_language;              // "" (system), "en" or "ru" (--lang) -> URL ?lang=
+    std::string ui_language;              // "" (system), "en", "ru" or "uk" (--lang) -> URL ?lang=
     std::vector<std::string> open_paths;  // FILE arguments to open after start-up
     bool new_document = false;            // --new -> URL ?new=1
     bool test_hooks = false;              // enable test.* RPC methods (dev/test builds only)
@@ -84,6 +102,21 @@ public:
     // Records a shell-side warning in the core's errors-only log (source "shell"); also
     // printed to stderr when no core is running. Never includes book text.
     virtual void logWarning(const std::string& code, const std::string& message) = 0;
+
+    // The window placement of settings.session.windowGeometry (feature 003 US3, data-model §4),
+    // read through the core's in-process accessor before the window is created; nullopt when
+    // none is stored (or no core runs). Any thread; blocks until the core answers.
+    virtual std::optional<WindowPlacement> windowPlacement() = 0;
+
+    // Writes the placement back to settings.session.windowGeometry (at quit and before a
+    // restart); false when it could not be stored. Works after the core stopped on app.quit,
+    // as long as stop() was not called.
+    virtual bool saveWindowPlacement(const WindowPlacement& placement) = 0;
+
+    // The stored interface language (settings view.uiLanguage): "en", "ru" or "uk", or "" for
+    // "system" / unknown / no core. The shell's own texts (native dialogs, the right-click menu)
+    // and Chromium's locale follow it when no --lang override was given.
+    virtual std::string uiLanguageSetting() = 0;
 
     // Stops the server (idempotent). Must be called before CefShutdown() so that the dialog
     // provider releases its CEF references first.

@@ -13,9 +13,11 @@
 #pragma once
 
 #include "include/cef_app.h"
+#include "window_placement.h"
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,8 +33,11 @@ struct AppConfig {
     bool devtools_enabled = false;        // F12 -> DevTools
     bool no_sandbox = false;              // --no-sandbox
     std::string ozone_platform;           // "" (auto), "x11" or "wayland" (Linux)
-    std::string lang;                     // "" (system), "en" or "ru"
+    std::string lang;                     // "" (system), "en", "ru" or "uk": Chromium's locale
     std::string extra_chromium_flags;     // MFBE_CHROMIUM_FLAGS (space separated --switches)
+    // Where the main window opens (feature 003 US3): --window-geometry, else the stored
+    // settings.session.windowGeometry; nullopt = centred 1200x800.
+    std::optional<WindowPlacement> window_placement;
 };
 
 class MfbeApp : public CefApp, public CefBrowserProcessHandler {

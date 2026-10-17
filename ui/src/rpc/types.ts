@@ -44,6 +44,10 @@ export const RpcErrorCode = {
   settingsInvalid: 1040,
   dialogUnavailable: 1050,
   releaseUnavailable: 1060,
+  /** `app.restart` without a shell (browser/dev mode): the UI reloads its page (feature 003). */
+  restartUnavailable: 1070,
+  /** `app.restart`: the shell could not start the new instance; `data.reason` (feature 003). */
+  restartFailed: 1071,
   cancelled: 1090,
   // Client-side conditions raised by the RPC client itself (never sent by the core).
   clientTimeout: -32001,
@@ -433,6 +437,13 @@ export interface RpcMethods {
     params: { lang: UiLanguageSetting };
     result: { restartRequired: boolean };
   };
+  /**
+   * "Restart now?" (feature 003 US3): the shell starts the editor again with its own options,
+   * `reopen` as the document to open and the current window placement, then quits normally.
+   * Called after the unsaved-changes prompt; no `reopen` for a never-saved document. Errors:
+   * 1070 (no shell: the UI reloads its page, `?open=<reopen>` added), 1071 {reason}.
+   */
+  'app.restart': { params: { reopen?: string } | void; result: Empty };
 
   // §3.2 doc
   'doc.new': { params: void; result: Document & LoadReport };

@@ -124,6 +124,30 @@ During the run the document is locked and the status bar shows the progress and 
 Cancel terminates the worker and restores the document, and uncaught errors become "Script
 error: <message> at line L, column C" with the document left as it was.
 
+**Restart.** "Restart now?" after a language change (feature 003 US3) really restarts the
+editor. The UI runs the usual save prompt and calls `app.restart({reopen: path})` (no `reopen`
+for a never-saved document); the core relays it to the shell (`CoreServerOptions::on_restart`,
+`app/src/shell_runner.cpp`), which starts the same program again - `$APPIMAGE` when the
+AppImage runtime set it, else its own executable - with its own start-up options except FILE,
+`--new` and `--lang` (the one-run override; the new language setting is the reason for the
+restart), plus `--wait-for-exit <own pid>`, `--window-geometry <x,y,w,h[,max]>` of the main
+window and the document as FILE (`app/src/relaunch.cpp`: `posix_spawn` in a session of its
+own with every inherited file closed, `CreateProcessW` on Windows), records the window
+placement and then quits as after `app.quit`. The new instance waits up to 30 s for the old
+process to end *before* `CefInitialize`, so Chromium's single-instance lock is free and nothing
+is relayed to the dying instance, and opens its window at the placement it was given. The
+placement - the normal bounds plus the maximised state, as the original editor's saved
+`WINDOWPLACEMENT` - is the shell's (`app/src/window_placement.cpp`, `window.cpp`): it is
+tracked from the window's bounds changes, written to `settings.session.windowGeometry` at
+quit and before a restart through the core's in-process accessors `CoreServer::set_setting`
+/ `setting` (not JSON-RPC), applied at window creation (`--window-geometry` wins, then the
+setting, then centred 1200x800) and always clamped to the work area of its display. Without
+a shell (browser/dev mode) `app.restart` answers 1070 `app.restartUnavailable` and the page
+reloads itself with `?open=<path>` added to its query; a spawn failure answers 1071
+`app.restartFailed {reason}` and the editor stays open. `tools/shell-smoke.sh` with
+`MFBE_SMOKE_RESTART=1` exercises the real restart under Xvfb (normal and maximised window,
+and the failure path with `MFBE_SMOKE_RESTART_FAIL=1`).
+
 ## 5. Contracts
 
 The core/UI boundary is a documented, versioned contract (Constitution III); the source of

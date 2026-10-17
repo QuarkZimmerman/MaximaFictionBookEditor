@@ -46,6 +46,9 @@ std::string chromiumLocale(const std::string& lang) {
     if (lang == "ru") {
         return "ru";
     }
+    if (lang == "uk") {
+        return "uk";
+    }
     if (lang == "en") {
         return "en-US";
     }
@@ -119,10 +122,11 @@ void MfbeApp::OnContextInitialized() {
         return;
     }
 
-    // Create the Window. It will show itself after creation (OnWindowCreated).
+    // Create the Window at the remembered or requested placement (feature 003 US3). It will
+    // show itself after creation (OnWindowCreated).
     CefWindow::CreateTopLevelWindow(
         new MainWindowDelegate(browser_view, MainWindowDelegate::Kind::kMain, MFBE_PRODUCT_NAME,
-                               icons, CEF_SHOW_STATE_NORMAL));
+                               icons, config_.window_placement));
 }
 
 CefRefPtr<CefClient> MfbeApp::GetDefaultClient() {

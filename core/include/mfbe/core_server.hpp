@@ -5,13 +5,25 @@
 //   http://127.0.0.1:<port>/?token=<token>      (WebSocket: ws://127.0.0.1:<port>/rpc?token=…)
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace mfbe {
+
+// What the shell reports for app.restart (feature 003 US3, rpc-api.md §3.1): whether the new
+// instance was started, the reason when not (error 1071 {reason}), and the argument list it was
+// started with (recorded by the test provider for test.restartRequests).
+struct RestartOutcome {
+    bool started = false;
+    std::string reason;
+    std::vector<std::string> argv;
+};
 
 // Folders and file names are UTF-8 text (mfbe/utf8_paths.hpp).
 struct CoreServerOptions {
@@ -25,6 +37,11 @@ struct CoreServerOptions {
     bool test_hooks = false;    // enable test.* methods and the queued dialog provider
                                 // (only if compiled with MFBE_TEST_HOOKS)
     std::vector<std::string> open_paths;  // documents to open at start (app.openPaths)
+    // The shell's part of app.restart({reopen?}): start the same program again (research R4)
+    // and report the outcome. Called on the server thread inside the handler; when it reports
+    // `started` the core performs the normal quit, as after app.quit. Unset = no shell: the
+    // call fails with 1070 app.restartUnavailable (browser/dev mode reloads the page instead).
+    std::function<RestartOutcome(const std::optional<std::string>& reopen)> on_restart;
 };
 
 class DialogProvider;     // mfbe/dialog_provider.hpp
@@ -58,6 +75,18 @@ public:
     // when the server is not running). The shell's close handshake uses it to tell a UI that
     // declined to close from one that cannot answer any more.
     void count_clients(std::function<void(std::size_t count)> on_result);
+
+    // In-process settings access for the shell, which embeds the core (feature 003 US3,
+    // data-model §4: the window placement `session.windowGeometry` is read before window
+    // creation and written at quit and before a restart). Not part of the JSON-RPC surface.
+    // `dotted_path` names a leaf as in settings.set ("session.windowGeometry"); setting()
+    // returns null for an unknown path. set_setting() validates and saves like settings.set
+    // (false with `error` for a refused value) and notifies connected UIs with
+    // settings.changed. Both work from any thread, before and after the server stopped (the
+    // settings store lives as long as the CoreServer).
+    nlohmann::json setting(const std::string& dotted_path) const;
+    bool set_setting(const std::string& dotted_path, nlohmann::json value,
+                     std::string* error = nullptr);
 
     void stop();  // idempotent; also triggered by app.quit
     void wait();  // blocks until stopped

@@ -19,10 +19,14 @@
  *    re-render) unless the shell forced a language with `?lang=`; the core additionally
  *    reports `restartRequired` for language changes, which the Settings dialog turns into the
  *    original "In order to process changes the program must be restarted. Restart now?"
- *    prompt (Yes quits the application; the shell does not relaunch it automatically).
- *  - **Session**: toolbar visibility, the document tree flag and the window geometry are
- *    written back to `session.*` through `settings.set` (debounced). The Find/Replace
- *    histories are persisted by the search feature itself.
+ *    prompt (Yes restarts the editor through `app.restart` - the shell starts it again with
+ *    the same document and window - or reloads the page in browser mode; feature 003 US3).
+ *  - **Session**: toolbar visibility and the document tree flag are written back to
+ *    `session.*` through `settings.set` (debounced). The Find/Replace histories are persisted
+ *    by the search feature itself. The window placement (`session.windowGeometry`) is the
+ *    shell's: it records the native window's bounds and maximised state at quit and before a
+ *    restart and applies them at window creation (feature 003 US3); browser mode has no native
+ *    window, so the UI writes nothing there.
  *  - **Hotkeys**: the user overrides are loaded from `hotkeys.get` when the feature is attached
  *    to the RPC client and written with `hotkeys.set` by the Hotkeys page. A core without the
  *    `hotkeys.*` methods (-32601) keeps the bindings for the session only.
@@ -231,34 +235,16 @@ export async function saveUserHotkeys(rpc: RpcClient, hotkeys: HotkeyMap): Promi
 /* Feature runtime                                                          */
 /* ------------------------------------------------------------------------ */
 
-export interface WindowGeometry {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/** The geometry to persist for `win`, or null when the values are not usable (headless). */
-export function windowGeometryOf(
-  win: Pick<Window, 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight'>,
-): WindowGeometry | null {
-  const { screenX, screenY, outerWidth, outerHeight } = win;
-  if (![screenX, screenY, outerWidth, outerHeight].every(Number.isFinite)) return null;
-  if (outerWidth <= 0 || outerHeight <= 0) return null;
-  return { x: screenX, y: screenY, width: outerWidth, height: outerHeight };
-}
-
 function sameToolbars(a: ToolbarVisibility, b: ToolbarVisibility): boolean {
   return (Object.keys(a) as (keyof ToolbarVisibility)[]).every((key) => a[key] === b[key]);
 }
 
 const SESSION_SAVE_DELAY_MS = 250;
-const GEOMETRY_SAVE_DELAY_MS = 500;
 
 export interface SettingsFeatureOptions {
   /** `<html>` replacement for tests. */
   root?: HTMLElement | null;
-  /** `window` replacement for tests (null disables geometry persistence). */
+  /** `window` replacement for tests (its `location.search` is the `?lang=` override). */
   window?: Window | null;
   /** Page query string for the `?lang=` override (defaults to `window.location.search`). */
   search?: string;
@@ -275,7 +261,6 @@ export class SettingsFeature {
   private readonly win: Window | null;
   private readonly search: string | undefined;
   private sessionTimer: ReturnType<typeof setTimeout> | null = null;
-  private geometryTimer: ReturnType<typeof setTimeout> | null = null;
   private unsubscribe: (() => void) | null = null;
   /** True once `hotkeys.get` answered (or the core proved it has no hotkeys store). */
   hotkeysLoaded = false;
@@ -322,13 +307,9 @@ export class SettingsFeature {
         this.scheduleSessionSave();
       }
     });
-    const onResize = () => this.scheduleGeometrySave();
-    this.win?.addEventListener('resize', onResize);
     this.unsubscribe = () => {
       offStore();
-      this.win?.removeEventListener('resize', onResize);
       if (this.sessionTimer) clearTimeout(this.sessionTimer);
-      if (this.geometryTimer) clearTimeout(this.geometryTimer);
       this.unsubscribe = null;
     };
     return this.unsubscribe;
@@ -405,41 +386,6 @@ export class SettingsFeature {
       return true;
     } catch {
       return false; // the session flags are a convenience
-    }
-  }
-
-  private scheduleGeometrySave(): void {
-    if (!this.rpcClient || !this.win) return;
-    if (this.geometryTimer) clearTimeout(this.geometryTimer);
-    this.geometryTimer = setTimeout(() => {
-      this.geometryTimer = null;
-      void this.saveGeometry();
-    }, GEOMETRY_SAVE_DELAY_MS);
-  }
-
-  async saveGeometry(): Promise<boolean> {
-    const rpc = this.rpcClient;
-    if (!rpc || !this.win || !this.store.getState().settings) return false;
-    const geometry = windowGeometryOf(this.win);
-    if (!geometry) return false;
-    const current = this.store.getState().settings?.session.windowGeometry;
-    if (
-      current &&
-      current.x === geometry.x &&
-      current.y === geometry.y &&
-      current.width === geometry.width &&
-      current.height === geometry.height
-    ) {
-      return false;
-    }
-    try {
-      const result = await rpc.call('settings.set', {
-        patch: { session: { windowGeometry: geometry } },
-      });
-      this.store.setState({ settings: result.settings });
-      return true;
-    } catch {
-      return false;
     }
   }
 }

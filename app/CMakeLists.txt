@@ -76,9 +76,11 @@ set(MFBE_SHELL_DEFINES
 
 # ---------------------------------------------------------------------------------------------
 # Pure shell logic without CEF types (the command line, the main window's close handshake, file
-# dialog requests in each platform's terms, the right-click menu, the latest-release request),
-# shared by the bridge, the shell and the mfbe_shell_tests executable (tests/shell).
-# command_line.cpp prints the version stamps in --help / --version, hence the version defines.
+# dialog requests in each platform's terms, the right-click menu, the latest-release request,
+# the editor's relaunch of itself and the window placement), shared by the bridge, the shell and
+# the mfbe_shell_tests executable (tests/shell). command_line.cpp prints the version stamps in
+# --help / --version, hence the version defines. relaunch.cpp holds the platform spawn and
+# process checks (posix_spawn / CreateProcessW): plain C++ too, no CEF.
 
 add_library(mfbe_shell_logic STATIC
   src/close_handshake.cpp
@@ -91,8 +93,12 @@ add_library(mfbe_shell_logic STATIC
   src/file_dialog_request.h
   src/permission_policy.cpp
   src/permission_policy.h
+  src/relaunch.cpp
+  src/relaunch.h
   src/release_request.cpp
-  src/release_request.h)
+  src/release_request.h
+  src/window_placement.cpp
+  src/window_placement.h)
 target_compile_definitions(mfbe_shell_logic PRIVATE ${MFBE_SHELL_VERSION_DEFINES})
 target_include_directories(mfbe_shell_logic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(mfbe_shell_logic PUBLIC mfbe_paths PRIVATE mfbe::options)

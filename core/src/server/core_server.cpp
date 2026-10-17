@@ -75,6 +75,63 @@ fs::path resolve_scripts_dir(const std::string& override_dir) {
     return source_dir;
 }
 
+// The keys of a dotted settings path ("session.windowGeometry"); empty for an empty path or an
+// empty key.
+std::vector<std::string> split_setting_path(const std::string& dotted_path) {
+    std::vector<std::string> keys;
+    std::string::size_type start = 0;
+    while (start <= dotted_path.size()) {
+        const auto dot = dotted_path.find('.', start);
+        const std::string key =
+            dotted_path.substr(start, dot == std::string::npos ? std::string::npos : dot - start);
+        if (key.empty()) {
+            return {};
+        }
+        keys.push_back(key);
+        if (dot == std::string::npos) {
+            break;
+        }
+        start = dot + 1;
+    }
+    return keys;
+}
+
+// The value at `dotted_path` in `root`; nullptr when the path names nothing.
+const nlohmann::json* find_setting(const nlohmann::json& root, const std::string& dotted_path) {
+    const nlohmann::json* node = &root;
+    const std::vector<std::string> keys = split_setting_path(dotted_path);
+    if (keys.empty()) {
+        return nullptr;
+    }
+    for (const std::string& key : keys) {
+        if (!node->is_object()) {
+            return nullptr;
+        }
+        const auto it = node->find(key);
+        if (it == node->end()) {
+            return nullptr;
+        }
+        node = &*it;
+    }
+    return node;
+}
+
+// The settings.set patch that sets `dotted_path` to `value` ({"a": {"b": value}}); null for an
+// empty path.
+nlohmann::json setting_patch(const std::string& dotted_path, nlohmann::json value) {
+    const std::vector<std::string> keys = split_setting_path(dotted_path);
+    if (keys.empty()) {
+        return nullptr;
+    }
+    nlohmann::json patch = std::move(value);
+    for (auto it = keys.rbegin(); it != keys.rend(); ++it) {
+        nlohmann::json level = nlohmann::json::object();
+        level[*it] = std::move(patch);
+        patch = std::move(level);
+    }
+    return patch;
+}
+
 }  // namespace
 
 /* ----------------------------------------------------------------------------------------- */
@@ -230,6 +287,50 @@ struct CoreServer::Impl : rpc::Notifier {
         return true;
     }
 
+    // Runs `fn` where the stores (settings...) may be touched and waits for it: on the loop
+    // thread while the loop runs (handlers own the stores there), directly when called from the
+    // loop thread itself or once the loop has ended. Returns false when it could not run (the
+    // loop neither ran the task nor ended within the time limit).
+    bool run_with_services(const std::function<void()>& fn) {
+        if (std::this_thread::get_id() == loop_thread_id) {
+            fn();
+            return true;
+        }
+        // Whoever claims the task first runs it: the loop thread, or - when the loop never got
+        // to it - the caller, so a late loop task never touches the caller's finished locals.
+        struct Pending {
+            std::function<void()> fn;
+            std::promise<void> done;
+            std::atomic<bool> claimed{false};
+        };
+        auto pending = std::make_shared<Pending>();
+        pending->fn = fn;
+        auto ran = pending->done.get_future();
+        if (!post([pending] {
+                if (!pending->claimed.exchange(true)) {
+                    pending->fn();
+                    pending->done.set_value();
+                }
+            })) {
+            fn();  // the loop is gone: nobody else touches the stores any more
+            return true;
+        }
+        if (ran.wait_for(std::chrono::seconds(5)) == std::future_status::ready) {
+            return true;
+        }
+        if (pending->claimed.exchange(true)) {
+            ran.wait();  // the loop started it meanwhile: let it finish
+            return true;
+        }
+        // Ours now. The loop stopped with the task still queued (a quit raced the post): run
+        // it here; a loop that is still alive but stuck gets no second chance.
+        if (finished.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            fn();
+            return true;
+        }
+        return false;
+    }
+
     void notify(const std::string& method, const nlohmann::json& params) override {
         std::string text =
             rpc::RpcRouter::wire_text(rpc::RpcRouter::make_notification(method, params));
@@ -315,6 +416,7 @@ std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) 
 #endif
     services.post = [&impl](std::function<void()> fn) { return impl.post(std::move(fn)); };
     services.request_quit = [&impl] { impl.request_stop(); };
+    services.request_restart = options.on_restart;  // unset without a shell
     impl.register_handlers();
 
     std::promise<std::string> ready;  // "" = ok, otherwise error text
@@ -427,6 +529,50 @@ void CoreServer::count_clients(std::function<void(std::size_t)> on_result) {
     if (!posted) {
         on_result(0);
     }
+}
+
+nlohmann::json CoreServer::setting(const std::string& dotted_path) const {
+    nlohmann::json value;
+    if (!impl_->services) {
+        return value;
+    }
+    impl_->run_with_services([&] {
+        if (const nlohmann::json* found =
+                find_setting(impl_->services->settings.get(), dotted_path)) {
+            value = *found;
+        }
+    });
+    return value;
+}
+
+bool CoreServer::set_setting(const std::string& dotted_path, nlohmann::json value,
+                             std::string* error) {
+    const nlohmann::json patch = setting_patch(dotted_path, std::move(value));
+    if (!impl_->services || patch.is_null()) {
+        if (error != nullptr) {
+            *error = patch.is_null() ? "empty setting path" : "no settings store";
+        }
+        return false;
+    }
+    bool applied = false;
+    std::string reason;
+    const bool ran = impl_->run_with_services([&] {
+        try {
+            const settings::ApplyResult result = impl_->services->settings.apply_patch(patch);
+            applied = true;
+            // Connected UIs learn of it as after settings.set (a no-op once the loop ended).
+            impl_->notify("settings.changed", nlohmann::json{{"settings", result.settings}});
+        } catch (const settings::SettingsError& e) {
+            reason = e.what();
+        }
+    });
+    if (!ran) {
+        reason = "the core did not answer";
+    }
+    if (!applied && error != nullptr) {
+        *error = reason;
+    }
+    return applied;
 }
 
 void CoreServer::stop() {
