@@ -48,9 +48,6 @@ $appName = 'Maxima Fiction Book Editor'
 # В of "&Вид" (View) and "&Выход" (File > Exit), С of "&Строка состояния" (View > Status Bar).
 $keyVe = @{ key = (Text 0x0432); code = 'KeyD'; windowsVirtualKeyCode = 0x44 }
 $keyEs = @{ key = (Text 0x0441); code = 'KeyC'; windowsVirtualKeyCode = 0x43 }
-# Р of "Се&рвис" (Tools) and Н of "&Настройки..." (Tools > Settings), feature 003 restart run.
-$keyEr = @{ key = (Text 0x0440); code = 'KeyH'; windowsVirtualKeyCode = 0x48 }
-$keyEn = @{ key = (Text 0x043D); code = 'KeyY'; windowsVirtualKeyCode = 0x59 }
 # X of "E&xit" (File > Exit) in the English interface (ui/src/i18n/en.json), after the restart.
 $keyX = @{ key = 'x'; code = 'KeyX'; windowsVirtualKeyCode = 0x58 }
 $keyF2 = @{ key = 'F2'; code = 'F2'; windowsVirtualKeyCode = 0x71 }
@@ -59,6 +56,15 @@ $keyDown = @{ key = 'ArrowDown'; code = 'ArrowDown'; windowsVirtualKeyCode = 0x2
 $temp = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
 $script:cdp = $null
 $script:editor = $null
+
+# What the page shows when a wait gives up: open dialogs, the focused element, the status text.
+function Describe-Page {
+    try {
+        Get-CdpValue $script:cdp @'
+(() => { const ids = [...document.querySelectorAll('[data-testid^="dialog-"][role="dialog"], [role="dialog"], [role="alertdialog"]')].map((d) => d.getAttribute('data-testid') + ': ' + (d.textContent || '').trim().slice(0, 160)); return 'dialogs: ' + JSON.stringify(ids) + '; active: ' + (document.activeElement && (document.activeElement.getAttribute('data-testid') || document.activeElement.tagName)) + '; status: ' + ((document.querySelector('[data-testid="status-message"]') || {}).textContent || '') + '; lang: ' + document.documentElement.lang; })()
+'@
+    } catch { "page not reachable: $($_.Exception.Message)" }
+}
 
 # Polls $Condition until it returns true. Fails after $Seconds, naming the last error the
 # condition raised, and at once when the editor has ended.
@@ -74,7 +80,10 @@ function Wait-Until([string]$What, [scriptblock]$Condition, [int]$Seconds = 30) 
         if ($script:editor -and $script:editor.HasExited) {
             throw ('the editor ended (exit code 0x{0:X8}) while waiting for {1}' -f $script:editor.ExitCode, $What)
         }
-        if ((Get-Date) -gt $deadline) { throw "timed out after $Seconds s waiting for $What$lastError" }
+        if ((Get-Date) -gt $deadline) {
+            Write-Host "journey: $(Describe-Page)"
+            throw "timed out after $Seconds s waiting for $What$lastError"
+        }
         Start-Sleep -Milliseconds 250
     }
 }
@@ -263,6 +272,15 @@ function Click-Element([string]$TestId) {
     $null = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"$TestId`"]').click(); true"
 }
 
+# Menu bar buttons open their menu on mouse-down (a synthetic click() alone does nothing).
+function Press-Element([string]$TestId) {
+    Wait-Until "the element $TestId" { Test-Element $TestId }
+    $null = Get-CdpValue $script:cdp @"
+(() => { const el = document.querySelector('[data-testid="$TestId"]'); for (const type of ['mousedown', 'mouseup', 'click']) { el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 })); } return true; })()
+"@
+}
+
+
 # "Restart now?" restarts the editor (feature 003 US3, FR-020 to FR-022): Settings > View >
 # Language = English, OK, Yes. The running editor ends with exit code 0, and the new process it
 # started - mfbe.exe with --wait-for-exit <old pid>, --window-geometry and the book as FILE, never
@@ -270,11 +288,11 @@ function Click-Element([string]$TestId) {
 # must show the book with the interface in English.
 function Restart-EditorThroughSettings {
     $oldPid = $script:editor.Id
-    # Menus open on mouse-down or the Alt+letter accelerator, not on a synthetic click.
     Wait-Until 'the menu bar' { Test-Element 'menu-tools' }
-    Send-CdpKey $script:cdp $keyEr -Modifiers 1
+    Write-Host "journey: before Tools > Settings: $(Describe-Page)"
+    Press-Element 'menu-tools'
     Wait-Until 'the Tools menu open' { Test-Element 'menu-tools-settings' }
-    Send-CdpKey $script:cdp $keyEn
+    Click-Element 'menu-tools-settings'
     Wait-Until 'the Settings dialog' { Test-Element 'dialog-settings' }
     $null = Get-CdpValue $script:cdp @'
 (() => { const select = document.querySelector('[data-testid="settings-view-language"]'); select.value = 'en'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()
