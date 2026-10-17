@@ -179,6 +179,8 @@ void Services::refresh_layers() {
     roots.bundled_scripts = scripts_dir;
     roots.settings_genres = platform::path_from_utf8(settings.get_string("other.genresFolder"));
     roots.settings_scripts = platform::path_from_utf8(settings.get_string("other.scriptsFolder"));
+    roots.settings_dictionaries =
+        platform::path_from_utf8(settings.get_string("other.dictionariesFolder"));
     layers.set_roots(std::move(roots));
 }
 

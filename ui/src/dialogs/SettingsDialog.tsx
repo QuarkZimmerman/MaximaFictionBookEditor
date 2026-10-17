@@ -23,6 +23,7 @@ import {
   settingsPatch,
   type SettingsFeature,
 } from '@/features/settings/apply';
+import { getSpellFeature } from '@/features/spell';
 import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode, type Settings } from '@/rpc/types';
@@ -218,6 +219,9 @@ export function SettingsDialog({
         persisted ? t('msg.hotkeysApplied') : t('dialog.settings.hotkeys.notPersisted'),
       );
     }
+    // Feature 003 US4: dictionaries copied into a folder are picked up on Apply, also when no
+    // setting changed (the store hook of the settings runtime covers the other case).
+    if (rpc) void getSpellFeature(store).refreshDictionaries(rpc);
     return { ok: true, restartRequired };
   };
 
@@ -320,7 +324,12 @@ export function SettingsDialog({
       {draft ? (
         <>
           <div role="tabpanel" id="settings-page-view" hidden={page !== 'view'}>
-            <ViewPage draft={draft} onChange={(patch) => update('view', patch)} ctx={ctx} />
+            <ViewPage
+              draft={draft}
+              onChange={(patch) => update('view', patch)}
+              onChangeOther={(patch) => update('other', patch)}
+              ctx={ctx}
+            />
           </div>
           <div role="tabpanel" id="settings-page-other" hidden={page !== 'other'}>
             <OtherPage draft={draft} onChange={(patch) => update('other', patch)} ctx={ctx} />

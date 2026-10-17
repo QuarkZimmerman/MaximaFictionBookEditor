@@ -16,7 +16,17 @@
         "fontFamily": "Гарнитура",
         "sourceFontSize": "Размер:",
         "fontSizeHint": "Пункты (6-96)",
-        "chooseDictionary": "Выберите пользовательский словарь"
+        "chooseDictionary": "Выберите пользовательский словарь",
+        "dictionariesFolder": "Папка словарей:",
+        "dictionariesFolderDefault": "Папка по умолчанию",
+        "dictionariesFolderCustom": "Выбранная папка:",
+        "chooseDictionariesFolder": "Укажите папку словарей",
+        "openDictionariesFolder": "Открыть папку словарей",
+        "dictionariesInEffect": "Действующие словари:",
+        "dictionariesUnknown": "Действующие словари: недоступны (ядро не подключено)",
+        "dictionariesRejected": "Файлы, которые нельзя использовать:",
+        "dictionariesFolderMissing": "Выбранная папка {{path}} не существует; используется папка по умолчанию.",
+        "dictionariesFolderUnreadable": "Выбранную папку {{path}} не удаётся прочитать; используется папка по умолчанию."
       },
       "other": {
         "openScriptsFolder": "Открыть папку скриптов",

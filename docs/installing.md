@@ -209,8 +209,9 @@ to the machine.
 User-extensible resources are looked up in layers, additively: a folder chosen in *Settings*,
 then the per-user data folder above, then a **portable** folder, then the files bundled with
 the editor. Bundled genres, scripts and dictionaries are never hidden or replaced; your files
-only add to them. *Settings > Other > Open genres folder / Open scripts folder* and the About
-dialog's *Open log folder* open the right place in the file manager.
+only add to them. *Settings > Other > Open genres folder / Open scripts folder*, *Settings >
+View > Open dictionaries folder* (see *Spelling dictionaries* below) and the About dialog's
+*Open log folder* open the right place in the file manager.
 
 Genre files are `*.genres.tsv` text files in the `genres` folder (UTF-8, tab-separated:
 `code`, `category`, `name_en`, `name_ru`); the picker shows which file a genre comes from.
@@ -234,6 +235,49 @@ table above lists - and nothing in your profile; the Windows portable ZIP comes 
 portable folder the editor cannot write to (one an administrator put next to an installed copy,
 or a read-only medium) only adds genres, scripts, dictionaries and a template, and the per-user
 folders of the table are used.
+
+## Spelling dictionaries
+
+The editor checks spelling with Hunspell and comes with three dictionaries: English
+(`en_US`), Russian (`ru_RU`) and Ukrainian (`uk_UA`, the dict_uk dictionary, Mozilla Public
+License 1.1 - its notice is shown in Help > About). A book is checked with the dictionary of its
+language (`<lang>` in the description): the exact tag first (`de_AT`), then the language
+(`de-AT` and `de` both use a `de_DE` dictionary).
+
+Any other language is a folder copy away - no reinstallation, no administrator rights:
+
+1. Get a Hunspell dictionary for the language: a pair of files `<tag>.aff` and `<tag>.dic`
+   with the same name, the tag being the language code, optionally with a region
+   (`de_DE`, `pl_PL`, `be_BY`). These are the dictionaries LibreOffice, OpenOffice and Firefox
+   use; the LibreOffice dictionary repository (https://github.com/LibreOffice/dictionaries) and
+   the dictionary extensions of LibreOffice (`.oxt` files are ZIP archives containing the pair)
+   cover most languages. Keep the licence notice that comes with the dictionary; a `<tag>.txt`
+   next to the pair is shown in Help > About.
+2. Open *Settings > View* and press **Open dictionaries folder** in the Spellcheck group. The
+   folder opens in the file manager (it is created if it does not exist yet):
+   - installed editor: the `dictionaries` folder of the per-user data folder of the table
+     above (`%APPDATA%\Maxima Fiction Book Editor\dictionaries` on Windows,
+     `~/.local/share/maxfbeditor/dictionaries` on Linux,
+     `~/Library/Application Support/Maxima Fiction Book Editor/dictionaries` on macOS);
+   - portable copy: the `dictionaries` subfolder of its `user` folder - the dictionaries
+     travel with the copy.
+   You can also choose a folder of your own ("Chosen folder" and `...`), as for scripts,
+   genres and the template; it is searched before the per-user and the portable folder.
+3. Copy the `.aff` and `.dic` files into that folder and press **Apply** (or restart the
+   editor). The list *Dictionaries in effect* in the same group shows every dictionary with
+   its origin - built in, chosen folder, user folder, portable folder - and the files the
+   editor could not use with the reason: a `.aff` or `.dic` without its partner, a file that
+   cannot be read, a dictionary whose `SET` encoding the editor cannot convert (supported:
+   UTF-8, UTF-16, Windows-1251/1252, ISO-8859-1/2/5/15, KOI8-R; most LibreOffice dictionaries
+   are UTF-8 or ISO-8859), or a pair whose tag a dictionary of a higher layer already has. A
+   chosen folder that does not exist or cannot be read is reported there too, and the default
+   folder is used.
+
+User dictionaries add to the built-in ones and never replace them: a `ru_RU` pair in your
+folder is ignored (and listed as shadowed), the built-in Russian dictionary stays in effect.
+Books in the new language are then checked like any other - misspelt words are underlined,
+suggestions are offered, words can be added to your custom dictionary (`custom.dic`), and
+Tools > Spell check uses it.
 
 ## Command line
 

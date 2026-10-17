@@ -3,16 +3,26 @@
  * (editor font, size, text colour, background, Fast Mode), XML source editor (font, wrap,
  * syntax highlighting, end-of-line marks, white spaces, line numbers, matched tags, tag
  * completion - feature 003) and Spellcheck (use, highlight, custom dictionary path with a
- * "Browse..." button through `dialog.openFile`). The theme (System / Light / Dark) is applied
- * as soon as the settings are saved (OK / Apply), like the other fields; the Body colours
- * follow the theme while they are the defaults (black on white).
+ * "Browse..." button through `dialog.openFile`; feature 003 US4: the "Dictionaries folder"
+ * choice - default / chosen folder with "..." through `dialog.pickFolder` - "Open dictionaries
+ * folder", and the report of `spell.dictionaryReport`: the dictionaries in effect with their
+ * origin, the files that cannot be used with the reason, a chosen folder that is missing or
+ * unreadable). The theme (System / Light / Dark) is applied as soon as the settings are saved
+ * (OK / Apply), like the other fields; the Body colours follow the theme while they are the
+ * defaults (black on white).
+ *
+ * The dictionaries folder is the setting `other.dictionariesFolder`, although its controls sit
+ * in the spell-check group of this page: the dialog passes `onChangeOther` for it, next to the
+ * `onChange` of the `view` section. The report shows the saved state - refreshed when this page
+ * opens and, through the settings runtime, after every applied change.
  */
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CommandContext } from '@/app/commands';
 import { dictionaryFileTypes } from '@/dialogs/fileTypes';
+import { getSpellFeature } from '@/features/spell';
 import { RpcError } from '@/rpc/client';
 import {
   RpcErrorCode,
@@ -30,6 +40,9 @@ import {
   SOURCE_FONT_SUGGESTIONS,
   THEME_OPTIONS,
   composeSourceFont,
+  dictionariesFolderProblem,
+  dictionaryOriginLabel,
+  dictionaryRejectionText,
   parseIntegerField,
   themeOf,
 } from './model';
@@ -37,10 +50,15 @@ import {
 export interface ViewPageProps {
   draft: Settings;
   onChange: (patch: Partial<Settings['view']>) => void;
+  /**
+   * Edits the `other` section of the draft: the dictionaries folder (`other.dictionariesFolder`,
+   * feature 003 US4) is chosen on this page. Without it the folder choice is shown read-only.
+   */
+  onChangeOther?: (patch: Partial<Settings['other']>) => void;
   ctx: CommandContext;
 }
 
-export function ViewPage({ draft, onChange, ctx }: ViewPageProps) {
+export function ViewPage({ draft, onChange, onChangeOther, ctx }: ViewPageProps) {
   const { t } = useTranslation();
   const view = draft.view;
   const [fontSizeText, setFontSizeText] = useState(String(view.bodyFontSize));
@@ -287,6 +305,11 @@ export function ViewPage({ draft, onChange, ctx }: ViewPageProps) {
             ...
           </button>
         </FieldRow>
+        <DictionariesSection
+          value={draft.other.dictionariesFolder ?? ''}
+          onApply={onChangeOther ? (path) => onChangeOther({ dictionariesFolder: path }) : null}
+          ctx={ctx}
+        />
       </GroupBox>
     </div>
   );
@@ -294,4 +317,224 @@ export function ViewPage({ draft, onChange, ctx }: ViewPageProps) {
 
 function unquote(family: string): string {
   return family.replace(/^["']|["']$/g, '');
+}
+
+/* ------------------------------------------------------------------------ */
+/* Dictionaries folder and report (feature 003 US4)                        */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * "Dictionaries folder" (default / chosen, "...", "Open dictionaries folder") and the report:
+ * the dictionaries in effect with their origin, the files that cannot be used, a chosen folder
+ * that is missing or unreadable. `onApply` is null when the dialog gave no way to edit the
+ * `other` section (the choice is then read-only). The report is the spell feature's: fetched
+ * when the section mounts and whenever the settings runtime refreshes it after Apply.
+ */
+function DictionariesSection({
+  value,
+  onApply,
+  ctx,
+}: {
+  /** The draft setting `other.dictionariesFolder`: '' = default folder. */
+  value: string;
+  onApply: ((path: string) => void) | null;
+  ctx: CommandContext;
+}) {
+  const { t } = useTranslation();
+  const rpc = ctx.rpc;
+  const editable = onApply !== null;
+  // A chosen folder whose path is still empty is kept as a UI state (saved as the default).
+  const [custom, setCustom] = useState(value !== '');
+  const useDefault = !custom && value === '';
+  const [reportKnown, setReportKnown] = useState(false);
+
+  // The spell feature owns the report (one per store); this section follows it.
+  const feature = getSpellFeature(ctx.store);
+  const subscribeReport = useCallback(
+    (listener: () => void) =>
+      feature.checker.subscribe((event) => {
+        if (event === 'report') listener();
+      }),
+    [feature],
+  );
+  const report = useSyncExternalStore(subscribeReport, () => feature.checker.report);
+
+  useEffect(() => {
+    let cancelled = false;
+    void feature.refreshDictionaries(rpc).then(() => {
+      if (!cancelled) setReportKnown(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [feature, rpc]);
+
+  const reportFolderError = async (error: unknown) => {
+    if (error instanceof RpcError) {
+      if (error.code === RpcErrorCode.dialogUnavailable) {
+        await ctx.dialogs.showMessage({
+          text: t('msg.openFolderUnavailable', { path: value || '—' }),
+          caption: t('app.name'),
+          icon: 'info',
+          testId: 'dialog-folder-unavailable',
+        });
+        return;
+      }
+      if (error.code === RpcErrorCode.methodNotFound || error.code === RpcErrorCode.docIoError) {
+        const data = error.data as { reason?: string } | undefined;
+        await ctx.dialogs.showMessage({
+          text: t('msg.openFolderFailed', { reason: data?.reason ?? error.message }),
+          caption: t('dialog.error.caption'),
+          icon: 'error',
+          testId: 'dialog-folder-failed',
+        });
+        return;
+      }
+    }
+    throw error;
+  };
+
+  const browse = async () => {
+    if (!rpc || !onApply) return;
+    try {
+      const { path } = await rpc.call('dialog.pickFolder', {
+        title: t('dialog.settings.view.chooseDictionariesFolder'),
+      });
+      if (path) {
+        setCustom(true);
+        onApply(path);
+      }
+    } catch (error) {
+      await reportFolderError(error);
+    }
+  };
+
+  const openFolder = async () => {
+    if (!rpc) return;
+    try {
+      await rpc.call('resources.openDictionariesFolder');
+    } catch (error) {
+      await reportFolderError(error);
+    }
+  };
+
+  // The chosen folder of the saved settings, when it cannot be used (the default is used then).
+  const folderProblem = report ? dictionariesFolderProblem(report.folders, t) : null;
+
+  return (
+    <div className="mfbe-settings-dictionaries" data-testid="settings-view-dictionaries">
+      <FieldRow label={t('dialog.settings.view.dictionariesFolder')}>
+        <label className="mfbe-check-field" htmlFor="settings-view-dictionaries-default">
+          <input
+            id="settings-view-dictionaries-default"
+            type="radio"
+            name="settings-view-dictionaries-folder"
+            checked={useDefault}
+            disabled={!editable}
+            onChange={() => {
+              setCustom(false);
+              onApply?.('');
+            }}
+            data-testid="settings-view-dictionaries-default"
+          />
+          <span>{t('dialog.settings.view.dictionariesFolderDefault')}</span>
+        </label>
+        <label className="mfbe-check-field" htmlFor="settings-view-dictionaries-custom">
+          <input
+            id="settings-view-dictionaries-custom"
+            type="radio"
+            name="settings-view-dictionaries-folder"
+            checked={!useDefault}
+            disabled={!editable}
+            onChange={() => setCustom(true)}
+            data-testid="settings-view-dictionaries-custom"
+          />
+          <span>{t('dialog.settings.view.dictionariesFolderCustom')}</span>
+        </label>
+      </FieldRow>
+      <div className="mfbe-settings-row">
+        <input
+          id="settings-view-dictionaries-path"
+          className="mfbe-inputdialog-input"
+          type="text"
+          value={value}
+          disabled={useDefault || !editable}
+          spellCheck={false}
+          aria-label={t('dialog.settings.view.dictionariesFolderCustom')}
+          onChange={(event) => onApply?.(event.target.value)}
+          data-testid="settings-view-dictionaries-path"
+        />
+        <button
+          type="button"
+          className="mfbe-button mfbe-settings-browse"
+          disabled={!rpc || useDefault || !editable}
+          title={t('dialog.settings.browse')}
+          onClick={() => void browse()}
+          data-testid="settings-view-dictionaries-browse"
+        >
+          ...
+        </button>
+        <button
+          type="button"
+          className="mfbe-button"
+          disabled={!rpc}
+          onClick={() => void openFolder()}
+          data-testid="settings-view-dictionaries-open"
+        >
+          {t('dialog.settings.view.openDictionariesFolder')}
+        </button>
+      </div>
+      {folderProblem ? (
+        <div className="mfbe-settings-note" data-testid="settings-view-dictionaries-folder-problem">
+          {folderProblem}
+        </div>
+      ) : null}
+      {report ? (
+        <>
+          <div className="mfbe-settings-note">{t('dialog.settings.view.dictionariesInEffect')}</div>
+          {report.dictionaries.length > 0 ? (
+            <ul className="mfbe-settings-list" data-testid="settings-view-dictionaries-list">
+              {report.dictionaries.map((dictionary, index) => {
+                const tag = dictionary.tag ?? dictionary.name;
+                return (
+                  <li key={`${tag}-${index}`} data-testid={`settings-view-dictionary-${tag}`}>
+                    <span data-role="tag">{tag}</span>{' '}
+                    <span className="mfbe-settings-note" data-role="origin">
+                      {dictionaryOriginLabel(dictionary.source, t)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="mfbe-settings-note" data-testid="settings-view-dictionaries-list">
+              {t('spell.dialog.noDictionaries')}
+            </div>
+          )}
+          {report.rejected.length > 0 ? (
+            <>
+              <div className="mfbe-settings-note">
+                {t('dialog.settings.view.dictionariesRejected')}
+              </div>
+              <ul className="mfbe-settings-list" data-testid="settings-view-dictionaries-rejected">
+                {report.rejected.map((rejected) => (
+                  <li key={rejected.path}>
+                    <span data-role="path">{rejected.path}</span>
+                    {' \u2014 '}
+                    <span data-role="reason">{dictionaryRejectionText(rejected, t)}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </>
+      ) : (
+        <div className="mfbe-settings-note" data-testid="settings-view-dictionaries-unknown">
+          {reportKnown || !rpc
+            ? t('dialog.settings.view.dictionariesUnknown')
+            : t('dialog.settings.loading')}
+        </div>
+      )}
+    </div>
+  );
 }

@@ -29,6 +29,18 @@
     "undo": {
       "replaceWord": "Replace misspelled word",
       "replaceAll": "Replace all occurrences of a word"
+    },
+    "rejected": {
+      "partnerMissing": "partner file missing",
+      "unreadable": "cannot be read",
+      "unsupportedEncoding": "unsupported encoding",
+      "shadowed": "shadowed by a dictionary of the same tag",
+      "shadowedBy": {
+        "bundled": "shadowed by the built-in dictionary of the same tag",
+        "settings": "shadowed by the chosen folder's dictionary of the same tag",
+        "user": "shadowed by the user folder's dictionary of the same tag",
+        "portable": "shadowed by the portable folder's dictionary of the same tag"
+      }
     }
   }
 }

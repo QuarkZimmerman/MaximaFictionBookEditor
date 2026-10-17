@@ -293,6 +293,44 @@ export interface SpellDictionaryLicense {
   path?: string;
 }
 
+/** Why a dictionary file is not used (feature 003 US4, rpc-api.md §3.4). */
+export type SpellDictionaryRejectReason =
+  'partnerMissing' | 'unreadable' | 'unsupportedEncoding' | 'shadowed';
+
+/** A file of a dictionaries folder the core could not use (`spell.dictionaryReport`). */
+export interface SpellRejectedDictionary {
+  /** The file concerned: the `.aff`, or a lone / unreadable `.dic`. */
+  path: string;
+  reason: SpellDictionaryRejectReason;
+  /**
+   * `shadowed`: the layer whose pair of the same tag stays in effect (`bundled` | `settings` |
+   * `user`); `unsupportedEncoding`: the encoding the `.aff` `SET` line declares.
+   */
+  detail?: string;
+}
+
+/** A folder of the dictionaries lookup, in order: settings (chosen), user, portable, bundled. */
+export interface SpellDictionaryFolder {
+  layer: 'settings' | 'user' | 'portable' | 'bundled';
+  /** Empty when the layer has no folder (no folder chosen, no portable folder). */
+  path: string;
+  exists: boolean;
+  readable: boolean;
+  writable: boolean;
+}
+
+/**
+ * `spell.dictionaryReport()` result (feature 003 US4): the dictionaries in effect, the files
+ * that could not be used with the reason, and the folders of the lookup with their state. The
+ * core refreshes the layers and the registry before answering, so dictionaries copied into a
+ * folder are picked up when Settings are applied, without a restart.
+ */
+export interface SpellDictionaryReport {
+  dictionaries: SpellDictionary[];
+  rejected: SpellRejectedDictionary[];
+  folders: SpellDictionaryFolder[];
+}
+
 /** script.json, script-manifest.md §2. */
 export interface ScriptManifest {
   manifestVersion: 1;
@@ -504,6 +542,8 @@ export interface RpcMethods {
 
   // §3.4 spell
   'spell.dictionaries': { params: void; result: SpellDictionary[] };
+  /** Feature 003 US4: dictionaries in effect, rejected files and lookup folders (refreshed). */
+  'spell.dictionaryReport': { params: void; result: SpellDictionaryReport };
   /** Notice (`<tag>.txt`) of a dictionary for About; 1020 for an unknown tag. */
   'spell.dictionaryLicense': { params: { tag: string }; result: SpellDictionaryLicense };
   'spell.check': { params: { words: string[]; langs: string[] }; result: { misspelled: string[] } };
@@ -528,6 +568,8 @@ export interface RpcMethods {
   'resources.openGenresFolder': { params: void; result: Empty };
   'resources.template': { params: void; result: TemplateInfo };
   'resources.openTemplateFolder': { params: void; result: { path: string } };
+  /** Feature 003 US4: the chosen dictionaries folder, else `<Data>/dictionaries` (created). */
+  'resources.openDictionariesFolder': { params: void; result: { path: string } };
 
   // §3.7 settings / hotkeys
   'settings.get': { params: void; result: Settings };

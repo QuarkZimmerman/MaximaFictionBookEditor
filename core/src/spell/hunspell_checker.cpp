@@ -3,7 +3,11 @@
 // One Hunspell object per dictionary tag, created on first use and guarded by its own mutex
 // (Hunspell is not thread-safe). Words travel as UTF-8; when a dictionary declares another
 // encoding (`SET` line, reported by get_dic_encoding()) the word is converted with the table
-// converters of mfbe/encodings.hpp - unsupported encodings fall back to passing UTF-8 through.
+// converters of mfbe/encodings.hpp. An encoding the core cannot convert is an error (the
+// registry rejects such a pair before it gets here - feature 003 US4); there is no UTF-8
+// fallback that would check words against bytes of another encoding. Every instance remembers
+// the size and modification time of its two files, so `drop_stale()` can retire it when the
+// files change or disappear.
 #include <mfbe/encodings.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/spell.hpp>
@@ -12,11 +16,38 @@
 #include <hunspell/hunspell.hxx>
 
 #include <algorithm>
+#include <cstdint>
 #include <stdexcept>
 #include <system_error>
 
 namespace mfbe::spell {
 namespace {
+
+// Identity of a dictionary file as loaded: path, size and modification time.
+struct FileStamp {
+    std::filesystem::path path;
+    std::uintmax_t size = 0;
+    std::filesystem::file_time_type modified{};
+
+    bool operator==(const FileStamp& other) const {
+        return path == other.path && size == other.size && modified == other.modified;
+    }
+};
+
+FileStamp stamp_of(const std::filesystem::path& file) {
+    FileStamp stamp;
+    stamp.path = file;
+    std::error_code ec;
+    stamp.size = std::filesystem::file_size(file, ec);
+    if (ec) {
+        stamp.size = 0;
+    }
+    stamp.modified = std::filesystem::last_write_time(file, ec);
+    if (ec) {
+        stamp.modified = std::filesystem::file_time_type{};
+    }
+    return stamp;
+}
 
 // Name under which Hunspell opens a dictionary file. Hunspell 1.7 opens its files by a narrow
 // name (myopen() in src/hunspell/csutil.cxx): on Windows a name that starts with the long-path
@@ -46,6 +77,8 @@ struct HunspellChecker::Instance {
     std::mutex mutex;
     std::unique_ptr<Hunspell> engine;
     std::string encoding;  // canonical dictionary encoding ("utf-8" = no conversion)
+    FileStamp aff;         // the files as they were when the instance was created
+    FileStamp dic;
 
     std::string to_dic(const std::string& utf8) const {
         if (encoding == encoding::kUtf8) {
@@ -89,26 +122,51 @@ std::shared_ptr<HunspellChecker::Instance> HunspellChecker::instance(const std::
                          "dictionary files missing: " + platform::utf8_from_path(dictionary->aff));
     }
     auto inst = std::make_shared<Instance>();
+    // The stamps are taken before the files are read: a change racing with the load makes the
+    // instance stale at the next refresh rather than silently current.
+    inst->aff = stamp_of(dictionary->aff);
+    inst->dic = stamp_of(dictionary->dic);
     inst->engine = std::make_unique<Hunspell>(hunspell_file_name(dictionary->aff).c_str(),
                                               hunspell_file_name(dictionary->dic).c_str());
     const char* enc = inst->engine->get_dic_encoding();
     const std::string declared = enc == nullptr ? "" : enc;
-    const auto canonical = encoding::normalize_name(declared);
-    if (!canonical || !encoding::is_supported(*canonical)) {
-        if (!declared.empty() && declared != "UTF-8" && declared != "utf-8") {
-            log::warning("core", "spell.dictionaryEncoding",
-                         "dictionary encoding not supported; words passed through as UTF-8",
-                         log::extras({{"tag", tag}, {"encoding", declared}}));
-        }
-        inst->encoding = encoding::kUtf8;
-    } else {
-        inst->encoding = *canonical;
+    const std::optional<std::string> canonical = dictionary_encoding(declared);
+    if (!canonical) {
+        // The registry keeps such pairs out of `dictionaries()`; this guards a file edited
+        // after the last refresh.
+        log::warning("core", "spell.dictionaryEncoding", "dictionary encoding not supported",
+                     log::extras({{"tag", tag}, {"encoding", declared}}));
+        throw SpellError(tag, "unsupported dictionary encoding: " + declared);
     }
+    inst->encoding = *canonical;
     for (const std::string& word : runtime_words_) {
         inst->engine->add(inst->to_dic(word));
     }
     instances_[tag] = inst;
     return inst;
+}
+
+std::size_t HunspellChecker::drop_stale() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::size_t dropped = 0;
+    for (auto it = instances_.begin(); it != instances_.end();) {
+        const Dictionary* current = nullptr;
+        for (const Dictionary& d : registry_->dictionaries()) {
+            if (d.tag == it->first) {
+                current = &d;
+                break;
+            }
+        }
+        const bool stale = current == nullptr || !(stamp_of(current->aff) == it->second->aff) ||
+                           !(stamp_of(current->dic) == it->second->dic);
+        if (stale) {
+            it = instances_.erase(it);
+            ++dropped;
+        } else {
+            ++it;
+        }
+    }
+    return dropped;
 }
 
 bool HunspellChecker::spell(const std::string& tag, const std::string& word) {

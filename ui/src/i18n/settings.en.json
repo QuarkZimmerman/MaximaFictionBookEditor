@@ -16,7 +16,17 @@
         "fontFamily": "Font family",
         "sourceFontSize": "Size:",
         "fontSizeHint": "Points (6-96)",
-        "chooseDictionary": "Choose the custom dictionary"
+        "chooseDictionary": "Choose the custom dictionary",
+        "dictionariesFolder": "Dictionaries folder:",
+        "dictionariesFolderDefault": "Default folder",
+        "dictionariesFolderCustom": "Chosen folder:",
+        "chooseDictionariesFolder": "Specify the dictionaries folder",
+        "openDictionariesFolder": "Open dictionaries folder",
+        "dictionariesInEffect": "Dictionaries in effect:",
+        "dictionariesUnknown": "Dictionaries in effect: not available (core not connected)",
+        "dictionariesRejected": "Files that cannot be used:",
+        "dictionariesFolderMissing": "The chosen folder {{path}} does not exist; the default folder is used.",
+        "dictionariesFolderUnreadable": "The chosen folder {{path}} cannot be read; the default folder is used."
       },
       "other": {
         "openScriptsFolder": "Open scripts folder",

@@ -1,9 +1,15 @@
-// T020: layered resource lookup.
+// T020: layered resource lookup. Feature 003 US4 (T043/T045): the settings layer of the
+// dictionaries kind (`Roots::settings_dictionaries`), the `readable` flag of a layer and the
+// winning layer recorded with every conflict.
 #include "test_support.hpp"
 
 #include <mfbe/resources.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 using namespace mfbe;
 using nlohmann::json;
@@ -52,7 +58,7 @@ TEST_CASE("layers: report lists settings/user/portable/bundled per kind", "[laye
     CHECK(scripts[0].path.empty());  // no custom scripts folder configured
     CHECK(scripts[3].path == tmp / "bundled-scripts");
     const auto dicts = layers.layers(resources::Kind::dictionaries);
-    CHECK(dicts[0].path.empty());  // dictionaries have no settings folder
+    CHECK(dicts[0].path.empty());  // no dictionaries folder chosen in Settings
     CHECK(dicts[3].path == tmp / "bundled" / "dictionaries");
 
     const json report = layers.report();
@@ -61,10 +67,120 @@ TEST_CASE("layers: report lists settings/user/portable/bundled per kind", "[laye
                             {"layer", "settings"},
                             {"path", (tmp / "custom-genres").string()},
                             {"exists", false},
+                            {"readable", false},
                             {"writable", false}});
+    CHECK(report[1]["readable"] == true);  // <Data>/genres exists and can be listed
     CHECK(report[11]["kind"] == "dictionaries");
     CHECK(report[11]["layer"] == "bundled");
 }
+
+TEST_CASE(
+    "layers: the dictionaries folder chosen in Settings is the settings layer; lookup order "
+    "bundled, settings, user, portable (feature 003 US4)",
+    "[layers]") {
+    test::TempDir tmp;
+    auto roots = make_roots(tmp);
+    roots.settings_dictionaries = tmp / "chosen-dicts";
+    for (const char* folder : {"bundled", "chosen-dicts", "data", "portable"}) {
+        const std::filesystem::path base =
+            std::string(folder) == "chosen-dicts" ? tmp / folder : tmp / folder / "dictionaries";
+        touch(base / "de_DE.aff", "SET UTF-8\n");
+        touch(base / "de_DE.dic", "1\nHaus\n");
+    }
+    touch(tmp / "bundled" / "dictionaries" / "en_US.aff", "SET UTF-8\n");
+    touch(tmp / "bundled" / "dictionaries" / "en_US.dic", "1\nhouse\n");
+    touch(tmp / "chosen-dicts" / "pl_PL.aff", "SET ISO8859-2\n");
+    touch(tmp / "chosen-dicts" / "pl_PL.dic", "1\ncma\n");
+    touch(tmp / "data" / "dictionaries" / "pl_PL.aff", "SET ISO8859-2\n");
+    touch(tmp / "data" / "dictionaries" / "pl_PL.dic", "1\ncma\n");
+    touch(tmp / "portable" / "dictionaries" / "be_BY.aff", "SET UTF-8\n");
+    touch(tmp / "portable" / "dictionaries" / "be_BY.dic", "1\nмова\n");
+    resources::ResourceLayers layers(roots);
+
+    const auto dicts = layers.layers(resources::Kind::dictionaries);
+    REQUIRE(dicts.size() == 4);
+    CHECK(dicts[0].layer == resources::LayerName::settings);
+    CHECK(dicts[0].path == tmp / "chosen-dicts");
+    CHECK(dicts[0].exists);
+    CHECK(dicts[0].readable);
+    CHECK(dicts[1].layer == resources::LayerName::user);
+    CHECK(dicts[1].path == tmp / "data" / "dictionaries");
+    CHECK(dicts[2].layer == resources::LayerName::portable);
+    CHECK(dicts[3].layer == resources::LayerName::bundled);
+    // The genres and scripts settings folders stay independent of the dictionaries one.
+    CHECK(layers.layers(resources::Kind::genres)[0].path.empty());
+    CHECK(layers.layers(resources::Kind::scripts)[0].path.empty());
+
+    std::vector<resources::Conflict> conflicts;
+    const auto entries = layers.list(resources::Kind::dictionaries, &conflicts);
+    std::map<std::string, resources::LayerName> by_id;
+    for (const auto& e : entries) {
+        by_id[e.id] = e.layer;
+    }
+    REQUIRE(by_id.size() == 4);
+    CHECK(by_id.at("de_DE") == resources::LayerName::bundled);
+    CHECK(by_id.at("en_US") == resources::LayerName::bundled);
+    CHECK(by_id.at("pl_PL") == resources::LayerName::settings);  // chosen beats per-user
+    CHECK(by_id.at("be_BY") == resources::LayerName::portable);
+    // Every lower-priority duplicate is a conflict naming the layer that stays in effect.
+    REQUIRE(conflicts.size() == 4);
+    std::map<std::string, resources::LayerName> winner_of;
+    for (const auto& c : conflicts) {
+        CHECK(c.kind == resources::Kind::dictionaries);
+        winner_of[(c.ignored.parent_path() / c.id).string()] = c.kept_layer;
+        if (c.id == "de_DE") {
+            CHECK(c.kept == tmp / "bundled" / "dictionaries" / "de_DE.aff");
+            CHECK(c.kept_layer == resources::LayerName::bundled);
+        } else {
+            CHECK(c.id == "pl_PL");
+            CHECK(c.kept == tmp / "chosen-dicts" / "pl_PL.aff");
+            CHECK(c.kept_layer == resources::LayerName::settings);
+            CHECK(c.ignored == tmp / "data" / "dictionaries" / "pl_PL.aff");
+            CHECK(c.ignored_layer == resources::LayerName::user);
+        }
+    }
+    CHECK(winner_of.count((tmp / "chosen-dicts" / "de_DE").string()) == 1);
+    CHECK(winner_of.count((tmp / "data" / "dictionaries" / "de_DE").string()) == 1);
+    CHECK(winner_of.count((tmp / "portable" / "dictionaries" / "de_DE").string()) == 1);
+    CHECK(winner_of.count((tmp / "data" / "dictionaries" / "pl_PL").string()) == 1);
+
+    const json report = layers.report();
+    CHECK(report[8] == json{{"kind", "dictionaries"},
+                            {"layer", "settings"},
+                            {"path", (tmp / "chosen-dicts").string()},
+                            {"exists", true},
+                            {"readable", true},
+                            {"writable", true}});
+}
+
+#ifndef _WIN32
+TEST_CASE("layers: a folder that cannot be read is reported as unreadable and skipped",
+          "[layers]") {
+    if (::geteuid() == 0) {
+        SKIP("root reads folders without permissions");
+    }
+    test::TempDir tmp;
+    auto roots = make_roots(tmp);
+    roots.settings_dictionaries = tmp / "locked";
+    touch(tmp / "locked" / "de_DE.aff", "SET UTF-8\n");
+    touch(tmp / "locked" / "de_DE.dic", "1\nHaus\n");
+    touch(tmp / "data" / "dictionaries" / "de_DE.aff", "SET UTF-8\n");
+    touch(tmp / "data" / "dictionaries" / "de_DE.dic", "1\nHaus\n");
+    std::filesystem::permissions(tmp / "locked", std::filesystem::perms::none);
+    resources::ResourceLayers layers(roots);
+    const auto dicts = layers.layers(resources::Kind::dictionaries);
+    CHECK(dicts[0].exists);
+    CHECK_FALSE(dicts[0].readable);
+    CHECK_FALSE(dicts[0].writable);
+    CHECK(dicts[1].readable);
+    std::vector<resources::Conflict> conflicts;
+    const auto entries = layers.list(resources::Kind::dictionaries, &conflicts);
+    std::filesystem::permissions(tmp / "locked", std::filesystem::perms::owner_all);
+    REQUIRE(entries.size() == 1);
+    CHECK(entries[0].layer == resources::LayerName::user);  // the default folder is used
+    CHECK(conflicts.empty());
+}
+#endif
 
 TEST_CASE("layers: effective set is additive; bundled wins conflicts; others by priority",
           "[layers]") {

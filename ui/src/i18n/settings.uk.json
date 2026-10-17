@@ -16,7 +16,17 @@
         "fontFamily": "Гарнітура",
         "sourceFontSize": "Розмір:",
         "fontSizeHint": "Пункти (6-96)",
-        "chooseDictionary": "Виберіть словник користувача"
+        "chooseDictionary": "Виберіть словник користувача",
+        "dictionariesFolder": "Тека словників:",
+        "dictionariesFolderDefault": "Типова тека",
+        "dictionariesFolderCustom": "Вибрана тека:",
+        "chooseDictionariesFolder": "Укажіть теку словників",
+        "openDictionariesFolder": "Відкрити теку словників",
+        "dictionariesInEffect": "Чинні словники:",
+        "dictionariesUnknown": "Чинні словники: недоступні (ядро не підключено)",
+        "dictionariesRejected": "Файли, які не можна використати:",
+        "dictionariesFolderMissing": "Вибрана тека {{path}} не існує; використовується типова тека.",
+        "dictionariesFolderUnreadable": "Вибрану теку {{path}} не вдається прочитати; використовується типова тека."
       },
       "other": {
         "openScriptsFolder": "Відкрити теку скриптів",
