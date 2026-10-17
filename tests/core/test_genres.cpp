@@ -1,6 +1,7 @@
-// T072/T073: genre catalogue - 186 standard codes from the schema with EN/RU names, the
-// bundled legacy extension, user *.genres.tsv parsing (BOM/CRLF/header/bad lines), the
-// additive-only rule, the validator hook and the resources.genres / openGenresFolder RPCs.
+// T072/T073: genre catalogue - 186 standard codes from the schema with EN/RU/UK names (the
+// Ukrainian ones since feature 003 US1), the bundled legacy extension, user *.genres.tsv
+// parsing (BOM/CRLF/header/bad lines), the additive-only rule, the validator hook and the
+// resources.genres / openGenresFolder RPCs.
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
@@ -38,9 +39,21 @@ genres::GenreCatalog load_with(const resources::Roots& roots) {
 const std::vector<std::string> kLegacy = {"adv_indian",         "det_maniac",     "economics_ref",
                                           "prose_contemporary", "sci_psychology", "sf_epic"};
 
+// True when the UTF-8 text contains a Cyrillic letter (U+0400-U+04FF: lead bytes D0-D3).
+bool has_cyrillic(const std::string& text) {
+    for (std::size_t i = 0; i + 1 < text.size(); ++i) {
+        const auto lead = static_cast<unsigned char>(text[i]);
+        if (lead >= 0xD0 && lead <= 0xD3) {
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace
 
-TEST_CASE("genres: the standard list is the 186 schema codes, all named in EN and RU", "[genres]") {
+TEST_CASE("genres: the standard list is the 186 schema codes, all named in EN, RU and UK",
+          "[genres]") {
     test::TempDir tmp{"mfbe-genres"};
     const genres::GenreCatalog catalog = load_with(bundled_only_roots(tmp));
     const auto& schema = validation::schema_genres();
@@ -50,43 +63,74 @@ TEST_CASE("genres: the standard list is the 186 schema codes, all named in EN an
     for (const genres::GenreEntry& e : catalog.entries()) {
         CHECK(genres::is_valid_genre_code(e.code));
         CHECK(codes.insert(e.code).second);  // unique
-        REQUIRE(e.names.count("en") == 1);
-        REQUIRE(e.names.count("ru") == 1);
-        CHECK_FALSE(e.names.at("en").empty());
-        CHECK_FALSE(e.names.at("ru").empty());
-        // Every code has a real display name (never the bare code) and a category.
-        CHECK(e.names.at("en") != e.code);
-        CHECK(e.names.at("ru") != e.code);
+        for (const char* lang : {"en", "ru", "uk"}) {
+            INFO(e.code << " / " << lang);
+            REQUIRE(e.names.count(lang) == 1);
+            CHECK_FALSE(e.names.at(lang).empty());
+            // Every code has a real display name (never the bare code) ...
+            CHECK(e.names.at(lang) != e.code);
+        }
+        // ... a Russian and a Ukrainian one in Cyrillic (no English fallback slipped in) ...
+        CHECK(has_cyrillic(e.names.at("ru")));
+        CHECK(has_cyrillic(e.names.at("uk")));
+        // ... and a category with a title in every language.
         CHECK_FALSE(e.category.empty());
-        CHECK(catalog.category(e.category) != nullptr);
+        REQUIRE(catalog.category(e.category) != nullptr);
+        for (const char* lang : {"en", "ru", "uk"}) {
+            INFO(e.category << " / " << lang);
+            CHECK_FALSE(catalog.category(e.category)->titles.at(lang).empty());
+        }
+        for (const genres::Listing& also : e.also_in) {
+            CHECK(has_cyrillic(also.names.at("uk")));
+        }
     }
     for (const std::string& code : schema) {
         CHECK(catalog.contains(code));
         CHECK(catalog.find(code)->source == "standard");
     }
-    // Names come from the original FBE tables ...
+    // Names come from the original FBE tables (genres.txt, genres.rus.txt, genres.ukr.txt) ...
     CHECK(catalog.find("sf")->names.at("en") == "Science Fiction");
     CHECK(catalog.find("sf")->names.at("ru") == "Научная фантастика");
+    CHECK(catalog.find("sf")->names.at("uk") == "Наукова фантастика");
     CHECK(catalog.find("sf")->category == "sf");
-    // ... cross-listed codes keep their prefix category and report the other listings.
+    CHECK(catalog.find("det_hard")->names.at("uk") == "Крутий детектив");
+    // ... cross-listed codes keep their prefix category and report the other listings, with
+    // the category-specific name of each language ...
     const genres::GenreEntry* child_prose = catalog.find("child_prose");
     REQUIRE(child_prose != nullptr);
     CHECK(child_prose->category == "child");
     CHECK(child_prose->names.at("en") == "Prose for Kids");
+    CHECK(child_prose->names.at("uk") == "Дитяча проза");
     REQUIRE(child_prose->also_in.size() == 1);
     CHECK(child_prose->also_in[0].category == "prose");
     CHECK(child_prose->also_in[0].names.at("en") == "Prose");
+    CHECK(child_prose->also_in[0].names.at("uk") == "Дитяча проза");
+    const genres::GenreEntry* sci_religion = catalog.find("sci_religion");
+    REQUIRE(sci_religion != nullptr);
+    CHECK(sci_religion->names.at("uk") == "Релігієзнавство");
+    REQUIRE(sci_religion->also_in.size() == 1);
+    CHECK(sci_religion->also_in[0].names.at("uk") == "Релігійна освіта");
+    // ... the one code genres.ukr.txt lacks is named by the import script's table ...
+    CHECK(catalog.find("geo_guides")->names.at("ru") == "ГеоПутеводитель");
+    CHECK(catalog.find("geo_guides")->names.at("uk") == "Геопутівник");
     // ... and the 65 codes the FBE lists did not know have names from the supplement.
     CHECK(catalog.find("foreign_sf")->names.at("en") == "Foreign Science Fiction");
     CHECK(catalog.find("foreign_sf")->names.at("ru") == "Зарубежная фантастика");
+    CHECK(catalog.find("foreign_sf")->names.at("uk") == "Зарубіжна фантастика");
     CHECK(catalog.find("foreign_sf")->category == "foreign");
     CHECK(catalog.category("foreign")->titles.at("ru") == "Зарубежная литература");
+    CHECK(catalog.category("foreign")->titles.at("uk") == "Зарубіжна література");
     CHECK(catalog.find("popadanec")->category == "sf");
+    CHECK(catalog.find("popadanec")->names.at("uk") == "Попаданці");
     CHECK(catalog.find("unrecognised")->category == "other");
+    CHECK(catalog.find("unrecognised")->names.at("uk") == "Жанр не визначено");
+    CHECK(catalog.category("other")->titles.at("uk") == "Інше");
     CHECK(catalog.find("geo_guides")->source == "standard");  // in the schema, not legacy
     // Categories: the 16 original ones plus the 4 of the supplement.
     CHECK(catalog.categories().size() == 20);
     CHECK(catalog.category("det")->titles.at("en") == "Detectives, Thrillers");
+    CHECK(catalog.category("det")->titles.at("uk") == "Детективи і Бойовики");
+    CHECK(catalog.category("sf")->titles.at("uk") == "Химерна");  // the original's title
     // Original table order first (SF block), then schema order for the rest.
     CHECK(catalog.entries()[0].code == "sf_history");
     CHECK(catalog.entries()[1].code == "sf_action");
@@ -106,8 +150,12 @@ TEST_CASE("genres: the bundled legacy extension adds the six FBE codes missing f
         CHECK_FALSE(e->category.empty());
         CHECK(e->names.at("en") != code);
         CHECK(e->names.at("ru") != code);
+        // The TSV carries EN/RU only; the Ukrainian names come from the original's list.
+        CHECK(has_cyrillic(e->names.at("uk")));
     }
     CHECK(catalog.find("sf_epic")->names.at("ru") == "Эпическая фантастика");
+    CHECK(catalog.find("sf_epic")->names.at("uk") == "Епічна фантастика");
+    CHECK(catalog.find("adv_indian")->names.at("uk") == "Пригоди: Індіанці");
     CHECK(catalog.find("economics_ref")->category == "economics");
     // The geo_guides line of the bundled file is ignored silently: no issue, still standard.
     CHECK(catalog.issues().empty());
@@ -192,8 +240,11 @@ TEST_CASE("genres: user files add genres through the layers, never modify existi
     CHECK(catalog.find("sf_litrpg")->source == "user:user.genres.tsv");
     CHECK(catalog.find("sf_litrpg")->file == tmp / "custom" / "user.genres.tsv");
     CHECK(catalog.find("sf_litrpg")->names.at("en") == "LitRPG");  // first file wins
+    CHECK(catalog.find("sf_litrpg")->names.at("ru") == "ЛитРПГ");
+    CHECK(catalog.find("sf_litrpg")->names.at("uk") == "LitRPG");  // no UK column: English
     CHECK(catalog.find("fanfiction")->category == "fanfic");
     CHECK(catalog.category("fanfic")->titles.at("en") == "fanfic");  // new key -> key as title
+    CHECK(catalog.category("fanfic")->titles.at("uk") == "fanfic");
     CHECK(catalog.find("ok_genre")->source == "user:bad-lines.genres.tsv");
     CHECK(catalog.find("mine")->source == "user:override.genres.tsv");
     CHECK(catalog.size() == 186 + kLegacy.size() + 3 + 2 + 1);
@@ -292,7 +343,13 @@ TEST_CASE("genres: resources.genres / resources.openGenresFolder / resources.lay
     CHECK(first["category"] == "sf");
     CHECK(first["names"]["en"] == "Alternative history");
     CHECK(first["names"]["ru"] == "Альтернативная история");
+    CHECK(first["names"]["uk"] == "Альтернативна історія");
     CHECK(first["source"] == "standard");
+    CHECK(genres_result["categories"][0]["titles"]["uk"] == "Химерна");
+    for (const json& entry : genres_result["entries"]) {
+        INFO(entry["code"]);
+        CHECK(entry["names"].contains("uk"));
+    }
 
     // A user file dropped into <Data>/genres is picked up on the next call (no restart) and
     // accepted by doc.validate.

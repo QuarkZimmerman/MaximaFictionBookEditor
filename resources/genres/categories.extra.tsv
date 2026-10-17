@@ -1,9 +1,11 @@
 # Additional genre categories for schema codes that the original FictionBook Editor
-# lists do not cover (see names.extra.en.txt / names.extra.ru.txt). Same format as
-# categories.tsv: key<TAB>title_en<TAB>title_ru, header row, '#' comments. Keys never
-# collide with categories.tsv; the loader reads both files.
-key	title_en	title_ru
-foreign	Foreign Literature	Зарубежная литература
-psy	Psychology	Психология
-periodic	Periodicals	Периодические издания
-other	Other	Прочее
+# lists do not cover (see names.extra.en.txt / names.extra.ru.txt / names.extra.uk.txt).
+# Same format as categories.tsv: key<TAB>title_en<TAB>title_ru<TAB>title_uk, header row,
+# '#' comments. Keys never collide with categories.tsv; the loader reads both files.
+# Hand-maintained; tools/resources-import/import_genres.py reads the title_uk column
+# for names.extra.uk.txt.
+key	title_en	title_ru	title_uk
+foreign	Foreign Literature	Зарубежная литература	Зарубіжна література
+psy	Psychology	Психология	Психологія
+periodic	Periodicals	Периодические издания	Періодичні видання
+other	Other	Прочее	Інше

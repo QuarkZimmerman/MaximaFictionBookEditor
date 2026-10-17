@@ -12,6 +12,7 @@
 #include <map>
 #include <optional>
 #include <sstream>
+#include <utility>
 
 namespace mfbe::resources {
 namespace {
@@ -38,8 +39,12 @@ bool all_digits(const std::string& s) {
 
 struct Raw {
     std::optional<long> codepoint;
-    std::map<std::string, std::string> names;  // "9" -> en, "25" -> ru (Windows LANG ids)
+    std::map<std::string, std::string> names;  // "9" -> en, "25" -> ru, "34" -> uk (LANG ids)
 };
+
+// Interface language -> the Windows LANG id of its label in symbols.ini (`symN_<id>`).
+constexpr std::pair<const char*, const char*> kLabelIds[] = {
+    {"en", "9"}, {"ru", "25"}, {"uk", "34"}};
 
 }  // namespace
 
@@ -104,11 +109,15 @@ std::vector<SymbolEntry> parse_symbols_ini(const std::string& ini_text) {
         unicode::append_utf8(entry.utf8, entry.codepoint);
         char fallback[16];
         std::snprintf(fallback, sizeof(fallback), "U+%04lX", *r.codepoint);
-        auto en = r.names.find("9");
-        auto ru = r.names.find("25");
-        entry.names["en"] = en != r.names.end() && !en->second.empty() ? en->second : fallback;
-        entry.names["ru"] =
-            ru != r.names.end() && !ru->second.empty() ? ru->second : entry.names["en"];
+        // English falls back to the code point, every other language to English.
+        for (const auto& [lang, id] : kLabelIds) {
+            auto label = r.names.find(id);
+            if (label != r.names.end() && !label->second.empty()) {
+                entry.names[lang] = label->second;
+            } else {
+                entry.names[lang] = entry.names.count("en") > 0 ? entry.names["en"] : fallback;
+            }
+        }
         out.push_back(std::move(entry));
     }
     return out;
