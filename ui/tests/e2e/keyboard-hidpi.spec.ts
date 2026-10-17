@@ -472,6 +472,9 @@ test.describe('menus from the keyboard', () => {
     await page.keyboard.press('a'); // About's accelerator (after Check for new version)
     const about = page.getByTestId('dialog-about');
     await expect(about).toBeVisible();
+    // The dictionary notices arrive from the core after the dialog opens and add a Tab stop
+    // (feature 003): the cycle is measured once the dialog is complete.
+    await expect(about.getByTestId('about-dictionaries')).toBeVisible();
     assertCycle(await tabCycle(page, 'dialog-about'), 'About');
     await page.keyboard.press('Escape');
     await expectClosed(about);
