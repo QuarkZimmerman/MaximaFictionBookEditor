@@ -56,6 +56,12 @@ Run the core headless for manual/MCP testing:
 - Tests first for each user story (Playwright journey + Catch2 where the core is involved).
 - Commit messages: imperative, explain why; never commit secrets. Deploy key host alias:
   `github.com-maxfbeditor`.
+- Commit author identity (this repository and the workspace repository alike):
+  `Quark Zimmerman <quark_zimmerman@proton.me>` (requester, 2026-10-17). Do not change git
+  settings; pass it per commit:
+  `git -c user.name="Quark Zimmerman" -c user.email="quark_zimmerman@proton.me" commit ...`.
+  Commit at natural checkpoints (a completed task or user story, a finished Spec Kit phase);
+  push only when the requester asks.
 - No scope beyond the original editor without the requester's approval.
 - Licence: GPL-3.0-only (the original editor's); keep the original's notices
   (`CONTRIBUTORS.txt`, the scripts' author notices, checked by
