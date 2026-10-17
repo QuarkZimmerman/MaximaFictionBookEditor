@@ -23,24 +23,27 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["view"]["sourceShowWhitespace"] == false);
     CHECK(d["view"]["sourceLineNumbers"] == true);
     CHECK(d["view"]["sourceMatchTags"] == true);
+    CHECK(d["view"]["sourceTagCompletion"] == true);  // feature 003
     CHECK(d["view"]["spellEnabled"] == true);
     CHECK(d["view"]["spellHighlight"] == true);
     CHECK(d["view"]["customDictionaryPath"] == "");
     CHECK(d["view"]["fastMode"] == false);
-    CHECK(d["view"].size() == 17);
+    CHECK(d["view"].size() == 18);
     CHECK(d["view"]["theme"] == "system");
     CHECK(d["other"]["defaultEncoding"] == "utf-8");
     CHECK(d["other"]["keepEncoding"] == false);
     CHECK(d["other"]["restorePosition"] == true);
     CHECK(d["other"]["scriptsFolder"] == "");
     CHECK(d["other"]["genresFolder"] == "");
+    CHECK(d["other"]["dictionariesFolder"] == "");  // feature 003
     CHECK(d["other"]["templateFolder"] == "");
     CHECK(d["other"]["askOnNonClearImage"] == true);
     CHECK(d["other"]["insertClearImages"] == false);
     CHECK(d["other"]["pasteImageFormat"] == "jpeg");
     CHECK(d["other"]["jpegQuality"] == 90);
     CHECK(d["other"]["nbspDisplayChar"] == "\u00A0");  // no marker, as in the original
-    CHECK(d["other"].size() == 11);
+    CHECK(d["other"]["versionCheck"] == "monthly");    // feature 003
+    CHECK(d["other"].size() == 13);
     CHECK(d["words"] == json{{"showExclusionsInWordsDialog", false}});
     CHECK(d["session"]["windowGeometry"].is_null());
     CHECK(d["session"]["toolbars"] == json{{"commands", true},
@@ -53,6 +56,8 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["session"]["replaceHistory"] == json::array());
     CHECK(d["session"]["toolbarLayouts"] == json::object());
     CHECK(d["session"]["lastFileDialogFolder"] == "");
+    CHECK_FALSE(d["session"].contains("lastVersionCheck"));  // feature 003: absent until a check
+    CHECK(d["session"].size() == 7);
     CHECK(d.size() == 5);
 }
 
@@ -247,4 +252,158 @@ TEST_CASE("settings: template and last file-dialog folders keep non-English name
     reloaded.load();
     CHECK(reloaded.get_string("other.templateFolder") == "C:\\Users\\Тест\\Шаблоны");
     CHECK(reloaded.get_string("session.lastFileDialogFolder") == "/home/тест/书");
+}
+
+TEST_CASE("settings: feature 003 keys are validated with the field name", "[settings]") {
+    test::TempDir tmp;
+    settings::SettingsStore store(tmp / "settings.json");
+    store.load();
+    const json before = store.get();
+
+    auto expect_field = [&](const json& patch, const std::string& field) {
+        try {
+            store.apply_patch(patch);
+            FAIL("expected SettingsError for " << field);
+        } catch (const settings::SettingsError& e) {
+            CHECK(e.field == field);
+        }
+    };
+    expect_field(json{{"other", {{"versionCheck", "yearly"}}}}, "other.versionCheck");
+    expect_field(json{{"other", {{"versionCheck", 7}}}}, "other.versionCheck");
+    expect_field(json{{"view", {{"sourceTagCompletion", "yes"}}}}, "view.sourceTagCompletion");
+    expect_field(json{{"other", {{"dictionariesFolder", 1}}}}, "other.dictionariesFolder");
+    for (const char* malformed :
+         {"2026-10-17 12:34:56", "2026-10-17T12:34:56", "2026-10-17T12:34:56+02:00",
+          "2026-10-17T12:34:56.7Z", "2026-13-17T12:34:56Z", "2026-10-17T25:34:56Z", "yesterday"}) {
+        expect_field(json{{"session", {{"lastVersionCheck", malformed}}}},
+                     "session.lastVersionCheck");
+    }
+    expect_field(json{{"session", {{"lastVersionCheck", 1760704496}}}}, "session.lastVersionCheck");
+    CHECK(store.get() == before);  // nothing applied
+
+    for (const char* choice : {"everyStart", "daily", "weekly", "monthly", "never"}) {
+        CHECK(store.apply_patch(json{{"other", {{"versionCheck", choice}}}})
+                  .settings["other"]["versionCheck"] == choice);
+    }
+    auto r1 = store.apply_patch(json{{"view", {{"sourceTagCompletion", false}}},
+                                     {"other", {{"dictionariesFolder", "/home/тест/словники"}}}});
+    CHECK(r1.settings["view"]["sourceTagCompletion"] == false);
+    CHECK(r1.settings["other"]["dictionariesFolder"] == "/home/тест/словники");
+    CHECK_FALSE(r1.restartRequired);
+
+    // Ukrainian joins the interface languages; changing the language still asks for a restart.
+    auto r2 = store.apply_patch(json{{"view", {{"uiLanguage", "uk"}}}});
+    CHECK(r2.settings["view"]["uiLanguage"] == "uk");
+    CHECK(r2.restartRequired);
+    CHECK_FALSE(store.apply_patch(json{{"view", {{"uiLanguage", "uk"}}}}).restartRequired);
+}
+
+TEST_CASE("settings: session.lastVersionCheck is absent until set and null removes it",
+          "[settings]") {
+    test::TempDir tmp;
+    settings::SettingsStore store(tmp / "settings.json");
+    store.load();
+    CHECK_FALSE(store.get()["session"].contains("lastVersionCheck"));
+
+    // A valid timestamp round-trips through the file, with and without fractional seconds.
+    for (const char* stamp : {"2026-10-17T12:34:56Z", "2026-10-17T12:34:56.789Z"}) {
+        auto r = store.apply_patch(json{{"session", {{"lastVersionCheck", stamp}}}});
+        CHECK(r.settings["session"]["lastVersionCheck"] == stamp);
+        CHECK_FALSE(r.restartRequired);
+        settings::SettingsStore reloaded(tmp / "settings.json");
+        reloaded.load();
+        CHECK(reloaded.get_string("session.lastVersionCheck") == stamp);
+    }
+
+    // null removes the key (there is no default to reset to); the file follows.
+    auto removed = store.apply_patch(json{{"session", {{"lastVersionCheck", nullptr}}}});
+    CHECK_FALSE(removed.settings["session"].contains("lastVersionCheck"));
+    CHECK(removed.settings["session"]["lastFileDialogFolder"] == "");  // siblings untouched
+    settings::SettingsStore reloaded(tmp / "settings.json");
+    reloaded.load();
+    CHECK_FALSE(reloaded.get()["session"].contains("lastVersionCheck"));
+    CHECK_FALSE(json::parse(test::read_text(tmp / "settings.json"))["session"].contains(
+        "lastVersionCheck"));
+
+    // A stored value that is not a UTC timestamp is reported and dropped, not kept as null.
+    test::write_text(tmp / "settings.json",
+                     R"({"schemaVersion": 1, "session": {"lastVersionCheck": "2026-10-17"}})");
+    json loaded = json::parse(test::read_text(tmp / "settings.json"));
+    const auto invalid = settings::sanitize(loaded);
+    REQUIRE(invalid.size() == 1);
+    CHECK(invalid[0].field == "session.lastVersionCheck");
+    CHECK_FALSE(loaded["session"].contains("lastVersionCheck"));
+    store.load();
+    CHECK_FALSE(store.get()["session"].contains("lastVersionCheck"));
+    CHECK(store.get() == settings::defaults());
+}
+
+TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take their defaults",
+          "[settings]") {
+    test::TempDir tmp;
+    const auto file = tmp / "settings.json";
+    // Every key of release 0.0.2 at a value other than its default, none of feature 003's keys.
+    const char* old_file = R"({
+        "schemaVersion": 1,
+        "view": {
+            "uiLanguage": "ru", "theme": "dark", "bodyFont": "Georgia", "bodyFontSize": 16,
+            "bodyTextColor": "#112233", "bodyBackground": "#fffff0", "sourceFont": "Consolas",
+            "sourceWrap": false, "sourceSyntaxHighlight": false, "sourceShowEol": true,
+            "sourceShowWhitespace": true, "sourceLineNumbers": false, "sourceMatchTags": false,
+            "spellEnabled": false, "spellHighlight": false,
+            "customDictionaryPath": "/home/тест/custom.dic", "fastMode": true
+        },
+        "other": {
+            "defaultEncoding": "windows-1251", "keepEncoding": true, "restorePosition": false,
+            "scriptsFolder": "/scripts", "genresFolder": "/genres",
+            "templateFolder": "/templates", "askOnNonClearImage": false,
+            "insertClearImages": true, "pasteImageFormat": "png", "jpegQuality": 75,
+            "nbspDisplayChar": "\u25A1"
+        },
+        "words": {"showExclusionsInWordsDialog": true},
+        "session": {
+            "windowGeometry": {"x": 10, "y": 20, "width": 800, "height": 600},
+            "toolbars": {"commands": false, "scripts": false, "links": false, "table": false,
+                         "status": false},
+            "treeVisible": false, "findHistory": ["needle"], "replaceHistory": ["thread"],
+            "toolbarLayouts": {"commands": ["file.new", "-"]},
+            "lastFileDialogFolder": "/books"
+        }
+    })";
+    test::write_text(file, old_file);
+    const json expected = json::parse(old_file);
+    CHECK(expected["view"].size() == 17);
+    CHECK(expected["other"].size() == 11);
+    CHECK(expected["session"].size() == 7);
+
+    json sanitized = expected;
+    CHECK(settings::sanitize(sanitized).empty());  // nothing in the old file is invalid
+
+    settings::SettingsStore store(file);
+    store.load();
+    const json& s = store.get();
+    for (const char* section : {"view", "other", "words", "session"}) {
+        for (auto it = expected[section].begin(); it != expected[section].end(); ++it) {
+            INFO(section << "." << it.key());
+            CHECK(s[section][it.key()] == it.value());
+        }
+    }
+    CHECK(s["view"]["sourceTagCompletion"] == true);
+    CHECK(s["other"]["dictionariesFolder"] == "");
+    CHECK(s["other"]["versionCheck"] == "monthly");
+    CHECK_FALSE(s["session"].contains("lastVersionCheck"));
+    CHECK(s["view"].size() == 18);
+    CHECK(s["other"].size() == 13);
+    CHECK(s["session"].size() == 7);
+
+    // Saving the migrated file keeps the key absent; the shell's maximised flag is accepted.
+    CHECK(store.save());
+    settings::SettingsStore reloaded(file);
+    reloaded.load();
+    CHECK(reloaded.get() == s);
+    CHECK_FALSE(reloaded.get()["session"].contains("lastVersionCheck"));
+    const json placement{
+        {"x", 10}, {"y", 20}, {"width", 800}, {"height", 600}, {"maximized", true}};
+    auto r = reloaded.apply_patch(json{{"session", {{"windowGeometry", placement}}}});
+    CHECK(r.settings["session"]["windowGeometry"] == placement);
 }

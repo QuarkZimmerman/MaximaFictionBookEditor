@@ -192,6 +192,14 @@ public:
     std::size_t beeps() const;
     // Pre-answers the next latest_release (test.enqueueRelease); returns the queue length.
     std::size_t enqueue_release(ReleaseResult result);
+    // Every shell-delegated network request received since start, answered or not
+    // (test.requests): {method: "app.latestRelease", at: ISO 8601 UTC time of the call}.
+    std::vector<nlohmann::json> network_requests() const;
+    // Records an app.restart call (feature 003): `reopen` as given, `argv` what the caller
+    // passes (empty in headless mode, which answers 1070 after recording).
+    void record_restart(std::optional<std::string> reopen, std::vector<std::string> argv);
+    // The recorded app.restart calls (test.restartRequests): {reopen?, argv: []}.
+    std::vector<nlohmann::json> restart_requests() const;
 
     void open_file(const OpenFileRequest& request, Callback<OpenFileResult> done) override;
     void save_file(const SaveFileRequest& request, Callback<SaveFileResult> done) override;
@@ -211,6 +219,8 @@ private:
     std::vector<nlohmann::json> requests_;
     std::size_t beeps_ = 0;
     std::deque<ReleaseResult> releases_;
+    std::vector<nlohmann::json> network_requests_;
+    std::vector<nlohmann::json> restart_requests_;
 };
 
 }  // namespace mfbe

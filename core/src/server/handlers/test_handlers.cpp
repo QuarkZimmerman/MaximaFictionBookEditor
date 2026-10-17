@@ -1,7 +1,7 @@
 // test.* handlers (T025) - compiled only with MFBE_TEST_HOOKS, registered only with
 // --test-hooks: test.enqueueDialog, test.corpusSample, test.metrics, test.injectFault,
 // test.enqueueClipboardImage; feature 002: test.dialogRequests, test.beeps,
-// test.enqueueRelease.
+// test.enqueueRelease; feature 003: test.requests, test.restartRequests, test.requestClose.
 #ifdef MFBE_TEST_HOOKS
 
 #include "server/services.hpp"
@@ -106,6 +106,34 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
             throw rpc::invalid_params(e.what());
         }
         return json{{"queued", services.queued_dialogs->enqueue_release(std::move(result))}};
+    });
+
+    // test.requests() -> [{method, at}]: the shell-delegated network requests
+    // (app.latestRelease) made since start, answered or not, so journeys assert that "never"
+    // and a not-yet-due schedule make none.
+    router.add_method("test.requests", [&services](const json&, rpc::RpcContext&) {
+        if (!services.queued_dialogs) {
+            throw rpc::RpcError(rpc::codes::kDialogUnavailable, "",
+                                json{{"reason", "queued dialog provider not active"}});
+        }
+        return json(services.queued_dialogs->network_requests());
+    });
+
+    // test.restartRequests() -> [{reopen?, argv}]: the app.restart calls the test provider
+    // recorded (headless mode answers them with error 1070 after recording).
+    router.add_method("test.restartRequests", [&services](const json&, rpc::RpcContext&) {
+        if (!services.queued_dialogs) {
+            throw rpc::RpcError(rpc::codes::kDialogUnavailable, "",
+                                json{{"reason", "queued dialog provider not active"}});
+        }
+        return json(services.queued_dialogs->restart_requests());
+    });
+
+    // test.requestClose() -> {}: emits app.closeRequested to every client exactly as the
+    // shell's close handshake does, so the window-close path runs headless.
+    router.add_method("test.requestClose", [](const json&, rpc::RpcContext& ctx) {
+        ctx.notifier.notify("app.closeRequested", json::object());
+        return json::object();
     });
 
     router.add_async_method(

@@ -11,6 +11,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <filesystem>
+#include <regex>
 #include <thread>
 
 using namespace mfbe;
@@ -174,7 +175,7 @@ TEST_CASE("server: app.info / settings round trip / notifications over WebSocket
     CHECK(r["version"] == version::kVersion);
     CHECK(r["build"] == version::kBuildId);
     CHECK(r["apiVersion"] == 1);
-    CHECK(r["apiMinor"] == 1);  // feature 002: additive contract revision
+    CHECK(r["apiMinor"] == 2);  // additive contract revision: feature 002 = 1, feature 003 = 2
     CHECK(r["platform"].is_string());
     CHECK(r["uiLanguage"] == "system");
     CHECK(r["dataDir"] == f.data.path().string());
@@ -332,6 +333,67 @@ TEST_CASE("server: dialogs are unavailable without a provider; queued answers wi
                   .find("0000a1/book1.fb2") != std::string::npos);
         CHECK(ws.call("test.corpusSample",
                       json{{"root", "/definitely/missing"}})["error"]["code"] == 1002);
+    }
+}
+
+TEST_CASE("server: feature 003 test hooks - network requests, restart requests, close request",
+          "[server]") {
+    SECTION("not registered without test hooks") {
+        ServerFixture f(false);
+        test::WsClient ws;
+        REQUIRE(ws.open(f.port(), f.ws_path()) == 101);
+        CHECK(ws.call("test.requests")["error"]["code"] == -32601);
+        CHECK(ws.call("test.restartRequests")["error"]["code"] == -32601);
+        CHECK(ws.call("test.requestClose")["error"]["code"] == -32601);
+    }
+    SECTION("queued provider") {
+        ServerFixture f(true);
+        test::WsClient ws;
+        REQUIRE(ws.open(f.port(), f.ws_path()) == 101);
+        CHECK(ws.call("test.requests")["result"] == json::array());
+        CHECK(ws.call("test.restartRequests")["result"] == json::array());
+
+        // Every app.latestRelease the core delegates is recorded with the time of the call,
+        // answered (by the queue) or not (1050).
+        CHECK(ws.call("test.enqueueRelease",
+                      json{{"result", {{"tag", "v0.0.9"}}}})["result"]["queued"] == 1);
+        REQUIRE(ws.call("app.latestRelease").contains("result"));
+        json requests = ws.call("test.requests")["result"];
+        REQUIRE(requests.size() == 1);
+        CHECK(requests[0]["method"] == "app.latestRelease");
+        CHECK(std::regex_match(requests[0]["at"].get<std::string>(),
+                               std::regex(R"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)")));
+        CHECK(requests[0].size() == 2);
+        CHECK(ws.call("app.latestRelease")["error"]["code"] == 1050);
+        requests = ws.call("test.requests")["result"];
+        REQUIRE(requests.size() == 2);
+        CHECK(requests[1]["method"] == "app.latestRelease");
+
+        // The provider records app.restart calls as {reopen?, argv} (the app.restart handler
+        // arrives with the restart feature; the server's provider is not reachable from here).
+        QueuedDialogProvider provider;
+        CHECK(provider.restart_requests().empty());
+        provider.record_restart(std::nullopt, {});
+        provider.record_restart("/books/книга.fb2", {"--no-sandbox", "--url", "x"});
+        const auto restarts = provider.restart_requests();
+        REQUIRE(restarts.size() == 2);
+        CHECK(restarts[0] == json{{"argv", json::array()}});
+        CHECK(restarts[1] ==
+              json{{"reopen", "/books/книга.fb2"}, {"argv", {"--no-sandbox", "--url", "x"}}});
+        CHECK(provider.network_requests().empty());
+
+        // test.requestClose emits app.closeRequested {} to every connected client.
+        test::WsClient other;
+        REQUIRE(other.open(f.port(), f.ws_path()) == 101);
+        CHECK(ws.call("test.requestClose")["result"] == json::object());
+        auto closing = ws.wait_notification("app.closeRequested");
+        REQUIRE(closing);
+        CHECK((*closing)["params"] == json::object());
+        CHECK_FALSE(closing->contains("id"));
+        auto on_other = other.wait_notification("app.closeRequested");
+        REQUIRE(on_other);
+        CHECK((*on_other)["params"] == json::object());
+        CHECK_FALSE(f.server->stopped());  // the UI decides; nothing closes by itself
     }
 }
 

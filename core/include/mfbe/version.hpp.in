@@ -9,6 +9,7 @@ inline constexpr const char* kBuildId = "@MFBE_BUILD_ID@";
 inline constexpr const char* kBuildDate = "@MFBE_BUILD_DATE@";
 inline constexpr const char* kHomepage = "@MFBE_URL@";
 inline constexpr int kApiVersion = 1;
-// Additive contract revision within kApiVersion (absent in app.info = 0); feature 002 = 1.
-inline constexpr int kApiMinor = 1;
+// Additive contract revision within kApiVersion (absent in app.info = 0); feature 002 = 1,
+// feature 003 = 2.
+inline constexpr int kApiMinor = 2;
 }  // namespace mfbe::version
