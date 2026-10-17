@@ -387,7 +387,10 @@ jobs:
           $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
           $upgradeDir = Join-Path $env:RUNNER_TEMP 'mfbe-upgrade'
           $ErrorActionPreference = 'Continue'  # cpack's messages on stderr are not errors
-          cpack -G WIX -B $upgradeDir --config build\${{ matrix.preset }}\CPackConfig.cmake 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\package-upgrade.log"
+          # A fresh ProductCode for the second MSI: CPack keeps the generated GUID of a configuration,
+          # so the rebuilt package would otherwise be the same product (a maintenance install).
+          $upgradeGuid = [guid]::NewGuid().ToString().ToUpper()
+          cpack -G WIX -B $upgradeDir -D "CPACK_WIX_PRODUCT_GUID=$upgradeGuid" --config build\${{ matrix.preset }}\CPackConfig.cmake 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\package-upgrade.log"
           $cpackExit = $LASTEXITCODE
           $ErrorActionPreference = 'Stop'
           if ($cpackExit -ne 0) { exit $cpackExit }
