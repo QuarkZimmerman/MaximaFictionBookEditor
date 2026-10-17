@@ -98,17 +98,26 @@ and is never shipped. The US1 journey `us1-open-save.spec.ts` passes against bot
 
 ## Internationalisation
 
-All user-visible strings live in `src/i18n/en.json` and `src/i18n/ru.json` (i18next JSON v4;
-plural forms `_one/_few/_many/_other`; `{{name}}` placeholders; `&` marks the menu/button
-accelerator, `&&` is a literal ampersand). Keys are grouped by area: `menu.*` (labels exactly as
-the original `IDR_MAINFRAME` menu), `cmd.<commandId>.{tooltip,description}`, `dialog.*`,
-`msg.*`, `status.*`, `hotkeys.*`. Missing keys print a warning in development, throw in unit
-tests and fall back to the key in production.
+All user-visible strings live in the base catalogues `src/i18n/en.json`, `ru.json` and
+`uk.json` plus the feature catalogues `<feature>.<lang>.json` next to them (`about`,
+`description`, `fileDialogs`, `images`, `scripts`, `settings`, `spell`, `theme`, `tree`,
+`words`), deep-merged at load (i18next JSON v4; plural forms `_one/_few/_many/_other`;
+`{{name}}` placeholders; `&` marks the menu/button accelerator, `&&` is a literal ampersand).
+Keys are grouped by area: `menu.*` (labels exactly as the original `IDR_MAINFRAME` menu),
+`cmd.<commandId>.{tooltip,description}`, `dialog.*`, `msg.*`, `status.*`, `hotkeys.*`. Missing
+keys print a warning in development, throw in unit tests and fall back to the key in production.
 
-`node ../tools/i18n-check.mjs` (no dependencies) fails when a key exists in only one language,
-when placeholders differ, or when a plural family lacks a form required by `Intl.PluralRules`
-for that language; values identical in both languages are warnings unless listed in
-`src/i18n/identical-allowlist.json` (`--strict-identical` makes them errors).
+The Ukrainian catalogues (release 0.0.3) reuse the original editor's own Ukrainian wording
+wherever it had the string - its resource scripts and `ukr.xsl`, paired with the Russian text
+by resource id in `tools/resources-import/ukr-glossary.tsv` - and translate the rest from the
+Russian text (the original's register), with the English consulted where the meaning was in
+doubt; obvious typos of the original were corrected, access-key collisions resolved.
+
+`node ../tools/i18n-check.mjs` (no dependencies; `--languages en,ru,uk` by default) fails when
+a key is missing in a language, when placeholders differ, or when a plural family lacks a form
+required by `Intl.PluralRules` for that language; values identical to the English are warnings
+unless listed in `src/i18n/identical-allowlist.json` (`--strict-identical` makes them errors);
+`--accelerators` reports an access key used twice within one menu or dialog.
 
 ## Layout
 
@@ -135,7 +144,7 @@ ui/
   src/features/file/      fileCommands.ts (New/Open/Save/Save As/Validate/Exit, notifications,
                           start-up parameters), recent.ts (Recent Files, caret restore)
   src/i18n/               index.ts (i18next setup, parseAccelerator), en.json, ru.json,
-                          identical-allowlist.json
+                          uk.json, <feature>.<lang>.json, identical-allowlist.json
   src/model/              document.ts (copy of contracts/document-model.d.ts), store.ts
                           (AppState + useAppState), undo.ts (UndoCoordinator), caret.ts
                           (per-view caret providers)
