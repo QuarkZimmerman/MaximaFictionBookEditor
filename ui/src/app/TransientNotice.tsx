@@ -10,7 +10,7 @@ import { useSyncExternalStore } from 'react';
 import { useAppServices } from './services';
 import { transientNotices } from './transientNotices';
 
-import './transientNotice.css';
+import './TransientNotice.css';
 
 export function TransientNotice() {
   const { store } = useAppServices();

@@ -604,7 +604,7 @@ textarea {
 }
 
 .mfbe-view-area {
-  /* The containing block of the transient notice (app/transientNotice.css). */
+  /* The containing block of the transient notice (app/TransientNotice.css). */
   position: relative;
   display: flex;
   flex-direction: column;
