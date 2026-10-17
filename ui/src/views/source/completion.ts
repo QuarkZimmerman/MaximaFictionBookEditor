@@ -136,11 +136,9 @@ export function tagContextAt(state: EditorState, pos: number): TagContext | null
   const prefix = match[0].slice(close ? 2 : 1);
 
   const tree = ensureSyntaxTree(state, pos, PARSE_BUDGET_MS);
-  if (!tree) {
-    return close
-      ? { kind: 'close', from, prefix, open: [] }
-      : { kind: 'open', from, prefix, enclosing: null, resolved: false };
-  }
+  // Without a tree up to the cursor the forbidden contexts (comments, CDATA...) cannot be
+  // told apart: offer nothing this time; the next keystroke or Ctrl+Space asks again.
+  if (!tree) return null;
   const node = tree.resolveInner(pos, -1);
   for (let cur: SyntaxNode | null = node; cur; cur = cur.parent) {
     if (FORBIDDEN.has(cur.name)) return null;

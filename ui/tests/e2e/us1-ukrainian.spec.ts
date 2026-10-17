@@ -517,6 +517,9 @@ async function walkMenus(page: Page, lang: UiLang): Promise<{ problems: string[]
       await item.hover();
       const submenuId = `${itemId}-popup`;
       await expect(page.getByTestId(submenuId)).toBeVisible();
+      // The popup's items render a frame after the popup itself (the first entry may also be
+      // the "(none)" placeholder of the Recent submenu).
+      await expect(page.getByTestId(submenuId).locator('[role="menuitem"]').first()).toBeVisible();
       problems.push(
         ...(await walkProblems(page, lang, submenuId, `submenu ${itemId}`, {
           skip: DYNAMIC_MENU_ENTRIES,
