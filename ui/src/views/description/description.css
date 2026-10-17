@@ -109,6 +109,22 @@
   outline-offset: -1px;
 }
 
+/*
+ * The quiet lock of a script run (feature 003 FR-011): the form is read-only, not disabled -
+ * fields, drop-downs and the rich fields keep their normal colours and stay selectable so
+ * nothing in the document looks greyed. Only the add / remove / choose buttons take the
+ * disabled look. Keep this block free of any dimming.
+ */
+.mfbe-desc[data-locked='true'] .mfbe-desc-input:read-only,
+.mfbe-desc[data-locked='true'] .mfbe-desc-select[aria-readonly='true'] {
+  background: var(--mfbe-color-input-bg);
+  opacity: 1;
+}
+
+.mfbe-desc[data-locked='true'] .mfbe-desc-select[aria-readonly='true'] {
+  cursor: default;
+}
+
 .mfbe-desc-input-short {
   width: 5em;
   min-width: 3em;

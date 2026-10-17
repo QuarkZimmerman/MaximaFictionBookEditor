@@ -56,6 +56,8 @@ export function registerSettingsFeature(ctx: FeatureContext): void {
     id: 'help.about',
     group: 'help',
     ...cmdKeys('help.about', 'menu.help.about'),
+    // About stays available while a script runs (feature 003 FR-011); Settings does not.
+    duringScriptRun: 'allowed',
     run: async (commandCtx) => {
       // Attaching here is harmless and lets a core with `hotkeys.get` deliver the user bindings
       // even before App.tsx wires `attach()` on connect.

@@ -40,6 +40,8 @@ export function DescriptionView() {
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const connection = useAppState((s) => s.connection, store);
   const language = useAppState((s) => s.uiLanguage, store);
+  // The quiet lock of a script run (feature 003 FR-011): the form is read-only, not disabled.
+  const readOnly = useAppState((s) => s.scriptRunning, store);
   const { genres, languages, reloadGenres } = useResourceCatalogs(rpc, connection === 'connected');
   const [fieldMenu, setFieldMenu] = useState<{
     field: HTMLElement;
@@ -57,9 +59,31 @@ export function DescriptionView() {
   const context = useMemo<DescriptionFormContextValue | null>(
     () =>
       form && issues
-        ? { controller, form, issues, language, genres, languages, reloadGenres, docId, binaries }
+        ? {
+            controller,
+            form,
+            issues,
+            language,
+            genres,
+            languages,
+            reloadGenres,
+            docId,
+            binaries,
+            readOnly,
+          }
         : null,
-    [controller, form, issues, language, genres, languages, reloadGenres, docId, binaries],
+    [
+      controller,
+      form,
+      issues,
+      language,
+      genres,
+      languages,
+      reloadGenres,
+      docId,
+      binaries,
+      readOnly,
+    ],
   );
 
   if (!document || !context) {
@@ -92,6 +116,7 @@ export function DescriptionView() {
           className="mfbe-desc"
           data-testid="description-view"
           data-revision={snapshot.revision}
+          data-locked={readOnly ? 'true' : 'false'}
           onContextMenu={(event) => {
             const field = textFieldOf(event.target);
             if (!field) return;

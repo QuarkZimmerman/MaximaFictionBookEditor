@@ -128,7 +128,7 @@ function SequenceRows({
 /** Sequence number: digits only; stored as a number (undefined when empty). */
 function NumberField({ fieldKey, testId }: { fieldKey: FieldKey; testId: string }) {
   const { t } = useTranslation();
-  const { controller, form } = useDescriptionForm();
+  const { controller, form, readOnly } = useDescriptionForm();
   const value = getAtPath(form, fieldKey);
   const text = typeof value === 'number' ? String(value) : typeof value === 'string' ? value : '';
   return (
@@ -140,7 +140,9 @@ function NumberField({ fieldKey, testId }: { fieldKey: FieldKey; testId: string 
         className="mfbe-desc-input mfbe-desc-input-short"
         value={text}
         data-testid={testId}
+        readOnly={readOnly}
         onChange={(event) => {
+          if (readOnly) return; // the quiet lock of a script run
           const digits = event.target.value.replace(/\D/g, '');
           controller.setValue(fieldKey, digits === '' ? undefined : Number(digits), {
             coalesce: true,

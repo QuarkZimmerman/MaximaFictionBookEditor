@@ -17,6 +17,11 @@
  * are applied live through compartments, as is the interface theme (`setDark()`: CodeMirror's
  * dark flag and the dark highlight style of theme.ts); Insert toggles the store's `insertMode`
  * (INS/OVR).
+ *
+ * While a script runs (`store.scriptRunning`, the quiet lock of feature 003 FR-011) the editor
+ * is read-only (`EditorState.readOnly` + `EditorView.editable(false)` in a compartment): typing,
+ * pasting, cutting and deleting are refused, nothing is greyed, selecting and copying keep
+ * working, and the clipboard commands and the context menu follow `state.readOnly`.
  */
 
 import {
@@ -173,6 +178,15 @@ const HIGHLIGHT_MS = 2500;
 
 const overtypeAttributes = EditorView.editorAttributes.of({ class: 'mfbe-source-overtype' });
 
+/**
+ * The read-only configuration of a locked editor: commands and key bindings see
+ * `state.readOnly`, the content is not `contenteditable` (no typing, pasting or dropping) while
+ * it stays selectable; nothing is styled differently.
+ */
+export function lockExtension(locked: boolean): Extension {
+  return locked ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : [];
+}
+
 /** Dispatch target used while the editor is not mounted (transactions go to the kept state). */
 class HeadlessTarget implements EditorTarget {
   constructor(private readonly owner: SourceEditorController) {}
@@ -231,6 +245,7 @@ export class SourceEditorController {
     overtype: new Compartment(),
     theme: new Compartment(),
     nbsp: new Compartment(),
+    lock: new Compartment(),
   };
   private loadToken = 0;
   private revealPending = false;
@@ -260,6 +275,7 @@ export class SourceEditorController {
       c.matchTags.of(matchedTagsExtension(this.settings.matchTags)),
       c.overtype.of(this.isOvertype() ? overtypeAttributes : []),
       c.nbsp.of(nbspSourceExtension(this.settings.nbspMarker)),
+      c.lock.of(lockExtension(this.isLocked())),
       sourceLanguage(),
       history(),
       foldGutter(),
@@ -295,6 +311,9 @@ export class SourceEditorController {
     this.searchTarget = createSourceSearchTarget(() => this.target);
     this.store.subscribe((state, previous) => {
       if (state.insertMode !== previous.insertMode) this.applyOvertype();
+      // The quiet lock of a script run applies mounted or not (the kept state is what the
+      // next mount shows).
+      if (state.scriptRunning !== previous.scriptRunning) this.applyLock();
     });
     onSourceSessionReset(this.store, () => this.reset());
   }
@@ -406,7 +425,14 @@ export class SourceEditorController {
 
   private replaceText(text: string): void {
     const hadHistory = undoDepth(this.state) > 0 || redoDepth(this.state) > 0;
-    const fresh = EditorState.create({ doc: text, extensions: this.extensions });
+    let fresh = EditorState.create({ doc: text, extensions: this.extensions });
+    if (this.isLocked()) {
+      // The construction-time extensions carry the lock of that moment; a script running now
+      // locks the fresh state too (also after `reset()`, which applies no other setting).
+      fresh = fresh.update({
+        effects: this.compartments.lock.reconfigure(lockExtension(true)),
+      }).state;
+    }
     if (this.view) this.view.setState(fresh);
     else this.headless = fresh;
     // The old history no longer applies to this text.
@@ -461,6 +487,7 @@ export class SourceEditorController {
         c.matchTags.reconfigure(matchedTagsExtension(s.matchTags)),
         c.overtype.reconfigure(this.isOvertype() ? overtypeAttributes : []),
         c.nbsp.reconfigure(nbspSourceExtension(s.nbspMarker)),
+        c.lock.reconfigure(lockExtension(this.isLocked())),
       ],
     });
   }
@@ -473,6 +500,24 @@ export class SourceEditorController {
     this.target.dispatch({
       effects: this.compartments.overtype.reconfigure(this.isOvertype() ? overtypeAttributes : []),
     });
+  }
+
+  /* ----------------------------------------------------------------- lock */
+
+  /** A script is running: the quiet lock is on (feature 003 FR-011). */
+  private isLocked(): boolean {
+    return this.store.getState().scriptRunning;
+  }
+
+  private applyLock(): void {
+    this.target.dispatch({
+      effects: this.compartments.lock.reconfigure(lockExtension(this.isLocked())),
+    });
+  }
+
+  /** True while the editor refuses the user's changes (`state.readOnly`). */
+  get locked(): boolean {
+    return this.state.readOnly;
   }
 
   /* ---------------------------------------------------------- transactions */

@@ -72,6 +72,9 @@ export function registerHelpFeature(ctx: FeatureContext): void {
     ...cmdKeys('help.checkVersion', 'menu.help.checkVersion'),
     enabled: (commandCtx) =>
       commandCtx.rpc !== null && commandCtx.store.getState().connection === 'connected',
+    // The Help menu stays available while a script runs (feature 003 FR-011): a check the user
+    // asks for is the user's own choice.
+    duringScriptRun: 'allowed',
     run: (commandCtx) => checkForNewVersion(commandCtx),
   };
   ctx.commands.replace(command);
