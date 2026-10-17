@@ -95,6 +95,18 @@ export const NBSP_DISPLAY_CHOICES: readonly { value: string; labelKey: string }[
 
 export const IMAGE_FORMATS = ['jpeg', 'png'] as const;
 
+/**
+ * Version-check schedule (`other.versionCheck`, feature 003 US5, FR-040): exactly these five
+ * choices, in this order; `monthly` is the default.
+ */
+export const VERSION_CHECK_OPTIONS: readonly { value: VersionCheckSchedule; labelKey: string }[] = [
+  { value: 'everyStart', labelKey: 'dialog.settings.other.versionCheckChoices.everyStart' },
+  { value: 'daily', labelKey: 'dialog.settings.other.versionCheckChoices.daily' },
+  { value: 'weekly', labelKey: 'dialog.settings.other.versionCheckChoices.weekly' },
+  { value: 'monthly', labelKey: 'dialog.settings.other.versionCheckChoices.monthly' },
+  { value: 'never', labelKey: 'dialog.settings.other.versionCheckChoices.never' },
+];
+
 /* ------------------------------------------------------------------------ */
 /* Ranges and validation                                                    */
 /* ------------------------------------------------------------------------ */

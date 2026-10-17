@@ -48,6 +48,15 @@
           "smallSquare": "Small white square (▫)",
           "bullet": "White bullet (◦)",
           "space": "Plain space (invisible)"
+        },
+        "versionCheck": "Version check",
+        "versionCheckSchedule": "Check for a new version:",
+        "versionCheckChoices": {
+          "everyStart": "at every start",
+          "daily": "once a day",
+          "weekly": "once a week",
+          "monthly": "once a month",
+          "never": "never"
         }
       },
       "hotkeys": {

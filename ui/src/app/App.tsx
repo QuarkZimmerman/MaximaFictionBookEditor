@@ -4,7 +4,8 @@
  * validation panel, status bar and the dialog layer. Wires the RPC client
  * lifecycle (status, settings, job progress notifications), the document notifications
  * (`doc.changedOnDisk`, `app.openPaths`), the Recent Files list, the `?new=1` / `?lang=` start-up
- * parameters and the global hotkey dispatcher.
+ * parameters, the scheduled check for a new version once the window is usable (feature 003
+ * US5) and the global hotkey dispatcher.
  */
 
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
@@ -17,6 +18,7 @@ import { BodyView } from '@/views/body/BodyView';
 import { DescriptionView } from '@/views/description/DescriptionView';
 import { SourceView } from '@/views/source/SourceView';
 import { DocumentTree } from '@/views/tree/DocumentTree';
+import { runScheduledCheck } from '@/features/help';
 import { getSettingsFeature } from '@/features/settings';
 import { getScriptsFeature } from '@/scripting/catalog';
 import { ScriptRunBanner } from '@/scripting/ScriptRunBanner';
@@ -140,7 +142,7 @@ function Shell({
     if (!rpc || connection !== 'connected') return;
     let cancelled = false;
     const forced = forcedLanguage(search);
-    rpc
+    const settingsLoaded = rpc
       .call('settings.get')
       .then(async (settings) => {
         if (cancelled) return;
@@ -165,14 +167,25 @@ function Shell({
     if (!startupHandled.current) {
       startupHandled.current = true;
       // `?open=<path>` (feature 003 US3): the browser-mode restart reopens its document first.
-      void files.handleStartup(ctxRef.current, openPathAtStartup(search)).catch(() => {
+      const openPath = openPathAtStartup(search);
+      const startup = files.handleStartup(ctxRef.current, openPath).catch(() => {
         // a failing doc.new at start-up leaves the editor empty; File > New reports errors
       });
+      // The scheduled check for a new version (feature 003 US5, FR-042): once the window is
+      // usable - the settings read, the first document shown - and never on the restart path,
+      // whose start the user has just been through.
+      if (!openPath) {
+        void Promise.all([settingsLoaded, startup]).then(() =>
+          runScheduledCheck(ctxRef.current, { dialogs: dialogs.service, rpc, store }).catch(() => {
+            // the check is a courtesy: whatever went wrong, the next start tries again
+          }),
+        );
+      }
     }
     return () => {
       cancelled = true;
     };
-  }, [rpc, connection, store, i18n, files, search]);
+  }, [rpc, connection, store, i18n, files, search, dialogs.service]);
 
   // `?lang=` applies even before the core answers (and without a core).
   useEffect(() => {

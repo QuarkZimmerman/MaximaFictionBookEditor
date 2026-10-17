@@ -51,12 +51,18 @@ display (Constitution II).
   scaled `/preview`), raw uploads (`POST /binary/{docId}` for paste and drag-and-drop), script
   package files (`/scripts/{scriptId}/{file}`) and `/health`.
 * Nothing else is network: no telemetry and no outbound connection of its own (FR-125,
-  Constitution VI) - except Help > Check for new version (feature 002, decision D15): only on
-  that command the shell sends one `GET .../releases/latest` to GitHub with CEF's network stack
-  (Accept and User-Agent headers only, no cookies or credentials, 15-second limit;
-  `app/src/release_request.*`, `dialog_provider.cpp`) and the core relays the answer as
-  `app.latestRelease`. The page and user scripts keep the engine-level network block; the
-  release page and About links open in the system browser.
+  Constitution VI) - except the check for a new version (feature 002, decision D15): on Help >
+  Check for new version, and at start-up when the schedule `other.versionCheck` is due
+  (feature 003 US5: at every start, once a day / week / month - the default - or never; the UI
+  decides from `session.lastVersionCheck`, the time of the last answered check, once the
+  window is usable, `ui/src/features/help/schedule.ts`), the shell sends one
+  `GET .../releases/latest` to GitHub with CEF's network stack (Accept and User-Agent headers
+  only, no cookies or credentials, 15-second limit; `app/src/release_request.*`,
+  `dialog_provider.cpp`) and the core relays the answer as `app.latestRelease`. The automatic
+  check announces only a newer release, after any open dialog and never over a script run or a
+  file dialog; "latest" and a failed request are silent, and a failure records nothing. The
+  page and user scripts keep the engine-level network block; the release page and About links
+  open in the system browser.
 
 Files: `core/src/server/http_server.cpp` (auth, static files, CSP), `ws_rpc.cpp` (WebSocket
 endpoint), `rpc_router.cpp` (dispatcher, jobs), `handlers/*.cpp` (one file per contract
