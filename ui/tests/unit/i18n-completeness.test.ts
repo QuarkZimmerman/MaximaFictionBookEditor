@@ -1,15 +1,20 @@
 /**
- * Catalogue completeness (US8, T096 / SC-004): the merged English and Russian catalogues have
- * the same keys, every issue / error / reason code the core can send has a message in both
- * languages, Russian contains no English-only strings (except the allow-list of brand names and
- * codes) and the `&` accelerators are unique per menu and per dialog.
+ * Catalogue completeness (US8, T096 / SC-004; feature 003 T010): every supported interface
+ * language (`SUPPORTED_LANGUAGES` of ui/src/i18n/switch.ts) has the same logical keys as the
+ * English base catalogue, every issue / error / reason code the core can send has a message in
+ * every language, no translation contains English-only strings (except the allow-list of brand
+ * names and codes) and the `&` accelerators are unique per menu and per dialog in every language.
+ *
+ * The languages are not hard-coded: adding one to `SUPPORTED_LANGUAGES` (with its entry in
+ * `resources`) puts it under every check below. Each pairwise check compares the base language
+ * with one other language; the other languages are not compared with each other.
  *
  * `tools/i18n-check.mjs` performs the same parity checks from the command line (CI step
  * "i18n parity"); this test keeps them in `npm test`.
  */
 
 import identicalAllowlist from '@/i18n/identical-allowlist.json';
-import { parseAccelerator, resources } from '@/i18n';
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, parseAccelerator, resources } from '@/i18n';
 
 type Flat = Map<string, string>;
 
@@ -35,8 +40,30 @@ function logicalKey(key: string): string {
   return key;
 }
 
-const en = flatten(resources.en.translation, '', new Map());
-const ru = flatten(resources.ru.translation, '', new Map());
+/** The languages compared with the base language (`ru` today, `uk` once it is supported). */
+const OTHER_LANGUAGES: readonly string[] = SUPPORTED_LANGUAGES.filter(
+  (language) => language !== DEFAULT_LANGUAGE,
+);
+
+const catalogues = new Map<string, Flat>();
+
+/**
+ * The merged catalogue of a language, flattened. `resources` is typed for the languages it
+ * holds, so a language listed in `SUPPORTED_LANGUAGES` before its catalogue is registered in
+ * ui/src/i18n/index.ts fails here with a clear message rather than with a type error.
+ */
+function catalogue(language: string): Flat {
+  let flat = catalogues.get(language);
+  if (!flat) {
+    const entry = (resources as Record<string, { translation: unknown } | undefined>)[language];
+    if (!entry) throw new Error(`ui/src/i18n/index.ts: resources has no "${language}" catalogue`);
+    flat = flatten(entry.translation, '', new Map());
+    catalogues.set(language, flat);
+  }
+  return flat;
+}
+
+const en = catalogue(DEFAULT_LANGUAGE);
 const allowlist = new Set<string>(identicalAllowlist.keys);
 
 /** Validation issue codes of the core (core/src/xml/validator.cpp, fb2_reader.cpp). */
@@ -104,35 +131,96 @@ const SCRIPT_ISSUE_REASONS = [
 /** `resources.genres().issues[].reason` (core/include/mfbe/genres.hpp). */
 const GENRE_ISSUE_REASONS = ['unreadable', 'invalidCode', 'missingName', 'duplicate'];
 
-const CYRILLIC = /[\u0400-\u04FF]/;
 const LETTER = /\p{L}/u;
+
+/**
+ * Letters of the script a language is written in (`Intl.Locale("uk").maximize().script` is
+ * "Cyrl"): a translated string must contain at least one of them. Null for Latin-script
+ * languages - there a leftover English string cannot be told apart by its letters - and for
+ * scripts not in the table; those languages only get the "identical to English" check.
+ */
+function scriptLetters(language: string): RegExp | null {
+  const script = new Intl.Locale(language).maximize().script;
+  return script === 'Cyrl' ? /\p{Script=Cyrillic}/u : null;
+}
 
 function withoutPlaceholders(text: string): string {
   return text.replace(/\{\{[^}]*\}\}/g, '');
 }
 
+/** `uk` -> `dialog.settings.view.languageUk` (ui/src/dialogs/settings/model.ts). */
+function settingsLanguageKey(language: string): string {
+  return `dialog.settings.view.language${language.charAt(0).toUpperCase()}${language.slice(1)}`;
+}
+
 describe('i18n catalogue completeness', () => {
-  it('has the same logical keys in English and Russian', () => {
-    const enKeys = new Set([...en.keys()].map(logicalKey));
-    const ruKeys = new Set([...ru.keys()].map(logicalKey));
-    expect([...enKeys].filter((key) => !ruKeys.has(key))).toEqual([]);
-    expect([...ruKeys].filter((key) => !enKeys.has(key))).toEqual([]);
-    expect(enKeys.size).toBeGreaterThan(800);
+  it('has a catalogue for every supported language', () => {
+    expect(SUPPORTED_LANGUAGES).toContain(DEFAULT_LANGUAGE);
+    expect(OTHER_LANGUAGES.length).toBeGreaterThan(0);
+    for (const language of SUPPORTED_LANGUAGES) {
+      expect(catalogue(language).size, language).toBeGreaterThan(800);
+    }
   });
 
-  it('has every plural form required by Intl.PluralRules in each language', () => {
-    for (const [language, flat] of [
-      ['en', en],
-      ['ru', ru],
-    ] as const) {
+  for (const language of OTHER_LANGUAGES) {
+    it(`has the same logical keys in ${DEFAULT_LANGUAGE} and ${language}`, () => {
+      const enKeys = new Set([...en.keys()].map(logicalKey));
+      const otherKeys = new Set([...catalogue(language).keys()].map(logicalKey));
+      expect([...enKeys].filter((key) => !otherKeys.has(key))).toEqual([]);
+      expect([...otherKeys].filter((key) => !enKeys.has(key))).toEqual([]);
+    });
+
+    it(`keeps the same {{placeholders}} in ${DEFAULT_LANGUAGE} and ${language}`, () => {
+      const placeholders = (text: string) =>
+        [...text.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map((match) => match[1]).sort();
+      const byLogical = (flat: Flat) => {
+        const map = new Map<string, Set<string>>();
+        for (const [key, text] of flat) {
+          const base = logicalKey(key);
+          if (!map.has(base)) map.set(base, new Set());
+          for (const name of placeholders(text)) map.get(base)!.add(name);
+        }
+        return map;
+      };
+      const enPlaceholders = byLogical(en);
+      const otherPlaceholders = byLogical(catalogue(language));
+      const differences: string[] = [];
+      for (const [key, names] of enPlaceholders) {
+        const other = otherPlaceholders.get(key);
+        if (!other) continue;
+        if ([...names].sort().join(',') !== [...other].sort().join(',')) differences.push(key);
+      }
+      expect(differences).toEqual([]);
+    });
+
+    it(`has no English-only strings in the ${language} catalogue except the allow-list`, () => {
+      const letters = scriptLetters(language);
+      const untranslated: string[] = [];
+      for (const [key, text] of catalogue(language)) {
+        const visible = withoutPlaceholders(text);
+        if (!LETTER.test(visible)) continue; // punctuation, symbols, placeholders only
+        if (allowlist.has(key) || allowlist.has(logicalKey(key))) continue;
+        if (letters && !letters.test(visible)) {
+          untranslated.push(`${key} = ${JSON.stringify(text)}`);
+        } else if (en.get(key) === text) {
+          untranslated.push(`${key} identical to ${DEFAULT_LANGUAGE}`);
+        }
+      }
+      expect(untranslated).toEqual([]);
+    });
+  }
+
+  for (const language of SUPPORTED_LANGUAGES) {
+    it(`has every plural form required by Intl.PluralRules("${language}")`, () => {
       const required = new Intl.PluralRules(language).resolvedOptions().pluralCategories;
       const families = new Map<string, Set<string>>();
-      for (const key of flat.keys()) {
+      for (const key of catalogue(language).keys()) {
         const base = logicalKey(key);
         if (base === key) continue;
         if (!families.has(base)) families.set(base, new Set());
         families.get(base)!.add(key.slice(base.length + 1));
       }
+      expect(families.size).toBeGreaterThan(0);
       const missing: string[] = [];
       for (const [base, forms] of families) {
         for (const category of required) {
@@ -140,84 +228,39 @@ describe('i18n catalogue completeness', () => {
         }
       }
       expect(missing).toEqual([]);
-    }
-  });
+    });
 
-  it('keeps the same {{placeholders}} in both languages', () => {
-    const placeholders = (text: string) =>
-      [...text.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map((match) => match[1]).sort();
-    const byLogical = (flat: Flat) => {
-      const map = new Map<string, Set<string>>();
-      for (const [key, text] of flat) {
-        const base = logicalKey(key);
-        if (!map.has(base)) map.set(base, new Set());
-        for (const name of placeholders(text)) map.get(base)!.add(name);
+    it(`translates every core validation issue code in ${language}`, () => {
+      const flat = catalogue(language);
+      for (const code of VALIDATION_CODES) {
+        const key = CODE_KEY_ALIASES[code] ?? `validation.${code}`;
+        expect(flat.has(key), `${key} (${language})`).toBe(true);
       }
-      return map;
-    };
-    const enPlaceholders = byLogical(en);
-    const ruPlaceholders = byLogical(ru);
-    const differences: string[] = [];
-    for (const [key, names] of enPlaceholders) {
-      const other = ruPlaceholders.get(key);
-      if (!other) continue;
-      if ([...names].sort().join(',') !== [...other].sort().join(',')) differences.push(key);
-    }
-    expect(differences).toEqual([]);
-  });
+    });
 
-  it('translates every core validation issue code in both languages', () => {
-    for (const code of VALIDATION_CODES) {
-      const key = CODE_KEY_ALIASES[code] ?? `validation.${code}`;
-      expect(en.has(key), `${key} (en)`).toBe(true);
-      expect(ru.has(key), `${key} (ru)`).toBe(true);
-    }
-  });
+    it(`translates every RPC error, script issue and genre issue code in ${language}`, () => {
+      const flat = catalogue(language);
+      const keys = [
+        ...RPC_ERROR_NAMES.map((name) => `error.${name}`),
+        ...SCRIPT_ISSUE_REASONS.map((reason) => `scripting.issue.${reason}`),
+        ...GENRE_ISSUE_REASONS.map((reason) => `genres.issue.${reason}`),
+      ];
+      for (const key of keys) {
+        expect(flat.has(key), `${key} (${language})`).toBe(true);
+      }
+    });
 
-  it('translates every RPC error, script issue and genre issue code in both languages', () => {
-    const keys = [
-      ...RPC_ERROR_NAMES.map((name) => `error.${name}`),
-      ...SCRIPT_ISSUE_REASONS.map((reason) => `scripting.issue.${reason}`),
-      ...GENRE_ISSUE_REASONS.map((reason) => `genres.issue.${reason}`),
-    ];
-    for (const key of keys) {
-      expect(en.has(key), `${key} (en)`).toBe(true);
-      expect(ru.has(key), `${key} (ru)`).toBe(true);
-    }
-  });
-
-  it('has no English-only strings in the Russian catalogue except the allow-list', () => {
-    const untranslated: string[] = [];
-    for (const [key, text] of ru) {
-      const visible = withoutPlaceholders(text);
-      if (!LETTER.test(visible)) continue; // punctuation, symbols, placeholders only
-      if (allowlist.has(key) || allowlist.has(logicalKey(key))) continue;
-      if (!CYRILLIC.test(visible)) untranslated.push(`${key} = ${JSON.stringify(text)}`);
-      else if (en.get(key) === text) untranslated.push(`${key} identical to en`);
-    }
-    expect(untranslated).toEqual([]);
-  });
-
-  it('does not keep stale entries in the identical-value allow-list', () => {
-    const stale = [...allowlist].filter((key) => !en.has(key) && !en.has(`${key}_one`));
-    expect(stale).toEqual([]);
-  });
-
-  it('uses unique & accelerators within each menu and dialog in both languages', () => {
-    const groupOf = (key: string): string | null => {
-      const menu = /^menu\.([^.]+)\.(.+)$/.exec(key);
-      if (menu) return menu[2] === 'caption' ? 'menubar' : `menu.${menu[1]}`;
-      if (key.startsWith('scripting.menu.')) return 'menu.scripts';
-      if (key.startsWith('tree.menu.')) return 'tree.menu';
-      const dialog = /^dialog\.([^.]+)\./.exec(key);
-      if (dialog && dialog[1] !== 'buttons') return `dialog.${dialog[1]}`;
-      return null;
-    };
-    const conflicts: string[] = [];
-    for (const [language, flat] of [
-      ['en', en],
-      ['ru', ru],
-    ] as const) {
+    it(`uses unique & accelerators within each menu and dialog in ${language}`, () => {
+      const flat = catalogue(language);
+      const groupOf = (key: string): string | null => {
+        const menu = /^menu\.([^.]+)\.(.+)$/.exec(key);
+        if (menu) return menu[2] === 'caption' ? 'menubar' : `menu.${menu[1]}`;
+        if (key.startsWith('scripting.menu.')) return 'menu.scripts';
+        if (key.startsWith('tree.menu.')) return 'tree.menu';
+        const dialog = /^dialog\.([^.]+)\./.exec(key);
+        if (dialog && dialog[1] !== 'buttons') return `dialog.${dialog[1]}`;
+        return null;
+      };
       const groups = new Map<string, Map<string, string[]>>();
       const add = (group: string, key: string) => {
         const text = flat.get(key);
@@ -242,29 +285,35 @@ describe('i18n catalogue completeness', () => {
       }
       add('msg.scriptStillRunning', 'msg.scriptWait');
       add('msg.scriptStillRunning', 'msg.scriptCancel');
+      const conflicts: string[] = [];
       for (const [group, letters] of groups) {
         for (const [letter, keys] of letters) {
           if (keys.length > 1)
             conflicts.push(`${language} ${group} "${letter}": ${keys.join(', ')}`);
         }
       }
-    }
-    expect(conflicts).toEqual([]);
+      expect(conflicts).toEqual([]);
+    });
+
+    it(`names every interface language and the settings language choices in ${language}`, () => {
+      const flat = catalogue(language);
+      const keys = ['lang.system', 'dialog.settings.view.languageSystem', 'msg.needRestart'];
+      for (const named of SUPPORTED_LANGUAGES) {
+        keys.push(`lang.${named}`, settingsLanguageKey(named));
+      }
+      for (const key of keys) {
+        expect(flat.has(key), `${key} (${language})`).toBe(true);
+      }
+    });
+  }
+
+  it('does not keep stale entries in the identical-value allow-list', () => {
+    const stale = [...allowlist].filter((key) => !en.has(key) && !en.has(`${key}_one`));
+    expect(stale).toEqual([]);
   });
 
-  it('localises the language names and the settings language choices', () => {
-    for (const key of [
-      'lang.en',
-      'lang.ru',
-      'lang.system',
-      'dialog.settings.view.languageSystem',
-      'dialog.settings.view.languageEn',
-      'dialog.settings.view.languageRu',
-      'msg.needRestart',
-    ]) {
-      expect(en.has(key), key).toBe(true);
-      expect(ru.has(key), key).toBe(true);
-    }
+  it('names the languages in Russian in the Russian catalogue', () => {
+    const ru = catalogue('ru');
     expect(ru.get('lang.ru')).toBe('Русский');
     expect(ru.get('lang.en')).toBe('Английский');
     expect(ru.get('msg.needRestart')).toMatch(/перезагруз/i);
