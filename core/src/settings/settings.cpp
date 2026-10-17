@@ -27,6 +27,7 @@ enum class Kind {
     color,
     string_array,
     nullable_object,
+    window_geometry,  // {x, y, width, height: integers, maximized?: boolean} | null
     bool_map,
     string_list_map,    // object whose values are arrays of strings (toolbar layouts)
     optional_timestamp  // "YYYY-MM-DDTHH:MM:SS[.sss]Z" or absent: no default, null removes it
@@ -89,8 +90,8 @@ const std::vector<Field>& schema() {
         enumeration("other.versionCheck", {"everyStart", "daily", "weekly", "monthly", "never"}),
         field("words.showExclusionsInWordsDialog", Kind::boolean),
         // {x, y, width, height, maximized?: boolean} | null - the normal bounds plus the
-        // maximised state, written by the shell at quit; replaced as a whole, not validated.
-        field("session.windowGeometry", Kind::nullable_object),
+        // maximised state, written by the shell at quit; replaced as a whole.
+        field("session.windowGeometry", Kind::window_geometry),
         field("session.toolbars", Kind::bool_map),
         field("session.treeVisible", Kind::boolean),
         field("session.findHistory", Kind::string_array),
@@ -194,11 +195,33 @@ bool is_utc_timestamp(const std::string& s) {
     if (!shape) {
         return false;
     }
-    const auto number = [&s](std::size_t from) { return std::stoi(s.substr(from, 2)); };
-    const int month = number(5);
-    const int day = number(8);
-    return month >= 1 && month <= 12 && day >= 1 && day <= 31 && number(11) <= 23 &&
-           number(14) <= 59 && number(17) <= 60;
+    const auto number = [&s](std::size_t from, std::size_t count) {
+        return std::stoi(s.substr(from, count));
+    };
+    const int year = number(0, 4);
+    const int month = number(5, 2);
+    const int day = number(8, 2);
+    if (month < 1 || month > 12 || day < 1) {
+        return false;
+    }
+    const bool leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    static constexpr int kDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    const int days = month == 2 && leap ? 29 : kDays[month - 1];
+    return day <= days && number(11, 2) <= 23 && number(14, 2) <= 59 && number(17, 2) <= 60;
+}
+
+bool is_window_geometry(const json& v) {
+    if (!v.is_object()) {
+        return false;
+    }
+    for (const char* key : {"x", "y", "width", "height"}) {
+        auto it = v.find(key);
+        if (it == v.end() || !it->is_number_integer()) {
+            return false;
+        }
+    }
+    auto maximized = v.find("maximized");
+    return maximized == v.end() || maximized->is_boolean();
 }
 
 // Returns an empty string when valid, otherwise the reason.
@@ -247,6 +270,10 @@ std::string check_value(const Field& field, const json& value) {
         }
         case Kind::nullable_object:
             return (value.is_null() || value.is_object()) ? "" : "expected an object or null";
+        case Kind::window_geometry:
+            return (value.is_null() || is_window_geometry(value))
+                       ? ""
+                       : "expected {x, y, width, height, maximized?} or null";
         case Kind::bool_map: {
             if (!value.is_object()) {
                 return "expected an object";
@@ -378,7 +405,8 @@ std::vector<Invalid> sanitize(json& settings) {
             }
             continue;
         }
-        const bool missing = value->is_null() && field.kind != Kind::nullable_object;
+        const bool missing = value->is_null() && field.kind != Kind::nullable_object &&
+                             field.kind != Kind::window_geometry;
         if (missing) {
             *value = *default_value;
             continue;
