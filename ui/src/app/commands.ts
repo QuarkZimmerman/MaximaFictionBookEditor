@@ -1,9 +1,10 @@
 /**
  * Command registry: every menu item, toolbar button and hotkey target is a `Command` with a
  * stable id (`file.new`, `edit.undo`, `style.subtitle`, `insert.table`, `symbol.<N>`,
- * `script.<id>`...), i18n label/tooltip keys, an enable predicate, an optional checked state
- * for toggles and the action itself. Ids are the identifiers used by `hotkeys.json`
- * (resource-formats.md §7) and by the parity matrix.
+ * `script.<id>`...), i18n label/tooltip keys, an enable predicate, a policy for the time a
+ * script runs (`duringScriptRun`), an optional checked state for toggles and the action
+ * itself. Ids are the identifiers used by `hotkeys.json` (resource-formats.md §7) and by the
+ * parity matrix.
  *
  * The built-in table below registers the complete FBE command set. Commands whose feature is
  * delivered by a later task are registered as stubs (`stub: true`, disabled) so menus, toolbars
@@ -77,6 +78,13 @@ export interface Command {
   enabled?: (ctx: CommandContext) => boolean;
   /** Present for toggles; drives menu checkmarks and pressed toolbar buttons. */
   checked?: (ctx: CommandContext) => boolean;
+  /**
+   * Policy while a script runs (`store.scriptRunning`, the quiet lock of feature 003 FR-011):
+   * `blocked` (the default) disables the command for the whole run; `allowed` leaves it to its
+   * own `enabled` predicate. Only commands that neither change the document nor switch the
+   * view are allowed (Find, copy, Help, About, Exit...).
+   */
+  duringScriptRun?: 'blocked' | 'allowed';
   /** Registered for parity but not implemented yet; always disabled. */
   stub?: boolean;
 }
@@ -84,7 +92,6 @@ export interface Command {
 export class CommandRegistry {
   private readonly commands = new Map<string, Command>();
   private readonly listeners = new Set<() => void>();
-  private locked = false;
 
   register(command: Command): () => void {
     if (this.commands.has(command.id)) {
@@ -121,19 +128,23 @@ export class CommandRegistry {
     return this.all().filter((command) => command.group === group);
   }
 
+  /**
+   * A stub is never enabled; while a script runs only a command whose `duringScriptRun`
+   * policy is `allowed` is, and then according to its own `enabled` predicate.
+   */
   isEnabled(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
-    if (!command || command.stub || this.locked) return false;
+    if (!command || command.stub) return false;
+    if (ctx.store.getState().scriptRunning && command.duringScriptRun !== 'allowed') return false;
     return command.enabled ? command.enabled(ctx) : true;
   }
 
   /**
-   * While locked no command is enabled: a running script blocks every command, as a running
-   * script blocked the original editor's window.
+   * Tells the subscribers (menus, toolbars, the Hotkeys page) to re-evaluate the command
+   * states although the set of commands is unchanged; the scripts feature calls it when a run
+   * starts or ends, so the run policies take effect at once.
    */
-  setLocked(locked: boolean): void {
-    if (this.locked === locked) return;
-    this.locked = locked;
+  refresh(): void {
     this.emit();
   }
 
