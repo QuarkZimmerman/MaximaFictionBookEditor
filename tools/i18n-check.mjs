@@ -2,24 +2,31 @@
 /**
  * i18n parity checker (developer tooling, never shipped).
  *
- * Compares the key sets of the UI catalogues `ui/src/i18n/en.json` and `ui/src/i18n/ru.json`
- * (and, when present, `resources/messages/{en,ru}.json`):
- *   - keys missing from one language or extra in the other          -> error, exit 1
- *   - `{{placeholder}}` sets that differ between languages           -> error, exit 1
- *   - plural families (`key_one`, `key_few`, ...) lacking a category   -> error, exit 1
- *     required by `Intl.PluralRules` for that language
- *   - values identical in both languages                              -> warning, unless the
+ * Compares the UI catalogues `ui/src/i18n/<lang>.json` (plus the feature catalogues
+ * `<feature>.<lang>.json`, and `resources/messages/<lang>.json` when present) of every language
+ * passed with `--languages` (default `en,ru,uk`) against the base language `en`:
+ *   - a requested language without a `<lang>.json` catalogue                -> error, exit 1
+ *   - keys missing from a language or extra compared to `en`                -> error, exit 1
+ *   - `{{placeholder}}` sets that differ from `en`                           -> error, exit 1
+ *   - plural families (`key_one`, `key_few`, ...) lacking a category         -> error, exit 1
+ *     required by `Intl.PluralRules` for that language (`en`: one/other, `ru` and `uk`:
+ *     one/few/many/other)
+ *   - values identical to `en`                                               -> warning, unless the
  *     key is listed in `ui/src/i18n/identical-allowlist.json` (brand names, "OK", codes) or
  *     the value is made of placeholders and punctuation only;
  *     `--strict-identical` turns these warnings into errors
- *   - `--accelerators`: a `&` accelerator letter used twice within one menu (the menu bar,
- *     every `menu.<name>.*` group, the Scripts menu including `scripting.menu.*`, the tree
- *     context menu `tree.menu.*`), within one dialog (`dialog.<name>.*` plus the shared
- *     OK/Cancel/Close buttons; the Replace dialog also embeds the Find fields) or within one
- *     message-box button set                                           -> error, exit 1
+ *   - `--accelerators`: in any language, a `&` accelerator letter used twice within one menu
+ *     (the menu bar, every `menu.<name>.*` group, the Scripts menu including
+ *     `scripting.menu.*`, the tree context menu `tree.menu.*`), within one dialog
+ *     (`dialog.<name>.*` plus the shared OK/Cancel/Close buttons; the Replace dialog also
+ *     embeds the Find fields) or within one message-box button set        -> error, exit 1
+ * Every comparison is a pair `en` vs. one other language; the other languages are not
+ * compared with each other. Plural completeness and accelerators are checked per language,
+ * `en` included.
  *
- * Usage: node tools/i18n-check.mjs [--strict-identical] [--accelerators] [--quiet]
- *                                  [--catalogues <dir>]...
+ * Usage: node tools/i18n-check.mjs [--languages en,ru,uk] [--strict-identical] [--accelerators]
+ *                                  [--quiet] [--catalogues <dir>]...
+ * Usage errors (unknown option, a language list without `en`) exit with status 2.
  * No dependencies beyond Node.js >= 20.
  */
 
@@ -28,30 +35,79 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const LANGUAGES = ['en', 'ru'];
 const BASE_LANGUAGE = 'en';
+const DEFAULT_LANGUAGES = ['en', 'ru', 'uk'];
+/** Catalogue file names are primary language subtags, as `primaryLanguage()` in switch.ts. */
+const LANGUAGE_CODE = /^[a-z]{2,3}$/;
 const PLURAL_SUFFIXES = ['zero', 'one', 'two', 'few', 'many', 'other'];
 
+const USAGE = `Usage: node tools/i18n-check.mjs [options]
+  --languages <codes>  comma-separated languages to check (default ${DEFAULT_LANGUAGES.join(',')});
+                       the list must include the base language "${BASE_LANGUAGE}"
+  --strict-identical   values identical to ${BASE_LANGUAGE} are errors instead of warnings
+  --accelerators       also report "&" accelerator letters used twice in a menu or dialog
+  --quiet              print errors only
+  --catalogues <dir>   catalogue directory, repeatable (default ui/src/i18n and, when present,
+                       resources/messages)`;
+
+class UsageError extends Error {}
+
+/** Parses `en,ru,uk` into a de-duplicated list; the base language must be part of it. */
+function parseLanguages(value) {
+  const languages = [];
+  for (const code of value.split(',').map((item) => item.trim())) {
+    if (code === '') continue;
+    if (!LANGUAGE_CODE.test(code)) {
+      throw new UsageError(`--languages: "${code}" is not a language code such as "en" or "uk"`);
+    }
+    if (Intl.PluralRules.supportedLocalesOf([code]).length === 0) {
+      throw new UsageError(
+        `--languages: Intl.PluralRules does not know "${code}" (Node.js without full ICU?)`,
+      );
+    }
+    if (!languages.includes(code)) languages.push(code);
+  }
+  if (languages.length === 0) throw new UsageError('--languages requires at least one language');
+  if (!languages.includes(BASE_LANGUAGE)) {
+    throw new UsageError(
+      `--languages must include the base language "${BASE_LANGUAGE}" (got ${languages.join(',')})`,
+    );
+  }
+  return languages;
+}
+
 function parseArgs(argv) {
-  const options = { strictIdentical: false, accelerators: false, quiet: false, catalogueDirs: [] };
+  const options = {
+    languages: DEFAULT_LANGUAGES,
+    strictIdentical: false,
+    accelerators: false,
+    quiet: false,
+    catalogueDirs: [],
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--strict-identical') options.strictIdentical = true;
     else if (arg === '--accelerators') options.accelerators = true;
     else if (arg === '--quiet') options.quiet = true;
-    else if (arg === '--catalogues') {
+    else if (arg === '--languages' || arg.startsWith('--languages=')) {
+      let value = arg.slice('--languages='.length); // '' for the bare `--languages`
+      if (arg === '--languages') {
+        value = argv[i + 1];
+        if (value === undefined)
+          throw new UsageError('--languages requires a list such as en,ru,uk');
+        i += 1;
+      }
+      options.languages = parseLanguages(value);
+    } else if (arg === '--catalogues') {
       const dir = argv[i + 1];
-      if (!dir) throw new Error('--catalogues requires a directory');
+      if (!dir) throw new UsageError('--catalogues requires a directory');
       options.catalogueDirs.push(path.resolve(dir));
       i += 1;
     } else if (arg === '--help' || arg === '-h') {
-      console.log(
-        'Usage: node tools/i18n-check.mjs [--strict-identical] [--accelerators] [--quiet] ' +
-          '[--catalogues <dir>]...',
-      );
+      console.log(USAGE);
       process.exit(0);
     } else {
-      throw new Error(`Unknown argument: ${arg}`);
+      throw new UsageError(`Unknown argument: ${arg}`);
     }
   }
   if (options.catalogueDirs.length === 0) {
@@ -92,7 +148,8 @@ function loadLanguage(dir, language, report) {
   const owners = new Map();
   const files = [path.join(dir, `${language}.json`)];
   for (const name of readdirSync(dir).sort()) {
-    if (name.endsWith(`.${language}.json`) && name !== `${language}.json`) files.push(path.join(dir, name));
+    if (name.endsWith(`.${language}.json`) && name !== `${language}.json`)
+      files.push(path.join(dir, name));
   }
   for (const file of files) {
     if (!existsSync(file)) continue;
@@ -110,6 +167,16 @@ function loadLanguage(dir, language, report) {
   return merged;
 }
 
+/** Base catalogues (`<lang>.json`) present in the directory, whatever `--languages` says. */
+function presentLanguages(dir) {
+  const languages = [];
+  for (const name of readdirSync(dir).sort()) {
+    const match = /^([a-z]{2,3})\.json$/.exec(name);
+    if (match) languages.push(match[1]);
+  }
+  return languages;
+}
+
 function loadAllowlist(dir) {
   const file = path.join(dir, 'identical-allowlist.json');
   if (!existsSync(file)) return new Set();
@@ -124,7 +191,8 @@ function splitPlural(key) {
   const underscore = key.lastIndexOf('_');
   if (underscore > 0) {
     const suffix = key.slice(underscore + 1);
-    if (PLURAL_SUFFIXES.includes(suffix)) return { base: key.slice(0, underscore), category: suffix };
+    if (PLURAL_SUFFIXES.includes(suffix))
+      return { base: key.slice(0, underscore), category: suffix };
   }
   return { base: key, category: null };
 }
@@ -249,17 +317,26 @@ function checkAccelerators(catalogues, label, report) {
 }
 
 function checkDirectory(dir, options, report) {
-  const catalogues = new Map();
-  for (const language of LANGUAGES) {
-    const file = path.join(dir, `${language}.json`);
-    if (!existsSync(file)) {
-      report.errors.push(`${path.relative(ROOT, dir)}: missing catalogue ${language}.json`);
-      return;
+  const label = path.relative(ROOT, dir) || '.';
+  const catalogues = new Map(); // language -> Map<key, text>, requested languages that exist
+  for (const language of options.languages) {
+    if (!existsSync(path.join(dir, `${language}.json`))) {
+      report.errors.push(`${label}: missing catalogue ${language}.json`);
+      continue;
     }
     catalogues.set(language, loadLanguage(dir, language, report));
   }
+  if (!catalogues.has(BASE_LANGUAGE)) return; // nothing to compare against
+  for (const language of presentLanguages(dir)) {
+    if (!options.languages.includes(language)) {
+      report.warnings.push(
+        `${label}: ${language}.json is not checked (pass --languages ` +
+          `${[...options.languages, language].join(',')})`,
+      );
+    }
+  }
   const allowlist = loadAllowlist(dir);
-  const label = path.relative(ROOT, dir) || '.';
+  const others = [...catalogues.keys()].filter((language) => language !== BASE_LANGUAGE);
 
   // Logical keys: plural families collapse to their base key.
   const logical = new Map(); // language -> Map<base, Map<category|'', text>>
@@ -273,19 +350,21 @@ function checkDirectory(dir, options, report) {
     logical.set(language, map);
   }
 
+  // Key parity: every other language against the base language.
   const base = logical.get(BASE_LANGUAGE);
-  for (const language of LANGUAGES) {
-    if (language === BASE_LANGUAGE) continue;
+  for (const language of others) {
     const other = logical.get(language);
     for (const key of base.keys()) {
-      if (!other.has(key)) report.errors.push(`${label}: "${key}" exists in en but not in ${language}`);
+      if (!other.has(key))
+        report.errors.push(`${label}: "${key}" exists in ${BASE_LANGUAGE} but not in ${language}`);
     }
     for (const key of other.keys()) {
-      if (!base.has(key)) report.errors.push(`${label}: "${key}" exists in ${language} but not in en`);
+      if (!base.has(key))
+        report.errors.push(`${label}: "${key}" exists in ${language} but not in ${BASE_LANGUAGE}`);
     }
   }
 
-  // Plural completeness per language, placeholder parity, identical values.
+  // Plural completeness per language (the base language included).
   for (const [language, map] of logical) {
     const required = pluralCategories(language);
     for (const [key, forms] of map) {
@@ -293,7 +372,9 @@ function checkDirectory(dir, options, report) {
       if (!isPlural) continue;
       for (const category of required) {
         if (!forms.has(category)) {
-          report.errors.push(`${label}: plural "${key}" lacks the "_${category}" form in ${language}`);
+          report.errors.push(
+            `${label}: plural "${key}" lacks the "_${category}" form in ${language}`,
+          );
         }
       }
       for (const category of forms.keys()) {
@@ -306,19 +387,22 @@ function checkDirectory(dir, options, report) {
     }
   }
 
+  // Placeholder parity and identical values: every other language against the base language.
   for (const [key, baseForms] of base) {
-    for (const language of LANGUAGES) {
-      if (language === BASE_LANGUAGE) continue;
+    for (const language of others) {
       const otherForms = logical.get(language).get(key);
       if (!otherForms) continue;
       const basePlaceholders = new Set();
       const otherPlaceholders = new Set();
-      for (const text of baseForms.values()) for (const p of placeholders(text)) basePlaceholders.add(p);
-      for (const text of otherForms.values()) for (const p of placeholders(text)) otherPlaceholders.add(p);
+      for (const text of baseForms.values())
+        for (const p of placeholders(text)) basePlaceholders.add(p);
+      for (const text of otherForms.values())
+        for (const p of placeholders(text)) otherPlaceholders.add(p);
       if (!sameSet(basePlaceholders, otherPlaceholders)) {
         report.errors.push(
-          `${label}: "${key}" placeholders differ: en {${[...basePlaceholders].join(', ')}} vs ` +
-            `${language} {${[...otherPlaceholders].join(', ')}}`,
+          `${label}: "${key}" placeholders differ: ${BASE_LANGUAGE} ` +
+            `{${[...basePlaceholders].join(', ')}} vs ${language} ` +
+            `{${[...otherPlaceholders].join(', ')}}`,
         );
       }
       for (const [category, text] of baseForms) {
@@ -327,7 +411,7 @@ function checkDirectory(dir, options, report) {
         if (/^\W*$/.test(text.replace(/\{\{[^}]*\}\}/g, ''))) continue; // placeholders / punctuation only
         const fullKey = category ? `${key}_${category}` : key;
         if (allowlist.has(fullKey) || allowlist.has(key)) continue;
-        const message = `${label}: "${fullKey}" is identical in en and ${language}: "${text}"`;
+        const message = `${label}: "${fullKey}" is identical in ${BASE_LANGUAGE} and ${language}: "${text}"`;
         if (options.strictIdentical) report.errors.push(message);
         else report.warnings.push(message);
       }
@@ -336,20 +420,32 @@ function checkDirectory(dir, options, report) {
 
   for (const key of allowlist) {
     if (!base.has(splitPlural(key).base)) {
-      report.warnings.push(`${label}: allow-list entry "${key}" does not exist in en.json`);
+      report.warnings.push(
+        `${label}: allow-list entry "${key}" does not exist in ${BASE_LANGUAGE}.json`,
+      );
     }
   }
 
   if (options.accelerators) checkAccelerators(catalogues, label, report);
 
-  report.summary.push(
-    `${label}: ${LANGUAGES.map((l) => `${l}=${catalogues.get(l).size} strings`).join(', ')}, ` +
-      `${base.size} logical keys`,
+  const counts = options.languages.map((language) =>
+    catalogues.has(language)
+      ? `${language}=${catalogues.get(language).size} strings`
+      : `${language}=missing`,
   );
+  report.summary.push(`${label}: ${counts.join(', ')}, ${base.size} logical keys`);
 }
 
 function main() {
-  const options = parseArgs(process.argv.slice(2));
+  let options;
+  try {
+    options = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    if (!(error instanceof UsageError)) throw error;
+    console.error(`i18n-check: ${error.message}`);
+    console.error(USAGE);
+    process.exit(2);
+  }
   const report = { errors: [], warnings: [], summary: [] };
   for (const dir of options.catalogueDirs) checkDirectory(dir, options, report);
 
@@ -359,11 +455,15 @@ function main() {
   }
   for (const error of report.errors) console.error(`error: ${error}`);
   if (report.errors.length > 0) {
-    console.error(`i18n-check: ${report.errors.length} error(s), ${report.warnings.length} warning(s)`);
+    console.error(
+      `i18n-check: ${report.errors.length} error(s), ${report.warnings.length} warning(s)`,
+    );
     process.exit(1);
   }
   if (!options.quiet) {
-    console.log(`i18n-check: OK (${report.warnings.length} warning(s))`);
+    console.log(
+      `i18n-check: OK for ${options.languages.join(', ')} (${report.warnings.length} warning(s))`,
+    );
   }
 }
 
