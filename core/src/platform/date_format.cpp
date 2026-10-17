@@ -66,6 +66,19 @@ bool is_plain_locale(std::string_view locale_name) {
 
 }  // namespace date_format
 
+// The system's text with its narrow and ordinary no-break spaces (CLDR writes U+202F before
+// the Russian "г.") as plain spaces: the date goes into a book file as ordinary text.
+std::string plain_spaces(std::string text) {
+    for (const char* nbsp : {"\xE2\x80\xAF", "\xC2\xA0"}) {
+        const std::string needle(nbsp);
+        for (std::size_t at = text.find(needle); at != std::string::npos;
+             at = text.find(needle, at + 1)) {
+            text.replace(at, needle.size(), " ");
+        }
+    }
+    return text;
+}
+
 std::string format_long_date(int year, int month, int day, std::string_view ui_language) {
     month = std::clamp(month, 1, 12);
     day = std::clamp(day, 1, days_in_month(year, month));
@@ -73,7 +86,7 @@ std::string format_long_date(int year, int month, int day, std::string_view ui_l
     if (!pinned || !date_format::is_plain_locale(*pinned)) {
         if (auto text = date_format::regional_long_date(year, month, day,
                                                         pinned ? pinned->c_str() : nullptr)) {
-            return *text;
+            return plain_spaces(std::move(*text));
         }
     }
     return fallback_long_date(year, month, day, ui_language);
