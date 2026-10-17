@@ -294,6 +294,10 @@
       "removeOuter": {
         "tooltip": "Remove outer section",
         "description": "Remove the container surrounding the selection, keeping its content"
+      },
+      "completeTag": {
+        "tooltip": "Complete tag",
+        "description": "Offer the FB2 elements allowed at the cursor in the Source view, or the open elements after </"
       }
     },
     "view": {
@@ -662,6 +666,7 @@
         "showWhitespace": "Show white spaces",
         "lineNumbers": "Show line numbers",
         "matchTags": "Highlight matched tags",
+        "tagCompletion": "Tag completion",
         "spellcheck": "Spellcheck",
         "useSpellchecker": "Use spellchecker",
         "highlightMisspelled": "Highlight misspelled words",

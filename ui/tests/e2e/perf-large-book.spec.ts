@@ -3,7 +3,9 @@
  * by `tests/fixtures/gen-large-book.py` must be editable in the Body view within 3 s of
  * File > Open, and a keystroke must be processed within 100 ms. Also checks the section window
  * (only a slice of the 200 sections is mounted) and that extending the window keeps the DOM
- * bounded. Needs the real core and `python3`; skipped otherwise.
+ * bounded. The second journey (feature 003 US8, FR-074) types in the Source view of the same
+ * book: the tag completion list must appear within 300 ms of the last keystroke and keystrokes
+ * must stay under 100 ms. Needs the real core and `python3`; skipped otherwise.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -13,6 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { expect, test, waitForBook, type RpcCallError } from './fixtures/core';
+import { LINE_END, LINE_START, MOD } from './fixtures/keys';
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
@@ -20,15 +23,49 @@ const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py')
 /** Budgets from the constitution (performance budgets are release gates). */
 const EDITABLE_BUDGET_MS = 3000;
 const KEYSTROKE_BUDGET_MS = 100;
+/** Feature 003 FR-074: the completion list within 300 ms of the last keystroke. */
+const COMPLETION_LIST_BUDGET_MS = 300;
 
 /** In-page keystroke timing: inserts a character and waits for the editor to settle. */
-const TYPE_AND_MEASURE = `(async () => {
+const typeAndMeasure = (character: string) => `(async () => {
   const start = performance.now();
-  document.execCommand('insertText', false, 'x');
+  document.execCommand('insertText', false, ${JSON.stringify(character)});
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
   return performance.now() - start;
 })()`;
+const TYPE_AND_MEASURE = typeAndMeasure('x');
+
+/**
+ * Records the last keydown made while no list was shown and the moment the list enters the DOM
+ * (a keystroke that finds the list already there leaves the measurement alone).
+ */
+const INSTALL_COMPLETION_TIMER = `(() => {
+  const w = window;
+  w.__mfbeCompletionTiming = { lastKey: 0, shown: 0 };
+  document.addEventListener('keydown', () => {
+    if (document.querySelector('.cm-tooltip-autocomplete')) return;
+    w.__mfbeCompletionTiming.lastKey = performance.now();
+    w.__mfbeCompletionTiming.shown = 0;
+  }, true);
+  const observer = new MutationObserver(() => {
+    const timing = w.__mfbeCompletionTiming;
+    if (!timing.shown && document.querySelector('.cm-tooltip-autocomplete')) {
+      timing.shown = performance.now();
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+})()`;
+
+/** Milliseconds from the last keystroke to the completion list (-1 when it was not shown). */
+const COMPLETION_LATENCY = `(() => {
+  const timing = window.__mfbeCompletionTiming;
+  return timing && timing.shown ? timing.shown - timing.lastKey : -1;
+})()`;
+
+function median(samples: number[]): number {
+  return [...samples].sort((a, b) => a - b)[Math.floor(samples.length / 2)]!;
+}
 
 test.describe('performance - 10 MB text book', () => {
   let dir: string;
@@ -99,13 +136,13 @@ test.describe('performance - 10 MB text book', () => {
     const samples: number[] = [];
     for (let i = 0; i < 10; i += 1) samples.push(await page.evaluate<number>(TYPE_AND_MEASURE));
     const worst = Math.max(...samples);
-    const median = [...samples].sort((a, b) => a - b)[Math.floor(samples.length / 2)]!;
+    const typical = median(samples);
     test.info().annotations.push({
       type: 'perf',
-      description: `keystroke latency median ${median.toFixed(1)} ms, worst ${worst.toFixed(1)} ms`,
+      description: `keystroke latency median ${typical.toFixed(1)} ms, worst ${worst.toFixed(1)} ms`,
     });
     expect(
-      median,
+      typical,
       `keystroke latencies ${samples.map((s) => s.toFixed(0)).join(', ')} ms`,
     ).toBeLessThan(KEYSTROKE_BUDGET_MS);
     await expect(paragraph).toContainText('xxxxxxxxxxx');
@@ -120,5 +157,83 @@ test.describe('performance - 10 MB text book', () => {
     expect(mounted).toBeLessThanOrEqual(count * 3);
     expect(Number(await container.getAttribute('data-section-start'))).toBeGreaterThan(0);
     await expect(page.getByTestId('body-window-before')).toBeVisible();
+  });
+
+  test('Source view: the completion list appears within 300 ms and typing stays under 100 ms', async ({
+    core,
+    page,
+  }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+    test.skip(!book || !existsSync(book), 'python3 / the generator are not available');
+    const supportsDocuments = await core
+      .rpc('doc.recent')
+      .then(() => true)
+      .catch((error: RpcCallError) => error.code !== -32601);
+    test.skip(!supportsDocuments, 'the core does not implement doc.* yet');
+
+    await core.openApp(page);
+    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await core.enqueueDialog('dialog.openFile', { paths: [book] });
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-open').click();
+    await waitForBook(page, book, EDITABLE_BUDGET_MS * 4);
+    await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true', {
+      timeout: EDITABLE_BUDGET_MS * 4,
+    });
+
+    // The whole 10 MB serialisation in the Source view; the cursor in the last section.
+    await page.getByTestId('view-source').click();
+    await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready', {
+      timeout: 60_000,
+    });
+    const content = page.locator('.mfbe-source-editor .cm-content');
+    await content.click();
+    await page.keyboard.press(`${MOD}+End`);
+    for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowUp');
+    await page.keyboard.press(LINE_START);
+    const activeLine = page.locator('.mfbe-source-editor .cm-activeLine').first();
+    await expect(activeLine).toContainText('</section>');
+    // A line of its own before the closing tag of the last section.
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press(LINE_END);
+
+    // The list after `<sec` (section is offered whether or not the parser has reached here).
+    const list = page.locator('.cm-tooltip-autocomplete');
+    await page.evaluate(INSTALL_COMPLETION_TIMER);
+    await page.keyboard.type('<sec');
+    await expect(list).toBeVisible({ timeout: 5_000 });
+    await expect(list.locator('li[role="option"]')).toContainText(['section']);
+    const listAfterMs = await page.evaluate<number>(COMPLETION_LATENCY);
+    test.info().annotations.push({
+      type: 'perf',
+      description: `completion list after ${listAfterMs.toFixed(0)} ms`,
+    });
+    expect(listAfterMs, 'time from the last keystroke to the list').toBeGreaterThan(0);
+    expect(listAfterMs, 'time from the last keystroke to the list').toBeLessThanOrEqual(
+      COMPLETION_LIST_BUDGET_MS,
+    );
+
+    // Keystrokes with the list open (`tion` keeps filtering it) and after the space closed it.
+    const samples: number[] = [];
+    for (const character of 'tion') {
+      samples.push(await page.evaluate<number>(typeAndMeasure(character)));
+    }
+    await expect(list.locator('li[role="option"]')).toHaveText(['section']);
+    for (const character of ' id="x"') {
+      samples.push(await page.evaluate<number>(typeAndMeasure(character)));
+    }
+    await expect(list).toHaveCount(0);
+    const typical = median(samples);
+    test.info().annotations.push({
+      type: 'perf',
+      description: `Source keystroke latency median ${typical.toFixed(1)} ms, worst ${Math.max(...samples).toFixed(1)} ms`,
+    });
+    expect(
+      typical,
+      `Source keystroke latencies ${samples.map((s) => s.toFixed(0)).join(', ')} ms`,
+    ).toBeLessThan(KEYSTROKE_BUDGET_MS);
+    await expect(activeLine).toContainText('<section id="x"');
+    await expect(page).toHaveTitle(/^large\.fb2\* - /);
   });
 });

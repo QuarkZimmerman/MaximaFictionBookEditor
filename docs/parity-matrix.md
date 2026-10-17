@@ -395,6 +395,7 @@ with the same checks.
 | `DESCRIPTION_VIEW*` | Description view (`desc.xsl` form) | `views/description/` (`description-view`, `description-*`, `genre-picker`, `cover-picker`, `binary-objects`) | `description-view`, `description-genre-add` | `us3-description.spec.ts` | implemented | every section of US3, including Binary Objects |
 | `BODY_VIEW*` | Body view (`main.html` / `main.js` editor) | `views/body/` over ProseMirror (`body-view`, `body-editor`) | `body-view` | `us2-body-editing.spec.ts` | implemented | section-windowed for large books (`perf-large-book.spec.ts`) |
 | `SOURCE_VIEW*` | Source view (Scintilla) | `views/source/` over CodeMirror (`source-view`, `source-editor`, folding `source-fold-level`) | `source-view`, `source-fold-level` | `us4-source-validate.spec.ts` | implemented | collapse/expand levels 1-9 as commands `source.collapse<n>` / `source.expand<n>` |
+| `SOURCE_TAG_COMPLETION*` | Source view: tag completion (addition, feature 003) | `edit.completeTag` (`views/source/completion.ts`; the list is `source-completion`, the table `fb2Elements.json` generated from the FB2 schema) | `settings-view-source-tag-completion`, `Control+Space` | `us4-source-completion.spec.ts` | implemented | no original counterpart (requester-approved, spec 003 US8): `<` offers the elements the schema allows at the cursor, `</` the open elements innermost first; Enter/Tab accept, Esc dismisses, Ctrl+Space on demand (Hotkeys page, Edit group); Settings > View > "Tag completion" |
 | `DOCUMENT_TREE_PANEL*` | Document Tree panel ("Document structure") | `views/tree/DocumentTree.tsx` (`panel-tree`, `tree-content`, `tree-row-<id>`) | `tree-content` | `us5-tree.spec.ts` | implemented | |
 | `SCRIPTS_MENU_ENTRIES*` | Scripts menu groups and items, scripts toolbar icons, tree-command scripts | `scripting/ScriptsMenu.tsx`, `scripting/ScriptsToolbar.tsx`, `scripting/tree.ts` (`menu-scripts-<group>-<id>`, `scripts-toolbar-<id>`, `tree-menu-script-<id>`) | `scripts-toolbar-test.case.upper`, `tree-menu-script-test` | `us12-scripts.spec.ts` | implemented | |
 
@@ -415,9 +416,9 @@ the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the orig
 
 Counts are recomputed by `node tools/parity-check.mjs` (printed as
 "rows - implemented N, implemented-differently N, dropped N"). At the time of writing:
-219 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
-their controls) plus the original UI created in the sources: 212 implemented,
-2 implemented-differently, 5 dropped.
+220 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
+their controls) plus the original UI created in the sources and the additions of later
+features: 213 implemented, 2 implemented-differently, 5 dropped.
 
 Dropped items and their references:
 

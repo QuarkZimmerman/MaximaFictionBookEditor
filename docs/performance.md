@@ -13,6 +13,8 @@ update this page when the reader, the binary store or the Body view windowing ch
 | 150 MB image-heavy book: peak resident memory of `mfbe-core` | 1.5 GB |
 | Typing in the 10 MB book (keystroke to painted frame, median of 50) | 100 ms |
 | Tree navigation in the 10 MB book (click until the Body caret moved, median of 7) | 100 ms |
+| Source view of the 10 MB book: tag completion list after the last keystroke (feature 003, FR-074) | 300 ms |
+| Source view of the 10 MB book: typing with and without the completion list (keystroke to painted frame, median of 11) | 100 ms |
 
 ## Measurements (T150)
 
@@ -39,6 +41,16 @@ Chromium 1280 x 800; fixtures from `tests/fixtures/gen-large-book.py` — `large
 2026-10-13 (`tests/bench/run.sh --json` writes `tests/bench/results/bench-<timestamp>.json`,
 git-ignored; the numbers are copied here). All budgets hold with a Debug core; the only metric
 that was over budget was tree navigation in the 10 MB book.
+
+**Source view tag completion** (feature 003 User Story 8, measured 2026-10-17 by the second
+journey of `ui/tests/e2e/perf-large-book.spec.ts` on the same host and Debug core, cursor in the
+last section of the 10 MB book, two runs): the list appears 127–133 ms after the last keystroke
+of `<sec` (budget 300 ms; 100 ms of it is CodeMirror's typing debounce, the rest the query and
+the paint); keystrokes while the list filters (`tion`) and after it closed (` id="x"`) take
+14.3–15.7 ms median, 15.4–16.0 ms worst (budget 100 ms). The completion source runs after the
+debounce, off the keystroke path, resolves the context from the syntax tree parsed so far (at
+most 50 ms of extra parsing per query) and relies on CodeMirror's synchronous filtering
+(`validFor`) while a name is typed.
 
 ## What was changed (T150)
 

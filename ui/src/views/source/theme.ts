@@ -104,7 +104,16 @@ const EDITOR_THEME_SPEC = {
     border: '1px solid var(--mfbe-color-border-strong)',
     color: 'var(--mfbe-color-fg)',
   },
-  '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+  // The tag completion list (feature 003 US8): the dialog palette of the theme - light or dark
+  // - with the list highlight for the selected option, so it stays readable whatever the Body
+  // colours are set to; the names are shown in the Source font.
+  '.cm-tooltip.cm-tooltip-autocomplete > ul': {
+    fontFamily: 'var(--mfbe-source-font-family)',
+  },
+  '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
+    color: 'var(--mfbe-color-fg)',
+  },
+  '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': {
     backgroundColor: 'var(--mfbe-color-highlight-bg)',
     color: 'var(--mfbe-color-highlight-fg)',
   },

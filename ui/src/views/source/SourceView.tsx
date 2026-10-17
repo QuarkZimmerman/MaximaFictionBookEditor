@@ -7,10 +7,10 @@
  * raw text until it parses.
  *
  * Settings > View > XML source editor (wrap, syntax highlighting, EOL and white-space marks, line
- * numbers, matched tags, font) are read from the store and applied live, and so is the interface
- * theme (`app/theme.ts`: the editor switches to its dark CodeMirror theme). A small strip above
- * the editor exposes the fold-level commands (`source.collapse<N>` / `source.expand<N>`), which
- * the original only offered as hotkeys.
+ * numbers, matched tags, tag completion, font) are read from the store and applied live, and so
+ * is the interface theme (`app/theme.ts`: the editor switches to its dark CodeMirror theme). A
+ * small strip above the editor exposes the fold-level commands (`source.collapse<N>` /
+ * `source.expand<N>`), which the original only offered as hotkeys.
  */
 
 import {
@@ -148,6 +148,7 @@ export function SourceView() {
         data-show-eol={settings.showEol ? 'true' : 'false'}
         data-show-whitespace={settings.showWhitespace ? 'true' : 'false'}
         data-match-tags={settings.matchTags ? 'true' : 'false'}
+        data-tag-completion={settings.tagCompletion ? 'true' : 'false'}
         data-theme={theme}
         data-locked={scriptRunning ? 'true' : 'false'}
       >

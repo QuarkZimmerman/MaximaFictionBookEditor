@@ -1,0 +1,383 @@
+{
+  "root": "FictionBook",
+  "elements": {
+    "FictionBook": {
+      "children": ["binary", "body", "description", "stylesheet"]
+    },
+    "a": {
+      "children": ["code", "emphasis", "image", "strikethrough", "strong", "style", "sub", "sup"]
+    },
+    "annotation": {
+      "children": ["cite", "empty-line", "p", "poem", "subtitle", "table"]
+    },
+    "author": {
+      "children": ["email", "first-name", "home-page", "id", "last-name", "middle-name", "nickname"]
+    },
+    "binary": {
+      "children": []
+    },
+    "body": {
+      "children": ["epigraph", "image", "section", "title"]
+    },
+    "book-name": {
+      "children": []
+    },
+    "book-title": {
+      "children": []
+    },
+    "cite": {
+      "children": ["empty-line", "p", "poem", "subtitle", "table", "text-author"]
+    },
+    "city": {
+      "children": []
+    },
+    "code": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "coverpage": {
+      "children": ["image"]
+    },
+    "custom-info": {
+      "children": []
+    },
+    "date": {
+      "children": []
+    },
+    "description": {
+      "children": [
+        "custom-info",
+        "document-info",
+        "output",
+        "publish-info",
+        "src-title-info",
+        "title-info"
+      ]
+    },
+    "document-info": {
+      "children": [
+        "author",
+        "date",
+        "history",
+        "id",
+        "program-used",
+        "publisher",
+        "src-ocr",
+        "src-url",
+        "version"
+      ]
+    },
+    "email": {
+      "children": []
+    },
+    "emphasis": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "empty-line": {
+      "children": []
+    },
+    "epigraph": {
+      "children": ["cite", "empty-line", "p", "poem", "text-author"]
+    },
+    "first-name": {
+      "children": []
+    },
+    "genre": {
+      "children": []
+    },
+    "history": {
+      "children": ["cite", "empty-line", "p", "poem", "subtitle", "table"]
+    },
+    "home-page": {
+      "children": []
+    },
+    "id": {
+      "children": []
+    },
+    "image": {
+      "children": []
+    },
+    "isbn": {
+      "children": []
+    },
+    "keywords": {
+      "children": []
+    },
+    "lang": {
+      "children": []
+    },
+    "last-name": {
+      "children": []
+    },
+    "middle-name": {
+      "children": []
+    },
+    "nickname": {
+      "children": []
+    },
+    "output": {
+      "children": ["output-document-class", "part"]
+    },
+    "output-document-class": {
+      "children": ["part"]
+    },
+    "p": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "part": {
+      "children": []
+    },
+    "poem": {
+      "children": ["date", "epigraph", "stanza", "subtitle", "text-author", "title"]
+    },
+    "program-used": {
+      "children": []
+    },
+    "publish-info": {
+      "children": ["book-name", "city", "isbn", "publisher", "sequence", "year"]
+    },
+    "publisher": {
+      "children": ["email", "first-name", "home-page", "id", "last-name", "middle-name", "nickname"]
+    },
+    "section": {
+      "children": [
+        "annotation",
+        "cite",
+        "empty-line",
+        "epigraph",
+        "image",
+        "p",
+        "poem",
+        "section",
+        "subtitle",
+        "table",
+        "title"
+      ]
+    },
+    "sequence": {
+      "children": ["sequence"]
+    },
+    "src-lang": {
+      "children": []
+    },
+    "src-ocr": {
+      "children": []
+    },
+    "src-title-info": {
+      "children": [
+        "annotation",
+        "author",
+        "book-title",
+        "coverpage",
+        "date",
+        "genre",
+        "keywords",
+        "lang",
+        "sequence",
+        "src-lang",
+        "translator"
+      ]
+    },
+    "src-url": {
+      "children": []
+    },
+    "stanza": {
+      "children": ["subtitle", "title", "v"]
+    },
+    "strikethrough": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "strong": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "style": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "stylesheet": {
+      "children": []
+    },
+    "sub": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "subtitle": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "sup": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "table": {
+      "children": ["tr"]
+    },
+    "td": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "text-author": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "th": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "title": {
+      "children": ["empty-line", "p"]
+    },
+    "title-info": {
+      "children": [
+        "annotation",
+        "author",
+        "book-title",
+        "coverpage",
+        "date",
+        "genre",
+        "keywords",
+        "lang",
+        "sequence",
+        "src-lang",
+        "translator"
+      ]
+    },
+    "tr": {
+      "children": ["td", "th"]
+    },
+    "translator": {
+      "children": ["email", "first-name", "home-page", "id", "last-name", "middle-name", "nickname"]
+    },
+    "v": {
+      "children": [
+        "a",
+        "code",
+        "emphasis",
+        "image",
+        "strikethrough",
+        "strong",
+        "style",
+        "sub",
+        "sup"
+      ]
+    },
+    "version": {
+      "children": []
+    },
+    "year": {
+      "children": []
+    }
+  }
+}

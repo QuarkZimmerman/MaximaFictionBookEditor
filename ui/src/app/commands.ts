@@ -23,6 +23,7 @@ import { actions, type AppStore, documentFileName } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import { RpcError, type RpcClient } from '@/rpc/client';
 import type { Document, ViewId } from '@/rpc/types';
+import { startSourceTagCompletion } from '@/views/source/completion';
 
 import type { HotkeyMap } from './hotkeys';
 
@@ -544,6 +545,25 @@ export function createBuiltinCommands(): Command[] {
     stub('edit.split', 'edit', cmdKeys('edit.split', 'menu.edit.split')),
     stub('edit.merge', 'edit', cmdKeys('edit.merge', 'menu.edit.merge')),
     stub('edit.removeOuter', 'edit', cmdKeys('edit.removeOuter', 'menu.edit.removeOuter')),
+    {
+      // Source view tag completion on demand (feature 003 US8, FR-072): hotkey only, no menu
+      // entry; blocked while a script runs like every editing command. Available in the Source
+      // view while Settings > View > "Tag completion" is on (FR-075).
+      id: 'edit.completeTag',
+      group: 'edit',
+      ...cmdKeys('edit.completeTag'),
+      enabled: (ctx) => {
+        const state = ctx.store.getState();
+        return (
+          state.document !== null &&
+          state.activeView === 'source' &&
+          state.settings?.view?.sourceTagCompletion !== false
+        );
+      },
+      run(ctx) {
+        startSourceTagCompletion(ctx.store);
+      },
+    },
 
     // ---- View -----------------------------------------------------------
     toggleToolbar('view.toolbarCommands', 'menu.view.toolbarCommands', 'commands'),
