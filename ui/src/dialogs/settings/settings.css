@@ -285,3 +285,30 @@
 .mfbe-exclusions-toolbar .mfbe-button {
   min-width: 0;
 }
+
+/* Dictionaries folder and report (feature 003 US4, View page) */
+
+.mfbe-settings-dictionaries {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.mfbe-settings-dictionaries .mfbe-settings-row .mfbe-check-field {
+  margin: 0 12px 0 0;
+}
+
+.mfbe-settings-list {
+  box-sizing: border-box;
+  max-height: 110px;
+  margin: 0;
+  padding: 2px 8px 2px 24px;
+  overflow: auto;
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  background: var(--mfbe-color-input-bg, #fff);
+}
+
+.mfbe-settings-list li {
+  overflow-wrap: anywhere;
+}

@@ -39,6 +39,7 @@ import {
 } from '@/editor/plugins/spellcheck';
 import { actions, type AppStore } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
+import type { SpellDictionaryReport } from '@/rpc/types';
 import {
   getBodyController,
   hasBodyController,
@@ -76,7 +77,11 @@ export class SpellFeature {
       getRpc: () => this.rpcValue,
       onUnavailable: (lang) => this.reportUnavailable(lang),
     });
-    this.checker.subscribe((event) => this.notifyHost(event));
+    this.checker.subscribe((event) => {
+      // The plugin re-checks on verdicts and invalidations; a new report alone (same
+      // dictionaries) changes nothing in the document.
+      if (event !== 'report') this.notifyHost(event);
+    });
     store.subscribe((state, previous) => {
       if (state.docId !== previous.docId) {
         this.session.reset();
@@ -115,6 +120,18 @@ export class SpellFeature {
     this.rpcValue = rpc;
     void this.checker.loadDictionaries();
     this.notifyHost('invalidate');
+  }
+
+  /**
+   * Re-reads the dictionary report after Settings were applied or the Settings page asked for
+   * it (feature 003 US4): the core rescans the dictionaries folders, the checker forgets its
+   * verdicts when the set of dictionaries changed. See `SpellChecker.refreshDictionaries`.
+   */
+  refreshDictionaries(
+    rpc: RpcClient | null = this.rpcValue,
+  ): Promise<SpellDictionaryReport | null> {
+    this.attachRpc(rpc);
+    return this.checker.refreshDictionaries();
   }
 
   setTranslate(translate: (key: string, params?: Record<string, unknown>) => string): void {

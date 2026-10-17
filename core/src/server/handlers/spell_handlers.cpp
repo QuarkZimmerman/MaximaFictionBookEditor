@@ -1,6 +1,11 @@
 // spell.* handlers (T086) - contracts/rpc-api.md §3.4.
 //
 //   spell.dictionaries() -> [{tag, lang, name, path, dicPath, readmePath?, source}]
+//   spell.dictionaryReport() -> {dictionaries: [as above], rejected: [{path, reason, detail?}],
+//                               folders: [{layer, path, exists, readable, writable}]}
+//        (feature 003 US4: refreshes the layers and the registry first, so dictionaries copied
+//        into a folder are picked up on Settings apply without a restart; `spell.dictionaries`
+//        does the same and returns the first part only)
 //   spell.dictionaryLicense({tag}) -> {tag, text}      (readme/licence text for About)
 //   spell.check({words: string[], langs: string[]}) -> {misspelled: string[], langs: string[]}
 //        error 1020 spell.dictionaryUnavailable {lang} when no language has a dictionary
@@ -67,8 +72,15 @@ void register_spell_handlers(rpc::RpcRouter& router, Services& services) {
     router.add_method("spell.dictionaries", [&services](const json&, rpc::RpcContext&) {
         spell::SpellService& s = service(services);
         services.refresh_layers();
-        s.registry().refresh();
+        s.refresh_dictionaries();
         return s.registry().to_json();
+    });
+
+    router.add_method("spell.dictionaryReport", [&services](const json&, rpc::RpcContext&) {
+        spell::SpellService& s = service(services);
+        services.refresh_layers();
+        s.refresh_dictionaries();
+        return s.registry().report_json();
     });
 
     router.add_method("spell.dictionaryLicense", [&services](const json& params, rpc::RpcContext&) {

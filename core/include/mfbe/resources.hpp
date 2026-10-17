@@ -3,8 +3,11 @@
 // For each kind (genres, scripts, dictionaries) the effective set is the union of the layers
 //   settings (custom folder from settings) -> user (<Data>/<kind>) -> portable -> bundled.
 // Purely additive: bundled entries can never be hidden; a same-id entry in another layer is a
-// conflict (logged as `resources.conflict`), the bundled one is kept. Between the non-bundled
-// layers the order above decides (settings beats user beats portable).
+// conflict (logged as `resources.conflict` and handed to the caller with the layer that stays
+// in effect), the bundled one is kept. Between the non-bundled layers the order above decides
+// (settings beats user beats portable). Since feature 003 (US4) the dictionaries kind has a
+// settings layer too (`other.dictionariesFolder`), and every layer reports whether it can be
+// read, so a chosen folder that is missing or unreadable can be shown to the user.
 #pragma once
 
 #include <nlohmann/json.hpp>
@@ -29,6 +32,7 @@ struct Layer {
     Kind kind;
     std::filesystem::path path;
     bool exists = false;
+    bool readable = false;  // exists and its entries can be listed (feature 003 US4)
     bool writable = false;
 };
 
@@ -43,6 +47,8 @@ struct Conflict {
     std::string id;
     std::filesystem::path kept;
     std::filesystem::path ignored;
+    LayerName kept_layer = LayerName::bundled;     // the layer that stays in effect
+    LayerName ignored_layer = LayerName::bundled;  // the layer of the shadowed entry
 };
 
 struct Roots {
@@ -52,6 +58,7 @@ struct Roots {
     std::filesystem::path bundled_scripts;          // <install>/scripts
     std::filesystem::path settings_genres;          // settings other.genresFolder ("" = none)
     std::filesystem::path settings_scripts;         // settings other.scriptsFolder ("" = none)
+    std::filesystem::path settings_dictionaries;    // settings other.dictionariesFolder ("")
 };
 
 // Decides the id of a directory entry for a kind (nullopt = not an entry of this kind).

@@ -6,21 +6,31 @@
  *
  * Active languages: the session override when the user picked dictionaries, otherwise the
  * document language (`title-info/lang`); tags are resolved against `spell.dictionaries()`
- * (`ru` -> `ru_RU`) when the list is known, the core resolves them too. Error 1020
- * (`spell.dictionaryUnavailable`) marks the language combination unavailable - reported once
- * through `onUnavailable` - and every word counts as correct until the languages change.
+ * (`ru` -> `ru_RU`, `de-AT` -> `de_DE`) when the list is known, the core resolves them too.
+ * Error 1020 (`spell.dictionaryUnavailable`) marks the language combination unavailable -
+ * reported once through `onUnavailable` - and every word counts as correct until the languages
+ * change.
+ *
+ * Dictionaries folder (feature 003 US4): `refreshDictionaries()` re-reads
+ * `spell.dictionaryReport` - the core rescans its folders first - and forgets every cached
+ * verdict when the set of dictionaries in effect changed, so a pair copied into a folder is
+ * used as soon as Settings are applied; the report (rejected files, folders) is kept for the
+ * Settings page.
  */
 
 import type { AppStore } from '@/model/store';
 import { RpcError, type RpcClient } from '@/rpc/client';
-import { RpcErrorCode, type RpcParams } from '@/rpc/types';
+import { RpcErrorCode, type RpcParams, type SpellDictionaryReport } from '@/rpc/types';
 
 import type { SpellSession } from './session';
 
 export const BATCH_SIZE = 500;
 
-/** `results`: new verdicts are cached; `invalidate`: every verdict must be re-evaluated. */
-export type SpellCheckerEvent = 'results' | 'invalidate';
+/**
+ * `results`: new verdicts are cached; `invalidate`: every verdict must be re-evaluated;
+ * `report`: a new dictionary report arrived (`report` getter).
+ */
+export type SpellCheckerEvent = 'results' | 'invalidate' | 'report';
 const SUGGESTION_CACHE_LIMIT = 200;
 
 /** `spell.dictionaries()` entry (the contract's full shape; `rpc/types.ts` declares a subset). */
@@ -63,6 +73,13 @@ export function resolveDictionaryTag(
   return prefix ? prefix.tag : null;
 }
 
+/** Identity of the set of dictionaries in effect: tags, files and origins. */
+export function dictionarySignature(dictionaries: readonly SpellDictionaryInfo[]): string {
+  return dictionaries
+    .map((d) => `${d.tag}\u0001${d.path ?? ''}\u0001${d.dicPath ?? ''}\u0001${d.source}`)
+    .join('\n');
+}
+
 export class SpellChecker {
   private readonly store: AppStore;
   readonly session: SpellSession;
@@ -75,6 +92,8 @@ export class SpellChecker {
   private readonly listeners = new Set<(event: SpellCheckerEvent) => void>();
   private dictionariesValue: SpellDictionaryInfo[] | null = null;
   private dictionariesPromise: Promise<SpellDictionaryInfo[]> | null = null;
+  private reportValue: SpellDictionaryReport | null = null;
+  private reportPromise: Promise<SpellDictionaryReport | null> | null = null;
   private inflight = new Map<string, Promise<void>>();
 
   constructor(options: SpellCheckerOptions) {
@@ -154,6 +173,42 @@ export class SpellChecker {
         this.dictionariesPromise = null;
       });
     return this.dictionariesPromise;
+  }
+
+  /** The last `spell.dictionaryReport` answer (null before the first `refreshDictionaries`). */
+  get report(): SpellDictionaryReport | null {
+    return this.reportValue;
+  }
+
+  /**
+   * Re-reads the dictionary report (the core rescans the dictionaries folders first - feature
+   * 003 US4): the list used to resolve tags is replaced and, when the set of dictionaries in
+   * effect changed (a pair added, removed or re-layered), every cached verdict and suggestion
+   * is forgotten so the document is re-checked with the new dictionaries. `report` listeners
+   * are told either way. Concurrent calls share one request. Resolves with null - the previous
+   * report, if any, stays - when there is no client, the core has no such method or the call
+   * fails.
+   */
+  async refreshDictionaries(): Promise<SpellDictionaryReport | null> {
+    if (this.reportPromise) return this.reportPromise;
+    const rpc = this.getRpc();
+    if (!rpc) return null;
+    this.reportPromise = rpc
+      .call('spell.dictionaryReport')
+      .then((report) => {
+        const before = this.dictionariesValue ? dictionarySignature(this.dictionariesValue) : null;
+        const dictionaries = report.dictionaries as unknown as SpellDictionaryInfo[];
+        this.reportValue = report;
+        this.dictionariesValue = dictionaries;
+        if (before !== dictionarySignature(dictionaries)) this.invalidate();
+        this.emit('report');
+        return report;
+      })
+      .catch(() => null)
+      .finally(() => {
+        this.reportPromise = null;
+      });
+    return this.reportPromise;
   }
 
   /* ----------------------------------------------------------------- cache */

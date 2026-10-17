@@ -1,8 +1,9 @@
 /**
  * Settings dialog model (T128/T129): the field <-> settings mapping shared by the pages, the
  * option lists of the combo boxes, range validation (`bodyFontSize` 6-96, `jpegQuality`
- * 1-100, colours `#rrggbb`), the exclusion-word rule of resource-formats.md §4 and the
- * formatting of the effective genre-list sources. Pure functions: no React, no RPC.
+ * 1-100, colours `#rrggbb`), the exclusion-word rule of resource-formats.md §4, the
+ * formatting of the effective genre-list sources and of the dictionary report (feature 003
+ * US4: origin labels, rejection reasons). Pure functions: no React, no RPC.
  */
 
 import type { TFunction } from 'i18next';
@@ -10,7 +11,14 @@ import type { TFunction } from 'i18next';
 import { DEFAULT_THEME_SETTING, isThemeSetting } from '@/app/theme';
 import { ENCODING_CHOICES } from '@/dialogs/encodings';
 import { isCssColor } from '@/features/settings/apply';
-import type { Settings, ThemeSetting, UiLanguageSetting } from '@/rpc/types';
+import type {
+  Settings,
+  SpellDictionaryFolder,
+  SpellRejectedDictionary,
+  ThemeSetting,
+  UiLanguageSetting,
+  VersionCheckSchedule,
+} from '@/rpc/types';
 
 export { ENCODING_CHOICES };
 
@@ -267,4 +275,65 @@ export function describeGenreSources(sources: GenreSourceInfo[], t: TFunction): 
     return t('dialog.settings.other.genreSourceLayer', { layer, file, count: source.entries });
   });
   return parts.join(' \u00B7 ');
+}
+
+/* ------------------------------------------------------------------------ */
+/* Dictionary report (feature 003 US4)                                      */
+/* ------------------------------------------------------------------------ */
+
+const DICTIONARY_SOURCES = ['bundled', 'settings', 'user', 'portable'] as const;
+type DictionarySource = (typeof DICTIONARY_SOURCES)[number];
+
+function isDictionarySource(value: string | undefined): value is DictionarySource {
+  return (DICTIONARY_SOURCES as readonly string[]).includes(value ?? '');
+}
+
+/**
+ * The origin of a dictionary as shown next to its tag (`source` of the report; data-model §2):
+ * "built in" (`bundled`), "chosen folder" (`settings`), "user folder", "portable folder".
+ */
+export function dictionaryOriginLabel(source: string, t: TFunction): string {
+  return isDictionarySource(source) ? t(`dialog.about.dictionarySource.${source}`) : source;
+}
+
+/** The reason a file of a dictionaries folder is not used, with the detail where it says more. */
+export function dictionaryRejectionText(
+  rejected: Pick<SpellRejectedDictionary, 'reason' | 'detail'>,
+  t: TFunction,
+): string {
+  switch (rejected.reason) {
+    case 'shadowed':
+      return isDictionarySource(rejected.detail)
+        ? t(`spell.rejected.shadowedBy.${rejected.detail}`)
+        : t('spell.rejected.shadowed');
+    case 'unsupportedEncoding':
+      return rejected.detail
+        ? `${t('spell.rejected.unsupportedEncoding')} (${rejected.detail})`
+        : t('spell.rejected.unsupportedEncoding');
+    case 'unreadable':
+      return t('spell.rejected.unreadable');
+    case 'partnerMissing':
+      return t('spell.rejected.partnerMissing');
+    default:
+      return rejected.reason;
+  }
+}
+
+/**
+ * The problem with the chosen dictionaries folder of the saved settings, when it cannot be
+ * used (the default folder is used then): missing or unreadable; null when there is none.
+ */
+export function dictionariesFolderProblem(
+  folders: readonly SpellDictionaryFolder[],
+  t: TFunction,
+): string | null {
+  const chosen = folders.find((folder) => folder.layer === 'settings');
+  if (!chosen || chosen.path === '') return null;
+  if (!chosen.exists) {
+    return t('dialog.settings.view.dictionariesFolderMissing', { path: chosen.path });
+  }
+  if (!chosen.readable) {
+    return t('dialog.settings.view.dictionariesFolderUnreadable', { path: chosen.path });
+  }
+  return null;
 }

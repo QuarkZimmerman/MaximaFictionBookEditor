@@ -304,6 +304,17 @@ void SpellService::reload_custom() {
     clear_cache();
 }
 
+bool SpellService::refresh_dictionaries() {
+    const bool set_changed = registry_->refresh();
+    const bool instances_dropped = checker_->drop_stale() > 0;
+    if (set_changed || instances_dropped) {
+        // Verdicts cached against the previous files or set of dictionaries are void.
+        clear_cache();
+        return true;
+    }
+    return false;
+}
+
 void SpellService::clear_cache() {
     std::lock_guard<std::mutex> lock(cache_mutex_);
     lru_.clear();

@@ -36,6 +36,17 @@ bool dir_writable(const fs::path& p) {
 #endif
 }
 
+// True when the folder exists and its entries can be listed (a folder without read or search
+// permission exists but contributes nothing; the user is told so - feature 003 US4).
+bool dir_readable(const fs::path& p) {
+    if (!dir_exists(p)) {
+        return false;
+    }
+    std::error_code ec;
+    const fs::directory_iterator it(p, ec);
+    return !ec;
+}
+
 std::string lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -148,14 +159,21 @@ std::vector<Layer> ResourceLayers::layers(Kind kind) const {
         layer.kind = kind;
         layer.path = path;
         layer.exists = dir_exists(path);
+        layer.readable = dir_readable(path);
         layer.writable = dir_writable(path);
         result.push_back(std::move(layer));
     };
     fs::path settings_folder;
-    if (kind == Kind::genres) {
-        settings_folder = roots_.settings_genres;
-    } else if (kind == Kind::scripts) {
-        settings_folder = roots_.settings_scripts;
+    switch (kind) {
+        case Kind::genres:
+            settings_folder = roots_.settings_genres;
+            break;
+        case Kind::scripts:
+            settings_folder = roots_.settings_scripts;
+            break;
+        case Kind::dictionaries:
+            settings_folder = roots_.settings_dictionaries;
+            break;
     }
     add(LayerName::settings, settings_folder);
     add(LayerName::user, roots_.user_data.empty() ? fs::path() : roots_.user_data / sub);
@@ -187,6 +205,7 @@ nlohmann::json ResourceLayers::report() const {
                        {"layer", to_string(layer.layer)},
                        {"path", platform::utf8_from_path(layer.path)},
                        {"exists", layer.exists},
+                       {"readable", layer.readable},
                        {"writable", layer.writable}});
     }
     return arr;
@@ -229,7 +248,8 @@ std::vector<Entry> ResourceLayers::list(Kind kind, const IdFunction& id_of,
             }
             auto found = index_by_id.find(*id);
             if (found != index_by_id.end()) {
-                Conflict conflict{kind, *id, result[found->second].path, entry.path()};
+                const Entry& kept = result[found->second];
+                Conflict conflict{kind, *id, kept.path, entry.path(), kept.layer, layer->layer};
                 log::warning(
                     "core", "resources.conflict",
                     "resource id present in several layers; higher layer kept",

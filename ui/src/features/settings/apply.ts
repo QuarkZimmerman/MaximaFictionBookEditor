@@ -42,6 +42,7 @@ import type { HotkeyMap } from '@/app/hotkeys';
 import type { FeatureContext } from '@/app/services';
 import { forcedLanguage } from '@/app/startup';
 import { DEFAULT_THEME_SETTING, applyTheme, isThemeSetting, storedThemeSetting } from '@/app/theme';
+import { getSpellFeature } from '@/features/spell';
 import i18next, { changeLanguage, resolveUiLanguage } from '@/i18n';
 import { actions, type AppStore } from '@/model/store';
 import { RpcError, type RpcClient } from '@/rpc/client';
@@ -299,6 +300,19 @@ export class SettingsFeature {
         applyBodyCssVariables(state.settings, this.root);
         applyTheme(themeSettingOf(state.settings), { root: this.root });
         this.syncLanguage(previous.settings, state.settings);
+        // Dictionaries folder (feature 003 US4): after a successful `settings.set` of the
+        // dialog's sections (the dictionaries folder may have changed, or dictionaries were
+        // copied into a folder before Apply) the spell feature re-reads `spell.dictionaryReport`
+        // - the core rescans its folders - so new dictionaries are used without a restart.
+        // Session-only changes (toolbar flags) and the initial load do not count.
+        if (
+          previous.settings &&
+          state.settings &&
+          this.rpcClient &&
+          !isEmptyPatch(settingsPatch(previous.settings, state.settings))
+        ) {
+          void getSpellFeature(this.store).refreshDictionaries(this.rpcClient);
+        }
       }
       if (
         state.settings &&

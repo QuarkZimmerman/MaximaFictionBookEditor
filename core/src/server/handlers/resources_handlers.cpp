@@ -17,6 +17,10 @@
 //                                                   would use now)
 //   resources.openTemplateFolder() -> {path}        (shell-delegated; the template folder from
 //                                                   settings or <Data>, created on demand)
+//   resources.openDictionariesFolder() -> {path}    (feature 003 US4, shell-delegated; the
+//                                                   dictionaries folder chosen in Settings
+//                                                   (other.dictionariesFolder) or
+//                                                   <Data>/dictionaries, created on demand)
 #include "server/services.hpp"
 
 #include <mfbe/log.hpp>
@@ -77,6 +81,23 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services) {
                           result["path"] = platform::utf8_from_path(folder);
                           return result;
                       });
+
+    router.add_method(
+        "resources.openDictionariesFolder", [&services](const json&, rpc::RpcContext&) {
+            // The chosen folder when there is one, else the per-user folder; either is created
+            // when missing (spec FR-030), so the user can drop files into it right away.
+            std::filesystem::path folder =
+                platform::path_from_utf8(services.settings.get_string("other.dictionariesFolder"));
+            if (folder.empty()) {
+                folder = services.layers.user_folder(resources::Kind::dictionaries, true);
+            } else {
+                std::error_code ec;
+                std::filesystem::create_directories(folder, ec);
+            }
+            json result = open_folder_with_shell(services, folder);
+            result["path"] = platform::utf8_from_path(folder);
+            return result;
+        });
 }
 
 }  // namespace mfbe::server
