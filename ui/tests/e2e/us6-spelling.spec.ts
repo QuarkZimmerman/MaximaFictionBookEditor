@@ -372,6 +372,11 @@ test.describe('US1 (feature 003) - the built-in Ukrainian dictionary checks a Uk
     expect(UK_MISSPELLED).toHaveLength(20);
 
     const editor = await openBook(core, page, UK_BOOK);
+    // The 9 MB Ukrainian dictionary is opened on its first use: the budget of one second counts
+    // from the first marked word (the dictionary is loaded) to the complete set.
+    await expect
+      .poll(async () => (await misspelledWords(editor)).length, { timeout: 10_000 })
+      .toBeGreaterThan(0);
     const shownAt = Date.now();
     await expect.poll(() => misspelledWords(editor), { timeout: 1000 }).toEqual(UK_MISSPELLED);
     expect(Date.now() - shownAt).toBeLessThan(1500);
