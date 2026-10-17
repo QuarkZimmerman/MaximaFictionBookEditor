@@ -845,6 +845,7 @@
   },
   "msg": {
     "saveChanges": "Save changes to {{name}}?",
+    "cancelRunningScript": "A script is running. Cancel it and exit?",
     "validationFailedCaption": "Validation failed",
     "validationFailed": "{{errors}}\nDo you still want to save the file?\n\nWARNING: Invalid files can be improperly displayed and can cause errors in other applications.",
     "fileChangedCaption": "File changed",

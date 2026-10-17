@@ -425,7 +425,7 @@ test.describe('US1 - open, review and save a book without loss', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('4. unsaved changes prompt "Save changes to X?" on New, Open and Exit and honour the answer', async ({
+  test('4. unsaved changes prompt "Save changes to X?" on New, Open, Exit and the window close and honour the answer', async ({
     core,
     page,
   }) => {
@@ -457,6 +457,19 @@ test.describe('US1 - open, review and save a book without loss', () => {
     await page.keyboard.press('Escape');
     await expect(prompt).toBeHidden();
     await expect(page).toHaveTitle(`scenario4-prompt.fb2* - ${APP_TITLE}`);
+
+    // Closing the window asks exactly like Exit (feature 003, FR-017): the shell's close request
+    // reaches the page as app.closeRequested (test.requestClose emits it headless); Cancel keeps
+    // the editor open with the document as it was.
+    await core.rpc('test.requestClose');
+    await expect(prompt).toBeVisible();
+    await expect(page.getByTestId('dialog-save-changes-text')).toHaveText(
+      await pageText(page, 'msg.saveChanges', { name: 'scenario4-prompt.fb2' }),
+    );
+    await page.getByTestId('dialog-save-changes-button-cancel').click();
+    await expect(prompt).toBeHidden();
+    await expect(page).toHaveTitle(`scenario4-prompt.fb2* - ${APP_TITLE}`);
+    await expect(page.getByTestId('status-message')).not.toHaveText(/error/i);
 
     // Open -> No discards the changes; the cancelled file dialog leaves no document.
     await core.enqueueDialog('dialog.openFile', { paths: [] });

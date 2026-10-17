@@ -148,6 +148,22 @@ void MfbeClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
 
 bool MfbeClient::DoClose(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
+    if (IsMainBrowser(browser) && config_.request_close) {
+        // The main window closes only with the UI's agreement (feature 003 FR-013): the first
+        // request is cancelled here and handed to the UI, whose quit flow - the cancel-script
+        // prompt while a script runs, then the save prompt - ends in app.quit; the core stops,
+        // CloseAllBrowsers(true) follows and the handshake lets this close through. Without a
+        // way to reach the UI (no core) the window closes as it always did.
+        switch (close_handshake_.onCloseRequested()) {
+            case CloseHandshake::Action::kAsk:
+                AskUiToClose(close_handshake_.ticket());
+                return true;  // cancel this close: the UI (or the timeout) decides
+            case CloseHandshake::Action::kIgnore:
+                return true;  // the UI is already asked; its prompt is up
+            case CloseHandshake::Action::kAllow:
+                break;
+        }
+    }
     // Closing the main window requires special handling. See the DoClose() documentation in
     // include/cef_life_span_handler.h for a detailed description of this process.
     if (browser_list_.size() == 1) {
@@ -155,6 +171,65 @@ bool MfbeClient::DoClose(CefRefPtr<CefBrowser> browser) {
     }
     // Allow the close. For windowed browsers this will result in the OS close event being sent.
     return false;
+}
+
+bool MfbeClient::IsMainBrowser(const CefRefPtr<CefBrowser>& browser) const {
+    // The main window is created first (OnAfterCreated); DevTools popups follow it.
+    return browser && !browser_list_.empty() && browser->IsSame(browser_list_.front());
+}
+
+void MfbeClient::AskUiToClose(unsigned ticket) {
+    CEF_REQUIRE_UI_THREAD();
+    CefPostDelayedTask(TID_UI, base::BindOnce(&MfbeClient::OnCloseAnswerTimeout, this, ticket),
+                       CloseHandshake::kAnswerTimeout.count());
+    // The callback may arrive on a core thread, or synchronously when the core is not running;
+    // either way the answer is handled in a task of its own, never inside DoClose.
+    config_.request_close([this, ticket](bool delivered) {
+        CefPostTask(TID_UI,
+                    base::BindOnce(&MfbeClient::OnCloseRequestDelivered, this, ticket, delivered));
+    });
+}
+
+void MfbeClient::OnCloseRequestDelivered(unsigned ticket, bool delivered) {
+    CEF_REQUIRE_UI_THREAD();
+    if (delivered) {
+        return;  // the UI runs its quit flow; app.quit or the timeout ends the handshake
+    }
+    if (close_handshake_.onUndelivered(ticket)) {
+        ForceCloseMainBrowser();
+    }
+}
+
+void MfbeClient::OnCloseAnswerTimeout(unsigned ticket) {
+    CEF_REQUIRE_UI_THREAD();
+    if (!close_handshake_.isAsking(ticket)) {
+        return;  // answered (app.quit) or superseded meanwhile
+    }
+    // No app.quit within the timeout: a UI that is still connected declined (or still shows
+    // its prompt) and keeps the window; a UI that is gone cannot answer and the window closes.
+    if (!config_.query_ui_connected) {
+        OnCloseUiQueried(ticket, false);
+        return;
+    }
+    config_.query_ui_connected([this, ticket](bool connected) {
+        CefPostTask(TID_UI, base::BindOnce(&MfbeClient::OnCloseUiQueried, this, ticket, connected));
+    });
+}
+
+void MfbeClient::OnCloseUiQueried(unsigned ticket, bool connected) {
+    CEF_REQUIRE_UI_THREAD();
+    if (close_handshake_.onTimeout(ticket, connected)) {
+        LOG(WARNING) << "mfbe: the UI did not answer the close request; closing the window";
+        ForceCloseMainBrowser();
+    }
+}
+
+void MfbeClient::ForceCloseMainBrowser() {
+    CEF_REQUIRE_UI_THREAD();
+    if (browser_list_.empty()) {
+        return;
+    }
+    browser_list_.front()->GetHost()->CloseBrowser(true);
 }
 
 void MfbeClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
@@ -347,6 +422,11 @@ void MfbeClient::CloseAllBrowsers(bool force_close) {
     if (!CefCurrentlyOn(TID_UI)) {
         CefPostTask(TID_UI, base::BindOnce(&MfbeClient::CloseAllBrowsers, this, force_close));
         return;
+    }
+    if (force_close) {
+        // The decision was taken elsewhere (app.quit stopped the core, the OS quits the app):
+        // the UI's quit flow is not asked for again.
+        close_handshake_.allow();
     }
     // Copy: OnBeforeClose mutates browser_list_ while we iterate.
     const std::list<CefRefPtr<CefBrowser>> browsers = browser_list_;

@@ -5,6 +5,8 @@
 //   http://127.0.0.1:<port>/?token=<token>      (WebSocket: ws://127.0.0.1:<port>/rpc?token=…)
 #pragma once
 
+#include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -46,6 +48,16 @@ public:
     // Emits the app.openPaths notification (queued for the first client when none is
     // connected yet).
     void notify_open_paths(const std::vector<std::string>& paths);
+    // Shell close handshake (feature 003 FR-013, rpc-api.md §3.1): emits app.closeRequested to
+    // every connected UI; the UI runs its quit flow (cancel-script prompt, save prompt) and ends
+    // it with app.quit. `on_delivered` - optional, called on the server thread, or at once
+    // when the server is not running - tells whether any client was connected to receive the
+    // request, so the shell closes right away when nobody can answer.
+    void request_close(std::function<void(bool delivered)> on_delivered = {});
+    // Reports the number of connected UI clients to `on_result` (server thread; at once with 0
+    // when the server is not running). The shell's close handshake uses it to tell a UI that
+    // declined to close from one that cannot answer any more.
+    void count_clients(std::function<void(std::size_t count)> on_result);
 
     void stop();  // idempotent; also triggered by app.quit
     void wait();  // blocks until stopped

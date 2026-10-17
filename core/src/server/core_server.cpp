@@ -397,6 +397,38 @@ void CoreServer::notify_open_paths(const std::vector<std::string>& paths) {
     });
 }
 
+void CoreServer::request_close(std::function<void(bool)> on_delivered) {
+    // The same notification test.requestClose emits (test_handlers.cpp), so the headless
+    // journeys exercise the UI side of the handshake exactly.
+    const std::string text = rpc::RpcRouter::wire_text(
+        rpc::RpcRouter::make_notification("app.closeRequested", nlohmann::json::object()));
+    const bool posted = impl_->post([this, text, on_delivered] {
+        bool delivered = false;
+        if (impl_->transport != nullptr) {
+            delivered = impl_->transport->client_count() > 0;
+            impl_->transport->broadcast(text);
+        }
+        if (on_delivered) {
+            on_delivered(delivered);
+        }
+    });
+    if (!posted && on_delivered) {
+        on_delivered(false);
+    }
+}
+
+void CoreServer::count_clients(std::function<void(std::size_t)> on_result) {
+    if (!on_result) {
+        return;
+    }
+    const bool posted = impl_->post([this, on_result] {
+        on_result(impl_->transport != nullptr ? impl_->transport->client_count() : 0);
+    });
+    if (!posted) {
+        on_result(0);
+    }
+}
+
 void CoreServer::stop() {
     impl_->request_stop();
 }

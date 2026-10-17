@@ -75,12 +75,14 @@ set(MFBE_SHELL_DEFINES
   $<$<BOOL:${MFBE_TEST_HOOKS}>:MFBE_SHELL_TEST_HOOKS=1>)
 
 # ---------------------------------------------------------------------------------------------
-# Pure shell logic without CEF types (the command line, file dialog requests in each platform's
-# terms, the right-click menu, the latest-release request), shared by the bridge, the shell and
-# the mfbe_shell_tests executable (tests/shell). command_line.cpp prints the version stamps in
-# --help / --version, hence the version defines.
+# Pure shell logic without CEF types (the command line, the main window's close handshake, file
+# dialog requests in each platform's terms, the right-click menu, the latest-release request),
+# shared by the bridge, the shell and the mfbe_shell_tests executable (tests/shell).
+# command_line.cpp prints the version stamps in --help / --version, hence the version defines.
 
 add_library(mfbe_shell_logic STATIC
+  src/close_handshake.cpp
+  src/close_handshake.h
   src/command_line.cpp
   src/command_line.h
   src/context_menu.cpp

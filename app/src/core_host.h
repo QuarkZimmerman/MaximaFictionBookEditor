@@ -69,6 +69,18 @@ public:
     // open-file events (app.openPaths notification).
     virtual void notifyOpenPaths(const std::vector<std::string>& paths) = 0;
 
+    // Close handshake of the main window (feature 003 FR-013): asks the UI to close through the
+    // core (app.closeRequested); the UI runs its quit flow - cancel-script prompt, save prompt -
+    // and ends it with app.quit. `on_delivered` receives whether any UI client was connected to
+    // receive the request; it may be called from a core thread, or at once (false) without a
+    // running core.
+    virtual void requestClose(std::function<void(bool delivered)> on_delivered) = 0;
+
+    // Reports whether a UI client is connected to the core (`on_result`, possibly from a core
+    // thread; at once with false without a running core). The close handshake asks it when the
+    // UI did not answer in time: a connected UI declined, a vanished one cannot answer.
+    virtual void queryUiConnected(std::function<void(bool connected)> on_result) = 0;
+
     // Records a shell-side warning in the core's errors-only log (source "shell"); also
     // printed to stderr when no core is running. Never includes book text.
     virtual void logWarning(const std::string& code, const std::string& message) = 0;

@@ -1,13 +1,15 @@
-// CefClient of the shell: browser life span (quit when the last window closes), window title
-// (mirrors document.title, e.g. "book.fb2* - Maxima Fiction Book Editor" with the modified
-// marker set by the UI), inline load-error page, navigation policy (stay on the loopback
-// origin, external links go to the OS browser), OS drag-and-drop of documents onto the
-// window (opened through app.openPaths; images and other files reach the page as HTML5
-// drops), the right-click menu (a text box's edit menu, nothing elsewhere: context_menu.h),
-// permission requests (the clipboard for the editor's page, nothing else: permission_policy.h)
-// and F12 -> DevTools in development builds.
+// CefClient of the shell: browser life span (quit when the last window closes; the main
+// window's close is first offered to the UI - close_handshake.h - so the cancel-script and
+// save prompts run before the window goes), window title (mirrors document.title, e.g.
+// "book.fb2* - Maxima Fiction Book Editor" with the modified marker set by the UI), inline
+// load-error page, navigation policy (stay on the loopback origin, external links go to the OS
+// browser), OS drag-and-drop of documents onto the window (opened through app.openPaths;
+// images and other files reach the page as HTML5 drops), the right-click menu (a text box's
+// edit menu, nothing elsewhere: context_menu.h), permission requests (the clipboard for the
+// editor's page, nothing else: permission_policy.h) and F12 -> DevTools in development builds.
 #pragma once
 
+#include "close_handshake.h"
 #include "include/cef_client.h"
 
 #include <functional>
@@ -36,6 +38,13 @@ public:
         bool devtools_enabled = false;  // F12 opens DevTools
         // Receives the absolute paths of .fb2/.fbd/.xml files dragged onto the window.
         std::function<void(const std::vector<std::string>&)> open_paths;
+        // Close handshake (feature 003 FR-013): asks the UI to close through the core
+        // (app.closeRequested); the callback tells whether a UI client received the request
+        // and may run on any thread. Unset = no core: the window closes at once.
+        std::function<void(std::function<void(bool delivered)>)> request_close;
+        // Whether a UI client is connected to the core (callback on any thread); asked when
+        // the UI did not answer the close request in time.
+        std::function<void(std::function<void(bool connected)>)> query_ui_connected;
     };
 
     MfbeClient(Config config, std::shared_ptr<NativeDialogs> dialogs);
@@ -109,7 +118,8 @@ public:
     // Brings the main window to the front (any thread).
     void ShowMainWindow();
 
-    // Requests that all existing browser windows close (any thread).
+    // Requests that all existing browser windows close (any thread). A forced close skips the
+    // UI's quit flow (the core already stopped on app.quit, or the OS is quitting the app).
     void CloseAllBrowsers(bool force_close);
 
     bool IsClosing() const { return is_closing_; }
@@ -121,12 +131,23 @@ public:
 private:
     void OpenExternal(const std::string& url);
 
+    // Close handshake of the main window (CEF UI thread). AskUiToClose() emits
+    // app.closeRequested through the core and arms the answer timeout; the callbacks carry the
+    // handshake ticket so that late answers of an earlier request are ignored.
+    bool IsMainBrowser(const CefRefPtr<CefBrowser>& browser) const;
+    void AskUiToClose(unsigned ticket);
+    void OnCloseRequestDelivered(unsigned ticket, bool delivered);
+    void OnCloseAnswerTimeout(unsigned ticket);
+    void OnCloseUiQueried(unsigned ticket, bool connected);
+    void ForceCloseMainBrowser();
+
     const Config config_;
     std::shared_ptr<NativeDialogs> dialogs_;
 
     // Existing browsers (main window + DevTools); only accessed on the CEF UI thread.
     std::list<CefRefPtr<CefBrowser>> browser_list_;
     bool is_closing_ = false;
+    CloseHandshake close_handshake_;
 
     IMPLEMENT_REFCOUNTING(MfbeClient);
 };
