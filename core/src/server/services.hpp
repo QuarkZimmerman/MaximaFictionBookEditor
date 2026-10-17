@@ -24,6 +24,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 
 namespace mfbe::server {
@@ -59,6 +60,9 @@ struct Services {
     std::function<bool(std::function<void()>)> post;
     // Requests an orderly shutdown (app.quit).
     std::function<void()> request_quit;
+    // The shell's relaunch (app.restart, feature 003 US3): CoreServerOptions::on_restart; unset
+    // without a shell (1070 app.restartUnavailable).
+    std::function<RestartOutcome(const std::optional<std::string>& reopen)> request_restart;
 
     // Dialog provider (set from any thread).
     std::shared_ptr<DialogProvider> dialog_provider() const;

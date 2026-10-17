@@ -1,6 +1,7 @@
 /**
  * Settings runtime (T133): Body CSS variables, the `settings.set` patch diff, the session
- * persistence of toolbar / tree flags and window geometry, the hotkeys load/save tolerance,
+ * persistence of toolbar / tree flags (the window placement is the shell's since feature 003
+ * US3: the UI writes nothing to `session.windowGeometry`), the hotkeys load/save tolerance,
  * and the FBE defaults table of `app/defaultHotkeys.ts` against the engine defaults.
  */
 
@@ -16,7 +17,6 @@ import {
   quoteFontFamily,
   saveUserHotkeys,
   settingsPatch,
-  windowGeometryOf,
 } from '@/features/settings/apply';
 import { actions, createAppStore } from '@/model/store';
 
@@ -119,7 +119,7 @@ describe('SettingsFeature session persistence', () => {
     expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(1);
   });
 
-  it('persists the window geometry on resize and ignores unusable values', async () => {
+  it('leaves the window placement to the shell: a resize writes nothing (feature 003 US3)', async () => {
     let current = defaultSettings();
     const rpc = fakeRpc({
       'hotkeys.get': [],
@@ -143,15 +143,16 @@ describe('SettingsFeature session persistence', () => {
       { store, hotkeys: new HotkeyMap('linux') },
       { root: null, window: fakeWindow, search: '' },
     );
-    feature.install();
+    const uninstall = feature.install();
     actions.setSettings(store, current);
     await feature.attach(rpc.client);
-    listeners.get('resize')!();
-    await vi.advanceTimersByTimeAsync(600);
-    expect(rpc.calls.filter((c) => c.method === 'settings.set').map((c) => c.params)).toEqual([
-      { patch: { session: { windowGeometry: { x: 10, y: 20, width: 1200, height: 800 } } } },
-    ]);
-    expect(windowGeometryOf({ screenX: 0, screenY: 0, outerWidth: 0, outerHeight: 0 })).toBeNull();
+    // No resize listener is installed any more; a resize of the page changes no setting.
+    expect(listeners.has('resize')).toBe(false);
+    listeners.get('resize')?.();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')).toEqual([]);
+    expect(store.getState().settings?.session.windowGeometry).toBeNull();
+    uninstall();
   });
 
   it('switches the interface language when uiLanguage changes at run time (no ?lang= override)', async () => {

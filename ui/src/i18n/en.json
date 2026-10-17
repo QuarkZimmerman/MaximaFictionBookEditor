@@ -866,6 +866,7 @@
     "spellingComplete": "The spelling check is complete.",
     "badXml": "You have opened an invalid XML document.\n\nYou should correct all XML errors (use \"Validate\" and \"Go to wrong tag\" commands) before switching from the SOURCE mode.",
     "needRestart": "In order to process changes the program must be restarted.\nRestart now?",
+    "restartFailed": "The editor could not be restarted: {{reason}}",
     "outOfMemory": "Out of memory",
     "invalidCommandLine": "Invalid command line option: '{{option}}'",
     "commandLineNeedsArgument": "Command line option '{{option}}' requires an argument",

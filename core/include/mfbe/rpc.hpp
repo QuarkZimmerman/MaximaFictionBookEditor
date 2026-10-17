@@ -53,6 +53,9 @@ inline constexpr int kScriptInvalidManifest = 1031;
 inline constexpr int kSettingsInvalid = 1040;
 inline constexpr int kDialogUnavailable = 1050;
 inline constexpr int kReleaseUnavailable = 1060;
+// Feature 003 (app.restart): no shell attached / the shell could not start the new instance.
+inline constexpr int kRestartUnavailable = 1070;
+inline constexpr int kRestartFailed = 1071;
 inline constexpr int kCancelled = 1090;
 }  // namespace codes
 

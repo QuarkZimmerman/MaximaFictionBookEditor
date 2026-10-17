@@ -48,6 +48,10 @@ const char* error_name(int code) {
             return "dialog.unavailable";
         case codes::kReleaseUnavailable:
             return "app.releaseUnavailable";
+        case codes::kRestartUnavailable:
+            return "app.restartUnavailable";
+        case codes::kRestartFailed:
+            return "app.restartFailed";
         case codes::kCancelled:
             return "cancelled";
         default:
@@ -150,10 +154,11 @@ std::string scalar_text(const json& value) {
     return value.dump();
 }
 
-// Outcomes that are normal operation rather than failures: user cancellations and the
-// malformed-XML feedback of the Source view (the user is typing XML; the UI shows the error).
+// Outcomes that are normal operation rather than failures: user cancellations, the
+// malformed-XML feedback of the Source view (the user is typing XML; the UI shows the error)
+// and app.restart without a shell (browser/dev mode: the UI reloads its page, by design).
 bool is_expected_outcome(const std::string& method, int code) {
-    if (code == codes::kCancelled) {
+    if (code == codes::kCancelled || code == codes::kRestartUnavailable) {
         return true;
     }
     if (code == codes::kDocParseError || code == codes::kDocSourceMalformed) {

@@ -590,6 +590,38 @@ describe('file flows (T052)', () => {
     expect(ctx.store.getState()).toMatchObject({ docId: 'doc-8', modified: false });
   });
 
+  it('start-up: ?open=<path> (the browser-mode restart) opens the document before anything else', async () => {
+    const { feature, rpc } = setup({
+      'app.info': {},
+      'doc.open': {
+        document: fakeDocument({ docId: 'doc-20', path: '/books/again.fb2' }),
+        warnings: [],
+      },
+      'doc.watch': {},
+      'doc.new': fakeDocument({ docId: 'doc-21', path: undefined }),
+    });
+    const ctx = await makeContext({ rpc: rpc.client });
+    actions.setConnection(ctx.store, 'connected');
+    await feature.handleStartup(ctx, '/books/again.fb2');
+    expect(ctx.store.getState()).toMatchObject({ docId: 'doc-20', path: '/books/again.fb2' });
+    const methods = rpc.calls.map((c) => c.method);
+    expect(methods[0]).toBe('doc.open');
+    expect(rpc.calls[0]!.params).toEqual({ path: '/books/again.fb2' });
+    expect(methods).not.toContain('doc.new');
+
+    // A document that cannot be opened any more: reported, then the usual start (template).
+    const failing = setup({
+      'app.info': {},
+      'doc.open': rpcError(1002, 'doc.ioError', { path: '/books/gone.fb2', reason: 'missing' }),
+      'doc.new': fakeDocument({ docId: 'doc-22', path: undefined }),
+    });
+    const ctx2 = await makeContext({ rpc: failing.rpc.client, dialogs: failing.dialogs });
+    actions.setConnection(ctx2.store, 'connected');
+    await failing.feature.handleStartup(ctx2, '/books/gone.fb2');
+    expect(failing.dialogs.shown.map((m) => m.testId)).toEqual(['dialog-open-failed']);
+    expect(ctx2.store.getState()).toMatchObject({ docId: 'doc-22', modified: false });
+  });
+
   it('start-up: a malformed file opens in the Source view, without a new document', async () => {
     const { feature, rpc, dialogs } = setup({
       'app.info': {},

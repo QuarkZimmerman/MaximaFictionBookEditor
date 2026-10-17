@@ -1,13 +1,17 @@
 // Start-up sequence of the browser process (see shell_runner.h):
 //   1. Parse the shell command line (contracts/cli.md) - --version/--help exit 0, invalid
-//      options exit 2.
+//      options exit 2. Started by the editor's own restart (--wait-for-exit <pid>, feature 003
+//      US3): wait up to 30 s for that process to end, so its single-instance lock is free and
+//      the settings it wrote at quit are read.
 //   2. Resolve per-user directories (CEF profile under <data>/cef, CEF log under <logs>) or a
 //      throw-away profile for --url developer runs; drop a stale single-instance lock.
 //   3. Probe the Linux sandbox prerequisites (sandbox_check.h): without --no-sandbox the
 //      sandbox stays on whenever user namespaces or the SUID helper work, and is switched off
 //      with a logged warning only when neither does (AppImage on Ubuntu 24.04+, containers).
-//   4. Start the in-process core (CoreHost) -> URL, or use the --url override.
-//   5. CefInitialize with the Chrome bootstrap + Views; CefRunMessageLoop; CefShutdown.
+//   4. Start the in-process core (CoreHost) -> URL, or use the --url override; read the stored
+//      window placement and interface language; wire app.restart to relaunch.h.
+//   5. CefInitialize with the Chrome bootstrap + Views; CefRunMessageLoop; CefShutdown. The
+//      window's last placement is written back to the settings before the core stops.
 //      A second instance returns here with CefInitialize() == false after handing its command
 //      line to the running one (exit code 0, see single_instance.h).
 
@@ -15,13 +19,16 @@
 
 #include <mfbe/utf8_paths.hpp>
 
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <system_error>
+#include <vector>
 
 #if defined(MFBE_SHELL_TEST_HOOKS)
 #include "include/base/cef_callback.h"
@@ -43,6 +50,9 @@
 #include "mfbe_app.h"
 #include "mfbe_client.h"
 #include "native_actions.h"
+#include "relaunch.h"
+#include "window.h"
+#include "window_placement.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
@@ -253,6 +263,43 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     }
     const ShellOptions& options = parsed.options;
     const bool dev_url_mode = !options.url_override.empty();
+    std::vector<std::string> own_args;  // argv[1..]: what a restart builds on (relaunch.h)
+    for (int i = 1; i < argc; ++i) {
+        if (argv[i] != nullptr) {
+            own_args.emplace_back(argv[i]);
+        }
+    }
+#if defined(MFBE_SHELL_TEST_HOOKS)
+    // tools/shell-smoke.sh reads the arguments the restarted editor was started with from the
+    // log (Chromium rewrites /proc/<pid>/cmdline, so the process itself is the only source).
+    std::string listed = "[";
+    for (const std::string& arg : own_args) {
+        listed += listed.size() > 1 ? ",\"" : "\"";
+        for (const char c : arg) {
+            if (c == '"' || c == '\\') {
+                listed.push_back('\\');
+            }
+            listed.push_back(c);
+        }
+        listed.push_back('"');
+    }
+    std::printf("shelltest: argv %s]\n", listed.c_str());
+    std::fflush(stdout);
+#endif
+
+    // Started by the editor's own restart: the instance that started us is quitting. Wait for
+    // it to be gone before anything else - its single-instance lock must be free (a start handed
+    // to a dying instance is exactly the failure, research R4) and the settings it writes at
+    // quit (the window placement) must be on disk before our core reads them. A process that
+    // does not end in 30 s is given up on; a stale lock is then the relay's business.
+    if (options.wait_for_exit_pid > 0 && options.wait_for_exit_pid != currentProcessId()) {
+        const long long pid = options.wait_for_exit_pid;
+        if (!waitForProcessExit([pid] { return processAlive(pid); }, kWaitForExitTimeout,
+                                kWaitForExitInterval, systemWaitClock())) {
+            earlyNote("the previous editor (pid " + std::to_string(pid) +
+                      ") did not end within 30 s; starting anyway");
+        }
+    }
 
     // Directories.
     const UserDirs dirs = userDirs();
@@ -320,6 +367,43 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
 #if defined(MFBE_SHELL_TEST_HOOKS)
     core_options.test_hooks = true;
 #endif
+    // app.restart (feature 003 US3, research R4): the same program again - $APPIMAGE when the
+    // AppImage runtime set it, else this executable - with our own options except FILE, --new
+    // and --lang, plus --wait-for-exit <our pid>, --window-geometry <the window's placement> and
+    // the document to reopen; spawned detached. The core then performs the normal quit, during
+    // which the placement is recorded (below). Runs on a core thread: the placement comes from
+    // the window's own record (window.h), never from CEF objects.
+    // Test-hook builds: MFBE_RELAUNCH_PROGRAM replaces the program (the smoke's failure path).
+    std::string relaunch_override;
+#if defined(MFBE_SHELL_TEST_HOOKS)
+    relaunch_override = envString("MFBE_RELAUNCH_PROGRAM");
+#endif
+    std::atomic<CoreHost*> core_host_for_restart{nullptr};  // set once the core runs
+    core_options.on_restart = [own_args, relaunch_override,
+                               &core_host_for_restart](const std::optional<std::string>& reopen) {
+        RelaunchOutcome outcome;
+        const std::optional<WindowPlacement> placement = mainWindowPlacement();
+        if (CoreHost* host = core_host_for_restart.load(); placement && host != nullptr) {
+            host->saveWindowPlacement(*placement);  // before the restart
+        }
+        outcome.argv =
+            relaunchArguments(own_args, currentProcessId(),
+                              placement ? formatWindowGeometry(*placement) : std::string(), reopen);
+        const std::string program =
+            relaunch_override.empty() ? relaunchProgram(envString("APPIMAGE"), currentExecutable())
+                                      : relaunch_override;
+        if (program.empty()) {
+            outcome.reason = "the editor's own executable path is unknown";
+            return outcome;
+        }
+        outcome.started = spawnDetached(program, outcome.argv, &outcome.reason);
+        if (outcome.started) {
+            earlyNote("restarting: " + program);
+        } else {
+            earlyNote("restart failed: " + outcome.reason);
+        }
+        return outcome;
+    };
     std::string core_error;
     std::unique_ptr<CoreHost> core_host = CoreHost::start(core_options, &core_error);
     if (!core_host) {
@@ -327,6 +411,7 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
         removeDirectory(temp_profile);
         return 1;
     }
+    core_host_for_restart.store(core_host.get());
     auto dialogs = std::make_shared<NativeDialogs>();
     core_host->attachDialogs(dialogs);
     g_core_host = core_host.get();
@@ -361,9 +446,15 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
 #else
     settings.log_severity = LOGSEVERITY_WARNING;
 #endif
-    // Interface language: --lang wins; otherwise the OS language so that the page's
-    // navigator.languages reflects the real system (CEF defaults to en-US on Windows/macOS).
+    // Interface language: --lang wins; otherwise the stored setting (view.uiLanguage, so the
+    // shell's own texts and Chromium's locale match the interface after the language was
+    // changed - a restart drops the --lang override on purpose, feature 003 US3); otherwise
+    // the OS language so that the page's navigator.languages reflects the real system (CEF
+    // defaults to en-US on Windows/macOS).
     std::string lang = options.lang;
+    if (lang.empty()) {
+        lang = core_host->uiLanguageSetting();
+    }
     if (lang.empty()) {
         lang = systemLanguageCode();
     }
@@ -385,8 +476,13 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
     app_config.resources_dir = core_options.resources_dir;
     app_config.no_sandbox = no_sandbox;
     app_config.ozone_platform = options.ozone_platform;
-    app_config.lang = options.lang;
+    app_config.lang = lang;
     app_config.extra_chromium_flags = envString("MFBE_CHROMIUM_FLAGS");
+    // Window placement (feature 003 US3, data-model §4): --window-geometry (the restart passes
+    // the old window's) wins, then the stored session.windowGeometry, else centred 1200x800;
+    // window.cpp clamps it to the display's work area.
+    app_config.window_placement =
+        options.window_geometry ? options.window_geometry : core_host->windowPlacement();
 #if defined(MFBE_SHELL_DEVTOOLS)
     app_config.devtools_enabled = true;
 #else
@@ -422,9 +518,16 @@ int runBrowserProcess(const CefMainArgs& main_args, int argc, const char* const*
         CefRunMessageLoop();
     }
 
+    // The window's last placement goes to settings.session.windowGeometry (feature 003 US3) -
+    // the store outlives the core's own stop on app.quit, so this works in every quit path.
+    if (const std::optional<WindowPlacement> placement = mainWindowPlacement()) {
+        core_host->saveWindowPlacement(*placement);
+    }
+
     // Stop the core first: its dialog provider holds CEF references that must be gone before
     // CefShutdown, and open RPC connections end with the UI anyway.
     g_core_host = nullptr;
+    core_host_for_restart.store(nullptr);
     core_host->stop();
     core_host.reset();
     dialogs.reset();

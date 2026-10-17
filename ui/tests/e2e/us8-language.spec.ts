@@ -18,13 +18,27 @@
  * switch journey goes on to Ukrainian (restart prompt in Ukrainian, live switch, reload), and a
  * fresh installation follows a Ukrainian system language. The Ukrainian walk of every menu,
  * dialog and message is us1-ukrainian.spec.ts.
+ *
+ * Feature 003 US3 (T037, FR-020 to FR-022): "Restart now?" really restarts. Headless there is no
+ * shell, so `app.restart` answers 1070 after the test provider recorded it and the page reloads
+ * itself: Yes with a saved book records the path and reloads with `?open=<path>` in the new
+ * language; Yes with a never-saved document (Don't save) carries no path and shows a new
+ * document; Cancel in the save prompt abandons the restart; No changes nothing.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { expect, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  fixtureBook,
+  test,
+  waitForBook,
+  waitForStartupDocument,
+  type CoreHandle,
+  type RpcCallError,
+} from './fixtures/core';
 import { uiText } from './fixtures/i18n';
 import type { Locator, Page } from '@playwright/test';
 
@@ -636,6 +650,157 @@ test.describe('US8 - switching the language', () => {
     expect(settings.view.uiLanguage).toBe('ru');
     await openApp(core, page);
     await expect(page.getByTestId('menu-file')).toHaveText('Файл');
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Scenario 3: "Restart now?" restarts (feature 003 US3, headless path)      */
+/* ------------------------------------------------------------------------ */
+
+interface RestartRequest {
+  reopen?: string;
+  argv: string[];
+}
+
+/** Chooses `language` in Settings > View and presses OK; returns the restart prompt. */
+async function switchLanguage(page: Page, language: string): Promise<Locator> {
+  await menu(page, 'tools', 'settings');
+  await page.getByTestId('settings-view-language').selectOption(language);
+  await page.getByTestId('dialog-settings-button-ok').click();
+  const prompt = page.getByTestId('dialog-restart-prompt');
+  await expect(prompt).toBeVisible();
+  return prompt;
+}
+
+/** Types into the first paragraph so the document counts as modified (title marker `*`). */
+async function modifyDocument(page: Page): Promise<void> {
+  await caretIntoParagraph(page);
+  await page.keyboard.type('restart ');
+  await expect(page).toHaveTitle(/\* - /);
+}
+
+test.describe('US8 - "Restart now?" restarts the editor (feature 003 US3)', () => {
+  test.beforeEach(async ({ core }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+    await resetSettings(core);
+  });
+
+  test.afterEach(async ({ core }) => {
+    if (core.hasCore) await resetSettings(core).catch(() => {});
+  });
+
+  test('3a. Yes with a saved book: the path is requested and the page reloads with it in the new language', async ({
+    core,
+    page,
+  }) => {
+    await core.rpc('settings.set', { patch: { view: { uiLanguage: 'ru' } } });
+    await openApp(core, page);
+    await expect(page.getByTestId('menu-file')).toHaveText('Файл');
+    const book = fixtureBook('modern-utf8.fb2');
+    await core.enqueueDialog('dialog.openFile', { paths: [book] });
+    await menu(page, 'file', 'open');
+    await waitForBook(page, book);
+    const before = (await core.rpc<RestartRequest[]>('test.restartRequests')).length;
+
+    const prompt = await switchLanguage(page, 'en');
+    await prompt.getByTestId('dialog-restart-prompt-button-yes').click();
+
+    // The restart request names the open document (headless: no shell, so no argv), ...
+    await expect
+      .poll(() => core.rpc<RestartRequest[]>('test.restartRequests'))
+      .toHaveLength(before + 1);
+    const requests = await core.rpc<RestartRequest[]>('test.restartRequests');
+    expect(requests.at(-1)).toEqual({ reopen: book, argv: [] });
+
+    // ... and the page restarts itself: the same query (token) plus open=<path>, the book
+    // open again, the interface in the language just chosen.
+    await expect.poll(() => new URL(page.url()).searchParams.get('open')).toBe(book);
+    const url = new URL(page.url());
+    expect(url.searchParams.get('token')).toBe(core.token);
+    expect(url.searchParams.has('lang')).toBe(false);
+    expect(url.searchParams.has('new')).toBe(false);
+    await page.getByTestId('app-root').waitFor();
+    await waitForBook(page, book);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByTestId('menu-file')).toHaveText('File');
+    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    // The reopened book is the one on disk, unmodified.
+    await expect(page).not.toHaveTitle(/\* - /);
+  });
+
+  test("3b. Yes with a never-saved document (Don't save): no path, the page reloads to a new document", async ({
+    core,
+    page,
+  }) => {
+    // `?lang=uk` stands for the shell's one-run override: the reload keeps the query as it is.
+    await openApp(core, page, { lang: 'uk' });
+    await waitForStartupDocument(page);
+    await modifyDocument(page);
+    const before = (await core.rpc<RestartRequest[]>('test.restartRequests')).length;
+
+    const prompt = await switchLanguage(page, 'en');
+    await prompt.getByTestId('dialog-restart-prompt-button-yes').click();
+    // The usual save prompt comes first; "No" (Don't save) restarts without the document.
+    const save = page.getByTestId('save-changes-prompt');
+    await expect(save).toBeVisible();
+    await save.getByTestId('save-changes-prompt-button-no').click();
+
+    await expect
+      .poll(() => core.rpc<RestartRequest[]>('test.restartRequests'))
+      .toHaveLength(before + 1);
+    const requests = await core.rpc<RestartRequest[]>('test.restartRequests');
+    expect(requests.at(-1)).toEqual({ argv: [] });
+    expect(requests.at(-1)).not.toHaveProperty('reopen');
+
+    // Reloaded without open=, token and lang kept; a fresh document, not the typed text.
+    await expect.poll(() => page.url()).not.toContain('open=');
+    await page.getByTestId('app-root').waitFor();
+    await waitForStartupDocument(page);
+    const url = new URL(page.url());
+    expect(url.searchParams.get('token')).toBe(core.token);
+    expect(url.searchParams.get('lang')).toBe('uk');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'uk');
+    await expect(page.getByTestId('body-editor')).not.toContainText('restart ');
+  });
+
+  test('3c. Cancel in the save prompt abandons the restart; No leaves the editor as it is', async ({
+    core,
+    page,
+  }) => {
+    await core.rpc('settings.set', { patch: { view: { uiLanguage: 'ru' } } });
+    await openApp(core, page);
+    await waitForStartupDocument(page);
+    await modifyDocument(page);
+    const urlBefore = page.url();
+    const before = (await core.rpc<RestartRequest[]>('test.restartRequests')).length;
+
+    // Yes, then Cancel in the save prompt: nothing restarts, the document keeps its changes;
+    // the new language setting is stored and applies at the next start (it switched live).
+    let prompt = await switchLanguage(page, 'en');
+    await prompt.getByTestId('dialog-restart-prompt-button-yes').click();
+    const save = page.getByTestId('save-changes-prompt');
+    await expect(save).toBeVisible();
+    await save.getByTestId('save-changes-prompt-button-cancel').click();
+    await expect(save).toBeHidden();
+    await page.waitForTimeout(500);
+    expect(await core.rpc<RestartRequest[]>('test.restartRequests')).toHaveLength(before);
+    expect(page.url()).toBe(urlBefore);
+    await expect(page).toHaveTitle(/\* - /);
+    await expect(page.getByTestId('body-editor')).toContainText('restart ');
+    expect((await core.rpc<{ view: { uiLanguage: string } }>('settings.get')).view.uiLanguage).toBe(
+      'en',
+    );
+
+    // No: nothing at all, not even the save prompt.
+    prompt = await switchLanguage(page, 'ru');
+    await prompt.getByTestId('dialog-restart-prompt-button-no').click();
+    await expect(prompt).toBeHidden();
+    await page.waitForTimeout(500);
+    await expect(save).toBeHidden();
+    expect(await core.rpc<RestartRequest[]>('test.restartRequests')).toHaveLength(before);
+    expect(page.url()).toBe(urlBefore);
+    await expect(page).toHaveTitle(/\* - /);
+    await expect(page.getByTestId('body-editor')).toContainText('restart ');
   });
 });
 

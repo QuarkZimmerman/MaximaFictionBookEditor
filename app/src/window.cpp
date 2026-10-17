@@ -2,12 +2,14 @@
 
 #include "include/base/cef_logging.h"
 #include "include/cef_browser.h"
+#include "include/views/cef_display.h"
 #include "include/wrapper/cef_helpers.h"
 
 #include <mfbe/utf8_paths.hpp>
 
 #include <fstream>
 #include <iterator>
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -15,16 +17,35 @@ namespace mfbe::shell {
 
 namespace {
 
-constexpr int kDefaultWidth = 1200;
-constexpr int kDefaultHeight = 800;
-constexpr int kMinWidth = 640;
-constexpr int kMinHeight = 400;
+constexpr int kDefaultWidth = kDefaultWindowWidth;
+constexpr int kDefaultHeight = kDefaultWindowHeight;
+constexpr int kMinWidth = kMinWindowWidth;
+constexpr int kMinHeight = kMinWindowHeight;
 constexpr int kDevToolsWidth = 1000;
 constexpr int kDevToolsHeight = 700;
 
 // X11 WM_CLASS / Wayland app_id; must match app/linux/mfbe.desktop so that window managers
 // associate the window with the launcher and its icon.
 constexpr const char* kAppId = "mfbe";
+
+// The main window's placement as last reported (window.h: mainWindowPlacement()). Written on
+// the CEF UI thread, read by the shell's relaunch (a core thread) and at quit (main thread).
+std::mutex g_placement_mutex;
+std::optional<WindowPlacement> g_main_window_placement;
+
+ScreenRect toScreenRect(const CefRect& rect) {
+    return ScreenRect{rect.x, rect.y, rect.width, rect.height};
+}
+
+// The work area of the display `bounds` belongs to (the display nearest to it when it lies on
+// none); empty when CEF reports no display, in which case nothing is clamped.
+ScreenRect workAreaFor(const CefRect& bounds) {
+    CefRefPtr<CefDisplay> display = CefDisplay::GetDisplayMatchingBounds(bounds, false);
+    if (!display) {
+        return ScreenRect{};
+    }
+    return toScreenRect(display->GetWorkArea());
+}
 
 std::vector<char> readFile(const std::filesystem::path& path) {
     std::ifstream in(path, std::ios::binary);
@@ -74,16 +95,21 @@ WindowIcons loadWindowIcons(const std::filesystem::path& resources_dir) {
     return icons;
 }
 
+std::optional<WindowPlacement> mainWindowPlacement() {
+    std::lock_guard<std::mutex> lock(g_placement_mutex);
+    return g_main_window_placement;
+}
+
 // --- MainWindowDelegate -------------------------------------------------------------------
 
 MainWindowDelegate::MainWindowDelegate(CefRefPtr<CefBrowserView> browser_view, Kind kind,
                                        std::string title, WindowIcons icons,
-                                       cef_show_state_t initial_show_state)
+                                       std::optional<WindowPlacement> placement)
     : browser_view_(std::move(browser_view)),
       kind_(kind),
       title_(std::move(title)),
       icons_(std::move(icons)),
-      initial_show_state_(initial_show_state) {}
+      placement_(kind == Kind::kMain ? std::move(placement) : std::nullopt) {}
 
 void MainWindowDelegate::OnWindowCreated(CefRefPtr<CefWindow> window) {
     CEF_REQUIRE_UI_THREAD();
@@ -96,14 +122,30 @@ void MainWindowDelegate::OnWindowCreated(CefRefPtr<CefWindow> window) {
         window->SetWindowAppIcon(icons_.app_icon);
     }
     if (kind_ == Kind::kMain) {
-        // Size to the preferred size and centre on the current display.
-        window->CenterWindow(CefSize(kDefaultWidth, kDefaultHeight));
+        if (placement_) {
+            // GetInitialBounds() placed it (and GetInitialShowState() maximises it); the
+            // normal bounds are the placement's until the user moves or resizes the window.
+            normal_bounds_ =
+                ScreenRect{placement_->x, placement_->y, placement_->width, placement_->height};
+        } else {
+            // Size to the preferred size and centre on the current display.
+            window->CenterWindow(CefSize(kDefaultWidth, kDefaultHeight));
+            normal_bounds_ = toScreenRect(window->GetBounds());
+        }
     }
-    if (initial_show_state_ != CEF_SHOW_STATE_HIDDEN) {
-        window->Show();
-    }
+    window->Show();
     if (browser_view_) {
         browser_view_->RequestFocus();
+    }
+    if (kind_ == Kind::kMain) {
+        RecordPlacement(window);
+    }
+}
+
+void MainWindowDelegate::OnWindowClosing(CefRefPtr<CefWindow> window) {
+    CEF_REQUIRE_UI_THREAD();
+    if (kind_ == Kind::kMain) {
+        RecordPlacement(window);  // the last word before the window goes
     }
 }
 
@@ -111,6 +153,54 @@ void MainWindowDelegate::OnWindowDestroyed(CefRefPtr<CefWindow> window) {
     CEF_REQUIRE_UI_THREAD();
     browser_view_ = nullptr;
     icons_ = WindowIcons();
+}
+
+void MainWindowDelegate::OnWindowBoundsChanged(CefRefPtr<CefWindow> window,
+                                               const CefRect& new_bounds) {
+    CEF_REQUIRE_UI_THREAD();
+    if (kind_ != Kind::kMain) {
+        return;
+    }
+    // Only the normal bounds are the restore rectangle: bounds of a maximised, minimised or
+    // fullscreen window are not, and neither are bounds that already cover the whole work area
+    // (a maximise in progress whose state the window manager has not reported yet).
+    if (!window->IsMaximized() && !window->IsMinimized() && !window->IsFullscreen() &&
+        new_bounds.width > 0 && new_bounds.height > 0) {
+        const ScreenRect area = workAreaFor(new_bounds);
+        if (area.width <= 0 || !coversArea(toScreenRect(new_bounds), area)) {
+            normal_bounds_ = toScreenRect(new_bounds);
+        }
+    }
+    RecordPlacement(window);
+}
+
+void MainWindowDelegate::RecordPlacement(const CefRefPtr<CefWindow>& window) {
+    CEF_REQUIRE_UI_THREAD();
+    if (!normal_bounds_) {
+        return;
+    }
+    WindowPlacement placement;
+    placement.x = normal_bounds_->x;
+    placement.y = normal_bounds_->y;
+    placement.width = normal_bounds_->width;
+    placement.height = normal_bounds_->height;
+    placement.maximized = window->IsMaximized();
+    std::lock_guard<std::mutex> lock(g_placement_mutex);
+    g_main_window_placement = placement;
+}
+
+CefRect MainWindowDelegate::GetInitialBounds(CefRefPtr<CefWindow> window) {
+    if (kind_ != Kind::kMain || !placement_) {
+        return CefRect();  // the preferred size, placed by OnWindowCreated / the system
+    }
+    // Clamp to the work area of the display the placement is on (or nearest to), so a window
+    // remembered on a display that is gone or got smaller stays reachable.
+    const CefRect requested(placement_->x, placement_->y, placement_->width, placement_->height);
+    const ScreenRect area = workAreaFor(requested);
+    if (area.width > 0 && area.height > 0) {
+        placement_ = clampToArea(*placement_, area, kMinWidth, kMinHeight);
+    }
+    return CefRect(placement_->x, placement_->y, placement_->width, placement_->height);
 }
 
 bool MainWindowDelegate::CanClose(CefRefPtr<CefWindow> window) {
@@ -139,7 +229,12 @@ CefSize MainWindowDelegate::GetMinimumSize(CefRefPtr<CefView> view) {
 }
 
 cef_show_state_t MainWindowDelegate::GetInitialShowState(CefRefPtr<CefWindow> window) {
-    return initial_show_state_;
+    // A placement that was maximised comes back maximised, its bounds being the restore
+    // rectangle (as the original editor restored its saved window placement).
+    if (kind_ == Kind::kMain && placement_ && placement_->maximized) {
+        return CEF_SHOW_STATE_MAXIMIZED;
+    }
+    return CEF_SHOW_STATE_NORMAL;
 }
 
 cef_runtime_style_t MainWindowDelegate::GetWindowRuntimeStyle() {
@@ -170,7 +265,7 @@ bool MainBrowserViewDelegate::OnPopupBrowserViewCreated(
     CefWindow::CreateTopLevelWindow(new MainWindowDelegate(
         popup_browser_view, MainWindowDelegate::Kind::kDevTools,
         is_devtools ? std::string(MFBE_PRODUCT_NAME " - DevTools") : std::string(MFBE_PRODUCT_NAME),
-        icons_, CEF_SHOW_STATE_NORMAL));
+        icons_, std::nullopt));
     return true;  // we created the window
 }
 

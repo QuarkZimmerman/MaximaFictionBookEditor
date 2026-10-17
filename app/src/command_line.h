@@ -13,12 +13,21 @@
 //     --ozone-platform <wayland|x11> Linux: force a display backend (default: auto)
 //     --url <http url>               DEVELOPMENT ONLY: load this URL instead of starting the
 //                                    in-process core (e.g. a Vite dev server or a smoke page)
+//     --wait-for-exit <pid>          wait (at most 30 s) for that process to end before
+//                                    initialising the browser engine (the editor's own restart,
+//                                    feature 003 US3: the single-instance lock must be free)
+//     --window-geometry <x,y,w,h[,max]>
+//                                    initial window placement: normal bounds, `max` = shown
+//                                    maximised (the restart passes the old window's placement)
 //     --version | --help
 //
 // Options accept both `--name value` and `--name=value`. `--` ends option parsing. Unknown
 // options produce "Invalid command line option: '<opt>'" and exit code 2.
 #pragma once
 
+#include "window_placement.h"
+
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -30,8 +39,10 @@ struct ShellOptions {
     bool new_document = false;
     int remote_debugging_port = 0;  // 0 = disabled
     bool no_sandbox = false;
-    std::string ozone_platform;  // "" (auto), "wayland" or "x11"
-    std::string url_override;    // development only, see header comment
+    std::string ozone_platform;                      // "" (auto), "wayland" or "x11"
+    std::string url_override;                        // development only, see header comment
+    long long wait_for_exit_pid = 0;                 // --wait-for-exit (0 = none)
+    std::optional<WindowPlacement> window_geometry;  // --window-geometry
     bool show_version = false;
     bool show_help = false;
 };

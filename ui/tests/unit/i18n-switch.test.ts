@@ -4,7 +4,7 @@
  * override.
  */
 
-import { forcedLanguage } from '@/app/startup';
+import { forcedLanguage, openPathAtStartup, restartUrl } from '@/app/startup';
 import { LANGUAGE_OPTIONS } from '@/dialogs/settings/model';
 import {
   DEFAULT_LANGUAGE,
@@ -58,6 +58,26 @@ describe('i18n language selection', () => {
     expect(forcedLanguage('?lang=de')).toBeNull();
     expect(forcedLanguage('?new=1')).toBeNull();
     expect(forcedLanguage('')).toBeNull();
+  });
+
+  it('reads ?open=<path> and builds the browser-mode restart URL (feature 003 US3)', () => {
+    expect(openPathAtStartup('?token=abc&open=%2Fbooks%2F%D0%BA%D0%BD%D0%B8%D0%B3%D0%B0.fb2')).toBe(
+      '/books/книга.fb2',
+    );
+    expect(openPathAtStartup('?token=abc')).toBeNull();
+    expect(openPathAtStartup('?open=')).toBeNull();
+
+    // The current query (token, lang) is kept, open= added; a stale open= / new= goes.
+    const base = 'http://127.0.0.1:4000/?token=abc&lang=uk';
+    const withBook = new URL(restartUrl(base, '/books/a b.fb2'));
+    expect(withBook.searchParams.get('token')).toBe('abc');
+    expect(withBook.searchParams.get('lang')).toBe('uk');
+    expect(withBook.searchParams.get('open')).toBe('/books/a b.fb2');
+    expect(openPathAtStartup(withBook.search)).toBe('/books/a b.fb2');
+    const without = new URL(restartUrl(`${base}&new=1&open=%2Fold.fb2`, null));
+    expect(without.searchParams.has('open')).toBe(false);
+    expect(without.searchParams.has('new')).toBe(false);
+    expect(without.searchParams.get('token')).toBe('abc');
   });
 
   it('extracts the primary language subtag of BCP 47 tags and POSIX locales', () => {

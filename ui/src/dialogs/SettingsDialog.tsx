@@ -4,14 +4,19 @@
  * copy of the settings (and a scratch copy of the hotkey map); OK / Apply validate the draft,
  * send one `settings.set` patch with the changed leaves, copy the hotkey overrides into the
  * live map (`hotkeys.set`) and, when the core reports `restartRequired` (interface language),
- * show "In order to process changes the program must be restarted. Restart now?" - Yes quits
- * the application (the shell does not relaunch it; the user starts it again).
+ * show "In order to process changes the program must be restarted. Restart now?" - Yes runs
+ * the usual save prompt (Cancel abandons the restart) and then `app.restart({reopen: path})`
+ * (feature 003 US3, rpc-api.md §3.1): the shell starts the editor again with the same
+ * options, window placement and document and quits. Without a shell (browser/dev mode, error
+ * 1070) the page reloads itself with `?open=<path>`; when the shell could not start the new
+ * instance (1071) the failure is shown and the editor stays open.
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { confirmDiscardChanges, createCommandRegistry, type CommandContext } from '@/app/commands';
+import { restartUrl } from '@/app/startup';
 import {
   cloneSettings,
   isEmptyPatch,
@@ -42,6 +47,19 @@ export interface SettingsDialogProps {
   onClose: () => void;
   /** Page shown first (tests). */
   initialPage?: SettingsPageId;
+  /**
+   * Reloads the page for the browser-mode restart (`app.restart` unavailable, 1070); defaults
+   * to `window.location.replace`. Tests inject a recorder.
+   */
+  reloadPage?: (url: string) => void;
+}
+
+/** The browser-mode restart: the page loads itself again, `?open=<path>` added. */
+function reloadWithDocument(openPath: string | null, reload?: (url: string) => void): void {
+  if (typeof window === 'undefined') return;
+  const url = restartUrl(window.location.href, openPath);
+  if (reload) reload(url);
+  else window.location.replace(url);
 }
 
 interface ApplyOutcome {
@@ -54,6 +72,7 @@ export function SettingsDialog({
   feature,
   onClose,
   initialPage = 'view',
+  reloadPage,
 }: SettingsDialogProps) {
   const { t, i18n } = useTranslation();
   const { rpc, store } = ctx;
@@ -114,8 +133,30 @@ export function SettingsDialog({
       icon: 'question',
       testId: 'dialog-restart-prompt',
     });
-    if (answer === 'yes' && ctx.rpc && (await confirmDiscardChanges(ctx))) {
-      await ctx.rpc.call('app.quit', {});
+    if (answer !== 'yes' || !ctx.rpc) return;
+    // The usual save prompt first; Cancel abandons the restart (spec FR-020).
+    if (!(await confirmDiscardChanges(ctx))) return;
+    // The document to reopen: the file as it is on disk now (Save As may have renamed it); a
+    // never-saved document is not carried over.
+    const path = ctx.store.getState().path;
+    try {
+      await ctx.rpc.call('app.restart', path ? { reopen: path } : {});
+    } catch (error) {
+      if (error instanceof RpcError && error.code === RpcErrorCode.restartUnavailable) {
+        // No shell (browser/dev mode): the page is the editor, so it restarts itself.
+        reloadWithDocument(path, reloadPage);
+        return;
+      }
+      const data =
+        error instanceof RpcError ? (error.data as { reason?: string } | undefined) : undefined;
+      await ctx.dialogs.showMessage({
+        text: i18n.t('msg.restartFailed', {
+          reason: data?.reason ?? (error instanceof Error ? error.message : String(error)),
+        }),
+        caption: i18n.t('dialog.error.caption'),
+        icon: 'error',
+        testId: 'dialog-restart-failed',
+      });
     }
   };
 

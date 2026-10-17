@@ -1,5 +1,5 @@
 // app.* handlers (T024): app.info, app.quit, app.openLogFolder, app.openFolder,
-// app.setUiLanguage; feature 002: app.latestRelease, app.beep.
+// app.setUiLanguage; feature 002: app.latestRelease, app.beep; feature 003: app.restart.
 #include "server/services.hpp"
 
 #include <mfbe/log.hpp>
@@ -7,6 +7,7 @@
 #include <mfbe/version.hpp>
 
 #include <filesystem>
+#include <optional>
 #include <system_error>
 
 namespace mfbe::server {
@@ -74,6 +75,38 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
     router.add_method("app.quit", [&services](const json& params, rpc::RpcContext&) {
         (void)rpc::params::boolean_or(params, "force", false);
         log::info("server", "app.quit requested");
+        if (services.request_quit) {
+            services.request_quit();
+        }
+        return json::object();
+    });
+
+    // "Restart now?" (feature 003 US3, rpc-api.md §3.1): the shell starts the same program again
+    // with its own options, `reopen` as FILE and the window placement, then the normal quit
+    // follows. Without a shell (browser/dev mode) the call is unavailable (1070) and the UI
+    // reloads its page; a shell that could not start the new instance answers 1071 {reason} and
+    // the editor stays open. With test hooks every call is recorded (test.restartRequests).
+    router.add_method("app.restart", [&services](const json& params, rpc::RpcContext&) {
+        const std::optional<std::string> reopen = rpc::params::opt_string(params, "reopen");
+        log::info("server", reopen ? "app.restart requested with a document to reopen"
+                                   : "app.restart requested");
+        RestartOutcome outcome;
+        if (services.request_restart) {
+            outcome = services.request_restart(reopen);
+        }
+#ifdef MFBE_TEST_HOOKS
+        if (services.queued_dialogs) {
+            services.queued_dialogs->record_restart(reopen, outcome.argv);
+        }
+#endif
+        if (!services.request_restart) {
+            throw rpc::RpcError(rpc::codes::kRestartUnavailable, "",
+                                json{{"reason", "no shell attached to restart the editor"}});
+        }
+        if (!outcome.started) {
+            throw rpc::RpcError(rpc::codes::kRestartFailed, "", json{{"reason", outcome.reason}});
+        }
+        // The new instance waits for this process to end (--wait-for-exit): quit as app.quit does.
         if (services.request_quit) {
             services.request_quit();
         }

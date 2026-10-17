@@ -10,6 +10,10 @@
 #     settings.json records it;
 #   - File > Exit (F10, Down, В) ends the editor with exit code 0, and after a restart the status
 #     bar is still hidden;
+#   - "Restart now?" restarts the editor (feature 003 US3): after the interface language is
+#     switched to English in Settings and Yes answered, the editor ends with exit code 0 and a new
+#     mfbe.exe process - started with --wait-for-exit <old pid>, --window-geometry and the book -
+#     comes up with the book open and the interface English; File > Exit (F10, Down, X) ends it;
 #   - recent.json lists the book's path byte for byte in UTF-8;
 #   - no folder appeared under C:\Users or C:\ or next to the book, the installed copy wrote
 #     nothing into its program folder (a portable copy may write into its own), and the profile
@@ -44,6 +48,8 @@ $appName = 'Maxima Fiction Book Editor'
 # В of "&Вид" (View) and "&Выход" (File > Exit), С of "&Строка состояния" (View > Status Bar).
 $keyVe = @{ key = (Text 0x0432); code = 'KeyD'; windowsVirtualKeyCode = 0x44 }
 $keyEs = @{ key = (Text 0x0441); code = 'KeyC'; windowsVirtualKeyCode = 0x43 }
+# X of "E&xit" (File > Exit) in the English interface (ui/src/i18n/en.json), after the restart.
+$keyX = @{ key = 'x'; code = 'KeyX'; windowsVirtualKeyCode = 0x58 }
 $keyF2 = @{ key = 'F2'; code = 'F2'; windowsVirtualKeyCode = 0x71 }
 $keyF10 = @{ key = 'F10'; code = 'F10'; windowsVirtualKeyCode = 0x79 }
 $keyDown = @{ key = 'ArrowDown'; code = 'ArrowDown'; windowsVirtualKeyCode = 0x28 }
@@ -195,6 +201,7 @@ function Show-PageState([int]$Port) {
 # case.
 function Invoke-EditorRun([string]$Label, [string]$Arguments, [scriptblock]$Steps) {
     $port = Get-FreePort
+    $script:port = $port  # the restart step reconnects to the same port (the new instance keeps it)
     $stamp = Get-Date -Format 'HHmmssfff'
     $stdout = Join-Path $temp "mfbe-journey-stdout-$stamp.txt"
     $stderr = Join-Path $temp "mfbe-journey-stderr-$stamp.txt"
@@ -224,9 +231,10 @@ function Invoke-EditorRun([string]$Label, [string]$Arguments, [scriptblock]$Step
     }
 }
 
-# File > Exit from the keyboard: F10 focuses the menu bar (File first), Down opens File, В picks
-# Exit. The editor ends on its own, with exit code 0.
-function Exit-Editor {
+# File > Exit from the keyboard: F10 focuses the menu bar (File first), Down opens File, $ExitKey
+# (В in the Russian interface, X in the English one) picks Exit. The editor ends on its own, with
+# exit code 0.
+function Exit-Editor([hashtable]$ExitKey = $keyVe) {
     Send-CdpKey $script:cdp $keyF10
     Wait-Until 'File focused in the menu bar' {
         (Get-CdpValue $script:cdp 'document.activeElement && document.activeElement.getAttribute("data-menu-id")') -ceq 'file'
@@ -234,7 +242,7 @@ function Exit-Editor {
     Send-CdpKey $script:cdp $keyDown
     Wait-Until 'the File menu open' { (Get-FocusedTestId) -ceq 'menu-file-popup' }
     try {
-        Send-CdpKey $script:cdp $keyVe
+        Send-CdpKey $script:cdp $ExitKey
     } catch {
         # The window closes while the key is handled: the connection may end before the answer.
         Write-Host "DevTools connection ended with the window: $($_.Exception.Message)"
@@ -243,6 +251,72 @@ function Exit-Editor {
     if ($script:editor.ExitCode -ne 0) {
         throw ('the editor ended with exit code 0x{0:X8} after File > Exit' -f $script:editor.ExitCode)
     }
+}
+
+# Clicks the element with $TestId in the page (menus and dialogs of the interface react to clicks
+# as to the mouse).
+function Click-Element([string]$TestId) {
+    Wait-Until "the element $TestId" { Test-Element $TestId }
+    $null = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"$TestId`"]').click(); true"
+}
+
+# "Restart now?" restarts the editor (feature 003 US3, FR-020 to FR-022): Settings > View >
+# Language = English, OK, Yes. The running editor ends with exit code 0, and the new process it
+# started - mfbe.exe with --wait-for-exit <old pid>, --window-geometry and the book as FILE, never
+# --lang - becomes the editor of this run: $script:editor and $script:cdp move over to it, and it
+# must show the book with the interface in English.
+function Restart-EditorThroughSettings {
+    $oldPid = $script:editor.Id
+    Click-Element 'menu-tools'
+    Click-Element 'menu-tools-settings'
+    Wait-Until 'the Settings dialog' { Test-Element 'dialog-settings' }
+    $null = Get-CdpValue $script:cdp @'
+(() => { const select = document.querySelector('[data-testid="settings-view-language"]'); select.value = 'en'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()
+'@
+    Wait-Until 'English chosen in the language list' {
+        (Get-CdpValue $script:cdp 'document.querySelector(''[data-testid="settings-view-language"]'').value') -ceq 'en'
+    }
+    Click-Element 'dialog-settings-button-ok'
+    Wait-Until 'the restart prompt' { Test-Element 'dialog-restart-prompt-button-yes' }
+    try {
+        Click-Element 'dialog-restart-prompt-button-yes'
+    } catch {
+        # The editor quits while the click is handled: the connection may end before the answer.
+        Write-Host "DevTools connection ended with the restart: $($_.Exception.Message)"
+    }
+    if (-not $script:editor.WaitForExit(60000)) { throw 'the editor did not end after "Restart now?"' }
+    if ($script:editor.ExitCode -ne 0) {
+        throw ('the editor ended with exit code 0x{0:X8} after "Restart now?"' -f $script:editor.ExitCode)
+    }
+    Disconnect-Cdp $script:cdp
+    $script:cdp = $null
+    $script:editor = $null
+
+    # The new instance: the mfbe.exe started with --wait-for-exit <old pid> (Chromium's helper
+    # processes are mfbe.exe too, with --type=...).
+    $findStarted = {
+        Get-CimInstance Win32_Process -Filter "Name = 'mfbe.exe'" |
+            Where-Object { $_.CommandLine -like "*--wait-for-exit $oldPid*" -and $_.CommandLine -notlike '*--type=*' } |
+            Select-Object -First 1
+    }
+    Wait-Until "the restarted editor (--wait-for-exit $oldPid)" { [bool](& $findStarted) } 30
+    $started = & $findStarted
+    Write-Host "Restarted editor: pid $($started.ProcessId): $($started.CommandLine)"
+    if ($started.CommandLine -notlike '*--window-geometry *') { throw 'the restarted editor got no --window-geometry' }
+    if ($started.CommandLine -notlike "*$bookName*") { throw 'the restarted editor was not given the book' }
+    if ($started.CommandLine -like '*--lang*') { throw 'the restarted editor must not inherit --lang' }
+    $script:editor = Get-Process -Id $started.ProcessId
+    $script:cdp = Connect-CdpPage -Port $script:port -Process $script:editor -TimeoutSeconds $TimeoutSeconds
+    try {
+        $null = Invoke-Cdp $script:cdp 'Emulation.setFocusEmulationEnabled' @{ enabled = $true }
+    } catch {
+        Write-Host "Focus emulation unavailable: $($_.Exception.Message)"
+    }
+    $title = "$bookName - $appName"
+    Wait-Until "the window title '$title' after the restart" { (Get-CdpValue $script:cdp 'document.title') -ceq $title } $TimeoutSeconds
+    Wait-Until 'the English interface after the restart' {
+        (Get-CdpValue $script:cdp 'document.documentElement.lang') -ceq 'en'
+    } 15
 }
 
 $usersBefore = Get-UserFolders
@@ -315,8 +389,26 @@ Invoke-EditorRun 'Restart' '' {
     Exit-Editor
 }
 
+# "Restart now?" (feature 003 US3): the editor restarts itself with the book, in English.
+Invoke-EditorRun 'Language change and restart' "`"$bookPath`"" {
+    $title = "$bookName - $appName"
+    Wait-Until "the window title '$title'" { (Get-CdpValue $script:cdp 'document.title') -ceq $title } $TimeoutSeconds
+    Assert-RussianInterface
+    Restart-EditorThroughSettings
+    Wait-Until 'the status bar still hidden after the restart' { -not (Test-Element 'statusbar') }
+    Exit-Editor $keyX
+}
+
 if ((Read-Json $settingsFile).session.toolbars.status -ne $false) {
     throw "settings.json does not hold the hidden status bar ($settingsFile)"
+}
+if ((Read-Json $settingsFile).view.uiLanguage -cne 'en') {
+    throw "settings.json does not hold the English interface language chosen before the restart ($settingsFile)"
+}
+# The shell records the window placement at quit (feature 003 US3, data-model §4).
+$placement = (Read-Json $settingsFile).session.windowGeometry
+if (-not $placement -or $placement.width -le 0 -or $placement.height -le 0) {
+    throw "settings.json does not hold the window placement ($settingsFile)"
 }
 $recent = Read-Json $recentFile
 $first = if ($recent) { @($recent.items)[0].path }
