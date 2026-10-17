@@ -34,6 +34,7 @@ import {
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
 import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
 import { documentFileTypes } from '@/dialogs/fileTypes';
+import type { Dialogs } from '@/dialogs/types';
 import { showEncodingDialog, showSaveChangesPrompt } from '@/dialogs/show';
 import { confirmSaveWithErrors } from '@/dialogs/validation';
 import { getScriptsFeature } from '@/features/scripts';
@@ -630,10 +631,15 @@ export class FileFeature {
    * `app.closeRequested` (rpc-api.md §3.1, feature 003): the shell deferred the close of its
    * window - title-bar close, system shutdown - and waits for the UI to run its quit flow,
    * which ends in `app.quit({force: true})`; a refused prompt leaves the window open. One
-   * request at a time: a second one while the prompts are up is ignored.
+   * request at a time: a second one while the prompts are up is ignored, and a request that
+   * arrives while another dialog is open (a prompt of New/Open, Settings, a native file
+   * dialog) is ignored too, as a native window refuses to close behind its modal dialog - the
+   * user finishes that dialog and closes again.
    */
   async handleCloseRequested(ctx: CommandContext): Promise<void> {
     if (this.closeRequestPending) return;
+    const dialogs = ctx.dialogs as Dialogs & { service?: { isModalOpen: boolean } };
+    if (dialogs.service?.isModalOpen || ctx.rpc?.fileDialogOpen) return;
     this.closeRequestPending = true;
     try {
       await this.exitApplication(ctx, { force: true });
