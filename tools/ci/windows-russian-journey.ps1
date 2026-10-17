@@ -48,6 +48,9 @@ $appName = 'Maxima Fiction Book Editor'
 # В of "&Вид" (View) and "&Выход" (File > Exit), С of "&Строка состояния" (View > Status Bar).
 $keyVe = @{ key = (Text 0x0432); code = 'KeyD'; windowsVirtualKeyCode = 0x44 }
 $keyEs = @{ key = (Text 0x0441); code = 'KeyC'; windowsVirtualKeyCode = 0x43 }
+# Р of "Се&рвис" (Tools) and Н of "&Настройки..." (Tools > Settings), feature 003 restart run.
+$keyEr = @{ key = (Text 0x0440); code = 'KeyH'; windowsVirtualKeyCode = 0x48 }
+$keyEn = @{ key = (Text 0x043D); code = 'KeyY'; windowsVirtualKeyCode = 0x59 }
 # X of "E&xit" (File > Exit) in the English interface (ui/src/i18n/en.json), after the restart.
 $keyX = @{ key = 'x'; code = 'KeyX'; windowsVirtualKeyCode = 0x58 }
 $keyF2 = @{ key = 'F2'; code = 'F2'; windowsVirtualKeyCode = 0x71 }
@@ -267,8 +270,11 @@ function Click-Element([string]$TestId) {
 # must show the book with the interface in English.
 function Restart-EditorThroughSettings {
     $oldPid = $script:editor.Id
-    Click-Element 'menu-tools'
-    Click-Element 'menu-tools-settings'
+    # Menus open on mouse-down or the Alt+letter accelerator, not on a synthetic click.
+    Wait-Until 'the menu bar' { Test-Element 'menu-tools' }
+    Send-CdpKey $script:cdp $keyEr -Modifiers 1
+    Wait-Until 'the Tools menu open' { Test-Element 'menu-tools-settings' }
+    Send-CdpKey $script:cdp $keyEn
     Wait-Until 'the Settings dialog' { Test-Element 'dialog-settings' }
     $null = Get-CdpValue $script:cdp @'
 (() => { const select = document.querySelector('[data-testid="settings-view-language"]'); select.value = 'en'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()
