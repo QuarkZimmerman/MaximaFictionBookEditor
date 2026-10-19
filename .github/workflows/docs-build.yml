@@ -107,6 +107,16 @@ jobs:
         shell: pwsh
         run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP/replay.log" -Title "docs/building.md replay"
 
+      # The journeys run on macOS only here (CI runs them on Linux): keep their report, with
+      # the traces of the retried tests, when the replay fails.
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-replay-playwright-report-${{ matrix.target }}
+          path: ui/playwright-report/
+          if-no-files-found: ignore
+
       - name: Upload the packages produced by the documented steps
         if: always()
         uses: actions/upload-artifact@v4

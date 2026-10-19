@@ -138,6 +138,12 @@ async function start(page: Page, id: string): Promise<void> {
 const status = (page: Page) =>
   page.evaluate(() => window.__mfbeTest!.scripts!.state()?.status ?? 'none');
 
+/** Seconds shown by the banner's `mm:ss` clock. */
+function clockSeconds(text: string): number {
+  const [minutes, seconds] = text.trim().split(':').map(Number);
+  return minutes * 60 + seconds;
+}
+
 /** The first paragraph of the Body view (after the first section's title). */
 const firstParagraph = (page: Page) =>
   page.getByTestId('body-editor').locator('.fb-section > p.fb-p').first();
@@ -498,17 +504,32 @@ test.describe('US2 (003) a running script is unmistakable and can be stopped', (
     const banner = page.getByTestId('script-run-banner');
     const progress = page.getByTestId('script-run-progress');
 
+    // The fixture pauses 100 ms between its 80 reports, so the run lasts 8 s at the least -
+    // and longer where the headless browser stretches timers (about 14 s on the macOS
+    // runner of the docs replay). The clock and the duration are therefore checked against
+    // the test's own clock, not against the nominal 8 s.
+    const startedAt = Date.now();
+    const sinceStart = () => (Date.now() - startedAt) / 1000;
     await start(page, 'runs.longProgress');
     await expect(banner).toBeVisible();
     await expect(progress).toHaveText(/^Counting — \d+\/40 \(\d+ %\)$/);
-    await expect(progress).toHaveText(/^Still working — \d+$/, { timeout: 8_000 });
-    await expect(page.getByTestId('script-run-elapsed')).toHaveText(/^00:0[4-9]$/);
+    await expect(progress).toHaveText(/^Still working — \d+$/, { timeout: 30_000 });
+    // The clock has counted the first phase (4 s at the least) and keeps step with the wall
+    // clock (it is refreshed once a second).
+    const clock = clockSeconds((await page.getByTestId('script-run-elapsed').textContent()) ?? '');
+    const wallAtClock = sinceStart();
+    expect(clock).toBeGreaterThanOrEqual(4);
+    expect(
+      Math.abs(clock - wallAtClock),
+      `clock ${clock} s, wall ${wallAtClock.toFixed(1)} s`,
+    ).toBeLessThanOrEqual(2);
     // Where the focus is while the run goes on: the notice must not take it.
     const focusedBefore = await activeElement(page);
 
     // The end: the banner gone within 500 ms, "finished in N s" in the status bar and, the
     // run being longer than 5 s, as a notice in the work area.
-    const gone = await endTimed(page, 15_000);
+    const gone = await endTimed(page, 60_000);
+    const ranFor = sinceStart();
     expect(gone, 'the run ended').toBeGreaterThanOrEqual(0);
     expect(gone).toBeLessThan(BANNER_BUDGET_MS);
     expect(await status(page)).toBe('done');
@@ -517,8 +538,13 @@ test.describe('US2 (003) a running script is unmistakable and can be stopped', (
     const seconds = Number(
       finishedIn.exec((await page.getByTestId('status-message').textContent())!)![1],
     );
+    // The duration reported is the run's own: the fixture's 8 s at the least, and the time
+    // measured here to the second (rounded; the banner's half second is in the measure).
     expect(seconds).toBeGreaterThanOrEqual(8);
-    expect(seconds).toBeLessThanOrEqual(12);
+    expect(
+      Math.abs(seconds - ranFor),
+      `reported ${seconds} s, measured ${ranFor.toFixed(1)} s`,
+    ).toBeLessThanOrEqual(1.5);
     const notice = page.getByTestId('transient-notice');
     await expect(notice).toBeVisible();
     await expect(notice).toHaveText(finishedIn);
