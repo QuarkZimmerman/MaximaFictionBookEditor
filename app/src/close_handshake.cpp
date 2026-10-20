@@ -3,14 +3,11 @@
 namespace mfbe::shell {
 
 CloseHandshake::Action CloseHandshake::onCloseRequested() {
-    switch (state_) {
-        case State::kAllowed:
-            return Action::kAllow;
-        case State::kAsking:
-            return Action::kIgnore;
-        case State::kIdle:
-            break;
+    if (state_ == State::kAllowed) {
+        return Action::kAllow;
     }
+    // Idle, or still asking: ask (again) with a new ticket; the earlier request's late answers
+    // are told apart by their ticket.
     state_ = State::kAsking;
     ++ticket_;
     return Action::kAsk;

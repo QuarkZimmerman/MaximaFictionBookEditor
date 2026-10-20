@@ -41,10 +41,20 @@
 //                               instance (MFBE_RELAUNCH_PROGRAM points nowhere); the page must
 //                               show the failure (dialog-restart-failed) and the old process
 //                               must stay alive
+//   MFBE_SMOKE_CLOSE            1 = the window's close button (feature 003 FR-017): the Body is
+//                               edited, then the window manager on the shell's display
+//                               (MFBE_SMOKE_DISPLAY_FILE: DISPLAY and XAUTHORITY lines, written
+//                               by shell-smoke.sh's launcher; openbox) is asked to close the
+//                               window with xdotool's Alt+F4 - WM_DELETE_WINDOW, what the
+//                               title-bar X sends. "Save changes?" must appear within 2 s and
+//                               the editor (app.info.pid) stay; Cancel keeps it open and the
+//                               document modified; a second request asks again at once; No
+//                               ends the process within 10 s
 //
 // Fallback if a future CEF/Playwright pair regresses: puppeteer-core (`puppeteer.connect({
 // browserURL })`) or raw CDP via chrome-remote-interface; both talk to the same endpoint.
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -91,6 +101,12 @@ const restartVariant = process.env.MFBE_SMOKE_RESTART ?? '';
 const restartMustFail = process.env.MFBE_SMOKE_RESTART_FAIL === '1';
 // SC-005: the restarted editor is back with the document within 15 s of the user's Yes.
 const restartBudgetMs = 15_000;
+const checkClose = process.env.MFBE_SMOKE_CLOSE === '1';
+const displayFile = process.env.MFBE_SMOKE_DISPLAY_FILE ?? '';
+// FR-017: the close request asks like Exit does - the prompt is there as fast as Exit's.
+const closePromptBudgetMs = 2_000;
+// After No the editor saves its settings and placement and ends.
+const closeExitBudgetMs = 10_000;
 const screenshotPath = path.resolve(
   root,
   process.env.MFBE_SMOKE_SCREENSHOT ?? path.join('build', 'shell-smoke.png'),
@@ -461,6 +477,87 @@ async function checkRestart(page) {
 }
 
 /* ---------------------------------------------------------------------------------------- */
+/* The window's close button runs the Exit flow (feature 003 FR-017)                         */
+/* ---------------------------------------------------------------------------------------- */
+
+// The X display the shell runs on, as shell-smoke.sh's launcher recorded it.
+function shellDisplayEnv() {
+  if (!displayFile) {
+    throw new Error('MFBE_SMOKE_CLOSE needs MFBE_SMOKE_DISPLAY_FILE (set by shell-smoke.sh)');
+  }
+  const env = { ...process.env };
+  for (const line of fs.readFileSync(displayFile, 'utf8').split('\n')) {
+    const match = /^(DISPLAY|XAUTHORITY)=(.*)$/.exec(line);
+    if (match && match[2]) {
+      env[match[1]] = match[2];
+    }
+  }
+  if (!env.DISPLAY) {
+    throw new Error(`${displayFile} names no DISPLAY`);
+  }
+  return env;
+}
+
+// Asks the window manager to close the editor's window, as the title-bar button does: the
+// window is activated and Alt+F4 pressed (openbox's default binding sends WM_DELETE_WINDOW).
+function requestWindowClose(env) {
+  const xdotool = (...args) =>
+    execFileSync('xdotool', args, { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const ids = xdotool('search', '--onlyvisible', '--name', expectTitle).split(/\s+/).filter(Boolean);
+  if (ids.length === 0) {
+    throw new Error(`no visible window titled "${expectTitle}" on ${env.DISPLAY}`);
+  }
+  xdotool('windowactivate', '--sync', ids[0]);
+  xdotool('key', '--clearmodifiers', 'alt+F4');
+  return ids[0];
+}
+
+async function checkWindowClose(page) {
+  const env = shellDisplayEnv();
+  const pid = (await coreRpc(page.url(), 'app.info')).pid;
+  if (!Number.isInteger(pid) || pid <= 0 || !processAlive(pid)) {
+    throw new Error(`app.info.pid ${pid} is not a running process`);
+  }
+  const prompt = page.locator('[data-testid="dialog-save-changes"]');
+
+  // Modify the document: the title carries the marker.
+  await page.locator('[data-testid="body-editor"] p').first().click();
+  await page.keyboard.type('Changed before closing ');
+  await waitUntil('the modified marker in the title', async () => (await page.title()).includes('*'), timeoutMs);
+  console.log(`close:         document modified ("${await page.title()}"), editor pid ${pid}`);
+
+  // The close button with a modified document: the save prompt, the window stays.
+  const first = Date.now();
+  const windowId = requestWindowClose(env);
+  await prompt.waitFor({ state: 'visible', timeout: closePromptBudgetMs });
+  console.log(`close:         window ${windowId} asked to close: "Save changes?" after ${Date.now() - first} ms`);
+  if (!processAlive(pid)) {
+    throw new Error('the editor exited although the save prompt was up');
+  }
+
+  // Cancel: the editor stays open, the document stays modified.
+  await prompt.locator('[data-testid="dialog-save-changes-button-cancel"]').click();
+  await prompt.waitFor({ state: 'hidden', timeout: timeoutMs });
+  await sleep(1000);
+  if (!processAlive(pid)) {
+    throw new Error('the editor exited although Cancel was chosen');
+  }
+  if (!(await page.title()).includes('*')) {
+    throw new Error('the document lost its modified marker after Cancel');
+  }
+  console.log('close:         Cancel keeps the editor open and the document modified');
+
+  // The close button again, right after Cancel: asked again (no dead time), No closes.
+  const second = Date.now();
+  requestWindowClose(env);
+  await prompt.waitFor({ state: 'visible', timeout: closePromptBudgetMs });
+  console.log(`close:         asked again after ${Date.now() - second} ms`);
+  await prompt.locator('[data-testid="dialog-save-changes-button-no"]').click();
+  await waitUntil(`the exit of pid ${pid}`, () => !processAlive(pid), closeExitBudgetMs);
+  console.log(`close:         No: the editor (pid ${pid}) exited after ${Date.now() - second} ms`);
+}
+
+/* ---------------------------------------------------------------------------------------- */
 /* View > Status Bar reaches settings.json (the Windows journey's step, feature 002)         */
 /* ---------------------------------------------------------------------------------------- */
 
@@ -567,10 +664,18 @@ try {
     await checkAboutDialog(page);
   }
 
-  // View > Status Bar is recorded in the settings file (real UI; not in the restart scenario,
-  // whose runs are about the restart alone).
-  if (settingsFile && !restartVariant) {
+  // View > Status Bar is recorded in the settings file (real UI; not in the restart and close
+  // scenarios, whose runs are about those alone).
+  if (settingsFile && !restartVariant && !checkClose) {
     await checkStatusBarSetting(page);
+  }
+
+  // The window's close button runs the Exit flow (feature 003 FR-017); the editor ends.
+  if (checkClose) {
+    if (!openFile) {
+      throw new Error('MFBE_SMOKE_CLOSE needs MFBE_SMOKE_OPEN_FILE (the book to modify)');
+    }
+    await checkWindowClose(page);
   }
 
   // The editor restarts itself (feature 003 US3): the first connection ends with the old

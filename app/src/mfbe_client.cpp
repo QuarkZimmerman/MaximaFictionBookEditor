@@ -148,24 +148,10 @@ void MfbeClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
 
 bool MfbeClient::DoClose(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
-    if (IsMainBrowser(browser) && config_.request_close) {
-        // The main window closes only with the UI's agreement (feature 003 FR-013): the first
-        // request is cancelled here and handed to the UI, whose quit flow - the cancel-script
-        // prompt while a script runs, then the save prompt - ends in app.quit; the core stops,
-        // CloseAllBrowsers(true) follows and the handshake lets this close through. Without a
-        // way to reach the UI (no core) the window closes as it always did.
-        switch (close_handshake_.onCloseRequested()) {
-            case CloseHandshake::Action::kAsk:
-                AskUiToClose(close_handshake_.ticket());
-                return true;  // cancel this close: the UI (or the timeout) decides
-            case CloseHandshake::Action::kIgnore:
-                return true;  // the UI is already asked; its prompt is up
-            case CloseHandshake::Action::kAllow:
-                break;
-        }
-    }
-    // Closing the main window requires special handling. See the DoClose() documentation in
-    // include/cef_life_span_handler.h for a detailed description of this process.
+    // Alloy style only: CEF does not call DoClose for the Chrome style browsers of this shell
+    // (include/cef_life_span_handler.h), so the main window's close is offered to the UI from
+    // MainWindowDelegate::CanClose through OfferCloseToUi() instead. Here the cefclient default:
+    // closing the last browser ends the application.
     if (browser_list_.size() == 1) {
         is_closing_ = true;
     }
@@ -173,9 +159,23 @@ bool MfbeClient::DoClose(CefRefPtr<CefBrowser> browser) {
     return false;
 }
 
-bool MfbeClient::IsMainBrowser(const CefRefPtr<CefBrowser>& browser) const {
-    // The main window is created first (OnAfterCreated); DevTools popups follow it.
-    return browser && !browser_list_.empty() && browser->IsSame(browser_list_.front());
+bool MfbeClient::OfferCloseToUi() {
+    CEF_REQUIRE_UI_THREAD();
+    if (!config_.request_close) {
+        return true;  // no core, nobody to ask: the window closes as it always did
+    }
+    // The main window closes only with the UI's agreement (feature 003 FR-013 / FR-017): the
+    // request is handed to the UI, whose quit flow - the cancel-script prompt while a script
+    // runs, then the save prompt - ends in app.quit; the core stops, CloseAllBrowsers(true)
+    // follows and the handshake lets that close through.
+    switch (close_handshake_.onCloseRequested()) {
+        case CloseHandshake::Action::kAsk:
+            AskUiToClose(close_handshake_.ticket());
+            return false;  // the UI (or the timeout) decides
+        case CloseHandshake::Action::kAllow:
+            break;
+    }
+    return true;
 }
 
 void MfbeClient::AskUiToClose(unsigned ticket) {
@@ -236,6 +236,10 @@ void MfbeClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
     if (dialogs_) {
         dialogs_->clearOwnerBrowser(browser);
+    }
+    // The main window (the first browser) is going: the application is closing.
+    if (!browser_list_.empty() && browser->IsSame(browser_list_.front())) {
+        is_closing_ = true;
     }
     for (auto it = browser_list_.begin(); it != browser_list_.end(); ++it) {
         if ((*it)->IsSame(browser)) {

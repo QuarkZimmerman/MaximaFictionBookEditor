@@ -164,21 +164,28 @@ reloads itself with `?open=<path>` added to its query; a spawn failure answers 1
 and the failure path with `MFBE_SMOKE_RESTART_FAIL=1`).
 
 **Closing the window.** The window never closes behind the UI's back (feature 003 FR-017).
-The first close request - the title-bar button, a system shutdown, Cmd+Q - is deferred by the
-shell (`MfbeClient::DoClose`, driven by the state machine `app/src/close_handshake.cpp`): it
-asks the core to emit the notification `app.closeRequested`, and the UI runs exactly the Exit
-flow (`FileFeature.handleCloseRequested`) - "Cancel the running script?" while a script runs
-(Yes cancels the run and restores the document), then "Save changes to X?" whose Cancel keeps
-the editor open with nothing lost - and ends it with `app.quit({force: true})`, on which the
-shell closes for real. One request is answered at a time; a request that arrives while a prompt
-of New/Open, Settings or a native file dialog is open is ignored, as a native window refuses to
-close behind its modal dialog, until the user has finished that dialog and closes again. The
-shell closes on its own only when no page is connected to answer: the notification could not
-be delivered, or no client is connected when the 10 s timeout (`CloseHandshake::kAnswerTimeout`)
-passes - a connected UI keeps the window however long the user takes over the prompt, so a
-window whose interface is gone can be closed but a prompt can never be skipped.
-`test.requestClose` emits the same notification headless so the journeys cover the path, and
-`tests/shell/test_close_handshake.cpp` drives the state machine.
+A close request the user can still cancel - the title-bar button, Alt+F4, a system shutdown,
+Cmd+Q - reaches the shell in `MainWindowDelegate::CanClose` (`app/src/window.cpp`; CEF's Chrome
+style never calls `CefLifeSpanHandler::DoClose`, and `CefBrowserHost::IsReadyToBeClosed()` tells
+such a request from a close already under way) and is deferred by `MfbeClient::OfferCloseToUi`,
+driven by the state machine `app/src/close_handshake.cpp`: it asks the core to emit the
+notification `app.closeRequested`, and the UI runs exactly the Exit flow
+(`FileFeature.handleCloseRequested`) - "Cancel the running script?" while a script runs (Yes
+cancels the run and restores the document), then "Save changes to X?" whose Cancel keeps the
+editor open with nothing lost - and ends it with `app.quit({force: true})`, on which the shell
+closes for real. A further close request asks again at once (the UI ignores it while its prompt
+is up; after a Cancel it is the next prompt); a request that arrives while a prompt of New/Open,
+Settings or a native file dialog is open is ignored, as a native window refuses to close behind
+its modal dialog, until the user has finished that dialog and closes again. The shell closes on
+its own only when no page is connected to answer: the notification could not be delivered, or no
+client is connected when the 10 s timeout (`CloseHandshake::kAnswerTimeout`) passes - a
+connected UI keeps the window however long the user takes over the prompt, so a window whose
+interface is gone can be closed but a prompt can never be skipped. `test.requestClose` emits the
+same notification headless so the journeys cover the UI's part; `tools/shell-smoke.sh` with
+`MFBE_SMOKE_CLOSE=1` sends the window manager's close request to the real shell under Xvfb
+(openbox, xdotool) and `tools/ci/windows-russian-journey.ps1` posts WM_CLOSE to the Windows
+window - the title-bar button's path end to end; `tests/shell/test_close_handshake.cpp` drives
+the state machine.
 
 ## 5. Contracts
 

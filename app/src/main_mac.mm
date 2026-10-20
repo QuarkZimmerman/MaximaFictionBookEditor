@@ -76,7 +76,12 @@
 - (void)tryToTerminateApplication:(NSApplication*)app {
     mfbe::shell::MfbeClient* client = mfbe::shell::MfbeClient::GetInstance();
     if (client && !client->IsClosing()) {
-        client->CloseAllBrowsers(false);
+        // Quit is a close the user can still cancel: the UI runs its quit flow first (the
+        // cancel-script and save prompts, close_handshake.h) and ends it with app.quit, which
+        // closes the windows; without a UI to ask, the windows close right away.
+        if (client->OfferCloseToUi()) {
+            client->CloseAllBrowsers(false);
+        }
     }
 }
 

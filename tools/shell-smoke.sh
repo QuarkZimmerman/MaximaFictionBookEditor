@@ -76,6 +76,13 @@
 #                               MFBE_RELAUNCH_PROGRAM=/nonexistent/mfbe (honoured by test-hook
 #                               builds only) makes the spawn fail; the page must report it
 #                               (msg.restartFailed) and the old process must stay alive.
+#   MFBE_SMOKE_CLOSE            1 = the window's close button (feature 003 FR-017; real UI with
+#                               MFBE_SMOKE_OPEN_FILE; needs openbox and xdotool): the document
+#                               is modified, then the window manager is asked to close the
+#                               window (Alt+F4 under openbox sends WM_DELETE_WINDOW, as the
+#                               title-bar X does) - the "Save changes?" prompt must appear and
+#                               the editor stay; Cancel keeps it open and modified; a second
+#                               close request asks again at once; No ends the process.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -281,6 +288,24 @@ elif [[ "$RESTART_FAIL" == "1" ]]; then
   echo "shell-smoke: MFBE_SMOKE_RESTART_FAIL needs MFBE_SMOKE_RESTART=1" >&2
   exit 1
 fi
+CLOSE="${MFBE_SMOKE_CLOSE:-0}"
+if [[ "$CLOSE" == "1" ]]; then
+  if [[ "${MFBE_SMOKE_REAL_UI:-0}" != "1" || -z "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_CLOSE needs MFBE_SMOKE_REAL_UI=1 and MFBE_SMOKE_OPEN_FILE" >&2
+    exit 1
+  fi
+  if [[ "$RESTART" == "1" || -n "$SELFTEST" || "${MFBE_SMOKE_CLIPBOARD:-0}" == "1" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_CLOSE is exclusive with the restart and self-test scenarios" >&2
+    exit 1
+  fi
+  # The close request must come from a window manager, as the title-bar button's does.
+  for tool in openbox xdotool; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      echo "shell-smoke: MFBE_SMOKE_CLOSE needs '$tool' (apt-get install openbox xdotool)" >&2
+      exit 1
+    fi
+  done
+fi
 # Clipboard check: a GTK clipboard owner must live on the same virtual display as the shell,
 # so both are started by one wrapper script under xvfb-run.
 LAUNCHER="$MFBE_APP_BIN"
@@ -308,6 +333,21 @@ PY
 #!/bin/bash
 python3 "$TMP/clipboard-owner.py" "$ROOT/resources/icons/app/mfbe-64.png" >"$TMP/clipboard-owner.log" 2>&1 &
 sleep 1
+exec "$MFBE_APP_BIN" "\$@"
+SH
+  chmod +x "$TMP/launch.sh"
+  LAUNCHER="$TMP/launch.sh"
+fi
+# Close scenario: a window manager must run on the display to turn Alt+F4 into the close
+# request of the title-bar button (WM_DELETE_WINDOW); the wrapper starts openbox and writes the
+# display's address (DISPLAY, XAUTHORITY of xvfb-run) for shell-smoke.mjs, which drives xdotool.
+if [[ "$CLOSE" == "1" ]]; then
+  export MFBE_SMOKE_DISPLAY_FILE="$TMP/display.env"
+  cat >"$TMP/launch.sh" <<SH
+#!/bin/bash
+openbox >"$TMP/wm.log" 2>&1 &
+sleep 0.5
+printf 'DISPLAY=%s\nXAUTHORITY=%s\n' "\$DISPLAY" "\${XAUTHORITY:-}" >"$MFBE_SMOKE_DISPLAY_FILE"
 exec "$MFBE_APP_BIN" "\$@"
 SH
   chmod +x "$TMP/launch.sh"
@@ -438,6 +478,29 @@ start_shell
 
 # --- Playwright over CDP ----------------------------------------------------------------------
 node "$ROOT/tools/shell-smoke.mjs" "$CDP_PORT"
+
+if [[ "$CLOSE" == "1" ]]; then
+  # The scenario ended with the editor closing itself (No in the save prompt): the shell - and
+  # with it xvfb-run - must have exited cleanly.
+  status=""
+  for _ in $(seq 1 40); do
+    if ! kill -0 "$APP_PID" 2>/dev/null; then
+      break
+    fi
+    sleep 0.25
+  done
+  if kill -0 "$APP_PID" 2>/dev/null; then
+    echo "shell-smoke: the shell is still running after the close scenario" >&2
+    exit 1
+  fi
+  wait "$APP_PID" && status=0 || status=$?
+  APP_PID=""
+  if [[ "$status" != "0" ]]; then
+    echo "shell-smoke: the shell exited with status $status after the close scenario" >&2
+    exit 1
+  fi
+  echo "shell-smoke: close: the shell exited cleanly (status 0)"
+fi
 
 if [[ -n "$PORTABLE_DIR" ]]; then
   for sub in cef logs; do

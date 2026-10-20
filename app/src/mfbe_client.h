@@ -118,6 +118,14 @@ public:
     // Brings the main window to the front (any thread).
     void ShowMainWindow();
 
+    // A close of the main window the user can still cancel - the title-bar button, Alt+F4 and
+    // the system shutdown reach MainWindowDelegate::CanClose, Cmd+Q the macOS application
+    // delegate - is offered to the UI through the close handshake (close_handshake.h). Returns
+    // true when the close may proceed now (no core to ask, or the UI already agreed with
+    // app.quit); false when the UI has been asked - its quit flow ends in app.quit, which stops
+    // the core and closes the window through CloseAllBrowsers(true). CEF UI thread.
+    bool OfferCloseToUi();
+
     // Requests that all existing browser windows close (any thread). A forced close skips the
     // UI's quit flow (the core already stopped on app.quit, or the OS is quitting the app).
     void CloseAllBrowsers(bool force_close);
@@ -134,7 +142,6 @@ private:
     // Close handshake of the main window (CEF UI thread). AskUiToClose() emits
     // app.closeRequested through the core and arms the answer timeout; the callbacks carry the
     // handshake ticket so that late answers of an earlier request are ignored.
-    bool IsMainBrowser(const CefRefPtr<CefBrowser>& browser) const;
     void AskUiToClose(unsigned ticket);
     void OnCloseRequestDelivered(unsigned ticket, bool delivered);
     void OnCloseAnswerTimeout(unsigned ticket);

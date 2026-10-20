@@ -1,14 +1,19 @@
-// Close handshake of the main window (feature 003 FR-013, rpc-api.md §3.1): the window must
-// not close behind the UI's back. The first close request (title-bar X, system shutdown,
-// Cmd+Q...) is deferred: the shell asks the core to emit `app.closeRequested`, the UI runs its
-// quit flow - the cancel-script prompt while a script runs, then the save prompt - and ends it
-// with `app.quit`, on which the shell closes for real. A UI that cannot answer (no client
-// connected: page not loaded, renderer gone) must not leave a window that cannot be closed:
-// after a timeout the shell checks whether a UI is still connected and forces the close when
-// none is; a connected UI keeps the window (the user declined, or the prompt is still up).
+// Close handshake of the main window (feature 003 FR-013 / FR-017, rpc-api.md §3.1): the window
+// must not close behind the UI's back. A close request the user can still cancel (title-bar
+// X, Alt+F4, Cmd+Q, system shutdown...) is deferred: the shell asks the core to emit
+// `app.closeRequested`, the UI runs its quit flow - the cancel-script prompt while a script
+// runs, then the save prompt - and ends it with `app.quit`, on which the shell closes for
+// real. A request while the UI is already asked asks again with a new ticket: the UI ignores
+// it while its prompt is up, and after a Cancel it is the next prompt - the user never meets
+// a close button that does nothing. A UI that cannot answer (no client connected: page not
+// loaded, renderer gone) must not leave a window that cannot be closed: after a timeout the
+// shell checks whether a UI is still connected and forces the close when none is; a connected
+// UI keeps the window (the user declined, or the prompt is still up).
 //
 // Pure logic without CEF types so that tests/shell/test_close_handshake.cpp can drive it;
-// MfbeClient::DoClose feeds it the events and performs the actions.
+// MfbeClient::OfferCloseToUi feeds it the events and performs the actions. The entry point is
+// CefWindowDelegate::CanClose (window.cpp) - with Chrome style CEF never calls
+// CefLifeSpanHandler::DoClose, so the handshake must not live there.
 #pragma once
 
 #include <chrono>
@@ -19,9 +24,8 @@ class CloseHandshake {
 public:
     // What the caller must do with a close request.
     enum class Action {
-        kAllow,   // let the close proceed (agreed by app.quit, or nobody can answer)
-        kAsk,     // cancel this close, ask the UI and start the timeout
-        kIgnore,  // the UI is already asked; cancel this close and do nothing more
+        kAllow,  // let the close proceed (agreed by app.quit, or nobody can answer)
+        kAsk,    // cancel this close, ask the UI and start the timeout
     };
 
     enum class State { kIdle, kAsking, kAllowed };

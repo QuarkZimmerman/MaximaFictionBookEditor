@@ -63,7 +63,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build pkg-config autoconf automake autoconf-archive libtool bison flex \
-            libgtk-3-dev libnss3 libasound2 xvfb file rpm dpkg-dev patchelf python3-yaml shellcheck
+            libgtk-3-dev libnss3 libasound2 xvfb file rpm dpkg-dev patchelf python3-yaml shellcheck openbox xdotool
 
       - name: Generate the regional locales the core tests and journeys format dates under (feature 003)
         if: runner.os == 'Linux'
@@ -239,6 +239,16 @@ jobs:
           MFBE_SMOKE_REAL_UI: "1"
           MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
           MFBE_SMOKE_ABOUT: "1"
+
+      - name: Shell smoke of the window's close button (feature 003 FR-017)
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
+          MFBE_SMOKE_CLOSE: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-close.png
 
       - name: Corpus gate (local only)
         if: runner.os == 'Linux'

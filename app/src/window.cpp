@@ -4,6 +4,7 @@
 #include "include/cef_browser.h"
 #include "include/views/cef_display.h"
 #include "include/wrapper/cef_helpers.h"
+#include "mfbe_client.h"
 
 #include <mfbe/utf8_paths.hpp>
 
@@ -205,16 +206,29 @@ CefRect MainWindowDelegate::GetInitialBounds(CefRefPtr<CefWindow> window) {
 
 bool MainWindowDelegate::CanClose(CefRefPtr<CefWindow> window) {
     CEF_REQUIRE_UI_THREAD();
-    // The window closes when the browser agrees (TryCloseBrowser -> DoClose -> OnBeforeClose).
-    // The UI owns the document state: MfbeClient::DoClose defers the main window's first close
-    // and asks the page (app.closeRequested -> cancel-script prompt, save prompt -> app.quit),
-    // see close_handshake.h.
-    if (browser_view_) {
-        if (CefRefPtr<CefBrowser> browser = browser_view_->GetBrowser()) {
-            return browser->GetHost()->TryCloseBrowser();
+    if (!browser_view_) {
+        return true;
+    }
+    CefRefPtr<CefBrowser> browser = browser_view_->GetBrowser();
+    if (!browser) {
+        return true;
+    }
+    CefRefPtr<CefBrowserHost> host = browser->GetHost();
+    // The UI owns the document state: a close of the main window the user can still cancel -
+    // the title-bar button, Alt+F4, the system shutdown; IsReadyToBeClosed() is false before
+    // any close is under way - is offered to the page first (app.closeRequested -> the
+    // cancel-script prompt, the save prompt -> app.quit), see close_handshake.h. A close that
+    // is under way (app.quit stopped the core, the handshake's forced close) goes through. With
+    // Chrome style CEF never calls CefLifeSpanHandler::DoClose, so this is the only place.
+    if (kind_ == Kind::kMain && !host->IsReadyToBeClosed()) {
+        if (MfbeClient* client = MfbeClient::GetInstance()) {
+            if (!client->OfferCloseToUi()) {
+                return false;  // the UI (or the handshake's timeout) decides
+            }
         }
     }
-    return true;
+    // The window closes when the browser agrees (TryCloseBrowser -> OnBeforeClose).
+    return host->TryCloseBrowser();
 }
 
 CefSize MainWindowDelegate::GetPreferredSize(CefRefPtr<CefView> view) {

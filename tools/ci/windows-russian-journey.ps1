@@ -8,8 +8,11 @@
 #   - Save (F2, the original editor's key; Ctrl+S has no command) rewrites the book in place;
 #   - View > Status Bar, chosen with the Russian accelerators (Alt+В, С), hides the status bar and
 #     settings.json records it;
-#   - File > Exit (F10, Down, В) ends the editor with exit code 0, and after a restart the status
-#     bar is still hidden;
+#   - the window's close button (WM_CLOSE to the main window) with a modified document asks
+#     "Save changes?" (feature 003 FR-017): Cancel keeps the editor open and the document
+#     modified, a second close request asks again at once, No ends the editor with exit code 0;
+#   - File > Exit (F10, Down, В) ends the editor with exit code 0 after a restart, with the status
+#     bar still hidden;
 #   - "Restart now?" restarts the editor (feature 003 US3): after the interface language is
 #     switched to English in Settings and Yes answered, the editor ends with exit code 0 and a new
 #     mfbe.exe process - started with --wait-for-exit <old pid>, --window-geometry and the book -
@@ -268,6 +271,51 @@ function Exit-Editor([hashtable]$ExitKey = $keyVe) {
     }
 }
 
+# The window's close button (feature 003 FR-017): WM_CLOSE to the editor's main window - what the
+# title-bar button sends - must run the Exit flow. The document is modified first: "Save changes?"
+# must appear, Cancel keep the editor open and the document modified, a second close request ask
+# again at once, and No end the editor with exit code 0.
+function Request-WindowClose {
+    Wait-Until 'the main window of the editor' {
+        $script:editor.Refresh()
+        $script:editor.MainWindowHandle -ne [IntPtr]::Zero
+    }
+    if (-not $script:editor.CloseMainWindow()) { throw 'WM_CLOSE could not be posted to the main window' }
+}
+
+function Close-EditorThroughWindow {
+    $null = Get-CdpValue $script:cdp @"
+(() => { const p = document.querySelector('[data-testid="body-editor"] p'); const range = document.createRange(); range.selectNodeContents(p); range.collapse(true); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); p.closest('[data-testid="body-editor"]').focus(); return true; })()
+"@
+    $null = Invoke-Cdp $script:cdp 'Input.insertText' @{ text = 'Changed before closing ' }
+    Wait-Until 'the modified marker in the title' { (Get-CdpValue $script:cdp 'document.title.includes("*")') -eq $true }
+
+    Request-WindowClose
+    Wait-Until '"Save changes?" after the close request' { Test-Element 'dialog-save-changes' } 5
+    if ($script:editor.HasExited) { throw 'the editor exited although the save prompt was up' }
+    Click-Element 'dialog-save-changes-button-cancel'
+    Wait-Until 'the save prompt gone after Cancel' { -not (Test-Element 'dialog-save-changes') }
+    Start-Sleep -Seconds 1
+    if ($script:editor.HasExited) { throw 'the editor exited although Cancel was chosen' }
+    if ((Get-CdpValue $script:cdp 'document.title.includes("*")') -ne $true) {
+        throw 'the document lost its modified marker after Cancel'
+    }
+
+    Request-WindowClose
+    Wait-Until '"Save changes?" after the second close request' { Test-Element 'dialog-save-changes' } 5
+    try {
+        Click-Element 'dialog-save-changes-button-no'
+    } catch {
+        # The window closes while the click is handled: the connection may end before the answer.
+        Write-Host "DevTools connection ended with the window: $($_.Exception.Message)"
+    }
+    if (-not $script:editor.WaitForExit(60000)) { throw 'the editor did not end after No in the save prompt' }
+    $exitCode = try { $script:editor.ExitCode } catch { $null }
+    if ($null -ne $exitCode -and $exitCode -ne 0) {
+        throw ('the editor ended with exit code 0x{0:X8} after the window close' -f $exitCode)
+    }
+}
+
 # Clicks the element with $TestId in the page (menus and dialogs of the interface react to clicks
 # as to the mouse).
 function Click-Element([string]$TestId) {
@@ -406,7 +454,8 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
     Wait-Until 'the status bar hidden' { -not (Test-Element 'statusbar') }
     Wait-Until 'the hidden status bar in settings.json' { (Read-Json $settingsFile).session.toolbars.status -eq $false }
 
-    Exit-Editor
+    # The window's close button with a modified document runs the Exit flow (FR-017).
+    Close-EditorThroughWindow
 }
 
 Invoke-EditorRun 'Restart' '' {

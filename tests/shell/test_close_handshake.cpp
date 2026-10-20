@@ -1,7 +1,8 @@
-// The main window's close handshake (feature 003 FR-013): the first close request is deferred
-// and the UI asked (app.closeRequested); app.quit allows the close; a request nobody can
-// receive closes at once; after the timeout a connected UI keeps the window (it declined or is
-// still asked) while a vanished UI lets it close.
+// The main window's close handshake (feature 003 FR-013 / FR-017): a close request is deferred
+// and the UI asked (app.closeRequested) - again on every further request, so that a close
+// button pressed after a Cancel asks again at once; app.quit allows the close; a request
+// nobody can receive closes at once; after the timeout a connected UI keeps the window (it
+// declined or is still asked) while a vanished UI lets it close.
 #include "close_handshake.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -22,10 +23,17 @@ TEST_CASE("close handshake: the first request is deferred and the UI asked", "[c
     CHECK(ticket == 1);
     CHECK(handshake.isAsking(ticket));
 
-    // A second click on the close button while the prompt is up: nothing more happens.
-    CHECK(handshake.onCloseRequested() == Action::kIgnore);
-    CHECK(handshake.ticket() == ticket);
-    CHECK(handshake.isAsking(ticket));
+    // A second click on the close button - the prompt still up (the UI ignores the repeated
+    // request) or dismissed with Cancel (it is the next prompt): asked again with a new
+    // ticket; the first request's late answers are ignored.
+    CHECK(handshake.onCloseRequested() == Action::kAsk);
+    const unsigned second = handshake.ticket();
+    CHECK(second == ticket + 1);
+    CHECK(handshake.isAsking(second));
+    CHECK_FALSE(handshake.isAsking(ticket));
+    CHECK_FALSE(handshake.onTimeout(ticket, false));
+    CHECK_FALSE(handshake.onUndelivered(ticket));
+    CHECK(handshake.isAsking(second));
 }
 
 TEST_CASE("close handshake: app.quit allows every further close", "[close]") {
