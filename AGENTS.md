@@ -64,6 +64,13 @@ Run the core headless for manual/MCP testing:
 - Tests first for each user story (Playwright journey + Catch2 where the core is involved).
 - Commit messages: imperative, explain why; never commit secrets. Commit at natural
   checkpoints (a completed task or user story, a finished Spec Kit phase).
+- Definition of done (requester, 2026-10-19, hard rule): nothing is done, finished or released
+  while any test or any GitHub workflow run on the commit has failed or is still running -
+  every workflow (CI, Release, Docs build replay), every operating system of its matrix; a
+  failing test is fixed, never dismissed as "not a gate" or "flaky". Check all runs of the
+  commit before reporting (`gh run list --commit <sha>` or the Actions API with `head_sha=`);
+  tag a release only on a commit whose runs are all green and call it released only when the
+  Release workflow and all other runs on the tagged commit have passed.
 - No scope beyond the specifications without the requester's approval (a request in a feature
   description is that approval); the original editor is a reference, not a target to match.
 - Licence: GPL-3.0-only (the original editor's); keep the original's notices
