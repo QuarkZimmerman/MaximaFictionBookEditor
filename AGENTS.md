@@ -70,7 +70,9 @@ Run the core headless for manual/MCP testing:
   failing test is fixed, never dismissed as "not a gate" or "flaky". Check all runs of the
   commit before reporting (`gh run list --commit <sha>` or the Actions API with `head_sha=`);
   tag a release only on a commit whose runs are all green and call it released only when the
-  Release workflow and all other runs on the tagged commit have passed.
+  Release workflow and all other runs on the tagged commit have passed. The requester tests
+  fixes from the CI run's `packages-*` artifacts (or a `-rc` pre-release tag) before the final
+  tag - never from a release published for that purpose.
 - No scope beyond the specifications without the requester's approval (a request in a feature
   description is that approval); the original editor is a reference, not a target to match.
 - Licence: GPL-3.0-only (the original editor's); keep the original's notices
