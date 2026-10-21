@@ -123,6 +123,15 @@ describe('App shell', () => {
     );
     await user.keyboard('{ArrowLeft}');
     expect(screen.queryByTestId('menu-file-import-popup')).not.toBeInTheDocument();
+    // Export: the FBD export of feature 004 (FR-040) in place of the plugin placeholder.
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByTestId('menu-file-export')).toHaveClass('mfbe-menu-item-highlighted');
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByTestId('menu-file-export-popup')).toBeInTheDocument();
+    expect(screen.queryByTestId('menu-file-export-none')).not.toBeInTheDocument();
+    expect(screen.getByTestId('menu-file-export-exportFbd')).toHaveTextContent('Export as FBD...');
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.queryByTestId('menu-file-export-popup')).not.toBeInTheDocument();
     await user.keyboard('{Escape}');
 
     await user.click(screen.getByTestId('menu-scripts'));

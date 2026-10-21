@@ -2,7 +2,7 @@
 // (needsConfirmation and force), recent, open (direct and as a job), openSource for malformed
 // files, validate, caret, watch + doc.changedOnDisk, keepEncoding, HTTP /binary GET/POST,
 // formatDate (feature 003); doc.readDescription, the import session and binary.copy (feature
-// 004 US4, T036).
+// 004 US4, T036); doc.exportDescription, the FBD export (feature 004 US5, T044).
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
@@ -1215,4 +1215,474 @@ TEST_CASE(
     CHECK(f.ws.call("binary.copy",
                     json{{"docId", doc_id}, {"fromDocId", import_id}})["error"]["code"] == -32602);
     CHECK(f.ws.call("doc.close", json{{"docId", import_id}})["result"] == json::object());
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 004 US5: doc.exportDescription, the FBD export (T044)                              */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+// A book with everything the export must keep or drop (spec FR-041): a stylesheet; a complete
+// description whose cover is a GIF (converted in the written copy only), whose annotation and
+// history carry inline images and whose `output` element refers to a binary of its own; two
+// custom-info rows; a body with text and an image; binaries referenced only by the body or by
+// nothing at all.
+std::string export_source_text() {
+    const std::string png = base64::encode(read_all(test::fixtures_dir() / "images" / "tiny.png"));
+    const std::string gif = base64::encode(read_all(test::fixtures_dir() / "images" / "tiny.gif"));
+    const std::string jpg = base64::encode(read_all(test::fixtures_dir() / "images" / "tiny.jpg"));
+    return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+           "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+           "xmlns:l=\"http://www.w3.org/1999/xlink\">\n"
+           "<stylesheet type=\"text/css\">p { text-indent: 1em; }</stylesheet>\n"
+           "<description><title-info><genre>sf</genre>"
+           "<author><first-name>Анна</first-name><last-name>Иванова</last-name></author>"
+           "<book-title>Экспорт описания</book-title>"
+           "<annotation><p>Inline <image l:href=\"#inline.png\"/> picture.</p></annotation>"
+           "<coverpage><image l:href=\"#cover.gif\"/></coverpage><lang>ru</lang></title-info>"
+           "<document-info><author><nickname>maker</nickname></author>"
+           "<program-used>Maxima FBD Maker</program-used>"
+           "<date value=\"2026-10-20\">2026-10-20</date><id>export-0001</id><version>1.0</version>"
+           "<history><p>History <image l:href=\"#history.jpg\"/> picture.</p></history>"
+           "</document-info>"
+           "<custom-info info-type=\"mleditor\">Редакторов Роман Романович</custom-info>"
+           "<custom-info info-type=\"mleditorid\">4712 Редакторов Роман Романович</custom-info>"
+           "<output mode=\"free\" include-all=\"require\">"
+           "<part l:href=\"#output-only.png\" include=\"require\"/></output>"
+           "</description>\n"
+           "<body><title><p>Экспорт описания</p></title><section>"
+           "<image l:href=\"#body-only.png\"/><p>Текст книги, которому в описании не место.</p>"
+           "</section></body>\n"
+           "<binary id=\"body-only.png\" content-type=\"image/png\">" +
+           png +
+           "</binary>\n"
+           "<binary id=\"cover.gif\" content-type=\"image/gif\">" +
+           gif +
+           "</binary>\n"
+           "<binary id=\"unused.png\" content-type=\"image/png\">" +
+           png +
+           "</binary>\n"
+           "<binary id=\"inline.png\" content-type=\"image/png\">" +
+           png +
+           "</binary>\n"
+           "<binary id=\"output-only.png\" content-type=\"image/png\">" +
+           png +
+           "</binary>\n"
+           "<binary id=\"history.jpg\" content-type=\"image/jpeg\">" +
+           jpg + "</binary>\n</FictionBook>\n";
+}
+
+std::size_t count_of(const std::string& text, const std::string& needle) {
+    std::size_t count = 0;
+    for (std::size_t pos = text.find(needle); pos != std::string::npos;
+         pos = text.find(needle, pos + needle.size())) {
+        ++count;
+    }
+    return count;
+}
+
+// The ids of a binary.list answer (or of a document's `binaries`), in order.
+std::vector<std::string> ids_of(const json& metas) {
+    std::vector<std::string> out;
+    for (const auto& meta : metas) {
+        out.push_back(meta["id"].get<std::string>());
+    }
+    return out;
+}
+
+// A validation report without its timing, for comparisons.
+json timeless(json report) {
+    report.erase("durationMs");
+    return report;
+}
+
+}  // namespace
+
+TEST_CASE(
+    "doc.exportDescription: the description with the images it refers to and one empty "
+    "section, UTF-8 and nothing else; the open document and its session untouched",
+    "[server][doc][export]") {
+    ServerFixture f;
+    const std::filesystem::path source = f.data / "export-source.fb2";
+    test::write_text(source, export_source_text());
+    const std::string source_bytes = read_all(source);
+    const json opened = f.ws.call("doc.open", json{{"path", source.string()}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    REQUIRE(doc["stylesheets"].size() == 1);
+    REQUIRE(doc["description"]["outputs"].size() == 1);
+
+    // An unreferenced JPEG added to the session, as Add Binary Object would.
+    const json added = f.ws.call(
+        "binary.add",
+        json{{"docId", doc_id}, {"path", (test::fixtures_dir() / "images" / "tiny.jpg").string()}});
+    REQUIRE(added.contains("result"));
+    CHECK(added["result"]["id"] == "tiny.jpg");
+    const json store_before = f.ws.call("binary.list", json{{"docId", doc_id}})["result"];
+    REQUIRE(ids_of(store_before) ==
+            std::vector<std::string>{"body-only.png", "cover.gif", "unused.png", "inline.png",
+                                     "output-only.png", "history.jpg", "tiny.jpg"});
+    CHECK(store_before[1]["contentType"] == "image/gif");
+    CHECK(store_before[1]["willConvert"] == true);
+    const json caret{
+        {"view", "body"}, {"nodeId", doc["bodies"][0]["attrs"]["nodeId"]}, {"offset", 0}};
+    REQUIRE(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", caret}}).contains("result"));
+    const json recent_before = f.ws.call("doc.recent")["result"];
+    REQUIRE(recent_before.size() == 1);
+    const json snapshot_before = f.run_job("doc.validate", json{{"docId", doc_id}})["result"];
+    const int sessions = f.ws.call("test.metrics")["result"]["openDocuments"];
+
+    const std::string out = (f.data / "exported.fbd").string();
+    const json exported = f.run_job("doc.exportDescription",
+                                    json{{"docId", doc_id}, {"document", doc}, {"path", out}});
+    REQUIRE(exported.contains("result"));
+    const json& result = exported["result"];
+    CHECK_FALSE(result.contains("needsConfirmation"));
+    CHECK(result["path"] == out);
+    CHECK(result["validation"]["errorCount"] == 0);
+    // The GIF cover is converted in the written copy and reported as Save reports it.
+    REQUIRE(result["converted"].size() == 1);
+    CHECK(result["converted"][0]["id"] == "cover.gif");
+    CHECK(result["converted"][0]["from"] == "image/gif");
+    const std::string converted_to = result["converted"][0]["to"];
+    CHECK((converted_to == "image/jpeg" || converted_to == "image/png"));
+
+    // The written file: UTF-8, the description verbatim, one empty section, the four
+    // referenced binaries (the cover converted), no stylesheet, no body text, no other image.
+    REQUIRE(std::filesystem::exists(out));
+    const std::string written = read_all(out);
+    CHECK(written.rfind("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<FictionBook "
+                        "xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+                        "xmlns:l=\"http://www.w3.org/1999/xlink\">\n",
+                        0) == 0);
+    CHECK_FALSE(fb2::check_well_formed(written).has_value());
+    CHECK_THAT(written, ContainsSubstring("<book-title>Экспорт описания</book-title>"));
+    CHECK_THAT(written,
+               ContainsSubstring("<p>Inline <image l:href=\"#inline.png\"/> picture.</p>"));
+    CHECK_THAT(written,
+               ContainsSubstring("<p>History <image l:href=\"#history.jpg\"/> picture.</p>"));
+    // The description as it is in the editor: the details filled in at open (002 FR-005) count.
+    CHECK_THAT(written, ContainsSubstring("<program-used>Maxima FBD Maker, " +
+                                          std::string(version::kProductName) + " "));
+    CHECK_THAT(written, ContainsSubstring("<custom-info info-type=\"mleditor\">Редакторов Роман "
+                                          "Романович</custom-info>"));
+    CHECK_THAT(written, ContainsSubstring("<custom-info info-type=\"mleditorid\">4712 Редакторов "
+                                          "Роман Романович</custom-info>"));
+    CHECK_THAT(written, ContainsSubstring("<output mode=\"free\" include-all=\"require\">"));
+    CHECK_THAT(written,
+               ContainsSubstring("<part l:href=\"#output-only.png\" include=\"require\"/>"));
+    CHECK_THAT(written, ContainsSubstring("\t<body>\n\t\t<section/>\n\t</body>\n"));
+    CHECK(count_of(written, "<body") == 1);
+    CHECK(count_of(written, "<section") == 1);
+    CHECK(count_of(written, "<p>") == 2);  // the annotation's and the history's
+    CHECK_THAT(written, !ContainsSubstring("<stylesheet"));
+    CHECK_THAT(written, !ContainsSubstring("Текст книги"));
+    CHECK_THAT(written, !ContainsSubstring("<title>"));
+    CHECK_THAT(written, !ContainsSubstring("body-only.png"));
+    CHECK_THAT(written, !ContainsSubstring("unused.png"));
+    CHECK_THAT(written, !ContainsSubstring("tiny.jpg"));
+    CHECK(count_of(written, "<binary ") == 4);
+    CHECK_THAT(written, ContainsSubstring("<binary id=\"cover.gif\" content-type=\"" +
+                                          converted_to + "\">"));
+    CHECK_THAT(written, !ContainsSubstring("content-type=\"image/gif\""));
+    CHECK_THAT(written, ContainsSubstring("<binary id=\"inline.png\" content-type=\"image/png\">"));
+    CHECK_THAT(written,
+               ContainsSubstring("<binary id=\"output-only.png\" content-type=\"image/png\">"));
+    CHECK_THAT(written,
+               ContainsSubstring("<binary id=\"history.jpg\" content-type=\"image/jpeg\">"));
+    // In store order.
+    CHECK(written.find("<binary id=\"cover.gif\"") < written.find("<binary id=\"inline.png\""));
+    CHECK(written.find("<binary id=\"inline.png\"") <
+          written.find("<binary id=\"output-only.png\""));
+    CHECK(written.find("<binary id=\"output-only.png\"") <
+          written.find("<binary id=\"history.jpg\""));
+    // The written text passes the FB2 2.1 validation (SC-005): the schema and the consistency
+    // checks on the text itself.
+    const json text_report = f.run_job("doc.validate", json{{"docId", doc_id}, {"text", written}});
+    REQUIRE(text_report.contains("result"));
+    CHECK(text_report["result"]["errorCount"] == 0);
+
+    // The open document and its session are untouched: the file on disk, the binary store
+    // (the GIF still a GIF), Recent Files (the exported file is not listed), the remembered
+    // caret, the snapshot the core holds, the number of sessions.
+    CHECK(read_all(source) == source_bytes);
+    CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"] == store_before);
+    CHECK(f.ws.call("doc.recent")["result"] == recent_before);
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}})["result"]["caret"] == caret);
+    CHECK(timeless(f.run_job("doc.validate", json{{"docId", doc_id}})["result"]) ==
+          timeless(snapshot_before));
+    CHECK(f.ws.call("test.metrics")["result"]["openDocuments"] == sessions);
+    // The session's path, kind and encoding (echoed by doc.fromXml) are the opened file's.
+    const json xml = f.ws.call("doc.toXml", json{{"docId", doc_id}, {"document", doc}});
+    REQUIRE(xml.contains("result"));
+    const json back =
+        f.ws.call("doc.fromXml", json{{"docId", doc_id}, {"text", xml["result"]["text"]}});
+    REQUIRE(back.contains("result"));
+    CHECK(std::filesystem::path(back["result"]["document"]["path"].get<std::string>())
+              .lexically_normal() == source.lexically_normal());
+    CHECK(back["result"]["document"]["fileKind"] == "fb2");
+    CHECK(back["result"]["document"]["sourceEncoding"] == "utf-8");
+
+    // The exported file opens as a description with one empty section and the four binaries;
+    // its description is the book's (FR-044 at the core level).
+    const json reopened = f.ws.call("doc.open", json{{"path", out}});
+    REQUIRE(reopened.contains("result"));
+    const json& copy = reopened["result"]["document"];
+    CHECK(copy["fileKind"] == "fbd");
+    CHECK(copy["sourceEncoding"] == "utf-8");
+    CHECK(copy["stylesheets"] == json::array());
+    CHECK(copy["extras"] == json::array());
+    REQUIRE(copy["bodies"].size() == 1);
+    REQUIRE(copy["bodies"][0]["content"].size() == 1);
+    CHECK(copy["bodies"][0]["content"][0]["type"] == "section");
+    CHECK(copy["bodies"][0]["content"][0].value("content", json::array()) == json::array());
+    CHECK(ids_of(copy["binaries"]) ==
+          std::vector<std::string>{"cover.gif", "inline.png", "output-only.png", "history.jpg"});
+    CHECK(copy["binaries"][0]["contentType"] == converted_to);
+    CHECK(copy["description"]["titleInfo"]["bookTitle"] ==
+          doc["description"]["titleInfo"]["bookTitle"]);
+    CHECK(copy["description"]["customInfo"] == doc["description"]["customInfo"]);
+    CHECK(copy["description"]["documentInfo"]["id"] == "export-0001");
+    CHECK(copy["description"]["outputs"].size() == 1);
+    CHECK(f.ws.call("doc.close", json{{"docId", copy["docId"]}})["result"] == json::object());
+}
+
+TEST_CASE("doc.exportDescription: always UTF-8, whatever the book's encoding and the Save settings",
+          "[server][doc][export]") {
+    ServerFixture f;
+    const json opened = f.ws.call("doc.open", json{{"path", f.book("legacy-cp1251.fb2").string()}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    REQUIRE(doc["sourceEncoding"] == "windows-1251");
+    // "Keep encoding" would make Save write windows-1251; the export takes no notice.
+    REQUIRE(f.ws.call("settings.set", json{{"patch", {{"other", {{"keepEncoding", true}}}}}})
+                .contains("result"));
+    f.ws.wait_notification("settings.changed");
+
+    const std::string out = (f.data / "legacy.fbd").string();
+    const json exported = f.run_job("doc.exportDescription",
+                                    json{{"docId", doc_id}, {"document", doc}, {"path", out}});
+    REQUIRE(exported.contains("result"));
+    CHECK_FALSE(exported["result"].contains("needsConfirmation"));
+    const std::string written = read_all(out);
+    CHECK(written.rfind("<?xml version=\"1.0\" encoding=\"utf-8\"?>", 0) == 0);
+    CHECK_THAT(written, ContainsSubstring("<book-title>Старая книга</book-title>"));  // UTF-8 bytes
+    CHECK_THAT(written, ContainsSubstring("\t<body>\n\t\t<section/>\n\t</body>\n"));
+    CHECK_THAT(written, ContainsSubstring("<binary id=\"cover.jpg\" content-type=\"image/jpeg\">"));
+    // The session keeps the book's encoding (doc.fromXml echoes it).
+    const json xml = f.ws.call("doc.toXml", json{{"docId", doc_id}, {"document", doc}});
+    const json back =
+        f.ws.call("doc.fromXml", json{{"docId", doc_id}, {"text", xml["result"]["text"]}});
+    REQUIRE(back.contains("result"));
+    CHECK(back["result"]["document"]["sourceEncoding"] == "windows-1251");
+}
+
+TEST_CASE(
+    "doc.exportDescription: an incomplete description asks first and force writes it; "
+    "description-slot extras stay, top-level extras and the stylesheet go",
+    "[server][doc][export]") {
+    ServerFixture f;
+    // A new document: the blank template's empty genre is an error, so the export asks first
+    // and writes nothing; `force` writes the file with the same report.
+    const json created = f.ws.call("doc.new");
+    REQUIRE(created.contains("result"));
+    const json fresh = created["result"];
+    const std::string fresh_id = fresh["docId"];
+    const std::string out = (f.data / "fresh.fbd").string();
+    const json asked = f.run_job("doc.exportDescription",
+                                 json{{"docId", fresh_id}, {"document", fresh}, {"path", out}});
+    REQUIRE(asked.contains("result"));
+    CHECK(asked["result"]["needsConfirmation"] == true);
+    CHECK(asked["result"]["validation"]["errorCount"].get<int>() >= 1);
+    bool genre_error = false;
+    for (const auto& issue : asked["result"]["validation"]["issues"]) {
+        if (issue["code"] == "genre.unknown") {
+            genre_error = true;
+        }
+    }
+    CHECK(genre_error);
+    CHECK_FALSE(asked["result"].contains("path"));
+    CHECK_FALSE(std::filesystem::exists(out));
+    const json forced =
+        f.run_job("doc.exportDescription",
+                  json{{"docId", fresh_id}, {"document", fresh}, {"path", out}, {"force", true}});
+    REQUIRE(forced.contains("result"));
+    CHECK_FALSE(forced["result"].contains("needsConfirmation"));
+    CHECK(forced["result"]["path"] == out);
+    CHECK(forced["result"]["validation"]["errorCount"] ==
+          asked["result"]["validation"]["errorCount"]);
+    REQUIRE(std::filesystem::exists(out));
+    const std::string fresh_text = read_all(out);
+    CHECK_FALSE(fb2::check_well_formed(fresh_text).has_value());
+    CHECK_THAT(fresh_text, ContainsSubstring("\t<body>\n\t\t<section/>\n\t</body>\n"));
+    CHECK_THAT(fresh_text, !ContainsSubstring("blank.fb2"));  // the template's body text
+    CHECK_THAT(fresh_text, ContainsSubstring("<p>Введите сюда краткую аннотацию</p>"));
+    // Validated as the exported content, not as the book: the genre error alone remains.
+    const json fresh_report =
+        f.run_job("doc.validate", json{{"docId", fresh_id}, {"text", fresh_text}});
+    REQUIRE(fresh_report.contains("result"));
+    CHECK(fresh_report["result"]["errorCount"] == 1);
+    CHECK(fresh_report["result"]["issues"][0]["code"] == "genre.unknown");
+
+    // unknown-elements.fb2: a foreign element inside title-info (a description-slot extra,
+    // kept - it is description data) and a foreign top-level element (dropped).
+    const json opened =
+        f.ws.call("doc.open", json{{"path", f.book("unknown-elements.fb2").string()}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    REQUIRE(doc["extras"].size() == 2);
+    const std::string unknown = (f.data / "unknown.fbd").string();
+    const json written =
+        f.run_job("doc.exportDescription",
+                  json{{"docId", doc_id}, {"document", doc}, {"path", unknown}, {"force", true}});
+    REQUIRE(written.contains("result"));
+    CHECK(written["result"]["path"] == unknown);
+    const std::string text = read_all(unknown);
+    CHECK_FALSE(fb2::check_well_formed(text).has_value());
+    CHECK_THAT(text, ContainsSubstring(">5</x:rating>"));
+    CHECK(text.find("x:rating") < text.find("</title-info>"));
+    CHECK_THAT(text, !ContainsSubstring("x:metadata"));
+    CHECK_THAT(text, !ContainsSubstring("Known title"));
+    CHECK_THAT(text, !ContainsSubstring("unknown inline"));
+    CHECK_THAT(text, ContainsSubstring("\t<body>\n\t\t<section/>\n\t</body>\n"));
+    CHECK(count_of(text, "<binary ") == 0);
+}
+
+TEST_CASE(
+    "doc.exportDescription: the open document's own file is refused by identity before "
+    "anything is written; a write fault leaves the target intact; parameter errors",
+    "[server][doc][export]") {
+    ServerFixture f;
+    const std::filesystem::path own = f.data / "open.fbd";
+    std::filesystem::copy_file(f.book("maxlib-roles-edge.fbd"), own);
+    const std::string own_bytes = read_all(own);
+    const json opened = f.ws.call("doc.open", json{{"path", own.string()}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    const json recent_before = f.ws.call("doc.recent")["result"];
+
+    const auto refused = [&](const std::string& path) {
+        const json answer =
+            f.ws.call("doc.exportDescription",
+                      json{{"docId", doc_id}, {"document", doc}, {"path", path}, {"force", true}});
+        INFO(path << " -> " << answer.dump());
+        REQUIRE(answer.contains("error"));
+        CHECK(answer["error"]["code"] == 1006);
+        CHECK(answer["error"]["message"] == "doc.sameAsOpenFile");
+        CHECK(answer["error"]["data"]["path"].is_string());
+        CHECK(read_all(own) == own_bytes);
+    };
+    // The same spelling, a spelling through a parent folder, and the platform's own identity
+    // rules: a symbolic link (POSIX), another letter case (Windows).
+    refused(own.string());
+    refused((f.data / "sub" / ".." / "open.fbd").string());
+#ifdef _WIN32
+    refused((f.data / "OPEN.FBD").string());
+#else
+    const std::filesystem::path link = f.data / "link.fbd";
+    std::filesystem::create_symlink(own, link);
+    refused(link.string());
+#endif
+    CHECK(f.ws.call("doc.recent")["result"] == recent_before);
+
+    // Another file in the same folder is written (the fixture's document-info lacks an author,
+    // so the export asks without `force`).
+    const std::string copy = (f.data / "copy.fbd").string();
+    const json asked = f.run_job("doc.exportDescription",
+                                 json{{"docId", doc_id}, {"document", doc}, {"path", copy}});
+    REQUIRE(asked.contains("result"));
+    CHECK(asked["result"]["needsConfirmation"] == true);
+    CHECK_FALSE(std::filesystem::exists(copy));
+    const json written =
+        f.run_job("doc.exportDescription",
+                  json{{"docId", doc_id}, {"document", doc}, {"path", copy}, {"force", true}});
+    REQUIRE(written.contains("result"));
+    CHECK(written["result"]["path"] == copy);
+    REQUIRE(std::filesystem::exists(copy));
+    const std::string copy_bytes = read_all(copy);
+    CHECK_THAT(copy_bytes, ContainsSubstring("<custom-info info-type=\"mleditor\">  Пробелов Пётр "
+                                             "Петрович </custom-info>"));
+    CHECK_THAT(copy_bytes,
+               ContainsSubstring("<binary id=\"cover.jpg\" content-type=\"image/jpeg\">"));
+    CHECK_THAT(copy_bytes, ContainsSubstring("\t<body>\n\t\t<section/>\n\t</body>\n"));
+
+    // A write that fails midway (fault injection) reports 1002 and leaves the old file intact.
+    REQUIRE(f.ws.call("test.injectFault", json{{"point", "before_rename"}})["result"] ==
+            json::object());
+    const json failed =
+        f.run_job("doc.exportDescription",
+                  json{{"docId", doc_id}, {"document", doc}, {"path", copy}, {"force", true}});
+    REQUIRE(failed.contains("error"));
+    CHECK(failed["error"]["code"] == 1002);
+    CHECK(failed["error"]["data"]["path"] == copy);
+    CHECK(read_all(copy) == copy_bytes);
+    CHECK(read_all(own) == own_bytes);
+    // No session bookkeeping happened: Recent Files still list the open document alone.
+    CHECK(f.ws.call("doc.recent")["result"] == recent_before);
+
+    // Parameter errors.
+    CHECK(f.ws.call("doc.exportDescription",
+                    json{{"docId", "d99"}, {"document", doc}, {"path", copy}})["error"]["code"] ==
+          1000);
+    const json no_path =
+        f.ws.call("doc.exportDescription", json{{"docId", doc_id}, {"document", doc}});
+    REQUIRE(no_path.contains("error"));
+    CHECK(no_path["error"]["code"] == -32602);
+    CHECK(no_path["error"]["data"]["field"] == "path");
+    CHECK(f.ws.call("doc.exportDescription",
+                    json{{"docId", doc_id}, {"document", doc}, {"path", ""}})["error"]["code"] ==
+          -32602);
+    const json no_document =
+        f.ws.call("doc.exportDescription", json{{"docId", doc_id}, {"path", copy}});
+    REQUIRE(no_document.contains("error"));
+    CHECK(no_document["error"]["code"] == -32602);
+    CHECK(no_document["error"]["data"]["field"] == "document");
+}
+
+TEST_CASE("doc.exportDescription: a store at Save's threshold runs as a job with Save's phases",
+          "[server][doc][export][job]") {
+    ServerFixture f;
+    const json opened = f.ws.call("doc.open", json{{"path", f.book("modern-utf8.fb2").string()}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    // An unreferenced 2.5 MB object takes the session's store over the threshold.
+    std::string blob(2560 * 1024, '\0');
+    for (std::size_t i = 0; i < blob.size(); ++i) {
+        blob[i] = static_cast<char>((i * 7919) % 251);
+    }
+    auto posted = test::http_request(
+        f.port(), "POST", "/binary/" + doc_id + "?" + f.tok(),
+        {{"Content-Type", "application/octet-stream"}, {"X-MFBE-Suggested-Id", "big.bin"}}, blob);
+    REQUIRE(posted.status == 201);
+
+    const std::string out = (f.data / "modern.fbd").string();
+    const json start = f.ws.call("doc.exportDescription",
+                                 json{{"docId", doc_id}, {"document", doc}, {"path", out}});
+    REQUIRE(start.contains("result"));
+    REQUIRE(start["result"].contains("jobId"));
+    const JobOutcome done = collect_job(f.ws, start["result"]["jobId"]);
+    REQUIRE(done.final.is_object());
+    REQUIRE(done.final["method"] == "job.done");
+    for (const char* phase : {"validate", "convert", "serialize", "write", "done"}) {
+        INFO(phase);
+        CHECK(std::find(done.phases.begin(), done.phases.end(), phase) != done.phases.end());
+    }
+    const json& result = done.final["params"]["result"];
+    CHECK(result["path"] == out);
+    CHECK(result["validation"]["errorCount"] == 0);
+    CHECK(result["converted"] == json::array());
+    const std::string written = read_all(out);
+    CHECK(count_of(written, "<binary ") == 1);
+    CHECK_THAT(written, ContainsSubstring("<binary id=\"cover.png\" content-type=\"image/png\">"));
+    CHECK_THAT(written, !ContainsSubstring("dot.gif"));
+    CHECK_THAT(written, !ContainsSubstring("big.bin"));
+    CHECK_THAT(written, !ContainsSubstring("<stylesheet"));
+    CHECK_THAT(written, ContainsSubstring("\t<body>\n\t\t<section/>\n\t</body>\n"));
+    CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"].size() == 3);
 }
