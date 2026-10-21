@@ -542,6 +542,17 @@ export function isBlock(type: NodeType | string): boolean {
   return !!nodeType && nodeType.isBlock && nodeType.name !== 'doc';
 }
 
+/**
+ * Node ids of the Body view's annotation and history blocks (feature 004, data-model §0.1):
+ * fixed UI identifiers - never `n<N>` or `ui_<N>`, never sent to the core - shared by the editor
+ * document, the tree index and every caret or navigation call, including the resolver's
+ * "document start" of a body-less document (`structuralPath.ts`).
+ */
+export const FIXED_BLOCK_IDS = {
+  annotation: 'desc:annotation',
+  history: 'desc:history',
+} as const;
+
 /** True for the node types the Document Tree shows (containers and images). */
 export function isStructural(type: NodeType | string): boolean {
   const name = typeof type === 'string' ? type : type.name;
