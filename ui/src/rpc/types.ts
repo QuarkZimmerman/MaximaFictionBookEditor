@@ -182,6 +182,15 @@ export interface Settings {
     nbspDisplayChar: string;
     /** Automatic check for a new version at start-up (feature 003, default `monthly`). */
     versionCheck: VersionCheckSchedule;
+    /** Switch the keyboard layout when a document is opened (feature 004, FR-090). */
+    switchKeyboardLayout: boolean;
+    /**
+     * The shell's identifier of the chosen layout (Windows KLID `00000419`, macOS input source
+     * id, X11 group name; "" = none chosen); the id alone decides the match at an open.
+     */
+    keyboardLayoutId: string;
+    /** The name the system gave the chosen layout when it was picked ("<name> (not installed)"). */
+    keyboardLayoutName: string;
   };
   words: {
     showExclusionsInWordsDialog: boolean;
@@ -200,6 +209,12 @@ export interface Settings {
     } | null;
     toolbars: ToolbarVisibility;
     treeVisible: boolean;
+    /**
+     * Width of the Document Tree pane in CSS px (feature 004, FR-003; default 260, core range
+     * 100-10000). Written when a divider drag ends; the UI clamps the width it applies to the
+     * window (pane 160 px, view 320 px) without rewriting the setting.
+     */
+    treeWidth: number;
     findHistory: string[];
     replaceHistory: string[];
     /** Customised toolbar layouts ("commands", "scripts"): button ids and "-"; absent = original. */

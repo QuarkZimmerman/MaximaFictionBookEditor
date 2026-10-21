@@ -88,12 +88,22 @@ const std::vector<Field>& schema() {
         enumeration("other.nbspDisplayChar", {"\u00A0", "\u25A1", "\u25AB", "\u25E6"}),
         // How often the editor checks for a new version at start-up (feature 003).
         enumeration("other.versionCheck", {"everyStart", "daily", "weekly", "monthly", "never"}),
+        // Keyboard layout switched when a document is opened (feature 004, FR-090): the
+        // shell's layout identifier (a platform string, not enumerated) and the name the system
+        // gave it when it was picked, shown as "<name> (not installed)" when no longer listed.
+        field("other.switchKeyboardLayout", Kind::boolean),
+        field("other.keyboardLayoutId", Kind::string),
+        field("other.keyboardLayoutName", Kind::string),
         field("words.showExclusionsInWordsDialog", Kind::boolean),
         // {x, y, width, height, maximized?: boolean} | null - the normal bounds plus the
         // maximised state, written by the shell at quit; replaced as a whole.
         field("session.windowGeometry", Kind::window_geometry),
         field("session.toolbars", Kind::bool_map),
         field("session.treeVisible", Kind::boolean),
+        // Width of the Document Tree pane in CSS pixels (feature 004, FR-003); an out-of-range
+        // or non-integer value is replaced by the default, never clamped - the UI clamps what it
+        // applies to the window without rewriting the setting.
+        integer("session.treeWidth", 100, 10000),
         field("session.findHistory", Kind::string_array),
         field("session.replaceHistory", Kind::string_array),
         // Toolbar layouts by toolbar ("commands", "scripts"): ordered button ids and "-"; ids
@@ -363,7 +373,10 @@ json defaults() {
           {"pasteImageFormat", "jpeg"},
           {"jpegQuality", 90},
           {"nbspDisplayChar", "\u00A0"},
-          {"versionCheck", "monthly"}}},
+          {"versionCheck", "monthly"},
+          {"switchKeyboardLayout", false},
+          {"keyboardLayoutId", ""},
+          {"keyboardLayoutName", ""}}},
         {"words", {{"showExclusionsInWordsDialog", false}}},
         {"session",
          {{"windowGeometry", nullptr},
@@ -374,6 +387,7 @@ json defaults() {
             {"table", true},
             {"status", true}}},
           {"treeVisible", true},
+          {"treeWidth", 260},
           {"findHistory", json::array()},
           {"replaceHistory", json::array()},
           {"toolbarLayouts", json::object()},

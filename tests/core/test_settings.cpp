@@ -43,7 +43,10 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["other"]["jpegQuality"] == 90);
     CHECK(d["other"]["nbspDisplayChar"] == "\u00A0");  // no marker, as in the original
     CHECK(d["other"]["versionCheck"] == "monthly");    // feature 003
-    CHECK(d["other"].size() == 13);
+    CHECK(d["other"]["switchKeyboardLayout"] == false);  // feature 004
+    CHECK(d["other"]["keyboardLayoutId"] == "");
+    CHECK(d["other"]["keyboardLayoutName"] == "");
+    CHECK(d["other"].size() == 16);
     CHECK(d["words"] == json{{"showExclusionsInWordsDialog", false}});
     CHECK(d["session"]["windowGeometry"].is_null());
     CHECK(d["session"]["toolbars"] == json{{"commands", true},
@@ -52,13 +55,89 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
                                            {"table", true},
                                            {"status", true}});
     CHECK(d["session"]["treeVisible"] == true);
+    CHECK(d["session"]["treeWidth"] == 260);  // feature 004: release 0.0.3's fixed pane width
     CHECK(d["session"]["findHistory"] == json::array());
     CHECK(d["session"]["replaceHistory"] == json::array());
     CHECK(d["session"]["toolbarLayouts"] == json::object());
     CHECK(d["session"]["lastFileDialogFolder"] == "");
     CHECK_FALSE(d["session"].contains("lastVersionCheck"));  // feature 003: absent until a check
-    CHECK(d["session"].size() == 7);
+    CHECK(d["session"].size() == 8);
     CHECK(d.size() == 5);
+}
+
+TEST_CASE("settings: feature 004 keys - the tree width is defaulted, never clamped; the keyboard "
+          "layout keys are free strings",
+          "[settings]") {
+    test::TempDir tmp;
+    settings::SettingsStore store(tmp / "settings.json");
+    store.load();
+    const json before = store.get();
+
+    auto expect_field = [&](const json& patch, const std::string& field) {
+        try {
+            store.apply_patch(patch);
+            FAIL("expected SettingsError for " << field);
+        } catch (const settings::SettingsError& e) {
+            CHECK(e.field == field);
+        }
+    };
+    // settings.set refuses a wrong type or an out-of-range width with the field name (1040).
+    expect_field(json{{"session", {{"treeWidth", "260"}}}}, "session.treeWidth");
+    expect_field(json{{"session", {{"treeWidth", 50}}}}, "session.treeWidth");
+    expect_field(json{{"session", {{"treeWidth", 10001}}}}, "session.treeWidth");
+    expect_field(json{{"session", {{"treeWidth", 260.5}}}}, "session.treeWidth");
+    expect_field(json{{"other", {{"switchKeyboardLayout", "yes"}}}}, "other.switchKeyboardLayout");
+    expect_field(json{{"other", {{"keyboardLayoutId", 1049}}}}, "other.keyboardLayoutId");
+    expect_field(json{{"other", {{"keyboardLayoutName", true}}}}, "other.keyboardLayoutName");
+    CHECK(store.get() == before);  // nothing applied
+
+    // The range is 100-10000; both ends are accepted; no restart for any of the four keys.
+    for (int width : {100, 160, 260, 500, 10000}) {
+        auto r = store.apply_patch(json{{"session", {{"treeWidth", width}}}});
+        CHECK(r.settings["session"]["treeWidth"] == width);
+        CHECK_FALSE(r.restartRequired);
+    }
+    auto layout = store.apply_patch(json{{"other",
+                                          {{"switchKeyboardLayout", true},
+                                           {"keyboardLayoutId", "00000419"},
+                                           {"keyboardLayoutName", "Russian"}}}});
+    CHECK_FALSE(layout.restartRequired);
+    CHECK(layout.settings["other"]["switchKeyboardLayout"] == true);
+    CHECK(layout.settings["other"]["keyboardLayoutId"] == "00000419");
+    CHECK(layout.settings["other"]["keyboardLayoutName"] == "Russian");
+    // Platform ids of every kind are plain strings: a macOS input source id, an X11 group name.
+    for (const char* id : {"com.apple.keylayout.Russian", "Russian", "hkl:F0010419", ""}) {
+        CHECK(store.apply_patch(json{{"other", {{"keyboardLayoutId", id}}}})
+                  .settings["other"]["keyboardLayoutId"] == id);
+    }
+    settings::SettingsStore reloaded(tmp / "settings.json");
+    reloaded.load();
+    CHECK(reloaded.get_int("session.treeWidth") == 10000);
+    CHECK(reloaded.get_bool("other.switchKeyboardLayout") == true);
+    CHECK(reloaded.get_string("other.keyboardLayoutName") == "Russian");
+
+    // A stored value the schema refuses is replaced by the default and reported (settings.invalid
+    // in the log) - the store never clamps a width to the range.
+    for (const char* stored : {R"({"schemaVersion": 1, "session": {"treeWidth": "wide"}})",
+                               R"({"schemaVersion": 1, "session": {"treeWidth": 50}})",
+                               R"({"schemaVersion": 1, "session": {"treeWidth": 12000}})",
+                               R"({"schemaVersion": 1, "session": {"treeWidth": 260.5}})"}) {
+        json loaded = json::parse(stored);
+        const auto invalid = settings::sanitize(loaded);
+        REQUIRE(invalid.size() == 1);
+        CHECK(invalid[0].field == "session.treeWidth");
+        CHECK(loaded["session"]["treeWidth"] == 260);
+        test::write_text(tmp / "settings.json", stored);
+        store.load();
+        CHECK(store.get_int("session.treeWidth") == 260);
+    }
+    test::write_text(tmp / "settings.json",
+                     R"({"schemaVersion": 1, "other": {"switchKeyboardLayout": 1,
+                         "keyboardLayoutId": ["00000419"], "keyboardLayoutName": 7}})");
+    store.load();
+    CHECK(store.get_bool("other.switchKeyboardLayout", true) == false);
+    CHECK(store.get_string("other.keyboardLayoutId", "x") == "");
+    CHECK(store.get_string("other.keyboardLayoutName", "x") == "");
 }
 
 TEST_CASE("settings: missing file yields defaults; save writes JSON", "[settings]") {
@@ -410,9 +489,13 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["other"]["dictionariesFolder"] == "");
     CHECK(s["other"]["versionCheck"] == "monthly");
     CHECK_FALSE(s["session"].contains("lastVersionCheck"));
+    CHECK(s["other"]["switchKeyboardLayout"] == false);  // feature 004
+    CHECK(s["other"]["keyboardLayoutId"] == "");
+    CHECK(s["other"]["keyboardLayoutName"] == "");
+    CHECK(s["session"]["treeWidth"] == 260);
     CHECK(s["view"].size() == 18);
-    CHECK(s["other"].size() == 13);
-    CHECK(s["session"].size() == 7);
+    CHECK(s["other"].size() == 16);
+    CHECK(s["session"].size() == 8);
 
     // Saving the migrated file keeps the key absent; the shell's maximised flag is accepted.
     CHECK(store.save());
@@ -424,4 +507,68 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
         {"x", 10}, {"y", 20}, {"width", 800}, {"height", 600}, {"maximized", true}};
     auto r = reloaded.apply_patch(json{{"session", {{"windowGeometry", placement}}}});
     CHECK(r.settings["session"]["windowGeometry"] == placement);
+}
+
+TEST_CASE("settings: a 0.0.3 settings file keeps every value; the feature 004 keys take their "
+          "defaults",
+          "[settings]") {
+    test::TempDir tmp;
+    const auto file = tmp / "settings.json";
+    // Every key of release 0.0.3 at a value other than its default, none of feature 004's keys.
+    const char* old_file = R"({
+        "schemaVersion": 1,
+        "view": {
+            "uiLanguage": "uk", "theme": "dark", "bodyFont": "Georgia", "bodyFontSize": 16,
+            "bodyTextColor": "#112233", "bodyBackground": "#fffff0", "sourceFont": "Consolas",
+            "sourceWrap": false, "sourceSyntaxHighlight": false, "sourceShowEol": true,
+            "sourceShowWhitespace": true, "sourceLineNumbers": false, "sourceMatchTags": false,
+            "sourceTagCompletion": false, "spellEnabled": false, "spellHighlight": false,
+            "customDictionaryPath": "/home/тест/custom.dic", "fastMode": true
+        },
+        "other": {
+            "defaultEncoding": "windows-1251", "keepEncoding": true, "restorePosition": false,
+            "scriptsFolder": "/scripts", "genresFolder": "/genres",
+            "dictionariesFolder": "/home/тест/словники", "templateFolder": "/templates",
+            "askOnNonClearImage": false, "insertClearImages": true, "pasteImageFormat": "png",
+            "jpegQuality": 75, "nbspDisplayChar": "\u25A1", "versionCheck": "never"
+        },
+        "words": {"showExclusionsInWordsDialog": true},
+        "session": {
+            "windowGeometry": {"x": 10, "y": 20, "width": 800, "height": 600, "maximized": true},
+            "toolbars": {"commands": false, "scripts": false, "links": false, "table": false,
+                         "status": false},
+            "treeVisible": false, "findHistory": ["needle"], "replaceHistory": ["thread"],
+            "toolbarLayouts": {"commands": ["file.new", "-"]},
+            "lastFileDialogFolder": "/books", "lastVersionCheck": "2026-10-17T12:34:56Z"
+        }
+    })";
+    test::write_text(file, old_file);
+    const json expected = json::parse(old_file);
+    CHECK(expected["view"].size() == 18);
+    CHECK(expected["other"].size() == 13);
+    CHECK(expected["session"].size() == 8);
+    json sanitized = expected;
+    CHECK(settings::sanitize(sanitized).empty());  // nothing in the old file is invalid
+
+    settings::SettingsStore store(file);
+    store.load();
+    const json& s = store.get();
+    for (const char* section : {"view", "other", "words", "session"}) {
+        for (auto it = expected[section].begin(); it != expected[section].end(); ++it) {
+            INFO(section << "." << it.key());
+            CHECK(s[section][it.key()] == it.value());
+        }
+    }
+    CHECK(s["other"]["switchKeyboardLayout"] == false);
+    CHECK(s["other"]["keyboardLayoutId"] == "");
+    CHECK(s["other"]["keyboardLayoutName"] == "");
+    CHECK(s["session"]["treeWidth"] == 260);
+    CHECK(s["other"].size() == 16);
+    CHECK(s["session"].size() == 9);  // the eight of 0.0.3 (lastVersionCheck set) + treeWidth
+
+    // The migrated file saves and reloads unchanged.
+    CHECK(store.save());
+    settings::SettingsStore reloaded(file);
+    reloaded.load();
+    CHECK(reloaded.get() == s);
 }
