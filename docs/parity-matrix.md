@@ -74,7 +74,7 @@ mouse and the keyboard.
 | `60163` | Links Bar | `view.linksBar` (`app/LinksBar.tsx`) | `links-bar-image-title` | `us2-body-editing.spec.ts` | implemented | bar fields exercised (scenario 1); toggle not clicked by a journey |
 | `60164` | Table Bar | `view.tableBar` (`app/TableBar.tsx`) | `tablebar` | `us2-body-editing.spec.ts` | implemented | bar fields exercised (scenario 10); toggle not clicked by a journey |
 | `ID_VIEW_STATUS_BAR` | Status Bar | `view.statusBar` (`app/StatusBar.tsx`) | `menu-view-statusBar`, `status-message` | `00-smoke.spec.ts` | implemented | checked state verified in the smoke test |
-| `ID_VIEW_TREE` | Document Tree | `view.tree` (`features/tree/index.ts`, `views/tree/`) | `panel-tree`, `panel-tree-caption` | `00-smoke.spec.ts`, `us5-tree.spec.ts` | implemented | panel exercised by us5; visibility remembered in the session settings; toggle not clicked by a journey |
+| `ID_VIEW_TREE` | Document Tree | `view.tree` (`features/tree/index.ts`, `views/tree/`) | `panel-tree`, `panel-tree-caption`, `menu-view-tree` | `00-smoke.spec.ts`, `us5-tree.spec.ts`, `us1-tree-divider.spec.ts` | implemented | panel exercised by us5; visibility remembered in the session settings; the toggle is clicked by us1-tree-divider (feature 004 US1: hiding removes the divider and gives the view the whole width, showing restores the stored width) |
 | `ID_VIEW_DESC` | Description | `view.description` (`app/ViewSwitcher.tsx`) | `view-description` | `us3-description.spec.ts`, `us1-open-save.spec.ts` | implemented | |
 | `ID_VIEW_BODY` | Body | `view.body` | `menu-view-body`, `view-body` | `00-smoke.spec.ts`, `us1-open-save.spec.ts` | implemented | refused while the Source text is malformed (FR-021, us1 scenario 3) |
 | `ID_VIEW_SOURCE` | Source | `view.source` | `toolbar-view.source`, `view-source` | `00-smoke.spec.ts`, `us4-source-validate.spec.ts` | implemented | |
@@ -397,6 +397,7 @@ with the same checks.
 | `SOURCE_VIEW*` | Source view (Scintilla) | `views/source/` over CodeMirror (`source-view`, `source-editor`, folding `source-fold-level`) | `source-view`, `source-fold-level` | `us4-source-validate.spec.ts` | implemented | collapse/expand levels 1-9 as commands `source.collapse<n>` / `source.expand<n>` |
 | `SOURCE_TAG_COMPLETION*` | Source view: tag completion (addition, feature 003) | `edit.completeTag` (`views/source/completion.ts`; the list is `source-completion`, the table `fb2Elements.json` generated from the FB2 schema) | `settings-view-source-tag-completion`, `Control+Space` | `us4-source-completion.spec.ts` | implemented | no original counterpart (requester-approved, spec 003 US8): `<` offers the elements the schema allows at the cursor, `</` the open elements innermost first; Enter/Tab accept, Esc dismisses, Ctrl+Space on demand (Hotkeys page, Edit group); Settings > View > "Tag completion" |
 | `DOCUMENT_TREE_PANEL*` | Document Tree panel ("Document structure") | `views/tree/DocumentTree.tsx` (`panel-tree`, `tree-content`, `tree-row-<id>`) | `tree-content` | `us5-tree.spec.ts` | implemented | |
+| `DOCUMENT_TREE_SPLITTER*` | Document Tree divider: the splitter between the tree and the view (`mainfrm.h` `m_splitter`; its position saved at exit as `SplitterPos`, default 200, no minimum widths) | `app/splitter.ts`, `app/App.tsx` (`tree-splitter`; the width stored as `session.treeWidth`) | `tree-splitter`, `tree-panel` | `us1-tree-divider.spec.ts` | implemented | feature 004 US1: dragged with the mouse beside every view (the original hid the tree beside its Source view); additions over the original's `SplitterPos` - the stored width defaults to 260 px (the fixed width of release 0.0.3), the pane stops at 160 px and the view at 320 px, and a window too narrow for the stored width clamps what is shown without rewriting the setting (spec FR-002, FR-003) |
 | `SCRIPTS_MENU_ENTRIES*` | Scripts menu groups and items, scripts toolbar icons, tree-command scripts | `scripting/ScriptsMenu.tsx`, `scripting/ScriptsToolbar.tsx`, `scripting/tree.ts` (`menu-scripts-<group>-<id>`, `scripts-toolbar-<id>`, `tree-menu-script-<id>`) | `scripts-toolbar-test.case.upper`, `tree-menu-script-test` | `us12-scripts.spec.ts` | implemented | |
 
 Hotkey-only commands of the original (`Settings.cpp`, no menu or toolbar entry) are listed by
@@ -416,9 +417,9 @@ the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the orig
 
 Counts are recomputed by `node tools/parity-check.mjs` (printed as
 "rows - implemented N, implemented-differently N, dropped N"). At the time of writing:
-220 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
+221 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
 their controls) plus the original UI created in the sources and the additions of later
-features: 213 implemented, 2 implemented-differently, 5 dropped.
+features: 214 implemented, 2 implemented-differently, 5 dropped.
 
 Dropped items and their references:
 

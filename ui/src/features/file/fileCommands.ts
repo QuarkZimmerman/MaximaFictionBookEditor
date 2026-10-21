@@ -38,6 +38,7 @@ import type { Dialogs } from '@/dialogs/types';
 import { showEncodingDialog, showSaveChangesPrompt } from '@/dialogs/show';
 import { confirmSaveWithErrors } from '@/dialogs/validation';
 import { getScriptsFeature } from '@/features/scripts';
+import { flushSessionSave } from '@/features/settings/apply';
 import type { Document, ValidationReport } from '@/model/document';
 import { actions, kindFromPath, type AppStore, type FileKind } from '@/model/store';
 import i18next from 'i18next';
@@ -613,7 +614,8 @@ export class FileFeature {
   /**
    * The quit flow of File > Exit and of the window's close request: the cancel-run prompt
    * while a script runs, the save prompt, then `app.quit`. Either prompt's refusal keeps the
-   * editor open and the run going.
+   * editor open and the run going. A session save still waiting for its delay (the tree pane
+   * width of a drag just before the exit, feature 004 FR-003) is written before the quit.
    */
   async exitApplication(ctx: CommandContext, options: QuitOptions = {}): Promise<void> {
     if (!(await this.confirmCancelRunningScript(ctx))) return;
@@ -621,6 +623,7 @@ export class FileFeature {
     const state = ctx.store.getState();
     if (state.docId) await rememberCaret(ctx, state.docId);
     if (ctx.rpc && state.connection === 'connected') {
+      await flushSessionSave(ctx.store);
       await ctx.rpc.call('app.quit', options.force ? { force: true } : {});
     } else {
       window.close();

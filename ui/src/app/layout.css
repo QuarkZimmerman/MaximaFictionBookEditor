@@ -138,6 +138,7 @@
   --mfbe-source-bracket-match: rgba(50, 140, 130, 0.32);
   --mfbe-source-bracket-mismatch: rgba(187, 85, 85, 0.27);
 
+  /* Document Tree pane width: the fallback; App.tsx writes the stored width on .mfbe-main. */
   --mfbe-tree-width: 260px;
   --mfbe-menubar-height: 26px;
   --mfbe-toolbar-height: 32px;
@@ -574,13 +575,44 @@ textarea {
   min-height: 0;
 }
 
+/* The Document Tree pane takes the width of `--mfbe-tree-width` (the stored `session.treeWidth`
+   clamped and written on .mfbe-main by App.tsx; :root holds the 260 px fallback). It may shrink
+   under its minimum when the window is too narrow for it and the view's minimum together, and
+   gets its width back when the window grows (feature 004 US1, FR-002). */
 .mfbe-tree-panel {
   display: flex;
   flex-direction: column;
-  flex: 0 0 var(--mfbe-tree-width);
+  flex: 0 1 var(--mfbe-tree-width);
   min-width: 0;
-  border-right: 1px solid var(--mfbe-color-border);
   background: var(--mfbe-color-chrome-bg);
+}
+
+/* The divider between the pane and the view area (feature 004 US1, FR-001): 6 px wide with a
+   1 px line in the middle, the resize cursor, dragged with the mouse (app/splitter.ts). The
+   colours are the theme's, so it shows in the light and the dark palette alike. */
+.mfbe-splitter {
+  display: flex;
+  justify-content: center;
+  flex: 0 0 6px;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  background: var(--mfbe-color-chrome-bg);
+}
+
+.mfbe-splitter::before {
+  content: '';
+  width: 1px;
+  background: var(--mfbe-color-border);
+}
+
+/* While the divider is dragged (the class is on <html>, app/splitter.ts): the resize cursor
+   everywhere - the pointer leaves the 6 px divider long before the frame catches up - and no
+   text selection in either pane. */
+.mfbe-resizing,
+.mfbe-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .mfbe-tree {
@@ -611,8 +643,11 @@ textarea {
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-width: 0;
+  /* All the width the pane and the divider leave (a zero basis: the content's width must not
+     weigh in when the window is too narrow - then the pane gives way, not the view), never
+     less than the 320 px minimum beside the divider (feature 004 US1, FR-002). */
+  flex: 1 1 0;
+  min-width: 320px;
   min-height: 0;
 }
 

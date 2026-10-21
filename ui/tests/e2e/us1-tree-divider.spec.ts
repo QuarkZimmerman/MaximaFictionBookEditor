@@ -628,6 +628,27 @@ interface DragTiming {
   after: { pane: number; view: number };
 }
 
+/**
+ * Resolves once the Body view's background work after the open has landed: the spelling
+ * highlighter decorates the mounted text a moment after the book became editable, and that
+ * one transaction (thousands of marks in one frame) would be charged to whichever layout step
+ * it falls into. Settled = the editor's inline elements unchanged for half a second (10 s at
+ * most). Returns the number of marks.
+ */
+const SETTLED = `(async () => {
+  const editor = document.querySelector('[data-testid="body-editor"]');
+  const count = () => editor.querySelectorAll('span').length;
+  let last = count();
+  let stable = 0;
+  for (let i = 0; i < 40 && stable < 2; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const now = count();
+    stable = now === last ? stable + 1 : 0;
+    last = now;
+  }
+  return editor.querySelectorAll('.mfbe-misspelled').length;
+})()`;
+
 test.describe('US1 - divider layout step on the 10 MB book', { tag: '@perf' }, () => {
   let perfDir = '';
   let largeBook = '';
@@ -659,6 +680,7 @@ test.describe('US1 - divider layout step on the 10 MB book', { tag: '@perf' }, (
     core = await ownCore();
     await openOwn(page, core, uiLang);
     await openBook(page, core, largeBook, 60_000);
+    const marks = await page.evaluate<number>(SETTLED);
 
     const steps = 20;
     const dx = 10;
@@ -667,7 +689,10 @@ test.describe('US1 - divider layout step on the 10 MB book', { tag: '@perf' }, (
     const typical = [...timing.times].sort((a, b) => a - b)[Math.floor(steps / 2)]!;
     test.info().annotations.push({
       type: 'perf',
-      description: `divider layout step median ${typical.toFixed(1)} ms, worst ${worst.toFixed(1)} ms`,
+      description:
+        `divider layout step median ${typical.toFixed(1)} ms, worst ${worst.toFixed(1)} ms ` +
+        `with ${marks} spelling marks in the mounted text ` +
+        `(steps ${timing.times.map((t) => t.toFixed(0)).join(', ')} ms)`,
     });
     expect(
       worst,
