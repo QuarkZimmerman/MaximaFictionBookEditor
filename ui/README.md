@@ -90,6 +90,14 @@ The script benchmark `perf-scripts.spec.ts` is tagged `@perf`: CI runs the journ
 `--grep-invert @perf` and the benchmark alone with `--grep @perf --workers=1`
 (`docs/performance.md`).
 
+A journey tagged `@platform` (feature 004: the proposed and typed file names, the spelling
+scope) runs on the Windows and macOS e2e legs of CI as well, against the hooks-enabled
+`mfbe-core` built for that system (`npx playwright test --grep @platform`). Such a journey must
+hold on all three systems: no `locale-gen`, `LC_ALL` or `chmod`, no `/tmp` or other Linux path
+assumptions (use `os.tmpdir()` and `path.join`), file names compared after `normalize('NFC')`
+where macOS may answer a decomposed spelling, and nothing the Linux leg installs through
+`apt-get`. The Linux leg still runs the whole suite.
+
 A dependency-free stand-in core, `tests/e2e/fixtures/fake-core.mjs` (+ `fake-doc.mjs`), serves
 the bundle and answers `app.*`, `settings.*`, `hotkeys.*`, `dialog.*` (from the `test.enqueueDialog`
 queue), `test.injectFault` and the whole `doc.*` family (a small XML parser, FB2 <-> model

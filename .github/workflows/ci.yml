@@ -213,9 +213,32 @@ jobs:
           path: ui/dist/
 
   e2e:
-    name: e2e (headless, Linux)
+    # Linux runs every journey (exactly as before feature 004); the Windows and macOS legs run
+    # the journeys tagged `@platform` against the hooks-enabled core of their own system
+    # (feature 004, research R6.3: the proposed and typed Cyrillic file names, the spelling
+    # scope). A `@platform` journey must hold on all three systems (ui/README.md).
+    name: e2e (${{ matrix.name }})
     needs: [core, ui]
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-22.04
+            core: linux
+            preset: linux-core-release
+            core_bin: mfbe-core
+          - name: windows
+            os: windows-2025
+            core: windows
+            preset: windows-core-release
+            core_bin: mfbe-core.exe
+          - name: macos
+            os: macos-15
+            core: macos
+            preset: macos-core-release
+            core_bin: mfbe-core
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -225,25 +248,47 @@ jobs:
           cache-dependency-path: ui/package-lock.json
       - uses: actions/download-artifact@v4
         with:
-          name: mfbe-core-linux
-          path: build/linux-core-release/bin
+          name: mfbe-core-${{ matrix.core }}
+          path: build/${{ matrix.preset }}/bin
       - uses: actions/download-artifact@v4
         with:
           name: mfbe-ui-dist
           path: ui/dist
-      - run: chmod +x build/linux-core-release/bin/* || true
+      - if: runner.os != 'Windows'
+        shell: bash
+        run: chmod +x build/${{ matrix.preset }}/bin/* || true
       - run: npm ci
         working-directory: ui
-      - run: npx playwright install --with-deps chromium
+      - if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+        working-directory: ui
+      - if: runner.os != 'Linux'
+        run: npx playwright install chromium
         working-directory: ui
       # The regional locales the date journeys start the core under (feature 003).
-      - run: sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
-      - run: npm run test:e2e -- --grep-invert @perf
+      - if: runner.os == 'Linux'
+        run: sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
+      - if: runner.os == 'Linux'
+        run: npm run test:e2e -- --grep-invert @perf
         working-directory: ui
         env:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+      - name: Platform journeys (feature 004, SC-006 / SC-009; Windows and macOS)
+        # Only the journeys tagged `@platform`; `--pass-with-no-tests` keeps the leg green on
+        # a branch that has not written one yet. The hooks core of this system comes from the
+        # `core` job; the resources are the checkout's, named explicitly because the path
+        # compiled into the core is the `core` job's workspace.
+        if: runner.os != 'Linux'
+        shell: bash
+        run: npx playwright test --grep @platform --pass-with-no-tests
+        working-directory: ui
+        env:
+          MFBE_CORE_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/${{ matrix.core_bin }}
+          MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+          MFBE_RESOURCES: ${{ github.workspace }}/resources
       - name: Russian environment (feature 002; ru_RU.UTF-8, Cyrillic home and temp)
+        if: runner.os == 'Linux'
         # The start-up, open/save and Find journeys with the Russian system locale - the
         # interface follows it - and the folders the core and the journeys use under Cyrillic
         # names. The browsers stay where the previous step installed them (HOME moves).
@@ -261,6 +306,7 @@ jobs:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
       - name: Script benchmark (SC-008)
+        if: runner.os == 'Linux'
         # Bundled clean-up scripts on the generated 1 MB and 10 MB books, alone on one worker:
         # each 10 MB time at most 12 x its 1 MB time, each 1 MB time under 5 s x
         # MFBE_PERF_FACTOR (default 2, docs/performance.md).
@@ -270,6 +316,7 @@ jobs:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
       - name: Script equivalence suite (142 converted packages; T127, SC-011)
+        if: runner.os == 'Linux'
         # Every snapshot of tests/scripts/snapshots/suite.json through run-script.mjs against
         # the release core (bundled scripts resolved from MFBE_SCRIPTS_SOURCE_DIR) and the built
         # UI; fails on any snapshot difference or a package without a snapshot.
@@ -278,13 +325,14 @@ jobs:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
       - name: Upload script suite results
-        if: always()
+        if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: script-suite-results
           path: build/script-suite-results.json
           if-no-files-found: ignore
       - name: Performance budgets (10 MB journeys; T150, SC-002)
+        if: runner.os == 'Linux'
         # The 150 MB image book is a local/nightly run (tests/bench/README.md): hosted runners
         # are slow and short on memory. Fails when a budget is exceeded.
         run: tests/bench/run.sh --skip-150 --json
@@ -293,7 +341,7 @@ jobs:
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
           MFBE_BENCH_WORKDIR: ${{ runner.temp }}/mfbe-bench
       - name: Upload benchmark results
-        if: always()
+        if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: bench-results
@@ -303,7 +351,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.name }}
           path: ui/playwright-report/
           if-no-files-found: ignore
 
