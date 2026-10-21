@@ -152,12 +152,17 @@ async function openBook(core: CoreHandle, page: Page, file: string): Promise<voi
   await waitForBook(page, file);
 }
 
-/** File > Import > Description from FictionBook file..., answered with `file`. */
-async function startImport(core: CoreHandle, page: Page, file: string): Promise<void> {
-  await core.enqueueDialog('dialog.openFile', { paths: [file] });
+/** File > Import > Description from FictionBook file... (the menu item alone). */
+async function clickImport(page: Page): Promise<void> {
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-import').hover();
   await page.getByTestId('menu-file-import-importDescription').click();
+}
+
+/** File > Import > Description from FictionBook file..., answered with `file`. */
+async function startImport(core: CoreHandle, page: Page, file: string): Promise<void> {
+  await core.enqueueDialog('dialog.openFile', { paths: [file] });
+  await clickImport(page);
 }
 
 const importDialog = (page: Page): Locator => page.getByTestId('dialog-import-description');
@@ -224,10 +229,39 @@ async function binaryIds(core: CoreHandle, id: string): Promise<string[]> {
   return list.map((meta) => meta.id);
 }
 
+/** The sessions the core holds (the worker's core keeps those of pages earlier tests left). */
+async function openDocuments(core: CoreHandle): Promise<number> {
+  return (await core.rpc<{ openDocuments: number }>('test.metrics')).openDocuments;
+}
+
+/** The import session is closed whatever the outcome: no session beyond those before. */
+async function expectNoImportSession(core: CoreHandle, before: number): Promise<void> {
+  await expect.poll(() => openDocuments(core)).toBe(before);
+}
+
 async function undo(page: Page): Promise<void> {
   await page.getByTestId('menu-edit').click();
   await page.getByTestId('menu-edit-undo').click();
 }
+
+/** File > New from any view; a modified document's "Save changes?" is answered with No. */
+async function newDocumentDiscarding(page: Page): Promise<void> {
+  await showBody(page);
+  const before = await docId(page);
+  const shown = () => page.getByTestId('body-view').getAttribute('data-doc-id');
+  await page.getByTestId('menu-file').click();
+  await page.getByTestId('menu-file-new').click();
+  const prompt = page.getByTestId('dialog-save-changes');
+  await expect
+    .poll(async () => (await prompt.count()) > 0 || (await shown()) !== before)
+    .toBe(true);
+  if ((await prompt.count()) > 0) await page.getByTestId('dialog-save-changes-button-no').click();
+  await expect.poll(shown).not.toBe(before);
+  await expect.poll(shown).not.toBeNull();
+}
+
+const dialogTitle = (page: Page): Locator =>
+  page.getByTestId('dialog-import-description-title').locator('.mfbe-dialog-title-text');
 
 /** A FictionBook whose description offers nothing importable. */
 function emptyDescriptionBook(dir: string): string {
@@ -295,6 +329,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     page,
   }) => {
     await openApp(core, page);
+    const sessions = await openDocuments(core);
     const id = await docId(page);
     await startImport(core, page, fixtureBook('import-full.fbd'));
     await expectImported(page, FULL_KEYS.length);
@@ -309,10 +344,8 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     );
     await expect(page.getByTestId('body-block-history')).toContainText('v1.5 — вычитка');
     expect(await binaryIds(core, id)).toEqual(['cover.jpg']);
-    // The import session was closed: the open document alone remains.
-    await expect
-      .poll(async () => (await core.rpc<{ openDocuments: number }>('test.metrics')).openDocuments)
-      .toBe(1);
+    // The import session was closed: no session beyond the document's own.
+    await expectNoImportSession(core, sessions);
 
     await showDescription(page);
     await expect(page.getByTestId('description-book-title')).toHaveValue('Полное описание');
@@ -333,13 +366,18 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
       'The Full Description',
     );
 
-    // One Undo restores the template's description, the block included.
+    // One Undo restores the template's description, the block included; as every undo, it
+    // brings back the view the change was made in - the Body view here.
     await undo(page);
+    await expect(page.getByTestId('app-root')).toHaveAttribute('data-active-view', 'body');
+    await expect(page.getByTestId('body-block-annotation')).not.toContainText('Аннотация');
+    await showDescription(page);
     await expect(page.getByTestId('description-book-title')).toHaveValue('');
     await expect(page.getByTestId('description-role-0-last')).toHaveCount(0);
-    await expect(page.getByTestId('description-cover-0-href')).toHaveCount(0);
+    // The template's cover row is the empty reference it carries (`<image l:href=""/>`).
+    await expect(page.getByTestId('description-cover-0-href-text')).toHaveValue('');
+    await expect(page.getByTestId('description-cover-1-href')).toHaveCount(0);
     await showBody(page);
-    await expect(page.getByTestId('body-block-annotation')).not.toContainText('Аннотация');
     // Redo brings it back.
     await page.getByTestId('menu-edit').click();
     await page.getByTestId('menu-edit-redo').click();
@@ -361,9 +399,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     await startImport(core, page, fixtureBook('maxlib-roles-edge.fbd'));
     const dialog = importDialog(page);
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByTestId('dialog-import-description-title')).toHaveText(
-      await pageText(page, 'transfer.import.title'),
-    );
+    await expect(dialogTitle(page)).toHaveText(await pageText(page, 'transfer.import.title'));
     await expect(page.locator('[data-testid^="import-entry-"][data-testid$="-check"]')).toHaveCount(
       EDGE_ENTRY_COUNT,
     );
@@ -401,6 +437,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     page,
   }) => {
     await openApp(core, page);
+    const sessions = await openDocuments(core);
     await openBook(core, page, fixtureBook('modern-utf8.fb2'));
     await startImport(core, page, fixtureBook('maxlib-roles-edge.fbd'));
     const dialog = importDialog(page);
@@ -420,9 +457,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(page).toHaveTitle(/^modern-utf8\.fb2 - /);
-    await expect
-      .poll(async () => (await core.rpc<{ openDocuments: number }>('test.metrics')).openDocuments)
-      .toBe(1);
+    await expectNoImportSession(core, sessions);
   });
 
   test('4. a file with nothing importable is reported and changes nothing', async ({
@@ -449,6 +484,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     page,
   }) => {
     await openApp(core, page);
+    const sessions = await openDocuments(core);
     const id = await docId(page);
     // Silently: the cover and its data arrive.
     await startImport(core, page, fixtureBook('maxlib-roles-edge.fbd'));
@@ -492,9 +528,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     await expect(page.getByTestId('description-cover-0-href-text')).toHaveValue('#missing.jpg');
     expect(await binaryIds(core, id)).toEqual(['cover.jpg']);
     await expect(page.getByTestId('binary-objects-badge-unreferenced-cover.jpg')).toBeVisible();
-    await expect
-      .poll(async () => (await core.rpc<{ openDocuments: number }>('test.metrics')).openDocuments)
-      .toBe(1);
+    await expectNoImportSession(core, sessions);
   });
 
   test('6. "Other persons" ticked replaces the role list', async ({ core, page }) => {
@@ -520,9 +554,10 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     await expect(page.getByTestId('description-role-0-last')).toHaveValue('Однофамильцев');
     await expect(page.getByTestId('description-role-5-last')).toHaveValue('Де Голль');
     await expect(page.getByTestId('description-role-5-first')).toHaveValue('Шарль');
-    // The plain rows of the opened book are untouched.
-    await expect(page.getByTestId('description-custom-6-type')).toHaveValue('mlillustratorid');
-    await expect(page.getByTestId('description-custom-8-type')).toHaveValue('mlseriesid');
+    // The plain rows of the opened book are untouched (first now: the role rows follow them).
+    await expect(page.getByTestId('description-custom-0-type')).toHaveValue('mlillustratorid');
+    await expect(page.getByTestId('description-custom-2-type')).toHaveValue('mlseriesid');
+    await expect(page.getByTestId('description-custom-3-type')).toHaveCount(0);
   });
 
   test('7. a malformed file, a text file and a missing path are reported; the document is untouched', async ({
@@ -530,6 +565,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     page,
   }) => {
     await openApp(core, page);
+    const sessions = await openDocuments(core);
     await openBook(core, page, fixtureBook('modern-utf8.fb2'));
     const notes = path.join(dir, 'notes.txt');
     writeFileSync(notes, 'Just a text file.\n', 'utf8');
@@ -550,9 +586,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
       await expect(importDialog(page)).toHaveCount(0);
       await expect(page).toHaveTitle(/^modern-utf8\.fb2 - /);
     }
-    await expect
-      .poll(async () => (await core.rpc<{ openDocuments: number }>('test.metrics')).openDocuments)
-      .toBe(1);
+    await expectNoImportSession(core, sessions);
   });
 
   test('8. windows-1251 and a body-less descriptor import; the same file twice still counts as an edit', async ({
@@ -567,7 +601,8 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     await showDescription(page);
     await expect(page.getByTestId('description-book-title')).toHaveValue('Старая книга');
 
-    await fileNew(page);
+    await newDocumentDiscarding(page);
+    await showDescription(page);
     await startImport(core, page, fixtureBook('descriptor.fbd'));
     await expect(page.getByTestId('status-message')).toHaveText(
       await pageAnyPattern(page, 'transfer.import.done'),
@@ -588,9 +623,14 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     await expectImported(page, 1);
     await showDescription(page);
     await expect(page.getByTestId('description-book-title')).toHaveValue('Только описание');
+    // The second import was made in the Body view: its undo brings that view back, as every
+    // undo does; the first one was made in the Description view and its undo stays there.
     await undo(page);
+    await expect(page.getByTestId('app-root')).toHaveAttribute('data-active-view', 'body');
+    await showDescription(page);
     await expect(page.getByTestId('description-book-title')).toHaveValue('Только описание');
     await undo(page);
+    await expect(page.getByTestId('app-root')).toHaveAttribute('data-active-view', 'description');
     await expect(page.getByTestId('description-book-title')).toHaveValue('');
   });
 
@@ -652,18 +692,21 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
     await expect(page.getByTestId('description-book-title')).toHaveValue(/ \(edited\)$/);
     await expect(page.getByTestId('description-author-0-last')).toHaveValue('Обычнов');
 
-    // Malformed Source text: the import is refused before anything is read.
+    // Malformed Source text: the import is refused before anything is read - no file dialog
+    // is even asked for (so no answer is queued here: it would wait for the next dialog).
     await replaceSourceText(
       page,
       original.replace('</book-title>', ' (edited)</book-title>').replace('</p>', ''),
     );
-    await startImport(core, page, fixtureBook('maxlib-roles-edge.fbd'));
+    const requestsBefore = (await core.rpc<DialogRequest[]>('test.dialogRequests')).length;
+    await clickImport(page);
     const badXml = page.getByTestId('dialog-bad-xml');
     await expect(badXml).toBeVisible();
     await page.getByTestId('dialog-bad-xml-button-ok').click();
     await expect(importDialog(page)).toHaveCount(0);
     await expect(page.getByTestId('app-root')).toHaveAttribute('data-active-view', 'source');
     await expect(page.getByTestId('source-parse-error')).toBeVisible();
+    expect((await core.rpc<DialogRequest[]>('test.dialogRequests')).length).toBe(requestsBefore);
   });
 
   test('11. the active view stays as it was, from each of the three views (FR-035)', async ({
@@ -672,7 +715,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
   }) => {
     await openApp(core, page);
     for (const view of ['body', 'description', 'source'] as const) {
-      await fileNew(page);
+      await newDocumentDiscarding(page);
       await page.getByTestId(`view-${view}`).click();
       await expect(page.getByTestId('app-root')).toHaveAttribute('data-active-view', view);
       if (view === 'source') {
@@ -704,9 +747,7 @@ test.describe('US4 (004) - import a description from an FBD or FB2 file', () => 
       await openBook(core, page, fixtureBook('modern-utf8.fb2'));
       await startImport(core, page, fixtureBook('maxlib-roles-edge.fbd'));
       await expect(importDialog(page)).toBeVisible();
-      await expect(page.getByTestId('dialog-import-description-title')).toHaveText(
-        uiText(lang, 'transfer.import.title'),
-      );
+      await expect(dialogTitle(page)).toHaveText(uiText(lang, 'transfer.import.title'));
       await expect(page.getByTestId('import-entry-titleInfo.authors-label')).toHaveText(
         entryLabelText(lang, 'description.titleInfo', 'descriptionForm.authors'),
       );
@@ -904,6 +945,7 @@ test.describe('US4 (004) - the 10 MB book as the import source', { tag: '@perf' 
     test.skip(!book || !existsSync(book), 'python3 / the generator are not available');
     test.skip(!(await supportsDocuments(core)), 'the core does not implement doc.* yet');
     await openApp(core, page);
+    const sessions = await openDocuments(core);
     const id = await docId(page);
     const paragraphsBefore = await page.getByTestId('body-editor').locator('p.fb-p').count();
     // Every text the status bar shows during the import, to prove the progress was visible.
@@ -946,8 +988,6 @@ test.describe('US4 (004) - the 10 MB book as the import source', { tag: '@perf' 
     await expect(page.getByTestId('description-book-title')).not.toHaveValue('');
     expect(await binaryIds(core, id)).toEqual([]);
     // The import session is closed.
-    await expect
-      .poll(async () => (await core.rpc<{ openDocuments: number }>('test.metrics')).openDocuments)
-      .toBe(1);
+    await expectNoImportSession(core, sessions);
   });
 });

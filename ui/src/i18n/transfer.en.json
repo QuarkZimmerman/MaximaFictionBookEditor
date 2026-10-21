@@ -1,3 +1,29 @@
 {
-  "$comment": "Description import and FBD export (feature 004, User Stories 4 and 5): the File > Import and File > Export entries, the import dialog and the status messages. Feature catalogue merged into en.json by i18n/index.ts; the keys are filled by the two stories."
+  "$comment": "Description import and FBD export (feature 004, User Stories 4 and 5): the File > Import and File > Export entries, the import dialog and the status messages. Feature catalogue merged into en.json by i18n/index.ts; the keys are filled by the two stories.",
+  "menu": {
+    "file": {
+      "importDescription": "&Description from FictionBook file..."
+    }
+  },
+  "cmd": {
+    "file": {
+      "importDescription": {
+        "tooltip": "Import description",
+        "description": "Import the description of another FictionBook file into this document"
+      }
+    }
+  },
+  "transfer": {
+    "import": {
+      "title": "Import description",
+      "entryLabel": "{{group}}: {{field}}",
+      "importButton": "&Import",
+      "nothing": "The file {{path}} has no description data to import.",
+      "done_one": "{{count}} entry imported",
+      "done_other": "{{count}} entries imported",
+      "undoLabel": "Import description",
+      "coverValue": "{{id}} ({{type}}, {{size}} bytes)",
+      "coverNoData": "{{id}} (the file has no data for this image)"
+    }
+  }
 }

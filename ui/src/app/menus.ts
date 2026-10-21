@@ -34,11 +34,11 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('file.validate'),
       sep,
       {
+        // The description import of feature 004 (FR-030) in place of the plugin placeholder.
         kind: 'submenu',
         id: 'import',
         labelKey: 'menu.file.import',
-        dynamic: 'import',
-        items: [{ kind: 'placeholder', id: 'none', labelKey: 'menu.file.noImportPlugins' }],
+        items: [cmd('file.importDescription')],
       },
       {
         kind: 'submenu',

@@ -286,12 +286,20 @@ export class FileFeature {
 
   /**
    * Shows a document the core loaded. The details it filled in on load (`filledIn`) do not
-   * mark it modified, as in the original; they are written at the next save.
+   * mark it modified, as in the original; they are written at the next save. A template
+   * document (File > New, the start-up document) also becomes the untouched baseline of the
+   * description import (feature 004 US4, FR-033); Open sets none.
    */
-  private loadDocument(ctx: CommandContext, document: Document & LoadReport): void {
+  private loadDocument(
+    ctx: CommandContext,
+    document: Document & LoadReport,
+    options: { template?: boolean } = {},
+  ): void {
     resetSourceSession(ctx.store);
     ctx.undo.clear();
-    actions.setDocument(ctx.store, loadedDocument(document));
+    const loaded = loadedDocument(document);
+    actions.setDocument(ctx.store, loaded);
+    if (options.template) actions.setNewDocumentBaseline(ctx.store, loaded.description);
     actions.setStatusMessage(ctx.store, null);
     if (ctx.store.getState().activeView === 'source') {
       // A new document always starts in the Body view unless it is Source-only.
@@ -333,7 +341,7 @@ export class FileFeature {
       await ctx.rpc.call('doc.close', { docId: document.docId }).catch(() => {});
       return;
     }
-    this.loadDocument(ctx, document);
+    this.loadDocument(ctx, document, { template: true });
     const issue = document.templateIssue;
     if (issue) {
       await ctx.dialogs.showMessage({

@@ -6,7 +6,7 @@
 
 import { useSyncExternalStore } from 'react';
 
-import type { Document, ValidationReport } from './document';
+import type { Description, Document, ValidationReport } from './document';
 import type { ConnectionStatus as RpcConnectionStatus } from '@/rpc/client';
 import type {
   DocParseErrorData,
@@ -31,6 +31,14 @@ export interface AppState {
   /** Absolute path; null for a new, unsaved document. */
   path: string | null;
   fileKind: FileKind | null;
+  /**
+   * The description of a new document as its template and the editor's own filling-in made
+   * it (feature 004 US4, FR-033): set when a template document is loaded (File > New, the
+   * start-up document), cleared by a save and by Open. While the live description still
+   * equals it by content, the description import applies silently
+   * (`features/transfer/untouched.ts`).
+   */
+  newDocumentBaseline: Description | null;
   /** Any unsaved change in any view. */
   modified: boolean;
   /** Source text diverged from the model (Source view editing in progress). */
@@ -85,6 +93,7 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     docId: null,
     path: null,
     fileKind: null,
+    newDocumentBaseline: null,
     modified: false,
     sourceDirty: false,
     sourceOnly: false,
@@ -176,13 +185,17 @@ export const actions = {
     store.setState({ connection });
   },
 
-  /** Replaces the current document (New/Open/Reload). */
+  /**
+   * Replaces the current document (New/Open/Reload). The untouched baseline of a new document
+   * is forgotten here; the file feature sets it again for a template document.
+   */
   setDocument(store: AppStore, document: Document, options: { sourceOnly?: boolean } = {}): void {
     store.setState({
       document,
       docId: document.docId,
       path: document.path ?? null,
       fileKind: document.fileKind,
+      newDocumentBaseline: null,
       modified: false,
       sourceDirty: false,
       sourceOnly: options.sourceOnly ?? false,
@@ -206,6 +219,7 @@ export const actions = {
       docId: null,
       path: null,
       fileKind: null,
+      newDocumentBaseline: null,
       modified: false,
       sourceDirty: false,
       sourceOnly: false,
@@ -257,10 +271,19 @@ export const actions = {
     store.setState({
       path,
       fileKind: fileKind ?? current.fileKind ?? kindFromPath(path),
+      newDocumentBaseline: null,
       modified: false,
       sourceDirty: false,
       document,
     });
+  },
+
+  /**
+   * Remembers the description of a freshly loaded template document as the state the
+   * description import compares with (feature 004 US4, FR-033); null forgets it.
+   */
+  setNewDocumentBaseline(store: AppStore, newDocumentBaseline: Description | null): void {
+    store.setState({ newDocumentBaseline });
   },
 
   setActiveView(store: AppStore, activeView: ViewId): void {

@@ -8,6 +8,7 @@ import { registerScriptsFeature } from './scripts';
 import { registerSettingsFeature } from './settings';
 import { registerSourceFeature } from './source';
 import { registerSpellFeature } from './spell';
+import { registerTransferFeature } from './transfer';
 import { registerTreeFeature } from './tree';
 import { registerWordsFeature } from './words';
 
@@ -24,6 +25,7 @@ export const featureRegistrars: Array<(ctx: FeatureContext) => void> = [
   registerSpellFeature,
   registerImagesFeature,
   registerWordsFeature,
+  registerTransferFeature,
   registerSettingsFeature,
   registerScriptsFeature,
   registerHelpFeature,

@@ -575,6 +575,7 @@ describe('equalDescriptions / isUntouchedNewDocument (FR-033)', () => {
     const reordered: Description = JSON.parse(
       JSON.stringify({
         outputs: base.outputs,
+        publishInfo: base.publishInfo,
         customInfo: base.customInfo,
         documentInfo: base.documentInfo,
         titleInfo: { ...base.titleInfo, annotation: { ...base.titleInfo.annotation! } },
