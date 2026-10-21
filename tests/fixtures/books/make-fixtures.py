@@ -1081,6 +1081,113 @@ IMPORT_FULL = f"""<?xml version="1.0" encoding="utf-8"?>
 """
 
 
+# ----------------------------------------------------------------------------------------------
+# mapping-corpus.fb2 - feature 004 US7: the book of the 50-position corpus of the Body <-> Source
+# journey (ui/tests/e2e/fixtures/mapping-positions.json): body text and titles, a notes body, a
+# poem, a table, a cite, an epigraph, an annotation with a subtitle, a history, paragraphs with
+# `&amp;`, inline marks (nested ones included), a note link, an inline image and an empty line
+# before the caret. Every paragraph's text is unique so that the journey can name a Source
+# position by a substring of the serialised text.
+# ----------------------------------------------------------------------------------------------
+MAPPING_CORPUS = f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Карта</first-name>
+				<last-name>Позиций</last-name>
+			</author>
+			<book-title>Книга о позициях</book-title>
+			<annotation>
+				<p>Аннотация книги о позициях.</p>
+				<subtitle>Подзаголовок аннотации</subtitle>
+				<p>Второй абзац аннотации с <emphasis>курсивом</emphasis> внутри.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-20">2026-10-20</date>
+			<id>mapping-corpus</id>
+			<version>1.0</version>
+			<history>
+				<p>Создан для проверки переноса позиций.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Заглавие книги</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Первый абзац первой главы.</p>
+			<p>Второй абзац: Иван &amp; Пётр пошли в лес.</p>
+			<p>Третий абзац первой главы, десять символов и больше.</p>
+			<p><emphasis>Курсив</emphasis> и <strong>жирный</strong> перед &amp; амперсандом, потом текст.</p>
+			<p>Абзац со сноской<a l:href="#note1" type="note">1</a> и ссылкой.</p>
+			<p>Абзац с картинкой <image l:href="#dot.png"/> внутри текста.</p>
+			<empty-line/>
+			<p>Абзац с кавычками «ёлочки» и тире — длинное.</p>
+			<poem>
+				<title>
+					<p>Стихи о позициях</p>
+				</title>
+				<stanza>
+					<v>Первая строка стиха</v>
+					<v>Вторая строка стиха</v>
+				</stanza>
+				<text-author>Автор стиха</text-author>
+			</poem>
+			<table>
+				<tr>
+					<th>Заголовок А</th>
+					<th>Заголовок Б</th>
+				</tr>
+				<tr>
+					<td>Ячейка один</td>
+					<td>Ячейка два</td>
+				</tr>
+			</table>
+			<cite>
+				<p>Цитата из книги.</p>
+				<text-author>Автор цитаты</text-author>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<epigraph>
+				<p>Эпиграф второй главы.</p>
+			</epigraph>
+			<p>Абзац второй главы с <strong><emphasis>вложенными</emphasis></strong> выделениями.</p>
+			<subtitle>Подзаголовок второй главы</subtitle>
+			<p>Последний абзац книги.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="note1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Текст первой сноски.</p>
+		</section>
+	</body>
+	<binary id="dot.png" content-type="image/png">{b64("tiny.png")}</binary>
+</FictionBook>
+"""
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -1112,6 +1219,7 @@ def main() -> None:
     write("spelling-scope-ru.expected.json", spelling_scope_expected_json())
     write("empty-annotation-history.fb2", EMPTY_ANNOTATION_HISTORY)
     write("import-full.fbd", IMPORT_FULL)
+    write("mapping-corpus.fb2", MAPPING_CORPUS)
 
 
 if __name__ == "__main__":

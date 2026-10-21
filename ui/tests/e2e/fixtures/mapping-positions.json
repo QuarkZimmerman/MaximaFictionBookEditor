@@ -1,0 +1,270 @@
+{
+  "$comment": "Feature 004 US7 (SC-007): 50 caret and selection positions of tests/fixtures/books/mapping-corpus.fb2. `anchor` / `head` are Body positions (structural path + model offset); `source` names the expected Source position of each end as a substring of the serialised text (`after`: the position right after it; `before`: the position where it starts). Read by ui/tests/e2e/us7-body-source-mapping.spec.ts.",
+  "book": "mapping-corpus.fb2",
+  "positions": [
+    {
+      "name": "third paragraph, after the tenth character",
+      "anchor": { "path": "body[1]/section[1]/p[3]", "offset": 10 },
+      "source": { "anchor": { "after": "Третий абз" } }
+    },
+    {
+      "name": "first paragraph, start",
+      "anchor": { "path": "body[1]/section[1]/p[1]", "offset": 0 },
+      "source": { "anchor": { "before": "Первый абзац первой" } }
+    },
+    {
+      "name": "first paragraph, end",
+      "anchor": { "path": "body[1]/section[1]/p[1]", "offset": 26 },
+      "source": { "anchor": { "after": "Первый абзац первой главы." } }
+    },
+    {
+      "name": "before an ampersand written as an entity",
+      "anchor": { "path": "body[1]/section[1]/p[2]", "offset": 19 },
+      "source": { "anchor": { "before": "&amp; Пётр" } }
+    },
+    {
+      "name": "after the ampersand entity (one character)",
+      "anchor": { "path": "body[1]/section[1]/p[2]", "offset": 20 },
+      "source": { "anchor": { "before": " Пётр пошли" } }
+    },
+    {
+      "name": "five characters after the entity",
+      "anchor": { "path": "body[1]/section[1]/p[2]", "offset": 25 },
+      "source": { "anchor": { "after": "&amp; Пётр" } }
+    },
+    {
+      "name": "inside an emphasised word",
+      "anchor": { "path": "body[1]/section[1]/p[4]", "offset": 3 },
+      "source": { "anchor": { "after": "<emphasis>Кур" } }
+    },
+    {
+      "name": "end of the emphasised word, before its closing tag",
+      "anchor": { "path": "body[1]/section[1]/p[4]", "offset": 6 },
+      "source": { "anchor": { "before": "</emphasis> и <strong>" } }
+    },
+    {
+      "name": "before a bold word (before its opening tag)",
+      "anchor": { "path": "body[1]/section[1]/p[4]", "offset": 9 },
+      "source": { "anchor": { "before": "<strong>жирный" } }
+    },
+    {
+      "name": "inside the bold word",
+      "anchor": { "path": "body[1]/section[1]/p[4]", "offset": 12 },
+      "source": { "anchor": { "after": "<strong>жир" } }
+    },
+    {
+      "name": "after an entity that follows inline marks",
+      "anchor": { "path": "body[1]/section[1]/p[4]", "offset": 23 },
+      "source": { "anchor": { "after": "перед &amp;" } }
+    },
+    {
+      "name": "plain text after marks and an entity",
+      "anchor": { "path": "body[1]/section[1]/p[4]", "offset": 36 },
+      "source": { "anchor": { "after": "амперсандом," } }
+    },
+    {
+      "name": "before a note link",
+      "anchor": { "path": "body[1]/section[1]/p[5]", "offset": 16 },
+      "source": { "anchor": { "before": "<a l:href=\"#note1\"" } }
+    },
+    {
+      "name": "inside the note link's text",
+      "anchor": { "path": "body[1]/section[1]/p[5]", "offset": 17 },
+      "source": { "anchor": { "after": "type=\"note\">1" } }
+    },
+    {
+      "name": "after the note link",
+      "anchor": { "path": "body[1]/section[1]/p[5]", "offset": 18 },
+      "source": { "anchor": { "after": "</a> " } }
+    },
+    {
+      "name": "before an inline image",
+      "anchor": { "path": "body[1]/section[1]/p[6]", "offset": 18 },
+      "source": { "anchor": { "before": "<image l:href=\"#dot.png\"/>" } }
+    },
+    {
+      "name": "after the inline image (one unit)",
+      "anchor": { "path": "body[1]/section[1]/p[6]", "offset": 19 },
+      "source": { "anchor": { "after": "<image l:href=\"#dot.png\"/>" } }
+    },
+    {
+      "name": "text after the inline image",
+      "anchor": { "path": "body[1]/section[1]/p[6]", "offset": 21 },
+      "source": { "anchor": { "after": "/> в" } }
+    },
+    {
+      "name": "before typographic quotes",
+      "anchor": { "path": "body[1]/section[1]/p[7]", "offset": 18 },
+      "source": { "anchor": { "before": "«ёлочки»" } }
+    },
+    {
+      "name": "after a dash word",
+      "anchor": { "path": "body[1]/section[1]/p[7]", "offset": 33 },
+      "source": { "anchor": { "after": "и тире" } }
+    },
+    {
+      "name": "poem: inside the first verse",
+      "anchor": { "path": "body[1]/section[1]/poem[1]/stanza[1]/v[1]", "offset": 7 },
+      "source": { "anchor": { "after": "<v>Первая " } }
+    },
+    {
+      "name": "poem: end of the second verse",
+      "anchor": { "path": "body[1]/section[1]/poem[1]/stanza[1]/v[2]", "offset": 19 },
+      "source": { "anchor": { "after": "Вторая строка стиха" } }
+    },
+    {
+      "name": "poem: end of the text author",
+      "anchor": { "path": "body[1]/section[1]/poem[1]/text-author[1]", "offset": 11 },
+      "source": { "anchor": { "after": "Автор стиха" } }
+    },
+    {
+      "name": "table: header cell",
+      "anchor": { "path": "body[1]/section[1]/table[1]/tr[1]/th[1]", "offset": 10 },
+      "source": { "anchor": { "before": "А</th>" } }
+    },
+    {
+      "name": "table: data cell",
+      "anchor": { "path": "body[1]/section[1]/table[1]/tr[2]/td[2]", "offset": 7 },
+      "source": { "anchor": { "before": "два</td>" } }
+    },
+    {
+      "name": "cite paragraph",
+      "anchor": { "path": "body[1]/section[1]/cite[1]/p[1]", "offset": 7 },
+      "source": { "anchor": { "after": "Цитата " } }
+    },
+    {
+      "name": "cite text author",
+      "anchor": { "path": "body[1]/section[1]/cite[1]/text-author[1]", "offset": 6 },
+      "source": { "anchor": { "before": "цитаты</text-author>" } }
+    },
+    {
+      "name": "second section title",
+      "anchor": { "path": "body[1]/section[2]/title[1]/p[1]", "offset": 6 },
+      "source": { "anchor": { "before": "вторая</p>" } }
+    },
+    {
+      "name": "epigraph, end",
+      "anchor": { "path": "body[1]/section[2]/epigraph[1]/p[1]", "offset": 21 },
+      "source": { "anchor": { "after": "Эпиграф второй главы." } }
+    },
+    {
+      "name": "before nested marks",
+      "anchor": { "path": "body[1]/section[2]/p[1]", "offset": 21 },
+      "source": { "anchor": { "before": "<strong><emphasis>" } }
+    },
+    {
+      "name": "inside nested marks",
+      "anchor": { "path": "body[1]/section[2]/p[1]", "offset": 26 },
+      "source": { "anchor": { "after": "<emphasis>вложе" } }
+    },
+    {
+      "name": "end of the nested marks' text",
+      "anchor": { "path": "body[1]/section[2]/p[1]", "offset": 31 },
+      "source": { "anchor": { "before": "</emphasis></strong>" } }
+    },
+    {
+      "name": "subtitle of the second section",
+      "anchor": { "path": "body[1]/section[2]/subtitle[1]", "offset": 12 },
+      "source": { "anchor": { "before": " второй главы</subtitle>" } }
+    },
+    {
+      "name": "last paragraph of the book, end",
+      "anchor": { "path": "body[1]/section[2]/p[2]", "offset": 22 },
+      "source": { "anchor": { "after": "Последний абзац книги." } }
+    },
+    {
+      "name": "book title paragraph",
+      "anchor": { "path": "body[1]/title[1]/p[1]", "offset": 8 },
+      "source": { "anchor": { "after": "Заглавие" } }
+    },
+    {
+      "name": "first section title",
+      "anchor": { "path": "body[1]/section[1]/title[1]/p[1]", "offset": 5 },
+      "source": { "anchor": { "before": " первая</p>" } }
+    },
+    {
+      "name": "notes body title, end",
+      "anchor": { "path": "body[2]/title[1]/p[1]", "offset": 10 },
+      "source": { "anchor": { "after": "Примечания" } }
+    },
+    {
+      "name": "notes body paragraph",
+      "anchor": { "path": "body[2]/section[1]/p[1]", "offset": 6 },
+      "source": { "anchor": { "after": "Текст " } }
+    },
+    {
+      "name": "annotation block, first paragraph",
+      "anchor": { "path": "title-info/annotation[1]/p[1]", "offset": 9 },
+      "source": { "anchor": { "after": "<p>Аннотация" } }
+    },
+    {
+      "name": "annotation block, subtitle",
+      "anchor": { "path": "title-info/annotation[1]/subtitle[1]", "offset": 12 },
+      "source": { "anchor": { "before": " аннотации</subtitle>" } }
+    },
+    {
+      "name": "annotation block, before an emphasised word",
+      "anchor": { "path": "title-info/annotation[1]/p[2]", "offset": 25 },
+      "source": { "anchor": { "before": "<emphasis>курсивом" } }
+    },
+    {
+      "name": "annotation block, selection across its paragraphs into the emphasised word",
+      "anchor": { "path": "title-info/annotation[1]/p[1]", "offset": 0 },
+      "head": { "path": "title-info/annotation[1]/p[2]", "offset": 29 },
+      "source": {
+        "anchor": { "before": "Аннотация книги" },
+        "head": { "after": "<emphasis>курс" }
+      }
+    },
+    {
+      "name": "history block paragraph",
+      "anchor": { "path": "document-info/history[1]/p[1]", "offset": 6 },
+      "source": { "anchor": { "after": "Создан" } }
+    },
+    {
+      "name": "selection of one word",
+      "anchor": { "path": "body[1]/section[1]/p[1]", "offset": 7 },
+      "head": { "path": "body[1]/section[1]/p[1]", "offset": 12 },
+      "source": { "anchor": { "after": "Первый " }, "head": { "after": "Первый абзац" } }
+    },
+    {
+      "name": "selection across two paragraphs",
+      "anchor": { "path": "body[1]/section[1]/p[1]", "offset": 7 },
+      "head": { "path": "body[1]/section[1]/p[2]", "offset": 6 },
+      "source": { "anchor": { "after": "Первый " }, "head": { "before": " абзац: Иван" } }
+    },
+    {
+      "name": "backward selection (head before anchor)",
+      "anchor": { "path": "body[1]/section[1]/p[3]", "offset": 10 },
+      "head": { "path": "body[1]/section[1]/p[3]", "offset": 6 },
+      "source": { "anchor": { "after": "Третий абз" }, "head": { "after": "Третий" } }
+    },
+    {
+      "name": "selection over marked-up text (markup inside the range)",
+      "anchor": { "path": "body[1]/section[1]/p[4]", "offset": 0 },
+      "head": { "path": "body[1]/section[1]/p[4]", "offset": 15 },
+      "source": {
+        "anchor": { "before": "<emphasis>Курсив" },
+        "head": { "before": "</strong> перед" }
+      }
+    },
+    {
+      "name": "selection from a title into the body text",
+      "anchor": { "path": "body[1]/section[1]/title[1]/p[1]", "offset": 0 },
+      "head": { "path": "body[1]/section[1]/p[1]", "offset": 6 },
+      "source": { "anchor": { "before": "Глава первая" }, "head": { "after": "Первый" } }
+    },
+    {
+      "name": "selection from a verse to the poem's text author",
+      "anchor": { "path": "body[1]/section[1]/poem[1]/stanza[1]/v[1]", "offset": 0 },
+      "head": { "path": "body[1]/section[1]/poem[1]/text-author[1]", "offset": 11 },
+      "source": { "anchor": { "before": "Первая строка" }, "head": { "after": "Автор стиха" } }
+    },
+    {
+      "name": "selection across two bodies",
+      "anchor": { "path": "body[1]/section[2]/p[2]", "offset": 10 },
+      "head": { "path": "body[2]/section[1]/p[1]", "offset": 5 },
+      "source": { "anchor": { "after": "Последний " }, "head": { "after": "Текст" } }
+    }
+  ]
+}

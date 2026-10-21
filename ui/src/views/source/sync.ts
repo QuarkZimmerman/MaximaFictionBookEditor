@@ -18,6 +18,19 @@
  *   and serialises; `source -> *` requires a successful parse; every switch commits an undo
  *   boundary (`switchView`), and the remapped Body caret is restored when Body comes back; no
  *   switch while a script runs.
+ * - Body <-> Source mapping (feature 004 US7, FR-070 to FR-073; research R2): a direct switch
+ *   carries the caret or selection. `body -> source` records the Body selection as two model
+ *   points (`pendingPoints`); once the Source text is loaded (`doc.toXml({positions: true})`
+ *   when the model changed, else the text and `serial` of the last serialisation or parse)
+ *   the editor's `load()` asks `doc.mapPositions({toSource})` and selects the answer
+ *   (`mapBodySelectionToSource`). `source -> body` reads the Source selection, commits pending
+ *   edits with `doc.fromXml({positions: true})` so the offsets refer to the very text parsed,
+ *   asks `doc.mapPositions({toModel})` and selects the points in the Body editor; a point
+ *   without a Body place (`null`, the src-title-info annotation) goes to the document's start
+ *   (`structuralPath.documentStart`). A detour through the Description view maps nothing; a
+ *   core answering no `serial` (or 1005 for a stale one) leaves the 0.0.3 behaviour; the
+ *   test hook `__mfbeTest.sourceMapping` (`sourceMappingState`) switches the mapping off for
+ *   the FR-073 measurement and records the last step.
  * - `registerViewCommands()` replaces the `view.*` commands so leaving Source goes through the
  *   commit.
  *
@@ -27,10 +40,24 @@
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
 import { switchView } from '@/app/commands';
+import { FIXED_BLOCK_IDS } from '@/editor/schema';
+import { documentStart } from '@/editor/structuralPath';
 import type { Document, ValidationIssue } from '@/model/document';
 import { actions, type AppStore } from '@/model/store';
 import { RpcError } from '@/rpc/client';
-import { RpcErrorCode, type Caret, type DocParseErrorData, type ViewId } from '@/rpc/types';
+import {
+  RpcErrorCode,
+  type Caret,
+  type DocParseErrorData,
+  type ModelPoint,
+  type ViewId,
+} from '@/rpc/types';
+import {
+  getBodyController,
+  hasBodyController,
+  selectionPoints,
+  type SelectionPoints,
+} from '@/views/body/bodyEditor';
 
 /** `doc.fromXml` remap table (rpc-api.md §3.2, core `model::RemapTable::to_json`). */
 export interface RemapTable {
@@ -47,6 +74,14 @@ interface FromXmlResult {
   document: Document;
   warnings?: ValidationIssue[];
   remap?: RemapTable;
+  /** The position map's serial when the parse recorded one (feature 004 US7). */
+  serial?: number;
+}
+
+/** A Source selection as UTF-16 offsets into the editor text (CodeMirror's unit). */
+export interface SourceOffsets {
+  anchor: number;
+  head: number;
 }
 
 export interface SourceSession {
@@ -66,6 +101,17 @@ export interface SourceSession {
   lastRemap: RemapTable | null;
   /** Editor text at the time the validation panel's report was produced (staleness check). */
   validatedText: string | null;
+  /**
+   * Serial of the core's position map of `baseline` (feature 004 US7): set by the toXml /
+   * fromXml call that produced the text with `positions: true`; null when none was recorded
+   * (mapping disabled, an older core) - then no position is mapped.
+   */
+  serial: number | null;
+  /**
+   * The Body selection of a direct Body -> Source switch, mapped and selected by the editor
+   * once the text is loaded (`mapBodySelectionToSource`); null for any other switch.
+   */
+  pendingPoints: SelectionPoints | null;
 }
 
 const sessions = new WeakMap<AppStore, SourceSession>();
@@ -81,7 +127,217 @@ function emptySession(): SourceSession {
     bodyCaret: null,
     lastRemap: null,
     validatedText: null,
+    serial: null,
+    pendingPoints: null,
   };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Body <-> Source mapping state (feature 004 US7)                           */
+/* ------------------------------------------------------------------------ */
+
+/** What the last mapping step did (`__mfbeTest.sourceMapping.last`, test hooks only). */
+export interface SourceMappingStep {
+  direction: 'toSource' | 'toModel';
+  /** Wall time of the UI's own step: the request and the answer (ms). */
+  ms: number;
+  /** The core's `durationMs` of the `doc.mapPositions` call; null when the call failed. */
+  coreMs: number | null;
+  serial: number;
+  from: unknown;
+  to: unknown;
+  error?: string;
+}
+
+/**
+ * The mapping switch and the record of the last step. `enabled` is only reachable through the
+ * test hook (`__mfbeTest.sourceMapping`, active with test hooks): with it off the switches
+ * neither record positions nor map them, which isolates the mapping step for FR-073.
+ */
+export const sourceMappingState: { enabled: boolean; last: SourceMappingStep | null } = {
+  enabled: true,
+  last: null,
+};
+
+export function sourceMappingEnabled(): boolean {
+  return sourceMappingState.enabled;
+}
+
+/** Readers of the Source editor's selection, registered by the controller (per store). */
+const sourceSelectionReaders = new WeakMap<AppStore, () => SourceOffsets | null>();
+
+export function registerSourceSelectionReader(
+  store: AppStore,
+  reader: () => SourceOffsets | null,
+): void {
+  sourceSelectionReaders.set(store, reader);
+}
+
+function sourceSelectionOffsets(store: AppStore): SourceOffsets | null {
+  return sourceSelectionReaders.get(store)?.() ?? null;
+}
+
+/**
+ * The Body selection as model points for the core: the fixed ids of the annotation and
+ * history blocks (`desc:annotation`, `desc:history`) become the model's node ids, which the
+ * core's map knows; a block without a model node stays unknown (the Source keeps its place).
+ */
+function bodySelectionPoints(store: AppStore): SelectionPoints | null {
+  if (!hasBodyController(store)) return null;
+  const state = getBodyController(store).editorState;
+  const points = state ? selectionPoints(state) : null;
+  if (!points) return null;
+  const description = store.getState().document?.description;
+  const translate = (point: ModelPoint): ModelPoint => {
+    const model =
+      point.nodeId === FIXED_BLOCK_IDS.annotation
+        ? description?.titleInfo.annotation
+        : point.nodeId === FIXED_BLOCK_IDS.history
+          ? description?.documentInfo.history
+          : undefined;
+    const id = model?.attrs.nodeId;
+    return typeof id === 'string' && id ? { nodeId: id, offset: 0 } : point;
+  };
+  return { anchor: translate(points.anchor), head: translate(points.head) };
+}
+
+function recordStep(step: SourceMappingStep): void {
+  sourceMappingState.last = step;
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Maps the Body selection of a direct switch (`session.pendingPoints`) to Source offsets
+ * against the text the editor just loaded; consumes the points. Null when there is nothing to
+ * map, the mapping is skipped (an explicit navigation target, a parse error), no serial names
+ * the text, both ends are unknown to the core or the call failed (1005, an older core): the
+ * Source view then keeps its own position (FR-070).
+ */
+export async function mapBodySelectionToSource(
+  ctx: CommandContext,
+  options: { skip?: boolean } = {},
+): Promise<SourceOffsets | null> {
+  const { store, rpc } = ctx;
+  const session = sourceSession(store);
+  const points = session.pendingPoints;
+  session.pendingPoints = null;
+  const state = store.getState();
+  if (!points || options.skip || !rpc || session.serial === null || !state.docId) return null;
+  if (session.docId !== state.docId) return null;
+  const serial = session.serial;
+  const started = performance.now();
+  try {
+    const result = await rpc.call('doc.mapPositions', {
+      docId: state.docId,
+      serial,
+      toSource: [points.anchor, points.head],
+    });
+    const [anchor = null, head = null] = result.toSource;
+    recordStep({
+      direction: 'toSource',
+      ms: performance.now() - started,
+      coreMs: result.durationMs,
+      serial,
+      from: points,
+      to: { anchor, head },
+    });
+    if (anchor === null && head === null) return null;
+    return { anchor: anchor ?? head!, head: head ?? anchor! };
+  } catch (error) {
+    recordStep({
+      direction: 'toSource',
+      ms: performance.now() - started,
+      coreMs: null,
+      serial,
+      from: points,
+      to: null,
+      error: errorText(error),
+    });
+    return null;
+  }
+}
+
+/** The two ends of a mapped Source selection as the core answered them (null: no Body place). */
+interface MappedPoints {
+  anchor: ModelPoint | null;
+  head: ModelPoint | null;
+}
+
+async function mapSourceSelectionToBody(
+  ctx: CommandContext,
+  docId: string,
+  serial: number,
+  offsets: SourceOffsets,
+): Promise<MappedPoints | null> {
+  const { rpc } = ctx;
+  if (!rpc) return null;
+  const started = performance.now();
+  try {
+    const result = await rpc.call('doc.mapPositions', {
+      docId,
+      serial,
+      toModel: [offsets.anchor, offsets.head],
+    });
+    const [anchor = null, head = null] = result.toModel;
+    recordStep({
+      direction: 'toModel',
+      ms: performance.now() - started,
+      coreMs: result.durationMs,
+      serial,
+      from: offsets,
+      to: { anchor, head },
+    });
+    return { anchor, head };
+  } catch (error) {
+    recordStep({
+      direction: 'toModel',
+      ms: performance.now() - started,
+      coreMs: null,
+      serial,
+      from: offsets,
+      to: null,
+      error: errorText(error),
+    });
+    return null;
+  }
+}
+
+/**
+ * Selects the mapped points in the Body editor: an end without a Body place (`null`) and a
+ * point the editor cannot place (the src-title-info annotation, a node outside the editor
+ * document) go to the document's start - the first body's first text block, or the annotation
+ * block when the document has no body (FR-071); the model ids of the annotation and history
+ * nodes become the blocks' fixed ids.
+ */
+function applyBodySelection(ctx: CommandContext, mapped: MappedPoints): void {
+  const { store } = ctx;
+  const model = store.getState().document;
+  if (!model || !hasBodyController(store)) return;
+  const controller = getBodyController(store);
+  const start = (): ModelPoint => {
+    const resolved = documentStart(model);
+    return { nodeId: resolved.nodeId, offset: resolved.offset };
+  };
+  const translate = (point: ModelPoint): ModelPoint => {
+    const { annotation } = model.description.titleInfo;
+    const { history } = model.description.documentInfo;
+    if (annotation?.attrs.nodeId === point.nodeId) {
+      return { nodeId: FIXED_BLOCK_IDS.annotation, offset: 0 };
+    }
+    if (history?.attrs.nodeId === point.nodeId)
+      return { nodeId: FIXED_BLOCK_IDS.history, offset: 0 };
+    return point;
+  };
+  const head = mapped.head ? translate(mapped.head) : start();
+  const anchor = mapped.anchor ? translate(mapped.anchor) : start();
+  if (controller.setSelectionPoints(anchor, head)) return;
+  const fallback = start();
+  if (!controller.setSelectionPoints(fallback, fallback)) {
+    void setCaretWhenReady(ctx, { view: 'body', nodeId: fallback.nodeId, offset: fallback.offset });
+  }
 }
 
 export function sourceSession(store: AppStore): SourceSession {
@@ -125,6 +381,8 @@ export function setSourceOnlyText(store: AppStore, docId: string, text: string):
   session.pendingCaret = null;
   session.bodyCaret = null;
   session.lastRemap = null;
+  session.serial = null;
+  session.pendingPoints = null;
 }
 
 /** True when the editor text differs from what the core produced. */
@@ -156,15 +414,21 @@ export async function loadSourceText(ctx: CommandContext): Promise<string> {
     if (dirty || state.sourceOnly || session.model === state.document) return session.text;
   }
   if (!rpc) return session.text ?? '';
-  const { text } = await rpc.call('doc.toXml', {
+  // Feature 004 US7: the serialisation records the position map of its text (a core without
+  // the map answers no serial and nothing is mapped).
+  const positions = sourceMappingEnabled();
+  const result = await rpc.call('doc.toXml', {
     docId: state.docId,
     document: state.document,
     elideBinaries: true,
+    ...(positions ? { positions: true } : {}),
   });
+  const { text } = result;
   session.docId = state.docId;
   session.text = text;
   session.baseline = text;
   session.model = state.document;
+  session.serial = positions && typeof result.serial === 'number' ? result.serial : null;
   if (store.getState().sourceDirty) actions.setSourceDirty(store, false);
   return text;
 }
@@ -246,11 +510,16 @@ export async function commitPendingSource(
   const needsParse = state.sourceOnly || (state.sourceDirty && session.text !== null);
   if (!needsParse || !state.docId) return 'clean';
   if (!rpc) return 'unavailable';
+  // The editor's own text (`updateSourceText` after every change; the raw text of a Source-only
+  // document only until its first edit, and such a text does not parse before one): the
+  // offsets of a mapped selection refer to this very string (feature 004 US7, research R2.3).
   const text = session.text ?? '';
+  const positions = sourceMappingEnabled();
   try {
     const result = (await rpc.call('doc.fromXml', {
       docId: state.docId,
       text,
+      ...(positions ? { positions: true } : {}),
     })) as FromXmlResult;
     const { document } = result;
     const textChanged = text !== session.baseline;
@@ -259,6 +528,7 @@ export async function commitPendingSource(
     session.baseline = text;
     session.model = document;
     session.pendingCaret = null;
+    session.serial = positions && typeof result.serial === 'number' ? result.serial : null;
     applyRemap(ctx, result.remap);
     return 'committed';
   } catch (error) {
@@ -313,20 +583,41 @@ export async function requestViewSwitch(ctx: CommandContext, view: ViewId): Prom
   // show the document as it was).
   if (state.scriptRunning) return false;
   const session = sourceSession(store);
+  // Feature 004 US7: only a direct switch between the two views carries a position; a detour
+  // through the Description view leaves each view at its own (FR-070).
+  session.pendingPoints = null;
+  const mapping = sourceMappingEnabled();
   if (view === 'source' && state.activeView === 'body') {
     // The Body view is still mounted: remember where the user was for the way back.
     session.bodyCaret = ctx.carets?.get('body') ?? session.bodyCaret;
+    if (mapping) session.pendingPoints = bodySelectionPoints(store);
   }
+  // Source -> Body: the Source selection before the commit replaces the editor text's model.
+  const sourceOffsets =
+    view === 'body' && state.activeView === 'source' && mapping
+      ? sourceSelectionOffsets(store)
+      : null;
   let committed = false;
   if (view !== 'source' && state.document && (state.sourceOnly || state.sourceDirty)) {
     const result = await commitPendingSource(ctx);
     if (result === 'error') return false;
     committed = result === 'committed';
   }
+  // The offsets refer to the text just parsed (or to the unchanged text of the last
+  // serialisation or parse), which the session's serial names.
+  const mapped =
+    sourceOffsets && state.docId && session.serial !== null
+      ? await mapSourceSelectionToBody(ctx, state.docId, session.serial, sourceOffsets)
+      : null;
   switchView(ctx, view);
-  if (view === 'body' && committed && session.bodyCaret?.nodeId) {
-    // The model was re-created: put the Body caret back on the (remapped) node.
-    void setCaretWhenReady(ctx, session.bodyCaret);
+  if (view === 'body') {
+    if (mapped) {
+      applyBodySelection(ctx, mapped);
+    } else if (committed && session.bodyCaret?.nodeId) {
+      // No mapping (an older core, a stale serial): the model was re-created, put the Body
+      // caret back on the (remapped) node as release 0.0.3 did.
+      void setCaretWhenReady(ctx, session.bodyCaret);
+    }
   }
   return true;
 }

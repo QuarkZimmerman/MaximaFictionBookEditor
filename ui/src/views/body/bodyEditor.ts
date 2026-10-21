@@ -28,10 +28,11 @@ import { Slice, type Node as PMNode } from 'prosemirror-model';
 import { closeHistory, history, redo, redoDepth, undo, undoDepth } from 'prosemirror-history';
 import {
   EditorState,
+  NodeSelection,
   type Plugin,
+  Selection,
   TextSelection,
   type Command,
-  type Selection,
   type Transaction,
 } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
@@ -71,7 +72,7 @@ import {
 import type { Document } from '@/model/document';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
-import type { Caret } from '@/rpc/types';
+import type { Caret, ModelPoint } from '@/rpc/types';
 
 export { selectionNodeId, selectionPath } from '@/editor/plugins/selectionPath';
 
@@ -92,6 +93,63 @@ function selectionNodeIdOf(state: EditorState): string | null {
     if (typeof id === 'string' && id) return id;
   }
   return null;
+}
+
+/** The two ends of a Body selection as model points (feature 004 US7, data-model §7). */
+export interface SelectionPoints {
+  anchor: ModelPoint;
+  head: ModelPoint;
+}
+
+/**
+ * One end of a selection as a model point: the text block around it with ProseMirror's
+ * `parentOffset`, else the nearest id-bearing ancestor with offset 0; null outside every
+ * id-bearing node.
+ */
+function pointOf($pos: ReturnType<PMNode['resolve']>): ModelPoint | null {
+  for (let depth = $pos.depth; depth >= 1; depth -= 1) {
+    const node = $pos.node(depth);
+    const id = node.attrs.nodeId;
+    if (typeof id !== 'string' || !id) continue;
+    return { nodeId: id, offset: depth === $pos.depth && node.isTextblock ? $pos.parentOffset : 0 };
+  }
+  return null;
+}
+
+/**
+ * The selection of `state` as two model points for `doc.mapPositions` (`toSource`): a text
+ * selection's ends are `{text block id, parentOffset}`, a node selection (an image, an
+ * unknown element) is `{the selected node's id, 0}` at both ends. Null without a selection
+ * inside an id-bearing node (an empty editor document).
+ */
+export function selectionPoints(state: EditorState): SelectionPoints | null {
+  const { selection } = state;
+  if (selection instanceof NodeSelection) {
+    const id = selection.node.attrs.nodeId;
+    if (typeof id === 'string' && id) {
+      const point = { nodeId: id, offset: 0 };
+      return { anchor: point, head: { ...point } };
+    }
+  }
+  const anchor = pointOf(selection.$anchor);
+  const head = pointOf(selection.$head);
+  return anchor && head ? { anchor, head } : null;
+}
+
+/**
+ * The selection a model point names in `doc`: inside a text block at the (clamped) offset;
+ * before an atom (an image, an empty line, an unknown element - the node itself when it is
+ * selectable); the first text position inside a container. Null when the node is not there.
+ */
+function selectionAtPoint(doc: PMNode, point: ModelPoint): Selection | null {
+  const found = findNodeById(doc, point.nodeId);
+  if (!found) return null;
+  if (found.node.isTextblock) {
+    const offset = Math.min(Math.max(Math.floor(point.offset) || 0, 0), found.node.content.size);
+    return TextSelection.create(doc, found.pos + 1 + offset);
+  }
+  if (found.node.isLeaf) return Selection.near(doc.resolve(found.pos), 1);
+  return Selection.near(doc.resolve(Math.min(found.pos + 1, doc.content.size)), 1);
 }
 
 /** Text selection inside the node with `nodeId` (at `offset` for text blocks). */
@@ -315,6 +373,8 @@ export class BodyEditorController {
   private replaying = false;
   /** The next document change starts a new history event (set after a command ran). */
   private closeNextHistory = false;
+  /** A selection placed while unmounted is scrolled into view when the view mounts. */
+  private scrollOnMount = false;
 
   constructor(options: BodyEditorOptions) {
     this.store = options.store;
@@ -459,6 +519,13 @@ export class BodyEditorController {
       dispatchTransaction: (tr) => this.dispatch(tr),
       attributes: { class: 'fb-editor', 'data-testid': 'body-editor' },
     });
+    if (this.scrollOnMount) {
+      // The selection was placed while the view was unmounted (a mapped Source selection):
+      // bring it into view now that there is a DOM to scroll.
+      this.scrollOnMount = false;
+      this.view.dispatch(this.view.state.tr.scrollIntoView());
+      this.view.focus();
+    }
     this.publishSelection();
   }
 
@@ -999,6 +1066,37 @@ export class BodyEditorController {
       if (!selection) return false;
     }
     this.dispatch(state!.tr.setSelection(selection).scrollIntoView());
+    this.focus();
+    return true;
+  }
+
+  /**
+   * Selects from `anchor` to `head` (feature 004 US7, the mapped Source selection): the window
+   * is moved onto the head's section; a range whose anchor the mounted window does not hold
+   * becomes a caret at the head; a point naming a text block lands at its offset, an atom is
+   * selected (the position before it), a container at its first text position. False when
+   * the head's node is not in the document. The selection is scrolled into view when the view
+   * mounts, if it is not mounted yet.
+   */
+  setSelectionPoints(anchor: ModelPoint, head: ModelPoint): boolean {
+    if (!this.model || !this.moveWindowTo(head.nodeId)) return false;
+    const state = this.editorState;
+    if (!state) return false;
+    const headSelection = selectionAtPoint(state.doc, head);
+    if (!headSelection) return false;
+    let selection: Selection = headSelection;
+    const samePoint = anchor.nodeId === head.nodeId && anchor.offset === head.offset;
+    if (!samePoint) {
+      const anchorSelection = selectionAtPoint(state.doc, anchor);
+      if (anchorSelection) {
+        selection = TextSelection.between(
+          state.doc.resolve(anchorSelection.anchor),
+          state.doc.resolve(headSelection.head),
+        );
+      }
+    }
+    this.dispatch(state.tr.setSelection(selection).scrollIntoView());
+    if (!this.view) this.scrollOnMount = true;
     this.focus();
     return true;
   }

@@ -200,9 +200,10 @@ function nodeIdOf(node: ModelNodeLike): string {
 
 /**
  * The document's start (FR-071): the first body's first text block (the body itself when it has
- * none), or the annotation block of a body-less document.
+ * none), or the annotation block of a body-less document. The fallback of the remembered
+ * position and of the Body <-> Source mapping (feature 004, data-model §0.1).
  */
-function documentStart(model: Pick<Document, 'bodies'>): ResolvedPosition {
+export function documentStart(model: Pick<Document, 'bodies'>): ResolvedPosition {
   const body = model.bodies[0];
   if (!body) return { nodeId: FIXED_BLOCK_IDS.annotation, offset: 0, exact: false };
   const text = firstTextContainer(body as ModelNodeLike);
