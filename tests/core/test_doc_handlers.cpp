@@ -663,9 +663,10 @@ TEST_CASE(
     }
     CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == annotation);
     CHECK(f.ws.call("doc.position", json{{"docId", "d99"}})["error"]["code"] == 1000);
-    const json far{{"path", "body[1]/section[1]/p[99]"}, {"offset", 100000}};
+    // (`beyond`, not `far`: <windows.h> defines `far` away as an empty legacy macro.)
+    const json beyond{{"path", "body[1]/section[1]/p[99]"}, {"offset", 100000}};
     CHECK(f.ws.call("doc.position",
-                    json{{"docId", doc_id}, {"position", far}})["result"]["position"] == far);
+                    json{{"docId", doc_id}, {"position", beyond}})["result"]["position"] == beyond);
 
     // The setting off: nothing is written, get answers {} - the core gates, whatever the UI
     // believes about the setting (research R5.1 H6).
@@ -683,7 +684,7 @@ TEST_CASE(
         f.ws.call("settings.set", json{{"patch", json{{"other", json{{"restorePosition", true}}}}}})
             .contains("result"));
     CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == other);
-    CHECK(positions_on_disk(f)["items"][0]["position"] == far);
+    CHECK(positions_on_disk(f)["items"][0]["position"] == beyond);
     CHECK(f.ws.call("doc.position",
                     json{{"docId", doc_id}, {"position", position}})["result"]["position"] ==
           position);
