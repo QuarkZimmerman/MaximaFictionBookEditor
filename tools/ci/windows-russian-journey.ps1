@@ -14,8 +14,9 @@
 #     "Толстой Лев - Война и мир.fb2" in its name box (feature 004 FR-050), and Save writes the
 #     file under exactly that name in the user's Documents folder, which the window title and
 #     recent.json (byte for byte, UTF-8) show too; a second Save As with "Новая книга.fb2" typed
-#     into the name box comes out the same way (FR-051, SC-006). Without UI Automation the
-#     dialog is driven with SendKeys and only the disk is checked;
+#     into the name box comes out the same way (FR-051, SC-006). When UI Automation cannot
+#     read the dialog it is driven with window messages (WM_GETTEXT / WM_SETTEXT on the name
+#     box, the Save button's click);
 #   - the window's close button (WM_CLOSE to the main window) with a modified document asks
 #     "Save changes?" (feature 003 FR-017): Cancel keeps the editor open and the document
 #     modified, a second close request asks again at once, No ends the editor with exit code 0;
@@ -365,15 +366,84 @@ function Set-DescriptionField([string]$TestId, [string]$Value) {
     $null = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"$TestId`"]').blur(); true"
 }
 
-# UI Automation reaches the native Save As dialog, which the shell shows itself and the DevTools
-# protocol never sees. The assemblies ship with PowerShell on Windows; without them the dialog is
-# driven with SendKeys instead (Use-SendKeysFallback).
+# The native Save As dialog is the shell's own window; the DevTools protocol never sees it. It
+# is found through the window list of Win32 (EnumWindows: a visible #32770 window - the Common
+# Item Dialog's class - of an mfbe.exe process) and driven through UI Automation from its handle;
+# when UI Automation cannot read it, through window messages (WM_GETTEXT / WM_SETTEXT on the
+# file-name box, the Save button's click), which need no foreground window either.
+Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class MfbeWin32 {
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hWndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr hWnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, StringBuilder lParam);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, string lParam);
+    [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    public class WindowInfo {
+        public IntPtr Handle; public uint ProcessId; public string ClassName; public string Title; public bool Visible; public int ControlId;
+    }
+
+    public static string ClassOf(IntPtr h) {
+        var cls = new StringBuilder(256);
+        GetClassName(h, cls, cls.Capacity);
+        return cls.ToString();
+    }
+
+    static WindowInfo Describe(IntPtr h) {
+        uint pid;
+        GetWindowThreadProcessId(h, out pid);
+        var text = new StringBuilder(1024);
+        GetWindowText(h, text, text.Capacity);
+        return new WindowInfo { Handle = h, ProcessId = pid, ClassName = ClassOf(h), Title = text.ToString(), Visible = IsWindowVisible(h), ControlId = GetDlgCtrlID(h) };
+    }
+
+    public static List<WindowInfo> TopLevelWindows() {
+        var list = new List<WindowInfo>();
+        EnumWindows((h, l) => { list.Add(Describe(h)); return true; }, IntPtr.Zero);
+        return list;
+    }
+
+    public static List<WindowInfo> ChildWindows(IntPtr parent) {
+        var list = new List<WindowInfo>();
+        EnumChildWindows(parent, (h, l) => { list.Add(Describe(h)); return true; }, IntPtr.Zero);
+        return list;
+    }
+
+    public static string GetText(IntPtr h) {
+        var text = new StringBuilder(4096);
+        SendMessage(h, 0x000D /* WM_GETTEXT */, (IntPtr)text.Capacity, text);
+        return text.ToString();
+    }
+
+    public static void SetText(IntPtr h, string text) {
+        SendMessage(h, 0x000C /* WM_SETTEXT */, IntPtr.Zero, text);
+    }
+
+    public static void Click(IntPtr button) {
+        SendMessage(button, 0x00F5 /* BM_CLICK */, IntPtr.Zero, IntPtr.Zero);
+    }
+}
+'@
+
 $script:uia = $false
 try {
     Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes -ErrorAction Stop
     $script:uia = $true
 } catch {
-    Write-Host "UI Automation unavailable, the Save dialog will be driven with SendKeys: $($_.Exception.Message)"
+    Write-Host "UI Automation unavailable, the Save dialog will be driven with window messages: $($_.Exception.Message)"
 }
 
 function New-UiaCondition($Property, $Value) {
@@ -384,43 +454,53 @@ function New-UiaAndCondition($First, $Second) {
     [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@($First, $Second))
 }
 
-# The top-level window titled $Title of the editor's process, within $Seconds; the process id
-# is the main process's, which shows the dialog on its UI thread.
-function Wait-UiaWindow([string]$Title, [int]$Seconds = 30) {
-    $root = [System.Windows.Automation.AutomationElement]::RootElement
-    $byTitle = New-UiaCondition ([System.Windows.Automation.AutomationElement]::NameProperty) $Title
-    $byProcess = New-UiaCondition ([System.Windows.Automation.AutomationElement]::ProcessIdProperty) ([int]$script:editor.Id)
-    $ofEditor = New-UiaAndCondition $byProcess $byTitle
+# One line per window: handle, class, title, process and visibility.
+function Format-Windows($Windows) {
+    @($Windows | ForEach-Object {
+        '0x{0:X} {1} ''{2}'' pid {3}{4}' -f $_.Handle.ToInt64(), $_.ClassName, $_.Title, $_.ProcessId, $(if ($_.Visible) { '' } else { ' hidden' })
+    }) -join '; '
+}
+
+# The processes of the editor: the one started here and every other mfbe.exe (Chromium's helpers
+# are mfbe.exe too; the dialog belongs to the browser process).
+function Get-EditorProcessIds {
+    $ids = @([uint32]$script:editor.Id)
+    $ids += @(Get-Process -Name mfbe -ErrorAction SilentlyContinue | ForEach-Object { [uint32]$_.Id })
+    $ids | Select-Object -Unique
+}
+
+# The native Save dialog: a visible #32770 window of one of the editor's processes, within
+# $Seconds. On a timeout every top-level window of those processes is named.
+function Wait-NativeDialog([int]$Seconds = 30) {
     $deadline = (Get-Date).AddSeconds($Seconds)
     while ($true) {
-        $window = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $ofEditor)
-        if ($window) { return $window }
+        $pids = @(Get-EditorProcessIds)
+        $windows = @([MfbeWin32]::TopLevelWindows() | Where-Object { $pids -contains $_.ProcessId })
+        $dialog = @($windows | Where-Object { $_.Visible -and $_.ClassName -eq '#32770' }) | Select-Object -First 1
+        if ($dialog) { return $dialog }
         if ($script:editor.HasExited) {
-            throw ('the editor ended (exit code 0x{0:X8}) while waiting for the window ''{1}''' -f $script:editor.ExitCode, $Title)
+            throw ('the editor ended (exit code 0x{0:X8}) while waiting for the Save dialog' -f $script:editor.ExitCode)
         }
         if ((Get-Date) -gt $deadline) {
-            $any = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $byTitle)
-            $seen = if ($any) { "a window '$Title' belongs to process $($any.Current.ProcessId), not to the editor ($($script:editor.Id))" } else { "no window '$Title' on the desktop" }
-            throw "timed out after $Seconds s waiting for the window '$Title' ($seen)"
+            throw "timed out after $Seconds s waiting for the Save dialog; the editor's windows: $(Format-Windows $windows)"
         }
         Start-Sleep -Milliseconds 250
     }
 }
 
-function Wait-UiaWindowGone([string]$Title, [int]$Seconds = 30) {
-    $root = [System.Windows.Automation.AutomationElement]::RootElement
-    $byTitle = New-UiaCondition ([System.Windows.Automation.AutomationElement]::NameProperty) $Title
-    $byProcess = New-UiaCondition ([System.Windows.Automation.AutomationElement]::ProcessIdProperty) ([int]$script:editor.Id)
-    $ofEditor = New-UiaAndCondition $byProcess $byTitle
+function Wait-NativeDialogGone([IntPtr]$Handle, [int]$Seconds = 30) {
     $deadline = (Get-Date).AddSeconds($Seconds)
-    while ($root.FindFirst([System.Windows.Automation.TreeScope]::Children, $ofEditor)) {
-        if ((Get-Date) -gt $deadline) { throw "the window '$Title' is still open after $Seconds s" }
+    while ([MfbeWin32]::IsWindow($Handle) -and [MfbeWin32]::IsWindowVisible($Handle)) {
+        if ((Get-Date) -gt $deadline) {
+            throw "the Save dialog is still open after $Seconds s (its windows: $(Format-Windows ([MfbeWin32]::ChildWindows($Handle))))"
+        }
         Start-Sleep -Milliseconds 250
     }
 }
 
-# The file-name box of the Common Item Dialog: the Edit under the ComboBox with AutomationId
-# 1001 (the box itself when the Edit is not exposed; both answer the Value pattern).
+# The file-name box of the Common Item Dialog as UI Automation sees it: the Edit under the
+# ComboBox with AutomationId 1001 (the box itself when the Edit is not exposed; both answer the
+# Value pattern).
 function Get-UiaFileNameBox($Dialog) {
     $byId = New-UiaCondition ([System.Windows.Automation.AutomationElement]::AutomationIdProperty) '1001'
     $isEdit = New-UiaCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit)
@@ -450,22 +530,52 @@ function Invoke-UiaSave($Dialog) {
     $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
 
-# Without UI Automation: the dialog is activated by its title and driven with SendKeys - Enter
-# accepts the proposed name; a typed name is pasted from the clipboard (SendKeys types through
-# the active keyboard layout, the clipboard carries any letters). The name box cannot be read
-# this way: the disk tells what the dialog proposed.
-function Use-SendKeysFallback([string]$Title, [string]$TypedName) {
-    $shell = New-Object -ComObject WScript.Shell
-    Wait-Until "the window '$Title'" { $shell.AppActivate($Title) } 30
-    Start-Sleep -Milliseconds 500
-    if ($TypedName) {
-        Set-Clipboard -Value $TypedName
-        $shell.SendKeys('^a')
-        Start-Sleep -Milliseconds 200
-        $shell.SendKeys('^v')
-        Start-Sleep -Milliseconds 500
+# The file-name box as a window: the Edit inside the dialog's ComboBox (the first Edit when the
+# box is built otherwise).
+function Get-Win32FileNameBox([IntPtr]$Dialog) {
+    $children = @([MfbeWin32]::ChildWindows($Dialog))
+    $edits = @($children | Where-Object { $_.ClassName -eq 'Edit' })
+    $inCombo = @($edits | Where-Object { [MfbeWin32]::ClassOf([MfbeWin32]::GetParent($_.Handle)) -eq 'ComboBox' })
+    if ($inCombo.Count -gt 0) { return $inCombo[0].Handle }
+    if ($edits.Count -gt 0) { return $edits[0].Handle }
+    throw "no file-name box in the Save dialog (its windows: $(Format-Windows $children))"
+}
+
+# The Save button (IDOK) clicked as a button; the dialog's IDOK command when there is none.
+function Invoke-Win32Save([IntPtr]$Dialog) {
+    $button = @([MfbeWin32]::ChildWindows($Dialog) | Where-Object { $_.ClassName -eq 'Button' -and $_.ControlId -eq 1 }) | Select-Object -First 1
+    if ($button) {
+        [MfbeWin32]::Click($button.Handle)
+    } else {
+        [void][MfbeWin32]::PostMessage($Dialog, 0x0111, [IntPtr]1, [IntPtr]::Zero)  # WM_COMMAND IDOK
     }
-    $shell.SendKeys('{ENTER}')
+}
+
+# The Save dialog driven through UI Automation (from the window's handle) or, when that cannot
+# read its file-name box, through window messages: returns the driver's name, the proposed name
+# and the two operations (type a name, press Save) on the dialog $Window.
+function Open-DialogDriver($Window) {
+    if ($script:uia) {
+        try {
+            $element = [System.Windows.Automation.AutomationElement]::FromHandle($Window.Handle)
+            $box = Get-UiaFileNameBox $element
+            return @{
+                Name = 'UI Automation'
+                Shown = (Get-UiaValue $box)
+                Type = { param($Text) Set-UiaValue $box $Text; Get-UiaValue $box }.GetNewClosure()
+                Save = { Invoke-UiaSave $element }.GetNewClosure()
+            }
+        } catch {
+            Write-Host "journey: UI Automation could not read the Save dialog, using window messages: $($_.Exception.Message)"
+        }
+    }
+    $edit = Get-Win32FileNameBox $Window.Handle
+    @{
+        Name = 'window messages'
+        Shown = [MfbeWin32]::GetText($edit)
+        Type = { param($Text) [MfbeWin32]::SetText($edit, $Text); [MfbeWin32]::GetText($edit) }.GetNewClosure()
+        Save = { Invoke-Win32Save $Window.Handle }.GetNewClosure()
+    }
 }
 
 # Save As (Shift+F2) of the open document through the native dialog: with UI Automation the name
@@ -485,24 +595,21 @@ function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [st
     $null = Get-CdpValue $script:cdp @'
 (() => { setTimeout(() => { (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', code: 'F2', shiftKey: true, bubbles: true, cancelable: true })); }, 300); return true; })()
 '@
-    if ($script:uia) {
-        $dialog = Wait-UiaWindow $saveAsTitle
-        $box = Get-UiaFileNameBox $dialog
-        $shown = Get-UiaValue $box
-        Write-Host "journey: the Save dialog proposes '$shown'"
-        $accepted = @($ExpectedName)
-        if ($AllowHiddenExtension) { $accepted += [IO.Path]::GetFileNameWithoutExtension($ExpectedName) }
-        if ($shown -cnotin $accepted) { throw "the Save dialog proposes '$shown', not '$ExpectedName'" }
-        if ($TypedName) {
-            Set-UiaValue $box $TypedName
-            $typed = Get-UiaValue $box
-            if ($typed -cne $TypedName) { throw "the name box reads '$typed' after typing '$TypedName'" }
-        }
-        Invoke-UiaSave $dialog
-        Wait-UiaWindowGone $saveAsTitle
-    } else {
-        Use-SendKeysFallback $saveAsTitle $TypedName
+    $window = Wait-NativeDialog
+    Write-Host ("journey: the Save dialog '{0}' (0x{1:X}, process {2}; title expected '{3}')" -f $window.Title, $window.Handle.ToInt64(), $window.ProcessId, $saveAsTitle)
+    Start-Sleep -Milliseconds 500
+    $driver = Open-DialogDriver $window
+    $shown = $driver.Shown
+    Write-Host "journey: the Save dialog proposes '$shown' ($($driver.Name))"
+    $accepted = @($ExpectedName)
+    if ($AllowHiddenExtension) { $accepted += [IO.Path]::GetFileNameWithoutExtension($ExpectedName) }
+    if ($shown -cnotin $accepted) { throw "the Save dialog proposes '$shown', not '$ExpectedName'" }
+    if ($TypedName) {
+        $typed = & $driver.Type $TypedName
+        if ($typed -cne $TypedName) { throw "the name box reads '$typed' after typing '$TypedName'" }
     }
+    & $driver.Save
+    Wait-NativeDialogGone $window.Handle
     # A new document's description is incomplete: Save asks whether to save anyway (Yes).
     Wait-Until 'the file written or the validation prompt' {
         (Test-Path -LiteralPath $Target) -or (Test-Element 'dialog-validation-failed')
