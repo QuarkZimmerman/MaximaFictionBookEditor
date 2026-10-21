@@ -548,6 +548,19 @@ jobs:
           MFBE_SMOKE_CLOSE: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-close.png
 
+      - name: Shell smoke of the GTK Save dialog with Cyrillic names (feature 004 US6)
+        # The native Save As dialog driven through xdotool under openbox: a new document with a
+        # Cyrillic author and title proposes "Толстой Лев - Война и мир.fb2" and saves under
+        # exactly that name in the remembered folder; a typed "Новая книга.fb2" comes out the
+        # same way (FR-050, FR-051, SC-006).
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_SAVE_AS: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-saveas.png
+
       - name: Installed tree (Linux)
         if: runner.os == 'Linux'
         run: |

@@ -83,6 +83,17 @@
 #                               title-bar X does) - the "Save changes?" prompt must appear and
 #                               the editor stay; Cancel keeps it open and modified; a second
 #                               close request asks again at once; No ends the process.
+#   MFBE_SMOKE_SAVE_AS          1 = the native GTK Save dialog with a proposed and a typed
+#                               Cyrillic name (feature 004 US6, FR-050/FR-051; real UI; needs
+#                               openbox and xdotool): the pre-seeded settings remember a
+#                               Cyrillic folder as the one last used by the file dialogs
+#                               (session.lastFileDialogFolder); File > New, the author
+#                               "Толстой Лев Николаевич" and the title "Война и мир" typed into
+#                               the Description view, Save As - the GTK dialog opens with
+#                               "Толстой Лев - Война и мир.fb2" proposed, Return (xdotool)
+#                               accepts it and the file must exist under exactly that name in
+#                               the remembered folder; a second Save As with Ctrl+A, "Новая
+#                               книга.fb2" typed with xdotool and Return must write that file
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -306,6 +317,25 @@ if [[ "$CLOSE" == "1" ]]; then
     fi
   done
 fi
+SAVE_AS="${MFBE_SMOKE_SAVE_AS:-0}"
+if [[ "$SAVE_AS" == "1" ]]; then
+  if [[ "${MFBE_SMOKE_REAL_UI:-0}" != "1" || -n "$PORTABLE_DIR" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_SAVE_AS needs MFBE_SMOKE_REAL_UI=1 and the per-user folders (not MFBE_SMOKE_PORTABLE)" >&2
+    exit 1
+  fi
+  if [[ "$RESTART" == "1" || "$CLOSE" == "1" || -n "$SELFTEST" || "${MFBE_SMOKE_CLIPBOARD:-0}" == "1" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_SAVE_AS is exclusive with the close, restart and self-test scenarios" >&2
+    exit 1
+  fi
+  # The GTK dialog is driven through the X server (xdotool) under a window manager that gives
+  # it the focus (openbox).
+  for tool in openbox xdotool; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      echo "shell-smoke: MFBE_SMOKE_SAVE_AS needs '$tool' (apt-get install openbox xdotool)" >&2
+      exit 1
+    fi
+  done
+fi
 # Clipboard check: a GTK clipboard owner must live on the same virtual display as the shell,
 # so both are started by one wrapper script under xvfb-run.
 LAUNCHER="$MFBE_APP_BIN"
@@ -338,10 +368,11 @@ SH
   chmod +x "$TMP/launch.sh"
   LAUNCHER="$TMP/launch.sh"
 fi
-# Close scenario: a window manager must run on the display to turn Alt+F4 into the close
-# request of the title-bar button (WM_DELETE_WINDOW); the wrapper starts openbox and writes the
-# display's address (DISPLAY, XAUTHORITY of xvfb-run) for shell-smoke.mjs, which drives xdotool.
-if [[ "$CLOSE" == "1" ]]; then
+# Close and Save As scenarios: a window manager must run on the display - to turn Alt+F4 into
+# the close request of the title-bar button (WM_DELETE_WINDOW), to give the GTK Save dialog the
+# focus; the wrapper starts openbox and writes the display's address (DISPLAY, XAUTHORITY of
+# xvfb-run) for shell-smoke.mjs, which drives xdotool.
+if [[ "$CLOSE" == "1" || "$SAVE_AS" == "1" ]]; then
   export MFBE_SMOKE_DISPLAY_FILE="$TMP/display.env"
   cat >"$TMP/launch.sh" <<SH
 #!/bin/bash
@@ -389,11 +420,24 @@ fi
 # The smoke stays offline: a fresh settings file would make the start-up version check due
 # (feature 003, default monthly), so the schedule is preset to "never" - in the per-user
 # config folder, or in the portable copy's own settings file (preset above; the per-user
-# folders must stay untouched in that scenario).
+# folders must stay untouched in that scenario). The Save As scenario also seeds the folder
+# the file dialogs last used (session.lastFileDialogFolder, feature 002) with a Cyrillic folder
+# of this run, where the GTK dialog then opens and the files land.
 if [[ -z "$PORTABLE_DIR" ]]; then
   mkdir -p "$TMP/home/.config/maxfbeditor"
-  printf '{ "schemaVersion": 1, "other": { "versionCheck": "never" } }\n' \
-    >"$TMP/home/.config/maxfbeditor/settings.json"
+  if [[ "$SAVE_AS" == "1" ]]; then
+    export MFBE_SMOKE_SAVE_AS_FOLDER="$TMP/home/Книги"
+    mkdir -p "$MFBE_SMOKE_SAVE_AS_FOLDER"
+    # JSON with \u escapes: valid whatever the locale of this shell.
+    python3 -c '
+import json, os
+print(json.dumps({"schemaVersion": 1, "other": {"versionCheck": "never"},
+                  "session": {"lastFileDialogFolder": os.environ["MFBE_SMOKE_SAVE_AS_FOLDER"]}}))' \
+      >"$TMP/home/.config/maxfbeditor/settings.json"
+  else
+    printf '{ "schemaVersion": 1, "other": { "versionCheck": "never" } }\n' \
+      >"$TMP/home/.config/maxfbeditor/settings.json"
+  fi
 fi
 # The real UI's View > Status Bar must reach that settings file (shell-smoke.mjs,
 # MFBE_SMOKE_SETTINGS_FILE): the step of the Windows journey (tools/ci/windows-russian-journey.ps1)
