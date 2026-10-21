@@ -3,6 +3,137 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.4 - 2026-10-21
+
+### Added
+
+- The Document Tree pane can be made narrower or wider: a divider between the pane and the
+  view area - the Body, Description or Source view, whichever is shown - is dragged with the
+  mouse, both sides are laid out again as it moves, the pane never goes under 160 px and the
+  view never under 320 px, and the width is kept for the next start (`session.treeWidth`,
+  260 px until you change it). View > Document Tree hides the pane and the divider together
+  and brings them back at the same width. Resizing is not a change to the book and works
+  while a script runs.
+- Other persons in the Description view. The title-info group gains, after Translators, an
+  "Other persons" list - empty for a new document - where a person is added with a role
+  chosen from the six the Maxima Library knows (Illustrator, Editor, Compiler, Designer,
+  Commentator, About the author) and the three names, and removed again; the Authors and
+  Translators lists are unchanged. The entries are written exactly as the library and the
+  Maxima FBD Maker write them - one `custom-info` element per person with the library's
+  `info-type` and `Last_name First_name Middle_name` text, no `.` added to a one-letter
+  name - so a book made with the editor arrives in the library with its roles; a file's
+  existing entries are shown in the list and written back character for character while
+  the list is not edited, and the library's record-number entries (`mlseriesid` and the
+  like) stay plain Custom info rows. A person without a last name is marked, since the
+  library would read the first name as the last name.
+- File > Import > Description from FictionBook file...: imports the description of another
+  `.fbd` or `.fb2` file into the open document. The file is read exactly as Open reads a
+  book (every encoding, 2.0 or 2.1, with or without a body; a malformed file or a file that
+  is not a FictionBook document is refused with a message and nothing changes). Into a
+  freshly created document whose description has not been touched everything is imported
+  at once; otherwise a dialog lists the entries found - genres, authors, book title,
+  annotation, keywords, date, cover (with a small picture), language, source language,
+  translators, sequences, other persons, source title info, document info, publish info
+  and the custom info rows - each with an unticked checkbox and its value, and Import,
+  disabled while nothing is ticked, replaces exactly the ticked entries, each list as a
+  whole. The import is one undo step, the status bar counts the entries, the active view
+  stays, and image data crosses inside the editor's core - the same cover imported twice
+  is stored once.
+- File > Export > Export as FBD...: writes the description of the open document, as it is
+  in the editor at that moment, as a stand-alone FBD file - the whole description with the
+  cover and the other images it refers to, and one empty section in place of the text, so
+  the file passes FB2 2.1 validation. Always UTF-8, validated first with Save's own "export
+  anyway?" question, written atomically, never over the open document's own file; the open
+  document, its file and its Recent Files entry stay as they were.
+- A proposed file name. Save As (and Export as FBD) for a document that has never been
+  saved proposes "Last name First name - Book title" in the book's own letters - the first
+  author when there are several, "Untitled" in the interface language when there is neither
+  title nor author - cleaned of the characters no file system accepts, cut to 120
+  characters and 200 bytes, and handed to the system's dialog as Unicode on every platform,
+  so a Cyrillic name comes out with the same letters on a Windows with a German locale. The
+  encoding asked for in the dialog applies to the document's content alone, as before.
+- Settings > Other > Open File > "Switch keyboard layout when a document is opened" with the
+  layout chosen from the system's list: every time a document is opened - at start, with
+  File > New, Open, Recent Files, a double-click or a dropped file, the restart after a
+  language change, the reload of a changed book - the editor switches its own window to
+  that layout. The original FictionBook Editor switched once at start-up; a tester whose
+  system starts with a German layout asked for the switch on open. Only a layout the system
+  already offers is ever activated, nothing is installed or changed in the system, and a
+  layout removed later is shown as "(not installed)" and ignored. Works on Windows and under
+  X11 on Linux; in a Wayland session, where the system offers an application no way to
+  switch the layout, the option is shown greyed out with the note "The system offers no way
+  to switch the layout" (requester decision D2 of 2026-10-20; the desktop's own switch of
+  GNOME and KDE is a candidate for a later release); macOS best effort.
+
+### Changed
+
+- The annotation and the history are back at the top of the Body view and in the Document
+  Tree, where the original FictionBook Editor had them. Two framed blocks captioned
+  "Annotation" and "History" sit above the first body - the same text as the Description
+  view's annotation and history fields, which stay as a second place to edit it - and the
+  tree lists them above the bodies, with View and View Source. Typing, Find, Replace, the
+  Words tool, spelling and Undo cover the blocks like the body; a selection across a block
+  boundary can be copied but not deleted or cut; a block can hold paragraphs, subtitles,
+  empty lines, poems, cites and tables but no section; an annotation or history that is
+  present but empty in the file is kept exactly as read until one of its two editors is
+  used (0.0.3 dropped it on save), and a block that was never in the file is not written
+  while it stays empty.
+- The browser engine's own spell checker is switched off everywhere, so no mark appears in
+  the Description view or in any dialog or text box, whatever dictionaries the system has:
+  the editor's own checker - its dictionaries, its marks, its Spelling dialog - covers the
+  book's text in the Body view, the annotation and history blocks included, and nothing
+  else. The Spelling command and the "Highlight misspelled words" toggle stay available in
+  every view as before, and the dialog checks the Body text wherever it is started.
+- "Restore position" reworked. The place is remembered on every route that leaves a
+  document - New, Open, Recent Files, a file forwarded by the system, every save, Exit, the
+  window's close button, the restart, the reload of a changed book - and restored on every
+  route that opens one, in the Body view without switching the active view, scrolled into
+  view. It is kept by the element's place in the document and the character offset, so it
+  survives a visit to the Source view and the next start, in `positions.json` - a record of
+  its own beside Recent Files holding the 100 files most recently remembered (0.0.3 kept it
+  in the ten-entry Recent Files list, under session-bound identifiers that a Source visit or
+  a restart invalidated) - and compared as the platform compares file names. A file that
+  changed meanwhile puts the caret in the paragraph now at that place, or at the start.
+  Clear Recent Files is unchanged. The core's `doc.caret` method is deprecated in favour of
+  `doc.position` (API minor 3; a legacy `caret` in `recent.json` is converted once).
+- The caret and the selection travel between the Body and the Source view. Switching to
+  Source puts the caret, or the selected range, on the same characters of the XML and
+  scrolls them into view; switching back selects the same text in the Body view, also after
+  the Source text was edited (the position is mapped through the text actually parsed). A
+  place without a Body equivalent - the prolog, the description, a binary - lands at the
+  start of the document. The mapping is recorded by the core while it writes or parses the
+  Source text and costs about a millisecond on a 10 MB book.
+- Settings file: `session.treeWidth`, `other.switchKeyboardLayout`, `other.keyboardLayoutId`
+  and `other.keyboardLayoutName` are new; a 0.0.3 settings file keeps every value and the
+  new keys take their defaults. The core's API minor is 3; every change is additive.
+
+### Fixed
+
+- Titles and subtitles are centred in the Body view (tester's complaint 1). The Body view's
+  generic paragraph rule, of the same weight as the title rule and written after it, won the
+  cascade, so body, section and poem titles - and titles inside epigraphs and cites - were
+  justified and indented like ordinary paragraphs; subtitles were centred already. The same
+  defect had defeated the rule for the lines of a stanza, which are left-aligned again with
+  no gap between them (requester decision of 2026-10-20); nothing else in the rendering
+  changes, in either theme and with any body font.
+- A text selected in the Body view, and the caret, are no longer lost when switching to the
+  Source view (complaint 2) - see "The caret and the selection travel" above. The Source
+  round trip after a Body edit also keeps the selection on the right node: the core's
+  snapshot of the document is refreshed when the Source text is produced, so the remap of
+  the next parse follows the model the text was made from (requester decision of
+  2026-10-20).
+- Spell checking no longer marks words in the Description view (complaint 3) - English words
+  in a Russian book's publisher or keywords, for instance - see "The browser engine's own
+  spell checker" above.
+- The setting that switches the keyboard layout when a file is opened, which the tester
+  remembered from the original, exists again (complaint 4) - see "Switch keyboard layout
+  when a document is opened" above.
+- "Restore position" restores the position (complaint 5) - see "Restore position reworked"
+  above. Two defects found on the way are fixed with it: a caret placed while another view
+  was active was not scrolled into view when the Body view was next shown, and the session
+  settings written shortly before Exit (the pane width among them) could be lost because the
+  debounced save had not run; the quit flow now flushes it.
+
 ## 0.0.3 - 2026-10-17
 
 ### Added
