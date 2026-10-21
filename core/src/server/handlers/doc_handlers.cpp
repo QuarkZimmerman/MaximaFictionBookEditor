@@ -4,8 +4,14 @@
 //   doc.open({path}) -> {document, warnings} | {jobId}   (job above kJobThresholdBytes)
 //   doc.openSource({path}) -> {docId, text, encoding, error?, warnings}
 //   doc.close({docId}) -> {}
-//   doc.toXml({docId, document, elideBinaries?}) -> {text}
-//   doc.fromXml({docId, text}) -> {document, warnings, remap?}   (error 1001 when malformed)
+//   doc.toXml({docId, document, elideBinaries?, positions?}) -> {text, serial?}   (feature 004
+//       US7: `positions` records the position map of the text under `serial`; the received
+//       document becomes the session snapshot - requester decision 2026-10-20)
+//   doc.fromXml({docId, text, positions?}) -> {document, warnings, remap?, serial?}   (error 1001
+//       when malformed, the map left as it was; a success without `positions` drops the map)
+//   doc.mapPositions({docId, serial, toSource?: ModelPoint[], toModel?: number[]})
+//       -> {toSource: (number | null)[], toModel: (ModelPoint | null)[], durationMs}   (feature
+//       004 US7; 1005 doc.positionsStale {docId, serial} when `serial` is not the current map)
 //   doc.save({docId, document? | text?, path?, encoding?, force?})
 //       -> {path, encoding, converted: [BinaryMeta + {from, to}], validation}
 //          | {needsConfirmation: true, validation} | {jobId}
@@ -961,26 +967,40 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         model::Document doc = document_param(params);
         fb2::WriteOptions options;
         options.elide_binaries = rpc::params::boolean_or(params, "elideBinaries", false);
+        options.positions = rpc::params::boolean_or(params, "positions", false);
         options.xlink_prefix = s.xlinkPrefix;
         options.encoding = effective_encoding(services, s, std::nullopt);
         update_reference_counts(doc, *s.binaries);
-        return json{{"text", fb2::write_document(doc, s.binaries.get(), options).text}};
+        fb2::WriteResult written = fb2::write_document(doc, s.binaries.get(), options);
+        json result{{"text", written.text}};
+        if (written.positions) {
+            // Feature 004 US7: the map of this text becomes the session's current one.
+            result["serial"] =
+                s.record_positions(std::move(*written.positions), std::move(written.text));
+        }
+        // The received document is the model the Source text was made from: the base of the
+        // next doc.fromXml's remap and the fallback document of doc.save / doc.validate
+        // (requester decision 2026-10-20, research R2.1).
+        s.snapshot = std::move(doc);
+        return result;
     });
 
     router.add_method("doc.fromXml", [&services](const json& params, rpc::RpcContext&) {
         session::DocumentSession& s =
             services.documents.require(rpc::params::string(params, "docId"));
-        const std::string text = rpc::params::string(params, "text");
+        std::string text = rpc::params::string(params, "text");
+        const bool positions = rpc::params::boolean_or(params, "positions", false);
         auto store = std::make_shared<BinaryStore>();
         fb2::ReadOptions options;
         options.force_encoding = "utf-8";
         options.file_kind = s.fileKind;
         options.placeholder_source = s.binaries.get();
+        options.record_positions = positions;
         fb2::ReadResult read;
         try {
             read = fb2::read_bytes(text, *store, s.ids, options, s.path.value_or(""));
         } catch (const fb2::ParseFailure& e) {
-            throw parse_error(e.error);
+            throw parse_error(e.error);  // the session, its map included, stays as it was
         }
         model::Document& doc = read.document;
         doc.docId = s.docId;
@@ -998,8 +1018,105 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         s.schemaHint = doc.schemaHint;
         s.sourceOnly = false;
         s.snapshot = doc;
+        // Feature 004 US7: the map of the parsed text against the new ids - or none, since
+        // the ids a previous map named are gone.
+        if (read.positions) {
+            result["serial"] = s.record_positions(std::move(*read.positions), std::move(text));
+        } else {
+            s.positionMap.reset();
+        }
         result["document"] = loaded_document_json(doc, filled_in);
         return result;
+    });
+
+    // Feature 004 US7 (rpc-api §3.2): Body <-> Source positions through the session's current
+    // position map; no side effects. The parameter shapes are checked before the serial, the
+    // source offsets against the text's length after it.
+    router.add_method("doc.mapPositions", [&services](const json& params, rpc::RpcContext&) {
+        const auto started = std::chrono::steady_clock::now();
+        session::DocumentSession& s =
+            services.documents.require(rpc::params::string(params, "docId"));
+        const json* serial_param = rpc::params::opt_field(params, "serial");
+        if (serial_param == nullptr || !serial_param->is_number_integer() ||
+            serial_param->get<std::int64_t>() < 0) {
+            throw rpc::invalid_params("serial must be a non-negative integer",
+                                      json{{"field", "serial"}});
+        }
+        const json* to_source = rpc::params::opt_field(params, "toSource");
+        const json* to_model = rpc::params::opt_field(params, "toModel");
+        if (to_source == nullptr && to_model == nullptr) {
+            throw rpc::invalid_params("toSource or toModel is required",
+                                      json{{"field", "toSource"}});
+        }
+        std::vector<fb2::ModelPoint> points;
+        if (to_source != nullptr) {
+            if (!to_source->is_array()) {
+                throw rpc::invalid_params("toSource must be an array of {nodeId, offset}",
+                                          json{{"field", "toSource"}});
+            }
+            for (const json& item : *to_source) {
+                const json* node_id =
+                    item.is_object() ? rpc::params::opt_field(item, "nodeId") : nullptr;
+                const json* offset =
+                    item.is_object() ? rpc::params::opt_field(item, "offset") : nullptr;
+                if (node_id == nullptr || !node_id->is_string() ||
+                    (offset != nullptr &&
+                     (!offset->is_number_integer() || offset->get<std::int64_t>() < 0))) {
+                    throw rpc::invalid_params(
+                        "toSource items must be {nodeId: string, offset: non-negative integer}",
+                        json{{"field", "toSource"}});
+                }
+                points.push_back(fb2::ModelPoint{
+                    node_id->get<std::string>(),
+                    offset == nullptr ? std::size_t{0} : offset->get<std::size_t>()});
+            }
+        }
+        std::vector<std::int64_t> offsets;
+        if (to_model != nullptr) {
+            if (!to_model->is_array()) {
+                throw rpc::invalid_params("toModel must be an array of source offsets",
+                                          json{{"field", "toModel"}});
+            }
+            for (const json& item : *to_model) {
+                if (!item.is_number_integer()) {
+                    throw rpc::invalid_params("toModel items must be integers",
+                                              json{{"field", "toModel"}});
+                }
+                offsets.push_back(item.get<std::int64_t>());
+            }
+        }
+        const std::uint64_t serial = serial_param->get<std::uint64_t>();
+        if (!s.positionMap || s.positionMap->serial != serial) {
+            throw rpc::RpcError(rpc::codes::kDocPositionsStale, "",
+                                json{{"docId", s.docId}, {"serial", serial}});
+        }
+        const fb2::PositionMap& map = *s.positionMap;
+        for (const std::int64_t offset : offsets) {
+            if (offset < 0 || static_cast<std::uint64_t>(offset) > map.length16) {
+                throw rpc::invalid_params("toModel offsets must lie within the text",
+                                          json{{"field", "toModel"}});
+            }
+        }
+        json source_out = json::array();
+        for (const fb2::ModelPoint& point : points) {
+            const auto resolved = fb2::resolve_to_source(map, point);
+            source_out.push_back(resolved ? json(*resolved) : json(nullptr));
+        }
+        json model_out = json::array();
+        for (const std::int64_t offset : offsets) {
+            const auto resolved = fb2::resolve_to_model(map, static_cast<std::size_t>(offset));
+            model_out.push_back(
+                resolved ? json{{"nodeId", resolved->nodeId}, {"offset", resolved->offset}}
+                         : json(nullptr));
+        }
+        const auto elapsed = std::chrono::steady_clock::now() - started;
+        const double duration_ms =
+            static_cast<double>(
+                std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count()) /
+            1000.0;
+        return json{{"toSource", std::move(source_out)},
+                    {"toModel", std::move(model_out)},
+                    {"durationMs", duration_ms}};
     });
 
     // The Today button's date text (feature 003 FR-050): the same function that fills in the

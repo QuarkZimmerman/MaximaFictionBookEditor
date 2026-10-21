@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -142,9 +143,25 @@ std::optional<std::string> opt_text(const xmlNode* node) {
 /* Conversion context                                                                        */
 /* ----------------------------------------------------------------------------------------- */
 
+// Byte range of a DOM node in the parsed bytes (feature 004 US7), recorded by the SAX
+// callbacks; the node's `_private` holds its 1-based index into the range list.
+struct NodeRange {
+    std::size_t tagBegin = 0;
+    std::size_t contentBegin = 0;
+    std::size_t contentEnd = 0;
+    std::size_t end = 0;
+    bool selfClosing = false;
+};
+
+// Name of the attribute that carries a node's range from the DOM to the model until the node
+// ids are assigned; stripped again before the document leaves the reader.
+constexpr const char* kPositionAttr = "$pos";
+
 struct Ctx {
     model::Document* doc = nullptr;
     std::vector<model::ValidationIssue>* warnings = nullptr;
+    // Ranges of the DOM nodes when positions are recorded (null otherwise).
+    const std::vector<NodeRange>* ranges = nullptr;
 
     void warn(const std::string& code, std::map<std::string, json> params) {
         model::ValidationIssue issue;
@@ -154,6 +171,25 @@ struct Ctx {
         warnings->push_back(std::move(issue));
     }
 };
+
+const NodeRange* range_of(const Ctx& ctx, const xmlNode* node) {
+    if (ctx.ranges == nullptr || node == nullptr || node->_private == nullptr) {
+        return nullptr;
+    }
+    const auto index = reinterpret_cast<std::uintptr_t>(node->_private);
+    if (index == 0 || index > ctx.ranges->size()) {
+        return nullptr;
+    }
+    return &(*ctx.ranges)[index - 1];
+}
+
+// Carries the DOM node's range onto the model node (body-tree contexts only).
+void attach_position(Node& out, const xmlNode* el, const Ctx& ctx) {
+    if (const NodeRange* r = range_of(ctx, el)) {
+        out.attrs[kPositionAttr] =
+            json::array({r->tagBegin, r->contentBegin, r->contentEnd, r->end});
+    }
+}
 
 Node make_raw(const std::string& xml, bool inline_, const char* slot = nullptr) {
     Node n;
@@ -307,10 +343,12 @@ void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vec
             case XML_COMMENT_NODE:
             case XML_PI_NODE:
                 out.push_back(raw_of(c, true));
+                attach_position(out.back(), c, ctx);
                 break;
             case XML_ELEMENT_NODE: {
                 if (!is_fb2_element(c)) {
                     out.push_back(raw_of(c, true));
+                    attach_position(out.back(), c, ctx);
                     break;
                 }
                 const std::string name = str(c->name);
@@ -330,10 +368,12 @@ void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vec
                     Node img;
                     img.type = "inline-image";
                     collect_attrs(c, img, "inline-image");
+                    attach_position(img, c, ctx);
                     out.push_back(std::move(img));
                     break;
                 } else {
                     out.push_back(raw_of(c, true));  // block element or unknown inline element
+                    attach_position(out.back(), c, ctx);
                     break;
                 }
                 // ProseMirror allows one mark of a type: an inner duplicate keeps the outer.
@@ -357,15 +397,17 @@ Node convert_inline_container(xmlNodePtr el, const std::string& type, Ctx& ctx) 
     Node n;
     n.type = type;
     collect_attrs(el, n, type);
+    attach_position(n, el, ctx);
     std::vector<Mark> marks;
     convert_inline_children(el, n.content, marks, ctx);
     return n;
 }
 
-Node convert_date_node(xmlNodePtr el) {
+Node convert_date_node(xmlNodePtr el, const Ctx& ctx) {
     Node n;
     n.type = "date";
     collect_attrs(el, n, "date");
+    attach_position(n, el, ctx);
     const std::string text = text_content(el);
     if (!text.empty()) {
         Node t;
@@ -386,20 +428,23 @@ Node convert_block_element(xmlNodePtr el, Ctx& ctx) {
         Node n;
         n.type = "empty-line";
         collect_attrs(el, n, "empty-line");
+        attach_position(n, el, ctx);
         return n;
     }
     if (name == "image") {
         Node n;
         n.type = "image";
         collect_attrs(el, n, "image");
+        attach_position(n, el, ctx);
         return n;
     }
     if (name == "date") {
-        return convert_date_node(el);
+        return convert_date_node(el, ctx);
     }
     Node n;
     n.type = name;  // body, section, title, epigraph, annotation, poem, stanza, cite, table, tr
     collect_attrs(el, n, name);
+    attach_position(n, el, ctx);
     convert_block_children(el, n, ctx);
     return n;
 }
@@ -432,12 +477,14 @@ void convert_block_children(xmlNodePtr parent, Node& out, Ctx& ctx) {
             case XML_COMMENT_NODE:
             case XML_PI_NODE:
                 out.content.push_back(raw_of(c, false));
+                attach_position(out.content.back(), c, ctx);
                 break;
             case XML_ELEMENT_NODE:
                 if (is_fb2_element(c) && is_block_name(str(c->name))) {
                     out.content.push_back(convert_block_element(c, ctx));
                 } else {
                     out.content.push_back(raw_of(c, false));
+                    attach_position(out.content.back(), c, ctx);
                 }
                 break;
             default:
@@ -450,8 +497,79 @@ Node convert_annotation(xmlNodePtr el, Ctx& ctx) {
     Node n;
     n.type = "annotation";
     collect_attrs(el, n, "annotation");
+    attach_position(n, el, ctx);
     convert_block_children(el, n, ctx);
     return n;
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Position map (feature 004 US7)                                                            */
+/* ----------------------------------------------------------------------------------------- */
+
+// Moves the ranges carried in `$pos` attributes of `node`'s subtree into `map` (pre-order,
+// parents before children) and strips the attribute. `prefix`: bytes stripped before parsing
+// (a BOM), added back so the offsets index the given bytes.
+void collect_positions(Node& node, int parent, std::size_t prefix, PositionMap& map) {
+    int self = parent;
+    auto it = node.attrs.find(kPositionAttr);
+    if (it != node.attrs.end()) {
+        const json& r = it->second;
+        if (r.is_array() && r.size() == 4 && !node.node_id().empty()) {
+            PositionEntry entry;
+            entry.nodeId = node.node_id();
+            entry.kind = position_kind(node);
+            entry.tagBegin = r[0].get<std::size_t>() + prefix;
+            entry.contentBegin = r[1].get<std::size_t>() + prefix;
+            entry.contentEnd = r[2].get<std::size_t>() + prefix;
+            entry.end = r[3].get<std::size_t>() + prefix;
+            entry.parent = parent;
+            map.entries.push_back(std::move(entry));
+            self = static_cast<int>(map.entries.size() - 1);
+        }
+        node.attrs.erase(it);
+    }
+    for (Node& child : node.content) {
+        if (!child.is_text()) {
+            collect_positions(child, self, prefix, map);
+        }
+    }
+}
+
+// Strips the `$pos` attributes of a subtree whose positions are not mapped (defensive: the
+// body-tree conversion is the only one that attaches them, and only under the mapped roots).
+void strip_positions(Node& node) {
+    node.attrs.erase(kPositionAttr);
+    for (Node& child : node.content) {
+        strip_positions(child);
+    }
+}
+
+// The map of a converted document: the bodies, the title-info and src-title-info annotations
+// and the history, in text order with the UTF-16 offsets computed over `full_text`.
+PositionMap collect_position_map(model::Document& doc, std::size_t prefix,
+                                 std::string_view full_text) {
+    PositionMap map;
+    map.prefix = prefix;
+    for (Node& body : doc.bodies) {
+        collect_positions(body, -1, prefix, map);
+    }
+    if (doc.description.titleInfo.annotation) {
+        collect_positions(*doc.description.titleInfo.annotation, -1, prefix, map);
+    }
+    if (doc.description.srcTitleInfo && doc.description.srcTitleInfo->annotation) {
+        collect_positions(*doc.description.srcTitleInfo->annotation, -1, prefix, map);
+    }
+    if (doc.description.documentInfo.history) {
+        collect_positions(*doc.description.documentInfo.history, -1, prefix, map);
+    }
+    for (Node& output : doc.description.outputs) {
+        strip_positions(output);
+    }
+    for (Node& extra : doc.extras) {
+        strip_positions(extra);
+    }
+    finalize_position_map(map, full_text, true);
+    return map;
 }
 
 /* ----------------------------------------------------------------------------------------- */
@@ -754,10 +872,111 @@ struct SaxState {
     BinaryCapture capture;
     int anonymous_counter = 0;
     std::vector<std::string> order;  // ids in document order
+    // Position map (feature 004 US7): the parsed bytes and the ranges of the DOM nodes.
+    bool record_positions = false;
+    std::string_view text;
+    std::vector<NodeRange> ranges;
 };
 
 SaxState* state_of(void* ctx) {
     return static_cast<SaxState*>(xmlCtxtGetPrivate(static_cast<xmlParserCtxtPtr>(ctx)));
+}
+
+// The parser's position in the parsed bytes: the bytes consumed so far (libxml2 2.15,
+// "counted in possibly decoded UTF-8 bytes" - the input is UTF-8 when positions are recorded).
+std::size_t input_position(void* ctx) {
+    unsigned long consumed = 0;
+    if (xmlCtxtGetInputPosition(static_cast<xmlParserCtxtPtr>(ctx), 0, nullptr, nullptr, nullptr,
+                                &consumed) != 0) {
+        return 0;
+    }
+    return static_cast<std::size_t>(consumed);
+}
+
+// Index of the `<` that opens the tag or construct ending before `pos` (0 when none): a `<`
+// cannot occur inside a tag, so the previous one is the tag's own.
+std::size_t previous_lt(std::string_view text, std::size_t pos) {
+    const std::size_t from = std::min(pos, text.size());
+    if (from == 0) {
+        return 0;
+    }
+    const std::size_t found = text.rfind('<', from - 1);
+    return found == std::string_view::npos ? 0 : found;
+}
+
+std::size_t previous_marker(std::string_view text, std::size_t pos, const char* marker) {
+    const std::size_t from = std::min(pos, text.size());
+    if (from == 0) {
+        return 0;
+    }
+    const std::size_t found = text.rfind(marker, from - 1);
+    return found == std::string_view::npos ? 0 : found;
+}
+
+void attach_range(xmlNodePtr node, SaxState& st, NodeRange range) {
+    st.ranges.push_back(range);
+    node->_private = reinterpret_cast<void*>(static_cast<std::uintptr_t>(st.ranges.size()));
+}
+
+NodeRange* range_of_node(xmlNodePtr node, SaxState& st) {
+    if (node == nullptr || node->_private == nullptr) {
+        return nullptr;
+    }
+    const auto index = reinterpret_cast<std::uintptr_t>(node->_private);
+    if (index == 0 || index > st.ranges.size()) {
+        return nullptr;
+    }
+    return &st.ranges[index - 1];
+}
+
+// After the SAX2 start-element builder ran: the cursor sits on the `>` (or the `/` of `/>`)
+// of the start tag and the new element is the context node.
+void record_start(void* ctx, SaxState& st) {
+    xmlNodePtr node = xmlCtxtGetNode(static_cast<xmlParserCtxtPtr>(ctx));
+    if (node == nullptr || node->type != XML_ELEMENT_NODE) {
+        return;
+    }
+    const std::size_t pos = input_position(ctx);
+    NodeRange range;
+    range.tagBegin = previous_lt(st.text, pos);
+    range.selfClosing = pos < st.text.size() && st.text[pos] == '/';
+    range.contentBegin = pos + 1;
+    attach_range(node, st, range);
+}
+
+// Before the SAX2 end-element builder pops the element: the cursor is past the `>` of the end
+// tag (or of `/>`).
+void record_end(void* ctx, SaxState& st) {
+    xmlNodePtr node = xmlCtxtGetNode(static_cast<xmlParserCtxtPtr>(ctx));
+    NodeRange* range = range_of_node(node, st);
+    if (range == nullptr) {
+        return;
+    }
+    range->end = input_position(ctx);
+    if (range->selfClosing) {
+        range->contentBegin = range->contentEnd = range->end;
+    } else {
+        range->contentEnd = previous_lt(st.text, range->end);
+    }
+}
+
+// After the SAX2 comment / PI builder added the node as the last child of the context node:
+// the cursor is past `-->` / `?>`.
+void record_atom(void* ctx, SaxState& st, const char* opener) {
+    xmlNodePtr parent = xmlCtxtGetNode(static_cast<xmlParserCtxtPtr>(ctx));
+    if (parent == nullptr || parent->last == nullptr) {
+        return;
+    }
+    xmlNodePtr node = parent->last;
+    if (node->type != XML_COMMENT_NODE && node->type != XML_PI_NODE) {
+        return;
+    }
+    NodeRange range;
+    range.end = input_position(ctx);
+    range.tagBegin = previous_marker(st.text, range.end, opener);
+    range.contentBegin = range.contentEnd = range.end;
+    range.selfClosing = true;
+    attach_range(node, st, range);
 }
 
 void warn(SaxState& st, const std::string& code, std::map<std::string, json> params) {
@@ -849,6 +1068,9 @@ void sax_start_element(void* ctx, const xmlChar* localname, const xmlChar* prefi
         st->base.startElementNs(ctx, localname, prefix, URI, nb_namespaces, namespaces,
                                 nb_attributes, nb_defaulted, attributes);
     }
+    if (st->record_positions) {
+        record_start(ctx, *st);
+    }
 }
 
 void sax_end_element(void* ctx, const xmlChar* localname, const xmlChar* prefix,
@@ -861,8 +1083,31 @@ void sax_end_element(void* ctx, const xmlChar* localname, const xmlChar* prefix,
             finish_binary(*st);
         }
     }
+    if (st->record_positions) {
+        record_end(ctx, *st);
+    }
     if (st->base.endElementNs != nullptr) {
         st->base.endElementNs(ctx, localname, prefix, URI);
+    }
+}
+
+void sax_comment(void* ctx, const xmlChar* value) {
+    SaxState* st = state_of(ctx);
+    if (st->base.comment != nullptr) {
+        st->base.comment(ctx, value);
+    }
+    if (st->record_positions) {
+        record_atom(ctx, *st, "<!--");
+    }
+}
+
+void sax_processing_instruction(void* ctx, const xmlChar* target, const xmlChar* data) {
+    SaxState* st = state_of(ctx);
+    if (st->base.processingInstruction != nullptr) {
+        st->base.processingInstruction(ctx, target, data);
+    }
+    if (st->record_positions) {
+        record_atom(ctx, *st, "<?");
     }
 }
 
@@ -999,6 +1244,7 @@ ReadResult read_bytes(std::string_view bytes, BinaryStore& store, model::NodeIdA
     Ctx ctx;
     ctx.doc = &doc;
     ctx.warnings = &result.warnings;
+    const std::string_view full_text = bytes;  // the given bytes, BOM included (positions)
 
     // 1. Encoding.
     std::string encoding;
@@ -1035,12 +1281,19 @@ ReadResult read_bytes(std::string_view bytes, BinaryStore& store, model::NodeIdA
     sax_state.store = &store;
     sax_state.placeholder_source = options.placeholder_source;
     sax_state.warnings = &result.warnings;
+    sax_state.record_positions = options.record_positions;
+    sax_state.text = bytes;
     xmlSAXHandler sax = sax_state.base;
     sax.startElementNs = sax_start_element;
     sax.endElementNs = sax_end_element;
     sax.characters = sax_characters;
     sax.ignorableWhitespace = sax_characters;
     sax.cdataBlock = sax_cdata;
+    if (options.record_positions) {
+        sax.comment = sax_comment;
+        sax.processingInstruction = sax_processing_instruction;
+        ctx.ranges = &sax_state.ranges;
+    }
 
     std::vector<xml::CollectedError> errors;
     const char* libxml_encoding = encoding.c_str();
@@ -1089,6 +1342,11 @@ ReadResult read_bytes(std::string_view bytes, BinaryStore& store, model::NodeIdA
     }
     doc.fileKind = options.file_kind.value_or(kind_from_path(display_path));
     model::assign_node_ids(doc, ids);
+    if (options.record_positions) {
+        // The ranges rode along on the model nodes; now that the ids exist they become the
+        // map, offsets counted in the given bytes (the stripped BOM added back).
+        result.positions = collect_position_map(doc, full_text.size() - bytes.size(), full_text);
+    }
     update_reference_counts(doc, store);
     sync_binaries(doc, store);
     return result;

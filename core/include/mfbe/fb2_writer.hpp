@@ -15,12 +15,15 @@
 //   - binaries come from the BinaryStore in document order: base64 wrapped at 76 columns, or
 //     the `…N bytes…` placeholder in elide mode; invalid base64 kept verbatim is written back.
 // The result is UTF-8 text plus a line -> nodeId map used to attach validation errors to
-// body nodes; encode_document() turns the text into the declared encoding (BOM for UTF-16,
-// numeric character references for characters the legacy code page lacks).
+// body nodes and, on request, the position map of feature 004 US7 (mfbe/position_map.hpp: the
+// byte and UTF-16 offsets of every mapped node's tags, for `doc.mapPositions`);
+// encode_document() turns the text into the declared encoding (BOM for UTF-16, numeric
+// character references for characters the legacy code page lacks).
 #pragma once
 
 #include <mfbe/binary_store.hpp>
 #include <mfbe/document.hpp>
+#include <mfbe/position_map.hpp>
 
 #include <cstddef>
 #include <optional>
@@ -34,6 +37,8 @@ struct WriteOptions {
     std::string encoding = "utf-8";  // canonical name written into the declaration
     std::string xlink_prefix = "l";
     bool elide_binaries = false;
+    // Record the position map of the bodies, annotations and history (`WriteResult::positions`).
+    bool positions = false;
 };
 
 // Sorted (line -> nodeId) pairs: the line where each structural node's start tag begins.
@@ -47,6 +52,9 @@ struct WriteResult {
     std::string text;  // UTF-8
     LineMap lines;
     std::size_t binary_count = 0;
+    // With `WriteOptions::positions`: the map of `text` (its `text` member left empty, its
+    // `serial` 0 - the document session fills both in).
+    std::optional<PositionMap> positions;
 };
 
 // `store` may be null (no binaries written).

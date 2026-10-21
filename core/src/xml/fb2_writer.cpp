@@ -6,10 +6,12 @@
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/fb2_writer.hpp>
 #include <mfbe/node_ids.hpp>
+#include <mfbe/position_map.hpp>
 
 #include <algorithm>
 #include <map>
 #include <set>
+#include <vector>
 
 namespace mfbe::fb2 {
 namespace {
@@ -93,7 +95,7 @@ std::optional<std::string> attr_of(const Node& node, const char* name) {
 class Writer {
 public:
     Writer(const model::Document& doc, const BinaryStore* store, const WriteOptions& options)
-        : doc_(doc), store_(store), options_(options) {
+        : doc_(doc), store_(store), options_(options), record_(options.positions) {
         collect_foreign_namespaces();
     }
 
@@ -115,12 +117,19 @@ public:
         }
         write_description();
         for (const auto& body : doc_.bodies) {
-            write_block(body, 1);
+            write_mapped_block(body, 1);
         }
         write_extras("FictionBook", 1);
         write_binaries();
         emit("</FictionBook>\n");
         std::sort(result_.lines.entries.begin(), result_.lines.entries.end());
+        if (record_) {
+            // Emission order is text order and the parents are indices already: nothing to
+            // sort, the UTF-16 offsets were counted on the way.
+            map_.length16 = units16_;
+            finalize_position_map(map_, out_, false);
+            result_.positions = std::move(map_);
+        }
         result_.text = std::move(out_);
         return std::move(result_);
     }
@@ -128,17 +137,99 @@ public:
 private:
     // ---- low level -------------------------------------------------------------------------
     void emit(std::string_view s) {
-        line_ += static_cast<int>(std::count(s.begin(), s.end(), '\n'));
+        if (record_) {
+            // One pass for the line count and the UTF-16 length: every non-continuation byte
+            // starts a code unit, a lead byte >= 0xF0 (an astral character) two.
+            for (const char c : s) {
+                const auto u = static_cast<unsigned char>(c);
+                line_ += (c == '\n') ? 1 : 0;
+                if ((u & 0xC0) != 0x80) {
+                    units16_ += (u >= 0xF0) ? 2 : 1;
+                }
+            }
+        } else {
+            line_ += static_cast<int>(std::count(s.begin(), s.end(), '\n'));
+        }
         out_.append(s);
     }
 
-    void line_start(int depth) { out_.append(static_cast<std::size_t>(depth), '\t'); }
+    void line_start(int depth) {
+        out_.append(static_cast<std::size_t>(depth), '\t');
+        units16_ += static_cast<std::size_t>(depth);  // one code unit per tab
+    }
 
     void note_node(const Node& node) {
         const std::string id = node.node_id();
         if (!id.empty()) {
             result_.lines.entries.emplace_back(line_, id);
         }
+    }
+
+    // ---- position map (feature 004 US7) ----------------------------------------------------
+    // Call right before the `<` of a node's start tag (or the first byte of a raw fragment):
+    // opens the node's entry while a mapped root is being written. -1 when nothing is recorded.
+    int begin_entry(const Node& node, PositionKind kind) {
+        if (!record_ || mapping_depth_ == 0) {
+            return -1;
+        }
+        const std::string id = node.node_id();
+        if (id.empty()) {
+            return -1;
+        }
+        PositionEntry entry;
+        entry.nodeId = id;
+        entry.kind = kind;
+        entry.tagBegin = out_.size();
+        entry.tagBegin16 = units16_;
+        entry.parent = open_.empty() ? -1 : open_.back();
+        map_.entries.push_back(std::move(entry));
+        return static_cast<int>(map_.entries.size() - 1);
+    }
+
+    // After the `>` of the start tag.
+    void content_begin(int entry) {
+        if (entry >= 0) {
+            map_.entries[static_cast<std::size_t>(entry)].contentBegin = out_.size();
+        }
+    }
+
+    // Before the `<` of the end tag.
+    void content_end(int entry) {
+        if (entry >= 0) {
+            map_.entries[static_cast<std::size_t>(entry)].contentEnd = out_.size();
+        }
+    }
+
+    // After the `>` of the end tag or of `/>` (`empty`: no content of its own).
+    void end_entry(int entry, bool empty) {
+        if (entry < 0) {
+            return;
+        }
+        PositionEntry& e = map_.entries[static_cast<std::size_t>(entry)];
+        e.end = out_.size();
+        if (empty) {
+            e.contentBegin = e.contentEnd = e.end;
+        }
+    }
+
+    // Children written while an entry is open get it as their parent.
+    void open_entry(int entry) {
+        if (entry >= 0) {
+            open_.push_back(entry);
+        }
+    }
+
+    void close_entry(int entry) {
+        if (entry >= 0 && !open_.empty() && open_.back() == entry) {
+            open_.pop_back();
+        }
+    }
+
+    // A mapped root (a body, the annotation or the history): everything below it is recorded.
+    void write_mapped_block(const Node& node, int depth, const char* xml_name = nullptr) {
+        ++mapping_depth_;
+        write_block(node, depth, xml_name);
+        --mapping_depth_;
     }
 
     // Raw fragments carry the namespace declarations they need to stand alone; the one for
@@ -363,7 +454,7 @@ private:
         write_persons(d, "author", info.authors, true);
         text_element(d, "book-title", info.bookTitle);
         if (annotation_present(info.annotation)) {
-            write_block(*info.annotation, d, "annotation");
+            write_mapped_block(*info.annotation, d, "annotation");
         }
         opt_text_element(d, "keywords", info.keywords);
         if (info.date) {
@@ -403,7 +494,7 @@ private:
         text_element(d, "id", info.id);
         text_element(d, "version", info.version);
         if (annotation_present(info.history)) {
-            write_block(*info.history, d, "history");
+            write_mapped_block(*info.history, d, "history");
         }
         write_persons(d, "publisher", info.publishers, false);
         write_extras("document-info", d);
@@ -564,7 +655,9 @@ private:
         if (type == "raw-xml") {
             note_node(node);
             line_start(depth);
+            const int entry = begin_entry(node, PositionKind::blockAtom);
             emit(raw_xml_of(node));
+            end_entry(entry, true);
             emit("\n");
             return;
         }
@@ -573,25 +666,46 @@ private:
         line_start(depth);
         const std::string attrs = known_attrs(node, type);
         if (type == "empty-line" || type == "image" || type == "inline-image") {
-            emit("<" + std::string(type == "inline-image" ? "image" : name) + attrs + "/>\n");
+            const int entry = begin_entry(node, PositionKind::blockAtom);
+            emit("<" + std::string(type == "inline-image" ? "image" : name) + attrs + "/>");
+            end_entry(entry, true);
+            emit("\n");
             return;
         }
         if (is_inline_container(type) || type == "date") {
+            const int entry =
+                begin_entry(node, type == "date" ? PositionKind::date : PositionKind::text);
             emit("<" + name + attrs + ">");
+            content_begin(entry);
+            open_entry(entry);
             write_inline_content(node.content);
-            emit("</" + name + ">\n");
+            close_entry(entry);
+            content_end(entry);
+            emit("</" + name + ">");
+            end_entry(entry, false);
+            emit("\n");
             return;
         }
+        const int entry = begin_entry(node, PositionKind::container);
         if (node.content.empty()) {
-            emit("<" + name + attrs + "/>\n");
+            emit("<" + name + attrs + "/>");
+            end_entry(entry, true);
+            emit("\n");
             return;
         }
-        emit("<" + name + attrs + ">\n");
+        emit("<" + name + attrs + ">");
+        content_begin(entry);
+        emit("\n");
+        open_entry(entry);
         for (const Node& child : node.content) {
             write_block(child, depth + 1);
         }
+        close_entry(entry);
         line_start(depth);
-        emit("</" + name + ">\n");
+        content_end(entry);
+        emit("</" + name + ">");
+        end_entry(entry, false);
+        emit("\n");
     }
 
     // ---- inline content --------------------------------------------------------------------
@@ -678,18 +792,30 @@ private:
             close_to(common_prefix(open, next));
             if (node.type == "inline-image" || node.type == "image") {
                 note_node(node);
+                const int entry = begin_entry(node, PositionKind::inlineAtom);
                 emit("<image" + known_attrs(node, "inline-image") + "/>");
+                end_entry(entry, true);
             } else if (node.type == "raw-xml") {
                 note_node(node);
+                const int entry = begin_entry(node, PositionKind::inlineAtom);
                 emit(raw_xml_of(node));
+                end_entry(entry, true);
             } else if (node.type == "empty-line") {
+                const int entry = begin_entry(node, PositionKind::inlineAtom);
                 emit("<empty-line/>");
+                end_entry(entry, true);
             } else {
                 // A block node inside inline content (UI bug): write it inline anyway.
                 note_node(node);
+                const int entry = begin_entry(node, position_kind(node));
                 emit("<" + node.type + known_attrs(node, node.type) + ">");
+                content_begin(entry);
+                open_entry(entry);
                 write_inline_content(node.content);
+                close_entry(entry);
+                content_end(entry);
                 emit("</" + node.type + ">");
+                end_entry(entry, false);
             }
         }
         close_to(0);
@@ -728,6 +854,12 @@ private:
     std::string out_;
     int line_ = 1;
     WriteResult result_;
+    // Position map (feature 004 US7), recorded while a mapped root is written.
+    const bool record_;
+    std::size_t units16_ = 0;  // UTF-16 length of out_
+    int mapping_depth_ = 0;    // > 0 inside a body, the annotation or the history
+    std::vector<int> open_;    // entries whose content is being written (parents)
+    PositionMap map_;
 };
 
 }  // namespace

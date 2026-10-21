@@ -45,6 +45,8 @@ export const RpcErrorCode = {
   docIoError: 1002,
   docSourceMalformed: 1003,
   docNotFictionBook: 1004,
+  /** `doc.mapPositions`: `serial` is not the session's current position map (feature 004). */
+  docPositionsStale: 1005,
   /** `doc.exportDescription`: the target is the open document's own file (feature 004). */
   docSameAsOpenFile: 1006,
   binaryNotFound: 1010,
@@ -114,6 +116,16 @@ export interface Caret {
   offset?: number;
   line?: number;
   column?: number;
+}
+
+/**
+ * A Body-side position for `doc.mapPositions` (feature 004 US7, data-model §7): a node of the
+ * Document JSON and a model offset inside it (UTF-16 code units of text plus 1 per inline atom,
+ * marks of no width; 0 for a node without inline content).
+ */
+export interface ModelPoint {
+  nodeId: string;
+  offset: number;
 }
 
 export interface RecentFile {
@@ -588,13 +600,37 @@ export interface RpcMethods {
     result: { docId: string; text: string; encoding: string; error?: DocParseErrorData };
   };
   'doc.close': { params: { docId: string }; result: Empty };
+  /**
+   * The Source text of `document`. With `positions: true` the core records the position map
+   * of the text (feature 004 US7) and names it by `serial` for `doc.mapPositions`; a core
+   * without the map answers no `serial`. The received document becomes the session's snapshot.
+   */
   'doc.toXml': {
-    params: { docId: string; document: Document; elideBinaries?: boolean };
-    result: { text: string };
+    params: { docId: string; document: Document; elideBinaries?: boolean; positions?: boolean };
+    result: { text: string; serial?: number };
   };
+  /**
+   * Parses Source text back into the model (1001 when malformed). With `positions: true` the
+   * core records the position map of the parsed text against the new node ids (feature 004
+   * US7) and names it by `serial`; a success without the flag drops the map.
+   */
   'doc.fromXml': {
-    params: { docId: string; text: string };
-    result: { document: Document & LoadReport };
+    params: { docId: string; text: string; positions?: boolean };
+    result: { document: Document & LoadReport; serial?: number };
+  };
+  /**
+   * Body <-> Source positions through the position map `serial` names (feature 004 US7,
+   * rpc-api.md §3.2): `toSource` turns model points into UTF-16 offsets of the text (an
+   * entity counts as its one character, mark tags nothing; `null` for an unknown node),
+   * `toModel` turns offsets into model points (a start tag -> the element's start, an end tag
+   * -> its end, whitespace -> the next element; `null` outside every mapped node - the UI
+   * goes to the document's start). Errors: 1000, 1005 {docId, serial} when `serial` is not the
+   * current map, invalidParams {field} for a malformed point, an offset outside the text or
+   * neither list.
+   */
+  'doc.mapPositions': {
+    params: { docId: string; serial: number; toSource?: ModelPoint[]; toModel?: number[] };
+    result: { toSource: (number | null)[]; toModel: (ModelPoint | null)[]; durationMs: number };
   };
   /**
    * A `YYYY-MM-DD` value as the system's regional long date without the weekday (feature 003,
