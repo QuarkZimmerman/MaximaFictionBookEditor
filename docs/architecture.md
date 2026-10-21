@@ -99,6 +99,24 @@ an undo boundary; switching from Source parses the text with `doc.fromXml`, whic
 node ids and returns a remap table so carets and undo entries survive. The Document Tree,
 Links bar, Table bar and status bar derive from the same live model.
 
+**Position map (Body ↔ Source, feature 004).** The caret and the selection travel between the
+two views through a map the core records while it serialises (`doc.toXml({positions: true})`)
+or parses (`doc.fromXml({positions: true})`) the Source text: for every node with an id under
+the bodies, the annotations and the history, the byte offsets of its start tag, its content
+and its end plus the UTF-16 offset of the start tag (the conversion between the core's bytes
+and the editors' UTF-16 units stays local to one element). The map lives in the document
+session with the text it describes under a `serial`; `doc.mapPositions({serial, toSource,
+toModel})` resolves model points (`{nodeId, offset}` as ProseMirror counts: UTF-16 units plus
+one per inline atom, marks nothing) and source offsets both ways with one inline scanner that
+mirrors the reader's content rules (an entity is its one character, a mark tag nothing, an
+inline image one unit), and answers 1005 for any other serial. The UI never parses XML
+(Constitution III): `sync.ts` records the Body selection on a direct switch, maps it once the
+text is loaded, and on the way back commits pending edits with `positions: true` so the
+offsets refer to the very text parsed; a point without a Body place (the prolog, the
+description, a binary) goes to the document's start. `doc.toXml` also makes the received
+document the session snapshot, so the remap of the next parse follows the model the text was
+made from.
+
 **Save.** `doc.save` receives the current JSON model (binaries by reference), converts
 non-JPEG/PNG images according to the paste-format setting, validates, and - unless the user
 confirmed "save anyway" after validation errors - writes the FB2 2.1 text in the chosen

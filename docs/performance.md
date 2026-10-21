@@ -15,6 +15,7 @@ update this page when the reader, the binary store or the Body view windowing ch
 | Tree navigation in the 10 MB book (click until the Body caret moved, median of 7) | 100 ms |
 | Source view of the 10 MB book: tag completion list after the last keystroke (feature 003, FR-074) | 300 ms |
 | Source view of the 10 MB book: typing with and without the completion list (keystroke to painted frame, median of 11) | 100 ms |
+| Body ↔ Source switch of the 10 MB book: the caret/selection mapping step (round-trip median with the mapping minus the median without it, 5 round trips each; feature 004, FR-073) and every `doc.mapPositions` call in the core | 100 ms × `MFBE_PERF_FACTOR`; 100 ms |
 
 ## Measurements (T150)
 
@@ -51,6 +52,18 @@ the paint); keystrokes while the list filters (`tion`) and after it closed (` id
 debounce, off the keystroke path, resolves the context from the syntax tree parsed so far (at
 most 50 ms of extra parsing per query) and relies on CodeMirror's synchronous filtering
 (`validFor`) while a name is typed.
+
+**Body ↔ Source caret and selection mapping** (feature 004 User Story 7, FR-073; measured
+2026-10-21 by the third journey of `ui/tests/e2e/perf-large-book.spec.ts` on the same host with
+the **Release** core, the caret in a mounted paragraph of the 10 MB book, the text already
+serialised): a Body → Source → Body round trip takes 63–74 ms with the mapping (median 64 ms)
+and 62–63 ms without it (median 63 ms) — a mapping step of **1 ms** against the budget of
+100 ms × `MFBE_PERF_FACTOR`; every `doc.mapPositions` call took under 0.05 ms in the core
+(budget 100 ms). The map is recorded once, while the text is serialised or parsed (one byte
+loop in the writer; the parser's input position at every tag, ≈1 ms per parse of the 10 MB
+book), and a request resolves two points in O(log n) plus a scan of one paragraph, so the
+switch itself - the Source editor's mount - is what costs the time
+(`docs/architecture.md`, "Position map").
 
 ## What was changed (T150)
 
