@@ -41,8 +41,8 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["other"]["insertClearImages"] == false);
     CHECK(d["other"]["pasteImageFormat"] == "jpeg");
     CHECK(d["other"]["jpegQuality"] == 90);
-    CHECK(d["other"]["nbspDisplayChar"] == "\u00A0");  // no marker, as in the original
-    CHECK(d["other"]["versionCheck"] == "monthly");    // feature 003
+    CHECK(d["other"]["nbspDisplayChar"] == "\u00A0");    // no marker, as in the original
+    CHECK(d["other"]["versionCheck"] == "monthly");      // feature 003
     CHECK(d["other"]["switchKeyboardLayout"] == false);  // feature 004
     CHECK(d["other"]["keyboardLayoutId"] == "");
     CHECK(d["other"]["keyboardLayoutName"] == "");
@@ -65,9 +65,10 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d.size() == 5);
 }
 
-TEST_CASE("settings: feature 004 keys - the tree width is defaulted, never clamped; the keyboard "
-          "layout keys are free strings",
-          "[settings]") {
+TEST_CASE(
+    "settings: feature 004 keys - the tree width is defaulted, never clamped; the keyboard "
+    "layout keys are free strings",
+    "[settings]") {
     test::TempDir tmp;
     settings::SettingsStore store(tmp / "settings.json");
     store.load();
@@ -509,9 +510,10 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(r.settings["session"]["windowGeometry"] == placement);
 }
 
-TEST_CASE("settings: a 0.0.3 settings file keeps every value; the feature 004 keys take their "
-          "defaults",
-          "[settings]") {
+TEST_CASE(
+    "settings: a 0.0.3 settings file keeps every value; the feature 004 keys take their "
+    "defaults",
+    "[settings]") {
     test::TempDir tmp;
     const auto file = tmp / "settings.json";
     // Every key of release 0.0.3 at a value other than its default, none of feature 004's keys.
