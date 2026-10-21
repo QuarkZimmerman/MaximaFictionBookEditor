@@ -98,6 +98,26 @@ export function annotationToModel(node: PMNode): AnnotationNode | undefined {
   return nodeToModel(node) as unknown as AnnotationNode;
 }
 
+/**
+ * Annotation / history block of the Body view (feature 004, US2) -> the model's
+ * `AnnotationNode`, or `undefined` when nothing but empty paragraphs is left - the rule of the
+ * Description view's rich field (`richFieldModel`), so a block the user emptied is not written
+ * (FR-010). The block's fixed UI id never reaches the model; `rootNodeId` (the id the model's
+ * node carried) is kept so the node stays addressable (validation issues, go-to).
+ */
+export function blockToModel(node: PMNode, rootNodeId?: string): AnnotationNode | undefined {
+  let meaningful = false;
+  node.forEach((child) => {
+    if (child.type.name !== 'p' || child.content.size > 0) meaningful = true;
+  });
+  if (!meaningful) return undefined;
+  const json = nodeToModel(node);
+  const attrs = { ...(json.attrs ?? {}) };
+  delete attrs.nodeId;
+  if (rootNodeId) attrs.nodeId = rootNodeId;
+  return { ...json, type: 'annotation', attrs } as unknown as AnnotationNode;
+}
+
 /** Every body of a `doc` node (whole-book mode) -> BodyNode[] JSON. */
 export function docToBodies(doc: PMNode): BodyNode[] {
   const bodies: BodyNode[] = [];

@@ -41,6 +41,8 @@ import { baseEditorKeymap, bodyKeymap } from '@/editor/keymap';
 import { createImageNodeViews } from '@/editor/nodeviews/image';
 import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
+import { blockBoundaryPlugin, markControllerTransaction } from '@/editor/plugins/blockBoundary';
+import { blockCaptionsKey, blockCaptionsPlugin } from '@/editor/plugins/blockCaptions';
 import { clipboardPlugin } from '@/editor/plugins/clipboard';
 import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
@@ -51,11 +53,15 @@ import {
   EMPTY_SELECTION_CONTEXT,
   type SelectionContext,
 } from '@/editor/plugins/selectionPath';
-import { createNodeIdGenerator, findNodeById } from '@/editor/schema';
+import { BLOCK_KINDS, createNodeIdGenerator, findNodeById } from '@/editor/schema';
 import {
   DEFAULT_WINDOW_SIZE,
+  blockFromModel,
+  bodiesSliceUnchanged,
+  blocksUnchanged,
   createWindow,
   extendWindow,
+  leadingBlocks,
   replaceSectionsInModel,
   windowAround,
   windowCounts,
@@ -126,18 +132,30 @@ function selectionOnSameNodes(selection: Selection, oldDoc: PMNode, doc: PMNode)
     : null;
 }
 
-/** Turns `tr.doc` (equal to `current`) into `next` with one step over the part that differs. */
-function replaceDifferences(tr: Transaction, current: PMNode, next: PMNode): void {
+/**
+ * Turns `current` into `next` with one step over the part of their content that differs:
+ * `current` is `tr.doc` itself when `at` is undefined, else the node at position `at` of
+ * `tr.doc` (a description block). When the step did not reach `next` (an attribute change),
+ * the whole node is replaced.
+ */
+function replaceDifferences(tr: Transaction, current: PMNode, next: PMNode, at?: number): void {
+  const inner = at === undefined ? 0 : at + 1;
   const start = current.content.findDiffStart(next.content);
-  if (start === null) return;
-  let { a: endA, b: endB } = current.content.findDiffEnd(next.content)!;
-  const overlap = start - Math.min(endA, endB);
-  if (overlap > 0) {
-    endA += overlap;
-    endB += overlap;
+  if (start !== null) {
+    let { a: endA, b: endB } = current.content.findDiffEnd(next.content)!;
+    const overlap = start - Math.min(endA, endB);
+    if (overlap > 0) {
+      endA += overlap;
+      endB += overlap;
+    }
+    tr.replace(inner + start, inner + endA, next.slice(start, endB));
   }
-  tr.replace(start, endA, next.slice(start, endB));
-  if (!tr.doc.eq(next)) tr.replaceWith(0, tr.doc.content.size, next.content);
+  if (at === undefined) {
+    if (!tr.doc.eq(next)) tr.replaceWith(0, tr.doc.content.size, next.content);
+    return;
+  }
+  const result = tr.doc.nodeAt(at);
+  if (!result || !result.eq(next)) tr.replaceWith(at, at + (result?.nodeSize ?? 0), next);
 }
 
 /** Top-level sections of a body of the model. */
@@ -154,6 +172,8 @@ export interface EditorStateOptions {
   isOvertype?: () => boolean;
   toggleOvertype?: () => void;
   nextNodeId?: () => string;
+  /** The localised texts the block captions use (read on every repaint). */
+  getTranslate?: () => (key: string) => string;
 }
 
 export function createBodyEditorState(doc: PMNode, options: EditorStateOptions): EditorState {
@@ -165,6 +185,8 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
       baseEditorKeymap(),
       overtypePlugin(options.isOvertype ?? (() => false)),
       clipboardPlugin(),
+      blockBoundaryPlugin(),
+      blockCaptionsPlugin(options.getTranslate ?? (() => (key) => key)),
       nodeIdPlugin(options.nextNodeId ?? createNodeIdGenerator()),
       nbspMarkerPlugin(options.getNbspChar),
       searchMatchPlugin(),
@@ -408,6 +430,7 @@ export class BodyEditorController {
       isOvertype: () => this.store.getState().insertMode === 'overwrite',
       toggleOvertype: () => actions.toggleInsertMode(this.store),
       nextNodeId: this.nextNodeId,
+      getTranslate: () => this.translate,
       plugins: this.extraPlugins,
     });
   }
@@ -473,7 +496,8 @@ export class BodyEditorController {
     if (docChanged) {
       const currentModel = this.store.getState().document;
       if (modelShown && transactions.length === 1 && this.window) {
-        this.window = { ...this.window, doc: after.doc };
+        // The blocks of the shown document represent the model's nodes again.
+        this.window = { ...this.window, doc: after.doc, blocks: leadingBlocks(after.doc) };
       } else if (currentModel && this.window) {
         const result = replaceSectionsInModel(currentModel, this.window, after.doc);
         this.window = result.window;
@@ -558,17 +582,20 @@ export class BodyEditorController {
       this.bodyIndex = 0;
       this.range = null;
       this.docId = docId;
-    } else if (
-      model &&
-      this.model &&
-      this.window &&
-      windowSliceUnchanged(this.model, model, this.window)
-    ) {
-      // Only parts outside the window changed: keep the ProseMirror state and history.
-      this.model = model;
-      this.window = { ...this.window, ...windowCounts(model, this.window) };
-      this.publish();
-      return;
+    } else if (model && this.model && this.window) {
+      if (windowSliceUnchanged(this.model, model, this.window)) {
+        // Only parts outside the window changed: keep the ProseMirror state and history.
+        this.model = model;
+        this.window = { ...this.window, ...windowCounts(model, this.window) };
+        this.publish();
+        return;
+      }
+      if (bodiesSliceUnchanged(this.model, model, this.window) && this.editorState) {
+        // Bodies unchanged, a description block changed outside the editor (a Description
+        // field edit, its undo, Replace in the Description view): rebuild that block alone.
+        this.showBlocks(model);
+        return;
+      }
     }
     this.model = model;
     if (!model) {
@@ -608,6 +635,52 @@ export class BodyEditorController {
         this.view?.updateState(this.state);
       }
     }
+    this.publish();
+    this.publishSelection();
+  }
+
+  /**
+   * Shows the annotation / history nodes of `next` in the mounted blocks (feature 004, US2):
+   * only the block whose model node changed is rebuilt, through one editor transaction kept
+   * out of the editor history (the `showModel` pattern), so the Body history and the caret
+   * survive an edit made in the Description view.
+   */
+  private showBlocks(next: Document): void {
+    const previous = this.model;
+    const state = this.editorState;
+    const window = this.window;
+    if (!previous || !state || !window) return;
+    const tr = markControllerTransaction(closeHistory(state.tr).setMeta('addToHistory', false));
+    let pos = 0;
+    for (const kind of BLOCK_KINDS) {
+      const mounted = window.blocks[kind];
+      if (!mounted) continue;
+      const current = tr.doc.nodeAt(pos);
+      if (!current || current.type !== mounted.type) break;
+      const before =
+        kind === 'annotation'
+          ? previous.description.titleInfo.annotation
+          : previous.description.documentInfo.history;
+      const after =
+        kind === 'annotation'
+          ? next.description.titleInfo.annotation
+          : next.description.documentInfo.history;
+      if (before !== after) {
+        const rebuilt = blockFromModel(kind, after, this.nextNodeId);
+        if (!current.eq(rebuilt)) {
+          replaceDifferences(tr, current, rebuilt, pos);
+        }
+      }
+      pos += tr.doc.nodeAt(pos)!.nodeSize;
+    }
+    const selection = selectionOnSameNodes(state.selection, state.doc, tr.doc);
+    if (selection) tr.setSelection(selection);
+    this.model = next;
+    this.window = { ...window, ...windowCounts(next, window) };
+    // The store holds `next` already when the change came from outside the controller; a
+    // model step (`commitModel`) stores it here, before the editor shows it.
+    if (this.store.getState().document !== next) actions.updateDocument(this.store, next);
+    this.applyToEditor(tr, true);
     this.publish();
     this.publishSelection();
   }
@@ -666,7 +739,7 @@ export class BodyEditorController {
     this.model = next;
     actions.updateDocument(this.store, next);
     // Closed group: typing after the step is an undo step of its own.
-    const tr = closeHistory(state.tr).setMeta('addToHistory', false);
+    const tr = markControllerTransaction(closeHistory(state.tr).setMeta('addToHistory', false));
     for (const change of mounted) {
       const found = findNodeById(tr.doc, change.nodeId);
       const node = nodeFromModel(change[side]);
@@ -703,16 +776,55 @@ export class BodyEditorController {
         this.range = around.wholeBook ? null : { start: around.start, count: around.count };
       }
     }
-    const tr = closeHistory(state.tr).setMeta('addToHistory', false);
+    window = this.keepUnchangedBlocks(window, previous, next);
+    const tr = markControllerTransaction(closeHistory(state.tr).setMeta('addToHistory', false));
     replaceDifferences(tr, state.doc, window.doc);
     const selection = selectionOnSameNodes(state.selection, state.doc, tr.doc);
     if (selection) tr.setSelection(selection);
     this.model = next;
-    this.window = window;
+    // The blocks that now represent the model's nodes are the ones of the shown document.
+    this.window = { ...window, blocks: leadingBlocks(tr.doc) };
     actions.updateDocument(this.store, next);
     this.applyToEditor(tr, true);
     this.publish();
     this.publishSelection();
+  }
+
+  /**
+   * `window` with the editor's own block nodes where the model's annotation / history node did
+   * not change between `previous` and `next`: a block rebuilt from the same node is equal in
+   * content but not in identity (an absent node gets a fresh paragraph id), and a replacement
+   * at the top of the document would rebase the history of the body text below it.
+   */
+  private keepUnchangedBlocks(
+    window: SectionWindow,
+    previous: Document,
+    next: Document,
+  ): SectionWindow {
+    const current = this.window;
+    if (!current) return window;
+    const children: PMNode[] = [];
+    window.doc.forEach((child) => children.push(child));
+    let changed = false;
+    BLOCK_KINDS.forEach((kind, index) => {
+      const mounted = current.blocks[kind];
+      const fresh = window.blocks[kind];
+      if (!mounted || !fresh || fresh !== children[index]) return;
+      const before =
+        kind === 'annotation'
+          ? previous.description.titleInfo.annotation
+          : previous.description.documentInfo.history;
+      const after =
+        kind === 'annotation'
+          ? next.description.titleInfo.annotation
+          : next.description.documentInfo.history;
+      if (before !== after || mounted.type !== fresh.type) return;
+      children[index] = mounted;
+      changed = true;
+    });
+    if (!changed) return window;
+    const doc = window.doc.type.create(window.doc.attrs, children);
+    return { ...window, doc, blocks: leadingBlocks(doc) };
   }
 
   /** Keeps a section window on the same body and first section when the model changed. */
@@ -732,12 +844,25 @@ export class BodyEditorController {
 
   /** Stores a model produced outside the editor and refreshes the window around it. */
   private commitModel(next: Document): void {
-    const unchanged =
-      this.model && this.window && windowSliceUnchanged(this.model, next, this.window);
+    const previous = this.model;
+    const window = this.window;
+    const unchanged = previous && window && windowSliceUnchanged(previous, next, window);
+    if (
+      !unchanged &&
+      previous &&
+      window &&
+      this.editorState &&
+      bodiesSliceUnchanged(previous, next, window) &&
+      !blocksUnchanged(previous, next, window)
+    ) {
+      // Only a description block changed: rebuild it in place, keeping the editor history.
+      this.showBlocks(next);
+      return;
+    }
     this.model = next;
     actions.updateDocument(this.store, next);
-    if (unchanged && this.window) {
-      this.window = { ...this.window, ...windowCounts(next, this.window) };
+    if (unchanged && window) {
+      this.window = { ...window, ...windowCounts(next, window) };
       this.publish();
     } else {
       this.rebuildWindow();
@@ -764,7 +889,11 @@ export class BodyEditorController {
   }
 
   setTranslate(translate: (key: string) => string): void {
+    if (this.translate === translate) return;
     this.translate = translate;
+    // The block captions are drawn from the catalogue: repaint them in the new language.
+    const state = this.editorState;
+    if (state) this.dispatch(state.tr.setMeta(blockCaptionsKey, 'refresh'));
   }
 
   /** Sets the NBSP display character (Settings > Other) and repaints the markers. */
@@ -788,7 +917,8 @@ export class BodyEditorController {
     if (!state || undoDepth(state) === 0) return false;
     this.replaying = true;
     try {
-      return undo(state, (tr) => this.dispatch(tr));
+      // A replay restores a state the editor had: the boundary filter lets it through.
+      return undo(state, (tr) => this.dispatch(markControllerTransaction(tr)));
     } finally {
       this.replaying = false;
     }
@@ -799,7 +929,7 @@ export class BodyEditorController {
     if (!state || redoDepth(state) === 0) return false;
     this.replaying = true;
     try {
-      return redo(state, (tr) => this.dispatch(tr));
+      return redo(state, (tr) => this.dispatch(markControllerTransaction(tr)));
     } finally {
       this.replaying = false;
     }

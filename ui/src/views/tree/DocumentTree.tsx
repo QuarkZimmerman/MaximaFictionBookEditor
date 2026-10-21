@@ -28,7 +28,7 @@ import {
   buildTreeIndex,
   isRowWithin,
   ROW_ICONS,
-  rowForNode,
+  rowForSelection,
   TREE_ROW_HEIGHT,
   TREE_TOOLBAR,
   treeIconUrl,
@@ -49,12 +49,18 @@ export function DocumentTree() {
   useAppRevision();
   const document = useAppState((s) => s.document, store);
   const selectionNodeId = useAppState((s) => s.selectionNodeId, store);
+  const selectionPath = useAppState((s) => s.selectionPath, store);
   const sourceDirty = useAppState((s) => s.sourceDirty || s.sourceOnly, store);
   const feature = getTreeFeature(store);
   const panel = useSyncExternalStore(feature.subscribe, feature.getState);
   const { selection, collapsed } = panel;
 
-  const index = useMemo(() => buildTreeIndex(document), [document]);
+  // The Annotation / History rows carry the tree node texts of the interface language.
+  const captions = useMemo(
+    () => ({ annotation: t('tree.node.annotation'), history: t('tree.node.history') }),
+    [t],
+  );
+  const index = useMemo(() => buildTreeIndex(document, captions), [document, captions]);
   const rows = useMemo(() => visibleRows(index, collapsed), [index, collapsed]);
   const selectedId = selection.id && index.rows.has(selection.id) ? selection.id : null;
 
@@ -93,7 +99,7 @@ export function DocumentTree() {
 
   useEffect(() => {
     if (!document || !selectionNodeId) return;
-    const rowId = rowForNode(index, document, selectionNodeId);
+    const rowId = rowForSelection(index, document, selectionNodeId, selectionPath);
     if (!rowId) return;
     const pending = feature.takePendingNavigation();
     if (pending && (rowId === pending || isRowWithin(index, rowId, pending))) {
@@ -103,7 +109,7 @@ export function DocumentTree() {
     feature.expand(ancestorRows(index, rowId));
     feature.select(rowId, 'body');
     scrollToSelected.current = true;
-  }, [selectionNodeId, document, index, feature]);
+  }, [selectionNodeId, selectionPath, document, index, feature]);
 
   useLayoutEffect(() => {
     if (!scrollToSelected.current || !selectedId) return;
@@ -364,6 +370,7 @@ function TreeRowView({
       style={{ top, height: TREE_ROW_HEIGHT, paddingLeft: 4 + row.depth * 16 }}
       data-testid={`tree-row-${row.id}`}
       data-kind={row.kind}
+      data-row-kind={row.kind}
       data-depth={row.depth}
       data-selected={selected ? 'true' : undefined}
       onClick={() => onSelect(row.id)}

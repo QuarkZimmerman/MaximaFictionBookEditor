@@ -262,6 +262,8 @@ export function insertImage(attrs: ImageAttrs = { href: CLEAR_IMAGE_HREF }): Com
 const INLINE_IMAGE_CONTEXTS = new Set([
   'section',
   'annotation',
+  'annotation_block',
+  'history_block',
   'title',
   'epigraph',
   'cite',
@@ -314,8 +316,22 @@ export function addSectionImage(attrs: ImageAttrs = { href: CLEAR_IMAGE_HREF }):
 /* Poem / Cite                                                              */
 /* ------------------------------------------------------------------------ */
 
-const POEM_PARENTS = new Set(['section', 'epigraph', 'annotation', 'cite']);
-const CITE_PARENTS = new Set(['section', 'epigraph', 'annotation']);
+// The annotation and history blocks of the Body view take what an annotation takes (004 US2).
+const POEM_PARENTS = new Set([
+  'section',
+  'epigraph',
+  'annotation',
+  'cite',
+  'annotation_block',
+  'history_block',
+]);
+const CITE_PARENTS = new Set([
+  'section',
+  'epigraph',
+  'annotation',
+  'annotation_block',
+  'history_block',
+]);
 
 /** Selected blocks -> stanzas of verses; empty lines / empty paragraphs separate stanzas. */
 function stanzasFrom(blocks: PMNode[]): PMNode[] {

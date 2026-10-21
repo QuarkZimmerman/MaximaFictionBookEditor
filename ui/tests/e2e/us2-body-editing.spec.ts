@@ -475,8 +475,11 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await menu(page, 'style', 'link');
     await page.getByTestId('dialog-link-href').fill('#nowhere');
     await page.getByTestId('dialog-link-button-ok').click();
+    // Collapse the selection to the link's start, then one step into the link: a second step
+    // left would leave the paragraph for the history block above it (feature 004, one editing
+    // surface).
     await page.keyboard.press('ArrowLeft');
-    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowRight');
     await settle(page);
     await page.keyboard.press(`${MOD}+Backspace`);
     const message = page.getByTestId('dialog-reference-not-found');

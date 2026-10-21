@@ -91,7 +91,8 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
   }, [readOnly]);
 
   // Mount once; the editor state is rebuilt from the model only when the model changed
-  // outside this field (undo / redo / document replaced).
+  // outside this field (undo / redo / document replaced, or the value the controller adopted
+  // from the Body view's annotation / history block - feature 004, FR-011; the effect below).
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;

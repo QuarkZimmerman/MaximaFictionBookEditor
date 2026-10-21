@@ -18,8 +18,14 @@ import {
   type Found,
 } from './util';
 
-/** Containers that accept a table (FB2: section, annotation, cite). */
-const TABLE_PARENTS = new Set(['section', 'annotation', 'cite']);
+/** Containers that accept a table (FB2: section, annotation, cite; the Body view's blocks). */
+const TABLE_PARENTS = new Set([
+  'section',
+  'annotation',
+  'cite',
+  'annotation_block',
+  'history_block',
+]);
 
 /** Insert position for a table: after the caret's block, when its container accepts tables. */
 export function tableInsertPoint(state: EditorState): { pos: number; index: number } | null {

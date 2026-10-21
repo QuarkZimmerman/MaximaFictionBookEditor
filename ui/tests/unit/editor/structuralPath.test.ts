@@ -33,11 +33,29 @@ interface ParityFixture {
 
 const fixture = JSON.parse(readFileSync(FIXTURE, 'utf8')) as ParityFixture;
 
-/** The paths of the fixture for the nodes the editor document holds (the bodies). */
+/**
+ * The paths of the fixture for the nodes the editor document holds: the bodies and - above
+ * the first body since feature 004 US2 - the title-info annotation and the history with their
+ * content (the two blocks carry the fixed UI ids, their paths are the roots themselves). The
+ * source title info's annotation is not shown in the Body view.
+ */
 function bodyPaths(): Map<string, string> {
-  return new Map(
-    Object.entries(fixture.paths).filter(([, nodePath]) => nodePath.startsWith('body[')),
-  );
+  const shown = (nodePath: string) =>
+    nodePath.startsWith('body[') ||
+    nodePath.startsWith('title-info/annotation[1]') ||
+    nodePath.startsWith('document-info/history[1]');
+  const paths = new Map(Object.entries(fixture.paths).filter(([, nodePath]) => shown(nodePath)));
+  // The core's ids of the two roots are replaced by the fixed block ids in the editor document.
+  for (const [id, nodePath] of [...paths]) {
+    if (nodePath === 'title-info/annotation[1]') {
+      paths.delete(id);
+      paths.set(FIXED_BLOCK_IDS.annotation, nodePath);
+    } else if (nodePath === 'document-info/history[1]') {
+      paths.delete(id);
+      paths.set(FIXED_BLOCK_IDS.history, nodePath);
+    }
+  }
+  return paths;
 }
 
 function stateOf(window: SectionWindow): EditorState {

@@ -475,7 +475,9 @@ test.describe('US3 (feature 002) - the editor waits for an open file dialog', ()
     await paragraph(page).click({ force: true });
     await page.keyboard.type('typed behind the dialog');
     await page.keyboard.press('Enter');
-    await expect(page.getByTestId('body-editor')).toHaveText(before);
+    // The whole editing surface - the annotation and history blocks above the body included
+    // (feature 004) - is as it was.
+    await expect.poll(() => page.getByTestId('body-editor').innerText()).toBe(before);
 
     // The dialog closes: the editor takes input again.
     dialog.holding = false;

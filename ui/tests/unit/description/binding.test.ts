@@ -120,6 +120,86 @@ describe('DescriptionController binding', () => {
     expect(controller.getSnapshot().form).toBeNull();
   });
 
+  it('adopts a description that differs only in the annotation / history nodes (004 US2)', () => {
+    const { store, controller, undo } = setup();
+    controller.setField('titleInfo.bookTitle', 'Edited');
+    controller.closeEntry();
+    expect(undo.undoDepth).toBe(1);
+    const revision = controller.getSnapshot().revision;
+
+    // The Body view's annotation block wrote a new node into the model (one datum, two editors).
+    const annotation = {
+      type: 'annotation' as const,
+      attrs: { nodeId: 'nA' },
+      content: [
+        {
+          type: 'p' as const,
+          attrs: { nodeId: 'nAp1' },
+          content: [{ type: 'text' as const, text: 'Typed in the block' }],
+        },
+      ],
+    };
+    const current = store.getState().document!;
+    const fromBody: Document = {
+      ...current,
+      description: {
+        ...current.description,
+        titleInfo: { ...current.description.titleInfo, annotation },
+      },
+    };
+    actions.updateDocument(store, fromBody);
+    // Form and committed description follow; no undo entry, no re-initialisation.
+    expect(controller.currentForm?.titleInfo.annotation).toBe(annotation);
+    expect(controller.currentForm?.titleInfo.bookTitle).toBe('Edited');
+    expect(controller.canUndo).toBe(true);
+    expect(undo.undoDepth).toBe(1);
+    expect(controller.getSnapshot().revision).toBeGreaterThan(revision);
+    // A later field edit keeps the adopted node in the clean model it writes.
+    controller.setField('titleInfo.keywords', 'k');
+    expect(description(store).titleInfo.annotation).toBe(annotation);
+    expect(description(store).titleInfo.keywords).toBe('k');
+    expect(undo.undoDepth).toBe(2);
+
+    // The history node too, and a node removed by the block (emptied) is adopted as absent.
+    const history = { type: 'annotation' as const, attrs: { nodeId: 'nH' }, content: [] };
+    const withHistory: Document = {
+      ...store.getState().document!,
+      description: {
+        ...store.getState().document!.description,
+        documentInfo: { ...store.getState().document!.description.documentInfo, history },
+      },
+    };
+    actions.updateDocument(store, withHistory);
+    expect(controller.currentForm?.documentInfo.history).toBe(history);
+    const removed: Document = {
+      ...store.getState().document!,
+      description: {
+        ...store.getState().document!.description,
+        titleInfo: { ...store.getState().document!.description.titleInfo, annotation: undefined },
+      },
+    };
+    actions.updateDocument(store, removed);
+    expect(controller.currentForm?.titleInfo.annotation).toBeUndefined();
+    expect(controller.currentForm?.documentInfo.history).toBe(history);
+    expect(undo.undoDepth).toBe(2);
+    expect(controller.canUndo).toBe(true);
+    // Undo still replays the field edits (the history was kept).
+    expect(undo.undo()).toBe(true);
+    expect(description(store).titleInfo.keywords).toBeUndefined();
+
+    // Any other difference (a Source re-parse changing the version) re-initialises as before.
+    const other: Document = {
+      ...store.getState().document!,
+      description: {
+        ...store.getState().document!.description,
+        documentInfo: { ...store.getState().document!.description.documentInfo, version: '7' },
+      },
+    };
+    actions.updateDocument(store, other);
+    expect(controller.currentForm?.documentInfo.version).toBe('7');
+    expect(controller.canUndo).toBe(false);
+  });
+
   it('finds, replaces and replaces all over the text fields', () => {
     const { store, controller } = setup();
     const input = document.createElement('input');

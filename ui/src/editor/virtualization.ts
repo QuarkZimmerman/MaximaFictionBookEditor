@@ -7,6 +7,17 @@
  * (total top-level sections of all bodies <= 2 x windowSize) use **whole-book mode**: every
  * body with all its sections, exactly as the original editor showed them.
  *
+ * Above the first body the editor document carries the two description blocks of feature 004
+ * (US2, data-model §2): `annotation_block` and `history_block`, bound to
+ * `description.titleInfo.annotation` and `description.documentInfo.history`. They are mounted
+ * whenever the window shows body 0 (or the whole book), alone for a body-less document, and
+ * not at all in a notes-body window. `SectionWindow.blocks` holds the block node that
+ * represents the model's node; a block is written back only when the node in the edited
+ * document is no longer that object (ProseMirror nodes are persistent, so an untouched block
+ * keeps its identity through edits elsewhere) - the per-block "as read / edited" state without
+ * a flag. A model without a `description` (bare bodies, as the windowing tests build them)
+ * mounts no blocks.
+ *
  * `createWindow()` builds the editor document for a window, `extendWindow()` grows it towards
  * the hidden sections ("... N more sections" placeholders), `replaceSectionsInModel()` writes
  * an edited window back into the document model, and `windowAround()` / `locateSection()`
@@ -15,17 +26,36 @@
 
 import type { Node as PMNode } from 'prosemirror-model';
 
-import type { BodyNode, Document, SectionNode } from '@/model/document';
+import type {
+  AnnotationNode,
+  BodyNode,
+  Description,
+  Document,
+  SectionNode,
+} from '@/model/document';
 
 import {
+  annotationFromModel,
   bodyFromModel,
   createReport,
-  docFromBodies,
   docFromModel,
   type ConversionReport,
 } from './fromModel';
-import { fb2Schema, nodeTypeFor } from './schema';
-import { bodyToModel, docToBodies } from './toModel';
+import {
+  assignNodeIds,
+  BLOCK_KINDS,
+  blockKindOf,
+  blockTypeName,
+  createNodeIdGenerator,
+  fb2Schema,
+  FIXED_BLOCK_IDS,
+  nodeTypeFor,
+  type BlockKind,
+} from './schema';
+import { blockToModel, bodyToModel, docToBodies } from './toModel';
+
+/** The model the windowing works on: the bodies, and the description when there is one. */
+export type WindowModel = Pick<Document, 'bodies'> & Partial<Pick<Document, 'description'>>;
 
 export const DEFAULT_WINDOW_SIZE = 20;
 
@@ -49,6 +79,14 @@ export interface WindowSpec {
   count: number;
 }
 
+/** The block nodes of the editor document that represent the model's nodes (null: not mounted). */
+export interface WindowBlocks {
+  annotation: PMNode | null;
+  history: PMNode | null;
+}
+
+const NO_BLOCKS: WindowBlocks = { annotation: null, history: null };
+
 export interface SectionWindow extends WindowSpec {
   /** Every body fully mounted (small documents). */
   wholeBook: boolean;
@@ -61,6 +99,8 @@ export interface SectionWindow extends WindowSpec {
   bodyCount: number;
   doc: PMNode;
   report: ConversionReport;
+  /** The annotation / history blocks mounted above the first body (feature 004). */
+  blocks: WindowBlocks;
 }
 
 export interface WindowOptions extends Partial<WindowSpec> {
@@ -84,6 +124,101 @@ export function countSections(body: BodyNode | undefined): number {
 /** Top-level sections of all bodies. */
 export function totalSectionCount(model: Pick<Document, 'bodies'>): number {
   return model.bodies.reduce((sum, body) => sum + countSections(body), 0);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Description blocks                                                       */
+/* ------------------------------------------------------------------------ */
+
+const blockParagraphIds = createNodeIdGenerator('ui_block_');
+
+/**
+ * The editor node of a description block (feature 004, data-model §2.2): an absent node or one
+ * without content shows one empty paragraph (with a UI id) to type into; a node with content
+ * keeps its paragraphs and their core ids. The block itself carries the fixed id and the
+ * model node's own attributes (`id`, `lang`, extras), so an edit writes them back.
+ */
+export function blockFromModel(
+  kind: BlockKind,
+  node: AnnotationNode | undefined,
+  nextId: () => string = blockParagraphIds,
+  report: ConversionReport = createReport(),
+): PMNode {
+  const type = fb2Schema.nodes[blockTypeName(kind)]!;
+  const source = annotationFromModel(node, report, `description/${kind}`);
+  const attrs = { ...source.attrs, nodeId: FIXED_BLOCK_IDS[kind] };
+  const content =
+    source.childCount > 0 ? source.content : fb2Schema.nodes.p!.create({ nodeId: nextId() });
+  let block: PMNode;
+  try {
+    block = type.createChecked(attrs, content);
+  } catch {
+    // Content the schema refuses (kept unchecked like `nodeFromModel` does): shown, reported
+    // by the conversion of the node itself, never dropped.
+    block = type.create(attrs, content);
+  }
+  return assignNodeIds(block, nextId);
+}
+
+/** The block nodes at the start of an editor document (null for a kind that is not there). */
+export function leadingBlocks(doc: PMNode): WindowBlocks {
+  const blocks: WindowBlocks = { ...NO_BLOCKS };
+  for (let i = 0; i < doc.childCount; i += 1) {
+    const kind = blockKindOf(doc.child(i).type.name);
+    if (!kind) break;
+    blocks[kind] = doc.child(i);
+  }
+  return blocks;
+}
+
+/** The model node a block kind is bound to. */
+function blockNodeOf(description: Description | undefined, kind: BlockKind) {
+  if (!description) return undefined;
+  return kind === 'annotation'
+    ? description.titleInfo.annotation
+    : description.documentInfo.history;
+}
+
+/** `description` with the node of `kind` replaced (a new object, the rest shared). */
+function withBlockNode(
+  description: Description,
+  kind: BlockKind,
+  node: AnnotationNode | undefined,
+): Description {
+  if (kind === 'annotation') {
+    const titleInfo = { ...description.titleInfo };
+    if (node) titleInfo.annotation = node;
+    else delete titleInfo.annotation;
+    return { ...description, titleInfo };
+  }
+  const documentInfo = { ...description.documentInfo };
+  if (node) documentInfo.history = node;
+  else delete documentInfo.history;
+  return { ...description, documentInfo };
+}
+
+/** True when the window of `bodyIndex` shows the blocks (body 0, the whole book, no body). */
+function mountsBlocks(model: WindowModel, wholeBook: boolean, bodyIndex: number): boolean {
+  return model.description !== undefined && (wholeBook || bodyIndex === 0);
+}
+
+/** The two block nodes for `model` (both mounted together); problems go to the window's report. */
+function blocksFor(model: WindowModel, report: ConversionReport): PMNode[] {
+  return BLOCK_KINDS.map((kind) =>
+    blockFromModel(kind, blockNodeOf(model.description, kind), blockParagraphIds, report),
+  );
+}
+
+/** True when `nodeId` is the fixed id of a block or names a node under the description's root of it. */
+function underDescriptionBlock(model: WindowModel, nodeId: string): boolean {
+  if (nodeId === FIXED_BLOCK_IDS.annotation || nodeId === FIXED_BLOCK_IDS.history) return true;
+  type Json = { attrs?: { nodeId?: string }; content?: unknown[] };
+  const contains = (node: Json | undefined): boolean => {
+    if (!node) return false;
+    if (node.attrs?.nodeId === nodeId) return true;
+    return ((node.content ?? []) as Json[]).some((child) => contains(child));
+  };
+  return BLOCK_KINDS.some((kind) => contains(blockNodeOf(model.description, kind) as Json));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -169,16 +304,15 @@ function windowedBody(
 }
 
 /** Creates the editor document for the requested window (clamped to the model). */
-export function createWindow(
-  model: Pick<Document, 'bodies'>,
-  options: WindowOptions = {},
-): SectionWindow {
+export function createWindow(model: WindowModel, options: WindowOptions = {}): SectionWindow {
   const windowSize = Math.max(1, options.windowSize ?? DEFAULT_WINDOW_SIZE);
   const bodyCount = model.bodies.length;
 
   if (!options.forceWindowed && isWholeBook(model, windowSize)) {
-    const { node, report } = docFromModel(model);
+    const { node: bodiesDoc, report } = docFromModel(model);
     const total = totalSectionCount(model);
+    const blocks = mountsBlocks(model, true, 0) ? blocksFor(model, report) : [];
+    const doc = fb2Schema.nodes.doc!.create(null, [...blocks, ...bodiesDoc.content.content]);
     return {
       wholeBook: true,
       bodyIndex: clamp(options.bodyIndex ?? 0, 0, Math.max(0, bodyCount - 1)),
@@ -188,8 +322,9 @@ export function createWindow(
       before: 0,
       after: 0,
       bodyCount,
-      doc: node,
+      doc,
       report,
+      blocks: leadingBlocks(doc),
     };
   }
 
@@ -200,9 +335,11 @@ export function createWindow(
   // A fresh window (no explicit count) is bounded by the node budget as well as windowSize.
   const count = clamp(options.count ?? fitSections(body, start, windowSize), 0, total - start);
   const report = createReport();
-  const doc = body
-    ? docFromBodies([windowedBody(body, bodyIndex, start, count, report)])
-    : docFromBodies([]);
+  const blocks = mountsBlocks(model, false, bodyIndex) ? blocksFor(model, report) : [];
+  const doc = fb2Schema.nodes.doc!.create(null, [
+    ...blocks,
+    ...(body ? [windowedBody(body, bodyIndex, start, count, report)] : []),
+  ]);
   return {
     wholeBook: false,
     bodyIndex,
@@ -214,6 +351,7 @@ export function createWindow(
     bodyCount,
     doc,
     report,
+    blocks: leadingBlocks(doc),
   };
 }
 
@@ -228,7 +366,7 @@ export const MAX_WINDOW_FACTOR = 3;
  * bounded while the user scrolls through a large book.
  */
 export function extendWindow(
-  model: Pick<Document, 'bodies'>,
+  model: WindowModel,
   window: SectionWindow,
   direction: 'before' | 'after',
   by: number = DEFAULT_WINDOW_SIZE,
@@ -271,13 +409,28 @@ function windowSlice(model: Pick<Document, 'bodies'>, window: SectionWindow): Bo
 }
 
 /**
- * True when the content mounted by `window` is the same (same node objects) in `previous` and
- * `next`: the change happened elsewhere (another body, unmounted sections) and the editor
- * state can be kept, together with its history.
+ * True when the description nodes the window's blocks are bound to are the same objects in
+ * `previous` and `next` (always true for a window without blocks).
  */
-export function windowSliceUnchanged(
-  previous: Pick<Document, 'bodies'>,
-  next: Pick<Document, 'bodies'>,
+export function blocksUnchanged(
+  previous: WindowModel,
+  next: WindowModel,
+  window: SectionWindow,
+): boolean {
+  return BLOCK_KINDS.every(
+    (kind) =>
+      window.blocks[kind] === null ||
+      blockNodeOf(previous.description, kind) === blockNodeOf(next.description, kind),
+  );
+}
+
+/**
+ * True when the body content mounted by `window` is the same (same node objects) in `previous`
+ * and `next` - the blocks aside (`blocksUnchanged`).
+ */
+export function bodiesSliceUnchanged(
+  previous: WindowModel,
+  next: WindowModel,
   window: SectionWindow,
 ): boolean {
   if (window.wholeBook) {
@@ -301,9 +454,23 @@ export function windowSliceUnchanged(
   return before.length === after.length && before.every((child, index) => child === after[index]);
 }
 
+/**
+ * True when everything mounted by `window` - the blocks and the body slice - is the same (same
+ * node objects) in `previous` and `next`: the change happened elsewhere (another body,
+ * unmounted sections, the rest of the description) and the editor state can be kept, together
+ * with its history.
+ */
+export function windowSliceUnchanged(
+  previous: WindowModel,
+  next: WindowModel,
+  window: SectionWindow,
+): boolean {
+  return blocksUnchanged(previous, next, window) && bodiesSliceUnchanged(previous, next, window);
+}
+
 /** Recomputes the counters of `window` for `model` (after a change outside the window). */
 export function windowCounts(
-  model: Pick<Document, 'bodies'>,
+  model: WindowModel,
   window: SectionWindow,
 ): Pick<SectionWindow, 'totalSections' | 'before' | 'after' | 'bodyCount' | 'count'> {
   if (window.wholeBook) {
@@ -327,11 +494,16 @@ export function windowCounts(
   };
 }
 
-/** Finds the body and top-level section that contain the node with `nodeId`. */
+/**
+ * Finds the body and top-level section that contain the node with `nodeId`. The two fixed
+ * block ids and every node under the description's annotation / history belong to the window
+ * of body 0, which mounts the blocks (feature 004).
+ */
 export function locateSection(
-  model: Pick<Document, 'bodies'>,
+  model: WindowModel,
   nodeId: string,
 ): { bodyIndex: number; sectionIndex: number } | null {
+  if (underDescriptionBlock(model, nodeId)) return { bodyIndex: 0, sectionIndex: 0 };
   const contains = (node: { attrs?: { nodeId?: string }; content?: unknown[] }): boolean => {
     if (node.attrs?.nodeId === nodeId) return true;
     const children = (node.content ?? []) as { attrs?: { nodeId?: string }; content?: unknown[] }[];
@@ -355,7 +527,7 @@ export function locateSection(
 
 /** A window centred on the section containing `nodeId`; null when the node is unknown. */
 export function windowAround(
-  model: Pick<Document, 'bodies'>,
+  model: WindowModel,
   nodeId: string,
   options: Pick<WindowOptions, 'windowSize' | 'forceWindowed'> = {},
 ): SectionWindow | null {
@@ -382,29 +554,62 @@ export function windowAround(
 }
 
 /**
+ * The description of `model` with every block whose node in `doc` is no longer the one the
+ * window built written back (`blockToModel`); the model's own description object when no
+ * block changed. The model root's node id is kept on the rebuilt node.
+ */
+function writeBlocksBack<D extends WindowModel>(model: D, window: SectionWindow, doc: PMNode): D {
+  if (!model.description) return model;
+  const current = leadingBlocks(doc);
+  let description = model.description;
+  for (const kind of BLOCK_KINDS) {
+    const built = window.blocks[kind];
+    const edited = current[kind];
+    if (!built || !edited || edited === built) continue;
+    const previous = blockNodeOf(description, kind);
+    const rootId = typeof previous?.attrs.nodeId === 'string' ? previous.attrs.nodeId : undefined;
+    description = withBlockNode(description, kind, blockToModel(edited, rootId));
+  }
+  return description === model.description ? model : { ...model, description };
+}
+
+/**
  * Writes the (possibly edited) editor document of `window` back into the model and returns
  * the updated model together with the window description that now matches it (the number
- * of mounted sections may have changed through edits).
+ * of mounted sections may have changed through edits; the blocks now represent the model's
+ * nodes again).
  */
-export function replaceSectionsInModel<D extends Pick<Document, 'bodies'>>(
+export function replaceSectionsInModel<D extends WindowModel>(
   model: D,
   window: SectionWindow,
   doc: PMNode,
 ): { model: D; window: SectionWindow } {
+  const withBlocks = writeBlocksBack(model, window, doc);
+  const blocks = leadingBlocks(doc);
   if (window.wholeBook) {
     const bodies = docToBodies(doc);
-    const next = { ...model, bodies };
+    const next = { ...withBlocks, bodies };
     const total = totalSectionCount(next);
     return {
       model: next,
-      window: { ...window, doc, count: total, totalSections: total, bodyCount: bodies.length },
+      window: {
+        ...window,
+        doc,
+        blocks,
+        count: total,
+        totalSections: total,
+        bodyCount: bodies.length,
+      },
     };
   }
 
-  const bodyNode = doc.firstChild;
+  let bodyNode: PMNode | null = null;
+  doc.forEach((child) => {
+    if (!bodyNode && child.type === fb2Schema.nodes.body) bodyNode = child;
+  });
   const original = model.bodies[window.bodyIndex];
-  if (!bodyNode || bodyNode.type !== fb2Schema.nodes.body || !original) {
-    return { model, window: { ...window, doc } };
+  if (!bodyNode || !original) {
+    return { model: withBlocks, window: { ...window, doc, blocks } };
   }
   const edited = bodyToModel(bodyNode);
   const editedHeader = edited.content.filter((child) => !isSection(child));
@@ -419,10 +624,11 @@ export function replaceSectionsInModel<D extends Pick<Document, 'bodies'>>(
   const bodies = model.bodies.map((item, index) => (index === window.bodyIndex ? body : item));
   const total = before.length + editedSections.length + after.length;
   return {
-    model: { ...model, bodies },
+    model: { ...withBlocks, bodies },
     window: {
       ...window,
       doc,
+      blocks,
       count: editedSections.length,
       totalSections: total,
       before: before.length,

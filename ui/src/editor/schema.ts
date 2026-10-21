@@ -59,9 +59,35 @@ const FB2_TO_NODE: Readonly<Record<string, string>> = {
   text: 'text',
 };
 
-const NODE_TO_FB2: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(FB2_TO_NODE).map(([fb2, node]) => [node, fb2]),
-);
+const NODE_TO_FB2: Readonly<Record<string, string>> = {
+  ...Object.fromEntries(Object.entries(FB2_TO_NODE).map(([fb2, node]) => [node, fb2])),
+  // The Body view's description blocks (feature 004, US2) hold `annotationType` content and
+  // are written back as the model's `annotation` node (history included, document-model §2).
+  annotation_block: 'annotation',
+  history_block: 'annotation',
+};
+
+/** The two description blocks at the top of the Body view (feature 004, data-model §2.1). */
+export type BlockKind = 'annotation' | 'history';
+
+export const BLOCK_KINDS: readonly BlockKind[] = ['annotation', 'history'];
+
+/** Node type name of a block kind (`annotation_block` / `history_block`). */
+export function blockTypeName(kind: BlockKind): string {
+  return `${kind}_block`;
+}
+
+/** The block kind of a node type name, null for every other type. */
+export function blockKindOf(typeName: string): BlockKind | null {
+  if (typeName === 'annotation_block') return 'annotation';
+  if (typeName === 'history_block') return 'history';
+  return null;
+}
+
+/** True for the two description block node types. */
+export function isDescBlock(type: NodeType | string): boolean {
+  return blockKindOf(typeof type === 'string' ? type : type.name) !== null;
+}
 
 /** Model type names that are leaves (no `content` key in the JSON; see core `is_leaf_type`). */
 export const LEAF_MODEL_TYPES: ReadonlySet<string> = new Set([
@@ -174,11 +200,45 @@ function paragraph(className: string, extraParseRules: TagParseRule[] = []): Nod
   };
 }
 
+/** Content model of an FB2 annotation (`annotationType`), shared by the blocks and `annotation`. */
+const ANNOTATION_CONTENT = 'p | poem | cite | subtitle | table | empty_line';
+
+/**
+ * The annotation / history block at the top of the Body view (feature 004, FR-010; data-model
+ * §2.1): one factory for both kinds. `+` keeps one empty paragraph when the last one is cut,
+ * `isolating` stops joins and lifts across the boundary (Backspace at the block start stays put,
+ * as in a table cell). The caption is drawn by a decoration (`plugins/blockCaptions.ts`), never
+ * part of the content.
+ */
+function descBlock(kind: BlockKind): NodeSpec {
+  const className = `fb-desc-block fb-${kind}`;
+  return {
+    content: `(${ANNOTATION_CONTENT})+`,
+    attrs: STRUCT_ATTRS,
+    defining: true,
+    isolating: true,
+    toDOM(node) {
+      return [
+        'div',
+        domAttrs(node, className, { 'data-block': kind, 'data-testid': `body-block-${kind}` }),
+        0,
+      ];
+    },
+    parseDOM: [{ tag: `div.fb-desc-block[data-block="${kind}"]`, getAttrs: parseStructAttrs }],
+  };
+}
+
 const nodes: Record<string, NodeSpec> = {
-  /** Zero bodies allowed so `.fbd` descriptors (and the empty editor) load. */
+  /**
+   * The annotation and history blocks come first (feature 004, US2); zero bodies allowed so
+   * `.fbd` descriptors (and the empty editor) load.
+   */
   doc: {
-    content: 'body*',
+    content: 'annotation_block? history_block? body*',
   },
+
+  annotation_block: descBlock('annotation'),
+  history_block: descBlock('history'),
 
   body: container(
     'fb-body',
@@ -218,12 +278,7 @@ const nodes: Record<string, NodeSpec> = {
     optional('id'),
   ),
 
-  annotation: container(
-    'fb-annotation',
-    'div',
-    '(p | poem | cite | subtitle | table | empty_line)*',
-    STRUCT_ATTRS,
-  ),
+  annotation: container('fb-annotation', 'div', `(${ANNOTATION_CONTENT})*`, STRUCT_ATTRS),
 
   p: paragraph('fb-p', [{ tag: 'p', getAttrs: parseStructAttrs }]),
   subtitle: paragraph('fb-subtitle'),
@@ -553,10 +608,12 @@ export const FIXED_BLOCK_IDS = {
   history: 'desc:history',
 } as const;
 
-/** True for the node types the Document Tree shows (containers and images). */
+/** True for the node types the Document Tree shows (containers, images and the two blocks). */
 export function isStructural(type: NodeType | string): boolean {
   const name = typeof type === 'string' ? type : type.name;
   return [
+    'annotation_block',
+    'history_block',
     'body',
     'section',
     'title',

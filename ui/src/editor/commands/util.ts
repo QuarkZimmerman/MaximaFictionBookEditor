@@ -18,8 +18,14 @@ import { fb2Schema } from '../schema';
 
 export const { nodes: N, marks: M } = fb2Schema;
 
-/** Containers that `GetCP()` recognises (FBE main.js): paragraph-holding block containers. */
+/**
+ * Containers that `GetCP()` recognises (FBE main.js): paragraph-holding block containers, plus
+ * the annotation and history blocks of the Body view (feature 004, US2), whose content model
+ * is the annotation's.
+ */
 export const CONTAINER_TYPES: ReadonlySet<string> = new Set([
+  'annotation_block',
+  'history_block',
   'body',
   'section',
   'title',

@@ -343,11 +343,15 @@ export class SpellDialogController {
 
   /* -------------------------------------------------------------- display */
 
-  /** Shows the current word in the Body editor (window moved when needed) without focusing it. */
+  /**
+   * Shows the current word in the Body editor (window moved when needed) without focusing it -
+   * the annotation and history blocks included, which the Body view shows above the bodies
+   * (feature 004, FR-014; the "In:" text keeps naming the element).
+   */
   private showCurrent(): void {
     const current = this.current;
     const controller = this.controller;
-    if (!current || !controller || current.block.where !== 'body') return;
+    if (!current || !controller) return;
     if (!controller.moveWindowTo(current.block.nodeId)) return;
     const state = controller.editorState;
     if (!state) return;
@@ -516,8 +520,9 @@ export class SpellDialogController {
     const controller = this.controller;
     const document = this.document;
     if (!document) return;
+    // A block paragraph of the Body view (bodies, annotation, history alike) changes through
+    // an editor transaction; the controller writes a description block back into the model.
     const mounted =
-      block.where === 'body' &&
       !!controller &&
       (mountedOnly
         ? !!controller.editorState &&

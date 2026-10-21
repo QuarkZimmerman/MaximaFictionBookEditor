@@ -11,6 +11,7 @@ import { NodeSelection } from 'prosemirror-state';
 
 import type { CommandContext } from '@/app/commands';
 import { createAppServices, type AppServices } from '@/app/services';
+import { collectTextblocks, replaceTextblocksInModel } from '@/features/search/bodyTarget';
 import { getSearchSession } from '@/features/search/search';
 import { IncrementalSearch } from '@/features/search/incremental';
 import { getSymbolsFeature } from '@/features/editing';
@@ -513,6 +514,91 @@ describe('find / replace (T066)', () => {
     expect(session.replaceAll(opts, 'x')).toBe(3);
     await session.reportReplaceAll(ctx, 3);
     expect(ctx.dialogs.shown.at(-1)?.text).toBe('3 replacements done.');
+  });
+
+  it('walks the annotation, the history, then the bodies, and replaces inside the description (004 US2)', async () => {
+    const book = twoSectionBook();
+    const annotationNode = {
+      type: 'annotation' as const,
+      attrs: { nodeId: 'ann' },
+      content: [paragraph('annP1', 'Beta in the annotation.'), paragraph('annP2', 'Second.')],
+    };
+    const historyNode = {
+      type: 'annotation' as const,
+      attrs: { nodeId: 'hist', lang: 'ru' },
+      content: [paragraph('histP1', 'Beta in the history.')],
+    };
+    const document: Document = {
+      ...book,
+      description: {
+        ...book.description,
+        titleInfo: { ...book.description.titleInfo, annotation: annotationNode as never },
+        documentInfo: { ...book.description.documentInfo, history: historyNode as never },
+      },
+    };
+    expect(collectTextblocks(document).map((block) => block.nodeId)).toEqual([
+      'annP1',
+      'annP2',
+      'histP1',
+      't0p',
+      't1p',
+      'p1',
+      'p2',
+      'p3',
+    ]);
+    const replaced = replaceTextblocksInModel(
+      document,
+      new Map([
+        ['histP1', paragraph('histP1', 'Delta in the history.') as never],
+        ['p3', paragraph('p3', 'Second section delta.') as never],
+      ]),
+    );
+    expect(replaced.description.documentInfo.history).toMatchObject({
+      attrs: { nodeId: 'hist', lang: 'ru' },
+      content: [{ attrs: { nodeId: 'histP1' }, content: [{ text: 'Delta in the history.' }] }],
+    });
+    expect(replaced.description.titleInfo.annotation).toBe(annotationNode);
+    expect(replaced.bodies[0]).not.toBe(document.bodies[0]);
+    expect(collectTextblocks(replaced).find((b) => b.nodeId === 'p3')!.text).toBe(
+      'Second section delta.',
+    );
+    // Nothing to replace: the same model object comes back.
+    expect(replaceTextblocksInModel(document, new Map())).toBe(document);
+
+    // Through the search session: Find reaches the blocks first, Replace changes the history.
+    const h = await harness(document);
+    const { store } = h;
+    const session = getSearchSession(store);
+    caret(h, 'p1', 0);
+    const opts = {
+      query: 'beta',
+      wholeWord: false,
+      matchCase: false,
+      regex: false,
+      direction: 'down' as const,
+    };
+    // From p1 downwards: p1, p2 (twice), p3, then wrapping to the annotation and the history.
+    expect(session.find(opts)).toBe(true);
+    expect(session.find(opts)).toBe(true);
+    expect(session.find(opts)).toBe(true);
+    expect(session.find(opts)).toBe(true);
+    expect(store.getState().selectionPath).toBe('body[1]/section[2]/p[1]');
+    expect(session.find(opts)).toBe(true); // wrapped to the top of the document
+    expect(store.getState().selectionPath).toBe('title-info/annotation[1]/p[1]');
+    expect(session.find(opts)).toBe(true);
+    expect(store.getState().selectionPath).toBe('document-info/history[1]/p[1]');
+    expect(session.replace(opts, 'Gamma')).toEqual({ replaced: true, found: true });
+    const history = store.getState().document!.description.documentInfo.history!;
+    expect((history.content[0] as { content: { text: string }[] }).content[0]!.text).toBe(
+      'Gamma in the history.',
+    );
+    expect(history.attrs.lang).toBe('ru');
+    expect(store.getState().document!.description.titleInfo.annotation).toBe(annotationNode);
+    h.services.undo.undo();
+    const reverted = store.getState().document!.description.documentInfo.history!;
+    expect((reverted.content[0] as { content: { text: string }[] }).content[0]!.text).toBe(
+      'Beta in the history.',
+    );
   });
 
   it('persists the find / replace histories (last 20, most recent first) through settings.set', async () => {

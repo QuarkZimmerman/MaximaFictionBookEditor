@@ -6,8 +6,11 @@
 
 import { TextSelection } from 'prosemirror-state';
 
+import type { Node as PMNode } from 'prosemirror-model';
+
 import { createAppServices } from '@/app/services';
 import { docFromModel } from '@/editor/fromModel';
+import { fb2Schema } from '@/editor/schema';
 import type { BodyNode, Document, SectionNode } from '@/model/document';
 import { actions, createAppStore } from '@/model/store';
 import { getBodyController, type BodyEditorController } from '@/views/body/bodyEditor';
@@ -64,6 +67,18 @@ function typeAt(controller: BodyEditorController, nodeId: string, text: string) 
   controller.apply(state.tr.insertText(text, pos));
 }
 
+/**
+ * The bodies of the editor document without the annotation / history blocks above them
+ * (feature 004), for a comparison with the bodies the model converts to.
+ */
+function bodiesOf(doc: PMNode): PMNode {
+  const bodies: PMNode[] = [];
+  doc.forEach((child) => {
+    if (child.type.name === 'body') bodies.push(child);
+  });
+  return fb2Schema.nodes.doc!.create(null, bodies);
+}
+
 describe('BodyEditorController.showModel', () => {
   it('shows a changed model through one transaction kept out of the editor history', () => {
     const { controller, store, services } = setup(book(3));
@@ -77,7 +92,7 @@ describe('BodyEditorController.showModel', () => {
     ]);
     controller.showModel(next);
     expect(store.getState().document).toBe(next);
-    expect(controller.editorState!.doc.eq(docFromModel(next).node)).toBe(true);
+    expect(bodiesOf(controller.editorState!.doc).eq(docFromModel(next).node)).toBe(true);
     // Nothing was recorded; the typing before is still undoable and keeps the run's change.
     expect(services.undo.undoDepth).toBe(1);
     services.undo.undo();
@@ -101,9 +116,9 @@ describe('BodyEditorController.showModel', () => {
     for (const change of changes) {
       const next = withSections(start, change);
       controller.showModel(next);
-      expect(controller.editorState!.doc.eq(docFromModel(next).node)).toBe(true);
+      expect(bodiesOf(controller.editorState!.doc).eq(docFromModel(next).node)).toBe(true);
       controller.showModel(start);
-      expect(controller.editorState!.doc.eq(docFromModel(start).node)).toBe(true);
+      expect(bodiesOf(controller.editorState!.doc).eq(docFromModel(start).node)).toBe(true);
     }
   });
 

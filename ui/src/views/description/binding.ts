@@ -12,7 +12,10 @@
  *    Save always sees the latest values;
  *  - re-initialises from the model when the document is replaced from outside (New / Open /
  *    Reload / Source re-parse) - recognised because the description object is not the one the
- *    controller produced;
+ *    controller produced; a description that differs from the committed one only in the
+ *    annotation / history nodes - the Body view's blocks edit the same datum (feature 004,
+ *    FR-011) - is *adopted* instead: form and committed description follow, no undo entry, no
+ *    re-initialisation, so the Description history survives a block edit;
  *  - records one `description` undo entry per field edit burst (consecutive keystrokes in the
  *    same field within a second are one entry; a blur or another field starts a new one) and
  *    one per structural change (row added / removed, genre picked...), replaying them through
@@ -119,7 +122,15 @@ export class DescriptionController {
         this.initFrom(null);
         return;
       }
-      if (state.docId !== this.docId || state.document.description !== this.committed) {
+      if (state.docId !== this.docId) {
+        this.initFrom(state.document);
+        return;
+      }
+      const description = state.document.description;
+      if (description === this.committed) return;
+      if (this.committed && this.form && differsOnlyInBlocks(this.committed, description)) {
+        this.adopt(description);
+      } else {
         this.initFrom(state.document);
       }
     });
@@ -173,6 +184,22 @@ export class DescriptionController {
     this.lastMatch = null;
     this.anchor = null;
     if (hadHistory) this.undo.clearView(DESCRIPTION_UNDO_VIEW);
+    this.publish();
+  }
+
+  /**
+   * Takes over the annotation / history nodes of a description the Body view's blocks wrote
+   * (or a script, Replace, an undo of a block edit): the form shows them, `committed` is the
+   * model's object again, no undo entry is recorded and the history is kept (data-model §2.3).
+   * The open edit burst is closed so a later keystroke starts an entry of its own.
+   */
+  private adopt(description: Description): void {
+    if (!this.form) return;
+    let form = setAtPath(this.form, 'titleInfo.annotation', description.titleInfo.annotation);
+    form = setAtPath(form, 'documentInfo.history', description.documentInfo.history);
+    this.form = form;
+    this.committed = description;
+    this.open = null;
     this.publish();
   }
 
@@ -467,6 +494,33 @@ export class DescriptionController {
       this.anchor = null;
     },
   };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Adoption rule                                                            */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * True when `next` is `committed` with nothing but `titleInfo.annotation` and / or
+ * `documentInfo.history` replaced - the change of a Body view block (feature 004, US2).
+ */
+export function differsOnlyInBlocks(committed: Description, next: Description): boolean {
+  if (next === committed) return false;
+  const sameExcept = <T extends object>(a: T, b: T, except: ReadonlySet<string>): boolean => {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const key of keys) {
+      if (except.has(key)) continue;
+      if ((a as Record<string, unknown>)[key] !== (b as Record<string, unknown>)[key]) return false;
+    }
+    return true;
+  };
+  if (!sameExcept(committed, next, new Set(['titleInfo', 'documentInfo']))) return false;
+  if (!sameExcept(committed.titleInfo, next.titleInfo, new Set(['annotation']))) return false;
+  if (!sameExcept(committed.documentInfo, next.documentInfo, new Set(['history']))) return false;
+  return (
+    committed.titleInfo.annotation !== next.titleInfo.annotation ||
+    committed.documentInfo.history !== next.documentInfo.history
+  );
 }
 
 /* ------------------------------------------------------------------------ */

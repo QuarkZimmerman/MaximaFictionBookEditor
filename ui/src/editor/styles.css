@@ -150,6 +150,54 @@
   color: var(--mfbe-fb-history);
 }
 
+/*
+ * The annotation and history blocks at the top of the Body view (feature 004, FR-010): set off
+ * from the book text by a frame and a light tint in the element's colour, as the original's
+ * coloured borders set them off, and captioned through generated content - the caption is
+ * never text of the document (not selected, copied, found or checked). `data-caption` is a
+ * node decoration of `plugins/blockCaptions.ts`, refreshed on a language change.
+ */
+.fb-editor .fb-desc-block {
+  position: relative;
+  margin: 0 0 0.9em;
+  padding: 1.5em 0.6em 0.4em 0.8em;
+  border: 1px solid;
+  border-left-width: 4px;
+  border-radius: 3px;
+}
+
+.fb-editor .fb-desc-block::before {
+  content: attr(data-caption);
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0 8px 1px 6px;
+  border-bottom-right-radius: 3px;
+  font: var(--mfbe-font-ui);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.02em;
+  color: var(--mfbe-fb-desc-caption-fg);
+  pointer-events: none;
+  user-select: none;
+}
+
+.fb-editor .fb-desc-block.fb-annotation {
+  background: var(--mfbe-fb-annotation-bg);
+}
+
+.fb-editor .fb-desc-block.fb-annotation::before {
+  background: var(--mfbe-fb-annotation);
+}
+
+.fb-editor .fb-desc-block.fb-history {
+  background: var(--mfbe-fb-history-bg);
+}
+
+.fb-editor .fb-desc-block.fb-history::before {
+  background: var(--mfbe-fb-history);
+}
+
 .fb-poem {
   border-color: var(--mfbe-fb-poem);
 }

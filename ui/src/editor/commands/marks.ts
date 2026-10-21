@@ -78,8 +78,25 @@ export const clearNamedStyle: Command = setNamedStyle('');
 /* Paragraph styles                                                         */
 /* ------------------------------------------------------------------------ */
 
-const NORMAL_PARENTS = new Set(['section', 'title', 'epigraph', 'stanza', 'cite', 'annotation']);
-const SUBTITLE_PARENTS = new Set(['section', 'stanza', 'cite', 'annotation']);
+// The annotation and history blocks of the Body view follow the annotation's rules (004 US2).
+const NORMAL_PARENTS = new Set([
+  'section',
+  'title',
+  'epigraph',
+  'stanza',
+  'cite',
+  'annotation',
+  'annotation_block',
+  'history_block',
+]);
+const SUBTITLE_PARENTS = new Set([
+  'section',
+  'stanza',
+  'cite',
+  'annotation',
+  'annotation_block',
+  'history_block',
+]);
 const TEXT_AUTHOR_PARENTS = new Set(['cite', 'epigraph', 'poem']);
 
 interface ParagraphRef {

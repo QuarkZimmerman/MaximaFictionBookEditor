@@ -104,7 +104,19 @@ describe('Document Tree panel', { timeout: 30_000 }, () => {
     const { store, user } = await renderApp(largeBook());
     const tree = screen.getByTestId('tree-content');
     expect(tree).toHaveAttribute('data-section-count', '52');
-    expect(tree).toHaveAttribute('data-row-count', String(1 + 1 + 50 * 2 + 4));
+    // Two block rows (feature 004), the body, its title, 50 sections with a title each, the
+    // nested pair with their titles.
+    expect(tree).toHaveAttribute('data-row-count', String(2 + 1 + 1 + 50 * 2 + 4));
+    const rows = within(screen.getByTestId('tree-rows')).getAllByRole('treeitem');
+    expect(rows[0]).toHaveAttribute('data-testid', 'tree-row-desc:annotation');
+    expect(rows[0]).toHaveAttribute('data-row-kind', 'annotationBlock');
+    expect(rows[0]).toHaveAttribute('data-depth', '0');
+    expect(rows[0]).toHaveTextContent('Annotation');
+    expect(rows[1]).toHaveAttribute('data-testid', 'tree-row-desc:history');
+    expect(rows[1]).toHaveAttribute('data-row-kind', 'historyBlock');
+    expect(rows[1]).toHaveTextContent('History');
+    expect(rows[2]).toHaveAttribute('data-testid', 'tree-row-body1');
+    expect(rows[2]).toHaveAttribute('data-row-kind', 'body');
     expect(screen.getByTestId('tree-row-body1')).toHaveTextContent('Big book');
     expect(screen.getByTestId('tree-row-s1')).toHaveTextContent('Chapter 1');
     expect(screen.getByTestId('tree-row-s1a')).toHaveAttribute('data-depth', '2');
@@ -223,7 +235,8 @@ describe('Document Tree panel', { timeout: 30_000 }, () => {
         patch: { session: { treeVisible: false } },
       }),
     );
-    // The selection state survives hiding the panel (the Body caret still has a row).
-    expect(getTreeFeature(store).selectedId).toBe('tBody');
+    // The selection state survives hiding the panel (the Body caret still has a row: the editor
+    // starts in the annotation block above the first body - feature 004).
+    expect(getTreeFeature(store).selectedId).toBe('desc:annotation');
   });
 });

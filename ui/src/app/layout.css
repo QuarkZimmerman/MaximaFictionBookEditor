@@ -77,6 +77,11 @@
   --mfbe-fb-epigraph: #0000f0;
   --mfbe-fb-annotation: #2c6b7b;
   --mfbe-fb-history: #ff1515;
+  /* The annotation and history blocks at the top of the Body view (feature 004): a light tint
+     of the element's colour behind the text, white captions on the element's colour. */
+  --mfbe-fb-annotation-bg: #eef6f8;
+  --mfbe-fb-history-bg: #fff1f1;
+  --mfbe-fb-desc-caption-fg: #ffffff;
   --mfbe-fb-poem: #000000;
   --mfbe-fb-stanza: #ff1493;
   --mfbe-fb-author: #c04040;
@@ -192,6 +197,9 @@
   --mfbe-fb-epigraph: #8ab4ff;
   --mfbe-fb-annotation: #6fc3d6;
   --mfbe-fb-history: #ff6b6b;
+  --mfbe-fb-annotation-bg: #1f2d31;
+  --mfbe-fb-history-bg: #332222;
+  --mfbe-fb-desc-caption-fg: #161616;
   --mfbe-fb-poem: #9a9a9a;
   --mfbe-fb-stanza: #ff7ac0;
   --mfbe-fb-author: #e07a7a;
