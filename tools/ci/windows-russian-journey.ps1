@@ -477,8 +477,14 @@ function Use-SendKeysFallback([string]$Title, [string]$TypedName) {
 function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [string]$Target,
                                   [switch]$AllowHiddenExtension) {
     if (Test-Path -LiteralPath $Target) { throw "$Target exists before Save As" }
-    Send-CdpKey $script:cdp $keyF2 -Modifiers 8
-    # The dialog is modal on the shell's UI thread: no DevTools call until it has closed.
+    # Shift+F2 as a keydown the page dispatches to itself a moment later: the dialog is modal on
+    # the shell's UI thread and the DevTools protocol answers nothing while it is open (the
+    # first run lost its connection waiting for the key event's answer), so the command that
+    # opens it must have returned before, and nothing is asked over the protocol until the
+    # dialog has closed.
+    $null = Get-CdpValue $script:cdp @'
+(() => { setTimeout(() => { (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', code: 'F2', shiftKey: true, bubbles: true, cancelable: true })); }, 300); return true; })()
+'@
     if ($script:uia) {
         $dialog = Wait-UiaWindow $saveAsTitle
         $box = Get-UiaFileNameBox $dialog
