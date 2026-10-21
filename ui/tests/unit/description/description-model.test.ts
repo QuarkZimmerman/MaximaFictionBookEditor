@@ -6,7 +6,8 @@
  * path helpers / text-field enumeration used by the binding and the search target.
  */
 
-import type { Description, Person, Sequence } from '@/model/document';
+import { createNodeIdGenerator } from '@/editor/schema';
+import type { AnnotationNode, Description, Person, Sequence } from '@/model/document';
 import {
   cleanDescription,
   cleanGenres,
@@ -25,6 +26,7 @@ import {
   setAtPath,
   textFields,
 } from '@/views/description/model';
+import { createRichFieldState, richFieldModel } from '@/views/description/richFieldState';
 
 function baseForm(): Description {
   return {
@@ -111,9 +113,8 @@ describe('empty optional fields are omitted', () => {
     expect(cleanDescription(form).srcTitleInfo?.bookTitle).toBe('A Modern Book');
   });
 
-  it('omits an empty annotation / history and keeps a filled one', () => {
+  it('keeps a filled annotation / history', () => {
     const form = baseForm();
-    form.titleInfo.annotation = { type: 'annotation', attrs: { nodeId: 'a' }, content: [] };
     form.documentInfo.history = {
       type: 'annotation',
       attrs: { nodeId: 'h' },
@@ -122,6 +123,74 @@ describe('empty optional fields are omitted', () => {
     const clean = cleanDescription(form);
     expect(clean.titleInfo.annotation).toBeUndefined();
     expect(clean.documentInfo.history?.content).toHaveLength(1);
+  });
+});
+
+describe('present-but-empty annotation and history (feature 004, FR-010/FR-015)', () => {
+  // The file's <annotation/> reads as a node with empty content; the Description view's clean
+  // projection passes it through whatever its content, so an unrelated edit of the form never
+  // drops it - the writer then writes <annotation/> back as read (document-model.md §1).
+  const emptyAnnotation = (): AnnotationNode => ({
+    type: 'annotation',
+    attrs: { nodeId: 'a1' },
+    content: [],
+  });
+  const emptyHistory = (): AnnotationNode => ({
+    type: 'annotation',
+    attrs: { nodeId: 'h1', lang: 'ru' },
+    content: [],
+  });
+
+  it('is kept across an unrelated edit, attributes included', () => {
+    const form = baseForm();
+    form.titleInfo.annotation = emptyAnnotation();
+    form.documentInfo.history = emptyHistory();
+    form.titleInfo.bookTitle = '  Beta  '; // the unrelated edit
+    const clean = cleanDescription(form);
+    expect(clean.titleInfo.bookTitle).toBe('Beta');
+    expect(clean.titleInfo.annotation).toEqual(emptyAnnotation());
+    expect(clean.documentInfo.history).toEqual(emptyHistory());
+    // The same node object is passed through (no copy that could lose unknown attributes).
+    expect(clean.titleInfo.annotation).toBe(form.titleInfo.annotation);
+    expect(clean.documentInfo.history).toBe(form.documentInfo.history);
+    // A src-title-info annotation follows the same rule.
+    form.srcTitleInfo = { ...baseForm().titleInfo, annotation: emptyAnnotation() };
+    expect(cleanDescription(form).srcTitleInfo?.annotation).toEqual(emptyAnnotation());
+  });
+
+  it('becomes undefined once the user empties the rich field (richFieldModel)', () => {
+    // The rich field shows an empty node as one empty paragraph; a document holding nothing but
+    // empty paragraphs has no model - exactly what the user leaves behind after emptying it.
+    const emptied = createRichFieldState(emptyAnnotation(), createNodeIdGenerator('ui_t_'));
+    expect(emptied.doc.childCount).toBe(1);
+    expect(richFieldModel(emptied)).toBeUndefined();
+    const typed = createRichFieldState(
+      {
+        type: 'annotation',
+        attrs: { nodeId: 'a1' },
+        content: [{ type: 'p', attrs: { nodeId: 'p1' }, content: [{ type: 'text', text: 'x' }] }],
+      },
+      createNodeIdGenerator('ui_u_'),
+    );
+    expect(richFieldModel(typed)?.content).toHaveLength(1);
+    // Fed back into the form, the emptied field is an absent node and the clean projection
+    // writes nothing for it.
+    const form = baseForm();
+    form.titleInfo.annotation = richFieldModel(emptied);
+    expect(cleanDescription(form).titleInfo.annotation).toBeUndefined();
+    expect('annotation' in cleanDescription(form).titleInfo).toBe(false);
+  });
+
+  it('leaves an absent node absent', () => {
+    const form = baseForm();
+    const clean = cleanDescription(form);
+    expect(clean.titleInfo.annotation).toBeUndefined();
+    expect(clean.documentInfo.history).toBeUndefined();
+    expect('history' in clean.documentInfo).toBe(false);
+    // A form built from a description without the two nodes has none either.
+    const built = formFromDescription(baseForm());
+    expect(built.titleInfo.annotation).toBeUndefined();
+    expect(built.documentInfo.history).toBeUndefined();
   });
 });
 

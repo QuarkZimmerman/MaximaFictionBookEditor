@@ -245,7 +245,10 @@ export function cleanTitleInfo(info: TitleInfo): TitleInfo {
     translators: cleanPersons(info.translators),
     sequences: cleanSequences(info.sequences),
   };
-  if (info.annotation && info.annotation.content.length > 0) out.annotation = info.annotation;
+  // A present node passes through whatever its content (feature 004, FR-010/FR-015): the file's
+  // <annotation/> stays as read until the user empties the field, which the rich field turns into
+  // an absent node (`richFieldModel`); the writer writes a present node back, empty or not.
+  if (info.annotation) out.annotation = info.annotation;
   const keywords = cleanText(info.keywords);
   if (keywords) out.keywords = keywords;
   const date = cleanDate(info.date);
@@ -286,7 +289,7 @@ export function cleanDocumentInfo(info: DocumentInfo): DocumentInfo {
   if (programUsed) out.programUsed = programUsed;
   const srcOcr = cleanText(info.srcOcr);
   if (srcOcr) out.srcOcr = srcOcr;
-  if (info.history && info.history.content.length > 0) out.history = info.history;
+  if (info.history) out.history = info.history; // present-but-empty kept as read (FR-010)
   return out;
 }
 
