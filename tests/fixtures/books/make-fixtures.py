@@ -635,6 +635,452 @@ NBSP_LAYOUT = f"""<?xml version="1.0" encoding="utf-8"?>
 """
 
 
+# ----------------------------------------------------------------------------------------------
+# maxlib-roles.fbd, maxlib-roles-edge.fbd, maxlib-roles.expected.json - the Maxima Library's
+# role entries (feature 004, User Story 3; resource-formats §14, research R3.5).
+#
+# Copied 2026-10-20 from the Maxima Library's lookup-service checks
+# `/srv/maxima/tests/lookup-service/check-fbd-roles.sh` (lines 29-38),
+# `check-fbd-roles-edge-cases.sh`, `check-fbd-roles-repeated.sh`, laid out as `make-archive.sh`
+# writes a description; the requester's own work, under the project's licence; no third-party
+# material. The layout is the library's: UTF-8, four-space indentation, `custom-info` directly
+# under `description` after `<publish-info>`, no body. No XML comment goes into the files
+# (comments become preserved extras and would clutter the round-trip comparison).
+# ----------------------------------------------------------------------------------------------
+MAXLIB_SOURCE_NOTE = (
+    "Copied 2026-10-20 from the Maxima Library's lookup-service checks "
+    "`/srv/maxima/tests/lookup-service/check-fbd-roles.sh` (lines 29–38), "
+    "`check-fbd-roles-edge-cases.sh`, `check-fbd-roles-repeated.sh`, laid out as "
+    "`make-archive.sh` writes a description; the requester's own work, under the project's "
+    "licence; no third-party material."
+)
+
+# The six roles plus the three record numbers of check-fbd-roles.sh:30-38, in that order.
+MAXLIB_ROLE_ROWS = [
+    ("mlillustrator", "Илюстраторов Илья Ильич"),
+    ("mleditor", "Редакторов Роман Романович"),
+    ("mlcompiler", "Составителев Семён Семёнович"),
+    ("mldesigner", "Оформителев Олег Олегович"),
+    ("mlcommentator", "Комментаторов Кузьма Кузьмич"),
+    ("mlabouttheauthor", "Оавторов Артём Артёмович"),
+    ("mlillustratorid", "4711 Илюстраторов Илья Ильич"),
+    ("mleditorid", "4712 Редакторов Роман Романович"),
+    ("mlseriesid", "99 Какая-то серия"),
+]
+
+# The library's edge cases (check-fbd-roles-edge-cases.sh, check-fbd-roles-repeated.sh) plus
+# this feature's (spec User Story 3 and its edge cases), in that order.
+MAXLIB_EDGE_ROWS = [
+    ("mlillustrator", "Однофамильцев"),  # surname only
+    ("mleditor", "Однофамильцев"),  # surname only
+    ("mlcompiler", "Ю Ю Ю"),  # every part a single letter
+    ("mlcommentator", ""),  # empty -> plain row
+    ("mlabouttheauthor", "Первый Второй Третий Четвёртый Пятый"),  # five parts -> plain row
+    ("mlillustrator", "Первов Пётр Петрович"),  # two illustrators ...
+    ("mlillustrator", "Второв Вадим Вадимович"),  # ... in order
+    ("mleditor", "Де_Голль Шарль"),  # `_` for a space inside a part
+    ("mldesigner", "Дизайнеров  Данилович"),  # no first name: two spaces
+    ("mleditor", "  Пробелов Пётр Петрович "),  # leading / trailing spaces, kept unedited
+    ("MlEditor", "Регистров Р Р"),  # another letter case -> plain row
+]
+
+MAXLIB_ROLE_BY_INFO_TYPE = {
+    "mlillustrator": "illustrator",
+    "mleditor": "editor",
+    "mlcompiler": "compiler",
+    "mldesigner": "designer",
+    "mlcommentator": "commentator",
+    "mlabouttheauthor": "aboutTheAuthor",
+}
+
+
+def xml_escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def maxlib_description(
+    title: str,
+    author: str,
+    rows: list[tuple[str, str]],
+    cover: str | None = None,
+) -> str:
+    """A description laid out as the library's make-archive.sh writes one (lines 100-135)."""
+    last, first, middle = (author.split(" ") + ["", ""])[:3]
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        f'<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">',
+        "    <description>",
+        "        <title-info>",
+        "            <genre>sf</genre>",
+        "            <author>",
+        f"                <first-name>{xml_escape(first)}</first-name>",
+        f"                <middle-name>{xml_escape(middle)}</middle-name>",
+        f"                <last-name>{xml_escape(last)}</last-name>",
+        "            </author>",
+        f"            <book-title>{xml_escape(title)}</book-title>",
+    ]
+    if cover:
+        lines += [
+            "            <coverpage>",
+            f'                <image l:href="#{cover}"/>',
+            "            </coverpage>",
+        ]
+    lines += [
+        "            <lang>ru</lang>",
+        "        </title-info>",
+        "        <document-info>",
+        "            <version>1.0</version>",
+        "        </document-info>",
+        "        <publish-info>",
+        "        </publish-info>",
+    ]
+    for info_type, text in rows:
+        lines.append(
+            f'        <custom-info info-type="{xml_escape(info_type)}">{xml_escape(text)}</custom-info>'
+        )
+    lines.append("    </description>")
+    if cover:
+        lines.append(f'    <binary id="{cover}" content-type="image/jpeg">{b64("tiny.jpg")}')
+        lines.append("</binary>")
+    lines.append("</FictionBook>")
+    return "\n".join(lines) + "\n"
+
+
+def maxlib_role_entry(info_type: str, text: str) -> dict | None:
+    """The reading of data-model §3.3: None when the row stays a plain Custom info row."""
+    role = MAXLIB_ROLE_BY_INFO_TYPE.get(info_type)  # exact letters
+    if role is None:
+        return None
+    stripped = text.strip(" \t\n\r")
+    if stripped == "":
+        return None
+    parts = stripped.split(" ")
+    if len(parts) > 3:
+        return None
+    last, first, middle = (parts + ["", ""])[:3]
+    return {
+        "role": role,
+        "lastName": last.replace("_", " "),
+        "firstName": first.replace("_", " "),
+        "middleName": middle.replace("_", " "),
+    }
+
+
+def maxlib_expectations(rows: list[tuple[str, str]]) -> dict:
+    """`rows` verbatim and in order, the role entries in list order, grouped per role, and the
+    plain rows - mirroring the library's assert_person_in_role / assert_role_count lines."""
+    entries = []
+    plain = []
+    roles: dict[str, list[list[str]]] = {}
+    for index, (info_type, text) in enumerate(rows):
+        entry = maxlib_role_entry(info_type, text)
+        if entry is None:
+            plain.append({"infoType": info_type, "text": text})
+            continue
+        entries.append({**entry, "row": index})
+        roles.setdefault(entry["role"], []).append(
+            [entry["lastName"], entry["firstName"], entry["middleName"]]
+        )
+    return {
+        "rows": [{"infoType": info_type, "text": text} for info_type, text in rows],
+        "entries": entries,
+        "roles": roles,
+        "plainRows": plain,
+    }
+
+
+def maxlib_expected_json() -> str:
+    import json
+
+    expected = {
+        "source": MAXLIB_SOURCE_NOTE,
+        "file": "maxlib-roles.fbd",
+        **maxlib_expectations(MAXLIB_ROLE_ROWS),
+        "edge": {
+            "file": "maxlib-roles-edge.fbd",
+            "cover": "cover.jpg",
+            **maxlib_expectations(MAXLIB_EDGE_ROWS),
+        },
+    }
+    return json.dumps(expected, ensure_ascii=False, indent=2) + "\n"
+
+
+# ----------------------------------------------------------------------------------------------
+# spelling-scope-ru.fb2 - the spelling scope journeys (feature 004, User Story 9): a Russian
+# book whose description carries 30 English words spread over the publisher, the keywords, the
+# city, the book name, a plain custom-info row and the src-title-info annotation (never marked:
+# the Description view is not checked) and exactly 10 misspelt Russian words - 6 in the body,
+# 4 in the title-info annotation (the Body view's annotation block) - listed with their
+# structural paths in spelling-scope-ru.expected.json. Every other word is spelt correctly.
+# ----------------------------------------------------------------------------------------------
+SPELLING_SCOPE_MISSPELLED = [
+    # (misspelt, correct, structural path of its paragraph)
+    ("диревне", "деревне", "title-info/annotation[1]/p[1]"),
+    ("празнику", "празднику", "title-info/annotation[1]/p[1]"),
+    ("кортина", "картина", "title-info/annotation[1]/p[2]"),
+    ("пашол", "пошёл", "title-info/annotation[1]/p[2]"),
+    ("карова", "корова", "body[1]/section[1]/p[1]"),
+    ("сабака", "собака", "body[1]/section[1]/p[1]"),
+    ("малако", "молоко", "body[1]/section[1]/p[2]"),
+    ("Здраствуйте", "Здравствуйте", "body[1]/section[2]/p[1]"),
+    ("агурец", "огурец", "body[1]/section[2]/p[2]"),
+    ("сонце", "солнце", "body[1]/section[2]/p[2]"),
+]
+SPELLING_SCOPE_ENGLISH = {
+    "publishInfo.publisher": "Example Publishing House",
+    "titleInfo.keywords": "spelling, scope, description, fields, check",
+    "publishInfo.city": "London",
+    "publishInfo.bookName": "The Great Spelling Scope Test",
+    "customInfo.0": "imported from the example library catalogue by hand",
+    "srcTitleInfo.annotation": "The original English annotation of this little book.",
+}
+SPELLING_SCOPE = f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_contemporary</genre>
+			<author>
+				<first-name>Пётр</first-name>
+				<last-name>Правописанов</last-name>
+			</author>
+			<book-title>Проверка правописания</book-title>
+			<annotation>
+				<p>В диревне готовились к празнику.</p>
+				<p>На стене висела кортина, и мальчик пашол домой.</p>
+			</annotation>
+			<keywords>{SPELLING_SCOPE_ENGLISH["titleInfo.keywords"]}</keywords>
+			<lang>ru</lang>
+			<src-lang>en</src-lang>
+		</title-info>
+		<src-title-info>
+			<genre>prose_contemporary</genre>
+			<author>
+				<first-name>Джон</first-name>
+				<last-name>Смит</last-name>
+			</author>
+			<book-title>Проверка правописания (оригинал)</book-title>
+			<annotation>
+				<p>{SPELLING_SCOPE_ENGLISH["srcTitleInfo.annotation"]}</p>
+			</annotation>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>генератор тестовых файлов</program-used>
+			<date value="2026-01-01">2026</date>
+			<id>fixture-spelling-scope-ru</id>
+			<version>1.0</version>
+			<history>
+				<p>Первая версия файла.</p>
+			</history>
+		</document-info>
+		<publish-info>
+			<book-name>{SPELLING_SCOPE_ENGLISH["publishInfo.bookName"]}</book-name>
+			<publisher>{SPELLING_SCOPE_ENGLISH["publishInfo.publisher"]}</publisher>
+			<city>{SPELLING_SCOPE_ENGLISH["publishInfo.city"]}</city>
+			<year>2026</year>
+		</publish-info>
+		<custom-info info-type="catalogue">{SPELLING_SCOPE_ENGLISH["customInfo.0"]}</custom-info>
+	</description>
+	<body>
+		<title>
+			<p>Проверка правописания</p>
+		</title>
+		<section id="s1">
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Утром на лугу паслась карова, а рядом бегала сабака.</p>
+			<p>На столе стояло малако и лежал свежий хлеб.</p>
+			<p>Вечером все собрались у окна и долго смотрели на огни города.</p>
+		</section>
+		<section id="s2">
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<p>Гость сказал: «Здраствуйте!» — и снял шляпу.</p>
+			<p>В саду рос агурец, а над домом светило яркое сонце.</p>
+		</section>
+	</body>
+</FictionBook>
+"""
+
+
+def spelling_scope_expected_json() -> str:
+    import json
+
+    english_words = sum(
+        len([w for w in text.replace(",", " ").replace(".", " ").split() if w])
+        for text in SPELLING_SCOPE_ENGLISH.values()
+    )
+    assert english_words == 30, english_words
+    body = [m for m in SPELLING_SCOPE_MISSPELLED if m[2].startswith("body[")]
+    annotation = [m for m in SPELLING_SCOPE_MISSPELLED if m[2].startswith("title-info/")]
+    assert (len(body), len(annotation)) == (6, 4), (len(body), len(annotation))
+    expected = {
+        "$comment": (
+            "Generated with spelling-scope-ru.fb2 by make-fixtures.py (feature 004, User Story "
+            "9): the 10 Russian words the ru_RU dictionary must flag in the Body view - 6 in the "
+            "body, 4 in the annotation block - each with its correct spelling and the structural "
+            "path of its paragraph, and the 30 English words of the description that must never "
+            "be marked (the Description view is not checked)."
+        ),
+        "lang": "ru",
+        "misspelled": [
+            {"word": word, "correct": correct, "path": path}
+            for word, correct, path in SPELLING_SCOPE_MISSPELLED
+        ],
+        "bodyCount": len(body),
+        "annotationCount": len(annotation),
+        "english": {"count": english_words, "fields": SPELLING_SCOPE_ENGLISH},
+    }
+    return json.dumps(expected, ensure_ascii=False, indent=2) + "\n"
+
+
+# ----------------------------------------------------------------------------------------------
+# empty-annotation-history.fb2 - a present-but-empty `<annotation/>` in title-info and
+# `<history xml:lang="ru"/>` in document-info over a one-section body (feature 004, User
+# Story 2, FR-010/FR-015): read as present nodes with empty content and written back
+# identically. Laid out exactly as the writer writes a document, so the unedited round trip
+# is byte-identical.
+# ----------------------------------------------------------------------------------------------
+EMPTY_ANNOTATION_HISTORY = f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_contemporary</genre>
+			<author>
+				<first-name>Пустая</first-name>
+				<last-name>Аннотация</last-name>
+			</author>
+			<book-title>Пустые элементы</book-title>
+			<annotation/>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture generator</program-used>
+			<date value="2026-01-01">2026</date>
+			<id>fixture-empty-annotation-history</id>
+			<version>1.0</version>
+			<history xml:lang="ru"/>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава</p>
+			</title>
+			<p>Единственный абзац.</p>
+		</section>
+	</body>
+</FictionBook>
+"""
+
+# ----------------------------------------------------------------------------------------------
+# import-full.fbd - a description with every importable entry of feature 004 FR-032 present
+# and non-empty (User Story 4): the 11 title-info entries (genres, authors, book title,
+# annotation, keywords, date, a cover with its binary, language, source language, translators,
+# sequences), two role entries ("Other persons"), a source title info, the 9 document-info
+# entries, the 6 publish-info entries, plus three plain custom-info rows (`mlseriesid` and two
+# reader types), each its own line: 31 importable entries, the fixture that fills the import
+# dialog completely. No body, as a library descriptor.
+# ----------------------------------------------------------------------------------------------
+IMPORT_FULL = f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>sf</genre>
+			<genre match="50">adventure</genre>
+			<author>
+				<first-name>Полина</first-name>
+				<middle-name>Петровна</middle-name>
+				<last-name>Полнова</last-name>
+				<home-page>https://example.org/polnova</home-page>
+				<email>polnova@example.org</email>
+				<id>author-polnova</id>
+			</author>
+			<book-title>Полное описание</book-title>
+			<annotation>
+				<p>Аннотация полного описания.</p>
+				<p>Второй абзац аннотации.</p>
+			</annotation>
+			<keywords>импорт, описание, проверка</keywords>
+			<date value="2020-05-17">17 мая 2020</date>
+			<coverpage>
+				<image l:href="#cover.jpg"/>
+			</coverpage>
+			<lang>ru</lang>
+			<src-lang>en</src-lang>
+			<translator>
+				<first-name>Тимофей</first-name>
+				<last-name>Переводов</last-name>
+			</translator>
+			<sequence name="Полные серии" number="3">
+				<sequence name="Подсерия" number="1"/>
+			</sequence>
+		</title-info>
+		<src-title-info>
+			<genre>sf</genre>
+			<author>
+				<first-name>Paul</first-name>
+				<last-name>Fullman</last-name>
+			</author>
+			<book-title>The Full Description</book-title>
+			<annotation>
+				<p>The original annotation.</p>
+			</annotation>
+			<keywords>import, description</keywords>
+			<date value="2018-01-01">2018</date>
+			<coverpage>
+				<image l:href="#cover.jpg"/>
+			</coverpage>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>maker</nickname>
+				<email>maker@example.org</email>
+			</author>
+			<program-used>Maxima FBD Maker</program-used>
+			<date value="2026-10-20">2026-10-20</date>
+			<src-url>https://example.org/source</src-url>
+			<src-url>https://example.org/mirror</src-url>
+			<src-ocr>OCR by hand</src-ocr>
+			<id>import-full-0001</id>
+			<version>1.5</version>
+			<history>
+				<p>v1.0 — создание файла</p>
+				<p>v1.5 — вычитка</p>
+			</history>
+			<publisher>
+				<nickname>Publisher Nick</nickname>
+			</publisher>
+		</document-info>
+		<publish-info>
+			<book-name>Полное описание (бумажное издание)</book-name>
+			<publisher>Издательство «Полнота»</publisher>
+			<city>Москва</city>
+			<year>2021</year>
+			<isbn>978-5-00000-000-1</isbn>
+			<sequence name="Бумажная серия" number="7"/>
+		</publish-info>
+		<custom-info info-type="mlillustrator">Илюстраторов Илья Ильич</custom-info>
+		<custom-info info-type="mleditor">Редакторов Роман Романович</custom-info>
+		<custom-info info-type="mlseriesid">99 Какая-то серия</custom-info>
+		<custom-info info-type="fbreader">last position 12%</custom-info>
+		<custom-info info-type="coolreader">bookmark: chapter 2</custom-info>
+	</description>
+	<binary id="cover.jpg" content-type="image/jpeg">{b64("tiny.jpg")}
+</binary>
+</FictionBook>
+"""
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -647,6 +1093,25 @@ def main() -> None:
     write("no-declaration.fb2", NODECL)
     write("many-sections.fb2", many_sections())
     write("nbsp-layout.fb2", NBSP_LAYOUT)
+    # Feature 004.
+    write(
+        "maxlib-roles.fbd",
+        maxlib_description("Проверочная книга", "Тестовый Автор Тестович", MAXLIB_ROLE_ROWS),
+    )
+    write(
+        "maxlib-roles-edge.fbd",
+        maxlib_description(
+            "Проверочная книга (крайние случаи)",
+            "Обычнов Олег Олегович",
+            MAXLIB_EDGE_ROWS,
+            cover="cover.jpg",
+        ),
+    )
+    write("maxlib-roles.expected.json", maxlib_expected_json())
+    write("spelling-scope-ru.fb2", SPELLING_SCOPE)
+    write("spelling-scope-ru.expected.json", spelling_scope_expected_json())
+    write("empty-annotation-history.fb2", EMPTY_ANNOTATION_HISTORY)
+    write("import-full.fbd", IMPORT_FULL)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+    <description>
+        <title-info>
+            <genre>sf</genre>
+            <author>
+                <first-name>Олег</first-name>
+                <middle-name>Олегович</middle-name>
+                <last-name>Обычнов</last-name>
+            </author>
+            <book-title>Проверочная книга (крайние случаи)</book-title>
+            <coverpage>
+                <image l:href="#cover.jpg"/>
+            </coverpage>
+            <lang>ru</lang>
+        </title-info>
+        <document-info>
+            <version>1.0</version>
+        </document-info>
+        <publish-info>
+        </publish-info>
+        <custom-info info-type="mlillustrator">Однофамильцев</custom-info>
+        <custom-info info-type="mleditor">Однофамильцев</custom-info>
+        <custom-info info-type="mlcompiler">Ю Ю Ю</custom-info>
+        <custom-info info-type="mlcommentator"></custom-info>
+        <custom-info info-type="mlabouttheauthor">Первый Второй Третий Четвёртый Пятый</custom-info>
+        <custom-info info-type="mlillustrator">Первов Пётр Петрович</custom-info>
+        <custom-info info-type="mlillustrator">Второв Вадим Вадимович</custom-info>
+        <custom-info info-type="mleditor">Де_Голль Шарль</custom-info>
+        <custom-info info-type="mldesigner">Дизайнеров  Данилович</custom-info>
+        <custom-info info-type="mleditor">  Пробелов Пётр Петрович </custom-info>
+        <custom-info info-type="MlEditor">Регистров Р Р</custom-info>
+    </description>
+    <binary id="cover.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkI
+CQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQ
+EBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREA
+AhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUX
+ITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQV
+FiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0
+zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==
+</binary>
+</FictionBook>
