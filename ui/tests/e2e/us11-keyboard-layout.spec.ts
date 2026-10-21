@@ -196,11 +196,14 @@ async function closeSettings(page: Page, button: 'ok' | 'cancel'): Promise<void>
   await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
 }
 
+/** The id of the open document, null while none is (between a close and the next load). */
+function currentDocId(page: Page): Promise<string | null> {
+  return page.evaluate<string | null>('window.__mfbeTest.scripts.document()?.docId ?? null');
+}
+
 /** The id of the open document (whatever the active view; a Source-only one included). */
 async function openDocId(page: Page): Promise<string> {
-  const id = await page.evaluate<string | null>(
-    'window.__mfbeTest.scripts.document()?.docId ?? null',
-  );
+  const id = await currentDocId(page);
   if (!id) throw new Error('no document is open');
   return id;
 }
@@ -209,7 +212,9 @@ async function fileNew(page: Page): Promise<void> {
   const before = await openDocId(page);
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-new').click();
-  await expect.poll(() => openDocId(page)).not.toBe(before);
+  // Between the close of the old document and the arrival of the new one no document is open
+  // at all - that moment keeps the poll waiting instead of failing it.
+  await expect.poll(async () => (await currentDocId(page)) ?? before).not.toBe(before);
   await waitForStartupDocument(page);
 }
 
