@@ -59,7 +59,8 @@ function fileName(path: string): string {
   return parts[parts.length - 1] || path;
 }
 
-function errorReason(error: unknown): string {
+/** The reason of a failed call for a message: the core's `data.reason`, else the error's text. */
+export function errorReason(error: unknown): string {
   if (error instanceof RpcError) {
     const data = error.data as { reason?: unknown } | undefined;
     if (data && typeof data.reason === 'string' && data.reason) return data.reason;

@@ -302,6 +302,7 @@ test.describe('US5 (004) - export the description as an FBD file', () => {
     const exported = path.join(books, 'exported.fbd');
     await openApp(core, page);
     await openBook(core, page, book);
+    const id = await docId(page);
     // An unsaved edit: the export writes the description as it is in the editor (FR-041).
     await showDescription(page);
     await fillField(page, 'description-book-title', 'Современная книга (экспорт)');
@@ -341,10 +342,7 @@ test.describe('US5 (004) - export the description as an FBD file', () => {
     expect(text).toContain('<history>');
 
     // FB2 2.1 validation of the exported content: 0 errors (SC-005).
-    const report = await core.rpcJob<{ errorCount: number }>('doc.validate', {
-      docId: await docId(page),
-      text,
-    });
+    const report = await core.rpcJob<{ errorCount: number }>('doc.validate', { docId: id, text });
     expect(report.errorCount).toBe(0);
     const lint = xmllintValidates(exported);
     if (lint !== null) expect(lint).toBe(true);
@@ -410,7 +408,7 @@ test.describe('US5 (004) - export the description as an FBD file', () => {
     await page.getByTestId('dialog-export-validation-failed-button-yes').click();
     await expectExported(page, target);
     await expect(page.getByTestId('status-message')).toHaveText(
-      await pagePattern(page, 'transfer.export.doneWithErrors'),
+      await pageAnyPattern(page, 'transfer.export.doneWithErrors'),
     );
     expect(existsSync(target)).toBe(true);
     const text = readFileSync(target, 'utf8');

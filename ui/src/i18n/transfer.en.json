@@ -1,8 +1,9 @@
 {
-  "$comment": "Description import and FBD export (feature 004, User Stories 4 and 5): the File > Import and File > Export entries, the import dialog and the status messages. Feature catalogue merged into en.json by i18n/index.ts; the keys are filled by the two stories.",
+  "$comment": "Description import and FBD export (feature 004, User Stories 4 and 5): the File > Import and File > Export entries, the import dialog, the export prompt and the status messages. Feature catalogue merged into en.json by i18n/index.ts.",
   "menu": {
     "file": {
-      "importDescription": "&Description from FictionBook file..."
+      "importDescription": "&Description from FictionBook file...",
+      "exportFbd": "Export as &FBD..."
     }
   },
   "cmd": {
@@ -10,6 +11,10 @@
       "importDescription": {
         "tooltip": "Import description",
         "description": "Import the description of another FictionBook file into this document"
+      },
+      "exportFbd": {
+        "tooltip": "Export as FBD",
+        "description": "Write the description of this document, with its cover, as an FBD file"
       }
     }
   },
@@ -24,6 +29,13 @@
       "undoLabel": "Import description",
       "coverValue": "{{id}} ({{type}}, {{size}} bytes)",
       "coverNoData": "{{id}} (the file has no data for this image)"
+    },
+    "export": {
+      "validationFailed": "{{errors}}\nDo you still want to export the file?\n\nWARNING: Invalid files can be improperly displayed and can cause errors in other applications.",
+      "sameFile": "{{path}} is the open document itself.\nThe description cannot be exported over the file that holds the book's text; use Save As to turn the document into an FBD file.",
+      "done": "Description exported to {{path}}. No errors found.",
+      "doneWithErrors_one": "Description exported to {{path}}. {{count}} error found.",
+      "doneWithErrors_other": "Description exported to {{path}}. {{count}} errors found."
     }
   }
 }

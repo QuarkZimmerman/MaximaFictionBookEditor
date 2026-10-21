@@ -41,11 +41,11 @@ export const MAIN_MENU: readonly MenuSpec[] = [
         items: [cmd('file.importDescription')],
       },
       {
+        // The FBD export of feature 004 (FR-040) in place of the plugin placeholder.
         kind: 'submenu',
         id: 'export',
         labelKey: 'menu.file.export',
-        dynamic: 'export',
-        items: [{ kind: 'placeholder', id: 'none', labelKey: 'menu.file.noExportPlugins' }],
+        items: [cmd('file.exportFbd')],
       },
       sep,
       {

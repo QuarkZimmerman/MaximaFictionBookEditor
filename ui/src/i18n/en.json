@@ -30,9 +30,7 @@
       "saveAs": "Save &As...",
       "validate": "&Validate",
       "import": "&Import",
-      "noImportPlugins": "No import plugins installed",
       "export": "&Export",
-      "noExportPlugins": "No export plugins installed",
       "recent": "&Recent Files",
       "noRecent": "No Recent Files",
       "openThisDocument": "Open this document",
@@ -797,7 +795,8 @@
       "parseError": "The file is not well-formed XML (line {{line}}, column {{column}}): {{message}}",
       "ioError": "{{path}} could not be read or written: {{reason}}",
       "sourceMalformed": "The XML source is not well-formed; correct it in the Source view first",
-      "notFictionBook": "{{path}} is not a FictionBook document"
+      "notFictionBook": "{{path}} is not a FictionBook document",
+      "sameAsOpenFile": "{{path}} is the open document itself"
     },
     "binary": {
       "notFound": "Binary object \"{{id}}\" does not exist in the document"
