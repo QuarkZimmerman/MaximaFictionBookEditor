@@ -95,6 +95,10 @@ int current_pid();
 // Resident set size of the current process in bytes (0 when unknown).
 std::size_t resident_memory_bytes();
 
+// Peak resident set size of the current process in bytes - the high-water mark the budgets of
+// `mfbe-core bench` and the memory checks of the tests read (Linux `VmHWM`; 0 elsewhere).
+std::size_t peak_resident_memory_bytes();
+
 }  // namespace mfbe::platform
 
 namespace mfbe::process {

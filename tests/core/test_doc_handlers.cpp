@@ -1,21 +1,26 @@
 // T042/T045: doc.* and binary.* over the real loopback server - new, toXml, fromXml, save
 // (needsConfirmation and force), recent, open (direct and as a job), openSource for malformed
 // files, validate, caret, watch + doc.changedOnDisk, keepEncoding, HTTP /binary GET/POST,
-// formatDate (feature 003).
+// formatDate (feature 003); doc.readDescription, the import session and binary.copy (feature
+// 004 US4, T036).
 #include "test_support.hpp"
 #include "ws_test_client.hpp"
 
+#include <mfbe/base64.hpp>
 #include <mfbe/core_server.hpp>
 #include <mfbe/document_details.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/version.hpp>
 
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <thread>
 
 using namespace mfbe;
@@ -78,6 +83,134 @@ struct ServerFixture {
 
 std::string read_all(const std::filesystem::path& p) {
     return test::read_text(p);
+}
+
+// A text-only FictionBook of `sections` sections with 500 paragraphs each (40 sections make
+// a little over 2 MB, the job threshold of doc.open / doc.readDescription).
+void write_big_book(const std::filesystem::path& path, int sections) {
+    std::ofstream big(path, std::ios::binary);
+    big << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<FictionBook "
+           "xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+           "xmlns:l=\"http://www.w3.org/1999/xlink\">\n"
+           "<description><title-info><genre>sf</genre><author><nickname>big</nickname></"
+           "author><book-title>Big</book-title><lang>en</lang></title-info>"
+           "<document-info><author><nickname>big</nickname></author><date>2026</date><id>big</"
+           "id><version>1.0</version></document-info></description>\n<body>\n";
+    for (int s = 0; s < sections; ++s) {
+        big << "<section><title><p>Section " << s << "</p></title>\n";
+        for (int p = 0; p < 500; ++p) {
+            big << "<p>Paragraph " << p << " of section " << s
+                << ": the quick brown fox jumps over the lazy dog; съешь же ещё этих мягких "
+                   "французских булок.</p>\n";
+        }
+        big << "</section>\n";
+    }
+    big << "</body>\n</FictionBook>\n";
+}
+
+// Every `attrs.nodeId` below `value`, in document order.
+void collect_node_ids(const json& value, std::vector<std::string>& out) {
+    if (value.is_object()) {
+        if (value.contains("attrs") && value["attrs"].is_object() &&
+            value["attrs"].contains("nodeId") && value["attrs"]["nodeId"].is_string()) {
+            out.push_back(value["attrs"]["nodeId"].get<std::string>());
+        }
+        for (const auto& [key, child] : value.items()) {
+            collect_node_ids(child, out);
+        }
+    } else if (value.is_array()) {
+        for (const auto& child : value) {
+            collect_node_ids(child, out);
+        }
+    }
+}
+
+// The number of an `n<N>` id (-1 for any other id).
+long long id_number(const std::string& id) {
+    if (id.size() < 2 || id[0] != 'n') {
+        return -1;
+    }
+    try {
+        return std::stoll(id.substr(1));
+    } catch (const std::exception&) {
+        return -1;
+    }
+}
+
+long long max_id_number(const std::vector<std::string>& ids) {
+    long long max = -1;
+    for (const auto& id : ids) {
+        max = std::max(max, id_number(id));
+    }
+    return max;
+}
+
+// The job notifications of `job_id` until it ends: the phases of its job.progress messages in
+// order and the final job.done / job.failed message (messages received meanwhile are kept).
+struct JobOutcome {
+    std::vector<std::string> phases;
+    json final;  // the job.done or job.failed notification
+};
+
+JobOutcome collect_job(test::WsClient& ws, const std::string& job_id, int timeout_ms = 60000) {
+    JobOutcome outcome;
+    const auto consider = [&](const json& msg) {
+        const std::string name = msg.value("method", "");
+        if (!msg.contains("params") || msg["params"].value("jobId", "") != job_id) {
+            return false;
+        }
+        if (name == "job.progress") {
+            outcome.phases.push_back(msg["params"]["phase"].get<std::string>());
+            return true;
+        }
+        if (name == "job.done" || name == "job.failed") {
+            outcome.final = msg;
+            return true;
+        }
+        return false;
+    };
+    // Notifications that arrived while the start call waited for its response.
+    std::vector<json> kept;
+    for (const auto& msg : ws.inbox) {
+        if (!consider(msg)) {
+            kept.push_back(msg);
+        }
+    }
+    ws.inbox = kept;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    while (outcome.final.is_null() && std::chrono::steady_clock::now() < deadline) {
+        auto msg = ws.receive_json(timeout_ms);
+        if (!msg) {
+            break;
+        }
+        if (!consider(*msg)) {
+            ws.inbox.push_back(*msg);
+        }
+    }
+    return outcome;
+}
+
+// The 10 MB text-only book of the performance journeys, generated into the build tree by
+// tests/fixtures/gen-large-book.py when missing; an empty path when python3 or the generator
+// are not available.
+std::filesystem::path large_book_10mb() {
+    const std::filesystem::path book = test::build_dir() / "tests" / "large-book-10mb.fb2";
+    std::error_code ec;
+    if (std::filesystem::exists(book, ec) && std::filesystem::file_size(book, ec) > 9u << 20) {
+        return book;
+    }
+    const std::filesystem::path generator = test::fixtures_dir() / "gen-large-book.py";
+    if (!std::filesystem::exists(generator, ec)) {
+        return {};
+    }
+    std::filesystem::create_directories(book.parent_path(), ec);
+    const std::string command = "python3 \"" + generator.string() + "\" --out \"" + book.string() +
+                                "\" --size-mb 10 >/dev/null 2>&1";
+    if (std::system(command.c_str()) != 0) {
+        std::filesystem::remove(book, ec);
+        return {};
+    }
+    return std::filesystem::exists(book, ec) ? book : std::filesystem::path{};
 }
 
 }  // namespace
@@ -325,26 +458,7 @@ TEST_CASE("doc handlers: open (direct and as a job), warnings, validate, keepEnc
 
     // A big file (> 2 MB) opens as a job with progress and job.done carrying the result.
     const std::filesystem::path big_path = f.data / "big.fb2";
-    {
-        std::ofstream big(big_path, std::ios::binary);
-        big << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<FictionBook "
-               "xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
-               "xmlns:l=\"http://www.w3.org/1999/xlink\">\n"
-               "<description><title-info><genre>sf</genre><author><nickname>big</nickname></"
-               "author><book-title>Big</book-title><lang>en</lang></title-info>"
-               "<document-info><author><nickname>big</nickname></author><date>2026</date><id>big</"
-               "id><version>1.0</version></document-info></description>\n<body>\n";
-        for (int s = 0; s < 40; ++s) {
-            big << "<section><title><p>Section " << s << "</p></title>\n";
-            for (int p = 0; p < 500; ++p) {
-                big << "<p>Paragraph " << p << " of section " << s
-                    << ": the quick brown fox jumps over the lazy dog; съешь же ещё этих мягких "
-                       "французских булок.</p>\n";
-            }
-            big << "</section>\n";
-        }
-        big << "</body>\n</FictionBook>\n";
-    }
+    write_big_book(big_path, 40);
     REQUIRE(std::filesystem::file_size(big_path) > 2 * 1024 * 1024);
     const json start = f.ws.call("doc.open", json{{"path", big_path.string()}});
     REQUIRE(start.contains("result"));
@@ -640,4 +754,464 @@ TEST_CASE("doc handlers: doc.formatDate writes the regional long date and reject
     }
     CHECK(f.ws.call("doc.formatDate", json::object())["error"]["code"] == -32602);
     CHECK(f.ws.call("doc.formatDate", json{{"value", 20261017}})["error"]["code"] == -32602);
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 004 US4: doc.readDescription, the import session and binary.copy (T036)            */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "doc.readDescription: the description as read, the details filled in, the referenced "
+    "cover alone, ids from the target's allocator",
+    "[server][doc][import]") {
+    ServerFixture f;
+    const json created = f.ws.call("doc.new");
+    REQUIRE(created.contains("result"));
+    const json target = created["result"];
+    const std::string doc_id = target["docId"];
+    std::vector<std::string> target_ids;
+    collect_node_ids(target, target_ids);
+    REQUIRE_FALSE(target_ids.empty());
+    const long long target_max = max_id_number(target_ids);
+    const json recent_before = f.ws.call("doc.recent")["result"];
+    const json caret{{"view", "body"}, {"nodeId", target_ids.front()}, {"offset", 1}};
+    REQUIRE(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", caret}}).contains("result"));
+
+    // The library's edge-case fixture: a cover, eleven custom-info rows, document details to
+    // fill in, no body.
+    const json read =
+        f.run_job("doc.readDescription",
+                  json{{"docId", doc_id}, {"path", f.book("maxlib-roles-edge.fbd").string()}});
+    REQUIRE(read.contains("result"));
+    const json& result = read["result"];
+    REQUIRE(result["importId"].is_string());
+    const std::string import_id = result["importId"];
+    CHECK(import_id != doc_id);
+    CHECK_FALSE(result.contains("bodies"));
+    CHECK_FALSE(result.contains("document"));
+    CHECK(result["warnings"] == json::array());
+
+    // `description` as read: the reader's normalisation only, nothing filled in.
+    const json& description = result["description"];
+    CHECK(description["titleInfo"]["bookTitle"] == "Проверочная книга (крайние случаи)");
+    CHECK(description["titleInfo"]["coverpage"][0]["href"] == "#cover.jpg");
+    CHECK(description["documentInfo"]["id"] == "");
+    CHECK(description["documentInfo"]["version"] == "1.0");
+    CHECK_FALSE(description["documentInfo"].contains("programUsed"));
+    CHECK(description["documentInfo"]["date"]["text"] == "");
+    CHECK_FALSE(description["documentInfo"]["date"].contains("value"));
+    REQUIRE(description["customInfo"].size() == 11);
+    CHECK(description["customInfo"][0]["infoType"] == "mlillustrator");
+    CHECK(description["customInfo"][0]["text"] == "Однофамильцев");
+    CHECK(description["customInfo"][9]["text"] == "  Пробелов Пётр Петрович ");
+    CHECK(description["customInfo"][10]["infoType"] == "MlEditor");
+
+    // `documentDetails`: the document-info after the fill-in of 002 FR-005, as Open would
+    // have produced it.
+    const json& details = result["documentDetails"];
+    const std::string id = details["id"];
+    CHECK(uuid::is_valid(id));
+    CHECK(id.find_first_of("abcdef") == std::string::npos);
+    CHECK(details["version"] == "1.0");
+    const std::string program = std::string(version::kProductName) + " " + version::kVersion;
+    CHECK(details["programUsed"] == program);
+    CHECK(details["date"]["value"].get<std::string>().size() == 10);
+    CHECK_FALSE(details["date"]["text"].get<std::string>().empty());
+
+    // `binaries`: the referenced cover only, held by the hidden session.
+    REQUIRE(result["binaries"].size() == 1);
+    CHECK(result["binaries"][0]["id"] == "cover.jpg");
+    CHECK(result["binaries"][0]["contentType"] == "image/jpeg");
+    const json listed = f.ws.call("binary.list", json{{"docId", import_id}});
+    REQUIRE(listed["result"].size() == 1);
+    CHECK(listed["result"][0]["id"] == "cover.jpg");
+    // The side channel serves the dialog's cover picture from the import session.
+    auto preview =
+        test::http_get(f.port(), "/binary/" + import_id + "/cover.jpg/preview?w=64&" + f.tok());
+    CHECK(preview.status == 200);
+    CHECK(preview.headers["content-type"] == "image/jpeg");
+    CHECK_FALSE(preview.body.empty());
+
+    // The open session is untouched: Recent Files, the caret, the binary store.
+    CHECK(f.ws.call("doc.recent")["result"] == recent_before);
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}})["result"]["caret"] == caret);
+    CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"] == target["binaries"]);
+    CHECK(f.ws.call("test.metrics")["result"]["openDocuments"] == 2);
+
+    // Node ids of the imported annotation, history and source annotation come from the
+    // target's allocator: above every id of the open document, distinct, and advancing.
+    const json full =
+        f.run_job("doc.readDescription",
+                  json{{"docId", doc_id}, {"path", f.book("import-full.fbd").string()}});
+    REQUIRE(full.contains("result"));
+    std::vector<std::string> imported_ids;
+    collect_node_ids(full["result"]["description"], imported_ids);
+    REQUIRE(imported_ids.size() >= 7);  // annotation + 2 p, history + 2 p, src annotation + p
+    const std::set<std::string> distinct(imported_ids.begin(), imported_ids.end());
+    CHECK(distinct.size() == imported_ids.size());
+    for (const auto& node_id : imported_ids) {
+        INFO(node_id);
+        CHECK(id_number(node_id) > target_max);
+    }
+    const json again =
+        f.run_job("doc.readDescription",
+                  json{{"docId", doc_id}, {"path", f.book("import-full.fbd").string()}});
+    std::vector<std::string> second_ids;
+    collect_node_ids(again["result"]["description"], second_ids);
+    CHECK(max_id_number(second_ids) > max_id_number(imported_ids));
+    CHECK(full["result"]["description"]["documentInfo"]["programUsed"] == "Maxima FBD Maker");
+    CHECK(full["result"]["documentDetails"]["programUsed"] == "Maxima FBD Maker, " + program);
+    CHECK(full["result"]["documentDetails"]["id"] == "import-full-0001");
+    REQUIRE(full["result"]["binaries"].size() == 1);
+    CHECK(full["result"]["binaries"][0]["id"] == "cover.jpg");
+
+    // doc.close frees the import session and its previews; the open document stays.
+    CHECK(f.ws.call("doc.close", json{{"docId", import_id}})["result"] == json::object());
+    CHECK(f.ws.call("binary.list", json{{"docId", import_id}})["error"]["code"] == 1000);
+    CHECK(test::http_get(f.port(), "/binary/" + import_id + "/cover.jpg/preview?w=64&" + f.tok())
+              .status == 404);
+    CHECK(f.ws.call("doc.close", json{{"docId", import_id}})["error"]["code"] == 1000);
+    CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"] == target["binaries"]);
+    for (const json& r : {full, again}) {
+        CHECK(f.ws.call("doc.close", json{{"docId", r["result"]["importId"]}})["result"] ==
+              json::object());
+    }
+    CHECK(f.ws.call("test.metrics")["result"]["openDocuments"] == 1);
+}
+
+TEST_CASE(
+    "doc.readDescription: every encoding Open accepts, a body-less file, and only the "
+    "binaries an importable entry refers to",
+    "[server][doc][import]") {
+    ServerFixture f;
+    const std::string doc_id = f.ws.call("doc.new")["result"]["docId"];
+
+    // A windows-1251 book reads correctly; its cover is referenced by the cover page.
+    const json legacy =
+        f.run_job("doc.readDescription",
+                  json{{"docId", doc_id}, {"path", f.book("legacy-cp1251.fb2").string()}});
+    REQUIRE(legacy.contains("result"));
+    CHECK(legacy["result"]["description"]["titleInfo"]["bookTitle"] == "Старая книга");
+    REQUIRE(legacy["result"]["binaries"].size() == 1);
+    CHECK(legacy["result"]["binaries"][0]["id"] == "cover.jpg");
+    CHECK(f.ws.call("doc.close", json{{"docId", legacy["result"]["importId"]}}).contains("result"));
+
+    // A descriptor without a body imports like any other file.
+    const json descriptor =
+        f.run_job("doc.readDescription",
+                  json{{"docId", doc_id}, {"path", f.book("descriptor.fbd").string()}});
+    REQUIRE(descriptor.contains("result"));
+    CHECK(descriptor["result"]["description"]["titleInfo"]["bookTitle"] == "Только описание");
+    CHECK(descriptor["result"]["description"]["titleInfo"]["annotation"]["type"] == "annotation");
+    CHECK(descriptor["result"]["description"]["publishInfo"]["bookName"] == "Бумажное издание");
+    CHECK(descriptor["result"]["binaries"] == json::array());
+    CHECK(f.ws.call("doc.close", json{{"docId", descriptor["result"]["importId"]}})
+              .contains("result"));
+
+    // Binaries: the cover page and the images inside the annotation and the history are kept
+    // in file order; a binary referenced only by the body, by nothing, or only by an `output`
+    // element (no importable entry) is dropped.
+    const std::string png = base64::encode(read_all(test::fixtures_dir() / "images" / "tiny.png"));
+    const std::string gif = base64::encode(read_all(test::fixtures_dir() / "images" / "tiny.gif"));
+    const std::string jpg = base64::encode(read_all(test::fixtures_dir() / "images" / "tiny.jpg"));
+    const std::filesystem::path source = f.data / "binaries.fb2";
+    test::write_text(
+        source,
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+        "xmlns:l=\"http://www.w3.org/1999/xlink\">\n<description><title-info><genre>sf</genre>"
+        "<author><nickname>bins</nickname></author><book-title>Binaries</book-title>"
+        "<annotation><p>Inline <image l:href=\"#inline.gif\"/> picture.</p></annotation>"
+        "<coverpage><image l:href=\"#cover.png\"/></coverpage><lang>en</lang></title-info>"
+        "<document-info><author><nickname>bins</nickname></author><date>2026</date>"
+        "<id>bins</id><version>1.0</version>"
+        "<history><p>History <image l:href=\"#history.jpg\"/> picture.</p></history>"
+        "</document-info>"
+        "<output mode=\"free\" include-all=\"require\">"
+        "<part l:href=\"#output-only.png\" include=\"require\"/></output>"
+        "</description>\n<body><section><image l:href=\"#body-only.png\"/><p>Text</p></section>"
+        "</body>\n"
+        "<binary id=\"body-only.png\" content-type=\"image/png\">" +
+            png +
+            "</binary>\n"
+            "<binary id=\"cover.png\" content-type=\"image/png\">" +
+            png +
+            "</binary>\n"
+            "<binary id=\"unused.png\" content-type=\"image/png\">" +
+            png +
+            "</binary>\n"
+            "<binary id=\"inline.gif\" content-type=\"image/gif\">" +
+            gif +
+            "</binary>\n"
+            "<binary id=\"output-only.png\" content-type=\"image/png\">" +
+            png +
+            "</binary>\n"
+            "<binary id=\"history.jpg\" content-type=\"image/jpeg\">" +
+            jpg + "</binary>\n</FictionBook>\n");
+    const json read =
+        f.run_job("doc.readDescription", json{{"docId", doc_id}, {"path", source.string()}});
+    REQUIRE(read.contains("result"));
+    std::vector<std::string> kept;
+    for (const auto& meta : read["result"]["binaries"]) {
+        kept.push_back(meta["id"].get<std::string>());
+    }
+    CHECK(kept == std::vector<std::string>{"cover.png", "inline.gif", "history.jpg"});
+    const std::string import_id = read["result"]["importId"];
+    std::vector<std::string> listed;
+    for (const auto& meta : f.ws.call("binary.list", json{{"docId", import_id}})["result"]) {
+        listed.push_back(meta["id"].get<std::string>());
+    }
+    CHECK(listed == kept);
+    CHECK(test::http_get(f.port(), "/binary/" + import_id + "/unused.png?" + f.tok()).status ==
+          404);
+    CHECK(test::http_get(f.port(), "/binary/" + import_id + "/cover.png?" + f.tok()).status == 200);
+    // The outputs stay in the description as read; they are no importable entry.
+    CHECK(read["result"]["description"]["outputs"].size() == 1);
+    CHECK(f.ws.call("doc.close", json{{"docId", import_id}})["result"] == json::object());
+}
+
+TEST_CASE(
+    "doc.readDescription: errors are Open's, the open document is untouched and no "
+    "session is left behind",
+    "[server][doc][import]") {
+    ServerFixture f;
+    const json created = f.ws.call("doc.new");
+    const json target = created["result"];
+    const std::string doc_id = target["docId"];
+    // A saved file remembered by Recent Files, then removed from disk.
+    const std::string gone = (f.data / "gone.fb2").string();
+    REQUIRE(
+        f.run_job("doc.save",
+                  json{{"docId", doc_id}, {"document", target}, {"path", gone}, {"force", true}})
+            .contains("result"));
+    REQUIRE(f.ws.call("doc.recent")["result"].size() == 1);
+    std::filesystem::remove(gone);
+
+    const json missing = f.ws.call("doc.readDescription", json{{"docId", doc_id}, {"path", gone}});
+    REQUIRE(missing.contains("error"));
+    CHECK(missing["error"]["code"] == 1002);
+    CHECK(missing["error"]["data"]["path"] == gone);
+    CHECK(missing["error"]["data"]["reason"] == "file not found");
+    // Unlike doc.open, a missing source does not prune Recent Files.
+    REQUIRE(f.ws.call("doc.recent")["result"].size() == 1);
+    CHECK(f.ws.call("doc.recent")["result"][0]["path"] == gone);
+    CHECK(f.ws.call("doc.recent")["result"][0]["exists"] == false);
+
+    const json malformed = f.ws.call(
+        "doc.readDescription", json{{"docId", doc_id}, {"path", f.book("malformed.fb2").string()}});
+    REQUIRE(malformed.contains("error"));
+    CHECK(malformed["error"]["code"] == 1001);
+    CHECK(malformed["error"]["data"]["line"] == 20);
+    CHECK(malformed["error"]["data"]["column"] == 13);
+    CHECK_THAT(malformed["error"]["data"]["message"].get<std::string>(),
+               ContainsSubstring("mismatch"));
+
+    const std::string html = (f.data / "page.xml").string();
+    test::write_text(html, "<?xml version=\"1.0\"?><html><body>FictionBook</body></html>");
+    const json other = f.ws.call("doc.readDescription", json{{"docId", doc_id}, {"path", html}});
+    REQUIRE(other.contains("error"));
+    CHECK(other["error"]["code"] == 1004);
+    CHECK(other["error"]["data"]["reason"] == "rootNotFictionBook");
+    const std::string notes = (f.data / "notes.txt").string();
+    test::write_text(notes, "Just a text file.\n");
+    CHECK(f.ws.call("doc.readDescription",
+                    json{{"docId", doc_id}, {"path", notes}})["error"]["code"] == 1004);
+
+    CHECK(f.ws.call("doc.readDescription",
+                    json{{"docId", "d99"},
+                         {"path", f.book("descriptor.fbd").string()}})["error"]["code"] == 1000);
+    const json no_path = f.ws.call("doc.readDescription", json{{"docId", doc_id}});
+    REQUIRE(no_path.contains("error"));
+    CHECK(no_path["error"]["code"] == -32602);
+
+    // Nothing was imported into and no import session lingers.
+    CHECK(f.ws.call("test.metrics")["result"]["openDocuments"] == 1);
+    CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"] == target["binaries"]);
+}
+
+TEST_CASE(
+    "doc.readDescription: a big source is read as a job with Open's phases; a cancelled "
+    "job leaves no session",
+    "[server][doc][import][job]") {
+    ServerFixture f;
+    const std::string doc_id = f.ws.call("doc.new")["result"]["docId"];
+    const std::filesystem::path big_path = f.data / "big-source.fb2";
+    write_big_book(big_path, 40);
+    REQUIRE(std::filesystem::file_size(big_path) > 2 * 1024 * 1024);
+
+    const json start =
+        f.ws.call("doc.readDescription", json{{"docId", doc_id}, {"path", big_path.string()}});
+    REQUIRE(start.contains("result"));
+    REQUIRE(start["result"].contains("jobId"));
+    const JobOutcome done = collect_job(f.ws, start["result"]["jobId"]);
+    REQUIRE(done.final.is_object());
+    REQUIRE(done.final["method"] == "job.done");
+    CHECK(std::find(done.phases.begin(), done.phases.end(), "read") != done.phases.end());
+    CHECK(std::find(done.phases.begin(), done.phases.end(), "model") != done.phases.end());
+    CHECK(std::find(done.phases.begin(), done.phases.end(), "done") != done.phases.end());
+    const json& result = done.final["params"]["result"];
+    CHECK(result["description"]["titleInfo"]["bookTitle"] == "Big");
+    CHECK(result["binaries"] == json::array());
+    CHECK_FALSE(result.contains("bodies"));
+    CHECK(f.ws.call("doc.close", json{{"docId", result["importId"]}})["result"] == json::object());
+
+    // Cancelled while the file is being read: job.failed 1090 and no import session.
+    const json second =
+        f.ws.call("doc.readDescription", json{{"docId", doc_id}, {"path", big_path.string()}});
+    REQUIRE(second["result"].contains("jobId"));
+    const std::string job_id = second["result"]["jobId"];
+    CHECK(f.ws.call("job.cancel", json{{"jobId", job_id}})["result"] == json::object());
+    const JobOutcome cancelled = collect_job(f.ws, job_id);
+    REQUIRE(cancelled.final.is_object());
+    CHECK(cancelled.final["method"] == "job.failed");
+    CHECK(cancelled.final["params"]["error"]["code"] == 1090);
+    CHECK(f.ws.call("test.metrics")["result"]["openDocuments"] == 1);
+    CHECK(f.ws.call("job.cancel", json{{"jobId", job_id}})["result"] == json::object());
+}
+
+TEST_CASE(
+    "doc.readDescription: the 10 MB book costs no more peak memory than Open and keeps "
+    "no binary of it",
+    "[server][doc][import][memory]") {
+    if (platform::peak_resident_memory_bytes() == 0) {
+        SKIP("the peak resident set size is not available on this platform");
+    }
+    const std::filesystem::path book = large_book_10mb();
+    if (book.empty()) {
+        SKIP("python3 or tests/fixtures/gen-large-book.py is not available");
+    }
+    ServerFixture f;
+    const std::string doc_id = f.ws.call("doc.new")["result"]["docId"];
+
+    // Open's growth first: the import is measured afterwards, so without a peak reset the
+    // comparison is against a mark Open already raised (never against a lower one).
+    const bool reset = test::reset_peak_resident_memory();
+    const std::size_t before_open = platform::peak_resident_memory_bytes();
+    const json opened = f.run_job("doc.open", json{{"path", book.string()}});
+    REQUIRE(opened.contains("result"));
+    const std::size_t after_open = platform::peak_resident_memory_bytes();
+    REQUIRE(after_open >= before_open);
+    const std::size_t open_growth = after_open - before_open;
+    CHECK(f.ws.call("doc.close", json{{"docId", opened["result"]["document"]["docId"]}})
+              .contains("result"));
+
+    if (reset) {
+        REQUIRE(test::reset_peak_resident_memory());
+    }
+    const std::size_t before_read = platform::peak_resident_memory_bytes();
+    const json read =
+        f.run_job("doc.readDescription", json{{"docId", doc_id}, {"path", book.string()}});
+    REQUIRE(read.contains("result"));
+    const std::size_t after_read = platform::peak_resident_memory_bytes();
+    REQUIRE(after_read >= before_read);
+    const std::size_t read_growth = after_read - before_read;
+    INFO("open grew the peak by " << open_growth << " bytes, the import by " << read_growth
+                                  << (reset ? " (peak reset between them)" : ""));
+    CHECK(read_growth <= open_growth);
+    const std::string import_id = read["result"]["importId"];
+    CHECK(read["result"]["binaries"] == json::array());
+    CHECK(f.ws.call("binary.list", json{{"docId", import_id}})["result"] == json::array());
+    CHECK(f.ws.call("doc.close", json{{"docId", import_id}})["result"] == json::object());
+}
+
+TEST_CASE(
+    "binary.copy: bytes cross between sessions inside the core, identical content is not "
+    "added twice, a colliding id is renamed",
+    "[server][binary][import]") {
+    ServerFixture f;
+    const json opened = f.ws.call("doc.open", json{{"path", f.book("modern-utf8.fb2").string()}});
+    REQUIRE(opened.contains("result"));
+    const std::string doc_id = opened["result"]["document"]["docId"];
+    const json before = f.ws.call("binary.list", json{{"docId", doc_id}})["result"];
+    REQUIRE(before.size() == 2);  // cover.png, dot.gif
+
+    // A source whose cover.png has other bytes than the document's, whose second binary
+    // equals the document's cover byte for byte and whose third is new content again.
+    const std::string png = read_all(test::fixtures_dir() / "images" / "tiny.png");
+    const std::string alpha = read_all(test::fixtures_dir() / "images" / "alpha.png");
+    const std::string opaque = read_all(test::fixtures_dir() / "images" / "opaque-rgb.png");
+    REQUIRE(png != alpha);
+    REQUIRE(opaque != alpha);
+    const std::filesystem::path source = f.data / "copy-source.fb2";
+    test::write_text(
+        source,
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+        "xmlns:l=\"http://www.w3.org/1999/xlink\">\n<description><title-info><genre>sf</genre>"
+        "<author><nickname>copy</nickname></author><book-title>Copy</book-title>"
+        "<annotation><p>Third <image l:href=\"#third.png\"/> picture.</p></annotation>"
+        "<coverpage><image l:href=\"#cover.png\"/></coverpage><lang>en</lang></title-info>"
+        "<src-title-info><genre>sf</genre><author><nickname>copy</nickname></author>"
+        "<book-title>Copy</book-title><coverpage><image l:href=\"#same.png\"/></coverpage>"
+        "<lang>en</lang></src-title-info>"
+        "<document-info><author><nickname>copy</nickname></author><date>2026</date>"
+        "<id>copy</id><version>1.0</version></document-info></description>\n"
+        "<binary id=\"cover.png\" content-type=\"image/png\">" +
+            base64::encode(alpha) +
+            "</binary>\n"
+            "<binary id=\"same.png\" content-type=\"image/png\">" +
+            base64::encode(png) +
+            "</binary>\n"
+            "<binary id=\"third.png\" content-type=\"image/png\">" +
+            base64::encode(opaque) + "</binary>\n</FictionBook>\n");
+    const json read =
+        f.run_job("doc.readDescription", json{{"docId", doc_id}, {"path", source.string()}});
+    REQUIRE(read.contains("result"));
+    const std::string import_id = read["result"]["importId"];
+    REQUIRE(read["result"]["binaries"].size() == 3);
+
+    // Identical content: the document's own binary is answered, nothing is added.
+    const json same = f.ws.call(
+        "binary.copy", json{{"docId", doc_id}, {"fromDocId", import_id}, {"id", "same.png"}});
+    REQUIRE(same.contains("result"));
+    CHECK(same["result"]["existing"] == true);
+    CHECK(same["result"]["id"] == "cover.png");
+    CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"].size() == 2);
+
+    // Other content under a taken id: stored under the next free name, unreferenced.
+    const json renamed = f.ws.call(
+        "binary.copy", json{{"docId", doc_id}, {"fromDocId", import_id}, {"id", "cover.png"}});
+    REQUIRE(renamed.contains("result"));
+    CHECK(renamed["result"]["existing"] == false);
+    CHECK(renamed["result"]["id"] == "cover_2.png");
+    CHECK(renamed["result"]["contentType"] == "image/png");
+    CHECK(renamed["result"]["size"] == static_cast<int>(alpha.size()));
+    CHECK(renamed["result"]["referenceCount"] == 0);
+    const json after = f.ws.call("binary.list", json{{"docId", doc_id}})["result"];
+    REQUIRE(after.size() == 3);
+    CHECK(after[2]["id"] == "cover_2.png");
+    CHECK(test::http_get(f.port(), "/binary/" + doc_id + "/cover_2.png?" + f.tok()).body == alpha);
+    // The source session keeps its bytes (the dialog may still show them).
+    CHECK(f.ws.call("binary.list", json{{"docId", import_id}})["result"].size() == 3);
+    // Copied again, the same content is found in the document now.
+    const json twice = f.ws.call(
+        "binary.copy", json{{"docId", doc_id}, {"fromDocId", import_id}, {"id", "cover.png"}});
+    CHECK(twice["result"]["existing"] == true);
+    CHECK(twice["result"]["id"] == "cover_2.png");
+    // A suggested id is honoured (made unique the same way).
+    const json suggested = f.ws.call("binary.copy", json{{"docId", doc_id},
+                                                         {"fromDocId", import_id},
+                                                         {"id", "third.png"},
+                                                         {"suggestedId", "dot.gif"}});
+    REQUIRE(suggested.contains("result"));
+    CHECK(suggested["result"]["existing"] == false);
+    CHECK(suggested["result"]["id"] == "dot_2.gif");
+    CHECK(suggested["result"]["size"] == static_cast<int>(opaque.size()));
+
+    // Errors.
+    CHECK(f.ws.call("binary.copy", json{{"docId", doc_id},
+                                        {"fromDocId", import_id},
+                                        {"id", "nope.png"}})["error"]["code"] == 1010);
+    CHECK(f.ws.call("binary.copy", json{{"docId", doc_id},
+                                        {"fromDocId", "d77"},
+                                        {"id", "cover.png"}})["error"]["code"] == 1000);
+    CHECK(f.ws.call("binary.copy", json{{"docId", "d77"},
+                                        {"fromDocId", import_id},
+                                        {"id", "cover.png"}})["error"]["code"] == 1000);
+    CHECK(f.ws.call("binary.copy", json{{"docId", doc_id},
+                                        {"fromDocId", import_id},
+                                        {"id", ""}})["error"]["code"] == -32602);
+    CHECK(f.ws.call("binary.copy",
+                    json{{"docId", doc_id}, {"fromDocId", import_id}})["error"]["code"] == -32602);
+    CHECK(f.ws.call("doc.close", json{{"docId", import_id}})["result"] == json::object());
 }

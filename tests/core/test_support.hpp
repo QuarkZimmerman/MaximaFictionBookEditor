@@ -26,6 +26,29 @@ inline void write_text(const std::filesystem::path& path, const std::string& tex
     out << text;
 }
 
+// The build tree (CMAKE_BINARY_DIR): where the tests keep generated inputs that are worth
+// reusing between runs (the 10 MB book of the memory checks, as the @perf journeys do).
+inline std::filesystem::path build_dir() {
+    return std::filesystem::path(MFBE_TEST_BUILD_DIR);
+}
+
+// Resets the process's peak resident set size to its current value, so that the growth of the
+// next operation can be read from platform::peak_resident_memory_bytes() (Linux: "5" written to
+// /proc/self/clear_refs). False where the kernel offers no reset: the caller then compares peaks
+// that only ever grow.
+inline bool reset_peak_resident_memory() {
+#ifdef __linux__
+    std::ofstream out("/proc/self/clear_refs");
+    if (!out) {
+        return false;
+    }
+    out << "5";
+    return static_cast<bool>(out);
+#else
+    return false;
+#endif
+}
+
 // Unique temporary directory removed on destruction.
 class TempDir {
 public:

@@ -2,8 +2,9 @@
  * Command policies while a script runs (feature 003 FR-011, T031) over the complete application
  * registry: Find, Find Next, incremental search, Copy, the Help menu, About and Exit stay
  * available; everything that changes the document or switches the view - Cut, Paste, Undo, the
- * Add / Style commands, New / Open / Save / Save As / Validate, the view switch, the toolbars,
- * Settings, the spelling tools, the tree operations and the scripts - is blocked.
+ * Add / Style commands, New / Open / Save / Save As / Validate, the description import (feature
+ * 004 FR-036), the view switch, the toolbars, Settings, the spelling tools, the tree operations
+ * and the scripts - is blocked.
  */
 
 import { createAppServices } from '@/app/services';
@@ -37,6 +38,7 @@ const BLOCKED = [
   'file.save',
   'file.saveAs',
   'file.validate',
+  'file.importDescription',
   'view.body',
   'view.source',
   'view.description',
