@@ -17,6 +17,7 @@ import type { TFunction } from 'i18next';
 import { documentFileTypes } from '@/dialogs/fileTypes';
 import type { Dialogs } from '@/dialogs/types';
 import { toggleFastMode } from '@/editor/fastMode';
+import { proposedFileName } from '@/features/file/proposedName';
 import { parseAccelerator } from '@/i18n';
 import type { CaretRegistry } from '@/model/caret';
 import { actions, type AppStore, documentFileName } from '@/model/store';
@@ -356,7 +357,10 @@ export async function saveDocument(
     const choice = await rpc.call('dialog.saveFile', {
       title: ctx.t('cmd.file.saveAs.tooltip'),
       filters: fileFilters(ctx),
-      defaultPath: path,
+      // The document's own file, or the bare name composed from its description (feature 004
+      // FR-050), as the full flow passes it.
+      defaultPath:
+        path ?? proposedFileName(state.document.description, ctx.t('app.untitled'), 'fb2'),
       encodingChoices: ENCODING_CHOICES,
     });
     if (!choice.path) return false;

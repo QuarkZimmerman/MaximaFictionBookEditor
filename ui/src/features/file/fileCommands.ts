@@ -13,6 +13,10 @@
  *    plain Save; `{needsConfirmation, validation}` triggers the "Validation failed ..." prompt
  *    and a retry with `force: true`; `doc.ioError` (1002) shows "Cannot save ..." and leaves the
  *    document modified (the original file is intact: the core writes atomically).
+ *  - `dialog.saveFile` gets the document's own file as `defaultPath`, or - for a never-saved
+ *    document - the bare name composed from its description ("Last name First name - Book
+ *    title", `proposedName.ts`; feature 004 FR-050 to FR-053), which the dialog places in the
+ *    folder it remembers. The encoding chosen in the dialog applies to the content alone.
  *  - Pending Source text is parsed back (`doc.fromXml`) before Save/Validate/Exit; malformed
  *    text refuses the save, as the original editor did ("do not save bad xml").
  *  - `doc.watch` is enabled for opened files; `doc.changedOnDisk` asks to reload.
@@ -59,6 +63,7 @@ import {
   sourceSession,
 } from '@/views/source/sourceSession';
 
+import { proposedFileName } from './proposedName';
 import { RecentFilesStore, rememberCaret, restoreCaret } from './recent';
 
 export { ENCODING_CHOICES };
@@ -115,6 +120,26 @@ export function saveAsSelectedType(kind: FileKind | null): number {
   if (kind === 'fbd') return 1;
   if (kind === 'xml') return 2;
   return 0;
+}
+
+/**
+ * The bare file name Save As proposes for a never-saved document (feature 004, FR-050, FR-052;
+ * research R6.1): "Last name First name - Book title" in the book's own letters, sanitised,
+ * the interface language's "Untitled" when the description has neither, with the first
+ * extension of the type selected when the dialog opens (`fb2` for All files). It names no
+ * folder: every platform's dialog places it in the folder last used by Open or Save As.
+ */
+export function saveAsProposedName(
+  ctx: Pick<CommandContext, 't'>,
+  document: Document,
+  selectedFilter: number,
+): string {
+  const extension = documentFileTypes(ctx.t)[selectedFilter]?.extensions[0];
+  return proposedFileName(
+    document.description,
+    ctx.t('app.untitled'),
+    extension && extension !== '*' ? extension : 'fb2',
+  );
 }
 
 /** Encoding for a plain Save: "Keep encoding" ? the file's encoding : the default encoding. */
@@ -508,11 +533,14 @@ export class FileFeature {
     let path = state.path ?? undefined;
     let encoding: string | null;
     if (options.saveAs || !path) {
+      const selectedFilter = saveAsSelectedType(state.fileKind);
       const choice = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.saveAs.tooltip'),
         filters: documentFilters(ctx),
-        selectedFilter: saveAsSelectedType(state.fileKind),
-        defaultPath: path,
+        selectedFilter,
+        // The document's own file, or - never saved - the bare name composed from its
+        // description, which the dialog places in the folder it remembers (FR-050, FR-053).
+        defaultPath: path ?? saveAsProposedName(ctx, state.document, selectedFilter),
         encodingChoices: [...ENCODING_CHOICES],
         selectedEncoding: defaultSaveEncoding(store),
         encodingLabel: ctx.t('dialog.saveFile.encoding'),
