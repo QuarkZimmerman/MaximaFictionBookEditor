@@ -15,8 +15,8 @@
 #     file under exactly that name in the user's Documents folder, which the window title and
 #     recent.json (byte for byte, UTF-8) show too; a second Save As with "Новая книга.fb2" typed
 #     into the name box comes out the same way (FR-051, SC-006). When UI Automation cannot
-#     read the dialog it is driven with window messages (WM_GETTEXT / WM_SETTEXT on the name
-#     box, the Save button's click);
+#     read the dialog it is driven with window messages (WM_GETTEXT on the name box, the name
+#     typed as keystrokes, the Save button's click posted);
 #   - the window's close button (WM_CLOSE to the main window) with a modified document asks
 #     "Save changes?" (feature 003 FR-017): Cancel keeps the editor open and the document
 #     modified, a second close request asks again at once, No ends the editor with exit code 0;
@@ -369,8 +369,13 @@ function Set-DescriptionField([string]$TestId, [string]$Value) {
 # The native Save As dialog is the shell's own window; the DevTools protocol never sees it. It
 # is found through the window list of Win32 (EnumWindows: a visible #32770 window - the Common
 # Item Dialog's class - of an mfbe.exe process) and driven through UI Automation from its handle;
-# when UI Automation cannot read it, through window messages (WM_GETTEXT / WM_SETTEXT on the
-# file-name box, the Save button's click), which need no foreground window either.
+# when UI Automation cannot read it, through window messages, which need no foreground window
+# either: WM_GETTEXT reads the file-name box, the name is typed into it as the keyboard's
+# characters arrive (EM_SETSEL over its text, then one WM_CHAR per character, so the dialog
+# follows the change as for typing) and the Save button's click is posted. A sent message
+# blocks until the dialog's thread has handled it - a Save handled in a modal prompt (the
+# overwrite question) never returns, and the fifth branch run hung for half an hour on such a
+# send - so every message is sent with a timeout and the click, which Save handles, is posted.
 Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Generic;
@@ -387,10 +392,12 @@ public static class MfbeWin32 {
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr hWnd);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, StringBuilder lParam);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, string lParam);
-    [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, StringBuilder lParam, uint flags, uint timeout, out IntPtr result);
+    [DllImport("user32.dll", SetLastError = true)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
+    [DllImport("user32.dll", SetLastError = true)] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    const uint SMTO_NORMAL = 0x0000, SMTO_ABORTIFHUNG = 0x0002;
+    const uint TIMEOUT = 10000;  // ms a sent message may take; the dialog answers these at once
 
     public class WindowInfo {
         public IntPtr Handle; public uint ProcessId; public string ClassName; public string Title; public bool Visible; public int ControlId;
@@ -422,18 +429,38 @@ public static class MfbeWin32 {
         return list;
     }
 
+    static void Send(IntPtr h, uint msg, IntPtr wParam, IntPtr lParam, string what) {
+        IntPtr result;
+        if (SendMessageTimeout(h, msg, wParam, lParam, SMTO_NORMAL | SMTO_ABORTIFHUNG, TIMEOUT, out result) == IntPtr.Zero) {
+            throw new InvalidOperationException(what + " was not handled by the dialog within " + TIMEOUT + " ms (error " + Marshal.GetLastWin32Error() + ")");
+        }
+    }
+
     public static string GetText(IntPtr h) {
         var text = new StringBuilder(4096);
-        SendMessage(h, 0x000D /* WM_GETTEXT */, (IntPtr)text.Capacity, text);
+        IntPtr result;
+        if (SendMessageTimeout(h, 0x000D /* WM_GETTEXT */, (IntPtr)text.Capacity, text, SMTO_NORMAL | SMTO_ABORTIFHUNG, TIMEOUT, out result) == IntPtr.Zero) {
+            throw new InvalidOperationException("WM_GETTEXT was not handled by the dialog within " + TIMEOUT + " ms (error " + Marshal.GetLastWin32Error() + ")");
+        }
         return text.ToString();
     }
 
-    public static void SetText(IntPtr h, string text) {
-        SendMessage(h, 0x000C /* WM_SETTEXT */, IntPtr.Zero, text);
+    // Replaces the box's text as typing does: EM_SETSEL selects all it holds, then each character
+    // arrives as WM_CHAR - the message the keyboard's key strokes become - and the first one
+    // replaces the selection. The edit control notifies the dialog of each change as for typing.
+    public static void TypeText(IntPtr edit, string text) {
+        Send(edit, 0x00B1 /* EM_SETSEL */, IntPtr.Zero, (IntPtr)(-1), "EM_SETSEL");
+        foreach (char c in text) {
+            Send(edit, 0x0102 /* WM_CHAR */, (IntPtr)(int)c, IntPtr.Zero, "WM_CHAR");
+        }
     }
 
+    // Posts the button's click: the dialog handles it on its own thread after this returns, so
+    // a prompt it raises (modal, answered by nobody here) cannot hold the caller.
     public static void Click(IntPtr button) {
-        SendMessage(button, 0x00F5 /* BM_CLICK */, IntPtr.Zero, IntPtr.Zero);
+        if (!PostMessage(button, 0x00F5 /* BM_CLICK */, IntPtr.Zero, IntPtr.Zero)) {
+            throw new InvalidOperationException("BM_CLICK could not be posted to the Save button (error " + Marshal.GetLastWin32Error() + ")");
+        }
     }
 }
 '@
@@ -488,11 +515,29 @@ function Wait-NativeDialog([int]$Seconds = 30) {
     }
 }
 
+# The texts of a dialog's labels and buttons (a prompt's question and answers), read with a
+# timeout each; what cannot be read is named as such.
+function Format-DialogTexts([IntPtr]$Dialog) {
+    $texts = @([MfbeWin32]::ChildWindows($Dialog) | Where-Object { $_.ClassName -in 'Static', 'Button', 'Edit' } | ForEach-Object {
+        $text = try { [MfbeWin32]::GetText($_.Handle) } catch { '<unreadable>' }
+        if ($text) { "$($_.ClassName) '$text'" }
+    })
+    $texts -join ', '
+}
+
+# Fails when the Save dialog $Handle is still visible after $Seconds: Save may have raised a
+# prompt (another visible #32770 window of the editor, named with its texts) or done nothing.
 function Wait-NativeDialogGone([IntPtr]$Handle, [int]$Seconds = 30) {
     $deadline = (Get-Date).AddSeconds($Seconds)
     while ([MfbeWin32]::IsWindow($Handle) -and [MfbeWin32]::IsWindowVisible($Handle)) {
         if ((Get-Date) -gt $deadline) {
-            throw "the Save dialog is still open after $Seconds s (its windows: $(Format-Windows ([MfbeWin32]::ChildWindows($Handle))))"
+            $pids = @(Get-EditorProcessIds)
+            $windows = @([MfbeWin32]::TopLevelWindows() | Where-Object { $pids -contains $_.ProcessId -and $_.Visible })
+            $prompts = @($windows | Where-Object { $_.ClassName -eq '#32770' -and $_.Handle -ne $Handle } | ForEach-Object {
+                "'{0}' (0x{1:X}): {2}" -f $_.Title, $_.Handle.ToInt64(), (Format-DialogTexts $_.Handle)
+            })
+            throw ("the Save dialog is still open after $Seconds s; other dialogs of the editor: [{0}]; the editor's windows: {1}; the Save dialog's controls: {2}" -f `
+                ($prompts -join '; '), (Format-Windows $windows), (Format-DialogTexts $Handle))
         }
         Start-Sleep -Milliseconds 250
     }
@@ -542,6 +587,7 @@ function Get-Win32FileNameBox([IntPtr]$Dialog) {
 }
 
 # The Save button (IDOK) clicked as a button; the dialog's IDOK command when there is none.
+# Both posted: the dialog handles the click after this returns (see MfbeWin32.Click).
 function Invoke-Win32Save([IntPtr]$Dialog) {
     $button = @([MfbeWin32]::ChildWindows($Dialog) | Where-Object { $_.ClassName -eq 'Button' -and $_.ControlId -eq 1 }) | Select-Object -First 1
     if ($button) {
@@ -575,7 +621,7 @@ function Set-DialogName($Driver, [string]$Text) {
         Set-UiaValue $Driver.Box $Text
         return (Get-UiaValue $Driver.Box)
     }
-    [MfbeWin32]::SetText($Driver.Edit, $Text)
+    [MfbeWin32]::TypeText($Driver.Edit, $Text)
     [MfbeWin32]::GetText($Driver.Edit)
 }
 
