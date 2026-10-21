@@ -392,9 +392,11 @@ public static class MfbeWin32 {
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr hWnd);
+    // Unicode throughout: a WM_CHAR sent through the ANSI SendMessageTimeoutA to a Unicode window
+    // has its character translated from ANSI, which garbles a Cyrillic one.
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, StringBuilder lParam, uint flags, uint timeout, out IntPtr result);
-    [DllImport("user32.dll", SetLastError = true)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
-    [DllImport("user32.dll", SetLastError = true)] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     const uint SMTO_NORMAL = 0x0000, SMTO_ABORTIFHUNG = 0x0002;
     const uint TIMEOUT = 10000;  // ms a sent message may take; the dialog answers these at once
