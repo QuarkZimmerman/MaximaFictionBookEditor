@@ -629,6 +629,17 @@ export interface RpcMethods {
     result: BinaryMeta;
   };
   'binary.export': { params: { docId: string; id: string; path: string }; result: Empty };
+  /**
+   * Copies the binary `id` of the session `fromDocId` (the import session) into `docId`'s
+   * store inside the core (feature 004 US4): identical content already there is answered with
+   * `existing: true` and nothing added, else the copy is stored under `suggestedId ?? id` made
+   * unique (the UI repoints the imported cover page to the returned `id`), `existing: false`
+   * and `referenceCount` 0. Errors: 1000 for either session, 1010 for the id, invalidParams.
+   */
+  'binary.copy': {
+    params: { docId: string; fromDocId: string; id: string; suggestedId?: string };
+    result: BinaryMeta & { existing: boolean };
+  };
 
   // §3.4 spell
   'spell.dictionaries': { params: void; result: SpellDictionary[] };
