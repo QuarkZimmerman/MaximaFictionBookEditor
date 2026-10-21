@@ -3,7 +3,9 @@
  * title, annotation (rich), keywords, date, cover page images, language / source language,
  * translators and nested sequences - the `ti` / `sti` templates of the original `fb2.xsl`.
  * The same component serves `titleInfo` and `srcTitleInfo` (test ids get the `sti-` prefix,
- * e.g. `description-sti-book-title`).
+ * e.g. `description-sti-book-title`). The Title info group alone carries, after Translators,
+ * the "Other persons" list of the Maxima Library roles (feature 004 US3, FR-020) - stored as
+ * `custom-info` rows, so the source title info has none.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -16,6 +18,7 @@ import { GenreList } from './GenrePicker';
 import { LanguagePicker } from './LanguagePicker';
 import { PersonList } from './PersonList';
 import { RichField } from './RichField';
+import { RoleList } from './RoleList';
 import { SequenceList } from './SequenceList';
 
 export interface TitleInfoFormProps {
@@ -87,6 +90,7 @@ export function TitleInfoForm({ block }: TitleInfoFormProps) {
         testPrefix={`${p}-translator`}
         title={t('descriptionForm.translators')}
       />
+      {main ? <RoleList /> : null}
       <SequenceList
         fieldKey={`${block}.sequences`}
         testPrefix={`${p}-sequence`}

@@ -6,10 +6,11 @@
  * typed, including incomplete rows - survives view switches exactly like the Body editor's
  * state does. The controller:
  *
- *  - keeps the raw form (`Description` shaped) and writes its *clean* projection
- *    (`cleanDescription()`: trimmed, empty optional fields omitted, the person rule applied)
- *    into the document on every change through `actions.updateDocument` (marks modified), so
- *    Save always sees the latest values;
+ *  - keeps the raw form (`DescriptionForm`: the model's shape plus the "Other persons" list
+ *    derived from the role rows, feature 004 US3) and writes its *clean* projection
+ *    (`cleanDescription()`: trimmed, empty optional fields omitted, the person rule applied, the
+ *    role entries folded back into `custom-info` rows) into the document on every change
+ *    through `actions.updateDocument` (marks modified), so Save always sees the latest values;
  *  - re-initialises from the model when the document is replaced from outside (New / Open /
  *    Reload / Source re-parse) - recognised because the description object is not the one the
  *    controller produced; a description that differs from the committed one only in the
@@ -40,6 +41,7 @@ import {
   requiredIssues,
   setAtPath,
   textFields,
+  type DescriptionForm,
   type FieldKey,
   type RequiredIssues,
 } from './model';
@@ -50,7 +52,7 @@ export const DESCRIPTION_UNDO_VIEW = 'description';
 const COALESCE_MS = 1000;
 
 export interface DescriptionSnapshot {
-  form: Description | null;
+  form: DescriptionForm | null;
   docId: string | null;
   issues: RequiredIssues | null;
   /** Monotonic counter, bumped on every form change. */
@@ -60,8 +62,8 @@ export interface DescriptionSnapshot {
 const EMPTY_SNAPSHOT: DescriptionSnapshot = { form: null, docId: null, issues: null, revision: 0 };
 
 interface HistoryEntry {
-  before: Description;
-  after: Description;
+  before: DescriptionForm;
+  after: DescriptionForm;
 }
 
 interface OpenEntry {
@@ -92,7 +94,7 @@ export class DescriptionController {
   private translate: (key: string) => string;
   private readonly now: () => number;
 
-  private form: Description | null = null;
+  private form: DescriptionForm | null = null;
   private docId: string | null = null;
   /** The description object the controller last wrote into (or read from) the model. */
   private committed: Description | null = null;
@@ -147,7 +149,7 @@ export class DescriptionController {
 
   readonly getSnapshot = (): DescriptionSnapshot => this.snapshot;
 
-  get currentForm(): Description | null {
+  get currentForm(): DescriptionForm | null {
     return this.form;
   }
 
@@ -204,7 +206,7 @@ export class DescriptionController {
   }
 
   /** Writes the clean projection of `form` into the document (marks it modified). */
-  private commitModel(form: Description): void {
+  private commitModel(form: DescriptionForm): void {
     const state = this.store.getState();
     if (!state.document || state.docId !== this.docId) return;
     const cleaned = cleanDescription(form);
@@ -217,7 +219,7 @@ export class DescriptionController {
    * key are coalesced into one undo entry); `null` records an entry of its own; `false` records
    * nothing (undo/redo replay).
    */
-  private apply(next: Description, key: FieldKey | null | false): void {
+  private apply(next: DescriptionForm, key: FieldKey | null | false): void {
     const previous = this.form;
     if (!previous) return;
     this.form = next;
@@ -261,7 +263,7 @@ export class DescriptionController {
   }
 
   /** Structural change (rows added / removed / moved) as one undo entry. */
-  update(mutate: (form: Description) => Description): void {
+  update(mutate: (form: DescriptionForm) => DescriptionForm): void {
     if (!this.form) return;
     const next = mutate(this.form);
     if (next === this.form) return;
@@ -290,7 +292,7 @@ export class DescriptionController {
     };
   })();
 
-  private replay(form: Description): void {
+  private replay(form: DescriptionForm): void {
     this.replaying = true;
     try {
       this.apply(form, false);

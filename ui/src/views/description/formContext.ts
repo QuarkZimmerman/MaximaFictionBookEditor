@@ -7,16 +7,16 @@
 
 import { createContext, useContext, type ChangeEvent, type SelectHTMLAttributes } from 'react';
 
-import type { BinaryMeta, Description } from '@/model/document';
+import type { BinaryMeta } from '@/model/document';
 import type { UiLanguage } from '@/rpc/types';
 
 import type { DescriptionController } from './binding';
-import { getAtPath, type FieldKey, type RequiredIssues } from './model';
+import { getAtPath, type DescriptionForm, type FieldKey, type RequiredIssues } from './model';
 import type { GenreCatalog, LanguageCatalog } from './resources';
 
 export interface DescriptionFormContextValue {
   controller: DescriptionController;
-  form: Description;
+  form: DescriptionForm;
   issues: RequiredIssues;
   language: UiLanguage;
   genres: GenreCatalog;
