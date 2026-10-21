@@ -10,7 +10,14 @@
  * Change the contract first, then this file, then the C++ handler table.
  */
 
-import type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
+import type {
+  BinaryMeta,
+  Description,
+  Document,
+  DocumentInfo,
+  ValidationIssue,
+  ValidationReport,
+} from '@/model/document';
 
 export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
 
@@ -484,6 +491,24 @@ export interface SaveNeedsConfirmation {
   validation: ValidationReport;
 }
 
+/**
+ * `doc.readDescription` result (feature 004 US4, rpc-api.md §3.2): the description of another
+ * FictionBook file, read as Open reads it, for the import into the open document.
+ * `description` is as read (node ids from the open document's allocator); `documentDetails`
+ * the file's document-info after the fill-in of 002 FR-005 (the UI takes the four document
+ * details from it); `binaries` the metadata of the binaries an importable entry refers to,
+ * held by the hidden session `importId` - a `docId` for `GET /binary/{importId}/{id}/preview`
+ * (the dialog's cover picture), `binary.copy` and `doc.close`, which the UI calls whatever the
+ * outcome. The reader's `warnings` are not shown.
+ */
+export interface ReadDescriptionResult {
+  importId: string;
+  description: Description;
+  documentDetails: DocumentInfo;
+  binaries: BinaryMeta[];
+  warnings: ValidationIssue[];
+}
+
 /* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
@@ -579,6 +604,17 @@ export interface RpcMethods {
   'doc.clearRecent': { params: void; result: Empty };
   'doc.watch': { params: { docId: string; enabled: boolean }; result: Empty };
   'doc.caret': { params: { docId: string; caret?: Caret }; result: { caret?: Caret } };
+  /**
+   * The description of another FictionBook file for the import into `docId` (feature 004
+   * US4; a job above Open's threshold with Open's phases). Errors are Open's: 1004, 1001 (no
+   * Source-only fallback), 1002 (a missing file prunes no recent entry), 1000, invalidParams.
+   */
+  'doc.readDescription': {
+    params: { docId: string; path: string };
+    result: MaybeJob<ReadDescriptionResult>;
+  };
+  /** Cancels a running long operation; it then reports `job.failed` 1090 (rpc-api.md §1). */
+  'job.cancel': { params: { jobId: string }; result: Empty };
 
   // §3.3 binary
   'binary.list': { params: { docId: string }; result: BinaryMeta[] };

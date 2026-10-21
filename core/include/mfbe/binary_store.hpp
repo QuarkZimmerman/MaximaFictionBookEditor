@@ -105,6 +105,19 @@ public:
     MemoryBinaryStore() : BinaryStore(kNoSpill) {}
 };
 
+// The parts of a document whose `href="#id"` usages count as references. The whole document
+// by default; the description import of feature 004 keeps only what its importable entries
+// refer to (the cover pages and the images of the annotations and the history - rpc-api §3.2
+// `doc.readDescription`), the FBD export adds the preserved `output` elements it writes.
+struct ReferenceRoots {
+    bool description = true;  // cover pages; images inside the annotations and the history
+    bool outputs = true;      // images inside the preserved <output> elements
+    bool bodies = true;       // block and inline images of the bodies and the top-level extras
+};
+
+// The ids referenced from `roots` of the document, in document order, each once.
+std::vector<std::string> referenced_ids(const model::Document& document, ReferenceRoots roots = {});
+
 // Recomputes referenceCount for every object from the document's `href="#id"` usages
 // (block/inline images and cover pages) and mirrors the store into `document.binaries`.
 void update_reference_counts(const model::Document& document, BinaryStore& store);

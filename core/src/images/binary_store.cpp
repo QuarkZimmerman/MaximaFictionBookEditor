@@ -318,35 +318,71 @@ void BinaryStore::clear() {
 
 namespace {
 
-void count_href(const std::string& href, std::map<std::string, int>& counts) {
-    if (href.size() > 1 && href[0] == '#') {
-        ++counts[href.substr(1)];
-    }
-}
-
-void count_coverpage(const model::TitleInfo& info, std::map<std::string, int>& counts) {
-    for (const auto& image : info.coverpage) {
-        count_href(image.href, counts);
-    }
-}
-
-}  // namespace
-
-void update_reference_counts(const model::Document& document, BinaryStore& store) {
+// Collects the `#id` references of a document: the count per id and the ids in the order
+// they are first met.
+struct References {
     std::map<std::string, int> counts;
-    count_coverpage(document.description.titleInfo, counts);
-    if (document.description.srcTitleInfo) {
-        count_coverpage(*document.description.srcTitleInfo, counts);
+    std::vector<std::string> order;
+
+    void add(const std::string& href) {
+        if (href.size() > 1 && href[0] == '#') {
+            const std::string id = href.substr(1);
+            if (++counts[id] == 1) {
+                order.push_back(id);
+            }
+        }
     }
-    model::visit_nodes(document, [&](const model::Node& node, const std::string&) {
+
+    void add_coverpage(const model::TitleInfo& info) {
+        for (const auto& image : info.coverpage) {
+            add(image.href);
+        }
+    }
+};
+
+// Whether a node root (by the path prefix of visit_nodes) belongs to the chosen roots: the
+// annotations and the history are description roots, `output[n]` the outputs, `body[n]` and
+// `extra[n]` the bodies.
+bool root_chosen(const std::string& path, const ReferenceRoots& roots) {
+    if (path.rfind("body[", 0) == 0 || path.rfind("extra[", 0) == 0) {
+        return roots.bodies;
+    }
+    if (path.rfind("output[", 0) == 0) {
+        return roots.outputs;
+    }
+    return roots.description;
+}
+
+References collect_references(const model::Document& document, const ReferenceRoots& roots) {
+    References refs;
+    if (roots.description) {
+        refs.add_coverpage(document.description.titleInfo);
+        if (document.description.srcTitleInfo) {
+            refs.add_coverpage(*document.description.srcTitleInfo);
+        }
+    }
+    model::visit_nodes(document, [&](const model::Node& node, const std::string& path) {
+        if (!root_chosen(path, roots)) {
+            return true;
+        }
         if (node.type == "image" || node.type == "inline-image") {
             if (auto href = node.attr_string("href")) {
-                count_href(*href, counts);
+                refs.add(*href);
             }
         }
         return true;
     });
-    store.set_reference_counts(counts);
+    return refs;
+}
+
+}  // namespace
+
+std::vector<std::string> referenced_ids(const model::Document& document, ReferenceRoots roots) {
+    return collect_references(document, roots).order;
+}
+
+void update_reference_counts(const model::Document& document, BinaryStore& store) {
+    store.set_reference_counts(collect_references(document, ReferenceRoots{}).counts);
 }
 
 void sync_binaries(model::Document& document, const BinaryStore& store) {

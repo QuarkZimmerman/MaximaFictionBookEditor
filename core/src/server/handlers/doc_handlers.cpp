@@ -19,6 +19,12 @@
 //   doc.recent() -> RecentFile[] (+ exists), doc.clearRecent() -> {}
 //   doc.caret({docId, caret?}) -> {caret?}
 //   doc.watch({docId, enabled}) -> {}   (notification doc.changedOnDisk {docId, path, mtime})
+//   doc.readDescription({docId, path}) -> {importId, description, documentDetails, binaries,
+//       warnings} | {jobId}   (feature 004 US4, FR-031/FR-032): the file read as doc.open reads
+//       it, keeping only its description (as read; node ids from `docId`'s allocator), the
+//       document-info after the 002 FR-005 fill-in and the binaries the description's
+//       importable entries refer to, held by a hidden session `importId` (GET /binary,
+//       binary.copy, doc.close) - no Recent Files, no caret, no watch.
 //
 // Jobs run on worker threads; everything that touches the session registry is posted back
 // to the loop thread (Services::post), so the registry stays single-threaded.
@@ -37,6 +43,7 @@
 #include <mfbe/templates.hpp>
 #include <mfbe/validator.hpp>
 
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <exception>
@@ -226,18 +233,12 @@ json loaded_document_json(const model::Document& doc, const std::vector<std::str
     return result;
 }
 
-// `ui_language` is the interface language setting for the filled-in date (see above).
-Opened open_document(const std::string& path, const std::string& ui_language,
-                     rpc::JobControl* control) {
-    Opened opened;
-    opened.path = path;
-    const fs::path file = platform::path_from_utf8(path);
-    opened.stamp = platform::stamp_of(file);
-    if (control != nullptr) {
-        control->progress("read", 0, 100);
-    }
+// Reads a book with the hardened parser; the reader's failures become Open's errors 1004 /
+// 1001 / 1002 (the description import reuses them, rpc-api §3.2).
+fb2::ReadResult read_book(const std::string& path, BinaryStore& store,
+                          model::NodeIdAllocator& ids) {
     try {
-        opened.read = fb2::read_file(file, *opened.store, opened.ids);
+        return fb2::read_file(platform::path_from_utf8(path), store, ids);
     } catch (const fb2::NotFictionBookFailure& e) {
         throw not_fictionbook(path, e.reason);
     } catch (const fb2::ParseFailure& e) {
@@ -245,6 +246,18 @@ Opened open_document(const std::string& path, const std::string& ui_language,
     } catch (const fb2::IoFailure& e) {
         throw io_error(e.path, e.reason);
     }
+}
+
+// `ui_language` is the interface language setting for the filled-in date (see above).
+Opened open_document(const std::string& path, const std::string& ui_language,
+                     rpc::JobControl* control) {
+    Opened opened;
+    opened.path = path;
+    opened.stamp = platform::stamp_of(platform::path_from_utf8(path));
+    if (control != nullptr) {
+        control->progress("read", 0, 100);
+    }
+    opened.read = read_book(path, *opened.store, opened.ids);
     opened.filled_in = model::fill_in_document_details(
         opened.read.document, model::details_context_now(false, ui_language));
     if (control != nullptr) {
@@ -299,6 +312,91 @@ std::uintmax_t approximate_size(const model::Document& doc) {
         walk(body);
     }
     return total;
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Description import (feature 004 US4)                                                       */
+/* ----------------------------------------------------------------------------------------- */
+
+// What doc.readDescription keeps of a source file: its description as read (no filling-in),
+// the document-info as Open would have filled it in, the reader's warnings and a store holding
+// only the binaries the description's importable entries refer to.
+struct ReadDescription {
+    model::Document document;  // description only: bodies, stylesheets and extras dropped
+    model::DocumentInfo details;
+    std::vector<model::ValidationIssue> warnings;
+    std::shared_ptr<BinaryStore> store = std::make_shared<BinaryStore>();
+    model::NodeIdAllocator ids;
+};
+
+// Worker or loop thread: reads the whole file as Open reads it (a malformed body refuses the
+// import too), then drops everything but the description and the binaries it refers to from
+// an importable entry - the cover pages and the images of the annotations and the history;
+// `output` is no importable entry, so a binary referenced only there is dropped as well.
+ReadDescription read_description(const std::string& path, const std::string& ui_language,
+                                 rpc::JobControl* control) {
+    ReadDescription out;
+    if (control != nullptr) {
+        control->progress("read", 0, 100);
+    }
+    fb2::ReadResult read = read_book(path, *out.store, out.ids);
+    out.warnings = std::move(read.warnings);
+    model::Document& doc = read.document;
+    // The details as Open would fill them in, computed on a copy: the description itself
+    // stays as read, so the UI can tell what the file has from what the editor adds.
+    model::Document details;
+    details.description.documentInfo = doc.description.documentInfo;
+    model::fill_in_document_details(details, model::details_context_now(false, ui_language));
+    out.details = std::move(details.description.documentInfo);
+    doc.bodies.clear();
+    doc.stylesheets.clear();
+    doc.extras.clear();
+    doc.path.reset();
+    const std::vector<std::string> referenced =
+        referenced_ids(doc, ReferenceRoots{.description = true, .outputs = false, .bodies = false});
+    for (const std::string& id : out.store->ids()) {
+        if (std::find(referenced.begin(), referenced.end(), id) == referenced.end()) {
+            out.store->remove(id);
+        }
+    }
+    sync_binaries(doc, *out.store);
+    out.document = std::move(doc);
+    if (control != nullptr) {
+        control->check_cancelled();
+        control->progress("model", 90, 100);
+    }
+    return out;
+}
+
+// Loop thread: gives the imported description its node ids from the target's allocator (so
+// the imported annotation and history can be inserted into the open document without a
+// collision) and registers the hidden import session holding the binaries. 1000 when the
+// target was closed meanwhile.
+json register_import(Services& services, const std::string& target_id, ReadDescription& read) {
+    session::DocumentSession& target = services.documents.require(target_id);
+    model::reassign_node_ids(read.document, target.ids);
+    session::DocumentSession& s = services.documents.create();
+    read.document.docId = s.docId;
+    s.binaries = read.store;
+    s.ids = read.ids;
+    s.sourceOnly = false;
+    json binaries = json::array();
+    for (const auto& meta : read.store->list()) {
+        binaries.push_back(model::to_json(meta));
+    }
+    json result{{"importId", s.docId},
+                {"description", model::to_json(read.document.description)},
+                {"documentDetails", model::to_json(read.details)},
+                {"binaries", std::move(binaries)},
+                {"warnings", issues_json(read.warnings)}};
+    s.snapshot = std::move(read.document);
+    return result;
+}
+
+// Loop thread: forgets an import session with its previews.
+void close_import(Services& services, const std::string& import_id) {
+    services.previews.invalidate_prefix(import_id + "/");
+    services.documents.close(import_id);
 }
 
 /* ----------------------------------------------------------------------------------------- */
@@ -686,11 +784,56 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         return result;
     });
 
+    router.add_method("doc.readDescription", [&services](const json& params, rpc::RpcContext& ctx) {
+        const std::string target_id = rpc::params::string(params, "docId");
+        services.documents.require(target_id);
+        const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const fs::path file = platform::path_from_utf8(path);
+        std::error_code ec;
+        if (!fs::exists(file, ec)) {
+            // Unlike doc.open, a missing source prunes nothing: it was never a recent file.
+            throw io_error(path, "file not found");
+        }
+        const std::uintmax_t size = fs::file_size(file, ec);
+        const std::string ui_language = ui_language_setting(services);
+        if (ec || size < kJobThresholdBytes) {
+            ReadDescription read = read_description(path, ui_language, nullptr);
+            return register_import(services, target_id, read);
+        }
+        // Open's job: the worker parses, the loop thread registers the hidden session at
+        // the end - a cancellation before that leaves nothing behind, one that arrives
+        // while the session is being registered takes it down again.
+        const std::string job_id = ctx.jobs.start([&services, path, target_id,
+                                                   ui_language](rpc::JobControl& control) -> json {
+            auto read =
+                std::make_shared<ReadDescription>(read_description(path, ui_language, &control));
+            control.check_cancelled();
+            json result = on_loop_thread(
+                services,
+                [&services, target_id, read] {
+                    return register_import(services, target_id, *read);
+                },
+                &control);
+            if (control.cancelled()) {
+                const std::string import_id = result["importId"];
+                on_loop_thread(services, [&services, import_id] {
+                    close_import(services, import_id);
+                    return 0;
+                });
+                control.check_cancelled();
+            }
+            control.progress("done", 100, 100);
+            return result;
+        });
+        return json{{"jobId", job_id}};
+    });
+
     router.add_method("doc.close", [&services](const json& params, rpc::RpcContext&) {
         const std::string doc_id = rpc::params::string(params, "docId");
         if (services.watcher) {
             services.watcher->unwatch(doc_id);
         }
+        // An import session's previews (the dialog's cover picture) go with it (feature 004).
         services.previews.invalidate_prefix(doc_id + "/");
         if (!services.documents.close(doc_id)) {
             throw rpc::RpcError(rpc::codes::kDocNotFound, "", json{{"docId", doc_id}});

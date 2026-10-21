@@ -957,8 +957,9 @@ TEST_CASE(
     }
     CHECK(kept == std::vector<std::string>{"cover.png", "inline.gif", "history.jpg"});
     const std::string import_id = read["result"]["importId"];
+    const json list = f.ws.call("binary.list", json{{"docId", import_id}});
     std::vector<std::string> listed;
-    for (const auto& meta : f.ws.call("binary.list", json{{"docId", import_id}})["result"]) {
+    for (const auto& meta : list["result"]) {
         listed.push_back(meta["id"].get<std::string>());
     }
     CHECK(listed == kept);
