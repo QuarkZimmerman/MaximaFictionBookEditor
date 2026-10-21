@@ -551,30 +551,40 @@ function Invoke-Win32Save([IntPtr]$Dialog) {
     }
 }
 
-# The Save dialog driven through UI Automation (from the window's handle) or, when that cannot
-# read its file-name box, through window messages: returns the driver's name, the proposed name
-# and the two operations (type a name, press Save) on the dialog $Window.
+# The Save dialog's driver: UI Automation from the window's handle or, when that cannot read
+# the file-name box, window messages. A hashtable - Kind, the proposed name as Shown and the
+# handles the two operations below work on; no script block, as a closure made here could not
+# call this script's functions (the journey runs as a child script of the CI step).
 function Open-DialogDriver($Window) {
     if ($script:uia) {
         try {
             $element = [System.Windows.Automation.AutomationElement]::FromHandle($Window.Handle)
             $box = Get-UiaFileNameBox $element
-            return @{
-                Name = 'UI Automation'
-                Shown = (Get-UiaValue $box)
-                Type = { param($Text) Set-UiaValue $box $Text; Get-UiaValue $box }.GetNewClosure()
-                Save = { Invoke-UiaSave $element }.GetNewClosure()
-            }
+            return @{ Kind = 'UI Automation'; Shown = (Get-UiaValue $box); Element = $element; Box = $box }
         } catch {
             Write-Host "journey: UI Automation could not read the Save dialog, using window messages: $($_.Exception.Message)"
         }
     }
     $edit = Get-Win32FileNameBox $Window.Handle
-    @{
-        Name = 'window messages'
-        Shown = [MfbeWin32]::GetText($edit)
-        Type = { param($Text) [MfbeWin32]::SetText($edit, $Text); [MfbeWin32]::GetText($edit) }.GetNewClosure()
-        Save = { Invoke-Win32Save $Window.Handle }.GetNewClosure()
+    @{ Kind = 'window messages'; Shown = [MfbeWin32]::GetText($edit); Edit = $edit; Handle = $Window.Handle }
+}
+
+# Types $Text into the dialog's file-name box and returns what the box holds afterwards.
+function Set-DialogName($Driver, [string]$Text) {
+    if ($Driver.Kind -eq 'UI Automation') {
+        Set-UiaValue $Driver.Box $Text
+        return (Get-UiaValue $Driver.Box)
+    }
+    [MfbeWin32]::SetText($Driver.Edit, $Text)
+    [MfbeWin32]::GetText($Driver.Edit)
+}
+
+# Presses the dialog's Save button.
+function Invoke-DialogSave($Driver) {
+    if ($Driver.Kind -eq 'UI Automation') {
+        Invoke-UiaSave $Driver.Element
+    } else {
+        Invoke-Win32Save $Driver.Handle
     }
 }
 
@@ -602,14 +612,14 @@ function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [st
     Start-Sleep -Milliseconds 500
     $driver = Open-DialogDriver $window
     $shown = $driver.Shown
-    Write-Host "journey: the Save dialog proposes '$shown' ($($driver.Name))"
+    Write-Host "journey: the Save dialog proposes '$shown' ($($driver.Kind))"
     $accepted = @($ExpectedName, [IO.Path]::GetFileNameWithoutExtension($ExpectedName))
     if ($shown -cnotin $accepted) { throw "the Save dialog proposes '$shown', not '$ExpectedName'" }
     if ($TypedName) {
-        $typed = & $driver.Type $TypedName
+        $typed = Set-DialogName $driver $TypedName
         if ($typed -cne $TypedName) { throw "the name box reads '$typed' after typing '$TypedName'" }
     }
-    & $driver.Save
+    Invoke-DialogSave $driver
     Wait-NativeDialogGone $window.Handle
     # A new document's description is incomplete: Save asks whether to save anyway (Yes).
     Wait-Until 'the file written or the validation prompt' {
