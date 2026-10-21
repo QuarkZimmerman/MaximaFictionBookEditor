@@ -130,6 +130,12 @@ Notes:
 - **Portable mode.** Create a folder named `MaximaFictionBookEditor-<version>-x86_64.AppImage.home`
   next to the file: settings and user data then live in that folder's `user/` sub-folder
   instead of your home directory (see [User folders](#user-folders)).
+- **Known limitation - the file type in the Save dialog.** The Save As and Export dialogs
+  are the desktop's GTK file chooser, and it does not rename the extension of the proposed
+  name when you switch the file type: Save As proposes `Last name First name - Book
+  title.fb2` (or the current file's name); if you then pick "FictionBook descriptors
+  (*.fbd)" and keep the name, the file is saved as `.fb2`. Change the extension in the name
+  box yourself (`.fbd`). This applies to all three Linux packages.
 
 ### Uninstall
 
