@@ -17,12 +17,15 @@
       "delete": "Видалити позначений вузол"
     },
     "node": {
+      "annotation": "Анотація",
+      "history": "Історія",
       "bodyNumber": "Тіло {{number}}",
       "rowCount_one": "{{count}} елемент",
       "rowCount_few": "{{count}} елементи",
       "rowCount_many": "{{count}} елементів",
       "rowCount_other": "{{count}} елемента"
     },
+    "splitter": "Змінити ширину панелі структури документа",
     "deleteConfirm": "Видалити позначений вузол?",
     "status": {
       "noPreviousSibling": "Переміщення праворуч: перед секцією немає секції, до якої її можна перенести.",

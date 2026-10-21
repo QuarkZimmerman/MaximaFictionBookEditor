@@ -110,8 +110,8 @@ and is never shipped. The US1 journey `us1-open-save.spec.ts` passes against bot
 
 All user-visible strings live in the base catalogues `src/i18n/en.json`, `ru.json` and
 `uk.json` plus the feature catalogues `<feature>.<lang>.json` next to them (`about`,
-`description`, `fileDialogs`, `images`, `scripts`, `settings`, `spell`, `theme`, `tree`,
-`words`), deep-merged at load (i18next JSON v4; plural forms `_one/_few/_many/_other`;
+`description`, `fileDialogs`, `images`, `scripts`, `settings`, `spell`, `theme`, `transfer`,
+`tree`, `words`), deep-merged at load (i18next JSON v4; plural forms `_one/_few/_many/_other`;
 `{{name}}` placeholders; `&` marks the menu/button accelerator, `&&` is a literal ampersand).
 Keys are grouped by area: `menu.*` (labels exactly as the original `IDR_MAINFRAME` menu),
 `cmd.<commandId>.{tooltip,description}`, `dialog.*`, `msg.*`, `status.*`, `hotkeys.*`. Missing

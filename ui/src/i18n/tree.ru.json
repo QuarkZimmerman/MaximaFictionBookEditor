@@ -17,12 +17,15 @@
       "delete": "Удалить выделенный узел"
     },
     "node": {
+      "annotation": "Аннотация",
+      "history": "История",
       "bodyNumber": "Тело {{number}}",
       "rowCount_one": "{{count}} элемент",
       "rowCount_few": "{{count}} элемента",
       "rowCount_many": "{{count}} элементов",
       "rowCount_other": "{{count}} элемента"
     },
+    "splitter": "Изменить ширину панели структуры документа",
     "deleteConfirm": "Удалить выделенный узел?",
     "status": {
       "noPreviousSibling": "Сдвиг вправо: перед секцией нет секции, в которую её можно перенести.",

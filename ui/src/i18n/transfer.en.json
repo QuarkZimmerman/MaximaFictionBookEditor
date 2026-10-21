@@ -1,0 +1,3 @@
+{
+  "$comment": "Description import and FBD export (feature 004, User Stories 4 and 5): the File > Import and File > Export entries, the import dialog and the status messages. Feature catalogue merged into en.json by i18n/index.ts; the keys are filled by the two stories."
+}
