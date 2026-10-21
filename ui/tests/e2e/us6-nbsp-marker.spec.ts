@@ -24,7 +24,7 @@ import {
   waitForBook,
   type CoreHandle,
 } from './fixtures/core';
-import { MOD } from './fixtures/keys';
+import { LINE_START, MOD } from './fixtures/keys';
 
 const NBSP = ' ';
 const MARKERS = ['□', '▫', '◦'];
@@ -92,31 +92,49 @@ async function setMarker(core: CoreHandle, char: string): Promise<void> {
   await core.rpc('settings.set', { patch: { other: { nbspDisplayChar: char } } });
 }
 
-/** Clicks the Body paragraph containing `fragment` and moves the caret `chars` from its start. */
+/** The editor's caret as `{nodeId, offset}` of its head (the Body controller's state). */
+const BODY_CARET = `(() => {
+  const selection = window.__mfbeTest.sourceMapping.bodySelection();
+  return selection ? selection.head : { nodeId: '', offset: -1 };
+})()`;
+
+/**
+ * Clicks the Body paragraph containing `fragment` and moves the caret `chars` from its start.
+ * The line start is reached with the platform's chord (`LINE_START`: Cmd+Left on macOS, where
+ * Home only scrolls - the first form of this helper pressed Home, and on the macOS runner the
+ * caret stayed at the end of the short paragraph the click had put it at, so the arrows walked
+ * into the next paragraph and the paste landed there). The editor reads a keyboard-moved caret
+ * back from the DOM asynchronously, and on a slow runner a burst of arrow presses can land it
+ * short of the count (seen on the Linux runner: three characters before the two spaces, and
+ * Backspace took a letter), so the caret the editor holds is read back - its paragraph and its
+ * offset - and the difference pressed until it matches.
+ */
 async function caretAt(page: Page, fragment: string, chars: number): Promise<void> {
-  await page.getByTestId('body-editor').locator('p', { hasText: fragment }).click();
-  await page.keyboard.press('Home');
+  const paragraph = page.getByTestId('body-editor').locator('p', { hasText: fragment });
+  const nodeId = await paragraph.getAttribute('data-node-id');
+  await paragraph.click();
+  await page.keyboard.press(LINE_START);
   for (let i = 0; i < chars; i++) await page.keyboard.press('ArrowRight');
   await settle(page);
-  // The editor reads a keyboard-moved caret back from the DOM asynchronously; on a slow runner
-  // a burst of arrow presses can land it short of the count (seen once on CI: the caret stayed
-  // three characters before the two spaces and Backspace took a letter instead). Read the
-  // offset the editor holds and press the difference until it matches.
   for (let round = 0; round < 6; round += 1) {
-    const offset = await page.evaluate<number>(
-      `(window.__mfbeTest.sourceMapping.bodySelection() || { head: { offset: -1 } }).head.offset`,
-    );
-    if (offset === chars) return;
-    if (offset >= 0) {
-      const key = offset < chars ? 'ArrowRight' : 'ArrowLeft';
-      for (let i = 0; i < Math.abs(chars - offset); i++) await page.keyboard.press(key);
+    const head = await page.evaluate<{ nodeId: string; offset: number }>(BODY_CARET);
+    if (head.nodeId === nodeId && head.offset === chars) return;
+    if (head.nodeId !== nodeId) {
+      // Not in the paragraph (a line start that did not take, an arrow over its end): start
+      // again from its first character.
+      await paragraph.click({ position: { x: 8, y: 8 } });
+      await page.keyboard.press(LINE_START);
+      for (let i = 0; i < chars; i++) await page.keyboard.press('ArrowRight');
+    } else {
+      const key = head.offset < chars ? 'ArrowRight' : 'ArrowLeft';
+      for (let i = 0; i < Math.abs(chars - head.offset); i++) await page.keyboard.press(key);
     }
     await settle(page);
   }
   expect(
-    await page.evaluate<number>(`window.__mfbeTest.sourceMapping.bodySelection().head.offset`),
+    await page.evaluate<{ nodeId: string; offset: number }>(BODY_CARET),
     `caret at ${chars} in "${fragment}"`,
-  ).toBe(chars);
+  ).toEqual({ nodeId, offset: chars });
 }
 
 /** Lets the editor pick up a caret moved with the keyboard. */
