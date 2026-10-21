@@ -747,7 +747,11 @@ test.describe('US2 (004) - annotation and history at the top of the Body view', 
     await settle(page);
     await shiftClickInto(page, historyBlock(page).locator('> p').last());
     await page.keyboard.press(`Shift+${LINE_END}`);
+    // The editor reads the extended selection back from the DOM asynchronously: the cut must
+    // act on a selection that already reaches the end of the last paragraph, not on the one
+    // the Shift+click left (seen on the macOS runner: the first paragraph alone was cut).
     await expect.poll(() => selectedText(page)).toContain('v1.0');
+    await expect.poll(() => selectedText(page)).toMatch(/вычитка\s*$/);
     await page.keyboard.press(`${MOD}+x`);
     await expect(historyBlock(page).locator('> p')).toHaveCount(1);
     await expect(historyBlock(page)).toHaveText('');

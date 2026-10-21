@@ -98,6 +98,25 @@ async function caretAt(page: Page, fragment: string, chars: number): Promise<voi
   await page.keyboard.press('Home');
   for (let i = 0; i < chars; i++) await page.keyboard.press('ArrowRight');
   await settle(page);
+  // The editor reads a keyboard-moved caret back from the DOM asynchronously; on a slow runner
+  // a burst of arrow presses can land it short of the count (seen once on CI: the caret stayed
+  // three characters before the two spaces and Backspace took a letter instead). Read the
+  // offset the editor holds and press the difference until it matches.
+  for (let round = 0; round < 6; round += 1) {
+    const offset = await page.evaluate<number>(
+      `(window.__mfbeTest.sourceMapping.bodySelection() || { head: { offset: -1 } }).head.offset`,
+    );
+    if (offset === chars) return;
+    if (offset >= 0) {
+      const key = offset < chars ? 'ArrowRight' : 'ArrowLeft';
+      for (let i = 0; i < Math.abs(chars - offset); i++) await page.keyboard.press(key);
+    }
+    await settle(page);
+  }
+  expect(
+    await page.evaluate<number>(`window.__mfbeTest.sourceMapping.bodySelection().head.offset`),
+    `caret at ${chars} in "${fragment}"`,
+  ).toBe(chars);
 }
 
 /** Lets the editor pick up a caret moved with the keyboard. */
@@ -172,11 +191,13 @@ test.describe('US6 - non-breaking spaces are shown as in the original', () => {
     // Backspace after the second of two non-breaking spaces removes exactly one.
     await caretAt(page, 'Два подряд', `Два подряд:${NBSP}${NBSP}`.length);
     await page.keyboard.press('Backspace');
-    expect(await paragraphText(page, 'Два подряд')).toBe(`Два подряд:${NBSP}вот они.`);
+    await expect.poll(() => paragraphText(page, 'Два подряд')).toBe(`Два подряд:${NBSP}вот они.`);
 
     // An inserted non-breaking space is shown as the marker.
     await page.keyboard.press(`${MOD}+Shift+Space`);
-    expect(await paragraphText(page, 'Два подряд')).toBe(`Два подряд:${NBSP}${NBSP}вот они.`);
+    await expect
+      .poll(() => paragraphText(page, 'Два подряд'))
+      .toBe(`Два подряд:${NBSP}${NBSP}вот они.`);
     await expect(
       page.getByTestId('body-editor').locator('p', { hasText: 'Два подряд' }).locator('.fb-nbsp'),
     ).toHaveCount(2);
@@ -194,7 +215,9 @@ test.describe('US6 - non-breaking spaces are shown as in the original', () => {
     await caretAt(page, 'В конце абзаца', 'В конце'.length);
     await page.evaluate(`navigator.clipboard.writeText('X${NBSP}Y${MARKERS[0]}Z')`);
     await page.keyboard.press(`${MOD}+V`);
-    expect(await paragraphText(page, 'В конце')).toContain(`В концеX${NBSP}Y${NBSP}Z`);
+    // The paste lands when the browser has read the clipboard - asynchronously after the key
+    // (a one-shot read right after the press came too early on the macOS runner).
+    await expect.poll(() => paragraphText(page, 'В конце')).toContain(`В концеX${NBSP}Y${NBSP}Z`);
   });
 
   for (const [name, query] of [

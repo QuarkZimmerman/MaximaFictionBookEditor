@@ -50,11 +50,28 @@ function logText(core: CoreHandle): string {
   return existsSync(logFile(core)) ? readFileSync(logFile(core), 'utf8') : '';
 }
 
-/** Entries appended after the first `count` ones. */
-async function newEntries(core: CoreHandle, count: number, min = 1): Promise<LogEntry[]> {
+/**
+ * Entries appended after the first `count` ones. With `code`, waits until an entry with that
+ * code is among them: another entry may land first (an entry of the previous test's page
+ * written as it closed, a warning of the core), and the first new line is then not the one the
+ * test is about - the caller's filter decides, this only waits for the right moment.
+ */
+async function newEntries(
+  core: CoreHandle,
+  count: number,
+  min = 1,
+  code?: string,
+): Promise<LogEntry[]> {
   await expect
-    .poll(() => readLog(core).length, { timeout: 10_000 })
-    .toBeGreaterThanOrEqual(count + min);
+    .poll(
+      () => {
+        const added = readLog(core).slice(count);
+        if (code) return added.filter((entry) => entry.code === code).length;
+        return added.length;
+      },
+      { timeout: 10_000, message: `log entries after ${count}${code ? ` with code ${code}` : ''}` },
+    )
+    .toBeGreaterThanOrEqual(min);
   return readLog(core).slice(count);
 }
 
@@ -175,9 +192,9 @@ test.describe('diagnostics log (FR-131)', () => {
         throw new Error('diagnostics-spec uncaught');
       }, 0);
     });
-    const entries = await newEntries(core, before);
+    const entries = await newEntries(core, before, 1, 'ui.unhandledError');
     const uncaught = entries.filter((entry) => entry.code === 'ui.unhandledError');
-    expect(uncaught).toHaveLength(1);
+    expect(uncaught, JSON.stringify(entries)).toHaveLength(1);
     expect(uncaught[0]!.source).toBe('ui');
     expect(uncaught[0]!.message).toBe('diagnostics-spec uncaught');
     expect(uncaught[0]!.context.view).toBeTruthy();
@@ -188,10 +205,9 @@ test.describe('diagnostics log (FR-131)', () => {
     await page.evaluate(() => {
       void Promise.reject(new Error('diagnostics-spec rejected'));
     });
-    const rejected = (await newEntries(core, count)).filter(
-      (entry) => entry.code === 'ui.unhandledRejection',
-    );
-    expect(rejected).toHaveLength(1);
+    const added = await newEntries(core, count, 1, 'ui.unhandledRejection');
+    const rejected = added.filter((entry) => entry.code === 'ui.unhandledRejection');
+    expect(rejected, JSON.stringify(added)).toHaveLength(1);
     expect(logText(core)).not.toContain(core.token!);
   });
 });
