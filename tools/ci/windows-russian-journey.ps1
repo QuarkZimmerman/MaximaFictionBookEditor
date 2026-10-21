@@ -578,14 +578,16 @@ function Open-DialogDriver($Window) {
     }
 }
 
-# Save As (Shift+F2) of the open document through the native dialog: with UI Automation the name
-# box must read $ExpectedName before anything is typed - or, with -AllowHiddenExtension, the
-# name without its extension, which Explorer's "hide extensions for known file types" takes
-# off the current file's name once the installer has registered .fb2 - then $TypedName (when
-# given) replaces it and Save is pressed; $Target must then exist, the document get a clean
-# title with its name, and recent.json list its path first - byte for byte in UTF-8.
-function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [string]$Target,
-                                  [switch]$AllowHiddenExtension) {
+# Save As (Shift+F2) of the open document through the native dialog: the name box must read
+# $ExpectedName before anything is typed - or the name without its extension: with Explorer's
+# "hide extensions for known file types" (on by default) the Common Item Dialog shows a name
+# whose extension is the selected type's without it once the installer has registered .fb2,
+# for the composed name as for the current file's (the installed copy's run showed
+# 'Толстой Лев - Война и мир' for the proposed 'Толстой Лев - Война и мир.fb2'); the file on
+# disk proves the extension. Then $TypedName (when given) replaces it and Save is pressed;
+# $Target must then exist, the document get a clean title with its name, and recent.json list
+# its path first - byte for byte in UTF-8.
+function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [string]$Target) {
     if (Test-Path -LiteralPath $Target) { throw "$Target exists before Save As" }
     # Shift+F2 as a keydown the page dispatches to itself a moment later: the dialog is modal on
     # the shell's UI thread and the DevTools protocol answers nothing while it is open (the
@@ -601,8 +603,7 @@ function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [st
     $driver = Open-DialogDriver $window
     $shown = $driver.Shown
     Write-Host "journey: the Save dialog proposes '$shown' ($($driver.Name))"
-    $accepted = @($ExpectedName)
-    if ($AllowHiddenExtension) { $accepted += [IO.Path]::GetFileNameWithoutExtension($ExpectedName) }
+    $accepted = @($ExpectedName, [IO.Path]::GetFileNameWithoutExtension($ExpectedName))
     if ($shown -cnotin $accepted) { throw "the Save dialog proposes '$shown', not '$ExpectedName'" }
     if ($TypedName) {
         $typed = & $driver.Type $TypedName
@@ -659,7 +660,7 @@ function Save-NewDocumentThroughDialog {
     Set-DescriptionField 'description-book-title' $newBookTitle
     Save-ThroughNativeDialog $proposedName '' (Join-Path $documentsFolder $proposedName)
     # A saved document proposes its own file (FR-053); the typed name replaces it.
-    Save-ThroughNativeDialog $proposedName $typedName (Join-Path $documentsFolder $typedName) -AllowHiddenExtension
+    Save-ThroughNativeDialog $proposedName $typedName (Join-Path $documentsFolder $typedName)
     # Back to the Body view, where the steps that follow edit the text.
     Click-Element 'view-body'
     Wait-Until 'the Body view' { Test-Element 'body-editor' }
