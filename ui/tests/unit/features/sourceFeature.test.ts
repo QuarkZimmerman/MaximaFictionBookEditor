@@ -50,7 +50,7 @@ const REPORT: ValidationReport = {
 
 /** A command context wired like the application: file + source features on one registry. */
 async function setup(responses: Record<string, unknown> = {}) {
-  const rpc = fakeRpc({ 'doc.watch': {}, 'doc.caret': {}, 'doc.recent': [], ...responses });
+  const rpc = fakeRpc({ 'doc.watch': {}, 'doc.position': {}, 'doc.recent': [], ...responses });
   const ctx = await makeContext({ rpc: rpc.client });
   const registry = createCommandRegistry();
   registerFileCommands(registry);

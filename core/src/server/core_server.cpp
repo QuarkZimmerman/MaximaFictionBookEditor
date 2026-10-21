@@ -148,6 +148,7 @@ Services::Services(CoreServerOptions opts, platform::Dirs dirs_, fs::path resour
       scripts_dir(std::move(scripts)),
       settings(dirs.config / "settings.json"),
       recent(dirs.config / "recent.json"),
+      positions(dirs.config / "positions.json"),
       exclusions(dirs.config / "exclusions.txt"),
       hotkeys(dirs.config / "hotkeys.json"),
       layers(resources::Roots{}),
@@ -155,6 +156,7 @@ Services::Services(CoreServerOptions opts, platform::Dirs dirs_, fs::path resour
       jobs(notifier_) {
     settings.load();
     recent.load();
+    positions.load();
     exclusions.load();
     hotkeys.load();
     refresh_layers();

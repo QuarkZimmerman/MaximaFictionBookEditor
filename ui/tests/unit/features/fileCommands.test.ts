@@ -1,8 +1,11 @@
+import type { CommandContext, CommandRegistry } from '@/app/commands';
+import { installBodyEditor } from '@/features/editing';
 import type { ValidationReport } from '@/model/document';
 import {
   FileFeature,
   defaultSaveEncoding,
   documentFilters,
+  leaveDocument,
   registerFileCommands,
   saveAsSelectedType,
   sourceOnlyDocument,
@@ -25,8 +28,10 @@ import {
   fakeDialogs,
   fakeDocument,
   fakeRpc,
+  flowCalls,
   makeContext,
   rpcError,
+  type FakeRpc,
 } from './testUtils';
 
 const settings = (other: Partial<Settings['other']>): Settings =>
@@ -74,12 +79,32 @@ function setup(
   const rpc = fakeRpc({
     'doc.watch': {},
     'doc.close': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.recent': [],
     ...responses,
   });
   const dialogs = fakeDialogs(...answers);
   return { registry, feature, rpc, dialogs };
+}
+
+/**
+ * The Body controller of `ctx` (feature 004 US8: the remembered position is the Body
+ * controller's caret, read whatever the active view), installed as the editing feature does.
+ */
+function withBodyEditor(ctx: CommandContext, registry: CommandRegistry, rpc: FakeRpc) {
+  return installBodyEditor({
+    commands: registry,
+    rpc: rpc.client,
+    undo: ctx.undo,
+    carets: ctx.carets!,
+    store: ctx.store,
+    hotkeys: ctx.hotkeys,
+  });
+}
+
+/** The `doc.position` calls of a flow (`params.position` present = a remember, absent = a get). */
+function positionCalls(rpc: FakeRpc): unknown[] {
+  return rpc.calls.filter((c) => c.method === 'doc.position').map((c) => c.params);
 }
 
 describe('file flows (T052)', () => {
@@ -101,29 +126,29 @@ describe('file flows (T052)', () => {
     expect(registry.isEnabled('file.exit', ctx)).toBe(true);
   });
 
-  it('Open: native dialog, doc.open, watch, recent refresh and caret restore', async () => {
+  it('Open: native dialog, doc.open, watch, recent refresh and the position restored', async () => {
     const document = fakeDocument();
-    const { feature, rpc, dialogs } = setup({
+    const { feature, rpc, dialogs, registry } = setup({
       'dialog.openFile': { paths: ['/books/alpha.fb2'] },
       'doc.open': { document, warnings: [] },
       'doc.recent': [{ path: '/books/alpha.fb2', lastOpened: 'now' }],
-      'doc.caret': (params: { caret?: unknown }) =>
-        params.caret ? {} : { caret: { view: 'body', nodeId: 'n3', offset: 2 } },
+      'doc.position': (params: { position?: unknown }) =>
+        params.position ? {} : { position: { path: 'body[1]/section[1]/p[1]', offset: 2 } },
     });
     const ctx = await makeContext({ rpc: rpc.client, dialogs });
     actions.setConnection(ctx.store, 'connected');
-    const setCaret = vi.fn(() => true);
-    ctx.carets!.register('body', { get: () => null, set: setCaret });
+    const controller = withBodyEditor(ctx, registry, rpc);
+    actions.setActiveView(ctx.store, 'description');
 
     expect(await feature.openWithDialog(ctx)).toBe(true);
-    expect(rpc.calls.map((c) => c.method)).toEqual([
+    expect(flowCalls(rpc).map((c) => c.method)).toEqual([
       'dialog.openFile',
       'doc.open',
       'doc.watch',
       'doc.recent',
-      'doc.caret',
+      'doc.position',
     ]);
-    expect(rpc.calls[0]!.params).toEqual({
+    expect(flowCalls(rpc)[0]!.params).toEqual({
       title: 'Open',
       filters: [
         { name: 'FictionBook files (*.fb2)', extensions: ['fb2'] },
@@ -132,18 +157,147 @@ describe('file flows (T052)', () => {
       ],
       selectedFilter: 0,
     });
+    // The view a file opens in follows the rule of 0.0.3 (the active view is kept unless it is
+    // the Source view); the remembered caret is placed in the Body controller without a view
+    // switch and shows in the status bar path (FR-101).
     expect(ctx.store.getState()).toMatchObject({
       docId: 'doc-1',
       path: '/books/alpha.fb2',
       modified: false,
       sourceOnly: false,
-      activeView: 'body',
+      activeView: 'description',
     });
     await vi.waitFor(() =>
-      expect(setCaret).toHaveBeenCalledWith({ view: 'body', nodeId: 'n3', offset: 2 }),
+      expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n3', offset: 2 }),
     );
+    expect(ctx.store.getState().selectionPath).toBe('body[1]/section[1]/p[1]');
     expect(feature.recent.files).toHaveLength(1);
     expect(dialogs.shown).toEqual([]);
+  });
+
+  /**
+   * The leaving routes of FR-100 remember the Body caret of a document with a file as a
+   * structural path through `doc.position` (feature 004 US8): File > New, Open, every save
+   * (under the saved path), Exit / the window's close request and the restart share
+   * `leaveDocument`; a never-saved document and a Body view never shown remember nothing.
+   */
+  describe('Restore position - the leaving routes (feature 004 US8)', () => {
+    async function openWithCaret(responses: Record<string, unknown> = {}) {
+      const document = fakeDocument();
+      const { feature, rpc, dialogs, registry } = setup({
+        'doc.open': { document, warnings: [] },
+        'doc.new': fakeDocument({ docId: 'doc-2', path: undefined }),
+        'app.quit': {},
+        ...responses,
+      });
+      const ctx = await makeContext({ rpc: rpc.client, dialogs });
+      actions.setConnection(ctx.store, 'connected');
+      const controller = withBodyEditor(ctx, registry, rpc);
+      expect(await feature.openDocument(ctx, '/books/alpha.fb2')).toBe(true);
+      expect(controller.setCaret({ view: 'body', nodeId: 'n3', offset: 3 })).toBe(true);
+      rpc.calls.length = 0;
+      return { ctx, feature, rpc, controller, dialogs };
+    }
+    const remembered = { docId: 'doc-1', position: { path: 'body[1]/section[1]/p[1]', offset: 3 } };
+
+    it('File > New remembers before the document is closed', async () => {
+      const { ctx, feature, rpc } = await openWithCaret();
+      expect(await feature.newDocument(ctx)).toBe(true);
+      const methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.position')).toBeGreaterThanOrEqual(0);
+      expect(methods.indexOf('doc.position')).toBeLessThan(methods.indexOf('doc.close'));
+      expect(positionCalls(rpc)[0]).toEqual(remembered);
+    });
+
+    it('opening another file remembers the one that is left, from any view', async () => {
+      const { ctx, feature, rpc } = await openWithCaret();
+      actions.setActiveView(ctx.store, 'description');
+      expect(await feature.openDocument(ctx, '/books/beta.fb2')).toBe(true);
+      const methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.slice(0, 3)).toEqual(['doc.position', 'doc.watch', 'doc.close']);
+      expect(positionCalls(rpc)[0]).toEqual(remembered);
+      // ... and asks for the new document's position after the open (a get, no view switch).
+      expect(positionCalls(rpc)[1]).toEqual({ docId: 'doc-1' });
+      expect(ctx.store.getState().activeView).toBe('description');
+    });
+
+    it('every save remembers under the saved path, after the write', async () => {
+      const { ctx, feature, rpc } = await openWithCaret({
+        'doc.save': (params: { path: string }) => ({
+          path: params.path,
+          encoding: 'utf-8',
+          converted: [],
+          validation: CLEAN_REPORT,
+        }),
+        'dialog.saveFile': { path: '/books/renamed.fb2', encoding: 'utf-8' },
+      });
+      expect(await feature.saveDocument(ctx, {})).toBe(true);
+      let methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.save')).toBeLessThan(methods.indexOf('doc.position'));
+      expect(positionCalls(rpc)).toEqual([remembered]);
+      expect(methods).not.toContain('doc.close');
+      rpc.calls.length = 0;
+      // Save As: the core records under the session's new path; the UI remembers again.
+      expect(await feature.saveDocument(ctx, { saveAs: true })).toBe(true);
+      methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.save')).toBeLessThan(methods.indexOf('doc.position'));
+      expect(ctx.store.getState().path).toBe('/books/renamed.fb2');
+      expect(positionCalls(rpc)).toEqual([remembered]);
+    });
+
+    it('Exit and the window-close request remember before app.quit', async () => {
+      const { ctx, feature, rpc } = await openWithCaret();
+      await feature.exitApplication(ctx);
+      let methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.position')).toBeLessThan(methods.indexOf('app.quit'));
+      expect(positionCalls(rpc)).toEqual([remembered]);
+      rpc.calls.length = 0;
+      await feature.handleCloseRequested(ctx);
+      methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.position')).toBeLessThan(methods.indexOf('app.quit'));
+      expect(rpc.calls.find((c) => c.method === 'app.quit')?.params).toEqual({ force: true });
+    });
+
+    it('leaveDocument (the restart) remembers and stops watching; nothing for a never-saved document', async () => {
+      const { ctx, rpc, controller } = await openWithCaret();
+      await leaveDocument(ctx);
+      expect(flowCalls(rpc).map((c) => c.method)).toEqual(['doc.position', 'doc.watch']);
+      expect(positionCalls(rpc)).toEqual([remembered]);
+      expect(rpc.calls.find((c) => c.method === 'doc.watch')?.params).toEqual({
+        docId: 'doc-1',
+        enabled: false,
+      });
+      rpc.calls.length = 0;
+      // A never-saved document: no position; a Body view never shown: the record stays.
+      actions.setDocument(ctx.store, fakeDocument({ docId: 'doc-3', path: undefined }));
+      controller.setCaret({ view: 'body', nodeId: 'n3', offset: 1 });
+      await leaveDocument(ctx);
+      expect(positionCalls(rpc)).toEqual([]);
+      actions.setDocument(ctx.store, fakeDocument({ docId: 'doc-4', path: '/books/gamma.fb2' }));
+      await leaveDocument(ctx);
+      expect(positionCalls(rpc)).toEqual([]);
+      // The setting off: nothing either.
+      controller.setCaret({ view: 'body', nodeId: 'n3', offset: 1 });
+      ctx.store.setState({ settings: settings({ restorePosition: false }) });
+      await leaveDocument(ctx);
+      expect(positionCalls(rpc)).toEqual([]);
+    });
+
+    it('the changed-on-disk reload keeps the view and the in-session caret, even with the setting off', async () => {
+      const { ctx, feature, rpc, controller, dialogs } = await openWithCaret();
+      ctx.store.setState({ settings: settings({ restorePosition: false }) });
+      actions.setActiveView(ctx.store, 'description');
+      dialogs.messageAnswers.push('yes');
+      await feature.handleChangedOnDisk(ctx, 'doc-1', '/books/alpha.fb2');
+      expect(dialogs.shown.map((m) => m.testId)).toEqual(['dialog-file-changed']);
+      // Reloaded: the caret where it was, the view untouched, no record consulted.
+      expect(flowCalls(rpc).map((c) => c.method)).toContain('doc.open');
+      expect(positionCalls(rpc)).toEqual([]);
+      expect(ctx.store.getState().activeView).toBe('description');
+      await vi.waitFor(() =>
+        expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n3', offset: 3 }),
+      );
+    });
   });
 
   it('Open: a cancelled dialog does nothing; an I/O error shows "Cannot open"', async () => {

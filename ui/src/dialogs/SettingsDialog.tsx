@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 
 import { confirmDiscardChanges, createCommandRegistry, type CommandContext } from '@/app/commands';
 import { restartUrl } from '@/app/startup';
+import { leaveDocument } from '@/features/file/fileCommands';
 import {
   cloneSettings,
   isEmptyPatch,
@@ -138,8 +139,11 @@ export function SettingsDialog({
     // The usual save prompt first; Cancel abandons the restart (spec FR-020).
     if (!(await confirmDiscardChanges(ctx))) return;
     // The document to reopen: the file as it is on disk now (Save As may have renamed it); a
-    // never-saved document is not carried over.
+    // never-saved document is not carried over. Its Body position is remembered first, as on
+    // every other leaving route (feature 004 FR-100) - for the shell's restart and for the
+    // browser-mode reload alike.
     const path = ctx.store.getState().path;
+    await leaveDocument(ctx);
     try {
       await ctx.rpc.call('app.restart', path ? { reopen: path } : {});
     } catch (error) {

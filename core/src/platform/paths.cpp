@@ -2,6 +2,9 @@
 // research R1). See mfbe/utf8_paths.hpp. Built as mfbe_paths (core/CMakeLists.txt).
 #include <mfbe/utf8_paths.hpp>
 
+#include <cstddef>
+#include <string>
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -90,5 +93,132 @@ std::string utf8_error_message(const std::error_code& ec) {
 }
 
 #endif
+
+/* ----------------------------------------------------------------------------------------- */
+/* The platform's file-name comparison (feature 004 US8)                                     */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+// Simple case fold of one code point for the letters the file names of this project's
+// languages use: ASCII, Latin-1 Supplement, Latin Extended-A, Greek and Cyrillic (the
+// macOS rule; APFS and HFS+ ignore letter case). Other code points fold to themselves.
+// (Windows compares with the system's own table; the helpers are then unreferenced.)
+[[maybe_unused]] char32_t fold_code_point(char32_t c) {
+    if (c >= U'A' && c <= U'Z') {
+        return c + 32;
+    }
+    if (c < 0x80) {
+        return c;
+    }
+    if ((c >= 0x00C0 && c <= 0x00DE && c != 0x00D7)) {
+        return c + 32;  // Latin-1: À..Þ except ×
+    }
+    if (c >= 0x0100 && c <= 0x017F) {  // Latin Extended-A: upper/lower pairs
+        if (c == 0x0130) {
+            return U'i';  // İ
+        }
+        if (c == 0x0178) {
+            return 0x00FF;  // Ÿ
+        }
+        if ((c >= 0x0100 && c <= 0x0137) || (c >= 0x014A && c <= 0x0177)) {
+            return (c % 2 == 0) ? c + 1 : c;
+        }
+        if ((c >= 0x0139 && c <= 0x0148) || (c >= 0x0179 && c <= 0x017E)) {
+            return (c % 2 == 1) ? c + 1 : c;
+        }
+        return c;
+    }
+    if (c >= 0x0391 && c <= 0x03A9 && c != 0x03A2) {
+        return c + 32;  // Greek capitals
+    }
+    if (c >= 0x0400 && c <= 0x040F) {
+        return c + 80;  // Cyrillic Ѐ..Џ (Ukrainian Є, І, Ї among them)
+    }
+    if (c >= 0x0410 && c <= 0x042F) {
+        return c + 32;  // Cyrillic А..Я
+    }
+    if ((c >= 0x0460 && c <= 0x0481) || (c >= 0x048A && c <= 0x04BF) ||
+        (c >= 0x04D0 && c <= 0x052F)) {
+        return (c % 2 == 0) ? c + 1 : c;  // Cyrillic pairs (Ґ/ґ at U+0490/U+0491 among them)
+    }
+    if (c == 0x04C0) {
+        return 0x04CF;
+    }
+    if (c >= 0x04C1 && c <= 0x04CE) {
+        return (c % 2 == 1) ? c + 1 : c;
+    }
+    return c;
+}
+
+// Decodes the next UTF-8 sequence of `text` at `i` (advanced past it); an invalid byte is
+// returned as itself so that malformed names still compare byte for byte.
+[[maybe_unused]] char32_t next_code_point(std::string_view text, std::size_t& i) {
+    const auto byte = static_cast<unsigned char>(text[i]);
+    std::size_t length = 1;
+    char32_t value = byte;
+    if (byte >= 0xF0 && byte <= 0xF4) {
+        length = 4;
+        value = byte & 0x07u;
+    } else if (byte >= 0xE0) {
+        length = 3;
+        value = byte & 0x0Fu;
+    } else if (byte >= 0xC2 && byte <= 0xDF) {
+        length = 2;
+        value = byte & 0x1Fu;
+    }
+    if (length == 1 || i + length > text.size()) {
+        ++i;
+        return byte;
+    }
+    for (std::size_t k = 1; k < length; ++k) {
+        const auto continuation = static_cast<unsigned char>(text[i + k]);
+        if ((continuation & 0xC0u) != 0x80u) {
+            ++i;
+            return byte;
+        }
+        value = (value << 6) | (continuation & 0x3Fu);
+    }
+    i += length;
+    return value;
+}
+
+// Code-point-wise comparison of two UTF-8 strings under fold_code_point.
+[[maybe_unused]] bool equal_folded(std::string_view a, std::string_view b) {
+    std::size_t i = 0;
+    std::size_t j = 0;
+    while (i < a.size() && j < b.size()) {
+        if (fold_code_point(next_code_point(a, i)) != fold_code_point(next_code_point(b, j))) {
+            return false;
+        }
+    }
+    return i == a.size() && j == b.size();
+}
+
+#ifdef __APPLE__
+[[maybe_unused]] constexpr bool kFoldsFileNames = true;
+#else
+[[maybe_unused]] constexpr bool kFoldsFileNames = false;
+#endif
+
+}  // namespace
+
+bool same_file_path(std::string_view a, std::string_view b) {
+#ifdef _WIN32
+    // The system's own rule for file names: an ordinal comparison ignoring letter case with
+    // its uppercasing table, on the lexically normalised paths.
+    const std::wstring left = path_from_utf8(a).lexically_normal().wstring();
+    const std::wstring right = path_from_utf8(b).lexically_normal().wstring();
+    return CompareStringOrdinal(left.c_str(), static_cast<int>(left.size()), right.c_str(),
+                                static_cast<int>(right.size()), TRUE) == CSTR_EQUAL;
+#else
+    if (kFoldsFileNames) {
+        const std::string left = utf8_from_path(path_from_utf8(a).lexically_normal());
+        const std::string right = utf8_from_path(path_from_utf8(b).lexically_normal());
+        return equal_folded(left, right);
+    }
+    return a == b;  // Linux: the bytes as they are
+#endif
+}
 
 }  // namespace mfbe::platform

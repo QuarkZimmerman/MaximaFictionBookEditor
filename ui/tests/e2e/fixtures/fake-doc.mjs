@@ -11,7 +11,7 @@
  *  - encodings: BOM/declaration detection, TextDecoder for reading, utf-8/utf-16/single-byte
  *    tables for writing;
  *  - atomic save (temp file + rename) with the `test.injectFault` points, a validation that
- *    checks the required description fields, recent files (<= 10) and remembered carets,
+ *    checks the required description fields, recent files (<= 10) and remembered positions (positions.json, 100 files),
  *    external-change polling (`doc.changedOnDisk` every 500 ms).
  */
 
@@ -891,13 +891,23 @@ export function validateText(text) {
 }
 
 /* ------------------------------------------------------------------------ */
-/* Session state: documents, recent, carets, watcher, fault injection       */
+/* Session state: documents, recent, positions, watcher, fault injection    */
 /* ------------------------------------------------------------------------ */
 
-export function createDocService({ dataDir, broadcast, blankTemplate }) {
-  const sessions = new Map(); // docId -> { path, binaries: Map, watcher, mtime, size }
-  const carets = new Map(); // path -> caret
+export function createDocService({
+  dataDir,
+  broadcast,
+  blankTemplate,
+  restorePositionEnabled = () => true,
+}) {
+  const sessions = new Map(); // docId -> { path, binaries: Map, watcher, mtime, size, position }
   const recentPath = path.join(dataDir, 'recent.json');
+  // The remembered positions (feature 004 US8, resource-formats §13): a record of its own
+  // beside recent.json, 100 files, newest first, {path, at, position: {path, offset}}.
+  const positionsPath = path.join(dataDir, 'positions.json');
+  const MAX_POSITIONS = 100;
+  const POSITION_PATH =
+    /^(body\[[1-9]\d*\]|title-info\/annotation\[1\]|document-info\/history\[1\])(\/[a-z-]+\[[1-9]\d*\])*$/;
   let fault = 'none';
   let counter = 0;
 
@@ -919,10 +929,47 @@ export function createDocService({ dataDir, broadcast, blankTemplate }) {
   }
   function touchRecent(filePath) {
     recent = [
-      { path: filePath, lastOpened: new Date().toISOString(), caret: carets.get(filePath) },
+      { path: filePath, lastOpened: new Date().toISOString() },
       ...recent.filter((item) => item.path !== filePath),
     ].slice(0, 10);
     saveRecent();
+  }
+
+  function loadPositions() {
+    try {
+      const parsed = JSON.parse(readFileSync(positionsPath, 'utf8'));
+      if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.items)) return [];
+      return parsed.items.filter(
+        (item) =>
+          item &&
+          typeof item.path === 'string' &&
+          item.path &&
+          item.position &&
+          POSITION_PATH.test(item.position.path ?? '') &&
+          Number.isInteger(item.position.offset) &&
+          item.position.offset >= 0,
+      );
+    } catch {
+      return [];
+    }
+  }
+  let positions = loadPositions();
+  function savePositions() {
+    try {
+      writeFileSync(positionsPath, JSON.stringify({ schemaVersion: 1, items: positions }, null, 2));
+    } catch {
+      // the fake core does not care
+    }
+  }
+  function rememberPosition(filePath, position) {
+    positions = [
+      { path: filePath, at: new Date().toISOString(), position },
+      ...positions.filter((item) => item.path !== filePath),
+    ].slice(0, MAX_POSITIONS);
+    savePositions();
+  }
+  function positionOf(filePath) {
+    return positions.find((item) => item.path === filePath)?.position;
   }
   function pruneRecent(filePath) {
     recent = recent.filter((item) => item.path !== filePath);
@@ -1004,6 +1051,7 @@ export function createDocService({ dataDir, broadcast, blankTemplate }) {
         });
         const s = session(docId);
         Object.assign(s, statOf(filePath));
+        s.position = positionOf(filePath);
         touchRecent(filePath);
         const warnings = [];
         const declared = /encoding\s*=\s*["']([^"']+)["']/.exec(text.slice(0, 300));
@@ -1038,6 +1086,8 @@ export function createDocService({ dataDir, broadcast, blankTemplate }) {
       } catch (e) {
         error = { line: e.line ?? 0, column: e.column ?? 0, message: e.message };
       }
+      // A Source-only session takes no Body position (feature 004 US8).
+      session(docId).sourceOnly = !!error;
       return { docId, text, encoding, error };
     },
 
@@ -1122,6 +1172,8 @@ export function createDocService({ dataDir, broadcast, blankTemplate }) {
       s.path = target;
       Object.assign(s, statOf(target));
       touchRecent(target);
+      // The session's position follows the saved name (Save As) when the setting is on.
+      if (s.position && restorePositionEnabled()) rememberPosition(target, s.position);
       return { path: target, encoding: enc, converted: [], validation };
     },
 
@@ -1154,17 +1206,27 @@ export function createDocService({ dataDir, broadcast, blankTemplate }) {
       return {};
     },
 
-    'doc.caret': ({ docId, caret }) => {
+    // Restore position (feature 004 US8, rpc-api §3.2): the remembered Body position of the
+    // session's file - kept in the session, recorded in positions.json when the session has a
+    // file and the setting is on; {} when nothing is remembered or the setting is off.
+    'doc.position': ({ docId, position }) => {
       const s = session(docId);
-      if (!s.path) return {};
-      if (caret) {
-        carets.set(s.path, caret);
-        recent = recent.map((item) => (item.path === s.path ? { ...item, caret } : item));
-        saveRecent();
-        return { caret };
+      if (position !== undefined) {
+        if (
+          !position ||
+          typeof position !== 'object' ||
+          !POSITION_PATH.test(position.path ?? '') ||
+          !Number.isInteger(position.offset) ||
+          position.offset < 0
+        ) {
+          throw rpcError(-32602, 'position must be {path, offset}', { field: 'position' });
+        }
+        s.position = { path: position.path, offset: position.offset };
+        if (s.path && !s.sourceOnly && restorePositionEnabled()) {
+          rememberPosition(s.path, s.position);
+        }
       }
-      const remembered = carets.get(s.path) ?? recent.find((item) => item.path === s.path)?.caret;
-      return remembered ? { caret: remembered } : {};
+      return s.position && restorePositionEnabled() ? { position: s.position } : {};
     },
 
     'test.injectFault': ({ point }) => {

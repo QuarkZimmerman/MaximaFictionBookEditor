@@ -133,7 +133,7 @@ async function renderApp() {
     },
     'doc.recent': [],
     'doc.watch': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.close': {},
     'spell.dictionaries': [{ tag: 'ru_RU', lang: 'ru', name: 'ru_RU', source: 'bundled' }],
     'spell.check': (params: unknown) => {

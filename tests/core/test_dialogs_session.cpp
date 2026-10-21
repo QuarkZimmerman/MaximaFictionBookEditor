@@ -228,10 +228,12 @@ TEST_CASE("session: registry issues docIds and remembers carets", "[session]") {
         CHECK(e.code == rpc::codes::kDocNotFound);
         CHECK(e.data["docId"] == "d9");
     }
-    CHECK_FALSE(registry.caret("d1").has_value());
-    registry.remember_caret("d1", settings::Caret{"body", "n7", 3});
-    CHECK(registry.caret("d1")->nodeId == "n7");
-    registry.remember_caret("d9", settings::Caret{"body", "n7", 3});  // unknown: ignored
+    CHECK_FALSE(registry.position("d1").has_value());
+    registry.remember_position("d1", settings::Position{"body[1]/section[1]/p[1]", 3});
+    CHECK(registry.position("d1")->path == "body[1]/section[1]/p[1]");
+    CHECK(registry.position("d1")->offset == 3);
+    registry.remember_position("d9", settings::Position{"body[1]", 0});  // unknown: ignored
+    CHECK_FALSE(registry.position("d9").has_value());
     CHECK(a.binaries != nullptr);
     CHECK(a.ids.next() == "n1");
     CHECK(registry.close("d1"));

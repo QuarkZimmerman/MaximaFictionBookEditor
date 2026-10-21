@@ -22,8 +22,14 @@
 //   doc.formatDate({value}) -> {text}   the regional long date of a YYYY-MM-DD value (feature
 //       003 FR-050, the Today button); invalidParams unless a calendar date
 //   doc.validate({docId, document?, text?}) -> ValidationReport | {jobId}
-//   doc.recent() -> RecentFile[] (+ exists), doc.clearRecent() -> {}
-//   doc.caret({docId, caret?}) -> {caret?}
+//   doc.recent() -> RecentFile[] (+ exists; no caret since feature 004), doc.clearRecent() -> {}
+//       (recent.json only - the positions record is independent of the menu list, D4)
+//   doc.position({docId, position?}) -> {position?}   (feature 004 US8, FR-100/FR-101): the
+//       remembered Body position {path, offset} of the session's file - the grammar checked,
+//       kept in the session and, with a file and `other.restorePosition` on, recorded in
+//       positions.json (the core gates); {} when nothing is remembered or the setting is off
+//   doc.caret({docId, caret?}) -> {caret?}   deprecated alias of doc.position in the 1.x caret
+//       shape, converted through the session snapshot (node_path / node_id_at_path)
 //   doc.watch({docId, enabled}) -> {}   (notification doc.changedOnDisk {docId, path, mtime})
 //   doc.readDescription({docId, path}) -> {importId, description, documentDetails, binaries,
 //       warnings} | {jobId}   (feature 004 US4, FR-031/FR-032): the file read as doc.open reads
@@ -57,6 +63,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <functional>
@@ -224,6 +231,33 @@ std::string effective_encoding(Services& services, const session::DocumentSessio
 }
 
 /* ----------------------------------------------------------------------------------------- */
+/* Remembered position (feature 004 US8)                                                      */
+/* ----------------------------------------------------------------------------------------- */
+
+bool restore_position_enabled(const Services& services) {
+    return services.settings.get_bool("other.restorePosition", true);
+}
+
+// Records the session's position in positions.json when the session has a file, is not
+// Source-only and "Restore position" is on - the core gates every write (FR-100; research
+// R5.1 H6), so a UI that has not received the settings yet cannot record either.
+void record_position(Services& services, const session::DocumentSession& s) {
+    if (s.position && s.path && !s.sourceOnly && restore_position_enabled(services)) {
+        services.positions.set(*s.path, *s.position);
+    }
+}
+
+// The answer of doc.position: the session's position, or {} when nothing is remembered or the
+// setting is off.
+json position_result(const Services& services, const session::DocumentSession& s) {
+    json result = json::object();
+    if (s.position && restore_position_enabled(services)) {
+        result["position"] = settings::to_json(*s.position);
+    }
+    return result;
+}
+
+/* ----------------------------------------------------------------------------------------- */
 /* Opening                                                                                    */
 /* ----------------------------------------------------------------------------------------- */
 
@@ -295,8 +329,21 @@ void fill_session(Services& services, session::DocumentSession& s, Opened& opene
     }
     s.binaries = std::move(opened.store);
     s.ids = opened.ids;
-    s.caret = services.recent.caret(opened.path);
-    services.recent.touch(opened.path);
+    s.position = services.positions.get(opened.path);
+    if (!s.position) {
+        // The one-time conversion of a release 0.0.3 caret kept in recent.json: a Body caret
+        // whose node id the freshly loaded document has (ids are deterministic in document
+        // order, so "it still fits" = the id exists) becomes a position by place and is
+        // recorded like one; any other legacy caret is ignored (resource-formats §8).
+        if (const auto legacy = services.recent.legacy_caret(opened.path)) {
+            const std::string path = model::node_path(doc, legacy->nodeId);
+            if (!path.empty()) {
+                s.position = settings::Position{path, std::max(0, legacy->offset)};
+                record_position(services, s);
+            }
+        }
+    }
+    services.recent.touch(opened.path);  // written without the legacy caret from now on
     s.snapshot = std::move(doc);
 }
 
@@ -423,7 +470,6 @@ struct SaveRequest {
     bool force = false;
     std::string xlink_prefix;
     std::shared_ptr<BinaryStore> store;
-    std::optional<settings::Caret> caret;
     images::ConversionPolicy policy;  // image conversion on save (FR-110)
 };
 
@@ -534,12 +580,11 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     auto snapshot = request.document
                         ? std::make_shared<model::Document>(std::move(*request.document))
                         : nullptr;
-    const auto caret = request.caret;
     std::vector<std::string> converted_ids;
     for (const auto& c : converted) {
         converted_ids.push_back(c.id);
     }
-    auto update = [&services, doc_id, path, enc, stamp, snapshot, caret, converted_ids]() -> int {
+    auto update = [&services, doc_id, path, enc, stamp, snapshot, converted_ids]() -> int {
         session::DocumentSession* s = services.documents.find(doc_id);
         for (const std::string& id : converted_ids) {
             services.previews.invalidate_prefix(doc_id + "/" + id + "@");
@@ -565,8 +610,11 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
                 // Re-point + refresh after our own save.
                 services.watcher->watch(doc_id, platform::path_from_utf8(path));
             }
+            // The remembered position follows the saved name (Save As); the old name's
+            // record stays (FR-100).
+            record_position(services, *s);
         }
-        services.recent.touch(path, caret);
+        services.recent.touch(path);
         return 0;
     };
     if (control == nullptr) {
@@ -890,7 +938,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             s.lastKnownMtime = stamp.mtime;
             s.lastKnownSize = stamp.size;
         }
-        s.caret = services.recent.caret(path);
+        // A Source-only session takes no Body caret (FR-101): no position is loaded.
         services.recent.touch(path);
         json result{{"docId", s.docId},
                     {"text", source.text},
@@ -1160,7 +1208,6 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         request.force = rpc::params::boolean_or(params, "force", false);
         request.xlink_prefix = s.xlinkPrefix;
         request.store = s.binaries;
-        request.caret = s.caret;
         request.policy = services.conversion_policy();
 
         const std::uintmax_t estimate =
@@ -1273,6 +1320,43 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         return json::object();
     });
 
+    router.add_method("doc.position", [&services](const json& params, rpc::RpcContext&) {
+        session::DocumentSession& s =
+            services.documents.require(rpc::params::string(params, "docId"));
+        if (const json* position = rpc::params::opt_field(params, "position")) {
+            if (!position->is_object()) {
+                throw rpc::invalid_params("position must be {path, offset}",
+                                          json{{"field", "position"}});
+            }
+            const json* path = rpc::params::opt_field(*position, "path");
+            if (path == nullptr || !path->is_string() ||
+                !settings::is_position_path(path->get<std::string>())) {
+                throw rpc::invalid_params(
+                    "position.path must be a structural path under body[n], "
+                    "title-info/annotation[1] or document-info/history[1]",
+                    json{{"field", "position.path"}});
+            }
+            const json* offset = rpc::params::opt_field(*position, "offset");
+            if (offset == nullptr || !offset->is_number_integer() ||
+                offset->get<std::int64_t>() < 0) {
+                throw rpc::invalid_params("position.offset must be an integer >= 0",
+                                          json{{"field", "position.offset"}});
+            }
+            const auto parsed = settings::position_from_json(*position);
+            if (!parsed) {
+                throw rpc::invalid_params("position must be {path, offset}",
+                                          json{{"field", "position"}});
+            }
+            s.position = parsed;
+            s.aliasCaret.reset();
+            record_position(services, s);
+        }
+        return position_result(services, s);
+    });
+
+    // Deprecated since feature 004 (rpc-api §3.2 "doc - deprecated"): the 1.x caret shape as
+    // an alias of doc.position, converted through the session snapshot - the only model the
+    // core has, exact for the document as loaded. Removed with apiVersion 2.
     router.add_method("doc.caret", [&services](const json& params, rpc::RpcContext&) {
         session::DocumentSession& s =
             services.documents.require(rpc::params::string(params, "docId"));
@@ -1282,14 +1366,32 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                 throw rpc::invalid_params("caret must be {view, nodeId?, offset?, line?, column?}",
                                           json{{"field", "caret"}});
             }
-            s.caret = parsed;
-            if (s.path) {
-                services.recent.set_caret(*s.path, parsed);
+            std::string path;
+            if (parsed->view == "body" && !parsed->nodeId.empty() && s.snapshot) {
+                path = model::node_path(*s.snapshot, parsed->nodeId);
+            }
+            if (!path.empty()) {
+                // A Body caret the snapshot knows: recorded as doc.position would record it.
+                s.position = settings::Position{path, std::max(0, parsed->offset)};
+                s.aliasCaret.reset();
+                record_position(services, s);
+            } else {
+                // Another view's caret or an unknown node: the session only, never the record.
+                s.aliasCaret = parsed;
             }
         }
         json result = json::object();
-        if (s.caret) {
-            result["caret"] = settings::to_json(*s.caret);
+        if (!restore_position_enabled(services)) {
+            return result;
+        }
+        if (s.aliasCaret) {
+            result["caret"] = settings::to_json(*s.aliasCaret);
+        } else if (s.position && s.snapshot) {
+            if (const auto node_id = model::node_id_at_path(*s.snapshot, s.position->path);
+                node_id && !node_id->empty()) {
+                result["caret"] =
+                    settings::to_json(settings::Caret{"body", *node_id, s.position->offset});
+            }
         }
         return result;
     });

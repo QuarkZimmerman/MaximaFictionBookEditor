@@ -85,7 +85,7 @@ async function renderApp(doc: Document) {
     'settings.set': (params: unknown) => ({ settings: params, restartRequired: false }),
     'doc.recent': [],
     'doc.watch': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.close': {},
   });
   const services: AppServices = createAppServices({ store, rpc: rpc.client, platform: 'linux' });

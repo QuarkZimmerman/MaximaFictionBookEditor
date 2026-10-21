@@ -20,7 +20,11 @@
  *  - Pending Source text is parsed back (`doc.fromXml`) before Save/Validate/Exit; malformed
  *    text refuses the save, as the original editor did ("do not save bad xml").
  *  - `doc.watch` is enabled for opened files; `doc.changedOnDisk` asks to reload.
- *  - `doc.caret` get/set implements Restore position (recent.ts).
+ *  - `doc.position` get/set implements Restore position (recent.ts; feature 004 US8): every
+ *    route by which a document with a file leaves the editor - New, Open, Recent Files, a
+ *    forwarded file, the changed-on-disk reload, every save, Exit, the window's close request
+ *    and the restart (`leaveDocument`) - remembers the Body caret by its place in document
+ *    order; every opening route restores it without switching the view.
  *  - Exit and the shell's window-close request (`app.closeRequested`, feature 003 FR-013) share
  *    one quit flow: while a script runs it first asks whether to cancel the run (Yes cancels it
  *    and waits for the document to be restored, No keeps the editor open), then the usual save
@@ -37,6 +41,7 @@ import {
 } from '@/app/commands';
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
 import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
+import type { StructuralPosition } from '@/editor/structuralPath';
 import { documentFileTypes } from '@/dialogs/fileTypes';
 import type { Dialogs } from '@/dialogs/types';
 import { showEncodingDialog, showSaveChangesPrompt } from '@/dialogs/show';
@@ -62,9 +67,10 @@ import {
   setSourceOnlyText,
   sourceSession,
 } from '@/views/source/sourceSession';
+import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 
 import { proposedFileName } from './proposedName';
-import { RecentFilesStore, rememberCaret, restoreCaret } from './recent';
+import { RecentFilesStore, rememberPosition, restorePosition } from './recent';
 
 export { ENCODING_CHOICES };
 
@@ -214,6 +220,33 @@ function waitForScriptRunEnd(store: AppStore, timeoutMs = CANCEL_RUN_WAIT_MS): P
   });
 }
 
+/**
+ * The hand-off when the open document leaves the editor (feature 004 FR-100; research R5.6):
+ * its Body position is remembered (`doc.position`, a document with a file only), the file is
+ * no longer watched and a pending session save is written. Shared by closing (New, Open,
+ * Recent Files, a forwarded file, the reload), Exit, the window's close request and the
+ * restart after a language change; nothing happens without a document.
+ */
+export async function leaveDocument(ctx: CommandContext): Promise<void> {
+  const { store, rpc } = ctx;
+  const state = store.getState();
+  if (state.docId && rpc) {
+    await rememberPosition(ctx, state.docId);
+    try {
+      await rpc.call('doc.watch', { docId: state.docId, enabled: false });
+    } catch {
+      // best effort
+    }
+  }
+  await flushSessionSave(store);
+}
+
+/** The Body caret of the open document as a position to carry over a reload (null without one). */
+function currentBodyPosition(ctx: CommandContext): StructuralPosition | null {
+  if (!hasBodyController(ctx.store) || ctx.store.getState().sourceOnly) return null;
+  return getBodyController(ctx.store).getPosition();
+}
+
 /* ------------------------------------------------------------------------ */
 /* The feature                                                              */
 /* ------------------------------------------------------------------------ */
@@ -243,6 +276,12 @@ export class FileFeature {
   private userRequests = 0;
   /** A window-close request is being answered (its prompts are up). */
   private closeRequestPending = false;
+  /**
+   * The in-session Body caret handed over the changed-on-disk reload (feature 004 FR-101):
+   * the reload keeps the caret where it was whatever the setting, so the next `openDocument`
+   * restores it instead of asking the core for the record.
+   */
+  private pendingPosition: StructuralPosition | null = null;
 
   constructor(registry: CommandRegistry, options: FileFeatureOptions = {}) {
     this.selfSaveGraceMs = options.selfSaveGraceMs ?? 1500;
@@ -286,17 +325,12 @@ export class FileFeature {
 
   /* ------------------------------------------------------------------ close */
 
-  /** Remembers the caret, stops watching and closes the current document in the core. */
+  /** Remembers the position, stops watching and closes the current document in the core. */
   async closeCurrentDocument(ctx: CommandContext): Promise<void> {
     const { store, rpc } = ctx;
     const state = store.getState();
     if (state.docId && rpc) {
-      await rememberCaret(ctx, state.docId);
-      try {
-        await rpc.call('doc.watch', { docId: state.docId, enabled: false });
-      } catch {
-        // best effort
-      }
+      await leaveDocument(ctx);
       try {
         await rpc.call('doc.close', { docId: state.docId });
       } catch {
@@ -411,6 +445,8 @@ export class FileFeature {
   async openDocument(ctx: CommandContext, path: string): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
+    const pending = this.pendingPosition;
+    this.pendingPosition = null;
     await this.closeCurrentDocument(ctx);
     try {
       const result = await rpc.runJob(
@@ -427,7 +463,10 @@ export class FileFeature {
       }
       await this.watch(ctx, result.document.docId, true);
       void this.recent.refresh(rpc);
-      void restoreCaret(ctx, result.document.docId);
+      // Every opening route ends here (Open, Recent Files, the command line, a forwarded file,
+      // the `?open=` restart, the reload): the remembered place - or the reload's own caret -
+      // is restored in the Body controller without a view switch (FR-101).
+      void restorePosition(ctx, result.document.docId, pending);
       return true;
     } catch (error) {
       // Not a FictionBook file at all (binary, plain text, other XML): refused outright.
@@ -594,7 +633,8 @@ export class FileFeature {
         );
         if (store.getState().validation) actions.setValidation(store, result.validation);
         await this.watch(ctx, current.docId, true);
-        void rememberCaret(ctx, current.docId);
+        // Every save remembers the position, under the saved path (FR-100).
+        void rememberPosition(ctx, current.docId);
         void this.recent.refresh(rpc);
         return true;
       } catch (error) {
@@ -657,9 +697,8 @@ export class FileFeature {
     if (!(await this.confirmCancelRunningScript(ctx))) return;
     if (!(await this.confirmDiscardChanges(ctx))) return;
     const state = ctx.store.getState();
-    if (state.docId) await rememberCaret(ctx, state.docId);
+    await leaveDocument(ctx);
     if (ctx.rpc && state.connection === 'connected') {
-      await flushSessionSave(ctx.store);
       await ctx.rpc.call('app.quit', options.force ? { force: true } : {});
     } else {
       window.close();
@@ -730,7 +769,12 @@ export class FileFeature {
         icon: 'question',
         testId: 'dialog-file-changed',
       });
-      if (answer === 'yes') await this.openDocument(ctx, path);
+      if (answer === 'yes') {
+        // The reload keeps the active view and the in-session caret (001 FR-006, 004 FR-101):
+        // the Body caret as it is now travels to the reopened document directly.
+        this.pendingPosition = currentBodyPosition(ctx);
+        await this.openDocument(ctx, path);
+      }
     } finally {
       this.reloadPromptOpen = false;
     }

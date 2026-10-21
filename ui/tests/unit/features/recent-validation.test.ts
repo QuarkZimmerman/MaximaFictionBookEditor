@@ -1,6 +1,6 @@
 import { createInstance } from 'i18next';
 
-import { createCommandRegistry } from '@/app/commands';
+import { createCommandRegistry, type CommandContext } from '@/app/commands';
 import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
 import {
   confirmSaveWithErrors,
@@ -8,26 +8,31 @@ import {
   issueMessage,
   issueMessageKey,
 } from '@/dialogs/validation';
+import { installBodyEditor } from '@/features/editing';
 import {
   RecentFilesStore,
-  applyCaret,
   recentCommandId,
   recentLabel,
-  rememberCaret,
-  restoreCaret,
+  rememberPosition,
+  restorePosition,
 } from '@/features/file/recent';
 import { initI18n } from '@/i18n';
-import type { ValidationIssue } from '@/model/document';
+import type { Document, ValidationIssue } from '@/model/document';
 import { actions } from '@/model/store';
+import { getBodyController, type BodyEditorController } from '@/views/body/bodyEditor';
 import { requestViewSwitch } from '@/views/source/sourceSession';
+
+import { defaultSettings, mergeSettings } from '../settings/fixtures';
 
 import {
   CLEAN_REPORT,
   fakeDialogs,
   fakeDocument,
   fakeRpc,
+  flowCalls,
   makeContext,
   rpcError,
+  type FakeRpc,
 } from './testUtils';
 
 describe('Recent Files (T054)', () => {
@@ -86,56 +91,178 @@ describe('Recent Files (T054)', () => {
   });
 });
 
-describe('caret restore (FR-008)', () => {
-  it('remembers the active caret through doc.caret only when Restore position is on', async () => {
-    const rpc = fakeRpc({ 'doc.caret': {} });
+/**
+ * Restore position (feature 004 US8, FR-100 / FR-101; research R5.6, R5.7): the Body
+ * controller's caret - whatever the active view - as a structural path through
+ * `doc.position`; restored through `resolvePosition` without a view switch.
+ */
+describe('Restore position (feature 004 US8)', () => {
+  /** A two-paragraph book: p[1] "Hello" (n3), p[2] "World, wide" (n4); `null` = never saved. */
+  function book(path: string | null = '/books/alpha.fb2'): Document {
+    const document = fakeDocument({ path: path ?? undefined });
+    const section = document.bodies[0]!.content[0] as {
+      content: { type: string; attrs: { nodeId: string }; content: unknown[] }[];
+    };
+    section.content.push({
+      type: 'p',
+      attrs: { nodeId: 'n4' },
+      content: [{ type: 'text', text: 'World, wide' }],
+    });
+    return document;
+  }
+
+  async function setup(
+    responses: Record<string, unknown> = {},
+  ): Promise<{ ctx: CommandContext; rpc: FakeRpc; controller: BodyEditorController }> {
+    const rpc = fakeRpc({ 'doc.position': {}, ...responses });
     const ctx = await makeContext({ rpc: rpc.client });
-    actions.setDocument(ctx.store, fakeDocument());
-    ctx.carets!.register('body', {
-      get: () => ({ view: 'body', nodeId: 'n3', offset: 4 }),
-      set: () => true,
+    installBodyEditor({
+      commands: createCommandRegistry(),
+      rpc: rpc.client,
+      undo: ctx.undo,
+      carets: ctx.carets!,
+      store: ctx.store,
+      hotkeys: ctx.hotkeys,
     });
-    await rememberCaret(ctx, 'doc-1');
-    expect(rpc.calls[0]).toEqual({
-      method: 'doc.caret',
-      params: { docId: 'doc-1', caret: { view: 'body', nodeId: 'n3', offset: 4 } },
+    actions.setConnection(ctx.store, 'connected');
+    return { ctx, rpc, controller: getBodyController(ctx.store) };
+  }
+
+  const positionCalls = (rpc: FakeRpc) =>
+    flowCalls(rpc).filter((call) => call.method === 'doc.position');
+
+  /** The settings with "Restore position" switched `on` or off (the rest the defaults). */
+  const settingsWith = (on: boolean) =>
+    mergeSettings(defaultSettings(), { other: { restorePosition: on } });
+
+  it('remembers the Body caret as a structural path whatever the active view', async () => {
+    const { ctx, rpc, controller } = await setup();
+    actions.setDocument(ctx.store, book());
+    // The caret placed in the second paragraph (the Body view counts as shown).
+    expect(controller.setCaret({ view: 'body', nodeId: 'n4', offset: 7 })).toBe(true);
+    actions.setActiveView(ctx.store, 'description');
+    await rememberPosition(ctx, 'doc-1');
+    expect(positionCalls(rpc)).toEqual([
+      {
+        method: 'doc.position',
+        params: { docId: 'doc-1', position: { path: 'body[1]/section[1]/p[2]', offset: 7 } },
+      },
+    ]);
+    // From the Source view as well: still the Body caret, never the active view's.
+    actions.setActiveView(ctx.store, 'source');
+    await rememberPosition(ctx, 'doc-1');
+    expect(positionCalls(rpc)).toHaveLength(2);
+    expect(positionCalls(rpc)[1]!.params).toEqual({
+      docId: 'doc-1',
+      position: { path: 'body[1]/section[1]/p[2]', offset: 7 },
     });
-    ctx.store.setState({
-      settings: { other: { restorePosition: false } } as never,
-    });
-    await rememberCaret(ctx, 'doc-1');
-    expect(rpc.calls).toHaveLength(1);
   });
 
-  it('restores the caret after switching to its view, retrying while the view mounts', async () => {
-    vi.useFakeTimers();
-    try {
-      const rpc = fakeRpc({
-        'doc.caret': { caret: { view: 'source', line: 7, column: 3 } },
-      });
-      const ctx = await makeContext({ rpc: rpc.client });
-      actions.setDocument(ctx.store, fakeDocument());
-      const set = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
-      const restored = restoreCaret(ctx, 'doc-1');
-      await vi.advanceTimersByTimeAsync(5);
-      // the Source view mounts "later": register its provider, then let the retry run
-      ctx.carets!.register('source', { get: () => null, set });
-      await vi.advanceTimersByTimeAsync(100);
-      expect(await restored).toBe(true);
-      expect(ctx.store.getState().activeView).toBe('source');
-      expect(set).toHaveBeenCalledWith({ view: 'source', line: 7, column: 3 });
+  it('skips when the setting is off, the document has no file, is Source-only or the Body view was never shown', async () => {
+    const { ctx, rpc, controller } = await setup();
+    // A fresh document whose Body view was never shown and whose caret was never placed:
+    // the previous record for its path must stay (FR-100).
+    actions.setDocument(ctx.store, book());
+    await rememberPosition(ctx, 'doc-1');
+    expect(positionCalls(rpc)).toEqual([]);
+    expect(controller.setCaret({ view: 'body', nodeId: 'n3', offset: 2 })).toBe(true);
+    await rememberPosition(ctx, 'doc-1');
+    expect(positionCalls(rpc)).toHaveLength(1);
 
-      // Nothing remembered, or the document changed meanwhile: false.
-      rpc.responses['doc.caret'] = {};
-      expect(await restoreCaret(ctx, 'doc-1')).toBe(false);
-      rpc.responses['doc.caret'] = { caret: { view: 'body', nodeId: 'n3' } };
-      expect(await restoreCaret(ctx, 'doc-other')).toBe(false);
-      const pending = applyCaret(ctx, { view: 'body', nodeId: 'zzz' }, 2);
-      await vi.advanceTimersByTimeAsync(100);
-      expect(await pending).toBe(false);
-    } finally {
-      vi.useRealTimers();
-    }
+    // The setting known to be off.
+    ctx.store.setState({ settings: settingsWith(false) });
+    await rememberPosition(ctx, 'doc-1');
+    expect(positionCalls(rpc)).toHaveLength(1);
+    ctx.store.setState({ settings: settingsWith(true) });
+    await rememberPosition(ctx, 'doc-1');
+    expect(positionCalls(rpc)).toHaveLength(2);
+
+    // A never-saved document remembers nothing.
+    actions.setDocument(ctx.store, book(null));
+    controller.setCaret({ view: 'body', nodeId: 'n3', offset: 1 });
+    await rememberPosition(ctx, 'doc-1');
+    expect(positionCalls(rpc)).toHaveLength(2);
+
+    // A Source-only session takes no Body caret.
+    actions.setDocument(ctx.store, book(), { sourceOnly: true });
+    controller.setCaret({ view: 'body', nodeId: 'n3', offset: 1 });
+    await rememberPosition(ctx, 'doc-1');
+    expect(positionCalls(rpc)).toHaveLength(2);
+
+    // Mounting the view counts as showing it: the editor's start - the annotation block above
+    // the bodies (feature 004 US2) - is then a position too. (The file flows close a document
+    // before they show the next one; the controller then starts from a fresh state.)
+    actions.closeDocument(ctx.store);
+    actions.setDocument(ctx.store, { ...book(), docId: 'doc-2' });
+    controller.mount(document.createElement('div'));
+    await rememberPosition(ctx, 'doc-2');
+    expect(positionCalls(rpc)).toHaveLength(3);
+    expect(positionCalls(rpc)[2]!.params).toEqual({
+      docId: 'doc-2',
+      position: { path: 'title-info/annotation[1]/p[1]', offset: 0 },
+    });
+    controller.unmount();
+  });
+
+  it('restores through resolvePosition and setCaret without switching the view', async () => {
+    const { ctx, rpc, controller } = await setup({
+      'doc.position': { position: { path: 'body[1]/section[1]/p[2]', offset: 3 } },
+    });
+    actions.setActiveView(ctx.store, 'description');
+    actions.setDocument(ctx.store, book());
+    expect(await restorePosition(ctx, 'doc-1')).toBe(true);
+    expect(positionCalls(rpc)).toEqual([{ method: 'doc.position', params: { docId: 'doc-1' } }]);
+    expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n4', offset: 3 });
+    expect(ctx.store.getState().selectionPath).toBe('body[1]/section[1]/p[2]');
+    expect(ctx.store.getState().activeView).toBe('description'); // no view switch
+
+    // FR-101 fallback: a paragraph that no longer exists -> the one now at that place,
+    // clamped; the offset clamped to its length.
+    rpc.responses['doc.position'] = {
+      position: { path: 'body[1]/section[1]/p[5]', offset: 99 },
+    };
+    expect(await restorePosition(ctx, 'doc-1')).toBe(true);
+    expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n4', offset: 11 });
+    // A body index beyond the last body clamps to the last body; a root the document does
+    // not have (no annotation) -> the document's start.
+    rpc.responses['doc.position'] = { position: { path: 'body[3]/section[1]/p[1]', offset: 2 } };
+    expect(await restorePosition(ctx, 'doc-1')).toBe(true);
+    expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n3', offset: 2 });
+    rpc.responses['doc.position'] = {
+      position: { path: 'title-info/annotation[1]/p[1]', offset: 2 },
+    };
+    expect(await restorePosition(ctx, 'doc-1')).toBe(true);
+    expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n3', offset: 0 });
+
+    // Nothing remembered, another document meanwhile, Source-only: false, caret untouched.
+    controller.setCaret({ view: 'body', nodeId: 'n4', offset: 1 });
+    rpc.responses['doc.position'] = {};
+    expect(await restorePosition(ctx, 'doc-1')).toBe(false);
+    rpc.responses['doc.position'] = { position: { path: 'body[1]/section[1]/p[1]', offset: 0 } };
+    expect(await restorePosition(ctx, 'doc-other')).toBe(false);
+    ctx.store.setState({ sourceOnly: true });
+    expect(await restorePosition(ctx, 'doc-1')).toBe(false);
+    ctx.store.setState({ sourceOnly: false });
+    expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n4', offset: 1 });
+    // The setting known to be off: no call at all (the core gates as well).
+    const calls = positionCalls(rpc).length;
+    ctx.store.setState({ settings: settingsWith(false) });
+    expect(await restorePosition(ctx, 'doc-1')).toBe(false);
+    expect(positionCalls(rpc)).toHaveLength(calls);
+  });
+
+  it('a pending position (the changed-on-disk reload) wins over the record', async () => {
+    const { ctx, rpc, controller } = await setup({
+      'doc.position': { position: { path: 'body[1]/section[1]/p[1]', offset: 0 } },
+    });
+    actions.setDocument(ctx.store, book());
+    // Even with the setting off: the reload keeps the in-session caret (FR-101).
+    ctx.store.setState({ settings: settingsWith(false) });
+    expect(
+      await restorePosition(ctx, 'doc-1', { path: 'body[1]/section[1]/p[2]', offset: 4 }),
+    ).toBe(true);
+    expect(positionCalls(rpc)).toEqual([]);
+    expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n4', offset: 4 });
   });
 });
 

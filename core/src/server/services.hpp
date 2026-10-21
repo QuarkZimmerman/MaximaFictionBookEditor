@@ -12,6 +12,7 @@
 #include <mfbe/images.hpp>
 #include <mfbe/keyboard_layout_provider.hpp>
 #include <mfbe/platform.hpp>
+#include <mfbe/positions.hpp>
 #include <mfbe/recent_files.hpp>
 #include <mfbe/resource_tables.hpp>
 #include <mfbe/resources.hpp>
@@ -39,6 +40,8 @@ struct Services {
 
     settings::SettingsStore settings;
     settings::RecentFiles recent;
+    // The remembered positions record (feature 004 US8), beside recent.json.
+    settings::Positions positions;
     settings::ExclusionList exclusions;
     settings::HotkeysStore hotkeys;
     resources::ResourceLayers layers;

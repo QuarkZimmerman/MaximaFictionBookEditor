@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <set>
 #include <thread>
 
@@ -35,7 +36,12 @@ struct ServerFixture {
     std::unique_ptr<CoreServer> server;
     test::WsClient ws;
 
-    ServerFixture() {
+    // `seed` fills the data folder (recent.json, positions.json...) before the core starts.
+    explicit ServerFixture(
+        const std::function<void(const std::filesystem::path& data_dir)>& seed = {}) {
+        if (seed) {
+            seed(data.path());
+        }
         options.data_dir = data.path().string();
         options.test_hooks = true;
         server = CoreServer::start(options);
@@ -319,21 +325,34 @@ TEST_CASE(
                    "<id>" + doc["description"]["documentInfo"]["id"].get<std::string>() + "</id>"));
     CHECK_FALSE(fb2::check_well_formed(saved).has_value());
 
-    // Recent files know the saved path; caret round-trips.
+    // Recent files know the saved path and carry no caret (feature 004 US8: the remembered
+    // position lives in positions.json, a record of its own); the position round-trips.
     const json recent = f.ws.call("doc.recent");
     REQUIRE(recent["result"].size() == 1);
     CHECK(recent["result"][0]["path"] == target);
     CHECK(recent["result"][0]["exists"] == true);
     CHECK(recent["result"][0]["lastOpened"].is_string());
-    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}})["result"] == json::object());
-    const json caret{{"view", "body"}, {"nodeId", "n3"}, {"offset", 4}};
-    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", caret}})["result"]["caret"] ==
-          caret);
-    CHECK(f.ws.call("doc.recent")["result"][0]["caret"] == caret);
-    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", "nope"}})["error"]["code"] ==
-          -32602);
+    CHECK_FALSE(recent["result"][0].contains("caret"));
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"] == json::object());
+    const json position{{"path", "body[1]/section[1]/p[1]"}, {"offset", 4}};
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", doc_id}, {"position", position}})["result"]["position"] ==
+          position);
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == position);
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", doc_id}, {"position", "nope"}})["error"]["code"] == -32602);
+    const json positions_file = json::parse(read_all(f.data / "positions.json"));
+    REQUIRE(positions_file["items"].size() == 1);
+    CHECK(positions_file["items"][0]["path"] == target);
+    CHECK(positions_file["items"][0]["position"] == position);
+    CHECK_FALSE(json::parse(read_all(f.data / "recent.json"))["items"][0].contains("caret"));
+    // Clear Recent Files empties recent.json alone; the positions record is independent of
+    // the menu list (requester decision D4, 2026-10-20).
     CHECK(f.ws.call("doc.clearRecent")["result"] == json::object());
     CHECK(f.ws.call("doc.recent")["result"] == json::array());
+    CHECK(json::parse(read_all(f.data / "recent.json"))["items"] == json::array());
+    CHECK(json::parse(read_all(f.data / "positions.json")) == positions_file);
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == position);
 
     // A second save without a path reuses the document's path; a failed write leaves the
     // file intact (fault injection) and keeps the document open.
@@ -566,6 +585,329 @@ TEST_CASE("doc handlers: Source-only mode for malformed files and text saves", "
     CHECK_THAT(ok["result"]["text"].get<std::string>(), ContainsSubstring("Книга в KOI8-R"));
 }
 
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 004 US8: doc.position, the positions record and the deprecated doc.caret alias     */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+json positions_on_disk(const ServerFixture& f) {
+    const std::filesystem::path file = f.data / "positions.json";
+    return std::filesystem::exists(file) ? json::parse(read_all(file)) : json();
+}
+
+json recent_on_disk(const ServerFixture& f) {
+    return json::parse(read_all(f.data / "recent.json"));
+}
+
+// A fixture book's path as the core records it (absolute, lexically normalised).
+std::string fixture_book_path(const char* name) {
+    return std::filesystem::absolute(test::fixtures_dir() / "books" / name)
+        .lexically_normal()
+        .string();
+}
+
+}  // namespace
+
+TEST_CASE(
+    "doc.position: set/get round trip, the grammar, the setting gate, the Save As name, a "
+    "failed open, a Source-only session",
+    "[server][doc][position]") {
+    ServerFixture f;
+    const std::filesystem::path book = f.data / "book.fb2";
+    std::filesystem::copy_file(f.book("modern-utf8.fb2"), book);
+    const json opened = f.ws.call("doc.open", json{{"path", book.string()}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"] == json::object());
+    CHECK(positions_on_disk(f).is_null());
+
+    // Set and get: the position is kept in the session and recorded under the file's path.
+    const json position{{"path", "body[1]/section[1]/p[2]"}, {"offset", 5}};
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", doc_id}, {"position", position}})["result"]["position"] ==
+          position);
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == position);
+    json stored = positions_on_disk(f);
+    CHECK(stored["schemaVersion"] == 1);
+    REQUIRE(stored["items"].size() == 1);
+    CHECK(stored["items"][0]["path"] == book.string());
+    CHECK(stored["items"][0]["position"] == position);
+    CHECK(stored["items"][0]["at"].is_string());
+    // The annotation and history roots are the Body view's too.
+    const json annotation{{"path", "title-info/annotation[1]/p[1]"}, {"offset", 2}};
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", doc_id}, {"position", annotation}})["result"]["position"] ==
+          annotation);
+    CHECK(positions_on_disk(f)["items"][0]["position"] == annotation);
+
+    // The grammar: the three Body roots, 1-based indices, an offset >= 0; the shape only (the
+    // core never resolves a path against the document).
+    const std::vector<json> refused_shapes{
+        json{{"path", "src-title-info/annotation[1]/p[1]"}, {"offset", 0}},
+        json{{"path", "section[1]/p[1]"}, {"offset", 0}},
+        json{{"path", "body[1]/section[1]/p[1]"}, {"offset", -1}},
+        json{{"path", "body[0]/p[1]"}, {"offset", 0}},
+        json{{"path", "body[1]/section[1]/p[1]"}, {"offset", "3"}},
+        json{{"path", "body[1]/section[1]/p[1]"}},
+        json{{"offset", 3}},
+        json("body[1]"),
+        json(7)};
+    for (const json& bad : refused_shapes) {
+        INFO(bad.dump());
+        const json refused = f.ws.call("doc.position", json{{"docId", doc_id}, {"position", bad}});
+        REQUIRE(refused.contains("error"));
+        CHECK(refused["error"]["code"] == -32602);
+        CHECK(refused["error"]["data"]["field"].get<std::string>().rfind("position", 0) == 0);
+    }
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == annotation);
+    CHECK(f.ws.call("doc.position", json{{"docId", "d99"}})["error"]["code"] == 1000);
+    const json far{{"path", "body[1]/section[1]/p[99]"}, {"offset", 100000}};
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", doc_id}, {"position", far}})["result"]["position"] == far);
+
+    // The setting off: nothing is written, get answers {} - the core gates, whatever the UI
+    // believes about the setting (research R5.1 H6).
+    const std::string before = read_all(f.data / "positions.json");
+    REQUIRE(f.ws.call("settings.set",
+                      json{{"patch", json{{"other", json{{"restorePosition", false}}}}}})
+                .contains("result"));
+    const json other{{"path", "body[1]/section[1]/p[3]"}, {"offset", 1}};
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}, {"position", other}})["result"] ==
+          json::object());
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"] == json::object());
+    CHECK(read_all(f.data / "positions.json") == before);
+    // Switched on again: the session kept the value; the next set records it.
+    REQUIRE(
+        f.ws.call("settings.set", json{{"patch", json{{"other", json{{"restorePosition", true}}}}}})
+            .contains("result"));
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == other);
+    CHECK(positions_on_disk(f)["items"][0]["position"] == far);
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", doc_id}, {"position", position}})["result"]["position"] ==
+          position);
+    CHECK(positions_on_disk(f)["items"][0]["position"] == position);
+
+    // Save As: the position is recorded under the new name as well; the old name's record
+    // stays; recent.json carries no caret.
+    const std::filesystem::path copy = f.data / "copy.fb2";
+    const json saved = f.run_job(
+        "doc.save",
+        json{{"docId", doc_id}, {"document", doc}, {"path", copy.string()}, {"force", true}});
+    REQUIRE(saved.contains("result"));
+    stored = positions_on_disk(f);
+    REQUIRE(stored["items"].size() == 2);
+    CHECK(stored["items"][0]["path"] == copy.string());
+    CHECK(stored["items"][0]["position"] == position);
+    CHECK(stored["items"][1]["path"] == book.string());
+    CHECK(stored["items"][1]["position"] == position);
+    for (const json& item : recent_on_disk(f)["items"]) {
+        CHECK_FALSE(item.contains("caret"));
+    }
+    for (const json& item : f.ws.call("doc.recent")["result"]) {
+        CHECK_FALSE(item.contains("caret"));
+    }
+    // A later remember goes to the new name only.
+    const json later{{"path", "body[1]/section[1]/p[1]"}, {"offset", 0}};
+    REQUIRE(
+        f.ws.call("doc.position", json{{"docId", doc_id}, {"position", later}}).contains("result"));
+    stored = positions_on_disk(f);
+    CHECK(stored["items"][0]["path"] == copy.string());
+    CHECK(stored["items"][0]["position"] == later);
+    CHECK(stored["items"][1]["path"] == book.string());
+    CHECK(stored["items"][1]["position"] == position);
+    CHECK(f.ws.call("doc.close", json{{"docId", doc_id}})["result"] == json::object());
+
+    // Reopened: the record is the session's position; the MRU and the record are independent.
+    const json reopened = f.ws.call("doc.open", json{{"path", book.string()}});
+    REQUIRE(reopened.contains("result"));
+    const std::string second_id = reopened["result"]["document"]["docId"];
+    CHECK(f.ws.call("doc.position", json{{"docId", second_id}})["result"]["position"] == position);
+    CHECK(f.ws.call("doc.close", json{{"docId", second_id}})["result"] == json::object());
+
+    // A failed open prunes the Recent Files entry but leaves the position alone.
+    std::filesystem::remove(copy);
+    const json failed = f.ws.call("doc.open", json{{"path", copy.string()}});
+    REQUIRE(failed.contains("error"));
+    CHECK(failed["error"]["code"] == 1002);
+    for (const json& item : f.ws.call("doc.recent")["result"]) {
+        CHECK(item["path"] != copy.string());
+    }
+    stored = positions_on_disk(f);
+    REQUIRE(stored["items"].size() == 2);
+    CHECK(stored["items"][0]["path"] == copy.string());
+    CHECK(stored["items"][0]["position"] == later);
+
+    // A never-saved document keeps its position in the session only.
+    const json created = f.ws.call("doc.new");
+    REQUIRE(created.contains("result"));
+    const std::string new_id = created["result"]["docId"];
+    const std::string unchanged = read_all(f.data / "positions.json");
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", new_id}, {"position", position}})["result"]["position"] ==
+          position);
+    CHECK(f.ws.call("doc.position", json{{"docId", new_id}})["result"]["position"] == position);
+    CHECK(read_all(f.data / "positions.json") == unchanged);
+
+    // A Source-only session loads no position and records none.
+    const json source =
+        f.ws.call("doc.openSource", json{{"path", f.book("malformed.fb2").string()}});
+    REQUIRE(source.contains("result"));
+    const std::string source_id = source["result"]["docId"];
+    CHECK(f.ws.call("doc.position", json{{"docId", source_id}})["result"] == json::object());
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", source_id}, {"position", position}})["result"]["position"] ==
+          position);
+    CHECK(read_all(f.data / "positions.json") == unchanged);
+    // doc.openSource of a file with a record: none either (a Source-only session takes no Body
+    // caret).
+    const json source_book = f.ws.call("doc.openSource", json{{"path", book.string()}});
+    REQUIRE(source_book.contains("result"));
+    CHECK(f.ws.call("doc.position", json{{"docId", source_book["result"]["docId"]}})["result"] ==
+          json::object());
+}
+
+TEST_CASE(
+    "doc.position: a legacy recent.json caret is converted once and dropped at the next write",
+    "[server][doc][position]") {
+    // Release 0.0.3 kept {view, nodeId, offset} in recent.json. Node ids are deterministic
+    // in document order: in modern-utf8.fb2 "n21" is body[1]/section[1]/p[1] (the parity
+    // fixture modern-utf8.paths.json).
+    const std::string book = fixture_book_path("modern-utf8.fb2");
+    const std::string nested = fixture_book_path("nested-sections.fb2");
+    const std::string koi = fixture_book_path("koi8r.fb2");
+    ServerFixture f([&](const std::filesystem::path& data_dir) {
+        test::write_text(
+            data_dir / "recent.json",
+            json{{"schemaVersion", 1},
+                 {"items",
+                  json::array(
+                      {json{{"path", book},
+                            {"lastOpened", "2026-10-01T00:00:00Z"},
+                            {"caret", json{{"view", "body"}, {"nodeId", "n21"}, {"offset", 3}}}},
+                       json{{"path", nested},
+                            {"lastOpened", "2026-10-01T00:00:00Z"},
+                            {"caret", json{{"view", "body"}, {"nodeId", "n9999"}, {"offset", 3}}}},
+                       json{{"path", koi},
+                            {"lastOpened", "2026-10-01T00:00:00Z"},
+                            {"caret", json{{"view", "source"}, {"line", 7}, {"column", 2}}}}})}}
+                .dump(2));
+    });
+    // The MRU is read with its paths; the legacy carets are not answered.
+    const json recent = f.ws.call("doc.recent")["result"];
+    REQUIRE(recent.size() == 3);
+    for (const json& item : recent) {
+        CHECK_FALSE(item.contains("caret"));
+    }
+    CHECK(positions_on_disk(f).is_null());
+
+    // A body caret whose node id exists in the freshly loaded document is converted through
+    // node_path, recorded and used.
+    const json opened = f.ws.call("doc.open", json{{"path", book}});
+    REQUIRE(opened.contains("result"));
+    const std::string doc_id = opened["result"]["document"]["docId"];
+    const json converted{{"path", "body[1]/section[1]/p[1]"}, {"offset", 3}};
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == converted);
+    json stored = positions_on_disk(f);
+    REQUIRE(stored["items"].size() == 1);
+    CHECK(stored["items"][0]["path"] == book);
+    CHECK(stored["items"][0]["position"] == converted);
+    // The MRU was written (the open touched it): no caret member is left in the file.
+    for (const json& item : recent_on_disk(f)["items"]) {
+        CHECK_FALSE(item.contains("caret"));
+    }
+    // Converted once: the record now rules. A new position, then a reopen: the record's value,
+    // not the legacy caret's.
+    const json moved{{"path", "body[1]/section[1]/p[2]"}, {"offset", 1}};
+    REQUIRE(
+        f.ws.call("doc.position", json{{"docId", doc_id}, {"position", moved}}).contains("result"));
+    CHECK(f.ws.call("doc.close", json{{"docId", doc_id}})["result"] == json::object());
+    const json reopened = f.ws.call("doc.open", json{{"path", book}});
+    REQUIRE(reopened.contains("result"));
+    CHECK(
+        f.ws.call("doc.position",
+                  json{{"docId", reopened["result"]["document"]["docId"]}})["result"]["position"] ==
+        moved);
+
+    // A node id the document does not have is ignored: nothing recorded, nothing restored.
+    const json nested_open = f.ws.call("doc.open", json{{"path", nested}});
+    REQUIRE(nested_open.contains("result"));
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", nested_open["result"]["document"]["docId"]}})["result"] ==
+          json::object());
+    CHECK(positions_on_disk(f)["items"].size() == 1);
+
+    // A caret of another view is ignored as well.
+    const json koi_open = f.ws.call("doc.open", json{{"path", koi}});
+    REQUIRE(koi_open.contains("result"));
+    CHECK(f.ws.call("doc.position",
+                    json{{"docId", koi_open["result"]["document"]["docId"]}})["result"] ==
+          json::object());
+    CHECK(positions_on_disk(f)["items"].size() == 1);
+}
+
+TEST_CASE("doc.caret: the deprecated alias converts both ways through the session snapshot",
+          "[server][doc][position]") {
+    ServerFixture f;
+    const std::filesystem::path book = f.data / "alias.fb2";
+    std::filesystem::copy_file(f.book("modern-utf8.fb2"), book);
+    const json opened = f.ws.call("doc.open", json{{"path", book.string()}});
+    REQUIRE(opened.contains("result"));
+    const std::string doc_id = opened["result"]["document"]["docId"];
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}})["result"] == json::object());
+
+    // A body caret with a known node id is recorded as doc.position would record its path.
+    const json caret{
+        {"view", "body"}, {"nodeId", "n22"}, {"offset", 4}};  // body[1]/section[1]/p[2]
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", caret}})["result"]["caret"] ==
+          caret);
+    const json position{{"path", "body[1]/section[1]/p[2]"}, {"offset", 4}};
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == position);
+    CHECK(positions_on_disk(f)["items"][0]["position"] == position);
+    CHECK_FALSE(recent_on_disk(f)["items"][0].contains("caret"));
+
+    // A position set through doc.position is answered by doc.caret as {view, nodeId, offset}.
+    const json other{{"path", "body[1]/section[1]/p[1]"}, {"offset", 2}};
+    REQUIRE(
+        f.ws.call("doc.position", json{{"docId", doc_id}, {"position", other}}).contains("result"));
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}})["result"]["caret"] ==
+          json{{"view", "body"}, {"nodeId", "n21"}, {"offset", 2}});
+
+    // A caret of another view, or of an unknown node, stays in the session only: the record
+    // keeps the last position, doc.caret answers the caret, doc.position the record.
+    const std::string before = read_all(f.data / "positions.json");
+    const json source_caret{
+        {"view", "source"}, {"nodeId", ""}, {"offset", 0}, {"line", 7}, {"column", 3}};
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id},
+                                      {"caret", source_caret}})["result"]["caret"] == source_caret);
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}})["result"]["caret"] == source_caret);
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == other);
+    CHECK(read_all(f.data / "positions.json") == before);
+    const json unknown{{"view", "body"}, {"nodeId", "ui_7"}, {"offset", 0}};
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", unknown}})["result"]["caret"] ==
+          unknown);
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == other);
+    CHECK(read_all(f.data / "positions.json") == before);
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", "nope"}})["error"]["code"] ==
+          -32602);
+
+    // A path the snapshot cannot resolve answers {} through the alias (the record is kept).
+    const json beyond{{"path", "body[1]/section[1]/p[999]"}, {"offset", 0}};
+    REQUIRE(f.ws.call("doc.position", json{{"docId", doc_id}, {"position", beyond}})
+                .contains("result"));
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}})["result"] == json::object());
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == beyond);
+
+    // The setting gates the alias too.
+    REQUIRE(f.ws.call("settings.set",
+                      json{{"patch", json{{"other", json{{"restorePosition", false}}}}}})
+                .contains("result"));
+    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", caret}})["result"] ==
+          json::object());
+    CHECK(positions_on_disk(f)["items"][0]["position"] == beyond);
+}
+
 TEST_CASE("doc handlers: external change detection (doc.watch) is suppressed for our own saves",
           "[server][doc]") {
     ServerFixture f;
@@ -774,8 +1116,9 @@ TEST_CASE(
     REQUIRE_FALSE(target_ids.empty());
     const long long target_max = max_id_number(target_ids);
     const json recent_before = f.ws.call("doc.recent")["result"];
-    const json caret{{"view", "body"}, {"nodeId", target_ids.front()}, {"offset", 1}};
-    REQUIRE(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", caret}}).contains("result"));
+    const json position{{"path", "body[1]/section[1]/p[1]"}, {"offset", 1}};
+    REQUIRE(f.ws.call("doc.position", json{{"docId", doc_id}, {"position", position}})
+                .contains("result"));
 
     // The library's edge-case fixture: a cover, eleven custom-info rows, document details to
     // fill in, no body.
@@ -832,9 +1175,9 @@ TEST_CASE(
     CHECK(preview.headers["content-type"] == "image/jpeg");
     CHECK_FALSE(preview.body.empty());
 
-    // The open session is untouched: Recent Files, the caret, the binary store.
+    // The open session is untouched: Recent Files, the remembered position, the binary store.
     CHECK(f.ws.call("doc.recent")["result"] == recent_before);
-    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}})["result"]["caret"] == caret);
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == position);
     CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"] == target["binaries"]);
     CHECK(f.ws.call("test.metrics")["result"]["openDocuments"] == 2);
 
@@ -1326,11 +1669,12 @@ TEST_CASE(
                                      "output-only.png", "history.jpg", "tiny.jpg"});
     CHECK(store_before[1]["contentType"] == "image/gif");
     CHECK(store_before[1]["willConvert"] == true);
-    const json caret{
-        {"view", "body"}, {"nodeId", doc["bodies"][0]["attrs"]["nodeId"]}, {"offset", 0}};
-    REQUIRE(f.ws.call("doc.caret", json{{"docId", doc_id}, {"caret", caret}}).contains("result"));
+    const json position{{"path", "body[1]/section[1]/p[1]"}, {"offset", 0}};
+    REQUIRE(f.ws.call("doc.position", json{{"docId", doc_id}, {"position", position}})
+                .contains("result"));
     const json recent_before = f.ws.call("doc.recent")["result"];
     REQUIRE(recent_before.size() == 1);
+    const std::string positions_before = read_all(f.data / "positions.json");
     const json snapshot_before = f.run_job("doc.validate", json{{"docId", doc_id}})["result"];
     const int sessions = f.ws.call("test.metrics")["result"]["openDocuments"];
 
@@ -1406,11 +1750,12 @@ TEST_CASE(
 
     // The open document and its session are untouched: the file on disk, the binary store
     // (the GIF still a GIF), Recent Files (the exported file is not listed), the remembered
-    // caret, the snapshot the core holds, the number of sessions.
+    // position and its record, the snapshot the core holds, the number of sessions.
     CHECK(read_all(source) == source_bytes);
     CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"] == store_before);
     CHECK(f.ws.call("doc.recent")["result"] == recent_before);
-    CHECK(f.ws.call("doc.caret", json{{"docId", doc_id}})["result"]["caret"] == caret);
+    CHECK(f.ws.call("doc.position", json{{"docId", doc_id}})["result"]["position"] == position);
+    CHECK(read_all(f.data / "positions.json") == positions_before);
     CHECK(timeless(f.run_job("doc.validate", json{{"docId", doc_id}})["result"]) ==
           timeless(snapshot_before));
     CHECK(f.ws.call("test.metrics")["result"]["openDocuments"] == sessions);

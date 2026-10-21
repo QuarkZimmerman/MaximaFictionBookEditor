@@ -10,7 +10,7 @@
 using namespace mfbe;
 using nlohmann::json;
 
-TEST_CASE("recent: newest first, deduplicated, capped at 10, caret remembered", "[recent]") {
+TEST_CASE("recent: newest first, deduplicated, capped at 10, no caret written", "[recent]") {
     test::TempDir tmp;
     settings::RecentFiles recent(tmp / "cfg" / "recent.json");
     recent.load();
@@ -23,26 +23,27 @@ TEST_CASE("recent: newest first, deduplicated, capped at 10, caret remembered", 
     CHECK(recent.items().front().path == "/books/b12.fb2");
     CHECK(recent.items().back().path == "/books/b3.fb2");
 
-    settings::Caret caret{"body", "n42", 7};
-    recent.touch("/books/b5.fb2", caret);
+    recent.touch("/books/b5.fb2");
     CHECK(recent.items().size() == settings::kMaxRecentFiles);
     CHECK(recent.items().front().path == "/books/b5.fb2");
-    CHECK(recent.caret("/books/b5.fb2") == caret);
-    // Touching again without a caret keeps the remembered one.
-    recent.touch("/books/b5.fb2");
-    CHECK(recent.caret("/books/b5.fb2") == caret);
-    CHECK(recent.set_caret("/books/b6.fb2", settings::Caret{"source", "", 100}));
-    CHECK_FALSE(recent.set_caret("/books/zzz.fb2", std::nullopt));
-    CHECK_FALSE(recent.caret("/books/b7.fb2").has_value());
     CHECK_FALSE(recent.items().front().lastOpened.empty());
     CHECK(recent.items().front().lastOpened.back() == 'Z');
+    // Entries are matched as exact strings (the platform comparison of feature 004 is the
+    // positions record's alone): two spellings make two entries, as before.
+    recent.touch("/books/B5.fb2");
+    CHECK(recent.items().size() == settings::kMaxRecentFiles);
+    CHECK(recent.items()[0].path == "/books/B5.fb2");
+    CHECK(recent.items()[1].path == "/books/b5.fb2");
 
-    // Persisted shape per resource-formats.md section 8.
+    // Persisted shape per resource-formats.md section 8: path and lastOpened, never a caret
+    // (feature 004 US8 - remembered positions live in positions.json).
     const json file = json::parse(test::read_text(tmp / "cfg" / "recent.json"));
     CHECK(file["schemaVersion"] == 1);
-    CHECK(file["items"][0]["path"] == "/books/b5.fb2");
-    CHECK(file["items"][0]["caret"] == json{{"view", "body"}, {"nodeId", "n42"}, {"offset", 7}});
-    CHECK_FALSE(file["items"][2].contains("caret"));
+    REQUIRE(file["items"].size() == settings::kMaxRecentFiles);
+    CHECK(file["items"][0]["path"] == "/books/B5.fb2");
+    for (const json& item : file["items"]) {
+        CHECK(item == json{{"path", item["path"]}, {"lastOpened", item["lastOpened"]}});
+    }
 
     settings::RecentFiles reloaded(tmp / "cfg" / "recent.json");
     reloaded.load();
@@ -56,17 +57,41 @@ TEST_CASE("recent: newest first, deduplicated, capped at 10, caret remembered", 
     CHECK(json::parse(test::read_text(tmp / "cfg" / "recent.json"))["items"].empty());
 }
 
-TEST_CASE("recent: malformed entries are skipped on load", "[recent]") {
+TEST_CASE("recent: malformed entries are skipped on load, a legacy caret is read but never written",
+          "[recent]") {
     test::TempDir tmp;
     test::write_text(tmp / "recent.json", R"({"schemaVersion":1,"items":[
         {"path":"/a.fb2","lastOpened":"2026-01-01T00:00:00Z","caret":{"view":"body","nodeId":"n1","offset":"x"}},
-        {"nopath":true}, 5, {"path":"/a.fb2"}, {"path":""}, {"path":"/b.fb2","caret":"bad"}]})");
+        {"nopath":true}, 5, {"path":"/a.fb2"}, {"path":""}, {"path":"/b.fb2","caret":"bad"},
+        {"path":"/c.fb2","caret":{"view":"body","nodeId":"n7","offset":3}},
+        {"path":"/d.fb2","caret":{"view":"source","line":7,"column":2}}]})");
     settings::RecentFiles recent(tmp / "recent.json");
     recent.load();
-    REQUIRE(recent.items().size() == 2);
+    REQUIRE(recent.items().size() == 4);
     CHECK(recent.items()[0].path == "/a.fb2");
-    CHECK(recent.items()[0].caret->offset == 0);  // bad offset -> 0, view kept
-    CHECK_FALSE(recent.items()[1].caret.has_value());
+    CHECK(recent.items()[1].path == "/b.fb2");
+    // A release 0.0.3 body caret is kept in memory for the one-time conversion into the
+    // positions record (contracts/resource-formats.md §8); other carets are ignored.
+    REQUIRE(recent.items()[0].legacyCaret.has_value());
+    CHECK(recent.items()[0].legacyCaret->nodeId == "n1");
+    CHECK(recent.items()[0].legacyCaret->offset == 0);  // bad offset -> 0, view kept
+    CHECK_FALSE(recent.items()[1].legacyCaret.has_value());
+    REQUIRE(recent.legacy_caret("/c.fb2").has_value());
+    CHECK(recent.legacy_caret("/c.fb2")->nodeId == "n7");
+    CHECK(recent.legacy_caret("/c.fb2")->offset == 3);
+    CHECK_FALSE(recent.legacy_caret("/d.fb2").has_value());  // another view: no Body position
+    CHECK_FALSE(recent.legacy_caret("/zzz.fb2").has_value());
+    // Touching keeps the legacy caret in memory; the next write drops the member from the file.
+    recent.touch("/c.fb2");
+    CHECK(recent.legacy_caret("/c.fb2")->nodeId == "n7");
+    const json file = json::parse(test::read_text(tmp / "recent.json"));
+    REQUIRE(file["items"].size() == 4);
+    for (const json& item : file["items"]) {
+        CHECK_FALSE(item.contains("caret"));
+    }
+    settings::RecentFiles reloaded(tmp / "recent.json");
+    reloaded.load();
+    CHECK_FALSE(reloaded.legacy_caret("/c.fb2").has_value());
 
     test::write_text(tmp / "bad.json", "nonsense");
     settings::RecentFiles bad(tmp / "bad.json");

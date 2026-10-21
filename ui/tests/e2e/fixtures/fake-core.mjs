@@ -139,7 +139,13 @@ function readBlankTemplate() {
   }
 }
 
-const docs = createDocService({ dataDir, broadcast, blankTemplate: readBlankTemplate() });
+const docs = createDocService({
+  dataDir,
+  broadcast,
+  blankTemplate: readBlankTemplate(),
+  // The core gates the positions record on the setting (feature 004 US8).
+  restorePositionEnabled: () => settings.other.restorePosition !== false,
+});
 
 const methods = {
   'app.info': () => ({

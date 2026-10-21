@@ -12,6 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { createCommandRegistry, type CommandContext } from '@/app/commands';
 import { HotkeyMap } from '@/app/hotkeys';
 import { SettingsDialog, type SettingsPageId } from '@/dialogs/SettingsDialog';
+import { installBodyEditor } from '@/features/editing';
 import { registerSettingsRuntime, type SettingsFeature } from '@/features/settings/apply';
 import { changeLanguage, initI18n } from '@/i18n';
 import { actions } from '@/model/store';
@@ -350,6 +351,38 @@ describe('SettingsDialog - "Restart now?" restarts the editor', () => {
     expect(harness.ctx.dialogs.shown.map((m) => m.testId)).toEqual(['dialog-restart-prompt']);
     expect(harness.rpc.calls.map((c) => c.method)).not.toContain('app.quit');
     expect(harness.reloads).toEqual([]);
+  });
+
+  it('Yes remembers the Body position of the book before the restart (feature 004 US8)', async () => {
+    const harness = await setup({
+      responses: {
+        'app.restart': rpcError(1070, 'app.restartUnavailable', { reason: 'no shell' }),
+        'doc.position': {},
+        'doc.watch': {},
+      },
+    });
+    const { ctx, rpc } = harness;
+    const controller = installBodyEditor({
+      commands: createCommandRegistry(),
+      rpc: rpc.client,
+      undo: ctx.undo,
+      carets: ctx.carets!,
+      store: ctx.store,
+      hotkeys: ctx.hotkeys,
+    });
+    actions.setDocument(ctx.store, fakeDocument({ path: '/books/a.fb2' }));
+    expect(controller.setCaret({ view: 'body', nodeId: 'n3', offset: 4 })).toBe(true);
+    await chooseLanguageAndAnswerYes(harness);
+    await waitFor(() => expect(harness.reloads).toHaveLength(1));
+    const methods = rpc.calls.map((c) => c.method);
+    const remembered = rpc.calls.find((c) => c.method === 'doc.position');
+    expect(remembered?.params).toEqual({
+      docId: 'doc-1',
+      position: { path: 'body[1]/section[1]/p[1]', offset: 4 },
+    });
+    expect(methods.indexOf('doc.position')).toBeLessThan(methods.indexOf('app.restart'));
+    // The browser-mode reload (1070) follows the same hand-off: one remember, before it.
+    expect(rpc.calls.filter((c) => c.method === 'doc.position')).toHaveLength(1);
   });
 
   it("Yes with a never-saved document carries no path; Don't save comes first", async () => {

@@ -63,7 +63,7 @@ async function harness(responses: Record<string, unknown> = {}) {
   const store = createAppStore();
   const rpc: FakeRpc = fakeRpc({
     'doc.watch': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.recent': [],
     'settings.set': { settings: null, restartRequired: false },
     ...responses,

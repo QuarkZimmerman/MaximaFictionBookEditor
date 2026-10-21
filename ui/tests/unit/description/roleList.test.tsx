@@ -75,7 +75,7 @@ async function setup(document: Document, children: ReactNode) {
   await changeLanguage('en');
   const store = createAppStore();
   actions.setDocument(store, document);
-  const rpc = fakeRpc({ 'doc.caret': {}, 'binary.list': [] });
+  const rpc = fakeRpc({ 'doc.position': {}, 'binary.list': [] });
   const services = createAppServices({ store, rpc: rpc.client, platform: 'linux' });
   const controller = descriptionControllerFor(store);
   const user = userEvent.setup();

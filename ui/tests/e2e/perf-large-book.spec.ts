@@ -18,7 +18,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { expect, test, waitForBook, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  test,
+  waitForBook,
+  waitForStartupDocument,
+  type RpcCallError,
+} from './fixtures/core';
 import { LINE_END, LINE_START, MOD } from './fixtures/keys';
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
@@ -347,4 +353,77 @@ test.describe('performance - 10 MB text book', () => {
       await expect(page.getByTestId('status-path')).toContainText('/p[');
     },
   );
+
+  test('opens with a remembered position within the open budget (feature 004 US8)', async ({
+    core,
+    page,
+  }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+    test.skip(!book || !existsSync(book), 'python3 / the generator are not available');
+    const supportsDocuments = await core
+      .rpc('doc.recent')
+      .then(() => true)
+      .catch((error: RpcCallError) => error.code !== -32601);
+    test.skip(!supportsDocuments, 'the core does not implement doc.* yet');
+    await core.rpc('settings.set', { patch: { other: { restorePosition: true } } });
+
+    await core.openApp(page);
+    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await core.enqueueDialog('dialog.openFile', { paths: [book] });
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-open').click();
+    await waitForBook(page, book, EDITABLE_BUDGET_MS * 4);
+    const editor = page.getByTestId('body-editor');
+    await expect(editor).toHaveAttribute('contenteditable', 'true', {
+      timeout: EDITABLE_BUDGET_MS * 4,
+    });
+    // The caret deep in the book - a section far outside the first window - then File > New
+    // remembers it (the position record of positions.json, keyed by structural path).
+    const total = Number(
+      await page.getByTestId('panel-body-document').getAttribute('data-section-total'),
+    );
+    const target = `body[1]/section[${Math.floor(total * 0.75)}]/p[3]`;
+    const nodeId = await page.evaluate<string>(`(() => {
+      const doc = window.__mfbeTest.scripts.document();
+      const body = doc.bodies[0];
+      const sections = body.content.filter((n) => n.type === 'section');
+      const section = sections[${Math.floor(total * 0.75)} - 1];
+      const paragraphs = section.content.filter((n) => n.type === 'p');
+      return paragraphs[2].attrs.nodeId;
+    })()`);
+    expect(
+      await page.evaluate<boolean>(`window.__mfbeTest.scripts.select("${nodeId}", 4, 4)`),
+    ).toBe(true);
+    await expect(page.getByTestId('status-path')).toHaveText(target);
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-new').click();
+    await waitForStartupDocument(page);
+
+    // The reopen: editable within the budget, the caret back at the remembered place.
+    await core.enqueueDialog('dialog.openFile', { paths: [book] });
+    const started = Date.now();
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-open').click();
+    await waitForBook(page, book, EDITABLE_BUDGET_MS * 4);
+    await expect(editor).toHaveAttribute('contenteditable', 'true', {
+      timeout: EDITABLE_BUDGET_MS * 4,
+    });
+    await expect(page.getByTestId('status-path')).toHaveText(target, {
+      timeout: EDITABLE_BUDGET_MS * 4,
+    });
+    const editableAfterMs = Date.now() - started;
+    test.info().annotations.push({
+      type: 'perf',
+      description: `editable with the remembered position after ${editableAfterMs} ms`,
+    });
+    expect(
+      editableAfterMs,
+      'time until the Body view is editable at the remembered position',
+    ).toBeLessThan(EDITABLE_BUDGET_MS);
+    const head = await page.evaluate<{ head: { offset: number } } | null>(
+      'window.__mfbeTest.sourceMapping.bodySelection()',
+    );
+    expect(head?.head.offset).toBe(4);
+    await expect(editor.locator('p.fb-p').filter({ hasText: /./ }).first()).toBeVisible();
+  });
 });

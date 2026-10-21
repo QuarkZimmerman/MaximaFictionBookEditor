@@ -110,12 +110,28 @@ export type VersionCheckSchedule = 'everyStart' | 'daily' | 'weekly' | 'monthly'
 
 export type Platform = 'windows' | 'linux' | 'mac';
 
+/**
+ * The in-session caret of a view (the `CaretRegistry`: view switching, go-to-issue). Since
+ * feature 004 nothing stored reaches it; the remembered place is a `RememberedPosition`.
+ */
 export interface Caret {
   view: ViewId;
   nodeId?: string;
   offset?: number;
   line?: number;
   column?: number;
+}
+
+/**
+ * The remembered Body position of a file (feature 004 US8, rpc-api.md "Definitions shared by
+ * the additions"): `path` a structural path under one of the three roots the Body view shows
+ * (`body[n]`, `title-info/annotation[1]`, `document-info/history[1]`), `offset` a model offset
+ * inside that text block (UTF-16 units of text plus 1 per inline atom, >= 0). It survives
+ * saves, Source visits and restarts, unlike a session's node id.
+ */
+export interface RememberedPosition {
+  path: string;
+  offset: number;
 }
 
 /**
@@ -131,6 +147,11 @@ export interface ModelPoint {
 export interface RecentFile {
   path: string;
   lastOpened: string; // ISO timestamp
+  /**
+   * @deprecated Since feature 004 the core never writes it again (remembered positions live in
+   * `positions.json`, `doc.position`); an item read from a file of release 0.0.3 or earlier
+   * may still carry it until that file is next written. Read-only; removed with the next major.
+   */
   caret?: Caret;
   /** Present when the core has already noticed that the file is missing. */
   exists?: boolean;
@@ -652,8 +673,29 @@ export interface RpcMethods {
     result: MaybeJob<ValidationReport>;
   };
   'doc.recent': { params: void; result: RecentFile[] };
+  /** Unchanged by feature 004: empties `recent.json` only, never the positions record (D4). */
   'doc.clearRecent': { params: void; result: Empty };
   'doc.watch': { params: { docId: string; enabled: boolean }; result: Empty };
+  /**
+   * The remembered Body position of the session's file (feature 004 US8, rpc-api.md §3.2).
+   * Set: `position` must match the structural-path grammar with an offset >= 0
+   * (`invalidParams` {field} otherwise); kept in the session and, when the session has a file
+   * and `other.restorePosition` is on, recorded in `positions.json` under the session's path
+   * (100 files, the platform's path comparison) - the core gates, so a UI without the settings
+   * yet cannot record either. Get: the session's position (set here or loaded at `doc.open`),
+   * `{}` when nothing is remembered or the setting is off. The core validates the shape only;
+   * resolving the path against the document (FR-101's fallback) is the UI's.
+   */
+  'doc.position': {
+    params: { docId: string; position?: RememberedPosition };
+    result: { position?: RememberedPosition };
+  };
+  /**
+   * @deprecated Since feature 004: an alias of `doc.position` in the 1.x caret shape, kept so
+   * that apiMinor 3 stays additive; the UI never calls it. A `body` caret whose node id the
+   * session's snapshot knows is recorded as its structural path; any other caret stays in the
+   * session. Removed with the next major (`apiVersion` 2).
+   */
   'doc.caret': { params: { docId: string; caret?: Caret }; result: { caret?: Caret } };
   /**
    * The description of another FictionBook file for the import into `docId` (feature 004

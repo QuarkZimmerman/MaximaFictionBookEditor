@@ -69,6 +69,7 @@ import {
   windowSliceUnchanged,
   type SectionWindow,
 } from '@/editor/virtualization';
+import { pathOfCaret, type StructuralPosition } from '@/editor/structuralPath';
 import type { Document } from '@/model/document';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
@@ -373,8 +374,17 @@ export class BodyEditorController {
   private replaying = false;
   /** The next document change starts a new history event (set after a command ran). */
   private closeNextHistory = false;
-  /** A selection placed while unmounted is scrolled into view when the view mounts. */
+  /**
+   * A selection placed while unmounted (a mapped Source selection, a restored position) is
+   * scrolled into view when the view mounts (feature 004 US8, research R5.1 H5-a).
+   */
   private scrollOnMount = false;
+  /**
+   * The Body view was shown for the current document, or its caret was placed on purpose
+   * (`setCaret`): only then is the caret worth remembering - a document whose Body view was
+   * never looked at keeps its previous record (feature 004 FR-100, research R5.6).
+   */
+  private shown = false;
 
   constructor(options: BodyEditorOptions) {
     this.store = options.store;
@@ -429,6 +439,11 @@ export class BodyEditorController {
     return this.view !== null;
   }
 
+  /** True once the Body view was mounted for this document or its caret was placed. */
+  get bodyShown(): boolean {
+    return this.shown;
+  }
+
   private publish(): void {
     const w = this.window;
     const model = this.model;
@@ -466,6 +481,7 @@ export class BodyEditorController {
     this.unmount();
     this.container = container;
     this.ensureView();
+    if (this.view) this.shown = true;
   }
 
   /** Detaches the DOM view; the state (with its history) is kept for the next mount. */
@@ -520,11 +536,13 @@ export class BodyEditorController {
       attributes: { class: 'fb-editor', 'data-testid': 'body-editor' },
     });
     if (this.scrollOnMount) {
-      // The selection was placed while the view was unmounted (a mapped Source selection):
-      // bring it into view now that there is a DOM to scroll.
+      // The selection was placed while the view was unmounted (a mapped Source selection, a
+      // restored position): bring it into view now that there is a DOM to scroll. The focus
+      // comes first - ProseMirror scrolls to the selection only while it owns the DOM
+      // selection, which it syncs on focus.
       this.scrollOnMount = false;
-      this.view.dispatch(this.view.state.tr.scrollIntoView());
       this.view.focus();
+      this.view.dispatch(this.view.state.tr.scrollIntoView());
     }
     this.publishSelection();
   }
@@ -649,6 +667,9 @@ export class BodyEditorController {
       this.bodyIndex = 0;
       this.range = null;
       this.docId = docId;
+      // A new document: its Body view has not been shown yet (the view may be mounted right
+      // away, which `mount()` records; a caret placed by `setCaret()` counts as well).
+      this.shown = this.view !== null && model !== null;
     } else if (model && this.model && this.window) {
       if (windowSliceUnchanged(this.model, model, this.window)) {
         // Only parts outside the window changed: keep the ProseMirror state and history.
@@ -1054,7 +1075,28 @@ export class BodyEditorController {
     return state ? caretOf(state) : null;
   }
 
-  /** Selects the node `caret.nodeId`, moving the window onto its section when needed. */
+  /**
+   * The caret as a remembered position (feature 004 US8, research R5.2): the structural path
+   * of the deepest node at the selection head (window offsets applied) and the offset inside
+   * it when it is a text block, 0 otherwise (a selected image, a table). Null without a
+   * document or for an empty editor document.
+   */
+  getPosition(): StructuralPosition | null {
+    const state = this.editorState;
+    if (!state) return null;
+    const path = pathOfCaret(state, this.window);
+    if (!path) return null;
+    const $head = state.selection.$head;
+    const node = (state.selection as { node?: PMNode }).node;
+    const offset = node && node.isLeaf && !node.isTextblock ? 0 : $head.parentOffset;
+    return { path, offset };
+  }
+
+  /**
+   * Selects the node `caret.nodeId`, moving the window onto its section when needed. Works
+   * mounted or not: unmounted, the selection is set in the kept state and scrolled into view
+   * when the view mounts (feature 004 US8 - the view a file opens in is never switched).
+   */
   setCaret(caret: Caret): boolean {
     if (!caret.nodeId || !this.model) return false;
     let state = this.editorState;
@@ -1065,8 +1107,12 @@ export class BodyEditorController {
       selection = state ? selectionFor(state.doc, caret.nodeId, caret.offset) : null;
       if (!selection) return false;
     }
-    this.dispatch(state!.tr.setSelection(selection).scrollIntoView());
+    // Mounted: the focus first, so that ProseMirror owns the DOM selection and scrolls to it
+    // (it scrolls only then); unmounted: the kept state, scrolled into view on mount.
     this.focus();
+    this.dispatch(state!.tr.setSelection(selection).scrollIntoView());
+    if (!this.view) this.scrollOnMount = true;
+    this.shown = true;
     return true;
   }
 
