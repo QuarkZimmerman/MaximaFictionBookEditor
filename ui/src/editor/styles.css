@@ -206,7 +206,15 @@
   border-color: var(--mfbe-fb-stanza);
 }
 
-.fb-stanza p {
+/*
+ * The stanza and title rules carry `.fb-editor` so that they outrank the generic paragraph rule
+ * below (`.fb-editor p`, specificity 0,1,1): with the same weight the later rule won and verses
+ * came out justified with the paragraph margin, title lines justified and indented (feature
+ * 004, FR-060 - complaint 6.1; the stanza rule by the requester's decision of 2026-10-20).
+ * 0,2,1 each, so the order of the rules no longer matters. The epigraph margin and the title
+ * padding, lost to the same cascade, stay as they are (candidates).
+ */
+.fb-editor .fb-stanza p {
   text-align: left;
   text-indent: 3em;
   margin-bottom: 0;
@@ -220,7 +228,7 @@
   padding: 0.3em;
 }
 
-.fb-title p {
+.fb-editor .fb-title p {
   text-align: center;
   text-indent: 0;
 }
