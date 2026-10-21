@@ -33,16 +33,13 @@ void drop_empty_persons(std::vector<model::Person>& list) {
     list.erase(std::remove_if(list.begin(), list.end(), person_empty), list.end());
 }
 
-void normalise_annotation(std::optional<Node>& node) {
-    if (node && node->content.empty() && !node->attrs.count("id") && !node->attrs.count("lang")) {
-        node.reset();
-    }
-}
+// No normalisation of the annotation and the history: since feature 004 the writer keeps a
+// present-but-empty element as read (<annotation/>), so "absent" and "present and empty" are two
+// forms the comparison must tell apart - a writer that dropped one again would be caught here.
 
 void normalise_title_info(model::TitleInfo& info) {
     drop_empty_persons(info.authors);
     drop_empty_persons(info.translators);
-    normalise_annotation(info.annotation);
     for (auto& g : info.genres) {
         if (g.match == 100) {
             g.match.reset();
@@ -67,7 +64,6 @@ void normalise_description(model::Description& d) {
     }
     drop_empty_persons(d.documentInfo.authors);
     drop_empty_persons(d.documentInfo.publishers);
-    normalise_annotation(d.documentInfo.history);
     const auto clear_empty = [](std::optional<std::string>& s) {
         if (s && s->empty()) {
             s.reset();

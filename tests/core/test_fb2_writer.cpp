@@ -388,6 +388,83 @@ TEST_CASE("writer: required elements are always written, optional empty ones omi
                ContainsSubstring("<genre>sf</genre>\n\t\t\t<genre match=\"40\">detective</genre>"));
 }
 
+TEST_CASE(
+    "writer: a present-but-empty annotation or history is kept as read (feature 004, "
+    "FR-010/FR-015)",
+    "[writer]") {
+    // The reader drops whitespace-only text in block context, so <annotation/>,
+    // <annotation></annotation> and an annotation holding only whitespace all read as a present
+    // node with empty content; the writer writes a present node whatever its content, with its
+    // attributes, and nothing for an absent one.
+    const std::string xml =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+        "xmlns:l=\"http://www.w3.org/1999/xlink\">\n"
+        "<description><title-info><genre>sf</genre><author><first-name>A</first-name>"
+        "<last-name>B</last-name></author><book-title>T</book-title>"
+        "<annotation>\n   \n</annotation><lang>ru</lang></title-info>"
+        "<src-title-info><genre>sf</genre><author><first-name>A</first-name>"
+        "<last-name>B</last-name></author><book-title>T</book-title>"
+        "<annotation id=\"src-ann\"></annotation><lang>en</lang></src-title-info>"
+        "<document-info><author><nickname>n</nickname></author><date>2026</date><id>x</id>"
+        "<version>1</version><history xml:lang=\"ru\"/></document-info></description>"
+        "<body><section><p>text</p></section></body></FictionBook>\n";
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids;
+    const fb2::ReadResult read = fb2::read_bytes(xml, store, ids);
+    const model::Description& d = read.document.description;
+    REQUIRE(d.titleInfo.annotation.has_value());
+    CHECK(d.titleInfo.annotation->content.empty());
+    CHECK_FALSE(d.titleInfo.annotation->node_id().empty());
+    REQUIRE(d.srcTitleInfo.has_value());
+    REQUIRE(d.srcTitleInfo->annotation.has_value());
+    CHECK(d.srcTitleInfo->annotation->content.empty());
+    CHECK(d.srcTitleInfo->annotation->attr_string("id") == "src-ann");
+    REQUIRE(d.documentInfo.history.has_value());
+    CHECK(d.documentInfo.history->content.empty());
+    CHECK(d.documentInfo.history->attr_string("lang") == "ru");
+
+    const std::string t = fb2::write_document(read.document, &store).text;
+    CHECK_THAT(t, ContainsSubstring("\t\t\t<book-title>T</book-title>\n\t\t\t<annotation/>\n"
+                                    "\t\t\t<lang>ru</lang>\n"));
+    CHECK_THAT(t, ContainsSubstring("\t\t\t<annotation id=\"src-ann\"/>\n\t\t\t<lang>en</lang>\n"));
+    CHECK_THAT(t, ContainsSubstring("\t\t\t<version>1</version>\n\t\t\t<history xml:lang=\"ru\"/>\n"
+                                    "\t\t</document-info>\n"));
+    // Written back identically: the second reading is the same model and the same text.
+    MemoryBinaryStore store2;
+    model::NodeIdAllocator ids2;
+    const fb2::ReadResult again = fb2::read_bytes(t, store2, ids2);
+    REQUIRE(again.document.description.titleInfo.annotation.has_value());
+    CHECK(again.document.description.titleInfo.annotation->content.empty());
+    REQUIRE(again.document.description.documentInfo.history.has_value());
+    CHECK(again.document.description.documentInfo.history->attr_string("lang") == "ru");
+    CHECK(fb2::write_document(again.document, &store2).text == t);
+
+    // An absent node still writes nothing.
+    model::Document absent = read.document;
+    absent.description.titleInfo.annotation.reset();
+    absent.description.srcTitleInfo->annotation.reset();
+    absent.description.documentInfo.history.reset();
+    const std::string none = fb2::write_document(absent, &store).text;
+    CHECK(none.find("<annotation") == std::string::npos);
+    CHECK(none.find("<history") == std::string::npos);
+
+    // The fixture of the user-story journeys round-trips byte for byte (no fill-in involved:
+    // its document details are complete).
+    MemoryBinaryStore store3;
+    model::NodeIdAllocator ids3;
+    const fb2::ReadResult fixture =
+        fb2::read_file(book("empty-annotation-history.fb2"), store3, ids3);
+    REQUIRE(fixture.document.description.titleInfo.annotation.has_value());
+    CHECK(fixture.document.description.titleInfo.annotation->content.empty());
+    REQUIRE(fixture.document.description.documentInfo.history.has_value());
+    CHECK(fixture.document.description.documentInfo.history->content.empty());
+    fb2::WriteOptions options;
+    options.xlink_prefix = fixture.xlink_prefix;
+    CHECK(fb2::write_document(fixture.document, &store3, options).text ==
+          test::read_text(book("empty-annotation-history.fb2")));
+}
+
 TEST_CASE("writer: raw-xml is verbatim and unknown attributes come back with their namespaces",
           "[writer]") {
     auto l = load("unknown-elements.fb2");

@@ -338,10 +338,12 @@ private:
         emit("<image" + attrs + "/>\n");
     }
 
-    static bool annotation_present(const std::optional<Node>& node) {
-        return node &&
-               (!node->content.empty() || node->attrs.count("id") || node->attrs.count("lang"));
-    }
+    // A present node is written whatever its content - an element that was present and empty
+    // in the file comes back as <annotation/> / <history/> with its attributes (feature 004,
+    // FR-010/FR-015: kept as read until an editor of it is edited; the UI turns a node the user
+    // emptied into an absent one). Release 0.0.3 omitted a node with empty content and no
+    // id / lang.
+    static bool annotation_present(const std::optional<Node>& node) { return node.has_value(); }
 
     void write_title_info(int depth, const char* name, const model::TitleInfo& info,
                           const char* slot) {
