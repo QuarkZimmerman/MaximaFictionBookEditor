@@ -77,7 +77,7 @@ section), `core_server.cpp` (wiring); `ui/src/rpc/client.ts` (typed client).
 | Binary objects (images) | core | Decoded from base64 while parsing, kept in a per-document `BinaryStore`, never sent as base64 to the UI; the UI receives metadata (`BinaryMeta`) and fetches bytes or scaled previews over HTTP by id. |
 | Validation | core | XSD validation against the bundled FB2 2.1 schema set plus consistency checks (dangling links, missing or unreferenced binaries, image formats, unknown genres) with line/column mapped back to node ids. |
 | Spell checking, Words analysis | core | Hunspell with the bundled en_US / ru_RU / uk_UA dictionaries, the `.aff`/`.dic` pairs of the dictionary folders (`spell.dictionaryReport` tells which are in effect and which files were rejected and why) and the user's custom dictionary; word frequency and replacement engine. |
-| Settings, recent files, hotkeys, exclusions | core | Per-user JSON files; the UI edits them through `settings.*` / `hotkeys.*` and receives `settings.changed`. |
+| Settings, recent files, remembered positions, hotkeys, exclusions | core | Per-user JSON files; the UI edits them through `settings.*` / `hotkeys.*` and receives `settings.changed`. The remembered positions of "Restore position" (`positions.json`, feature 004) are a record of their own, see *Restore position* below. |
 | Genres, scripts, dictionaries | core | Layered lookup (settings folder -> per-user folder -> portable folder -> bundled), additive, no admin rights (FR-127). |
 | Diagnostics | core | Errors-only rolling log (`logs/mfbe-errors.log`); the UI and the shell report their failures through `log.error`. |
 
@@ -116,6 +116,30 @@ offsets refer to the very text parsed; a point without a Body place (the prolog,
 description, a binary) goes to the document's start. `doc.toXml` also makes the received
 document the session snapshot, so the remap of the next parse follows the model the text was
 made from.
+
+**Restore position (feature 004).** "Restore position" remembers the Body view's last caret
+of a file by its place in document order, not by a session's node id: `doc.position({docId,
+position})` carries `{path, offset}` - a structural path under one of the three roots the Body
+view shows (`body[n]`, `title-info/annotation[1]`, `document-info/history[1]`) and a model
+offset inside that text block - and the core keeps it in the document session and, when the
+session has a file and `other.restorePosition` is on, in `positions.json` beside `recent.json`
+(`core/src/settings/positions.cpp`): the 100 most recently remembered files, newest first,
+written atomically on every change, paths compared as the platform compares file names
+(`platform::same_file_path` - letter case ignored on Windows and macOS, exact on Linux), a
+record of its own that the ten-entry Recent Files list and Clear Recent Files never touch. The
+core gates every record and every answer on the setting, so the UI's start-up race with
+`settings.get` can neither record nor restore when the option is off. The UI remembers on
+every leaving route (`FileFeature.leaveDocument`: New, Open, Recent Files, a forwarded file,
+the changed-on-disk reload, every save, Exit, the window's close request and the restart) the
+Body controller's caret whatever the active view, unless the Body view was never shown for the
+document; on every opening route it asks `doc.position`, resolves the path against the model it
+shows (`ui/src/editor/structuralPath.ts`, `resolvePosition`: a paragraph that no longer exists
+falls back to the one now at that place, clamped, silently) and places the caret without
+switching the view - scrolled into view at once in the Body view, on mount when another view
+is active. The changed-on-disk reload carries the in-session caret over directly. `doc.caret`
+of release 0.0.3 stays as a deprecated alias (the 1.x caret shape converted through the
+session snapshot) until the next major; `recent.json` no longer carries a caret, and a legacy
+one is converted once when its file is next opened.
 
 **Save.** `doc.save` receives the current JSON model (binaries by reference), converts
 non-JPEG/PNG images according to the paste-format setting, validates, and - unless the user
@@ -179,7 +203,10 @@ a shell (browser/dev mode) `app.restart` answers 1070 `app.restartUnavailable` a
 reloads itself with `?open=<path>` added to its query; a spawn failure answers 1071
 `app.restartFailed {reason}` and the editor stays open. `tools/shell-smoke.sh` with
 `MFBE_SMOKE_RESTART=1` exercises the real restart under Xvfb (normal and maximised window,
-and the failure path with `MFBE_SMOKE_RESTART_FAIL=1`).
+the Body caret back in its paragraph in the new instance - feature 004 US8 - and, with a
+test-hook shell, the failure path with `MFBE_SMOKE_RESTART_FAIL=1`); the CI `app` job runs it
+on the release shell, which prints no argument lists, so the restart is judged by what the new
+instance shows.
 
 **Closing the window.** The window never closes behind the UI's back (feature 003 FR-017).
 A close request the user can still cancel - the title-bar button, Alt+F4, a system shutdown,
@@ -201,7 +228,8 @@ connected UI keeps the window however long the user takes over the prompt, so a 
 interface is gone can be closed but a prompt can never be skipped. `test.requestClose` emits the
 same notification headless so the journeys cover the UI's part; `tools/shell-smoke.sh` with
 `MFBE_SMOKE_CLOSE=1` sends the window manager's close request to the real shell under Xvfb
-(openbox, xdotool) and `tools/ci/windows-russian-journey.ps1` posts WM_CLOSE to the Windows
+(openbox, xdotool) and reads the Body caret it remembered from `positions.json` afterwards
+(feature 004 US8), and `tools/ci/windows-russian-journey.ps1` posts WM_CLOSE to the Windows
 window - the title-bar button's path end to end; `tests/shell/test_close_handshake.cpp` drives
 the state machine.
 
@@ -211,11 +239,13 @@ The core/UI boundary is a documented, versioned contract (Constitution III); the
 truth is `specs/001-maxima-fb2-editor/contracts/` in the planning workspace, with the
 additive changes of later features in `specs/<feature>/contracts/` (feature 003: `app.restart`,
 `app.closeRequested`, `doc.formatDate`, `spell.dictionaryReport`, the new settings keys and
-test hooks - API minor 2 - and the installer's public property):
+test hooks - API minor 2 - and the installer's public property; feature 004 - API minor 3 -
+among others `doc.position`, with `doc.caret` and `RecentFile.caret` deprecated for the next
+major):
 
 | Contract | Mirrors in this repository |
 |----------|----------------------------|
-| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1, minor 2) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
+| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1, minor 3) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
 | `document-model.d.ts` (JSON document model) | `ui/src/model/document.ts` (verbatim copy with a header), `core/include/mfbe/document.hpp` + `json_codec.hpp` |
 | `script-api.d.ts` (the complete `mfbe` allow-list) | `docs/scripting/mfbe.d.ts` (copy shipped with the editor), `ui/src/scripting/types.ts` (`API_METHODS`), `ui/src/scripting/sandbox.ts` |
 | `script-manifest.md` (package layout, `script.json`, sandbox rules) | `core/src/resources/scripts.cpp`, `ui/src/scripting/sandbox*.ts` |

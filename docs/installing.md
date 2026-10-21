@@ -212,7 +212,7 @@ own folder instead (see *Portable folder* below):
 
 | Purpose | Windows | Linux | macOS |
 |---------|---------|-------|-------|
-| Configuration: `settings.json`, `hotkeys.json`, `recent.json`, `exclusions.txt` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_CONFIG_HOME/maxfbeditor/` (default `~/.config/maxfbeditor/`) | `~/Library/Application Support/Maxima Fiction Book Editor/` |
+| Configuration: `settings.json`, `hotkeys.json`, `recent.json`, `positions.json` (the places "Restore position" remembers, the 100 most recently remembered files), `exclusions.txt` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_CONFIG_HOME/maxfbeditor/` (default `~/.config/maxfbeditor/`) | `~/Library/Application Support/Maxima Fiction Book Editor/` |
 | User content: custom dictionary `custom.dic`, your own template of new documents `blank.fb2`, user folders `genres/`, `scripts/`, `dictionaries/` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_DATA_HOME/maxfbeditor/` (default `~/.local/share/maxfbeditor/`) | same as configuration |
 | Machine-local state: errors-only log `logs/mfbe-errors.log` (5 x 1 MB, rotating), browser cache | `%LOCALAPPDATA%\Maxima Fiction Book Editor\` | `$XDG_STATE_HOME/maxfbeditor/` (default `~/.local/state/maxfbeditor/`) and `$XDG_DATA_HOME/maxfbeditor/cef/` | `~/Library/Logs/Maxima Fiction Book Editor/`, `~/Library/Application Support/Maxima Fiction Book Editor/cef/` |
 

@@ -36,7 +36,9 @@
 //                               (+-2 px) or maximised (max), started with --wait-for-exit
 //                               <old pid> and --window-geometry and without --lang (the argv
 //                               lists come from the shell's "shelltest: argv" log lines,
-//                               MFBE_SMOKE_LOG)
+//                               MFBE_SMOKE_LOG); the Body caret, put into a known paragraph
+//                               before the restart, is back there in the new instance
+//                               (feature 004 US8 - the restart remembers the position)
 //   MFBE_SMOKE_RESTART_FAIL     1 = with MFBE_SMOKE_RESTART: the shell cannot start the new
 //                               instance (MFBE_RELAUNCH_PROGRAM points nowhere); the page must
 //                               show the failure (dialog-restart-failed) and the old process
@@ -49,7 +51,10 @@
 //                               title-bar X sends. "Save changes?" must appear within 2 s and
 //                               the editor (app.info.pid) stay; Cancel keeps it open and the
 //                               document modified; a second request asks again at once; No
-//                               ends the process within 10 s
+//                               ends the process within 10 s - and positions.json beside the
+//                               settings file (MFBE_SMOKE_SETTINGS_FILE) then holds the Body
+//                               caret put into a known paragraph before the close (feature
+//                               004 US8: the window's close request remembers the position)
 //   MFBE_SMOKE_SAVE_AS          1 = the native GTK Save dialog (feature 004 US6, FR-050 /
 //                               FR-051): File > New, the author "Толстой Лев Николаевич" and
 //                               the title "Война и мир" typed into the Description view, File >
@@ -209,6 +214,91 @@ async function checkAboutDialog(page) {
   console.log(`about:         dialog shown (${text.slice(0, 80)}...) screenshot ${shotPath}`);
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+}
+
+/* ---------------------------------------------------------------------------------------- */
+/* The remembered position (feature 004 US8)                                                 */
+/* ---------------------------------------------------------------------------------------- */
+
+// The offset the caret is moved to inside the chosen paragraph (its first characters).
+const caretOffset = 4;
+
+// Puts the Body caret into the second paragraph of the first section, `caretOffset` characters
+// in (Home, then ArrowRight x4 - the keys the user would press), and returns the structural
+// path the status bar shows for it, e.g. "body[1]/section[1]/p[2]".
+async function placeCaret(page) {
+  const paragraph = page
+    .locator('[data-testid="body-editor"] .fb-body > .fb-section > p.fb-p')
+    .nth(1);
+  await paragraph.waitFor({ state: 'visible', timeout: timeoutMs });
+  await paragraph.click({ position: { x: 8, y: 8 } });
+  await page.keyboard.press('Home');
+  for (let i = 0; i < caretOffset; i += 1) {
+    await page.keyboard.press('ArrowRight');
+  }
+  const statusPath = page.locator('[data-testid="status-path"]');
+  await waitUntil(
+    'a paragraph path in the status bar',
+    async () => /^body\[\d+\](\/[a-z-]+\[\d+\])*\/p\[\d+\]$/.test((await statusPath.innerText()).trim()),
+    timeoutMs,
+  );
+  const shown = (await statusPath.innerText()).trim();
+  const offset = await domCaretOffset(page);
+  if (offset !== caretOffset) {
+    throw new Error(`the caret is at offset ${offset} of ${shown}, expected ${caretOffset}`);
+  }
+  console.log(`position:      caret placed at ${shown}:${offset}`);
+  return shown;
+}
+
+// The DOM selection's offset inside its text node (the model offset of a plain paragraph).
+function domCaretOffset(page) {
+  return page.evaluate(() => {
+    const selection = document.getSelection();
+    return selection && selection.rangeCount > 0 ? selection.getRangeAt(0).startOffset : -1;
+  });
+}
+
+// The remembered position of `file` in positions.json beside the settings file, or null.
+function storedPosition(file) {
+  if (!settingsFile) {
+    throw new Error('the positions record needs MFBE_SMOKE_SETTINGS_FILE (set by shell-smoke.sh)');
+  }
+  const positionsFile = path.join(path.dirname(settingsFile), 'positions.json');
+  if (!fs.existsSync(positionsFile)) {
+    return null;
+  }
+  const parsed = JSON.parse(fs.readFileSync(positionsFile, 'utf8'));
+  const item = (parsed.items ?? []).find((entry) => entry.path === file);
+  return item ? item.position : null;
+}
+
+// Asserts that the Body caret of `page` is at `expected` ({path, offset}) and that its paragraph
+// is inside the window (the status bar path, the DOM selection, the bounding box).
+async function expectCaretRestored(page, expected, what) {
+  const statusPath = page.locator('[data-testid="status-path"]');
+  await waitUntil(
+    `the status bar path ${expected.path} ${what}`,
+    async () => (await statusPath.innerText()).trim() === expected.path,
+    timeoutMs,
+  );
+  await waitUntil(
+    `the caret offset ${expected.offset} ${what}`,
+    async () => (await domCaretOffset(page)) === expected.offset,
+    timeoutMs,
+  );
+  const visible = await page.evaluate(() => {
+    const selection = document.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+    let node = selection.getRangeAt(0).startContainer;
+    const element = node.nodeType === 1 ? node : node.parentElement;
+    const rect = element.getBoundingClientRect();
+    return rect.bottom > 0 && rect.top < window.innerHeight;
+  });
+  if (!visible) {
+    throw new Error(`the restored caret's paragraph is not inside the window ${what}`);
+  }
+  console.log(`position:      caret restored at ${expected.path}:${expected.offset} ${what}`);
 }
 
 /* ---------------------------------------------------------------------------------------- */
@@ -377,6 +467,9 @@ async function checkRestart(page) {
     throw new Error(`the window should not be maximised before the restart, got ${formatState(before)}`);
   }
 
+  // The Body caret in a known paragraph: the restart must remember it (feature 004 US8).
+  const caretPath = await placeCaret(page);
+
   const { language, asked } = await askForRestart(page);
 
   if (restartMustFail) {
@@ -422,42 +515,50 @@ async function checkRestart(page) {
     if (newPid === oldPid || !processAlive(newPid)) {
       throw new Error(`the restarted editor has pid ${newPid} (old ${oldPid})`);
     }
+    // The argument list of the new instance: written to the log by a test-hook shell only
+    // (MFBE_SHELL_TEST_HOOKS; the release shell of the CI app job prints none - its restart
+    // is then judged by what the new instance shows: the book, the language, the window, the
+    // caret).
     const startedAfter = startedArgvs();
-    if (startedAfter.length !== startedBefore.length + 1) {
-      throw new Error(
-        `expected one more editor start in the log, found ${startedAfter.length - startedBefore.length}`,
-      );
-    }
-    const argv = startedAfter.at(-1);
-    console.log(`restart:       new pid ${newPid}, argv ${JSON.stringify(argv)}`);
-    const waitIndex = argv.indexOf('--wait-for-exit');
-    if (waitIndex < 0 || argv[waitIndex + 1] !== String(oldPid)) {
-      throw new Error(`the new instance was not told to wait for pid ${oldPid}`);
-    }
-    const geometryIndex = argv.indexOf('--window-geometry');
-    if (geometryIndex < 0 || !/^-?\d+,-?\d+,\d+,\d+(,max)?$/.test(argv[geometryIndex + 1] ?? '')) {
-      throw new Error('the new instance got no --window-geometry');
-    }
-    const geometry = argv[geometryIndex + 1];
-    if ((restartVariant === 'max') !== geometry.endsWith(',max')) {
-      throw new Error(`--window-geometry ${geometry} does not match the ${restartVariant} window`);
-    }
-    if (argv.at(-1) !== openFile) {
-      throw new Error(`the new instance was not given the book ${openFile} as FILE`);
-    }
-    if (argv.some((arg) => arg === '--lang' || arg.startsWith('--lang=') || arg === '--new')) {
-      throw new Error('--lang / --new must not be carried over');
-    }
-    // The start-up options of the old instance (the debugging port, the sandbox choice) stay;
-    // its own --window-geometry and FILE were replaced.
-    for (const kept of oldArgv) {
-      if (
-        (kept.startsWith('--remote-debugging-port') ||
-          kept === '--no-sandbox' ||
-          kept.startsWith('--ozone-platform')) &&
-        !argv.includes(kept)
-      ) {
-        throw new Error(`${kept} was not carried over`);
+    if (startedBefore.length === 0) {
+      console.log(`restart:       new pid ${newPid} (no "shelltest: argv" lines: a shell without test hooks, argv not checked)`);
+    } else {
+      if (startedAfter.length !== startedBefore.length + 1) {
+        throw new Error(
+          `expected one more editor start in the log, found ${startedAfter.length - startedBefore.length}`,
+        );
+      }
+      const argv = startedAfter.at(-1);
+      console.log(`restart:       new pid ${newPid}, argv ${JSON.stringify(argv)}`);
+      const waitIndex = argv.indexOf('--wait-for-exit');
+      if (waitIndex < 0 || argv[waitIndex + 1] !== String(oldPid)) {
+        throw new Error(`the new instance was not told to wait for pid ${oldPid}`);
+      }
+      const geometryIndex = argv.indexOf('--window-geometry');
+      if (geometryIndex < 0 || !/^-?\d+,-?\d+,\d+,\d+(,max)?$/.test(argv[geometryIndex + 1] ?? '')) {
+        throw new Error('the new instance got no --window-geometry');
+      }
+      const geometry = argv[geometryIndex + 1];
+      if ((restartVariant === 'max') !== geometry.endsWith(',max')) {
+        throw new Error(`--window-geometry ${geometry} does not match the ${restartVariant} window`);
+      }
+      if (argv.at(-1) !== openFile) {
+        throw new Error(`the new instance was not given the book ${openFile} as FILE`);
+      }
+      if (argv.some((arg) => arg === '--lang' || arg.startsWith('--lang=') || arg === '--new')) {
+        throw new Error('--lang / --new must not be carried over');
+      }
+      // The start-up options of the old instance (the debugging port, the sandbox choice) stay;
+      // its own --window-geometry and FILE were replaced.
+      for (const kept of oldArgv) {
+        if (
+          (kept.startsWith('--remote-debugging-port') ||
+            kept === '--no-sandbox' ||
+            kept.startsWith('--ozone-platform')) &&
+          !argv.includes(kept)
+        ) {
+          throw new Error(`${kept} was not carried over`);
+        }
       }
     }
     const lang = await newPage.evaluate(() => document.documentElement.lang);
@@ -482,6 +583,14 @@ async function checkRestart(page) {
     if (bookShown.trim().length === 0) {
       throw new Error('the Body view is empty after the restart');
     }
+    // The position remembered before the restart was recorded and is back in the new instance.
+    const remembered = storedPosition(openFile);
+    if (!remembered || remembered.path !== caretPath || remembered.offset !== caretOffset) {
+      throw new Error(
+        `positions.json does not hold ${caretPath}:${caretOffset} for the book (got ${JSON.stringify(remembered)})`,
+      );
+    }
+    await expectCaretRestored(newPage, { path: caretPath, offset: caretOffset }, 'after the restart');
     await newPage.screenshot({ path: screenshotPath });
     console.log(`restart:       OK (${restartVariant}); screenshot ${screenshotPath}`);
   } finally {
@@ -560,6 +669,12 @@ async function checkWindowClose(page) {
   }
   console.log('close:         Cancel keeps the editor open and the document modified');
 
+  // The Body caret in a known paragraph: the close request must remember it (feature 004 US8).
+  const caretPath = await placeCaret(page);
+  if (storedPosition(openFile) !== null) {
+    throw new Error('positions.json already holds a position for the book before the close');
+  }
+
   // The close button again, right after Cancel: asked again (no dead time), No closes.
   const second = Date.now();
   requestWindowClose(env);
@@ -568,6 +683,15 @@ async function checkWindowClose(page) {
   await prompt.locator('[data-testid="dialog-save-changes-button-no"]').click();
   await waitUntil(`the exit of pid ${pid}`, () => !processAlive(pid), closeExitBudgetMs);
   console.log(`close:         No: the editor (pid ${pid}) exited after ${Date.now() - second} ms`);
+
+  // positions.json beside the settings file records the caret of the document that was left.
+  const remembered = storedPosition(openFile);
+  if (!remembered || remembered.path !== caretPath || remembered.offset !== caretOffset) {
+    throw new Error(
+      `positions.json does not hold ${caretPath}:${caretOffset} for the book (got ${JSON.stringify(remembered)})`,
+    );
+  }
+  console.log(`close:         positions.json remembers ${caretPath}:${caretOffset} for the book`);
 }
 
 /* ---------------------------------------------------------------------------------------- */
