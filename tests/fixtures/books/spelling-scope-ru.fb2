@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_contemporary</genre>
+			<author>
+				<first-name>Пётр</first-name>
+				<last-name>Правописанов</last-name>
+			</author>
+			<book-title>Проверка правописания</book-title>
+			<annotation>
+				<p>В диревне готовились к празнику.</p>
+				<p>На стене висела кортина, и мальчик пашол домой.</p>
+			</annotation>
+			<keywords>spelling, scope, description, fields, check</keywords>
+			<lang>ru</lang>
+			<src-lang>en</src-lang>
+		</title-info>
+		<src-title-info>
+			<genre>prose_contemporary</genre>
+			<author>
+				<first-name>Джон</first-name>
+				<last-name>Смит</last-name>
+			</author>
+			<book-title>Проверка правописания (оригинал)</book-title>
+			<annotation>
+				<p>The original English annotation of this little book.</p>
+			</annotation>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>генератор тестовых файлов</program-used>
+			<date value="2026-01-01">2026</date>
+			<id>fixture-spelling-scope-ru</id>
+			<version>1.0</version>
+			<history>
+				<p>Первая версия файла.</p>
+			</history>
+		</document-info>
+		<publish-info>
+			<book-name>The Great Spelling Scope Test</book-name>
+			<publisher>Example Publishing House</publisher>
+			<city>London</city>
+			<year>2026</year>
+		</publish-info>
+		<custom-info info-type="catalogue">imported from the example library catalogue by hand</custom-info>
+	</description>
+	<body>
+		<title>
+			<p>Проверка правописания</p>
+		</title>
+		<section id="s1">
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Утром на лугу паслась карова, а рядом бегала сабака.</p>
+			<p>На столе стояло малако и лежал свежий хлеб.</p>
+			<p>Вечером все собрались у окна и долго смотрели на огни города.</p>
+		</section>
+		<section id="s2">
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<p>Гость сказал: «Здраствуйте!» — и снял шляпу.</p>
+			<p>В саду рос агурец, а над домом светило яркое сонце.</p>
+		</section>
+	</body>
+</FictionBook>

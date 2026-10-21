@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>sf</genre>
+			<genre match="50">adventure</genre>
+			<author>
+				<first-name>Полина</first-name>
+				<middle-name>Петровна</middle-name>
+				<last-name>Полнова</last-name>
+				<home-page>https://example.org/polnova</home-page>
+				<email>polnova@example.org</email>
+				<id>author-polnova</id>
+			</author>
+			<book-title>Полное описание</book-title>
+			<annotation>
+				<p>Аннотация полного описания.</p>
+				<p>Второй абзац аннотации.</p>
+			</annotation>
+			<keywords>импорт, описание, проверка</keywords>
+			<date value="2020-05-17">17 мая 2020</date>
+			<coverpage>
+				<image l:href="#cover.jpg"/>
+			</coverpage>
+			<lang>ru</lang>
+			<src-lang>en</src-lang>
+			<translator>
+				<first-name>Тимофей</first-name>
+				<last-name>Переводов</last-name>
+			</translator>
+			<sequence name="Полные серии" number="3">
+				<sequence name="Подсерия" number="1"/>
+			</sequence>
+		</title-info>
+		<src-title-info>
+			<genre>sf</genre>
+			<author>
+				<first-name>Paul</first-name>
+				<last-name>Fullman</last-name>
+			</author>
+			<book-title>The Full Description</book-title>
+			<annotation>
+				<p>The original annotation.</p>
+			</annotation>
+			<keywords>import, description</keywords>
+			<date value="2018-01-01">2018</date>
+			<coverpage>
+				<image l:href="#cover.jpg"/>
+			</coverpage>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>maker</nickname>
+				<email>maker@example.org</email>
+			</author>
+			<program-used>Maxima FBD Maker</program-used>
+			<date value="2026-10-20">2026-10-20</date>
+			<src-url>https://example.org/source</src-url>
+			<src-url>https://example.org/mirror</src-url>
+			<src-ocr>OCR by hand</src-ocr>
+			<id>import-full-0001</id>
+			<version>1.5</version>
+			<history>
+				<p>v1.0 — создание файла</p>
+				<p>v1.5 — вычитка</p>
+			</history>
+			<publisher>
+				<nickname>Publisher Nick</nickname>
+			</publisher>
+		</document-info>
+		<publish-info>
+			<book-name>Полное описание (бумажное издание)</book-name>
+			<publisher>Издательство «Полнота»</publisher>
+			<city>Москва</city>
+			<year>2021</year>
+			<isbn>978-5-00000-000-1</isbn>
+			<sequence name="Бумажная серия" number="7"/>
+		</publish-info>
+		<custom-info info-type="mlillustrator">Илюстраторов Илья Ильич</custom-info>
+		<custom-info info-type="mleditor">Редакторов Роман Романович</custom-info>
+		<custom-info info-type="mlseriesid">99 Какая-то серия</custom-info>
+		<custom-info info-type="fbreader">last position 12%</custom-info>
+		<custom-info info-type="coolreader">bookmark: chapter 2</custom-info>
+	</description>
+	<binary id="cover.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkI
+CQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQ
+EBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAGAAgDAREA
+AhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAABf/EACMQAAACCQUAAAAAAAAAAAAAABMWAAQHEhUX
+ITEzIiZUVWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAF/8QAKREAAAALCAMAAAAAAAAAAAAAABESExQV
+FiExMjMCAwUGIiRSUyVhYv/aAAwDAQACEQMRAD8APO7NpMEwobt7aHq/LEzPC4tFvLVRVmczNsu0
+zx/ScvOkimI3U1R+pnAYssNUqEZ3HMmzzHMMqV0PUA//2Q==
+</binary>
+</FictionBook>
