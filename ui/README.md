@@ -49,7 +49,7 @@ Environment variables read by the tooling:
 | `MFBE_CORE_LOG_LEVEL` | `tests/e2e/fixtures/core.ts`     | Optional `--log-level` for the test core                                                                                               |
 | `MFBE_UI_URL`         | `playwright.config.ts`           | `baseURL` of an already running UI, e.g. `http://127.0.0.1:41237/?token=...` or `http://127.0.0.1:5173/`                               |
 | `MFBE_PREVIEW_PORT`   | `playwright.config.ts`           | Port of the `vite preview` server used in core-less e2e mode (default 4173)                                                            |
-| `MFBE_PERF_FACTOR`    | `tests/e2e/perf-scripts.spec.ts` | Allowance of the script benchmark's 1 MB budget: 5 s × the factor (default 2; `docs/performance.md`)                                   |
+| `MFBE_PERF_FACTOR`    | the `@perf` journeys             | Allowance for the hosted CI runners on the budgets those journeys check (default 2; `docs/performance.md`)                             |
 | `MFBE_PERF_RESULTS`   | `tests/e2e/perf-scripts.spec.ts` | File the script benchmark writes its measured times to (JSON)                                                                          |
 
 Compile-time constants (declared in `src/vite-env.d.ts`): `__MFBE_TOKEN__` and
@@ -86,9 +86,14 @@ through `fixtures/i18n.ts`, which reads them from the catalogues in the language
 shows, never as English literals; `us1-ukrainian.spec.ts` additionally fails on any visible
 text that is not a Ukrainian catalogue value.
 
-The script benchmark `perf-scripts.spec.ts` is tagged `@perf`: CI runs the journeys with
-`--grep-invert @perf` and the benchmark alone with `--grep @perf --workers=1`
-(`docs/performance.md`).
+The script benchmark `perf-scripts.spec.ts` is tagged `@perf`, as are the timing journeys of
+`perf-large-book.spec.ts`, `us1-tree-divider.spec.ts` (the divider's layout step) and
+`us4-import-description.spec.ts` (the 10 MB book as an import source): CI runs the journeys with
+`--grep-invert @perf` and the timed ones alone with `--grep @perf --workers=1` against the
+Release core; `MFBE_PERF_FACTOR` (default 2) widens the budgets they check - the script
+benchmark's 1 MB budget (5 s × the factor), the Body ↔ Source mapping step and the divider
+layout step (100 ms × the factor), the import source's opening budget (3 s × the factor) - for
+the hosted runners (`docs/performance.md`).
 
 A journey tagged `@platform` (feature 004: the proposed and typed file names, the spelling
 scope) runs on the Windows and macOS e2e legs of CI as well, against the hooks-enabled

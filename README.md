@@ -45,6 +45,18 @@ dictionaries folder* opens, or choose a folder of your own, and apply the settin
 Open a book from the command line with `mfbe book.fb2`; a running instance receives the file
 instead of a second window starting.
 
+Release 0.0.4 (the third feedback batch) brings back two things the original had — the
+annotation and the history as editable blocks at the top of the Body view and in the Document
+Tree, and a draggable divider that makes the Document Tree pane narrower or wider — and adds
+the Maxima Library's other person roles (illustrator, editor, compiler, designer, commentator,
+about the author) to the Description view, *File > Import > Description from FictionBook
+file...* and *File > Export > Export as FBD...*, a proposed file name "Last name First name -
+Book title" for a never-saved document, the caret and selection carried between the Body and
+the Source view, "Restore position" that restores the position on every route, spell checking
+confined to the book's text, centred titles, and "Switch keyboard layout when a document is
+opened" (Windows and X11 Linux; greyed out under Wayland, where the system offers no switch) —
+see [`CHANGELOG.md`](CHANGELOG.md) and [`docs/releases/0.0.4.md`](docs/releases/0.0.4.md).
+
 ## Supported platforms
 
 - Windows 10 and Windows 11, 64-bit.

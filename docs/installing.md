@@ -295,6 +295,34 @@ Books in the new language are then checked like any other - misspelt words are u
 suggestions are offered, words can be added to your custom dictionary (`custom.dic`), and
 Tools > Spell check uses it.
 
+## Importing and exporting a description
+
+*File > Import > Description from FictionBook file...* takes the description of another
+FictionBook file - a `.fbd` description file, such as the ones the Maxima Library and the
+Maxima FBD Maker produce, or a complete `.fb2` book - into the open document; the file is read
+as Open reads a book (any encoding Open accepts, FB2 2.0 or 2.1, with or without a body; a file
+that is not well-formed or not a FictionBook document is refused with a message and nothing
+changes). Into a freshly created document whose description you have not touched, everything
+the file has is imported at once and the status bar says how many entries arrived. In every
+other case a dialog lists the entries about to be imported - genres, authors, book title,
+annotation, keywords, date, cover, language, source language, translators, sequences, the
+other persons' roles, the source title info, the document, publish and custom info entries -
+each with an unticked checkbox and its value, the cover shown as a small picture; tick what
+you want, and *Import* (disabled while nothing is ticked) replaces exactly those entries,
+every ticked list as a whole. The import is one undo step; the book's text, images and the
+entries you did not tick are untouched. The dialog opens in the folder Open and Save As last
+used.
+
+*File > Export > Export as FBD...* writes the description of the open document, as it is in
+the editor at that moment, saved or not, as a stand-alone `.fbd` file: the whole description
+with the cover and the other images it refers to, and one empty section in place of the
+book's text, so that the file passes FB2 2.1 validation. The file is always UTF-8 (no encoding
+choice), it is written only after validation - an incomplete description gets Save's own
+"export anyway?" question - and never over the open document's own file. The name proposed is
+the document's own with `.fbd`, or the proposed name of a never-saved document. The open
+document, its file and its Recent Files entry stay as they were; the exported file is not
+opened.
+
 ## Keyboard layout
 
 If your system starts with one keyboard layout and your books are written in another, the

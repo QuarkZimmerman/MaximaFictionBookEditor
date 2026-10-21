@@ -16,6 +16,17 @@
  *  - Binary payloads never appear here (see BinaryMeta).
  *  - Unknown XML is preserved as `raw-xml` nodes and round-trips verbatim.
  *  - All strings are Unicode; whitespace inside text is significant.
+ *  - `TitleInfo.annotation` and `DocumentInfo.history` distinguish "absent"
+ *    from "present and empty" (feature 004, FR-010/FR-015 there): `undefined`
+ *    = the file has no such element; a node with `content: []` (with or
+ *    without `id` / `lang`) = the element is present and empty, read as such
+ *    and written back as `<annotation/>` / `<history/>` until one of its two
+ *    editors (the Description field, the Body view's block) changes it; an
+ *    element the user emptied becomes `undefined` and is not written. No
+ *    shape changed. The Body view's annotation and history blocks and the
+ *    Description view's "Other persons" list are UI projections of this model
+ *    (`description.customInfo` rows for the roles), never members of it — see
+ *    specs/004-third-feedback-batch/contracts/document-model.md.
  */
 
 export const DOCUMENT_MODEL_VERSION = 1;

@@ -202,6 +202,41 @@ encoding through a temporary file that replaces the target only when fully writt
 The response carries the final path, encoding, the list of converted binaries and the
 validation report.
 
+**Description import and FBD export (feature 004).** Both keep the file work and the image
+bytes in the core (Constitution III). *Import* (`file.importDescription`,
+`ui/src/features/transfer/importDescription.ts`): `doc.readDescription({docId, path})` reads
+the chosen file exactly as `doc.open` does — the hardened parser, the whole file, every
+encoding, a job with Open's phases above 2 MB — and keeps only what the import needs: the
+description as read, with node ids taken from the open document's own allocator so that the
+imported annotation and history can be inserted without a collision; the document details
+after the fill-in of 002 FR-005; and the metadata of only the binaries an importable entry
+refers to (cover pages, images inside the annotation and the history — a binary referenced by
+nothing else, an `output` element included, is dropped). Those binaries wait in a hidden
+**import session** (`importId`: a document session without a file watch, a Recent Files entry,
+a position or a position map) so that the dialog's cover picture is served by the existing
+`GET /binary/{importId}/{id}/preview` side channel and the bytes of a ticked cover cross
+store-to-store inside the core through `binary.copy({docId, fromDocId, id})` — deduplicated by
+content hash and bytes (`existing: true`), else stored under a unique id the UI repoints the
+cover page to. The UI derives the importable entries (`importEntries.ts`: the present,
+non-empty entries in the Description view's order, the six roles as one "Other persons" entry
+through the role module, each plain `custom-info` row its own entry), applies the ticked ones
+as a whole each — silently into a never-saved document whose description still equals its
+creation baseline (`untouched.ts`), through the confirmation dialog otherwise — shows the
+result through the Body controller (so the blocks follow) or the store, records one snapshot
+undo entry, reports the count in the status bar and closes the import session in every case.
+*Export* (`file.exportFbd`, `exportFbd.ts`): `doc.exportDescription({docId, document, path,
+force?})` is a sibling of `doc.save` that writes a copy and touches nothing in the session —
+the live description unchanged (roles, every `custom-info` row, the `output` elements and the
+description's extras), one body holding one empty section (the smallest body the FB2 2.1
+schema accepts), no stylesheet, only the binaries the exported description references, those
+converted to JPEG/PNG in the copy alone, always UTF-8, validated with Save's own confirmation
+and written atomically; the open document's own file is refused by platform file identity
+(`std::filesystem::equivalent`, error 1006) before anything is validated or written. The save
+dialog offers the single descriptors type without an encoding choice and proposes the
+document's stem with `.fbd` or the never-saved document's proposed name
+(`features/file/proposedName.ts`: "Last name First name - Book title", sanitised for every
+platform, passed to the dialog as a bare name the shell shows in the remembered folder).
+
 **Validate.** `doc.validate` accepts either the model or Source text; the report lists
 severity, line, column, element path and message per issue. The Validation panel jumps to
 issues; `edit.gotoWrongTag` uses the same locations in the Source view.

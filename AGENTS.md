@@ -31,9 +31,12 @@ cmake --preset linux-core-debug && cmake --build --preset linux-core-debug   # c
 ctest --preset linux-core-debug                                               # Catch2
 ctest --preset linux-core-debug -L corpus                                     # corpus round trip (slow)
 cmake --preset linux-app-debug && cmake --build --preset linux-app-debug     # + CEF shell (downloads CEF once)
+tools/ci/shell-tests-xkb.sh ctest --preset linux-app-debug -L shell          # shell unit tests on an Xvfb with two XKB groups (keyboard layout)
+python3 tests/fixtures/books/make-fixtures.py                                 # regenerates the committed book fixtures (only when one must change)
 cd ui && npm ci && npm run typecheck && npm run lint && npm test && npm run build
-cd ui && npx playwright test                                                  # e2e, headless, starts mfbe-core itself
-tools/shell-smoke.sh                                                          # CEF shell under Xvfb + CDP
+cd ui && npx playwright test --grep-invert @perf                              # e2e, headless, starts mfbe-core itself
+cd ui && MFBE_CORE_BIN=../build/linux-core-release/bin/mfbe-core npx playwright test --grep @perf --workers=1  # timed journeys on the Release core
+tools/shell-smoke.sh                                                          # CEF shell under Xvfb + CDP (MFBE_SMOKE_CLOSE=1, MFBE_SMOKE_RESTART=1, MFBE_SMOKE_SAVE_AS=1 variants)
 tools/format.sh [--check]
 python3 tools/path-conversion-check.py && python3 tools/path-portability-check.py  # explicit path/text conversions; file names that survive Windows/macOS checkouts
 python3 tools/fb2-schema-elements.py --check                                  # Source-view completion table current with resources/schema
