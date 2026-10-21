@@ -6,6 +6,8 @@
 
 #include <mfbe/core_server.hpp>
 #include <mfbe/dialog_provider.hpp>
+#include <mfbe/keyboard_layout_provider.hpp>
+#include <mfbe/platform.hpp>
 #include <mfbe/version.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -337,6 +339,139 @@ TEST_CASE("server: dialogs are unavailable without a provider; queued answers wi
                   .find("0000a1/book1.fb2") != std::string::npos);
         CHECK(ws.call("test.corpusSample",
                       json{{"root", "/definitely/missing"}})["error"]["code"] == 1002);
+    }
+}
+
+namespace {
+
+// A shell whose system declines every switch (feature 004: the handler logs
+// keyboard.switchRefused with the system's code and answers a result).
+class RefusingKeyboardLayoutProvider : public KeyboardLayoutProvider {
+public:
+    void list(Callback<KeyboardLayoutList> done) override {
+        KeyboardLayoutList list;
+        list.supported = true;
+        list.layouts = {{"00000409", "English (United States)"}, {"00000419", "Russian"}};
+        list.current = "00000409";
+        done(std::move(list));
+    }
+    void activate(const std::string&, Callback<KeyboardLayoutSwitch> done) override {
+        KeyboardLayoutSwitch result;
+        result.reason = "refused";
+        result.systemCode = 1400;  // ERROR_INVALID_WINDOW_HANDLE
+        done(std::move(result));
+    }
+};
+
+}  // namespace
+
+TEST_CASE("server: feature 004 keyboard layouts - recording stand-in, system.* results, test hooks",
+          "[server]") {
+    const std::regex iso_utc(R"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)");
+    SECTION("without test hooks: no provider -> noShell / unsupported, test.* not registered") {
+        ServerFixture f(false);
+        test::WsClient ws;
+        REQUIRE(ws.open(f.port(), f.ws_path()) == 101);
+        const json layouts = ws.call("system.keyboardLayouts")["result"];
+        CHECK(layouts ==
+              json{{"supported", false}, {"reason", "noShell"}, {"layouts", json::array()}});
+        CHECK(ws.call("system.activateKeyboardLayout", json{{"id", "00000419"}})["result"] ==
+              json{{"activated", false}, {"reason", "unsupported"}});
+        CHECK(ws.call("test.setKeyboardLayouts",
+                      json{{"layouts", json::array()}})["error"]["code"] == -32601);
+        CHECK(ws.call("test.keyboardLayoutRequests")["error"]["code"] == -32601);
+    }
+    SECTION("the recording stand-in: default seed, requests, reseed round trip") {
+        ServerFixture f(true);
+        test::WsClient ws;
+        REQUIRE(ws.open(f.port(), f.ws_path()) == 101);
+        // The default seed of rpc-api.md §5.
+        CHECK(ws.call("system.keyboardLayouts")["result"] ==
+              json{{"supported", true},
+                   {"layouts",
+                    {{{"id", "test-en"}, {"name", "English (United States)"}},
+                     {{"id", "test-ru"}, {"name", "Russian"}}}},
+                   {"current", "test-en"}});
+        CHECK(ws.call("test.keyboardLayoutRequests")["result"] == json::array());
+
+        // Requests are answered true for a seeded id, notInstalled otherwise, and recorded.
+        CHECK(ws.call("system.activateKeyboardLayout", json{{"id", "test-ru"}})["result"] ==
+              json{{"activated", true}});
+        CHECK(ws.call("system.activateKeyboardLayout", json{{"id", "test-de"}})["result"] ==
+              json{{"activated", false}, {"reason", "notInstalled"}});
+        json requests = ws.call("test.keyboardLayoutRequests")["result"];
+        REQUIRE(requests.size() == 2);
+        CHECK(requests[0]["id"] == "test-ru");
+        CHECK(requests[0]["activated"] == true);
+        CHECK(std::regex_match(requests[0]["at"].get<std::string>(), iso_utc));
+        CHECK(requests[0].size() == 3);
+        CHECK(requests[1]["id"] == "test-de");
+        CHECK(requests[1]["activated"] == false);
+
+        // invalidParams {field: "id"} for a missing, empty or non-string id - nothing recorded.
+        for (const json& params : {json::object(), json{{"id", ""}}, json{{"id", 419}}}) {
+            const json bad = ws.call("system.activateKeyboardLayout", params);
+            CHECK(bad["error"]["code"] == -32602);
+            CHECK(bad["error"]["data"]["field"] == "id");
+        }
+        CHECK(ws.call("test.keyboardLayoutRequests")["result"].size() == 2);
+
+        // Reseed round trip, including supported:false with a reason (the Wayland case): the
+        // list comes back as seeded and a request answers unsupported.
+        CHECK(ws.call("test.setKeyboardLayouts", json{{"supported", false},
+                                                      {"reason", "wayland"},
+                                                      {"layouts", json::array()}})["result"] ==
+              json::object());
+        CHECK(ws.call("system.keyboardLayouts")["result"] ==
+              json{{"supported", false}, {"reason", "wayland"}, {"layouts", json::array()}});
+        CHECK(ws.call("system.activateKeyboardLayout", json{{"id", "test-ru"}})["result"] ==
+              json{{"activated", false}, {"reason", "unsupported"}});
+        CHECK(ws.call("test.keyboardLayoutRequests")["result"].size() == 3);
+
+        // A seed without test-ru: the Settings page shows "Russian (not installed)" and an open
+        // makes one request answered false.
+        CHECK(ws.call("test.setKeyboardLayouts",
+                      json{{"supported", true},
+                           {"layouts", {{{"id", "test-en"}, {"name", "English (United States)"}}}},
+                           {"current", "test-en"}})["result"] == json::object());
+        CHECK(ws.call("system.keyboardLayouts")["result"]["layouts"].size() == 1);
+        CHECK(ws.call("system.activateKeyboardLayout", json{{"id", "test-ru"}})["result"] ==
+              json{{"activated", false}, {"reason", "notInstalled"}});
+        // A malformed seed is refused and leaves the previous one in place.
+        CHECK(ws.call("test.setKeyboardLayouts", json{{"layouts", "ru"}})["error"]["code"] ==
+              -32602);
+        CHECK(ws.call("test.setKeyboardLayouts",
+                      json{{"layouts", {{{"name", "no id"}}}}})["error"]["code"] == -32602);
+        CHECK(ws.call("system.keyboardLayouts")["result"]["layouts"].size() == 1);
+    }
+    SECTION("a shell whose system refuses: the core logs keyboard.switchRefused, no error") {
+        ServerFixture f(false);
+        f.server->set_keyboard_layout_provider(std::make_shared<RefusingKeyboardLayoutProvider>());
+        test::WsClient ws;
+        REQUIRE(ws.open(f.port(), f.ws_path()) == 101);
+        CHECK(ws.call("system.keyboardLayouts")["result"]["current"] == "00000409");
+        CHECK(ws.call("system.activateKeyboardLayout", json{{"id", "00000419"}})["result"] ==
+              json{{"activated", false}, {"reason", "refused"}});
+        const std::string log_text = test::read_text(f.data.path() / "logs" / "mfbe-errors.log");
+        CHECK(log_text.find("\"code\":\"keyboard.switchRefused\"") != std::string::npos);
+        CHECK(log_text.find("\"id\":\"00000419\"") != std::string::npos);
+        CHECK(log_text.find("\"systemCode\":\"1400\"") != std::string::npos);
+        CHECK(log_text.find("\"platform\":\"" + platform::platform_name() + "\"") !=
+              std::string::npos);
+        // A shell with a real provider under --test-hooks: the stand-in is no longer the provider
+        // in effect, so the test.* methods answer 1050 dialog.unavailable (rpc-api.md §5).
+        ServerFixture hooks(true);
+        hooks.server->set_keyboard_layout_provider(
+            std::make_shared<RefusingKeyboardLayoutProvider>());
+        test::WsClient ws2;
+        REQUIRE(ws2.open(hooks.port(), hooks.ws_path()) == 101);
+        CHECK(ws2.call("system.activateKeyboardLayout", json{{"id", "x"}})["result"]["reason"] ==
+              "refused");
+        const json inactive = ws2.call("test.keyboardLayoutRequests");
+        CHECK(inactive["error"]["code"] == 1050);
+        CHECK(inactive["error"]["message"] == "dialog.unavailable");
+        CHECK(ws2.call("test.setKeyboardLayouts",
+                       json{{"layouts", json::array()}})["error"]["code"] == 1050);
     }
 }
 

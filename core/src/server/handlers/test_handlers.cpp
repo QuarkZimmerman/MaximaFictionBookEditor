@@ -1,7 +1,8 @@
 // test.* handlers (T025) - compiled only with MFBE_TEST_HOOKS, registered only with
 // --test-hooks: test.enqueueDialog, test.corpusSample, test.metrics, test.injectFault,
 // test.enqueueClipboardImage; feature 002: test.dialogRequests, test.beeps,
-// test.enqueueRelease; feature 003: test.requests, test.restartRequests, test.requestClose.
+// test.enqueueRelease; feature 003: test.requests, test.restartRequests, test.requestClose;
+// feature 004: test.setKeyboardLayouts, test.keyboardLayoutRequests.
 #ifdef MFBE_TEST_HOOKS
 
 #include "server/services.hpp"
@@ -14,6 +15,7 @@
 
 #include <map>
 #include <mutex>
+#include <stdexcept>
 #include <thread>
 
 namespace mfbe::server {
@@ -135,6 +137,42 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
         ctx.notifier.notify("app.closeRequested", json::object());
         return json::object();
     });
+
+    // The recording stand-in answers the test methods only while it is the provider in effect:
+    // a shell that attached its own provider (the CEF shell under --test-hooks) makes them 1050.
+    const auto recording_layouts =
+        [&services]() -> std::shared_ptr<RecordingKeyboardLayoutProvider> {
+        if (!services.recording_layouts ||
+            services.keyboard_layouts() != services.recording_layouts) {
+            throw rpc::RpcError(rpc::codes::kDialogUnavailable, "",
+                                json{{"reason", "recording keyboard layout provider not active"}});
+        }
+        return services.recording_layouts;
+    };
+
+    // test.setKeyboardLayouts({supported, reason?, layouts: [{id, name}], current?}) -> {}:
+    // reseeds the recording keyboard layout stand-in (feature 004 US11); 1050 when a shell with
+    // a real provider is attached instead.
+    router.add_method("test.setKeyboardLayouts",
+                      [recording_layouts](const json& params, rpc::RpcContext&) {
+                          auto provider = recording_layouts();
+                          KeyboardLayoutList list;
+                          try {
+                              list = keyboard_layout_list_from_json(rpc::params::object(params));
+                          } catch (const std::invalid_argument& e) {
+                              throw rpc::invalid_params(e.what());
+                          }
+                          provider->seed(std::move(list));
+                          return json::object();
+                      });
+
+    // test.keyboardLayoutRequests() -> [{id, at, activated}]: every system.activateKeyboardLayout
+    // the stand-in received since start, so journeys assert "exactly one request per document
+    // opened, none with the option off" (SC-011).
+    router.add_method("test.keyboardLayoutRequests",
+                      [recording_layouts](const json&, rpc::RpcContext&) {
+                          return json(recording_layouts()->requests());
+                      });
 
     router.add_async_method(
         "test.corpusSample", [](const json& params, rpc::RpcContext&, rpc::Responder respond) {

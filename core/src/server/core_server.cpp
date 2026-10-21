@@ -243,6 +243,16 @@ void Services::set_clipboard_provider(std::shared_ptr<ClipboardProvider> provide
     clipboard_ = std::move(provider);
 }
 
+std::shared_ptr<KeyboardLayoutProvider> Services::keyboard_layouts() const {
+    std::lock_guard<std::mutex> lock(dialog_mutex_);
+    return keyboard_layouts_;
+}
+
+void Services::set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvider> provider) {
+    std::lock_guard<std::mutex> lock(dialog_mutex_);
+    keyboard_layouts_ = std::move(provider);
+}
+
 std::int64_t Services::uptime_ms() const {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
                                                                  started_at)
@@ -365,6 +375,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_spell_handlers(router, *services);
         server::register_words_handlers(router, *services);
         server::register_scripts_handlers(router, *services);
+        server::register_system_handlers(router, *services);
 #ifdef MFBE_TEST_HOOKS
         if (services->test_hooks) {
             server::register_test_handlers(router, *services);
@@ -409,6 +420,8 @@ std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) 
         services.set_dialog_provider(services.queued_dialogs);
         services.queued_clipboard = std::make_shared<QueuedClipboardProvider>();
         services.set_clipboard_provider(services.queued_clipboard);
+        services.recording_layouts = std::make_shared<RecordingKeyboardLayoutProvider>();
+        services.set_keyboard_layout_provider(services.recording_layouts);
     }
 #else
     if (options.test_hooks) {
@@ -490,6 +503,12 @@ void CoreServer::set_dialog_provider(std::shared_ptr<DialogProvider> provider) {
 void CoreServer::set_clipboard_provider(std::shared_ptr<ClipboardProvider> provider) {
     if (impl_->services) {
         impl_->services->set_clipboard_provider(std::move(provider));
+    }
+}
+
+void CoreServer::set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvider> provider) {
+    if (impl_->services) {
+        impl_->services->set_keyboard_layout_provider(std::move(provider));
     }
 }
 

@@ -406,6 +406,41 @@ export interface ReleaseInfo {
 export type MessageButtonSet =
   'ok' | 'okCancel' | 'yesNo' | 'yesNoCancel' | 'abortRetryIgnore' | 'close';
 
+/** One keyboard layout the system offers for switching (feature 004, rpc-api.md §3.11). */
+export interface KeyboardLayout {
+  /** The shell's stable identifier: Windows KLID `00000419`, macOS input source id, X11 group name. */
+  id: string;
+  /** What the system shows for it. */
+  name: string;
+}
+
+/** `system.keyboardLayouts()` result: `supported: false` comes with a `reason` and no layouts. */
+export interface KeyboardLayoutList {
+  supported: boolean;
+  reason?: 'wayland' | 'noDisplay' | 'noShell' | 'unsupported';
+  layouts: KeyboardLayout[];
+  /** The active layout's id when the platform can tell. */
+  current?: string;
+}
+
+/**
+ * `system.activateKeyboardLayout` result - a result, never an error: `notInstalled` (not in the
+ * current list), `refused` (the system declined; the core logged it), `unsupported` (no provider
+ * or no switch on this platform); `activated: false` without a reason when the request completed
+ * but the system kept its own choice (macOS, best effort).
+ */
+export interface KeyboardLayoutSwitch {
+  activated: boolean;
+  reason?: 'notInstalled' | 'refused' | 'unsupported';
+}
+
+/** A recorded `system.activateKeyboardLayout` request of the test stand-in (`at` ISO 8601 UTC). */
+export interface KeyboardLayoutRequest {
+  id: string;
+  at: string;
+  activated: boolean;
+}
+
 export type MessageButtonId =
   'ok' | 'cancel' | 'yes' | 'no' | 'abort' | 'retry' | 'ignore' | 'close';
 
@@ -657,6 +692,16 @@ export interface RpcMethods {
     result: Empty;
   };
 
+  // §3.11 system (shell-delegated; feature 004)
+  /** The keyboard layouts the system offers, read afresh; `noShell` without a provider. */
+  'system.keyboardLayouts': { params: void; result: KeyboardLayoutList };
+  /**
+   * Switches the editor's window to the layout `id` when the system lists it (FR-091); called
+   * once per document opened when `other.switchKeyboardLayout` is on. `invalidParams` for a
+   * missing or empty `id`; every other outcome is a result.
+   */
+  'system.activateKeyboardLayout': { params: { id: string }; result: KeyboardLayoutSwitch };
+
   // §5 development/test-only
   'test.enqueueDialog': { params: { method: string; result: unknown }; result: Empty };
   'test.corpusSample': { params: { count: number; seed: number }; result: { paths: string[] } };
@@ -676,6 +721,10 @@ export interface RpcMethods {
   'test.restartRequests': { params: void; result: { reopen?: string; argv: string[] }[] };
   /** Emits `app.closeRequested` exactly as the shell's close handshake does (feature 003). */
   'test.requestClose': { params: void; result: Empty };
+  /** Reseeds the recording keyboard layout stand-in of `--test-hooks` (feature 004). */
+  'test.setKeyboardLayouts': { params: KeyboardLayoutList; result: Empty };
+  /** Every `system.activateKeyboardLayout` the stand-in received since start (feature 004). */
+  'test.keyboardLayoutRequests': { params: void; result: KeyboardLayoutRequest[] };
 }
 
 export type RpcMethodName = keyof RpcMethods;
