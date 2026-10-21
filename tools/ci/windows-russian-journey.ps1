@@ -8,6 +8,14 @@
 #   - Save (F2, the original editor's key; Ctrl+S has no command) rewrites the book in place;
 #   - View > Status Bar, chosen with the Russian accelerators (Alt+В, С), hides the status bar and
 #     settings.json records it;
+#   - File > New, the author "Толстой Лев Николаевич" and the title "Война и мир" typed into the
+#     Description view, then Save As (Shift+F2): the native Save dialog - reached through UI
+#     Automation, as the DevTools protocol never sees it - proposes exactly
+#     "Толстой Лев - Война и мир.fb2" in its name box (feature 004 FR-050), and Save writes the
+#     file under exactly that name in the user's Documents folder, which the window title and
+#     recent.json (byte for byte, UTF-8) show too; a second Save As with "Новая книга.fb2" typed
+#     into the name box comes out the same way (FR-051, SC-006). Without UI Automation the
+#     dialog is driven with SendKeys and only the disk is checked;
 #   - the window's close button (WM_CLOSE to the main window) with a modified document asks
 #     "Save changes?" (feature 003 FR-017): Cancel keeps the editor open and the document
 #     modified, a second close request asks again at once, No ends the editor with exit code 0;
@@ -17,10 +25,11 @@
 #     switched to English in Settings and Yes answered, the editor ends with exit code 0 and a new
 #     mfbe.exe process - started with --wait-for-exit <old pid>, --window-geometry and the book -
 #     comes up with the book open and the interface English; File > Exit (F10, Down, X) ends it;
-#   - recent.json lists the book's path byte for byte in UTF-8;
-#   - no folder appeared under C:\Users or C:\ or next to the book, the installed copy wrote
-#     nothing into its program folder (a portable copy may write into its own), and the profile
-#     holds no folder of the editor's other than the installed copy's two in AppData.
+#   - recent.json lists the book's path byte for byte in UTF-8, and the two files Save As wrote;
+#   - no folder appeared under C:\Users or C:\, nothing but those two files appeared next to the
+#     book's folder, the installed copy wrote nothing into its program folder (a portable copy
+#     may write into its own), and the profile holds no folder of the editor's other than the
+#     installed copy's two in AppData.
 #
 # -Exe runs an installed copy, which keeps settings.json and recent.json in the user's profile;
 # -Zip unpacks the portable ZIP into the user's Downloads folder and runs that copy, which keeps
@@ -47,6 +56,19 @@ $bookTitle = (Text 0x0421, 0x043E, 0x0432, 0x0440, 0x0435, 0x043C, 0x0435, 0x043
     (Text 0x043A, 0x043D, 0x0438, 0x0433, 0x0430)
 $bookName = "$bookTitle.fb2"
 $appName = 'Maxima Fiction Book Editor'
+# The description typed into the new document (feature 004 US6): "Толстой" / "Лев" /
+# "Николаевич" and "Война и мир"; the name Save As must propose from it, "Толстой Лев - Война и
+# мир.fb2" (FR-050), and the name typed into the dialog afterwards, "Новая книга.fb2".
+$authorLast = Text 0x0422, 0x043E, 0x043B, 0x0441, 0x0442, 0x043E, 0x0439
+$authorFirst = Text 0x041B, 0x0435, 0x0432
+$authorMiddle = Text 0x041D, 0x0438, 0x043A, 0x043E, 0x043B, 0x0430, 0x0435, 0x0432, 0x0438, 0x0447
+$newBookTitle = Text 0x0412, 0x043E, 0x0439, 0x043D, 0x0430, 0x0020, 0x0438, 0x0020, 0x043C, 0x0438, 0x0440
+$proposedName = "$authorLast $authorFirst - $newBookTitle.fb2"
+$typedName = (Text 0x041D, 0x043E, 0x0432, 0x0430, 0x044F, 0x0020, 0x043A, 0x043D, 0x0438, 0x0433, 0x0430) + '.fb2'
+# "Без имени" (app.untitled) and "Сохранить как" (cmd.file.saveAs.tooltip, the Save As dialog's
+# title) of the Russian interface (ui/src/i18n/ru.json).
+$untitled = Text 0x0411, 0x0435, 0x0437, 0x0020, 0x0438, 0x043C, 0x0435, 0x043D, 0x0438
+$saveAsTitle = Text 0x0421, 0x043E, 0x0445, 0x0440, 0x0430, 0x043D, 0x0438, 0x0442, 0x044C, 0x0020, 0x043A, 0x0430, 0x043A
 # Keys of the Russian keyboard layout that type the interface's accelerators (ui/src/i18n/ru.json):
 # В of "&Вид" (View) and "&Выход" (File > Exit), С of "&Строка состояния" (View > Status Bar).
 $keyVe = @{ key = (Text 0x0432); code = 'KeyD'; windowsVirtualKeyCode = 0x44 }
@@ -331,6 +353,200 @@ function Press-Element([string]$TestId) {
 "@
 }
 
+# Types $Value into the Description field $TestId as the keyboard does (Input.insertText, the
+# page's own input events) and leaves the field, which commits it to the document.
+function Set-DescriptionField([string]$TestId, [string]$Value) {
+    Wait-Until "the field $TestId" { Test-Element $TestId }
+    $null = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"$TestId`"]').focus(); true"
+    $null = Invoke-Cdp $script:cdp 'Input.insertText' @{ text = $Value }
+    Wait-Until "the field $TestId holding the typed text" {
+        (Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"$TestId`"]').value") -ceq $Value
+    }
+    $null = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"$TestId`"]').blur(); true"
+}
+
+# UI Automation reaches the native Save As dialog, which the shell shows itself and the DevTools
+# protocol never sees. The assemblies ship with PowerShell on Windows; without them the dialog is
+# driven with SendKeys instead (Use-SendKeysFallback).
+$script:uia = $false
+try {
+    Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes -ErrorAction Stop
+    $script:uia = $true
+} catch {
+    Write-Host "UI Automation unavailable, the Save dialog will be driven with SendKeys: $($_.Exception.Message)"
+}
+
+function New-UiaCondition($Property, $Value) {
+    New-Object System.Windows.Automation.PropertyCondition($Property, $Value)
+}
+
+function New-UiaAndCondition($First, $Second) {
+    [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@($First, $Second))
+}
+
+# The top-level window titled $Title of the editor's process, within $Seconds; the process id
+# is the main process's, which shows the dialog on its UI thread.
+function Wait-UiaWindow([string]$Title, [int]$Seconds = 30) {
+    $root = [System.Windows.Automation.AutomationElement]::RootElement
+    $byTitle = New-UiaCondition ([System.Windows.Automation.AutomationElement]::NameProperty) $Title
+    $byProcess = New-UiaCondition ([System.Windows.Automation.AutomationElement]::ProcessIdProperty) ([int]$script:editor.Id)
+    $ofEditor = New-UiaAndCondition $byProcess $byTitle
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    while ($true) {
+        $window = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $ofEditor)
+        if ($window) { return $window }
+        if ($script:editor.HasExited) {
+            throw ('the editor ended (exit code 0x{0:X8}) while waiting for the window ''{1}''' -f $script:editor.ExitCode, $Title)
+        }
+        if ((Get-Date) -gt $deadline) {
+            $any = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $byTitle)
+            $seen = if ($any) { "a window '$Title' belongs to process $($any.Current.ProcessId), not to the editor ($($script:editor.Id))" } else { "no window '$Title' on the desktop" }
+            throw "timed out after $Seconds s waiting for the window '$Title' ($seen)"
+        }
+        Start-Sleep -Milliseconds 250
+    }
+}
+
+function Wait-UiaWindowGone([string]$Title, [int]$Seconds = 30) {
+    $root = [System.Windows.Automation.AutomationElement]::RootElement
+    $byTitle = New-UiaCondition ([System.Windows.Automation.AutomationElement]::NameProperty) $Title
+    $byProcess = New-UiaCondition ([System.Windows.Automation.AutomationElement]::ProcessIdProperty) ([int]$script:editor.Id)
+    $ofEditor = New-UiaAndCondition $byProcess $byTitle
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    while ($root.FindFirst([System.Windows.Automation.TreeScope]::Children, $ofEditor)) {
+        if ((Get-Date) -gt $deadline) { throw "the window '$Title' is still open after $Seconds s" }
+        Start-Sleep -Milliseconds 250
+    }
+}
+
+# The file-name box of the Common Item Dialog: the Edit under the ComboBox with AutomationId
+# 1001 (the box itself when the Edit is not exposed; both answer the Value pattern).
+function Get-UiaFileNameBox($Dialog) {
+    $byId = New-UiaCondition ([System.Windows.Automation.AutomationElement]::AutomationIdProperty) '1001'
+    $isEdit = New-UiaCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit)
+    $edit = $Dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-UiaAndCondition $byId $isEdit))
+    if ($edit) { return $edit }
+    $box = $Dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $byId)
+    if (-not $box) { throw 'the file-name box (AutomationId 1001) was not found in the Save dialog' }
+    $inner = $box.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $isEdit)
+    if ($inner) { return $inner }
+    $box
+}
+
+function Get-UiaValue($Element) {
+    $Element.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+}
+
+function Set-UiaValue($Element, [string]$Value) {
+    $Element.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
+}
+
+# The Save button (AutomationId 1, IDOK) pressed through its Invoke pattern.
+function Invoke-UiaSave($Dialog) {
+    $byId = New-UiaCondition ([System.Windows.Automation.AutomationElement]::AutomationIdProperty) '1'
+    $isButton = New-UiaCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Button)
+    $save = $Dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-UiaAndCondition $byId $isButton))
+    if (-not $save) { throw 'the Save button (AutomationId 1) was not found in the Save dialog' }
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+}
+
+# Without UI Automation: the dialog is activated by its title and driven with SendKeys - Enter
+# accepts the proposed name; a typed name is pasted from the clipboard (SendKeys types through
+# the active keyboard layout, the clipboard carries any letters). The name box cannot be read
+# this way: the disk tells what the dialog proposed.
+function Use-SendKeysFallback([string]$Title, [string]$TypedName) {
+    $shell = New-Object -ComObject WScript.Shell
+    Wait-Until "the window '$Title'" { $shell.AppActivate($Title) } 30
+    Start-Sleep -Milliseconds 500
+    if ($TypedName) {
+        Set-Clipboard -Value $TypedName
+        $shell.SendKeys('^a')
+        Start-Sleep -Milliseconds 200
+        $shell.SendKeys('^v')
+        Start-Sleep -Milliseconds 500
+    }
+    $shell.SendKeys('{ENTER}')
+}
+
+# Save As (Shift+F2) of the open document through the native dialog: with UI Automation the name
+# box must read $ExpectedName before anything is typed, then $TypedName (when given) replaces it
+# and Save is pressed; $Target must then exist, the document get a clean title with its name,
+# and recent.json list its path first - byte for byte in UTF-8.
+function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [string]$Target) {
+    if (Test-Path -LiteralPath $Target) { throw "$Target exists before Save As" }
+    Send-CdpKey $script:cdp $keyF2 -Modifiers 8
+    # The dialog is modal on the shell's UI thread: no DevTools call until it has closed.
+    if ($script:uia) {
+        $dialog = Wait-UiaWindow $saveAsTitle
+        $box = Get-UiaFileNameBox $dialog
+        $shown = Get-UiaValue $box
+        Write-Host "journey: the Save dialog proposes '$shown'"
+        if ($shown -cne $ExpectedName) { throw "the Save dialog proposes '$shown', not '$ExpectedName'" }
+        if ($TypedName) {
+            Set-UiaValue $box $TypedName
+            $typed = Get-UiaValue $box
+            if ($typed -cne $TypedName) { throw "the name box reads '$typed' after typing '$TypedName'" }
+        }
+        Invoke-UiaSave $dialog
+        Wait-UiaWindowGone $saveAsTitle
+    } else {
+        Use-SendKeysFallback $saveAsTitle $TypedName
+    }
+    # A new document's description is incomplete: Save asks whether to save anyway (Yes).
+    Wait-Until 'the file written or the validation prompt' {
+        (Test-Path -LiteralPath $Target) -or (Test-Element 'dialog-validation-failed')
+    }
+    if (Test-Element 'dialog-validation-failed') { Click-Element 'dialog-validation-failed-button-yes' }
+    $savedName = Split-Path -Leaf $Target
+    Wait-Until "the file '$Target'" { Test-Path -LiteralPath $Target }
+    $folder = Split-Path -Parent $Target
+    $listed = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -ceq $savedName })
+    if ($listed.Count -ne 1) { throw "'$savedName' is not listed in $folder as such ($(@(Get-ChildItem -LiteralPath $folder -File | ForEach-Object { $_.Name }) -join ', '))" }
+    Wait-Until "the window title starting with '$savedName'" {
+        (Get-CdpValue $script:cdp 'document.title').StartsWith("$savedName - ", [StringComparison]::Ordinal)
+    }
+    Wait-Until "the window's own title starting with '$savedName'" {
+        $script:editor.Refresh()
+        $script:editor.MainWindowTitle.StartsWith("$savedName - ", [StringComparison]::Ordinal)
+    }
+    Wait-Until "recent.json listing '$Target' first" {
+        $recent = Read-Json $recentFile
+        $recent -and (@($recent.items)[0].path -ceq $Target)
+    }
+    $quoted = '"' + $Target.Replace('\', '\\') + '"'
+    if (-not (Test-Bytes ([IO.File]::ReadAllBytes($recentFile)) ([Text.Encoding]::UTF8.GetBytes($quoted)))) {
+        throw "recent.json does not hold '$Target' in UTF-8 ($recentFile)"
+    }
+    if (-not (Test-Bytes ([IO.File]::ReadAllBytes($Target)) ([Text.Encoding]::UTF8.GetBytes("<book-title>$newBookTitle</book-title>")))) {
+        throw "the saved file does not hold the book title in UTF-8 ($Target)"
+    }
+    Write-Host "journey: saved '$Target' through the native dialog"
+}
+
+# Feature 004 US6: File > New, the author and title typed into the Description view, Save As
+# proposing "Толстой Лев - Война и мир.fb2" and writing exactly that name into Documents; then
+# Save As again with "Новая книга.fb2" typed into the dialog.
+function Save-NewDocumentThroughDialog {
+    Press-Element 'menu-file'
+    Wait-Until 'the File menu open' { Test-Element 'menu-file-new' }
+    Click-Element 'menu-file-new'
+    Wait-Until "the new document '$untitled'" {
+        (Get-CdpValue $script:cdp 'document.title').StartsWith("$untitled - ", [StringComparison]::Ordinal)
+    }
+    Click-Element 'view-description'
+    Wait-Until 'the Description view' { Test-Element 'description-book-title' }
+    Set-DescriptionField 'description-author-0-last' $authorLast
+    Set-DescriptionField 'description-author-0-first' $authorFirst
+    Set-DescriptionField 'description-author-0-middle' $authorMiddle
+    Set-DescriptionField 'description-book-title' $newBookTitle
+    Save-ThroughNativeDialog $proposedName '' (Join-Path $documentsFolder $proposedName)
+    # A saved document proposes its own file (FR-053); the typed name replaces it.
+    Save-ThroughNativeDialog $proposedName $typedName (Join-Path $documentsFolder $typedName)
+    # Back to the Body view, where the steps that follow edit the text.
+    Click-Element 'view-body'
+    Wait-Until 'the Body view' { Test-Element 'body-editor' }
+}
+
 
 # "Restart now?" restarts the editor (feature 003 US3, FR-020 to FR-022): Settings > View >
 # Language = English, OK, Yes. The running editor ends with exit code 0, and the new process it
@@ -428,6 +644,12 @@ Copy-Item -LiteralPath $Book -Destination $bookPath
 $planted = [datetime]::new(2001, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
 (Get-Item -LiteralPath $bookPath).LastWriteTimeUtc = $planted
 $documentsFolder = Split-Path -Parent $booksFolder
+# The files Save As writes into Documents (feature 004 US6), from an earlier call of this script
+# as well: the dialog would ask about overwriting them.
+$savedFiles = @((Join-Path $documentsFolder $proposedName), (Join-Path $documentsFolder $typedName))
+foreach ($file in $savedFiles) {
+    if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file -Force }
+}
 $documentsBefore = Get-Entries $documentsFolder
 $programBefore = @(if ($programFolder) { Get-Entries $programFolder -Recurse })
 $settingsFile = Join-Path $dataFolder 'settings.json'
@@ -453,6 +675,10 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
     Send-CdpKey $script:cdp $keyEs
     Wait-Until 'the status bar hidden' { -not (Test-Element 'statusbar') }
     Wait-Until 'the hidden status bar in settings.json' { (Read-Json $settingsFile).session.toolbars.status -eq $false }
+
+    # A new document saved through the native Save dialog under the proposed and under a typed
+    # Cyrillic name (feature 004 US6).
+    Save-NewDocumentThroughDialog
 
     # The window's close button with a modified document runs the Exit flow (FR-017).
     Close-EditorThroughWindow
@@ -495,6 +721,16 @@ $quotedPath = '"' + $bookPath.Replace('\', '\\') + '"'
 if (-not (Test-Bytes ([IO.File]::ReadAllBytes($recentFile)) ([Text.Encoding]::UTF8.GetBytes($quotedPath)))) {
     throw "recent.json does not hold the book's path in UTF-8 ($recentFile)"
 }
+# The two files Save As wrote (feature 004 US6) are still listed, byte for byte, and are on disk
+# under exactly their names.
+foreach ($file in $savedFiles) {
+    if (@($recent.items).path -cnotcontains $file) { throw "recent.json does not list '$file' ($recentFile)" }
+    $quoted = '"' + $file.Replace('\', '\\') + '"'
+    if (-not (Test-Bytes ([IO.File]::ReadAllBytes($recentFile)) ([Text.Encoding]::UTF8.GetBytes($quoted)))) {
+        throw "recent.json does not hold '$file' in UTF-8 ($recentFile)"
+    }
+    if (-not (Test-Path -LiteralPath $file)) { throw "the saved file '$file' is gone" }
+}
 
 $allowed = @($usersBefore) + (Split-Path -Leaf $profileDir)
 $unexpected = @(Get-UserFolders | Where-Object { $_ -notin $allowed })
@@ -502,7 +738,9 @@ if ($unexpected.Count -gt 0) { throw "folders appeared under C:\Users: $($unexpe
 $unexpected = @(Get-ChildItem -LiteralPath 'C:\' -Force -Directory | ForEach-Object { $_.Name } |
     Where-Object { $_ -notin $rootBefore })
 if ($unexpected.Count -gt 0) { throw "folders appeared under C:\: $($unexpected -join ', ')" }
-$unexpected = @(Get-Entries $documentsFolder | Where-Object { $_ -notin $documentsBefore })
+# Next to the book's folder: nothing but the two files Save As wrote, under exactly their names.
+$savedEntries = @($savedFiles | ForEach-Object { $_.Substring($documentsFolder.Length) })
+$unexpected = @(Get-Entries $documentsFolder | Where-Object { $_ -notin $documentsBefore -and $_ -cnotin $savedEntries })
 if ($unexpected.Count -gt 0) { throw "entries appeared next to the book's folder: $($unexpected -join ', ')" }
 $inBooks = @(Get-Entries $booksFolder)
 if ($inBooks.Count -ne 1 -or $inBooks[0] -cne "\$bookName") { throw "the book's folder holds: $($inBooks -join ', ')" }
