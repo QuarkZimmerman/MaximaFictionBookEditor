@@ -469,10 +469,13 @@ function Use-SendKeysFallback([string]$Title, [string]$TypedName) {
 }
 
 # Save As (Shift+F2) of the open document through the native dialog: with UI Automation the name
-# box must read $ExpectedName before anything is typed, then $TypedName (when given) replaces it
-# and Save is pressed; $Target must then exist, the document get a clean title with its name,
-# and recent.json list its path first - byte for byte in UTF-8.
-function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [string]$Target) {
+# box must read $ExpectedName before anything is typed - or, with -AllowHiddenExtension, the
+# name without its extension, which Explorer's "hide extensions for known file types" takes
+# off the current file's name once the installer has registered .fb2 - then $TypedName (when
+# given) replaces it and Save is pressed; $Target must then exist, the document get a clean
+# title with its name, and recent.json list its path first - byte for byte in UTF-8.
+function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [string]$Target,
+                                  [switch]$AllowHiddenExtension) {
     if (Test-Path -LiteralPath $Target) { throw "$Target exists before Save As" }
     Send-CdpKey $script:cdp $keyF2 -Modifiers 8
     # The dialog is modal on the shell's UI thread: no DevTools call until it has closed.
@@ -481,7 +484,9 @@ function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [st
         $box = Get-UiaFileNameBox $dialog
         $shown = Get-UiaValue $box
         Write-Host "journey: the Save dialog proposes '$shown'"
-        if ($shown -cne $ExpectedName) { throw "the Save dialog proposes '$shown', not '$ExpectedName'" }
+        $accepted = @($ExpectedName)
+        if ($AllowHiddenExtension) { $accepted += [IO.Path]::GetFileNameWithoutExtension($ExpectedName) }
+        if ($shown -cnotin $accepted) { throw "the Save dialog proposes '$shown', not '$ExpectedName'" }
         if ($TypedName) {
             Set-UiaValue $box $TypedName
             $typed = Get-UiaValue $box
@@ -541,7 +546,7 @@ function Save-NewDocumentThroughDialog {
     Set-DescriptionField 'description-book-title' $newBookTitle
     Save-ThroughNativeDialog $proposedName '' (Join-Path $documentsFolder $proposedName)
     # A saved document proposes its own file (FR-053); the typed name replaces it.
-    Save-ThroughNativeDialog $proposedName $typedName (Join-Path $documentsFolder $typedName)
+    Save-ThroughNativeDialog $proposedName $typedName (Join-Path $documentsFolder $typedName) -AllowHiddenExtension
     # Back to the Body view, where the steps that follow edit the text.
     Click-Element 'view-body'
     Wait-Until 'the Body view' { Test-Element 'body-editor' }
