@@ -34,18 +34,18 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('file.validate'),
       sep,
       {
+        // The description import of feature 004 (FR-030) in place of the plugin placeholder.
         kind: 'submenu',
         id: 'import',
         labelKey: 'menu.file.import',
-        dynamic: 'import',
-        items: [{ kind: 'placeholder', id: 'none', labelKey: 'menu.file.noImportPlugins' }],
+        items: [cmd('file.importDescription')],
       },
       {
+        // The FBD export of feature 004 (FR-040) in place of the plugin placeholder.
         kind: 'submenu',
         id: 'export',
         labelKey: 'menu.file.export',
-        dynamic: 'export',
-        items: [{ kind: 'placeholder', id: 'none', labelKey: 'menu.file.noExportPlugins' }],
+        items: [cmd('file.exportFbd')],
       },
       sep,
       {

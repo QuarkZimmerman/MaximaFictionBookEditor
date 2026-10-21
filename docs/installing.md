@@ -130,6 +130,12 @@ Notes:
 - **Portable mode.** Create a folder named `MaximaFictionBookEditor-<version>-x86_64.AppImage.home`
   next to the file: settings and user data then live in that folder's `user/` sub-folder
   instead of your home directory (see [User folders](#user-folders)).
+- **Known limitation - the file type in the Save dialog.** The Save As and Export dialogs
+  are the desktop's GTK file chooser, and it does not rename the extension of the proposed
+  name when you switch the file type: Save As proposes `Last name First name - Book
+  title.fb2` (or the current file's name); if you then pick "FictionBook descriptors
+  (*.fbd)" and keep the name, the file is saved as `.fb2`. Change the extension in the name
+  box yourself (`.fbd`). This applies to all three Linux packages.
 
 ### Uninstall
 
@@ -206,7 +212,7 @@ own folder instead (see *Portable folder* below):
 
 | Purpose | Windows | Linux | macOS |
 |---------|---------|-------|-------|
-| Configuration: `settings.json`, `hotkeys.json`, `recent.json`, `exclusions.txt` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_CONFIG_HOME/maxfbeditor/` (default `~/.config/maxfbeditor/`) | `~/Library/Application Support/Maxima Fiction Book Editor/` |
+| Configuration: `settings.json`, `hotkeys.json`, `recent.json`, `positions.json` (the places "Restore position" remembers, the 100 most recently remembered files), `exclusions.txt` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_CONFIG_HOME/maxfbeditor/` (default `~/.config/maxfbeditor/`) | `~/Library/Application Support/Maxima Fiction Book Editor/` |
 | User content: custom dictionary `custom.dic`, your own template of new documents `blank.fb2`, user folders `genres/`, `scripts/`, `dictionaries/` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_DATA_HOME/maxfbeditor/` (default `~/.local/share/maxfbeditor/`) | same as configuration |
 | Machine-local state: errors-only log `logs/mfbe-errors.log` (5 x 1 MB, rotating), browser cache | `%LOCALAPPDATA%\Maxima Fiction Book Editor\` | `$XDG_STATE_HOME/maxfbeditor/` (default `~/.local/state/maxfbeditor/`) and `$XDG_DATA_HOME/maxfbeditor/cef/` | `~/Library/Logs/Maxima Fiction Book Editor/`, `~/Library/Application Support/Maxima Fiction Book Editor/cef/` |
 
@@ -288,6 +294,65 @@ folder is ignored (and listed as shadowed), the built-in Russian dictionary stay
 Books in the new language are then checked like any other - misspelt words are underlined,
 suggestions are offered, words can be added to your custom dictionary (`custom.dic`), and
 Tools > Spell check uses it.
+
+## Importing and exporting a description
+
+*File > Import > Description from FictionBook file...* takes the description of another
+FictionBook file - a `.fbd` description file, such as the ones the Maxima Library and the
+Maxima FBD Maker produce, or a complete `.fb2` book - into the open document; the file is read
+as Open reads a book (any encoding Open accepts, FB2 2.0 or 2.1, with or without a body; a file
+that is not well-formed or not a FictionBook document is refused with a message and nothing
+changes). Into a freshly created document whose description you have not touched, everything
+the file has is imported at once and the status bar says how many entries arrived. In every
+other case a dialog lists the entries about to be imported - genres, authors, book title,
+annotation, keywords, date, cover, language, source language, translators, sequences, the
+other persons' roles, the source title info, the document, publish and custom info entries -
+each with an unticked checkbox and its value, the cover shown as a small picture; tick what
+you want, and *Import* (disabled while nothing is ticked) replaces exactly those entries,
+every ticked list as a whole. The import is one undo step; the book's text, images and the
+entries you did not tick are untouched. The dialog opens in the folder Open and Save As last
+used.
+
+*File > Export > Export as FBD...* writes the description of the open document, as it is in
+the editor at that moment, saved or not, as a stand-alone `.fbd` file: the whole description
+with the cover and the other images it refers to, and one empty section in place of the
+book's text, so that the file passes FB2 2.1 validation. The file is always UTF-8 (no encoding
+choice), it is written only after validation - an incomplete description gets Save's own
+"export anyway?" question - and never over the open document's own file. The name proposed is
+the document's own with `.fbd`, or the proposed name of a never-saved document. The open
+document, its file and its Recent Files entry stay as they were; the exported file is not
+opened.
+
+## Keyboard layout
+
+If your system starts with one keyboard layout and your books are written in another, the
+editor can switch its own window to the layout you choose every time a document is opened -
+at start, with File > New, Open, Recent Files, a double-click or a file dropped on the window,
+the restart after a language change, the reload of a book that changed on disk. Open *Settings
+> Other*, tick **Switch keyboard layout when a document is opened** in the *Open File* group
+and pick the layout from the list; the list holds the layouts installed in the system under the
+names the system gives them and is read anew each time the dialog opens. The option is off by
+default. Nothing is installed or changed in the system: the editor asks for one of the layouts
+the system already offers, for its own window only; whether other windows follow is the
+system's rule (on Windows, *Let me set a different input method for each app window*). A layout
+you remove later is shown in Settings as "(not installed)" and ignored when a document opens;
+pick another to replace it.
+
+- **Windows**: works as described; the layout is active in the editor's window from the moment
+  the document is shown (the layout indicator in the taskbar changes while the editor is
+  focused).
+- **Linux, X11 session**: the session's layout groups are switched - what Alt+Shift (or the
+  switch you configured) does - so the whole session follows, as it does for any layout switch
+  under X11. The list is the groups of the session's keyboard configuration (`setxkbmap -query`
+  shows them).
+- **Linux, Wayland session**: the system offers an application no way to switch the layout, so
+  the option is shown greyed out with the note *The system offers no way to switch the layout*,
+  also when the editor's window is served through XWayland; the rest of the editor is
+  unaffected. Switching through the desktop's own input-source setting (GNOME, KDE) is a
+  possible later addition.
+- **macOS**: best effort - the editor selects the input source where the system allows; with
+  *Automatically switch to a document's input source* or for a window that is not active the
+  system may keep its own choice.
 
 ## Command line
 

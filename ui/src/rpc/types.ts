@@ -1,15 +1,23 @@
 /**
  * Typed surface of the core <-> UI JSON-RPC contract
  * (specs/001-maxima-fb2-editor/contracts/rpc-api.md, version 1, with the additive changes of
- * specs/002-tester-feedback-fixes/contracts/rpc-api.md, minor 1, and
- * specs/003-second-feedback-batch/contracts/rpc-api.md, minor 2).
+ * specs/002-tester-feedback-fixes/contracts/rpc-api.md, minor 1,
+ * specs/003-second-feedback-batch/contracts/rpc-api.md, minor 2, and
+ * specs/004-third-feedback-batch/contracts/rpc-api.md, minor 3).
  *
  * Every method of rpc-api.md §3 and §5 appears in `RpcMethods`; every notification of §4 in
  * `RpcNotifications`. Document types come from the shared model (`@/model/document`).
  * Change the contract first, then this file, then the C++ handler table.
  */
 
-import type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
+import type {
+  BinaryMeta,
+  Description,
+  Document,
+  DocumentInfo,
+  ValidationIssue,
+  ValidationReport,
+} from '@/model/document';
 
 export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
 
@@ -18,7 +26,7 @@ export const RPC_API_VERSION = 1;
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
  * revision this UI was written for; it accepts any core answering minor >= 1 (rpc-api.md §6).
  */
-export const RPC_API_MINOR = 2;
+export const RPC_API_MINOR = 3;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -37,6 +45,10 @@ export const RpcErrorCode = {
   docIoError: 1002,
   docSourceMalformed: 1003,
   docNotFictionBook: 1004,
+  /** `doc.mapPositions`: `serial` is not the session's current position map (feature 004). */
+  docPositionsStale: 1005,
+  /** `doc.exportDescription`: the target is the open document's own file (feature 004). */
+  docSameAsOpenFile: 1006,
   binaryNotFound: 1010,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
@@ -98,6 +110,10 @@ export type VersionCheckSchedule = 'everyStart' | 'daily' | 'weekly' | 'monthly'
 
 export type Platform = 'windows' | 'linux' | 'mac';
 
+/**
+ * The in-session caret of a view (the `CaretRegistry`: view switching, go-to-issue). Since
+ * feature 004 nothing stored reaches it; the remembered place is a `RememberedPosition`.
+ */
 export interface Caret {
   view: ViewId;
   nodeId?: string;
@@ -106,9 +122,36 @@ export interface Caret {
   column?: number;
 }
 
+/**
+ * The remembered Body position of a file (feature 004 US8, rpc-api.md "Definitions shared by
+ * the additions"): `path` a structural path under one of the three roots the Body view shows
+ * (`body[n]`, `title-info/annotation[1]`, `document-info/history[1]`), `offset` a model offset
+ * inside that text block (UTF-16 units of text plus 1 per inline atom, >= 0). It survives
+ * saves, Source visits and restarts, unlike a session's node id.
+ */
+export interface RememberedPosition {
+  path: string;
+  offset: number;
+}
+
+/**
+ * A Body-side position for `doc.mapPositions` (feature 004 US7, data-model §7): a node of the
+ * Document JSON and a model offset inside it (UTF-16 code units of text plus 1 per inline atom,
+ * marks of no width; 0 for a node without inline content).
+ */
+export interface ModelPoint {
+  nodeId: string;
+  offset: number;
+}
+
 export interface RecentFile {
   path: string;
   lastOpened: string; // ISO timestamp
+  /**
+   * @deprecated Since feature 004 the core never writes it again (remembered positions live in
+   * `positions.json`, `doc.position`); an item read from a file of release 0.0.3 or earlier
+   * may still carry it until that file is next written. Read-only; removed with the next major.
+   */
   caret?: Caret;
   /** Present when the core has already noticed that the file is missing. */
   exists?: boolean;
@@ -133,7 +176,10 @@ export interface AppInfo {
   logDir: string;
   resourceLayers: ResourceLayer[];
   apiVersion: number;
-  /** Additive contract revision (feature 002: 1, feature 003: 2); the UI accepts minor >= 1. */
+  /**
+   * Additive contract revision (feature 002: 1, feature 003: 2, feature 004: 3); the UI accepts
+   * minor >= 1 and, with a core that answers no `serial`, switches views without mapping.
+   */
   apiMinor: number;
 }
 
@@ -182,6 +228,15 @@ export interface Settings {
     nbspDisplayChar: string;
     /** Automatic check for a new version at start-up (feature 003, default `monthly`). */
     versionCheck: VersionCheckSchedule;
+    /** Switch the keyboard layout when a document is opened (feature 004, FR-090). */
+    switchKeyboardLayout: boolean;
+    /**
+     * The shell's identifier of the chosen layout (Windows KLID `00000419`, macOS input source
+     * id, X11 group name; "" = none chosen); the id alone decides the match at an open.
+     */
+    keyboardLayoutId: string;
+    /** The name the system gave the chosen layout when it was picked ("<name> (not installed)"). */
+    keyboardLayoutName: string;
   };
   words: {
     showExclusionsInWordsDialog: boolean;
@@ -200,6 +255,12 @@ export interface Settings {
     } | null;
     toolbars: ToolbarVisibility;
     treeVisible: boolean;
+    /**
+     * Width of the Document Tree pane in CSS px (feature 004, FR-003; default 260, core range
+     * 100-10000). Written when a divider drag ends; the UI clamps the width it applies to the
+     * window (pane 160 px, view 320 px) without rewriting the setting.
+     */
+    treeWidth: number;
     findHistory: string[];
     replaceHistory: string[];
     /** Customised toolbar layouts ("commands", "scripts"): button ids and "-"; absent = original. */
@@ -387,6 +448,41 @@ export interface ReleaseInfo {
 export type MessageButtonSet =
   'ok' | 'okCancel' | 'yesNo' | 'yesNoCancel' | 'abortRetryIgnore' | 'close';
 
+/** One keyboard layout the system offers for switching (feature 004, rpc-api.md §3.11). */
+export interface KeyboardLayout {
+  /** The shell's stable identifier: Windows KLID `00000419`, macOS input source id, X11 group name. */
+  id: string;
+  /** What the system shows for it. */
+  name: string;
+}
+
+/** `system.keyboardLayouts()` result: `supported: false` comes with a `reason` and no layouts. */
+export interface KeyboardLayoutList {
+  supported: boolean;
+  reason?: 'wayland' | 'noDisplay' | 'noShell' | 'unsupported';
+  layouts: KeyboardLayout[];
+  /** The active layout's id when the platform can tell. */
+  current?: string;
+}
+
+/**
+ * `system.activateKeyboardLayout` result - a result, never an error: `notInstalled` (not in the
+ * current list), `refused` (the system declined; the core logged it), `unsupported` (no provider
+ * or no switch on this platform); `activated: false` without a reason when the request completed
+ * but the system kept its own choice (macOS, best effort).
+ */
+export interface KeyboardLayoutSwitch {
+  activated: boolean;
+  reason?: 'notInstalled' | 'refused' | 'unsupported';
+}
+
+/** A recorded `system.activateKeyboardLayout` request of the test stand-in (`at` ISO 8601 UTC). */
+export interface KeyboardLayoutRequest {
+  id: string;
+  at: string;
+  activated: boolean;
+}
+
 export type MessageButtonId =
   'ok' | 'cancel' | 'yes' | 'no' | 'abort' | 'retry' | 'ignore' | 'close';
 
@@ -428,6 +524,37 @@ export interface SaveResult {
 export interface SaveNeedsConfirmation {
   needsConfirmation: true;
   validation: ValidationReport;
+}
+
+/**
+ * `doc.readDescription` result (feature 004 US4, rpc-api.md §3.2): the description of another
+ * FictionBook file, read as Open reads it, for the import into the open document.
+ * `description` is as read (node ids from the open document's allocator); `documentDetails`
+ * the file's document-info after the fill-in of 002 FR-005 (the UI takes the four document
+ * details from it); `binaries` the metadata of the binaries an importable entry refers to,
+ * held by the hidden session `importId` - a `docId` for `GET /binary/{importId}/{id}/preview`
+ * (the dialog's cover picture), `binary.copy` and `doc.close`, which the UI calls whatever the
+ * outcome. The reader's `warnings` are not shown.
+ */
+export interface ReadDescriptionResult {
+  importId: string;
+  description: Description;
+  documentDetails: DocumentInfo;
+  binaries: BinaryMeta[];
+  warnings: ValidationIssue[];
+}
+
+/**
+ * `doc.exportDescription` result (feature 004 US5, rpc-api.md §3.2): the FBD file written -
+ * the live description, the binaries it refers to (converted to JPEG/PNG in the copy and
+ * reported in `converted` as Save reports them) and one empty section, always UTF-8 - with
+ * the validation report of that exported content. The open document's session is untouched.
+ */
+export interface ExportDescriptionResult {
+  path: string;
+  validation: ValidationReport;
+  converted: BinaryMeta[];
+  needsConfirmation?: false;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -494,13 +621,37 @@ export interface RpcMethods {
     result: { docId: string; text: string; encoding: string; error?: DocParseErrorData };
   };
   'doc.close': { params: { docId: string }; result: Empty };
+  /**
+   * The Source text of `document`. With `positions: true` the core records the position map
+   * of the text (feature 004 US7) and names it by `serial` for `doc.mapPositions`; a core
+   * without the map answers no `serial`. The received document becomes the session's snapshot.
+   */
   'doc.toXml': {
-    params: { docId: string; document: Document; elideBinaries?: boolean };
-    result: { text: string };
+    params: { docId: string; document: Document; elideBinaries?: boolean; positions?: boolean };
+    result: { text: string; serial?: number };
   };
+  /**
+   * Parses Source text back into the model (1001 when malformed). With `positions: true` the
+   * core records the position map of the parsed text against the new node ids (feature 004
+   * US7) and names it by `serial`; a success without the flag drops the map.
+   */
   'doc.fromXml': {
-    params: { docId: string; text: string };
-    result: { document: Document & LoadReport };
+    params: { docId: string; text: string; positions?: boolean };
+    result: { document: Document & LoadReport; serial?: number };
+  };
+  /**
+   * Body <-> Source positions through the position map `serial` names (feature 004 US7,
+   * rpc-api.md §3.2): `toSource` turns model points into UTF-16 offsets of the text (an
+   * entity counts as its one character, mark tags nothing; `null` for an unknown node),
+   * `toModel` turns offsets into model points (a start tag -> the element's start, an end tag
+   * -> its end, whitespace -> the next element; `null` outside every mapped node - the UI
+   * goes to the document's start). Errors: 1000, 1005 {docId, serial} when `serial` is not the
+   * current map, invalidParams {field} for a malformed point, an offset outside the text or
+   * neither list.
+   */
+  'doc.mapPositions': {
+    params: { docId: string; serial: number; toSource?: ModelPoint[]; toModel?: number[] };
+    result: { toSource: (number | null)[]; toModel: (ModelPoint | null)[]; durationMs: number };
   };
   /**
    * A `YYYY-MM-DD` value as the system's regional long date without the weekday (feature 003,
@@ -522,9 +673,52 @@ export interface RpcMethods {
     result: MaybeJob<ValidationReport>;
   };
   'doc.recent': { params: void; result: RecentFile[] };
+  /** Unchanged by feature 004: empties `recent.json` only, never the positions record (D4). */
   'doc.clearRecent': { params: void; result: Empty };
   'doc.watch': { params: { docId: string; enabled: boolean }; result: Empty };
+  /**
+   * The remembered Body position of the session's file (feature 004 US8, rpc-api.md §3.2).
+   * Set: `position` must match the structural-path grammar with an offset >= 0
+   * (`invalidParams` {field} otherwise); kept in the session and, when the session has a file
+   * and `other.restorePosition` is on, recorded in `positions.json` under the session's path
+   * (100 files, the platform's path comparison) - the core gates, so a UI without the settings
+   * yet cannot record either. Get: the session's position (set here or loaded at `doc.open`),
+   * `{}` when nothing is remembered or the setting is off. The core validates the shape only;
+   * resolving the path against the document (FR-101's fallback) is the UI's.
+   */
+  'doc.position': {
+    params: { docId: string; position?: RememberedPosition };
+    result: { position?: RememberedPosition };
+  };
+  /**
+   * @deprecated Since feature 004: an alias of `doc.position` in the 1.x caret shape, kept so
+   * that apiMinor 3 stays additive; the UI never calls it. A `body` caret whose node id the
+   * session's snapshot knows is recorded as its structural path; any other caret stays in the
+   * session. Removed with the next major (`apiVersion` 2).
+   */
   'doc.caret': { params: { docId: string; caret?: Caret }; result: { caret?: Caret } };
+  /**
+   * The description of another FictionBook file for the import into `docId` (feature 004
+   * US4; a job above Open's threshold with Open's phases). Errors are Open's: 1004, 1001 (no
+   * Source-only fallback), 1002 (a missing file prunes no recent entry), 1000, invalidParams.
+   */
+  'doc.readDescription': {
+    params: { docId: string; path: string };
+    result: MaybeJob<ReadDescriptionResult>;
+  };
+  /**
+   * Writes the description of `docId` - `document` is the live model, so unsaved edits count
+   * - as a stand-alone FBD file at `path` (feature 004 US5): UTF-8 always, one empty section as
+   * the body, the referenced binaries alone. `needsConfirmation` asks Save's question, answered
+   * by a repeat with `force: true`; a job above Save's threshold with Save's phases. Errors:
+   * 1006 (the open document's own file, by file identity), 1000, 1002, invalidParams.
+   */
+  'doc.exportDescription': {
+    params: { docId: string; document: Document; path: string; force?: boolean };
+    result: MaybeJob<ExportDescriptionResult | SaveNeedsConfirmation>;
+  };
+  /** Cancels a running long operation; it then reports `job.failed` 1090 (rpc-api.md §1). */
+  'job.cancel': { params: { jobId: string }; result: Empty };
 
   // §3.3 binary
   'binary.list': { params: { docId: string }; result: BinaryMeta[] };
@@ -539,6 +733,17 @@ export interface RpcMethods {
     result: BinaryMeta;
   };
   'binary.export': { params: { docId: string; id: string; path: string }; result: Empty };
+  /**
+   * Copies the binary `id` of the session `fromDocId` (the import session) into `docId`'s
+   * store inside the core (feature 004 US4): identical content already there is answered with
+   * `existing: true` and nothing added, else the copy is stored under `suggestedId ?? id` made
+   * unique (the UI repoints the imported cover page to the returned `id`), `existing: false`
+   * and `referenceCount` 0. Errors: 1000 for either session, 1010 for the id, invalidParams.
+   */
+  'binary.copy': {
+    params: { docId: string; fromDocId: string; id: string; suggestedId?: string };
+    result: BinaryMeta & { existing: boolean };
+  };
 
   // §3.4 spell
   'spell.dictionaries': { params: void; result: SpellDictionary[] };
@@ -638,6 +843,16 @@ export interface RpcMethods {
     result: Empty;
   };
 
+  // §3.11 system (shell-delegated; feature 004)
+  /** The keyboard layouts the system offers, read afresh; `noShell` without a provider. */
+  'system.keyboardLayouts': { params: void; result: KeyboardLayoutList };
+  /**
+   * Switches the editor's window to the layout `id` when the system lists it (FR-091); called
+   * once per document opened when `other.switchKeyboardLayout` is on. `invalidParams` for a
+   * missing or empty `id`; every other outcome is a result.
+   */
+  'system.activateKeyboardLayout': { params: { id: string }; result: KeyboardLayoutSwitch };
+
   // §5 development/test-only
   'test.enqueueDialog': { params: { method: string; result: unknown }; result: Empty };
   'test.corpusSample': { params: { count: number; seed: number }; result: { paths: string[] } };
@@ -657,6 +872,10 @@ export interface RpcMethods {
   'test.restartRequests': { params: void; result: { reopen?: string; argv: string[] }[] };
   /** Emits `app.closeRequested` exactly as the shell's close handshake does (feature 003). */
   'test.requestClose': { params: void; result: Empty };
+  /** Reseeds the recording keyboard layout stand-in of `--test-hooks` (feature 004). */
+  'test.setKeyboardLayouts': { params: KeyboardLayoutList; result: Empty };
+  /** Every `system.activateKeyboardLayout` the stand-in received since start (feature 004). */
+  'test.keyboardLayoutRequests': { params: void; result: KeyboardLayoutRequest[] };
 }
 
 export type RpcMethodName = keyof RpcMethods;

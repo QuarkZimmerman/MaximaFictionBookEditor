@@ -158,4 +158,26 @@ std::size_t resident_memory_bytes() {
 #endif
 }
 
+std::size_t peak_resident_memory_bytes() {
+#ifdef __linux__
+    std::FILE* f = std::fopen("/proc/self/status", "r");
+    if (f == nullptr) {
+        return 0;
+    }
+    char line[256];
+    std::size_t peak = 0;
+    while (std::fgets(line, sizeof(line), f) != nullptr) {
+        unsigned long long kb = 0;
+        if (std::sscanf(line, "VmHWM: %llu", &kb) == 1) {
+            peak = static_cast<std::size_t>(kb) * 1024;
+            break;
+        }
+    }
+    std::fclose(f);
+    return peak;
+#else
+    return 0;
+#endif
+}
+
 }  // namespace mfbe::platform

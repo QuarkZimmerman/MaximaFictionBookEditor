@@ -13,10 +13,24 @@
  *    plain Save; `{needsConfirmation, validation}` triggers the "Validation failed ..." prompt
  *    and a retry with `force: true`; `doc.ioError` (1002) shows "Cannot save ..." and leaves the
  *    document modified (the original file is intact: the core writes atomically).
+ *  - `dialog.saveFile` gets the document's own file as `defaultPath`, or - for a never-saved
+ *    document - the bare name composed from its description ("Last name First name - Book
+ *    title", `proposedName.ts`; feature 004 FR-050 to FR-053), which the dialog places in the
+ *    folder it remembers. The encoding chosen in the dialog applies to the content alone.
  *  - Pending Source text is parsed back (`doc.fromXml`) before Save/Validate/Exit; malformed
  *    text refuses the save, as the original editor did ("do not save bad xml").
  *  - `doc.watch` is enabled for opened files; `doc.changedOnDisk` asks to reload.
- *  - `doc.caret` get/set implements Restore position (recent.ts).
+ *  - `doc.position` get/set implements Restore position (recent.ts; feature 004 US8): every
+ *    route by which a document with a file leaves the editor - New, Open, Recent Files, a
+ *    forwarded file, the changed-on-disk reload, every save, Exit, the window's close request
+ *    and the restart (`leaveDocument`) - remembers the Body caret by its place in document
+ *    order; every opening route restores it without switching the view.
+ *  - `system.activateKeyboardLayout` is called once per document opened (`documentOpened`;
+ *    feature 004 US11, FR-091) when "Switch keyboard layout when a document is opened" is on
+ *    and a layout is chosen - at the two sinks of every opening route, `loadDocument` and
+ *    `openSourceOnly`, so the start-up document, File > New, Open, Recent Files, a forwarded
+ *    file, the restart's reopen, the changed-on-disk reload and a malformed file in the Source
+ *    view each make exactly one request (SC-011); fire-and-forget, the result never shown.
  *  - Exit and the shell's window-close request (`app.closeRequested`, feature 003 FR-013) share
  *    one quit flow: while a script runs it first asks whether to cancel the run (Yes cancels it
  *    and waits for the document to be restored, No keeps the editor open), then the usual save
@@ -33,11 +47,13 @@ import {
 } from '@/app/commands';
 import { describeError, isClientSideError, logUiError } from '@/app/diagnostics';
 import { ENCODING_CHOICES, normalizeEncoding } from '@/dialogs/encodings';
+import type { StructuralPosition } from '@/editor/structuralPath';
 import { documentFileTypes } from '@/dialogs/fileTypes';
 import type { Dialogs } from '@/dialogs/types';
 import { showEncodingDialog, showSaveChangesPrompt } from '@/dialogs/show';
 import { confirmSaveWithErrors } from '@/dialogs/validation';
 import { getScriptsFeature } from '@/features/scripts';
+import { flushSessionSave } from '@/features/settings/apply';
 import type { Document, ValidationReport } from '@/model/document';
 import { actions, kindFromPath, type AppStore, type FileKind } from '@/model/store';
 import i18next from 'i18next';
@@ -49,6 +65,7 @@ import {
   type DocParseErrorData,
   type FileFilter,
   type LoadReport,
+  type Settings,
 } from '@/rpc/types';
 import {
   commitPendingSource,
@@ -57,8 +74,10 @@ import {
   setSourceOnlyText,
   sourceSession,
 } from '@/views/source/sourceSession';
+import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 
-import { RecentFilesStore, rememberCaret, restoreCaret } from './recent';
+import { proposedFileName } from './proposedName';
+import { RecentFilesStore, rememberPosition, restorePosition } from './recent';
 
 export { ENCODING_CHOICES };
 
@@ -114,6 +133,26 @@ export function saveAsSelectedType(kind: FileKind | null): number {
   if (kind === 'fbd') return 1;
   if (kind === 'xml') return 2;
   return 0;
+}
+
+/**
+ * The bare file name Save As proposes for a never-saved document (feature 004, FR-050, FR-052;
+ * research R6.1): "Last name First name - Book title" in the book's own letters, sanitised,
+ * the interface language's "Untitled" when the description has neither, with the first
+ * extension of the type selected when the dialog opens (`fb2` for All files). It names no
+ * folder: every platform's dialog places it in the folder last used by Open or Save As.
+ */
+export function saveAsProposedName(
+  ctx: Pick<CommandContext, 't'>,
+  document: Document,
+  selectedFilter: number,
+): string {
+  const extension = documentFileTypes(ctx.t)[selectedFilter]?.extensions[0];
+  return proposedFileName(
+    document.description,
+    ctx.t('app.untitled'),
+    extension && extension !== '*' ? extension : 'fb2',
+  );
 }
 
 /** Encoding for a plain Save: "Keep encoding" ? the file's encoding : the default encoding. */
@@ -188,6 +227,65 @@ function waitForScriptRunEnd(store: AppStore, timeoutMs = CANCEL_RUN_WAIT_MS): P
   });
 }
 
+/**
+ * The hand-off when the open document leaves the editor (feature 004 FR-100; research R5.6):
+ * its Body position is remembered (`doc.position`, a document with a file only), the file is
+ * no longer watched and a pending session save is written. Shared by closing (New, Open,
+ * Recent Files, a forwarded file, the reload), Exit, the window's close request and the
+ * restart after a language change; nothing happens without a document.
+ */
+export async function leaveDocument(ctx: CommandContext): Promise<void> {
+  const { store, rpc } = ctx;
+  const state = store.getState();
+  if (state.docId && rpc) {
+    await rememberPosition(ctx, state.docId);
+    try {
+      await rpc.call('doc.watch', { docId: state.docId, enabled: false });
+    } catch {
+      // best effort
+    }
+  }
+  await flushSessionSave(store);
+}
+
+/** The Body caret of the open document as a position to carry over a reload (null without one). */
+function currentBodyPosition(ctx: CommandContext): StructuralPosition | null {
+  if (!hasBodyController(ctx.store) || ctx.store.getState().sourceOnly) return null;
+  return getBodyController(ctx.store).getPosition();
+}
+
+/** Longest wait of the keyboard layout hook for the settings of a start-up open. */
+export const SETTINGS_WAIT_MS = 5000;
+
+/**
+ * The `other` settings: the store's at once, or - before `settings.get` answered at start-up,
+ * when the file named on the command line is already opening - the first that arrive; null
+ * when none come within `timeoutMs` (an older core without settings).
+ */
+function otherSettingsWhenKnown(
+  store: AppStore,
+  timeoutMs = SETTINGS_WAIT_MS,
+): Promise<Settings['other'] | null> {
+  const known = store.getState().settings;
+  if (known) return Promise.resolve(known.other);
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (other: Settings['other'] | null) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      unsubscribe();
+      resolve(other);
+    };
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    const unsubscribe = store.subscribe((state) => {
+      if (state.settings) finish(state.settings.other);
+    });
+    const arrived = store.getState().settings;
+    if (arrived) finish(arrived.other);
+  });
+}
+
 /* ------------------------------------------------------------------------ */
 /* The feature                                                              */
 /* ------------------------------------------------------------------------ */
@@ -217,6 +315,12 @@ export class FileFeature {
   private userRequests = 0;
   /** A window-close request is being answered (its prompts are up). */
   private closeRequestPending = false;
+  /**
+   * The in-session Body caret handed over the changed-on-disk reload (feature 004 FR-101):
+   * the reload keeps the caret where it was whatever the setting, so the next `openDocument`
+   * restores it instead of asking the core for the record.
+   */
+  private pendingPosition: StructuralPosition | null = null;
 
   constructor(registry: CommandRegistry, options: FileFeatureOptions = {}) {
     this.selfSaveGraceMs = options.selfSaveGraceMs ?? 1500;
@@ -260,17 +364,12 @@ export class FileFeature {
 
   /* ------------------------------------------------------------------ close */
 
-  /** Remembers the caret, stops watching and closes the current document in the core. */
+  /** Remembers the position, stops watching and closes the current document in the core. */
   async closeCurrentDocument(ctx: CommandContext): Promise<void> {
     const { store, rpc } = ctx;
     const state = store.getState();
     if (state.docId && rpc) {
-      await rememberCaret(ctx, state.docId);
-      try {
-        await rpc.call('doc.watch', { docId: state.docId, enabled: false });
-      } catch {
-        // best effort
-      }
+      await leaveDocument(ctx);
       try {
         await rpc.call('doc.close', { docId: state.docId });
       } catch {
@@ -285,17 +384,48 @@ export class FileFeature {
 
   /**
    * Shows a document the core loaded. The details it filled in on load (`filledIn`) do not
-   * mark it modified, as in the original; they are written at the next save.
+   * mark it modified, as in the original; they are written at the next save. A template
+   * document (File > New, the start-up document) also becomes the untouched baseline of the
+   * description import (feature 004 US4, FR-033); Open sets none.
    */
-  private loadDocument(ctx: CommandContext, document: Document & LoadReport): void {
+  private loadDocument(
+    ctx: CommandContext,
+    document: Document & LoadReport,
+    options: { template?: boolean } = {},
+  ): void {
     resetSourceSession(ctx.store);
     ctx.undo.clear();
-    actions.setDocument(ctx.store, loadedDocument(document));
+    const loaded = loadedDocument(document);
+    actions.setDocument(ctx.store, loaded);
+    if (options.template) actions.setNewDocumentBaseline(ctx.store, loaded.description);
     actions.setStatusMessage(ctx.store, null);
     if (ctx.store.getState().activeView === 'source') {
       // A new document always starts in the Body view unless it is Source-only.
       switchView(ctx, 'body');
     }
+    this.documentOpened(ctx);
+  }
+
+  /**
+   * A document was opened by any route (feature 004 US11, FR-091): with "Switch keyboard
+   * layout when a document is opened" on and a layout chosen, asks the shell once to activate
+   * it for the editor's window - fire-and-forget, the result never shown (a layout the system
+   * no longer lists is not an error, a refused switch is logged by the core, an older core
+   * answers -32601). The setting is read from the store; the first open of a start-up (the
+   * file named on the command line arrives before `settings.get` answered) waits for the
+   * settings to arrive and gives up quietly when they do not.
+   */
+  private documentOpened(ctx: CommandContext): void {
+    const rpc = ctx.rpc;
+    if (!rpc) return;
+    void otherSettingsWhenKnown(ctx.store)
+      .then((other) => {
+        if (!other || !other.switchKeyboardLayout || !other.keyboardLayoutId) return undefined;
+        return rpc.call('system.activateKeyboardLayout', { id: other.keyboardLayoutId });
+      })
+      .catch(() => {
+        // never reported: the layout is a convenience, the document is open either way
+      });
   }
 
   private async watch(ctx: CommandContext, docId: string, enabled: boolean): Promise<void> {
@@ -332,7 +462,7 @@ export class FileFeature {
       await ctx.rpc.call('doc.close', { docId: document.docId }).catch(() => {});
       return;
     }
-    this.loadDocument(ctx, document);
+    this.loadDocument(ctx, document, { template: true });
     const issue = document.templateIssue;
     if (issue) {
       await ctx.dialogs.showMessage({
@@ -377,6 +507,8 @@ export class FileFeature {
   async openDocument(ctx: CommandContext, path: string): Promise<boolean> {
     const { store, rpc } = ctx;
     if (!rpc) return false;
+    const pending = this.pendingPosition;
+    this.pendingPosition = null;
     await this.closeCurrentDocument(ctx);
     try {
       const result = await rpc.runJob(
@@ -393,7 +525,10 @@ export class FileFeature {
       }
       await this.watch(ctx, result.document.docId, true);
       void this.recent.refresh(rpc);
-      void restoreCaret(ctx, result.document.docId);
+      // Every opening route ends here (Open, Recent Files, the command line, a forwarded file,
+      // the `?open=` restart, the reload): the remembered place - or the reload's own caret -
+      // is restored in the Body controller without a view switch (FR-101).
+      void restorePosition(ctx, result.document.docId, pending);
       return true;
     } catch (error) {
       // Not a FictionBook file at all (binary, plain text, other XML): refused outright.
@@ -470,6 +605,7 @@ export class FileFeature {
           message: error.message,
         }),
       );
+      this.documentOpened(ctx); // a malformed file in the Source view is a document opened
       await this.watch(ctx, source.docId, true);
       void this.recent.refresh(rpc);
       return true;
@@ -499,11 +635,14 @@ export class FileFeature {
     let path = state.path ?? undefined;
     let encoding: string | null;
     if (options.saveAs || !path) {
+      const selectedFilter = saveAsSelectedType(state.fileKind);
       const choice = await rpc.call('dialog.saveFile', {
         title: ctx.t('cmd.file.saveAs.tooltip'),
         filters: documentFilters(ctx),
-        selectedFilter: saveAsSelectedType(state.fileKind),
-        defaultPath: path,
+        selectedFilter,
+        // The document's own file, or - never saved - the bare name composed from its
+        // description, which the dialog places in the folder it remembers (FR-050, FR-053).
+        defaultPath: path ?? saveAsProposedName(ctx, state.document, selectedFilter),
         encodingChoices: [...ENCODING_CHOICES],
         selectedEncoding: defaultSaveEncoding(store),
         encodingLabel: ctx.t('dialog.saveFile.encoding'),
@@ -557,7 +696,8 @@ export class FileFeature {
         );
         if (store.getState().validation) actions.setValidation(store, result.validation);
         await this.watch(ctx, current.docId, true);
-        void rememberCaret(ctx, current.docId);
+        // Every save remembers the position, under the saved path (FR-100).
+        void rememberPosition(ctx, current.docId);
         void this.recent.refresh(rpc);
         return true;
       } catch (error) {
@@ -613,13 +753,14 @@ export class FileFeature {
   /**
    * The quit flow of File > Exit and of the window's close request: the cancel-run prompt
    * while a script runs, the save prompt, then `app.quit`. Either prompt's refusal keeps the
-   * editor open and the run going.
+   * editor open and the run going. A session save still waiting for its delay (the tree pane
+   * width of a drag just before the exit, feature 004 FR-003) is written before the quit.
    */
   async exitApplication(ctx: CommandContext, options: QuitOptions = {}): Promise<void> {
     if (!(await this.confirmCancelRunningScript(ctx))) return;
     if (!(await this.confirmDiscardChanges(ctx))) return;
     const state = ctx.store.getState();
-    if (state.docId) await rememberCaret(ctx, state.docId);
+    await leaveDocument(ctx);
     if (ctx.rpc && state.connection === 'connected') {
       await ctx.rpc.call('app.quit', options.force ? { force: true } : {});
     } else {
@@ -691,7 +832,12 @@ export class FileFeature {
         icon: 'question',
         testId: 'dialog-file-changed',
       });
-      if (answer === 'yes') await this.openDocument(ctx, path);
+      if (answer === 'yes') {
+        // The reload keeps the active view and the in-session caret (001 FR-006, 004 FR-101):
+        // the Body caret as it is now travels to the reopened document directly.
+        this.pendingPosition = currentBodyPosition(ctx);
+        await this.openDocument(ctx, path);
+      }
     } finally {
       this.reloadPromptOpen = false;
     }

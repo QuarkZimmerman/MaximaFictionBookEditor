@@ -105,12 +105,16 @@ async function harness(responses: Record<string, unknown> = {}) {
   return { store, rpc, services, ctx, controller, host, view };
 }
 
+/** Puts the caret into the first paragraph of the first body (below the description blocks). */
 function caretIntoFirstParagraph(controller: ReturnType<typeof getBodyController>): void {
   const view = controller.editorView!;
   let pos = 0;
-  view.state.doc.descendants((node, p) => {
-    if (node.type.name === 'p' && !pos) pos = p + 1;
-    return !pos;
+  view.state.doc.forEach((child, offset) => {
+    if (pos || child.type.name !== 'body') return;
+    child.descendants((node, p) => {
+      if (node.type.name === 'p' && !pos) pos = offset + 1 + p + 1;
+      return !pos;
+    });
   });
   controller.apply(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos + 2)));
 }
@@ -432,8 +436,13 @@ describe('Save image as... (T093)', () => {
     addBinaryToModel(store, META);
     // Insert an image node and select it.
     const image = fb2Schema.nodes.image!.create({ href: '#tiny.png' });
-    const sec = view.state.doc.firstChild!.firstChild!;
-    const end = 1 + 1 + sec.content.size; // after the paragraph inside the section
+    // The first body follows the annotation / history blocks (feature 004).
+    let bodyPos = 0;
+    view.state.doc.forEach((child, offset) => {
+      if (child.type.name === 'body' && !bodyPos) bodyPos = offset;
+    });
+    const sec = view.state.doc.nodeAt(bodyPos)!.firstChild!;
+    const end = bodyPos + 1 + 1 + sec.content.size; // after the paragraph inside the section
     controller.apply(view.state.tr.replace(end, end, new Slice(Fragment.from(image), 0, 0)));
     expect(imageHrefForSaving(store, controller)).toBeNull();
     const figure = view.dom.querySelector('.fb-image')!;

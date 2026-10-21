@@ -20,6 +20,8 @@ import type { RpcClient } from '@/rpc/client';
 import { selectionFor, type BodyEditorController } from '@/views/body/bodyEditor';
 import { loadSourceText, requestViewSwitch, setCaretWhenReady } from '@/views/source/sync';
 
+import { FIXED_BLOCK_IDS } from '@/editor/schema';
+
 import { bodyController, cmdKeys } from '../editing/common';
 import { canRunTreeOp, runTreeOp, type TreeOp } from '../treeOps';
 
@@ -182,11 +184,17 @@ function modelEditable(ctx: Pick<CommandContext, 'store'>): boolean {
   return state.document !== null && !state.sourceOnly && !state.sourceDirty;
 }
 
+/** The Annotation / History rows (feature 004): View and View Source only, never moved or deleted. */
+export function isBlockRow(rowId: string | null): boolean {
+  return rowId === FIXED_BLOCK_IDS.annotation || rowId === FIXED_BLOCK_IDS.history;
+}
+
 export function canRunTreeCommand(ctx: Pick<CommandContext, 'store'>, op: TreeOp): boolean {
   const state = ctx.store.getState();
   const selected = getTreeFeature(ctx.store).selectedId;
   return (
     !!selected &&
+    !isBlockRow(selected) &&
     modelEditable(ctx) &&
     !!state.document &&
     canRunTreeOp(op, state.document, selected)
@@ -203,7 +211,7 @@ export async function runTreeCommand(ctx: CommandContext, op: TreeOp): Promise<b
   const feature = getTreeFeature(store);
   const nodeId = feature.selectedId;
   const model = store.getState().document;
-  if (!nodeId || !model || !modelEditable(ctx)) return false;
+  if (!nodeId || isBlockRow(nodeId) || !model || !modelEditable(ctx)) return false;
   if (op === 'delete') {
     const answer = await ctx.dialogs.showMessage({
       text: t('tree.deleteConfirm'),

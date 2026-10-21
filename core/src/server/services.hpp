@@ -10,7 +10,9 @@
 #include <mfbe/genres.hpp>
 #include <mfbe/hotkeys.hpp>
 #include <mfbe/images.hpp>
+#include <mfbe/keyboard_layout_provider.hpp>
 #include <mfbe/platform.hpp>
+#include <mfbe/positions.hpp>
 #include <mfbe/recent_files.hpp>
 #include <mfbe/resource_tables.hpp>
 #include <mfbe/resources.hpp>
@@ -38,6 +40,8 @@ struct Services {
 
     settings::SettingsStore settings;
     settings::RecentFiles recent;
+    // The remembered positions record (feature 004 US8), beside recent.json.
+    settings::Positions positions;
     settings::ExclusionList exclusions;
     settings::HotkeysStore hotkeys;
     resources::ResourceLayers layers;
@@ -72,6 +76,11 @@ struct Services {
     std::shared_ptr<ClipboardProvider> clipboard_provider() const;
     void set_clipboard_provider(std::shared_ptr<ClipboardProvider> provider);
     std::shared_ptr<QueuedClipboardProvider> queued_clipboard;  // only with test hooks
+    // Keyboard layout provider (feature 004 US11; shell-delegated switch at a document open;
+    // null in headless mode without test hooks -> the "noShell" / "unsupported" results).
+    std::shared_ptr<KeyboardLayoutProvider> keyboard_layouts() const;
+    void set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvider> provider);
+    std::shared_ptr<RecordingKeyboardLayoutProvider> recording_layouts;  // only with test hooks
 
     Services(CoreServerOptions opts, platform::Dirs dirs_, std::filesystem::path resources,
              std::filesystem::path scripts, rpc::Notifier& notifier_);
@@ -97,6 +106,7 @@ private:
     mutable std::mutex dialog_mutex_;
     std::shared_ptr<DialogProvider> dialogs_;
     std::shared_ptr<ClipboardProvider> clipboard_;
+    std::shared_ptr<KeyboardLayoutProvider> keyboard_layouts_;
     mutable std::mutex genres_mutex_;
     std::shared_ptr<const genres::GenreCatalog> genres_;
     mutable std::mutex scripts_mutex_;
@@ -115,6 +125,7 @@ void register_resources_handlers(rpc::RpcRouter& router, Services& services);
 void register_spell_handlers(rpc::RpcRouter& router, Services& services);
 void register_words_handlers(rpc::RpcRouter& router, Services& services);
 void register_scripts_handlers(rpc::RpcRouter& router, Services& services);
+void register_system_handlers(rpc::RpcRouter& router, Services& services);
 // Lazily creates the external-change watcher (emits doc.changedOnDisk through the notifier).
 platform::FileWatcher& file_watcher(Services& services);
 // Opens a folder through the shell (dialog provider) or the OS opener; 1050 without a shell.

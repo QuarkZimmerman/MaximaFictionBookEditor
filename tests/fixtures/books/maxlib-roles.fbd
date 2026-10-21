@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+    <description>
+        <title-info>
+            <genre>sf</genre>
+            <author>
+                <first-name>Автор</first-name>
+                <middle-name>Тестович</middle-name>
+                <last-name>Тестовый</last-name>
+            </author>
+            <book-title>Проверочная книга</book-title>
+            <lang>ru</lang>
+        </title-info>
+        <document-info>
+            <version>1.0</version>
+        </document-info>
+        <publish-info>
+        </publish-info>
+        <custom-info info-type="mlillustrator">Илюстраторов Илья Ильич</custom-info>
+        <custom-info info-type="mleditor">Редакторов Роман Романович</custom-info>
+        <custom-info info-type="mlcompiler">Составителев Семён Семёнович</custom-info>
+        <custom-info info-type="mldesigner">Оформителев Олег Олегович</custom-info>
+        <custom-info info-type="mlcommentator">Комментаторов Кузьма Кузьмич</custom-info>
+        <custom-info info-type="mlabouttheauthor">Оавторов Артём Артёмович</custom-info>
+        <custom-info info-type="mlillustratorid">4711 Илюстраторов Илья Ильич</custom-info>
+        <custom-info info-type="mleditorid">4712 Редакторов Роман Романович</custom-info>
+        <custom-info info-type="mlseriesid">99 Какая-то серия</custom-info>
+    </description>
+</FictionBook>

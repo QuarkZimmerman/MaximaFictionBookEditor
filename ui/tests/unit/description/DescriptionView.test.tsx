@@ -171,7 +171,7 @@ async function renderDescription(
     'settings.get': new Error('no settings'),
     'doc.recent': [],
     'doc.watch': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.close': {},
     'resources.genres': GENRES,
     'resources.languages': LANGUAGES,

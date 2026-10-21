@@ -12,9 +12,22 @@
  *  - `newDocumentId()` (UUID v4 for the "new" ID button), `descriptionExtrasCount()` (preserved
  *    `<output>` elements and unknown description-level elements shown as a read-only note);
  *  - generic path access (`getAtPath` / `setAtPath`) and the ordered list of plain text fields
- *    (`textFields()`) the Find / Replace target works on.
+ *    (`textFields()`) the Find / Replace target works on;
+ *  - the "Other persons" list of feature 004 (US3; data-model §3): `formFromDescription()` keeps
+ *    every `custom-info` row in its place and tags, at load only, the rows that read as a
+ *    Maxima Library role entry (`roleRow`), listing them as `roles`; `cleanDescription()` folds
+ *    them back - an unedited list leaves every row in its place, role rows character for
+ *    character, an edited list writes the plain rows and then the entries in the library's
+ *    format, unchanged entries still verbatim (`rolesEdited()` is derived, never stored).
  */
 
+import {
+  parseRoleRow,
+  roleEntryEmpty,
+  roleEntryToRow,
+  unchanged,
+  type RoleEntry,
+} from '@/features/description/roles';
 import type {
   CustomInfo,
   DateValue,
@@ -27,6 +40,32 @@ import type {
   Sequence,
   TitleInfo,
 } from '@/model/document';
+
+export type { Role, RoleEntry } from '@/features/description/roles';
+
+/* ------------------------------------------------------------------------ */
+/* Form shape                                                               */
+/* ------------------------------------------------------------------------ */
+
+/** A `custom-info` row of the form; `roleRow` marks a row read into the role list (= source.key). */
+export type FormCustomInfo = CustomInfo & { roleRow?: string };
+
+/**
+ * The raw form state of the Description view: the model plus the "Other persons" list derived
+ * from the role rows (data-model §3.2). Assignable to `Description`; the model never carries
+ * `roles` or `roleRow`.
+ */
+export type DescriptionForm = Omit<Description, 'customInfo'> & {
+  customInfo: FormCustomInfo[];
+  roles: RoleEntry[];
+};
+
+/** The form or a plain description (the latter has no role list: every row is a plain row). */
+type FormLike = Description | DescriptionForm;
+
+function rolesOf(form: FormLike): RoleEntry[] {
+  return 'roles' in form && Array.isArray(form.roles) ? form.roles : [];
+}
 
 /* ------------------------------------------------------------------------ */
 /* Scalars                                                                  */
@@ -221,6 +260,57 @@ export function cleanCustomInfo(list: readonly CustomInfo[] | undefined): Custom
 }
 
 /* ------------------------------------------------------------------------ */
+/* Role entries (feature 004, US3; data-model §3.5)                         */
+/* ------------------------------------------------------------------------ */
+
+/** The rows read into the role list, in their order (the `pristine` list of the research). */
+function taggedRows(form: FormLike): FormCustomInfo[] {
+  return (form.customInfo as FormCustomInfo[]).filter((row) => row.roleRow !== undefined);
+}
+
+/** A role row as read, without the form's marker (its text untrimmed, its `lang` kept). */
+function verbatimRow(row: FormCustomInfo): CustomInfo {
+  const out: CustomInfo = { infoType: row.infoType, text: row.text };
+  if (row.lang !== undefined) out.lang = row.lang;
+  return out;
+}
+
+/**
+ * True once the "Other persons" list differs from the rows read: an entry added, removed,
+ * changed or given another role. Derived from the tagged rows every time - never stored - so
+ * an edit undone by value leaves the list unedited (FR-021: "unless the list is edited back to
+ * the state read").
+ */
+export function rolesEdited(form: FormLike): boolean {
+  const roles = rolesOf(form);
+  const pristine = taggedRows(form);
+  if (roles.length !== pristine.length) return true;
+  return !roles.every((entry, k) => entry.source?.key === pristine[k]!.roleRow && unchanged(entry));
+}
+
+/**
+ * The `custom-info` rows of the clean model (FR-021, FR-023): while the list is unedited every
+ * row keeps its place - role rows character for character, plain rows trimmed as today; once
+ * it is edited, the plain rows (trimmed, in order) and then the entries in the list's order,
+ * an unchanged entry still verbatim, a new or changed one in the library's format, an entry
+ * with no name at all dropped.
+ */
+function foldCustomInfo(form: FormLike): CustomInfo[] {
+  const rows = form.customInfo as FormCustomInfo[];
+  if (!rolesEdited(form)) {
+    return rows.flatMap((row) =>
+      row.roleRow !== undefined ? [verbatimRow(row)] : cleanCustomInfo([row]),
+    );
+  }
+  return [
+    ...cleanCustomInfo(rows.filter((row) => row.roleRow === undefined)),
+    ...rolesOf(form)
+      .filter((entry) => !roleEntryEmpty(entry))
+      .map(roleEntryToRow),
+  ];
+}
+
+/* ------------------------------------------------------------------------ */
 /* Info blocks                                                              */
 /* ------------------------------------------------------------------------ */
 
@@ -245,7 +335,10 @@ export function cleanTitleInfo(info: TitleInfo): TitleInfo {
     translators: cleanPersons(info.translators),
     sequences: cleanSequences(info.sequences),
   };
-  if (info.annotation && info.annotation.content.length > 0) out.annotation = info.annotation;
+  // A present node passes through whatever its content (feature 004, FR-010/FR-015): the file's
+  // <annotation/> stays as read until the user empties the field, which the rich field turns into
+  // an absent node (`richFieldModel`); the writer writes a present node back, empty or not.
+  if (info.annotation) out.annotation = info.annotation;
   const keywords = cleanText(info.keywords);
   if (keywords) out.keywords = keywords;
   const date = cleanDate(info.date);
@@ -286,7 +379,7 @@ export function cleanDocumentInfo(info: DocumentInfo): DocumentInfo {
   if (programUsed) out.programUsed = programUsed;
   const srcOcr = cleanText(info.srcOcr);
   if (srcOcr) out.srcOcr = srcOcr;
-  if (info.history && info.history.content.length > 0) out.history = info.history;
+  if (info.history) out.history = info.history; // present-but-empty kept as read (FR-010)
   return out;
 }
 
@@ -309,12 +402,15 @@ export function cleanPublishInfo(info: PublishInfo | undefined): PublishInfo | u
   return out;
 }
 
-/** The clean model of a raw form state (what is handed to `actions.updateDocument`). */
-export function cleanDescription(form: Description): Description {
+/**
+ * The clean model of a raw form state (what is handed to `actions.updateDocument`). A plain
+ * description is accepted as well (no role list: its rows are plain rows, trimmed as today).
+ */
+export function cleanDescription(form: FormLike): Description {
   const out: Description = {
     titleInfo: cleanTitleInfo(form.titleInfo),
     documentInfo: cleanDocumentInfo(form.documentInfo),
-    customInfo: cleanCustomInfo(form.customInfo),
+    customInfo: foldCustomInfo(form),
     outputs: form.outputs ?? [],
   };
   if (form.srcTitleInfo && !titleInfoEmpty(form.srcTitleInfo)) {
@@ -348,10 +444,31 @@ export function emptyPublishInfo(): PublishInfo {
 /**
  * Form state from the model: every optional block/array present so the forms can bind to it
  * (`srcTitleInfo` stays undefined until the user opens the block; `publishInfo` is created).
+ * Every `custom-info` row is kept in its order; the rows that read as a role entry (FR-022) are
+ * tagged `r<n>` here - at load only, so a row does not jump between the two lists while the user
+ * types into its type field - and listed as `roles` in the same order, each with its source.
  */
-export function formFromDescription(description: Description): Description {
+export function formFromDescription(description: Description): DescriptionForm {
   const title = description.titleInfo;
   const doc = description.documentInfo;
+  const customInfo: FormCustomInfo[] = [];
+  const roles: RoleEntry[] = [];
+  for (const info of description.customInfo) {
+    const row: FormCustomInfo = { ...info };
+    const parsed = parseRoleRow(info);
+    if (parsed) {
+      const key = `r${roles.length + 1}`;
+      row.roleRow = key;
+      const source: NonNullable<RoleEntry['source']> = {
+        key,
+        infoType: info.infoType,
+        text: info.text,
+      };
+      if (info.lang !== undefined) source.lang = info.lang;
+      roles.push({ ...parsed, source });
+    }
+    customInfo.push(row);
+  }
   return {
     titleInfo: {
       ...emptyTitleInfo(),
@@ -385,7 +502,8 @@ export function formFromDescription(description: Description): Description {
       ...description.publishInfo,
       sequences: (description.publishInfo?.sequences ?? []).map(copySequence),
     },
-    customInfo: description.customInfo.map((info) => ({ ...info })),
+    customInfo,
+    roles,
     outputs: description.outputs,
   };
 }
@@ -423,14 +541,21 @@ export interface RequiredIssues {
   untypedCustomInfo: Set<string>;
   /** Field keys of date values that are not `YYYY-MM-DD`. */
   invalidDates: Set<string>;
+  /**
+   * Field keys (`roles.<k>`) of role entries without a last name while a first or middle name
+   * is given: written as the format allows, the entry reloads with that name in the last-name
+   * field (feature 004 FR-021; a form marker like `incompletePersons`, not a core issue).
+   */
+  incompleteRoles: Set<string>;
 }
 
-export function requiredIssues(form: Description): RequiredIssues {
+export function requiredIssues(form: FormLike): RequiredIssues {
   const missing = new Set<RequiredField>();
   const incompletePersons = new Set<string>();
   const unnamedSequences = new Set<string>();
   const untypedCustomInfo = new Set<string>();
   const invalidDates = new Set<string>();
+  const incompleteRoles = new Set<string>();
   const title = form.titleInfo;
   const doc = form.documentInfo;
 
@@ -476,8 +601,20 @@ export function requiredIssues(form: Description): RequiredIssues {
   form.customInfo.forEach((info, index) => {
     if (!info.infoType.trim() && info.text.trim()) untypedCustomInfo.add(`customInfo.${index}`);
   });
+  rolesOf(form).forEach((entry, index) => {
+    if (!entry.lastName.trim() && (entry.firstName.trim() || entry.middleName.trim())) {
+      incompleteRoles.add(`roles.${index}`);
+    }
+  });
 
-  return { missing, incompletePersons, unnamedSequences, untypedCustomInfo, invalidDates };
+  return {
+    missing,
+    incompletePersons,
+    unnamedSequences,
+    untypedCustomInfo,
+    invalidDates,
+    incompleteRoles,
+  };
 }
 
 /* ------------------------------------------------------------------------ */
@@ -578,23 +715,35 @@ function sequenceFields(key: string, sequence: Sequence, out: TextField[]): void
   sequence.children.forEach((child, i) => sequenceFields(`${key}.children.${i}`, child, out));
 }
 
-function titleInfoFields(key: string, info: TitleInfo, out: TextField[]): void {
+function titleInfoFields(
+  key: string,
+  info: TitleInfo,
+  out: TextField[],
+  roles: readonly RoleEntry[] = [],
+): void {
   info.authors.forEach((person, i) => personFields(`${key}.authors.${i}`, person, out));
   out.push({ key: `${key}.bookTitle`, value: info.bookTitle });
   out.push({ key: `${key}.keywords`, value: info.keywords ?? '' });
   out.push({ key: `${key}.date.text`, value: info.date?.text ?? '' });
   info.translators.forEach((person, i) => personFields(`${key}.translators.${i}`, person, out));
+  // The "Other persons" list sits after Translators (feature 004 US3): its three name fields
+  // stand in for the role rows, which are left out of the Custom info fields below.
+  roles.forEach((entry, i) => {
+    out.push({ key: `roles.${i}.lastName`, value: entry.lastName });
+    out.push({ key: `roles.${i}.firstName`, value: entry.firstName });
+    out.push({ key: `roles.${i}.middleName`, value: entry.middleName });
+  });
   info.sequences.forEach((sequence, i) => sequenceFields(`${key}.sequences.${i}`, sequence, out));
 }
 
 /**
  * Every plain text field of the form in document order (the Find / Replace scope of the
  * Description view, FR-035). Rich fields (annotation, history) and codes (genres, languages)
- * are not part of it.
+ * are not part of it; a role row is reached through its entry's name fields, not as a row.
  */
-export function textFields(form: Description): TextField[] {
+export function textFields(form: FormLike): TextField[] {
   const out: TextField[] = [];
-  titleInfoFields('titleInfo', form.titleInfo, out);
+  titleInfoFields('titleInfo', form.titleInfo, out, rolesOf(form));
   if (form.srcTitleInfo) titleInfoFields('srcTitleInfo', form.srcTitleInfo, out);
   const doc = form.documentInfo;
   doc.authors.forEach((person, i) => personFields(`documentInfo.authors.${i}`, person, out));
@@ -616,7 +765,8 @@ export function textFields(form: Description): TextField[] {
       sequenceFields(`publishInfo.sequences.${i}`, sequence, out),
     );
   }
-  form.customInfo.forEach((info, i) => {
+  (form.customInfo as FormCustomInfo[]).forEach((info, i) => {
+    if (info.roleRow !== undefined) return; // read into the role list; its fields are above
     out.push({ key: `customInfo.${i}.infoType`, value: info.infoType });
     out.push({ key: `customInfo.${i}.text`, value: info.text });
   });

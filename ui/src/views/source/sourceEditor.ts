@@ -39,6 +39,7 @@ import { bracketMatching, foldGutter, foldKeymap } from '@codemirror/language';
 import { highlightSelectionMatches } from '@codemirror/search';
 import {
   Compartment,
+  EditorSelection,
   EditorState,
   type Extension,
   type Transaction,
@@ -84,7 +85,15 @@ import {
   type SourceFont,
 } from './extensions';
 import { createSourceSearchTarget, type SourceSearchTarget } from './searchTarget';
-import { loadSourceText, onSourceSessionReset, sourceSession, updateSourceText } from './sync';
+import {
+  loadSourceText,
+  mapBodySelectionToSource,
+  onSourceSessionReset,
+  registerSourceSelectionReader,
+  sourceSession,
+  updateSourceText,
+  type SourceOffsets,
+} from './sync';
 import { sourceThemeExtension } from './theme';
 
 export { offsetForLineColumn } from './extensions';
@@ -328,6 +337,8 @@ export class SourceEditorController {
       if (state.scriptRunning !== previous.scriptRunning) this.applyLock();
     });
     onSourceSessionReset(this.store, () => this.reset());
+    // The switch flow reads the selection on the way to the Body view (feature 004 US7).
+    registerSourceSelectionReader(this.store, () => this.selectionOffsets());
   }
 
   readonly subscribe = (listener: () => void): (() => void) => {
@@ -382,6 +393,9 @@ export class SourceEditorController {
     }
     this.container = null;
     this.loadToken += 1; // cancels a pending load
+    // The next mount loads again: until then the view is not ready (a navigation request made
+    // meanwhile waits for the load, and the status attribute never reports a stale "ready").
+    if (this.snapshot.status === 'ready') this.publish({ status: 'idle' });
   }
 
   /** Unmounts and forgets the listeners; the controller is not usable afterwards. */
@@ -411,17 +425,25 @@ export class SourceEditorController {
       // mark the text dirty. The same text keeps the state - and the Source history - alive.
       if (text !== this.state.doc.toString()) this.replaceText(text);
       this.applySettings();
-      this.publish({ status: 'ready' });
       const session = sourceSession(this.store);
       const parseError = this.store.getState().sourceParseError;
+      const pending = session.pendingCaret ?? parseError;
+      // Feature 004 US7: the Body selection of a direct switch, mapped against the text just
+      // loaded; an explicit navigation target or a parse error position wins over it.
+      const mapped = await mapBodySelectionToSource(ctx, {
+        skip: this.pendingTarget !== null || pending !== null,
+      });
+      if (token !== this.loadToken) return;
       const target = this.pendingTarget;
       this.pendingTarget = null;
-      const pending = session.pendingCaret ?? parseError;
+      this.publish({ status: 'ready' });
       if (target) {
         this.goTo(target.line, target.column, { highlight: target.highlight });
       } else if (pending) {
         this.goTo(pending.line, pending.column || undefined, { highlight: parseError !== null });
         session.pendingCaret = null;
+      } else if (mapped) {
+        this.setSelection(mapped.anchor, mapped.head);
       } else {
         this.revealSelection();
       }
@@ -629,6 +651,27 @@ export class SourceEditorController {
   /** FBE "Expand N tree levels": unfolds the elements of nesting level `level`. */
   expandLevel(level: number): number {
     return expandLevel(this.target, level);
+  }
+
+  /** The main selection as UTF-16 offsets into the text (feature 004 US7, `doc.mapPositions`). */
+  selectionOffsets(): SourceOffsets {
+    const { anchor, head } = this.state.selection.main;
+    return { anchor, head };
+  }
+
+  /**
+   * Selects from `anchor` to `head` (offsets into the text, clamped; the mapped Body selection)
+   * and brings the head into view - on the next mount while unmounted. False when there is no
+   * text.
+   */
+  setSelection(anchor: number, head: number): boolean {
+    const length = this.state.doc.length;
+    if (length === 0) return false;
+    const clamp = (offset: number) => Math.min(Math.max(Math.floor(offset) || 0, 0), length);
+    const selection = EditorSelection.single(clamp(anchor), clamp(head));
+    this.target.dispatch({ selection });
+    this.revealSelection();
+    return true;
   }
 
   getCaret(): Caret | null {

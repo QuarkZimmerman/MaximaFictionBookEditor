@@ -3,7 +3,8 @@
  * option lists of the combo boxes, range validation (`bodyFontSize` 6-96, `jpegQuality`
  * 1-100, colours `#rrggbb`), the exclusion-word rule of resource-formats.md §4, the
  * formatting of the effective genre-list sources and of the dictionary report (feature 003
- * US4: origin labels, rejection reasons). Pure functions: no React, no RPC.
+ * US4: origin labels, rejection reasons), the keyboard layout choice of the "Open file" group
+ * (feature 004 US11). Pure functions: no React, no RPC.
  */
 
 import type { TFunction } from 'i18next';
@@ -12,6 +13,7 @@ import { DEFAULT_THEME_SETTING, isThemeSetting } from '@/app/theme';
 import { ENCODING_CHOICES } from '@/dialogs/encodings';
 import { isCssColor } from '@/features/settings/apply';
 import type {
+  KeyboardLayoutList,
   Settings,
   SpellDictionaryFolder,
   SpellRejectedDictionary,
@@ -106,6 +108,57 @@ export const VERSION_CHECK_OPTIONS: readonly { value: VersionCheckSchedule; labe
   { value: 'monthly', labelKey: 'dialog.settings.other.versionCheckChoices.monthly' },
   { value: 'never', labelKey: 'dialog.settings.other.versionCheckChoices.never' },
 ];
+
+/* ------------------------------------------------------------------------ */
+/* Keyboard layout (Settings > Other > Open file; feature 004 US11)         */
+/* ------------------------------------------------------------------------ */
+
+export interface KeyboardLayoutOption {
+  id: string;
+  name: string;
+  /** The stored choice is not in the system's current list ("<name> (not installed)"). */
+  notInstalled: boolean;
+}
+
+/**
+ * The `<select>` of the "Switch keyboard layout" option (data-model §11.2): the system's layouts
+ * by name, then - when the stored id is not among them - the stored choice marked as not
+ * installed, so it stays visible until another layout is picked (FR-091); the shown entry is
+ * the stored one, else the current layout when the system reports it, else the first; `ready`
+ * says whether the controls are usable (the list arrived and the system supports the switch).
+ * While the list is loading or the system offers no switch (`supported: false`, whatever the
+ * reason) only the stored choice is shown, under its stored name.
+ */
+export interface KeyboardLayoutChoice {
+  options: KeyboardLayoutOption[];
+  shownId: string;
+  ready: boolean;
+}
+
+export function keyboardLayoutChoice(
+  list: KeyboardLayoutList | null,
+  storedId: string,
+  storedName: string,
+): KeyboardLayoutChoice {
+  const stored = (notInstalled: boolean): KeyboardLayoutOption => ({
+    id: storedId,
+    name: storedName || storedId,
+    notInstalled,
+  });
+  if (!list || !list.supported) {
+    return { options: storedId ? [stored(false)] : [], shownId: storedId, ready: false };
+  }
+  const options: KeyboardLayoutOption[] = list.layouts.map((layout) => ({
+    id: layout.id,
+    name: layout.name || layout.id,
+    notInstalled: false,
+  }));
+  const listed = (id: string | undefined) =>
+    id !== undefined && id !== '' && options.some((option) => option.id === id);
+  if (storedId && !listed(storedId)) options.push(stored(true));
+  const shownId = storedId || (listed(list.current) ? list.current! : (options[0]?.id ?? ''));
+  return { options, shownId, ready: true };
+}
 
 /* ------------------------------------------------------------------------ */
 /* Ranges and validation                                                    */

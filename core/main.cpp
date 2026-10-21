@@ -40,7 +40,6 @@
 #include <cstdio>
 #include <exception>
 #include <filesystem>
-#include <fstream>
 #include <memory>
 #include <string>
 #include <system_error>
@@ -213,20 +212,10 @@ int run_convert_images(const std::string& file, const std::string& out, const st
     return kExitOk;
 }
 
-// Peak resident set size in bytes (Linux VmHWM; 0 elsewhere).
+// Peak resident set size in bytes (Linux VmHWM; 0 elsewhere) - the platform helper the memory
+// checks of the tests read as well.
 long long peak_rss_bytes() {
-#ifdef __linux__
-    std::ifstream status("/proc/self/status");
-    std::string line;
-    while (std::getline(status, line)) {
-        if (line.rfind("VmHWM:", 0) == 0) {
-            long long kb = 0;
-            std::sscanf(line.c_str() + 6, "%lld", &kb);
-            return kb * 1024;
-        }
-    }
-#endif
-    return 0;
+    return static_cast<long long>(mfbe::platform::peak_resident_memory_bytes());
 }
 
 std::string issue_line(const std::string& path, const mfbe::model::ValidationIssue& issue) {

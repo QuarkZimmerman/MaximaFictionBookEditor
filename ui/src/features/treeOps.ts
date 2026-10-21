@@ -163,6 +163,27 @@ export function locateNode(model: Pick<Document, 'bodies'>, nodeId: string): Loc
   return null;
 }
 
+/**
+ * The description block - the title-info annotation or the document-info history - that holds
+ * the node `nodeId` (the root node itself included), or null (feature 004, US2: the Body view's
+ * blocks and their tree rows).
+ */
+export function descriptionBlockOf(
+  description: Document['description'],
+  nodeId: string,
+): 'annotation' | 'history' | null {
+  const contains = (node: Json | undefined): boolean => {
+    if (!node) return false;
+    if (nodeIdOf(node) === nodeId) return true;
+    return (node.content ?? []).some((child) => child.type !== 'text' && contains(child));
+  };
+  if (contains(description.titleInfo.annotation as unknown as Json | undefined)) {
+    return 'annotation';
+  }
+  if (contains(description.documentInfo.history as unknown as Json | undefined)) return 'history';
+  return null;
+}
+
 /** Replaces the node `nodeId` (a body or any descendant) by `replacement`; `null` removes it. */
 export function replaceNodeInDocument<D extends Pick<Document, 'bodies'>>(
   model: D,

@@ -150,6 +150,54 @@
   color: var(--mfbe-fb-history);
 }
 
+/*
+ * The annotation and history blocks at the top of the Body view (feature 004, FR-010): set off
+ * from the book text by a frame and a light tint in the element's colour, as the original's
+ * coloured borders set them off, and captioned through generated content - the caption is
+ * never text of the document (not selected, copied, found or checked). `data-caption` is a
+ * node decoration of `plugins/blockCaptions.ts`, refreshed on a language change.
+ */
+.fb-editor .fb-desc-block {
+  position: relative;
+  margin: 0 0 0.9em;
+  padding: 1.5em 0.6em 0.4em 0.8em;
+  border: 1px solid;
+  border-left-width: 4px;
+  border-radius: 3px;
+}
+
+.fb-editor .fb-desc-block::before {
+  content: attr(data-caption);
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0 8px 1px 6px;
+  border-bottom-right-radius: 3px;
+  font: var(--mfbe-font-ui);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.02em;
+  color: var(--mfbe-fb-desc-caption-fg);
+  pointer-events: none;
+  user-select: none;
+}
+
+.fb-editor .fb-desc-block.fb-annotation {
+  background: var(--mfbe-fb-annotation-bg);
+}
+
+.fb-editor .fb-desc-block.fb-annotation::before {
+  background: var(--mfbe-fb-annotation);
+}
+
+.fb-editor .fb-desc-block.fb-history {
+  background: var(--mfbe-fb-history-bg);
+}
+
+.fb-editor .fb-desc-block.fb-history::before {
+  background: var(--mfbe-fb-history);
+}
+
 .fb-poem {
   border-color: var(--mfbe-fb-poem);
 }
@@ -158,7 +206,15 @@
   border-color: var(--mfbe-fb-stanza);
 }
 
-.fb-stanza p {
+/*
+ * The stanza and title rules carry `.fb-editor` so that they outrank the generic paragraph rule
+ * below (`.fb-editor p`, specificity 0,1,1): with the same weight the later rule won and verses
+ * came out justified with the paragraph margin, title lines justified and indented (feature
+ * 004, FR-060 - complaint 6.1; the stanza rule by the requester's decision of 2026-10-20).
+ * 0,2,1 each, so the order of the rules no longer matters. The epigraph margin and the title
+ * padding, lost to the same cascade, stay as they are (candidates).
+ */
+.fb-editor .fb-stanza p {
   text-align: left;
   text-indent: 3em;
   margin-bottom: 0;
@@ -172,7 +228,7 @@
   padding: 0.3em;
 }
 
-.fb-title p {
+.fb-editor .fb-title p {
   text-align: center;
   text-indent: 0;
 }

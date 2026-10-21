@@ -19,6 +19,12 @@
 //   binary.convert({docId, id, format: "jpeg"|"png", quality?}) -> BinaryMeta
 //        explicit conversion (also of JPEG/PNG) to the requested format; same id
 //   binary.export({docId, id, path}) -> {}
+//   binary.copy({docId, fromDocId, id, suggestedId?}) -> BinaryMeta & {existing}   (feature 004
+//        US4): the bytes and metadata of `id` of the session `fromDocId` - the import session
+//        of doc.readDescription - copied into the store of `docId` inside the core; content
+//        already in `docId` (same hash and bytes) is answered with `existing: true` and nothing
+//        is added, else stored under `suggestedId ?? id` made unique (img_2.png style) with
+//        `existing: false` and no reference yet; 1000 for either session, 1010 for the id
 // Binary payloads never travel inside JSON-RPC (Constitution III).
 #include "server/loopback_server.hpp"
 #include "server/services.hpp"
@@ -385,6 +391,50 @@ void register_binary_handlers(rpc::RpcRouter& router, Services& services) {
             sync_binaries(*s.snapshot, *s.binaries);
         }
         return json::object();
+    });
+
+    router.add_method("binary.copy", [&services](const json& params, rpc::RpcContext&) {
+        session::DocumentSession& target =
+            services.documents.require(rpc::params::string(params, "docId"));
+        session::DocumentSession& source =
+            services.documents.require(rpc::params::string(params, "fromDocId"));
+        const std::string id = rpc::params::string(params, "id");
+        if (id.empty()) {
+            throw rpc::invalid_params("id must not be empty", json{{"field", "id"}});
+        }
+        const auto meta = source.binaries->meta(id);
+        const auto bytes = source.binaries->bytes(id);
+        if (!meta || !bytes) {
+            throw rpc::RpcError(rpc::codes::kBinaryNotFound, "", json{{"id", id}});
+        }
+        // Identical content already in the document (spec FR-035, "not added twice"): the
+        // hash tells the candidates apart, the bytes decide.
+        const std::string etag = source.binaries->etag(id);
+        for (const std::string& existing_id : target.binaries->ids()) {
+            if (target.binaries->etag(existing_id) != etag) {
+                continue;
+            }
+            const auto existing_bytes = target.binaries->bytes(existing_id);
+            if (existing_bytes && *existing_bytes == *bytes) {
+                if (target.snapshot) {
+                    update_reference_counts(*target.snapshot, *target.binaries);
+                }
+                json result = model::to_json(*target.binaries->meta(existing_id));
+                result["existing"] = true;
+                return result;
+            }
+        }
+        const std::string suggested = rpc::params::string_or(params, "suggestedId", "");
+        const std::string new_id = target.binaries->unique_id(suggested.empty() ? id : suggested);
+        model::BinaryMeta copied = target.binaries->put(new_id, meta->contentType, *bytes,
+                                                        source.binaries->is_raw_text(id));
+        copied.referenceCount = 0;
+        if (target.snapshot) {
+            sync_binaries(*target.snapshot, *target.binaries);
+        }
+        json result = model::to_json(copied);
+        result["existing"] = false;
+        return result;
     });
 
     router.add_method("binary.export", [&services](const json& params, rpc::RpcContext&) {

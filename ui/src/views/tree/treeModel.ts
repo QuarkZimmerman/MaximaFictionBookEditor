@@ -8,14 +8,42 @@
  *
  * Rows are cached per top-level section object (the model is immutable, so an edit replaces only
  * the objects on the path to the change): a keystroke in a 10 MB book rebuilds one section.
+ *
+ * Feature 004 (US2, FR-013): two depth-0 rows precede the bodies whatever the document holds -
+ * "Annotation" (`desc:annotation`) and "History" (`desc:history`), the Body view's blocks over
+ * `title-info/annotation` and `document-info/history`. They are not sections: Move, Merge and
+ * Delete are unavailable for them (`features/tree`), View and View Source work.
  */
 
 import type { ModelNodeJson } from '@/editor/fromModel';
-import { locateNode } from '@/features/treeOps';
+import { FIXED_BLOCK_IDS, type BlockKind } from '@/editor/schema';
+import { descriptionBlockOf, locateNode } from '@/features/treeOps';
 import type { Document } from '@/model/document';
 
 export type TreeRowKind =
-  'body' | 'section' | 'title' | 'epigraph' | 'annotation' | 'image' | 'poem' | 'cite' | 'table';
+  | 'annotationBlock'
+  | 'historyBlock'
+  | 'body'
+  | 'section'
+  | 'title'
+  | 'epigraph'
+  | 'annotation'
+  | 'image'
+  | 'poem'
+  | 'cite'
+  | 'table';
+
+/** The row kinds of the two description blocks (never sections: no Move / Merge / Delete). */
+export const BLOCK_ROW_KINDS: ReadonlySet<TreeRowKind> = new Set<TreeRowKind>([
+  'annotationBlock',
+  'historyBlock',
+]);
+
+/** Captions of the two block rows (`tree.node.annotation` / `tree.node.history`). */
+export interface BlockCaptions {
+  annotation: string;
+  history: string;
+}
 
 export const ROW_KINDS: ReadonlySet<string> = new Set<TreeRowKind>([
   'body',
@@ -31,6 +59,8 @@ export const ROW_KINDS: ReadonlySet<string> = new Set<TreeRowKind>([
 
 /** Image file of the original `struct.bmp` image list for each row kind (`ElementDescMnr.cpp`). */
 export const ROW_ICONS: Readonly<Record<TreeRowKind, string>> = {
+  annotationBlock: 'struct-12',
+  historyBlock: 'struct-15',
   body: 'struct-00',
   section: 'struct-00',
   poem: 'struct-03',
@@ -54,7 +84,7 @@ export interface TreeRow {
 
 export interface TreeIndex {
   rows: ReadonlyMap<string, TreeRow>;
-  /** Body row ids. */
+  /** Depth-0 row ids: the two block rows, then the bodies. */
   roots: readonly string[];
   /** Every row id in document (pre-order) order. */
   order: readonly string[];
@@ -188,8 +218,26 @@ function subtreeRows(node: ModelNodeJson, depth: number, parentId: string | null
   return built;
 }
 
-/** Builds the tree index of a document (bodies -> sections -> ... ). */
-export function buildTreeIndex(document: Pick<Document, 'bodies'> | null): TreeIndex {
+/** The block row of `kind` (always present; the caption is the tree node's text). */
+function blockRow(kind: BlockKind, captions: BlockCaptions): TreeRow {
+  return {
+    id: FIXED_BLOCK_IDS[kind],
+    kind: kind === 'annotation' ? 'annotationBlock' : 'historyBlock',
+    caption: captions[kind],
+    depth: 0,
+    parentId: null,
+    childIds: [],
+  };
+}
+
+/**
+ * Builds the tree index of a document: the Annotation and History rows, then the bodies ->
+ * sections -> ... `captions` are the texts of the two block rows in the interface language.
+ */
+export function buildTreeIndex(
+  document: Pick<Document, 'bodies'> | null,
+  captions: BlockCaptions,
+): TreeIndex {
   if (!document) return EMPTY_TREE_INDEX;
   const rows = new Map<string, TreeRow>();
   const roots: string[] = [];
@@ -199,6 +247,11 @@ export function buildTreeIndex(document: Pick<Document, 'bodies'> | null): TreeI
     rows.set(row.id, row);
     order.push(row.id);
   };
+  for (const kind of ['annotation', 'history'] as const) {
+    const row = blockRow(kind, captions);
+    roots.push(row.id);
+    add(row);
+  }
   for (const body of document.bodies) {
     const json = body as unknown as ModelNodeJson;
     const bodyId = nodeIdOf(json);
@@ -253,21 +306,43 @@ export function isRowWithin(index: TreeIndex, id: string, ancestorId: string): b
 
 /**
  * The row that represents the element `nodeId`: the element's own row when it has one, else the
- * nearest ancestor shown in the tree (a paragraph -> its section, a verse -> its poem).
+ * nearest ancestor shown in the tree (a paragraph -> its section, a verse -> its poem); a node
+ * under the description's annotation or history maps to its block row (feature 004).
  */
 export function rowForNode(
   index: TreeIndex,
-  document: Pick<Document, 'bodies'> | null,
+  document: (Pick<Document, 'bodies'> & Partial<Pick<Document, 'description'>>) | null,
   nodeId: string | null,
 ): string | null {
   if (!nodeId || !document) return null;
   if (index.rows.has(nodeId)) return nodeId;
   const located = locateNode(document, nodeId);
-  if (!located) return null;
-  for (let i = located.ancestors.length - 1; i >= 0; i -= 1) {
-    const id = located.ancestors[i]!.attrs?.nodeId;
-    if (typeof id === 'string' && index.rows.has(id)) return id;
+  if (located) {
+    for (let i = located.ancestors.length - 1; i >= 0; i -= 1) {
+      const id = located.ancestors[i]!.attrs?.nodeId;
+      if (typeof id === 'string' && index.rows.has(id)) return id;
+    }
+    return null;
   }
+  const block = document.description ? descriptionBlockOf(document.description, nodeId) : null;
+  return block ? FIXED_BLOCK_IDS[block] : null;
+}
+
+/**
+ * The row of the Body selection: `rowForNode` for the selection's node, else - an empty block
+ * holds a UI paragraph the model does not know - the block row the selection's structural path
+ * names (`title-info/annotation[1]/...`, `document-info/history[1]/...`).
+ */
+export function rowForSelection(
+  index: TreeIndex,
+  document: (Pick<Document, 'bodies'> & Partial<Pick<Document, 'description'>>) | null,
+  nodeId: string | null,
+  path: string,
+): string | null {
+  const own = rowForNode(index, document, nodeId);
+  if (own) return own;
+  if (path.startsWith('title-info/annotation[1]')) return FIXED_BLOCK_IDS.annotation;
+  if (path.startsWith('document-info/history[1]')) return FIXED_BLOCK_IDS.history;
   return null;
 }
 

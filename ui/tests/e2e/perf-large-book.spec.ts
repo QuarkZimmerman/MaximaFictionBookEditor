@@ -5,7 +5,11 @@
  * (only a slice of the 200 sections is mounted) and that extending the window keeps the DOM
  * bounded. The second journey (feature 003 US8, FR-074) types in the Source view of the same
  * book: the tag completion list must appear within 300 ms of the last keystroke and keystrokes
- * must stay under 100 ms. Needs the real core and `python3`; skipped otherwise.
+ * must stay under 100 ms. The third journey (feature 004 US7, FR-073, tagged `@perf`) switches
+ * Body -> Source -> Body with the caret and selection mapping on and off
+ * (`__mfbeTest.sourceMapping.enabled`): the mapping step - the difference of the medians - must
+ * stay under 100 ms x `MFBE_PERF_FACTOR`, and every `doc.mapPositions` call under 100 ms in the
+ * core. Needs the real core and `python3`; skipped otherwise.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -14,7 +18,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { expect, test, waitForBook, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  test,
+  waitForBook,
+  waitForStartupDocument,
+  type RpcCallError,
+} from './fixtures/core';
 import { LINE_END, LINE_START, MOD } from './fixtures/keys';
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
@@ -25,6 +35,36 @@ const EDITABLE_BUDGET_MS = 3000;
 const KEYSTROKE_BUDGET_MS = 100;
 /** Feature 003 FR-074: the completion list within 300 ms of the last keystroke. */
 const COMPLETION_LIST_BUDGET_MS = 300;
+/** Feature 004 FR-073: the Body <-> Source mapping step (switch with minus switch without). */
+const MAPPING_BUDGET_MS = 100;
+/** Hosted CI runners against a 2020-era laptop (docs/performance.md). */
+const PERF_FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 2) || 2;
+/** Round trips per mode of the mapping journey. */
+const MAPPING_ROUND_TRIPS = 5;
+
+/**
+ * In-page timing of one view switch: from the click on the view's tab until the view is shown
+ * and loaded (the Source view reports `data-status="ready"` once its text - and the mapped
+ * selection - is in; the Body view once its editor is mounted), plus one frame.
+ */
+const switchTimed = (target: 'source' | 'body') => `(async () => {
+  const start = performance.now();
+  document.querySelector('[data-testid="view-${target}"]').click();
+  const shown = () => ${
+    target === 'source'
+      ? `document.querySelector('[data-testid="source-view"]')?.getAttribute('data-status') === 'ready'`
+      : `!!document.querySelector('[data-testid="body-editor"]')`
+  };
+  while (!shown()) await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+  await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+  return performance.now() - start;
+})()`;
+
+/** The core's own time of the last `doc.mapPositions` call the UI made (-1 when none). */
+const LAST_MAPPING_MS = `(() => {
+  const last = window.__mfbeTest?.sourceMapping?.last;
+  return last && typeof last.coreMs === 'number' ? last.coreMs : -1;
+})()`;
 
 /** In-page keystroke timing: inserts a character and waits for the editor to settle. */
 const typeAndMeasure = (character: string) => `(async () => {
@@ -235,5 +275,155 @@ test.describe('performance - 10 MB text book', () => {
     ).toBeLessThan(KEYSTROKE_BUDGET_MS);
     await expect(activeLine).toContainText('<section id="x"');
     await expect(page).toHaveTitle(/^large\.fb2\* - /);
+  });
+
+  test(
+    'Body <-> Source switches: the caret mapping adds under 100 ms (feature 004 US7, FR-073)',
+    { tag: '@perf' },
+    async ({ core, page }) => {
+      test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+      test.skip(!book || !existsSync(book), 'python3 / the generator are not available');
+      const supportsDocuments = await core
+        .rpc('doc.recent')
+        .then(() => true)
+        .catch((error: RpcCallError) => error.code !== -32601);
+      test.skip(!supportsDocuments, 'the core does not implement doc.* yet');
+
+      await core.openApp(page);
+      await expect(page.getByTestId('status-message')).toHaveText('Ready');
+      await core.enqueueDialog('dialog.openFile', { paths: [book] });
+      await page.getByTestId('menu-file').click();
+      await page.getByTestId('menu-file-open').click();
+      await waitForBook(page, book, EDITABLE_BUDGET_MS * 4);
+      const editor = page.getByTestId('body-editor');
+      await expect(editor).toHaveAttribute('contenteditable', 'true', {
+        timeout: EDITABLE_BUDGET_MS * 4,
+      });
+      // The caret deep in a mounted paragraph: the position the switches carry back and forth.
+      await editor
+        .locator('.fb-section p.fb-p')
+        .nth(3)
+        .click({ position: { x: 40, y: 8 } });
+      await expect(page.getByTestId('status-path')).toContainText('/p[');
+
+      // Warm-up: the first Source visit serialises the 10 MB text and builds the editor state.
+      await page.getByTestId('view-source').click();
+      await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready', {
+        timeout: 60_000,
+      });
+      await page.getByTestId('view-body').click();
+      await expect(editor).toBeVisible();
+
+      const setMapping = (enabled: boolean) =>
+        page.evaluate(`window.__mfbeTest.sourceMapping.enabled = ${enabled ? 'true' : 'false'}`);
+      const roundTrip = async (): Promise<number> => {
+        const toSource = await page.evaluate<number>(switchTimed('source'));
+        const toBody = await page.evaluate<number>(switchTimed('body'));
+        return toSource + toBody;
+      };
+      const on: number[] = [];
+      const off: number[] = [];
+      const coreTimes: number[] = [];
+      for (let i = 0; i < MAPPING_ROUND_TRIPS; i += 1) {
+        await setMapping(true);
+        on.push(await roundTrip());
+        // The core's time of the last of the two doc.mapPositions calls of the round trip.
+        coreTimes.push(await page.evaluate<number>(LAST_MAPPING_MS));
+        await setMapping(false);
+        off.push(await roundTrip());
+      }
+      await setMapping(true);
+      const mappingMs = median(on) - median(off);
+      test.info().annotations.push({
+        type: 'perf',
+        description:
+          `Body <-> Source round trip median ${median(on).toFixed(0)} ms with the mapping, ` +
+          `${median(off).toFixed(0)} ms without: mapping step ${mappingMs.toFixed(0)} ms ` +
+          `(on ${on.map((t) => t.toFixed(0)).join(', ')}; off ${off.map((t) => t.toFixed(0)).join(', ')}); ` +
+          `doc.mapPositions in the core ${coreTimes.map((t) => t.toFixed(1)).join(', ')} ms`,
+      });
+      expect(mappingMs, 'the mapping step (median with minus median without)').toBeLessThan(
+        MAPPING_BUDGET_MS * PERF_FACTOR,
+      );
+      for (const coreMs of coreTimes) {
+        expect(coreMs, 'doc.mapPositions was called and timed').toBeGreaterThanOrEqual(0);
+        expect(coreMs, 'doc.mapPositions in the core').toBeLessThan(MAPPING_BUDGET_MS);
+      }
+      // The caret came back to its paragraph after every round trip.
+      await expect(page.getByTestId('status-path')).toContainText('/p[');
+    },
+  );
+
+  test('opens with a remembered position within the open budget (feature 004 US8)', async ({
+    core,
+    page,
+  }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+    test.skip(!book || !existsSync(book), 'python3 / the generator are not available');
+    const supportsDocuments = await core
+      .rpc('doc.recent')
+      .then(() => true)
+      .catch((error: RpcCallError) => error.code !== -32601);
+    test.skip(!supportsDocuments, 'the core does not implement doc.* yet');
+    await core.rpc('settings.set', { patch: { other: { restorePosition: true } } });
+
+    await core.openApp(page);
+    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    await core.enqueueDialog('dialog.openFile', { paths: [book] });
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-open').click();
+    await waitForBook(page, book, EDITABLE_BUDGET_MS * 4);
+    const editor = page.getByTestId('body-editor');
+    await expect(editor).toHaveAttribute('contenteditable', 'true', {
+      timeout: EDITABLE_BUDGET_MS * 4,
+    });
+    // The caret deep in the book - a section far outside the first window - then File > New
+    // remembers it (the position record of positions.json, keyed by structural path).
+    const total = Number(
+      await page.getByTestId('panel-body-document').getAttribute('data-section-total'),
+    );
+    const target = `body[1]/section[${Math.floor(total * 0.75)}]/p[3]`;
+    const nodeId = await page.evaluate<string>(`(() => {
+      const doc = window.__mfbeTest.scripts.document();
+      const body = doc.bodies[0];
+      const sections = body.content.filter((n) => n.type === 'section');
+      const section = sections[${Math.floor(total * 0.75)} - 1];
+      const paragraphs = section.content.filter((n) => n.type === 'p');
+      return paragraphs[2].attrs.nodeId;
+    })()`);
+    expect(
+      await page.evaluate<boolean>(`window.__mfbeTest.scripts.select("${nodeId}", 4, 4)`),
+    ).toBe(true);
+    await expect(page.getByTestId('status-path')).toHaveText(target);
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-new').click();
+    await waitForStartupDocument(page);
+
+    // The reopen: editable within the budget, the caret back at the remembered place.
+    await core.enqueueDialog('dialog.openFile', { paths: [book] });
+    const started = Date.now();
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-open').click();
+    await waitForBook(page, book, EDITABLE_BUDGET_MS * 4);
+    await expect(editor).toHaveAttribute('contenteditable', 'true', {
+      timeout: EDITABLE_BUDGET_MS * 4,
+    });
+    await expect(page.getByTestId('status-path')).toHaveText(target, {
+      timeout: EDITABLE_BUDGET_MS * 4,
+    });
+    const editableAfterMs = Date.now() - started;
+    test.info().annotations.push({
+      type: 'perf',
+      description: `editable with the remembered position after ${editableAfterMs} ms`,
+    });
+    expect(
+      editableAfterMs,
+      'time until the Body view is editable at the remembered position',
+    ).toBeLessThan(EDITABLE_BUDGET_MS);
+    const head = await page.evaluate<{ head: { offset: number } } | null>(
+      'window.__mfbeTest.sourceMapping.bodySelection()',
+    );
+    expect(head?.head.offset).toBe(4);
+    await expect(editor.locator('p.fb-p').filter({ hasText: /./ }).first()).toBeVisible();
   });
 });

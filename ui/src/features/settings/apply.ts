@@ -21,16 +21,19 @@
  *    original "In order to process changes the program must be restarted. Restart now?"
  *    prompt (Yes restarts the editor through `app.restart` - the shell starts it again with
  *    the same document and window - or reloads the page in browser mode; feature 003 US3).
- *  - **Session**: toolbar visibility and the document tree flag are written back to
- *    `session.*` through `settings.set` (debounced). They are the window's own state: the
- *    store adopts them from the start-up read only, and the snapshots the core reports later
- *    (`settings.changed` after any `settings.set`, the results of `settings.set`) leave them
- *    alone - such a snapshot may predate a change still waiting for its delayed save and
- *    would undo it (`actions.setSettings`). The Find/Replace histories are persisted
- *    by the search feature itself. The window placement (`session.windowGeometry`) is the
- *    shell's: it records the native window's bounds and maximised state at quit and before a
- *    restart and applies them at window creation (feature 003 US3); browser mode has no native
- *    window, so the UI writes nothing there.
+ *  - **Session**: toolbar visibility, the document tree flag and the tree pane width
+ *    (`session.treeWidth`, feature 004 US1) are written back to `session.*` through
+ *    `settings.set` (debounced; `flushSessionSave` writes a pending save at once - the quit
+ *    flow waits for it before `app.quit`, so a width dragged just before the exit is stored,
+ *    FR-003). They are the window's own state: the store adopts them from the start-up read
+ *    only, and the snapshots the core reports later (`settings.changed` after any
+ *    `settings.set`, the results of `settings.set`) leave them alone - such a snapshot may
+ *    predate a change still waiting for its delayed save and would undo it
+ *    (`actions.setSettings`). The Find/Replace histories are persisted by the search feature
+ *    itself. The window placement (`session.windowGeometry`) is the shell's: it records the
+ *    native window's bounds and maximised state at quit and before a restart and applies them
+ *    at window creation (feature 003 US3); browser mode has no native window, so the UI writes
+ *    nothing there.
  *  - **Hotkeys**: the user overrides are loaded from `hotkeys.get` when the feature is attached
  *    to the RPC client and written with `hotkeys.set` by the Hotkeys page. A core without the
  *    `hotkeys.*` methods (-32601) keeps the bindings for the session only.
@@ -320,7 +323,9 @@ export class SettingsFeature {
       }
       if (
         state.settings &&
-        (state.toolbars !== previous.toolbars || state.treeVisible !== previous.treeVisible)
+        (state.toolbars !== previous.toolbars ||
+          state.treeVisible !== previous.treeVisible ||
+          state.treeWidth !== previous.treeWidth)
       ) {
         this.scheduleSessionSave();
       }
@@ -385,7 +390,20 @@ export class SettingsFeature {
     }, SESSION_SAVE_DELAY_MS);
   }
 
-  /** Persists toolbar/tree visibility when they differ from the stored session. */
+  /**
+   * Writes a pending session save at once instead of after the delay, and resolves when the
+   * core has answered - before a quit or a restart (FR-003: the pane width dragged a moment
+   * before the exit must be stored). Nothing to write: resolves without a call.
+   */
+  async flushSessionSave(): Promise<void> {
+    if (this.sessionTimer) {
+      clearTimeout(this.sessionTimer);
+      this.sessionTimer = null;
+    }
+    await this.saveSession();
+  }
+
+  /** Persists toolbar/tree visibility and the tree width when they differ from the stored session. */
   async saveSession(): Promise<boolean> {
     const rpc = this.rpcClient;
     const state = this.store.getState();
@@ -396,6 +414,11 @@ export class SettingsFeature {
       patch.toolbars = { ...state.toolbars };
     }
     if (session.treeVisible !== state.treeVisible) patch.treeVisible = state.treeVisible;
+    // Only a core that knows the key (API minor 3) gets the width; an older one would refuse
+    // the whole patch.
+    if (typeof session.treeWidth === 'number' && session.treeWidth !== state.treeWidth) {
+      patch.treeWidth = state.treeWidth;
+    }
     if (Object.keys(patch).length === 0) return false;
     try {
       const result = await rpc.call('settings.set', { patch: { session: patch } });
@@ -426,4 +449,12 @@ export function registerSettingsRuntime(
 /** The settings runtime of a store (undefined before the feature registered). */
 export function getSettingsFeature(store: AppStore): SettingsFeature | undefined {
   return features.get(store);
+}
+
+/**
+ * Writes the pending session save of `store`'s settings runtime at once (nothing registered:
+ * nothing to do). The quit flow and a restart call it before `app.quit` / `app.restart`.
+ */
+export async function flushSessionSave(store: AppStore): Promise<void> {
+  await features.get(store)?.flushSessionSave();
 }

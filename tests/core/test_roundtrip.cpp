@@ -125,6 +125,66 @@ TEST_CASE("roundtrip: the comparison reports real differences", "[roundtrip]") {
     CHECK(roundtrip::compare(a.document, store_a, c2.document, store_a).identical());
 }
 
+TEST_CASE("roundtrip: the Maxima Library role entries are written verbatim in their order",
+          "[roundtrip]") {
+    // Feature 004 US3 (FR-021, FR-023; research R3.1): the role list is a projection the UI
+    // derives from the custom-info rows - the core reads and writes rows only, every text
+    // character for character (leading / trailing / double spaces, `_`, an empty text, a type in
+    // another letter case, five parts), in file order. This case pins that nothing in the core
+    // changes it.
+    const std::string name =
+        GENERATE(std::string("maxlib-roles.fbd"), std::string("maxlib-roles-edge.fbd"));
+    INFO(name);
+    test::TempDir out{"mfbe-roundtrip-roles"};
+    const roundtrip::Report report = roundtrip::run(book(name.c_str()), out.path());
+    CHECK(report.opened);
+    CHECK(report.reopened);
+    for (const auto& d : report.comparison.differences) {
+        FAIL_CHECK(d.where << ": " << d.what);
+    }
+    CHECK(report.identical);
+    REQUIRE(report.written_path.has_value());
+
+    MemoryBinaryStore store_in;
+    MemoryBinaryStore store_out;
+    model::NodeIdAllocator ids_in;
+    model::NodeIdAllocator ids_out;
+    const auto original = fb2::read_file(book(name.c_str()), store_in, ids_in);
+    const auto written = fb2::read_file(*report.written_path, store_out, ids_out);
+    const auto& rows_in = original.document.description.customInfo;
+    const auto& rows_out = written.document.description.customInfo;
+    REQUIRE(rows_in.size() == (name == "maxlib-roles.fbd" ? 9U : 11U));
+    REQUIRE(rows_out.size() == rows_in.size());
+    for (std::size_t i = 0; i < rows_in.size(); ++i) {
+        INFO("row " << i << ": " << rows_in[i].infoType << " = '" << rows_in[i].text << "'");
+        CHECK(rows_out[i].infoType == rows_in[i].infoType);
+        CHECK(rows_out[i].text == rows_in[i].text);
+        CHECK(rows_out[i].lang == rows_in[i].lang);
+    }
+    if (name == "maxlib-roles.fbd") {
+        CHECK(rows_in[0].infoType == "mlillustrator");
+        CHECK(rows_in[0].text == "Илюстраторов Илья Ильич");
+        CHECK(rows_in[8].infoType == "mlseriesid");
+        CHECK(rows_in[8].text == "99 Какая-то серия");
+    } else {
+        // The texts the library's edge cases rely on survive untouched.
+        CHECK(rows_in[3].infoType == "mlcommentator");
+        CHECK(rows_in[3].text.empty());
+        CHECK(rows_in[4].text == "Первый Второй Третий Четвёртый Пятый");
+        CHECK(rows_in[7].text == "Де_Голль Шарль");
+        CHECK(rows_in[8].text == "Дизайнеров  Данилович");
+        CHECK(rows_in[9].text == "  Пробелов Пётр Петрович ");
+        CHECK(rows_in[10].infoType == "MlEditor");
+        CHECK(rows_in[10].text == "Регистров Р Р");
+        const std::string text = test::read_text(*report.written_path);
+        CHECK(text.find(
+                  "<custom-info info-type=\"mleditor\">  Пробелов Пётр Петрович </custom-info>") !=
+              std::string::npos);
+        CHECK(text.find("<custom-info info-type=\"MlEditor\">Регистров Р Р</custom-info>") !=
+              std::string::npos);
+    }
+}
+
 TEST_CASE("roundtrip: the document details filled in on load are written and not compared",
           "[roundtrip]") {
     // Feature 002: open and save fill in the id, version, program used and date as the

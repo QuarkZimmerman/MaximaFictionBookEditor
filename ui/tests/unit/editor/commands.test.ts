@@ -49,7 +49,9 @@ import {
   insertTable,
   setNodeAttr,
 } from '@/editor/commands/table';
-import { fb2Schema } from '@/editor/schema';
+import { enterCommand } from '@/editor/keymap';
+import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
+import { fb2Schema, FIXED_BLOCK_IDS } from '@/editor/schema';
 
 const { nodes: N, marks: M } = fb2Schema;
 
@@ -556,5 +558,80 @@ describe('Links and footnotes (T061)', () => {
     // Missing target: the command reports false ("Reference not found." is shown by the feature).
     const dangling = run(stateAt(d, from, from + 4), setLink('#nowhere'))!;
     expect(gotoFootnote(stateAt(dangling.doc, from + 1))).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Annotation and history blocks (feature 004, US2)                         */
+/* ------------------------------------------------------------------------ */
+
+describe('commands inside the annotation and history blocks (004 US2)', () => {
+  function blockBook() {
+    return N.doc!.create(null, [
+      N.annotation_block!.create({ nodeId: FIXED_BLOCK_IDS.annotation }, [
+        p('Annotation text'),
+        p('Second line'),
+      ]),
+      N.history_block!.create({ nodeId: FIXED_BLOCK_IDS.history }, [p('History text')]),
+      body([title('Book'), section([title('One'), p('First paragraph.')])]),
+    ]);
+  }
+
+  it('offers paragraph, subtitle, poem, cite and table and keeps the section commands unavailable', () => {
+    const d = blockBook();
+    const inAnnotation = stateAt(d, posOf(d, 'Annotation text'));
+    const inHistory = stateAt(d, posOf(d, 'History text'));
+    for (const state of [inAnnotation, inHistory]) {
+      // Section-level commands: add title / epigraph / annotation / section image / block
+      // image, clone / split / merge / remove outer - all unavailable.
+      expect(addTitle(state)).toBe(false);
+      expect(addEpigraph(state)).toBe(false);
+      expect(addAnnotation(state)).toBe(false);
+      expect(addSectionImage()(state)).toBe(false);
+      expect(insertImage()(state)).toBe(false);
+      expect(addTextAuthor(state)).toBe(false);
+      expect(cloneContainer(state)).toBe(false);
+      expect(splitContainer(state)).toBe(false);
+      expect(mergeContainers(state)).toBe(false);
+      expect(removeOuterContainer(state)).toBe(false);
+      expect(setParagraphStyle('textAuthor')(state)).toBe(false);
+      // The annotation content model: subtitle, poem, cite, table, inline image and marks.
+      expect(setParagraphStyle('subtitle')(state)).toBe(true);
+      expect(insertPoem(state)).toBe(true);
+      expect(insertCite(state)).toBe(true);
+      expect(canInsertTable(state)).toBe(true);
+      expect(insertInlineImage()(state)).toBe(true);
+      expect(toggleInlineMark('strong')(state)).toBe(true);
+    }
+    const subtitled = run(inAnnotation, setParagraphStyle('subtitle'))!;
+    expect(names(subtitled.doc.child(0))).toEqual(['subtitle', 'p']);
+    expect(setParagraphStyle('normal')(subtitled)).toBe(true);
+    const poem = run(inHistory, insertPoem)!;
+    expect(names(poem.doc.child(1))).toEqual(['p', 'poem']);
+    expect(poem.doc.check()).toBeUndefined();
+    const cite = run(inHistory, insertCite)!;
+    expect(names(cite.doc.child(1))).toEqual(['p', 'cite']);
+    const table = run(inHistory, insertTable(1, false))!;
+    expect(names(table.doc.child(1))).toEqual(['p', 'table']);
+    expect(table.doc.check()).toBeUndefined();
+  });
+
+  it('Enter on the empty trailing paragraph of a block does not leave the block', () => {
+    const d = N.doc!.create(null, [
+      N.annotation_block!.create({ nodeId: FIXED_BLOCK_IDS.annotation }, [p('Text'), p('')]),
+      N.history_block!.create({ nodeId: FIXED_BLOCK_IDS.history }, [p('History')]),
+      body([section([p('Body')])]),
+    ]);
+    const base = EditorState.create({ doc: d, plugins: [nodeIdPlugin()] });
+    const emptyLine = d.child(0).nodeSize - 2; // inside the trailing empty paragraph
+    const state = base.apply(base.tr.setSelection(TextSelection.create(d, emptyLine)));
+    expect(state.selection.$from.parent.content.size).toBe(0);
+    const next = run(state, enterCommand)!;
+    // The caret is still in the annotation block (an empty line and a new paragraph, as in a
+    // section); nothing moved into the history block or the body.
+    expect(next.selection.$from.node(1).type.name).toBe('annotation_block');
+    expect(names(next.doc.child(0))).toEqual(['p', 'empty_line', 'p']);
+    expect(names(next.doc.child(1))).toEqual(['p']);
+    expect(next.doc.check()).toBeUndefined();
   });
 });

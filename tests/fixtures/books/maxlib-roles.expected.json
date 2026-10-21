@@ -1,0 +1,316 @@
+{
+  "source": "Copied 2026-10-20 from the Maxima Library's lookup-service checks `/srv/maxima/tests/lookup-service/check-fbd-roles.sh` (lines 29–38), `check-fbd-roles-edge-cases.sh`, `check-fbd-roles-repeated.sh`, laid out as `make-archive.sh` writes a description; the requester's own work, under the project's licence; no third-party material.",
+  "file": "maxlib-roles.fbd",
+  "rows": [
+    {
+      "infoType": "mlillustrator",
+      "text": "Илюстраторов Илья Ильич"
+    },
+    {
+      "infoType": "mleditor",
+      "text": "Редакторов Роман Романович"
+    },
+    {
+      "infoType": "mlcompiler",
+      "text": "Составителев Семён Семёнович"
+    },
+    {
+      "infoType": "mldesigner",
+      "text": "Оформителев Олег Олегович"
+    },
+    {
+      "infoType": "mlcommentator",
+      "text": "Комментаторов Кузьма Кузьмич"
+    },
+    {
+      "infoType": "mlabouttheauthor",
+      "text": "Оавторов Артём Артёмович"
+    },
+    {
+      "infoType": "mlillustratorid",
+      "text": "4711 Илюстраторов Илья Ильич"
+    },
+    {
+      "infoType": "mleditorid",
+      "text": "4712 Редакторов Роман Романович"
+    },
+    {
+      "infoType": "mlseriesid",
+      "text": "99 Какая-то серия"
+    }
+  ],
+  "entries": [
+    {
+      "role": "illustrator",
+      "lastName": "Илюстраторов",
+      "firstName": "Илья",
+      "middleName": "Ильич",
+      "row": 0
+    },
+    {
+      "role": "editor",
+      "lastName": "Редакторов",
+      "firstName": "Роман",
+      "middleName": "Романович",
+      "row": 1
+    },
+    {
+      "role": "compiler",
+      "lastName": "Составителев",
+      "firstName": "Семён",
+      "middleName": "Семёнович",
+      "row": 2
+    },
+    {
+      "role": "designer",
+      "lastName": "Оформителев",
+      "firstName": "Олег",
+      "middleName": "Олегович",
+      "row": 3
+    },
+    {
+      "role": "commentator",
+      "lastName": "Комментаторов",
+      "firstName": "Кузьма",
+      "middleName": "Кузьмич",
+      "row": 4
+    },
+    {
+      "role": "aboutTheAuthor",
+      "lastName": "Оавторов",
+      "firstName": "Артём",
+      "middleName": "Артёмович",
+      "row": 5
+    }
+  ],
+  "roles": {
+    "illustrator": [
+      [
+        "Илюстраторов",
+        "Илья",
+        "Ильич"
+      ]
+    ],
+    "editor": [
+      [
+        "Редакторов",
+        "Роман",
+        "Романович"
+      ]
+    ],
+    "compiler": [
+      [
+        "Составителев",
+        "Семён",
+        "Семёнович"
+      ]
+    ],
+    "designer": [
+      [
+        "Оформителев",
+        "Олег",
+        "Олегович"
+      ]
+    ],
+    "commentator": [
+      [
+        "Комментаторов",
+        "Кузьма",
+        "Кузьмич"
+      ]
+    ],
+    "aboutTheAuthor": [
+      [
+        "Оавторов",
+        "Артём",
+        "Артёмович"
+      ]
+    ]
+  },
+  "plainRows": [
+    {
+      "infoType": "mlillustratorid",
+      "text": "4711 Илюстраторов Илья Ильич"
+    },
+    {
+      "infoType": "mleditorid",
+      "text": "4712 Редакторов Роман Романович"
+    },
+    {
+      "infoType": "mlseriesid",
+      "text": "99 Какая-то серия"
+    }
+  ],
+  "edge": {
+    "file": "maxlib-roles-edge.fbd",
+    "cover": "cover.jpg",
+    "rows": [
+      {
+        "infoType": "mlillustrator",
+        "text": "Однофамильцев"
+      },
+      {
+        "infoType": "mleditor",
+        "text": "Однофамильцев"
+      },
+      {
+        "infoType": "mlcompiler",
+        "text": "Ю Ю Ю"
+      },
+      {
+        "infoType": "mlcommentator",
+        "text": ""
+      },
+      {
+        "infoType": "mlabouttheauthor",
+        "text": "Первый Второй Третий Четвёртый Пятый"
+      },
+      {
+        "infoType": "mlillustrator",
+        "text": "Первов Пётр Петрович"
+      },
+      {
+        "infoType": "mlillustrator",
+        "text": "Второв Вадим Вадимович"
+      },
+      {
+        "infoType": "mleditor",
+        "text": "Де_Голль Шарль"
+      },
+      {
+        "infoType": "mldesigner",
+        "text": "Дизайнеров  Данилович"
+      },
+      {
+        "infoType": "mleditor",
+        "text": "  Пробелов Пётр Петрович "
+      },
+      {
+        "infoType": "MlEditor",
+        "text": "Регистров Р Р"
+      }
+    ],
+    "entries": [
+      {
+        "role": "illustrator",
+        "lastName": "Однофамильцев",
+        "firstName": "",
+        "middleName": "",
+        "row": 0
+      },
+      {
+        "role": "editor",
+        "lastName": "Однофамильцев",
+        "firstName": "",
+        "middleName": "",
+        "row": 1
+      },
+      {
+        "role": "compiler",
+        "lastName": "Ю",
+        "firstName": "Ю",
+        "middleName": "Ю",
+        "row": 2
+      },
+      {
+        "role": "illustrator",
+        "lastName": "Первов",
+        "firstName": "Пётр",
+        "middleName": "Петрович",
+        "row": 5
+      },
+      {
+        "role": "illustrator",
+        "lastName": "Второв",
+        "firstName": "Вадим",
+        "middleName": "Вадимович",
+        "row": 6
+      },
+      {
+        "role": "editor",
+        "lastName": "Де Голль",
+        "firstName": "Шарль",
+        "middleName": "",
+        "row": 7
+      },
+      {
+        "role": "designer",
+        "lastName": "Дизайнеров",
+        "firstName": "",
+        "middleName": "Данилович",
+        "row": 8
+      },
+      {
+        "role": "editor",
+        "lastName": "Пробелов",
+        "firstName": "Пётр",
+        "middleName": "Петрович",
+        "row": 9
+      }
+    ],
+    "roles": {
+      "illustrator": [
+        [
+          "Однофамильцев",
+          "",
+          ""
+        ],
+        [
+          "Первов",
+          "Пётр",
+          "Петрович"
+        ],
+        [
+          "Второв",
+          "Вадим",
+          "Вадимович"
+        ]
+      ],
+      "editor": [
+        [
+          "Однофамильцев",
+          "",
+          ""
+        ],
+        [
+          "Де Голль",
+          "Шарль",
+          ""
+        ],
+        [
+          "Пробелов",
+          "Пётр",
+          "Петрович"
+        ]
+      ],
+      "compiler": [
+        [
+          "Ю",
+          "Ю",
+          "Ю"
+        ]
+      ],
+      "designer": [
+        [
+          "Дизайнеров",
+          "",
+          "Данилович"
+        ]
+      ]
+    },
+    "plainRows": [
+      {
+        "infoType": "mlcommentator",
+        "text": ""
+      },
+      {
+        "infoType": "mlabouttheauthor",
+        "text": "Первый Второй Третий Четвёртый Пятый"
+      },
+      {
+        "infoType": "MlEditor",
+        "text": "Регистров Р Р"
+      }
+    ]
+  }
+}

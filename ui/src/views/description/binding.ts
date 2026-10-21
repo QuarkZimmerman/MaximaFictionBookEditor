@@ -6,13 +6,17 @@
  * typed, including incomplete rows - survives view switches exactly like the Body editor's
  * state does. The controller:
  *
- *  - keeps the raw form (`Description` shaped) and writes its *clean* projection
- *    (`cleanDescription()`: trimmed, empty optional fields omitted, the person rule applied)
- *    into the document on every change through `actions.updateDocument` (marks modified), so
- *    Save always sees the latest values;
+ *  - keeps the raw form (`DescriptionForm`: the model's shape plus the "Other persons" list
+ *    derived from the role rows, feature 004 US3) and writes its *clean* projection
+ *    (`cleanDescription()`: trimmed, empty optional fields omitted, the person rule applied, the
+ *    role entries folded back into `custom-info` rows) into the document on every change
+ *    through `actions.updateDocument` (marks modified), so Save always sees the latest values;
  *  - re-initialises from the model when the document is replaced from outside (New / Open /
  *    Reload / Source re-parse) - recognised because the description object is not the one the
- *    controller produced;
+ *    controller produced; a description that differs from the committed one only in the
+ *    annotation / history nodes - the Body view's blocks edit the same datum (feature 004,
+ *    FR-011) - is *adopted* instead: form and committed description follow, no undo entry, no
+ *    re-initialisation, so the Description history survives a block edit;
  *  - records one `description` undo entry per field edit burst (consecutive keystrokes in the
  *    same field within a second are one entry; a blur or another field starts a new one) and
  *    one per structural change (row added / removed, genre picked...), replaying them through
@@ -37,6 +41,7 @@ import {
   requiredIssues,
   setAtPath,
   textFields,
+  type DescriptionForm,
   type FieldKey,
   type RequiredIssues,
 } from './model';
@@ -47,7 +52,7 @@ export const DESCRIPTION_UNDO_VIEW = 'description';
 const COALESCE_MS = 1000;
 
 export interface DescriptionSnapshot {
-  form: Description | null;
+  form: DescriptionForm | null;
   docId: string | null;
   issues: RequiredIssues | null;
   /** Monotonic counter, bumped on every form change. */
@@ -57,8 +62,8 @@ export interface DescriptionSnapshot {
 const EMPTY_SNAPSHOT: DescriptionSnapshot = { form: null, docId: null, issues: null, revision: 0 };
 
 interface HistoryEntry {
-  before: Description;
-  after: Description;
+  before: DescriptionForm;
+  after: DescriptionForm;
 }
 
 interface OpenEntry {
@@ -89,7 +94,7 @@ export class DescriptionController {
   private translate: (key: string) => string;
   private readonly now: () => number;
 
-  private form: Description | null = null;
+  private form: DescriptionForm | null = null;
   private docId: string | null = null;
   /** The description object the controller last wrote into (or read from) the model. */
   private committed: Description | null = null;
@@ -119,7 +124,15 @@ export class DescriptionController {
         this.initFrom(null);
         return;
       }
-      if (state.docId !== this.docId || state.document.description !== this.committed) {
+      if (state.docId !== this.docId) {
+        this.initFrom(state.document);
+        return;
+      }
+      const description = state.document.description;
+      if (description === this.committed) return;
+      if (this.committed && this.form && differsOnlyInBlocks(this.committed, description)) {
+        this.adopt(description);
+      } else {
         this.initFrom(state.document);
       }
     });
@@ -136,7 +149,7 @@ export class DescriptionController {
 
   readonly getSnapshot = (): DescriptionSnapshot => this.snapshot;
 
-  get currentForm(): Description | null {
+  get currentForm(): DescriptionForm | null {
     return this.form;
   }
 
@@ -176,8 +189,24 @@ export class DescriptionController {
     this.publish();
   }
 
+  /**
+   * Takes over the annotation / history nodes of a description the Body view's blocks wrote
+   * (or a script, Replace, an undo of a block edit): the form shows them, `committed` is the
+   * model's object again, no undo entry is recorded and the history is kept (data-model §2.3).
+   * The open edit burst is closed so a later keystroke starts an entry of its own.
+   */
+  private adopt(description: Description): void {
+    if (!this.form) return;
+    let form = setAtPath(this.form, 'titleInfo.annotation', description.titleInfo.annotation);
+    form = setAtPath(form, 'documentInfo.history', description.documentInfo.history);
+    this.form = form;
+    this.committed = description;
+    this.open = null;
+    this.publish();
+  }
+
   /** Writes the clean projection of `form` into the document (marks it modified). */
-  private commitModel(form: Description): void {
+  private commitModel(form: DescriptionForm): void {
     const state = this.store.getState();
     if (!state.document || state.docId !== this.docId) return;
     const cleaned = cleanDescription(form);
@@ -190,7 +219,7 @@ export class DescriptionController {
    * key are coalesced into one undo entry); `null` records an entry of its own; `false` records
    * nothing (undo/redo replay).
    */
-  private apply(next: Description, key: FieldKey | null | false): void {
+  private apply(next: DescriptionForm, key: FieldKey | null | false): void {
     const previous = this.form;
     if (!previous) return;
     this.form = next;
@@ -234,7 +263,7 @@ export class DescriptionController {
   }
 
   /** Structural change (rows added / removed / moved) as one undo entry. */
-  update(mutate: (form: Description) => Description): void {
+  update(mutate: (form: DescriptionForm) => DescriptionForm): void {
     if (!this.form) return;
     const next = mutate(this.form);
     if (next === this.form) return;
@@ -263,7 +292,7 @@ export class DescriptionController {
     };
   })();
 
-  private replay(form: Description): void {
+  private replay(form: DescriptionForm): void {
     this.replaying = true;
     try {
       this.apply(form, false);
@@ -467,6 +496,33 @@ export class DescriptionController {
       this.anchor = null;
     },
   };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Adoption rule                                                            */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * True when `next` is `committed` with nothing but `titleInfo.annotation` and / or
+ * `documentInfo.history` replaced - the change of a Body view block (feature 004, US2).
+ */
+export function differsOnlyInBlocks(committed: Description, next: Description): boolean {
+  if (next === committed) return false;
+  const sameExcept = <T extends object>(a: T, b: T, except: ReadonlySet<string>): boolean => {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const key of keys) {
+      if (except.has(key)) continue;
+      if ((a as Record<string, unknown>)[key] !== (b as Record<string, unknown>)[key]) return false;
+    }
+    return true;
+  };
+  if (!sameExcept(committed, next, new Set(['titleInfo', 'documentInfo']))) return false;
+  if (!sameExcept(committed.titleInfo, next.titleInfo, new Set(['annotation']))) return false;
+  if (!sameExcept(committed.documentInfo, next.documentInfo, new Set(['history']))) return false;
+  return (
+    committed.titleInfo.annotation !== next.titleInfo.annotation ||
+    committed.documentInfo.history !== next.documentInfo.history
+  );
 }
 
 /* ------------------------------------------------------------------------ */

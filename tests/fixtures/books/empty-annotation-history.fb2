@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_contemporary</genre>
+			<author>
+				<first-name>Пустая</first-name>
+				<last-name>Аннотация</last-name>
+			</author>
+			<book-title>Пустые элементы</book-title>
+			<annotation/>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture generator</program-used>
+			<date value="2026-01-01">2026</date>
+			<id>fixture-empty-annotation-history</id>
+			<version>1.0</version>
+			<history xml:lang="ru"/>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава</p>
+			</title>
+			<p>Единственный абзац.</p>
+		</section>
+	</body>
+</FictionBook>

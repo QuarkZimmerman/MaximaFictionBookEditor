@@ -32,9 +32,7 @@
       "saveAs": "Сохранить &как...",
       "validate": "&Проверить",
       "import": "&Импорт",
-      "noImportPlugins": "Не установлено ни одного плагина",
       "export": "&Экспорт",
-      "noExportPlugins": "Не установлено ни одного плагина",
       "recent": "П&редыдущие документы",
       "noRecent": "Пусто",
       "openThisDocument": "Открыть этот документ",
@@ -813,7 +811,8 @@
       "parseError": "Файл не является корректным XML (строка {{line}}, столбец {{column}}): {{message}}",
       "ioError": "Не удалось прочитать или записать {{path}}: {{reason}}",
       "sourceMalformed": "XML-код документа некорректен; сначала исправьте его в режиме «Код»",
-      "notFictionBook": "{{path}} не является документом FictionBook"
+      "notFictionBook": "{{path}} не является документом FictionBook",
+      "sameAsOpenFile": "{{path}} — это сам открытый документ"
     },
     "binary": {
       "notFound": "Бинарный объект \"{{id}}\" отсутствует в документе"

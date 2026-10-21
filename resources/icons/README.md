@@ -70,7 +70,9 @@ id_dt_left, id_dt_merge, id_dt_delete.
 `struct.bmp` is loaded with `CreateFromImage(IDB_STRUCTURE, 16, 32,
 RGB(255,0,255))`. Indices are assigned in `ElementDescMnr.cpp` /
 `TreeView.cpp`: 0 = body and section, 3 = image and poem (`IMG_ID_*`
-constants); the old inline code also used 6 for subtitles. The images come in
+constants); the old inline code also used 6 for subtitles; the built-in element
+descriptors (`ElementDescMnr.cpp:231-235`) use 21 = image, 12 = annotation,
+15 = history and 3 = poem / stanza. The images come in
 groups of three: base image N, N+1 = "drop as sibling" and N+2 = "drop as
 child" variants shown while dragging tree nodes (`TreeView.cpp`,
 `SetItemImage(..., m_drop_item_nimage + 1/2)`). Other indices are used by

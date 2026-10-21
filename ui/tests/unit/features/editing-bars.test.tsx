@@ -65,7 +65,7 @@ async function renderShell(document: Document) {
     'settings.get': new Error('none'),
     'doc.recent': [],
     'doc.watch': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.close': {},
   });
   const services: AppServices = createAppServices({ store, rpc: rpc.client, platform: 'linux' });

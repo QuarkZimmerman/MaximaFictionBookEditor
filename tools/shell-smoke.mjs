@@ -36,7 +36,9 @@
 //                               (+-2 px) or maximised (max), started with --wait-for-exit
 //                               <old pid> and --window-geometry and without --lang (the argv
 //                               lists come from the shell's "shelltest: argv" log lines,
-//                               MFBE_SMOKE_LOG)
+//                               MFBE_SMOKE_LOG); the Body caret, put into a known paragraph
+//                               before the restart, is back there in the new instance
+//                               (feature 004 US8 - the restart remembers the position)
 //   MFBE_SMOKE_RESTART_FAIL     1 = with MFBE_SMOKE_RESTART: the shell cannot start the new
 //                               instance (MFBE_RELAUNCH_PROGRAM points nowhere); the page must
 //                               show the failure (dialog-restart-failed) and the old process
@@ -49,7 +51,29 @@
 //                               title-bar X sends. "Save changes?" must appear within 2 s and
 //                               the editor (app.info.pid) stay; Cancel keeps it open and the
 //                               document modified; a second request asks again at once; No
-//                               ends the process within 10 s
+//                               ends the process within 10 s - and positions.json beside the
+//                               settings file (MFBE_SMOKE_SETTINGS_FILE) then holds the Body
+//                               caret put into a known paragraph before the close (feature
+//                               004 US8: the window's close request remembers the position)
+//   MFBE_SMOKE_SAVE_AS          1 = the native GTK Save dialog (feature 004 US6, FR-050 /
+//                               FR-051): File > New, the author "Толстой Лев Николаевич" and
+//                               the title "Война и мир" typed into the Description view, File >
+//                               Save As; the GTK dialog (found on the shell's display by its
+//                               title, the interface's "Save As" text) must open in the folder
+//                               the settings remember (MFBE_SMOKE_SAVE_AS_FOLDER, seeded by
+//                               shell-smoke.sh) proposing "Толстой Лев - Война и мир.fb2":
+//                               Return through xdotool accepts it and the file must exist under
+//                               exactly that name, the window title start with it; a second
+//                               Save As with Ctrl+A, "Новая книга.fb2" typed through xdotool
+//                               (Cyrillic keysyms under Xvfb) and Return must write that file
+//   MFBE_SMOKE_LOG              the shell's log of this run (stdout and stderr; shell-smoke.sh):
+//                               the "shelltest: argv" lines of the restart check, and on every
+//                               run the engine's spell-check line (feature 004 US9, FR-081) -
+//                               a test-hook shell prints "shelltest: spellcheck engine=off"
+//                               once the browser context is initialised; "engine=error <text>"
+//                               fails whatever the build, a test-hook shell (it printed its
+//                               argv line) without "engine=off" fails too, a shell without test
+//                               hooks (no shelltest line at all) is reported
 //
 // Fallback if a future CEF/Playwright pair regresses: puppeteer-core (`puppeteer.connect({
 // browserURL })`) or raw CDP via chrome-remote-interface; both talk to the same endpoint.
@@ -102,6 +126,8 @@ const restartMustFail = process.env.MFBE_SMOKE_RESTART_FAIL === '1';
 // SC-005: the restarted editor is back with the document within 15 s of the user's Yes.
 const restartBudgetMs = 15_000;
 const checkClose = process.env.MFBE_SMOKE_CLOSE === '1';
+const checkSaveAs = process.env.MFBE_SMOKE_SAVE_AS === '1';
+const saveAsFolder = process.env.MFBE_SMOKE_SAVE_AS_FOLDER ?? '';
 const displayFile = process.env.MFBE_SMOKE_DISPLAY_FILE ?? '';
 // FR-017: the close request asks like Exit does - the prompt is there as fast as Exit's.
 const closePromptBudgetMs = 2_000;
@@ -199,6 +225,91 @@ async function checkAboutDialog(page) {
 }
 
 /* ---------------------------------------------------------------------------------------- */
+/* The remembered position (feature 004 US8)                                                 */
+/* ---------------------------------------------------------------------------------------- */
+
+// The offset the caret is moved to inside the chosen paragraph (its first characters).
+const caretOffset = 4;
+
+// Puts the Body caret into the second paragraph of the first section, `caretOffset` characters
+// in (Home, then ArrowRight x4 - the keys the user would press), and returns the structural
+// path the status bar shows for it, e.g. "body[1]/section[1]/p[2]".
+async function placeCaret(page) {
+  const paragraph = page
+    .locator('[data-testid="body-editor"] .fb-body > .fb-section > p.fb-p')
+    .nth(1);
+  await paragraph.waitFor({ state: 'visible', timeout: timeoutMs });
+  await paragraph.click({ position: { x: 8, y: 8 } });
+  await page.keyboard.press('Home');
+  for (let i = 0; i < caretOffset; i += 1) {
+    await page.keyboard.press('ArrowRight');
+  }
+  const statusPath = page.locator('[data-testid="status-path"]');
+  await waitUntil(
+    'a paragraph path in the status bar',
+    async () => /^body\[\d+\](\/[a-z-]+\[\d+\])*\/p\[\d+\]$/.test((await statusPath.innerText()).trim()),
+    timeoutMs,
+  );
+  const shown = (await statusPath.innerText()).trim();
+  const offset = await domCaretOffset(page);
+  if (offset !== caretOffset) {
+    throw new Error(`the caret is at offset ${offset} of ${shown}, expected ${caretOffset}`);
+  }
+  console.log(`position:      caret placed at ${shown}:${offset}`);
+  return shown;
+}
+
+// The DOM selection's offset inside its text node (the model offset of a plain paragraph).
+function domCaretOffset(page) {
+  return page.evaluate(() => {
+    const selection = document.getSelection();
+    return selection && selection.rangeCount > 0 ? selection.getRangeAt(0).startOffset : -1;
+  });
+}
+
+// The remembered position of `file` in positions.json beside the settings file, or null.
+function storedPosition(file) {
+  if (!settingsFile) {
+    throw new Error('the positions record needs MFBE_SMOKE_SETTINGS_FILE (set by shell-smoke.sh)');
+  }
+  const positionsFile = path.join(path.dirname(settingsFile), 'positions.json');
+  if (!fs.existsSync(positionsFile)) {
+    return null;
+  }
+  const parsed = JSON.parse(fs.readFileSync(positionsFile, 'utf8'));
+  const item = (parsed.items ?? []).find((entry) => entry.path === file);
+  return item ? item.position : null;
+}
+
+// Asserts that the Body caret of `page` is at `expected` ({path, offset}) and that its paragraph
+// is inside the window (the status bar path, the DOM selection, the bounding box).
+async function expectCaretRestored(page, expected, what) {
+  const statusPath = page.locator('[data-testid="status-path"]');
+  await waitUntil(
+    `the status bar path ${expected.path} ${what}`,
+    async () => (await statusPath.innerText()).trim() === expected.path,
+    timeoutMs,
+  );
+  await waitUntil(
+    `the caret offset ${expected.offset} ${what}`,
+    async () => (await domCaretOffset(page)) === expected.offset,
+    timeoutMs,
+  );
+  const visible = await page.evaluate(() => {
+    const selection = document.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+    let node = selection.getRangeAt(0).startContainer;
+    const element = node.nodeType === 1 ? node : node.parentElement;
+    const rect = element.getBoundingClientRect();
+    return rect.bottom > 0 && rect.top < window.innerHeight;
+  });
+  if (!visible) {
+    throw new Error(`the restored caret's paragraph is not inside the window ${what}`);
+  }
+  console.log(`position:      caret restored at ${expected.path}:${expected.offset} ${what}`);
+}
+
+/* ---------------------------------------------------------------------------------------- */
 /* Restart of the editor by itself (feature 003 US3)                                        */
 /* ---------------------------------------------------------------------------------------- */
 
@@ -266,6 +377,38 @@ function startedArgvs() {
     }
   }
   return argvs;
+}
+
+// The browser engine's own spell checking is off (feature 004 US9, FR-081; contracts/shell.md
+// §1): the shell sets browser.enable_spellchecking=false when the browser context is
+// initialised - before the window - and a test-hook build prints "shelltest: spellcheck
+// engine=off" ("engine=error <text>" when CEF refused the preference). Read from the shell's
+// log (MFBE_SMOKE_LOG) once the page is up; the line precedes the window, so it is there by
+// then. Throws on "engine=error" whatever the build and on a test-hook shell (it printed its
+// "shelltest: argv" line) without "engine=off"; reports a shell without test hooks, which prints
+// no shelltest line at all (the release presets, the AppImage).
+function checkSpellcheckEngine() {
+  const log = process.env.MFBE_SMOKE_LOG;
+  if (!log || !fs.existsSync(log)) {
+    console.log('engine spell: not checked (no MFBE_SMOKE_LOG)');
+    return;
+  }
+  const lines = fs.readFileSync(log, 'utf8').split('\n');
+  const engine = lines.filter((line) => line.startsWith('shelltest: spellcheck engine='));
+  const error = engine.find((line) => line.startsWith('shelltest: spellcheck engine=error'));
+  if (error) {
+    throw new Error(`the shell could not switch the engine's spell checking off: ${error}`);
+  }
+  const off = engine.includes('shelltest: spellcheck engine=off');
+  const testHooks = lines.some((line) => line.startsWith('shelltest: argv '));
+  if (testHooks && !off) {
+    throw new Error('a test-hook shell did not report "shelltest: spellcheck engine=off"');
+  }
+  console.log(
+    off
+      ? 'engine spell:  off (shelltest: spellcheck engine=off)'
+      : 'engine spell:  no shelltest line (a shell without test hooks); the page attributes are the e2e journey\'s check',
+  );
 }
 
 // Position and size of the window as the page sees them (the client area, below the window
@@ -364,6 +507,9 @@ async function checkRestart(page) {
     throw new Error(`the window should not be maximised before the restart, got ${formatState(before)}`);
   }
 
+  // The Body caret in a known paragraph: the restart must remember it (feature 004 US8).
+  const caretPath = await placeCaret(page);
+
   const { language, asked } = await askForRestart(page);
 
   if (restartMustFail) {
@@ -409,42 +555,50 @@ async function checkRestart(page) {
     if (newPid === oldPid || !processAlive(newPid)) {
       throw new Error(`the restarted editor has pid ${newPid} (old ${oldPid})`);
     }
+    // The argument list of the new instance: written to the log by a test-hook shell only
+    // (MFBE_SHELL_TEST_HOOKS; the release shell of the CI app job prints none - its restart
+    // is then judged by what the new instance shows: the book, the language, the window, the
+    // caret).
     const startedAfter = startedArgvs();
-    if (startedAfter.length !== startedBefore.length + 1) {
-      throw new Error(
-        `expected one more editor start in the log, found ${startedAfter.length - startedBefore.length}`,
-      );
-    }
-    const argv = startedAfter.at(-1);
-    console.log(`restart:       new pid ${newPid}, argv ${JSON.stringify(argv)}`);
-    const waitIndex = argv.indexOf('--wait-for-exit');
-    if (waitIndex < 0 || argv[waitIndex + 1] !== String(oldPid)) {
-      throw new Error(`the new instance was not told to wait for pid ${oldPid}`);
-    }
-    const geometryIndex = argv.indexOf('--window-geometry');
-    if (geometryIndex < 0 || !/^-?\d+,-?\d+,\d+,\d+(,max)?$/.test(argv[geometryIndex + 1] ?? '')) {
-      throw new Error('the new instance got no --window-geometry');
-    }
-    const geometry = argv[geometryIndex + 1];
-    if ((restartVariant === 'max') !== geometry.endsWith(',max')) {
-      throw new Error(`--window-geometry ${geometry} does not match the ${restartVariant} window`);
-    }
-    if (argv.at(-1) !== openFile) {
-      throw new Error(`the new instance was not given the book ${openFile} as FILE`);
-    }
-    if (argv.some((arg) => arg === '--lang' || arg.startsWith('--lang=') || arg === '--new')) {
-      throw new Error('--lang / --new must not be carried over');
-    }
-    // The start-up options of the old instance (the debugging port, the sandbox choice) stay;
-    // its own --window-geometry and FILE were replaced.
-    for (const kept of oldArgv) {
-      if (
-        (kept.startsWith('--remote-debugging-port') ||
-          kept === '--no-sandbox' ||
-          kept.startsWith('--ozone-platform')) &&
-        !argv.includes(kept)
-      ) {
-        throw new Error(`${kept} was not carried over`);
+    if (startedBefore.length === 0) {
+      console.log(`restart:       new pid ${newPid} (no "shelltest: argv" lines: a shell without test hooks, argv not checked)`);
+    } else {
+      if (startedAfter.length !== startedBefore.length + 1) {
+        throw new Error(
+          `expected one more editor start in the log, found ${startedAfter.length - startedBefore.length}`,
+        );
+      }
+      const argv = startedAfter.at(-1);
+      console.log(`restart:       new pid ${newPid}, argv ${JSON.stringify(argv)}`);
+      const waitIndex = argv.indexOf('--wait-for-exit');
+      if (waitIndex < 0 || argv[waitIndex + 1] !== String(oldPid)) {
+        throw new Error(`the new instance was not told to wait for pid ${oldPid}`);
+      }
+      const geometryIndex = argv.indexOf('--window-geometry');
+      if (geometryIndex < 0 || !/^-?\d+,-?\d+,\d+,\d+(,max)?$/.test(argv[geometryIndex + 1] ?? '')) {
+        throw new Error('the new instance got no --window-geometry');
+      }
+      const geometry = argv[geometryIndex + 1];
+      if ((restartVariant === 'max') !== geometry.endsWith(',max')) {
+        throw new Error(`--window-geometry ${geometry} does not match the ${restartVariant} window`);
+      }
+      if (argv.at(-1) !== openFile) {
+        throw new Error(`the new instance was not given the book ${openFile} as FILE`);
+      }
+      if (argv.some((arg) => arg === '--lang' || arg.startsWith('--lang=') || arg === '--new')) {
+        throw new Error('--lang / --new must not be carried over');
+      }
+      // The start-up options of the old instance (the debugging port, the sandbox choice) stay;
+      // its own --window-geometry and FILE were replaced.
+      for (const kept of oldArgv) {
+        if (
+          (kept.startsWith('--remote-debugging-port') ||
+            kept === '--no-sandbox' ||
+            kept.startsWith('--ozone-platform')) &&
+          !argv.includes(kept)
+        ) {
+          throw new Error(`${kept} was not carried over`);
+        }
       }
     }
     const lang = await newPage.evaluate(() => document.documentElement.lang);
@@ -469,6 +623,14 @@ async function checkRestart(page) {
     if (bookShown.trim().length === 0) {
       throw new Error('the Body view is empty after the restart');
     }
+    // The position remembered before the restart was recorded and is back in the new instance.
+    const remembered = storedPosition(openFile);
+    if (!remembered || remembered.path !== caretPath || remembered.offset !== caretOffset) {
+      throw new Error(
+        `positions.json does not hold ${caretPath}:${caretOffset} for the book (got ${JSON.stringify(remembered)})`,
+      );
+    }
+    await expectCaretRestored(newPage, { path: caretPath, offset: caretOffset }, 'after the restart');
     await newPage.screenshot({ path: screenshotPath });
     console.log(`restart:       OK (${restartVariant}); screenshot ${screenshotPath}`);
   } finally {
@@ -547,6 +709,12 @@ async function checkWindowClose(page) {
   }
   console.log('close:         Cancel keeps the editor open and the document modified');
 
+  // The Body caret in a known paragraph: the close request must remember it (feature 004 US8).
+  const caretPath = await placeCaret(page);
+  if (storedPosition(openFile) !== null) {
+    throw new Error('positions.json already holds a position for the book before the close');
+  }
+
   // The close button again, right after Cancel: asked again (no dead time), No closes.
   const second = Date.now();
   requestWindowClose(env);
@@ -555,6 +723,158 @@ async function checkWindowClose(page) {
   await prompt.locator('[data-testid="dialog-save-changes-button-no"]').click();
   await waitUntil(`the exit of pid ${pid}`, () => !processAlive(pid), closeExitBudgetMs);
   console.log(`close:         No: the editor (pid ${pid}) exited after ${Date.now() - second} ms`);
+
+  // positions.json beside the settings file records the caret of the document that was left.
+  const remembered = storedPosition(openFile);
+  if (!remembered || remembered.path !== caretPath || remembered.offset !== caretOffset) {
+    throw new Error(
+      `positions.json does not hold ${caretPath}:${caretOffset} for the book (got ${JSON.stringify(remembered)})`,
+    );
+  }
+  console.log(`close:         positions.json remembers ${caretPath}:${caretOffset} for the book`);
+}
+
+/* ---------------------------------------------------------------------------------------- */
+/* The native GTK Save dialog with the proposed and a typed Cyrillic name (feature 004 US6)  */
+/* ---------------------------------------------------------------------------------------- */
+
+const SAVE_AS_AUTHOR = { last: 'Толстой', first: 'Лев', middle: 'Николаевич' };
+const SAVE_AS_TITLE = 'Война и мир';
+const SAVE_AS_PROPOSED = 'Толстой Лев - Война и мир.fb2';
+const SAVE_AS_TYPED = 'Новая книга.fb2';
+
+// The interface text `key` (a.b.c) of the base catalogue of `lang`, without `&` markers: the
+// title of the Save As dialog is the interface's own text (cmd.file.saveAs.tooltip).
+function catalogueText(lang, key) {
+  const file = path.join(root, 'ui', 'src', 'i18n', `${lang}.json`);
+  let node = JSON.parse(fs.readFileSync(file, 'utf8'));
+  for (const part of key.split('.')) {
+    node = node?.[part];
+  }
+  if (typeof node !== 'string') {
+    throw new Error(`no "${key}" in ${file}`);
+  }
+  return node.replace(/&(&?)/g, (_, literal) => literal);
+}
+
+function xdotool(env, ...args) {
+  return execFileSync('xdotool', args, { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+}
+
+// The visible window titled exactly `title` on the shell's display, within the step timeout.
+async function waitForWindow(env, title) {
+  const pattern = `^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    let ids = [];
+    try {
+      ids = xdotool(env, 'search', '--onlyvisible', '--name', pattern).split(/\s+/).filter(Boolean);
+    } catch {
+      // xdotool exits with 1 while nothing matches
+    }
+    if (ids.length > 0) {
+      return ids[0];
+    }
+    await sleep(200);
+  }
+  throw new Error(`no visible window titled "${title}" appeared on ${env.DISPLAY} within ${timeoutMs} ms`);
+}
+
+async function fillDescriptionField(page, testId, value) {
+  const field = page.locator(`[data-testid="${testId}"]`);
+  await field.fill(value);
+  await field.blur();
+}
+
+// File > Save As through the page's menu, the GTK dialog driven through xdotool: `type` (when
+// given) replaces the proposed name (Ctrl+A first), Return saves. The page's "save anyway?"
+// prompt of an incomplete description is answered with Yes. Resolves once `file` exists and
+// the window title starts with its name.
+async function saveThroughGtkDialog(page, env, dialogTitle, file, typed) {
+  if (fs.existsSync(file)) {
+    throw new Error(`${file} exists before Save As`);
+  }
+  await page.locator('[data-testid="menu-file"]').click();
+  const item = page.locator('[data-testid="menu-file-saveAs"]');
+  await item.waitFor({ state: 'visible', timeout: timeoutMs });
+  await item.click();
+  const dialog = await waitForWindow(env, dialogTitle);
+  xdotool(env, 'windowactivate', '--sync', dialog);
+  await sleep(500);
+  if (typed) {
+    xdotool(env, 'key', '--clearmodifiers', 'ctrl+a');
+    await sleep(200);
+    xdotool(env, 'type', '--delay', '60', typed);
+    await sleep(300);
+  }
+  xdotool(env, 'key', '--clearmodifiers', 'Return');
+  const prompt = page.locator('[data-testid="dialog-validation-failed"]');
+  await waitUntil(
+    `the file ${file} or the validation prompt`,
+    async () => fs.existsSync(file) || (await prompt.count()) > 0,
+    timeoutMs,
+  );
+  if ((await prompt.count()) > 0) {
+    await prompt.locator('[data-testid="dialog-validation-failed-button-yes"]').click();
+  }
+  await waitUntil(`the file ${file}`, () => fs.existsSync(file), timeoutMs);
+  const name = path.basename(file);
+  await waitUntil(
+    `the window title starting with "${name}"`,
+    async () => (await page.title()).startsWith(`${name} - `),
+    timeoutMs,
+  );
+  const text = fs.readFileSync(file, 'utf8');
+  if (!text.includes(`<book-title>${SAVE_AS_TITLE}</book-title>`)) {
+    throw new Error(`${file} does not hold the book title in UTF-8`);
+  }
+}
+
+async function checkSaveAsDialog(page) {
+  if (!saveAsFolder || !fs.existsSync(saveAsFolder)) {
+    throw new Error('MFBE_SMOKE_SAVE_AS needs MFBE_SMOKE_SAVE_AS_FOLDER (seeded by shell-smoke.sh)');
+  }
+  const env = shellDisplayEnv();
+  const lang = await page.evaluate(() => document.documentElement.lang);
+  const dialogTitle = catalogueText(lang, 'cmd.file.saveAs.tooltip');
+  const untitled = catalogueText(lang, 'app.untitled');
+
+  // File > New, then the author and the title in the Description view.
+  await page.locator('[data-testid="menu-file"]').click();
+  const item = page.locator('[data-testid="menu-file-new"]');
+  await item.waitFor({ state: 'visible', timeout: timeoutMs });
+  await item.click();
+  await waitUntil(
+    `the new document "${untitled}"`,
+    async () => (await page.title()).startsWith(`${untitled} - `),
+    timeoutMs,
+  );
+  await page.locator('[data-testid="view-description"]').click();
+  await page.locator('[data-testid="description-book-title"]').waitFor({ state: 'visible', timeout: timeoutMs });
+  await fillDescriptionField(page, 'description-author-0-last', SAVE_AS_AUTHOR.last);
+  await fillDescriptionField(page, 'description-author-0-first', SAVE_AS_AUTHOR.first);
+  await fillDescriptionField(page, 'description-author-0-middle', SAVE_AS_AUTHOR.middle);
+  await fillDescriptionField(page, 'description-book-title', SAVE_AS_TITLE);
+  console.log(`save as:       interface "${lang}", dialog "${dialogTitle}", folder ${saveAsFolder}`);
+
+  // The proposed name, accepted as the dialog shows it.
+  const proposed = path.join(saveAsFolder, SAVE_AS_PROPOSED);
+  await saveThroughGtkDialog(page, env, dialogTitle, proposed, '');
+  console.log(`save as:       "${SAVE_AS_PROPOSED}" proposed by the GTK dialog and saved`);
+
+  // A name typed into the dialog.
+  const typed = path.join(saveAsFolder, SAVE_AS_TYPED);
+  await saveThroughGtkDialog(page, env, dialogTitle, typed, SAVE_AS_TYPED);
+  console.log(`save as:       "${SAVE_AS_TYPED}" typed into the GTK dialog and saved`);
+
+  // The folder lists exactly the two names (the bytes Node decodes as UTF-8).
+  const listed = fs.readdirSync(saveAsFolder).sort();
+  const expected = [SAVE_AS_PROPOSED, SAVE_AS_TYPED].sort();
+  if (JSON.stringify(listed) !== JSON.stringify(expected)) {
+    throw new Error(`${saveAsFolder} holds ${JSON.stringify(listed)}, expected ${JSON.stringify(expected)}`);
+  }
+  await page.screenshot({ path: screenshotPath });
+  console.log(`save as:       OK; screenshot ${screenshotPath}`);
 }
 
 /* ---------------------------------------------------------------------------------------- */
@@ -638,6 +958,10 @@ try {
   console.log(`viewport:      ${viewport.w}x${viewport.h}`);
   console.log(`screenshot:    ${screenshotPath}`);
 
+  // The engine's own spell checking was switched off before the window came up (feature 004
+  // US9): every run, whatever the scenario.
+  checkSpellcheckEngine();
+
   // File given on the command line (mfbe <file>): the Body view shows its text.
   if (openFile) {
     const body = page.locator('[data-testid="body-editor"]');
@@ -664,10 +988,15 @@ try {
     await checkAboutDialog(page);
   }
 
-  // View > Status Bar is recorded in the settings file (real UI; not in the restart and close
-  // scenarios, whose runs are about those alone).
-  if (settingsFile && !restartVariant && !checkClose) {
+  // View > Status Bar is recorded in the settings file (real UI; not in the restart, close and
+  // Save As scenarios, whose runs are about those alone).
+  if (settingsFile && !restartVariant && !checkClose && !checkSaveAs) {
     await checkStatusBarSetting(page);
+  }
+
+  // The native GTK Save dialog with the proposed and a typed Cyrillic name (feature 004 US6).
+  if (checkSaveAs) {
+    await checkSaveAsDialog(page);
   }
 
   // The window's close button runs the Exit flow (feature 003 FR-017); the editor ends.

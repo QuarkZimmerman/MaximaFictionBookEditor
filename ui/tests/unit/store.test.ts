@@ -145,6 +145,34 @@ describe('store', () => {
     expect(store.getState().fastMode).toBe(true);
   });
 
+  it('keeps the Document Tree pane width: default 260, the first snapshot, setTreeWidth', () => {
+    const store = createAppStore();
+    expect(store.getState().treeWidth).toBe(260);
+
+    // The start-up read: the stored width applies.
+    const stored = defaultSettings();
+    stored.session.treeWidth = 420;
+    actions.setSettings(store, stored);
+    expect(store.getState().treeWidth).toBe(420);
+
+    // A drag ends: the window's own width; a snapshot the core reports meanwhile (before the
+    // delayed save) still says 420 and must not undo the drag.
+    actions.setTreeWidth(store, 333);
+    expect(store.getState().treeWidth).toBe(333);
+    const reported = defaultSettings();
+    reported.session.treeWidth = 420;
+    actions.setSettings(store, reported);
+    expect(store.getState().treeWidth).toBe(333);
+    expect(store.getState().settings).toBe(reported);
+
+    // A first snapshot without the key (an older core) leaves the default.
+    const older = createAppStore();
+    const legacy = defaultSettings();
+    delete (legacy.session as Partial<typeof legacy.session>).treeWidth;
+    actions.setSettings(older, legacy);
+    expect(older.getState().treeWidth).toBe(260);
+  });
+
   it('useAppState re-renders on selected changes only', () => {
     const store = createAppStore();
     let renders = 0;

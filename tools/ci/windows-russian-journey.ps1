@@ -8,6 +8,15 @@
 #   - Save (F2, the original editor's key; Ctrl+S has no command) rewrites the book in place;
 #   - View > Status Bar, chosen with the Russian accelerators (Alt+В, С), hides the status bar and
 #     settings.json records it;
+#   - File > New, the author "Толстой Лев Николаевич" and the title "Война и мир" typed into the
+#     Description view, then Save As (Shift+F2): the native Save dialog - reached through UI
+#     Automation, as the DevTools protocol never sees it - proposes exactly
+#     "Толстой Лев - Война и мир.fb2" in its name box (feature 004 FR-050), and Save writes the
+#     file under exactly that name in the user's Documents folder, which the window title and
+#     recent.json (byte for byte, UTF-8) show too; a second Save As with "Новая книга.fb2" typed
+#     into the name box comes out the same way (FR-051, SC-006). When UI Automation cannot
+#     read the dialog it is driven with window messages (WM_GETTEXT on the name box, the name
+#     typed as keystrokes, the Save button's click posted);
 #   - the window's close button (WM_CLOSE to the main window) with a modified document asks
 #     "Save changes?" (feature 003 FR-017): Cancel keeps the editor open and the document
 #     modified, a second close request asks again at once, No ends the editor with exit code 0;
@@ -17,10 +26,14 @@
 #     switched to English in Settings and Yes answered, the editor ends with exit code 0 and a new
 #     mfbe.exe process - started with --wait-for-exit <old pid>, --window-geometry and the book -
 #     comes up with the book open and the interface English; File > Exit (F10, Down, X) ends it;
-#   - recent.json lists the book's path byte for byte in UTF-8;
-#   - no folder appeared under C:\Users or C:\ or next to the book, the installed copy wrote
-#     nothing into its program folder (a portable copy may write into its own), and the profile
-#     holds no folder of the editor's other than the installed copy's two in AppData.
+#   - the shell did not report a refused switch-off of the browser engine's own spell checking
+#     (feature 004 US9: no "shelltest: spellcheck engine=error" line; a test-hook shell must have
+#     printed "shelltest: spellcheck engine=off" - the release packages print no shelltest line);
+#   - recent.json lists the book's path byte for byte in UTF-8, and the two files Save As wrote;
+#   - no folder appeared under C:\Users or C:\, nothing but those two files appeared next to the
+#     book's folder, the installed copy wrote nothing into its program folder (a portable copy
+#     may write into its own), and the profile holds no folder of the editor's other than the
+#     installed copy's two in AppData.
 #
 # -Exe runs an installed copy, which keeps settings.json and recent.json in the user's profile;
 # -Zip unpacks the portable ZIP into the user's Downloads folder and runs that copy, which keeps
@@ -47,6 +60,19 @@ $bookTitle = (Text 0x0421, 0x043E, 0x0432, 0x0440, 0x0435, 0x043C, 0x0435, 0x043
     (Text 0x043A, 0x043D, 0x0438, 0x0433, 0x0430)
 $bookName = "$bookTitle.fb2"
 $appName = 'Maxima Fiction Book Editor'
+# The description typed into the new document (feature 004 US6): "Толстой" / "Лев" /
+# "Николаевич" and "Война и мир"; the name Save As must propose from it, "Толстой Лев - Война и
+# мир.fb2" (FR-050), and the name typed into the dialog afterwards, "Новая книга.fb2".
+$authorLast = Text 0x0422, 0x043E, 0x043B, 0x0441, 0x0442, 0x043E, 0x0439
+$authorFirst = Text 0x041B, 0x0435, 0x0432
+$authorMiddle = Text 0x041D, 0x0438, 0x043A, 0x043E, 0x043B, 0x0430, 0x0435, 0x0432, 0x0438, 0x0447
+$newBookTitle = Text 0x0412, 0x043E, 0x0439, 0x043D, 0x0430, 0x0020, 0x0438, 0x0020, 0x043C, 0x0438, 0x0440
+$proposedName = "$authorLast $authorFirst - $newBookTitle.fb2"
+$typedName = (Text 0x041D, 0x043E, 0x0432, 0x0430, 0x044F, 0x0020, 0x043A, 0x043D, 0x0438, 0x0433, 0x0430) + '.fb2'
+# "Без имени" (app.untitled) and "Сохранить как" (cmd.file.saveAs.tooltip, the Save As dialog's
+# title) of the Russian interface (ui/src/i18n/ru.json).
+$untitled = Text 0x0411, 0x0435, 0x0437, 0x0020, 0x0438, 0x043C, 0x0435, 0x043D, 0x0438
+$saveAsTitle = Text 0x0421, 0x043E, 0x0445, 0x0440, 0x0430, 0x043D, 0x0438, 0x0442, 0x044C, 0x0020, 0x043A, 0x0430, 0x043A
 # Keys of the Russian keyboard layout that type the interface's accelerators (ui/src/i18n/ru.json):
 # В of "&Вид" (View) and "&Выход" (File > Exit), С of "&Строка состояния" (View > Status Bar).
 $keyVe = @{ key = (Text 0x0432); code = 'KeyD'; windowsVirtualKeyCode = 0x44 }
@@ -193,6 +219,33 @@ function Assert-RussianInterface {
     }
 }
 
+# The browser engine's own spell checking is off (feature 004 US9, FR-081): the shell sets the
+# Chromium preference browser.enable_spellchecking=false at every start and a test-hook build
+# reports it on stdout as "shelltest: spellcheck engine=off" ("engine=error <text>" when the
+# preference was refused). An "engine=error" line fails the run whatever the build; a build with
+# test hooks (it prints its "shelltest: argv" line at start) must have printed "engine=off"; the
+# release packages this journey runs have no test hooks and print no shelltest line at all - the
+# page-side attributes (spellcheck="false") are the check that reaches them (us9-spelling-scope).
+function Assert-EngineSpellcheckOff([string]$StdoutFile) {
+    $lines = @()
+    if (Test-Path -LiteralPath $StdoutFile) {
+        $lines = @(Get-Content -LiteralPath $StdoutFile -Encoding utf8 -ErrorAction SilentlyContinue)
+    }
+    $engine = @($lines | Where-Object { $_ -like 'shelltest: spellcheck engine=*' })
+    foreach ($line in $engine) {
+        if ($line -clike 'shelltest: spellcheck engine=error*') { throw "the shell could not switch the engine's spell checking off: $line" }
+    }
+    $testHooks = [bool]($lines | Where-Object { $_ -like 'shelltest: argv *' })
+    if ($testHooks -and -not ($engine -ccontains 'shelltest: spellcheck engine=off')) {
+        throw 'a test-hook shell did not report "shelltest: spellcheck engine=off"'
+    }
+    if ($engine -ccontains 'shelltest: spellcheck engine=off') {
+        Write-Host 'engine spell checking: off (shelltest: spellcheck engine=off)'
+    } else {
+        Write-Host 'engine spell checking: no shelltest line (a shell without test hooks); the page attributes are checked by the e2e journey'
+    }
+}
+
 # On a failure: the DevTools targets (a native message box is a page of its own), the dialogs open
 # in the page and the focused element.
 function Show-PageState([int]$Port) {
@@ -234,6 +287,8 @@ function Invoke-EditorRun([string]$Label, [string]$Arguments, [scriptblock]$Step
         } catch {
             Write-Host "Focus emulation unavailable: $($_.Exception.Message)"
         }
+        # The engine's spell checking was switched off before the window came up (feature 004 US9).
+        Assert-EngineSpellcheckOff $stdout
         & $Steps
     } catch {
         Show-PageState $port
@@ -329,6 +384,376 @@ function Press-Element([string]$TestId) {
     $null = Get-CdpValue $script:cdp @"
 (() => { const el = document.querySelector('[data-testid="$TestId"]'); for (const type of ['mousedown', 'mouseup', 'click']) { el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 })); } return true; })()
 "@
+}
+
+# Types $Value into the Description field $TestId as the keyboard does (Input.insertText, the
+# page's own input events) and leaves the field, which commits it to the document.
+function Set-DescriptionField([string]$TestId, [string]$Value) {
+    Wait-Until "the field $TestId" { Test-Element $TestId }
+    $null = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"$TestId`"]').focus(); true"
+    $null = Invoke-Cdp $script:cdp 'Input.insertText' @{ text = $Value }
+    Wait-Until "the field $TestId holding the typed text" {
+        (Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"$TestId`"]').value") -ceq $Value
+    }
+    $null = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"$TestId`"]').blur(); true"
+}
+
+# The native Save As dialog is the shell's own window; the DevTools protocol never sees it. It
+# is found through the window list of Win32 (EnumWindows: a visible #32770 window - the Common
+# Item Dialog's class - of an mfbe.exe process) and driven through UI Automation from its handle;
+# when UI Automation cannot read it, through window messages, which need no foreground window
+# either: WM_GETTEXT reads the file-name box, the name is typed into it as the keyboard's
+# characters arrive (EM_SETSEL over its text, then one WM_CHAR per character, so the dialog
+# follows the change as for typing) and the Save button's click is posted. A sent message
+# blocks until the dialog's thread has handled it - a Save handled in a modal prompt (the
+# overwrite question) never returns, and the fifth branch run hung for half an hour on such a
+# send - so every message is sent with a timeout and the click, which Save handles, is posted.
+Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class MfbeWin32 {
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hWndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr hWnd);
+    // Unicode throughout: a WM_CHAR sent through the ANSI SendMessageTimeoutA to a Unicode window
+    // has its character translated from ANSI, which garbles a Cyrillic one.
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, StringBuilder lParam, uint flags, uint timeout, out IntPtr result);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    const uint SMTO_NORMAL = 0x0000, SMTO_ABORTIFHUNG = 0x0002;
+    const uint TIMEOUT = 10000;  // ms a sent message may take; the dialog answers these at once
+
+    public class WindowInfo {
+        public IntPtr Handle; public uint ProcessId; public string ClassName; public string Title; public bool Visible; public int ControlId;
+    }
+
+    public static string ClassOf(IntPtr h) {
+        var cls = new StringBuilder(256);
+        GetClassName(h, cls, cls.Capacity);
+        return cls.ToString();
+    }
+
+    static WindowInfo Describe(IntPtr h) {
+        uint pid;
+        GetWindowThreadProcessId(h, out pid);
+        var text = new StringBuilder(1024);
+        GetWindowText(h, text, text.Capacity);
+        return new WindowInfo { Handle = h, ProcessId = pid, ClassName = ClassOf(h), Title = text.ToString(), Visible = IsWindowVisible(h), ControlId = GetDlgCtrlID(h) };
+    }
+
+    public static List<WindowInfo> TopLevelWindows() {
+        var list = new List<WindowInfo>();
+        EnumWindows((h, l) => { list.Add(Describe(h)); return true; }, IntPtr.Zero);
+        return list;
+    }
+
+    public static List<WindowInfo> ChildWindows(IntPtr parent) {
+        var list = new List<WindowInfo>();
+        EnumChildWindows(parent, (h, l) => { list.Add(Describe(h)); return true; }, IntPtr.Zero);
+        return list;
+    }
+
+    static void Send(IntPtr h, uint msg, IntPtr wParam, IntPtr lParam, string what) {
+        IntPtr result;
+        if (SendMessageTimeout(h, msg, wParam, lParam, SMTO_NORMAL | SMTO_ABORTIFHUNG, TIMEOUT, out result) == IntPtr.Zero) {
+            throw new InvalidOperationException(what + " was not handled by the dialog within " + TIMEOUT + " ms (error " + Marshal.GetLastWin32Error() + ")");
+        }
+    }
+
+    public static string GetText(IntPtr h) {
+        var text = new StringBuilder(4096);
+        IntPtr result;
+        if (SendMessageTimeout(h, 0x000D /* WM_GETTEXT */, (IntPtr)text.Capacity, text, SMTO_NORMAL | SMTO_ABORTIFHUNG, TIMEOUT, out result) == IntPtr.Zero) {
+            throw new InvalidOperationException("WM_GETTEXT was not handled by the dialog within " + TIMEOUT + " ms (error " + Marshal.GetLastWin32Error() + ")");
+        }
+        return text.ToString();
+    }
+
+    // Replaces the box's text as typing does: EM_SETSEL selects all it holds, then each character
+    // arrives as WM_CHAR - the message the keyboard's key strokes become - and the first one
+    // replaces the selection. The edit control notifies the dialog of each change as for typing.
+    public static void TypeText(IntPtr edit, string text) {
+        Send(edit, 0x00B1 /* EM_SETSEL */, IntPtr.Zero, (IntPtr)(-1), "EM_SETSEL");
+        foreach (char c in text) {
+            Send(edit, 0x0102 /* WM_CHAR */, (IntPtr)(int)c, IntPtr.Zero, "WM_CHAR");
+        }
+    }
+
+    // Posts the button's click: the dialog handles it on its own thread after this returns, so
+    // a prompt it raises (modal, answered by nobody here) cannot hold the caller.
+    public static void Click(IntPtr button) {
+        if (!PostMessage(button, 0x00F5 /* BM_CLICK */, IntPtr.Zero, IntPtr.Zero)) {
+            throw new InvalidOperationException("BM_CLICK could not be posted to the Save button (error " + Marshal.GetLastWin32Error() + ")");
+        }
+    }
+}
+'@
+
+$script:uia = $false
+try {
+    Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes -ErrorAction Stop
+    $script:uia = $true
+} catch {
+    Write-Host "UI Automation unavailable, the Save dialog will be driven with window messages: $($_.Exception.Message)"
+}
+
+function New-UiaCondition($Property, $Value) {
+    New-Object System.Windows.Automation.PropertyCondition($Property, $Value)
+}
+
+function New-UiaAndCondition($First, $Second) {
+    [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@($First, $Second))
+}
+
+# One line per window: handle, class, title, process and visibility.
+function Format-Windows($Windows) {
+    @($Windows | ForEach-Object {
+        '0x{0:X} {1} ''{2}'' pid {3}{4}' -f $_.Handle.ToInt64(), $_.ClassName, $_.Title, $_.ProcessId, $(if ($_.Visible) { '' } else { ' hidden' })
+    }) -join '; '
+}
+
+# The processes of the editor: the one started here and every other mfbe.exe (Chromium's helpers
+# are mfbe.exe too; the dialog belongs to the browser process).
+function Get-EditorProcessIds {
+    $ids = @([uint32]$script:editor.Id)
+    $ids += @(Get-Process -Name mfbe -ErrorAction SilentlyContinue | ForEach-Object { [uint32]$_.Id })
+    $ids | Select-Object -Unique
+}
+
+# The native Save dialog: a visible #32770 window of one of the editor's processes, within
+# $Seconds. On a timeout every top-level window of those processes is named.
+function Wait-NativeDialog([int]$Seconds = 30) {
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    while ($true) {
+        $pids = @(Get-EditorProcessIds)
+        $windows = @([MfbeWin32]::TopLevelWindows() | Where-Object { $pids -contains $_.ProcessId })
+        $dialog = @($windows | Where-Object { $_.Visible -and $_.ClassName -eq '#32770' }) | Select-Object -First 1
+        if ($dialog) { return $dialog }
+        if ($script:editor.HasExited) {
+            throw ('the editor ended (exit code 0x{0:X8}) while waiting for the Save dialog' -f $script:editor.ExitCode)
+        }
+        if ((Get-Date) -gt $deadline) {
+            throw "timed out after $Seconds s waiting for the Save dialog; the editor's windows: $(Format-Windows $windows)"
+        }
+        Start-Sleep -Milliseconds 250
+    }
+}
+
+# The texts of a dialog's labels and buttons (a prompt's question and answers), read with a
+# timeout each; what cannot be read is named as such.
+function Format-DialogTexts([IntPtr]$Dialog) {
+    $texts = @([MfbeWin32]::ChildWindows($Dialog) | Where-Object { $_.ClassName -in 'Static', 'Button', 'Edit' } | ForEach-Object {
+        $text = try { [MfbeWin32]::GetText($_.Handle) } catch { '<unreadable>' }
+        if ($text) { "$($_.ClassName) '$text'" }
+    })
+    $texts -join ', '
+}
+
+# Fails when the Save dialog $Handle is still visible after $Seconds: Save may have raised a
+# prompt (another visible #32770 window of the editor, named with its texts) or done nothing.
+function Wait-NativeDialogGone([IntPtr]$Handle, [int]$Seconds = 30) {
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    while ([MfbeWin32]::IsWindow($Handle) -and [MfbeWin32]::IsWindowVisible($Handle)) {
+        if ((Get-Date) -gt $deadline) {
+            $pids = @(Get-EditorProcessIds)
+            $windows = @([MfbeWin32]::TopLevelWindows() | Where-Object { $pids -contains $_.ProcessId -and $_.Visible })
+            $prompts = @($windows | Where-Object { $_.ClassName -eq '#32770' -and $_.Handle -ne $Handle } | ForEach-Object {
+                "'{0}' (0x{1:X}): {2}" -f $_.Title, $_.Handle.ToInt64(), (Format-DialogTexts $_.Handle)
+            })
+            throw ("the Save dialog is still open after $Seconds s; other dialogs of the editor: [{0}]; the editor's windows: {1}; the Save dialog's controls: {2}" -f `
+                ($prompts -join '; '), (Format-Windows $windows), (Format-DialogTexts $Handle))
+        }
+        Start-Sleep -Milliseconds 250
+    }
+}
+
+# The file-name box of the Common Item Dialog as UI Automation sees it: the Edit under the
+# ComboBox with AutomationId 1001 (the box itself when the Edit is not exposed; both answer the
+# Value pattern).
+function Get-UiaFileNameBox($Dialog) {
+    $byId = New-UiaCondition ([System.Windows.Automation.AutomationElement]::AutomationIdProperty) '1001'
+    $isEdit = New-UiaCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit)
+    $edit = $Dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-UiaAndCondition $byId $isEdit))
+    if ($edit) { return $edit }
+    $box = $Dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $byId)
+    if (-not $box) { throw 'the file-name box (AutomationId 1001) was not found in the Save dialog' }
+    $inner = $box.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $isEdit)
+    if ($inner) { return $inner }
+    $box
+}
+
+function Get-UiaValue($Element) {
+    $Element.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+}
+
+function Set-UiaValue($Element, [string]$Value) {
+    $Element.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
+}
+
+# The Save button (AutomationId 1, IDOK) pressed through its Invoke pattern.
+function Invoke-UiaSave($Dialog) {
+    $byId = New-UiaCondition ([System.Windows.Automation.AutomationElement]::AutomationIdProperty) '1'
+    $isButton = New-UiaCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Button)
+    $save = $Dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-UiaAndCondition $byId $isButton))
+    if (-not $save) { throw 'the Save button (AutomationId 1) was not found in the Save dialog' }
+    $save.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+}
+
+# The file-name box as a window: the Edit inside the dialog's ComboBox (the first Edit when the
+# box is built otherwise).
+function Get-Win32FileNameBox([IntPtr]$Dialog) {
+    $children = @([MfbeWin32]::ChildWindows($Dialog))
+    $edits = @($children | Where-Object { $_.ClassName -eq 'Edit' })
+    $inCombo = @($edits | Where-Object { [MfbeWin32]::ClassOf([MfbeWin32]::GetParent($_.Handle)) -eq 'ComboBox' })
+    if ($inCombo.Count -gt 0) { return $inCombo[0].Handle }
+    if ($edits.Count -gt 0) { return $edits[0].Handle }
+    throw "no file-name box in the Save dialog (its windows: $(Format-Windows $children))"
+}
+
+# The Save button (IDOK) clicked as a button; the dialog's IDOK command when there is none.
+# Both posted: the dialog handles the click after this returns (see MfbeWin32.Click).
+function Invoke-Win32Save([IntPtr]$Dialog) {
+    $button = @([MfbeWin32]::ChildWindows($Dialog) | Where-Object { $_.ClassName -eq 'Button' -and $_.ControlId -eq 1 }) | Select-Object -First 1
+    if ($button) {
+        [MfbeWin32]::Click($button.Handle)
+    } else {
+        [void][MfbeWin32]::PostMessage($Dialog, 0x0111, [IntPtr]1, [IntPtr]::Zero)  # WM_COMMAND IDOK
+    }
+}
+
+# The Save dialog's driver: UI Automation from the window's handle or, when that cannot read
+# the file-name box, window messages. A hashtable - Kind, the proposed name as Shown and the
+# handles the two operations below work on; no script block, as a closure made here could not
+# call this script's functions (the journey runs as a child script of the CI step).
+function Open-DialogDriver($Window) {
+    if ($script:uia) {
+        try {
+            $element = [System.Windows.Automation.AutomationElement]::FromHandle($Window.Handle)
+            $box = Get-UiaFileNameBox $element
+            return @{ Kind = 'UI Automation'; Shown = (Get-UiaValue $box); Element = $element; Box = $box }
+        } catch {
+            Write-Host "journey: UI Automation could not read the Save dialog, using window messages: $($_.Exception.Message)"
+        }
+    }
+    $edit = Get-Win32FileNameBox $Window.Handle
+    @{ Kind = 'window messages'; Shown = [MfbeWin32]::GetText($edit); Edit = $edit; Handle = $Window.Handle }
+}
+
+# Types $Text into the dialog's file-name box and returns what the box holds afterwards.
+function Set-DialogName($Driver, [string]$Text) {
+    if ($Driver.Kind -eq 'UI Automation') {
+        Set-UiaValue $Driver.Box $Text
+        return (Get-UiaValue $Driver.Box)
+    }
+    [MfbeWin32]::TypeText($Driver.Edit, $Text)
+    [MfbeWin32]::GetText($Driver.Edit)
+}
+
+# Presses the dialog's Save button.
+function Invoke-DialogSave($Driver) {
+    if ($Driver.Kind -eq 'UI Automation') {
+        Invoke-UiaSave $Driver.Element
+    } else {
+        Invoke-Win32Save $Driver.Handle
+    }
+}
+
+# Save As (Shift+F2) of the open document through the native dialog: the name box must read
+# $ExpectedName before anything is typed - or the name without its extension: with Explorer's
+# "hide extensions for known file types" (on by default) the Common Item Dialog shows a name
+# whose extension is the selected type's without it once the installer has registered .fb2,
+# for the composed name as for the current file's (the installed copy's run showed
+# 'Толстой Лев - Война и мир' for the proposed 'Толстой Лев - Война и мир.fb2'); the file on
+# disk proves the extension. Then $TypedName (when given) replaces it and Save is pressed;
+# $Target must then exist, the document get a clean title with its name, and recent.json list
+# its path first - byte for byte in UTF-8.
+function Save-ThroughNativeDialog([string]$ExpectedName, [string]$TypedName, [string]$Target) {
+    if (Test-Path -LiteralPath $Target) { throw "$Target exists before Save As" }
+    # Shift+F2 as a keydown the page dispatches to itself a moment later: the dialog is modal on
+    # the shell's UI thread and the DevTools protocol answers nothing while it is open (the
+    # first run lost its connection waiting for the key event's answer), so the command that
+    # opens it must have returned before, and nothing is asked over the protocol until the
+    # dialog has closed.
+    $null = Get-CdpValue $script:cdp @'
+(() => { setTimeout(() => { (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', code: 'F2', shiftKey: true, bubbles: true, cancelable: true })); }, 300); return true; })()
+'@
+    $window = Wait-NativeDialog
+    Write-Host ("journey: the Save dialog '{0}' (0x{1:X}, process {2}; title expected '{3}')" -f $window.Title, $window.Handle.ToInt64(), $window.ProcessId, $saveAsTitle)
+    Start-Sleep -Milliseconds 500
+    $driver = Open-DialogDriver $window
+    $shown = $driver.Shown
+    Write-Host "journey: the Save dialog proposes '$shown' ($($driver.Kind))"
+    $accepted = @($ExpectedName, [IO.Path]::GetFileNameWithoutExtension($ExpectedName))
+    if ($shown -cnotin $accepted) { throw "the Save dialog proposes '$shown', not '$ExpectedName'" }
+    if ($TypedName) {
+        $typed = Set-DialogName $driver $TypedName
+        if ($typed -cne $TypedName) { throw "the name box reads '$typed' after typing '$TypedName'" }
+    }
+    Invoke-DialogSave $driver
+    Wait-NativeDialogGone $window.Handle
+    # A new document's description is incomplete: Save asks whether to save anyway (Yes).
+    Wait-Until 'the file written or the validation prompt' {
+        (Test-Path -LiteralPath $Target) -or (Test-Element 'dialog-validation-failed')
+    }
+    if (Test-Element 'dialog-validation-failed') { Click-Element 'dialog-validation-failed-button-yes' }
+    $savedName = Split-Path -Leaf $Target
+    Wait-Until "the file '$Target'" { Test-Path -LiteralPath $Target }
+    $folder = Split-Path -Parent $Target
+    $listed = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -ceq $savedName })
+    if ($listed.Count -ne 1) { throw "'$savedName' is not listed in $folder as such ($(@(Get-ChildItem -LiteralPath $folder -File | ForEach-Object { $_.Name }) -join ', '))" }
+    Wait-Until "the window title starting with '$savedName'" {
+        (Get-CdpValue $script:cdp 'document.title').StartsWith("$savedName - ", [StringComparison]::Ordinal)
+    }
+    Wait-Until "the window's own title starting with '$savedName'" {
+        $script:editor.Refresh()
+        $script:editor.MainWindowTitle.StartsWith("$savedName - ", [StringComparison]::Ordinal)
+    }
+    Wait-Until "recent.json listing '$Target' first" {
+        $recent = Read-Json $recentFile
+        $recent -and (@($recent.items)[0].path -ceq $Target)
+    }
+    $quoted = '"' + $Target.Replace('\', '\\') + '"'
+    if (-not (Test-Bytes ([IO.File]::ReadAllBytes($recentFile)) ([Text.Encoding]::UTF8.GetBytes($quoted)))) {
+        throw "recent.json does not hold '$Target' in UTF-8 ($recentFile)"
+    }
+    if (-not (Test-Bytes ([IO.File]::ReadAllBytes($Target)) ([Text.Encoding]::UTF8.GetBytes("<book-title>$newBookTitle</book-title>")))) {
+        throw "the saved file does not hold the book title in UTF-8 ($Target)"
+    }
+    Write-Host "journey: saved '$Target' through the native dialog"
+}
+
+# Feature 004 US6: File > New, the author and title typed into the Description view, Save As
+# proposing "Толстой Лев - Война и мир.fb2" and writing exactly that name into Documents; then
+# Save As again with "Новая книга.fb2" typed into the dialog.
+function Save-NewDocumentThroughDialog {
+    Press-Element 'menu-file'
+    Wait-Until 'the File menu open' { Test-Element 'menu-file-new' }
+    Click-Element 'menu-file-new'
+    Wait-Until "the new document '$untitled'" {
+        (Get-CdpValue $script:cdp 'document.title').StartsWith("$untitled - ", [StringComparison]::Ordinal)
+    }
+    Click-Element 'view-description'
+    Wait-Until 'the Description view' { Test-Element 'description-book-title' }
+    Set-DescriptionField 'description-author-0-last' $authorLast
+    Set-DescriptionField 'description-author-0-first' $authorFirst
+    Set-DescriptionField 'description-author-0-middle' $authorMiddle
+    Set-DescriptionField 'description-book-title' $newBookTitle
+    Save-ThroughNativeDialog $proposedName '' (Join-Path $documentsFolder $proposedName)
+    # A saved document proposes its own file (FR-053); the typed name replaces it.
+    Save-ThroughNativeDialog $proposedName $typedName (Join-Path $documentsFolder $typedName)
+    # Back to the Body view, where the steps that follow edit the text.
+    Click-Element 'view-body'
+    Wait-Until 'the Body view' { Test-Element 'body-editor' }
 }
 
 
@@ -428,6 +853,12 @@ Copy-Item -LiteralPath $Book -Destination $bookPath
 $planted = [datetime]::new(2001, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
 (Get-Item -LiteralPath $bookPath).LastWriteTimeUtc = $planted
 $documentsFolder = Split-Path -Parent $booksFolder
+# The files Save As writes into Documents (feature 004 US6), from an earlier call of this script
+# as well: the dialog would ask about overwriting them.
+$savedFiles = @((Join-Path $documentsFolder $proposedName), (Join-Path $documentsFolder $typedName))
+foreach ($file in $savedFiles) {
+    if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file -Force }
+}
 $documentsBefore = Get-Entries $documentsFolder
 $programBefore = @(if ($programFolder) { Get-Entries $programFolder -Recurse })
 $settingsFile = Join-Path $dataFolder 'settings.json'
@@ -453,6 +884,10 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
     Send-CdpKey $script:cdp $keyEs
     Wait-Until 'the status bar hidden' { -not (Test-Element 'statusbar') }
     Wait-Until 'the hidden status bar in settings.json' { (Read-Json $settingsFile).session.toolbars.status -eq $false }
+
+    # A new document saved through the native Save dialog under the proposed and under a typed
+    # Cyrillic name (feature 004 US6).
+    Save-NewDocumentThroughDialog
 
     # The window's close button with a modified document runs the Exit flow (FR-017).
     Close-EditorThroughWindow
@@ -495,6 +930,16 @@ $quotedPath = '"' + $bookPath.Replace('\', '\\') + '"'
 if (-not (Test-Bytes ([IO.File]::ReadAllBytes($recentFile)) ([Text.Encoding]::UTF8.GetBytes($quotedPath)))) {
     throw "recent.json does not hold the book's path in UTF-8 ($recentFile)"
 }
+# The two files Save As wrote (feature 004 US6) are still listed, byte for byte, and are on disk
+# under exactly their names.
+foreach ($file in $savedFiles) {
+    if (@($recent.items).path -cnotcontains $file) { throw "recent.json does not list '$file' ($recentFile)" }
+    $quoted = '"' + $file.Replace('\', '\\') + '"'
+    if (-not (Test-Bytes ([IO.File]::ReadAllBytes($recentFile)) ([Text.Encoding]::UTF8.GetBytes($quoted)))) {
+        throw "recent.json does not hold '$file' in UTF-8 ($recentFile)"
+    }
+    if (-not (Test-Path -LiteralPath $file)) { throw "the saved file '$file' is gone" }
+}
 
 $allowed = @($usersBefore) + (Split-Path -Leaf $profileDir)
 $unexpected = @(Get-UserFolders | Where-Object { $_ -notin $allowed })
@@ -502,7 +947,9 @@ if ($unexpected.Count -gt 0) { throw "folders appeared under C:\Users: $($unexpe
 $unexpected = @(Get-ChildItem -LiteralPath 'C:\' -Force -Directory | ForEach-Object { $_.Name } |
     Where-Object { $_ -notin $rootBefore })
 if ($unexpected.Count -gt 0) { throw "folders appeared under C:\: $($unexpected -join ', ')" }
-$unexpected = @(Get-Entries $documentsFolder | Where-Object { $_ -notin $documentsBefore })
+# Next to the book's folder: nothing but the two files Save As wrote, under exactly their names.
+$savedEntries = @($savedFiles | ForEach-Object { $_.Substring($documentsFolder.Length) })
+$unexpected = @(Get-Entries $documentsFolder | Where-Object { $_ -notin $documentsBefore -and $_ -cnotin $savedEntries })
 if ($unexpected.Count -gt 0) { throw "entries appeared next to the book's folder: $($unexpected -join ', ')" }
 $inBooks = @(Get-Entries $booksFolder)
 if ($inBooks.Count -ne 1 -or $inBooks[0] -cne "\$bookName") { throw "the book's folder holds: $($inBooks -join ', ')" }

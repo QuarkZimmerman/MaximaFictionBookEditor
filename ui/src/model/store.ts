@@ -6,7 +6,7 @@
 
 import { useSyncExternalStore } from 'react';
 
-import type { Document, ValidationReport } from './document';
+import type { Description, Document, ValidationReport } from './document';
 import type { ConnectionStatus as RpcConnectionStatus } from '@/rpc/client';
 import type {
   DocParseErrorData,
@@ -31,6 +31,14 @@ export interface AppState {
   /** Absolute path; null for a new, unsaved document. */
   path: string | null;
   fileKind: FileKind | null;
+  /**
+   * The description of a new document as its template and the editor's own filling-in made
+   * it (feature 004 US4, FR-033): set when a template document is loaded (File > New, the
+   * start-up document), cleared by a save and by Open. While the live description still
+   * equals it by content, the description import applies silently
+   * (`features/transfer/untouched.ts`).
+   */
+  newDocumentBaseline: Description | null;
   /** Any unsaved change in any view. */
   modified: boolean;
   /** Source text diverged from the model (Source view editing in progress). */
@@ -55,6 +63,11 @@ export interface AppState {
   validation: ValidationReport | null;
   toolbars: ToolbarVisibility;
   treeVisible: boolean;
+  /**
+   * Width of the Document Tree pane in CSS px (`session.treeWidth`, feature 004 US1): the value
+   * the user settled on, stored as is; the layout clamps what it applies (`app/splitter.ts`).
+   */
+  treeWidth: number;
   fastMode: boolean;
   settings: Settings | null;
   /** Toolbar layout changes sent to the core and not answered yet (app/toolbarLayouts.ts). */
@@ -70,6 +83,9 @@ export const DEFAULT_TOOLBARS: ToolbarVisibility = {
   status: true,
 };
 
+/** The pane width of release 0.0.3 - the default of `session.treeWidth` (resource-formats §6). */
+export const DEFAULT_TREE_WIDTH = 260;
+
 export function createInitialState(overrides: Partial<AppState> = {}): AppState {
   return {
     connection: 'disconnected',
@@ -77,6 +93,7 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     docId: null,
     path: null,
     fileKind: null,
+    newDocumentBaseline: null,
     modified: false,
     sourceDirty: false,
     sourceOnly: false,
@@ -91,6 +108,7 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     validation: null,
     toolbars: { ...DEFAULT_TOOLBARS },
     treeVisible: true,
+    treeWidth: DEFAULT_TREE_WIDTH,
     fastMode: false,
     settings: null,
     layoutSavesPending: 0,
@@ -167,13 +185,17 @@ export const actions = {
     store.setState({ connection });
   },
 
-  /** Replaces the current document (New/Open/Reload). */
+  /**
+   * Replaces the current document (New/Open/Reload). The untouched baseline of a new document
+   * is forgotten here; the file feature sets it again for a template document.
+   */
   setDocument(store: AppStore, document: Document, options: { sourceOnly?: boolean } = {}): void {
     store.setState({
       document,
       docId: document.docId,
       path: document.path ?? null,
       fileKind: document.fileKind,
+      newDocumentBaseline: null,
       modified: false,
       sourceDirty: false,
       sourceOnly: options.sourceOnly ?? false,
@@ -197,6 +219,7 @@ export const actions = {
       docId: null,
       path: null,
       fileKind: null,
+      newDocumentBaseline: null,
       modified: false,
       sourceDirty: false,
       sourceOnly: false,
@@ -248,10 +271,19 @@ export const actions = {
     store.setState({
       path,
       fileKind: fileKind ?? current.fileKind ?? kindFromPath(path),
+      newDocumentBaseline: null,
       modified: false,
       sourceDirty: false,
       document,
     });
+  },
+
+  /**
+   * Remembers the description of a freshly loaded template document as the state the
+   * description import compares with (feature 004 US4, FR-033); null forgets it.
+   */
+  setNewDocumentBaseline(store: AppStore, newDocumentBaseline: Description | null): void {
+    store.setState({ newDocumentBaseline });
   },
 
   setActiveView(store: AppStore, activeView: ViewId): void {
@@ -307,17 +339,22 @@ export const actions = {
     store.setState((s) => ({ treeVisible: !s.treeVisible }));
   },
 
+  /** A divider drag ended: the pane width the user settled on (written back like `treeVisible`). */
+  setTreeWidth(store: AppStore, treeWidth: number): void {
+    store.setState({ treeWidth });
+  },
+
   toggleFastMode(store: AppStore): void {
     store.setState((s) => ({ fastMode: !s.fastMode }));
   },
 
   /**
    * Applies settings received from the core (settings.get, settings.changed, the result of a
-   * settings.set). The toolbar and tree flags are taken from the first snapshot only - the
-   * start-up read of the stored session: from then on they are the window's own state, which
-   * the settings runtime writes back to `session.*` with a short delay
-   * (features/settings/apply.ts). A later snapshot - the core reports the settings after every
-   * settings.set, the UI's own ones included (the version check's record, Fast mode, the
+   * settings.set). The toolbar and tree flags and the tree pane width are taken from the first
+   * snapshot only - the start-up read of the stored session: from then on they are the
+   * window's own state, which the settings runtime writes back to `session.*` with a short
+   * delay (features/settings/apply.ts). A later snapshot - the core reports the settings after
+   * every settings.set, the UI's own ones included (the version check's record, Fast mode, the
    * dialog) - may still show the flags as they were before a change that is on its way, and
    * would undo it: the status bar hidden a moment ago came back and its hiding was never
    * saved. While a toolbar layout change is on its way to the core, the layouts shown stay for
@@ -332,6 +369,8 @@ export const actions = {
         session: { ...settings.session, toolbarLayouts: current.session.toolbarLayouts },
       };
     }
+    // A core without the key (before API minor 3) leaves the default width.
+    const storedWidth = settings.session.treeWidth as number | undefined;
     store.setState({
       settings,
       fastMode: settings.view.fastMode,
@@ -340,6 +379,7 @@ export const actions = {
         : {
             toolbars: { ...settings.session.toolbars },
             treeVisible: settings.session.treeVisible,
+            treeWidth: typeof storedWidth === 'number' ? storedWidth : DEFAULT_TREE_WIDTH,
           }),
     });
   },

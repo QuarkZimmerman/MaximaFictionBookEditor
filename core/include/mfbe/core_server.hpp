@@ -44,8 +44,9 @@ struct CoreServerOptions {
     std::function<RestartOutcome(const std::optional<std::string>& reopen)> on_restart;
 };
 
-class DialogProvider;     // mfbe/dialog_provider.hpp
-class ClipboardProvider;  // mfbe/clipboard_provider.hpp
+class DialogProvider;          // mfbe/dialog_provider.hpp
+class ClipboardProvider;       // mfbe/clipboard_provider.hpp
+class KeyboardLayoutProvider;  // mfbe/keyboard_layout_provider.hpp
 
 class CoreServer {
 public:
@@ -62,6 +63,9 @@ public:
     void set_dialog_provider(std::shared_ptr<DialogProvider> provider);
     // Shell hook for binary.addFromClipboard (headless: none -> 1050 dialog.unavailable).
     void set_clipboard_provider(std::shared_ptr<ClipboardProvider> provider);
+    // Shell hook for system.keyboardLayouts / system.activateKeyboardLayout (feature 004 US11;
+    // headless: none -> the "noShell" / "unsupported" results, never an error).
+    void set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvider> provider);
     // Emits the app.openPaths notification (queued for the first client when none is
     // connected yet).
     void notify_open_paths(const std::vector<std::string>& paths);

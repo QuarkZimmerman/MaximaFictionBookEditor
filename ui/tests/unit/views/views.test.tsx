@@ -67,7 +67,7 @@ async function renderApp(responses: Record<string, unknown> = {}) {
     'settings.get': new Error('no settings'),
     'doc.recent': [],
     'doc.watch': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.close': {},
     ...responses,
   });
@@ -146,10 +146,13 @@ describe('Source view (T050)', () => {
     await user.click(screen.getByTestId('view-source'));
     const view = await screen.findByTestId('source-view');
     await waitFor(() => expect(view).toHaveAttribute('data-status', 'ready'));
+    // `positions: true`: the serialisation records the position map of the Body <-> Source
+    // mapping (feature 004 US7).
     expect(rpc.calls.find((c) => c.method === 'doc.toXml')?.params).toEqual({
       docId: 'doc-1',
       document: store.getState().document,
       elideBinaries: true,
+      positions: true,
     });
     expect(screen.getByTestId('source-editor')).toHaveTextContent('<FictionBook>');
     expect(store.getState()).toMatchObject({ sourceDirty: false, modified: false });

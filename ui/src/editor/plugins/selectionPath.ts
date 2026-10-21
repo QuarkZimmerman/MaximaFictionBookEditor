@@ -9,7 +9,7 @@
 import type { Mark, Node as PMNode } from 'prosemirror-model';
 import type { EditorState } from 'prosemirror-state';
 
-import { fb2NameFor } from '../schema';
+import { pathOfCaret } from '../structuralPath';
 import type { SectionWindow } from '../virtualization';
 import { ancestor } from '../commands/util';
 
@@ -58,35 +58,12 @@ export const EMPTY_SELECTION_CONTEXT: SelectionContext = {
   selectedText: '',
 };
 
-/** `body[1]/section[3]/p[12]` for the selection head (window offsets applied). */
+/**
+ * `body[1]/section[3]/p[12]` for the selection head (window offsets applied) - the core's own
+ * structural path, shared with the remembered position (feature 004, `structuralPath.ts`).
+ */
 export function selectionPath(state: EditorState, window: SectionWindow | null): string {
-  const $head = state.selection.$head;
-  const parts: string[] = [];
-  for (let depth = 1; depth <= $head.depth; depth += 1) {
-    const node = $head.node(depth);
-    const parent = $head.node(depth - 1);
-    const indexInParent = $head.index(depth - 1);
-    let sameTypeIndex = 0;
-    for (let i = 0; i <= indexInParent; i += 1) {
-      if (parent.child(i).type === node.type) sameTypeIndex += 1;
-    }
-    if (window && !window.wholeBook) {
-      if (depth === 1) sameTypeIndex = window.bodyIndex + 1;
-      if (depth === 2 && node.type.name === 'section') sameTypeIndex += window.start;
-    }
-    parts.push(`${fb2NameFor(node.type)}[${sameTypeIndex}]`);
-  }
-  // A selected leaf (image, unknown element) is not an ancestor of the head: append it.
-  const selected = selectedNode(state);
-  if (selected && !selected.node.isTextblock && selected.node.isLeaf) {
-    const parent = $head.parent;
-    let sameTypeIndex = 0;
-    for (let i = 0; i <= $head.index(); i += 1) {
-      if (i < parent.childCount && parent.child(i).type === selected.node.type) sameTypeIndex += 1;
-    }
-    parts.push(`${fb2NameFor(selected.node.type)}[${Math.max(1, sameTypeIndex)}]`);
-  }
-  return parts.join('/');
+  return pathOfCaret(state, window);
 }
 
 /** Nearest ancestor (or the selected node) that carries a nodeId. */

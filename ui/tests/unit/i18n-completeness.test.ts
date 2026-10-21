@@ -105,6 +105,8 @@ const RPC_ERROR_NAMES = [
   'doc.parseError',
   'doc.ioError',
   'doc.sourceMalformed',
+  'doc.notFictionBook',
+  'doc.sameAsOpenFile',
   'binary.notFound',
   'spell.dictionaryUnavailable',
   'script.notFound',

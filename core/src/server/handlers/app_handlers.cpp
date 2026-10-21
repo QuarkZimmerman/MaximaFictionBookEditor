@@ -1,5 +1,6 @@
 // app.* handlers (T024): app.info, app.quit, app.openLogFolder, app.openFolder,
-// app.setUiLanguage; feature 002: app.latestRelease, app.beep; feature 003: app.restart.
+// app.setUiLanguage; feature 002: app.latestRelease, app.beep; feature 003: app.restart;
+// job.cancel({jobId}) -> {} of rpc-api.md §1 (the job then reports job.failed 1090).
 #include "server/services.hpp"
 
 #include <mfbe/log.hpp>
@@ -44,6 +45,13 @@ json open_folder(Services& services, const std::filesystem::path& path) {
 }  // namespace
 
 void register_app_handlers(rpc::RpcRouter& router, Services& services) {
+    // A running job observes the flag at its next check and fails with 1090; a job already
+    // finished, or unknown, is left alone (a cancel racing the completion is no error).
+    router.add_method("job.cancel", [](const json& params, rpc::RpcContext& ctx) {
+        ctx.jobs.cancel(rpc::params::string(params, "jobId"));
+        return json::object();
+    });
+
     router.add_method("app.info", [&services](const json&, rpc::RpcContext&) {
         json info;
         info["version"] = version::kVersion;

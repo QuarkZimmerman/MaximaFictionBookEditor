@@ -7,6 +7,10 @@
  * model-level step each, recorded in the Body history whatever part of the book is displayed
  * afterwards (FR-034).
  *
+ * The text blocks are walked in the Body view's order (feature 004, FR-014): the annotation
+ * block, the history block, then the bodies; a replacement inside the two description nodes is
+ * written into the description, like the spelling dialog's `replaceTextblockInDocument`.
+ *
  * Offsets inside a text block count inline leaves (inline images, unknown inline elements) as
  * one character (`U+FFFC`), matching ProseMirror positions.
  */
@@ -45,8 +49,24 @@ export function textOf(json: ModelNodeJson): string {
   return text;
 }
 
-/** Every text block of the model in document order (blocks without nodeId are skipped). */
-export function collectTextblocks(model: Pick<Document, 'bodies'>): ModelTextblock[] {
+/** The model a search works on: the bodies and, when present, the description's two nodes. */
+export type SearchModel = Pick<Document, 'bodies'> & Partial<Pick<Document, 'description'>>;
+
+/** The two description nodes shown as blocks, in the Body view's order. */
+function descriptionRoots(model: SearchModel): ModelNodeJson[] {
+  const roots: ModelNodeJson[] = [];
+  const annotation = model.description?.titleInfo.annotation;
+  const history = model.description?.documentInfo.history;
+  if (annotation) roots.push(annotation as unknown as ModelNodeJson);
+  if (history) roots.push(history as unknown as ModelNodeJson);
+  return roots;
+}
+
+/**
+ * Every text block of the model in the Body view's order - annotation, history, the bodies
+ * (blocks without nodeId are skipped).
+ */
+export function collectTextblocks(model: SearchModel): ModelTextblock[] {
   const out: ModelTextblock[] = [];
   const visit = (json: ModelNodeJson) => {
     if (TEXTBLOCK_TYPES.has(json.type)) {
@@ -56,12 +76,16 @@ export function collectTextblocks(model: Pick<Document, 'bodies'>): ModelTextblo
     }
     for (const child of json.content ?? []) visit(child);
   };
+  for (const root of descriptionRoots(model)) visit(root);
   for (const body of model.bodies) visit(body as unknown as ModelNodeJson);
   return out;
 }
 
-/** Replaces text blocks of the model by node id in one pass (structural copy). */
-export function replaceTextblocksInModel<D extends Pick<Document, 'bodies'>>(
+/**
+ * Replaces text blocks of the model by node id in one pass (structural copy), inside the
+ * description's annotation / history as well as in the bodies.
+ */
+export function replaceTextblocksInModel<D extends SearchModel>(
   model: D,
   replacements: ReadonlyMap<string, ModelNodeJson>,
 ): D {
@@ -83,7 +107,35 @@ export function replaceTextblocksInModel<D extends Pick<Document, 'bodies'>>(
     if (next !== (body as unknown as ModelNodeJson)) changed = true;
     return next as unknown as D['bodies'][number];
   });
-  return changed ? { ...model, bodies } : model;
+  let description = model.description;
+  if (description) {
+    const annotation = description.titleInfo.annotation;
+    const history = description.documentInfo.history;
+    const nextAnnotation = annotation ? visit(annotation as unknown as ModelNodeJson) : undefined;
+    const nextHistory = history ? visit(history as unknown as ModelNodeJson) : undefined;
+    if (nextAnnotation !== (annotation as unknown)) {
+      changed = true;
+      description = {
+        ...description,
+        titleInfo: {
+          ...description.titleInfo,
+          annotation: nextAnnotation as unknown as typeof annotation,
+        },
+      };
+    }
+    if (nextHistory !== (history as unknown)) {
+      changed = true;
+      description = {
+        ...description,
+        documentInfo: {
+          ...description.documentInfo,
+          history: nextHistory as unknown as typeof history,
+        },
+      };
+    }
+  }
+  if (!changed) return model;
+  return description ? { ...model, bodies, description } : { ...model, bodies };
 }
 
 /* ------------------------------------------------------------------------ */

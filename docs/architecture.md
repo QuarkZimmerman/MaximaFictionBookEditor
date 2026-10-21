@@ -77,7 +77,7 @@ section), `core_server.cpp` (wiring); `ui/src/rpc/client.ts` (typed client).
 | Binary objects (images) | core | Decoded from base64 while parsing, kept in a per-document `BinaryStore`, never sent as base64 to the UI; the UI receives metadata (`BinaryMeta`) and fetches bytes or scaled previews over HTTP by id. |
 | Validation | core | XSD validation against the bundled FB2 2.1 schema set plus consistency checks (dangling links, missing or unreferenced binaries, image formats, unknown genres) with line/column mapped back to node ids. |
 | Spell checking, Words analysis | core | Hunspell with the bundled en_US / ru_RU / uk_UA dictionaries, the `.aff`/`.dic` pairs of the dictionary folders (`spell.dictionaryReport` tells which are in effect and which files were rejected and why) and the user's custom dictionary; word frequency and replacement engine. |
-| Settings, recent files, hotkeys, exclusions | core | Per-user JSON files; the UI edits them through `settings.*` / `hotkeys.*` and receives `settings.changed`. |
+| Settings, recent files, remembered positions, hotkeys, exclusions | core | Per-user JSON files; the UI edits them through `settings.*` / `hotkeys.*` and receives `settings.changed`. The remembered positions of "Restore position" (`positions.json`, feature 004) are a record of their own, see *Restore position* below. |
 | Genres, scripts, dictionaries | core | Layered lookup (settings folder -> per-user folder -> portable folder -> bundled), additive, no admin rights (FR-127). |
 | Diagnostics | core | Errors-only rolling log (`logs/mfbe-errors.log`); the UI and the shell report their failures through `log.error`. |
 
@@ -99,12 +99,143 @@ an undo boundary; switching from Source parses the text with `doc.fromXml`, whic
 node ids and returns a remap table so carets and undo entries survive. The Document Tree,
 Links bar, Table bar and status bar derive from the same live model.
 
+**Position map (Body ↔ Source, feature 004).** The caret and the selection travel between the
+two views through a map the core records while it serialises (`doc.toXml({positions: true})`)
+or parses (`doc.fromXml({positions: true})`) the Source text: for every node with an id under
+the bodies, the annotations and the history, the byte offsets of its start tag, its content
+and its end plus the UTF-16 offset of the start tag (the conversion between the core's bytes
+and the editors' UTF-16 units stays local to one element). The map lives in the document
+session with the text it describes under a `serial`; `doc.mapPositions({serial, toSource,
+toModel})` resolves model points (`{nodeId, offset}` as ProseMirror counts: UTF-16 units plus
+one per inline atom, marks nothing) and source offsets both ways with one inline scanner that
+mirrors the reader's content rules (an entity is its one character, a mark tag nothing, an
+inline image one unit), and answers 1005 for any other serial. The UI never parses XML
+(Constitution III): `sync.ts` records the Body selection on a direct switch, maps it once the
+text is loaded, and on the way back commits pending edits with `positions: true` so the
+offsets refer to the very text parsed; a point without a Body place (the prolog, the
+description, a binary) goes to the document's start. `doc.toXml` also makes the received
+document the session snapshot, so the remap of the next parse follows the model the text was
+made from.
+
+**Restore position (feature 004).** "Restore position" remembers the Body view's last caret
+of a file by its place in document order, not by a session's node id: `doc.position({docId,
+position})` carries `{path, offset}` - a structural path under one of the three roots the Body
+view shows (`body[n]`, `title-info/annotation[1]`, `document-info/history[1]`) and a model
+offset inside that text block - and the core keeps it in the document session and, when the
+session has a file and `other.restorePosition` is on, in `positions.json` beside `recent.json`
+(`core/src/settings/positions.cpp`): the 100 most recently remembered files, newest first,
+written atomically on every change, paths compared as the platform compares file names
+(`platform::same_file_path` - letter case ignored on Windows and macOS, exact on Linux), a
+record of its own that the ten-entry Recent Files list and Clear Recent Files never touch. The
+core gates every record and every answer on the setting, so the UI's start-up race with
+`settings.get` can neither record nor restore when the option is off. The UI remembers on
+every leaving route (`FileFeature.leaveDocument`: New, Open, Recent Files, a forwarded file,
+the changed-on-disk reload, every save, Exit, the window's close request and the restart) the
+Body controller's caret whatever the active view, unless the Body view was never shown for the
+document; on every opening route it asks `doc.position`, resolves the path against the model it
+shows (`ui/src/editor/structuralPath.ts`, `resolvePosition`: a paragraph that no longer exists
+falls back to the one now at that place, clamped, silently) and places the caret without
+switching the view - scrolled into view at once in the Body view, on mount when another view
+is active. The changed-on-disk reload carries the in-session caret over directly. `doc.caret`
+of release 0.0.3 stays as a deprecated alias (the 1.x caret shape converted through the
+session snapshot) until the next major; `recent.json` no longer carries a caret, and a legacy
+one is converted once when its file is next opened.
+
+**Spelling scope (feature 004).** The editor's own checker - the core's Hunspell behind
+`spell.*` - covers the Body view's one document and nothing else: the ProseMirror plugin
+(`ui/src/editor/plugins/spellcheck.ts`) is installed in the Body editor alone, so the
+annotation and history blocks at its top are checked like the book text, and the Spelling
+dialog (`ui/src/features/spell/dialogController.ts`) walks the annotation, the history and the
+bodies in that order, from whichever view it is started - the command and the highlighting
+toggle keep their release 0.0.3 availability in every view. No field of the Description view
+is ever checked (the source title info's annotation, edited there only, included), nor a
+dialog, bar or the Source view. The browser engine's own checker - the one mechanism that
+marked those fields, with whatever dictionaries the system has - is kept off on both sides:
+the page sets `spellcheck="false"` on the app root (`ui/src/app/App.tsx`; the HTML state is
+inherited by every descendant) and explicitly on the two ProseMirror roots (the Body editor,
+the Description view's rich fields), and the shell sets the Chromium preference
+`browser.enable_spellchecking = false` through the global request context's preference
+manager when the browser context is initialised, before any window (`app/src/mfbe_app.cpp`;
+CEF 150 has no command-line switch for it; the preference persists in the profile but is set
+at every start). A refused preference is a warning in the errors-only log; test-hook builds
+print `shelltest: spellcheck engine=off` (or `engine=error <text>`), which `tools/shell-smoke.sh`
+asserts, and the `@platform` journey `us9-spelling-scope.spec.ts` reads the marks and the
+attributes on every e2e leg.
+
+**Keyboard layout on open (feature 004).** "Switch keyboard layout when a document is opened"
+(Settings > Other, the Open File group; `other.switchKeyboardLayout`, `other.keyboardLayoutId`,
+`other.keyboardLayoutName`) is the third shell-owned capability behind a core provider
+interface, after the dialogs and the clipboard: the core declares
+`mfbe::KeyboardLayoutProvider` (`core/include/mfbe/keyboard_layout_provider.hpp`, `list` /
+`activate` with callbacks) and serves it as `system.keyboardLayouts` and
+`system.activateKeyboardLayout` (`core/src/server/handlers/system_handlers.cpp`; results, never
+errors - `noShell` / `unsupported` without a provider, `notInstalled` for an id the system no
+longer lists, `refused` with the system's code written to the errors-only log as
+`keyboard.switchRefused`). The shell's bridge (`app/src/keyboard_layout_bridge.cpp`) posts each
+call to the CEF UI thread with the main window's native handle and answers from there; the
+platform work is plain C++ in `mfbe_shell_logic` (`app/src/keyboard_layout*.cpp|.mm`) so
+`tests/shell` runs it on each CI job: Windows lists `GetKeyboardLayoutList`, identifies a layout
+by its KLID derived from the HKL without activating anything (special layouts through the
+registry's `Layout Id`), names it by the language's localised display name plus the layout's own
+name when it is not the plain one, and switches with `WM_INPUTLANGCHANGEREQUEST` to the
+top-level window (`ActivateKeyboardLayout` as the fallback), verified with `GetKeyboardLayout` -
+never `LoadKeyboardLayout`; macOS lists the enabled, select-capable keyboard input sources and
+selects with `TISSelectInputSource` (best effort: `noErr` without a change is `activated: false`
+without a reason); Linux reports a Wayland session (`XDG_SESSION_TYPE`, `WAYLAND_DISPLAY`, also
+under XWayland) as `supported: false, reason: "wayland"` - the Settings page shows the option
+disabled with the note, requester decision D2 - and under X11 lists the XKB groups of the core
+keyboard on a `Display` of its own and locks the group by name with `XkbLockGroup` (the group
+name, never the index, is the stored id). The UI makes exactly one request per document opened
+(`FileFeature.documentOpened`, at the end of `loadDocument()` and of `openSourceOnly()`: the
+start-up document, File > New, Open, Recent Files, a forwarded file, the restart's reopen, the
+changed-on-disk reload, a malformed file in the Source view), fire-and-forget, never from the
+Settings dialog; a start-up open that precedes the `settings.get` answer waits for the settings
+to arrive. `--test-hooks` installs a recording stand-in (`test.setKeyboardLayouts`,
+`test.keyboardLayoutRequests`) for the headless journey `us11-keyboard-layout.spec.ts`; the
+platform switch itself is covered by `tests/shell/test_keyboard_layout.cpp` - on Linux under
+Xvfb with two groups (`tools/ci/shell-tests-xkb.sh`).
+
 **Save.** `doc.save` receives the current JSON model (binaries by reference), converts
 non-JPEG/PNG images according to the paste-format setting, validates, and - unless the user
 confirmed "save anyway" after validation errors - writes the FB2 2.1 text in the chosen
 encoding through a temporary file that replaces the target only when fully written (FR-003).
 The response carries the final path, encoding, the list of converted binaries and the
 validation report.
+
+**Description import and FBD export (feature 004).** Both keep the file work and the image
+bytes in the core (Constitution III). *Import* (`file.importDescription`,
+`ui/src/features/transfer/importDescription.ts`): `doc.readDescription({docId, path})` reads
+the chosen file exactly as `doc.open` does — the hardened parser, the whole file, every
+encoding, a job with Open's phases above 2 MB — and keeps only what the import needs: the
+description as read, with node ids taken from the open document's own allocator so that the
+imported annotation and history can be inserted without a collision; the document details
+after the fill-in of 002 FR-005; and the metadata of only the binaries an importable entry
+refers to (cover pages, images inside the annotation and the history — a binary referenced by
+nothing else, an `output` element included, is dropped). Those binaries wait in a hidden
+**import session** (`importId`: a document session without a file watch, a Recent Files entry,
+a position or a position map) so that the dialog's cover picture is served by the existing
+`GET /binary/{importId}/{id}/preview` side channel and the bytes of a ticked cover cross
+store-to-store inside the core through `binary.copy({docId, fromDocId, id})` — deduplicated by
+content hash and bytes (`existing: true`), else stored under a unique id the UI repoints the
+cover page to. The UI derives the importable entries (`importEntries.ts`: the present,
+non-empty entries in the Description view's order, the six roles as one "Other persons" entry
+through the role module, each plain `custom-info` row its own entry), applies the ticked ones
+as a whole each — silently into a never-saved document whose description still equals its
+creation baseline (`untouched.ts`), through the confirmation dialog otherwise — shows the
+result through the Body controller (so the blocks follow) or the store, records one snapshot
+undo entry, reports the count in the status bar and closes the import session in every case.
+*Export* (`file.exportFbd`, `exportFbd.ts`): `doc.exportDescription({docId, document, path,
+force?})` is a sibling of `doc.save` that writes a copy and touches nothing in the session —
+the live description unchanged (roles, every `custom-info` row, the `output` elements and the
+description's extras), one body holding one empty section (the smallest body the FB2 2.1
+schema accepts), no stylesheet, only the binaries the exported description references, those
+converted to JPEG/PNG in the copy alone, always UTF-8, validated with Save's own confirmation
+and written atomically; the open document's own file is refused by platform file identity
+(`std::filesystem::equivalent`, error 1006) before anything is validated or written. The save
+dialog offers the single descriptors type without an encoding choice and proposes the
+document's stem with `.fbd` or the never-saved document's proposed name
+(`features/file/proposedName.ts`: "Last name First name - Book title", sanitised for every
+platform, passed to the dialog as a bare name the shell shows in the remembered folder).
 
 **Validate.** `doc.validate` accepts either the model or Source text; the report lists
 severity, line, column, element path and message per issue. The Validation panel jumps to
@@ -161,7 +292,10 @@ a shell (browser/dev mode) `app.restart` answers 1070 `app.restartUnavailable` a
 reloads itself with `?open=<path>` added to its query; a spawn failure answers 1071
 `app.restartFailed {reason}` and the editor stays open. `tools/shell-smoke.sh` with
 `MFBE_SMOKE_RESTART=1` exercises the real restart under Xvfb (normal and maximised window,
-and the failure path with `MFBE_SMOKE_RESTART_FAIL=1`).
+the Body caret back in its paragraph in the new instance - feature 004 US8 - and, with a
+test-hook shell, the failure path with `MFBE_SMOKE_RESTART_FAIL=1`); the CI `app` job runs it
+on the release shell, which prints no argument lists, so the restart is judged by what the new
+instance shows.
 
 **Closing the window.** The window never closes behind the UI's back (feature 003 FR-017).
 A close request the user can still cancel - the title-bar button, Alt+F4, a system shutdown,
@@ -183,7 +317,8 @@ connected UI keeps the window however long the user takes over the prompt, so a 
 interface is gone can be closed but a prompt can never be skipped. `test.requestClose` emits the
 same notification headless so the journeys cover the UI's part; `tools/shell-smoke.sh` with
 `MFBE_SMOKE_CLOSE=1` sends the window manager's close request to the real shell under Xvfb
-(openbox, xdotool) and `tools/ci/windows-russian-journey.ps1` posts WM_CLOSE to the Windows
+(openbox, xdotool) and reads the Body caret it remembered from `positions.json` afterwards
+(feature 004 US8), and `tools/ci/windows-russian-journey.ps1` posts WM_CLOSE to the Windows
 window - the title-bar button's path end to end; `tests/shell/test_close_handshake.cpp` drives
 the state machine.
 
@@ -193,11 +328,13 @@ The core/UI boundary is a documented, versioned contract (Constitution III); the
 truth is `specs/001-maxima-fb2-editor/contracts/` in the planning workspace, with the
 additive changes of later features in `specs/<feature>/contracts/` (feature 003: `app.restart`,
 `app.closeRequested`, `doc.formatDate`, `spell.dictionaryReport`, the new settings keys and
-test hooks - API minor 2 - and the installer's public property):
+test hooks - API minor 2 - and the installer's public property; feature 004 - API minor 3 -
+among others `doc.position`, with `doc.caret` and `RecentFile.caret` deprecated for the next
+major):
 
 | Contract | Mirrors in this repository |
 |----------|----------------------------|
-| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1, minor 2) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
+| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1, minor 3) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
 | `document-model.d.ts` (JSON document model) | `ui/src/model/document.ts` (verbatim copy with a header), `core/include/mfbe/document.hpp` + `json_codec.hpp` |
 | `script-api.d.ts` (the complete `mfbe` allow-list) | `docs/scripting/mfbe.d.ts` (copy shipped with the editor), `ui/src/scripting/types.ts` (`API_METHODS`), `ui/src/scripting/sandbox.ts` |
 | `script-manifest.md` (package layout, `script.json`, sandbox rules) | `core/src/resources/scripts.cpp`, `ui/src/scripting/sandbox*.ts` |

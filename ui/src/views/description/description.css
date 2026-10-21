@@ -247,6 +247,11 @@ textarea.mfbe-desc-input {
   align-self: flex-start;
 }
 
+/* The "Other persons" list (feature 004 US3): the role choice heads each entry's names. */
+.mfbe-desc-role-select {
+  width: 14em;
+}
+
 .mfbe-desc-sequence {
   margin: 2px 0;
 }

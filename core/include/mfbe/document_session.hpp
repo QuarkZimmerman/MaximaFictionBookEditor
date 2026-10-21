@@ -1,13 +1,18 @@
-// Document session registry (T024): docId issue, open documents, remembered caret.
+// Document session registry (T024): docId issue, open documents, remembered position.
 //
 // Per D4 the UI owns the live document; the core keeps per-document session state: the file
 // identity (path, kind, encoding, mtime), the binary store, the node-id allocator, the last
-// model snapshot the core produced or received, and the caret for "Restore position".
+// model snapshot the core produced or received, the remembered Body position for "Restore
+// position" (feature 004 US8, `doc.position`; the deprecated `doc.caret` alias keeps the
+// 1.x caret of this session beside it) and the position map of the last Source text
+// serialised or parsed with `positions: true` (feature 004 US7, `doc.mapPositions`).
 #pragma once
 
 #include <mfbe/binary_store.hpp>
 #include <mfbe/document.hpp>
 #include <mfbe/node_ids.hpp>
+#include <mfbe/position_map.hpp>
+#include <mfbe/positions.hpp>
 #include <mfbe/recent_files.hpp>
 
 #include <chrono>
@@ -35,8 +40,27 @@ struct DocumentSession {
     std::shared_ptr<BinaryStore> binaries = std::make_shared<BinaryStore>();
     model::NodeIdAllocator ids;
     std::optional<model::Document> snapshot;  // last model seen by the core (may be absent)
-    std::optional<settings::Caret> caret;
+    // The remembered Body position (feature 004 US8): loaded from positions.json at open (or
+    // converted once from a legacy recent.json caret), set by doc.position / doc.caret.
+    std::optional<settings::Position> position;
+    // The caret set through the deprecated doc.caret alias when it could not become a
+    // position (another view, an unknown node id): answered back by the alias, never stored.
+    std::optional<settings::Caret> aliasCaret;
+    // The current position map with its text (feature 004 US7): recorded by doc.toXml /
+    // doc.fromXml with `positions: true`, superseded by the next recording, dropped by a
+    // successful doc.fromXml without the flag; absent after open / new.
+    std::optional<fb2::PositionMap> positionMap;
+    std::uint64_t positionSerial = 0;  // the last serial issued (increasing per session)
     std::chrono::steady_clock::time_point openedAt = std::chrono::steady_clock::now();
+
+    // Installs `map` as the current position map of `text` under a fresh serial, which is
+    // returned.
+    std::uint64_t record_positions(fb2::PositionMap map, std::string text) {
+        map.text = std::move(text);
+        map.serial = ++positionSerial;
+        positionMap = std::move(map);
+        return positionSerial;
+    }
 };
 
 class DocumentRegistry {
@@ -53,9 +77,10 @@ public:
     // First open session whose path equals `path` (nullptr when none).
     DocumentSession* find_by_path(const std::string& path);
 
-    // Caret memory (per docId, kept while the document is open).
-    void remember_caret(const std::string& doc_id, const std::optional<settings::Caret>& caret);
-    std::optional<settings::Caret> caret(const std::string& doc_id) const;
+    // Position memory (per docId, kept while the document is open).
+    void remember_position(const std::string& doc_id,
+                           const std::optional<settings::Position>& position);
+    std::optional<settings::Position> position(const std::string& doc_id) const;
 
 private:
     std::map<std::string, std::unique_ptr<DocumentSession>> sessions_;

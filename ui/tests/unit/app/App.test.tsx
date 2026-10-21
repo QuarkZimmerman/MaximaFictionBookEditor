@@ -108,7 +108,7 @@ describe('App shell', () => {
     expect(screen.getByTestId('panel-description')).toBeInTheDocument();
   });
 
-  it('submenus open with ArrowRight and show their placeholder entries', async () => {
+  it('submenus open with ArrowRight and show their entries', async () => {
     const { user } = await renderApp();
     await user.keyboard('{Alt>}f{/Alt}');
     // New, Open, Save, Save As, Validate, (sep), Import
@@ -116,11 +116,22 @@ describe('App shell', () => {
     expect(screen.getByTestId('menu-file-import')).toHaveClass('mfbe-menu-item-highlighted');
     await user.keyboard('{ArrowRight}');
     expect(screen.getByTestId('menu-file-import-popup')).toBeInTheDocument();
-    expect(screen.getByTestId('menu-file-import-none')).toHaveTextContent(
-      'No import plugins installed',
+    // The description import of feature 004 (FR-030) took the place of the plugin placeholder.
+    expect(screen.queryByTestId('menu-file-import-none')).not.toBeInTheDocument();
+    expect(screen.getByTestId('menu-file-import-importDescription')).toHaveTextContent(
+      'Description from FictionBook file...',
     );
     await user.keyboard('{ArrowLeft}');
     expect(screen.queryByTestId('menu-file-import-popup')).not.toBeInTheDocument();
+    // Export: the FBD export of feature 004 (FR-040) in place of the plugin placeholder.
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByTestId('menu-file-export')).toHaveClass('mfbe-menu-item-highlighted');
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByTestId('menu-file-export-popup')).toBeInTheDocument();
+    expect(screen.queryByTestId('menu-file-export-none')).not.toBeInTheDocument();
+    expect(screen.getByTestId('menu-file-export-exportFbd')).toHaveTextContent('Export as FBD...');
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.queryByTestId('menu-file-export-popup')).not.toBeInTheDocument();
     await user.keyboard('{Escape}');
 
     await user.click(screen.getByTestId('menu-scripts'));

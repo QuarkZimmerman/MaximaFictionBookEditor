@@ -5,8 +5,10 @@
 //    appended here: --no-sandbox, --ozone-platform=<x11|wayland> or the default
 //    --ozone-platform-hint=auto on Linux (Wayland native when available), --lang, plus any
 //    developer flags from the MFBE_CHROMIUM_FLAGS environment variable.
-//  * OnContextInitialized: creates the Views window with the browser view loading the core's
-//    URL (http://127.0.0.1:<port>/?token=<token>) or the --url override.
+//  * OnContextInitialized: switches the browser engine's own spell checking off through the
+//    preference browser.enable_spellchecking (feature 004 US9; CEF 150 has no switch for it),
+//    then creates the Views window with the browser view loading the core's URL
+//    (http://127.0.0.1:<port>/?token=<token>) or the --url override.
 //  * OnAlreadyRunningAppRelaunch: a second instance (OS "Open with", file association)
 //    forwards its FILE arguments to the running core (app.openPaths) and activates the window
 //    (single_instance.h describes the mechanism and the exit codes).

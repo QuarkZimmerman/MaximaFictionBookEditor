@@ -52,16 +52,16 @@ DocumentSession* DocumentRegistry::find_by_path(const std::string& path) {
     return nullptr;
 }
 
-void DocumentRegistry::remember_caret(const std::string& doc_id,
-                                      const std::optional<settings::Caret>& caret) {
+void DocumentRegistry::remember_position(const std::string& doc_id,
+                                         const std::optional<settings::Position>& position) {
     if (DocumentSession* s = find(doc_id)) {
-        s->caret = caret;
+        s->position = position;
     }
 }
 
-std::optional<settings::Caret> DocumentRegistry::caret(const std::string& doc_id) const {
+std::optional<settings::Position> DocumentRegistry::position(const std::string& doc_id) const {
     const DocumentSession* s = find(doc_id);
-    return s == nullptr ? std::nullopt : s->caret;
+    return s == nullptr ? std::nullopt : s->position;
 }
 
 }  // namespace mfbe::session

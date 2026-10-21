@@ -206,6 +206,12 @@ function firstParagraph(page: Page): Locator {
 async function caretIntoParagraph(page: Page): Promise<void> {
   await firstParagraph(page).click({ position: { x: 8, y: 8 } });
   await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(80);
+  // A collapsed caret at the paragraph's start stepped into the history block above the body
+  // (feature 004, one editing surface): step back to the paragraph.
+  if (!/^body\[/.test(await page.getByTestId('status-path').innerText())) {
+    await page.keyboard.press('ArrowRight');
+  }
   await expect(page.getByTestId('status-path')).toHaveText(/^body\[1\]\/section\[1\]\/p\[\d+\]$/);
   await expect(page.getByTestId('body-view')).toHaveAttribute('data-selected-text', '');
   await page.waitForTimeout(80);
@@ -249,8 +255,9 @@ async function strictTexts(page: Page, testId: string): Promise<{ where: string;
 
 /**
  * Every visible text line of the element `testId` (catalogue-based check, no Cyrillic
- * requirement) minus the lines of data regions (word lists, table bodies, code), which show the
- * document's own words.
+ * requirement) minus the lines of data regions (word lists, table bodies, code, the keyboard
+ * layouts under the names the system gives them - feature 004 FR-090), which show the
+ * document's or the system's own words.
  */
 async function textLines(page: Page, testId: string): Promise<string[]> {
   const snippet = `(() => {
@@ -258,7 +265,8 @@ async function textLines(page: Page, testId: string): Promise<string[]> {
     if (!root) return [];
     const lines = (text) => text.split('\\n').map((line) => line.trim()).filter((line) => line);
     const data = new Set();
-    const selector = '[role="grid"], [role="listbox"], tbody, textarea, pre, code';
+    const selector =
+      '[role="grid"], [role="listbox"], tbody, textarea, pre, code, [data-testid="settings-other-layout"]';
     for (const element of Array.from(root.querySelectorAll(selector))) {
       for (const line of lines(element.innerText)) data.add(line);
     }

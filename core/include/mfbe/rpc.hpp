@@ -46,6 +46,10 @@ inline constexpr int kDocParseError = 1001;
 inline constexpr int kDocIoError = 1002;
 inline constexpr int kDocSourceMalformed = 1003;
 inline constexpr int kDocNotFictionBook = 1004;
+// Feature 004 (doc.mapPositions): the serial is not the session's current position map.
+inline constexpr int kDocPositionsStale = 1005;
+// Feature 004 (doc.exportDescription): the target is the open document's own file.
+inline constexpr int kDocSameAsOpenFile = 1006;
 inline constexpr int kBinaryNotFound = 1010;
 inline constexpr int kSpellDictionaryUnavailable = 1020;
 inline constexpr int kScriptNotFound = 1030;

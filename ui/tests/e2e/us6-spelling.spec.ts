@@ -76,8 +76,11 @@ const RU_PARAGRAPHS = [
   'Hello world again.',
   'Слово ашыбка в конце.',
 ];
-/** Every misspelling of the Russian book with the Russian dictionary alone. */
-const RU_MISSPELLED = ['превет', 'Hello', 'world', 'again', 'ашыбка'];
+/**
+ * Every misspelling of the Russian book with the Russian dictionary alone, in the Body view's
+ * order: the annotation block above the body first (feature 004, FR-014), then the body text.
+ */
+const RU_MISSPELLED = ['Аннотацыя', 'превет', 'Hello', 'world', 'again', 'ашыбка'];
 const EN_PARAGRAPHS = ['This is a smal mistake in an English text.'];
 
 async function supportsSpelling(core: CoreHandle): Promise<boolean> {
@@ -192,7 +195,11 @@ test.describe('US6 - check spelling in English and Russian', () => {
     await page.getByTestId('menu-file-open').click();
     await page.getByTestId('dialog-save-changes-button-no').click();
     await expect(page).toHaveTitle(/^english\.fb2/);
-    await expect.poll(() => misspelledWords(editor), { timeout: 3000 }).toEqual(['smal']);
+    // The annotation block is Body text too (feature 004): its Russian words are unknown to
+    // the English dictionary.
+    await expect
+      .poll(() => misspelledWords(editor), { timeout: 3000 })
+      .toEqual(['Аннотацыя', 'книги', 'smal']);
   });
 
   test('2. the Spelling dialog: Ignore, Ignore All, Change, Change All, Add, Undo last, completion', async ({
@@ -293,7 +300,7 @@ test.describe('US6 - check spelling in English and Russian', () => {
     // Words valid in either dictionary are no longer flagged.
     await expect
       .poll(() => misspelledWords(editor), { timeout: 3000 })
-      .toEqual(['превет', 'ашыбка']);
+      .toEqual(['Аннотацыя', 'превет', 'ашыбка']);
   });
 
   test('4. a word added to the dictionary is persisted and accepted by the core', async ({

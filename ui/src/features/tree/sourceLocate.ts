@@ -9,9 +9,15 @@
  * `id` attribute, the `id="..."` occurrence after the body start is used instead (ids are
  * unique, FR-012). Unknown elements (`raw-xml`) that happen to contain the same tag name would
  * shift the count - acceptable for a navigation aid, and the element's own `id` wins anyway.
+ *
+ * The Annotation and History rows of feature 004 (US2) name description elements: the first
+ * `<annotation` inside `<title-info>` (the source title info's annotation is skipped) and the
+ * only `<history`; when the element is not in the file (an empty block), the view lands on its
+ * parent block (`<title-info`, `<document-info`).
  */
 
 import type { ModelNodeJson } from '@/editor/fromModel';
+import { FIXED_BLOCK_IDS } from '@/editor/schema';
 import type { Document } from '@/model/document';
 
 import { locateNode } from '../treeOps';
@@ -86,12 +92,39 @@ export function nthTagOffset(text: string, tag: string, n: number, from = 0): nu
   return -1;
 }
 
+/** Offset of the first `<tag` at or after `from` and before `end`, or -1. */
+function tagBetween(text: string, tag: string, from: number, end: number): number {
+  const offset = nthTagOffset(text, tag, 0, Math.max(0, from));
+  return offset >= 0 && offset < end ? offset : -1;
+}
+
+/**
+ * The description element of a block row (feature 004): the title-info annotation or the
+ * history, else - the element is absent - its parent block; null without a description.
+ */
+function locateDescriptionBlock(text: string, nodeId: string): SourcePosition | null {
+  const descriptionEnd = text.search(/<\/description\s*>|<body(?=[\s/>])/);
+  const end = descriptionEnd < 0 ? text.length : descriptionEnd;
+  const parentTag = nodeId === FIXED_BLOCK_IDS.annotation ? 'title-info' : 'document-info';
+  const parent = tagBetween(text, parentTag, 0, end);
+  if (parent < 0) return null;
+  const close = text.indexOf(`</${parentTag}`, parent);
+  const parentEnd = close < 0 ? end : Math.min(close, end);
+  const own = nodeId === FIXED_BLOCK_IDS.annotation ? 'annotation' : 'history';
+  const offset = tagBetween(text, own, parent, parentEnd);
+  const at = offset >= 0 ? offset : parent;
+  return { ...lineColumnAt(text, at), offset: at };
+}
+
 /** Position of the tree element `nodeId` in `text` (the serialised document), or null. */
 export function locateInSource(
   text: string,
   model: Pick<Document, 'bodies'>,
   nodeId: string,
 ): SourcePosition | null {
+  if (nodeId === FIXED_BLOCK_IDS.annotation || nodeId === FIXED_BLOCK_IDS.history) {
+    return locateDescriptionBlock(text, nodeId);
+  }
   const located = locateNode(model, nodeId);
   if (!located) return null;
   const bodyStart = Math.max(0, text.search(/<body(?=[\s/>])/));

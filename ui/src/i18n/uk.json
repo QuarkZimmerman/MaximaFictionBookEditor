@@ -32,9 +32,7 @@
       "saveAs": "Зберегти &як...",
       "validate": "&Перевірити",
       "import": "&Імпорт",
-      "noImportPlugins": "Немає жодного модуля",
       "export": "&Експорт",
-      "noExportPlugins": "Немає жодного модуля",
       "recent": "&Останні документи",
       "noRecent": "Порожньо",
       "openThisDocument": "Відкрити цей документ",
@@ -813,7 +811,8 @@
       "parseError": "Файл не є коректним XML (рядок {{line}}, стовпець {{column}}): {{message}}",
       "ioError": "Не вдалося прочитати або записати {{path}}: {{reason}}",
       "sourceMalformed": "XML-код документа некоректний; спочатку виправте його в режимі «Код»",
-      "notFictionBook": "{{path}} не є документом FictionBook"
+      "notFictionBook": "{{path}} не є документом FictionBook",
+      "sameAsOpenFile": "{{path}} — це сам відкритий документ"
     },
     "binary": {
       "notFound": "Двійковий об'єкт «{{id}}» відсутній у документі"

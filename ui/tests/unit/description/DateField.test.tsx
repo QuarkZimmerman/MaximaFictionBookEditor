@@ -68,7 +68,7 @@ async function renderDescription(responses: Record<string, unknown>) {
     'settings.get': new Error('no settings'),
     'doc.recent': [],
     'doc.watch': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.close': {},
     'resources.genres': GENRES,
     'resources.languages': LANGUAGES,

@@ -1,21 +1,31 @@
 /**
- * Recent Files and caret restore (T054).
+ * Recent Files and Restore position (T054; feature 004 US8).
  *
  * - `RecentFilesStore` mirrors the core's `doc.recent` list (<= 10 entries, newest first; the
  *   core maintains it on open/save and prunes missing files on open failure) and registers one
  *   `file.recent<N>` command per entry so the File > Recent Files submenu can show them as
  *   ordinary menu items (`recentMenuItems()` builds the `MenuItemSpec[]`). Entries the core has
  *   flagged as missing (`exists === false`) are disabled (greyed).
- * - Caret restore (FR-008): with `restorePosition` on, `rememberCaret()` stores the active view's
- *   caret through `doc.caret` when a document is closed/saved and `restoreCaret()` asks for it
- *   after an open and moves the view's selection (retrying while the view mounts).
+ * - Restore position (FR-100 / FR-101; research R5.6, R5.7): with `restorePosition` on,
+ *   `rememberPosition()` sends the **Body** controller's caret - whatever the active view - as a
+ *   structural path and offset through `doc.position` whenever a document with a file leaves
+ *   the editor (New, Open, Recent Files, a forwarded file, the changed-on-disk reload, every
+ *   save, Exit, the window's close request, the restart); `restorePosition()` asks for the
+ *   remembered position after an open, resolves it against the model the UI shows
+ *   (`resolvePosition`: the same character of the paragraph now at that place, clamped) and
+ *   places the Body caret without switching the view - at once when the Body view is active,
+ *   otherwise in the controller's kept state, scrolled into view when the view mounts. The
+ *   record lives in the core's `positions.json` (100 files, independent of the Recent Files
+ *   list); the core gates every record and answer on the setting.
  */
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
 import type { MenuItemSpec } from '@/app/menus';
+import { FIXED_BLOCK_IDS } from '@/editor/schema';
+import { resolvePosition, type StructuralPosition } from '@/editor/structuralPath';
 import type { RpcClient } from '@/rpc/client';
-import type { Caret, RecentFile } from '@/rpc/types';
-import { requestViewSwitch } from '@/views/source/sourceSession';
+import type { RecentFile, RememberedPosition } from '@/rpc/types';
+import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 
 export const MAX_RECENT = 10;
 
@@ -103,59 +113,81 @@ export class RecentFilesStore {
 }
 
 /* ------------------------------------------------------------------------ */
-/* Caret restore                                                            */
+/* Restore position (feature 004 US8)                                       */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * False only while the settings are known and "Restore position" is off. Before they arrive
+ * (the start-up open can race `settings.get`, research R5.1 H6) nothing is assumed: the core
+ * gates every record and every answer on the setting, so asking it is always right.
+ */
 function restorePositionEnabled(ctx: CommandContext): boolean {
-  return ctx.store.getState().settings?.other.restorePosition ?? true;
+  return ctx.store.getState().settings?.other.restorePosition !== false;
 }
 
-/** Caret of the active view, or null when nothing is selected. */
-export function currentCaret(ctx: CommandContext): Caret | null {
-  const { activeView } = ctx.store.getState();
-  return ctx.carets?.get(activeView) ?? null;
-}
-
-/** Stores the active caret for `docId` through `doc.caret` (no-op when the setting is off). */
-export async function rememberCaret(ctx: CommandContext, docId: string): Promise<void> {
+/**
+ * Sends the Body controller's caret for `docId` through `doc.position` (FR-100). Skipped when
+ * the setting is known to be off, the document has no file (a never-saved document remembers
+ * nothing), the session is Source-only (a malformed file takes no Body caret) or the Body view
+ * was never shown for this document and its caret never placed (the previous record for the
+ * path stays). Best effort: a failure is not reported.
+ */
+export async function rememberPosition(ctx: CommandContext, docId: string): Promise<void> {
   if (!ctx.rpc || !restorePositionEnabled(ctx)) return;
-  const caret = currentCaret(ctx);
-  if (!caret) return;
+  const state = ctx.store.getState();
+  if (state.path === null || state.sourceOnly || state.docId !== docId) return;
+  if (!hasBodyController(ctx.store)) return;
+  const controller = getBodyController(ctx.store);
+  if (!controller.bodyShown) return;
+  const position = controller.getPosition();
+  if (!position) return;
   try {
-    await ctx.rpc.call('doc.caret', { docId, caret });
+    await ctx.rpc.call('doc.position', { docId, position });
   } catch {
     // remembering the position is best effort
   }
 }
 
-/** Moves the selection to `caret`, waiting for the owning view to mount. */
-export async function applyCaret(
+/**
+ * Places the Body caret at `position` - the remembered one of `docId` (`doc.position`) or the
+ * `pending` one handed over by the changed-on-disk reload, which wins without asking the core
+ * (the reload keeps the in-session caret whatever the setting, FR-101). The path is resolved
+ * against the document the UI shows (`resolvePosition`): a paragraph that no longer exists
+ * falls back to the one now at that place, clamped, silently. The view is never switched:
+ * placed, scrolled and focused at once when the Body view is mounted, otherwise set in the
+ * controller's kept state and scrolled into view when the view mounts. False when nothing is
+ * remembered, another document was opened meanwhile, the session is Source-only or the
+ * document has no node to go to.
+ */
+export async function restorePosition(
   ctx: CommandContext,
-  caret: Caret,
-  attempts = 20,
+  docId: string,
+  pending: StructuralPosition | null = null,
 ): Promise<boolean> {
-  if (!ctx.carets) return false;
-  if (ctx.store.getState().activeView !== caret.view) {
-    if (!(await requestViewSwitch(ctx, caret.view))) return false;
+  if (!ctx.rpc) return false;
+  let position: RememberedPosition | null = pending;
+  if (!position) {
+    if (!restorePositionEnabled(ctx)) return false;
+    try {
+      position = (await ctx.rpc.call('doc.position', { docId })).position ?? null;
+    } catch {
+      return false;
+    }
   }
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    if (ctx.carets.set(caret)) return true;
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-  return false;
-}
-
-/** Restores the remembered caret of a freshly opened document (FR-008). */
-export async function restoreCaret(ctx: CommandContext, docId: string): Promise<boolean> {
-  if (!ctx.rpc || !restorePositionEnabled(ctx)) return false;
-  let caret: Caret | undefined;
-  try {
-    ({ caret } = await ctx.rpc.call('doc.caret', { docId }));
-  } catch {
-    return false;
-  }
-  if (!caret || !caret.view) return false;
-  if (ctx.store.getState().docId !== docId) return false; // another document was opened meanwhile
-  if (caret.view === 'body' && ctx.store.getState().sourceOnly) return false;
-  return applyCaret(ctx, caret);
+  if (!position) return false;
+  const state = ctx.store.getState();
+  if (state.docId !== docId || state.sourceOnly || !state.document) return false;
+  if (!hasBodyController(ctx.store)) return false;
+  const resolved = resolvePosition(state.document, position);
+  if (!resolved.nodeId) return false;
+  // The description blocks carry fixed ids in the editor document (data-model §0.1).
+  const { annotation } = state.document.description.titleInfo;
+  const { history } = state.document.description.documentInfo;
+  const nodeId =
+    annotation?.attrs.nodeId === resolved.nodeId
+      ? FIXED_BLOCK_IDS.annotation
+      : history?.attrs.nodeId === resolved.nodeId
+        ? FIXED_BLOCK_IDS.history
+        : resolved.nodeId;
+  return getBodyController(ctx.store).setCaret({ view: 'body', nodeId, offset: resolved.offset });
 }

@@ -1,12 +1,16 @@
+import type { CommandContext, CommandRegistry } from '@/app/commands';
+import { installBodyEditor } from '@/features/editing';
 import type { ValidationReport } from '@/model/document';
 import {
   FileFeature,
   defaultSaveEncoding,
   documentFilters,
+  leaveDocument,
   registerFileCommands,
   saveAsSelectedType,
   sourceOnlyDocument,
 } from '@/features/file/fileCommands';
+import { registerSettingsRuntime } from '@/features/settings/apply';
 import { actions } from '@/model/store';
 import {
   commitPendingSource,
@@ -16,14 +20,18 @@ import {
 } from '@/views/source/sourceSession';
 import type { MessageButtonId, Settings } from '@/rpc/types';
 
+import { mergeSettings } from '../settings/fixtures';
+
 import {
   CLEAN_REPORT,
   createCommandRegistry,
   fakeDialogs,
   fakeDocument,
   fakeRpc,
+  flowCalls,
   makeContext,
   rpcError,
+  type FakeRpc,
 } from './testUtils';
 
 const settings = (other: Partial<Settings['other']>): Settings =>
@@ -44,6 +52,9 @@ const settings = (other: Partial<Settings['other']>): Settings =>
       jpegQuality: 90,
       nbspDisplayChar: '\u00B0',
       versionCheck: 'monthly',
+      switchKeyboardLayout: false,
+      keyboardLayoutId: '',
+      keyboardLayoutName: '',
       ...other,
     },
     words: { showExclusionsInWordsDialog: false },
@@ -51,6 +62,7 @@ const settings = (other: Partial<Settings['other']>): Settings =>
       windowGeometry: null,
       toolbars: { commands: true, scripts: true, links: true, table: true, status: true },
       treeVisible: true,
+      treeWidth: 260,
       findHistory: [],
       replaceHistory: [],
       toolbarLayouts: {},
@@ -67,12 +79,32 @@ function setup(
   const rpc = fakeRpc({
     'doc.watch': {},
     'doc.close': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.recent': [],
     ...responses,
   });
   const dialogs = fakeDialogs(...answers);
   return { registry, feature, rpc, dialogs };
+}
+
+/**
+ * The Body controller of `ctx` (feature 004 US8: the remembered position is the Body
+ * controller's caret, read whatever the active view), installed as the editing feature does.
+ */
+function withBodyEditor(ctx: CommandContext, registry: CommandRegistry, rpc: FakeRpc) {
+  return installBodyEditor({
+    commands: registry,
+    rpc: rpc.client,
+    undo: ctx.undo,
+    carets: ctx.carets!,
+    store: ctx.store,
+    hotkeys: ctx.hotkeys,
+  });
+}
+
+/** The `doc.position` calls of a flow (`params.position` present = a remember, absent = a get). */
+function positionCalls(rpc: FakeRpc): unknown[] {
+  return rpc.calls.filter((c) => c.method === 'doc.position').map((c) => c.params);
 }
 
 describe('file flows (T052)', () => {
@@ -94,29 +126,29 @@ describe('file flows (T052)', () => {
     expect(registry.isEnabled('file.exit', ctx)).toBe(true);
   });
 
-  it('Open: native dialog, doc.open, watch, recent refresh and caret restore', async () => {
+  it('Open: native dialog, doc.open, watch, recent refresh and the position restored', async () => {
     const document = fakeDocument();
-    const { feature, rpc, dialogs } = setup({
+    const { feature, rpc, dialogs, registry } = setup({
       'dialog.openFile': { paths: ['/books/alpha.fb2'] },
       'doc.open': { document, warnings: [] },
       'doc.recent': [{ path: '/books/alpha.fb2', lastOpened: 'now' }],
-      'doc.caret': (params: { caret?: unknown }) =>
-        params.caret ? {} : { caret: { view: 'body', nodeId: 'n3', offset: 2 } },
+      'doc.position': (params: { position?: unknown }) =>
+        params.position ? {} : { position: { path: 'body[1]/section[1]/p[1]', offset: 2 } },
     });
     const ctx = await makeContext({ rpc: rpc.client, dialogs });
     actions.setConnection(ctx.store, 'connected');
-    const setCaret = vi.fn(() => true);
-    ctx.carets!.register('body', { get: () => null, set: setCaret });
+    const controller = withBodyEditor(ctx, registry, rpc);
+    actions.setActiveView(ctx.store, 'description');
 
     expect(await feature.openWithDialog(ctx)).toBe(true);
-    expect(rpc.calls.map((c) => c.method)).toEqual([
+    expect(flowCalls(rpc).map((c) => c.method)).toEqual([
       'dialog.openFile',
       'doc.open',
       'doc.watch',
       'doc.recent',
-      'doc.caret',
+      'doc.position',
     ]);
-    expect(rpc.calls[0]!.params).toEqual({
+    expect(flowCalls(rpc)[0]!.params).toEqual({
       title: 'Open',
       filters: [
         { name: 'FictionBook files (*.fb2)', extensions: ['fb2'] },
@@ -125,18 +157,147 @@ describe('file flows (T052)', () => {
       ],
       selectedFilter: 0,
     });
+    // The view a file opens in follows the rule of 0.0.3 (the active view is kept unless it is
+    // the Source view); the remembered caret is placed in the Body controller without a view
+    // switch and shows in the status bar path (FR-101).
     expect(ctx.store.getState()).toMatchObject({
       docId: 'doc-1',
       path: '/books/alpha.fb2',
       modified: false,
       sourceOnly: false,
-      activeView: 'body',
+      activeView: 'description',
     });
     await vi.waitFor(() =>
-      expect(setCaret).toHaveBeenCalledWith({ view: 'body', nodeId: 'n3', offset: 2 }),
+      expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n3', offset: 2 }),
     );
+    expect(ctx.store.getState().selectionPath).toBe('body[1]/section[1]/p[1]');
     expect(feature.recent.files).toHaveLength(1);
     expect(dialogs.shown).toEqual([]);
+  });
+
+  /**
+   * The leaving routes of FR-100 remember the Body caret of a document with a file as a
+   * structural path through `doc.position` (feature 004 US8): File > New, Open, every save
+   * (under the saved path), Exit / the window's close request and the restart share
+   * `leaveDocument`; a never-saved document and a Body view never shown remember nothing.
+   */
+  describe('Restore position - the leaving routes (feature 004 US8)', () => {
+    async function openWithCaret(responses: Record<string, unknown> = {}) {
+      const document = fakeDocument();
+      const { feature, rpc, dialogs, registry } = setup({
+        'doc.open': { document, warnings: [] },
+        'doc.new': fakeDocument({ docId: 'doc-2', path: undefined }),
+        'app.quit': {},
+        ...responses,
+      });
+      const ctx = await makeContext({ rpc: rpc.client, dialogs });
+      actions.setConnection(ctx.store, 'connected');
+      const controller = withBodyEditor(ctx, registry, rpc);
+      expect(await feature.openDocument(ctx, '/books/alpha.fb2')).toBe(true);
+      expect(controller.setCaret({ view: 'body', nodeId: 'n3', offset: 3 })).toBe(true);
+      rpc.calls.length = 0;
+      return { ctx, feature, rpc, controller, dialogs };
+    }
+    const remembered = { docId: 'doc-1', position: { path: 'body[1]/section[1]/p[1]', offset: 3 } };
+
+    it('File > New remembers before the document is closed', async () => {
+      const { ctx, feature, rpc } = await openWithCaret();
+      expect(await feature.newDocument(ctx)).toBe(true);
+      const methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.position')).toBeGreaterThanOrEqual(0);
+      expect(methods.indexOf('doc.position')).toBeLessThan(methods.indexOf('doc.close'));
+      expect(positionCalls(rpc)[0]).toEqual(remembered);
+    });
+
+    it('opening another file remembers the one that is left, from any view', async () => {
+      const { ctx, feature, rpc } = await openWithCaret();
+      actions.setActiveView(ctx.store, 'description');
+      expect(await feature.openDocument(ctx, '/books/beta.fb2')).toBe(true);
+      const methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.slice(0, 3)).toEqual(['doc.position', 'doc.watch', 'doc.close']);
+      expect(positionCalls(rpc)[0]).toEqual(remembered);
+      // ... and asks for the new document's position after the open (a get, no view switch).
+      expect(positionCalls(rpc)[1]).toEqual({ docId: 'doc-1' });
+      expect(ctx.store.getState().activeView).toBe('description');
+    });
+
+    it('every save remembers under the saved path, after the write', async () => {
+      const { ctx, feature, rpc } = await openWithCaret({
+        'doc.save': (params: { path: string }) => ({
+          path: params.path,
+          encoding: 'utf-8',
+          converted: [],
+          validation: CLEAN_REPORT,
+        }),
+        'dialog.saveFile': { path: '/books/renamed.fb2', encoding: 'utf-8' },
+      });
+      expect(await feature.saveDocument(ctx, {})).toBe(true);
+      let methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.save')).toBeLessThan(methods.indexOf('doc.position'));
+      expect(positionCalls(rpc)).toEqual([remembered]);
+      expect(methods).not.toContain('doc.close');
+      rpc.calls.length = 0;
+      // Save As: the core records under the session's new path; the UI remembers again.
+      expect(await feature.saveDocument(ctx, { saveAs: true })).toBe(true);
+      methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.save')).toBeLessThan(methods.indexOf('doc.position'));
+      expect(ctx.store.getState().path).toBe('/books/renamed.fb2');
+      expect(positionCalls(rpc)).toEqual([remembered]);
+    });
+
+    it('Exit and the window-close request remember before app.quit', async () => {
+      const { ctx, feature, rpc } = await openWithCaret();
+      await feature.exitApplication(ctx);
+      let methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.position')).toBeLessThan(methods.indexOf('app.quit'));
+      expect(positionCalls(rpc)).toEqual([remembered]);
+      rpc.calls.length = 0;
+      await feature.handleCloseRequested(ctx);
+      methods = flowCalls(rpc).map((c) => c.method);
+      expect(methods.indexOf('doc.position')).toBeLessThan(methods.indexOf('app.quit'));
+      expect(rpc.calls.find((c) => c.method === 'app.quit')?.params).toEqual({ force: true });
+    });
+
+    it('leaveDocument (the restart) remembers and stops watching; nothing for a never-saved document', async () => {
+      const { ctx, rpc, controller } = await openWithCaret();
+      await leaveDocument(ctx);
+      expect(flowCalls(rpc).map((c) => c.method)).toEqual(['doc.position', 'doc.watch']);
+      expect(positionCalls(rpc)).toEqual([remembered]);
+      expect(rpc.calls.find((c) => c.method === 'doc.watch')?.params).toEqual({
+        docId: 'doc-1',
+        enabled: false,
+      });
+      rpc.calls.length = 0;
+      // A never-saved document: no position; a Body view never shown: the record stays.
+      actions.setDocument(ctx.store, fakeDocument({ docId: 'doc-3', path: undefined }));
+      controller.setCaret({ view: 'body', nodeId: 'n3', offset: 1 });
+      await leaveDocument(ctx);
+      expect(positionCalls(rpc)).toEqual([]);
+      actions.setDocument(ctx.store, fakeDocument({ docId: 'doc-4', path: '/books/gamma.fb2' }));
+      await leaveDocument(ctx);
+      expect(positionCalls(rpc)).toEqual([]);
+      // The setting off: nothing either.
+      controller.setCaret({ view: 'body', nodeId: 'n3', offset: 1 });
+      ctx.store.setState({ settings: settings({ restorePosition: false }) });
+      await leaveDocument(ctx);
+      expect(positionCalls(rpc)).toEqual([]);
+    });
+
+    it('the changed-on-disk reload keeps the view and the in-session caret, even with the setting off', async () => {
+      const { ctx, feature, rpc, controller, dialogs } = await openWithCaret();
+      ctx.store.setState({ settings: settings({ restorePosition: false }) });
+      actions.setActiveView(ctx.store, 'description');
+      dialogs.messageAnswers.push('yes');
+      await feature.handleChangedOnDisk(ctx, 'doc-1', '/books/alpha.fb2');
+      expect(dialogs.shown.map((m) => m.testId)).toEqual(['dialog-file-changed']);
+      // Reloaded: the caret where it was, the view untouched, no record consulted.
+      expect(flowCalls(rpc).map((c) => c.method)).toContain('doc.open');
+      expect(positionCalls(rpc)).toEqual([]);
+      expect(ctx.store.getState().activeView).toBe('description');
+      await vi.waitFor(() =>
+        expect(controller.getCaret()).toEqual({ view: 'body', nodeId: 'n3', offset: 3 }),
+      );
+    });
   });
 
   it('Open: a cancelled dialog does nothing; an I/O error shows "Cannot open"', async () => {
@@ -314,13 +475,16 @@ describe('file flows (T052)', () => {
     const ctx = await makeContext({ rpc: rpc.client, dialogs });
     actions.setConnection(ctx.store, 'connected');
     actions.setSettings(ctx.store, settings({ defaultEncoding: 'utf-8', keepEncoding: false }));
-    // A document never saved: no file proposed, FictionBook files selected.
+    // A document never saved: the name composed from its description proposed (feature 004,
+    // FR-050), FictionBook files selected.
     actions.setDocument(ctx.store, fakeDocument({ path: undefined }));
 
     expect(await feature.saveDocument(ctx, { saveAs: true })).toBe(true);
     const dialog = rpc.calls.find((c) => c.method === 'dialog.saveFile')!;
-    expect(dialog.params).not.toHaveProperty('defaultPath', expect.anything());
-    expect(dialog.params).toMatchObject({ selectedFilter: 0 });
+    expect(dialog.params).toMatchObject({
+      defaultPath: 'Petrov Ivan - Alpha.fb2',
+      selectedFilter: 0,
+    });
     expect(dialog.params).toMatchObject({ selectedEncoding: 'utf-8', encodingLabel: 'Encoding:' });
     expect((dialog.params as { encodingChoices: string[] }).encodingChoices[0]).toBe('utf-8');
     expect(dialogs.custom).toEqual([]);
@@ -328,6 +492,74 @@ describe('file flows (T052)', () => {
       path: '/books/new.fb2',
       encoding: 'koi8-r',
     });
+  });
+
+  it('Save As: a never-saved document proposes the bare "Last First - Title" with the selected type\'s extension, a saved one its full path (feature 004, FR-050, FR-053)', async () => {
+    const { feature, rpc, dialogs } = setup({
+      'dialog.saveFile': {},
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setSettings(ctx.store, settings({}));
+    const defaultPathOf = async (): Promise<unknown> => {
+      const before = rpc.calls.length;
+      expect(await feature.saveDocument(ctx, { saveAs: true })).toBe(false);
+      const dialog = rpc.calls.slice(before).find((c) => c.method === 'dialog.saveFile')!;
+      return (dialog.params as { defaultPath?: unknown }).defaultPath;
+    };
+
+    // Never saved: the bare name in the book's own letters - no folder, so the dialog opens
+    // in the folder it remembers; the middle name is never used.
+    const description = fakeDocument().description;
+    actions.setDocument(
+      ctx.store,
+      fakeDocument({
+        path: undefined,
+        description: {
+          ...description,
+          titleInfo: {
+            ...description.titleInfo,
+            authors: [
+              {
+                lastName: 'Толстой',
+                firstName: 'Лев',
+                middleName: 'Николаевич',
+                homePages: [],
+                emails: [],
+              },
+            ],
+            bookTitle: 'Война и мир',
+          },
+        },
+      }),
+    );
+    expect(await defaultPathOf()).toBe('Толстой Лев - Война и мир.fb2');
+
+    // Neither title nor author: the interface language's "Untitled" (English here).
+    actions.setDocument(
+      ctx.store,
+      fakeDocument({
+        path: undefined,
+        description: {
+          ...description,
+          titleInfo: {
+            ...description.titleInfo,
+            authors: [{ homePages: [], emails: [] }],
+            bookTitle: '',
+          },
+        },
+      }),
+    );
+    expect(await defaultPathOf()).toBe('Untitled.fb2');
+
+    // A saved document: its own path, whatever the description says.
+    actions.setDocument(ctx.store, fakeDocument({ path: '/books/alpha.fb2' }));
+    expect(await defaultPathOf()).toBe('/books/alpha.fb2');
+    actions.setDocument(
+      ctx.store,
+      fakeDocument({ path: 'C:\\Книги\\Война и мир.fbd', fileKind: 'fbd' }),
+    );
+    expect(await defaultPathOf()).toBe('C:\\Книги\\Война и мир.fbd');
   });
 
   it('Save: validation failure asks "Do you still want to save" and retries with force', async () => {
@@ -676,6 +908,147 @@ describe('file flows (T052)', () => {
   });
 });
 
+/**
+ * The keyboard layout switch when a document is opened (feature 004 US11, FR-091, SC-011): one
+ * `system.activateKeyboardLayout({id})` per document opened by any route - the start-up
+ * document, File > New, Open, Recent Files, a forwarded file (`app.openPaths`), the `?open=`
+ * restart, the changed-on-disk reload, a malformed file in the Source view, the new document
+ * after a failed start-up open - none with the option off or without a chosen layout, never
+ * from the Settings dialog; the answer and any error are swallowed.
+ */
+describe('Keyboard layout on open (feature 004 US11)', () => {
+  const RUSSIAN_ON = {
+    switchKeyboardLayout: true,
+    keyboardLayoutId: 'test-ru',
+    keyboardLayoutName: 'Russian',
+  };
+
+  const switches = (rpc: FakeRpc) =>
+    rpc.calls.filter((c) => c.method === 'system.activateKeyboardLayout').map((c) => c.params);
+
+  async function layoutSetup(
+    other: Partial<Settings['other']>,
+    responses: Record<string, unknown> = {},
+  ) {
+    const { registry, feature, rpc, dialogs } = setup({
+      'app.info': {},
+      'doc.open': { document: fakeDocument(), warnings: [] },
+      'doc.new': fakeDocument({ docId: 'doc-2', path: undefined }),
+      'system.activateKeyboardLayout': { activated: true },
+      ...responses,
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setSettings(ctx.store, settings(other));
+    return { registry, feature, rpc, dialogs, ctx };
+  }
+
+  it('makes exactly one request per open route with the option on', async () => {
+    const { registry, feature, rpc, ctx } = await layoutSetup(RUSSIAN_ON, {
+      'dialog.openFile': { paths: ['/books/alpha.fb2'] },
+      'doc.recent': [{ path: '/books/alpha.fb2', lastOpened: 'now' }],
+    });
+    // The start-up document.
+    await feature.handleStartup(ctx);
+    await vi.waitFor(() => expect(switches(rpc)).toEqual([{ id: 'test-ru' }]));
+    // File > New.
+    expect(await feature.newDocument(ctx)).toBe(true);
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(2));
+    // Open through the dialog.
+    expect(await feature.openWithDialog(ctx)).toBe(true);
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(3));
+    // Recent Files (the submenu's command of the first entry).
+    await vi.waitFor(() => expect(feature.recent.files).toHaveLength(1));
+    await registry.get('file.recent1')!.run(ctx);
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(4));
+    // A forwarded file (the command line, a double-click, a dropped file: app.openPaths).
+    const off = feature.subscribeNotifications(rpc.client, () => ctx);
+    rpc.notify('app.openPaths', { paths: ['/books/beta.fb2'] });
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(5));
+    off();
+    // The changed-on-disk reload answered Yes.
+    ctx.dialogs.messageAnswers.push('yes');
+    await feature.handleChangedOnDisk(ctx, 'doc-1', '/books/beta.fb2');
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(6));
+    expect(switches(rpc).every((params) => (params as { id: string }).id === 'test-ru')).toBe(true);
+    // Nothing else of the flow changed: every open still watches, lists and restores.
+    expect(rpc.calls.filter((c) => c.method === 'doc.open')).toHaveLength(4);
+  });
+
+  it('the ?open= restart, a malformed file in the Source view and the new document after a failed start-up open each count', async () => {
+    const restart = await layoutSetup(RUSSIAN_ON);
+    await restart.feature.handleStartup(restart.ctx, '/books/again.fb2');
+    await vi.waitFor(() => expect(switches(restart.rpc)).toEqual([{ id: 'test-ru' }]));
+
+    const malformed = await layoutSetup(RUSSIAN_ON, {
+      'doc.open': rpcError(1001, 'doc.parseError', { line: 2, column: 3, message: 'mismatch' }),
+      'doc.openSource': { docId: 'doc-9', text: '<FictionBook>', encoding: 'utf-8' },
+    });
+    expect(await malformed.feature.openDocument(malformed.ctx, '/books/broken.fb2')).toBe(true);
+    expect(malformed.ctx.store.getState().sourceOnly).toBe(true);
+    await vi.waitFor(() => expect(switches(malformed.rpc)).toEqual([{ id: 'test-ru' }]));
+
+    const failed = await layoutSetup(RUSSIAN_ON, {
+      'doc.open': rpcError(1002, 'doc.ioError', { path: '/books/missing.fb2', reason: 'gone' }),
+    });
+    const off = failed.feature.subscribeNotifications(failed.rpc.client, () => failed.ctx);
+    failed.rpc.notify('app.openPaths', { paths: ['/books/missing.fb2'] });
+    await failed.feature.handleStartup(failed.ctx);
+    off();
+    expect(failed.dialogs.shown.map((m) => m.testId)).toEqual(['dialog-open-failed']);
+    expect(failed.ctx.store.getState().docId).toBe('doc-2');
+    // The failed open made no request; the new document shown instead made one.
+    await vi.waitFor(() => expect(switches(failed.rpc)).toEqual([{ id: 'test-ru' }]));
+  });
+
+  it('makes no request with the option off or without a chosen layout', async () => {
+    const off = await layoutSetup({ ...RUSSIAN_ON, switchKeyboardLayout: false });
+    await off.feature.handleStartup(off.ctx);
+    expect(await off.feature.newDocument(off.ctx)).toBe(true);
+    expect(await off.feature.openDocument(off.ctx, '/books/alpha.fb2')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(switches(off.rpc)).toEqual([]);
+
+    const noId = await layoutSetup({ switchKeyboardLayout: true, keyboardLayoutId: '' });
+    expect(await noId.feature.openDocument(noId.ctx, '/books/alpha.fb2')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(switches(noId.rpc)).toEqual([]);
+  });
+
+  it('waits for the settings of a start-up open and gives up quietly when they do not come', async () => {
+    // The file named on the command line opens before settings.get answered (research R5.1 H6):
+    // the request is made as soon as the settings arrive, once.
+    const { feature, rpc, ctx } = await layoutSetup(RUSSIAN_ON);
+    ctx.store.setState({ settings: null });
+    expect(await feature.openDocument(ctx, '/books/alpha.fb2')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(switches(rpc)).toEqual([]);
+    actions.setSettings(ctx.store, settings(RUSSIAN_ON));
+    await vi.waitFor(() => expect(switches(rpc)).toEqual([{ id: 'test-ru' }]));
+    // A later settings change opens nothing: the subscription ended with the first answer.
+    actions.setSettings(ctx.store, settings(RUSSIAN_ON));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(switches(rpc)).toHaveLength(1);
+  });
+
+  it('swallows the answer and any error: a missing layout, a refusal, an older core', async () => {
+    for (const answer of [
+      { activated: false, reason: 'notInstalled' },
+      { activated: false, reason: 'refused' },
+      rpcError(-32601, 'Method not found'),
+    ]) {
+      const { feature, rpc, ctx, dialogs } = await layoutSetup(RUSSIAN_ON, {
+        'system.activateKeyboardLayout': answer,
+      });
+      expect(await feature.openDocument(ctx, '/books/alpha.fb2')).toBe(true);
+      await vi.waitFor(() => expect(switches(rpc)).toHaveLength(1));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(dialogs.shown).toEqual([]);
+      expect(ctx.store.getState()).toMatchObject({ docId: 'doc-1', statusMessage: null });
+    }
+  });
+});
+
 describe('Exit and window close while a script runs (feature 003 FR-013)', () => {
   /** A quit flow started while `scriptRunning` is set; the fake "host" ends the run on cancel. */
   async function runningSetup() {
@@ -753,6 +1126,33 @@ describe('Exit and window close while a script runs (feature 003 FR-013)', () =>
     await feature.exitApplication(ctx);
     expect(dialogs.shown).toHaveLength(0);
     expect(methods(rpc)).toContain('app.quit');
+  });
+
+  it('Exit writes a pending session save before app.quit (feature 004 US1, FR-003)', async () => {
+    let current = settings({});
+    const { feature, rpc, dialogs } = setup({
+      'app.quit': {},
+      'settings.set': (params: unknown) => {
+        current = mergeSettings(current, (params as { patch: unknown }).patch);
+        return { settings: current, restartRequired: false };
+      },
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setDocument(ctx.store, fakeDocument());
+    const runtime = registerSettingsRuntime({ store: ctx.store, hotkeys: ctx.hotkeys });
+    actions.setSettings(ctx.store, current);
+    await runtime.attach(rpc.client);
+
+    // The divider was dragged a moment ago; the delayed save has not gone out yet.
+    actions.setTreeWidth(ctx.store, 388);
+    await feature.exitApplication(ctx);
+    const order = methods(rpc).filter((m) => m === 'settings.set' || m === 'app.quit');
+    expect(order).toEqual(['settings.set', 'app.quit']);
+    expect(rpc.calls.find((c) => c.method === 'settings.set')!.params).toEqual({
+      patch: { session: { treeWidth: 388 } },
+    });
+    expect(current.session.treeWidth).toBe(388);
   });
 
   it('app.closeRequested runs the same flow and ends in app.quit({force: true})', async () => {

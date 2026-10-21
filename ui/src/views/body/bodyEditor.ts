@@ -28,10 +28,11 @@ import { Slice, type Node as PMNode } from 'prosemirror-model';
 import { closeHistory, history, redo, redoDepth, undo, undoDepth } from 'prosemirror-history';
 import {
   EditorState,
+  NodeSelection,
   type Plugin,
+  Selection,
   TextSelection,
   type Command,
-  type Selection,
   type Transaction,
 } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
@@ -41,6 +42,8 @@ import { baseEditorKeymap, bodyKeymap } from '@/editor/keymap';
 import { createImageNodeViews } from '@/editor/nodeviews/image';
 import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
+import { blockBoundaryPlugin, markControllerTransaction } from '@/editor/plugins/blockBoundary';
+import { blockCaptionsKey, blockCaptionsPlugin } from '@/editor/plugins/blockCaptions';
 import { clipboardPlugin } from '@/editor/plugins/clipboard';
 import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
@@ -51,21 +54,26 @@ import {
   EMPTY_SELECTION_CONTEXT,
   type SelectionContext,
 } from '@/editor/plugins/selectionPath';
-import { createNodeIdGenerator, findNodeById } from '@/editor/schema';
+import { BLOCK_KINDS, createNodeIdGenerator, findNodeById } from '@/editor/schema';
 import {
   DEFAULT_WINDOW_SIZE,
+  blockFromModel,
+  bodiesSliceUnchanged,
+  blocksUnchanged,
   createWindow,
   extendWindow,
+  leadingBlocks,
   replaceSectionsInModel,
   windowAround,
   windowCounts,
   windowSliceUnchanged,
   type SectionWindow,
 } from '@/editor/virtualization';
+import { pathOfCaret, type StructuralPosition } from '@/editor/structuralPath';
 import type { Document } from '@/model/document';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
-import type { Caret } from '@/rpc/types';
+import type { Caret, ModelPoint } from '@/rpc/types';
 
 export { selectionNodeId, selectionPath } from '@/editor/plugins/selectionPath';
 
@@ -86,6 +94,63 @@ function selectionNodeIdOf(state: EditorState): string | null {
     if (typeof id === 'string' && id) return id;
   }
   return null;
+}
+
+/** The two ends of a Body selection as model points (feature 004 US7, data-model §7). */
+export interface SelectionPoints {
+  anchor: ModelPoint;
+  head: ModelPoint;
+}
+
+/**
+ * One end of a selection as a model point: the text block around it with ProseMirror's
+ * `parentOffset`, else the nearest id-bearing ancestor with offset 0; null outside every
+ * id-bearing node.
+ */
+function pointOf($pos: ReturnType<PMNode['resolve']>): ModelPoint | null {
+  for (let depth = $pos.depth; depth >= 1; depth -= 1) {
+    const node = $pos.node(depth);
+    const id = node.attrs.nodeId;
+    if (typeof id !== 'string' || !id) continue;
+    return { nodeId: id, offset: depth === $pos.depth && node.isTextblock ? $pos.parentOffset : 0 };
+  }
+  return null;
+}
+
+/**
+ * The selection of `state` as two model points for `doc.mapPositions` (`toSource`): a text
+ * selection's ends are `{text block id, parentOffset}`, a node selection (an image, an
+ * unknown element) is `{the selected node's id, 0}` at both ends. Null without a selection
+ * inside an id-bearing node (an empty editor document).
+ */
+export function selectionPoints(state: EditorState): SelectionPoints | null {
+  const { selection } = state;
+  if (selection instanceof NodeSelection) {
+    const id = selection.node.attrs.nodeId;
+    if (typeof id === 'string' && id) {
+      const point = { nodeId: id, offset: 0 };
+      return { anchor: point, head: { ...point } };
+    }
+  }
+  const anchor = pointOf(selection.$anchor);
+  const head = pointOf(selection.$head);
+  return anchor && head ? { anchor, head } : null;
+}
+
+/**
+ * The selection a model point names in `doc`: inside a text block at the (clamped) offset;
+ * before an atom (an image, an empty line, an unknown element - the node itself when it is
+ * selectable); the first text position inside a container. Null when the node is not there.
+ */
+function selectionAtPoint(doc: PMNode, point: ModelPoint): Selection | null {
+  const found = findNodeById(doc, point.nodeId);
+  if (!found) return null;
+  if (found.node.isTextblock) {
+    const offset = Math.min(Math.max(Math.floor(point.offset) || 0, 0), found.node.content.size);
+    return TextSelection.create(doc, found.pos + 1 + offset);
+  }
+  if (found.node.isLeaf) return Selection.near(doc.resolve(found.pos), 1);
+  return Selection.near(doc.resolve(Math.min(found.pos + 1, doc.content.size)), 1);
 }
 
 /** Text selection inside the node with `nodeId` (at `offset` for text blocks). */
@@ -126,18 +191,30 @@ function selectionOnSameNodes(selection: Selection, oldDoc: PMNode, doc: PMNode)
     : null;
 }
 
-/** Turns `tr.doc` (equal to `current`) into `next` with one step over the part that differs. */
-function replaceDifferences(tr: Transaction, current: PMNode, next: PMNode): void {
+/**
+ * Turns `current` into `next` with one step over the part of their content that differs:
+ * `current` is `tr.doc` itself when `at` is undefined, else the node at position `at` of
+ * `tr.doc` (a description block). When the step did not reach `next` (an attribute change),
+ * the whole node is replaced.
+ */
+function replaceDifferences(tr: Transaction, current: PMNode, next: PMNode, at?: number): void {
+  const inner = at === undefined ? 0 : at + 1;
   const start = current.content.findDiffStart(next.content);
-  if (start === null) return;
-  let { a: endA, b: endB } = current.content.findDiffEnd(next.content)!;
-  const overlap = start - Math.min(endA, endB);
-  if (overlap > 0) {
-    endA += overlap;
-    endB += overlap;
+  if (start !== null) {
+    let { a: endA, b: endB } = current.content.findDiffEnd(next.content)!;
+    const overlap = start - Math.min(endA, endB);
+    if (overlap > 0) {
+      endA += overlap;
+      endB += overlap;
+    }
+    tr.replace(inner + start, inner + endA, next.slice(start, endB));
   }
-  tr.replace(start, endA, next.slice(start, endB));
-  if (!tr.doc.eq(next)) tr.replaceWith(0, tr.doc.content.size, next.content);
+  if (at === undefined) {
+    if (!tr.doc.eq(next)) tr.replaceWith(0, tr.doc.content.size, next.content);
+    return;
+  }
+  const result = tr.doc.nodeAt(at);
+  if (!result || !result.eq(next)) tr.replaceWith(at, at + (result?.nodeSize ?? 0), next);
 }
 
 /** Top-level sections of a body of the model. */
@@ -154,6 +231,8 @@ export interface EditorStateOptions {
   isOvertype?: () => boolean;
   toggleOvertype?: () => void;
   nextNodeId?: () => string;
+  /** The localised texts the block captions use (read on every repaint). */
+  getTranslate?: () => (key: string) => string;
 }
 
 export function createBodyEditorState(doc: PMNode, options: EditorStateOptions): EditorState {
@@ -165,6 +244,8 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
       baseEditorKeymap(),
       overtypePlugin(options.isOvertype ?? (() => false)),
       clipboardPlugin(),
+      blockBoundaryPlugin(),
+      blockCaptionsPlugin(options.getTranslate ?? (() => (key) => key)),
       nodeIdPlugin(options.nextNodeId ?? createNodeIdGenerator()),
       nbspMarkerPlugin(options.getNbspChar),
       searchMatchPlugin(),
@@ -293,6 +374,17 @@ export class BodyEditorController {
   private replaying = false;
   /** The next document change starts a new history event (set after a command ran). */
   private closeNextHistory = false;
+  /**
+   * A selection placed while unmounted (a mapped Source selection, a restored position) is
+   * scrolled into view when the view mounts (feature 004 US8, research R5.1 H5-a).
+   */
+  private scrollOnMount = false;
+  /**
+   * The Body view was shown for the current document, or its caret was placed on purpose
+   * (`setCaret`): only then is the caret worth remembering - a document whose Body view was
+   * never looked at keeps its previous record (feature 004 FR-100, research R5.6).
+   */
+  private shown = false;
 
   constructor(options: BodyEditorOptions) {
     this.store = options.store;
@@ -347,6 +439,11 @@ export class BodyEditorController {
     return this.view !== null;
   }
 
+  /** True once the Body view was mounted for this document or its caret was placed. */
+  get bodyShown(): boolean {
+    return this.shown;
+  }
+
   private publish(): void {
     const w = this.window;
     const model = this.model;
@@ -384,6 +481,7 @@ export class BodyEditorController {
     this.unmount();
     this.container = container;
     this.ensureView();
+    if (this.view) this.shown = true;
   }
 
   /** Detaches the DOM view; the state (with its history) is kept for the next mount. */
@@ -408,6 +506,7 @@ export class BodyEditorController {
       isOvertype: () => this.store.getState().insertMode === 'overwrite',
       toggleOvertype: () => actions.toggleInsertMode(this.store),
       nextNodeId: this.nextNodeId,
+      getTranslate: () => this.translate,
       plugins: this.extraPlugins,
     });
   }
@@ -434,8 +533,19 @@ export class BodyEditorController {
         ...createTableNodeViews(),
       },
       dispatchTransaction: (tr) => this.dispatch(tr),
-      attributes: { class: 'fb-editor', 'data-testid': 'body-editor' },
+      // `spellcheck="false"`: the browser engine's own checker stays off the editable root (the
+      // editor's own plugin marks the misspellings - feature 004 US9, FR-081).
+      attributes: { class: 'fb-editor', 'data-testid': 'body-editor', spellcheck: 'false' },
     });
+    if (this.scrollOnMount) {
+      // The selection was placed while the view was unmounted (a mapped Source selection, a
+      // restored position): bring it into view now that there is a DOM to scroll. The focus
+      // comes first - ProseMirror scrolls to the selection only while it owns the DOM
+      // selection, which it syncs on focus.
+      this.scrollOnMount = false;
+      this.view.focus();
+      this.view.dispatch(this.view.state.tr.scrollIntoView());
+    }
     this.publishSelection();
   }
 
@@ -473,7 +583,8 @@ export class BodyEditorController {
     if (docChanged) {
       const currentModel = this.store.getState().document;
       if (modelShown && transactions.length === 1 && this.window) {
-        this.window = { ...this.window, doc: after.doc };
+        // The blocks of the shown document represent the model's nodes again.
+        this.window = { ...this.window, doc: after.doc, blocks: leadingBlocks(after.doc) };
       } else if (currentModel && this.window) {
         const result = replaceSectionsInModel(currentModel, this.window, after.doc);
         this.window = result.window;
@@ -558,17 +669,23 @@ export class BodyEditorController {
       this.bodyIndex = 0;
       this.range = null;
       this.docId = docId;
-    } else if (
-      model &&
-      this.model &&
-      this.window &&
-      windowSliceUnchanged(this.model, model, this.window)
-    ) {
-      // Only parts outside the window changed: keep the ProseMirror state and history.
-      this.model = model;
-      this.window = { ...this.window, ...windowCounts(model, this.window) };
-      this.publish();
-      return;
+      // A new document: its Body view has not been shown yet (the view may be mounted right
+      // away, which `mount()` records; a caret placed by `setCaret()` counts as well).
+      this.shown = this.view !== null && model !== null;
+    } else if (model && this.model && this.window) {
+      if (windowSliceUnchanged(this.model, model, this.window)) {
+        // Only parts outside the window changed: keep the ProseMirror state and history.
+        this.model = model;
+        this.window = { ...this.window, ...windowCounts(model, this.window) };
+        this.publish();
+        return;
+      }
+      if (bodiesSliceUnchanged(this.model, model, this.window) && this.editorState) {
+        // Bodies unchanged, a description block changed outside the editor (a Description
+        // field edit, its undo, Replace in the Description view): rebuild that block alone.
+        this.showBlocks(model);
+        return;
+      }
     }
     this.model = model;
     if (!model) {
@@ -608,6 +725,52 @@ export class BodyEditorController {
         this.view?.updateState(this.state);
       }
     }
+    this.publish();
+    this.publishSelection();
+  }
+
+  /**
+   * Shows the annotation / history nodes of `next` in the mounted blocks (feature 004, US2):
+   * only the block whose model node changed is rebuilt, through one editor transaction kept
+   * out of the editor history (the `showModel` pattern), so the Body history and the caret
+   * survive an edit made in the Description view.
+   */
+  private showBlocks(next: Document): void {
+    const previous = this.model;
+    const state = this.editorState;
+    const window = this.window;
+    if (!previous || !state || !window) return;
+    const tr = markControllerTransaction(closeHistory(state.tr).setMeta('addToHistory', false));
+    let pos = 0;
+    for (const kind of BLOCK_KINDS) {
+      const mounted = window.blocks[kind];
+      if (!mounted) continue;
+      const current = tr.doc.nodeAt(pos);
+      if (!current || current.type !== mounted.type) break;
+      const before =
+        kind === 'annotation'
+          ? previous.description.titleInfo.annotation
+          : previous.description.documentInfo.history;
+      const after =
+        kind === 'annotation'
+          ? next.description.titleInfo.annotation
+          : next.description.documentInfo.history;
+      if (before !== after) {
+        const rebuilt = blockFromModel(kind, after, this.nextNodeId);
+        if (!current.eq(rebuilt)) {
+          replaceDifferences(tr, current, rebuilt, pos);
+        }
+      }
+      pos += tr.doc.nodeAt(pos)!.nodeSize;
+    }
+    const selection = selectionOnSameNodes(state.selection, state.doc, tr.doc);
+    if (selection) tr.setSelection(selection);
+    this.model = next;
+    this.window = { ...window, ...windowCounts(next, window) };
+    // The store holds `next` already when the change came from outside the controller; a
+    // model step (`commitModel`) stores it here, before the editor shows it.
+    if (this.store.getState().document !== next) actions.updateDocument(this.store, next);
+    this.applyToEditor(tr, true);
     this.publish();
     this.publishSelection();
   }
@@ -666,7 +829,7 @@ export class BodyEditorController {
     this.model = next;
     actions.updateDocument(this.store, next);
     // Closed group: typing after the step is an undo step of its own.
-    const tr = closeHistory(state.tr).setMeta('addToHistory', false);
+    const tr = markControllerTransaction(closeHistory(state.tr).setMeta('addToHistory', false));
     for (const change of mounted) {
       const found = findNodeById(tr.doc, change.nodeId);
       const node = nodeFromModel(change[side]);
@@ -703,16 +866,55 @@ export class BodyEditorController {
         this.range = around.wholeBook ? null : { start: around.start, count: around.count };
       }
     }
-    const tr = closeHistory(state.tr).setMeta('addToHistory', false);
+    window = this.keepUnchangedBlocks(window, previous, next);
+    const tr = markControllerTransaction(closeHistory(state.tr).setMeta('addToHistory', false));
     replaceDifferences(tr, state.doc, window.doc);
     const selection = selectionOnSameNodes(state.selection, state.doc, tr.doc);
     if (selection) tr.setSelection(selection);
     this.model = next;
-    this.window = window;
+    // The blocks that now represent the model's nodes are the ones of the shown document.
+    this.window = { ...window, blocks: leadingBlocks(tr.doc) };
     actions.updateDocument(this.store, next);
     this.applyToEditor(tr, true);
     this.publish();
     this.publishSelection();
+  }
+
+  /**
+   * `window` with the editor's own block nodes where the model's annotation / history node did
+   * not change between `previous` and `next`: a block rebuilt from the same node is equal in
+   * content but not in identity (an absent node gets a fresh paragraph id), and a replacement
+   * at the top of the document would rebase the history of the body text below it.
+   */
+  private keepUnchangedBlocks(
+    window: SectionWindow,
+    previous: Document,
+    next: Document,
+  ): SectionWindow {
+    const current = this.window;
+    if (!current) return window;
+    const children: PMNode[] = [];
+    window.doc.forEach((child) => children.push(child));
+    let changed = false;
+    BLOCK_KINDS.forEach((kind, index) => {
+      const mounted = current.blocks[kind];
+      const fresh = window.blocks[kind];
+      if (!mounted || !fresh || fresh !== children[index]) return;
+      const before =
+        kind === 'annotation'
+          ? previous.description.titleInfo.annotation
+          : previous.description.documentInfo.history;
+      const after =
+        kind === 'annotation'
+          ? next.description.titleInfo.annotation
+          : next.description.documentInfo.history;
+      if (before !== after || mounted.type !== fresh.type) return;
+      children[index] = mounted;
+      changed = true;
+    });
+    if (!changed) return window;
+    const doc = window.doc.type.create(window.doc.attrs, children);
+    return { ...window, doc, blocks: leadingBlocks(doc) };
   }
 
   /** Keeps a section window on the same body and first section when the model changed. */
@@ -732,12 +934,25 @@ export class BodyEditorController {
 
   /** Stores a model produced outside the editor and refreshes the window around it. */
   private commitModel(next: Document): void {
-    const unchanged =
-      this.model && this.window && windowSliceUnchanged(this.model, next, this.window);
+    const previous = this.model;
+    const window = this.window;
+    const unchanged = previous && window && windowSliceUnchanged(previous, next, window);
+    if (
+      !unchanged &&
+      previous &&
+      window &&
+      this.editorState &&
+      bodiesSliceUnchanged(previous, next, window) &&
+      !blocksUnchanged(previous, next, window)
+    ) {
+      // Only a description block changed: rebuild it in place, keeping the editor history.
+      this.showBlocks(next);
+      return;
+    }
     this.model = next;
     actions.updateDocument(this.store, next);
-    if (unchanged && this.window) {
-      this.window = { ...this.window, ...windowCounts(next, this.window) };
+    if (unchanged && window) {
+      this.window = { ...window, ...windowCounts(next, window) };
       this.publish();
     } else {
       this.rebuildWindow();
@@ -764,7 +979,11 @@ export class BodyEditorController {
   }
 
   setTranslate(translate: (key: string) => string): void {
+    if (this.translate === translate) return;
     this.translate = translate;
+    // The block captions are drawn from the catalogue: repaint them in the new language.
+    const state = this.editorState;
+    if (state) this.dispatch(state.tr.setMeta(blockCaptionsKey, 'refresh'));
   }
 
   /** Sets the NBSP display character (Settings > Other) and repaints the markers. */
@@ -788,7 +1007,8 @@ export class BodyEditorController {
     if (!state || undoDepth(state) === 0) return false;
     this.replaying = true;
     try {
-      return undo(state, (tr) => this.dispatch(tr));
+      // A replay restores a state the editor had: the boundary filter lets it through.
+      return undo(state, (tr) => this.dispatch(markControllerTransaction(tr)));
     } finally {
       this.replaying = false;
     }
@@ -799,7 +1019,7 @@ export class BodyEditorController {
     if (!state || redoDepth(state) === 0) return false;
     this.replaying = true;
     try {
-      return redo(state, (tr) => this.dispatch(tr));
+      return redo(state, (tr) => this.dispatch(markControllerTransaction(tr)));
     } finally {
       this.replaying = false;
     }
@@ -857,7 +1077,28 @@ export class BodyEditorController {
     return state ? caretOf(state) : null;
   }
 
-  /** Selects the node `caret.nodeId`, moving the window onto its section when needed. */
+  /**
+   * The caret as a remembered position (feature 004 US8, research R5.2): the structural path
+   * of the deepest node at the selection head (window offsets applied) and the offset inside
+   * it when it is a text block, 0 otherwise (a selected image, a table). Null without a
+   * document or for an empty editor document.
+   */
+  getPosition(): StructuralPosition | null {
+    const state = this.editorState;
+    if (!state) return null;
+    const path = pathOfCaret(state, this.window);
+    if (!path) return null;
+    const $head = state.selection.$head;
+    const node = (state.selection as { node?: PMNode }).node;
+    const offset = node && node.isLeaf && !node.isTextblock ? 0 : $head.parentOffset;
+    return { path, offset };
+  }
+
+  /**
+   * Selects the node `caret.nodeId`, moving the window onto its section when needed. Works
+   * mounted or not: unmounted, the selection is set in the kept state and scrolled into view
+   * when the view mounts (feature 004 US8 - the view a file opens in is never switched).
+   */
   setCaret(caret: Caret): boolean {
     if (!caret.nodeId || !this.model) return false;
     let state = this.editorState;
@@ -868,7 +1109,42 @@ export class BodyEditorController {
       selection = state ? selectionFor(state.doc, caret.nodeId, caret.offset) : null;
       if (!selection) return false;
     }
+    // Mounted: the focus first, so that ProseMirror owns the DOM selection and scrolls to it
+    // (it scrolls only then); unmounted: the kept state, scrolled into view on mount.
+    this.focus();
     this.dispatch(state!.tr.setSelection(selection).scrollIntoView());
+    if (!this.view) this.scrollOnMount = true;
+    this.shown = true;
+    return true;
+  }
+
+  /**
+   * Selects from `anchor` to `head` (feature 004 US7, the mapped Source selection): the window
+   * is moved onto the head's section; a range whose anchor the mounted window does not hold
+   * becomes a caret at the head; a point naming a text block lands at its offset, an atom is
+   * selected (the position before it), a container at its first text position. False when
+   * the head's node is not in the document. The selection is scrolled into view when the view
+   * mounts, if it is not mounted yet.
+   */
+  setSelectionPoints(anchor: ModelPoint, head: ModelPoint): boolean {
+    if (!this.model || !this.moveWindowTo(head.nodeId)) return false;
+    const state = this.editorState;
+    if (!state) return false;
+    const headSelection = selectionAtPoint(state.doc, head);
+    if (!headSelection) return false;
+    let selection: Selection = headSelection;
+    const samePoint = anchor.nodeId === head.nodeId && anchor.offset === head.offset;
+    if (!samePoint) {
+      const anchorSelection = selectionAtPoint(state.doc, anchor);
+      if (anchorSelection) {
+        selection = TextSelection.between(
+          state.doc.resolve(anchorSelection.anchor),
+          state.doc.resolve(headSelection.head),
+        );
+      }
+    }
+    this.dispatch(state.tr.setSelection(selection).scrollIntoView());
+    if (!this.view) this.scrollOnMount = true;
     this.focus();
     return true;
   }

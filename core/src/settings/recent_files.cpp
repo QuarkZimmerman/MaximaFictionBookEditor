@@ -69,11 +69,9 @@ std::optional<Caret> caret_from_json(const json& j) {
 }
 
 json to_json(const RecentFile& file) {
-    json j{{"path", file.path}, {"lastOpened", file.lastOpened}};
-    if (file.caret) {
-        j["caret"] = to_json(*file.caret);
-    }
-    return j;
+    // No `caret` any more (feature 004 US8): a legacy one read from an older file is dropped
+    // here, at the next write.
+    return json{{"path", file.path}, {"lastOpened", file.lastOpened}};
 }
 
 RecentFiles::RecentFiles(std::filesystem::path file) : file_(std::move(file)) {}
@@ -107,7 +105,12 @@ void RecentFiles::load() {
             f.lastOpened = item["lastOpened"].get<std::string>();
         }
         if (item.contains("caret")) {
-            f.caret = caret_from_json(item["caret"]);
+            // A release 0.0.3 caret: a Body caret with a node id is kept for the one-time
+            // conversion into the positions record; any other is ignored.
+            auto legacy = caret_from_json(item["caret"]);
+            if (legacy && legacy->view == "body" && !legacy->nodeId.empty()) {
+                f.legacyCaret = std::move(legacy);
+            }
         }
         const bool duplicate = std::any_of(items_.begin(), items_.end(),
                                            [&](const RecentFile& r) { return r.path == f.path; });
@@ -144,7 +147,7 @@ json RecentFiles::to_json() const {
     return arr;
 }
 
-void RecentFiles::touch(const std::string& path, std::optional<Caret> caret) {
+void RecentFiles::touch(const std::string& path) {
     if (path.empty()) {
         return;
     }
@@ -154,10 +157,8 @@ void RecentFiles::touch(const std::string& path, std::optional<Caret> caret) {
     auto it = std::find_if(items_.begin(), items_.end(),
                            [&](const RecentFile& r) { return r.path == path; });
     if (it != items_.end()) {
-        entry.caret = caret ? caret : it->caret;
+        entry.legacyCaret = std::move(it->legacyCaret);
         items_.erase(it);
-    } else {
-        entry.caret = caret;
     }
     items_.insert(items_.begin(), std::move(entry));
     if (items_.size() > kMaxRecentFiles) {
@@ -182,24 +183,13 @@ void RecentFiles::clear() {
     save();
 }
 
-std::optional<Caret> RecentFiles::caret(const std::string& path) const {
+std::optional<Caret> RecentFiles::legacy_caret(const std::string& path) const {
     auto it = std::find_if(items_.begin(), items_.end(),
                            [&](const RecentFile& r) { return r.path == path; });
     if (it == items_.end()) {
         return std::nullopt;
     }
-    return it->caret;
-}
-
-bool RecentFiles::set_caret(const std::string& path, const std::optional<Caret>& caret) {
-    auto it = std::find_if(items_.begin(), items_.end(),
-                           [&](const RecentFile& r) { return r.path == path; });
-    if (it == items_.end()) {
-        return false;
-    }
-    it->caret = caret;
-    save();
-    return true;
+    return it->legacyCaret;
 }
 
 }  // namespace mfbe::settings

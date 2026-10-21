@@ -213,9 +213,32 @@ jobs:
           path: ui/dist/
 
   e2e:
-    name: e2e (headless, Linux)
+    # Linux runs every journey (exactly as before feature 004); the Windows and macOS legs run
+    # the journeys tagged `@platform` against the hooks-enabled core of their own system
+    # (feature 004, research R6.3: the proposed and typed Cyrillic file names, the spelling
+    # scope). A `@platform` journey must hold on all three systems (ui/README.md).
+    name: e2e (${{ matrix.name }})
     needs: [core, ui]
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-22.04
+            core: linux
+            preset: linux-core-release
+            core_bin: mfbe-core
+          - name: windows
+            os: windows-2025
+            core: windows
+            preset: windows-core-release
+            core_bin: mfbe-core.exe
+          - name: macos
+            os: macos-15
+            core: macos
+            preset: macos-core-release
+            core_bin: mfbe-core
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -225,25 +248,47 @@ jobs:
           cache-dependency-path: ui/package-lock.json
       - uses: actions/download-artifact@v4
         with:
-          name: mfbe-core-linux
-          path: build/linux-core-release/bin
+          name: mfbe-core-${{ matrix.core }}
+          path: build/${{ matrix.preset }}/bin
       - uses: actions/download-artifact@v4
         with:
           name: mfbe-ui-dist
           path: ui/dist
-      - run: chmod +x build/linux-core-release/bin/* || true
+      - if: runner.os != 'Windows'
+        shell: bash
+        run: chmod +x build/${{ matrix.preset }}/bin/* || true
       - run: npm ci
         working-directory: ui
-      - run: npx playwright install --with-deps chromium
+      - if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+        working-directory: ui
+      - if: runner.os != 'Linux'
+        run: npx playwright install chromium
         working-directory: ui
       # The regional locales the date journeys start the core under (feature 003).
-      - run: sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
-      - run: npm run test:e2e -- --grep-invert @perf
+      - if: runner.os == 'Linux'
+        run: sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
+      - if: runner.os == 'Linux'
+        run: npm run test:e2e -- --grep-invert @perf
         working-directory: ui
         env:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+      - name: Platform journeys (feature 004, SC-006 / SC-009; Windows and macOS)
+        # Only the journeys tagged `@platform`; `--pass-with-no-tests` keeps the leg green on
+        # a branch that has not written one yet. The hooks core of this system comes from the
+        # `core` job; the resources are the checkout's, named explicitly because the path
+        # compiled into the core is the `core` job's workspace.
+        if: runner.os != 'Linux'
+        shell: bash
+        run: npx playwright test --grep @platform --pass-with-no-tests
+        working-directory: ui
+        env:
+          MFBE_CORE_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/${{ matrix.core_bin }}
+          MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+          MFBE_RESOURCES: ${{ github.workspace }}/resources
       - name: Russian environment (feature 002; ru_RU.UTF-8, Cyrillic home and temp)
+        if: runner.os == 'Linux'
         # The start-up, open/save and Find journeys with the Russian system locale - the
         # interface follows it - and the folders the core and the journeys use under Cyrillic
         # names. The browsers stay where the previous step installed them (HOME moves).
@@ -261,6 +306,7 @@ jobs:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
       - name: Script benchmark (SC-008)
+        if: runner.os == 'Linux'
         # Bundled clean-up scripts on the generated 1 MB and 10 MB books, alone on one worker:
         # each 10 MB time at most 12 x its 1 MB time, each 1 MB time under 5 s x
         # MFBE_PERF_FACTOR (default 2, docs/performance.md).
@@ -270,6 +316,7 @@ jobs:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
       - name: Script equivalence suite (142 converted packages; T127, SC-011)
+        if: runner.os == 'Linux'
         # Every snapshot of tests/scripts/snapshots/suite.json through run-script.mjs against
         # the release core (bundled scripts resolved from MFBE_SCRIPTS_SOURCE_DIR) and the built
         # UI; fails on any snapshot difference or a package without a snapshot.
@@ -278,13 +325,14 @@ jobs:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
       - name: Upload script suite results
-        if: always()
+        if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: script-suite-results
           path: build/script-suite-results.json
           if-no-files-found: ignore
       - name: Performance budgets (10 MB journeys; T150, SC-002)
+        if: runner.os == 'Linux'
         # The 150 MB image book is a local/nightly run (tests/bench/README.md): hosted runners
         # are slow and short on memory. Fails when a budget is exceeded.
         run: tests/bench/run.sh --skip-150 --json
@@ -293,7 +341,7 @@ jobs:
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
           MFBE_BENCH_WORKDIR: ${{ runner.temp }}/mfbe-bench
       - name: Upload benchmark results
-        if: always()
+        if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: bench-results
@@ -303,7 +351,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.name }}
           path: ui/playwright-report/
           if-no-files-found: ignore
 
@@ -434,9 +482,19 @@ jobs:
 
       # The shipped configuration is built without the test-only RPC hooks, so the core test
       # suite (which drives them) runs in the `core` job; here the application is exercised.
-      - name: Shell unit tests (file dialog requests in each platform's terms, feature 002)
+      # The keyboard layout switch (feature 004 US11, FR-093) is part of it on every system:
+      # Windows activates a layout for a hidden window of the test process in the runner's
+      # interactive desktop session (as the Russian-environment journey below), macOS lists the
+      # input sources and completes a request, Linux needs a virtual display with two XKB
+      # groups - tools/ci/shell-tests-xkb.sh starts Xvfb with `-noreset`, runs `setxkbmap -layout
+      # us,ru` and exports the group names (`x11-xkb-utils` comes with `xvfb`).
+      - name: Shell unit tests (file dialog requests, the keyboard layout switch; features 002, 004)
+        if: runner.os != 'Linux'
         shell: bash
         run: ctest --preset ${{ matrix.preset }} -L shell --output-on-failure
+      - name: Shell unit tests under Xvfb with two keyboard layout groups (features 002, 004)
+        if: runner.os == 'Linux'
+        run: tools/ci/shell-tests-xkb.sh ctest --preset ${{ matrix.preset }} -L shell --output-on-failure
 
       - name: Version (Linux)
         if: runner.os == 'Linux'
@@ -487,10 +545,11 @@ jobs:
           MFBE_SMOKE_PORTABLE: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-portable.png
 
-      - name: Shell smoke of the window's close button (feature 003 FR-017)
+      - name: Shell smoke of the window's close button (feature 003 FR-017, 004 US8)
         # The window manager's close request (openbox, Alt+F4 through xdotool - what the
         # title-bar X sends) with a modified document: the save prompt, Cancel keeps the editor,
-        # a second request asks again, No ends it cleanly.
+        # a second request asks again, No ends it cleanly - and positions.json remembers the
+        # Body caret put into a known paragraph before the close (feature 004 FR-100).
         if: runner.os == 'Linux'
         run: tools/shell-smoke.sh
         env:
@@ -499,6 +558,34 @@ jobs:
           MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
           MFBE_SMOKE_CLOSE: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-close.png
+
+      - name: Shell smoke of the editor's restart (feature 003 US3, 004 US8)
+        # The real restart after a language change under Xvfb, with a normal and a maximised
+        # window: the old process ends, the new one comes up with the book, the language and
+        # the window placement - and the Body caret put into a known paragraph before the
+        # restart (feature 004 FR-100, FR-101). The release shell prints no argv lines; the
+        # smoke judges the restart by what the new instance shows.
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
+          MFBE_SMOKE_RESTART: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-restart.png
+
+      - name: Shell smoke of the GTK Save dialog with Cyrillic names (feature 004 US6)
+        # The native Save As dialog driven through xdotool under openbox: a new document with a
+        # Cyrillic author and title proposes "Толстой Лев - Война и мир.fb2" and saves under
+        # exactly that name in the remembered folder; a typed "Новая книга.fb2" comes out the
+        # same way (FR-050, FR-051, SC-006).
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_SAVE_AS: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-saveas.png
 
       - name: Installed tree (Linux)
         if: runner.os == 'Linux'
@@ -691,7 +778,10 @@ jobs:
           # Feature 002: a standard user with a Cyrillic name, Russian regional formats and display
           # language opens a Cyrillic-named book in a Cyrillic folder with each package, saves it,
           # hides the status bar from the View menu and restarts (tools/ci/windows-russian-journey.ps1).
-          # The MSI is installed again for it: the smoke step above removed it.
+          # Feature 004 (US6, SC-006): the same user saves a new document through the native Save
+          # dialog, driven with UI Automation - the proposed "Толстой Лев - Война и мир.fb2" and a
+          # typed Cyrillic name come out with the same letters on disk, in the title bar and in
+          # recent.json. The MSI is installed again for it: the smoke step above removed it.
           $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
           $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /l*v $env:RUNNER_TEMP\install-journey.log" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content $env:RUNNER_TEMP\install-journey.log -Tail 80; throw "msiexec install exit $($p.ExitCode)" }

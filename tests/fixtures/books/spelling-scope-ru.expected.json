@@ -1,0 +1,69 @@
+{
+  "$comment": "Generated with spelling-scope-ru.fb2 by make-fixtures.py (feature 004, User Story 9): the 10 Russian words the ru_RU dictionary must flag in the Body view - 6 in the body, 4 in the annotation block - each with its correct spelling and the structural path of its paragraph, and the 30 English words of the description that must never be marked (the Description view is not checked).",
+  "lang": "ru",
+  "misspelled": [
+    {
+      "word": "диревне",
+      "correct": "деревне",
+      "path": "title-info/annotation[1]/p[1]"
+    },
+    {
+      "word": "празнику",
+      "correct": "празднику",
+      "path": "title-info/annotation[1]/p[1]"
+    },
+    {
+      "word": "кортина",
+      "correct": "картина",
+      "path": "title-info/annotation[1]/p[2]"
+    },
+    {
+      "word": "пашол",
+      "correct": "пошёл",
+      "path": "title-info/annotation[1]/p[2]"
+    },
+    {
+      "word": "карова",
+      "correct": "корова",
+      "path": "body[1]/section[1]/p[1]"
+    },
+    {
+      "word": "сабака",
+      "correct": "собака",
+      "path": "body[1]/section[1]/p[1]"
+    },
+    {
+      "word": "малако",
+      "correct": "молоко",
+      "path": "body[1]/section[1]/p[2]"
+    },
+    {
+      "word": "Здраствуйте",
+      "correct": "Здравствуйте",
+      "path": "body[1]/section[2]/p[1]"
+    },
+    {
+      "word": "агурец",
+      "correct": "огурец",
+      "path": "body[1]/section[2]/p[2]"
+    },
+    {
+      "word": "сонце",
+      "correct": "солнце",
+      "path": "body[1]/section[2]/p[2]"
+    }
+  ],
+  "bodyCount": 6,
+  "annotationCount": 4,
+  "english": {
+    "count": 30,
+    "fields": {
+      "publishInfo.publisher": "Example Publishing House",
+      "titleInfo.keywords": "spelling, scope, description, fields, check",
+      "publishInfo.city": "London",
+      "publishInfo.bookName": "The Great Spelling Scope Test",
+      "customInfo.0": "imported from the example library catalogue by hand",
+      "srcTitleInfo.annotation": "The original English annotation of this little book."
+    }
+  }
+}

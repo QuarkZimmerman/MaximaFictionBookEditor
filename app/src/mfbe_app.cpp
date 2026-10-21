@@ -5,6 +5,9 @@
 #include "include/base/cef_logging.h"
 #include "include/cef_browser.h"
 #include "include/cef_command_line.h"
+#include "include/cef_preference.h"
+#include "include/cef_request_context.h"
+#include "include/cef_values.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_window.h"
 #include "include/wrapper/cef_helpers.h"
@@ -15,6 +18,7 @@
 
 #include <mfbe/utf8_paths.hpp>
 
+#include <cstdio>
 #include <filesystem>
 #include <functional>
 #include <sstream>
@@ -23,6 +27,36 @@
 namespace mfbe::shell {
 
 namespace {
+
+// The Chromium preference that switches the browser engine's own spell checking off - the
+// engine's Hunspell and the Windows system checker alike (spellcheck::prefs::kSpellCheckEnable).
+constexpr const char* kSpellcheckPreference = "browser.enable_spellchecking";
+
+// Switches the browser engine's own spell checking off (feature 004 US9, FR-081; contracts/
+// shell.md §1): the editor's own checker is the only source of marks, so no field of the
+// Description view, no dialog and no bar is ever marked, whatever dictionaries the system has.
+// CEF 150 has no command-line switch for it any more; the preference is set through CEF's
+// preference manager API on the UI thread, before any window, and persists in the profile -
+// set at every start regardless, so a profile upgraded from release 0.0.3 follows. It is a
+// profile preference: registered with the global request context (the profile the main window
+// is created in; CefRequestContext is a CefPreferenceManager), not with Chromium's local state
+// behind CefPreferenceManager::GetGlobalPreferenceManager(), which answers "unregistered
+// preference" for it. Returns the error text of a refused preference (empty on success).
+std::string disableEngineSpellchecking() {
+    CEF_REQUIRE_UI_THREAD();
+    CefRefPtr<CefPreferenceManager> preferences = CefRequestContext::GetGlobalContext();
+    if (!preferences) {
+        return "no global request context";
+    }
+    CefRefPtr<CefValue> off = CefValue::Create();
+    off->SetBool(false);
+    CefString error;
+    if (!preferences->SetPreference(kSpellcheckPreference, off, error)) {
+        const std::string text = error.ToString();
+        return text.empty() ? "SetPreference refused" : text;
+    }
+    return {};
+}
 
 // Appends "--name" / "--name=value" items of a whitespace separated developer flag list.
 void appendExtraFlags(const std::string& flags, const CefRefPtr<CefCommandLine>& command_line) {
@@ -89,6 +123,29 @@ void MfbeApp::OnBeforeCommandLineProcessing(const CefString& process_type,
 
 void MfbeApp::OnContextInitialized() {
     CEF_REQUIRE_UI_THREAD();
+
+    // The engine's own spell checking off before any window exists (feature 004 US9). A refused
+    // preference is a warning in the errors-only log (no book text); test-hook builds report the
+    // outcome on stdout for tools/shell-smoke.sh ("shelltest: spellcheck engine=off|error ...").
+    const std::string spellcheck_error = disableEngineSpellchecking();
+    if (!spellcheck_error.empty()) {
+        std::string note = "the browser engine's spell checking could not be switched off (";
+        note += kSpellcheckPreference;
+        note += "): " + spellcheck_error;
+        if (core_host_ != nullptr) {
+            core_host_->logWarning("shell.spellcheckPreference", note);
+        } else {
+            std::fprintf(stderr, "mfbe: warning %s\n", note.c_str());
+        }
+    }
+#if defined(MFBE_SHELL_TEST_HOOKS)
+    if (spellcheck_error.empty()) {
+        std::printf("shelltest: spellcheck engine=off\n");
+    } else {
+        std::printf("shelltest: spellcheck engine=error %s\n", spellcheck_error.c_str());
+    }
+    std::fflush(stdout);
+#endif
 
     MfbeClient::Config client_config;
     client_config.app_origin = config_.app_origin;

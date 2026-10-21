@@ -4,8 +4,14 @@
 //   doc.open({path}) -> {document, warnings} | {jobId}   (job above kJobThresholdBytes)
 //   doc.openSource({path}) -> {docId, text, encoding, error?, warnings}
 //   doc.close({docId}) -> {}
-//   doc.toXml({docId, document, elideBinaries?}) -> {text}
-//   doc.fromXml({docId, text}) -> {document, warnings, remap?}   (error 1001 when malformed)
+//   doc.toXml({docId, document, elideBinaries?, positions?}) -> {text, serial?}   (feature 004
+//       US7: `positions` records the position map of the text under `serial`; the received
+//       document becomes the session snapshot - requester decision 2026-10-20)
+//   doc.fromXml({docId, text, positions?}) -> {document, warnings, remap?, serial?}   (error 1001
+//       when malformed, the map left as it was; a success without `positions` drops the map)
+//   doc.mapPositions({docId, serial, toSource?: ModelPoint[], toModel?: number[]})
+//       -> {toSource: (number | null)[], toModel: (ModelPoint | null)[], durationMs}   (feature
+//       004 US7; 1005 doc.positionsStale {docId, serial} when `serial` is not the current map)
 //   doc.save({docId, document? | text?, path?, encoding?, force?})
 //       -> {path, encoding, converted: [BinaryMeta + {from, to}], validation}
 //          | {needsConfirmation: true, validation} | {jobId}
@@ -16,9 +22,26 @@
 //   doc.formatDate({value}) -> {text}   the regional long date of a YYYY-MM-DD value (feature
 //       003 FR-050, the Today button); invalidParams unless a calendar date
 //   doc.validate({docId, document?, text?}) -> ValidationReport | {jobId}
-//   doc.recent() -> RecentFile[] (+ exists), doc.clearRecent() -> {}
-//   doc.caret({docId, caret?}) -> {caret?}
+//   doc.recent() -> RecentFile[] (+ exists; no caret since feature 004), doc.clearRecent() -> {}
+//       (recent.json only - the positions record is independent of the menu list, D4)
+//   doc.position({docId, position?}) -> {position?}   (feature 004 US8, FR-100/FR-101): the
+//       remembered Body position {path, offset} of the session's file - the grammar checked,
+//       kept in the session and, with a file and `other.restorePosition` on, recorded in
+//       positions.json (the core gates); {} when nothing is remembered or the setting is off
+//   doc.caret({docId, caret?}) -> {caret?}   deprecated alias of doc.position in the 1.x caret
+//       shape, converted through the session snapshot (node_path / node_id_at_path)
 //   doc.watch({docId, enabled}) -> {}   (notification doc.changedOnDisk {docId, path, mtime})
+//   doc.readDescription({docId, path}) -> {importId, description, documentDetails, binaries,
+//       warnings} | {jobId}   (feature 004 US4, FR-031/FR-032): the file read as doc.open reads
+//       it, keeping only its description (as read; node ids from `docId`'s allocator), the
+//       document-info after the 002 FR-005 fill-in and the binaries the description's
+//       importable entries refer to, held by a hidden session `importId` (GET /binary,
+//       binary.copy, doc.close) - no Recent Files, no caret, no watch.
+//   doc.exportDescription({docId, document, path, force?}) -> {path, validation, converted}
+//       | {needsConfirmation: true, validation} | {jobId}   (feature 004 US5, FR-040 to
+//       FR-042): the live description with the binaries it refers to and one empty section,
+//       written as UTF-8 to another file, atomically; validated and confirmed as Save; 1006
+//       when `path` is the open document's own file; the session is not touched.
 //
 // Jobs run on worker threads; everything that touches the session registry is posted back
 // to the loop thread (Services::post), so the registry stays single-threaded.
@@ -37,8 +60,10 @@
 #include <mfbe/templates.hpp>
 #include <mfbe/validator.hpp>
 
+#include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <functional>
@@ -206,6 +231,33 @@ std::string effective_encoding(Services& services, const session::DocumentSessio
 }
 
 /* ----------------------------------------------------------------------------------------- */
+/* Remembered position (feature 004 US8)                                                      */
+/* ----------------------------------------------------------------------------------------- */
+
+bool restore_position_enabled(const Services& services) {
+    return services.settings.get_bool("other.restorePosition", true);
+}
+
+// Records the session's position in positions.json when the session has a file, is not
+// Source-only and "Restore position" is on - the core gates every write (FR-100; research
+// R5.1 H6), so a UI that has not received the settings yet cannot record either.
+void record_position(Services& services, const session::DocumentSession& s) {
+    if (s.position && s.path && !s.sourceOnly && restore_position_enabled(services)) {
+        services.positions.set(*s.path, *s.position);
+    }
+}
+
+// The answer of doc.position: the session's position, or {} when nothing is remembered or the
+// setting is off.
+json position_result(const Services& services, const session::DocumentSession& s) {
+    json result = json::object();
+    if (s.position && restore_position_enabled(services)) {
+        result["position"] = settings::to_json(*s.position);
+    }
+    return result;
+}
+
+/* ----------------------------------------------------------------------------------------- */
 /* Opening                                                                                    */
 /* ----------------------------------------------------------------------------------------- */
 
@@ -226,18 +278,12 @@ json loaded_document_json(const model::Document& doc, const std::vector<std::str
     return result;
 }
 
-// `ui_language` is the interface language setting for the filled-in date (see above).
-Opened open_document(const std::string& path, const std::string& ui_language,
-                     rpc::JobControl* control) {
-    Opened opened;
-    opened.path = path;
-    const fs::path file = platform::path_from_utf8(path);
-    opened.stamp = platform::stamp_of(file);
-    if (control != nullptr) {
-        control->progress("read", 0, 100);
-    }
+// Reads a book with the hardened parser; the reader's failures become Open's errors 1004 /
+// 1001 / 1002 (the description import reuses them, rpc-api §3.2).
+fb2::ReadResult read_book(const std::string& path, BinaryStore& store,
+                          model::NodeIdAllocator& ids) {
     try {
-        opened.read = fb2::read_file(file, *opened.store, opened.ids);
+        return fb2::read_file(platform::path_from_utf8(path), store, ids);
     } catch (const fb2::NotFictionBookFailure& e) {
         throw not_fictionbook(path, e.reason);
     } catch (const fb2::ParseFailure& e) {
@@ -245,6 +291,18 @@ Opened open_document(const std::string& path, const std::string& ui_language,
     } catch (const fb2::IoFailure& e) {
         throw io_error(e.path, e.reason);
     }
+}
+
+// `ui_language` is the interface language setting for the filled-in date (see above).
+Opened open_document(const std::string& path, const std::string& ui_language,
+                     rpc::JobControl* control) {
+    Opened opened;
+    opened.path = path;
+    opened.stamp = platform::stamp_of(platform::path_from_utf8(path));
+    if (control != nullptr) {
+        control->progress("read", 0, 100);
+    }
+    opened.read = read_book(path, *opened.store, opened.ids);
     opened.filled_in = model::fill_in_document_details(
         opened.read.document, model::details_context_now(false, ui_language));
     if (control != nullptr) {
@@ -271,8 +329,21 @@ void fill_session(Services& services, session::DocumentSession& s, Opened& opene
     }
     s.binaries = std::move(opened.store);
     s.ids = opened.ids;
-    s.caret = services.recent.caret(opened.path);
-    services.recent.touch(opened.path);
+    s.position = services.positions.get(opened.path);
+    if (!s.position) {
+        // The one-time conversion of a release 0.0.3 caret kept in recent.json: a Body caret
+        // whose node id the freshly loaded document has (ids are deterministic in document
+        // order, so "it still fits" = the id exists) becomes a position by place and is
+        // recorded like one; any other legacy caret is ignored (resource-formats §8).
+        if (const auto legacy = services.recent.legacy_caret(opened.path)) {
+            const std::string path = model::node_path(doc, legacy->nodeId);
+            if (!path.empty()) {
+                s.position = settings::Position{path, std::max(0, legacy->offset)};
+                record_position(services, s);
+            }
+        }
+    }
+    services.recent.touch(opened.path);  // written without the legacy caret from now on
     s.snapshot = std::move(doc);
 }
 
@@ -302,6 +373,91 @@ std::uintmax_t approximate_size(const model::Document& doc) {
 }
 
 /* ----------------------------------------------------------------------------------------- */
+/* Description import (feature 004 US4)                                                       */
+/* ----------------------------------------------------------------------------------------- */
+
+// What doc.readDescription keeps of a source file: its description as read (no filling-in),
+// the document-info as Open would have filled it in, the reader's warnings and a store holding
+// only the binaries the description's importable entries refer to.
+struct ReadDescription {
+    model::Document document;  // description only: bodies, stylesheets and extras dropped
+    model::DocumentInfo details;
+    std::vector<model::ValidationIssue> warnings;
+    std::shared_ptr<BinaryStore> store = std::make_shared<BinaryStore>();
+    model::NodeIdAllocator ids;
+};
+
+// Worker or loop thread: reads the whole file as Open reads it (a malformed body refuses the
+// import too), then drops everything but the description and the binaries it refers to from
+// an importable entry - the cover pages and the images of the annotations and the history;
+// `output` is no importable entry, so a binary referenced only there is dropped as well.
+ReadDescription read_description(const std::string& path, const std::string& ui_language,
+                                 rpc::JobControl* control) {
+    ReadDescription out;
+    if (control != nullptr) {
+        control->progress("read", 0, 100);
+    }
+    fb2::ReadResult read = read_book(path, *out.store, out.ids);
+    out.warnings = std::move(read.warnings);
+    model::Document& doc = read.document;
+    // The details as Open would fill them in, computed on a copy: the description itself
+    // stays as read, so the UI can tell what the file has from what the editor adds.
+    model::Document details;
+    details.description.documentInfo = doc.description.documentInfo;
+    model::fill_in_document_details(details, model::details_context_now(false, ui_language));
+    out.details = std::move(details.description.documentInfo);
+    doc.bodies.clear();
+    doc.stylesheets.clear();
+    doc.extras.clear();
+    doc.path.reset();
+    const std::vector<std::string> referenced =
+        referenced_ids(doc, ReferenceRoots{.description = true, .outputs = false, .bodies = false});
+    for (const std::string& id : out.store->ids()) {
+        if (std::find(referenced.begin(), referenced.end(), id) == referenced.end()) {
+            out.store->remove(id);
+        }
+    }
+    sync_binaries(doc, *out.store);
+    out.document = std::move(doc);
+    if (control != nullptr) {
+        control->check_cancelled();
+        control->progress("model", 90, 100);
+    }
+    return out;
+}
+
+// Loop thread: gives the imported description its node ids from the target's allocator (so
+// the imported annotation and history can be inserted into the open document without a
+// collision) and registers the hidden import session holding the binaries. 1000 when the
+// target was closed meanwhile.
+json register_import(Services& services, const std::string& target_id, ReadDescription& read) {
+    session::DocumentSession& target = services.documents.require(target_id);
+    model::reassign_node_ids(read.document, target.ids);
+    session::DocumentSession& s = services.documents.create();
+    read.document.docId = s.docId;
+    s.binaries = read.store;
+    s.ids = read.ids;
+    s.sourceOnly = false;
+    json binaries = json::array();
+    for (const auto& meta : read.store->list()) {
+        binaries.push_back(model::to_json(meta));
+    }
+    json result{{"importId", s.docId},
+                {"description", model::to_json(read.document.description)},
+                {"documentDetails", model::to_json(read.details)},
+                {"binaries", std::move(binaries)},
+                {"warnings", issues_json(read.warnings)}};
+    s.snapshot = std::move(read.document);
+    return result;
+}
+
+// Loop thread: forgets an import session with its previews.
+void close_import(Services& services, const std::string& import_id) {
+    services.previews.invalidate_prefix(import_id + "/");
+    services.documents.close(import_id);
+}
+
+/* ----------------------------------------------------------------------------------------- */
 /* Saving                                                                                     */
 /* ----------------------------------------------------------------------------------------- */
 
@@ -314,7 +470,6 @@ struct SaveRequest {
     bool force = false;
     std::string xlink_prefix;
     std::shared_ptr<BinaryStore> store;
-    std::optional<settings::Caret> caret;
     images::ConversionPolicy policy;  // image conversion on save (FR-110)
 };
 
@@ -425,12 +580,11 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     auto snapshot = request.document
                         ? std::make_shared<model::Document>(std::move(*request.document))
                         : nullptr;
-    const auto caret = request.caret;
     std::vector<std::string> converted_ids;
     for (const auto& c : converted) {
         converted_ids.push_back(c.id);
     }
-    auto update = [&services, doc_id, path, enc, stamp, snapshot, caret, converted_ids]() -> int {
+    auto update = [&services, doc_id, path, enc, stamp, snapshot, converted_ids]() -> int {
         session::DocumentSession* s = services.documents.find(doc_id);
         for (const std::string& id : converted_ids) {
             services.previews.invalidate_prefix(doc_id + "/" + id + "@");
@@ -456,8 +610,11 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
                 // Re-point + refresh after our own save.
                 services.watcher->watch(doc_id, platform::path_from_utf8(path));
             }
+            // The remembered position follows the saved name (Save As); the old name's
+            // record stays (FR-100).
+            record_position(services, *s);
         }
-        services.recent.touch(path, caret);
+        services.recent.touch(path);
         return 0;
     };
     if (control == nullptr) {
@@ -468,6 +625,115 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
     progress("done", 100);
     return json{{"path", path},
                 {"encoding", enc},
+                {"converted", converted_json(converted)},
+                {"validation", model::to_json(validation)}};
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* FBD export (feature 004 US5)                                                               */
+/* ----------------------------------------------------------------------------------------- */
+
+struct ExportRequest {
+    model::Document document;  // the exported document (see exported_document)
+    std::string path;          // absolute target
+    bool force = false;
+    std::string xlink_prefix;
+    std::shared_ptr<BinaryStore> store;  // the session's store, read only
+    images::ConversionPolicy policy;     // image conversion in the written copy (FR-110)
+};
+
+// The document the export writes (spec FR-041; rpc-api §3.2 doc.exportDescription): the live
+// description as received - roles and other rows, the preserved `output` elements and the
+// description's own extras included - one body holding one empty section (the smallest body
+// the FB2 2.1 schema accepts), no stylesheet and no top-level extra. The two node ids come
+// from the session's allocator like every other.
+model::Document exported_document(model::Document document, model::NodeIdAllocator& ids) {
+    model::Node section;
+    section.type = "section";
+    section.set_node_id(ids.next());
+    model::Node body;
+    body.type = "body";
+    body.set_node_id(ids.next());
+    body.content.push_back(std::move(section));
+    document.bodies.clear();
+    document.bodies.push_back(std::move(body));
+    document.stylesheets.clear();
+    std::erase_if(document.extras, [](const model::Node& n) {
+        return n.attr_string("slot").value_or("FictionBook") == "FictionBook";
+    });
+    document.path.reset();
+    document.fileKind = model::FileKind::fbd;
+    document.sourceEncoding = "utf-8";
+    return document;
+}
+
+// A store holding copies of the binaries `document` refers to - the cover pages, the images of
+// the annotations, the history and the output elements - in the source store's order. The
+// source is not changed: the conversion to JPEG/PNG happens in this copy alone.
+std::shared_ptr<BinaryStore> referenced_copy(const model::Document& document,
+                                             const BinaryStore& source) {
+    auto copy = std::make_shared<BinaryStore>();
+    const std::vector<std::string> referenced = referenced_ids(document);
+    for (const std::string& id : source.ids()) {
+        if (std::find(referenced.begin(), referenced.end(), id) == referenced.end()) {
+            continue;
+        }
+        const auto meta = source.meta(id);
+        const auto bytes = source.bytes(id);
+        if (!meta || !bytes) {
+            continue;
+        }
+        copy->put(id, meta->contentType, *bytes, source.is_raw_text(id));
+    }
+    return copy;
+}
+
+// Worker or loop thread: Save's steps on the exported document and the filtered copy of the
+// store - validate (and ask), convert the copy, serialise as UTF-8, write atomically. No
+// session bookkeeping: the open document's path, kind, encoding, snapshot, mtime, Recent Files
+// and previews stay as they are (FR-042).
+json perform_export(ExportRequest& request, rpc::JobControl* control) {
+    const auto progress = [&](const char* phase, int done) {
+        if (control != nullptr) {
+            control->check_cancelled();
+            control->progress(phase, done, 100);
+        }
+    };
+    progress("validate", 0);
+    model::Document& doc = request.document;
+    const std::shared_ptr<BinaryStore> filtered = referenced_copy(doc, *request.store);
+    update_reference_counts(doc, *filtered);
+    sync_binaries(doc, *filtered);
+    // The exported content is what is validated, not the open book (FR-042).
+    const model::ValidationReport validation =
+        validation::validate_document(doc, filtered.get(), request.xlink_prefix);
+    if (validation.errorCount > 0 && !request.force) {
+        return json{{"needsConfirmation", true}, {"validation", model::to_json(validation)}};
+    }
+    progress("convert", 30);
+    const std::vector<images::Converted> converted =
+        images::convert_store(*filtered, request.policy, [&](std::size_t done, std::size_t total) {
+            if (control != nullptr && total > 0) {
+                control->progress("convert", 30 + static_cast<std::int64_t>(30 * done / total),
+                                  100);
+            }
+        }).converted;
+    sync_binaries(doc, *filtered);
+    progress("serialize", 60);
+    fb2::WriteOptions options;
+    options.encoding = "utf-8";
+    options.xlink_prefix = request.xlink_prefix;
+    const std::string text = fb2::write_document(doc, filtered.get(), options).text;
+    progress("write", 70);
+    const std::string bytes = fb2::encode_document(text, "utf-8");
+    try {
+        atomic_file::write_atomic(platform::path_from_utf8(request.path), bytes);
+    } catch (const atomic_file::WriteError& e) {
+        // Logged once by the router as rpc.doc.ioError (method, docId, path, reason).
+        throw io_error(e.path, e.reason);
+    }
+    progress("done", 100);
+    return json{{"path", request.path},
                 {"converted", converted_json(converted)},
                 {"validation", model::to_json(validation)}};
 }
@@ -672,7 +938,7 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             s.lastKnownMtime = stamp.mtime;
             s.lastKnownSize = stamp.size;
         }
-        s.caret = services.recent.caret(path);
+        // A Source-only session takes no Body caret (FR-101): no position is loaded.
         services.recent.touch(path);
         json result{{"docId", s.docId},
                     {"text", source.text},
@@ -686,11 +952,56 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         return result;
     });
 
+    router.add_method("doc.readDescription", [&services](const json& params, rpc::RpcContext& ctx) {
+        const std::string target_id = rpc::params::string(params, "docId");
+        services.documents.require(target_id);
+        const std::string path = absolute_path(rpc::params::string(params, "path"));
+        const fs::path file = platform::path_from_utf8(path);
+        std::error_code ec;
+        if (!fs::exists(file, ec)) {
+            // Unlike doc.open, a missing source prunes nothing: it was never a recent file.
+            throw io_error(path, "file not found");
+        }
+        const std::uintmax_t size = fs::file_size(file, ec);
+        const std::string ui_language = ui_language_setting(services);
+        if (ec || size < kJobThresholdBytes) {
+            ReadDescription read = read_description(path, ui_language, nullptr);
+            return register_import(services, target_id, read);
+        }
+        // Open's job: the worker parses, the loop thread registers the hidden session at
+        // the end - a cancellation before that leaves nothing behind, one that arrives
+        // while the session is being registered takes it down again.
+        const std::string job_id = ctx.jobs.start([&services, path, target_id,
+                                                   ui_language](rpc::JobControl& control) -> json {
+            auto read =
+                std::make_shared<ReadDescription>(read_description(path, ui_language, &control));
+            control.check_cancelled();
+            json result = on_loop_thread(
+                services,
+                [&services, target_id, read] {
+                    return register_import(services, target_id, *read);
+                },
+                &control);
+            if (control.cancelled()) {
+                const std::string import_id = result["importId"];
+                on_loop_thread(services, [&services, import_id] {
+                    close_import(services, import_id);
+                    return 0;
+                });
+                control.check_cancelled();
+            }
+            control.progress("done", 100, 100);
+            return result;
+        });
+        return json{{"jobId", job_id}};
+    });
+
     router.add_method("doc.close", [&services](const json& params, rpc::RpcContext&) {
         const std::string doc_id = rpc::params::string(params, "docId");
         if (services.watcher) {
             services.watcher->unwatch(doc_id);
         }
+        // An import session's previews (the dialog's cover picture) go with it (feature 004).
         services.previews.invalidate_prefix(doc_id + "/");
         if (!services.documents.close(doc_id)) {
             throw rpc::RpcError(rpc::codes::kDocNotFound, "", json{{"docId", doc_id}});
@@ -704,26 +1015,40 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         model::Document doc = document_param(params);
         fb2::WriteOptions options;
         options.elide_binaries = rpc::params::boolean_or(params, "elideBinaries", false);
+        options.positions = rpc::params::boolean_or(params, "positions", false);
         options.xlink_prefix = s.xlinkPrefix;
         options.encoding = effective_encoding(services, s, std::nullopt);
         update_reference_counts(doc, *s.binaries);
-        return json{{"text", fb2::write_document(doc, s.binaries.get(), options).text}};
+        fb2::WriteResult written = fb2::write_document(doc, s.binaries.get(), options);
+        json result{{"text", written.text}};
+        if (written.positions) {
+            // Feature 004 US7: the map of this text becomes the session's current one.
+            result["serial"] =
+                s.record_positions(std::move(*written.positions), std::move(written.text));
+        }
+        // The received document is the model the Source text was made from: the base of the
+        // next doc.fromXml's remap and the fallback document of doc.save / doc.validate
+        // (requester decision 2026-10-20, research R2.1).
+        s.snapshot = std::move(doc);
+        return result;
     });
 
     router.add_method("doc.fromXml", [&services](const json& params, rpc::RpcContext&) {
         session::DocumentSession& s =
             services.documents.require(rpc::params::string(params, "docId"));
-        const std::string text = rpc::params::string(params, "text");
+        std::string text = rpc::params::string(params, "text");
+        const bool positions = rpc::params::boolean_or(params, "positions", false);
         auto store = std::make_shared<BinaryStore>();
         fb2::ReadOptions options;
         options.force_encoding = "utf-8";
         options.file_kind = s.fileKind;
         options.placeholder_source = s.binaries.get();
+        options.record_positions = positions;
         fb2::ReadResult read;
         try {
             read = fb2::read_bytes(text, *store, s.ids, options, s.path.value_or(""));
         } catch (const fb2::ParseFailure& e) {
-            throw parse_error(e.error);
+            throw parse_error(e.error);  // the session, its map included, stays as it was
         }
         model::Document& doc = read.document;
         doc.docId = s.docId;
@@ -741,8 +1066,105 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         s.schemaHint = doc.schemaHint;
         s.sourceOnly = false;
         s.snapshot = doc;
+        // Feature 004 US7: the map of the parsed text against the new ids - or none, since
+        // the ids a previous map named are gone.
+        if (read.positions) {
+            result["serial"] = s.record_positions(std::move(*read.positions), std::move(text));
+        } else {
+            s.positionMap.reset();
+        }
         result["document"] = loaded_document_json(doc, filled_in);
         return result;
+    });
+
+    // Feature 004 US7 (rpc-api §3.2): Body <-> Source positions through the session's current
+    // position map; no side effects. The parameter shapes are checked before the serial, the
+    // source offsets against the text's length after it.
+    router.add_method("doc.mapPositions", [&services](const json& params, rpc::RpcContext&) {
+        const auto started = std::chrono::steady_clock::now();
+        session::DocumentSession& s =
+            services.documents.require(rpc::params::string(params, "docId"));
+        const json* serial_param = rpc::params::opt_field(params, "serial");
+        if (serial_param == nullptr || !serial_param->is_number_integer() ||
+            serial_param->get<std::int64_t>() < 0) {
+            throw rpc::invalid_params("serial must be a non-negative integer",
+                                      json{{"field", "serial"}});
+        }
+        const json* to_source = rpc::params::opt_field(params, "toSource");
+        const json* to_model = rpc::params::opt_field(params, "toModel");
+        if (to_source == nullptr && to_model == nullptr) {
+            throw rpc::invalid_params("toSource or toModel is required",
+                                      json{{"field", "toSource"}});
+        }
+        std::vector<fb2::ModelPoint> points;
+        if (to_source != nullptr) {
+            if (!to_source->is_array()) {
+                throw rpc::invalid_params("toSource must be an array of {nodeId, offset}",
+                                          json{{"field", "toSource"}});
+            }
+            for (const json& item : *to_source) {
+                const json* node_id =
+                    item.is_object() ? rpc::params::opt_field(item, "nodeId") : nullptr;
+                const json* offset =
+                    item.is_object() ? rpc::params::opt_field(item, "offset") : nullptr;
+                if (node_id == nullptr || !node_id->is_string() ||
+                    (offset != nullptr &&
+                     (!offset->is_number_integer() || offset->get<std::int64_t>() < 0))) {
+                    throw rpc::invalid_params(
+                        "toSource items must be {nodeId: string, offset: non-negative integer}",
+                        json{{"field", "toSource"}});
+                }
+                points.push_back(fb2::ModelPoint{
+                    node_id->get<std::string>(),
+                    offset == nullptr ? std::size_t{0} : offset->get<std::size_t>()});
+            }
+        }
+        std::vector<std::int64_t> offsets;
+        if (to_model != nullptr) {
+            if (!to_model->is_array()) {
+                throw rpc::invalid_params("toModel must be an array of source offsets",
+                                          json{{"field", "toModel"}});
+            }
+            for (const json& item : *to_model) {
+                if (!item.is_number_integer()) {
+                    throw rpc::invalid_params("toModel items must be integers",
+                                              json{{"field", "toModel"}});
+                }
+                offsets.push_back(item.get<std::int64_t>());
+            }
+        }
+        const std::uint64_t serial = serial_param->get<std::uint64_t>();
+        if (!s.positionMap || s.positionMap->serial != serial) {
+            throw rpc::RpcError(rpc::codes::kDocPositionsStale, "",
+                                json{{"docId", s.docId}, {"serial", serial}});
+        }
+        const fb2::PositionMap& map = *s.positionMap;
+        for (const std::int64_t offset : offsets) {
+            if (offset < 0 || static_cast<std::uint64_t>(offset) > map.length16) {
+                throw rpc::invalid_params("toModel offsets must lie within the text",
+                                          json{{"field", "toModel"}});
+            }
+        }
+        json source_out = json::array();
+        for (const fb2::ModelPoint& point : points) {
+            const auto resolved = fb2::resolve_to_source(map, point);
+            source_out.push_back(resolved ? json(*resolved) : json(nullptr));
+        }
+        json model_out = json::array();
+        for (const std::int64_t offset : offsets) {
+            const auto resolved = fb2::resolve_to_model(map, static_cast<std::size_t>(offset));
+            model_out.push_back(
+                resolved ? json{{"nodeId", resolved->nodeId}, {"offset", resolved->offset}}
+                         : json(nullptr));
+        }
+        const auto elapsed = std::chrono::steady_clock::now() - started;
+        const double duration_ms =
+            static_cast<double>(
+                std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count()) /
+            1000.0;
+        return json{{"toSource", std::move(source_out)},
+                    {"toModel", std::move(model_out)},
+                    {"durationMs", duration_ms}};
     });
 
     // The Today button's date text (feature 003 FR-050): the same function that fills in the
@@ -786,7 +1208,6 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         request.force = rpc::params::boolean_or(params, "force", false);
         request.xlink_prefix = s.xlinkPrefix;
         request.store = s.binaries;
-        request.caret = s.caret;
         request.policy = services.conversion_policy();
 
         const std::uintmax_t estimate =
@@ -804,6 +1225,44 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         });
         return json{{"jobId", job_id}};
     });
+
+    router.add_method(
+        "doc.exportDescription", [&services](const json& params, rpc::RpcContext& ctx) {
+            session::DocumentSession& s =
+                services.documents.require(rpc::params::string(params, "docId"));
+            const std::string given = rpc::params::string(params, "path");
+            if (given.empty()) {
+                throw rpc::invalid_params("path is required", json{{"field", "path"}});
+            }
+            model::Document received = document_param(params);
+            const std::string path = absolute_path(given);
+            // The open document's own file is refused by the platform's file identity (letter
+            // case, short names, symbolic links all count) before validation and before anything
+            // is written: the book's text would be lost under it (FR-040). A target that does not
+            // exist yet cannot be the open file.
+            if (s.path) {
+                std::error_code ec;
+                if (fs::equivalent(platform::path_from_utf8(path),
+                                   platform::path_from_utf8(*s.path), ec)) {
+                    throw rpc::RpcError(rpc::codes::kDocSameAsOpenFile, "", json{{"path", path}});
+                }
+            }
+            ExportRequest request;
+            request.document = exported_document(std::move(received), s.ids);
+            request.path = path;
+            request.force = rpc::params::boolean_or(params, "force", false);
+            request.xlink_prefix = s.xlinkPrefix;
+            request.store = s.binaries;
+            request.policy = services.conversion_policy();
+            // Save's threshold on the session's store: the copy is taken from it in the job.
+            if (static_cast<std::uintmax_t>(s.binaries->total_bytes()) < kJobThresholdBytes) {
+                return perform_export(request, nullptr);
+            }
+            auto shared = std::make_shared<ExportRequest>(std::move(request));
+            const std::string job_id = ctx.jobs.start(
+                [shared](rpc::JobControl& control) { return perform_export(*shared, &control); });
+            return json{{"jobId", job_id}};
+        });
 
     router.add_method("doc.validate", [&services](const json& params, rpc::RpcContext& ctx) {
         session::DocumentSession& s =
@@ -861,6 +1320,43 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         return json::object();
     });
 
+    router.add_method("doc.position", [&services](const json& params, rpc::RpcContext&) {
+        session::DocumentSession& s =
+            services.documents.require(rpc::params::string(params, "docId"));
+        if (const json* position = rpc::params::opt_field(params, "position")) {
+            if (!position->is_object()) {
+                throw rpc::invalid_params("position must be {path, offset}",
+                                          json{{"field", "position"}});
+            }
+            const json* path = rpc::params::opt_field(*position, "path");
+            if (path == nullptr || !path->is_string() ||
+                !settings::is_position_path(path->get<std::string>())) {
+                throw rpc::invalid_params(
+                    "position.path must be a structural path under body[n], "
+                    "title-info/annotation[1] or document-info/history[1]",
+                    json{{"field", "position.path"}});
+            }
+            const json* offset = rpc::params::opt_field(*position, "offset");
+            if (offset == nullptr || !offset->is_number_integer() ||
+                offset->get<std::int64_t>() < 0) {
+                throw rpc::invalid_params("position.offset must be an integer >= 0",
+                                          json{{"field", "position.offset"}});
+            }
+            const auto parsed = settings::position_from_json(*position);
+            if (!parsed) {
+                throw rpc::invalid_params("position must be {path, offset}",
+                                          json{{"field", "position"}});
+            }
+            s.position = parsed;
+            s.aliasCaret.reset();
+            record_position(services, s);
+        }
+        return position_result(services, s);
+    });
+
+    // Deprecated since feature 004 (rpc-api §3.2 "doc - deprecated"): the 1.x caret shape as
+    // an alias of doc.position, converted through the session snapshot - the only model the
+    // core has, exact for the document as loaded. Removed with apiVersion 2.
     router.add_method("doc.caret", [&services](const json& params, rpc::RpcContext&) {
         session::DocumentSession& s =
             services.documents.require(rpc::params::string(params, "docId"));
@@ -870,14 +1366,32 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
                 throw rpc::invalid_params("caret must be {view, nodeId?, offset?, line?, column?}",
                                           json{{"field", "caret"}});
             }
-            s.caret = parsed;
-            if (s.path) {
-                services.recent.set_caret(*s.path, parsed);
+            std::string path;
+            if (parsed->view == "body" && !parsed->nodeId.empty() && s.snapshot) {
+                path = model::node_path(*s.snapshot, parsed->nodeId);
+            }
+            if (!path.empty()) {
+                // A Body caret the snapshot knows: recorded as doc.position would record it.
+                s.position = settings::Position{path, std::max(0, parsed->offset)};
+                s.aliasCaret.reset();
+                record_position(services, s);
+            } else {
+                // Another view's caret or an unknown node: the session only, never the record.
+                s.aliasCaret = parsed;
             }
         }
         json result = json::object();
-        if (s.caret) {
-            result["caret"] = settings::to_json(*s.caret);
+        if (!restore_position_enabled(services)) {
+            return result;
+        }
+        if (s.aliasCaret) {
+            result["caret"] = settings::to_json(*s.aliasCaret);
+        } else if (s.position && s.snapshot) {
+            if (const auto node_id = model::node_id_at_path(*s.snapshot, s.position->path);
+                node_id && !node_id->empty()) {
+                result["caret"] =
+                    settings::to_json(settings::Caret{"body", *node_id, s.position->offset});
+            }
         }
         return result;
     });

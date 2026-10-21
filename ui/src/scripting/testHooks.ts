@@ -6,10 +6,21 @@
  *   __mfbeTest.runScript(idOrDir, {treeNodeId?})  -> RunResult   (also __mfbeTest.scripts.run)
  *   __mfbeTest.scripts.{list, refresh, state, lastRunId, cancel, treeCommands, document, toXml,
  *                       select, selectRange}
+ *   __mfbeTest.sourceMapping.{enabled, last, bodySelection, sourceSelection, select, sourceText}
+ *       (feature 004 US7: the Body <-> Source mapping switch of the FR-073 measurement, the
+ *       record of the last mapping step, and readers / a setter of the two editors' selections
+ *       for the journeys)
  */
 
 import type { CommandContext } from '@/app/commands';
-import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
+import type { ModelPoint } from '@/rpc/types';
+import { getBodyController, hasBodyController, selectionPoints } from '@/views/body/bodyEditor';
+import { getSourceEditor } from '@/views/source/sourceEditor';
+import {
+  sourceMappingState,
+  type SourceMappingStep,
+  type SourceOffsets,
+} from '@/views/source/sync';
 
 import { setBodySelection } from './api-impl';
 import type { ScriptsFeature } from './catalog';
@@ -40,11 +51,28 @@ export interface ScriptTestHooks {
   ): boolean;
 }
 
+/** `__mfbeTest.sourceMapping` (feature 004 US7; research R2.4). */
+export interface SourceMappingTestHooks {
+  /** Switches the Body <-> Source mapping (and the recording of positions) off and on. */
+  enabled: boolean;
+  /** The last mapping step the UI made (null before the first). */
+  readonly last: SourceMappingStep | null;
+  /** The Body selection as model points (null without an editor document). */
+  bodySelection(): { anchor: ModelPoint; head: ModelPoint } | null;
+  /** The Source selection as UTF-16 offsets (null before the editor exists). */
+  sourceSelection(): SourceOffsets | null;
+  /** Puts the Source selection at `anchor`..`head`; false when there is no text yet. */
+  select(anchor: number, head?: number): boolean;
+  /** The Source editor's current text (null before the editor exists). */
+  sourceText(): string | null;
+}
+
 declare global {
   interface Window {
     __mfbeTest?: Record<string, unknown> & {
       runScript?: ScriptTestHooks['run'];
       scripts?: ScriptTestHooks;
+      sourceMapping?: SourceMappingTestHooks;
     };
   }
 }
@@ -131,6 +159,30 @@ export function installScriptTestHooks(
       return text;
     },
   };
+  const { store } = feature;
+  const sourceMapping: SourceMappingTestHooks = {
+    get enabled() {
+      return sourceMappingState.enabled;
+    },
+    set enabled(value: boolean) {
+      sourceMappingState.enabled = value;
+    },
+    get last() {
+      return sourceMappingState.last;
+    },
+    bodySelection() {
+      if (!hasBodyController(store)) return null;
+      const state = getBodyController(store).editorState;
+      return state ? selectionPoints(state) : null;
+    },
+    sourceSelection: () => getSourceEditor(store)?.selectionOffsets() ?? null,
+    select: (anchor, head = anchor) => getSourceEditor(store)?.setSelection(anchor, head) ?? false,
+    sourceText: () => getSourceEditor(store)?.text ?? null,
+  };
   const existing = window.__mfbeTest ?? {};
-  window.__mfbeTest = Object.assign(existing, { runScript: hooks.run, scripts: hooks });
+  window.__mfbeTest = Object.assign(existing, {
+    runScript: hooks.run,
+    scripts: hooks,
+    sourceMapping,
+  });
 }

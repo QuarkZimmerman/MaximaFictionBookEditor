@@ -148,6 +148,7 @@ Services::Services(CoreServerOptions opts, platform::Dirs dirs_, fs::path resour
       scripts_dir(std::move(scripts)),
       settings(dirs.config / "settings.json"),
       recent(dirs.config / "recent.json"),
+      positions(dirs.config / "positions.json"),
       exclusions(dirs.config / "exclusions.txt"),
       hotkeys(dirs.config / "hotkeys.json"),
       layers(resources::Roots{}),
@@ -155,6 +156,7 @@ Services::Services(CoreServerOptions opts, platform::Dirs dirs_, fs::path resour
       jobs(notifier_) {
     settings.load();
     recent.load();
+    positions.load();
     exclusions.load();
     hotkeys.load();
     refresh_layers();
@@ -241,6 +243,16 @@ std::shared_ptr<ClipboardProvider> Services::clipboard_provider() const {
 void Services::set_clipboard_provider(std::shared_ptr<ClipboardProvider> provider) {
     std::lock_guard<std::mutex> lock(dialog_mutex_);
     clipboard_ = std::move(provider);
+}
+
+std::shared_ptr<KeyboardLayoutProvider> Services::keyboard_layouts() const {
+    std::lock_guard<std::mutex> lock(dialog_mutex_);
+    return keyboard_layouts_;
+}
+
+void Services::set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvider> provider) {
+    std::lock_guard<std::mutex> lock(dialog_mutex_);
+    keyboard_layouts_ = std::move(provider);
 }
 
 std::int64_t Services::uptime_ms() const {
@@ -365,6 +377,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_spell_handlers(router, *services);
         server::register_words_handlers(router, *services);
         server::register_scripts_handlers(router, *services);
+        server::register_system_handlers(router, *services);
 #ifdef MFBE_TEST_HOOKS
         if (services->test_hooks) {
             server::register_test_handlers(router, *services);
@@ -409,6 +422,8 @@ std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) 
         services.set_dialog_provider(services.queued_dialogs);
         services.queued_clipboard = std::make_shared<QueuedClipboardProvider>();
         services.set_clipboard_provider(services.queued_clipboard);
+        services.recording_layouts = std::make_shared<RecordingKeyboardLayoutProvider>();
+        services.set_keyboard_layout_provider(services.recording_layouts);
     }
 #else
     if (options.test_hooks) {
@@ -490,6 +505,12 @@ void CoreServer::set_dialog_provider(std::shared_ptr<DialogProvider> provider) {
 void CoreServer::set_clipboard_provider(std::shared_ptr<ClipboardProvider> provider) {
     if (impl_->services) {
         impl_->services->set_clipboard_provider(std::move(provider));
+    }
+}
+
+void CoreServer::set_keyboard_layout_provider(std::shared_ptr<KeyboardLayoutProvider> provider) {
+    if (impl_->services) {
+        impl_->services->set_keyboard_layout_provider(std::move(provider));
     }
 }
 

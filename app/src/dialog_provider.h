@@ -74,6 +74,9 @@ public:
     void setOwnerBrowser(CefRefPtr<CefBrowser> browser);
     void clearOwnerBrowser(CefRefPtr<CefBrowser> browser);
     bool hasOwnerBrowser();
+    // The main window's browser (null before it exists or after it closed); the keyboard layout
+    // bridge reads the window handle the switch request goes to from it. Thread-safe.
+    CefRefPtr<CefBrowser> ownerBrowser();
 
     // Asynchronous API (any thread). `done` is invoked exactly once, on the CEF UI thread,
     // after the dialog is dismissed. Returns false - and never calls `done` - when no owner
@@ -93,8 +96,6 @@ public:
     std::string language();
 
 private:
-    CefRefPtr<CefBrowser> ownerBrowser();
-
     std::mutex mutex_;
     CefRefPtr<CefBrowser> owner_;
     std::string language_;

@@ -502,7 +502,10 @@ jobs:
           # Feature 002: a standard user with a Cyrillic name, Russian regional formats and display
           # language opens a Cyrillic-named book in a Cyrillic folder with each package, saves it,
           # hides the status bar from the View menu and restarts (tools/ci/windows-russian-journey.ps1).
-          # The MSI is installed again for it: the smoke step above removed it.
+          # Feature 004 (US6, SC-006): the same user saves a new document through the native Save
+          # dialog, driven with UI Automation - the proposed "Толстой Лев - Война и мир.fb2" and a
+          # typed Cyrillic name come out with the same letters on disk, in the title bar and in
+          # recent.json. The MSI is installed again for it: the smoke step above removed it.
           $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
           $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /l*v $env:RUNNER_TEMP\install-journey.log" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content $env:RUNNER_TEMP\install-journey.log -Tail 80; throw "msiexec install exit $($p.ExitCode)" }

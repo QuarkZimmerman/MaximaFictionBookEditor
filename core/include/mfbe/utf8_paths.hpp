@@ -25,4 +25,13 @@ std::string utf8_from_path_generic(const std::filesystem::path& path);
 // of a system error is in the legacy code page; it is formatted with FormatMessageW instead.
 std::string utf8_error_message(const std::error_code& ec);
 
+// True when the two UTF-8 paths name the same file "as the platform compares file names"
+// (feature 004 US8, the remembered positions record - contracts/resource-formats.md §13):
+// Windows and macOS compare the lexically normalised paths ignoring letter case (Windows with
+// the system's own case-insensitive ordinal comparison, macOS with a Unicode simple case fold
+// of the Latin, Greek and Cyrillic letters), Linux compares the bytes exactly. No symbolic
+// links are resolved and no Unicode normalisation is applied: two paths to one file are two
+// names, as the original editor kept one position per file name.
+bool same_file_path(std::string_view a, std::string_view b);
+
 }  // namespace mfbe::platform

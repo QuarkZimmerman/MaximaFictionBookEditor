@@ -54,7 +54,22 @@ export interface KeymapOptions {
 /* Enter                                                                    */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * Containers an empty trailing line leaves on Enter. The annotation and history blocks of the
+ * Body view (feature 004, US2) are not among them: there is nowhere to go above a body, so Enter
+ * on their empty trailing paragraph makes an empty line instead (`emptyParagraphToEmptyLine`).
+ */
 const LEAVABLE_ON_EMPTY_LINE = new Set(['title', 'epigraph', 'cite', 'annotation']);
+
+/** Containers in which Enter on an empty paragraph turns it into an `<empty-line/>`. */
+const EMPTY_LINE_CONTAINERS = new Set([
+  'section',
+  'cite',
+  'annotation',
+  'epigraph',
+  'annotation_block',
+  'history_block',
+]);
 
 /** Caret in an empty text block that is the last child of its container. */
 function emptyTrailingBlock(state: EditorState) {
@@ -161,7 +176,7 @@ const emptyParagraphToEmptyLine: Command = (state, dispatch) => {
   }
   const container = $from.node($from.depth - 1);
   const index = $from.index($from.depth - 1);
-  if (!['section', 'cite', 'annotation', 'epigraph'].includes(container.type.name)) return false;
+  if (!EMPTY_LINE_CONTAINERS.has(container.type.name)) return false;
   if (!container.canReplaceWith(index, index + 1, N.empty_line!)) return false;
   if (dispatch) {
     const pos = $from.before();

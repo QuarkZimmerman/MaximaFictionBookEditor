@@ -187,9 +187,13 @@ interface TextEntry {
   pieces: string[];
 }
 
-/** Regions whose texts are data (the document's words, suggestions, code), not interface. */
+/**
+ * Regions whose texts are data (the document's words, suggestions, code, the keyboard layouts
+ * under the names the system gives them - feature 004 FR-090), not interface.
+ */
 const DATA_REGIONS =
-  '[role="grid"], [role="listbox"], tbody, textarea, pre, code, script, style, [aria-hidden="true"]';
+  '[role="grid"], [role="listbox"], tbody, textarea, pre, code, script, style, [aria-hidden="true"], ' +
+  '[data-testid="settings-other-layout"]';
 
 /**
  * Snippet collecting every visible text of the element `root` (a CSS selector): the text runs of
@@ -461,10 +465,20 @@ function firstParagraph(page: Page): Locator {
   return page.getByTestId('body-editor').locator('.fb-body > .fb-section > p.fb-p').first();
 }
 
-/** Puts a collapsed caret into the first paragraph and lets the editor publish it. */
+/**
+ * Puts a collapsed caret into the first paragraph and lets the editor publish it (quick
+ * successive clicks would count as double/triple clicks and select a word or the paragraph;
+ * ArrowLeft collapses such a selection to its start).
+ */
 async function caretIntoParagraph(page: Page): Promise<void> {
   await firstParagraph(page).click({ position: { x: 8, y: 8 } });
   await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(80);
+  // A collapsed caret at the paragraph's start stepped into the history block above the body
+  // (feature 004, one editing surface): step back to the paragraph.
+  if (!/^body\[/.test(await page.getByTestId('status-path').innerText())) {
+    await page.keyboard.press('ArrowRight');
+  }
   await expect(page.getByTestId('status-path')).toHaveText(/^body\[1\]\/section\[1\]\/p\[\d+\]$/);
   await expect(page.getByTestId('body-view')).toHaveAttribute('data-selected-text', '');
   await page.waitForTimeout(80);

@@ -1,14 +1,14 @@
 /**
- * Application shell: menu bar, toolbars, document tree, view area with the Description / Body /
- * Source switcher, the script run banner and the transient notice (feature 003), the
- * validation panel, status bar and the dialog layer. Wires the RPC client
- * lifecycle (status, settings, job progress notifications), the document notifications
- * (`doc.changedOnDisk`, `app.openPaths`), the Recent Files list, the `?new=1` / `?lang=` start-up
- * parameters, the scheduled check for a new version once the window is usable (feature 003
- * US5) and the global hotkey dispatcher.
+ * Application shell: menu bar, toolbars, document tree with the divider that resizes it
+ * (feature 004 US1), view area with the Description / Body / Source switcher, the script run
+ * banner and the transient notice (feature 003), the validation panel, status bar and the
+ * dialog layer. Wires the RPC client lifecycle (status, settings, job progress notifications),
+ * the document notifications (`doc.changedOnDisk`, `app.openPaths`), the Recent Files list, the
+ * `?new=1` / `?lang=` start-up parameters, the scheduled check for a new version once the window
+ * is usable (feature 003 US5) and the global hotkey dispatcher.
  */
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { DialogHost, ValidationPanel, createIssueNavigator } from '@/dialogs';
@@ -30,6 +30,7 @@ import { installGlobalErrorLogging } from './diagnostics';
 import { createAppServices, useAppServices, useCommandContext, type AppServices } from './services';
 import { MenuBar } from './MenuBar';
 import type { DynamicMenuItems } from './menus';
+import { TREE_WIDTH_VARIABLE, attachSplitterDrag, clampTreeWidth } from './splitter';
 import { forcedLanguage, openPathAtStartup } from './startup';
 import { StatusBar } from './StatusBar';
 import { followTextFieldFocus, textFieldOf } from './textFields';
@@ -99,6 +100,7 @@ function Shell({
   const { store, rpc, hotkeys, commands, dialogs, files } = services;
   const activeView = useAppState((s) => s.activeView, store);
   const treeVisible = useAppState((s) => s.treeVisible, store);
+  const treeWidth = useAppState((s) => s.treeWidth, store);
   const path = useAppState((s) => s.path, store);
   const modified = useAppState((s) => s.modified, store);
   const hasDocument = useAppState((s) => s.document !== null, store);
@@ -255,6 +257,36 @@ function Shell({
     }
   }, [i18n.language, languageResolvedTick]);
 
+  // Document Tree pane width (feature 004 US1, FR-002): the stored width is applied to the
+  // layout variable clamped to the main area - the pane never under its minimum, the view never
+  // under its own - and re-applied when the window changes size, so a width from a larger
+  // screen comes back when the window grows; the stored value itself is never rewritten. The
+  // drag (`attachSplitterDrag`) writes the same variable per frame and commits once to the
+  // store when the button is released.
+  const mainRef = useRef<HTMLDivElement>(null);
+  const splitterRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const apply = () => {
+      main.style.setProperty(
+        TREE_WIDTH_VARIABLE,
+        `${clampTreeWidth(treeWidth, main.clientWidth)}px`,
+      );
+    };
+    apply();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(apply);
+    observer.observe(main);
+    return () => observer.disconnect();
+  }, [treeWidth]);
+  useEffect(() => {
+    const divider = splitterRef.current;
+    const main = mainRef.current;
+    if (!divider || !main) return;
+    return attachSplitterDrag(divider, main, (width) => actions.setTreeWidth(store, width));
+  }, [store, treeVisible]);
+
   const recentFiles = useSyncExternalStore(
     files.recent.subscribe,
     () => files.recent.files,
@@ -282,15 +314,35 @@ function Shell({
     () => false,
   );
 
+  // `spellCheck={false}` on the root (feature 004 US9, FR-081): the HTML `spellcheck` state is
+  // inherited by every descendant without an attribute of its own, so the browser engine's own
+  // checker never marks a Description field, a dialog input or a bar - whatever dictionaries the
+  // system has; the editor's own checker (the Body view's plugin) is the only source of marks.
+  // The shell switches the engine's checker off as a whole as well (browser.enable_spellchecking).
   return (
-    <div className="mfbe-app" data-testid="app-root" data-active-view={activeView}>
+    <div
+      className="mfbe-app"
+      data-testid="app-root"
+      data-active-view={activeView}
+      spellCheck={false}
+    >
       <MenuBar dynamicItems={menuItems} />
       <Toolbars scripts={scriptToolbarButtons} />
-      <div className="mfbe-main">
+      <div className="mfbe-main" ref={mainRef}>
         {treeVisible ? (
-          <aside className="mfbe-tree-panel" data-testid="tree-panel">
-            <DocumentTree />
-          </aside>
+          <>
+            <aside className="mfbe-tree-panel" data-testid="tree-panel" data-tree-width={treeWidth}>
+              <DocumentTree />
+            </aside>
+            <div
+              ref={splitterRef}
+              className="mfbe-splitter"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t('tree.splitter')}
+              data-testid="tree-splitter"
+            />
+          </>
         ) : null}
         <section className="mfbe-view-area" data-testid="view-area">
           <ViewSwitcher />

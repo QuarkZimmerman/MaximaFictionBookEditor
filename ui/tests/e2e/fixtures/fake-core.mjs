@@ -85,12 +85,16 @@ const defaultSettings = {
     jpegQuality: 90,
     nbspDisplayChar: '\u00A0',
     versionCheck: 'monthly',
+    switchKeyboardLayout: false,
+    keyboardLayoutId: '',
+    keyboardLayoutName: '',
   },
   words: { showExclusionsInWordsDialog: false },
   session: {
     windowGeometry: null,
     toolbars: { commands: true, scripts: true, links: true, table: true, status: true },
     treeVisible: true,
+    treeWidth: 260,
     findHistory: [],
     replaceHistory: [],
     toolbarLayouts: {},
@@ -135,7 +139,13 @@ function readBlankTemplate() {
   }
 }
 
-const docs = createDocService({ dataDir, broadcast, blankTemplate: readBlankTemplate() });
+const docs = createDocService({
+  dataDir,
+  broadcast,
+  blankTemplate: readBlankTemplate(),
+  // The core gates the positions record on the setting (feature 004 US8).
+  restorePositionEnabled: () => settings.other.restorePosition !== false,
+});
 
 const methods = {
   'app.info': () => ({

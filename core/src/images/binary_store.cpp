@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <fstream>
 #include <random>
+#include <string_view>
 #include <system_error>
 
 namespace mfbe {
@@ -318,35 +319,98 @@ void BinaryStore::clear() {
 
 namespace {
 
-void count_href(const std::string& href, std::map<std::string, int>& counts) {
-    if (href.size() > 1 && href[0] == '#') {
-        ++counts[href.substr(1)];
+// Collects the `#id` references of a document: the count per id and the ids in the order
+// they are first met.
+struct References {
+    std::map<std::string, int> counts;
+    std::vector<std::string> order;
+
+    void add(const std::string& href) {
+        if (href.size() > 1 && href[0] == '#') {
+            const std::string id = href.substr(1);
+            if (++counts[id] == 1) {
+                order.push_back(id);
+            }
+        }
     }
+
+    void add_coverpage(const model::TitleInfo& info) {
+        for (const auto& image : info.coverpage) {
+            add(image.href);
+        }
+    }
+
+    // Every `href` attribute value of a raw XML fragment, whatever the prefix and the quote:
+    // a preserved <output> element is kept as text, so its parts' references are read here.
+    void add_raw_hrefs(const std::string& xml) {
+        static constexpr std::string_view kName = "href=";
+        for (std::size_t pos = xml.find(kName); pos != std::string::npos;
+             pos = xml.find(kName, pos + kName.size())) {
+            const char before = pos == 0 ? '\0' : xml[pos - 1];
+            if (before != ':' && before != ' ' && before != '\t' && before != '\n' &&
+                before != '\r') {
+                continue;
+            }
+            const std::size_t quote = pos + kName.size();
+            if (quote >= xml.size() || (xml[quote] != '"' && xml[quote] != '\'')) {
+                continue;
+            }
+            const std::size_t end = xml.find(xml[quote], quote + 1);
+            if (end == std::string::npos) {
+                return;
+            }
+            add(xml.substr(quote + 1, end - quote - 1));
+        }
+    }
+};
+
+// Whether a node root (by the path prefix of visit_nodes) belongs to the chosen roots: the
+// annotations and the history are description roots, `output[n]` the outputs, `body[n]` and
+// `extra[n]` the bodies.
+bool root_chosen(const std::string& path, const ReferenceRoots& roots) {
+    if (path.rfind("body[", 0) == 0 || path.rfind("extra[", 0) == 0) {
+        return roots.bodies;
+    }
+    if (path.rfind("output[", 0) == 0) {
+        return roots.outputs;
+    }
+    return roots.description;
 }
 
-void count_coverpage(const model::TitleInfo& info, std::map<std::string, int>& counts) {
-    for (const auto& image : info.coverpage) {
-        count_href(image.href, counts);
+References collect_references(const model::Document& document, const ReferenceRoots& roots) {
+    References refs;
+    if (roots.description) {
+        refs.add_coverpage(document.description.titleInfo);
+        if (document.description.srcTitleInfo) {
+            refs.add_coverpage(*document.description.srcTitleInfo);
+        }
     }
+    model::visit_nodes(document, [&](const model::Node& node, const std::string& path) {
+        if (!root_chosen(path, roots)) {
+            return true;
+        }
+        if (node.type == "image" || node.type == "inline-image") {
+            if (auto href = node.attr_string("href")) {
+                refs.add(*href);
+            }
+        } else if (node.type == "raw-xml" && path.rfind("output[", 0) == 0) {
+            // The <output> elements are preserved as raw XML (fb2_reader.cpp): the binaries
+            // their parts point at are references of the description all the same.
+            refs.add_raw_hrefs(node.attr_string("xml").value_or(""));
+        }
+        return true;
+    });
+    return refs;
 }
 
 }  // namespace
 
+std::vector<std::string> referenced_ids(const model::Document& document, ReferenceRoots roots) {
+    return collect_references(document, roots).order;
+}
+
 void update_reference_counts(const model::Document& document, BinaryStore& store) {
-    std::map<std::string, int> counts;
-    count_coverpage(document.description.titleInfo, counts);
-    if (document.description.srcTitleInfo) {
-        count_coverpage(*document.description.srcTitleInfo, counts);
-    }
-    model::visit_nodes(document, [&](const model::Node& node, const std::string&) {
-        if (node.type == "image" || node.type == "inline-image") {
-            if (auto href = node.attr_string("href")) {
-                count_href(*href, counts);
-            }
-        }
-        return true;
-    });
-    store.set_reference_counts(counts);
+    store.set_reference_counts(collect_references(document, ReferenceRoots{}).counts);
 }
 
 void sync_binaries(model::Document& document, const BinaryStore& store) {

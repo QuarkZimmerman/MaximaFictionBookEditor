@@ -17,10 +17,13 @@
       "delete": "Delete selected node"
     },
     "node": {
+      "annotation": "Annotation",
+      "history": "History",
       "bodyNumber": "Body {{number}}",
       "rowCount_one": "{{count}} element",
       "rowCount_other": "{{count}} elements"
     },
+    "splitter": "Resize the Document Tree pane",
     "deleteConfirm": "Delete selected node?",
     "status": {
       "noPreviousSibling": "Move Right: the section has no previous section to move into.",

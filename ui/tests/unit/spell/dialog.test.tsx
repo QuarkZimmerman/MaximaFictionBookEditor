@@ -100,7 +100,7 @@ async function renderApp(doc: Document) {
     'settings.get': new Error('no settings'),
     'doc.recent': [],
     'doc.watch': {},
-    'doc.caret': {},
+    'doc.position': {},
     'doc.close': {},
     'spell.dictionaries': [
       { tag: 'en_US', lang: 'en', name: 'en_US', source: 'bundled' },

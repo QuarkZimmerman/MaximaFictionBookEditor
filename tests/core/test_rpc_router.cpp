@@ -42,6 +42,8 @@ TEST_CASE("rpc: error table matches rpc-api.md section 1", "[rpc]") {
     CHECK(kDocSourceMalformed == 1003);
     CHECK(kDocNotFictionBook == 1004);
     CHECK(std::string(rpc::error_name(kDocNotFictionBook)) == "doc.notFictionBook");
+    CHECK(kDocSameAsOpenFile == 1006);
+    CHECK(std::string(rpc::error_name(kDocSameAsOpenFile)) == "doc.sameAsOpenFile");
     CHECK(kBinaryNotFound == 1010);
     CHECK(kSpellDictionaryUnavailable == 1020);
     CHECK(kScriptNotFound == 1030);

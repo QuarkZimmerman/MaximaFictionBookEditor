@@ -17,12 +17,19 @@
 //   elements, comments and stray text -> `raw-xml` nodes serialised verbatim (`inline` flag);
 //   unknown attributes on known elements -> attrs.unknownAttrs {name or {uri}name: value}.
 // - schemaHint: "2.1" when the input validates against the bundled XSD as-is, else "legacy".
+// - Position map (feature 004 US7, `ReadOptions::record_positions`): the intercepted SAX
+//   callbacks read the parser's input position at every start and end tag (and after every
+//   comment and processing instruction) and attach the element's byte range to the DOM node;
+//   the conversion carries it onto the model node and, once the ids are assigned, the ranges of
+//   the bodies, the annotations and the history become `ReadResult::positions`
+//   (mfbe/position_map.hpp), offsets counted in the given bytes - a stripped BOM included.
 // Not well-formed input -> ParseFailure {line, column, message} (RPC 1001 doc.parseError).
 #pragma once
 
 #include <mfbe/binary_store.hpp>
 #include <mfbe/document.hpp>
 #include <mfbe/node_ids.hpp>
+#include <mfbe/position_map.hpp>
 
 #include <filesystem>
 #include <optional>
@@ -85,6 +92,9 @@ struct ReadOptions {
     std::optional<model::FileKind> file_kind;
     // Store that holds the bytes for `…N bytes…` placeholders (Source view round trips).
     const BinaryStore* placeholder_source = nullptr;
+    // Record the position map of the mapped nodes (`ReadResult::positions`); meaningful for
+    // UTF-8 input (`force_encoding = "utf-8"`), whose decoded bytes are the given bytes.
+    bool record_positions = false;
 };
 
 struct ReadResult {
@@ -95,6 +105,9 @@ struct ReadResult {
     bool bom = false;
     // Issues from the schemaHint validation of the input (informational; empty for "2.1").
     std::vector<model::ValidationIssue> schema_issues;
+    // With `ReadOptions::record_positions`: the map of the given bytes, keyed by the assigned
+    // node ids (`text` left empty, `serial` 0 - the document session fills both in).
+    std::optional<PositionMap> positions;
 };
 
 // Reads and parses a file. Throws IoFailure / ParseFailure.

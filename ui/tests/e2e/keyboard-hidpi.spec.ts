@@ -222,6 +222,13 @@ function assertCycle(cycle: TabCycle, name: string): void {
 
 /** F10, then Left/Right until the menu button is focused, then Enter (first item highlighted). */
 async function openMenuByKeyboard(page: Page, menuId: string): Promise<Locator> {
+  // Park the pointer away from where the popup opens. `openBook` leaves it on the File menu's
+  // "Open..." item; a popup that appears under a stationary pointer gets a hover update from
+  // Chromium a few milliseconds later (`mouseover` / `mouseenter` without any `mousemove`),
+  // which highlights the item under the pointer and, when it lands after an ArrowDown of
+  // `activateItemByKeyboard`, pulls the highlight back off the item the key had reached.
+  const viewport = page.viewportSize() ?? { width: 1280, height: 800 };
+  await page.mouse.move(viewport.width - 8, viewport.height - 8);
   await page.keyboard.press('F10');
   for (let i = 0; i < 12; i += 1) {
     const focused = await page.evaluate<string | null>(

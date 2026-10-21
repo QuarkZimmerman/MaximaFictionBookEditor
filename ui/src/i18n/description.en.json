@@ -83,6 +83,20 @@
       "remove": "Remove source title info",
       "hint": "For translations: the original book's title, authors and language."
     },
+    "roles": {
+      "title": "Other persons",
+      "role": "Role:",
+      "add": "Add person",
+      "incomplete": "Enter a last name: without it the name is read back as the last name.",
+      "names": {
+        "illustrator": "Illustrator",
+        "editor": "Editor",
+        "compiler": "Compiler",
+        "designer": "Designer",
+        "commentator": "Commentator",
+        "aboutTheAuthor": "About the author"
+      }
+    },
     "custom": {
       "none": "No custom info.",
       "type": "Type:",

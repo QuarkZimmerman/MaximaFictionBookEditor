@@ -15,6 +15,10 @@ update this page when the reader, the binary store or the Body view windowing ch
 | Tree navigation in the 10 MB book (click until the Body caret moved, median of 7) | 100 ms |
 | Source view of the 10 MB book: tag completion list after the last keystroke (feature 003, FR-074) | 300 ms |
 | Source view of the 10 MB book: typing with and without the completion list (keystroke to painted frame, median of 11) | 100 ms |
+| Body ↔ Source switch of the 10 MB book: the caret/selection mapping step (round-trip median with the mapping minus the median without it, 5 round trips each; feature 004, FR-073) and every `doc.mapPositions` call in the core | 100 ms × `MFBE_PERF_FACTOR`; 100 ms |
+| Document Tree divider on the 10 MB book: every layout step of a drag (pointer move → forced layout → painted frame, 20 steps; feature 004, SC-001) | 100 ms × `MFBE_PERF_FACTOR` |
+| Description import with the 10 MB book as the source: File > Import until the status bar reports the import (feature 004, FR-031 — the constitution's opening budget applied to the source file; the import's apply step and the FBD export have no budget of their own) | 3 s × `MFBE_PERF_FACTOR` |
+| File > Open of the 10 MB book with a remembered position: until the Body view is editable with the caret in place (feature 004, US8) | 3 s |
 
 ## Measurements (T150)
 
@@ -51,6 +55,45 @@ the paint); keystrokes while the list filters (`tion`) and after it closed (` id
 debounce, off the keystroke path, resolves the context from the syntax tree parsed so far (at
 most 50 ms of extra parsing per query) and relies on CodeMirror's synchronous filtering
 (`validFor`) while a name is typed.
+
+**Body ↔ Source caret and selection mapping** (feature 004 User Story 7, FR-073; measured
+2026-10-21 by the third journey of `ui/tests/e2e/perf-large-book.spec.ts` on the same host with
+the **Release** core, the caret in a mounted paragraph of the 10 MB book, the text already
+serialised): a Body → Source → Body round trip takes 63–74 ms with the mapping (median 64 ms)
+and 62–63 ms without it (median 63 ms) — a mapping step of **1 ms** against the budget of
+100 ms × `MFBE_PERF_FACTOR`; every `doc.mapPositions` call took under 0.05 ms in the core
+(budget 100 ms). The map is recorded once, while the text is serialised or parsed (one byte
+loop in the writer; the parser's input position at every tag, ≈1 ms per parse of the 10 MB
+book), and a request resolves two points in O(log n) plus a scan of one paragraph, so the
+switch itself - the Source editor's mount - is what costs the time
+(`docs/architecture.md`, "Position map").
+
+**Document Tree divider** (feature 004 User Story 1, SC-001; measured 2026-10-21 by the `@perf`
+section of `ui/tests/e2e/us1-tree-divider.spec.ts` on the same host with the Release core, the
+10 MB book open in the Body view): a drag of 20 synthetic pointer moves costs **38 ms per layout
+step** (median; 46 ms worst) against the budget of 100 ms × `MFBE_PERF_FACTOR`, with 6 898
+spelling marks in the mounted text. Each step is one forced layout of the pane and the view
+area: the drag writes the clamped width to one CSS variable per animation frame, without React
+state, and the Body view re-wraps its mounted window. One finding shaped the measurement: the
+spelling highlighter decorates the opened book in a single transaction — thousands of marks in
+one frame — a few hundred milliseconds after the open, and a step that happened to land on that
+frame would have been charged for it; the journey therefore waits for the marks to settle
+before it starts dragging, and the number above is the layout step alone. Books with few marks
+re-layout faster; the marks are decorations of the mounted window only.
+
+**Description import with the 10 MB book as the source** (feature 004 User Story 4, FR-031;
+measured 2026-10-21 by the `@perf` section of `ui/tests/e2e/us4-import-description.spec.ts`,
+Release core): the whole file is read as Open reads it and only the description arrives;
+File > Import until the status bar reports the import took **117 ms** against the opening budget
+of 3 s × `MFBE_PERF_FACTOR` that applies to the source file. The import's apply step and the FBD
+export have no budget of their own (requester, 2026-10-20: the FBD is a small file).
+
+**Open with a remembered position** (feature 004 User Story 8; measured 2026-10-21 by the
+fourth journey of `perf-large-book.spec.ts`, Release core): reopening the 10 MB book with a
+position remembered in a paragraph three quarters into the book, the Body view is editable with
+the caret in place and scrolled into view after **592 ms** against the 3 s opening budget — the
+same run opened the book without a position in 677 ms, so the resolution of the structural path
+against the loaded model (one walk per segment) adds nothing measurable to the open.
 
 ## What was changed (T150)
 

@@ -70,6 +70,36 @@ async function rowOfSection(page: Page, number: number): Promise<Locator> {
   return found.row;
 }
 
+/**
+ * Scrolls the virtual list - to the top, or one page further down - and resolves once its rows
+ * are rendered for that position (the list re-renders on the asynchronous scroll event, a frame
+ * or more after `scrollTop` was set). Returns whether the scroll moved the list at all.
+ */
+async function scrollTree(page: Page, to: 'top' | 'nextPage'): Promise<boolean> {
+  // In-page code as a string: the e2e tsconfig has no DOM library.
+  return page.evaluate<boolean>(`(async () => {
+    const element = document.querySelector('[data-testid="tree-content"]');
+    const before = element.scrollTop;
+    element.scrollTop = ${to === 'top' ? '0' : 'before + Math.max(100, element.clientHeight - 44)'};
+    const target = element.scrollTop;
+    const rendered = () => {
+      const rows = [...element.querySelectorAll('[data-testid^="tree-row-"]')];
+      if (rows.length === 0) return false;
+      const tops = rows.map((row) => parseFloat(row.style.top));
+      const height = parseFloat(rows[0].style.height) || 22;
+      // The rendered band covers the viewport: it starts at or above the scroll position and
+      // reaches its bottom - or the end of a list shorter than the viewport (one row of
+      // tolerance for the spacer's rounding).
+      const bottom = Math.min(target + element.clientHeight, element.scrollHeight);
+      return Math.min(...tops) <= target && Math.max(...tops) + 2 * height >= bottom;
+    };
+    for (let frame = 0; frame < 60 && !rendered(); frame += 1) {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    }
+    return target !== before;
+  })()`);
+}
+
 /** One pass over the virtual list for the section `s<N>`; null when it is not rendered. */
 async function findSectionRow(page: Page, number: number): Promise<Locator | null> {
   const tree = page.getByTestId('tree-content');
@@ -77,26 +107,29 @@ async function findSectionRow(page: Page, number: number): Promise<Locator | nul
   // the row by its stable testid (`tree-row-<nodeId>`).
   const escaped = sectionNumberOf(number).replace(/\./g, '\\.');
   const caption = new RegExp(`^(Part|Chapter|Scene|Fragment) ${escaped}$`);
-  await tree.evaluate((element) => {
-    element.scrollTop = 0;
-  });
-  for (let attempt = 0; attempt < 80; attempt += 1) {
-    // One atomic lookup in the page: the virtualised rows may unmount between two calls.
-    const testId = await tree.evaluate((element, source) => {
+  // One atomic lookup in the page: the virtualised rows may unmount between two calls.
+  const lookup = () =>
+    tree.evaluate((element, source) => {
       const re = new RegExp(source);
       for (const span of element.querySelectorAll('.mfbe-tree-row-caption')) {
         if (re.test(span.textContent ?? '')) return span.parentElement?.getAttribute('data-testid');
       }
       return null;
     }, caption.source);
+  // A row the tree shows already - it scrolls to the selection when the Body caret moves - is
+  // taken as it is, without moving the list.
+  const shown = await lookup();
+  if (shown) return page.getByTestId(shown);
+  // Otherwise walk the list from the top, a page at a time, looking only at rows rendered for
+  // the position scrolled to: a lookup right after setting `scrollTop` still sees the rows of
+  // the previous position and could hand back one the list is about to unmount, and the next
+  // locator action on it would then wait for a row that never comes back (seen on the CI
+  // runner, where the re-render after the scroll took longer than the lookup's round trip).
+  await scrollTree(page, 'top');
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const testId = await lookup();
     if (testId) return page.getByTestId(testId);
-    const atEnd = await tree.evaluate((element) => {
-      const before = element.scrollTop;
-      element.scrollTop += Math.max(100, element.clientHeight - 44);
-      return element.scrollTop === before;
-    });
-    if (atEnd) break;
-    await page.waitForTimeout(40);
+    if (!(await scrollTree(page, 'nextPage'))) break;
   }
   return null;
 }
