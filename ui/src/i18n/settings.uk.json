@@ -51,6 +51,10 @@
           "bullet": "Білий маркер (◦)",
           "space": "Звичайний пробіл (невидимий)"
         },
+        "switchKeyboardLayout": "Змінювати розкладку клавіатури при відкритті документа",
+        "keyboardLayout": "Розкладка:",
+        "layoutNotInstalled": "{{name}} (не встановлена)",
+        "layoutUnsupported": "Система не дає змоги перемкнути розкладку",
         "versionCheck": "Перевірка нової версії",
         "versionCheckSchedule": "Перевіряти нову версію:",
         "versionCheckChoices": {

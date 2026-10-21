@@ -908,6 +908,147 @@ describe('file flows (T052)', () => {
   });
 });
 
+/**
+ * The keyboard layout switch when a document is opened (feature 004 US11, FR-091, SC-011): one
+ * `system.activateKeyboardLayout({id})` per document opened by any route - the start-up
+ * document, File > New, Open, Recent Files, a forwarded file (`app.openPaths`), the `?open=`
+ * restart, the changed-on-disk reload, a malformed file in the Source view, the new document
+ * after a failed start-up open - none with the option off or without a chosen layout, never
+ * from the Settings dialog; the answer and any error are swallowed.
+ */
+describe('Keyboard layout on open (feature 004 US11)', () => {
+  const RUSSIAN_ON = {
+    switchKeyboardLayout: true,
+    keyboardLayoutId: 'test-ru',
+    keyboardLayoutName: 'Russian',
+  };
+
+  const switches = (rpc: FakeRpc) =>
+    rpc.calls.filter((c) => c.method === 'system.activateKeyboardLayout').map((c) => c.params);
+
+  async function layoutSetup(
+    other: Partial<Settings['other']>,
+    responses: Record<string, unknown> = {},
+  ) {
+    const { registry, feature, rpc, dialogs } = setup({
+      'app.info': {},
+      'doc.open': { document: fakeDocument(), warnings: [] },
+      'doc.new': fakeDocument({ docId: 'doc-2', path: undefined }),
+      'system.activateKeyboardLayout': { activated: true },
+      ...responses,
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setSettings(ctx.store, settings(other));
+    return { registry, feature, rpc, dialogs, ctx };
+  }
+
+  it('makes exactly one request per open route with the option on', async () => {
+    const { registry, feature, rpc, ctx } = await layoutSetup(RUSSIAN_ON, {
+      'dialog.openFile': { paths: ['/books/alpha.fb2'] },
+      'doc.recent': [{ path: '/books/alpha.fb2', lastOpened: 'now' }],
+    });
+    // The start-up document.
+    await feature.handleStartup(ctx);
+    await vi.waitFor(() => expect(switches(rpc)).toEqual([{ id: 'test-ru' }]));
+    // File > New.
+    expect(await feature.newDocument(ctx)).toBe(true);
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(2));
+    // Open through the dialog.
+    expect(await feature.openWithDialog(ctx)).toBe(true);
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(3));
+    // Recent Files (the submenu's command of the first entry).
+    await vi.waitFor(() => expect(feature.recent.files).toHaveLength(1));
+    await registry.get('file.recent1')!.run(ctx);
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(4));
+    // A forwarded file (the command line, a double-click, a dropped file: app.openPaths).
+    const off = feature.subscribeNotifications(rpc.client, () => ctx);
+    rpc.notify('app.openPaths', { paths: ['/books/beta.fb2'] });
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(5));
+    off();
+    // The changed-on-disk reload answered Yes.
+    ctx.dialogs.messageAnswers.push('yes');
+    await feature.handleChangedOnDisk(ctx, 'doc-1', '/books/beta.fb2');
+    await vi.waitFor(() => expect(switches(rpc)).toHaveLength(6));
+    expect(switches(rpc).every((params) => (params as { id: string }).id === 'test-ru')).toBe(true);
+    // Nothing else of the flow changed: every open still watches, lists and restores.
+    expect(rpc.calls.filter((c) => c.method === 'doc.open')).toHaveLength(4);
+  });
+
+  it('the ?open= restart, a malformed file in the Source view and the new document after a failed start-up open each count', async () => {
+    const restart = await layoutSetup(RUSSIAN_ON);
+    await restart.feature.handleStartup(restart.ctx, '/books/again.fb2');
+    await vi.waitFor(() => expect(switches(restart.rpc)).toEqual([{ id: 'test-ru' }]));
+
+    const malformed = await layoutSetup(RUSSIAN_ON, {
+      'doc.open': rpcError(1001, 'doc.parseError', { line: 2, column: 3, message: 'mismatch' }),
+      'doc.openSource': { docId: 'doc-9', text: '<FictionBook>', encoding: 'utf-8' },
+    });
+    expect(await malformed.feature.openDocument(malformed.ctx, '/books/broken.fb2')).toBe(true);
+    expect(malformed.ctx.store.getState().sourceOnly).toBe(true);
+    await vi.waitFor(() => expect(switches(malformed.rpc)).toEqual([{ id: 'test-ru' }]));
+
+    const failed = await layoutSetup(RUSSIAN_ON, {
+      'doc.open': rpcError(1002, 'doc.ioError', { path: '/books/missing.fb2', reason: 'gone' }),
+    });
+    const off = failed.feature.subscribeNotifications(failed.rpc.client, () => failed.ctx);
+    failed.rpc.notify('app.openPaths', { paths: ['/books/missing.fb2'] });
+    await failed.feature.handleStartup(failed.ctx);
+    off();
+    expect(failed.dialogs.shown.map((m) => m.testId)).toEqual(['dialog-open-failed']);
+    expect(failed.ctx.store.getState().docId).toBe('doc-2');
+    // The failed open made no request; the new document shown instead made one.
+    await vi.waitFor(() => expect(switches(failed.rpc)).toEqual([{ id: 'test-ru' }]));
+  });
+
+  it('makes no request with the option off or without a chosen layout', async () => {
+    const off = await layoutSetup({ ...RUSSIAN_ON, switchKeyboardLayout: false });
+    await off.feature.handleStartup(off.ctx);
+    expect(await off.feature.newDocument(off.ctx)).toBe(true);
+    expect(await off.feature.openDocument(off.ctx, '/books/alpha.fb2')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(switches(off.rpc)).toEqual([]);
+
+    const noId = await layoutSetup({ switchKeyboardLayout: true, keyboardLayoutId: '' });
+    expect(await noId.feature.openDocument(noId.ctx, '/books/alpha.fb2')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(switches(noId.rpc)).toEqual([]);
+  });
+
+  it('waits for the settings of a start-up open and gives up quietly when they do not come', async () => {
+    // The file named on the command line opens before settings.get answered (research R5.1 H6):
+    // the request is made as soon as the settings arrive, once.
+    const { feature, rpc, ctx } = await layoutSetup(RUSSIAN_ON);
+    ctx.store.setState({ settings: null });
+    expect(await feature.openDocument(ctx, '/books/alpha.fb2')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(switches(rpc)).toEqual([]);
+    actions.setSettings(ctx.store, settings(RUSSIAN_ON));
+    await vi.waitFor(() => expect(switches(rpc)).toEqual([{ id: 'test-ru' }]));
+    // A later settings change opens nothing: the subscription ended with the first answer.
+    actions.setSettings(ctx.store, settings(RUSSIAN_ON));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(switches(rpc)).toHaveLength(1);
+  });
+
+  it('swallows the answer and any error: a missing layout, a refusal, an older core', async () => {
+    for (const answer of [
+      { activated: false, reason: 'notInstalled' },
+      { activated: false, reason: 'refused' },
+      rpcError(-32601, 'Method not found'),
+    ]) {
+      const { feature, rpc, ctx, dialogs } = await layoutSetup(RUSSIAN_ON, {
+        'system.activateKeyboardLayout': answer,
+      });
+      expect(await feature.openDocument(ctx, '/books/alpha.fb2')).toBe(true);
+      await vi.waitFor(() => expect(switches(rpc)).toHaveLength(1));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(dialogs.shown).toEqual([]);
+      expect(ctx.store.getState()).toMatchObject({ docId: 'doc-1', statusMessage: null });
+    }
+  });
+});
+
 describe('Exit and window close while a script runs (feature 003 FR-013)', () => {
   /** A quit flow started while `scriptRunning` is set; the fake "host" ends the run on cancel. */
   async function runningSetup() {

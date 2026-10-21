@@ -295,6 +295,37 @@ Books in the new language are then checked like any other - misspelt words are u
 suggestions are offered, words can be added to your custom dictionary (`custom.dic`), and
 Tools > Spell check uses it.
 
+## Keyboard layout
+
+If your system starts with one keyboard layout and your books are written in another, the
+editor can switch its own window to the layout you choose every time a document is opened -
+at start, with File > New, Open, Recent Files, a double-click or a file dropped on the window,
+the restart after a language change, the reload of a book that changed on disk. Open *Settings
+> Other*, tick **Switch keyboard layout when a document is opened** in the *Open File* group
+and pick the layout from the list; the list holds the layouts installed in the system under the
+names the system gives them and is read anew each time the dialog opens. The option is off by
+default. Nothing is installed or changed in the system: the editor asks for one of the layouts
+the system already offers, for its own window only; whether other windows follow is the
+system's rule (on Windows, *Let me set a different input method for each app window*). A layout
+you remove later is shown in Settings as "(not installed)" and ignored when a document opens;
+pick another to replace it.
+
+- **Windows**: works as described; the layout is active in the editor's window from the moment
+  the document is shown (the layout indicator in the taskbar changes while the editor is
+  focused).
+- **Linux, X11 session**: the session's layout groups are switched - what Alt+Shift (or the
+  switch you configured) does - so the whole session follows, as it does for any layout switch
+  under X11. The list is the groups of the session's keyboard configuration (`setxkbmap -query`
+  shows them).
+- **Linux, Wayland session**: the system offers an application no way to switch the layout, so
+  the option is shown greyed out with the note *The system offers no way to switch the layout*,
+  also when the editor's window is served through XWayland; the rest of the editor is
+  unaffected. Switching through the desktop's own input-source setting (GNOME, KDE) is a
+  possible later addition.
+- **macOS**: best effort - the editor selects the input source where the system allows; with
+  *Automatically switch to a document's input source* or for a window that is not active the
+  system may keep its own choice.
+
 ## Command line
 
 ```text

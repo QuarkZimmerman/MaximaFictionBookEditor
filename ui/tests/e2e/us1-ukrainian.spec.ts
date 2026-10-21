@@ -187,9 +187,13 @@ interface TextEntry {
   pieces: string[];
 }
 
-/** Regions whose texts are data (the document's words, suggestions, code), not interface. */
+/**
+ * Regions whose texts are data (the document's words, suggestions, code, the keyboard layouts
+ * under the names the system gives them - feature 004 FR-090), not interface.
+ */
 const DATA_REGIONS =
-  '[role="grid"], [role="listbox"], tbody, textarea, pre, code, script, style, [aria-hidden="true"]';
+  '[role="grid"], [role="listbox"], tbody, textarea, pre, code, script, style, [aria-hidden="true"], ' +
+  '[data-testid="settings-other-layout"]';
 
 /**
  * Snippet collecting every visible text of the element `root` (a CSS selector): the text runs of

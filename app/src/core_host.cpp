@@ -4,6 +4,7 @@
 
 #include "clipboard_bridge.h"
 #include "dialog_provider.h"
+#include "keyboard_layout_bridge.h"
 
 #include <atomic>
 #include <cstdio>
@@ -161,7 +162,7 @@ public:
         if (!server_) {
             return;
         }
-        std::shared_ptr<mfbe::DialogProvider> provider = makeCoreDialogProvider(std::move(dialogs));
+        std::shared_ptr<mfbe::DialogProvider> provider = makeCoreDialogProvider(dialogs);
         if (!provider) {
             std::fprintf(stderr,
                          "mfbe: native dialogs are not available in this build; dialog.* RPCs "
@@ -179,6 +180,18 @@ public:
             }
         } catch (const std::exception& e) {
             std::fprintf(stderr, "mfbe: failed to register the clipboard provider: %s\n", e.what());
+        }
+        // The keyboard layout switch (feature 004 US11): system.keyboardLayouts and
+        // system.activateKeyboardLayout answer through the platform; the browser-mode shell
+        // (--url, UrlOnlyHost) attaches none and the core answers "noShell".
+        try {
+            if (std::shared_ptr<mfbe::KeyboardLayoutProvider> layouts =
+                    makeCoreKeyboardLayoutProvider(std::move(dialogs))) {
+                server_->set_keyboard_layout_provider(std::move(layouts));
+            }
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "mfbe: failed to register the keyboard layout provider: %s\n",
+                         e.what());
         }
     }
 

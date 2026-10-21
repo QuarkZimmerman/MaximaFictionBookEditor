@@ -25,6 +25,12 @@
  *    forwarded file, the changed-on-disk reload, every save, Exit, the window's close request
  *    and the restart (`leaveDocument`) - remembers the Body caret by its place in document
  *    order; every opening route restores it without switching the view.
+ *  - `system.activateKeyboardLayout` is called once per document opened (`documentOpened`;
+ *    feature 004 US11, FR-091) when "Switch keyboard layout when a document is opened" is on
+ *    and a layout is chosen - at the two sinks of every opening route, `loadDocument` and
+ *    `openSourceOnly`, so the start-up document, File > New, Open, Recent Files, a forwarded
+ *    file, the restart's reopen, the changed-on-disk reload and a malformed file in the Source
+ *    view each make exactly one request (SC-011); fire-and-forget, the result never shown.
  *  - Exit and the shell's window-close request (`app.closeRequested`, feature 003 FR-013) share
  *    one quit flow: while a script runs it first asks whether to cancel the run (Yes cancels it
  *    and waits for the document to be restored, No keeps the editor open), then the usual save
@@ -59,6 +65,7 @@ import {
   type DocParseErrorData,
   type FileFilter,
   type LoadReport,
+  type Settings,
 } from '@/rpc/types';
 import {
   commitPendingSource,
@@ -247,6 +254,38 @@ function currentBodyPosition(ctx: CommandContext): StructuralPosition | null {
   return getBodyController(ctx.store).getPosition();
 }
 
+/** Longest wait of the keyboard layout hook for the settings of a start-up open. */
+export const SETTINGS_WAIT_MS = 5000;
+
+/**
+ * The `other` settings: the store's at once, or - before `settings.get` answered at start-up,
+ * when the file named on the command line is already opening - the first that arrive; null
+ * when none come within `timeoutMs` (an older core without settings).
+ */
+function otherSettingsWhenKnown(
+  store: AppStore,
+  timeoutMs = SETTINGS_WAIT_MS,
+): Promise<Settings['other'] | null> {
+  const known = store.getState().settings;
+  if (known) return Promise.resolve(known.other);
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (other: Settings['other'] | null) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      unsubscribe();
+      resolve(other);
+    };
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    const unsubscribe = store.subscribe((state) => {
+      if (state.settings) finish(state.settings.other);
+    });
+    const arrived = store.getState().settings;
+    if (arrived) finish(arrived.other);
+  });
+}
+
 /* ------------------------------------------------------------------------ */
 /* The feature                                                              */
 /* ------------------------------------------------------------------------ */
@@ -364,6 +403,29 @@ export class FileFeature {
       // A new document always starts in the Body view unless it is Source-only.
       switchView(ctx, 'body');
     }
+    this.documentOpened(ctx);
+  }
+
+  /**
+   * A document was opened by any route (feature 004 US11, FR-091): with "Switch keyboard
+   * layout when a document is opened" on and a layout chosen, asks the shell once to activate
+   * it for the editor's window - fire-and-forget, the result never shown (a layout the system
+   * no longer lists is not an error, a refused switch is logged by the core, an older core
+   * answers -32601). The setting is read from the store; the first open of a start-up (the
+   * file named on the command line arrives before `settings.get` answered) waits for the
+   * settings to arrive and gives up quietly when they do not.
+   */
+  private documentOpened(ctx: CommandContext): void {
+    const rpc = ctx.rpc;
+    if (!rpc) return;
+    void otherSettingsWhenKnown(ctx.store)
+      .then((other) => {
+        if (!other || !other.switchKeyboardLayout || !other.keyboardLayoutId) return undefined;
+        return rpc.call('system.activateKeyboardLayout', { id: other.keyboardLayoutId });
+      })
+      .catch(() => {
+        // never reported: the layout is a convenience, the document is open either way
+      });
   }
 
   private async watch(ctx: CommandContext, docId: string, enabled: boolean): Promise<void> {
@@ -543,6 +605,7 @@ export class FileFeature {
           message: error.message,
         }),
       );
+      this.documentOpened(ctx); // a malformed file in the Source view is a document opened
       await this.watch(ctx, source.docId, true);
       void this.recent.refresh(rpc);
       return true;

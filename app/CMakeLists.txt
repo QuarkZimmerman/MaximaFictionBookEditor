@@ -77,10 +77,14 @@ set(MFBE_SHELL_DEFINES
 # ---------------------------------------------------------------------------------------------
 # Pure shell logic without CEF types (the command line, the main window's close handshake, file
 # dialog requests in each platform's terms, the right-click menu, the latest-release request,
-# the editor's relaunch of itself and the window placement), shared by the bridge, the shell and
-# the mfbe_shell_tests executable (tests/shell). command_line.cpp prints the version stamps in
-# --help / --version, hence the version defines. relaunch.cpp holds the platform spawn and
-# process checks (posix_spawn / CreateProcessW): plain C++ too, no CEF.
+# the editor's relaunch of itself, the window placement and the keyboard layout switch), shared
+# by the bridge, the shell and the mfbe_shell_tests executable (tests/shell). command_line.cpp
+# prints the version stamps in --help / --version, hence the version defines. relaunch.cpp holds
+# the platform spawn and process checks (posix_spawn / CreateProcessW): plain C++ too, no CEF.
+# keyboard_layout_{win,x11}.cpp / keyboard_layout_mac.mm (feature 004 US11, contracts/shell.md
+# §2) are the platform halves of the keyboard layout switch: Windows needs shlwapi for the
+# layouts' display names, macOS the Carbon umbrella (Text Input Services), Linux the Xlib the
+# shell links anyway - public, so tests/shell reads the XKB state itself.
 
 add_library(mfbe_shell_logic STATIC
   src/close_handshake.cpp
@@ -91,6 +95,8 @@ add_library(mfbe_shell_logic STATIC
   src/context_menu.h
   src/file_dialog_request.cpp
   src/file_dialog_request.h
+  src/keyboard_layout.cpp
+  src/keyboard_layout.h
   src/permission_policy.cpp
   src/permission_policy.h
   src/relaunch.cpp
@@ -102,12 +108,25 @@ add_library(mfbe_shell_logic STATIC
 target_compile_definitions(mfbe_shell_logic PRIVATE ${MFBE_SHELL_VERSION_DEFINES})
 target_include_directories(mfbe_shell_logic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(mfbe_shell_logic PUBLIC mfbe_paths PRIVATE mfbe::options)
+if(OS_WINDOWS)
+  target_sources(mfbe_shell_logic PRIVATE src/keyboard_layout_win.cpp)
+  target_link_libraries(mfbe_shell_logic PUBLIC shlwapi)
+elseif(OS_MAC)
+  target_sources(mfbe_shell_logic PRIVATE src/keyboard_layout_mac.mm)
+  set_source_files_properties(src/keyboard_layout_mac.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+  target_link_libraries(mfbe_shell_logic PUBLIC "-framework Carbon" "-framework CoreFoundation")
+elseif(OS_LINUX)
+  target_sources(mfbe_shell_logic PRIVATE src/keyboard_layout_x11.cpp)
+  find_package(X11 REQUIRED)
+  target_link_libraries(mfbe_shell_logic PUBLIC X11::X11)
+endif()
 
 # ---------------------------------------------------------------------------------------------
 # Core bridge library (compiled with exceptions; see header comment). native_actions.cpp is
 # plain C++ (file manager, clipboard, external URLs) and lives here so both the bridge and
 # the shell sources can call it. The platform file dialogs (file_dialog_platform.h) are plain
-# C++ too: one implementation per platform.
+# C++ too: one implementation per platform. keyboard_layout_bridge.cpp marshals the core's
+# keyboard layout provider to the CEF UI thread (feature 004 US11).
 
 set(MFBE_BRIDGE_SRCS
   src/clipboard_bridge.cpp
@@ -117,6 +136,8 @@ set(MFBE_BRIDGE_SRCS
   src/dialog_provider.cpp
   src/dialog_provider.h
   src/file_dialog_platform.h
+  src/keyboard_layout_bridge.cpp
+  src/keyboard_layout_bridge.h
   src/native_actions.cpp
   src/native_actions.h)
 if(OS_WINDOWS)

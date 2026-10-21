@@ -255,8 +255,9 @@ async function strictTexts(page: Page, testId: string): Promise<{ where: string;
 
 /**
  * Every visible text line of the element `testId` (catalogue-based check, no Cyrillic
- * requirement) minus the lines of data regions (word lists, table bodies, code), which show the
- * document's own words.
+ * requirement) minus the lines of data regions (word lists, table bodies, code, the keyboard
+ * layouts under the names the system gives them - feature 004 FR-090), which show the
+ * document's or the system's own words.
  */
 async function textLines(page: Page, testId: string): Promise<string[]> {
   const snippet = `(() => {
@@ -264,7 +265,8 @@ async function textLines(page: Page, testId: string): Promise<string[]> {
     if (!root) return [];
     const lines = (text) => text.split('\\n').map((line) => line.trim()).filter((line) => line);
     const data = new Set();
-    const selector = '[role="grid"], [role="listbox"], tbody, textarea, pre, code';
+    const selector =
+      '[role="grid"], [role="listbox"], tbody, textarea, pre, code, [data-testid="settings-other-layout"]';
     for (const element of Array.from(root.querySelectorAll(selector))) {
       for (const line of lines(element.innerText)) data.add(line);
     }

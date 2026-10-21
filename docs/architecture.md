@@ -162,6 +162,39 @@ print `shelltest: spellcheck engine=off` (or `engine=error <text>`), which `tool
 asserts, and the `@platform` journey `us9-spelling-scope.spec.ts` reads the marks and the
 attributes on every e2e leg.
 
+**Keyboard layout on open (feature 004).** "Switch keyboard layout when a document is opened"
+(Settings > Other, the Open File group; `other.switchKeyboardLayout`, `other.keyboardLayoutId`,
+`other.keyboardLayoutName`) is the third shell-owned capability behind a core provider
+interface, after the dialogs and the clipboard: the core declares
+`mfbe::KeyboardLayoutProvider` (`core/include/mfbe/keyboard_layout_provider.hpp`, `list` /
+`activate` with callbacks) and serves it as `system.keyboardLayouts` and
+`system.activateKeyboardLayout` (`core/src/server/handlers/system_handlers.cpp`; results, never
+errors - `noShell` / `unsupported` without a provider, `notInstalled` for an id the system no
+longer lists, `refused` with the system's code written to the errors-only log as
+`keyboard.switchRefused`). The shell's bridge (`app/src/keyboard_layout_bridge.cpp`) posts each
+call to the CEF UI thread with the main window's native handle and answers from there; the
+platform work is plain C++ in `mfbe_shell_logic` (`app/src/keyboard_layout*.cpp|.mm`) so
+`tests/shell` runs it on each CI job: Windows lists `GetKeyboardLayoutList`, identifies a layout
+by its KLID derived from the HKL without activating anything (special layouts through the
+registry's `Layout Id`), names it by the language's localised display name plus the layout's own
+name when it is not the plain one, and switches with `WM_INPUTLANGCHANGEREQUEST` to the
+top-level window (`ActivateKeyboardLayout` as the fallback), verified with `GetKeyboardLayout` -
+never `LoadKeyboardLayout`; macOS lists the enabled, select-capable keyboard input sources and
+selects with `TISSelectInputSource` (best effort: `noErr` without a change is `activated: false`
+without a reason); Linux reports a Wayland session (`XDG_SESSION_TYPE`, `WAYLAND_DISPLAY`, also
+under XWayland) as `supported: false, reason: "wayland"` - the Settings page shows the option
+disabled with the note, requester decision D2 - and under X11 lists the XKB groups of the core
+keyboard on a `Display` of its own and locks the group by name with `XkbLockGroup` (the group
+name, never the index, is the stored id). The UI makes exactly one request per document opened
+(`FileFeature.documentOpened`, at the end of `loadDocument()` and of `openSourceOnly()`: the
+start-up document, File > New, Open, Recent Files, a forwarded file, the restart's reopen, the
+changed-on-disk reload, a malformed file in the Source view), fire-and-forget, never from the
+Settings dialog; a start-up open that precedes the `settings.get` answer waits for the settings
+to arrive. `--test-hooks` installs a recording stand-in (`test.setKeyboardLayouts`,
+`test.keyboardLayoutRequests`) for the headless journey `us11-keyboard-layout.spec.ts`; the
+platform switch itself is covered by `tests/shell/test_keyboard_layout.cpp` - on Linux under
+Xvfb with two groups (`tools/ci/shell-tests-xkb.sh`).
+
 **Save.** `doc.save` receives the current JSON model (binaries by reference), converts
 non-JPEG/PNG images according to the paste-format setting, validates, and - unless the user
 confirmed "save anyway" after validation errors - writes the FB2 2.1 text in the chosen

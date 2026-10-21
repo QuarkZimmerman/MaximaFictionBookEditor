@@ -1,13 +1,16 @@
 /**
  * Settings > Other (T130) after `IDD_SETTINGS_OTHER`: Save File (default encoding, Keep
- * Encoding), Open File (Restore Position), Scripts folder (default / custom with "..." through
- * `dialog.pickFolder` and "Open scripts folder"), Genres folder (default / custom, "Open genres
- * folder", the sources of the effective genre list), Template folder (feature 002: default /
- * custom, "Open template folder", the blank.fb2 in effect), Dialogs (ask for non-clear image
- * insertion), Images (insert clear images), Paste images as (format, JPEG quality 1-100),
- * Non-breaking space (display character) and Version check (feature 003 US5: how often the
- * editor checks for a new version at start-up - at every start, once a day / week / month,
- * never).
+ * Encoding), Open File (Restore Position and, feature 004 US11, "Switch keyboard layout when a
+ * document is opened" with the list of the layouts the system offers - read through
+ * `system.keyboardLayouts` when the dialog opens; disabled with a note where the system offers
+ * no switch, a Wayland session for one; a stored layout the system no longer lists is shown as
+ * not installed), Scripts folder (default / custom with "..." through `dialog.pickFolder` and
+ * "Open scripts folder"), Genres folder (default / custom, "Open genres folder", the sources of
+ * the effective genre list), Template folder (feature 002: default / custom, "Open template
+ * folder", the blank.fb2 in effect), Dialogs (ask for non-clear image insertion), Images (insert
+ * clear images), Paste images as (format, JPEG quality 1-100), Non-breaking space (display
+ * character) and Version check (feature 003 US5: how often the editor checks for a new version
+ * at start-up - at every start, once a day / week / month, never).
  */
 
 import { useEffect, useState } from 'react';
@@ -18,6 +21,7 @@ import { RpcError } from '@/rpc/client';
 import {
   RpcErrorCode,
   type ImageFormat,
+  type KeyboardLayoutList,
   type Settings,
   type TemplateInfo,
   type VersionCheckSchedule,
@@ -32,9 +36,13 @@ import {
   VERSION_CHECK_OPTIONS,
   describeGenreSources,
   genresInfoFrom,
+  keyboardLayoutChoice,
   parseIntegerField,
   type GenresInfo,
 } from './model';
+
+/** `system.keyboardLayouts` of a core without the method or without a shell: no switch. */
+const NO_SHELL_LAYOUTS: KeyboardLayoutList = { supported: false, reason: 'noShell', layouts: [] };
 
 export interface OtherPageProps {
   draft: Settings;
@@ -49,6 +57,11 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
   const [genres, setGenres] = useState<GenresInfo | null>(null);
   const [template, setTemplate] = useState<TemplateInfo | null>(null);
   const rpc = ctx.rpc;
+  // The keyboard layouts the system offers (feature 004 US11): null while loading; without a
+  // core there is nothing to ask.
+  const [layouts, setLayouts] = useState<KeyboardLayoutList | null>(() =>
+    rpc ? null : NO_SHELL_LAYOUTS,
+  );
 
   // The effective genre-list sources (rebuilt by the core on every call).
   useEffect(() => {
@@ -71,10 +84,47 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
       .catch(() => {
         if (!cancelled) setTemplate(null);
       });
+    // The keyboard layouts installed in the system, read when the dialog opens (FR-090; never
+    // cached by the core); a core without the method answers like a core without a shell.
+    rpc
+      .call('system.keyboardLayouts')
+      .then((result) => {
+        if (!cancelled) setLayouts(result);
+      })
+      .catch(() => {
+        if (!cancelled) setLayouts(NO_SHELL_LAYOUTS);
+      });
     return () => {
       cancelled = true;
     };
   }, [rpc]);
+
+  const layoutChoice = keyboardLayoutChoice(
+    layouts,
+    other.keyboardLayoutId,
+    other.keyboardLayoutName,
+  );
+  const layoutUnsupported = layouts !== null && !layouts.supported;
+  const pickLayout = (id: string) => {
+    const picked = layoutChoice.options.find((option) => option.id === id);
+    if (!picked) return;
+    // Id and name travel together: the name is what Settings shows once the layout is gone.
+    onChange({ keyboardLayoutId: picked.id, keyboardLayoutName: picked.name });
+  };
+  const switchLayout = (checked: boolean) => {
+    // Ticking the option without a stored choice adopts the layout the list shows (the current
+    // one, else the first), so what the user sees is what the next open activates.
+    const shown = layoutChoice.options.find((option) => option.id === layoutChoice.shownId);
+    if (checked && !other.keyboardLayoutId && shown) {
+      onChange({
+        switchKeyboardLayout: true,
+        keyboardLayoutId: shown.id,
+        keyboardLayoutName: shown.name,
+      });
+      return;
+    }
+    onChange({ switchKeyboardLayout: checked });
+  };
 
   const reportFolderError = async (error: unknown, path: string) => {
     if (error instanceof RpcError) {
@@ -181,13 +231,45 @@ export function OtherPage({ draft, onChange, ctx }: OtherPageProps) {
             testId="settings-other-keep-encoding"
           />
         </GroupBox>
-        <GroupBox title={t('dialog.settings.other.openFile')}>
+        <GroupBox title={t('dialog.settings.other.openFile')} testId="settings-other-open-file">
           <CheckField
             label={t('dialog.settings.other.restorePosition')}
             checked={other.restorePosition}
             onChange={(checked) => onChange({ restorePosition: checked })}
             testId="settings-other-restore-position"
           />
+          <CheckField
+            label={t('dialog.settings.other.switchKeyboardLayout')}
+            checked={other.switchKeyboardLayout}
+            disabled={!layoutChoice.ready}
+            onChange={switchLayout}
+            testId="settings-other-switch-layout"
+          />
+          <FieldRow
+            label={t('dialog.settings.other.keyboardLayout')}
+            htmlFor="settings-other-layout"
+          >
+            <select
+              id="settings-other-layout"
+              value={layoutChoice.shownId}
+              disabled={!layoutChoice.ready}
+              onChange={(event) => pickLayout(event.target.value)}
+              data-testid="settings-other-layout"
+            >
+              {layoutChoice.options.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.notInstalled
+                    ? t('dialog.settings.other.layoutNotInstalled', { name: option.name })
+                    : option.name}
+                </option>
+              ))}
+            </select>
+          </FieldRow>
+          {layoutUnsupported ? (
+            <div className="mfbe-settings-note" data-testid="settings-other-layout-note">
+              {t('dialog.settings.other.layoutUnsupported')}
+            </div>
+          ) : null}
         </GroupBox>
       </div>
 

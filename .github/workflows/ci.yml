@@ -482,9 +482,19 @@ jobs:
 
       # The shipped configuration is built without the test-only RPC hooks, so the core test
       # suite (which drives them) runs in the `core` job; here the application is exercised.
-      - name: Shell unit tests (file dialog requests in each platform's terms, feature 002)
+      # The keyboard layout switch (feature 004 US11, FR-093) is part of it on every system:
+      # Windows activates a layout for a hidden window of the test process in the runner's
+      # interactive desktop session (as the Russian-environment journey below), macOS lists the
+      # input sources and completes a request, Linux needs a virtual display with two XKB
+      # groups - tools/ci/shell-tests-xkb.sh starts Xvfb with `-noreset`, runs `setxkbmap -layout
+      # us,ru` and exports the group names (`x11-xkb-utils` comes with `xvfb`).
+      - name: Shell unit tests (file dialog requests, the keyboard layout switch; features 002, 004)
+        if: runner.os != 'Linux'
         shell: bash
         run: ctest --preset ${{ matrix.preset }} -L shell --output-on-failure
+      - name: Shell unit tests under Xvfb with two keyboard layout groups (features 002, 004)
+        if: runner.os == 'Linux'
+        run: tools/ci/shell-tests-xkb.sh ctest --preset ${{ matrix.preset }} -L shell --output-on-failure
 
       - name: Version (Linux)
         if: runner.os == 'Linux'

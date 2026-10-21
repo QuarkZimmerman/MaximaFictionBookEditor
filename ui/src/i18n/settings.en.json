@@ -49,6 +49,10 @@
           "bullet": "White bullet (◦)",
           "space": "Plain space (invisible)"
         },
+        "switchKeyboardLayout": "Switch keyboard layout when a document is opened",
+        "keyboardLayout": "Layout:",
+        "layoutNotInstalled": "{{name}} (not installed)",
+        "layoutUnsupported": "The system offers no way to switch the layout",
         "versionCheck": "Version check",
         "versionCheckSchedule": "Check for a new version:",
         "versionCheckChoices": {
