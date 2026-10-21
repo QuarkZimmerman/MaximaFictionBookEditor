@@ -8,6 +8,7 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { Page } from '@playwright/test';
 
@@ -22,10 +23,11 @@ export function isUiLang(value: string | null | undefined): value is UiLang {
 
 type Catalogue = { [key: string]: string | Catalogue };
 
-const I18N_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../src/i18n');
-const SCRIPT_FIXTURES = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  '../../../../tests/scripts/fixtures',
+// Resolved through fileURLToPath: a URL's pathname (`/D:/...`) is not a Windows path (the
+// `@platform` journeys run there, feature 004).
+const I18N_DIR = fileURLToPath(new URL('../../../src/i18n', import.meta.url));
+const SCRIPT_FIXTURES = fileURLToPath(
+  new URL('../../../../tests/scripts/fixtures', import.meta.url),
 );
 
 function merge(target: Catalogue, source: Catalogue): Catalogue {

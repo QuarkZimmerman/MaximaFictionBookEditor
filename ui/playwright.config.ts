@@ -43,7 +43,8 @@ export default defineConfig<CoreOptions>({
     },
     {
       // The main journeys again with the Russian interface (feature 002); the divider journey
-      // (feature 004 US1) proves the view's minimum width against each language's switcher.
+      // (feature 004 US1) proves the view's minimum width against each language's switcher,
+      // the file-name journey (feature 004 US6) the interface language's "Untitled".
       name: 'chromium-ru',
       testMatch: [
         'us1-open-save.spec.ts',
@@ -51,6 +52,7 @@ export default defineConfig<CoreOptions>({
         'us2-body-editing.spec.ts',
         'us2-template.spec.ts',
         'us5-find-modeless.spec.ts',
+        'us6-file-names.spec.ts',
         'us8-toolbars.spec.ts',
         'us12-scripts.spec.ts',
       ],
@@ -66,6 +68,7 @@ export default defineConfig<CoreOptions>({
         'us2-body-editing.spec.ts',
         'us2-template.spec.ts',
         'us5-find-modeless.spec.ts',
+        'us6-file-names.spec.ts',
         'us8-toolbars.spec.ts',
         'us12-scripts.spec.ts',
       ],

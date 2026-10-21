@@ -294,11 +294,13 @@ for (const language of ['en', 'ru', 'uk'] as const) {
       const kept = await saveAsCancelled(core, page);
       expect(kept).toMatchObject({ encodingChoices: ENCODINGS, selectedEncoding: 'windows-1251' });
 
-      // A document never saved: no file proposed, the folder last used, FictionBook files.
+      // A document never saved: the bare proposed name - the interface language's "Untitled"
+      // for the template's empty description (feature 004, FR-050) - in the folder last used,
+      // FictionBook files.
       await fileNew(page);
       const fresh = await saveAsCancelled(core, page);
       expect(fresh).toMatchObject({ filters: documentTypes(names), selectedFilter: 0 });
-      expect(fresh.defaultPath).toBeUndefined();
+      expect(fresh.defaultPath).toBe(`${uiText(language, 'app.untitled')}.fb2`);
       expect(fresh.folder).toBe(KEEPS_LAST_FOLDER ? books : undefined);
     });
 

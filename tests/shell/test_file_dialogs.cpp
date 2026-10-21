@@ -141,6 +141,19 @@ TEST_CASE("file dialogs: a dialog opens on the proposed file, or the folder last
     CHECK(proposedFile(image).folder.empty());
     CHECK(proposedFile(image).name == "обложка.jpg");
 
+    // Save As of a never-saved document (feature 004, FR-050): the name composed from the
+    // description - letters, spaces and a hyphen, no separator - travels as a bare name into
+    // the folder the core gave, untouched on every platform.
+    FileDialogRequest composed = request(FileDialogMode::kSave, documentTypes(), 0);
+    composed.default_path = "Толстой Лев - Война и мир.fb2";
+    composed.folder = "/книги";
+    const ProposedFile proposed = proposedFile(composed);
+    CHECK(proposed.folder == "/книги");
+    CHECK(proposed.name == "Толстой Лев - Война и мир.fb2");
+    composed.folder.clear();
+    CHECK(proposedFile(composed).folder.empty());
+    CHECK(proposedFile(composed).name == "Толстой Лев - Война и мир.fb2");
+
     // Open proposing a file (the custom dictionary): its folder and name.
     FileDialogRequest dictionary =
         request(FileDialogMode::kOpen, {{"Dictionaries (*.dic)", {"dic"}}}, 0);

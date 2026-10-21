@@ -321,13 +321,16 @@ describe('file flows (T052)', () => {
     const ctx = await makeContext({ rpc: rpc.client, dialogs });
     actions.setConnection(ctx.store, 'connected');
     actions.setSettings(ctx.store, settings({ defaultEncoding: 'utf-8', keepEncoding: false }));
-    // A document never saved: no file proposed, FictionBook files selected.
+    // A document never saved: the name composed from its description proposed (feature 004,
+    // FR-050), FictionBook files selected.
     actions.setDocument(ctx.store, fakeDocument({ path: undefined }));
 
     expect(await feature.saveDocument(ctx, { saveAs: true })).toBe(true);
     const dialog = rpc.calls.find((c) => c.method === 'dialog.saveFile')!;
-    expect(dialog.params).not.toHaveProperty('defaultPath', expect.anything());
-    expect(dialog.params).toMatchObject({ selectedFilter: 0 });
+    expect(dialog.params).toMatchObject({
+      defaultPath: 'Petrov Ivan - Alpha.fb2',
+      selectedFilter: 0,
+    });
     expect(dialog.params).toMatchObject({ selectedEncoding: 'utf-8', encodingLabel: 'Encoding:' });
     expect((dialog.params as { encodingChoices: string[] }).encodingChoices[0]).toBe('utf-8');
     expect(dialogs.custom).toEqual([]);
@@ -335,6 +338,74 @@ describe('file flows (T052)', () => {
       path: '/books/new.fb2',
       encoding: 'koi8-r',
     });
+  });
+
+  it('Save As: a never-saved document proposes the bare "Last First - Title" with the selected type\'s extension, a saved one its full path (feature 004, FR-050, FR-053)', async () => {
+    const { feature, rpc, dialogs } = setup({
+      'dialog.saveFile': {},
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setSettings(ctx.store, settings({}));
+    const defaultPathOf = async (): Promise<unknown> => {
+      const before = rpc.calls.length;
+      expect(await feature.saveDocument(ctx, { saveAs: true })).toBe(false);
+      const dialog = rpc.calls.slice(before).find((c) => c.method === 'dialog.saveFile')!;
+      return (dialog.params as { defaultPath?: unknown }).defaultPath;
+    };
+
+    // Never saved: the bare name in the book's own letters - no folder, so the dialog opens
+    // in the folder it remembers; the middle name is never used.
+    const description = fakeDocument().description;
+    actions.setDocument(
+      ctx.store,
+      fakeDocument({
+        path: undefined,
+        description: {
+          ...description,
+          titleInfo: {
+            ...description.titleInfo,
+            authors: [
+              {
+                lastName: 'Толстой',
+                firstName: 'Лев',
+                middleName: 'Николаевич',
+                homePages: [],
+                emails: [],
+              },
+            ],
+            bookTitle: 'Война и мир',
+          },
+        },
+      }),
+    );
+    expect(await defaultPathOf()).toBe('Толстой Лев - Война и мир.fb2');
+
+    // Neither title nor author: the interface language's "Untitled" (English here).
+    actions.setDocument(
+      ctx.store,
+      fakeDocument({
+        path: undefined,
+        description: {
+          ...description,
+          titleInfo: {
+            ...description.titleInfo,
+            authors: [{ homePages: [], emails: [] }],
+            bookTitle: '',
+          },
+        },
+      }),
+    );
+    expect(await defaultPathOf()).toBe('Untitled.fb2');
+
+    // A saved document: its own path, whatever the description says.
+    actions.setDocument(ctx.store, fakeDocument({ path: '/books/alpha.fb2' }));
+    expect(await defaultPathOf()).toBe('/books/alpha.fb2');
+    actions.setDocument(
+      ctx.store,
+      fakeDocument({ path: 'C:\\Книги\\Война и мир.fbd', fileKind: 'fbd' }),
+    );
+    expect(await defaultPathOf()).toBe('C:\\Книги\\Война и мир.fbd');
   });
 
   it('Save: validation failure asks "Do you still want to save" and retries with force', async () => {
