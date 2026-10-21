@@ -10,8 +10,10 @@
 #include <mfbe/fb2_writer.hpp>
 #include <mfbe/node_ids.hpp>
 
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
+#include <string>
 
 using namespace mfbe;
 using Catch::Matchers::ContainsSubstring;
@@ -450,7 +452,9 @@ TEST_CASE(
     CHECK(none.find("<history") == std::string::npos);
 
     // The fixture of the user-story journeys round-trips byte for byte (no fill-in involved:
-    // its document details are complete).
+    // its document details are complete). A Windows checkout gives the fixture CRLF line ends
+    // (Git's autocrlf); the writer always writes LF, as the parser reads them, so the fixture's
+    // CRs are not part of the comparison.
     MemoryBinaryStore store3;
     model::NodeIdAllocator ids3;
     const fb2::ReadResult fixture =
@@ -461,8 +465,9 @@ TEST_CASE(
     CHECK(fixture.document.description.documentInfo.history->content.empty());
     fb2::WriteOptions options;
     options.xlink_prefix = fixture.xlink_prefix;
-    CHECK(fb2::write_document(fixture.document, &store3, options).text ==
-          test::read_text(book("empty-annotation-history.fb2")));
+    std::string expected = test::read_text(book("empty-annotation-history.fb2"));
+    expected.erase(std::remove(expected.begin(), expected.end(), '\r'), expected.end());
+    CHECK(fb2::write_document(fixture.document, &store3, options).text == expected);
 }
 
 TEST_CASE("writer: raw-xml is verbatim and unknown attributes come back with their namespaces",
