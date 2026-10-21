@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <fstream>
 #include <random>
+#include <string_view>
 #include <system_error>
 
 namespace mfbe {
@@ -338,6 +339,29 @@ struct References {
             add(image.href);
         }
     }
+
+    // Every `href` attribute value of a raw XML fragment, whatever the prefix and the quote:
+    // a preserved <output> element is kept as text, so its parts' references are read here.
+    void add_raw_hrefs(const std::string& xml) {
+        static constexpr std::string_view kName = "href=";
+        for (std::size_t pos = xml.find(kName); pos != std::string::npos;
+             pos = xml.find(kName, pos + kName.size())) {
+            const char before = pos == 0 ? '\0' : xml[pos - 1];
+            if (before != ':' && before != ' ' && before != '\t' && before != '\n' &&
+                before != '\r') {
+                continue;
+            }
+            const std::size_t quote = pos + kName.size();
+            if (quote >= xml.size() || (xml[quote] != '"' && xml[quote] != '\'')) {
+                continue;
+            }
+            const std::size_t end = xml.find(xml[quote], quote + 1);
+            if (end == std::string::npos) {
+                return;
+            }
+            add(xml.substr(quote + 1, end - quote - 1));
+        }
+    }
 };
 
 // Whether a node root (by the path prefix of visit_nodes) belongs to the chosen roots: the
@@ -369,6 +393,10 @@ References collect_references(const model::Document& document, const ReferenceRo
             if (auto href = node.attr_string("href")) {
                 refs.add(*href);
             }
+        } else if (node.type == "raw-xml" && path.rfind("output[", 0) == 0) {
+            // The <output> elements are preserved as raw XML (fb2_reader.cpp): the binaries
+            // their parts point at are references of the description all the same.
+            refs.add_raw_hrefs(node.attr_string("xml").value_or(""));
         }
         return true;
     });

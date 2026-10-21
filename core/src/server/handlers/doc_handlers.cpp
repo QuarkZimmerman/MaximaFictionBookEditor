@@ -25,6 +25,11 @@
 //       document-info after the 002 FR-005 fill-in and the binaries the description's
 //       importable entries refer to, held by a hidden session `importId` (GET /binary,
 //       binary.copy, doc.close) - no Recent Files, no caret, no watch.
+//   doc.exportDescription({docId, document, path, force?}) -> {path, validation, converted}
+//       | {needsConfirmation: true, validation} | {jobId}   (feature 004 US5, FR-040 to
+//       FR-042): the live description with the binaries it refers to and one empty section,
+//       written as UTF-8 to another file, atomically; validated and confirmed as Save; 1006
+//       when `path` is the open document's own file; the session is not touched.
 //
 // Jobs run on worker threads; everything that touches the session registry is posted back
 // to the loop thread (Services::post), so the registry stays single-threaded.
@@ -571,6 +576,115 @@ json perform_save(Services& services, SaveRequest& request, rpc::JobControl* con
 }
 
 /* ----------------------------------------------------------------------------------------- */
+/* FBD export (feature 004 US5)                                                               */
+/* ----------------------------------------------------------------------------------------- */
+
+struct ExportRequest {
+    model::Document document;  // the exported document (see exported_document)
+    std::string path;          // absolute target
+    bool force = false;
+    std::string xlink_prefix;
+    std::shared_ptr<BinaryStore> store;  // the session's store, read only
+    images::ConversionPolicy policy;     // image conversion in the written copy (FR-110)
+};
+
+// The document the export writes (spec FR-041; rpc-api §3.2 doc.exportDescription): the live
+// description as received - roles and other rows, the preserved `output` elements and the
+// description's own extras included - one body holding one empty section (the smallest body
+// the FB2 2.1 schema accepts), no stylesheet and no top-level extra. The two node ids come
+// from the session's allocator like every other.
+model::Document exported_document(model::Document document, model::NodeIdAllocator& ids) {
+    model::Node section;
+    section.type = "section";
+    section.set_node_id(ids.next());
+    model::Node body;
+    body.type = "body";
+    body.set_node_id(ids.next());
+    body.content.push_back(std::move(section));
+    document.bodies.clear();
+    document.bodies.push_back(std::move(body));
+    document.stylesheets.clear();
+    std::erase_if(document.extras, [](const model::Node& n) {
+        return n.attr_string("slot").value_or("FictionBook") == "FictionBook";
+    });
+    document.path.reset();
+    document.fileKind = model::FileKind::fbd;
+    document.sourceEncoding = "utf-8";
+    return document;
+}
+
+// A store holding copies of the binaries `document` refers to - the cover pages, the images of
+// the annotations, the history and the output elements - in the source store's order. The
+// source is not changed: the conversion to JPEG/PNG happens in this copy alone.
+std::shared_ptr<BinaryStore> referenced_copy(const model::Document& document,
+                                             const BinaryStore& source) {
+    auto copy = std::make_shared<BinaryStore>();
+    const std::vector<std::string> referenced = referenced_ids(document);
+    for (const std::string& id : source.ids()) {
+        if (std::find(referenced.begin(), referenced.end(), id) == referenced.end()) {
+            continue;
+        }
+        const auto meta = source.meta(id);
+        const auto bytes = source.bytes(id);
+        if (!meta || !bytes) {
+            continue;
+        }
+        copy->put(id, meta->contentType, *bytes, source.is_raw_text(id));
+    }
+    return copy;
+}
+
+// Worker or loop thread: Save's steps on the exported document and the filtered copy of the
+// store - validate (and ask), convert the copy, serialise as UTF-8, write atomically. No
+// session bookkeeping: the open document's path, kind, encoding, snapshot, mtime, Recent Files
+// and previews stay as they are (FR-042).
+json perform_export(ExportRequest& request, rpc::JobControl* control) {
+    const auto progress = [&](const char* phase, int done) {
+        if (control != nullptr) {
+            control->check_cancelled();
+            control->progress(phase, done, 100);
+        }
+    };
+    progress("validate", 0);
+    model::Document& doc = request.document;
+    const std::shared_ptr<BinaryStore> filtered = referenced_copy(doc, *request.store);
+    update_reference_counts(doc, *filtered);
+    sync_binaries(doc, *filtered);
+    // The exported content is what is validated, not the open book (FR-042).
+    const model::ValidationReport validation =
+        validation::validate_document(doc, filtered.get(), request.xlink_prefix);
+    if (validation.errorCount > 0 && !request.force) {
+        return json{{"needsConfirmation", true}, {"validation", model::to_json(validation)}};
+    }
+    progress("convert", 30);
+    const std::vector<images::Converted> converted =
+        images::convert_store(*filtered, request.policy, [&](std::size_t done, std::size_t total) {
+            if (control != nullptr && total > 0) {
+                control->progress("convert", 30 + static_cast<std::int64_t>(30 * done / total),
+                                  100);
+            }
+        }).converted;
+    sync_binaries(doc, *filtered);
+    progress("serialize", 60);
+    fb2::WriteOptions options;
+    options.encoding = "utf-8";
+    options.xlink_prefix = request.xlink_prefix;
+    const std::string text = fb2::write_document(doc, filtered.get(), options).text;
+    progress("write", 70);
+    const std::string bytes = fb2::encode_document(text, "utf-8");
+    try {
+        atomic_file::write_atomic(platform::path_from_utf8(request.path), bytes);
+    } catch (const atomic_file::WriteError& e) {
+        // Logged once by the router as rpc.doc.ioError (method, docId, path, reason).
+        throw io_error(e.path, e.reason);
+    }
+    progress("done", 100);
+    return json{{"path", request.path},
+                {"converted", converted_json(converted)},
+                {"validation", model::to_json(validation)}};
+}
+
+/* ----------------------------------------------------------------------------------------- */
 /* Validation                                                                                 */
 /* ----------------------------------------------------------------------------------------- */
 
@@ -947,6 +1061,44 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
         });
         return json{{"jobId", job_id}};
     });
+
+    router.add_method(
+        "doc.exportDescription", [&services](const json& params, rpc::RpcContext& ctx) {
+            session::DocumentSession& s =
+                services.documents.require(rpc::params::string(params, "docId"));
+            const std::string given = rpc::params::string(params, "path");
+            if (given.empty()) {
+                throw rpc::invalid_params("path is required", json{{"field", "path"}});
+            }
+            model::Document received = document_param(params);
+            const std::string path = absolute_path(given);
+            // The open document's own file is refused by the platform's file identity (letter
+            // case, short names, symbolic links all count) before validation and before anything
+            // is written: the book's text would be lost under it (FR-040). A target that does not
+            // exist yet cannot be the open file.
+            if (s.path) {
+                std::error_code ec;
+                if (fs::equivalent(platform::path_from_utf8(path),
+                                   platform::path_from_utf8(*s.path), ec)) {
+                    throw rpc::RpcError(rpc::codes::kDocSameAsOpenFile, "", json{{"path", path}});
+                }
+            }
+            ExportRequest request;
+            request.document = exported_document(std::move(received), s.ids);
+            request.path = path;
+            request.force = rpc::params::boolean_or(params, "force", false);
+            request.xlink_prefix = s.xlinkPrefix;
+            request.store = s.binaries;
+            request.policy = services.conversion_policy();
+            // Save's threshold on the session's store: the copy is taken from it in the job.
+            if (static_cast<std::uintmax_t>(s.binaries->total_bytes()) < kJobThresholdBytes) {
+                return perform_export(request, nullptr);
+            }
+            auto shared = std::make_shared<ExportRequest>(std::move(request));
+            const std::string job_id = ctx.jobs.start(
+                [shared](rpc::JobControl& control) { return perform_export(*shared, &control); });
+            return json{{"jobId", job_id}};
+        });
 
     router.add_method("doc.validate", [&services](const json& params, rpc::RpcContext& ctx) {
         session::DocumentSession& s =

@@ -45,6 +45,8 @@ export const RpcErrorCode = {
   docIoError: 1002,
   docSourceMalformed: 1003,
   docNotFictionBook: 1004,
+  /** `doc.exportDescription`: the target is the open document's own file (feature 004). */
+  docSameAsOpenFile: 1006,
   binaryNotFound: 1010,
   spellDictionaryUnavailable: 1020,
   scriptNotFound: 1030,
@@ -509,6 +511,19 @@ export interface ReadDescriptionResult {
   warnings: ValidationIssue[];
 }
 
+/**
+ * `doc.exportDescription` result (feature 004 US5, rpc-api.md §3.2): the FBD file written -
+ * the live description, the binaries it refers to (converted to JPEG/PNG in the copy and
+ * reported in `converted` as Save reports them) and one empty section, always UTF-8 - with
+ * the validation report of that exported content. The open document's session is untouched.
+ */
+export interface ExportDescriptionResult {
+  path: string;
+  validation: ValidationReport;
+  converted: BinaryMeta[];
+  needsConfirmation?: false;
+}
+
 /* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
@@ -612,6 +627,17 @@ export interface RpcMethods {
   'doc.readDescription': {
     params: { docId: string; path: string };
     result: MaybeJob<ReadDescriptionResult>;
+  };
+  /**
+   * Writes the description of `docId` - `document` is the live model, so unsaved edits count
+   * - as a stand-alone FBD file at `path` (feature 004 US5): UTF-8 always, one empty section as
+   * the body, the referenced binaries alone. `needsConfirmation` asks Save's question, answered
+   * by a repeat with `force: true`; a job above Save's threshold with Save's phases. Errors:
+   * 1006 (the open document's own file, by file identity), 1000, 1002, invalidParams.
+   */
+  'doc.exportDescription': {
+    params: { docId: string; document: Document; path: string; force?: boolean };
+    result: MaybeJob<ExportDescriptionResult | SaveNeedsConfirmation>;
   };
   /** Cancels a running long operation; it then reports `job.failed` 1090 (rpc-api.md §1). */
   'job.cancel': { params: { jobId: string }; result: Empty };

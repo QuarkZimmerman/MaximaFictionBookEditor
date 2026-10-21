@@ -34,6 +34,8 @@ const char* error_name(int code) {
             return "doc.sourceMalformed";
         case codes::kDocNotFictionBook:
             return "doc.notFictionBook";
+        case codes::kDocSameAsOpenFile:
+            return "doc.sameAsOpenFile";
         case codes::kBinaryNotFound:
             return "binary.notFound";
         case codes::kSpellDictionaryUnavailable:
