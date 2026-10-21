@@ -314,8 +314,18 @@ function Shell({
     () => false,
   );
 
+  // `spellCheck={false}` on the root (feature 004 US9, FR-081): the HTML `spellcheck` state is
+  // inherited by every descendant without an attribute of its own, so the browser engine's own
+  // checker never marks a Description field, a dialog input or a bar - whatever dictionaries the
+  // system has; the editor's own checker (the Body view's plugin) is the only source of marks.
+  // The shell switches the engine's checker off as a whole as well (browser.enable_spellchecking).
   return (
-    <div className="mfbe-app" data-testid="app-root" data-active-view={activeView}>
+    <div
+      className="mfbe-app"
+      data-testid="app-root"
+      data-active-view={activeView}
+      spellCheck={false}
+    >
       <MenuBar dynamicItems={menuItems} />
       <Toolbars scripts={scriptToolbarButtons} />
       <div className="mfbe-main" ref={mainRef}>

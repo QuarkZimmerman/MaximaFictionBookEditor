@@ -141,6 +141,27 @@ of release 0.0.3 stays as a deprecated alias (the 1.x caret shape converted thro
 session snapshot) until the next major; `recent.json` no longer carries a caret, and a legacy
 one is converted once when its file is next opened.
 
+**Spelling scope (feature 004).** The editor's own checker - the core's Hunspell behind
+`spell.*` - covers the Body view's one document and nothing else: the ProseMirror plugin
+(`ui/src/editor/plugins/spellcheck.ts`) is installed in the Body editor alone, so the
+annotation and history blocks at its top are checked like the book text, and the Spelling
+dialog (`ui/src/features/spell/dialogController.ts`) walks the annotation, the history and the
+bodies in that order, from whichever view it is started - the command and the highlighting
+toggle keep their release 0.0.3 availability in every view. No field of the Description view
+is ever checked (the source title info's annotation, edited there only, included), nor a
+dialog, bar or the Source view. The browser engine's own checker - the one mechanism that
+marked those fields, with whatever dictionaries the system has - is kept off on both sides:
+the page sets `spellcheck="false"` on the app root (`ui/src/app/App.tsx`; the HTML state is
+inherited by every descendant) and explicitly on the two ProseMirror roots (the Body editor,
+the Description view's rich fields), and the shell sets the Chromium preference
+`browser.enable_spellchecking = false` through the global request context's preference
+manager when the browser context is initialised, before any window (`app/src/mfbe_app.cpp`;
+CEF 150 has no command-line switch for it; the preference persists in the profile but is set
+at every start). A refused preference is a warning in the errors-only log; test-hook builds
+print `shelltest: spellcheck engine=off` (or `engine=error <text>`), which `tools/shell-smoke.sh`
+asserts, and the `@platform` journey `us9-spelling-scope.spec.ts` reads the marks and the
+attributes on every e2e leg.
+
 **Save.** `doc.save` receives the current JSON model (binaries by reference), converts
 non-JPEG/PNG images according to the paste-format setting, validates, and - unless the user
 confirmed "save anyway" after validation errors - writes the FB2 2.1 text in the chosen

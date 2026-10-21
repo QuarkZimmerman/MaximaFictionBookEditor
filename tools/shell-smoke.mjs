@@ -66,6 +66,14 @@
 //                               exactly that name, the window title start with it; a second
 //                               Save As with Ctrl+A, "Новая книга.fb2" typed through xdotool
 //                               (Cyrillic keysyms under Xvfb) and Return must write that file
+//   MFBE_SMOKE_LOG              the shell's log of this run (stdout and stderr; shell-smoke.sh):
+//                               the "shelltest: argv" lines of the restart check, and on every
+//                               run the engine's spell-check line (feature 004 US9, FR-081) -
+//                               a test-hook shell prints "shelltest: spellcheck engine=off"
+//                               once the browser context is initialised; "engine=error <text>"
+//                               fails whatever the build, a test-hook shell (it printed its
+//                               argv line) without "engine=off" fails too, a shell without test
+//                               hooks (no shelltest line at all) is reported
 //
 // Fallback if a future CEF/Playwright pair regresses: puppeteer-core (`puppeteer.connect({
 // browserURL })`) or raw CDP via chrome-remote-interface; both talk to the same endpoint.
@@ -369,6 +377,38 @@ function startedArgvs() {
     }
   }
   return argvs;
+}
+
+// The browser engine's own spell checking is off (feature 004 US9, FR-081; contracts/shell.md
+// §1): the shell sets browser.enable_spellchecking=false when the browser context is
+// initialised - before the window - and a test-hook build prints "shelltest: spellcheck
+// engine=off" ("engine=error <text>" when CEF refused the preference). Read from the shell's
+// log (MFBE_SMOKE_LOG) once the page is up; the line precedes the window, so it is there by
+// then. Throws on "engine=error" whatever the build and on a test-hook shell (it printed its
+// "shelltest: argv" line) without "engine=off"; reports a shell without test hooks, which prints
+// no shelltest line at all (the release presets, the AppImage).
+function checkSpellcheckEngine() {
+  const log = process.env.MFBE_SMOKE_LOG;
+  if (!log || !fs.existsSync(log)) {
+    console.log('engine spell: not checked (no MFBE_SMOKE_LOG)');
+    return;
+  }
+  const lines = fs.readFileSync(log, 'utf8').split('\n');
+  const engine = lines.filter((line) => line.startsWith('shelltest: spellcheck engine='));
+  const error = engine.find((line) => line.startsWith('shelltest: spellcheck engine=error'));
+  if (error) {
+    throw new Error(`the shell could not switch the engine's spell checking off: ${error}`);
+  }
+  const off = engine.includes('shelltest: spellcheck engine=off');
+  const testHooks = lines.some((line) => line.startsWith('shelltest: argv '));
+  if (testHooks && !off) {
+    throw new Error('a test-hook shell did not report "shelltest: spellcheck engine=off"');
+  }
+  console.log(
+    off
+      ? 'engine spell:  off (shelltest: spellcheck engine=off)'
+      : 'engine spell:  no shelltest line (a shell without test hooks); the page attributes are the e2e journey\'s check',
+  );
 }
 
 // Position and size of the window as the page sees them (the client area, below the window
@@ -917,6 +957,10 @@ try {
   console.log(`selector:      ${expectSelector} visible`);
   console.log(`viewport:      ${viewport.w}x${viewport.h}`);
   console.log(`screenshot:    ${screenshotPath}`);
+
+  // The engine's own spell checking was switched off before the window came up (feature 004
+  // US9): every run, whatever the scenario.
+  checkSpellcheckEngine();
 
   // File given on the command line (mfbe <file>): the Body view shows its text.
   if (openFile) {

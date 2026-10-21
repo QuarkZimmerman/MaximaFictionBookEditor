@@ -533,7 +533,9 @@ export class BodyEditorController {
         ...createTableNodeViews(),
       },
       dispatchTransaction: (tr) => this.dispatch(tr),
-      attributes: { class: 'fb-editor', 'data-testid': 'body-editor' },
+      // `spellcheck="false"`: the browser engine's own checker stays off the editable root (the
+      // editor's own plugin marks the misspellings - feature 004 US9, FR-081).
+      attributes: { class: 'fb-editor', 'data-testid': 'body-editor', spellcheck: 'false' },
     });
     if (this.scrollOnMount) {
       // The selection was placed while the view was unmounted (a mapped Source selection, a

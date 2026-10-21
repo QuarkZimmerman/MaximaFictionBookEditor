@@ -4,6 +4,12 @@
  * decorations, the context menu offers suggestions / "Ignore all" / "Add to dictionary", a
  * suggestion replaces the word as one undo step, and the highlight toggle command persists
  * `view.spellHighlight`.
+ *
+ * Feature 004, User Story 9 (T072; spec FR-080): the scope of the editor's checker - the
+ * Spelling command and the highlighting toggle are enabled under exactly the release 0.0.3
+ * conditions in every view (the active view plays no part: the Body-only command of the first
+ * draft was removed at the re-alignment of 2026-10-20), and the dialog's walk over the document
+ * never yields a description field.
  */
 
 import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -15,9 +21,10 @@ import type { CommandContext } from '@/app/commands';
 import { createAppServices, type AppServices } from '@/app/services';
 import type { ModelNodeJson } from '@/editor/fromModel';
 import { spellPluginKey } from '@/editor/plugins/spellcheck';
+import { collectSpellBlocks } from '@/features/spell/dialogController';
 import { changeLanguage, initI18n } from '@/i18n';
-import type { BodyNode, Document } from '@/model/document';
-import { actions, createAppStore } from '@/model/store';
+import type { AnnotationNode, BodyNode, Document } from '@/model/document';
+import { actions, createAppStore, type ViewId } from '@/model/store';
 import type { Settings } from '@/rpc/types';
 import { getBodyController } from '@/views/body/bodyEditor';
 
@@ -240,5 +247,145 @@ describe('live spell checking', { timeout: 30_000 }, () => {
     expect(store.getState().settings?.view.spellHighlight).toBe(false);
     expect(services.commands.isChecked('tools.spellHighlight', ctx)).toBe(false);
     await waitFor(() => expect(editor.querySelectorAll('.mfbe-misspelled')).toHaveLength(0));
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 004, User Story 9: the scope of the editor's checker (T072)       */
+/* ------------------------------------------------------------------------ */
+
+const VIEWS: readonly ViewId[] = ['body', 'description', 'source'];
+
+/** The English words of a Russian book's description (spec SC-009), none of them checked. */
+const ENGLISH = {
+  publisher: 'Example Publishing House',
+  keywords: 'spelling, scope, description, fields, check',
+  city: 'London',
+  bookName: 'The Great Spelling Scope Test',
+  customInfo: 'imported from the example library catalogue by hand',
+  srcAnnotation: 'The original English annotation of this little book.',
+};
+
+/** A Russian book whose description carries English words in every kind of field. */
+function scopeDocument(): Document {
+  const doc = spellDocument();
+  const annotation = (nodeId: string, text: string): AnnotationNode =>
+    ({
+      type: 'annotation',
+      attrs: { nodeId },
+      content: [{ type: 'p', attrs: { nodeId: `${nodeId}P` }, content: [{ type: 'text', text }] }],
+    }) as unknown as AnnotationNode;
+  doc.description.titleInfo.annotation = annotation('ann', 'В диревне готовились к празнику.');
+  doc.description.titleInfo.keywords = ENGLISH.keywords;
+  doc.description.srcTitleInfo = {
+    genres: [{ code: 'sf' }],
+    authors: [{ firstName: 'John', lastName: 'Smith', homePages: [], emails: [] }],
+    bookTitle: 'Original title',
+    annotation: annotation('srcAnn', ENGLISH.srcAnnotation),
+    coverpage: [],
+    lang: 'en',
+    translators: [],
+    sequences: [],
+  };
+  doc.description.documentInfo.history = annotation('hist', 'Первая версия файла.');
+  doc.description.publishInfo = {
+    bookName: ENGLISH.bookName,
+    publisher: ENGLISH.publisher,
+    city: ENGLISH.city,
+    sequences: [],
+  };
+  doc.description.customInfo = [{ infoType: 'catalogue', text: ENGLISH.customInfo }];
+  return doc;
+}
+
+describe('spelling scope (feature 004 US9)', { timeout: 30_000 }, () => {
+  it('enables tools.spellcheck and tools.spellHighlight under the 0.0.3 conditions in every view', async () => {
+    const { store, services, ctx } = await renderApp();
+    const enabled = (id: string) => services.commands.isEnabled(id, ctx);
+
+    // Connected, a document open, the Source text clean, spell checking on: both commands in
+    // every view - the active view plays no part.
+    for (const view of VIEWS) {
+      act(() => actions.setActiveView(store, view));
+      expect(enabled('tools.spellcheck'), `tools.spellcheck in the ${view} view`).toBe(true);
+      expect(enabled('tools.spellHighlight'), `tools.spellHighlight in the ${view} view`).toBe(
+        true,
+      );
+    }
+
+    // A dirty Source text: the dialog waits, the toggle does not - in every view alike.
+    act(() => actions.setSourceDirty(store, true));
+    for (const view of VIEWS) {
+      act(() => actions.setActiveView(store, view));
+      expect(enabled('tools.spellcheck'), `dirty Source, ${view} view`).toBe(false);
+      expect(enabled('tools.spellHighlight'), `dirty Source, ${view} view`).toBe(true);
+    }
+    act(() => actions.setSourceDirty(store, false));
+
+    // Spell checking off in Settings: no dialog, the toggle stays.
+    act(() =>
+      actions.setSettings(store, {
+        ...store.getState().settings!,
+        view: { ...store.getState().settings!.view, spellEnabled: false },
+      }),
+    );
+    for (const view of VIEWS) {
+      act(() => actions.setActiveView(store, view));
+      expect(enabled('tools.spellcheck'), `spellEnabled off, ${view} view`).toBe(false);
+      expect(enabled('tools.spellHighlight'), `spellEnabled off, ${view} view`).toBe(true);
+    }
+    act(() =>
+      actions.setSettings(store, {
+        ...store.getState().settings!,
+        view: { ...store.getState().settings!.view, spellEnabled: true },
+      }),
+    );
+
+    // A document shown in the Source view only (a malformed file): no dialog.
+    act(() => actions.setDocument(store, spellDocument(), { sourceOnly: true }));
+    for (const view of VIEWS) {
+      act(() => actions.setActiveView(store, view));
+      expect(enabled('tools.spellcheck'), `source only, ${view} view`).toBe(false);
+      expect(enabled('tools.spellHighlight'), `source only, ${view} view`).toBe(true);
+    }
+    act(() => actions.setDocument(store, spellDocument()));
+    act(() => actions.setActiveView(store, 'body'));
+    expect(enabled('tools.spellcheck')).toBe(true);
+
+    // No document: no dialog, the toggle stays; disconnected: neither.
+    act(() => actions.closeDocument(store));
+    expect(enabled('tools.spellcheck')).toBe(false);
+    expect(enabled('tools.spellHighlight')).toBe(true);
+    act(() => actions.setConnection(store, 'disconnected'));
+    expect(enabled('tools.spellcheck')).toBe(false);
+    expect(enabled('tools.spellHighlight')).toBe(false);
+  });
+
+  it('walks the annotation, the history and the bodies only - never a description field', () => {
+    const doc = scopeDocument();
+    const blocks = collectSpellBlocks(doc);
+    // The order of the Body view: the annotation block, the history block, then the bodies.
+    expect(blocks.map((block) => `${block.where}:${block.nodeId}`)).toEqual([
+      'annotation:annP',
+      'history:histP',
+      'body:p1',
+    ]);
+    expect(new Set(blocks.map((block) => block.where))).toEqual(
+      new Set(['annotation', 'history', 'body']),
+    );
+    // Not one English word of the description reaches the walk - the source title info's
+    // annotation, edited in the Description view only, included (FR-080).
+    const walked = blocks.map((block) => block.text).join('\n');
+    for (const [field, value] of Object.entries(ENGLISH)) {
+      expect(walked, `${field} is not checked`).not.toContain(value);
+      for (const word of value.split(/[\s,.]+/).filter(Boolean)) {
+        expect(walked, `"${word}" of ${field} is not checked`).not.toMatch(
+          new RegExp(`(^|[^\\p{L}])${word}([^\\p{L}]|$)`, 'u'),
+        );
+      }
+    }
+    expect(blocks.some((block) => block.nodeId === 'srcAnnP')).toBe(false);
+    expect(walked).toContain('диревне');
+    expect(walked).toContain('Первая версия файла.');
   });
 });

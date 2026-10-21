@@ -26,6 +26,9 @@
 #     switched to English in Settings and Yes answered, the editor ends with exit code 0 and a new
 #     mfbe.exe process - started with --wait-for-exit <old pid>, --window-geometry and the book -
 #     comes up with the book open and the interface English; File > Exit (F10, Down, X) ends it;
+#   - the shell did not report a refused switch-off of the browser engine's own spell checking
+#     (feature 004 US9: no "shelltest: spellcheck engine=error" line; a test-hook shell must have
+#     printed "shelltest: spellcheck engine=off" - the release packages print no shelltest line);
 #   - recent.json lists the book's path byte for byte in UTF-8, and the two files Save As wrote;
 #   - no folder appeared under C:\Users or C:\, nothing but those two files appeared next to the
 #     book's folder, the installed copy wrote nothing into its program folder (a portable copy
@@ -216,6 +219,33 @@ function Assert-RussianInterface {
     }
 }
 
+# The browser engine's own spell checking is off (feature 004 US9, FR-081): the shell sets the
+# Chromium preference browser.enable_spellchecking=false at every start and a test-hook build
+# reports it on stdout as "shelltest: spellcheck engine=off" ("engine=error <text>" when the
+# preference was refused). An "engine=error" line fails the run whatever the build; a build with
+# test hooks (it prints its "shelltest: argv" line at start) must have printed "engine=off"; the
+# release packages this journey runs have no test hooks and print no shelltest line at all - the
+# page-side attributes (spellcheck="false") are the check that reaches them (us9-spelling-scope).
+function Assert-EngineSpellcheckOff([string]$StdoutFile) {
+    $lines = @()
+    if (Test-Path -LiteralPath $StdoutFile) {
+        $lines = @(Get-Content -LiteralPath $StdoutFile -Encoding utf8 -ErrorAction SilentlyContinue)
+    }
+    $engine = @($lines | Where-Object { $_ -like 'shelltest: spellcheck engine=*' })
+    foreach ($line in $engine) {
+        if ($line -clike 'shelltest: spellcheck engine=error*') { throw "the shell could not switch the engine's spell checking off: $line" }
+    }
+    $testHooks = [bool]($lines | Where-Object { $_ -like 'shelltest: argv *' })
+    if ($testHooks -and -not ($engine -ccontains 'shelltest: spellcheck engine=off')) {
+        throw 'a test-hook shell did not report "shelltest: spellcheck engine=off"'
+    }
+    if ($engine -ccontains 'shelltest: spellcheck engine=off') {
+        Write-Host 'engine spell checking: off (shelltest: spellcheck engine=off)'
+    } else {
+        Write-Host 'engine spell checking: no shelltest line (a shell without test hooks); the page attributes are checked by the e2e journey'
+    }
+}
+
 # On a failure: the DevTools targets (a native message box is a page of its own), the dialogs open
 # in the page and the focused element.
 function Show-PageState([int]$Port) {
@@ -257,6 +287,8 @@ function Invoke-EditorRun([string]$Label, [string]$Arguments, [scriptblock]$Step
         } catch {
             Write-Host "Focus emulation unavailable: $($_.Exception.Message)"
         }
+        # The engine's spell checking was switched off before the window came up (feature 004 US9).
+        Assert-EngineSpellcheckOff $stdout
         & $Steps
     } catch {
         Show-PageState $port

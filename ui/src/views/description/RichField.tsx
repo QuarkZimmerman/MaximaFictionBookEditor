@@ -111,7 +111,15 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
         ...createRawXmlNodeViews(() => t('editing.unknownElement')),
         ...createTableNodeViews(),
       },
-      attributes: { class: 'fb-editor mfbe-desc-rich', 'data-testid': testId },
+      // No spell plugin here and `spellcheck="false"` for the engine's own checker: the
+      // Description view is never checked (feature 004 US9, FR-080 / FR-081) - the annotation
+      // and history are checked in the Body view's blocks, the source title info's annotation,
+      // edited here only, never.
+      attributes: {
+        class: 'fb-editor mfbe-desc-rich',
+        'data-testid': testId,
+        spellcheck: 'false',
+      },
       handleDOMEvents: {
         blur: () => {
           controller.closeEntry();

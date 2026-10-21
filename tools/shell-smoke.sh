@@ -94,6 +94,15 @@
 #                               accepts it and the file must exist under exactly that name in
 #                               the remembered folder; a second Save As with Ctrl+A, "Новая
 #                               книга.fb2" typed with xdotool and Return must write that file
+#   (every run)                 The browser engine's own spell checking is off (feature 004 US9,
+#                               FR-081): the shell sets browser.enable_spellchecking=false at
+#                               every start and a test-hook build prints "shelltest: spellcheck
+#                               engine=off" ("engine=error <text>" when the preference was
+#                               refused). An "engine=error" line fails the run whatever the
+#                               build; a test-hook shell (it prints "shelltest: argv" at start)
+#                               must have printed "engine=off"; a shell without test hooks (the
+#                               release presets, the AppImage) prints no shelltest line, which
+#                               is reported - the page attributes are the e2e journey's check.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -449,6 +458,9 @@ fi
 mkdir -p "$TMP/home/.config/gtk-3.0"
 printf '* { background-image: url("%s"); }\n' "$ROOT/resources/icons/app/mfbe-64.png" \
   >"$TMP/home/.config/gtk-3.0/gtk.css"
+# The shell's log of this run, for shell-smoke.mjs: the "shelltest: argv" lines of the restart
+# check and the engine's spell-check line of every run (feature 004 US9).
+export MFBE_SMOKE_LOG="$TMP/mfbe.log"
 
 # Starts the shell under Xvfb with the common arguments plus "$@" and waits for its CDP endpoint.
 start_shell() {
@@ -487,9 +499,30 @@ print("CDP Protocol:   ", info.get("Protocol-Version"))
 '
 }
 
+# The browser engine's own spell checking is off (feature 004 US9, FR-081; shell.md §1): the
+# shell's "shelltest: spellcheck engine=off" line, printed by a test-hook build once the browser
+# context is initialised. "engine=error <text>" fails whatever the build; a test-hook shell
+# (recognised by its "shelltest: argv" line) must have printed "engine=off"; a shell without test
+# hooks prints no shelltest line and is reported as such. Called after every CDP scenario, when
+# the line is long in the log (it precedes the window).
+check_spellcheck_engine() {
+  local log="$TMP/mfbe.log"
+  if grep -q "^shelltest: spellcheck engine=error" "$log" 2>/dev/null; then
+    echo "shell-smoke: the shell could not switch the engine's spell checking off: $(grep -o "shelltest: spellcheck engine=error.*" "$log" | head -n1)" >&2
+    exit 1
+  fi
+  if grep -qxF "shelltest: spellcheck engine=off" "$log" 2>/dev/null; then
+    echo "shell-smoke: engine spell checking: off (shelltest: spellcheck engine=off)"
+  elif grep -q "^shelltest: argv " "$log" 2>/dev/null; then
+    echo "shell-smoke: a test-hook shell did not report 'shelltest: spellcheck engine=off'" >&2
+    exit 1
+  else
+    echo "shell-smoke: engine spell checking: no shelltest line (a shell without test hooks); the page attributes are checked by the e2e journey"
+  fi
+}
+
 if [[ "$RESTART" == "1" ]]; then
   # --- restart of the editor by itself (feature 003 US3) ----------------------------------------
-  export MFBE_SMOKE_LOG="$TMP/mfbe.log"
   if [[ "$RESTART_FAIL" == "1" ]]; then
     VARIANTS=(normal)
     # Honoured by test-hook builds only: the relaunch tries this program instead of its own.
@@ -508,6 +541,7 @@ if [[ "$RESTART" == "1" ]]; then
     start_shell --window-geometry "$geometry"
     MFBE_SMOKE_RESTART="$variant" MFBE_SMOKE_SCREENSHOT="${MFBE_SMOKE_SCREENSHOT%.png}-restart-$variant.png" \
       node "$ROOT/tools/shell-smoke.mjs" "$CDP_PORT"
+    check_spellcheck_engine
     stop_shell
   done
   if grep -q "mfbe: sandbox available" "$TMP/mfbe.log"; then
@@ -522,6 +556,7 @@ start_shell
 
 # --- Playwright over CDP ----------------------------------------------------------------------
 node "$ROOT/tools/shell-smoke.mjs" "$CDP_PORT"
+check_spellcheck_engine
 
 if [[ "$CLOSE" == "1" ]]; then
   # The scenario ended with the editor closing itself (No in the save prompt): the shell - and
