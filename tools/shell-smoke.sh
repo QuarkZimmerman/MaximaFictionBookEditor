@@ -144,17 +144,19 @@ APP_PID=""
 CDP_PORT=""
 PORTABLE_DIR=""
 # Ends the shell started by start_shell (and, in the restart scenario, the instance it started,
-# which runs in a session of its own and is found by its debugging port).
+# which runs in a session of its own and is found by its debugging port). Best effort: the
+# restart scenario calls it between its variants under `set -e`, and a group that TERM already
+# emptied makes the KILL fail with "No such process" - that is success, not an error.
 stop_shell() {
   if [[ -n "$APP_PID" ]]; then
     # xvfb-run was started in its own session: terminate the whole group (Xvfb + shell +
     # Chromium sub-processes).
-    kill -TERM -- "-$APP_PID" 2>/dev/null
+    kill -TERM -- "-$APP_PID" 2>/dev/null || true
     for _ in $(seq 1 20); do
       kill -0 "$APP_PID" 2>/dev/null || break
       sleep 0.25
     done
-    kill -KILL -- "-$APP_PID" 2>/dev/null
+    kill -KILL -- "-$APP_PID" 2>/dev/null || true
     APP_PID=""
   fi
   if [[ -n "$CDP_PORT" ]]; then
