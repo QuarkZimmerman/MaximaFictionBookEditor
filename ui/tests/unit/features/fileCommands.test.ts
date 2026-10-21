@@ -7,6 +7,7 @@ import {
   saveAsSelectedType,
   sourceOnlyDocument,
 } from '@/features/file/fileCommands';
+import { registerSettingsRuntime } from '@/features/settings/apply';
 import { actions } from '@/model/store';
 import {
   commitPendingSource,
@@ -15,6 +16,8 @@ import {
   updateSourceText,
 } from '@/views/source/sourceSession';
 import type { MessageButtonId, Settings } from '@/rpc/types';
+
+import { mergeSettings } from '../settings/fixtures';
 
 import {
   CLEAN_REPORT,
@@ -757,6 +760,33 @@ describe('Exit and window close while a script runs (feature 003 FR-013)', () =>
     await feature.exitApplication(ctx);
     expect(dialogs.shown).toHaveLength(0);
     expect(methods(rpc)).toContain('app.quit');
+  });
+
+  it('Exit writes a pending session save before app.quit (feature 004 US1, FR-003)', async () => {
+    let current = settings({});
+    const { feature, rpc, dialogs } = setup({
+      'app.quit': {},
+      'settings.set': (params: unknown) => {
+        current = mergeSettings(current, (params as { patch: unknown }).patch);
+        return { settings: current, restartRequired: false };
+      },
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs });
+    actions.setConnection(ctx.store, 'connected');
+    actions.setDocument(ctx.store, fakeDocument());
+    const runtime = registerSettingsRuntime({ store: ctx.store, hotkeys: ctx.hotkeys });
+    actions.setSettings(ctx.store, current);
+    await runtime.attach(rpc.client);
+
+    // The divider was dragged a moment ago; the delayed save has not gone out yet.
+    actions.setTreeWidth(ctx.store, 388);
+    await feature.exitApplication(ctx);
+    const order = methods(rpc).filter((m) => m === 'settings.set' || m === 'app.quit');
+    expect(order).toEqual(['settings.set', 'app.quit']);
+    expect(rpc.calls.find((c) => c.method === 'settings.set')!.params).toEqual({
+      patch: { session: { treeWidth: 388 } },
+    });
+    expect(current.session.treeWidth).toBe(388);
   });
 
   it('app.closeRequested runs the same flow and ends in app.quit({force: true})', async () => {

@@ -42,10 +42,12 @@ export default defineConfig<CoreOptions>({
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      // The main journeys again with the Russian interface (feature 002).
+      // The main journeys again with the Russian interface (feature 002); the divider journey
+      // (feature 004 US1) proves the view's minimum width against each language's switcher.
       name: 'chromium-ru',
       testMatch: [
         'us1-open-save.spec.ts',
+        'us1-tree-divider.spec.ts',
         'us2-body-editing.spec.ts',
         'us2-template.spec.ts',
         'us5-find-modeless.spec.ts',
@@ -60,6 +62,7 @@ export default defineConfig<CoreOptions>({
       name: 'chromium-uk',
       testMatch: [
         'us1-open-save.spec.ts',
+        'us1-tree-divider.spec.ts',
         'us2-body-editing.spec.ts',
         'us2-template.spec.ts',
         'us5-find-modeless.spec.ts',

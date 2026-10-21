@@ -119,6 +119,76 @@ describe('SettingsFeature session persistence', () => {
     expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(1);
   });
 
+  it('writes the Document Tree pane width when a drag ends (feature 004 US1, FR-003)', async () => {
+    let current = defaultSettings();
+    const rpc = fakeRpc({
+      'hotkeys.get': rpcError(-32601, 'Method not found'),
+      'settings.set': (params: unknown) => {
+        current = mergeSettings(current, (params as { patch: unknown }).patch);
+        return { settings: current, restartRequired: false };
+      },
+    });
+    const store = createAppStore();
+    const feature = new SettingsFeature(
+      { store, hotkeys: new HotkeyMap('linux') },
+      { root: null, window: null, search: '' },
+    );
+    feature.install();
+    actions.setSettings(store, current);
+    await feature.attach(rpc.client);
+
+    actions.setTreeWidth(store, 372);
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(0); // debounced
+    await vi.advanceTimersByTimeAsync(300);
+    const calls = rpc.calls.filter((c) => c.method === 'settings.set');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.params).toEqual({ patch: { session: { treeWidth: 372 } } });
+    expect(current.session.treeWidth).toBe(372);
+    expect(store.getState().settings?.session.treeWidth).toBe(372);
+
+    // The same width again: nothing to write.
+    actions.setTreeWidth(store, 372);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(1);
+  });
+
+  it('flushSessionSave writes a pending save at once - the quit flow waits for it (FR-003)', async () => {
+    let current = defaultSettings();
+    const rpc = fakeRpc({
+      'hotkeys.get': rpcError(-32601, 'Method not found'),
+      'settings.set': (params: unknown) => {
+        current = mergeSettings(current, (params as { patch: unknown }).patch);
+        return { settings: current, restartRequired: false };
+      },
+    });
+    const store = createAppStore();
+    const feature = new SettingsFeature(
+      { store, hotkeys: new HotkeyMap('linux') },
+      { root: null, window: null, search: '' },
+    );
+    feature.install();
+    actions.setSettings(store, current);
+    await feature.attach(rpc.client);
+
+    // Nothing pending: resolves without a call.
+    await feature.flushSessionSave();
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(0);
+
+    // The drag ended a moment ago, the delayed save has not gone out: the flush sends it now
+    // and resolves once the core answered; the timer fires nothing afterwards.
+    actions.setTreeWidth(store, 301);
+    actions.toggleTree(store);
+    await feature.flushSessionSave();
+    const calls = rpc.calls.filter((c) => c.method === 'settings.set');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.params).toEqual({
+      patch: { session: { treeVisible: false, treeWidth: 301 } },
+    });
+    expect(current.session.treeWidth).toBe(301);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(1);
+  });
+
   it('saves a hidden status bar although the core reports the settings before the delayed save', async () => {
     let current = defaultSettings();
     const rpc = fakeRpc({
