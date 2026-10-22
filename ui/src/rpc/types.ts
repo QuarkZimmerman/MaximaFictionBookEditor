@@ -272,7 +272,15 @@ export interface Settings {
      * absent until one did, never written on failure (feature 003, data-model §5).
      */
     lastVersionCheck?: string;
+    /**
+     * Width of the AI panel in CSS px (feature 005, FR-040; default 360, core range 100-10000,
+     * never clamped by the core). Written when the panel's divider drag ends; the UI clamps
+     * the width it applies to 280-800 px and the window without rewriting the setting.
+     */
+    aiPanelWidth: number;
   };
+  /** The AI assistant (feature 005, rpc-api.md §3.7, resource-formats.md §B). */
+  ai: AiSettings;
 }
 
 export interface ToolbarVisibility {
@@ -292,7 +300,11 @@ export type DeepPartial<T> = {
       : T[K];
 };
 
-/** `settings.set` patch; a toolbar layout set to `null` restores the original layout. */
+/**
+ * `settings.set` patch; a toolbar layout set to `null` restores the original layout. The `ai`
+ * group patches like the others (feature 005, rpc-api.md §3.7): `ai.customVerified` is written
+ * whole with its three members, `ai.agreements` replaces the array whole.
+ */
 export type SettingsPatch = DeepPartial<Omit<Settings, 'session'>> & {
   session?: DeepPartial<Omit<Settings['session'], 'toolbarLayouts'>> & {
     toolbarLayouts?: Partial<Record<string, string[] | null>>;
@@ -555,6 +567,56 @@ export interface ExportDescriptionResult {
   validation: ValidationReport;
   converted: BinaryMeta[];
   needsConfirmation?: false;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Feature 005 - AI assistant (specs/005-ai-assistant/contracts/rpc-api.md) */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Settings group `ai` (rpc-api.md §3.7, resource-formats.md §B). The custom key is stored in
+ * clear with the settings and shown masked by the page; for a request it never travels from
+ * the UI to the core.
+ */
+export interface AiSettings {
+  /** `free` (default): a bundled or user list entry; `custom`: the triple; `disabled`. */
+  mode: 'free' | 'custom' | 'disabled';
+  /** The chosen free entry's id (default `ovhcloud`); not validated against the list. */
+  freeServiceId: string;
+  custom: {
+    /** `""` or an absolute http(s) URL with a host, no query/fragment/user info, <= 2048. */
+    address: string;
+    /** <= 4096 characters, no control characters; stored as given. */
+    key: string;
+    /** <= 256 characters, no control characters; empty until picked or typed. */
+    model: string;
+  };
+  /**
+   * Written by the UI at OK together with the triple from a verified `ai.test`; the core keeps
+   * it only while `fingerprint` is the SHA-256 of `address\0key\0model` of the stored triple,
+   * else stores the default `{fingerprint: '', model: '', at: ''}` (never an error).
+   */
+  customVerified: AiVerifiedRecord;
+  /** First-use agreements, one per agreement key (an entry id or `custom:<address>`). */
+  agreements: AiAgreement[];
+}
+
+export interface AiVerifiedRecord {
+  /** `""` or 64 lower-case hex digits. */
+  fingerprint: string;
+  /** The model that answered (<= 256 characters). */
+  model: string;
+  /** `""` or ISO 8601 UTC - the time of the test. */
+  at: string;
+}
+
+export interface AiAgreement {
+  /** The agreement key: a free entry's `id` or `custom:<address as stored>`. */
+  service: string;
+  /** The service's host (`host` or `host:port`) when the user agreed. */
+  host: string;
+  /** ISO 8601 UTC. */
+  at: string;
 }
 
 /* ------------------------------------------------------------------------ */

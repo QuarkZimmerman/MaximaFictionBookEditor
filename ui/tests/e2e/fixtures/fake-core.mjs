@@ -99,6 +99,15 @@ const defaultSettings = {
     replaceHistory: [],
     toolbarLayouts: {},
     lastFileDialogFolder: '',
+    aiPanelWidth: 360,
+  },
+  // Feature 005 (resource-formats §B).
+  ai: {
+    mode: 'free',
+    freeServiceId: 'ovhcloud',
+    custom: { address: 'https://api.openai.com/v1', key: '', model: '' },
+    customVerified: { fingerprint: '', model: '', at: '' },
+    agreements: [],
   },
 };
 
