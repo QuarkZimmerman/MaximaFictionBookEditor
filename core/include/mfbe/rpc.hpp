@@ -61,6 +61,9 @@ inline constexpr int kReleaseUnavailable = 1060;
 inline constexpr int kRestartUnavailable = 1070;
 inline constexpr int kRestartFailed = 1071;
 inline constexpr int kCancelled = 1090;
+// Feature 005 (the AI assistant): doc.fragmentFromXml - the parent element cannot hold this
+// element {element, parent}.
+inline constexpr int kAiFragmentNotAllowed = 1201;
 }  // namespace codes
 
 // Stable name of an error code ("doc.notFound", "invalidParams", ...); "" for unknown codes.

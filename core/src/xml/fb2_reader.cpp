@@ -6,6 +6,7 @@
 #include <mfbe/encodings.hpp>
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/schema_table.hpp>
 #include <mfbe/utf8_paths.hpp>
 
 #include <libxml/SAX2.h>
@@ -20,7 +21,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <memory>
 #include <set>
+#include <utility>
 
 namespace mfbe::fb2 {
 namespace {
@@ -1435,6 +1438,137 @@ SourceText read_source(const std::filesystem::path& path) {
     out.text = std::move(decoded.utf8);
     out.error = check_well_formed(out.text);
     return out;
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Fragments (feature 005)                                                                   */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+// Walks the parsed fragment below `parent_el` (named `parent`) against the content table and
+// throws FragmentNotAllowed for the first pair the schema does not admit, in document order.
+void admit_fragment(const xmlNode* parent_el, const std::string& parent,
+                    const schema::ContentTable& table) {
+    static const schema::ElementContent kNothing;
+    const schema::ElementContent* content = table.find(parent);
+    if (content == nullptr) {
+        content = &kNothing;
+    }
+    for (const xmlNode* c = parent_el->children; c != nullptr; c = c->next) {
+        switch (c->type) {
+            case XML_TEXT_NODE:
+            case XML_CDATA_SECTION_NODE:
+            case XML_ENTITY_REF_NODE:
+                if (!content->text && !is_blank(str(c->content))) {
+                    throw FragmentNotAllowed("#text", parent);
+                }
+                break;
+            case XML_ELEMENT_NODE: {
+                const std::string name = str(c->name);
+                if (!is_fb2_element(c)) {
+                    throw FragmentNotAllowed("{" + str(c->ns->href) + "}" + name, parent);
+                }
+                if (content->children.count(name) == 0) {
+                    throw FragmentNotAllowed(name, parent);
+                }
+                admit_fragment(c, name, table);
+                break;
+            }
+            default:
+                break;  // comments and processing instructions: kept as raw-xml by the reader
+        }
+    }
+}
+
+// Lines of a text and the length of its last line (in bytes; the fragment's positions).
+std::pair<int, int> text_extent(std::string_view text) {
+    int lines = 1;
+    std::size_t last_start = 0;
+    for (std::size_t i = 0; i < text.size(); ++i) {
+        if (text[i] == '\n') {
+            ++lines;
+            last_start = i + 1;
+        }
+    }
+    return {lines, static_cast<int>(text.size() - last_start)};
+}
+
+}  // namespace
+
+bool is_text_container(std::string_view element) {
+    return element == "p" || element == "subtitle" || element == "text-author" || element == "v" ||
+           element == "td" || element == "th" || element == "date";
+}
+
+FragmentResult read_fragment(std::string_view xml, const std::string& parent_element) {
+    FragmentResult result;
+    result.is_inline = is_text_container(parent_element);
+    if (is_blank(xml)) {
+        return result;
+    }
+    const std::shared_ptr<const schema::ContentTable> table = schema::content_table();
+    if (!table->error.empty()) {
+        throw IoFailure(table->error_path, table->error);
+    }
+
+    // The wrapper: one line of ASCII before the fragment, so that the parser's line numbers
+    // are the fragment's and only a column on line 1 needs the prefix subtracted.
+    const std::string prefix = std::string("<FictionBook xmlns=\"") + kFb2Namespace +
+                               "\" xmlns:l=\"" + kXlinkNamespace + "\" xmlns:xlink=\"" +
+                               kXlinkNamespace + "\"><" + parent_element + ">";
+    std::string wrapped;
+    wrapped.reserve(prefix.size() + xml.size() + parent_element.size() + 32);
+    wrapped += prefix;
+    wrapped += xml;
+    wrapped += "</" + parent_element + "></FictionBook>";
+
+    std::vector<xml::CollectedError> errors;
+    xmlDocPtr doc = xml::parse_memory(wrapped, nullptr, "UTF-8", errors);
+    if (doc == nullptr) {
+        ParseError e = to_parse_error(xml::primary_error(errors));
+        const auto [lines, last_length] = text_extent(xml);
+        if (e.line <= 1) {
+            e.line = 1;
+            e.column = e.column > static_cast<int>(prefix.size())
+                           ? e.column - static_cast<int>(prefix.size())
+                           : 1;
+        }
+        if (e.line > lines || (e.line == lines && e.column > last_length + 1)) {
+            // Reported inside the closing wrapper: the fragment ended too early.
+            e.line = lines;
+            e.column = last_length + 1;
+        }
+        throw ParseFailure(std::move(e));
+    }
+    struct DocGuard {
+        xmlDocPtr d;
+        ~DocGuard() { xmlFreeDoc(d); }
+    } guard{doc};
+
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+    xmlNodePtr parent = root != nullptr ? root->children : nullptr;
+    while (parent != nullptr && parent->type != XML_ELEMENT_NODE) {
+        parent = parent->next;
+    }
+    if (parent == nullptr) {
+        return result;
+    }
+    admit_fragment(parent, parent_element, *table);
+
+    model::Document scratch;
+    Ctx ctx;
+    ctx.doc = &scratch;
+    ctx.warnings = &result.warnings;
+    if (result.is_inline) {
+        std::vector<Mark> marks;
+        convert_inline_children(parent, result.nodes, marks, ctx);
+    } else {
+        Node holder;
+        convert_block_children(parent, holder, ctx);
+        result.nodes = std::move(holder.content);
+    }
+    return result;
 }
 
 }  // namespace mfbe::fb2

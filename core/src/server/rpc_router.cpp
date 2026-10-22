@@ -58,6 +58,8 @@ const char* error_name(int code) {
             return "app.restartFailed";
         case codes::kCancelled:
             return "cancelled";
+        case codes::kAiFragmentNotAllowed:
+            return "ai.fragmentNotAllowed";
         default:
             return "";
     }
@@ -159,14 +161,20 @@ std::string scalar_text(const json& value) {
 }
 
 // Outcomes that are normal operation rather than failures: user cancellations, the
-// malformed-XML feedback of the Source view (the user is typing XML; the UI shows the error)
-// and app.restart without a shell (browser/dev mode: the UI reloads its page, by design).
+// malformed-XML feedback of the Source view (the user is typing XML; the UI shows the error),
+// app.restart without a shell (browser/dev mode: the UI reloads its page, by design) and the
+// AI assistant's fragment feedback (feature 005: a model's mistake - XML that is not
+// well-formed or an element its parent cannot hold - is fed back to the model, not logged).
 bool is_expected_outcome(const std::string& method, int code) {
     if (code == codes::kCancelled || code == codes::kRestartUnavailable) {
         return true;
     }
     if (code == codes::kDocParseError || code == codes::kDocSourceMalformed) {
-        return method == "doc.fromXml" || method == "doc.validate" || method == "doc.toXml";
+        return method == "doc.fromXml" || method == "doc.validate" || method == "doc.toXml" ||
+               method == "doc.fragmentFromXml";
+    }
+    if (code == codes::kAiFragmentNotAllowed) {
+        return method == "doc.fragmentFromXml";
     }
     return false;
 }

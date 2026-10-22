@@ -11,10 +11,14 @@
 #include <mfbe/fb2_writer.hpp>
 #include <mfbe/json_codec.hpp>
 #include <mfbe/node_ids.hpp>
+#include <mfbe/schema_table.hpp>
 
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace mfbe;
@@ -442,4 +446,523 @@ TEST_CASE(
     // ... but the nodes form works for it (nothing of the session is needed).
     CHECK(f.ws.call("doc.fragmentToXml",
                     json{{"docId", source_id}, {"nodes", p1["content"]}})["result"]["xml"] == xml);
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Reader and the admission table                                                            */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+// True when no node of the tree carries a nodeId attribute.
+bool without_ids(const model::Node& node) {
+    if (!node.is_text() && node.attrs.count("nodeId") != 0) {
+        return false;
+    }
+    return std::all_of(node.content.begin(), node.content.end(), without_ids);
+}
+
+bool json_without_ids(const json& node) {
+    if (node.contains("attrs") && node["attrs"].contains("nodeId")) {
+        return false;
+    }
+    if (node.contains("content")) {
+        for (const json& child : node["content"]) {
+            if (!json_without_ids(child)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+model::Node strip_ids(model::Node node) {
+    node.attrs.erase("nodeId");
+    for (model::Node& child : node.content) {
+        child = strip_ids(child);
+    }
+    return node;
+}
+
+std::vector<model::Node> strip_ids(const std::vector<model::Node>& nodes) {
+    std::vector<model::Node> out;
+    for (const model::Node& node : nodes) {
+        out.push_back(strip_ids(node));
+    }
+    return out;
+}
+
+fb2::ParseError parse_failure_of(const std::string& xml, const std::string& parent) {
+    try {
+        fb2::read_fragment(xml, parent);
+    } catch (const fb2::ParseFailure& e) {
+        return e.error;
+    }
+    FAIL("expected a ParseFailure for " << xml);
+    return {};
+}
+
+std::pair<std::string, std::string> refusal_of(const std::string& xml, const std::string& parent) {
+    try {
+        fb2::read_fragment(xml, parent);
+    } catch (const fb2::FragmentNotAllowed& e) {
+        return {e.element, e.parent};
+    }
+    FAIL("expected FragmentNotAllowed for " << xml);
+    return {};
+}
+
+std::filesystem::path repo_root() {
+    return test::fixtures_dir().parent_path().parent_path();
+}
+
+}  // namespace
+
+TEST_CASE(
+    "fragment reader: the admission table built from the XSD equals the Source view's "
+    "completion table",
+    "[fragment][schema]") {
+    const auto table = schema::content_table();
+    REQUIRE(table->error.empty());
+    CHECK(table->root == "FictionBook");
+    const json ui = json::parse(
+        test::read_text(repo_root() / "ui" / "src" / "views" / "source" / "fb2Elements.json"));
+    CHECK(ui["root"] == table->root);
+    REQUIRE(ui["elements"].size() == table->elements.size());
+    for (const auto& [name, content] : table->elements) {
+        INFO(name);
+        REQUIRE(ui["elements"].contains(name));
+        const json& entry = ui["elements"][name];
+        CHECK(entry["children"] == json(content.children));
+        if (entry.contains("text")) {
+            CHECK(entry["text"] == content.text);
+        }
+    }
+    // Spot checks of the flattening: extensions, choices, mixed content, simple content.
+    CHECK(table->find("section")->children ==
+          std::set<std::string>{"annotation", "cite", "empty-line", "epigraph", "image", "p",
+                                "poem", "section", "subtitle", "table", "title"});
+    CHECK(table->find("p")->children == std::set<std::string>{"a", "code", "emphasis", "image",
+                                                              "strikethrough", "strong", "style",
+                                                              "sub", "sup"});
+    CHECK(table->find("p")->text);
+    CHECK(table->find("a")->text);
+    CHECK(table->find("date")->text);
+    CHECK(table->find("body")->children ==
+          std::set<std::string>{"epigraph", "image", "section", "title"});
+    CHECK_FALSE(table->find("section")->text);
+    CHECK_FALSE(table->find("title")->text);
+    CHECK_FALSE(table->find("empty-line")->text);
+    CHECK(table->find("empty-line")->children.empty());
+    CHECK(table->find("stanza")->children == std::set<std::string>{"subtitle", "title", "v"});
+    CHECK(table->find("chapter") == nullptr);
+    // The same table again is the shared one.
+    CHECK(schema::content_table().get() == table.get());
+    // A folder without the schema: an error, nothing cached.
+    test::TempDir empty{"mfbe-schema-missing"};
+    const schema::ContentTable missing =
+        schema::build_content_table(empty.path() / "FictionBook.xsd");
+    CHECK_FALSE(missing.error.empty());
+    CHECK(missing.elements.empty());
+}
+
+TEST_CASE(
+    "fragment reader: blocks and inline content without ids; 1001 positions in the "
+    "fragment; whitespace is nothing",
+    "[fragment][reader]") {
+    // Block content under a section: the reader's nodes, no nodeId anywhere.
+    const fb2::FragmentResult blocks = fb2::read_fragment(
+        "<p>One</p>\n<p>Two <strong>bold</strong></p>\n<empty-line/>\n"
+        "<poem><stanza><v>verse</v></stanza></poem>",
+        "section");
+    CHECK_FALSE(blocks.is_inline);
+    CHECK(blocks.warnings.empty());
+    REQUIRE(blocks.nodes.size() == 4);
+    CHECK(blocks.nodes[0].type == "p");
+    CHECK(blocks.nodes[0].content.at(0).text == "One");
+    CHECK(blocks.nodes[1].content.at(1).marks.at(0).type == "strong");
+    CHECK(blocks.nodes[2].type == "empty-line");
+    CHECK(blocks.nodes[3].content.at(0).content.at(0).type == "v");
+    for (const model::Node& node : blocks.nodes) {
+        CHECK(without_ids(node));
+    }
+    // Inline content under a text container, both xlink prefixes.
+    const fb2::FragmentResult inl = fb2::read_fragment(
+        "Hello <strong>world</strong><a l:href=\"#n1\" type=\"note\">1</a>"
+        "<a xlink:href=\"#n2\">2</a><image l:href=\"#i.png\"/>",
+        "p");
+    CHECK(inl.is_inline);
+    REQUIRE(inl.nodes.size() == 5);
+    CHECK(inl.nodes[0].text == "Hello ");
+    CHECK(inl.nodes[1].marks.at(0).type == "strong");
+    CHECK(inl.nodes[2].marks.at(0).attrs["href"] == "#n1");
+    CHECK(inl.nodes[3].marks.at(0).attrs["href"] == "#n2");
+    CHECK(inl.nodes[4].type == "inline-image");
+    CHECK(inl.nodes[4].attr_string("href") == "#i.png");
+    CHECK(without_ids(inl.nodes[4]));
+    // Every text container is inline, the other parents are not.
+    for (const char* name : {"p", "subtitle", "text-author", "v", "td", "th", "date"}) {
+        INFO(name);
+        CHECK(fb2::is_text_container(name));
+        CHECK(fb2::read_fragment("x", name).is_inline);
+    }
+    for (const char* name : {"body", "section", "title", "epigraph", "annotation", "history",
+                             "cite", "poem", "stanza", "table", "tr"}) {
+        INFO(name);
+        CHECK_FALSE(fb2::is_text_container(name));
+        CHECK_FALSE(fb2::read_fragment(" \n ", name).is_inline);
+    }
+    // Whitespace only: no nodes, no warnings.
+    CHECK(fb2::read_fragment("", "section").nodes.empty());
+    CHECK(fb2::read_fragment("  \n\t", "p").nodes.empty());
+    CHECK(fb2::read_fragment("  \n\t", "p").is_inline);
+    // A date holds text only.
+    const fb2::FragmentResult date = fb2::read_fragment("1 January", "date");
+    REQUIRE(date.nodes.size() == 1);
+    CHECK(date.nodes[0].text == "1 January");
+
+    // Not well-formed: positions counted in the fragment itself.
+    const fb2::ParseError unclosed = parse_failure_of("<p>never closed", "section");
+    CHECK(unclosed.line == 1);
+    CHECK(unclosed.column >= 1);
+    CHECK(unclosed.column <= 16);
+    const fb2::ParseError nbsp = parse_failure_of("<p>a&nbsp;b</p>", "section");
+    CHECK(nbsp.line == 1);
+    CHECK(nbsp.column >= 5);
+    CHECK(nbsp.column <= 11);
+    CHECK_THAT(nbsp.message, ContainsSubstring("nbsp"));
+    const fb2::ParseError later =
+        parse_failure_of("<p>a</p>\n<p>b</p>\n<p>c &nbsp; d</p>", "section");
+    CHECK(later.line == 3);
+    CHECK(later.column >= 6);
+    CHECK(later.column <= 12);
+    const fb2::ParseError mismatch = parse_failure_of("<p>a</b>", "section");
+    CHECK(mismatch.line == 1);
+    CHECK(mismatch.column <= 9);
+    // U+00A0 itself is fine; the five predefined entities exist.
+    CHECK(fb2::read_fragment("a\xC2\xA0&amp;&lt;&gt;&quot;&apos;b", "p").nodes.at(0).text ==
+          "a\xC2\xA0&<>\"'b");
+    // An XML declaration inside a fragment is not well-formed (1001), a wrapper is refused
+    // by the schema (1201).
+    CHECK(parse_failure_of("<?xml version=\"1.0\"?><p>x</p>", "section").line == 1);
+    CHECK(refusal_of("<FictionBook><body><section><p>x</p></section></body></FictionBook>",
+                     "section") ==
+          std::make_pair(std::string("FictionBook"), std::string("section")));
+    CHECK(refusal_of("<body><section><p>x</p></section></body>", "section") ==
+          std::make_pair(std::string("body"), std::string("section")));
+}
+
+TEST_CASE(
+    "fragment reader: 1201 for a misplaced, unknown or foreign element and for text in "
+    "an element-only container; order is not judged",
+    "[fragment][reader]") {
+    using Pair = std::pair<std::string, std::string>;
+    CHECK(refusal_of("<title><p>t</p></title>", "p") == Pair{"title", "p"});
+    CHECK(refusal_of("<section><p>x</p></section>", "p") == Pair{"section", "p"});
+    CHECK(refusal_of("<p>in</p>", "p") == Pair{"p", "p"});
+    CHECK(refusal_of("<chapter><p>x</p></chapter>", "section") == Pair{"chapter", "section"});
+    CHECK(refusal_of("<p>ok</p><x:foo xmlns:x=\"urn:x\"/>", "section") ==
+          Pair{"{urn:x}foo", "section"});
+    CHECK(refusal_of("<p>ok</p>stray text", "section") == Pair{"#text", "section"});
+    CHECK(refusal_of("<p>ok</p><title>no p</title>", "section") == Pair{"#text", "title"});
+    CHECK(refusal_of("<empty-line>t</empty-line>", "section") == Pair{"#text", "empty-line"});
+    CHECK(refusal_of("<v>verse</v>", "section") == Pair{"v", "section"});
+    CHECK(refusal_of("<p><p>nested</p></p>", "section") == Pair{"p", "p"});
+    CHECK(refusal_of("<strong>b</strong>", "section") == Pair{"strong", "section"});
+    CHECK(refusal_of("<binary id=\"x\" content-type=\"image/png\">AA==</binary>", "section") ==
+          Pair{"binary", "section"});
+    CHECK(refusal_of("<tr><td>c</td></tr>", "section") == Pair{"tr", "section"});
+    // The first offending pair in document order.
+    CHECK(refusal_of("<p>a</p><p><section/></p><chapter/>", "section") == Pair{"section", "p"});
+    // Admitted although out of order or repeated: the validity hook judges that.
+    CHECK(fb2::read_fragment("<p>a</p><title><p>t</p></title>", "section").nodes.size() == 2);
+    CHECK(fb2::read_fragment("<title><p>1</p></title><title><p>2</p></title>", "section")
+              .nodes.size() == 2);
+    CHECK(fb2::read_fragment("<v>a</v>", "stanza").nodes.size() == 1);
+    CHECK(fb2::read_fragment("<tr><td>c</td></tr>", "table").nodes.size() == 1);
+    CHECK(fb2::read_fragment("<td>c</td><th>h</th>", "tr").nodes.size() == 2);
+    CHECK(fb2::read_fragment("<section><p>x</p></section>", "body").nodes.at(0).type == "section");
+    CHECK(fb2::read_fragment("<p>h</p>", "history").nodes.size() == 1);
+    // Comments and processing instructions are kept as the reader keeps them (raw-xml).
+    const fb2::FragmentResult commented = fb2::read_fragment("<!-- c --><p>x</p>", "section");
+    REQUIRE(commented.nodes.size() == 2);
+    CHECK(commented.nodes[0].type == "raw-xml");
+    CHECK(commented.nodes[0].attr_string("xml") == "<!-- c -->");
+    // Attribute values are not judged here (the hook's).
+    CHECK(fb2::read_fragment("<p id=\"\" style=\"x\" bogus=\"1\">x</p>", "section")
+              .nodes.at(0)
+              .attrs.count("unknownAttrs") == 1);
+}
+
+// The nodes of a list without the raw-xml nodes, at any depth, that hold an element unknown
+// to the schema (the reader keeps them, the fragment reader refuses them - 1201); comments
+// stay.
+std::vector<model::Node> known_only(const std::vector<model::Node>& nodes) {
+    std::vector<model::Node> out;
+    for (const model::Node& node : nodes) {
+        if (node.type == "raw-xml" && node.attr_string("xml").value_or("").rfind("<!--", 0) != 0) {
+            continue;
+        }
+        model::Node copy = node;
+        copy.content = known_only(node.content);
+        // Text nodes left adjacent by a removal merge, as the reader merges them.
+        if (copy.is_text() && !out.empty() && out.back().is_text() &&
+            out.back().marks == copy.marks) {
+            out.back().text += copy.text;
+            continue;
+        }
+        out.push_back(std::move(copy));
+    }
+    return out;
+}
+
+TEST_CASE("fragment: toXml -> fromXml round trip equals the nodes modulo ids, block and inline",
+          "[fragment][reader][writer]") {
+    Loaded l;
+    const model::Node& section = l.section1();
+    const std::vector<model::Node> blocks = known_only(section.content);
+    REQUIRE(blocks.size() == section.content.size() - 1);  // the unknown block is out
+    // <foo> is out of the paragraph and its neighbours merged into one text node.
+    REQUIRE(blocks.at(2).content.size() == section.content.at(2).content.size() - 2);
+    const std::string xml = fb2::write_fragment(blocks);
+    const fb2::FragmentResult back = fb2::read_fragment(xml, "section");
+    CHECK_FALSE(back.is_inline);
+    CHECK(back.nodes == strip_ids(blocks));
+    CHECK(fb2::write_fragment(back.nodes) == xml);
+    // An unknown element in the list is refused as a whole, it never reaches the model: the
+    // first pair in document order is the <foo> inside the paragraph, before the unknown block.
+    CHECK(refusal_of(fb2::write_fragment(section.content), "section") ==
+          std::make_pair(std::string("foo"), std::string("p")));
+    const model::Node& p1 = child_of_type(section, "p");
+    const std::vector<model::Node> inline_nodes = known_only(p1.content);
+    REQUIRE(inline_nodes.size() == p1.content.size() - 2);  // <foo> is out, the comment stays
+    const std::string inline_xml = fb2::write_fragment(inline_nodes);
+    const fb2::FragmentResult inline_back = fb2::read_fragment(inline_xml, "p");
+    CHECK(inline_back.is_inline);
+    CHECK(inline_back.nodes == strip_ids(inline_nodes));
+    CHECK(fb2::write_fragment(inline_back.nodes) == inline_xml);
+    CHECK(refusal_of(fb2::write_fragment(p1.content), "p") ==
+          std::make_pair(std::string("foo"), std::string("p")));
+    // The second section and the notes body: whole subtrees.
+    const model::Node& section2 = l.body().content.at(2);
+    const fb2::FragmentResult section_back =
+        fb2::read_fragment(fb2::write_fragment({section2}), "body");
+    REQUIRE(section_back.nodes.size() == 1);
+    CHECK(section_back.nodes[0] == strip_ids(section2));
+    const model::Node& notes = l.read.document.bodies.at(1);
+    const fb2::FragmentResult body_back =
+        fb2::read_fragment(fb2::write_fragment({notes}), "FictionBook");
+    REQUIRE(body_back.nodes.size() == 1);
+    CHECK(body_back.nodes[0] == strip_ids(notes));
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* doc.fragmentFromXml                                                                       */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "doc.fragmentFromXml: nodes carry no nodeId and the session allocator is untouched; "
+    "1001 for malformed XML and &nbsp; with positions in the fragment",
+    "[fragment][server]") {
+    ServerFixture f;
+    auto [doc_id, document] = f.open_book();
+    const json& section = document["bodies"][0]["content"][1];
+    const std::string section_id = section["attrs"]["nodeId"];
+    const std::string p1_id = section["content"][2]["attrs"]["nodeId"];
+
+    const json blocks = f.ws.call("doc.fragmentFromXml",
+                                  json{{"docId", doc_id},
+                                       {"xml", "<p>One</p>\n<p>Two <emphasis>em</emphasis></p>"},
+                                       {"parent", {{"element", "section"}}}});
+    REQUIRE(blocks.contains("result"));
+    CHECK(blocks["result"]["inline"] == false);
+    CHECK(blocks["result"]["warnings"] == json::array());
+    REQUIRE(blocks["result"]["nodes"].size() == 2);
+    CHECK(blocks["result"]["nodes"][0]["type"] == "p");
+    CHECK(blocks["result"]["nodes"][0]["attrs"] == json::object());
+    CHECK(blocks["result"]["nodes"][1]["content"][1]["marks"][0]["type"] == "emphasis");
+    for (const json& node : blocks["result"]["nodes"]) {
+        CHECK(json_without_ids(node));
+    }
+    // By nodeId: a section is a block parent, a paragraph a text container.
+    const json by_section =
+        f.ws.call("doc.fragmentFromXml", json{{"docId", doc_id},
+                                              {"xml", "<subtitle>S</subtitle>"},
+                                              {"parent", {{"nodeId", section_id}}}});
+    REQUIRE(by_section.contains("result"));
+    CHECK(by_section["result"]["inline"] == false);
+    CHECK(by_section["result"]["nodes"][0]["type"] == "subtitle");
+    const json by_p =
+        f.ws.call("doc.fragmentFromXml",
+                  json{{"docId", doc_id},
+                       {"xml", "Hello <strong>world</strong><a l:href=\"#n1\" type=\"note\">1</a>"},
+                       {"parent", {{"nodeId", p1_id}}}});
+    REQUIRE(by_p.contains("result"));
+    CHECK(by_p["result"]["inline"] == true);
+    REQUIRE(by_p["result"]["nodes"].size() == 3);
+    CHECK(by_p["result"]["nodes"][0] == json{{"type", "text"}, {"text", "Hello "}});
+    CHECK(by_p["result"]["nodes"][2]["marks"][0]["attrs"]["href"] == "#n1");
+    // Whitespace only.
+    const json blank =
+        f.ws.call("doc.fragmentFromXml",
+                  json{{"docId", doc_id}, {"xml", " \n "}, {"parent", {{"element", "p"}}}});
+    REQUIRE(blank.contains("result"));
+    CHECK(blank["result"] ==
+          json{{"nodes", json::array()}, {"inline", true}, {"warnings", json::array()}});
+
+    // 1001 with positions in the fragment.
+    const json malformed = f.ws.call(
+        "doc.fragmentFromXml",
+        json{{"docId", doc_id}, {"xml", "<p>a</p>\n<p>b"}, {"parent", {{"element", "section"}}}});
+    REQUIRE(malformed.contains("error"));
+    CHECK(malformed["error"]["code"] == 1001);
+    CHECK(malformed["error"]["data"]["line"] == 2);
+    CHECK(malformed["error"]["data"]["column"].get<int>() <= 5);
+    CHECK(malformed["error"]["data"]["message"].is_string());
+    const json nbsp =
+        f.ws.call("doc.fragmentFromXml",
+                  json{{"docId", doc_id}, {"xml", "a&nbsp;b"}, {"parent", {{"element", "p"}}}});
+    REQUIRE(nbsp.contains("error"));
+    CHECK(nbsp["error"]["code"] == 1001);
+    CHECK(nbsp["error"]["data"]["line"] == 1);
+    CHECK(nbsp["error"]["data"]["column"].get<int>() >= 2);
+    CHECK(nbsp["error"]["data"]["column"].get<int>() <= 8);
+    CHECK_THAT(nbsp["error"]["data"]["message"].get<std::string>(), ContainsSubstring("nbsp"));
+    const json declaration =
+        f.ws.call("doc.fragmentFromXml", json{{"docId", doc_id},
+                                              {"xml", "<?xml version=\"1.0\"?><p>x</p>"},
+                                              {"parent", {{"element", "section"}}}});
+    REQUIRE(declaration.contains("error"));
+    CHECK(declaration["error"]["code"] == 1001);
+    CHECK(declaration["error"]["data"]["line"] == 1);
+    CHECK(declaration["error"]["data"]["column"].get<int>() >= 1);
+    CHECK(declaration["error"]["data"]["column"].get<int>() <= 6);  // inside `<?xml `
+
+    // Parameters: parent forms and the admissible elements.
+    for (const char* bad : {"FictionBook", "description", "binary", "stylesheet", "chapter",
+                            "image", "empty-line", "strong", ""}) {
+        INFO(bad);
+        const json r =
+            f.ws.call("doc.fragmentFromXml",
+                      json{{"docId", doc_id}, {"xml", "<p>x</p>"}, {"parent", {{"element", bad}}}});
+        REQUIRE(r.contains("error"));
+        CHECK(r["error"]["code"] == -32602);
+        CHECK(r["error"]["data"]["field"] == "parent.element");
+    }
+    for (const char* good :
+         {"body", "section", "title", "epigraph", "annotation", "history", "cite", "poem", "stanza",
+          "table", "tr", "td", "th", "p", "subtitle", "text-author", "v", "date"}) {
+        INFO(good);
+        const json r =
+            f.ws.call("doc.fragmentFromXml",
+                      json{{"docId", doc_id}, {"xml", " "}, {"parent", {{"element", good}}}});
+        REQUIRE(r.contains("result"));
+        CHECK(r["result"]["inline"] == fb2::is_text_container(good));
+    }
+    const json unknown_node =
+        f.ws.call("doc.fragmentFromXml",
+                  json{{"docId", doc_id}, {"xml", "<p>x</p>"}, {"parent", {{"nodeId", "n999"}}}});
+    REQUIRE(unknown_node.contains("error"));
+    CHECK(unknown_node["error"]["data"]["field"] == "parent.nodeId");
+    const std::string image_id = json_child_of_type(section, "image")["attrs"]["nodeId"];
+    const json image_parent =
+        f.ws.call("doc.fragmentFromXml",
+                  json{{"docId", doc_id}, {"xml", "<p>x</p>"}, {"parent", {{"nodeId", image_id}}}});
+    REQUIRE(image_parent.contains("error"));
+    CHECK(image_parent["error"]["data"]["field"] == "parent.nodeId");
+    const json both = f.ws.call(
+        "doc.fragmentFromXml",
+        json{{"docId", doc_id}, {"xml", "x"}, {"parent", {{"nodeId", p1_id}, {"element", "p"}}}});
+    REQUIRE(both.contains("error"));
+    CHECK(both["error"]["data"]["field"] == "parent");
+    const json neither = f.ws.call(
+        "doc.fragmentFromXml", json{{"docId", doc_id}, {"xml", "x"}, {"parent", json::object()}});
+    REQUIRE(neither.contains("error"));
+    CHECK(neither["error"]["data"]["field"] == "parent");
+    const json no_xml =
+        f.ws.call("doc.fragmentFromXml", json{{"docId", doc_id}, {"parent", {{"element", "p"}}}});
+    REQUIRE(no_xml.contains("error"));
+    CHECK(no_xml["error"]["data"]["field"] == "xml");
+    const json huge = f.ws.call("doc.fragmentFromXml",
+                                json{{"docId", doc_id},
+                                     {"xml", std::string(16 * 1024 * 1024 + 1, ' ')},
+                                     {"parent", {{"element", "p"}}}},
+                                60000);
+    REQUIRE(huge.contains("error"));
+    CHECK(huge["error"]["code"] == -32602);
+    CHECK(huge["error"]["data"]["field"] == "xml");
+    CHECK(f.ws.call("doc.fragmentFromXml", json{{"docId", "d99"},
+                                                {"xml", "x"},
+                                                {"parent", {{"element", "p"}}}})["error"]["code"] ==
+          1000);
+
+    // The session's allocator was not touched: the next doc.fromXml issues the ids doc.open
+    // would have issued next, so the remap of the unchanged text keeps every id.
+    const std::string text =
+        f.ws.call("doc.toXml", json{{"docId", doc_id}, {"document", document}})["result"]["text"];
+    const json reparsed = f.ws.call("doc.fromXml", json{{"docId", doc_id}, {"text", text}});
+    REQUIRE(reparsed.contains("result"));
+    CHECK(reparsed["result"]["remap"]["unmappedOld"].empty());
+    CHECK(reparsed["result"]["remap"]["unmappedNew"].empty());
+}
+
+TEST_CASE(
+    "doc.fragmentFromXml: 1201 for a misplaced, unknown or foreign element and for text "
+    "in an element-only container",
+    "[fragment][server]") {
+    ServerFixture f;
+    auto [doc_id, document] = f.open_book();
+    const auto refused = [&](const std::string& xml, const std::string& parent) {
+        const json r =
+            f.ws.call("doc.fragmentFromXml",
+                      json{{"docId", doc_id}, {"xml", xml}, {"parent", {{"element", parent}}}});
+        REQUIRE(r.contains("error"));
+        CHECK(r["error"]["code"] == 1201);
+        CHECK(r["error"]["message"] == "ai.fragmentNotAllowed");
+        return std::make_pair(r["error"]["data"]["element"].get<std::string>(),
+                              r["error"]["data"]["parent"].get<std::string>());
+    };
+    using Pair = std::pair<std::string, std::string>;
+    CHECK(refused("<title><p>t</p></title>", "p") == Pair{"title", "p"});
+    CHECK(refused("<section><p>x</p></section>", "p") == Pair{"section", "p"});
+    CHECK(refused("<chapter/>", "section") == Pair{"chapter", "section"});
+    CHECK(refused("<x:foo xmlns:x=\"urn:x\"/>", "section") == Pair{"{urn:x}foo", "section"});
+    CHECK(refused("text", "section") == Pair{"#text", "section"});
+    CHECK(refused("<body><section/></body>", "section") == Pair{"body", "section"});
+    CHECK(refused("<FictionBook/>", "body") == Pair{"FictionBook", "body"});
+    // Admitted: a title after paragraphs (order is the validity hook's).
+    const json late_title =
+        f.ws.call("doc.fragmentFromXml", json{{"docId", doc_id},
+                                              {"xml", "<p>a</p><title><p>t</p></title>"},
+                                              {"parent", {{"element", "section"}}}});
+    REQUIRE(late_title.contains("result"));
+    CHECK(late_title["result"]["nodes"].size() == 2);
+    // The round trip over the wire: toXml -> fromXml equals the nodes modulo ids (the section
+    // without its unknown block, which the fragment reader refuses).
+    const json& section = document["bodies"][0]["content"][1];
+    const std::vector<model::Node> known_nodes = known_only(model::node_from_json(section).content);
+    REQUIRE(known_nodes.size() == section["content"].size() - 1);
+    json known = json::array();
+    for (const model::Node& node : known_nodes) {
+        known.push_back(model::to_json(node));
+    }
+    const std::string xml =
+        f.ws.call("doc.fragmentToXml", json{{"docId", doc_id}, {"nodes", known}})["result"]["xml"];
+    const std::string whole =
+        f.ws.call("doc.fragmentToXml",
+                  json{{"docId", doc_id}, {"nodes", section["content"]}})["result"]["xml"];
+    CHECK(refused(whole, "section") == Pair{"foo", "p"});
+    const json back =
+        f.ws.call("doc.fragmentFromXml",
+                  json{{"docId", doc_id}, {"xml", xml}, {"parent", {{"element", "section"}}}});
+    REQUIRE(back.contains("result"));
+    const std::vector<model::Node> expected = strip_ids(known_nodes);
+    std::vector<model::Node> got;
+    for (const json& node : back["result"]["nodes"]) {
+        got.push_back(model::node_from_json(node));
+    }
+    CHECK(got == expected);
+    CHECK(f.ws.call("doc.fragmentToXml",
+                    json{{"docId", doc_id}, {"nodes", back["result"]["nodes"]}})["result"]["xml"] ==
+          xml);
 }

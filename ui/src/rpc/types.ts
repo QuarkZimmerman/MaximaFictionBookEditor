@@ -26,6 +26,7 @@ import type {
   SectionNode,
   StanzaNode,
   TextAuthorNode,
+  TextNode,
   TitleNode,
   ValidationIssue,
   ValidationReport,
@@ -74,6 +75,9 @@ export const RpcErrorCode = {
   /** `app.restart`: the shell could not start the new instance; `data.reason` (feature 003). */
   restartFailed: 1071,
   cancelled: 1090,
+  // feature 005 — doc.fragment*, schema.text, scripts.write
+  /** `doc.fragmentFromXml`: the parent element cannot hold this element; `data` {element, parent}. */
+  aiFragmentNotAllowed: 1201,
   // Client-side conditions raised by the RPC client itself (never sent by the core).
   clientTimeout: -32001,
   clientDisconnected: -32002,
@@ -599,6 +603,33 @@ export type FragmentBlockNode =
  */
 export type FragmentNode = FragmentBlockNode | InlineNode;
 
+/**
+ * `N` with `attrs.nodeId` optional at every level: the shape of the nodes `doc.fragmentFromXml`
+ * returns, which carry **no** `nodeId` on any node — the UI assigns `sc_<N>` ids from its own
+ * allocator before they enter the working copy (research C12). Text nodes are unchanged.
+ */
+export type UnidentifiedNode<N> = N extends TextNode
+  ? N
+  : N extends { attrs: infer A extends object; content: Array<infer C> }
+    ? Omit<N, 'attrs' | 'content'> & {
+        attrs: Omit<A, 'nodeId'> & { nodeId?: string };
+        content: UnidentifiedNode<C>[];
+      }
+    : N extends { attrs: infer A extends object }
+      ? Omit<N, 'attrs'> & { attrs: Omit<A, 'nodeId'> & { nodeId?: string } }
+      : N;
+
+/** A node of a parsed fragment: block / structural (`inline: false`) or inline (`true`). */
+export type FragmentResultNode = UnidentifiedNode<FragmentNode>;
+
+/** `data` of 1201 `ai.fragmentNotAllowed`: the first pair the schema does not admit. */
+export interface AiFragmentNotAllowedData {
+  /** The local name; `{ns}name` for a foreign element; `#text` for text in an element-only container. */
+  element: string;
+  /** The local name of its parent (`parent.element` for the fragment's top level). */
+  parent: string;
+}
+
 /* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
@@ -937,6 +968,23 @@ export interface RpcMethods {
       | { docId: string; nodes: FragmentNode[] }
       | { docId: string; document?: Document; nodeIds: string[] };
     result: { xml: string };
+  };
+  /**
+   * An XML fragment parsed as the children of `parent` into Document nodes **without**
+   * `nodeId` (feature 005, rpc-api.md §3.2; the UI assigns `sc_<N>` ids on receipt). `parent`
+   * is an element name among body, section, title, epigraph, annotation, history, cite, poem,
+   * stanza, table, tr, td, th, p, subtitle, text-author, v, date (else invalidParams {field:
+   * 'parent.element'}) or a node of the session's snapshot ({field: 'parent.nodeId'}); a text
+   * container yields inline nodes and `inline: true`. The wrapper binds `l` and `xlink` to
+   * the xlink namespace; only the five predefined entities exist (`&nbsp;` is 1001). Errors:
+   * 1000; 1001 {line, column, message} counted in `xml` itself; 1201 {element, parent} for
+   * the first element the schema does not admit there (order and multiplicity are not judged
+   * - the validity hook's); invalidParams {field: 'xml'} over 16 MiB. A whitespace-only `xml`
+   * gives no nodes. No side effects.
+   */
+  'doc.fragmentFromXml': {
+    params: { docId: string; xml: string; parent: { nodeId: string } | { element: string } };
+    result: { nodes: FragmentResultNode[]; inline: boolean; warnings: ValidationIssue[] };
   };
 }
 
