@@ -34,7 +34,6 @@
 #include <mfbe/log.hpp>
 #include <mfbe/recent_files.hpp>
 #include <mfbe/unicode.hpp>
-#include <mfbe/version.hpp>
 
 #include <cstdint>
 #include <map>
@@ -210,21 +209,15 @@ ResolvedTarget resolve_target(Services& services, const json& params, Method met
     return resolved;
 }
 
-// The request of one exchange: the URL, exactly the Definitions' headers and the body.
+// The request of one exchange: the URL, the resolved key and the body. The headers are the
+// transport's: it composes the Definitions' fixed set and sends Authorization only with a
+// non-empty key, so that the rule holds once (mfbe/ai_transport.hpp, HttpRequest::key).
 ai::HttpRequest build_request(Services& services, const ResolvedTarget& target, bool post,
                               std::string body) {
     ai::HttpRequest request;
     request.method = post ? "POST" : "GET";
     request.url = target.base + (post ? "/chat/completions" : "/models");
-    if (post) {
-        request.headers.emplace_back("Content-Type", "application/json");
-    }
-    request.headers.emplace_back("Accept", "application/json");
-    request.headers.emplace_back("User-Agent",
-                                 std::string("MaximaFictionBookEditor/") + version::kVersion);
-    if (!target.key.empty()) {
-        request.headers.emplace_back("Authorization", "Bearer " + target.key);
-    }
+    request.key = target.key;
     request.body = std::move(body);
     request.connect_ms = services.ai.connect_ms();
     request.total_ms = services.ai.total_ms();

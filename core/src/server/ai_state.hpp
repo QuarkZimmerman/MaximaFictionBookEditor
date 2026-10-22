@@ -58,15 +58,19 @@ struct AiRequestRecord {
 
 class AiState {
 public:
-    AiState(std::filesystem::path bundled_file, ai::UserLayer user_layer)
-        : bundled_file_(std::move(bundled_file)), user_layer_(std::move(user_layer)) {}
+    // `resources_dir`: the install's bundled resources - the bundled service list lives there
+    // (ai::kServicesFileName) and the transport takes its shipped CA bundle from it.
+    AiState(std::filesystem::path resources_dir, ai::UserLayer user_layer)
+        : resources_dir_(std::move(resources_dir)),
+          bundled_file_(resources_dir_ / ai::kServicesFileName),
+          user_layer_(std::move(user_layer)) {}
 
     // The first ai.* call of the core: reads the list and creates (initialises) the transport.
     // Idempotent and cheap afterwards.
     void touch() {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!transport_) {
-            transport_ = ai::make_transport();
+            transport_ = ai::make_transport(ai::TransportOptions{resources_dir_});
         }
         if (!services_) {
             services_ = std::make_shared<const ai::ServiceList>(
@@ -145,7 +149,8 @@ public:
     }
 
 private:
-    std::filesystem::path bundled_file_;
+    std::filesystem::path resources_dir_;
+    std::filesystem::path bundled_file_;  // resources_dir_ / ai::kServicesFileName
     ai::UserLayer user_layer_;
     mutable std::mutex mutex_;
     std::shared_ptr<const ai::ServiceList> services_;

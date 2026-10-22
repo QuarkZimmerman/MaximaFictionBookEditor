@@ -155,7 +155,7 @@ Services::Services(CoreServerOptions opts, platform::Dirs dirs_, fs::path resour
       layers(resources::Roots{}),
       notifier(notifier_),
       jobs(notifier_),
-      ai(resources_dir / ai::kServicesFileName, ai::UserLayer::of(dirs)) {
+      ai(resources_dir, ai::UserLayer::of(dirs)) {
     settings.load();
     recent.load();
     positions.load();

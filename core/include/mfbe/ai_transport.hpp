@@ -1,12 +1,12 @@
 // The seam between the `ai.*` jobs and the HTTP client (feature 005; rpc-api.md "Definitions":
 // Outcome, Exchange limits, Request headers).
 //
-// The jobs of ai_handlers.cpp build an HttpRequest - the URL, exactly the contract's headers,
-// the body, the time-outs and the resolve entries in effect - and read back an HttpOutcome in
-// the contract's outcome vocabulary. The product binds `Transport` to the libcurl client
-// (`net::HttpClient`, mfbe/http_client.hpp) in make_transport(); the Catch2 tests plug their
-// own transport through set_transport_factory_for_tests() - a raw-socket loopback client against
-// the in-process test server, or a scripted stub for the kinds a loopback server cannot produce.
+// The jobs of ai_handlers.cpp build an HttpRequest - the URL, the resolved key, the body, the
+// time-outs and the resolve entries in effect - and read back an HttpOutcome in the contract's
+// outcome vocabulary. The product binds `Transport` to the libcurl client (`net::HttpClient`,
+// mfbe/http_client.hpp) in make_transport(); the Catch2 tests plug their own transport through
+// set_transport_factory_for_tests() - a raw-socket loopback client against the in-process test
+// server, or a scripted stub for the kinds a loopback server cannot produce.
 // outcome_from_response() is the shared classification of a response that arrived (status,
 // headers, body bytes) into an outcome.
 #pragma once
@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -36,8 +37,13 @@ inline constexpr std::size_t kMaxTextBytes = 64u * 1024u;              // `text`
 struct HttpRequest {
     std::string method;  // "GET" | "POST"
     std::string url;     // <address>/chat/completions | <address>/models
-    std::vector<std::pair<std::string, std::string>> headers;  // the Definitions' headers only
-    std::string body;                                          // POST only
+    // The resolved key (the entry's, the settings' or the draft's). The transport composes the
+    // Definitions' headers itself - Content-Type: application/json on a POST, Accept:
+    // application/json, User-Agent: MaximaFictionBookEditor/<version> - and sends
+    // `Authorization: Bearer <key>` only when the key is non-empty (an empty `Bearer ` breaks
+    // LLM7): the rule lives in one place, the HTTP client, never in a caller.
+    std::string key;
+    std::string body;  // POST only
     long connect_ms = kDefaultConnectMs;
     long total_ms = kDefaultTotalMs;
     std::vector<std::string> resolve_entries;  // CURLOPT_RESOLVE "host:port:address"
@@ -88,13 +94,22 @@ public:
                              const ProgressFn& progress) = 0;
 };
 
-// The transport of the product (bound to the libcurl client) or, when a test installed one,
-// the test's. Created on the first ai.* call of a core - never at start-up - which is also
-// where the client's one-time global initialisation happens.
-std::unique_ptr<Transport> make_transport();
+// What the product's transport takes from the core it serves.
+struct TransportOptions {
+    // The install's bundled resources folder: the shipped CA bundle lives at
+    // <resources>/certs/cacert.pem (rpc-api "CA policy"; resource-formats §C).
+    std::filesystem::path resources_dir;
+};
+
+// The transport of the product - the libcurl client behind this seam - or, when a test
+// installed one, the test's. Created on the first ai.* call of a core - never at start-up -
+// which is also where the client's one-time global initialisation (net::global_init_once)
+// happens; the core server runs the matching cleanup at shutdown when it ran.
+std::unique_ptr<Transport> make_transport(const TransportOptions& options);
 
 using TransportFactory = std::function<std::unique_ptr<Transport>()>;
-// Test hook: every later make_transport() asks `factory`; nullptr restores the product's.
+// Test hook: every later make_transport() asks `factory` instead (no libcurl initialisation
+// then - the test transports do not use it); nullptr restores the product's.
 void set_transport_factory_for_tests(TransportFactory factory);
 
 }  // namespace mfbe::ai

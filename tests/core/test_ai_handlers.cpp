@@ -1,13 +1,16 @@
 // Feature 005: the ai.* handlers end to end over the loopback server (rpc-api.md §3.12, §3.1
 // app.openUrl, §5 test hooks) - the service list family (T018), the ai.complete / ai.models /
 // ai.test jobs (T019) and the test hooks (T020) - with the test transports of
-// test_ai_transport.hpp against the in-process HTTP test server.
+// test_ai_transport.hpp against the in-process HTTP test server, and once through the
+// product's own transport, the libcurl client, to prove the binding and its lazy initialisation.
 #include "test_ai_transport.hpp"
 #include "test_http_server.hpp"
 #include "test_support.hpp"
+#include "util/sha256.hpp"
 #include "ws_test_client.hpp"
 
 #include <mfbe/core_server.hpp>
+#include <mfbe/http_client.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/version.hpp>
 
@@ -48,6 +51,10 @@ std::vector<json> log_entries(const fs::path& file) {
     return entries;
 }
 
+// Which transport make_transport() hands the core: the raw-socket loopback client, the
+// scripted stub, or - no factory installed - the product's own libcurl client.
+enum class TransportKind { loopback, scripted, product };
+
 // A core with test hooks over a temporary data folder; the transport factory is installed
 // before the core starts (it is consulted on the first ai.* call only).
 struct AiFixture {
@@ -61,8 +68,10 @@ struct AiFixture {
 
     // `scripted`: the ScriptedTransport instead of the loopback client.
     explicit AiFixture(bool scripted = false, const char* user_fixture = nullptr)
-        : factory(scripted ? test::scripted_factory(transports, script)
-                           : test::loopback_factory(transports)) {
+        : AiFixture(scripted ? TransportKind::scripted : TransportKind::loopback, user_fixture) {}
+
+    explicit AiFixture(TransportKind kind, const char* user_fixture = nullptr)
+        : factory(make_factory(kind)) {
         if (user_fixture != nullptr) {
             fs::copy_file(fixture(user_fixture), data / "ai-services.json");
         }
@@ -103,6 +112,21 @@ struct AiFixture {
             ++count;
         }
         return count;
+    }
+
+private:
+    // Runs in the mem-initialiser of `factory`: `transports` and `script` are declared before
+    // it and already built. A null factory leaves make_transport() to the product's path.
+    ai::TransportFactory make_factory(TransportKind kind) {
+        switch (kind) {
+            case TransportKind::scripted:
+                return test::scripted_factory(transports, script);
+            case TransportKind::product:
+                return nullptr;
+            case TransportKind::loopback:
+                break;
+        }
+        return test::loopback_factory(transports);
     }
 };
 
@@ -955,7 +979,113 @@ TEST_CASE(
         CHECK(request.total_ms == 120000);
         CHECK(request.resolve_entries.empty());
         CHECK(request.url == "http://127.0.0.1:1/v1/chat/completions");
+        CHECK(request.key.empty());
     }
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* The product's path: the libcurl client behind the transport seam                           */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "ai.*: without a test transport the jobs go through the libcurl client - initialised on "
+    "the first ai.* call and never at start-up, the key turned into the Authorization header "
+    "by the client alone, cleaned up when the core exits",
+    "[ai][server][jobs][http-client]") {
+    net::global_cleanup_if_ran();  // an earlier case of this process may have run a transfer
+    test::HttpTestServer http;
+    http.route("POST", "/v1/chat/completions", test::ScriptedResponse::json(200, kOkCompletion));
+    http.route("GET", "/v1/models",
+               test::ScriptedResponse::json(200, R"({"data":[{"id":"standin-chat"}]})"));
+    const std::string user_agent = std::string("MaximaFictionBookEditor/") + version::kVersion;
+    {
+        AiFixture f(TransportKind::product);
+        // Start-up, the settings and the calls outside the family touch no network library.
+        CHECK_FALSE(net::global_init_ran());
+        CHECK(f.result("app.info")["apiMinor"] == 4);
+        use_custom(f, http, "sk-curl");
+        CHECK_FALSE(net::global_init_ran());
+        CHECK(f.transports->created.load() == 0);  // no test factory was asked
+
+        // One ai.test round trip through libcurl to the in-process server: the phases, the
+        // verified result with the fingerprint of the triple used, the request as the
+        // Definitions describe it - the key as `Authorization: Bearer`, set by the client.
+        JobRun run = run_job(f, "ai.test", json{{"target", {{"kind", "custom"}}}});
+        CHECK(net::global_init_ran());
+        REQUIRE(run.result);
+        CHECK_FALSE(run.error);
+        CHECK(run.phases == std::vector<std::string>{"connecting", "waiting", "receiving"});
+        const json& result = *run.result;
+        CHECK(result["ok"] == true);
+        CHECK(result["status"] == 200);
+        CHECK(result["verified"] == true);
+        CHECK(result["model"] == "standin-chat-2026");
+        CHECK(result["fingerprint"] ==
+              util::ai_fingerprint(http.base_url() + "/v1", "sk-curl", "standin-chat"));
+        CHECK(result["elapsedMs"].is_number_integer());
+        CHECK_FALSE(result.contains("kind"));
+        CHECK_FALSE(result.contains("message"));
+        REQUIRE(http.wait_for_requests(1));
+        const test::RecordedRequest posted = http.requests().back();
+        CHECK(posted.method == "POST");
+        CHECK(posted.path == "/v1/chat/completions");
+        CHECK(posted.header("Authorization") == "Bearer sk-curl");
+        CHECK(posted.header("Content-Type") == "application/json");
+        CHECK(posted.header("Accept") == "application/json");
+        CHECK(posted.header("User-Agent") == user_agent);
+        CHECK_FALSE(posted.has_header("Cookie"));
+        CHECK_FALSE(posted.has_header("Referer"));
+        CHECK_FALSE(posted.has_header("Origin"));
+        CHECK_FALSE(posted.has_header("Expect"));
+        CHECK(json::parse(posted.body)["model"] == "standin-chat");
+        CHECK(json::parse(posted.body)["stream"] == false);
+
+        // An empty key through the same client: no Authorization header at all; ai.models is
+        // a GET without a body or a Content-Type, its list normalised.
+        use_custom(f, http, "");
+        run = run_job(f, "ai.models", json{{"target", {{"kind", "custom"}}}});
+        REQUIRE(run.result);
+        CHECK((*run.result)["ok"] == true);
+        CHECK((*run.result)["models"] == json::array({json{{"id", "standin-chat"}}}));
+        REQUIRE(http.wait_for_requests(2));
+        const test::RecordedRequest fetched = http.requests().back();
+        CHECK(fetched.method == "GET");
+        CHECK(fetched.path == "/v1/models");
+        CHECK(fetched.body.empty());
+        CHECK_FALSE(fetched.has_header("Authorization"));
+        CHECK_FALSE(fetched.has_header("Content-Type"));
+        CHECK(fetched.header("Accept") == "application/json");
+        CHECK(fetched.header("User-Agent") == user_agent);
+
+        // A connection refused is an `offline` outcome with libcurl's own words, logged by
+        // kind; the record never carries the key.
+        f.result("settings.set", json{{"patch",
+                                       {{"ai",
+                                         {{"mode", "custom"},
+                                          {"custom",
+                                           {{"address", "http://127.0.0.1:1/v1"},
+                                            {"key", "sk-curl"},
+                                            {"model", "standin-chat"}}}}}}}});
+        run = run_job(f, "ai.complete",
+                      json{{"target", {{"kind", "custom"}}}, {"body", chat_body()}});
+        REQUIRE(run.result);
+        CHECK((*run.result)["ok"] == false);
+        CHECK((*run.result)["kind"] == "offline");
+        CHECK((*run.result)["message"].is_string());
+        CHECK_FALSE(run.result->contains("status"));
+        const json records = f.result("test.aiRequests");
+        REQUIRE(records.size() == 3);
+        CHECK(records[0]["outcome"] == "ok");
+        CHECK(records[1]["outcome"] == "ok");
+        CHECK(records[2]["outcome"] == "offline");
+        CHECK(records.dump().find("sk-curl") == std::string::npos);
+        REQUIRE(f.ai_log_entries().size() == 1);
+        CHECK(f.ai_log_entries()[0]["code"] == "ai.offline");
+        CHECK(f.log_text().find("sk-curl") == std::string::npos);
+        CHECK(f.transports->created.load() == 0);
+    }
+    // The core's shutdown ran libcurl's cleanup because the initialisation ran.
+    CHECK_FALSE(net::global_init_ran());
 }
 
 /* ----------------------------------------------------------------------------------------- */

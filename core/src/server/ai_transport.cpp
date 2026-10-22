@@ -1,5 +1,6 @@
 // The ai.* transport seam (feature 005). See mfbe/ai_transport.hpp.
 #include <mfbe/ai_transport.hpp>
+#include <mfbe/http_client.hpp>
 #include <mfbe/unicode.hpp>
 
 #include <algorithm>
@@ -8,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
+#include <utility>
 
 namespace mfbe::ai {
 namespace {
@@ -137,16 +139,63 @@ std::string text_excerpt(std::string_view bytes) {
     return out;
 }
 
-// The product's transport until the libcurl client is bound here: every exchange is an
-// `offline` outcome naming the missing client, so the plumbing stays observable.
-class UnboundTransport : public Transport {
-public:
-    HttpOutcome send(const HttpRequest&, rpc::JobControl&, const ProgressFn& progress) override {
-        if (progress) {
-            progress("connecting", 0, 0);
-        }
-        return HttpOutcome::failure("offline", "HTTP client not available in this build", 0);
+// The client's outcome in this seam's vocabulary, member by member: the kinds are the same
+// seven names, `kind` is set on a failure only (the wire shape never carries it on `ok`).
+HttpOutcome outcome_from_client(net::AiOutcome&& outcome) {
+    HttpOutcome out;
+    out.ok = outcome.ok();
+    if (!out.ok) {
+        out.kind = std::string(net::outcome_kind_name(outcome.kind));
     }
+    out.status = outcome.status;
+    out.message = std::move(outcome.message);
+    out.body = std::move(outcome.body);
+    out.text = std::move(outcome.text);
+    if (outcome.retry_after_seconds) {
+        out.retry_after_seconds = static_cast<double>(*outcome.retry_after_seconds);
+    }
+    if (outcome.rate_limit) {
+        RateLimit limit;
+        limit.limit = outcome.rate_limit->limit;
+        limit.remaining = outcome.rate_limit->remaining;
+        limit.reset_seconds = outcome.rate_limit->reset_seconds;
+        out.rate_limit = std::move(limit);
+    }
+    out.elapsed_ms = outcome.elapsed_ms;
+    return out;
+}
+
+// The product's transport: the libcurl client of mfbe/http_client.hpp behind the seam. One
+// client per core, created by make_transport() on the first ai.* call; send() runs on the job
+// thread and the client polls the job's cancel flag itself. The request crosses the seam
+// field by field - the key travels as the key, and the client alone turns it into the
+// Authorization header (only when non-empty) next to the Definitions' fixed headers.
+class CurlTransport : public Transport {
+public:
+    explicit CurlTransport(const TransportOptions& options)
+        : client_(net::HttpClientOptions{options.resources_dir, {}, net::process_env()}) {}
+
+    HttpOutcome send(const HttpRequest& request, rpc::JobControl& control,
+                     const ProgressFn& progress) override {
+        net::HttpRequest wire;
+        wire.method = request.method;
+        wire.url = request.url;
+        wire.key = request.key;
+        wire.body = request.body;
+        wire.connect_ms = request.connect_ms;
+        wire.total_ms = request.total_ms;
+        wire.resolve_entries = request.resolve_entries;
+        net::ProgressFn forward;
+        if (progress) {
+            forward = [&progress](const std::string& phase, std::int64_t done, std::int64_t total) {
+                progress(phase.c_str(), done, total);
+            };
+        }
+        return outcome_from_client(client_.perform(wire, control, forward));
+    }
+
+private:
+    net::HttpClient client_;
 };
 
 std::mutex g_factory_mutex;
@@ -250,7 +299,7 @@ HttpOutcome outcome_from_response(int status, const std::map<std::string, std::s
     return outcome;
 }
 
-std::unique_ptr<Transport> make_transport() {
+std::unique_ptr<Transport> make_transport(const TransportOptions& options) {
     TransportFactory factory;
     {
         std::lock_guard<std::mutex> lock(g_factory_mutex);
@@ -259,7 +308,11 @@ std::unique_ptr<Transport> make_transport() {
     if (factory) {
         return factory();
     }
-    return std::make_unique<UnboundTransport>();
+    // The product's path. libcurl's one-time initialisation belongs here - the first ai.* call
+    // of the core creates the transport, nothing touches the network library before (FR-094,
+    // FR-096) - and the core server cleans up at shutdown only because it ran.
+    net::global_init_once();
+    return std::make_unique<CurlTransport>(options);
 }
 
 void set_transport_factory_for_tests(TransportFactory factory) {

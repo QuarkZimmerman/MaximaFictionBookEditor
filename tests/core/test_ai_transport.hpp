@@ -16,6 +16,7 @@
 #include "ws_test_client.hpp"
 
 #include <mfbe/ai_transport.hpp>
+#include <mfbe/version.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -129,10 +130,17 @@ public:
                                                 std::to_string(url->port) + ": Connection refused",
                                             elapsed());
         }
+        // The Definitions' headers as the product's client composes them from the request:
+        // Content-Type on a POST, Accept, User-Agent, Authorization only with a non-empty key.
         std::string raw = request.method + " " + url->path + " HTTP/1.1\r\nHost: " + url->host +
                           ":" + std::to_string(url->port) + "\r\nConnection: close\r\n";
-        for (const auto& [name, value] : request.headers) {
-            raw += name + ": " + value + "\r\n";
+        if (request.method == "POST") {
+            raw += "Content-Type: application/json\r\n";
+        }
+        raw += "Accept: application/json\r\n";
+        raw += std::string("User-Agent: MaximaFictionBookEditor/") + version::kVersion + "\r\n";
+        if (!request.key.empty()) {
+            raw += "Authorization: Bearer " + request.key + "\r\n";
         }
         if (request.method == "POST") {
             raw += "Content-Length: " + std::to_string(request.body.size()) + "\r\n";
