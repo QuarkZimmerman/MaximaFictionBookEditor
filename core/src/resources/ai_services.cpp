@@ -57,31 +57,9 @@ bool is_text(const json& v, std::size_t min_chars, std::size_t max_chars) {
     return v.is_string() && is_text(v.get<std::string>(), min_chars, max_chars);
 }
 
-// An absolute http(s) URL for the terms link: a scheme, a host, no whitespace or control
-// characters (a query or fragment is fine on a web page).
-bool is_http_url(const json& v) {
-    if (!v.is_string()) {
-        return false;
-    }
-    const std::string s = v.get<std::string>();
-    if (!unicode::is_valid_utf8(s) || unicode::length(s) > kMaxAddressLength ||
-        has_whitespace_or_control(s)) {
-        return false;
-    }
-    std::string lower = s.substr(0, 8);
-    for (auto& c : lower) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-    std::size_t authority = 0;
-    if (lower.rfind("https://", 0) == 0) {
-        authority = 8;
-    } else if (lower.rfind("http://", 0) == 0) {
-        authority = 7;
-    } else {
-        return false;
-    }
-    const std::size_t end = s.find_first_of("/?#", authority);
-    return (end == std::string::npos ? s.size() : end) > authority;
+// An absolute http(s) URL for the terms link (mfbe/ai_address.hpp's looser web-page rule).
+bool is_terms_url(const json& v) {
+    return v.is_string() && ai::is_http_url(v.get<std::string>());
 }
 
 struct Parser {
@@ -186,7 +164,7 @@ struct Parser {
             }
         }
         if (const auto it = item.find("termsUrl"); it != item.end()) {
-            if (is_http_url(*it)) {
+            if (is_terms_url(*it)) {
                 entry.terms_url = it->get<std::string>();
             } else {
                 bad_field(index, "termsUrl");

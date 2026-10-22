@@ -61,6 +61,9 @@ inline constexpr int kReleaseUnavailable = 1060;
 inline constexpr int kRestartUnavailable = 1070;
 inline constexpr int kRestartFailed = 1071;
 inline constexpr int kCancelled = 1090;
+// Feature 005 (ai.*): the target cannot be resolved to a service the call may contact -
+// {reason: disabled | unknownService | emptyAddress | noModel | noAgreement, id?, service?}.
+inline constexpr int kAiNoService = 1200;
 }  // namespace codes
 
 // Stable name of an error code ("doc.notFound", "invalidParams", ...); "" for unknown codes.

@@ -34,6 +34,11 @@ std::optional<ParsedAddress> parse_address(std::string_view address);
 // is hosted.
 bool is_local_hostname(std::string_view hostname);
 
+// A looser rule for a link to open in the browser (a terms page, app.openUrl): an absolute
+// `http://` or `https://` URL with a host, without whitespace or control characters, at most
+// kMaxAddressLength characters - a query or a fragment is fine on a web page.
+bool is_http_url(std::string_view url);
+
 // True when `text` holds a control character (C0, DEL or C1 code points).
 bool has_control_characters(std::string_view text);
 // True when `text` holds whitespace (ASCII or Unicode spaces) or a control character.

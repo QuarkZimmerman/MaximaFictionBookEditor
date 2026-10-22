@@ -1,6 +1,8 @@
 // Internal: everything RPC handlers need, bundled (not part of the public API).
 #pragma once
 
+#include "server/ai_state.hpp"
+
 #include <mfbe/clipboard_provider.hpp>
 #include <mfbe/core_server.hpp>
 #include <mfbe/dialog_provider.hpp>
@@ -49,6 +51,9 @@ struct Services {
 
     rpc::Notifier& notifier;
     rpc::JobManager jobs;
+    // The AI assistant (feature 005): the service list and the transport, both created on the
+    // first ai.* call and never at start-up; the test hooks' overrides and request record.
+    AiState ai;
     std::unique_ptr<platform::FileWatcher> watcher;  // doc.watch polling (created on demand)
 
     // Spell checking (US6): dictionaries through the layers, Hunspell instances, custom.dic.
@@ -126,6 +131,9 @@ void register_spell_handlers(rpc::RpcRouter& router, Services& services);
 void register_words_handlers(rpc::RpcRouter& router, Services& services);
 void register_scripts_handlers(rpc::RpcRouter& router, Services& services);
 void register_system_handlers(rpc::RpcRouter& router, Services& services);
+// ai.services / ai.reloadServices / ai.createUserServices and the ai.complete / ai.models /
+// ai.test jobs (feature 005, rpc-api §3.12).
+void register_ai_handlers(rpc::RpcRouter& router, Services& services);
 // Lazily creates the external-change watcher (emits doc.changedOnDisk through the notifier).
 platform::FileWatcher& file_watcher(Services& services);
 // Opens a folder through the shell (dialog provider) or the OS opener; 1050 without a shell.

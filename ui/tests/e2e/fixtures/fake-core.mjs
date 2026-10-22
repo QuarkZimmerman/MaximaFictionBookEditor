@@ -148,6 +148,62 @@ function readBlankTemplate() {
   }
 }
 
+/**
+ * Feature 005: the effective AI service list of the UI-only runs - the four bundled entries of
+ * resources/ai-services.json as `ai.services()` returns them (rpc-api §3.12), never a key.
+ */
+function aiServicesResult() {
+  const bundledPath = path.join(resourcesDir, 'ai-services.json');
+  let entries;
+  try {
+    entries = JSON.parse(readFileSync(bundledPath, 'utf8')).services ?? [];
+  } catch {
+    entries = [];
+  }
+  const localHost = (address) => {
+    const host = address
+      .replace(/^https?:\/\//i, '')
+      .split('/')[0]
+      .replace(/:\d+$/, '')
+      .replace(/^\[(.*)\]$/, '$1')
+      .toLowerCase();
+    return host === 'localhost' || host === '::1' || /^127\.\d+\.\d+\.\d+$/.test(host);
+  };
+  return {
+    services: entries.map((entry) => {
+      const limits = typeof entry.limits === 'string' ? { en: entry.limits } : (entry.limits ?? {});
+      const view = {
+        id: entry.id,
+        name: entry.name,
+        address: entry.address,
+        model: entry.model,
+        keyRequired: entry.keyRequired ?? false,
+        hasKey: false,
+        tools: entry.tools ?? true,
+        limits: {
+          en: limits.en ?? '',
+          ru: limits.ru ?? limits.en ?? '',
+          uk: limits.uk ?? limits.en ?? '',
+        },
+        source: 'bundled',
+        replaced: false,
+        local: localHost(entry.address),
+        plainHttp: /^http:/i.test(entry.address),
+      };
+      if (entry.termsUrl) view.termsUrl = entry.termsUrl;
+      if (Number.isInteger(entry.contextLength)) view.contextLength = entry.contextLength;
+      return view;
+    }),
+    hidden: [],
+    files: {
+      bundled: bundledPath,
+      user: path.join(dataDir, 'ai-services.json'),
+      userExists: existsSync(path.join(dataDir, 'ai-services.json')),
+    },
+    issues: [],
+  };
+}
+
 const docs = createDocService({
   dataDir,
   broadcast,
@@ -190,6 +246,19 @@ const methods = {
   'scripts.list': () => [],
   'spell.dictionaries': () => [],
   'log.error': () => ({}),
+  // Feature 005 (rpc-api §3.1, §3.12): the terms link opener and the service list family.
+  'app.openUrl': () => ({}),
+  'ai.services': () => aiServicesResult(),
+  'ai.reloadServices': () => {
+    const result = aiServicesResult();
+    broadcast('resources.changed', { what: 'aiServices' });
+    return result;
+  },
+  'ai.createUserServices': () => {
+    const result = { path: path.join(dataDir, 'ai-services.json'), created: false };
+    broadcast('resources.changed', { what: 'aiServices' });
+    return result;
+  },
   'test.enqueueDialog': ({ method, result }) => {
     dialogQueue.push({ method, result });
     return {};

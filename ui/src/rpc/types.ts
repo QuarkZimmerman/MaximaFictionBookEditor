@@ -64,6 +64,12 @@ export const RpcErrorCode = {
   /** `app.restart`: the shell could not start the new instance; `data.reason` (feature 003). */
   restartFailed: 1071,
   cancelled: 1090,
+  /**
+   * `ai.complete` / `ai.models` / `ai.test`: the target cannot be resolved to a service the
+   * call may contact - `data.reason` is `disabled` | `unknownService` | `emptyAddress` |
+   * `noModel` | `noAgreement`, with `id` or `service` (feature 005, rpc-api.md §3.12).
+   */
+  aiNoService: 1200,
   // Client-side conditions raised by the RPC client itself (never sent by the core).
   clientTimeout: -32001,
   clientDisconnected: -32002,
@@ -623,6 +629,74 @@ export interface AiAgreement {
   at: string;
 }
 
+/** `data` of 1200 `ai.noService`. */
+export interface AiNoServiceData {
+  reason: 'disabled' | 'unknownService' | 'emptyAddress' | 'noModel' | 'noAgreement';
+  /** The unknown free entry's id (`unknownService`). */
+  id?: string;
+  /** The agreement key without an agreement (`noAgreement`). */
+  service?: string;
+}
+
+/** One entry of the effective service list (rpc-api.md §3.12; resource-formats.md §A). */
+export interface AiServiceEntry {
+  id: string;
+  name: string;
+  /** The base address as written in the file (trailing `/` removed by the core on use). */
+  address: string;
+  model: string;
+  keyRequired: boolean;
+  /** The entry carries a key (user layer); the key itself is never returned. */
+  hasKey: boolean;
+  tools: boolean;
+  termsUrl?: string;
+  /** Missing languages filled from `en`. */
+  limits: { en: string; ru: string; uk: string };
+  contextLength?: number;
+  /** The file the entry in effect comes from. */
+  source: 'bundled' | 'user' | 'portable';
+  /** A user entry that replaced a bundled one. */
+  replaced: boolean;
+  /** Derived from the address: localhost, 127.0.0.0/8 or ::1; scheme http. */
+  local: boolean;
+  plainHttp: boolean;
+}
+
+/** A problem of a list file or of one of its entries (never a value of the entry). */
+export interface AiServiceIssue {
+  file: string;
+  /** The entry's position in that file's `services`; absent for a file-level issue. */
+  index?: number;
+  reason:
+    | 'unreadable'
+    | 'invalidJson'
+    | 'badVersion'
+    | 'notObject'
+    | 'missingField'
+    | 'badAddress'
+    | 'badId'
+    | 'duplicateId'
+    | 'badField';
+  /** For `missingField` / `badField`. */
+  field?: string;
+}
+
+export interface AiServicesResult {
+  /** Bundled order, user-only entries after. */
+  services: AiServiceEntry[];
+  /** Bundled ids removed by a user entry's `hidden: true`. */
+  hidden: string[];
+  files: {
+    bundled: string;
+    /** `<Data>/ai-services.json`, whether or not it exists. */
+    user: string;
+    userExists: boolean;
+    /** The read-only portable file when it is the user layer in effect. */
+    portable?: string;
+  };
+  issues: AiServiceIssue[];
+}
+
 /* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
@@ -942,6 +1016,23 @@ export interface RpcMethods {
   'test.setKeyboardLayouts': { params: KeyboardLayoutList; result: Empty };
   /** Every `system.activateKeyboardLayout` the stand-in received since start (feature 004). */
   'test.keyboardLayoutRequests': { params: void; result: KeyboardLayoutRequest[] };
+
+  // feature 005 — ai.*, app.openUrl, test hooks
+  /**
+   * Opens `url` in the system browser (http and https only; anything else `invalidParams`
+   * {field: 'url'}; 1050 when no opener can be started) - the one mechanism behind every terms
+   * / privacy link of the AI assistant (rpc-api.md §3.1).
+   */
+  'app.openUrl': { params: { url: string }; result: Empty };
+  /** The effective service list, loaded on the first `ai.*` call or at the last reload. */
+  'ai.services': { params: void; result: AiServicesResult };
+  /** Re-reads both list files and emits `resources.changed {what: 'aiServices'}`. */
+  'ai.reloadServices': { params: void; result: AiServicesResult };
+  /**
+   * *Edit list*: copies the bundled file to `<Data>/ai-services.json` when absent (`created`),
+   * never overwrites, reloads and notifies; 1002 {path, reason} when it cannot be written.
+   */
+  'ai.createUserServices': { params: void; result: { path: string; created: boolean } };
 }
 
 export type RpcMethodName = keyof RpcMethods;
@@ -957,7 +1048,7 @@ export interface RpcNotifications {
   'job.progress': JobProgress;
   'job.done': { jobId: string; result?: unknown };
   'job.failed': { jobId: string; error: RpcErrorObject };
-  'resources.changed': { what: 'genres' | 'scripts' | 'dictionaries' };
+  'resources.changed': { what: 'genres' | 'scripts' | 'dictionaries' | 'aiServices' };
   'app.openPaths': { paths: string[] };
   'settings.changed': { settings: Settings };
   /** The shell was asked to close its window; the UI runs its quit flow (feature 003). */

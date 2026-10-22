@@ -94,6 +94,24 @@ bool has_whitespace_or_control(std::string_view text) {
     return false;
 }
 
+bool is_http_url(std::string_view url) {
+    if (url.empty() || !unicode::is_valid_utf8(url) || unicode::length(url) > kMaxAddressLength ||
+        has_whitespace_or_control(url)) {
+        return false;
+    }
+    const std::string head = ascii_lower(url.substr(0, 8));
+    std::size_t authority = 0;
+    if (head.rfind("https://", 0) == 0) {
+        authority = 8;
+    } else if (head.rfind("http://", 0) == 0) {
+        authority = 7;
+    } else {
+        return false;
+    }
+    const std::size_t end = url.find_first_of("/?#", authority);
+    return (end == std::string_view::npos ? url.size() : end) > authority;
+}
+
 bool is_local_hostname(std::string_view hostname) {
     std::string name = ascii_lower(hostname);
     if (name.size() >= 2 && name.front() == '[' && name.back() == ']') {
