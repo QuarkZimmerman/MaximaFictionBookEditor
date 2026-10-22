@@ -204,6 +204,22 @@ function aiServicesResult() {
   };
 }
 
+const AI_CANNED_COMPLETION = {
+  id: 'chatcmpl-fake',
+  object: 'chat.completion',
+  model: 'standin-chat',
+  choices: [{ index: 0, message: { role: 'assistant', content: 'OK' }, finish_reason: 'stop' }],
+};
+let aiJobCounter = 0;
+function aiJob(result) {
+  const jobId = `ai${++aiJobCounter}`;
+  setTimeout(() => {
+    broadcast('job.progress', { jobId, phase: 'connecting', done: 0, total: 0 });
+    broadcast('job.done', { jobId, result });
+  }, 10);
+  return { jobId };
+}
+
 const docs = createDocService({
   dataDir,
   broadcast,
@@ -259,6 +275,20 @@ const methods = {
     broadcast('resources.changed', { what: 'aiServices' });
     return result;
   },
+  // The three exchanges are jobs answering a canned `ok` outcome (the journeys that need a
+  // real exchange run the real core against the stand-in).
+  'ai.complete': () => aiJob({ ok: true, status: 200, body: AI_CANNED_COMPLETION, elapsedMs: 5 }),
+  'ai.models': () =>
+    aiJob({ ok: true, status: 200, models: [{ id: 'standin-chat' }], elapsedMs: 5 }),
+  'ai.test': () =>
+    aiJob({
+      ok: true,
+      status: 200,
+      body: AI_CANNED_COMPLETION,
+      verified: true,
+      model: 'standin-chat',
+      elapsedMs: 5,
+    }),
   'test.enqueueDialog': ({ method, result }) => {
     dialogQueue.push({ method, result });
     return {};

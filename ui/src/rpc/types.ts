@@ -697,6 +697,75 @@ export interface AiServicesResult {
   issues: AiServiceIssue[];
 }
 
+/**
+ * The service a call addresses (rpc-api.md "Definitions"): a free entry by id, the stored
+ * custom triple, or - for `ai.test` / `ai.models` only - the settings page's unsaved draft with
+ * all three members. For a request the key never travels from the UI to the core.
+ */
+export type AiTarget =
+  | { kind: 'free'; id: string }
+  | { kind: 'custom' }
+  | { kind: 'custom'; address: string; key: string; model: string };
+
+export interface AiRateLimit {
+  limit?: number;
+  remaining?: number;
+  resetSeconds?: number;
+}
+
+export type AiFailureKind = 'offline' | 'timeout' | 'tls' | 'http' | 'format' | 'cancelled';
+
+/**
+ * The result of one exchange with a service - a service failure is a result, never an
+ * RpcError: `ok` for a 2xx whose body parsed as JSON; `http` for any other status (`body` when
+ * it parses, else the first 64 KiB as `text`, never `message`); `offline`, `timeout`, `tls`,
+ * `format` and `cancelled` with the transport's own `message`. A 3xx is an `http` outcome -
+ * redirects are never followed. `retryAfterSeconds` and `rateLimit` come from the headers on
+ * `ok` and `http` outcomes alike.
+ */
+export type AiOutcome =
+  | {
+      ok: true;
+      status: number;
+      body: unknown;
+      retryAfterSeconds?: number;
+      rateLimit?: AiRateLimit;
+      elapsedMs: number;
+    }
+  | {
+      ok: false;
+      kind: AiFailureKind;
+      status?: number;
+      message?: string;
+      body?: unknown;
+      text?: string;
+      retryAfterSeconds?: number;
+      rateLimit?: AiRateLimit;
+      elapsedMs: number;
+    };
+
+/** The OpenAI chat-completions request the UI built; `model` and `stream` are set by the core. */
+export type ChatRequest = { messages: unknown[]; [member: string]: unknown };
+
+/** `ai.models`: the service's list normalised (`id` from `id` or `name`, strings as ids). */
+export type AiModelsResult =
+  | {
+      ok: true;
+      status: number;
+      models: { id: string; contextLength?: number; tools?: boolean }[];
+      retryAfterSeconds?: number;
+      rateLimit?: AiRateLimit;
+      elapsedMs: number;
+    }
+  | Extract<AiOutcome, { ok: false }>;
+
+/**
+ * `ai.test`: `verified` iff `ok` and `body.choices` is a non-empty array; `model` the name
+ * that answered (else the requested one); `fingerprint` - SHA-256 of `address\0key\0model` of
+ * the triple used - for a verified custom target only (the core writes no setting).
+ */
+export type AiTestResult = AiOutcome & { verified: boolean; model?: string; fingerprint?: string };
+
 /* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
@@ -1033,6 +1102,19 @@ export interface RpcMethods {
    * never overwrites, reloads and notifies; 1002 {path, reason} when it cannot be written.
    */
   'ai.createUserServices': { params: void; result: { path: string; created: boolean } };
+  /**
+   * One chat-completion exchange as a job: `{jobId}` at once, `job.progress` with the phases
+   * `connecting` | `waiting` | `receiving`, the `AiOutcome` as the result of `job.done` (a
+   * service failure included), `job.failed` 1090 on `job.cancel`. The body is sent as given
+   * with exactly `model` and `stream: false` set by the core; a stored target only. Errors
+   * before the job: `invalidParams` {field: 'target' | 'body' | 'body.messages'} (`reason:
+   * 'tooLarge'` over 8 MiB), 1200 {reason, id?, service?} - `disabled` while `ai.mode` is.
+   */
+  'ai.complete': { params: { target: AiTarget; body: ChatRequest }; result: { jobId: string } };
+  /** `GET <address>/models` as a job whose `job.done` carries an `AiModelsResult`; a draft may be given; no model needed. */
+  'ai.models': { params: { target: AiTarget }; result: { jobId: string } };
+  /** The fixed one-word completion as a job whose `job.done` carries an `AiTestResult`; a draft may be given. */
+  'ai.test': { params: { target: AiTarget }; result: { jobId: string } };
 }
 
 export type RpcMethodName = keyof RpcMethods;
