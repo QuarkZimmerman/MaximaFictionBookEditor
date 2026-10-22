@@ -73,10 +73,20 @@ never linked.
 | @lezer/lr | 1.4.11 | MIT | `ui/node_modules/@lezer/lr/LICENSE` |
 | @lezer/xml | 1.0.6 | MIT | `ui/node_modules/@lezer/xml/LICENSE` |
 | @marijn/find-cluster-break | 1.0.4 | MIT | `ui/node_modules/@marijn/find-cluster-break/LICENSE` |
+| @modelcontextprotocol/client | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/client/LICENSE` |
+| @modelcontextprotocol/core | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/core/LICENSE` |
+| @modelcontextprotocol/server | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/server/LICENSE` |
 | crelt | 1.0.7 | MIT | `ui/node_modules/crelt/LICENSE` |
+| cross-spawn | 7.0.6 | MIT | `ui/node_modules/cross-spawn/LICENSE` |
+| eventsource | 3.0.7 | MIT | `ui/node_modules/eventsource/LICENSE` |
+| eventsource-parser | 3.1.1 | MIT | `ui/node_modules/eventsource-parser/LICENSE` |
 | html-parse-stringify | 4.0.1 | MIT | `ui/node_modules/html-parse-stringify/LICENSE` |
 | i18next | 26.4.4 | MIT | `ui/node_modules/i18next/LICENSE` |
+| isexe | 2.0.0 | ISC | `ui/node_modules/isexe/LICENSE` |
+| jose | 6.2.13 | MIT | `ui/node_modules/jose/LICENSE.md` |
 | orderedmap | 2.1.1 | MIT | `ui/node_modules/orderedmap/LICENSE` |
+| path-key | 3.1.1 | MIT | `ui/node_modules/path-key/license` |
+| pkce-challenge | 5.0.1 | MIT | `ui/node_modules/pkce-challenge/LICENSE` |
 | prosemirror-commands | 1.7.2 | MIT | `ui/node_modules/prosemirror-commands/LICENSE` |
 | prosemirror-history | 1.5.1 | MIT | `ui/node_modules/prosemirror-history/LICENSE` |
 | prosemirror-inputrules | 1.5.1 | MIT | `ui/node_modules/prosemirror-inputrules/LICENSE` |
@@ -90,9 +100,13 @@ never linked.
 | react-i18next | 17.0.16 | MIT | `ui/node_modules/react-i18next/LICENSE` |
 | rope-sequence | 1.3.4 | MIT | `ui/node_modules/rope-sequence/LICENSE` |
 | scheduler | 0.28.0 | MIT | `ui/node_modules/scheduler/LICENSE` |
+| shebang-command | 2.0.0 | MIT | `ui/node_modules/shebang-command/license` |
+| shebang-regex | 3.0.0 | MIT | `ui/node_modules/shebang-regex/license` |
 | style-mod | 4.1.4 | MIT | `ui/node_modules/style-mod/LICENSE` |
 | use-sync-external-store | 1.7.0 | MIT | `ui/node_modules/use-sync-external-store/LICENSE` |
 | w3c-keyname | 2.2.8 | MIT | `ui/node_modules/w3c-keyname/LICENSE` |
+| which | 2.0.2 | ISC | `ui/node_modules/which/LICENSE` |
+| zod | 4.6.7 | MIT | `ui/node_modules/zod/LICENSE` |
 
 Development-only packages (bundler, test runners, linters, type definitions) are not
 distributed and are therefore not listed.
@@ -134,9 +148,10 @@ in Help > About like the other dictionaries' notices.
 
 | Licence | Components |
 |---|---|
-| MIT | 42 |
+| MIT | 51 |
+| Apache-2.0 | 5 |
 | BSD-3-Clause | 4 |
-| Apache-2.0 | 2 |
+| ISC | 2 |
 | Apache-2.0 AND MIT | 1 |
 | BSD-2-Clause | 1 |
 | BSD-3-Clause AND IJG | 1 |

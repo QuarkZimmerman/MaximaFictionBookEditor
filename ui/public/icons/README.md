@@ -12,8 +12,8 @@ original command ids in lower case; `ui/src/app/commands.ts` references them thr
 Icons of this project's own (not conversions of an original bitmap — the original editor had no
 such button):
 
-| File | Command | Source | Licence | Regeneration |
-|---|---|---|---|---|
+| File                                                                       | Command                                        | Source                                                                                                                                                                                                                                 | Licence                        | Regeneration                                                                                                |
+| -------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | `toolbar24/ai-assistant.png` (24×24), `toolbar16/ai-assistant.png` (16×16) | `ai.toggle` (View → AI Assistant, feature 005) | a speech bubble with a spark, drawn in the style of the neighbouring FBE icons (8-bit RGBA, dark grey outline, white fill, one orange accent) by `tools/resources-import/draw_ai_icons.py` (Python 3, standard library, deterministic) | project licence (GPL-3.0-only) | `python3 tools/resources-import/draw_ai_icons.py` (`--check` compares the committed files with the drawing) |
 
 `tree/` holds the Document Tree pane's buttons (`resources/icons/tree24/id_dt_*.png`) and the
