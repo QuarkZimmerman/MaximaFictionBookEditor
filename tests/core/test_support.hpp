@@ -2,12 +2,21 @@
 // because the extension is .hpp).
 #pragma once
 
+#include <mfbe/rpc.hpp>
+
+#include <atomic>
 #include <chrono>
+#include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
+#include <optional>
 #include <random>
 #include <string>
 #include <system_error>
+#include <utility>
+#include <vector>
 
 namespace mfbe::test {
 
@@ -71,6 +80,84 @@ public:
 
 private:
     std::filesystem::path path_;
+};
+
+// Sets an environment variable (or unsets it with nullopt) for the lifetime of the guard and
+// restores the previous state afterwards. Feature 005: the HTTP client reads proxies and the
+// CA bundle override from the environment, libcurl itself reads `http_proxy` & co.
+class EnvGuard {
+public:
+    EnvGuard(std::string name, std::optional<std::string> value) : name_(std::move(name)) {
+        if (const char* current = std::getenv(name_.c_str())) {
+            previous_ = std::string(current);
+        }
+        apply(name_, value);
+    }
+    ~EnvGuard() { apply(name_, previous_); }
+    EnvGuard(const EnvGuard&) = delete;
+    EnvGuard& operator=(const EnvGuard&) = delete;
+
+private:
+    static void apply(const std::string& name, const std::optional<std::string>& value) {
+#ifdef _WIN32
+        _putenv_s(name.c_str(), value ? value->c_str() : "");
+#else
+        if (value) {
+            ::setenv(name.c_str(), value->c_str(), 1);
+        } else {
+            ::unsetenv(name.c_str());
+        }
+#endif
+    }
+
+    std::string name_;
+    std::optional<std::string> previous_;
+};
+
+// `auto guard = with_env("SSL_CERT_FILE", path);` - the variable is restored when the guard
+// goes out of scope; nullopt unsets it for the scope.
+[[nodiscard]] inline EnvGuard with_env(std::string name, std::optional<std::string> value) {
+    return EnvGuard(std::move(name), std::move(value));
+}
+
+// A JobControl for calling a job function directly on the test thread: `cancel()` raises the
+// flag the function polls; progress reports are recorded.
+class ManualJobControl : public rpc::JobControl {
+public:
+    struct Progress {
+        std::string phase;
+        std::int64_t done = 0;
+        std::int64_t total = 0;
+    };
+
+    explicit ManualJobControl(std::string id = "j-test") : id_(std::move(id)) {}
+
+    const std::string& id() const override { return id_; }
+    bool cancelled() const override { return cancelled_.load(); }
+    void progress(const std::string& phase, std::int64_t done, std::int64_t total) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        reports_.push_back(Progress{phase, done, total});
+    }
+
+    void cancel() { cancelled_.store(true); }
+    std::vector<Progress> reports() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return reports_;
+    }
+    std::vector<std::string> phases() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::vector<std::string> out;
+        for (const auto& report : reports_) {
+            out.push_back(report.phase);
+        }
+        return out;
+    }
+
+private:
+    std::string id_;
+    std::atomic<bool> cancelled_{false};
+    mutable std::mutex mutex_;
+    std::vector<Progress> reports_;
 };
 
 }  // namespace mfbe::test

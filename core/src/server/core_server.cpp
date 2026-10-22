@@ -3,6 +3,7 @@
 #include "server/services.hpp"
 
 #include <mfbe/core_server.hpp>
+#include <mfbe/http_client.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/validator.hpp>
 #include <mfbe/version.hpp>
@@ -398,6 +399,9 @@ CoreServer::~CoreServer() {
         impl_->services->watcher.reset();
         impl_->services->jobs.shutdown();
     }
+    // libcurl was initialised lazily by the first ai.* call, if ever (feature 005, FR-094):
+    // the matching cleanup runs only when it ran, after every job thread has been joined.
+    net::global_cleanup_if_ran();
 }
 
 std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) {
