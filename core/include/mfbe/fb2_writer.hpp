@@ -66,6 +66,28 @@ WriteResult write_document(const model::Document& document, const BinaryStore* s
 std::string encode_document(const std::string& utf8_text, const std::string& encoding,
                             std::size_t* unmappable = nullptr);
 
+/* ----------------------------------------------------------------------------------------- */
+/* Fragments (feature 005, doc.fragmentToXml - contracts/rpc-api.md §3.2 of the feature)     */
+/* ----------------------------------------------------------------------------------------- */
+
+struct FragmentOptions {
+    std::string xlink_prefix = "l";  // the session's prefix for xlink:href
+};
+
+// Whether a node is inline content (a text node, an inline image or an inline raw-xml node)
+// as opposed to a block / structural node. A fragment is one or the other, never a mix.
+bool is_inline_node(const model::Node& node);
+
+// The FictionBook XML text of `nodes` exactly as write_document writes them inside a book:
+// the same element and attribute names, escaping and xlink prefix; structural elements one
+// per line with one tab per level, re-based so that the first node's start tag is at column
+// 0; nodes separated by "\n" (no trailing newline); no declaration, no namespace
+// declarations, no nodeId; an image is its tag only; a raw-xml node its stored text. Inline
+// nodes (decided by the first node) are written as the content of a text container, marks as
+// inline elements, without a wrapping element. Siblings are written in the given order.
+std::string write_fragment(const std::vector<model::Node>& nodes,
+                           const FragmentOptions& options = {});
+
 // Canonical order of marks when nesting inline elements (outermost first).
 int mark_rank(const std::string& mark_type);
 

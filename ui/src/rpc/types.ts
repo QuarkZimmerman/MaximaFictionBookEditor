@@ -11,12 +11,25 @@
  */
 
 import type {
+  AnnotationNode,
   BinaryMeta,
+  BlockNode,
+  BodyNode,
+  CellNode,
+  DateNode,
   Description,
   Document,
   DocumentInfo,
+  EpigraphNode,
+  InlineNode,
+  RowNode,
+  SectionNode,
+  StanzaNode,
+  TextAuthorNode,
+  TitleNode,
   ValidationIssue,
   ValidationReport,
+  VerseNode,
 } from '@/model/document';
 
 export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
@@ -558,6 +571,35 @@ export interface ExportDescriptionResult {
 }
 
 /* ------------------------------------------------------------------------ */
+/* feature 005 — doc.fragment*, schema.text, scripts.write                  */
+/* (specs/005-ai-assistant/contracts/rpc-api.md §3.2, §3.8, §3.13)          */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A block or structural node of a fragment (feature 005, rpc-api.md §3.2): the body-tree
+ * node shapes of the document model, as the UI holds them in its working copy.
+ */
+export type FragmentBlockNode =
+  | BodyNode
+  | SectionNode
+  | TitleNode
+  | EpigraphNode
+  | AnnotationNode
+  | BlockNode
+  | StanzaNode
+  | TextAuthorNode
+  | VerseNode
+  | DateNode
+  | RowNode
+  | CellNode;
+
+/**
+ * A node `doc.fragmentToXml` takes: block / structural nodes, or the inline nodes of one text
+ * container's content (never a mix in one list). `attrs.nodeId` is never written.
+ */
+export type FragmentNode = FragmentBlockNode | InlineNode;
+
+/* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
 
@@ -876,6 +918,26 @@ export interface RpcMethods {
   'test.setKeyboardLayouts': { params: KeyboardLayoutList; result: Empty };
   /** Every `system.activateKeyboardLayout` the stand-in received since start (feature 004). */
   'test.keyboardLayoutRequests': { params: void; result: KeyboardLayoutRequest[] };
+
+  // feature 005 — doc.fragment*, schema.text, scripts.write
+  /**
+   * The FictionBook XML text of the given nodes exactly as the writer writes them inside a
+   * book (feature 005, rpc-api.md §3.2): structural elements one per line, one tab per level
+   * re-based so that the first start tag is at column 0, nodes separated by `\n`, the
+   * session's xlink prefix, no declaration, no namespace declarations, no `nodeId`, an image
+   * as its tag only; inline nodes as the content of a text container. Exactly one of `nodes`
+   * (the nodes as the UI holds them) or `nodeIds` (resolved in `document`, else in the
+   * session's snapshot; written in document order, a nested id once inside its ancestor,
+   * duplicates ignored). Errors: 1000; 1003 for a Source-only session; invalidParams
+   * {field: 'nodes'} (both or neither form, a mixed list, an undecodable node), {field:
+   * 'nodeIds', nodeId} for an unknown id. No side effects - the snapshot is untouched.
+   */
+  'doc.fragmentToXml': {
+    params:
+      | { docId: string; nodes: FragmentNode[] }
+      | { docId: string; document?: Document; nodeIds: string[] };
+    result: { xml: string };
+  };
 }
 
 export type RpcMethodName = keyof RpcMethods;

@@ -120,6 +120,8 @@ void register_log_handlers(rpc::RpcRouter& router, Services& services);
 void register_settings_handlers(rpc::RpcRouter& router, Services& services);
 void register_dialog_handlers(rpc::RpcRouter& router, Services& services);
 void register_doc_handlers(rpc::RpcRouter& router, Services& services);
+// doc.fragmentToXml / doc.fragmentFromXml (feature 005); called by register_doc_handlers.
+void register_fragment_handlers(rpc::RpcRouter& router, Services& services);
 void register_binary_handlers(rpc::RpcRouter& router, Services& services);
 void register_resources_handlers(rpc::RpcRouter& router, Services& services);
 void register_spell_handlers(rpc::RpcRouter& router, Services& services);

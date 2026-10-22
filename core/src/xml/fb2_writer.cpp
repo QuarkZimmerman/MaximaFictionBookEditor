@@ -92,11 +92,49 @@ std::optional<std::string> attr_of(const Node& node, const char* name) {
 /* Writer                                                                                    */
 /* ----------------------------------------------------------------------------------------- */
 
+// The document a fragment writer stands in for: nothing of it is ever written.
+const model::Document& empty_document() {
+    static const model::Document kEmpty;
+    return kEmpty;
+}
+
 class Writer {
 public:
     Writer(const model::Document& doc, const BinaryStore* store, const WriteOptions& options)
         : doc_(doc), store_(store), options_(options), record_(options.positions) {
-        collect_foreign_namespaces();
+        model::visit_nodes(doc_, [&](const Node& node, const std::string&) {
+            collect_foreign_namespaces(node);
+            return true;
+        });
+    }
+
+    // A fragment writer (feature 005): no document, no store, no position map; the foreign
+    // namespaces of the fragment's own unknown attributes get the prefixes the document
+    // writer would give them.
+    Writer(const std::vector<Node>& fragment, const WriteOptions& options)
+        : doc_(empty_document()), store_(nullptr), options_(options), record_(false) {
+        for (const Node& node : fragment) {
+            visit_fragment(node);
+        }
+    }
+
+    // The fragment's text: block nodes one per line from depth 0, the trailing newline of the
+    // last line removed; inline nodes as text-container content.
+    std::string run_fragment(const std::vector<Node>& nodes) {
+        if (nodes.empty()) {
+            return "";
+        }
+        if (is_inline_node(nodes.front())) {
+            write_inline_content(nodes);
+            return std::move(out_);
+        }
+        for (const Node& node : nodes) {
+            write_block(node, 0);
+        }
+        if (!out_.empty() && out_.back() == '\n') {
+            out_.pop_back();
+        }
+        return std::move(out_);
     }
 
     WriteResult run() {
@@ -250,30 +288,37 @@ private:
         return std::string(" ") + name + "=\"" + esc_attr(value) + "\"";
     }
 
-    void collect_foreign_namespaces() {
-        const auto visit_attrs = [&](const Node& node) {
-            auto it = node.attrs.find("unknownAttrs");
-            if (it == node.attrs.end() || !it->second.is_object()) {
-                return;
-            }
-            for (const auto& [key, value] : it->second.items()) {
-                if (key.size() > 2 && key.front() == '{') {
-                    const auto close = key.find('}');
-                    if (close == std::string::npos) {
-                        continue;
-                    }
-                    const std::string uri = key.substr(1, close - 1);
-                    if (uri == kXlinkNamespace || uri == kXmlNamespace || foreign_ns_.count(uri)) {
-                        continue;
-                    }
-                    foreign_ns_[uri] = "ns" + std::to_string(foreign_ns_.size() + 1);
+    // Registers the foreign namespaces of one node's unknown attributes (ns1, ns2, ... in the
+    // order met).
+    void collect_foreign_namespaces(const Node& node) {
+        auto it = node.attrs.find("unknownAttrs");
+        if (it == node.attrs.end() || !it->second.is_object()) {
+            return;
+        }
+        for (const auto& [key, value] : it->second.items()) {
+            if (key.size() > 2 && key.front() == '{') {
+                const auto close = key.find('}');
+                if (close == std::string::npos) {
+                    continue;
                 }
+                const std::string uri = key.substr(1, close - 1);
+                if (uri == kXlinkNamespace || uri == kXmlNamespace || foreign_ns_.count(uri)) {
+                    continue;
+                }
+                foreign_ns_[uri] = "ns" + std::to_string(foreign_ns_.size() + 1);
             }
-        };
-        model::visit_nodes(doc_, [&](const Node& node, const std::string&) {
-            visit_attrs(node);
-            return true;
-        });
+        }
+    }
+
+    // Pre-order over a fragment node and its descendants (the document walk of
+    // model::visit_nodes, for nodes that belong to no document).
+    void visit_fragment(const Node& node) {
+        if (!node.is_text()) {
+            collect_foreign_namespaces(node);
+        }
+        for (const Node& child : node.content) {
+            visit_fragment(child);
+        }
     }
 
     std::string unknown_attrs(const Node& node) {
@@ -909,6 +954,25 @@ std::string encode_document(const std::string& utf8_text, const std::string& enc
         *unmappable = result.unmappable;
     }
     return std::move(result.bytes);
+}
+
+bool is_inline_node(const Node& node) {
+    if (node.is_text() || node.type == "inline-image") {
+        return true;
+    }
+    if (node.type == "raw-xml") {
+        auto it = node.attrs.find("inline");
+        return it != node.attrs.end() && it->second.is_boolean() && it->second.get<bool>();
+    }
+    return false;
+}
+
+std::string write_fragment(const std::vector<Node>& nodes, const FragmentOptions& options) {
+    WriteOptions effective;
+    effective.xlink_prefix =
+        options.xlink_prefix.empty() ? std::string(kDefaultXlinkPrefix) : options.xlink_prefix;
+    Writer writer(nodes, effective);
+    return writer.run_fragment(nodes);
 }
 
 }  // namespace mfbe::fb2
