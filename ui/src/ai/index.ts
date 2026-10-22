@@ -17,12 +17,33 @@
  * (FR-097).
  *
  * Nothing contacts a service, gathers context or takes the lock here (FR-020, FR-091):
- * `ai.toggle` on the first turn-on performs the one `import('./assistant')` of the
- * `ai-assistant` chunk (vite.config.ts) and flips `store.ai.on`; the panel, the catalogue
- * instance and the requests are the stories' (US2, US3).
+ * `ai.toggle` on the first turn-on performs the one `import('./chunk')` of the `ai-assistant`
+ * chunk (vite.config.ts; `chunk.ts` re-exports `assistant.ts` and the panel component) and
+ * flips `store.ai.on`.
+ *
+ * The transitions of data-model §3.3 (US3 T053; FR-090 to FR-095):
+ *  - on: the chunk imported once, the state flipped, the panel opened at `width` with the
+ *    focus in its field, the Body context menu's "Ask AI..." slot added - no request, no
+ *    context gathering, no outline, no lock;
+ *  - off (the close button, the View entry, the hotkey, the toolbar button alike): the
+ *    conversation cleared (FR-045), the slot removed, the panel unmounted, the request and
+ *    catalogue references dropped; the document and `modified` untouched, no undo step;
+ *  - off while a request runs: the question `dialog-ai-stop-confirm` first (FR-093) - Yes
+ *    cancels the request, waits for its end and turns off, No changes nothing;
+ *  - the document replaced (`docId` changes: open, new, close): a running request is cancelled
+ *    (its session's watch does it; made sure here) and the conversation cleared; the panel
+ *    stays open and empty;
+ *  - Disabled chosen in Settings while a request runs: the same question before OK applies
+ *    (`registerBeforeApply`, FR-097) - No keeps the dialog open; the de-registration then
+ *    turns the assistant off as before;
+ *  - exit / window close: the file feature's quit flow cancels the run holding the lock
+ *    (`fileCommands.ts`, the AI wording of the prompt) before the save-changes prompt.
+ * The catalogue instance per turn-on (data-model §8.5) is still built per request by
+ * `assistant.ts` (T046) until the loop's second part re-binds one instance (T055).
  */
 
 import i18next from 'i18next';
+import type { ComponentType } from 'react';
 
 import {
   AI_TOGGLE_ICON,
@@ -33,6 +54,7 @@ import {
 } from '@/app/commands';
 import type { FeatureContext } from '@/app/services';
 import { cmdKeys } from '@/features/editing/common';
+import { registerBeforeApply } from '@/features/settings/index';
 import { getScriptsFeature } from '@/scripting/catalog';
 import { testHooksRequested } from '@/scripting/testHooks';
 import { actions, emptyConversation, isRunLocked, type AppStore } from '@/model/store';
@@ -40,6 +62,7 @@ import type { RpcClient } from '@/rpc/client';
 import type { Settings } from '@/rpc/types';
 import { registerContextMenuExtension } from '@/views/body/contextMenuExtensions';
 
+import type { AiPanelProps } from './AiPanel';
 import type { AssistantModule } from './assistant';
 import { installAiTestHooks } from './testHooks';
 
@@ -56,29 +79,46 @@ export const AI_COMMAND_IDS = ['ai.toggle', 'ai.ask', 'ai.cancel'] as const;
  */
 export type AiFeatureStatus = 'waiting' | 'registered' | 'disabled' | 'coreTooOld';
 
+/**
+ * What the lazy chunk exports as `index.ts` imports it (`chunk.ts`): the assistant's surface
+ * and the panel component App.tsx renders inside the right pane while on.
+ */
+export interface AiChunkModule extends AssistantModule {
+  AiPanel?: ComponentType<AiPanelProps>;
+}
+
+/** Longest wait for a cancelled request to end before a turn-off or a de-registration goes on. */
+export const CANCEL_REQUEST_WAIT_MS = 5000;
+
 export interface AiFeatureOptions {
   /**
-   * The lazy import of the assistant module; `() => import('./assistant')` by default (tests
-   * substitute a module and count the calls).
+   * The lazy import of the chunk; `() => import('./chunk')` by default (tests substitute a
+   * module and count the calls).
    */
-  loadAssistant?: () => Promise<AssistantModule>;
+  loadAssistant?: () => Promise<AiChunkModule>;
   /** Install the test hooks whatever the page and the core say (tests). */
   testHooks?: boolean;
+  /** How long a cancelled request may take to end (default `CANCEL_REQUEST_WAIT_MS`). */
+  cancelWaitMs?: number;
 }
 
 export class AiFeature {
   private statusValue: AiFeatureStatus = 'waiting';
   private coreTooOldValue = false;
   private versionCheck: Promise<'recent' | 'old' | 'unknown'> | null = null;
-  private module: AssistantModule | null = null;
-  private loading: Promise<AssistantModule> | null = null;
+  private module: AiChunkModule | null = null;
+  private loading: Promise<AiChunkModule> | null = null;
   private lastContext: CommandContext | null = null;
   private readonly listeners = new Set<() => void>();
-  private readonly loadAssistant: () => Promise<AssistantModule>;
+  private readonly loadAssistant: () => Promise<AiChunkModule>;
   private readonly unsubscribe: () => void;
+  private readonly removeBeforeApply: () => void;
+  private readonly cancelWaitMs: number;
   private hooksInstalled = false;
   /** Removes the Body context menu's "Ask AI..." slot (registered while on, FR-030). */
   private removeMenuSlot: (() => void) | null = null;
+  /** The turn-off under way (its question open, its request ending): one at a time. */
+  private closing: Promise<boolean> | null = null;
 
   constructor(
     readonly store: AppStore,
@@ -86,11 +126,19 @@ export class AiFeature {
     private readonly rpc: RpcClient | null,
     options: AiFeatureOptions = {},
   ) {
-    this.loadAssistant = options.loadAssistant ?? (() => import('./assistant'));
+    this.loadAssistant = options.loadAssistant ?? (() => import('./chunk'));
+    this.cancelWaitMs = options.cancelWaitMs ?? CANCEL_REQUEST_WAIT_MS;
     if (options.testHooks || testHooksRequested()) this.installHooks();
     this.unsubscribe = store.subscribe((state, previous) => {
       if (state.settings !== previous.settings) void this.onSettings(state.settings);
+      if (state.docId !== previous.docId && state.ai.on) {
+        // After the notification round: the clearing is a store update of its own.
+        void Promise.resolve().then(() => this.onDocumentReplaced());
+      }
     });
+    this.removeBeforeApply = registerBeforeApply((draft, original) =>
+      this.beforeApply(draft, original),
+    );
     // A snapshot that arrived before the registrar ran (tests) counts as the first one.
     const initial = store.getState().settings;
     if (initial) void this.onSettings(initial);
@@ -109,6 +157,18 @@ export class AiFeature {
   /** The assistant module once the chunk was imported (the first turn-on); null before. */
   get assistant(): AssistantModule | null {
     return this.module;
+  }
+
+  /** The panel component of the imported chunk (App.tsx renders it in the right pane while on). */
+  get panel(): ComponentType<AiPanelProps> | null {
+    return this.module?.AiPanel ?? null;
+  }
+
+  /** True while a request of the assistant runs (the popup's or the panel's - one slot). */
+  requestRunning(): boolean {
+    return (
+      (this.module?.activeRequest?.() ?? null) !== null || this.store.getState().ai.request !== null
+    );
   }
 
   /** `settings.ai.mode !== 'disabled'` by the latest snapshot (data-model §3.1 `enabled`). */
@@ -153,20 +213,60 @@ export class AiFeature {
   }
 
   /**
-   * Turns the assistant on (importing the chunk on the first time) or off. Off while a request
-   * runs is US3's "Stop the request?" prompt (T053); the skeleton turns off at once.
+   * View → AI Assistant, `Mod+Shift+A`, the toolbar button: turns the assistant on (importing
+   * the chunk on the first time) or off - off goes through `close()` and its question while a
+   * request runs (FR-093).
    */
   async toggle(ctx: CommandContext): Promise<void> {
     this.lastContext = ctx;
     if (this.store.getState().ai.on) {
-      this.turnOff();
+      await this.close(ctx);
       return;
     }
     const module = await this.load();
-    // The mode may have become `disabled` while the chunk loaded (FR-097).
-    if (this.statusValue !== 'registered') return;
+    // The mode may have become `disabled` while the chunk loaded (FR-097); a second toggle
+    // may have turned the assistant on meanwhile.
+    if (this.statusValue !== 'registered' || this.store.getState().ai.on) return;
     module.startAssistant(this.store);
     this.addMenuSlot(ctx);
+    // The panel opens (App.tsx renders it while on) with the focus in its field; nothing is
+    // sent, gathered or locked (FR-091).
+    actions.updateAi(this.store, { panelFocus: true });
+  }
+
+  /**
+   * Turns the assistant off - the panel's close button, the View entry, the hotkey and the
+   * toolbar button alike (FR-092). While a request runs the user is asked first
+   * (`dialog-ai-stop-confirm`, FR-093): Yes cancels the request, waits for its end (the working
+   * copy discarded, the lock released) and turns off; No changes nothing. Resolves true when
+   * the assistant is off afterwards. A second call while the question is open joins it.
+   */
+  close(ctx: CommandContext): Promise<boolean> {
+    this.lastContext = ctx;
+    if (!this.store.getState().ai.on) return Promise.resolve(true);
+    if (this.closing) return this.closing;
+    this.closing = this.closeNow(ctx).finally(() => {
+      this.closing = null;
+    });
+    return this.closing;
+  }
+
+  private async closeNow(ctx: CommandContext): Promise<boolean> {
+    if (this.requestRunning()) {
+      const answer = await ctx.dialogs.showMessage({
+        text: ctx.t('ai.stopConfirm.closeText'),
+        caption: ctx.t('ai.stopConfirm.title'),
+        buttons: 'yesNo',
+        icon: 'question',
+        defaultButton: 'no',
+        testId: 'dialog-ai-stop-confirm',
+      });
+      if (answer !== 'yes') return false;
+      await this.cancelAndWait();
+    }
+    if (!this.store.getState().ai.on) return true; // turned off meanwhile (Disabled applied)
+    this.turnOff();
+    return true;
   }
 
   /**
@@ -188,6 +288,70 @@ export class AiFeature {
       conversation: emptyConversation(),
       panelFocus: false,
     });
+  }
+
+  /**
+   * Cancels the running request and waits - `cancelWaitMs` at most - until it has ended: the
+   * loop writes its end entry, discards the working copy and releases the lock first, so that
+   * nothing of it lands in the state after the turn-off.
+   */
+  private async cancelAndWait(): Promise<void> {
+    this.module?.cancelRequest(this.store);
+    const ended = () => !this.requestRunning() && this.store.getState().runLock?.kind !== 'ai';
+    if (ended()) return;
+    await new Promise<void>((resolve) => {
+      const started = Date.now();
+      const timer = setInterval(() => {
+        if (ended() || Date.now() - started >= this.cancelWaitMs) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 20);
+    });
+  }
+
+  /**
+   * The document was replaced (open, new, close) while on: a running request is cancelled
+   * (the session's `docId` watch has asked already; made sure and waited for here) and the
+   * conversation is cleared (FR-045) - the panel stays open and empty.
+   */
+  private async onDocumentReplaced(): Promise<void> {
+    if (this.requestRunning()) await this.cancelAndWait();
+    const state = this.store.getState();
+    if (!state.ai.on) return;
+    const { conversation } = state.ai;
+    const empty =
+      conversation.docId === null &&
+      conversation.messages.length === 0 &&
+      conversation.activity.length === 0 &&
+      conversation.droppedTurns === 0;
+    if (!empty) actions.updateAi(this.store, { conversation: emptyConversation() });
+  }
+
+  /**
+   * The Settings dialog's pre-apply hook (registered with `registerBeforeApply`; FR-097,
+   * FR-093): Disabled chosen while a request runs asks the same question - Yes cancels the
+   * request and lets the dialog apply (the snapshot then de-registers and turns off), No keeps
+   * the dialog open with nothing applied. Any other change, or an idle assistant, applies at
+   * once.
+   */
+  async beforeApply(draft: Settings, original: Settings): Promise<'apply' | 'keepOpen'> {
+    if (modeOf(draft) !== 'disabled' || modeOf(original) === 'disabled') return 'apply';
+    if (!this.store.getState().ai.on || !this.requestRunning()) return 'apply';
+    const ctx = this.commandContext();
+    if (ctx) {
+      const answer = await ctx.dialogs.showMessage({
+        text: ctx.t('ai.stopConfirm.disableText'),
+        caption: ctx.t('ai.stopConfirm.title'),
+        buttons: 'yesNo',
+        icon: 'question',
+        defaultButton: 'no',
+        testId: 'dialog-ai-stop-confirm',
+      });
+      if (answer !== 'yes') return 'keepOpen';
+    }
+    await this.cancelAndWait();
+    return 'apply';
   }
 
   /** The Body context menu's "Ask AI..." entry, present only while on (FR-030; T047). */
@@ -227,7 +391,7 @@ export class AiFeature {
   }
 
   /** The one `import()` of the chunk; later calls return the same module (data-model §3.1 `loaded`). */
-  load(): Promise<AssistantModule> {
+  load(): Promise<AiChunkModule> {
     if (this.module) return Promise.resolve(this.module);
     if (!this.loading) {
       this.loading = this.loadAssistant().then((module) => {
@@ -245,6 +409,7 @@ export class AiFeature {
   /** Stops listening; the commands stay as they are (the registry outlives the test). */
   dispose(): void {
     this.unsubscribe();
+    this.removeBeforeApply();
   }
 
   /* --------------------------------------------------------------- state */
@@ -292,15 +457,24 @@ export class AiFeature {
     this.setStatus('registered');
   }
 
-  /** Back to the inert stubs; the panel closes and the conversation is dropped (FR-096, FR-097). */
+  /**
+   * Back to the inert stubs; the panel closes and the conversation is dropped (FR-096, FR-097).
+   * A request still running (a snapshot that did not come through the dialog's question) is
+   * cancelled and waited for before the turn-off, so that its end entry lands nowhere.
+   */
   private deregister(): void {
     if (this.statusValue === 'disabled') return;
     if (this.statusValue === 'registered') {
-      this.turnOff();
+      void this.turnOffAfterRequest();
       for (const stub of createAiStubCommands()) this.commands.replace(stub);
       this.commands.unregister('ai.cancel');
     }
     this.setStatus('disabled');
+  }
+
+  private async turnOffAfterRequest(): Promise<void> {
+    if (this.requestRunning()) await this.cancelAndWait();
+    if (this.store.getState().ai.on || this.removeMenuSlot) this.turnOff();
   }
 
   private setStatus(status: AiFeatureStatus): void {

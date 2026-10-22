@@ -200,9 +200,32 @@ describe('the regex worker budget (C15)', () => {
       expect(out.isError).toBe(true);
       expect(out.error?.code).toBe('invalidArguments');
       expect(out.error?.message).toContain('the pattern took too long');
+      expect(h.hookCalls).toEqual([]); // a read tool: no strike
       // A literal search needs no worker and still works.
       const literal = await h.catalogue.call('find', { text: 'beta' });
       expect(literal.result.total).toBe(4);
+    } finally {
+      await h.catalogue.close();
+    }
+  });
+
+  it('replace_all runs its regex under the same budget; a time-out is a refused attempt of the query key', async () => {
+    const runner = createRegexRunner(() => new FakeWorker((r) => r.regex), 40);
+    const h = await harness({ runRegex: runner });
+    try {
+      const before = JSON.stringify(h.copy.document);
+      const out = await h.catalogue.call('replace_all', {
+        text: '(a+)+$',
+        regex: true,
+        replacement: 'x',
+      });
+      expect(out.error?.code).toBe('invalidArguments');
+      expect(out.error?.message).toContain('the pattern took too long');
+      expect(h.hookCalls).toEqual(['replace_all:(a+)+$']);
+      expect(JSON.stringify(h.copy.document)).toBe(before);
+      // The worker was recreated: a literal replacement works afterwards (no worker needed).
+      const literal = await h.catalogue.call('replace_all', { text: 'beta', replacement: 'BETA' });
+      expect(literal.result.count).toBe(4);
     } finally {
       await h.catalogue.close();
     }

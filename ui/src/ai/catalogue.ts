@@ -16,24 +16,42 @@
  *
  * Tools are registered in the contract's order, one `register…Tools` per group: this file holds
  * the read tools of US2 (`get_context`, `get_outline`, `read_part`, `get_selection`,
- * `get_description`, `find`), the selection tool (`set_selection`) and the first change tool
- * (`replace_selection`); US3 (T054), US4 (T061) and US6 (T075) add theirs at the marked places.
+ * `get_description`, `find`), the selection tool (`set_selection`), the first change tool
+ * (`replace_selection`) and the structural change tools of US3 (T054: `replace_node`,
+ * `insert_node`, `remove_node`, `set_text`, `replace_all`, `set_description` - every one through
+ * the hook with its strike key of §3.5, the pre-checks of the script API before the round trip:
+ * `nodeFromModel` + `createChecked` on every level, `contentFits` against the parent's content
+ * expression); US4 (T061) and US6 (T075) add theirs at the marked places. The read tools share
+ * one continuation implementation (T056, `split.ts`): parts of whole units within
+ * `deps.resultBudget()`, descent into an oversize child, `tooLarge` for one oversize block,
+ * `more: {cursor, remaining, hint}` with the opaque cursors of §3.7.
  */
 
 import { Client } from '@modelcontextprotocol/client';
 import type { CallToolResult, Tool } from '@modelcontextprotocol/server';
 import { InMemoryTransport, McpServer } from '@modelcontextprotocol/server';
+import type { NodeType } from 'prosemirror-model';
 import { z } from 'zod';
 
 import { createReport, nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2NameFor, fb2Schema, nodeTypeFor } from '@/editor/schema';
-import type { Document, InlineNode, RawXmlNode } from '@/model/document';
+import { nodeToModel } from '@/editor/toModel';
+import type { Description, Document, InlineNode, RawXmlNode } from '@/model/document';
 import { RpcError } from '@/rpc/client';
 import type { AiFragmentNotAllowedData, FragmentNode, FragmentResultNode } from '@/rpc/types';
 import { contentFits } from '@/scripting/api-impl';
 import type { WorkingCopy } from '@/scripting/workingCopy';
 
-import type { RegexRunner } from './regexRunner';
+import type { RegexMatch, RegexRunner } from './regexRunner';
+import {
+  decodeCursor,
+  moreOf,
+  partition,
+  partitionTree,
+  type Cursor,
+  type TreePartOutcome,
+} from './split';
+import { DESCRIPTION_SHAPE, mergeDescription } from './tools/description';
 import {
   blockOf,
   characterCount,
@@ -61,6 +79,8 @@ import {
   type Entry,
   type OutlineEntry,
 } from './tools/model';
+import { expansionFor, rewriteBlock } from './tools/replaceAll';
+import { inDescription, replaceEach, writeAt } from './tools/write';
 
 export type { Block, NodeInfo, OutlineEntry } from './tools/model';
 
@@ -89,10 +109,30 @@ export const US2_TOOL_NAMES = [
   'replace_selection',
 ] as const;
 
+/** The structural change tools of US3 (T054), in the §3.3 order - registered after US2's. */
+export const US3_TOOL_NAMES = [
+  'replace_node',
+  'insert_node',
+  'remove_node',
+  'set_text',
+  'replace_all',
+  'set_description',
+] as const;
+
+/** Every tool registered so far, in the `tools/list` order (US4 and US6 insert theirs). */
+export const TOOL_NAMES = [...US2_TOOL_NAMES, ...US3_TOOL_NAMES] as const;
+
+/** The change tools of §3.5 registered so far (every call runs under the hook with a strike key). */
+export const CHANGE_TOOL_NAMES = ['replace_selection', ...US3_TOOL_NAMES] as const;
+
 const UNKNOWN_NODE_HINT =
   'Use the ids returned by get_outline, read_part or find; paths shift after insertions.';
-const MORE_HINT = (tool: string) =>
-  `More follows: call ${tool} again with the same arguments and this cursor for the next part.`;
+
+/** The text containers `set_text` accepts (ai-catalogue §3.3). */
+const TEXT_CONTAINER_LIST = 'p, subtitle, text-author, v, td, th, date';
+
+/** The changed blocks `replace_all` lists at most (ai-catalogue §3.3; `count` stays exact). */
+export const REPLACE_ALL_BLOCKS_LISTED = 100;
 
 /* ------------------------------------------------------------------------ */
 /* Error envelope (ai-catalogue §1.4)                                        */
@@ -351,8 +391,9 @@ export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
   // T061 (US4): `validate`, `get_schema`; T075 (US6): `list_scripts`, `read_script`,
   // `read_resource` - here, before the selection tool, to keep the §3 order.
   registerSelectionTools(server, context);
-  // T054 (US3): `replace_node`, `insert_node`, `remove_node`, `set_text`, `replace_all`,
-  // `set_description`; T076 (US6): `run_script`, `propose_script`, `reload_scripts`.
+  registerChangeTools(server, context);
+  // T076 (US6): `run_script`, `propose_script`, `reload_scripts` - here, after the structural
+  // change tools, to keep the §3 order.
   registerPrompts(server, deps);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -613,37 +654,23 @@ const moreSchema = z
 /* The shared machinery of the handlers                                     */
 /* ------------------------------------------------------------------------ */
 
-/** What a `read_part` / `get_selection` part is cut from: a list of units with their sizes. */
-interface Taken<T> {
-  taken: T[];
-  rest: T[];
+/**
+ * The continuation cursor of a call, decoded and checked against the form the tool issues
+ * (`after:<nodeId>` for the node-based parts, `offset:<n>` for `find`): anything else is
+ * `invalidArguments` with the hint to pass `more.cursor` unchanged.
+ */
+function cursorOf<K extends Cursor['kind']>(text: string, kind: K): Extract<Cursor, { kind: K }> {
+  const cursor = decodeCursor(text);
+  if (!cursor || cursor.kind !== kind) {
+    throw new ToolError('invalidArguments', `unknown cursor "${text}"`, {
+      hint: 'Pass more.cursor of the previous part unchanged.',
+    });
+  }
+  return cursor as Extract<Cursor, { kind: K }>;
 }
 
-/**
- * Takes whole units from the front while their serialised size stays within the budget;
- * without a budget everything. The first unit is taken even when it alone exceeds the budget
- * unless `strict` says that such a unit is too large (`tooLarge` / descent, decided by the
- * caller).
- */
-function takeWithin<T>(
-  units: readonly T[],
-  sizeOf: (unit: T) => number,
-  budget: number | undefined,
-  fixed: number,
-  strict: boolean,
-): Taken<T> {
-  if (budget === undefined) return { taken: [...units], rest: [] };
-  const taken: T[] = [];
-  let used = fixed;
-  for (const unit of units) {
-    const size = sizeOf(unit);
-    if (taken.length > 0 && used + size > budget) break;
-    if (taken.length === 0 && used + size > budget && strict) break;
-    taken.push(unit);
-    used += size;
-  }
-  return { taken, rest: units.slice(taken.length) };
-}
+/** The fixed cost of a part's envelope (its node infos and members) against the budget. */
+const PART_ENVELOPE_UNITS = 240;
 
 class ToolContext {
   constructor(readonly deps: CatalogueDeps) {}
@@ -656,11 +683,32 @@ class ToolContext {
     return indexDocument(this.document);
   }
 
+  /** `deps.resultBudget()` as the bound of one part; `undefined` = results go whole (FR-053). */
   budget(): number | undefined {
     const value = this.deps.resultBudget?.();
     return value !== undefined && Number.isFinite(value) && value > 0
       ? Math.floor(value)
       : undefined;
+  }
+
+  /** The baseline's error count the context reports (`set_description`'s `validation`). */
+  preExistingErrors(): number {
+    const value = this.deps.context().preExistingErrors;
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  }
+
+  /**
+   * Resolves a node reference without failing: the entry, or `null` for an unknown one (the
+   * strike key of a change tool names the resolved id, else the reference as given - §3.5).
+   */
+  lookup(reference: string): Entry | null {
+    return resolveReference(this.index, reference);
+  }
+
+  /** The strike target of a node reference: its resolved id, else the reference as given. */
+  targetOf(reference: string): string {
+    const entry = this.lookup(reference);
+    return entry ? nodeIdOf(entry.node) || reference : reference;
   }
 
   /** Resolves a node reference (path or id) or fails with `unknownNode`. */
@@ -743,14 +791,160 @@ class ToolContext {
     }
   }
 
-  /** Runs a change under the hook (or unchecked without one). */
-  change<T extends AnyObject>(
+  /**
+   * Runs a change under the hook; without one (the catalogue alone, in unit tests) the change
+   * is applied unchecked, still bracketed by a checkpoint so that a refused change leaves the
+   * copy as it was and every change starts from a fresh root (the index cache is per root).
+   */
+  async change<T extends AnyObject>(
     strikeKey: string,
     run: () => Promise<T>,
   ): Promise<T | ToolErrorEnvelope> {
     const hook = this.deps.applyChange;
     if (hook) return hook(strikeKey, run);
-    return run().catch((error: unknown) => toEnvelope(error));
+    const checkpoint = this.deps.copy.checkpoint();
+    try {
+      return await run();
+    } catch (error) {
+      this.deps.copy.rollback(checkpoint);
+      return toEnvelope(error);
+    }
+  }
+
+  /**
+   * Content of a change tool: exactly one of the given forms (`{xml}` or `{node}` / `{nodes}`),
+   * else `invalidArguments` naming the forms.
+   */
+  contentForm<F extends string>(
+    content: Partial<Record<F, unknown>> | undefined,
+    forms: readonly F[],
+  ): F {
+    const present = forms.filter((form) => content?.[form] !== undefined);
+    if (present.length !== 1) {
+      throw new ToolError(
+        'invalidArguments',
+        `content must hold exactly one of ${forms.map((f) => `{${f}}`).join(' or ')}`,
+        {
+          expected: {
+            content: Object.fromEntries(
+              forms.map((f) => [f, f === 'xml' ? 'FictionBook XML' : 'Document JSON']),
+            ),
+          },
+        },
+      );
+    }
+    return present[0]!;
+  }
+
+  /**
+   * One block or structural node of a change tool's `{node}` JSON, with ids: an object with a
+   * string `type` other than `text` (`invalidArguments` otherwise); `keepId` sets the top
+   * node's id (`replace_node`: the replaced node keeps its id), every other structural node
+   * gets a fresh `sc_<N>` (review C12).
+   */
+  jsonNode(value: unknown, what: string, keepId?: string): ModelNodeJson {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new ToolError(
+        'invalidArguments',
+        `${what}: expected a node object {type, attrs?, content?}`,
+        {
+          expected: { type: 'p', content: [{ type: 'text', text: '…' }] },
+        },
+      );
+    }
+    const json = value as ModelNodeJson;
+    if (typeof json.type !== 'string' || !json.type) {
+      throw new ToolError('invalidArguments', `${what}: node.type is required`);
+    }
+    if (json.type === 'text') {
+      throw new ToolError('invalidArguments', `${what}: a text node cannot stand alone`, {
+        hint: 'Wrap the text in a text container such as <p>, or use set_text on an existing one.',
+      });
+    }
+    const assigned = this.assignIds(stripIds(json));
+    if (keepId) assigned.attrs = { ...(assigned.attrs ?? {}), nodeId: keepId };
+    return assigned;
+  }
+
+  /**
+   * The script API's `nodeFromScript` check of a node that enters the copy (`createChecked`
+   * on every level, `invalidNode` with the offending path) - the node as the editor's
+   * canonical JSON (`nodeToModel` of the checked ProseMirror node, ids kept).
+   */
+  checkedNode(node: ModelNodeJson, what: string): ModelNodeJson {
+    const report = createReport();
+    const built = nodeFromModel(node, report);
+    if (!built) throw new ToolError('invalidNode', `${what}: cannot build a "${node.type}" node`);
+    const problem = report.problems[0];
+    if (problem) {
+      const more = report.problems.length - 1;
+      throw new ToolError(
+        'invalidNode',
+        `${what}: invalid node at "${problem.path}": ${problem.message}` +
+          (more > 0 ? ` (and ${more} more problem${more === 1 ? '' : 's'})` : ''),
+        { hint: 'Use get_schema with the element to see its content model and attributes.' },
+      );
+    }
+    return nodeToModel(built);
+  }
+
+  /** An entry's parent as a container: its schema type (the `doc` for a body) and its name. */
+  parentOf(entry: Entry): Container {
+    return entry.parent
+      ? containerOf(entry.parent.node)
+      : { type: fb2Schema.nodes.doc!, name: 'FictionBook' };
+  }
+
+  /**
+   * `contentFits` of the script API as a pre-check: the container's children with `[index,
+   * index + replaced)` replaced by the given nodes must still match its content expression,
+   * else `notAllowed` naming the pair and the content model (§3.3 `remove_node`'s hint).
+   * `place` words where the nodes would go (`in place of this "p"`, `after this "p"`, `as its
+   * last child`) or, for a removal, what would go (`this "p"`).
+   */
+  requireFits(
+    container: Container,
+    children: readonly ModelNodeJson[],
+    index: number,
+    replaced: number,
+    inserted: readonly ModelNodeJson[],
+    what: string,
+    place: string,
+  ): void {
+    const types = inserted.map((node) => nodeTypeFor(node.type, false) ?? fb2Schema.nodes.raw_xml!);
+    if (contentFits(container.type, children, index, replaced, types)) return;
+    const model = contentModelOf(container.type);
+    const verb =
+      inserted.length === 0
+        ? `does not allow removing ${place}`
+        : `does not allow ${describeTypes(inserted)} ${place}`;
+    throw new ToolError('notAllowed', `${what}: "${container.name}" ${verb}.`, {
+      hint: `The content model of "${container.name}" is: ${model || 'any content'}; the order and the number of children matter.`,
+      contentModel: model,
+    });
+  }
+
+  /** The description as `get_description` returns it: annotation, history and outputs as `{xml}`. */
+  async describe(description: Description = this.document.description): Promise<AnyObject> {
+    const xmlOf = async (node: ModelNodeJson | undefined) =>
+      node ? { xml: await this.xmlOf(node.content ?? []) } : undefined;
+    const titleInfo = async (info: typeof description.titleInfo) => {
+      const { annotation, ...rest } = info;
+      const xml = await xmlOf(annotation as unknown as ModelNodeJson | undefined);
+      return { ...rest, ...(xml ? { annotation: xml } : {}) };
+    };
+    const { history, ...documentInfoRest } = description.documentInfo;
+    const historyXml = await xmlOf(history as unknown as ModelNodeJson | undefined);
+    return {
+      titleInfo: await titleInfo(description.titleInfo),
+      ...(description.srcTitleInfo
+        ? { srcTitleInfo: await titleInfo(description.srcTitleInfo) }
+        : {}),
+      documentInfo: { ...documentInfoRest, ...(historyXml ? { history: historyXml } : {}) },
+      ...(description.publishInfo ? { publishInfo: description.publishInfo } : {}),
+      customInfo: description.customInfo,
+      outputs: description.outputs.map((output: RawXmlNode) => ({ xml: output.attrs.xml })),
+    };
   }
 
   /* --------------------------------------------------------- selection */
@@ -801,16 +995,22 @@ class ToolContext {
     }
     const blocks = this.selectedBlocks(selection);
     const parentEntry = blocks.entries[0]!.parent;
-    const budget = this.budget();
     let units = blocks.rendered.map((node, i) => ({ node, entry: blocks.entries[i]! }));
     if (cursor) {
-      const after = parseCursor(cursor, 'after:');
+      const after = cursorOf(cursor, 'after').nodeId;
       const at = units.findIndex((u) => nodeIdOf(u.entry.node) === after);
       if (at < 0) throw new ToolError('invalidArguments', `unknown cursor "${cursor}"`);
       units = units.slice(at + 1);
     }
-    const sizeOf = (u: { node: ModelNodeJson }) => JSON.stringify(u.node).length;
-    const { taken, rest } = takeWithin(units, sizeOf, budget, 200, true);
+    // The units are the selected sibling blocks, whole (a partial first / last block is its
+    // selected part rendered as a complete element); one that alone does not fit is tooLarge -
+    // the request loop ends a selection request on it (FR-035).
+    const { taken, rest } = partition(units, {
+      sizeOf: (u) => estimateXmlSize(u.node),
+      limit: this.budget(),
+      fixed: PART_ENVELOPE_UNITS,
+      strict: true,
+    });
     if (taken.length === 0 && units.length > 0) {
       const first = units[0]!;
       throw new ToolError(
@@ -841,14 +1041,14 @@ class ToolContext {
       out.text = taken.map((u) => plainTextOf(u.node)).join('\n');
     }
     if (rest.length > 0) {
-      out.more = {
-        cursor: `after:${nodeIdOf(taken[taken.length - 1]!.entry.node)}`,
-        remaining: {
+      out.more = moreOf(
+        'get_selection',
+        { kind: 'after', nodeId: nodeIdOf(taken[taken.length - 1]!.entry.node) },
+        {
           blocks: rest.length,
           characters: rest.reduce((sum, u) => sum + characterCount(u.node), 0),
         },
-        hint: MORE_HINT('get_selection'),
-      };
+      );
     }
     return out;
   }
@@ -1010,13 +1210,28 @@ function clamp(offset: number, size: number): number {
   return Math.max(0, Math.min(Math.floor(Number(offset) || 0), size));
 }
 
-function parseCursor(cursor: string, prefix: string): string {
-  if (!cursor.startsWith(prefix) || cursor.length === prefix.length) {
-    throw new ToolError('invalidArguments', `unknown cursor "${cursor}"`, {
-      hint: 'Pass more.cursor of the previous part unchanged.',
-    });
-  }
-  return cursor.slice(prefix.length);
+/** A node as the container of children: its schema type and its name as the model knows it. */
+interface Container {
+  type: NodeType;
+  name: string;
+}
+
+function containerOf(node: ModelNodeJson): Container {
+  return { type: nodeTypeFor(node.type) ?? fb2Schema.nodes.raw_xml!, name: node.type };
+}
+
+/** The content expression of a node type in FB2 names (`title? epigraph* image? …`). */
+function contentModelOf(type: NodeType): string {
+  return (type.spec.content ?? '').replace(/[a-z_]+/g, (name) => fb2NameFor(name));
+}
+
+/** The node JSON without any `nodeId` (ids are issued by the editor - review C12). */
+function stripIds(node: ModelNodeJson): ModelNodeJson {
+  if (node.type === 'text') return node;
+  const { nodeId: _id, ...attrs } = node.attrs ?? {};
+  void _id;
+  const content = node.content?.map(stripIds);
+  return { ...node, attrs, ...(content ? { content } : {}) };
 }
 
 /** Strips a leading ```xml / ```fb2 fence and a trailing fence, then trims (§3.8). */
@@ -1127,28 +1342,29 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
         entries = outline(ctx.index, args.depth);
       }
       if (args.cursor) {
-        const after = parseCursor(args.cursor, 'after:');
+        const after = cursorOf(args.cursor, 'after').nodeId;
         const at = entries.findIndex((e) => e.id === after);
         if (at < 0) throw new ToolError('invalidArguments', `unknown cursor "${args.cursor}"`);
         entries = entries.slice(at + 1);
       }
-      const { taken, rest } = takeWithin(
-        entries,
-        (e) => JSON.stringify(e).length,
-        ctx.budget(),
-        40,
-        false,
-      );
+      // Units: whole top-level entries with their subtrees (never split further - the model
+      // asks for a body or a section with `node` when it needs one entry alone).
+      const { taken, rest } = partition(entries, {
+        sizeOf: (e) => JSON.stringify(e).length,
+        limit: ctx.budget(),
+        fixed: 40,
+        strict: false,
+      });
       const out: AnyObject = { entries: taken };
       if (rest.length > 0) {
-        out.more = {
-          cursor: `after:${taken[taken.length - 1]!.id}`,
-          remaining: {
+        out.more = moreOf(
+          'get_outline',
+          { kind: 'after', nodeId: taken[taken.length - 1]!.id },
+          {
             entries: rest.length,
             characters: rest.reduce((s, e) => s + e.characters, 0),
           },
-          hint: MORE_HINT('get_outline'),
-        };
+        );
       }
       return out;
     },
@@ -1183,33 +1399,30 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
         parent: entry.parent ? nodeInfo(entry.parent) : null,
         format: args.format,
       };
+      const tooLarge = (leaf: Entry) =>
+        new ToolError(
+          'tooLarge',
+          `The block ${pathOf(leaf)} alone is larger than one answer admits.`,
+          { node: nodeInfo(leaf), characters: characterCount(leaf.node) },
+        );
       if (args.format === 'text') {
+        // Units: the leaf blocks of the part (text containers and atoms) in document order -
+        // a paragraph is never cut; the first one that alone does not fit is tooLarge.
         let leaves = leafBlocks(ctx.index, entry);
         if (args.cursor) {
-          const after = parseCursor(args.cursor, 'after:');
+          const after = cursorOf(args.cursor, 'after').nodeId;
           const at = leaves.findIndex((leaf) => nodeIdOf(leaf.node) === after);
           if (at < 0) throw new ToolError('invalidArguments', `unknown cursor "${args.cursor}"`);
           leaves = leaves.slice(at + 1);
         }
         const blocks = leaves.map((leaf) => ({ leaf, block: blockOf(leaf) }));
-        const { taken, rest } = takeWithin(
-          blocks,
-          (b) => JSON.stringify(b.block).length + 1,
-          budget,
-          240,
-          true,
-        );
-        if (taken.length === 0 && blocks.length > 0) {
-          const first = blocks[0]!;
-          throw new ToolError(
-            'tooLarge',
-            `The block ${first.block.path} alone is larger than one answer admits.`,
-            {
-              node: nodeInfo(first.leaf),
-              characters: characterCount(first.leaf.node),
-            },
-          );
-        }
+        const { taken, rest } = partition(blocks, {
+          sizeOf: (b) => JSON.stringify(b.block).length + 1,
+          limit: budget,
+          fixed: PART_ENVELOPE_UNITS,
+          strict: true,
+        });
+        if (taken.length === 0 && blocks.length > 0) throw tooLarge(blocks[0]!.leaf);
         const out: AnyObject = {
           ...base,
           blocks: taken.map((b) => b.block),
@@ -1217,24 +1430,25 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
           to: taken.length > 0 ? nodeInfo(taken[taken.length - 1]!.leaf) : nodeInfo(entry),
         };
         if (rest.length > 0) {
-          out.more = {
-            cursor: `after:${nodeIdOf(taken[taken.length - 1]!.leaf.node)}`,
-            remaining: {
+          out.more = moreOf(
+            'read_part',
+            { kind: 'after', nodeId: nodeIdOf(taken[taken.length - 1]!.leaf.node) },
+            {
               blocks: rest.length,
               characters: rest.reduce((s, b) => s + characterCount(b.leaf.node), 0),
             },
-            hint: MORE_HINT('read_part'),
-          };
+          );
         }
         return out;
       }
-      // fb2xml: units are the direct children of one parent; a huge child is descended into.
+      // fb2xml: the units are the direct children of one parent, taken whole; a child that
+      // alone does not fit is descended into (§3.7), a leaf that does not fit is tooLarge.
       let parent: Entry = entry;
       let units: Entry[] = isLeafFor(entry) ? [entry] : childEntries(ctx.index, entry);
       let whole = true;
       if (args.cursor) {
         whole = false;
-        const after = parseCursor(args.cursor, 'after:');
+        const after = cursorOf(args.cursor, 'after').nodeId;
         const afterEntry = ctx.entryOf(after);
         if (!afterEntry) throw new ToolError('invalidArguments', `unknown cursor "${args.cursor}"`);
         const next = followingUnits(ctx.index, entry, afterEntry);
@@ -1249,52 +1463,40 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
         parent = next.parent;
         units = next.units;
       }
-      for (;;) {
-        const sized = units.map((unit) => ({ unit, size: estimateXmlSize(unit.node) }));
-        const { taken, rest } = takeWithin(sized, (s) => s.size, budget, 240, true);
-        if (taken.length > 0 || sized.length === 0) {
-          const nodes = taken.map((s) => s.unit.node);
-          const out: AnyObject = {
-            ...base,
-            ...(whole && rest.length === 0 ? {} : { parent: nodeInfo(parent) }),
-            xml: await ctx.xmlOf(nodes),
-            from: taken.length > 0 ? nodeInfo(taken[0]!.unit) : nodeInfo(parent),
-            to: taken.length > 0 ? nodeInfo(taken[taken.length - 1]!.unit) : nodeInfo(parent),
-          };
-          const remaining = rest.map((s) => s.unit);
-          const following =
-            remaining.length > 0
-              ? null
-              : followingUnits(ctx.index, entry, parent === entry ? null : parent);
-          const pending = remaining.length > 0 ? remaining : (following?.units ?? []);
-          if (pending.length > 0 && taken.length > 0) {
-            out.more = {
-              cursor: `after:${nodeIdOf(taken[taken.length - 1]!.unit.node)}`,
-              remaining: {
-                blocks: pending.length,
-                characters: pending.reduce((s, u) => s + characterCount(u.node), 0),
-              },
-              hint: MORE_HINT('read_part'),
-            };
-          }
-          return out;
-        }
-        // The first unit alone does not fit: descend into it, or refuse a text container.
-        const first = sized[0]!.unit;
-        if (isLeafFor(first)) {
-          throw new ToolError(
-            'tooLarge',
-            `The block ${pathOf(first)} alone is larger than one answer admits.`,
-            {
-              node: nodeInfo(first),
-              characters: characterCount(first.node),
-            },
-          );
-        }
-        whole = false;
-        parent = first;
-        units = childEntries(ctx.index, first);
+      const outcome: TreePartOutcome<Entry> = partitionTree(parent, units, {
+        sizeOf: (unit) => estimateXmlSize(unit.node),
+        limit: budget,
+        fixed: PART_ENVELOPE_UNITS,
+        isLeaf: isLeafFor,
+        childrenOf: (unit) => childEntries(ctx.index, unit),
+      });
+      if (outcome.kind === 'tooLarge') throw tooLarge(outcome.unit);
+      const { taken, rest } = outcome;
+      parent = outcome.parent;
+      if (outcome.descended) whole = false;
+      const out: AnyObject = {
+        ...base,
+        ...(whole && rest.length === 0 ? {} : { parent: nodeInfo(parent) }),
+        xml: await ctx.xmlOf(taken.map((unit) => unit.node)),
+        from: taken.length > 0 ? nodeInfo(taken[0]!) : nodeInfo(parent),
+        to: taken.length > 0 ? nodeInfo(taken[taken.length - 1]!) : nodeInfo(parent),
+      };
+      // What follows: the rest of this parent's children, else - climbing - the units after
+      // the descended-into parent, up to the node read.
+      const following =
+        rest.length > 0 ? null : followingUnits(ctx.index, entry, parent === entry ? null : parent);
+      const pending = rest.length > 0 ? rest : (following?.units ?? []);
+      if (pending.length > 0 && taken.length > 0) {
+        out.more = moreOf(
+          'read_part',
+          { kind: 'after', nodeId: nodeIdOf(taken[taken.length - 1]!.node) },
+          {
+            blocks: pending.length,
+            characters: pending.reduce((s, u) => s + characterCount(u.node), 0),
+          },
+        );
       }
+      return out;
     },
   );
 
@@ -1328,30 +1530,7 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
       outputSchema: z.looseObject({ description: z.looseObject({}) }),
       annotations: { readOnlyHint: true },
     },
-    async () => {
-      const description = ctx.document.description;
-      const xmlOf = async (node: ModelNodeJson | undefined) =>
-        node ? { xml: await ctx.xmlOf(node.content ?? []) } : undefined;
-      const titleInfo = async (info: typeof description.titleInfo) => {
-        const { annotation, ...rest } = info;
-        const xml = await xmlOf(annotation as unknown as ModelNodeJson | undefined);
-        return { ...rest, ...(xml ? { annotation: xml } : {}) };
-      };
-      const { history, ...documentInfoRest } = description.documentInfo;
-      const historyXml = await xmlOf(history as unknown as ModelNodeJson | undefined);
-      return {
-        description: {
-          titleInfo: await titleInfo(description.titleInfo),
-          ...(description.srcTitleInfo
-            ? { srcTitleInfo: await titleInfo(description.srcTitleInfo) }
-            : {}),
-          documentInfo: { ...documentInfoRest, ...(historyXml ? { history: historyXml } : {}) },
-          ...(description.publishInfo ? { publishInfo: description.publishInfo } : {}),
-          customInfo: description.customInfo,
-          outputs: description.outputs.map((output: RawXmlNode) => ({ xml: output.attrs.xml })),
-        },
-      };
-    },
+    async () => ({ description: await ctx.describe() }),
   );
 
   defineTool(
@@ -1377,33 +1556,8 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
       annotations: { readOnlyHint: true },
     },
     async (args) => {
-      const roots = args.within ? [ctx.resolve(args.within, 'within')] : ctx.index.bodies;
-      const blocks = roots
-        .flatMap((root) => leafBlocks(ctx.index, root))
-        .filter((leaf) => TEXT_CONTAINERS.has(leaf.node.type));
-      const texts = blocks.map((leaf) => inlineText((leaf.node.content ?? []) as InlineNode[]));
-      const result = await ctx.deps.runRegex({
-        query: args.text,
-        regex: args.regex === true,
-        matchCase: args.matchCase === true,
-        wholeWord: args.wholeWord === true,
-        texts,
-      });
-      if (!result.ok) {
-        throw new ToolError(
-          'invalidArguments',
-          result.reason === 'timeout'
-            ? result.message
-            : `invalid regular expression: ${result.message}`,
-          {
-            hint:
-              result.reason === 'timeout'
-                ? 'The pattern took too long; use a simpler expression.'
-                : 'Use ECMAScript regular-expression syntax, or set regex to false for a literal search.',
-          },
-        );
-      }
-      const all = result.matches.map((m) => {
+      const { blocks, texts, matches } = await searchBlocks(ctx, args);
+      const all = matches.map((m) => {
         const leaf = blocks[m.block]!;
         const text = texts[m.block]!;
         return {
@@ -1416,30 +1570,77 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
       });
       let start = 0;
       if (args.cursor) {
-        start = Number(parseCursor(args.cursor, 'offset:'));
-        if (!Number.isInteger(start) || start < 0 || start > all.length) {
+        start = cursorOf(args.cursor, 'offset').offset;
+        if (start > all.length) {
           throw new ToolError('invalidArguments', `unknown cursor "${args.cursor}"`);
         }
       }
-      const slice = all.slice(start);
-      const { taken, rest } = takeWithin(
-        slice,
-        (m) => JSON.stringify(m).length + 1,
-        ctx.budget(),
-        60,
-        false,
-      );
+      // Units: whole matches; all of them unless the budget says otherwise (review C13).
+      const { taken, rest } = partition(all.slice(start), {
+        sizeOf: (m) => JSON.stringify(m).length + 1,
+        limit: ctx.budget(),
+        fixed: 60,
+        strict: false,
+      });
       const out: AnyObject = { matches: taken, total: all.length };
       if (rest.length > 0) {
-        out.more = {
-          cursor: `offset:${start + taken.length}`,
-          remaining: { matches: rest.length },
-          hint: MORE_HINT('find'),
-        };
+        out.more = moreOf(
+          'find',
+          { kind: 'offset', offset: start + taken.length },
+          { matches: rest.length },
+        );
       }
       return out;
     },
   );
+}
+
+/** The `FindQuery` arguments `find` and `replace_all` share (ai-catalogue §3.1, §3.3). */
+interface SearchArgs {
+  text: string;
+  regex?: boolean;
+  matchCase?: boolean;
+  wholeWord?: boolean;
+  within?: string;
+}
+
+/**
+ * The editor's search over the text containers of the bodies (or of `within`) through the
+ * regex runner (a worker with the 2-second budget for a model-supplied expression - review
+ * C15): the blocks, their plain texts and the matches. An invalid expression or a time-out is
+ * `invalidArguments` with the engine's message; an unknown `within` is `unknownNode`.
+ */
+async function searchBlocks(
+  ctx: ToolContext,
+  args: SearchArgs,
+): Promise<{ blocks: Entry[]; texts: string[]; matches: RegexMatch[] }> {
+  const roots = args.within ? [ctx.resolve(args.within, 'within')] : ctx.index.bodies;
+  const blocks = roots
+    .flatMap((root) => leafBlocks(ctx.index, root))
+    .filter((leaf) => TEXT_CONTAINERS.has(leaf.node.type));
+  const texts = blocks.map((leaf) => inlineText((leaf.node.content ?? []) as InlineNode[]));
+  const result = await ctx.deps.runRegex({
+    query: args.text,
+    regex: args.regex === true,
+    matchCase: args.matchCase === true,
+    wholeWord: args.wholeWord === true,
+    texts,
+  });
+  if (!result.ok) {
+    throw new ToolError(
+      'invalidArguments',
+      result.reason === 'timeout'
+        ? result.message
+        : `invalid regular expression: ${result.message}`,
+      {
+        hint:
+          result.reason === 'timeout'
+            ? 'The pattern took too long; use a simpler expression.'
+            : 'Use ECMAScript regular-expression syntax, or set regex to false for a literal search.',
+      },
+    );
+  }
+  return { blocks, texts, matches: result.matches };
 }
 
 /** True for the nodes the fb2xml splitter never descends into. */
@@ -1938,6 +2139,416 @@ function endPointOf(
 function describeTypes(nodes: readonly ModelNodeJson[]): string {
   if (nodes.length === 0) return 'an empty replacement';
   return nodes.map((node) => `"${fb2NameFor(node.type)}"`).join(', ');
+}
+
+/* ------------------------------------------------------------------------ */
+/* The structural change tools (ai-catalogue §3.3, §3.5; T054)              */
+/* ------------------------------------------------------------------------ */
+
+const xmlContentArg = z.string().optional().describe('FictionBook XML');
+
+const changeAnnotations = { readOnlyHint: false, destructiveHint: true, idempotentHint: false };
+
+/**
+ * The six structural change tools. Every one computes its strike key from the arguments
+ * (`<tool>:<resolved nodeId or the reference as given>`, `insert_node:<where>@<nodeId>`,
+ * `replace_all:<query>`, `set_description:description` - §3.5) and runs **everything** - the
+ * argument checks, the resolution, the parse of `{xml}` content, the ProseMirror pre-checks
+ * and the write - inside `ctx.change`, so that every refused attempt counts one strike for its
+ * key (review C4) and the hook's checkpoint brackets the write. The results name the nodes
+ * touched (`NodeInfo` with id, path, type, characters) so that the request loop can summarise
+ * the call ("Replaced paragraph body[1]/section[2]/p[4]") and the model can re-read them.
+ */
+function registerChangeTools(server: McpServer, ctx: ToolContext): void {
+  defineTool(
+    server,
+    'replace_node',
+    {
+      title: 'Replace a node',
+      description:
+        'Replaces one node of the book (a paragraph, title, section, poem, …) by new content: content {xml} (FictionBook XML of exactly one element that may stand in its place - for several elements use insert_node) or content {node} (the Document JSON of one node). The replaced node keeps its id; new nodes inside get fresh ids. Exactly one of xml / node. The change is checked against the FB2 schema: an "error" answer means nothing was applied. The first body cannot be replaced by anything but a body.',
+      inputSchema: z.object({
+        node: nodeReference('the node to replace'),
+        content: z.object({
+          xml: xmlContentArg,
+          node: z.looseObject({}).optional().describe('Document JSON of one node'),
+        }),
+      }),
+      outputSchema: z.looseObject({ node: nodeInfoSchema }),
+      annotations: changeAnnotations,
+    },
+    (args) =>
+      ctx.change(`replace_node:${ctx.targetOf(args.node)}`, async () => {
+        const form = ctx.contentForm(args.content, ['xml', 'node'] as const);
+        const entry = ctx.resolve(args.node);
+        if (!entry.parent && inDescription(entry)) {
+          throw new ToolError(
+            'notAllowed',
+            `The ${entry.root} element is part of the description.`,
+            {
+              hint: 'Use set_description with {annotation: {xml}} / {history: {xml}}, or change its paragraphs.',
+            },
+          );
+        }
+        const id = nodeIdOf(entry.node);
+        let node: ModelNodeJson;
+        const parent = ctx.parentOf(entry);
+        if (form === 'xml') {
+          const parsed = await ctx.parseXml(
+            args.content.xml!,
+            ctx.parentReference(entry.parent, parent.name),
+          );
+          if (parsed.inline) {
+            throw new ToolError(
+              'fragmentNotAllowed',
+              'The content must be one element that stands in the place of the node, not bare inline content.',
+              {
+                element: '#inline',
+                parent: parent.name,
+                hint: `Return one element such as <${entry.node.type}>…</${entry.node.type}>; use set_text to replace the text of a paragraph.`,
+              },
+            );
+          }
+          if (parsed.nodes.length !== 1) {
+            throw new ToolError(
+              'invalidArguments',
+              parsed.nodes.length === 0
+                ? 'The xml yields no element.'
+                : `The xml yields ${parsed.nodes.length} elements; replace_node takes exactly one.`,
+              {
+                hint:
+                  parsed.nodes.length === 0
+                    ? 'Return one element in FictionBook XML.'
+                    : 'Use insert_node for several elements (and remove_node for the old one), or wrap them in one element the parent accepts.',
+              },
+            );
+          }
+          node = ctx.assignIds(parsed.nodes[0] as unknown as ModelNodeJson);
+          node = { ...node, attrs: { ...(node.attrs ?? {}), nodeId: id } };
+        } else {
+          node = ctx.jsonNode(args.content.node, 'replace_node', id);
+        }
+        const checked = ctx.checkedNode(node, 'replace_node');
+        if (!entry.parent && checked.type !== 'body') {
+          throw new ToolError(
+            'notAllowed',
+            `A body can only be replaced by a body, not by a "${checked.type}".`,
+            { hint: 'Replace or insert the sections inside the body instead.' },
+          );
+        }
+        const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
+        ctx.requireFits(
+          parent,
+          siblings,
+          siblings.indexOf(entry.node),
+          1,
+          [checked],
+          'replace_node',
+          `in place of this "${entry.node.type}"`,
+        );
+        writeAt(ctx.deps.copy, entry, { kind: 'replace', node: checked });
+        const after = ctx.entryOf(id);
+        if (!after) throw new Error('the replaced node is missing afterwards');
+        return { node: nodeInfo(after) };
+      }),
+  );
+
+  defineTool(
+    server,
+    'insert_node',
+    {
+      title: 'Insert nodes',
+      description:
+        'Inserts new content next to a node: where "before" or "after" puts it beside the node, "append" makes it the last child of the node (for example the last paragraph of a section). content {xml} (FictionBook XML of one or several sibling elements, inserted in order) or content {nodes} (a list of Document JSON nodes). Exactly one of xml / nodes. Returns the inserted nodes with their new ids and paths. The change is checked against the FB2 schema; an "error" answer means nothing was inserted.',
+      inputSchema: z.object({
+        where: z
+          .enum(['before', 'after', 'append'])
+          .describe('before / after the node, or append as its last child'),
+        node: nodeReference('the reference node'),
+        content: z.object({
+          xml: xmlContentArg,
+          nodes: z.array(z.looseObject({})).optional().describe('Document JSON nodes, in order'),
+        }),
+      }),
+      outputSchema: z.looseObject({ nodes: z.array(nodeInfoSchema) }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    (args) =>
+      ctx.change(`insert_node:${args.where}@${ctx.targetOf(args.node)}`, async () => {
+        const form = ctx.contentForm(args.content, ['xml', 'nodes'] as const);
+        const entry = ctx.resolve(args.node);
+        const append = args.where === 'append';
+        // The parse context: the reference's parent, or the reference itself for `append`.
+        const parentEntry = append ? entry : entry.parent;
+        const parent = append ? containerOf(entry.node) : ctx.parentOf(entry);
+        if (!append && !entry.parent && inDescription(entry)) {
+          throw new ToolError('notAllowed', `The ${entry.root} element has no siblings.`, {
+            hint: 'Append inside it, or use set_description.',
+          });
+        }
+        if (append && isLeafFor(entry)) {
+          throw new ToolError(
+            'notAllowed',
+            `"${entry.node.type}" holds no block children; nothing can be appended to it.`,
+            {
+              hint: 'Insert before or after it, or use set_text / replace_selection for its text.',
+            },
+          );
+        }
+        let nodes: ModelNodeJson[];
+        if (form === 'xml') {
+          const parsed = await ctx.parseXml(
+            args.content.xml!,
+            ctx.parentReference(parentEntry, parent.name),
+          );
+          if (parsed.inline) {
+            throw new ToolError(
+              'fragmentNotAllowed',
+              `The content must be block elements that "${parent.name}" may hold, not bare inline content.`,
+              {
+                element: '#inline',
+                parent: parent.name,
+                hint: 'Wrap the text in <p>…</p>, or use replace_selection inside a paragraph.',
+              },
+            );
+          }
+          if (parsed.nodes.length === 0) {
+            throw new ToolError('invalidArguments', 'The xml yields no element.', {
+              hint: 'Return one or several elements in FictionBook XML.',
+            });
+          }
+          nodes = parsed.nodes.map((node) => ctx.assignIds(node as unknown as ModelNodeJson));
+        } else {
+          const given = args.content.nodes!;
+          if (given.length === 0) {
+            throw new ToolError('invalidArguments', 'nodes is empty.', {
+              hint: 'Give one or several Document JSON nodes.',
+            });
+          }
+          nodes = given.map((value, i) => ctx.jsonNode(value, `insert_node: nodes[${i}]`));
+        }
+        const checked = nodes.map((node) => ctx.checkedNode(node, 'insert_node'));
+        if (append) {
+          const children = childEntries(ctx.index, entry).map((child) => child.node);
+          ctx.requireFits(
+            parent,
+            children,
+            children.length,
+            0,
+            checked,
+            'insert_node',
+            'as its last child',
+          );
+        } else {
+          const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
+          const index = siblings.indexOf(entry.node) + (args.where === 'after' ? 1 : 0);
+          ctx.requireFits(
+            parent,
+            siblings,
+            index,
+            0,
+            checked,
+            'insert_node',
+            `${args.where} this "${entry.node.type}"`,
+          );
+        }
+        writeAt(ctx.deps.copy, entry, { kind: 'insert', where: args.where, nodes: checked });
+        const infos = checked.map((node) => {
+          const after = ctx.entryOf(nodeIdOf(node));
+          if (!after) throw new Error('an inserted node is missing afterwards');
+          return nodeInfo(after);
+        });
+        return { nodes: infos };
+      }),
+  );
+
+  defineTool(
+    server,
+    'remove_node',
+    {
+      title: 'Remove a node',
+      description:
+        "Removes one node of the book with everything inside it (a paragraph, an empty line, a section, a poem, …). Refused with notAllowed when the parent needs it - the first body, the last section of a body, the last line of a stanza - with the parent's content model in the hint. Returns the removed node and its character count. The change is checked against the FB2 schema.",
+      inputSchema: z.object({ node: nodeReference('the node to remove') }),
+      outputSchema: z.looseObject({ removed: nodeInfoSchema, characters: z.number() }),
+      annotations: changeAnnotations,
+    },
+    (args) =>
+      ctx.change(`remove_node:${ctx.targetOf(args.node)}`, async () => {
+        const entry = ctx.resolve(args.node);
+        if (!entry.parent && entry.root === 'body[1]') {
+          throw new ToolError(
+            'notAllowed',
+            'The first body is the book itself and cannot be removed.',
+            {
+              hint: `A FictionBook needs its first body (content model of "body": ${contentModelOf(fb2Schema.nodes.body!)}); remove sections inside it instead.`,
+              contentModel: contentModelOf(fb2Schema.nodes.body!),
+            },
+          );
+        }
+        const removed = nodeInfo(entry);
+        const characters = characterCount(entry.node);
+        if (entry.parent || entry.root.startsWith('body[')) {
+          const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
+          ctx.requireFits(
+            ctx.parentOf(entry),
+            siblings,
+            siblings.indexOf(entry.node),
+            1,
+            [],
+            'remove_node',
+            `this "${entry.node.type}"`,
+          );
+        }
+        writeAt(ctx.deps.copy, entry, { kind: 'remove' });
+        return { removed, characters };
+      }),
+  );
+
+  defineTool(
+    server,
+    'set_text',
+    {
+      title: 'Set the text of a block',
+      description: `Replaces the whole content of one text container (${TEXT_CONTAINER_LIST}) by plain text. All inline formatting of the block is lost - emphasis, strong, links, footnotes, inline images; to keep or change formatting use replace_node with xml. Other nodes are refused with textOnly. The change is checked against the FB2 schema.`,
+      inputSchema: z.object({
+        node: nodeReference('the text container'),
+        text: z.string().describe('the new plain text (empty clears the block)'),
+      }),
+      outputSchema: z.looseObject({ node: nodeInfoSchema }),
+      annotations: changeAnnotations,
+    },
+    (args) =>
+      ctx.change(`set_text:${ctx.targetOf(args.node)}`, async () => {
+        const entry = ctx.resolve(args.node);
+        if (!TEXT_CONTAINERS.has(entry.node.type)) {
+          throw new ToolError(
+            'textOnly',
+            `"${entry.node.type}" is not a text container; set_text takes ${TEXT_CONTAINER_LIST}.`,
+            {
+              hint: 'Use replace_node with xml to keep formatting, or read_part to find the paragraphs inside it.',
+            },
+          );
+        }
+        const next: ModelNodeJson = {
+          ...entry.node,
+          content: args.text ? [{ type: 'text', text: args.text }] : [],
+        };
+        const checked = ctx.checkedNode(next, 'set_text');
+        const id = nodeIdOf(entry.node);
+        writeAt(ctx.deps.copy, entry, { kind: 'replace', node: checked });
+        const after = ctx.entryOf(id);
+        if (!after) throw new Error('the block is missing afterwards');
+        return { node: nodeInfo(after) };
+      }),
+  );
+
+  defineTool(
+    server,
+    'replace_all',
+    {
+      title: 'Find and replace in the bodies',
+      description:
+        "Replaces every match of text in the bodies (not the description) with the editor's find-and-replace: the same options as find (regex, matchCase, wholeWord, within). replacement is literal; with regex it uses the editor's expansion: $0 the whole match, $1–$9 the groups, $U / $L / $T upper / lower / title case for what follows, $S / $E strong / emphasis for what follows, $Q resets. Returns the exact count and the changed blocks (at most 100 listed). count 0 changes nothing. The change is checked against the FB2 schema.",
+      inputSchema: z.object({
+        text: z.string().min(1).describe('the text or regular expression to find'),
+        regex: flag('treat text as a regular expression'),
+        matchCase: flag('case-sensitive'),
+        wholeWord: flag('whole words only'),
+        within: nodeReference('replace inside this node only').optional(),
+        replacement: z
+          .string()
+          .describe('the replacement (literal, or with $-expansions for regex)'),
+      }),
+      outputSchema: z.looseObject({ count: z.number(), blocks: z.array(nodeInfoSchema) }),
+      annotations: changeAnnotations,
+    },
+    async (args) => {
+      // The search runs first: no match is a success without the hook (no checkpoint, no
+      // strike); a bad expression or an unknown `within` is a refused attempt of the key.
+      let search: Awaited<ReturnType<typeof searchBlocks>>;
+      try {
+        search = await searchBlocks(ctx, args);
+      } catch (error) {
+        if (!(error instanceof ToolError)) throw error;
+        return ctx.change(`replace_all:${args.text}`, () => Promise.reject(error));
+      }
+      if (search.matches.length === 0) return { count: 0, blocks: [] };
+      return ctx.change(`replace_all:${args.text}`, async () => {
+        const expand = expansionFor(args.replacement, args.regex === true);
+        const byBlock = new Map<number, RegexMatch[]>();
+        for (const match of search.matches) {
+          const list = byBlock.get(match.block) ?? [];
+          list.push(match);
+          byBlock.set(match.block, list);
+        }
+        const rewrites: { entry: Entry; node: ModelNodeJson }[] = [];
+        for (const [block, matches] of byBlock) {
+          const entry = search.blocks[block]!;
+          const rewritten = rewriteBlock(entry.node, matches, expand);
+          if (rewritten === entry.node) continue;
+          rewrites.push({ entry, node: ctx.checkedNode(rewritten, 'replace_all') });
+        }
+        // Every rewrite is computed from the index before the first write, then all are
+        // written at once (the description roots in one rewrite each).
+        replaceEach(ctx.deps.copy, rewrites);
+        const blocks = rewrites
+          .slice(0, REPLACE_ALL_BLOCKS_LISTED)
+          .map(({ node }) => ctx.entryOf(nodeIdOf(node)))
+          .filter((e): e is Entry => !!e)
+          .map(nodeInfo);
+        return { count: search.matches.length, blocks };
+      });
+    },
+  );
+
+  defineTool(
+    server,
+    'set_description',
+    {
+      title: 'Change the description',
+      description:
+        'Changes the description (metadata) by a partial merge, one level deep: give the blocks to change (titleInfo, srcTitleInfo, documentInfo, publishInfo) with only the members to change - members given replace the existing value, members absent stay; the lists genres, authors, translators, sequences, coverpage, srcUrls, homePages, emails, publishers replace whole; customInfo and outputs replace whole. annotation / history are {xml} (FictionBook XML of their content) or null to remove; srcTitleInfo / publishInfo null removes the block; titleInfo and documentInfo cannot be removed. Returns the description afterwards. The change is checked against the FB2 schema (genre codes, lang, dates, required members).',
+      inputSchema: z.object({
+        description: z.looseObject({}).describe('the members of the description to change'),
+      }),
+      outputSchema: z.looseObject({
+        description: z.looseObject({}),
+        validation: z.looseObject({ newErrors: z.number(), preExistingErrors: z.number() }),
+        fields: z.array(z.string()),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    (args) =>
+      ctx.change('set_description:description', async () => {
+        const merged = await mergeDescription(ctx.document.description, args.description, {
+          parseXml: async (xml, element) => {
+            const parsed = await ctx.parseXml(xml, { element });
+            if (parsed.inline) {
+              throw new ToolError(
+                'fragmentNotAllowed',
+                `The ${element} takes block elements (<p>, <poem>, <cite>, …), not bare inline content.`,
+                { element: '#inline', parent: element, hint: 'Wrap the text in <p>…</p>.' },
+              );
+            }
+            return parsed.nodes.map((node) => ctx.assignIds(node as unknown as ModelNodeJson));
+          },
+          nextNodeId: () => ctx.deps.nextNodeId(),
+          fail: (message, extra) => {
+            throw new ToolError('invalidArguments', `set_description: ${message}`, {
+              ...(extra?.hint ? { hint: extra.hint } : {}),
+              expected: extra?.expected ?? DESCRIPTION_SHAPE,
+            });
+          },
+        });
+        ctx.deps.copy.setDescription(merged.description);
+        return {
+          description: await ctx.describe(),
+          validation: { newErrors: 0, preExistingErrors: ctx.preExistingErrors() },
+          fields: merged.fields,
+        };
+      }),
+  );
 }
 
 /* ------------------------------------------------------------------------ */

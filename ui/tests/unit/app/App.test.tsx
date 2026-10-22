@@ -1,11 +1,18 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { registerAiFeature, unregisterAiFeature } from '@/ai';
 import { App } from '@/app/App';
+import { createCommandRegistry } from '@/app/commands';
+import { HotkeyMap } from '@/app/hotkeys';
 import { createAppServices, type AppServices } from '@/app/services';
 import { changeLanguage, initI18n } from '@/i18n';
-import { actions, createAppStore } from '@/model/store';
-import { ArrayHistoryAdapter } from '@/model/undo';
+import { CaretRegistry } from '@/model/caret';
+import { actions, createAppStore, emptyConversation } from '@/model/store';
+import { ArrayHistoryAdapter, UndoCoordinator } from '@/model/undo';
+
+import { fakeDocument } from '../features/testUtils';
+import { defaultSettings } from '../settings/fixtures';
 
 const MENUS = ['file', 'edit', 'view', 'add', 'style', 'tools', 'scripts', 'help'] as const;
 
@@ -362,6 +369,75 @@ describe('App shell', () => {
     expect(screen.queryByTestId('script-run-banner')).not.toBeInTheDocument();
     expect(screen.queryByTestId('script-run-bar')).not.toBeInTheDocument();
     expect(screen.getByTestId('status-message')).toBeInTheDocument();
+  });
+
+  it('renders the panel component of the loaded chunk inside the pane while on; its field keeps its keys (feature 005 US3)', async () => {
+    await initI18n({ language: 'en' });
+    await changeLanguage('en');
+    const store = createAppStore();
+    const commands = createCommandRegistry();
+    const undo = new UndoCoordinator();
+    const hotkeys = new HotkeyMap('linux');
+    const split = vi.fn();
+    // The feature registered first with a stand-in chunk: a panel with a text field, the
+    // on/off helpers; `createAppServices` then finds and keeps this instance.
+    registerAiFeature(
+      { commands, rpc: null, undo, carets: new CaretRegistry(), store, hotkeys },
+      {
+        loadAssistant: async () => ({
+          AiPanel: () => (
+            <div data-testid="ai-panel-stub">
+              <textarea data-testid="ai-input" aria-label="x" />
+            </div>
+          ),
+          startAssistant: (s) => actions.updateAi(s, { on: true, loaded: true }),
+          stopAssistant: (s) =>
+            actions.updateAi(s, { on: false, request: null, conversation: emptyConversation() }),
+          startRequest: async () => ({ kind: 'cancelled' as const }),
+          cancelRequest: () => {},
+          activeRequest: () => null,
+        }),
+      },
+    );
+    const services = createAppServices({ store, commands, undo, hotkeys, platform: 'linux' });
+    const user = userEvent.setup();
+    render(<App services={services} />);
+    act(() => {
+      actions.setSettings(store, defaultSettings());
+      actions.setDocument(store, fakeDocument());
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('menu-view'));
+    await user.click(screen.getByTestId('menu-view-toggle'));
+    const panel = await screen.findByTestId('ai-panel');
+    expect(within(panel).getByTestId('ai-panel-stub')).toBeInTheDocument();
+    expect(store.getState().ai.on).toBe(true);
+
+    // In the panel's field Shift+Enter is a line break, not `edit.split`; Enter and Escape are
+    // the field's as well; Mod+Z is the field's own undo, not the document's.
+    services.commands.replace({ id: 'edit.split', group: 'edit', run: split });
+    const dispatch = vi.spyOn(services.commands, 'dispatch');
+    const field = within(panel).getByTestId('ai-input');
+    await user.click(field);
+    await user.keyboard('{Shift>}{Enter}{/Shift}{Enter}{Escape}');
+    expect(split).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+    await user.keyboard('{Control>}z{/Control}');
+    expect(dispatch).not.toHaveBeenCalledWith('edit.undo', expect.anything());
+    // Outside the panel the dispatcher is as before: Mod+Z reaches edit.undo.
+    await user.click(screen.getByTestId('view-area'));
+    await user.keyboard('{Control>}z{/Control}');
+    expect(dispatch).toHaveBeenCalledWith('edit.undo', expect.anything());
+
+    // Off through the toolbar button: the pane and its content are gone.
+    await user.click(screen.getByTestId('toolbar-ai.toggle'));
+    await waitFor(() => expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument());
+    expect(screen.queryByTestId('ai-panel-stub')).not.toBeInTheDocument();
+    unregisterAiFeature(store);
   });
 
   it('renders Russian labels after a language switch', async () => {

@@ -1,12 +1,17 @@
 /**
- * Feature 005 T045 (ai-catalogue §3.5, §6.10, §9.2 `hook.test.ts`; data-model §7.3-§7.4;
+ * Feature 005 T045 / T051 (ai-catalogue §3.5, §6.10, §9.2 `hook.test.ts`; data-model §7.3-§7.4;
  * review C3, C4, C12; FR-060 to FR-063) - the validity hook: checkpoint, change, validate, key
  * diff, accept or rollback with the `rejected` envelope; the strike counter per key
  * `<tool>:<target>` - the same key three times ends the request (hook rejections, a 1201 and
  * invalid arguments mixed), another key's rejection or acceptance does not reset it, an
- * accepted change of the key does; a change that throws is rolled back and propagated.
+ * accepted change of the key does; a change that throws is rolled back and propagated; and
+ * the catalogue's structural change tools behind the real hook: the strike keys
+ * `replace_node:<nodeId>`, `insert_node:<where>@<nodeId>`, `remove_node:<nodeId>`,
+ * `set_text:<nodeId>`, `replace_all:<query>`, `set_description:description`, pre-check and
+ * hook rejections counted alike, read tools never counted.
  */
 
+import { ToolError, type ToolErrorEnvelope } from '@/ai/catalogue';
 import { selectionSnapshot } from '@/ai/context';
 import {
   applyChange,
@@ -17,6 +22,8 @@ import {
   StrikeCounter,
   strikeKey,
   type ChangeRejected,
+  type ChangeRejectionCode,
+  type ErrorForModel,
   type SelectionReplacementResult,
 } from '@/ai/hook';
 import { startRequestSession, type RequestSession } from '@/ai/session';
@@ -26,6 +33,7 @@ import { RpcErrorCode } from '@/rpc/types';
 import { setBodySelection } from '@/scripting/api-impl';
 import { getBodyController } from '@/views/body/bodyEditor';
 
+import { fakeFromXml, harness as catalogueHarness } from './catalogueHarness';
 import {
   BAD_WORD_MESSAGE,
   harness,
@@ -674,5 +682,213 @@ describe('selectionReplacement', () => {
     )) as ChangeRejected;
     expect(outcome).toMatchObject({ accepted: false, code: 'invalidArguments' });
     session.discard();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* The catalogue's change tools behind the real hook (T051 / T054)           */
+/* ------------------------------------------------------------------------ */
+
+const REJECTION_CODES: ReadonlySet<string> = new Set<ChangeRejectionCode>([
+  'invalidArguments',
+  'unknownNode',
+  'invalidNode',
+  'notAllowed',
+  'textOnly',
+  'noSelection',
+  'selectionRequired',
+  'invalidXml',
+  'fragmentNotAllowed',
+]);
+
+/**
+ * The adapter the request loop puts between the catalogue and `applyChange` (assistant.ts
+ * `changeHook`): the strike key split into tool and target, a `ToolError` of the pre-check
+ * turned into a `ChangeRejection` so that it counts, the hook's outcome as the envelope.
+ */
+function hookAdapter(session: RequestSession, keys: string[]) {
+  return async <T extends object>(
+    key: string,
+    change: () => Promise<T>,
+  ): Promise<T | ToolErrorEnvelope> => {
+    keys.push(key);
+    const colon = key.indexOf(':');
+    const tool = key.slice(0, colon);
+    const target = key.slice(colon + 1);
+    let thrown: ToolError | null = null;
+    const outcome = await applyChange<T>(session, {
+      tool,
+      target,
+      apply: async () => {
+        try {
+          return await change();
+        } catch (error) {
+          if (error instanceof ToolError && REJECTION_CODES.has(error.body.code)) {
+            thrown = error;
+            throw new ChangeRejection(
+              error.body.code as Exclude<ChangeRejectionCode, 'rejected'>,
+              error.message,
+              {
+                ...(error.body.hint === undefined ? {} : { hint: error.body.hint }),
+                issues: Array.isArray(error.body.issues)
+                  ? (error.body.issues as ErrorForModel[])
+                  : [],
+              },
+            );
+          }
+          throw error;
+        }
+      },
+    });
+    if (outcome.accepted) return outcome.result;
+    const refused = thrown as ToolError | null;
+    if (refused) return { error: { ...refused.body, strike: outcome.strike } };
+    return { error: { ...rejectedEnvelope(outcome).error } };
+  };
+}
+
+describe('the structural change tools under the hook (strike keys of §3.5)', () => {
+  async function bound() {
+    const h = harness();
+    const session = await start(h);
+    const keys: string[] = [];
+    const c = await catalogueHarness({
+      copy: session.copy,
+      applyChange: hookAdapter(session, keys),
+      fragmentFromXml: (xml, parent) => {
+        try {
+          return Promise.resolve(fakeFromXml(xml, parent, session.copy.document));
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      },
+    });
+    return { h, session, keys, call: c.catalogue.call, close: () => c.catalogue.close() };
+  }
+
+  it('counts every refused attempt - pre-check and hook alike - per key, resets a key on its acceptance, never counts a read tool', async () => {
+    const { h, session, keys, call, close } = await bound();
+    try {
+      // replace_node, accepted: key replace_node:<nodeId>, counter untouched, one change.
+      const replaced = await call('replace_node', {
+        node: 'body[1]/section[1]/p[1]',
+        content: { xml: '<p>First, fixed.</p>' },
+      });
+      expect(replaced.isError).toBe(false);
+      expect(replaced.result.node).toMatchObject({ id: 'p1', path: 'body[1]/section[1]/p[1]' });
+      expect(session.changes.map((c) => [c.strikeKey, c.status])).toEqual([
+        ['replace_node:p1', 'accepted'],
+      ]);
+      expect(session.changesInThisRequest).toBe(1);
+
+      // insert_node after p1: a paragraph the schema check refuses (the hook's rejection) …
+      const bad = await call('insert_node', {
+        where: 'after',
+        node: 'p1',
+        content: { xml: '<p>A BAD word.</p>' },
+      });
+      expect(bad.error).toMatchObject({
+        code: 'rejected',
+        strike: { count: 1, of: 3 },
+        issues: [expect.objectContaining({ element: 'p', message: BAD_WORD_MESSAGE })],
+      });
+      expect(session.strikes.count('insert_node:after@p1')).toBe(1);
+      expect(sectionTexts(session.copy.document, 0)).toEqual([
+        'title:ONE',
+        'First, fixed.',
+        'Second paragraph.',
+      ]);
+      // … and a title the parent's content expression refuses (the pre-check) - the same key.
+      const misplaced = await call('insert_node', {
+        where: 'after',
+        node: 'p1',
+        content: { xml: '<title><p>Late</p></title>' },
+      });
+      expect(misplaced.error).toMatchObject({ code: 'notAllowed', strike: { count: 2, of: 3 } });
+      expect(session.strikes.count('insert_node:after@p1')).toBe(2);
+      expect(session.changes[2]).toMatchObject({
+        strikeKey: 'insert_node:after@p1',
+        status: 'rejected',
+      });
+
+      // Other keys: remove_node of the first body, set_text on a section - one strike each,
+      // the insert_node counter stays at 2.
+      const firstBody = await call('remove_node', { node: 'body[1]' });
+      expect(firstBody.error).toMatchObject({ code: 'notAllowed', strike: { count: 1, of: 3 } });
+      const textOnly = await call('set_text', { node: 's1', text: 'x' });
+      expect(textOnly.error).toMatchObject({ code: 'textOnly', strike: { count: 1, of: 3 } });
+      const unknown = await call('set_text', { node: 'n999', text: 'x' });
+      expect(unknown.error).toMatchObject({ code: 'unknownNode', strike: { count: 1, of: 3 } });
+      expect(session.strikes.count('insert_node:after@p1')).toBe(2);
+
+      // Read tools and set_selection: no change record, no strike.
+      const changesBefore = session.changes.length;
+      await call('get_outline', {});
+      await call('read_part', { node: 's1' });
+      await call('find', { text: 'paragraph' });
+      await call('get_description', {});
+      await call('set_selection', { node: 'p2' });
+      expect(session.changes).toHaveLength(changesBefore);
+      expect(session.strikes.entries()).toEqual([
+        ['insert_node:after@p1', 2],
+        ['remove_node:b1', 1],
+        ['set_text:s1', 1],
+        ['set_text:n999', 1],
+      ]);
+
+      // replace_all and set_description, accepted under their own keys.
+      const replacedAll = await call('replace_all', { text: 'paragraph', replacement: 'sentence' });
+      expect(replacedAll.isError).toBe(false);
+      expect(replacedAll.result.count).toBe(3);
+      const described = await call('set_description', {
+        description: { titleInfo: { bookTitle: 'Renamed' } },
+      });
+      expect(described.isError).toBe(false);
+      expect(described.result.fields).toEqual(['titleInfo.bookTitle']);
+      expect(session.copy.document.description.titleInfo.bookTitle).toBe('Renamed');
+
+      // An accepted change of the key resets its counter alone.
+      const fine = await call('insert_node', {
+        where: 'after',
+        node: 'p1',
+        content: { xml: '<p>Fine.</p>' },
+      });
+      expect(fine.isError).toBe(false);
+      expect(session.strikes.count('insert_node:after@p1')).toBe(0);
+      expect(session.strikes.count('remove_node:b1')).toBe(1);
+      expect(session.strikes.count('set_text:s1')).toBe(1);
+
+      // The third strike of one key ends the request (FR-063).
+      await call('set_text', { node: 'body[1]/section[1]', text: 'x' });
+      const third = await call('set_text', { node: 's1', text: 'x' });
+      expect(third.error).toMatchObject({ code: 'textOnly', strike: { count: 3, of: 3 } });
+      expect(session.strikes.exhausted('set_text:s1')).toBe(true);
+
+      expect(keys).toEqual([
+        'replace_node:p1',
+        'insert_node:after@p1',
+        'insert_node:after@p1',
+        'remove_node:b1',
+        'set_text:s1',
+        'set_text:n999',
+        'replace_all:paragraph',
+        'set_description:description',
+        'insert_node:after@p1',
+        'set_text:s1',
+        'set_text:s1',
+      ]);
+      // Nothing reached the editor: the live document is still `before` (FR-043).
+      expect(h.store.getState().document).toBe(session.before);
+      expect(h.store.getState().modified).toBe(false);
+      expect(sectionTexts(session.copy.document, 0)).toEqual([
+        'title:ONE',
+        'First, fixed.',
+        'Fine.',
+        'Second sentence.',
+      ]);
+    } finally {
+      await close();
+      session.discard();
+    }
   });
 });

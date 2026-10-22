@@ -1,17 +1,23 @@
 // @vitest-environment node
 /**
- * The catalogue over `InMemoryTransport` (feature 005 T041; ai-catalogue §1, §3.1–§3.2, §3.7,
- * §5; data-model §8): the tools registered so far in the §3 order, the name rule, description
- * lengths, object schemas, coercion of numeric strings, the §1.4 envelopes for an unknown tool
- * and bad arguments, every tool's happy path and refusals against a fixture book, the
- * continuation protocol on an oversize part and the prompts. US3/US4/US6 extend this file.
+ * The catalogue over `InMemoryTransport` (feature 005 T041, T051; ai-catalogue §1, §3.1–§3.3,
+ * §3.5, §3.7, §5; data-model §6.3, §8): the tools registered so far in the §3 order, the name
+ * rule, description lengths, object schemas, coercion of numeric strings, the §1.4 envelopes
+ * for an unknown tool and bad arguments, every tool's happy path and refusals against a
+ * fixture book, the continuation protocol on an oversize part, the six structural change
+ * tools of US3 (each through the hook with its strike key - the pre-check refusals included,
+ * review C4), the `set_description` merge and the prompts. US4/US6 extend this file.
  */
 
 import {
   CATALOGUE_VERSION,
+  CHANGE_TOOL_NAMES,
   MAX_DESCRIPTION_LENGTH,
   TOOL_NAME_RULE,
+  TOOL_NAMES,
   US2_TOOL_NAMES,
+  US3_TOOL_NAMES,
+  type PromptText,
 } from '@/ai/catalogue';
 import type { ModelNodeJson } from '@/editor/fromModel';
 
@@ -38,9 +44,19 @@ function textOf(copy: Harness['copy'], nodeId: string): string {
 }
 
 describe('tools/list', () => {
-  it('lists the US2 tools in the §3 order with the name rule, short descriptions and object schemas', () => {
+  it('lists the US2 and US3 tools in the §3 order with the name rule, short descriptions and object schemas', () => {
     const tools = h.catalogue.listed();
-    expect(tools.map((t) => t.name)).toEqual([...US2_TOOL_NAMES]);
+    expect(tools.map((t) => t.name)).toEqual([...TOOL_NAMES]);
+    expect(TOOL_NAMES).toEqual([...US2_TOOL_NAMES, ...US3_TOOL_NAMES]);
+    expect(US3_TOOL_NAMES).toEqual([
+      'replace_node',
+      'insert_node',
+      'remove_node',
+      'set_text',
+      'replace_all',
+      'set_description',
+    ]);
+    expect(CHANGE_TOOL_NAMES).toEqual(['replace_selection', ...US3_TOOL_NAMES]);
     for (const tool of tools) {
       expect(tool.name).toMatch(TOOL_NAME_RULE);
       expect(tool.title).toBeTruthy();
@@ -54,12 +70,38 @@ describe('tools/list', () => {
     expect(context.annotations?.readOnlyHint).toBe(true);
     const replace = tools.find((t) => t.name === 'replace_selection')!;
     expect(replace.annotations?.destructiveHint).toBe(true);
+    // The change tools: never read-only; the destructive ones say so (§3.3).
+    for (const name of CHANGE_TOOL_NAMES) {
+      const tool = tools.find((t) => t.name === name)!;
+      expect(tool.annotations?.readOnlyHint, name).toBe(false);
+    }
+    expect(tools.find((t) => t.name === 'remove_node')!.annotations?.destructiveHint).toBe(true);
+    expect(tools.find((t) => t.name === 'insert_node')!.inputSchema.required).toEqual([
+      'where',
+      'node',
+      'content',
+    ]);
+    expect(
+      (
+        tools.find((t) => t.name === 'insert_node')!.inputSchema.properties as Record<
+          string,
+          { enum?: string[] }
+        >
+      ).where!.enum,
+    ).toEqual(['before', 'after', 'append']);
+    expect(tools.find((t) => t.name === 'replace_all')!.inputSchema.required).toEqual([
+      'text',
+      'replacement',
+    ]);
+    expect(tools.find((t) => t.name === 'set_description')!.inputSchema.required).toEqual([
+      'description',
+    ]);
   });
 
   it('builds the service tools array once, with $schema stripped and nothing else changed', () => {
     const tools = h.catalogue.tools();
     expect(h.catalogue.tools()).toBe(tools);
-    expect(tools).toHaveLength(US2_TOOL_NAMES.length);
+    expect(tools).toHaveLength(TOOL_NAMES.length);
     const listed = h.catalogue.listed();
     tools.forEach((tool, i) => {
       expect(tool.type).toBe('function');
@@ -82,6 +124,52 @@ describe('tools/list', () => {
     });
     expect(result.messages[0]!.role).toBe('user');
     expect((result.messages[0]!.content as { text: string }).text).toContain('Fix it');
+  });
+
+  it('the general prompt takes instruction and caretContext and lays out the history turns, never tool traffic (§5.2)', async () => {
+    const { prompts } = await h.catalogue.client.listPrompts();
+    const general = prompts.find((p) => p.name === 'general')!;
+    expect(general.arguments?.map((a) => [a.name, a.required])).toEqual([
+      ['instruction', true],
+      ['caretContext', false],
+    ]);
+    // The panel's message builder (context.ts) is what the prompt renders: the conversation
+    // turns - each earlier request's user text and the assistant's final text with its
+    // `[Changes applied …]` / `[No change]` line - then the instruction.
+    const asked: [string, Record<string, unknown>][] = [];
+    const turns: PromptText[] = [
+      { role: 'user', text: 'Make the titles title case' },
+      { role: 'assistant', text: 'Done.\n[Changes applied in this turn: replace_node ×3]' },
+      { role: 'user', text: 'How many sections are there?' },
+      { role: 'assistant', text: 'Four.\n[No change]' },
+    ];
+    const withHistory = await harness({
+      promptMessages: (name, args) => {
+        asked.push([name, args]);
+        return [...turns, { role: 'user', text: String(args.instruction) }];
+      },
+    });
+    try {
+      const result = await withHistory.catalogue.client.getPrompt({
+        name: 'general',
+        arguments: { instruction: 'Now the epigraph', caretContext: 'true' },
+      });
+      expect(asked).toEqual([['general', { instruction: 'Now the epigraph', caretContext: true }]]);
+      expect(result.messages.map((m) => m.role)).toEqual([
+        'user',
+        'assistant',
+        'user',
+        'assistant',
+        'user',
+      ]);
+      const texts = result.messages.map((m) => (m.content as { text: string }).text);
+      expect(texts[1]).toContain('[Changes applied in this turn: replace_node ×3]');
+      expect(texts[3]).toContain('[No change]');
+      expect(texts[4]).toBe('Now the epigraph');
+      expect(texts.join('\n')).not.toMatch(/tool_call|"role": ?"tool"/);
+    } finally {
+      await withHistory.catalogue.close();
+    }
   });
 });
 
@@ -671,5 +759,739 @@ describe('replace_selection', () => {
     expect(text.error?.code).toBe('invalidArguments');
     const xml = await call('replace_selection', { content: { xml: '<p>y</p>' } });
     expect(xml.error?.code).toBe('unavailable');
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* The structural change tools of US3 (T051 / T054; ai-catalogue §3.3, §3.5) */
+/* ------------------------------------------------------------------------ */
+
+/** The types of the children of a node of the copy. */
+function childTypes(copy: Harness['copy'], nodeId: string): string[] {
+  return (copy.place(nodeId)?.node.content ?? []).map((c: ModelNodeJson) => c.type);
+}
+
+describe('read tools and set_selection never reach the hook', () => {
+  it('leaves the hook untouched for every read tool (no strike, no checkpoint)', async () => {
+    await call('get_context', {});
+    await call('get_outline', {});
+    await call('read_part', { node: 'n10' });
+    await call('get_selection', {});
+    await call('get_description', {});
+    await call('find', { text: 'beta' });
+    await call('set_selection', { node: 'n13' });
+    expect(h.hookCalls).toEqual([]);
+    expect(h.copy.changed).toBe(false);
+  });
+});
+
+describe('replace_node', () => {
+  it('replaces a node by one XML element parsed in the parent context; the node keeps its id', async () => {
+    const out = await call('replace_node', {
+      node: 'body[1]/section[1]/p[1]',
+      content: { xml: '```fb2\n<p>ALPHA <emphasis>beta</emphasis> gamma.</p>\n```' },
+    });
+    expect(out.isError).toBe(false);
+    expect(out.result).toEqual({
+      node: { id: 'n13', path: 'body[1]/section[1]/p[1]', type: 'p', characters: 17 },
+    });
+    expect(h.hookCalls).toEqual(['replace_node:n13']);
+    expect(h.copy.place('n13')!.node.content).toEqual([
+      { type: 'text', text: 'ALPHA ' },
+      { type: 'text', text: 'beta', marks: [{ type: 'emphasis' }] },
+      { type: 'text', text: ' gamma.' },
+    ]);
+    expect(childTypes(h.copy, 'n10')).toEqual(['title', 'p', 'p', 'p', 'image', 'empty-line']);
+  });
+
+  it('replaces a node by Document JSON: the top node keeps its id, the nodes inside get sc_ ids', async () => {
+    const out = await call('replace_node', {
+      node: 'n21',
+      content: {
+        node: {
+          type: 'title',
+          attrs: { nodeId: 'ignored' },
+          content: [
+            {
+              type: 'p',
+              attrs: { nodeId: 'also-ignored' },
+              content: [{ type: 'text', text: 'Two' }],
+            },
+          ],
+        },
+      },
+    });
+    expect(out.isError).toBe(false);
+    expect(out.result.node).toMatchObject({ id: 'n21', path: 'body[1]/section[2]/title[1]' });
+    const title = h.copy.place('n21')!.node;
+    expect(title.attrs!.nodeId).toBe('n21');
+    const inner = title.content![0]!;
+    expect(String(inner.attrs!.nodeId)).toMatch(/^sc_\d+$/);
+    expect(inner.content).toEqual([{ type: 'text', text: 'Two' }]);
+    expect(h.copy.place('n22')).toBeUndefined();
+    expect(h.hookCalls).toEqual(['replace_node:n21']);
+  });
+
+  it('replaces a paragraph of the description annotation through the description', async () => {
+    const out = await call('replace_node', {
+      node: 'title-info/annotation[1]/p[1]',
+      content: { xml: '<p>About the novel.</p>' },
+    });
+    expect(out.isError).toBe(false);
+    expect(out.result.node).toMatchObject({ id: 'n41', path: 'title-info/annotation[1]/p[1]' });
+    const annotation = h.copy.document.description.titleInfo.annotation!;
+    expect(annotation.attrs.nodeId).toBe('n40');
+    expect(annotation.content).toEqual([
+      {
+        type: 'p',
+        attrs: { nodeId: 'n41' },
+        content: [{ type: 'text', text: 'About the novel.' }],
+      },
+    ]);
+    const read = await call('read_part', { node: 'title-info/annotation[1]' });
+    expect((read.result.blocks as { text: string }[])[0]!.text).toBe('About the novel.');
+    // The annotation element itself belongs to set_description.
+    const root = await call('replace_node', {
+      node: 'title-info/annotation[1]',
+      content: { xml: '<p>x</p>' },
+    });
+    expect(root.error?.code).toBe('notAllowed');
+    expect(root.error?.hint).toContain('set_description');
+    const beside = await call('insert_node', {
+      where: 'before',
+      node: 'n40',
+      content: { xml: '<p>x</p>' },
+    });
+    expect(beside.error?.code).toBe('notAllowed');
+    expect(h.hookCalls).toEqual(['replace_node:n41', 'replace_node:n40', 'insert_node:before@n40']);
+  });
+
+  it('refuses several elements (use insert_node), empty or inline content, both forms, and counts each attempt', async () => {
+    const before = JSON.stringify(h.copy.document);
+    const several = await call('replace_node', {
+      node: 'n13',
+      content: { xml: '<p>One</p><p>Two</p>' },
+    });
+    expect(several.error?.code).toBe('invalidArguments');
+    expect(several.error?.hint).toContain('insert_node');
+    const empty = await call('replace_node', { node: 'n13', content: { xml: '   ' } });
+    expect(empty.error?.code).toBe('invalidArguments');
+    const inline = await call('replace_node', { node: 'n13', content: { xml: 'bare text' } });
+    expect(inline.error?.code).toBe('fragmentNotAllowed');
+    const both = await call('replace_node', {
+      node: 'n13',
+      content: { xml: '<p>x</p>', node: { type: 'p' } },
+    });
+    expect(both.error?.code).toBe('invalidArguments');
+    const neither = await call('replace_node', { node: 'n13', content: {} });
+    expect(neither.error?.code).toBe('invalidArguments');
+    expect(neither.error?.expected).toMatchObject({ content: {} });
+    expect(JSON.stringify(h.copy.document)).toBe(before);
+    // Every refused attempt went through the hook with the key of the node (C4).
+    expect(h.hookCalls).toEqual(Array(5).fill('replace_node:n13'));
+  });
+
+  it('refuses an unknown node (the key names the reference as given), an invalid node and a misplaced one', async () => {
+    const unknown = await call('replace_node', { node: 'n999', content: { xml: '<p>x</p>' } });
+    expect(unknown.error?.code).toBe('unknownNode');
+    const byPath = await call('replace_node', {
+      node: 'body[1]/section[9]/p[1]',
+      content: { xml: '<p>x</p>' },
+    });
+    expect(byPath.error?.code).toBe('unknownNode');
+    // Document JSON the editor cannot build: a paragraph holding a section.
+    const invalid = await call('replace_node', {
+      node: 'n13',
+      content: { node: { type: 'p', content: [{ type: 'section', content: [] }] } },
+    });
+    expect(invalid.error?.code).toBe('invalidNode');
+    expect(invalid.error?.message).toMatch(/invalid node at/);
+    const unknownType = await call('replace_node', {
+      node: 'n13',
+      content: { node: { type: 'chapter' } },
+    });
+    expect(unknownType.error?.code).toBe('invalidNode');
+    const text = await call('replace_node', {
+      node: 'n13',
+      content: { node: { type: 'text', text: 'x' } },
+    });
+    expect(text.error?.code).toBe('invalidArguments');
+    // A section among the blocks of a section: the parent's content expression refuses it.
+    const misplaced = await call('replace_node', {
+      node: 'n13',
+      content: { xml: '<section><p>x</p></section>' },
+    });
+    expect(misplaced.error?.code).toBe('notAllowed');
+    expect(misplaced.error?.hint).toContain('content model of "section"');
+    const foreign = await call('replace_node', {
+      node: 'n13',
+      content: { xml: '<chapter>x</chapter>' },
+    });
+    expect(foreign.error?.code).toBe('fragmentNotAllowed');
+    expect(foreign.error).toMatchObject({ element: 'chapter', parent: 'section' });
+    expect(h.hookCalls).toEqual([
+      'replace_node:n999',
+      'replace_node:body[1]/section[9]/p[1]',
+      'replace_node:n13',
+      'replace_node:n13',
+      'replace_node:n13',
+      'replace_node:n13',
+      'replace_node:n13',
+    ]);
+    expect(h.copy.changed).toBe(false);
+  });
+
+  it('never replaces the first body by a non-body; a body by a body is fine', async () => {
+    const refused = await call('replace_node', {
+      node: 'body[1]',
+      content: {
+        node: { type: 'section', content: [{ type: 'p', content: [{ type: 'text', text: 'x' }] }] },
+      },
+    });
+    expect(refused.error?.code).toBe('notAllowed');
+    expect(refused.error?.message).toMatch(/body/);
+    const ok = await call('replace_node', {
+      node: 'n30',
+      content: {
+        node: {
+          type: 'body',
+          attrs: { name: 'notes' },
+          content: [
+            {
+              type: 'section',
+              attrs: { id: 'n_1' },
+              content: [{ type: 'p', content: [{ type: 'text', text: 'A new note.' }] }],
+            },
+          ],
+        },
+      },
+    });
+    expect(ok.isError).toBe(false);
+    expect(ok.result.node).toMatchObject({ id: 'n30', path: 'body[2]', type: 'body' });
+    expect(h.copy.document.bodies[1]!.attrs).toEqual({ nodeId: 'n30', name: 'notes' });
+    expect(h.hookCalls).toEqual(['replace_node:n1', 'replace_node:n30']);
+  });
+});
+
+describe('insert_node', () => {
+  it('inserts several siblings after a node, in order, with fresh sc_ ids and paths', async () => {
+    const out = await call('insert_node', {
+      where: 'after',
+      node: 'n13',
+      content: { xml: '<p>One.</p>\n<empty-line/>\n<subtitle>Sub</subtitle>' },
+    });
+    expect(out.isError).toBe(false);
+    const nodes = out.result.nodes as { id: string; path: string; type: string }[];
+    expect(nodes.map((n) => n.type)).toEqual(['p', 'empty-line', 'subtitle']);
+    expect(nodes.map((n) => n.path)).toEqual([
+      'body[1]/section[1]/p[2]',
+      'body[1]/section[1]/empty-line[1]',
+      'body[1]/section[1]/subtitle[1]',
+    ]);
+    expect(nodes.every((n) => /^sc_\d+$/.test(n.id))).toBe(true);
+    expect(childTypes(h.copy, 'n10')).toEqual([
+      'title',
+      'p',
+      'p',
+      'empty-line',
+      'subtitle',
+      'p',
+      'p',
+      'image',
+      'empty-line',
+    ]);
+    expect(h.hookCalls).toEqual(['insert_node:after@n13']);
+  });
+
+  it('inserts before a node from Document JSON and appends as the last child (parse context = the node)', async () => {
+    const before = await call('insert_node', {
+      where: 'before',
+      node: 'body[1]/section[1]/p[1]',
+      content: {
+        nodes: [
+          { type: 'subtitle', content: [{ type: 'text', text: 'First' }] },
+          { type: 'p', content: [{ type: 'text', text: 'Second' }] },
+        ],
+      },
+    });
+    expect(before.isError).toBe(false);
+    expect((before.result.nodes as { path: string }[]).map((n) => n.path)).toEqual([
+      'body[1]/section[1]/subtitle[1]',
+      'body[1]/section[1]/p[1]',
+    ]);
+    expect(childTypes(h.copy, 'n10').slice(0, 4)).toEqual(['title', 'subtitle', 'p', 'p']);
+    const append = await call('insert_node', {
+      where: 'append',
+      node: 'n20',
+      content: { xml: '<p>Appended.</p>' },
+    });
+    expect(append.isError).toBe(false);
+    expect((append.result.nodes as { path: string }[])[0]!.path).toBe('body[1]/section[2]/p[3]');
+    expect(childTypes(h.copy, 'n20')).toEqual(['title', 'poem', 'p', 'p', 'p']);
+    const appendBody = await call('insert_node', {
+      where: 'append',
+      node: 'n30',
+      content: { xml: '<section><p>Another note.</p></section>' },
+    });
+    expect(appendBody.isError).toBe(false);
+    expect(childTypes(h.copy, 'n30')).toEqual(['section', 'section']);
+    expect(h.hookCalls).toEqual([
+      'insert_node:before@n13',
+      'insert_node:append@n20',
+      'insert_node:append@n30',
+    ]);
+  });
+
+  it('inserts into the description annotation and a body beside a body', async () => {
+    const out = await call('insert_node', {
+      where: 'after',
+      node: 'n41',
+      content: { xml: '<p>More about it.</p>' },
+    });
+    expect(out.isError).toBe(false);
+    expect((out.result.nodes as { path: string }[])[0]!.path).toBe('title-info/annotation[1]/p[2]');
+    expect(
+      h.copy.document.description.titleInfo.annotation!.content.map((c) => c.attrs.nodeId),
+    ).toEqual(['n41', expect.stringMatching(/^sc_/)]);
+    const body = await call('insert_node', {
+      where: 'before',
+      node: 'n30',
+      content: {
+        nodes: [
+          {
+            type: 'body',
+            content: [
+              { type: 'section', content: [{ type: 'p', content: [{ type: 'text', text: 'x' }] }] },
+            ],
+          },
+        ],
+      },
+    });
+    expect(body.isError).toBe(false);
+    expect((body.result.nodes as { path: string }[])[0]!.path).toBe('body[2]');
+    expect(h.copy.document.bodies.map((b) => b.attrs.nodeId)).toEqual([
+      'n1',
+      expect.stringMatching(/^sc_/),
+      'n30',
+    ]);
+  });
+
+  it('refuses empty xml / nodes, content the parent cannot hold, appending to a leaf and unknown nodes - each a strike', async () => {
+    const before = JSON.stringify(h.copy.document);
+    const empty = await call('insert_node', { where: 'after', node: 'n13', content: { xml: '' } });
+    expect(empty.error?.code).toBe('invalidArguments');
+    const noNodes = await call('insert_node', {
+      where: 'after',
+      node: 'n13',
+      content: { nodes: [] },
+    });
+    expect(noNodes.error?.code).toBe('invalidArguments');
+    const misplaced = await call('insert_node', {
+      where: 'after',
+      node: 'n13',
+      content: { xml: '<section><p>x</p></section>' },
+    });
+    expect(misplaced.error?.code).toBe('notAllowed');
+    expect(misplaced.error?.hint).toContain('content model of "section"');
+    const foreign = await call('insert_node', {
+      where: 'before',
+      node: 'n13',
+      content: { xml: '<chapter/>' },
+    });
+    expect(foreign.error?.code).toBe('fragmentNotAllowed');
+    const inline = await call('insert_node', {
+      where: 'before',
+      node: 'n13',
+      content: { xml: 'loose text' },
+    });
+    expect(inline.error?.code).toBe('fragmentNotAllowed');
+    const leaf = await call('insert_node', {
+      where: 'append',
+      node: 'n13',
+      content: { xml: '<p>x</p>' },
+    });
+    expect(leaf.error?.code).toBe('notAllowed');
+    const unknown = await call('insert_node', {
+      where: 'after',
+      node: 'n999',
+      content: { xml: '<p>x</p>' },
+    });
+    expect(unknown.error?.code).toBe('unknownNode');
+    const where = await call('insert_node', {
+      where: 'inside',
+      node: 'n13',
+      content: { xml: '<p>x</p>' },
+    });
+    expect(where.error?.code).toBe('invalidArguments');
+    expect(where.error?.expected).toMatchObject({ type: 'object' });
+    expect(JSON.stringify(h.copy.document)).toBe(before);
+    expect(h.hookCalls).toEqual([
+      'insert_node:after@n13',
+      'insert_node:after@n13',
+      'insert_node:after@n13',
+      'insert_node:before@n13',
+      'insert_node:before@n13',
+      'insert_node:append@n13',
+      'insert_node:after@n999',
+    ]);
+  });
+});
+
+describe('remove_node', () => {
+  it('removes a node and reports it with its character count', async () => {
+    const out = await call('remove_node', { node: 'n15' });
+    expect(out.isError).toBe(false);
+    expect(out.result).toEqual({
+      removed: { id: 'n15', path: 'body[1]/section[1]/p[3]', type: 'p', characters: 31 },
+      characters: 31,
+    });
+    expect(h.copy.place('n15')).toBeUndefined();
+    expect(childTypes(h.copy, 'n10')).toEqual(['title', 'p', 'p', 'image', 'empty-line']);
+    const poem = await call('remove_node', { node: 'body[1]/section[2]/poem[1]' });
+    expect(poem.result.removed).toMatchObject({ id: 'n23', type: 'poem' });
+    expect(poem.result.characters).toBe('Line one'.length + 'Line two'.length);
+    const emptyLine = await call('remove_node', { node: 'n17' });
+    expect(emptyLine.result).toEqual({
+      removed: { id: 'n17', path: 'body[1]/section[1]/empty-line[1]', type: 'empty-line' },
+      characters: 0,
+    });
+    expect(h.hookCalls).toEqual(['remove_node:n15', 'remove_node:n23', 'remove_node:n17']);
+  });
+
+  it('refuses the first body and a removal the parent needs, with the content model in the hint', async () => {
+    const first = await call('remove_node', { node: 'body[1]' });
+    expect(first.error?.code).toBe('notAllowed');
+    expect(first.error?.hint).toContain('image? title? epigraph* section+');
+    // The only section of the notes body.
+    const lastSection = await call('remove_node', { node: 'n31' });
+    expect(lastSection.error?.code).toBe('notAllowed');
+    expect(lastSection.error?.hint).toContain('image? title? epigraph* section+');
+    expect(lastSection.error?.contentModel).toBe('image? title? epigraph* section+');
+    // The last line of a stanza.
+    expect((await call('remove_node', { node: 'n25' })).isError).toBe(false);
+    const lastVerse = await call('remove_node', { node: 'n26' });
+    expect(lastVerse.error?.code).toBe('notAllowed');
+    expect(lastVerse.error?.hint).toContain('title? subtitle? v+');
+    const unknown = await call('remove_node', { node: 'n999' });
+    expect(unknown.error?.code).toBe('unknownNode');
+    // Another body may go, like a whole section of body 1.
+    expect((await call('remove_node', { node: 'body[2]' })).isError).toBe(false);
+    expect(h.copy.document.bodies).toHaveLength(1);
+    expect(h.hookCalls).toEqual([
+      'remove_node:n1',
+      'remove_node:n31',
+      'remove_node:n25',
+      'remove_node:n26',
+      'remove_node:n999',
+      'remove_node:n30',
+    ]);
+  });
+
+  it('removes a paragraph of the annotation and the annotation itself through the description', async () => {
+    const paragraph = await call('remove_node', { node: 'title-info/annotation[1]/p[1]' });
+    expect(paragraph.isError).toBe(false);
+    expect(h.copy.document.description.titleInfo.annotation!.content).toEqual([]);
+    const root = await call('remove_node', { node: 'title-info/annotation[1]' });
+    expect(root.isError).toBe(false);
+    expect(root.result.removed).toMatchObject({ id: 'n40', type: 'annotation' });
+    expect(h.copy.document.description.titleInfo).not.toHaveProperty('annotation');
+    expect(h.copy.document.bodies).toBe(h.copy.document.bodies); // the bodies untouched
+  });
+});
+
+describe('set_text', () => {
+  it('replaces the whole inline content by plain text - every mark and link is lost', async () => {
+    const out = await call('set_text', { node: 'n14', text: 'He stayed in.' });
+    expect(out.isError).toBe(false);
+    expect(out.result).toEqual({
+      node: { id: 'n14', path: 'body[1]/section[1]/p[2]', type: 'p', characters: 13 },
+    });
+    expect(h.copy.place('n14')!.node).toEqual({
+      type: 'p',
+      attrs: { nodeId: 'n14' },
+      content: [{ type: 'text', text: 'He stayed in.' }],
+    });
+    const verse = await call('set_text', {
+      node: 'body[1]/section[2]/poem[1]/stanza[1]/v[2]',
+      text: 'Line 2',
+    });
+    expect(verse.result.node).toMatchObject({ id: 'n26', type: 'v', characters: 6 });
+    const cleared = await call('set_text', { node: 'n13', text: '' });
+    expect(cleared.isError).toBe(false);
+    expect(h.copy.place('n13')!.node.content).toEqual([]);
+    expect(h.hookCalls).toEqual(['set_text:n14', 'set_text:n26', 'set_text:n13']);
+  });
+
+  it('refuses anything but a text container with textOnly and the replace_node hint', async () => {
+    for (const node of ['n10', 'body[1]/section[2]/poem[1]', 'n16', 'n2']) {
+      const out = await call('set_text', { node, text: 'x' });
+      expect(out.error?.code, node).toBe('textOnly');
+      expect(out.error?.hint).toContain('replace_node');
+    }
+    const unknown = await call('set_text', { node: 'n999', text: 'x' });
+    expect(unknown.error?.code).toBe('unknownNode');
+    const missing = await call('set_text', { node: 'n13' });
+    expect(missing.error?.code).toBe('invalidArguments');
+    expect(h.copy.changed).toBe(false);
+    expect(h.hookCalls).toEqual([
+      'set_text:n10',
+      'set_text:n23',
+      'set_text:n16',
+      'set_text:n2',
+      'set_text:n999',
+    ]);
+  });
+});
+
+describe('replace_all', () => {
+  it('replaces every match in the bodies with the exact count and the changed blocks listed', async () => {
+    const out = await call('replace_all', { text: 'beta', replacement: 'BETA' });
+    expect(out.isError).toBe(false);
+    expect(out.result.count).toBe(4);
+    const blocks = out.result.blocks as { id: string; path: string }[];
+    expect(blocks.map((b) => b.id)).toEqual(['n13', 'n15', 'n27']);
+    expect(blocks[0]!.path).toBe('body[1]/section[1]/p[1]');
+    expect(textOf(h.copy, 'n13')).toBe('Alpha BETA gamma.');
+    expect(textOf(h.copy, 'n15')).toBe('BETA again, and BETA once more.');
+    expect(textOf(h.copy, 'n27')).toBe('Second section BETA.');
+    expect(h.copy.document.description.titleInfo.annotation!.content[0]!).toMatchObject({
+      attrs: { nodeId: 'n41' },
+    });
+    expect(h.hookCalls).toEqual(['replace_all:beta']);
+  });
+
+  it('count 0 is a success without the hook, a strike or a change', async () => {
+    const out = await call('replace_all', { text: 'nothing like this', replacement: 'x' });
+    expect(out.isError).toBe(false);
+    expect(out.result).toEqual({ count: 0, blocks: [] });
+    expect(h.hookCalls).toEqual([]);
+    expect(h.copy.changed).toBe(false);
+  });
+
+  it('keeps the marks around a match and expands $-groups, case and style flags for a regex', async () => {
+    // Inside the emphasised "went": the replacement keeps the emphasis (as mfbe.doc.replaceAll).
+    const inside = await call('replace_all', { text: 'en', replacement: 'EN', within: 'n14' });
+    expect(inside.result.count).toBe(1);
+    expect(h.copy.place('n14')!.node.content![1]).toEqual({
+      type: 'text',
+      text: 'wENt',
+      marks: [{ type: 'emphasis' }],
+    });
+    const regex = await call('replace_all', {
+      text: 'line (\\w+)',
+      regex: 'true',
+      replacement: 'Verse $E$1$Q!',
+    });
+    expect(regex.result.count).toBe(2);
+    expect((regex.result.blocks as { id: string }[]).map((b) => b.id)).toEqual(['n25', 'n26']);
+    expect(h.copy.place('n25')!.node.content).toEqual([
+      { type: 'text', text: 'Verse ' },
+      { type: 'text', text: 'one', marks: [{ type: 'emphasis' }] },
+      { type: 'text', text: '!' },
+    ]);
+    const upper = await call('replace_all', {
+      text: '(second) section',
+      regex: true,
+      matchCase: true,
+      replacement: '$U$1$Q part',
+    });
+    expect(upper.result.count).toBe(0); // matchCase: "Second" is capitalised
+    const titled = await call('replace_all', {
+      text: '(second) section',
+      regex: true,
+      replacement: '$U$1$Q part',
+    });
+    expect(titled.result.count).toBe(1);
+    expect(textOf(h.copy, 'n27')).toBe('SECOND part BETA.'.replace('BETA', 'beta'));
+    expect(h.hookCalls).toEqual([
+      'replace_all:en',
+      'replace_all:line (\\w+)',
+      'replace_all:(second) section',
+    ]);
+  });
+
+  it('replaces inside a node only, in the description annotation too', async () => {
+    const within = await call('replace_all', {
+      text: 'beta',
+      replacement: 'B',
+      within: 'body[1]/section[2]',
+    });
+    expect(within.result.count).toBe(1);
+    expect(textOf(h.copy, 'n13')).toBe('Alpha beta gamma.');
+    const annotation = await call('replace_all', {
+      text: 'book',
+      replacement: 'novel',
+      within: 'title-info/annotation[1]',
+    });
+    expect(annotation.result.count).toBe(1);
+    expect((annotation.result.blocks as { path: string }[])[0]!.path).toBe(
+      'title-info/annotation[1]/p[1]',
+    );
+    const first = h.copy.document.description.titleInfo.annotation!.content[0] as ModelNodeJson;
+    expect(first.content).toEqual([{ type: 'text', text: 'About the novel.' }]);
+  });
+
+  it('an invalid expression or an unknown within is a refused attempt of the query key', async () => {
+    const bad = await call('replace_all', { text: '(', regex: true, replacement: 'x' });
+    expect(bad.error?.code).toBe('invalidArguments');
+    expect(bad.error?.message).toMatch(/regular expression/);
+    const unknown = await call('replace_all', { text: 'a', replacement: 'b', within: 'n999' });
+    expect(unknown.error?.code).toBe('unknownNode');
+    const missing = await call('replace_all', { text: 'a' });
+    expect(missing.error?.code).toBe('invalidArguments');
+    expect(h.hookCalls).toEqual(['replace_all:(', 'replace_all:a']);
+    expect(h.copy.changed).toBe(false);
+  });
+});
+
+describe('set_description', () => {
+  it('merges one level deep: given members replace, absent members stay, lists replace whole; the fields are listed', async () => {
+    const out = await call('set_description', {
+      description: {
+        titleInfo: {
+          bookTitle: 'Omega',
+          genres: ['prose', { code: 'sf', match: '50' }],
+          keywords: 'alpha, omega',
+        },
+        documentInfo: { authors: [{ lastName: 'Sidorov' }], version: 1.1 },
+      },
+    });
+    expect(out.isError).toBe(false);
+    expect(out.result.fields).toEqual([
+      'titleInfo.bookTitle',
+      'titleInfo.genres',
+      'titleInfo.keywords',
+      'documentInfo.authors',
+      'documentInfo.version',
+    ]);
+    expect(out.result.validation).toEqual({ newErrors: 0, preExistingErrors: 0 });
+    const description = out.result.description as Record<string, Record<string, unknown>>;
+    expect(description.titleInfo).toMatchObject({
+      bookTitle: 'Omega',
+      genres: [{ code: 'prose' }, { code: 'sf', match: 50 }],
+      keywords: 'alpha, omega',
+      authors: [{ firstName: 'Ivan', lastName: 'Petrov', homePages: [], emails: [] }],
+      lang: 'en',
+      annotation: { xml: '<p>About the book.</p>' },
+    });
+    expect(description.documentInfo).toMatchObject({
+      authors: [{ lastName: 'Sidorov', homePages: [], emails: [] }],
+      version: '1.1',
+      id: 'id',
+      date: { text: '2026' },
+    });
+    expect(h.hookCalls).toEqual(['set_description:description']);
+    const copy = h.copy.document.description;
+    expect(copy.titleInfo.bookTitle).toBe('Omega');
+    expect(copy.titleInfo.annotation!.attrs.nodeId).toBe('n40');
+    expect(copy.documentInfo.publishers).toEqual([]);
+    // The same through get_description afterwards.
+    const read = await call('get_description', {});
+    expect(read.result.description).toEqual(out.result.description);
+  });
+
+  it('takes annotation and history as {xml} (ids kept / issued) or null to remove, and whole blocks', async () => {
+    const out = await call('set_description', {
+      description: {
+        titleInfo: { annotation: { xml: '<p>New.</p>\n<p>Second.</p>' } },
+        documentInfo: { history: { xml: '```xml\n<p>v1.1 - fixed</p>\n```' } },
+        srcTitleInfo: { bookTitle: 'Original', lang: 'fr' },
+        publishInfo: { publisher: 'X', year: 2001 },
+        customInfo: [{ infoType: 'note', text: 'kept' }],
+        outputs: [{ xml: '<output mode="free"/>' }],
+      },
+    });
+    expect(out.isError).toBe(false);
+    expect(out.result.fields).toEqual([
+      'titleInfo.annotation',
+      'documentInfo.history',
+      'srcTitleInfo.bookTitle',
+      'srcTitleInfo.lang',
+      'publishInfo.publisher',
+      'publishInfo.year',
+      'customInfo',
+      'outputs',
+    ]);
+    const copy = h.copy.document.description;
+    expect(copy.titleInfo.annotation!.attrs.nodeId).toBe('n40'); // the existing node keeps its id
+    expect(copy.titleInfo.annotation!.content.map((c) => c.attrs.nodeId)).toEqual([
+      expect.stringMatching(/^sc_/),
+      expect.stringMatching(/^sc_/),
+    ]);
+    expect(copy.documentInfo.history!.type).toBe('annotation');
+    expect(copy.documentInfo.history!.attrs.nodeId).toMatch(/^sc_/);
+    expect(copy.srcTitleInfo).toEqual({
+      genres: [],
+      authors: [],
+      bookTitle: 'Original',
+      coverpage: [],
+      lang: 'fr',
+      translators: [],
+      sequences: [],
+    });
+    expect(copy.publishInfo).toEqual({ publisher: 'X', year: '2001', sequences: [] });
+    expect(copy.customInfo).toEqual([{ infoType: 'note', text: 'kept' }]);
+    expect(copy.outputs[0]).toMatchObject({
+      type: 'raw-xml',
+      attrs: { xml: '<output mode="free"/>' },
+    });
+    const description = out.result.description as Record<string, Record<string, unknown>>;
+    expect(description.titleInfo!.annotation).toEqual({ xml: '<p>New.</p>\n<p>Second.</p>' });
+    expect(description.documentInfo!.history).toEqual({ xml: '<p>v1.1 - fixed</p>' });
+    expect(description.outputs).toEqual([{ xml: '<output mode="free"/>' }]);
+    // The new history paragraph is addressable like any node.
+    const read = await call('read_part', { node: 'document-info/history[1]' });
+    expect((read.result.blocks as { text: string }[]).map((b) => b.text)).toEqual(['v1.1 - fixed']);
+
+    const removed = await call('set_description', {
+      description: { titleInfo: { annotation: null }, srcTitleInfo: null, publishInfo: null },
+    });
+    expect(removed.isError).toBe(false);
+    expect(removed.result.fields).toEqual(['titleInfo.annotation', 'srcTitleInfo', 'publishInfo']);
+    const after = h.copy.document.description;
+    expect(after.titleInfo).not.toHaveProperty('annotation');
+    expect(after).not.toHaveProperty('srcTitleInfo');
+    expect(after).not.toHaveProperty('publishInfo');
+    expect(after.documentInfo.history).toBeDefined(); // untouched
+    expect(h.hookCalls).toEqual(['set_description:description', 'set_description:description']);
+  });
+
+  it('refuses removing titleInfo / documentInfo, unknown members, wrong shapes and an empty patch - each a strike, nothing applied', async () => {
+    const before = JSON.stringify(h.copy.document);
+    const cases: [Record<string, unknown>, RegExp][] = [
+      [{ titleInfo: null }, /titleInfo cannot be removed/],
+      [{ documentInfo: null }, /documentInfo cannot be removed/],
+      [{}, /nothing to change/],
+      [{ title: 'x' }, /unknown description member/],
+      [{ titleInfo: { title: 'x' } }, /unknown titleInfo member/],
+      [{ titleInfo: { genres: 'sf' } }, /genres must be a list/],
+      [{ titleInfo: { authors: ['Ivan Petrov'] } }, /person object/],
+      [{ documentInfo: { date: null } }, /cannot be removed/],
+      [{ outputs: [{}] }, /outputs\[0\]/],
+    ];
+    for (const [description, message] of cases) {
+      const out = await call('set_description', { description });
+      expect(out.error?.code, JSON.stringify(description)).toBe('invalidArguments');
+      expect(out.error?.message).toMatch(message);
+      expect(out.error?.expected).toBeDefined();
+    }
+    const unknownHint = await call('set_description', { description: { bookTitle: 'x' } });
+    expect(unknownHint.error?.hint).toContain('titleInfo');
+    // Not an object at all: the schema refuses it before the handler (the SDK's validation,
+    // re-shaped into invalidArguments with the schema as `expected`; no hook, no strike).
+    const notObject = await call('set_description', { description: 'Omega' });
+    expect(notObject.error?.code).toBe('invalidArguments');
+    expect(notObject.error?.expected).toMatchObject({ required: ['description'] });
+    // An annotation that is not well-formed, or holds bare text: the core's refusals.
+    const entity = await call('set_description', {
+      description: { titleInfo: { annotation: { xml: '<p>a&nbsp;b</p>' } } },
+    });
+    expect(entity.error?.code).toBe('invalidXml');
+    const inline = await call('set_description', {
+      description: { documentInfo: { history: { xml: 'bare text' } } },
+    });
+    expect(inline.error?.code).toBe('fragmentNotAllowed');
+    expect(JSON.stringify(h.copy.document)).toBe(before);
+    expect(h.hookCalls).toEqual(Array(cases.length + 3).fill('set_description:description'));
   });
 });

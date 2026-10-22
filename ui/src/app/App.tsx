@@ -19,6 +19,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { getAiFeature } from '@/ai';
 import { DialogHost, ValidationPanel, createIssueNavigator } from '@/dialogs';
 import { changeLanguage, resolveUiLanguage } from '@/i18n';
 import { actions, documentFileName, useAppState } from '@/model/store';
@@ -77,6 +78,21 @@ function isDialogKey(event: KeyboardEvent): boolean {
     event.key === 'Tab' ||
     (event.altKey && event.key.length === 1)
   );
+}
+
+/**
+ * Keys a text field of the AI assistant panel keeps for itself (feature 005 FR-105): Enter
+ * sends and Shift+Enter breaks the line there (`edit.split` is bound to Shift+Enter in the
+ * Body view), Escape changes nothing, Tab moves on. Alt+letter still opens the menus.
+ */
+function isPanelFieldKey(event: KeyboardEvent): boolean {
+  return event.key === 'Enter' || event.key === 'Escape' || event.key === 'Tab';
+}
+
+/** True when the key went to a text field of the AI assistant panel. */
+function inAiPanelField(event: KeyboardEvent): boolean {
+  const field = textFieldOf(event.target);
+  return field !== null && field.closest('.mfbe-ai-panel') !== null;
 }
 
 // Theme before the first paint (as far as the CSP allows: no inline script): the mirrored
@@ -224,15 +240,20 @@ function Shell({
   // Global hotkeys. Capture phase: as in the original (TranslateAccelerator before the message
   // reaches the view), an enabled command's chord wins over menu mnemonics and editor keymaps.
   // Not while a modal dialog is open; in a modeless dialog its own keys and the editing
-  // commands of its fields come first.
+  // commands of its fields come first, and so do the AI panel's instruction field's keys
+  // (Enter sends, Shift+Enter breaks the line) and its editing commands (feature 005 FR-105).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || dialogs.service.isModalOpen) return;
       const inModeless =
         event.target instanceof Element && event.target.closest('.mfbe-dialog-modeless') !== null;
       if (inModeless && isDialogKey(event)) return;
+      const inPanelField = !inModeless && inAiPanelField(event);
+      if (inPanelField && isPanelFieldKey(event)) return;
       hotkeys.handleKeyDown(event, (id) =>
-        inModeless && FIELD_EDIT_COMMANDS.has(id) ? false : commands.dispatch(id, ctx),
+        (inModeless || inPanelField) && FIELD_EDIT_COMMANDS.has(id)
+          ? false
+          : commands.dispatch(id, ctx),
       );
     };
     document.addEventListener('keydown', onKeyDown, { capture: true });
@@ -359,6 +380,10 @@ function Shell({
 
   const navigateToIssue = useMemo(() => createIssueNavigator(ctx), [ctx]);
 
+  // The panel's content comes with the lazy chunk the feature imports before it turns the
+  // assistant on (feature 005 US3, T052); without the feature (bare renders) the pane is empty.
+  const AiPanel = aiOn ? (getAiFeature(store)?.panel ?? null) : null;
+
   // Busy pointer over the document pane while a script computes - not while it waits for the
   // user in one of its own dialogs (feature 003, FR-011).
   const scriptsFeature = getScriptsFeature(store);
@@ -425,8 +450,9 @@ function Shell({
               aria-label={t('ai.panel.splitter')}
               data-testid="ai-splitter"
             />
-            {/* The panel's content (header, conversation, field) is the assistant's (US3). */}
-            <aside className="mfbe-ai-panel" data-testid="ai-panel" data-ai-width={aiWidth} />
+            <aside className="mfbe-ai-panel" data-testid="ai-panel" data-ai-width={aiWidth}>
+              {AiPanel ? <AiPanel /> : null}
+            </aside>
           </>
         ) : null}
       </div>

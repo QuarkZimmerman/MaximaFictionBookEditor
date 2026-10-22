@@ -6,20 +6,41 @@
  * a core with `apiMinor` 3 gets nothing and `coreTooOld`; a mode change re-registers or
  * de-registers without a reload; the chunk is imported once, on the first turn-on, never while
  * off; and the `__mfbeTest.ai` hooks report it all.
+ *
+ * The transitions of data-model §3.3 (US3 T053; FR-090 to FR-095): the turn-on opens the panel
+ * with the focus in its field and sends nothing; the turn-off clears the conversation and the
+ * slot without touching the document; off while a request runs asks `dialog-ai-stop-confirm`
+ * (No: nothing changes, Yes: cancelled first, then off); the document replaced clears the
+ * conversation with the panel open; Disabled chosen in Settings while a request runs asks the
+ * same question before OK (`beforeApply`); the quit flow's prompt names the AI request.
  */
 
-import { AiFeature, getAiFeature, registerAiFeature, unregisterAiFeature } from '@/ai';
-import type { AssistantModule } from '@/ai/assistant';
+import {
+  AiFeature,
+  getAiFeature,
+  registerAiFeature,
+  unregisterAiFeature,
+  type AiChunkModule,
+} from '@/ai';
+import { appendActivity, appendMessage, conversationFor } from '@/ai/activity';
 import { aiTestHooks } from '@/ai/testHooks';
 import { createCommandRegistry, type CommandContext, type CommandRegistry } from '@/app/commands';
 import { HotkeyMap } from '@/app/hotkeys';
 import type { FeatureContext } from '@/app/services';
+import { FileFeature } from '@/features/file/fileCommands';
 import { CaretRegistry } from '@/model/caret';
 import { actions, createAppStore, type AppStore } from '@/model/store';
 import { UndoCoordinator } from '@/model/undo';
-import type { Settings } from '@/rpc/types';
+import type { MessageButtonId, Settings } from '@/rpc/types';
 
-import { fakeDialogs, fakeDocument, fakeRpc, rpcError, type FakeRpc } from '../features/testUtils';
+import {
+  fakeDialogs,
+  fakeDocument,
+  fakeRpc,
+  rpcError,
+  type FakeDialogs,
+  type FakeRpc,
+} from '../features/testUtils';
 import { defaultSettings } from '../settings/fixtures';
 
 /** Lets the feature's asynchronous settings handling (the `app.info` check) run to its end. */
@@ -39,11 +60,18 @@ interface Harness {
   rpc: FakeRpc;
   feature: AiFeature;
   ctx: CommandContext;
+  dialogs: FakeDialogs;
   load: ReturnType<typeof vi.fn>;
 }
 
 function setup(
-  options: { apiMinor?: number | Error; rpc?: false; module?: Partial<AssistantModule> } = {},
+  options: {
+    apiMinor?: number | Error;
+    rpc?: false;
+    module?: Partial<AiChunkModule>;
+    answers?: MessageButtonId[];
+    cancelWaitMs?: number;
+  } = {},
 ): Harness {
   const store = createAppStore();
   const commands = createCommandRegistry();
@@ -53,8 +81,8 @@ function setup(
         ? options.apiMinor
         : { version: '0.0.5', apiVersion: 1, apiMinor: options.apiMinor ?? 4, testHooks: false },
   });
-  const load = vi.fn(async (): Promise<AssistantModule> => {
-    const real = await import('@/ai/assistant');
+  const load = vi.fn(async (): Promise<AiChunkModule> => {
+    const real = await import('@/ai/chunk');
     return { ...real, ...options.module };
   });
   const featureContext: FeatureContext = {
@@ -65,17 +93,75 @@ function setup(
     store,
     hotkeys: new HotkeyMap('linux'),
   };
-  const feature = registerAiFeature(featureContext, { loadAssistant: load, testHooks: true });
+  const feature = registerAiFeature(featureContext, {
+    loadAssistant: load,
+    testHooks: true,
+    ...(options.cancelWaitMs === undefined ? {} : { cancelWaitMs: options.cancelWaitMs }),
+  });
+  const dialogs = fakeDialogs(options.answers ?? []);
   const ctx: CommandContext = {
     store,
     rpc: featureContext.rpc ?? null,
     undo: featureContext.undo,
-    dialogs: fakeDialogs(),
+    dialogs,
     hotkeys: featureContext.hotkeys,
     t: ((key: string) => key) as unknown as CommandContext['t'],
     version: '0.0.5-test',
   };
-  return { store, commands, rpc, feature, ctx, load };
+  return { store, commands, rpc, feature, ctx, dialogs, load };
+}
+
+/**
+ * A stand-in for a running request of the chunk: after `begin(store)` `activeRequest()` answers
+ * it until `cancelRequest` is called, which ends it the way the loop does - the end entry and
+ * the notice written, the lock released, the view dropped - after a tick.
+ */
+function requestStandIn(): {
+  module: Partial<AiChunkModule>;
+  begin(store: AppStore): void;
+  cancelled(): number;
+} {
+  let active: { id: string; cancel(): void } | null = null;
+  let cancelled = 0;
+  return {
+    module: {
+      activeRequest: () => active,
+      cancelRequest: (store: AppStore) => {
+        if (!active) return;
+        cancelled += 1;
+        setTimeout(() => {
+          appendActivity(store, { requestId: 'r9', elapsedMs: 10, kind: 'request.cancelled' });
+          appendMessage(store, { requestId: 'r9', role: 'notice', text: 'Request cancelled.' });
+          actions.setRunLock(store, null);
+          actions.updateAi(store, { request: null });
+          active = null;
+        }, 5);
+      },
+    },
+    begin(store) {
+      active = { id: 'r9', cancel() {} };
+      actions.setRunLock(store, { kind: 'ai', label: 'Svc · m', startedAt: Date.now() });
+      actions.updateAi(store, {
+        request: { id: 'r9', origin: 'panel', state: 'exchanging', startedAt: Date.now() },
+      });
+      conversationFor(store, store.getState().docId ?? 'doc-1');
+      appendMessage(store, { requestId: 'r9', role: 'user', text: 'instruction' });
+    },
+    cancelled: () => cancelled,
+  };
+}
+
+/** Lets a cancelled stand-in request end and the feature's wait notice it. */
+async function settleCancel(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 60));
+}
+
+/** A conversation of the open document, as the loop leaves one behind. */
+function conversationWith(store: AppStore, docId = 'doc-1'): void {
+  conversationFor(store, docId);
+  appendMessage(store, { requestId: 'r1', role: 'user', text: 'Make titles title case' });
+  appendActivity(store, { requestId: 'r1', elapsedMs: 5, kind: 'request.done' });
+  appendMessage(store, { requestId: 'r1', role: 'assistant', text: 'Done.' });
 }
 
 function ids(commands: CommandRegistry): string[] {
@@ -352,5 +438,255 @@ describe('AI assistant registration', () => {
     await settle();
     expect(feature.status).toBe('registered');
     expect(commands.has('ai.cancel')).toBe(true);
+  });
+});
+
+describe('AI assistant transitions (data-model §3.3)', () => {
+  afterEach(() => {
+    delete (window as { __mfbeTest?: unknown }).__mfbeTest;
+  });
+
+  /** A registered feature with a document, the assistant off. */
+  async function registered(options: Parameters<typeof setup>[0] = {}): Promise<Harness> {
+    const harness = setup(options);
+    actions.setSettings(harness.store, settingsWithMode('free'));
+    actions.setDocument(harness.store, fakeDocument());
+    await settle();
+    return harness;
+  }
+
+  it('turns on: the chunk with the panel component, the focus asked for, nothing sent or locked (FR-091)', async () => {
+    const { store, commands, feature, ctx, rpc, load } = await registered();
+    await commands.execute('ai.toggle', ctx);
+    await settle();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(store.getState().ai).toMatchObject({ on: true, loaded: true, panelFocus: true });
+    expect(feature.panel).not.toBeNull(); // App.tsx renders it inside the right pane
+    expect(feature.panel).toBe(feature.assistant && (await import('@/ai/chunk')).AiPanel);
+    expect(store.getState().ai.width).toBe(360);
+    expect(rpc.calls.map((c) => c.method)).toEqual(['app.info']); // no service, no context
+    expect(store.getState().runLock).toBeNull();
+    expect(store.getState().modified).toBe(false);
+    expect(ctx.undo.canUndo).toBe(false);
+    expect(feature.requestRunning()).toBe(false);
+    // Turning on a second time changes nothing.
+    await feature.toggle(ctx);
+    await settle();
+    expect(store.getState().ai.on).toBe(false); // the second toggle turned it off
+    await feature.toggle(ctx);
+    expect(store.getState().ai.on).toBe(true);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('turns off idle: the conversation gone, nothing of the document touched, no question asked (FR-092, FR-095)', async () => {
+    const { store, commands, feature, ctx, dialogs } = await registered();
+    await commands.execute('ai.toggle', ctx);
+    await settle();
+    conversationWith(store);
+    expect(store.getState().ai.conversation.messages).toHaveLength(2);
+
+    await expect(feature.close(ctx)).resolves.toBe(true);
+    expect(dialogs.shown).toEqual([]);
+    expect(store.getState().ai).toMatchObject({
+      on: false,
+      request: null,
+      catalogue: null,
+      panelFocus: false,
+    });
+    expect(store.getState().ai.conversation).toEqual({
+      docId: null,
+      messages: [],
+      activity: [],
+      droppedTurns: 0,
+    });
+    expect(feature.panel).not.toBeNull(); // the imported chunk stays idle
+    expect(store.getState().modified).toBe(false);
+    expect(store.getState().runLock).toBeNull();
+    expect(ctx.undo.canUndo).toBe(false);
+    expect(commands.isVisible('ai.ask', ctx)).toBe(false);
+    // Off again is a no-op.
+    await expect(feature.close(ctx)).resolves.toBe(true);
+  });
+
+  it('asks before turning off while a request runs: No leaves everything, Yes cancels first (FR-093)', async () => {
+    const standIn = requestStandIn();
+    const { store, commands, feature, ctx, dialogs } = await registered({
+      module: standIn.module,
+      answers: ['no', 'yes'],
+    });
+    await commands.execute('ai.toggle', ctx);
+    await settle();
+    standIn.begin(store);
+    expect(feature.requestRunning()).toBe(true);
+    expect(commands.isEnabled('ai.toggle', ctx)).toBe(true); // off is offered while locked
+
+    // No: the panel and the request go on.
+    await expect(commands.execute('ai.toggle', ctx)).resolves.toBe(true);
+    expect(dialogs.shown).toHaveLength(1);
+    expect(dialogs.shown[0]).toMatchObject({
+      testId: 'dialog-ai-stop-confirm',
+      text: 'ai.stopConfirm.closeText',
+      caption: 'ai.stopConfirm.title',
+      buttons: 'yesNo',
+      defaultButton: 'no',
+    });
+    expect(standIn.cancelled()).toBe(0);
+    expect(store.getState().ai.on).toBe(true);
+    expect(store.getState().ai.request).not.toBeNull();
+    expect(store.getState().runLock?.kind).toBe('ai');
+    expect(store.getState().ai.conversation.messages).toHaveLength(1);
+
+    // Yes: the request is cancelled and ends (its notice written), then the assistant is off
+    // with nothing of the conversation left.
+    const closing = feature.close(ctx);
+    await new Promise((resolve) => setTimeout(resolve, 0)); // the question answered
+    expect(standIn.cancelled()).toBe(1);
+    expect(store.getState().ai.on).toBe(true); // not before the request has ended
+    await settleCancel();
+    await expect(closing).resolves.toBe(true);
+    expect(dialogs.shown).toHaveLength(2);
+    expect(store.getState().ai).toMatchObject({ on: false, request: null });
+    expect(store.getState().ai.conversation.messages).toEqual([]);
+    expect(store.getState().runLock).toBeNull();
+  });
+
+  it('joins a second close to the question already open', async () => {
+    const standIn = requestStandIn();
+    const { store, feature, ctx, dialogs } = await registered({
+      module: standIn.module,
+      answers: ['yes'],
+    });
+    await feature.toggle(ctx);
+    await settle();
+    standIn.begin(store);
+    const first = feature.close(ctx);
+    const second = feature.close(ctx);
+    expect(second).toBe(first);
+    await settleCancel();
+    await expect(first).resolves.toBe(true);
+    expect(dialogs.shown).toHaveLength(1);
+    expect(standIn.cancelled()).toBe(1);
+  });
+
+  it('clears the conversation when the document is replaced, the panel staying open (FR-045)', async () => {
+    const { store, feature, ctx } = await registered();
+    await feature.toggle(ctx);
+    await settle();
+    conversationWith(store, 'doc-1');
+    actions.setDocument(store, fakeDocument({ docId: 'doc-2' }));
+    await settle();
+    expect(store.getState().ai.on).toBe(true);
+    expect(store.getState().ai.conversation).toEqual({
+      docId: null,
+      messages: [],
+      activity: [],
+      droppedTurns: 0,
+    });
+    // Closing the document empties it as well; a new one finds it empty.
+    conversationWith(store, 'doc-2');
+    actions.closeDocument(store);
+    await settle();
+    expect(store.getState().ai.conversation.messages).toEqual([]);
+    expect(store.getState().ai.on).toBe(true);
+  });
+
+  it('cancels a running request first when the document is replaced, then clears', async () => {
+    const standIn = requestStandIn();
+    const { store, feature, ctx } = await registered({ module: standIn.module });
+    await feature.toggle(ctx);
+    await settle();
+    standIn.begin(store);
+    actions.setDocument(store, fakeDocument({ docId: 'doc-2' }));
+    await settle();
+    expect(standIn.cancelled()).toBe(1);
+    await settleCancel();
+    await settle();
+    expect(store.getState().ai.on).toBe(true);
+    expect(store.getState().ai.request).toBeNull();
+    expect(store.getState().ai.conversation.messages).toEqual([]);
+    expect(store.getState().ai.conversation.activity).toEqual([]);
+  });
+
+  it('leaves the conversation alone while the assistant is off or the document stays', async () => {
+    const { store, feature, ctx } = await registered();
+    actions.setDocument(store, fakeDocument({ docId: 'doc-2' })); // off: nothing to clear, nothing done
+    expect(store.getState().ai.on).toBe(false);
+    await feature.toggle(ctx);
+    await settle();
+    conversationWith(store, 'doc-2');
+    actions.setModified(store, true); // the same document, another change of state
+    await settle();
+    expect(store.getState().ai.conversation.messages).toHaveLength(2);
+  });
+
+  it('asks before Settings OK applies Disabled while a request runs (FR-097): No keeps the dialog open', async () => {
+    const standIn = requestStandIn();
+    const { store, commands, feature, ctx, dialogs } = await registered({
+      module: standIn.module,
+      answers: ['no', 'yes'],
+    });
+    await commands.execute('ai.toggle', ctx); // remembers the context the hook asks with
+    await settle();
+    const free = settingsWithMode('free');
+    const disabled = settingsWithMode('disabled');
+    // Idle, or any other change: applies at once without a question.
+    await expect(feature.beforeApply(disabled, free)).resolves.toBe('apply');
+    await expect(feature.beforeApply(free, free)).resolves.toBe('apply');
+    expect(dialogs.shown).toEqual([]);
+
+    standIn.begin(store);
+    await expect(feature.beforeApply(free, free)).resolves.toBe('apply'); // not Disabled
+    await expect(feature.beforeApply(disabled, free)).resolves.toBe('keepOpen');
+    expect(dialogs.shown).toHaveLength(1);
+    expect(dialogs.shown[0]).toMatchObject({
+      testId: 'dialog-ai-stop-confirm',
+      text: 'ai.stopConfirm.disableText',
+    });
+    expect(standIn.cancelled()).toBe(0);
+    expect(store.getState().ai.on).toBe(true);
+
+    // Yes: the request is cancelled and has ended when the dialog applies; the snapshot with
+    // Disabled then de-registers and turns the assistant off (T065's path, already in place).
+    await expect(feature.beforeApply(disabled, free)).resolves.toBe('apply');
+    expect(standIn.cancelled()).toBe(1);
+    expect(store.getState().ai.request).toBeNull();
+    actions.setSettings(store, disabled);
+    await settle();
+    expect(feature.status).toBe('disabled');
+    expect(store.getState().ai).toMatchObject({ on: false, request: null });
+    expect(store.getState().ai.conversation.messages).toEqual([]);
+  });
+
+  it('is disposed with its hook: a later turn-off question is not asked by a dead feature', async () => {
+    const { store, feature } = await registered();
+    unregisterAiFeature(store);
+    const free = settingsWithMode('free');
+    await expect(feature.beforeApply(settingsWithMode('disabled'), free)).resolves.toBe('apply');
+  });
+
+  it('exit while a request runs: the quit flow asks in the AI wording and cancels the run (FR-093)', async () => {
+    const { store, ctx, dialogs } = await registered({ answers: ['no', 'yes'] });
+    actions.setRunLock(store, { kind: 'ai', label: 'Svc · m', startedAt: Date.now() });
+    const files = new FileFeature(createCommandRegistry());
+    await expect(files.confirmCancelRunningScript(ctx)).resolves.toBe(false);
+    expect(dialogs.shown[0]).toMatchObject({
+      testId: 'cancel-run-prompt',
+      text: 'ai.stopConfirm.exitText',
+      caption: 'ai.stopConfirm.title',
+    });
+    expect(store.getState().runLock?.kind).toBe('ai');
+    // Yes: the run is cancelled through its session (none here: the lock is released by hand
+    // as the loop would) and the flow goes on to the save-changes prompt.
+    const confirming = files.confirmCancelRunningScript(ctx);
+    setTimeout(() => actions.setRunLock(store, null), 5);
+    await expect(confirming).resolves.toBe(true);
+    // A script run keeps the script wording.
+    actions.setRunLock(store, { kind: 'script', label: 's', startedAt: Date.now() });
+    dialogs.messageAnswers.push('no');
+    await files.confirmCancelRunningScript(ctx);
+    expect(dialogs.shown[2]).toMatchObject({
+      text: 'msg.cancelRunningScript',
+      caption: 'app.name',
+    });
   });
 });

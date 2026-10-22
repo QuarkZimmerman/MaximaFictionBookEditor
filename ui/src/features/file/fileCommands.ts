@@ -344,14 +344,17 @@ export class FileFeature {
   /**
    * Exit or window close while a script runs (feature 003 FR-013): "A script is running.
    * Cancel it and exit?" - Yes cancels the run through its run session (the script host's, or
-   * the AI request's - whoever holds the lock) and waits until the document is restored
-   * (true), No keeps the run going (false). True at once when no run holds the lock.
+   * the AI request's - whoever holds the lock; the question then names the AI request, feature
+   * 005 FR-093) and waits until the document is restored (true), No keeps the run going
+   * (false). True at once when no run holds the lock.
    */
   async confirmCancelRunningScript(ctx: CommandContext): Promise<boolean> {
-    if (!isRunLocked(ctx.store.getState())) return true;
+    const lock = ctx.store.getState().runLock;
+    if (!lock) return true;
     const answer = await ctx.dialogs.showMessage({
-      text: ctx.t('msg.cancelRunningScript'),
-      caption: ctx.t('app.name'),
+      text:
+        lock.kind === 'ai' ? ctx.t('ai.stopConfirm.exitText') : ctx.t('msg.cancelRunningScript'),
+      caption: lock.kind === 'ai' ? ctx.t('ai.stopConfirm.title') : ctx.t('app.name'),
       buttons: 'yesNo',
       icon: 'question',
       testId: 'cancel-run-prompt',
