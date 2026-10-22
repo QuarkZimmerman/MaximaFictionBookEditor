@@ -766,6 +766,24 @@ export type AiModelsResult =
  */
 export type AiTestResult = AiOutcome & { verified: boolean; model?: string; fingerprint?: string };
 
+/** `test.aiRequests` (rpc-api.md §5): one `ai.complete` / `ai.models` / `ai.test` call. */
+export interface AiRequestRecord {
+  /** ISO 8601 UTC. */
+  at: string;
+  method: 'ai.complete' | 'ai.models' | 'ai.test';
+  targetKind: 'free' | 'custom';
+  /** The free entry's id. */
+  serviceId?: string;
+  /** `host` or `host:port`; absent when unresolved. */
+  host?: string;
+  outcome: 'ok' | 'offline' | 'timeout' | 'tls' | 'http' | 'format' | 'cancelled' | 'refused';
+  /** The HTTP status. */
+  status?: number;
+  /** The 1200 reason for `refused`. */
+  reason?: string;
+  elapsedMs?: number;
+}
+
 /* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
@@ -1115,6 +1133,13 @@ export interface RpcMethods {
   'ai.models': { params: { target: AiTarget }; result: { jobId: string } };
   /** The fixed one-word completion as a job whose `job.done` carries an `AiTestResult`; a draft may be given. */
   'ai.test': { params: { target: AiTarget }; result: { jobId: string } };
+  /** Every AI exchange since start or the last reset; never bodies, headers, keys or answers. */
+  'test.aiRequests': { params: void; result: AiRequestRecord[] };
+  'test.resetAiRequests': { params: void; result: Empty };
+  /** `CURLOPT_RESOLVE` entries `"host:port:address"` for every later request; `[]` clears. */
+  'test.setAiResolve': { params: { entries: string[] }; result: Empty };
+  /** The connect and total time-outs (ms, positive) until the core exits; a start restores 20 s / 120 s. */
+  'test.setAiTimeouts': { params: { connectMs: number; totalMs: number }; result: Empty };
 }
 
 export type RpcMethodName = keyof RpcMethods;

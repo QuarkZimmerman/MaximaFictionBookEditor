@@ -957,3 +957,173 @@ TEST_CASE(
         CHECK(request.url == "http://127.0.0.1:1/v1/chat/completions");
     }
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* T020: test.aiRequests / test.resetAiRequests / test.setAiResolve / test.setAiTimeouts      */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "test.aiRequests: records method, target kind, host, status and refusals; never bodies "
+    "or keys; reset empties it; the hooks are absent without test hooks",
+    "[ai][server][hooks]") {
+    test::HttpTestServer http;
+    AiFixture f;
+    use_custom(f, http, "sk-record-key");
+    http.route("POST", "/v1/chat/completions", test::ScriptedResponse::json(200, kOkCompletion));
+    CHECK(f.result("test.aiRequests") == json::array());
+
+    (void)run_job(f, "ai.complete", json{{"target", {{"kind", "custom"}}}, {"body", chat_body()}});
+    http.route("POST", "/v1/chat/completions",
+               test::ScriptedResponse::json(429, R"({"message":"slow down"})"));
+    (void)run_job(f, "ai.test", json{{"target", {{"kind", "custom"}}}});
+    CHECK(f.call("ai.complete", json{{"target", {{"kind", "free"}, {"id", "ovhcloud"}}},
+                                     {"body", chat_body()}})["error"]["code"] == 1200);
+    CHECK(f.call("ai.complete", json{{"target", {{"kind", "custom"}}}})["error"]["code"] == -32602);
+
+    json records = f.result("test.aiRequests");
+    REQUIRE(records.size() == 3);
+    const std::string host = "127.0.0.1:" + std::to_string(http.port());
+    CHECK(records[0]["method"] == "ai.complete");
+    CHECK(records[0]["targetKind"] == "custom");
+    CHECK(records[0]["host"] == host);
+    CHECK(records[0]["outcome"] == "ok");
+    CHECK(records[0]["status"] == 200);
+    CHECK(records[0]["elapsedMs"].is_number_integer());
+    CHECK(records[0]["at"].get<std::string>().back() == 'Z');
+    CHECK_FALSE(records[0].contains("serviceId"));
+    CHECK_FALSE(records[0].contains("reason"));
+    CHECK(records[1]["method"] == "ai.test");
+    CHECK(records[1]["outcome"] == "http");
+    CHECK(records[1]["status"] == 429);
+    CHECK(records[2] == json{{"at", records[2]["at"]},
+                             {"method", "ai.complete"},
+                             {"targetKind", "free"},
+                             {"serviceId", "ovhcloud"},
+                             {"outcome", "refused"},
+                             {"reason", "noAgreement"}});
+    const std::string dumped = records.dump();
+    for (const char* secret : {"sk-record-key", "Make it bold", "standin-chat", "chat/completions",
+                               "slow down", "OK\""}) {
+        INFO(secret);
+        CHECK(dumped.find(secret) == std::string::npos);
+    }
+    CHECK(f.result("test.resetAiRequests") == json::object());
+    CHECK(f.result("test.aiRequests") == json::array());
+
+    // Malformed hook calls.
+    CHECK(f.call("test.setAiResolve", json::object())["error"]["data"]["field"] == "entries");
+    CHECK(f.call("test.setAiResolve", json{{"entries", {"nonsense"}}})["error"]["data"]["field"] ==
+          "entries");
+    CHECK(f.call("test.setAiTimeouts", json{{"connectMs", 100}})["error"]["data"]["field"] ==
+          "totalMs");
+    CHECK(f.call("test.setAiTimeouts",
+                 json{{"connectMs", 0}, {"totalMs", 300}})["error"]["data"]["field"] ==
+          "connectMs");
+    CHECK(f.call("test.setAiTimeouts",
+                 json{{"connectMs", "1"}, {"totalMs", 300}})["error"]["code"] == -32602);
+
+    // Compiled out without test hooks: -32601 as for the keyboard hooks.
+    test::TempDir other{"mfbe-ai-nohooks"};
+    CoreServerOptions options;
+    options.data_dir = other.path().string();
+    options.test_hooks = false;
+    auto plain = CoreServer::start(options);
+    test::WsClient ws;
+    REQUIRE(ws.open(plain->port(), "/rpc?token=" + plain->token()) == 101);
+    for (const char* method :
+         {"test.aiRequests", "test.resetAiRequests", "test.setAiResolve", "test.setAiTimeouts"}) {
+        INFO(method);
+        CHECK(ws.call(method, json{{"entries", json::array()},
+                                   {"connectMs", 1},
+                                   {"totalMs", 1}})["error"]["code"] == -32601);
+    }
+    CHECK(ws.call("ai.services")["result"]["services"].size() == 4);  // the family itself stays
+}
+
+TEST_CASE(
+    "test.setAiResolve / test.setAiTimeouts: a hosted name reaches the loopback stand-in "
+    "with the hosted host recorded; shortened time-outs give a timeout outcome; a core "
+    "start restores 20 s / 120 s",
+    "[ai][server][hooks]") {
+    test::HttpTestServer http;
+    AiFixture f;
+    const std::string hosted_host = "ai.standin.test:" + std::to_string(http.port());
+    const std::string hosted = "http://" + hosted_host + "/v1";
+    http.route("POST", "/v1/chat/completions", test::ScriptedResponse::json(200, kOkCompletion));
+    f.result("settings.set",
+             json{{"patch",
+                   {{"ai",
+                     {{"mode", "custom"},
+                      {"custom", {{"address", hosted}, {"key", ""}, {"model", "standin-chat"}}},
+                      {"agreements",
+                       {json{{"service", "custom:" + hosted},
+                             {"host", hosted_host},
+                             {"at", "2026-10-22T10:00:00Z"}}}}}}}}});
+    // Without the resolve entry the hosted name resolves nowhere (offline, nothing reached the
+    // server); with it the request reaches the stand-in and the record keeps the hosted name.
+    JobRun run =
+        run_job(f, "ai.complete", json{{"target", {{"kind", "custom"}}}, {"body", chat_body()}});
+    REQUIRE(run.result);
+    CHECK((*run.result)["kind"] == "offline");
+    CHECK(http.request_count() == 0);
+    CHECK(f.result("test.setAiResolve", json{{"entries", {hosted_host + ":127.0.0.1"}}}) ==
+          json::object());
+    run = run_job(f, "ai.complete", json{{"target", {{"kind", "custom"}}}, {"body", chat_body()}});
+    REQUIRE(run.result);
+    CHECK((*run.result)["ok"] == true);
+    REQUIRE(http.wait_for_requests(1));
+    CHECK(http.requests().back().header("Host") == hosted_host);
+    json records = f.result("test.aiRequests");
+    REQUIRE(records.size() == 2);
+    CHECK(records[0]["outcome"] == "offline");
+    CHECK(records[0]["host"] == hosted_host);
+    CHECK(records[1]["outcome"] == "ok");
+    CHECK(records[1]["host"] == hosted_host);
+    CHECK(f.ai_log_entries().size() == 1);
+    CHECK(f.ai_log_entries()[0]["context"]["host"] == hosted_host);
+    // [] clears the entries.
+    CHECK(f.result("test.setAiResolve", json{{"entries", json::array()}}) == json::object());
+    run = run_job(f, "ai.complete", json{{"target", {{"kind", "custom"}}}, {"body", chat_body()}});
+    REQUIRE(run.result);
+    CHECK((*run.result)["kind"] == "offline");
+
+    // Shortened time-outs against a sleeping route: a timeout outcome within seconds, logged
+    // once as ai.timeout and recorded.
+    f.result("test.setAiResolve", json{{"entries", {hosted_host + ":127.0.0.1"}}});
+    CHECK(f.result("test.setAiTimeouts", json{{"connectMs", 100}, {"totalMs", 300}}) ==
+          json::object());
+    http.route("POST", "/v1/chat/completions",
+               test::ScriptedResponse::json(200, kOkCompletion).with_delay(2500));
+    const auto started_at = std::chrono::steady_clock::now();
+    run = run_job(f, "ai.complete", json{{"target", {{"kind", "custom"}}}, {"body", chat_body()}});
+    REQUIRE(run.result);
+    CHECK((*run.result)["kind"] == "timeout");
+    CHECK((*run.result)["message"].is_string());
+    CHECK(std::chrono::steady_clock::now() - started_at < std::chrono::seconds(2));
+    records = f.result("test.aiRequests");
+    CHECK(records.back()["outcome"] == "timeout");
+    CHECK(f.ai_log_entries().back()["code"] == "ai.timeout");
+    const std::vector<ai::HttpRequest> seen = f.transports->take();
+    REQUIRE_FALSE(seen.empty());
+    CHECK(seen.back().connect_ms == 100);
+    CHECK(seen.back().total_ms == 300);
+    CHECK(seen.back().resolve_entries == std::vector<std::string>{hosted_host + ":127.0.0.1"});
+    CHECK(seen.front().connect_ms == 20000);
+    CHECK(seen.front().total_ms == 120000);
+
+    // A second core of the same process starts with the Definitions' time-outs and no resolve
+    // entries: the values live in the instance, not in a static.
+    AiFixture second;
+    use_custom(second, http, "", "standin-chat");
+    http.route("POST", "/v1/chat/completions", test::ScriptedResponse::json(200, kOkCompletion));
+    JobRun fresh = run_job(second, "ai.complete",
+                           json{{"target", {{"kind", "custom"}}}, {"body", chat_body()}});
+    REQUIRE(fresh.result);
+    CHECK((*fresh.result)["ok"] == true);
+    const std::vector<ai::HttpRequest> fresh_seen = second.transports->take();
+    REQUIRE(fresh_seen.size() == 1);
+    CHECK(fresh_seen[0].connect_ms == 20000);
+    CHECK(fresh_seen[0].total_ms == 120000);
+    CHECK(fresh_seen[0].resolve_entries.empty());
+    CHECK(second.result("test.aiRequests").size() == 1);
+}
