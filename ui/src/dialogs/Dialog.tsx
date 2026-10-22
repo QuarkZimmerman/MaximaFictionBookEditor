@@ -121,6 +121,12 @@ export interface DialogProps {
   closeLabel?: string;
   /** The window stays usable: no focus trap, moved by its title (open it modeless too). */
   modeless?: boolean;
+  /**
+   * Modeless only: opens at this viewport position (kept inside the window) instead of the
+   * remembered place, and does not become the remembered place when it closes - a dialog
+   * anchored at the selection (the AI assistant's popup, feature 005 FR-030).
+   */
+  position?: { left: number; top: number };
 }
 
 const FOCUSABLE = [
@@ -169,6 +175,7 @@ export function Dialog({
   icon,
   closeLabel,
   modeless = false,
+  position,
 }: DialogProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -182,7 +189,10 @@ export function Dialog({
     previouslyFocused.current = document.activeElement;
     const root = rootRef.current;
     if (!root) return;
-    if (modeless) placeModeless(root);
+    if (modeless) {
+      if (position) moveModeless(root, position.left, position.top);
+      else placeModeless(root);
+    }
     let target: HTMLElement | null = null;
     if (initialFocus) target = root.querySelector<HTMLElement>(initialFocus);
     if (!target && defaultButton) {
@@ -204,7 +214,7 @@ export function Dialog({
     return () => {
       document.removeEventListener('focusin', onFocusIn);
       const active = document.activeElement;
-      if (modeless) {
+      if (modeless && !position) {
         const box = root.getBoundingClientRect();
         modelessPlace = { left: box.left, top: box.top };
       }

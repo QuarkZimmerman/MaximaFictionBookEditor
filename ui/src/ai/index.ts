@@ -22,6 +22,8 @@
  * instance and the requests are the stories' (US2, US3).
  */
 
+import i18next from 'i18next';
+
 import {
   AI_TOGGLE_ICON,
   createAiStubCommands,
@@ -36,6 +38,7 @@ import { testHooksRequested } from '@/scripting/testHooks';
 import { actions, emptyConversation, isRunLocked, type AppStore } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
 import type { Settings } from '@/rpc/types';
+import { registerContextMenuExtension } from '@/views/body/contextMenuExtensions';
 
 import type { AssistantModule } from './assistant';
 import { installAiTestHooks } from './testHooks';
@@ -74,6 +77,8 @@ export class AiFeature {
   private readonly loadAssistant: () => Promise<AssistantModule>;
   private readonly unsubscribe: () => void;
   private hooksInstalled = false;
+  /** Removes the Body context menu's "Ask AI..." slot (registered while on, FR-030). */
+  private removeMenuSlot: (() => void) | null = null;
 
   constructor(
     readonly store: AppStore,
@@ -161,14 +166,17 @@ export class AiFeature {
     // The mode may have become `disabled` while the chunk loaded (FR-097).
     if (this.statusValue !== 'registered') return;
     module.startAssistant(this.store);
+    this.addMenuSlot(ctx);
   }
 
   /**
    * Off: the conversation cleared (FR-045), the catalogue instance and a request reference
-   * dropped, the document untouched (FR-095) - through the module when it was loaded, else
-   * directly (the state may have been flipped without it).
+   * dropped, the context-menu entry removed, the document untouched (FR-095) - through the
+   * module when it was loaded, else directly (the state may have been flipped without it).
    */
   private turnOff(): void {
+    this.removeMenuSlot?.();
+    this.removeMenuSlot = null;
     if (this.module) {
       this.module.stopAssistant(this.store);
       return;
@@ -182,9 +190,40 @@ export class AiFeature {
     });
   }
 
+  /** The Body context menu's "Ask AI..." entry, present only while on (FR-030; T047). */
+  private addMenuSlot(ctx: CommandContext): void {
+    if (this.removeMenuSlot) return;
+    this.removeMenuSlot = registerContextMenuExtension('ai', () => {
+      const context = this.lastContext ?? ctx;
+      if (!context.store.getState().ai.on) return [];
+      return [
+        {
+          id: 'ai.ask',
+          label: i18next.t('ai.ask.label'),
+          enabled: this.canAsk(context),
+          run: () => void this.commands.execute('ai.ask', context),
+        },
+      ];
+    });
+  }
+
+  /** Opens the "Ask AI..." popup for the current selection (`ai.ask`; US2 T047). */
+  async ask(ctx: CommandContext): Promise<void> {
+    this.lastContext = ctx;
+    if (!this.canAsk(ctx)) return;
+    const module = await this.load();
+    if (!this.canAsk(ctx)) return;
+    await module.openAskPopup?.(ctx);
+  }
+
   /** Cancels the running request (the banner's Cancel, `ai.cancel`). */
   cancel(): void {
     this.module?.cancelRequest(this.store);
+  }
+
+  /** The last request's summary (`__mfbeTest.ai.lastRequest()`), null before the first. */
+  lastRequest(): unknown {
+    return this.module?.lastRequestInfo?.() ?? null;
   }
 
   /** The one `import()` of the chunk; later calls return the same module (data-model §3.1 `loaded`). */
@@ -307,8 +346,7 @@ export class AiFeature {
         remember(ctx);
         return this.canAsk(ctx);
       },
-      // The popup (US2 T047) takes this over; the skeleton has nothing to show.
-      run: () => {},
+      run: (ctx) => this.ask(ctx),
     };
     const cancel: Command = {
       id: 'ai.cancel',

@@ -58,6 +58,8 @@ export function ContextMenu({ controller, position, onClose }: ContextMenuProps)
   if (spelling.length > 0) items.push({ separator: true, id: 'sep-spelling' }, ...spelling);
   const image = contextMenuExtensions.image?.(controller) ?? [];
   if (image.length > 0) items.push({ separator: true, id: 'sep-image' }, ...image);
+  const ai = contextMenuExtensions.ai?.(controller) ?? [];
+  if (ai.length > 0) items.push({ separator: true, id: 'sep-ai' }, ...ai);
 
   const entries = items.filter((item): item is ContextMenuEntry => !isSeparator(item));
 

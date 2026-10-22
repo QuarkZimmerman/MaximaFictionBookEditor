@@ -5,16 +5,114 @@
  * the static set `index.ts`, `address.ts`, `agreements.ts` and `testHooks.ts` lands in this
  * chunk (vite.config.ts), the MCP SDK and zod included.
  *
- * Skeleton of T031: the exported surface with its types. `startAssistant` / `stopAssistant`
- * flip the on/off state and clear the conversation (data-model §3.3) - the panel, the catalogue
- * instance and the context-menu entry are US3's (T053); `startRequest` answers `failed
- * (internal)` until the request loop exists (US2 T046, US3 T053); `cancelRequest` has nothing
- * to cancel yet. Nothing here contacts a service, gathers context or takes the lock (FR-020,
- * FR-091).
+ * The request loop of ai-catalogue §6 (T046; data-model §4.3-§4.7; FR-022 to FR-024, FR-031 to
+ * FR-035, FR-043, FR-060 to FR-064), first part - the popup's requests:
+ *
+ *  1. preconditions (`canSend`: on, a document, no run lock - a script run answers `busy`), the
+ *     target resolved from the settings (`target.ts`), the first-use notice for a hosted
+ *     service (`notice.tsx`; *No* → nothing happens, no activity entry);
+ *  2. the `RequestSession` (`session.ts`): the lock with the banner label `<service> · <model>`,
+ *     the baseline validation, the working copy; the selection snapshot and the working context
+ *     (`context.ts`); the catalogue built **per request** over the working copy
+ *     (`catalogue.ts`; US3's T053 replaces this by one instance per turn-on);
+ *  3. the exchanges through the `ai.complete` job of the core: the first `ChatRequest` is
+ *     `[system, user]` with the `tools` array when the target offers tools (`model` and `stream`
+ *     are the core's), a text answer is judged by the fast-path table of `reply.ts`, a
+ *     replacement goes through the validity hook (`hook.ts`), tool calls run sequentially
+ *     through the catalogue with the hook behind every change tool, a limit is waited out with a
+ *     countdown within the 300 s budget (`protocol.ts`), an oversize refusal splits a block
+ *     selection along block boundaries (`split.ts`) into consecutive fast-path exchanges whose
+ *     replacements accumulate in the working copy through the catalogue's `replace_selection`;
+ *  4. the end: `committed` (one undo step named after the instruction, the replacement
+ *     selected), `answered` / `askedBack` (nothing committed, `modified` untouched), `failed`,
+ *     `cancelled` (Escape, the banner, the document replaced) or `rejected` (the third strike).
+ *
+ * Every step is wrapped (review C17): an unexpected exception ends the request as `failed
+ * (internal)`, discards the working copy, releases the lock and logs the fixed code
+ * `ai.internal` with `error.name` alone - never a message or a stack. The conversation and the
+ * activity list (`activity.ts`) are written live and kept in memory only.
  */
 
+import type { EditorState } from 'prosemirror-state';
+import { TextSelection } from 'prosemirror-state';
+
 import type { CommandContext } from '@/app/commands';
-import { actions, emptyConversation, type AppStore } from '@/model/store';
+import { logUiError } from '@/app/diagnostics';
+import type { ModelNodeJson } from '@/editor/fromModel';
+import { createNodeIdGenerator } from '@/editor/schema';
+import { nodeToModel } from '@/editor/toModel';
+import {
+  actions,
+  emptyConversation,
+  isRunLocked,
+  type AppStore,
+  type AssistantRequestView,
+} from '@/model/store';
+import { RpcError, type RpcClient } from '@/rpc/client';
+import { RpcErrorCode, type AiOutcome, type ChatRequest, type FragmentNode } from '@/rpc/types';
+import { plainText } from '@/scripting/api-impl';
+import {
+  getBodyController,
+  hasBodyController,
+  type BodyEditorController,
+} from '@/views/body/bodyEditor';
+
+import {
+  appendActivity,
+  appendMessage,
+  conversationFor,
+  nextRequestId,
+  type ActivityKind,
+} from './activity';
+import {
+  chatToolsMembers,
+  createCatalogue,
+  selectionHolder,
+  ToolError,
+  type Catalogue,
+  type ChangeHook,
+  type ModelSelection,
+  type SelectionHolder,
+  type ToolCallOutcome,
+} from './catalogue';
+import {
+  buildWorkingContext,
+  caretBlock,
+  caretContextMessage,
+  selectionEditMessage,
+  selectionSnapshot,
+  systemPrompt,
+  type CaretBlock,
+  type SelectionPart,
+  type SelectionSnapshot,
+} from './context';
+import {
+  applyChange,
+  ChangeRejection,
+  rejectedEnvelope,
+  selectionReplacement,
+  type ChangeOutcome,
+  type ChangeRejected,
+  type ChangeRejectionCode,
+  type ErrorForModel,
+  type SelectionReplacementResult,
+} from './hook';
+import { requireAgreement } from './notice';
+import {
+  failureText,
+  toFailure,
+  triage,
+  WaitBudget,
+  type Failure,
+  type ToolCallEntry,
+} from './protocol';
+import { createRegexRunner } from './regexRunner';
+import { createRegexWorker } from './regexWorkerFactory';
+import { decideTextReply, isQuestion, undoLabel } from './reply';
+import { startRequestSession, type RequestSession, type SessionRpc } from './session';
+import { halve } from './split';
+import { resolveActiveTarget, type ActiveTarget } from './target';
+import { containerSize, TEXT_CONTAINERS } from './tools/model';
 
 /** The end of a request as the panel and the popup see it (data-model §4.1 `outcome`, §4.5). */
 export type RequestFailureKind =
@@ -44,21 +142,58 @@ export interface RequestFailure {
   message?: string;
   /** `limit`: the wait that was not waited for. */
   waitSeconds?: number;
+  /** A 3xx answer: "the address redirects" (protocol.ts). */
+  redirect?: true;
+  /** `invalidAtEnd`: the errors found at the commit. */
+  errors?: ErrorForModel[];
 }
 
 export type RequestOutcome =
-  | { kind: 'committed'; text?: string; undo?: { label: string } }
-  | { kind: 'answered'; text: string }
-  | { kind: 'askedBack'; text: string }
+  | { kind: 'committed'; text?: string; cutOff?: boolean; undo?: { label: string } }
+  | { kind: 'answered'; text: string; cutOff?: boolean }
+  | { kind: 'askedBack'; text: string; cutOff?: boolean }
   | { kind: 'failed'; failure: RequestFailure }
   | { kind: 'cancelled' }
-  | { kind: 'rejected'; text?: string };
+  | { kind: 'rejected'; text?: string; issues: ErrorForModel[] };
 
 /** What starts a request (data-model §4.1): where from, what the user typed. */
 export interface StartRequestOptions {
   origin: 'popup' | 'panel';
   instruction: string;
+  /**
+   * The Body selection the popup showed when it opened (`selectionSnapshot`); `undefined`
+   * takes the editor's selection at the start, `null` is a caret (a `general` request).
+   */
+  selection?: SelectionSnapshot | null;
 }
+
+/** The request as the popup and the panel follow it live (`store.ai.request`). */
+export interface AiRequestView extends AssistantRequestView {
+  kind: 'selection' | 'general';
+  instruction: string;
+  service: { name: string; model: string };
+  /** The current operation (the banner's text). */
+  phase: string;
+  elapsedMs: number;
+  /** A split selection: the part under way (ai-catalogue §6.12 step 3). */
+  part?: { index: number; count: number };
+  /** Seconds left of a limit wait (FR-023). */
+  countdown?: number;
+}
+
+/** What `__mfbeTest.ai.lastRequest()` reports (quickstart §0.4). */
+export interface LastRequestInfo {
+  id: string;
+  state: RequestOutcome['kind'];
+  exchanges: number;
+  validations: { durationMs: number }[];
+  fromXmlCalls: number;
+  changes: number;
+}
+
+/* ------------------------------------------------------------------------ */
+/* On / off                                                                  */
+/* ------------------------------------------------------------------------ */
 
 /** Turns the assistant on: the state flips, the conversation starts empty; no request, no lock. */
 export function startAssistant(store: AppStore): void {
@@ -74,11 +209,12 @@ export function startAssistant(store: AppStore): void {
 }
 
 /**
- * Turns the assistant off: the conversation is cleared (FR-045), the catalogue instance and a
- * request reference dropped; the document and `modified` are untouched (FR-095). The imported
- * chunk stays idle.
+ * Turns the assistant off: a running request is cancelled and discarded, the conversation is
+ * cleared (FR-045), the catalogue instance and the request reference dropped; the document
+ * and `modified` are untouched (FR-095). The imported chunk stays idle.
  */
 export function stopAssistant(store: AppStore): void {
+  active?.cancel();
   actions.updateAi(store, {
     on: false,
     request: null,
@@ -88,23 +224,71 @@ export function stopAssistant(store: AppStore): void {
   });
 }
 
+/* ------------------------------------------------------------------------ */
+/* The request                                                               */
+/* ------------------------------------------------------------------------ */
+
+let active: RequestRun | null = null;
+let lastRequest: LastRequestInfo | null = null;
+
+/** The last request's summary for the test hook (null before the first). */
+export function lastRequestInfo(): LastRequestInfo | null {
+  return lastRequest;
+}
+
+/** The running request, or null. */
+export function activeRequest(): { id: string; cancel(): void } | null {
+  return active;
+}
+
 /**
- * Starts a request. Skeleton: no request loop exists yet, so the answer is a `failed`
- * outcome of kind `internal` and nothing is sent, locked or changed - whatever the context
- * and the instruction.
+ * Starts a request (ai-catalogue §6). Resolves with the request's outcome; while it runs
+ * `store.ai.request` follows it. A call while nothing can be sent answers `failed` without
+ * touching the document: `busy` while a script or another request holds the lock, `noService`
+ * without a resolvable target, `internal` while the assistant is off (the UI never asks then).
  */
-export function startRequest(
+export async function startRequest(
   ctx: CommandContext,
   options: StartRequestOptions,
 ): Promise<RequestOutcome> {
-  void ctx;
-  void options;
-  return Promise.resolve({ kind: 'failed', failure: { kind: 'internal' } });
+  const { store } = ctx;
+  const state = store.getState();
+  const rpc = ctx.rpc;
+  if (!state.ai.on || !state.document || !state.docId || !rpc) {
+    return { kind: 'failed', failure: { kind: 'internal' } };
+  }
+  if (isRunLocked(state) || active) return { kind: 'failed', failure: { kind: 'busy' } };
+  if (!options.instruction.trim()) return { kind: 'failed', failure: { kind: 'internal' } };
+  let target: ActiveTarget;
+  try {
+    const resolved = await resolveActiveTarget(rpc, state.settings);
+    if (!resolved.ok) return { kind: 'failed', failure: { kind: 'noService' } };
+    target = resolved.target;
+  } catch (error) {
+    return { kind: 'failed', failure: failureOf(error) };
+  }
+  // The first-use notice for a hosted service (FR-021): *No* → nothing happens.
+  if (target.hosted && !(await requireAgreement(ctx, target.notice))) return { kind: 'cancelled' };
+  // The dialog took time: the preconditions again.
+  const again = store.getState();
+  if (!again.ai.on || !again.document || again.docId !== state.docId) {
+    return { kind: 'cancelled' };
+  }
+  if (isRunLocked(again) || active) return { kind: 'failed', failure: { kind: 'busy' } };
+
+  const run = new RequestRun(ctx, rpc, options, target);
+  active = run;
+  try {
+    return await run.execute();
+  } finally {
+    if (active === run) active = null;
+  }
 }
 
-/** Cancels the running request; nothing runs in the skeleton (T046 / T053). */
+/** Cancels the running request (Escape in the popup, the banner's Cancel, `ai.cancel`). */
 export function cancelRequest(store: AppStore): void {
   void store;
+  active?.cancel();
 }
 
 /** The module's surface as `ui/src/ai/index.ts` imports it (`import('./assistant')`). */
@@ -113,4 +297,931 @@ export interface AssistantModule {
   stopAssistant: typeof stopAssistant;
   startRequest: typeof startRequest;
   cancelRequest: typeof cancelRequest;
+  lastRequestInfo?: typeof lastRequestInfo;
+  activeRequest?: typeof activeRequest;
+  openAskPopup?: (ctx: CommandContext) => Promise<void>;
 }
+
+/* ------------------------------------------------------------------------ */
+/* Helpers                                                                   */
+/* ------------------------------------------------------------------------ */
+
+const CHANGE_REJECTION_CODES: ReadonlySet<string> = new Set([
+  'invalidArguments',
+  'unknownNode',
+  'invalidNode',
+  'notAllowed',
+  'textOnly',
+  'noSelection',
+  'selectionRequired',
+  'invalidXml',
+  'fragmentNotAllowed',
+]);
+
+function rejectionCode(code: string): Exclude<ChangeRejectionCode, 'rejected'> {
+  return (CHANGE_REJECTION_CODES.has(code) ? code : 'invalidArguments') as Exclude<
+    ChangeRejectionCode,
+    'rejected'
+  >;
+}
+
+function isCancelledError(error: unknown): boolean {
+  return error instanceof RpcError && error.code === RpcErrorCode.cancelled;
+}
+
+/** The failure a thrown value stands for: 1200 → `noService`, everything else `internal`. */
+function failureOf(error: unknown): RequestFailure {
+  if (error instanceof RpcError && error.code === RpcErrorCode.aiNoService) {
+    return { kind: 'noService' };
+  }
+  return { kind: 'internal' };
+}
+
+/** The §6.11 user message after a rejected fast-path replacement. */
+export function rejectionMessage(issues: readonly ErrorForModel[]): string {
+  const list = issues
+    .map((issue) => {
+      const where = [issue.element ? `element ${issue.element}` : '', issue.path ?? '']
+        .filter((part) => part !== '')
+        .join(' at ');
+      const line = issue.line !== undefined ? ` (line ${issue.line})` : '';
+      return `- ${issue.code}${where ? `, ${where}` : ''}: ${issue.message}${line}`;
+    })
+    .join('\n');
+  return (
+    'The replacement was rejected by the FB2 2.1 schema check and was not applied:\n' +
+    `${list}\n` +
+    'Reply with a corrected replacement only, in the same form.'
+  );
+}
+
+/** The catalogue's selection for a Body snapshot (ai-catalogue §3.2). */
+function modelSelectionOf(
+  snapshot: SelectionSnapshot | null,
+  caret: CaretBlock | null,
+): ModelSelection {
+  if (!snapshot || snapshot.form === 'xml' || !snapshot.anchor || !snapshot.head) {
+    const point = { nodeId: caret?.id ?? snapshot?.anchor?.nodeId ?? '', offset: 0 };
+    return { kind: 'none', anchor: point, head: point };
+  }
+  if (snapshot.form === 'inline') {
+    return { kind: 'inline', anchor: snapshot.anchor, head: snapshot.head };
+  }
+  return {
+    kind: 'blocks',
+    anchor: snapshot.anchor,
+    head: snapshot.head,
+    nodeIds: snapshot.nodeIds,
+    openStart: snapshot.openStart,
+    openEnd: snapshot.openEnd,
+  };
+}
+
+/** Text containers in a block (the `paragraphs` count of a part). */
+function textContainers(node: ModelNodeJson): number {
+  if (node.type === 'text') return 0;
+  let count = TEXT_CONTAINERS.has(node.type) ? 1 : 0;
+  for (const child of node.content ?? []) count += textContainers(child);
+  return count;
+}
+
+function idOf(node: ModelNodeJson): string {
+  const id = node.attrs?.nodeId;
+  return typeof id === 'string' ? id : '';
+}
+
+/** One block of a split selection (data-model §4.6). */
+interface PartBlock {
+  id: string;
+  node: ModelNodeJson;
+}
+
+/** The split of a block selection under way (ai-catalogue §6.12 step 3). */
+interface SplitState {
+  /** The parts still to send, the current one first. */
+  pending: PartBlock[][];
+  done: number;
+  total: number;
+  previousTail?: string;
+  firstInsertedId?: string;
+  lastInsertedId?: string;
+}
+
+type ChatMessage = Record<string, unknown>;
+
+/* ------------------------------------------------------------------------ */
+/* RequestRun                                                                */
+/* ------------------------------------------------------------------------ */
+
+class RequestRun {
+  readonly id = nextRequestId();
+  readonly startedAt = Date.now();
+  private session: RequestSession | null = null;
+  private catalogue: Catalogue | null = null;
+  private holder: SelectionHolder | null = null;
+  private controller: BodyEditorController | null = null;
+  private selection: SelectionSnapshot | null = null;
+  private caret: CaretBlock | null = null;
+  private kind: 'selection' | 'general' = 'general';
+  private jobId: string | null = null;
+  private cancelled = false;
+  private ended = false;
+  private waitAbort: (() => void) | null = null;
+  private exchanges = 0;
+  private fromXmlCalls = 0;
+  /** A change tool was called by the model in this request (row b of the fast-path table, C7). */
+  private changeToolCalled = false;
+  /** Hook invocations so far (a tool call that raised it was a change tool). */
+  private hookCalls = 0;
+  /** The outcome of the last change the hook saw (the catalogue's `replace_selection` of a part). */
+  private lastChangeOutcome: ChangeOutcome<Record<string, unknown>> | null = null;
+  /** Set by the change hook on the third strike: the request ends `rejected` after the call. */
+  private rejectedIssues: ErrorForModel[] | null = null;
+  private readonly budget = new WaitBudget();
+  private readonly nextNodeId = createNodeIdGenerator('sc_');
+  private view: AiRequestView;
+  private readonly t: CommandContext['t'];
+  private readonly store: AppStore;
+
+  constructor(
+    private readonly ctx: CommandContext,
+    private readonly rpc: RpcClient,
+    private readonly options: StartRequestOptions,
+    private readonly target: ActiveTarget,
+  ) {
+    this.t = ctx.t;
+    this.store = ctx.store;
+    this.view = {
+      id: this.id,
+      origin: options.origin,
+      state: 'created',
+      startedAt: this.startedAt,
+      kind: 'general',
+      instruction: options.instruction,
+      service: { name: target.name, model: target.model },
+      phase: '',
+      elapsedMs: 0,
+    };
+  }
+
+  /* ------------------------------------------------------------- state */
+
+  /** Publishes the live view (`store.ai.request`); an `undefined` member removes the key. */
+  private publish(patch: Partial<AiRequestView>): void {
+    const next: AiRequestView = { ...this.view };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) delete (next as Record<string, unknown>)[key];
+      else (next as Record<string, unknown>)[key] = value;
+    }
+    this.view = next;
+    if (!this.ended) actions.updateAi(this.store, { request: this.view });
+  }
+
+  private setPhase(phase: string): void {
+    this.session?.setPhase(phase);
+    this.publish({ phase });
+  }
+
+  private activity(kind: ActivityKind, payload?: Record<string, unknown>): void {
+    appendActivity(this.store, {
+      requestId: this.id,
+      elapsedMs: Date.now() - this.startedAt,
+      kind,
+      ...(payload ? { payload } : {}),
+    });
+  }
+
+  /** Asks the running work to stop: the job is cancelled, a wait cut short (ai-catalogue §6.15). */
+  cancel(): void {
+    if (this.cancelled || this.ended) return;
+    this.cancelled = true;
+    const jobId = this.jobId;
+    if (jobId) {
+      this.jobId = null;
+      void Promise.resolve(this.rpc.call('job.cancel', { jobId })).catch(() => {});
+    }
+    this.waitAbort?.();
+    this.session?.cancelValidation();
+  }
+
+  /* ------------------------------------------------------------ the run */
+
+  async execute(): Promise<RequestOutcome> {
+    try {
+      const outcome = await this.run();
+      return this.finish(outcome);
+    } catch (error) {
+      if (this.cancelled || isCancelledError(error)) return this.finish({ kind: 'cancelled' });
+      void logUiError(this.rpc, {
+        code: 'ai.internal',
+        message: error instanceof Error ? error.name : 'Error',
+        context: { requestId: this.id },
+      });
+      return this.finish({ kind: 'failed', failure: failureOf(error) });
+    }
+  }
+
+  private async run(): Promise<RequestOutcome> {
+    const { store, t, options, target } = this;
+    const state = store.getState();
+    const docId = state.docId!;
+    this.publish({ state: 'preparing', phase: t('ai.phase.preparing') });
+
+    const controller = hasBodyController(store) ? getBodyController(store) : null;
+    this.controller = controller;
+    const editorState = controller?.editorState ?? null;
+    const window = controller?.currentWindow ?? null;
+    const toXml = (nodes: ModelNodeJson[]) => this.toXml(docId, nodes);
+    let selection = options.selection;
+    if (selection === undefined) {
+      selection = editorState ? await selectionSnapshot(editorState, window, toXml) : null;
+    }
+    this.selection = selection ?? null;
+    this.caret = editorState ? caretBlock(editorState, window) : null;
+    this.kind = this.selection ? 'selection' : 'general';
+    this.publish({ kind: this.kind });
+
+    const label = t('ai.banner.label', { service: target.name, model: target.model });
+    // The session's RPC counts the fragment parses of the fast path (the test hook's `fromXmlCalls`).
+    const rpc = this.rpc;
+    const sessionRpc: SessionRpc = {
+      call: ((method: string, ...rest: unknown[]) => {
+        if (method === 'doc.fragmentFromXml') this.fromXmlCalls += 1;
+        return (rpc.call as (...args: unknown[]) => unknown)(method, ...rest);
+      }) as RpcClient['call'],
+      runJob: ((...args: unknown[]) =>
+        (rpc.runJob as (...a: unknown[]) => unknown)(...args)) as RpcClient['runJob'],
+    };
+    const started = await startRequestSession(
+      {
+        store,
+        rpc: sessionRpc,
+        undo: this.ctx.undo,
+        getController: () => this.controller,
+        nextNodeId: this.nextNodeId,
+      },
+      {
+        origin: options.origin,
+        kind: this.kind,
+        instruction: options.instruction,
+        label,
+        phase: t('ai.phase.preparing'),
+        selection: this.selection,
+        onCancel: () => this.cancel(),
+        onDocumentReplaced: () => this.cancel(),
+        onTick: (elapsedMs) => this.publish({ elapsedMs }),
+      },
+    );
+    if (!started.ok) {
+      switch (started.reason) {
+        case 'busy':
+          return { kind: 'failed', failure: { kind: 'busy' } };
+        case 'validationUnavailable':
+          return { kind: 'failed', failure: { kind: 'validationUnavailable' } };
+        case 'cancelled':
+          return { kind: 'cancelled' };
+        default:
+          return { kind: 'failed', failure: { kind: 'internal' } };
+      }
+    }
+    const session = started.session;
+    this.session = session;
+    conversationFor(store, docId);
+    appendMessage(store, { requestId: this.id, role: 'user', text: options.instruction });
+    this.activity('request.start', {
+      kind: this.kind,
+      origin: options.origin,
+      service: target.name,
+      model: target.model,
+      ...(this.selection
+        ? { selection: { characters: this.selection.characters, blocks: this.selection.blocks } }
+        : {}),
+    });
+    this.activity('validate.baseline', {
+      errors: session.baselineReport.errorCount,
+      warnings: session.baselineReport.warningCount,
+      durationMs: session.baselineReport.durationMs,
+    });
+    if (this.cancelled) return { kind: 'cancelled' };
+
+    // The working context and the system prompt (ai-catalogue §2), built once per request.
+    const context = buildWorkingContext({
+      document: session.before,
+      version: this.ctx.version,
+      activeView: state.activeView,
+      uiLanguage: state.uiLanguage,
+      modified: session.modifiedBefore,
+      selection: this.selection,
+      caret: this.caret,
+      request: { kind: this.kind, source: options.origin },
+      preExistingErrors: session.preExistingErrors,
+    });
+    const system = systemPrompt(context);
+
+    // The catalogue of this request over the working copy (ai-catalogue §1, §3).
+    this.holder = selectionHolder(modelSelectionOf(this.selection, this.caret));
+    const catalogue = await createCatalogue({
+      copy: session.copy,
+      selection: this.holder,
+      context: () => context as unknown as Record<string, unknown>,
+      changesInThisRequest: () => session.changesInThisRequest,
+      startedAt: this.startedAt,
+      fragmentToXml: (nodes) => this.toXml(docId, nodes as unknown as ModelNodeJson[]),
+      fragmentFromXml: async (xml, parent) => {
+        this.fromXmlCalls += 1;
+        const result = await this.rpc.call('doc.fragmentFromXml', { docId, xml, parent });
+        return { nodes: result.nodes, inline: result.inline };
+      },
+      nextNodeId: this.nextNodeId,
+      runRegex: createRegexRunner(createRegexWorker),
+      applyChange: this.changeHook(session),
+    });
+    this.catalogue = catalogue;
+    if (this.cancelled) return { kind: 'cancelled' };
+
+    // The first user message: the fast path (§5.1) or the caret-context form of `general` (§5.2).
+    let user: string;
+    if (this.selection) {
+      user = selectionEditMessage(options.instruction, this.selection);
+    } else if (this.caret) {
+      user = caretContextMessage(options.instruction, {
+        id: this.caret.id,
+        path: this.caret.path,
+        xml: await toXml([this.caret.node]),
+      });
+    } else {
+      user = options.instruction;
+    }
+    const toolsMembers = chatToolsMembers(catalogue.tools(), target.tools);
+    const toolCount = 'tools' in toolsMembers ? toolsMembers.tools.length : 0;
+    const systemMessage: ChatMessage = { role: 'system', content: system };
+    let messages: ChatMessage[] = [systemMessage, { role: 'user', content: user }];
+    let split: SplitState | null = null;
+    const nextPart = async (): Promise<void> => {
+      messages = [systemMessage, { role: 'user', content: await this.partMessage(split!) }];
+      this.publish({ part: { index: split!.done + 1, count: split!.total } });
+    };
+
+    for (;;) {
+      if (this.cancelled) return { kind: 'cancelled' };
+      const body: ChatRequest = { messages, ...toolsMembers };
+      this.exchanges += 1;
+      const n = this.exchanges;
+      this.activity('exchange.sent', {
+        n,
+        messages: messages.length,
+        tools: toolCount,
+        bytes: JSON.stringify(body).length,
+      });
+      this.setPhase(t('ai.phase.waiting'));
+      this.publish({ state: 'exchanging' });
+      let outcome: AiOutcome;
+      try {
+        outcome = await this.rpc.runJob(
+          'ai.complete',
+          { target: target.target, body },
+          {
+            onStart: (jobId) => {
+              this.jobId = jobId;
+            },
+          },
+        );
+      } catch (error) {
+        this.jobId = null;
+        if (this.cancelled || isCancelledError(error)) return { kind: 'cancelled' };
+        if (error instanceof RpcError && error.code === RpcErrorCode.aiNoService) {
+          return { kind: 'failed', failure: { kind: 'noService' } };
+        }
+        throw error;
+      }
+      this.jobId = null;
+      if (this.cancelled) return { kind: 'cancelled' };
+      const result = triage(outcome, n);
+      this.activity('exchange.answered', {
+        n,
+        elapsedMs: outcome.elapsedMs,
+        finishReason: result.kind === 'answer' ? result.finishReason : result.kind,
+        toolCalls: result.kind === 'answer' ? result.message.toolCalls.length : 0,
+        ...(outcome.rateLimit ? { rateLimit: outcome.rateLimit } : {}),
+      });
+
+      if (result.kind === 'limit') {
+        const decision = this.budget.take(result.waitSeconds);
+        if (!decision.ok) {
+          return {
+            kind: 'failed',
+            failure: { ...toFailure(result), waitSeconds: decision.waitSeconds },
+          };
+        }
+        this.activity('limit.wait', { seconds: decision.seconds, source: result.waitSource });
+        await this.waitSeconds(decision.seconds);
+        if (this.cancelled) return { kind: 'cancelled' };
+        continue;
+      }
+      if (result.kind === 'oversize') {
+        if (result.contextLength !== undefined) {
+          actions.updateAi(store, { contextLengthHint: result.contextLength });
+        }
+        if (!this.selection) return { kind: 'failed', failure: toFailure(result) };
+        const tooLarge: RequestOutcome = {
+          kind: 'failed',
+          failure: { kind: 'paragraphTooLarge', message: result.message },
+        };
+        if (this.selection.form !== 'blocks' || !editorState || !this.selection.pm) {
+          return tooLarge;
+        }
+        const current: PartBlock[] = split
+          ? split.pending[0]!
+          : blocksOf(editorState, this.selection);
+        if (current.length <= 1) return tooLarge;
+        const [left, right]: [PartBlock[], PartBlock[]] = halve(current);
+        if (!split) split = { pending: [left, right], done: 0, total: 2 };
+        else {
+          split.pending.splice(0, 1, left, right);
+          split.total += 1;
+        }
+        this.activity('split', {
+          what: 'selection',
+          part: split.done + 1,
+          parts: split.total,
+          message: result.message,
+        });
+        await nextPart();
+        continue;
+      }
+      if (result.kind !== 'answer') return { kind: 'failed', failure: toFailure(result) };
+
+      // An answer (ai-catalogue §6.8).
+      const { message } = result;
+      if (result.action === 'truncated') {
+        return { kind: 'failed', failure: { kind: 'truncated' } };
+      }
+      if (result.action === 'tools') {
+        messages.push(message.echo);
+        if (message.text) {
+          appendMessage(store, {
+            requestId: this.id,
+            role: 'assistant',
+            text: message.text,
+            interim: true,
+          });
+        }
+        for (const call of message.toolCalls) {
+          if (this.cancelled) return { kind: 'cancelled' };
+          const tool = await this.callTool(catalogue, call);
+          messages.push({ role: 'tool', tool_call_id: call.id, content: tool.text });
+          if (this.rejectedIssues) {
+            return {
+              kind: 'rejected',
+              issues: this.rejectedIssues,
+              ...(message.text ? { text: message.text } : {}),
+            };
+          }
+        }
+        continue;
+      }
+
+      // A text-only reply (§6.11): the fast path for a selection request, a message otherwise.
+      const cutOff = result.action === 'cutOff';
+      const text = message.text;
+      if (!this.selection) return this.textEnd(text, cutOff);
+      const part = split ? split.pending[0]! : null;
+      const partSnapshot = split && part ? await this.partSnapshot(split, part) : this.selection;
+      const decision = decideTextReply({ text, finishReason: result.finishReason }, partSnapshot, {
+        changeToolCalled: this.changeToolCalled,
+      });
+      if (decision.kind === 'message') return this.textEnd(decision.text, decision.cutOff);
+      if (decision.kind === 'noChange') {
+        if (!split || !part) return this.nothingToChange();
+        // This part stays as it is; the next one follows.
+        split.done += 1;
+        split.pending.shift();
+        split.previousTail = await toXml([part[part.length - 1]!.node]);
+        if (split.pending.length === 0) return this.commit(undefined, false, split);
+        await nextPart();
+        continue;
+      }
+
+      // A replacement through the hook (target `selection`).
+      this.setPhase(t('ai.phase.validating'));
+      this.publish({ state: 'validating' });
+      let rejected: ChangeRejected;
+      if (!split || !part) {
+        if (!controller) return { kind: 'failed', failure: { kind: 'internal' } };
+        const content =
+          decision.form === 'inline'
+            ? decision.xml !== null
+              ? { xml: decision.xml, textFallback: decision.text }
+              : { text: decision.text }
+            : { xml: decision.xml };
+        this.activity('change.try', { tool: 'replace_selection', target: 'selection' });
+        const applied = await applyChange(
+          session,
+          selectionReplacement(session, this.selection, content, controller),
+        );
+        this.recordChange(applied, 'replace_selection', 'selection');
+        if (applied.accepted) return this.commit(undefined, false, null, applied.result);
+        rejected = applied;
+      } else {
+        const partXml = decision.form === 'inline' ? (decision.xml ?? decision.text) : decision.xml;
+        const applied = await this.applyPart(catalogue, split, part, partXml);
+        if (applied.accepted) {
+          const inserted = (applied.result as { inserted?: { id: string }[] }).inserted ?? [];
+          const firstId = inserted[0]?.id;
+          const lastId = inserted[inserted.length - 1]?.id;
+          if (split.firstInsertedId === undefined && firstId) split.firstInsertedId = firstId;
+          if (lastId) split.lastInsertedId = lastId;
+          split.done += 1;
+          split.pending.shift();
+          const place = lastId ? session.copy.place(lastId) : undefined;
+          if (place) split.previousTail = await toXml([place.node]);
+          if (split.pending.length === 0) return this.commit(undefined, false, split);
+          await nextPart();
+          continue;
+        }
+        rejected = applied;
+      }
+      // Rejected: the third strike ends the request, else the model is told (§6.11).
+      if (rejected.ended) return { kind: 'rejected', issues: rejected.issues };
+      messages.push(message.echo, { role: 'user', content: rejectionMessage(rejected.issues) });
+    }
+  }
+
+  /* ------------------------------------------------------- the fast path */
+
+  /** The snapshot of one part: the part's blocks in FB2 form, the open ends at the extremes only. */
+  private async partSnapshot(split: SplitState, part: PartBlock[]): Promise<SelectionSnapshot> {
+    const base = this.selection!;
+    const isFirst = split.done === 0;
+    const isLast = split.pending.length === 1;
+    const nodes = part.map((block) => block.node);
+    const xml = await this.toXml(this.store.getState().docId!, nodes);
+    const first = part[0]!;
+    const last = part[part.length - 1]!;
+    const lastSize = containerSize(last.node);
+    return {
+      ...base,
+      openStart: isFirst && base.openStart,
+      openEnd: isLast && base.openEnd,
+      nodeIds: part.map((block) => block.id),
+      anchor: { nodeId: first.id, offset: isFirst ? (base.anchor?.offset ?? 0) : 0 },
+      head: { nodeId: last.id, offset: isLast ? (base.head?.offset ?? lastSize) : lastSize },
+      xml,
+      text: nodes.map((node) => plainText(node)).join('\n'),
+      characters: nodes.reduce((sum, node) => sum + plainText(node).length, 0),
+      paragraphs: nodes.reduce((sum, node) => sum + textContainers(node), 0),
+      blocks: part.length,
+      from: { id: first.id, path: base.from?.path ?? '' },
+      to: { id: last.id, path: base.to?.path ?? '' },
+    };
+  }
+
+  /** The user message of the current part (§5.1 with `{{partNote}}`). */
+  private async partMessage(split: SplitState): Promise<string> {
+    const part = split.pending[0]!;
+    const snapshot = await this.partSnapshot(split, part);
+    const note: SelectionPart = {
+      index: split.done + 1,
+      count: split.total,
+      ...(split.previousTail ? { previousTail: split.previousTail } : {}),
+    };
+    return selectionEditMessage(this.options.instruction, snapshot, note);
+  }
+
+  /**
+   * Applies one part's replacement through the catalogue's `replace_selection` - at the model
+   * level, so that the parts accumulate in the working copy - with the hook behind it; the
+   * hook's outcome is the result.
+   */
+  private async applyPart(
+    catalogue: Catalogue,
+    split: SplitState,
+    part: PartBlock[],
+    xml: string,
+  ): Promise<ChangeOutcome<Record<string, unknown>>> {
+    const snapshot = await this.partSnapshot(split, part);
+    this.holder!.set(modelSelectionOf(snapshot, this.caret));
+    this.lastChangeOutcome = null;
+    const outcome = await catalogue.call('replace_selection', { content: { xml } });
+    const recorded = this.lastChangeOutcome;
+    if (recorded) return recorded;
+    // The catalogue refused the call before the hook: not a strike, an internal failure.
+    throw new Error(outcome.error?.message ?? 'replace_selection did not reach the hook');
+  }
+
+  /* ------------------------------------------------------------- tools */
+
+  private async callTool(catalogue: Catalogue, call: ToolCallEntry): Promise<ToolCallOutcome> {
+    const { t } = this;
+    this.setPhase(t('ai.phase.runningTool', { tool: call.name }));
+    this.publish({ state: 'executingTools' });
+    this.activity('tool.call', { name: call.name, summary: call.name });
+    const hookCallsBefore = this.hookCalls;
+    let outcome: ToolCallOutcome;
+    if (call.problem) {
+      const envelope = { error: { code: call.problem.code, message: call.problem.message } };
+      outcome = {
+        text: JSON.stringify(envelope),
+        result: envelope,
+        isError: true,
+        error: envelope.error,
+      };
+    } else {
+      outcome = await catalogue.call(
+        call.name,
+        call.arguments as string | Record<string, unknown> | null | undefined,
+      );
+    }
+    // The model took the tool route for a change (the hook ran): a later text reply is a
+    // message, not the replacement (ai-catalogue §5.1 row b; read tools do not count - C7).
+    if (this.hookCalls > hookCallsBefore) this.changeToolCalled = true;
+    if (outcome.isError) {
+      this.activity('tool.error', {
+        name: call.name,
+        code: outcome.error?.code ?? 'internal',
+        message: outcome.error?.message ?? '',
+        ...(outcome.error?.strike ? { strike: outcome.error.strike } : {}),
+      });
+    } else {
+      this.activity('tool.result', { name: call.name, summary: call.name });
+    }
+    return outcome;
+  }
+
+  /** The validity hook behind every change tool of the catalogue (ai-catalogue §6.10). */
+  private changeHook(session: RequestSession): ChangeHook {
+    return async <T extends object>(key: string, change: () => Promise<T>) => {
+      const colon = key.indexOf(':');
+      const tool = colon < 0 ? key : key.slice(0, colon);
+      const target = colon < 0 ? '' : key.slice(colon + 1);
+      this.hookCalls += 1;
+      this.activity('change.try', { tool, target });
+      const thrown: { error: ToolError | null } = { error: null };
+      const outcome = await applyChange<T>(session, {
+        tool,
+        target,
+        apply: async () => {
+          try {
+            return await change();
+          } catch (error) {
+            if (error instanceof ToolError) {
+              thrown.error = error;
+              const body = error.body;
+              throw new ChangeRejection(rejectionCode(body.code), error.message, {
+                ...(body.hint === undefined ? {} : { hint: body.hint }),
+                ...(body.expected === undefined ? {} : { expected: body.expected }),
+                issues: Array.isArray(body.issues) ? (body.issues as ErrorForModel[]) : [],
+              });
+            }
+            throw error;
+          }
+        },
+      });
+      this.lastChangeOutcome = outcome as ChangeOutcome<Record<string, unknown>>;
+      this.recordChange(outcome, tool, target);
+      if (outcome.accepted) return outcome.result;
+      if (outcome.ended) this.rejectedIssues = outcome.issues;
+      if (thrown.error) return { error: { ...thrown.error.body, strike: outcome.strike } };
+      return rejectedEnvelope(outcome);
+    };
+  }
+
+  /** The activity entries of a change's outcome (`validate`, `change.accepted` / `change.rejected`). */
+  private recordChange(outcome: ChangeOutcome<unknown>, tool: string, target: string): void {
+    const session = this.session!;
+    if (outcome.accepted) {
+      this.activity('validate', {
+        new: 0,
+        preExisting: session.preExistingErrors,
+        durationMs: outcome.report.durationMs,
+      });
+      this.activity('change.accepted', { tool, target, summary: tool });
+      return;
+    }
+    if (outcome.report) {
+      this.activity('validate', {
+        new: outcome.issues.length,
+        preExisting: session.preExistingErrors,
+        durationMs: outcome.report.durationMs,
+      });
+    }
+    this.activity('change.rejected', {
+      tool,
+      target,
+      code: outcome.code,
+      issues: outcome.issues,
+      strike: outcome.strike,
+    });
+  }
+
+  /* ------------------------------------------------------------- the end */
+
+  /** A text answer: committed when changes were made (review C5), else `answered` / `askedBack`. */
+  private async textEnd(text: string, cutOff: boolean): Promise<RequestOutcome> {
+    const session = this.session!;
+    if (session.changesInThisRequest > 0) return this.commit(text, cutOff, null);
+    return isQuestion(text)
+      ? { kind: 'askedBack', text, ...(cutOff ? { cutOff: true } : {}) }
+      : { kind: 'answered', text, ...(cutOff ? { cutOff: true } : {}) };
+  }
+
+  /** Row d of the fast-path table: the reply equals the selection (FR-043: nothing changes). */
+  private nothingToChange(): RequestOutcome {
+    return { kind: 'answered', text: this.t('ai.popup.nothingToChange') };
+  }
+
+  /** The commit (ai-catalogue §6.14): the last validation, one undo step, the replacement selected. */
+  private async commit(
+    text: string | undefined,
+    cutOff: boolean,
+    split: SplitState | null,
+    replacement?: SelectionReplacementResult,
+  ): Promise<RequestOutcome> {
+    const session = this.session!;
+    this.setPhase(this.t('ai.phase.validating'));
+    this.publish({ state: 'committing' });
+    const result = await session.commit();
+    switch (result.kind) {
+      case 'committed':
+        this.selectReplacement(split, replacement);
+        return {
+          kind: 'committed',
+          ...(text === undefined ? {} : { text }),
+          ...(cutOff ? { cutOff: true } : {}),
+          undo: { label: undoLabel(this.options.instruction) },
+        };
+      case 'unchanged':
+        if (text === undefined) return this.nothingToChange();
+        return isQuestion(text)
+          ? { kind: 'askedBack', text, ...(cutOff ? { cutOff: true } : {}) }
+          : { kind: 'answered', text, ...(cutOff ? { cutOff: true } : {}) };
+      case 'lost':
+        return { kind: 'cancelled' };
+      default:
+        return {
+          kind: 'failed',
+          failure: { kind: 'invalidAtEnd', errors: result.failure.errors },
+        };
+    }
+  }
+
+  /** Selects the replacement in the Body view (FR-031): by its nodes, else by its range. */
+  private selectReplacement(
+    split: SplitState | null,
+    replacement: SelectionReplacementResult | undefined,
+  ): void {
+    const controller = this.controller;
+    const state = controller?.editorState;
+    if (!controller || !state) return;
+    let firstId: string | undefined;
+    let lastId: string | undefined;
+    if (split) {
+      firstId = split.firstInsertedId;
+      lastId = split.lastInsertedId;
+    } else if (replacement && replacement.inserted.length > 0) {
+      firstId = replacement.inserted[0]!.id;
+      lastId = replacement.inserted[replacement.inserted.length - 1]!.id;
+    }
+    const doc = state.doc;
+    let from = -1;
+    let to = -1;
+    if (firstId && lastId) {
+      doc.descendants((node, pos) => {
+        const id = node.attrs.nodeId;
+        const inner = node.isTextblock || !node.isLeaf;
+        if (id === firstId) from = inner ? pos + 1 : pos;
+        if (id === lastId) to = inner ? pos + node.nodeSize - 1 : pos + node.nodeSize;
+        return from < 0 || to < 0;
+      });
+    }
+    if ((from < 0 || to < from) && replacement && !split) {
+      from = replacement.range.from;
+      to = replacement.range.to;
+    }
+    if (from < 0 || to < from || to > doc.content.size) return;
+    try {
+      const selection = TextSelection.between(doc.resolve(from), doc.resolve(to));
+      controller.apply(state.tr.setSelection(selection).scrollIntoView());
+    } catch {
+      // The replacement is in the document; its selection is a convenience (FR-031).
+    }
+  }
+
+  /** The end of the request: the session ended, the entries written, the view released. */
+  private finish(outcome: RequestOutcome): RequestOutcome {
+    if (this.ended) return outcome;
+    const { store, t } = this;
+    const session = this.session;
+    if (session && !session.ended) session.discard();
+    if (this.catalogue) void this.catalogue.close().catch(() => {});
+    this.catalogue = null;
+    this.waitAbort?.();
+    const elapsedMs = Date.now() - this.startedAt;
+    if (session) {
+      // Only a request that got as far as the lock has entries (a notice answered No has none).
+      switch (outcome.kind) {
+        case 'committed':
+          this.activity('request.done', {
+            changes: session.changesInThisRequest,
+            exchanges: this.exchanges,
+            elapsedMs,
+          });
+          appendMessage(store, {
+            requestId: this.id,
+            role: 'assistant',
+            text: outcome.text ?? t('ai.end.committed'),
+            undoLabel: outcome.undo?.label ?? undoLabel(this.options.instruction),
+            ...(outcome.cutOff ? { cutOff: true as const } : {}),
+          });
+          break;
+        case 'answered':
+        case 'askedBack':
+          this.activity(outcome.kind === 'answered' ? 'request.answered' : 'request.askedBack');
+          appendMessage(store, {
+            requestId: this.id,
+            role: 'assistant',
+            text: outcome.text,
+            ...(outcome.cutOff ? { cutOff: true as const } : {}),
+          });
+          break;
+        case 'cancelled':
+          this.activity('request.cancelled');
+          appendMessage(store, { requestId: this.id, role: 'notice', text: t('ai.end.cancelled') });
+          break;
+        case 'failed':
+          this.activity('request.failed', {
+            kind: outcome.failure.kind,
+            ...(outcome.failure.message === undefined ? {} : { message: outcome.failure.message }),
+          });
+          appendMessage(store, {
+            requestId: this.id,
+            role: 'notice',
+            text: failureText(t, outcome.failure as Failure),
+          });
+          break;
+        default:
+          this.activity('request.rejected', { issues: outcome.issues });
+          appendMessage(store, { requestId: this.id, role: 'notice', text: t('ai.end.rejected') });
+          break;
+      }
+    }
+    lastRequest = {
+      id: this.id,
+      state: outcome.kind,
+      exchanges: this.exchanges,
+      validations: (session?.validations ?? []).map((v) => ({ durationMs: v.durationMs })),
+      fromXmlCalls: this.fromXmlCalls,
+      changes: session?.changesInThisRequest ?? 0,
+    };
+    this.ended = true;
+    if (store.getState().ai.request?.id === this.id) actions.updateAi(store, { request: null });
+    return outcome;
+  }
+
+  /* ----------------------------------------------------------- helpers */
+
+  /** A limit wait with its countdown (FR-023); cut short by `cancel()`. */
+  private waitSeconds(seconds: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+      let left = seconds;
+      const show = () => {
+        this.setPhase(this.t('ai.phase.limitWait', { seconds: left }));
+        this.publish({ state: 'waiting', countdown: left });
+      };
+      const done = () => {
+        clearInterval(timer);
+        this.waitAbort = null;
+        this.publish({ countdown: undefined });
+        resolve();
+      };
+      const timer = setInterval(() => {
+        left -= 1;
+        if (left <= 0) done();
+        else show();
+      }, 1000);
+      this.waitAbort = done;
+      show();
+    });
+  }
+
+  private async toXml(docId: string, nodes: ModelNodeJson[]): Promise<string> {
+    const { xml } = await this.rpc.call('doc.fragmentToXml', {
+      docId,
+      nodes: nodes as unknown as FragmentNode[],
+    });
+    return xml;
+  }
+}
+
+/** The blocks of a block selection as the slice renders them (a partial first / last block trimmed). */
+function blocksOf(editorState: EditorState, selection: SelectionSnapshot): PartBlock[] {
+  const { from, to } = selection.pm!;
+  const blocks: PartBlock[] = [];
+  editorState.doc.slice(from, to).content.forEach((child) => {
+    const node = nodeToModel(child);
+    blocks.push({ id: idOf(node), node });
+  });
+  return blocks;
+}
+
+export { openAskPopup } from './AskPopup';

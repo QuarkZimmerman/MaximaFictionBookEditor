@@ -1,0 +1,86 @@
+/* AI assistant (feature 005): the "Ask AI..." popup. Colours and fonts come from the variables
+   in app/layout.css; model- and service-supplied texts are rendered as plain text with
+   `white-space: pre-wrap` (review C16). */
+
+.mfbe-ai-ask {
+  width: 420px;
+  max-width: min(520px, calc(100vw - 32px));
+}
+
+.mfbe-ai-ask-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mfbe-ai-ask-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: var(--mfbe-font-ui, 13px system-ui, sans-serif);
+  color: var(--mfbe-color-fg, #000);
+  background: var(--mfbe-color-input-bg, #fff);
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  padding: 4px 6px;
+}
+
+.mfbe-ai-ask-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--mfbe-color-fg-muted, #555);
+  font-size: 0.92em;
+}
+
+.mfbe-ai-ask-meta > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mfbe-ai-ask-status {
+  min-height: 1.3em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-ask-status[data-state='done'] {
+  color: var(--status-ok, #107c10);
+}
+
+.mfbe-ai-ask-status[data-state='failed'] {
+  color: var(--status-bad, #c42b1c);
+}
+
+.mfbe-ai-ask-answer {
+  max-height: 40vh;
+  overflow: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-input-bg, #fff);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-ask-cutoff {
+  margin-top: 6px;
+  color: var(--status-bad, #c42b1c);
+  font-style: italic;
+}
+
+.mfbe-ai-ask-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mfbe-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--mfbe-color-link, #0066cc);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}

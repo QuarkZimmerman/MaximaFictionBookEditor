@@ -47,6 +47,27 @@
     "ask": {
       "label": "Ask AI..."
     },
+    "popup": {
+      "$comment": "The \"Ask AI...\" popup of the Body view (FR-030, FR-034; ai/AskPopup.tsx): the selection size as selected, the service, the progress and the result forms.",
+      "title": "Ask AI",
+      "placeholderSelection": "What should the assistant do with the selected text?",
+      "placeholder": "Your instruction or question (the paragraph at the caret is offered as context)",
+      "selectionSize_one": "{{count}} paragraph, {{characters}} characters",
+      "selectionSize_other": "{{count}} paragraphs, {{characters}} characters",
+      "noSelection": "no selection — the paragraph at the caret",
+      "noService": "no service is set up",
+      "send": "Send",
+      "stop": "Stop",
+      "part": "part {{index}} of {{count}}",
+      "done": "Done — the selection was replaced.",
+      "answered": "The assistant answered; the book was not changed.",
+      "undo": "Undo",
+      "undoHint": "Later changes were made; use Edit > Undo.",
+      "continue": "Continue in panel",
+      "settingsLink": "Open Settings > AI assistant",
+      "cutOff": "The answer was cut off by the service and was not applied.",
+      "nothingToChange": "Nothing to change: the assistant returned the selection as it is."
+    },
     "panel": {
       "splitter": "AI assistant panel divider"
     },
@@ -75,6 +96,7 @@
       "oversize": "The request is too large for the service even after shortening.",
       "paragraphTooLarge": "A single paragraph of the selection is too large for the service.",
       "service": "The service answered with an error.",
+      "redirect": "The address redirects to another one; enter the final address in Settings > AI assistant.",
       "format": "The service's answer could not be understood (unexpected format).",
       "truncated": "The service's answer was cut off before the end; it was not applied.",
       "contentFilter": "The service declined the request because of its content rules.",

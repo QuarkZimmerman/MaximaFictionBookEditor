@@ -24,6 +24,8 @@ export type ContextMenuItem = ContextMenuEntry | ContextMenuSeparator;
 export interface ContextMenuExtensions {
   spelling?: (controller: BodyEditorController) => ContextMenuItem[];
   image?: (controller: BodyEditorController) => ContextMenuItem[];
+  /** "Ask AI..." (feature 005 FR-030): registered only while the assistant is on. */
+  ai?: (controller: BodyEditorController) => ContextMenuItem[];
 }
 
 export const contextMenuExtensions: ContextMenuExtensions = {};

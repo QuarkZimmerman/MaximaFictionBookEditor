@@ -246,7 +246,8 @@ describe('AI assistant registration', () => {
     expect(commands.isVisible('ai.ask', ctx)).toBe(false);
     expect(hooks.on).toBe(false);
 
-    // The skeleton's request loop answers `failed (internal)` and cancels nothing.
+    // A request while the assistant is off (the UI never asks then) answers `failed
+    // (internal)` without touching anything; there is nothing to cancel.
     const module = feature.assistant!;
     await expect(module.startRequest(ctx, { origin: 'panel', instruction: 'x' })).resolves.toEqual({
       kind: 'failed',

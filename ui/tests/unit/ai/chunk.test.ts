@@ -101,14 +101,15 @@ describe('the production build', () => {
     for (const dynamicImport of dynamicImports) expect(dynamicImport).toContain(chunkRef);
     expect(indexSource).not.toMatch(/from\s*["'`]\.\/ai-assistant-/);
     expect(indexSource).not.toMatch(/import\s*["'`]\.\/ai-assistant-/);
-    // The chunk imports the shared code from the main bundle and is small: the skeleton of
-    // `assistant.ts` and the notice dialog, no store, no React.
+    // The chunk imports the shared code from the main bundle - no store, no React - and holds
+    // the request loop, the catalogue with the MCP SDK and zod, the popup and the notice:
+    // about 515 kB minified (T046/T047); the bound catches a second copy of the main bundle.
     expect(chunkSource).toMatch(
       new RegExp(`from\\s*["'\`]\\./${index[0]!.replace('.', '\\.')}["'\`]`),
     );
     expect(chunkSource).not.toContain('react.transitional.element');
     expect(chunkSource).not.toContain('setTreeWidth');
-    expect(chunkSource.length).toBeLessThan(20_000);
+    expect(chunkSource.length).toBeLessThan(600_000);
     // The page loads the main bundle only: no script tag and no modulepreload for the chunk.
     const html = readFileSync(path.join(outDir, 'index.html'), 'utf8');
     expect(html).toContain(index[0]);

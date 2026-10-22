@@ -10,7 +10,9 @@
  *                                   (US9's journey: the two inert stubs while disabled, the
  *                                   three live commands while off)
  *   __mfbeTest.ai.state()        -> store.ai without the catalogue instance
- *   __mfbeTest.ai.lastRequest()  -> the last request's outcome (filled by US3; null before)
+ *   __mfbeTest.ai.lastRequest()  -> the last request's summary {id, state, exchanges,
+ *                                   validations: [{durationMs}], fromXmlCalls, changes}
+ *                                   (assistant.ts; null before the first request)
  */
 
 import type { CommandContext } from '@/app/commands';
@@ -67,7 +69,7 @@ export function installAiTestHooks(feature: AiFeature): void {
       const { catalogue, ...rest } = feature.store.getState().ai;
       return { ...rest, catalogue: catalogue !== null };
     },
-    lastRequest: () => null,
+    lastRequest: () => feature.lastRequest(),
   };
   // `window.__mfbeTest` is declared by scripting/testHooks.ts (an open record): the hooks of
   // every feature share the one object.
