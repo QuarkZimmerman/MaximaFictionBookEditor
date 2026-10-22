@@ -126,6 +126,10 @@ if(CPACK_GENERATOR STREQUAL "DragNDrop")
   # ("a sealed resource is missing or invalid"). APFS keeps the names as signed; macOS 13+
   # (our minimum) mounts APFS images.
   set(CPACK_DMG_FILESYSTEM "APFS")
+  # hdiutil through a retrying wrapper: on the GitHub macOS runners `hdiutil convert` fails now
+  # and then with "Resource temporarily unavailable" and succeeds a moment later; CPack itself
+  # runs it once (packaging/macos/hdiutil-retry.sh).
+  set(CPACK_COMMAND_HDIUTIL "${_mfbe_source}/packaging/macos/hdiutil-retry.sh")
   # Only the bundle goes into the image (bin/mfbe-core is a developer tool).
   set(CPACK_COMPONENTS_ALL app resources ui scripts)
   set(CPACK_COMPONENTS_GROUPING "ALL_COMPONENTS_IN_ONE")
