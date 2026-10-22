@@ -203,6 +203,9 @@ std::shared_ptr<const genres::GenreCatalog> Services::genre_catalog() const {
 }
 
 void Services::refresh_scripts() {
+    // Leftovers of an interrupted scripts.write (feature 005) go first; they are never a
+    // scripts root.
+    scripts::remove_write_leftovers(dirs.data);
     auto catalog = std::make_shared<const scripts::Catalog>(scripts::load_catalog(layers));
     std::lock_guard<std::mutex> lock(scripts_mutex_);
     scripts_ = catalog;
@@ -379,6 +382,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_words_handlers(router, *services);
         server::register_scripts_handlers(router, *services);
         server::register_system_handlers(router, *services);
+        server::register_schema_handlers(router, *services);
 #ifdef MFBE_TEST_HOOKS
         if (services->test_hooks) {
             server::register_test_handlers(router, *services);

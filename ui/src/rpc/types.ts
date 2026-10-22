@@ -11,12 +11,26 @@
  */
 
 import type {
+  AnnotationNode,
   BinaryMeta,
+  BlockNode,
+  BodyNode,
+  CellNode,
+  DateNode,
   Description,
   Document,
   DocumentInfo,
+  EpigraphNode,
+  InlineNode,
+  RowNode,
+  SectionNode,
+  StanzaNode,
+  TextAuthorNode,
+  TextNode,
+  TitleNode,
   ValidationIssue,
   ValidationReport,
+  VerseNode,
 } from '@/model/document';
 
 export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
@@ -61,6 +75,13 @@ export const RpcErrorCode = {
   /** `app.restart`: the shell could not start the new instance; `data.reason` (feature 003). */
   restartFailed: 1071,
   cancelled: 1090,
+  // feature 005 — doc.fragment*, schema.text, scripts.write
+  /** `doc.fragmentFromXml`: the parent element cannot hold this element; `data` {element, parent}. */
+  aiFragmentNotAllowed: 1201,
+  /** `scripts.write`: the id belongs to a bundled script, which is never modified; `data` {id}. */
+  aiScriptIdBundled: 1202,
+  /** `scripts.write`: a user script with this id or this folder exists and `overwrite` is not set; `data` {id, path}. */
+  aiScriptExists: 1203,
   // Client-side conditions raised by the RPC client itself (never sent by the core).
   clientTimeout: -32001,
   clientDisconnected: -32002,
@@ -558,6 +579,92 @@ export interface ExportDescriptionResult {
 }
 
 /* ------------------------------------------------------------------------ */
+/* feature 005 — doc.fragment*, schema.text, scripts.write                  */
+/* (specs/005-ai-assistant/contracts/rpc-api.md §3.2, §3.8, §3.13)          */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A block or structural node of a fragment (feature 005, rpc-api.md §3.2): the body-tree
+ * node shapes of the document model, as the UI holds them in its working copy.
+ */
+export type FragmentBlockNode =
+  | BodyNode
+  | SectionNode
+  | TitleNode
+  | EpigraphNode
+  | AnnotationNode
+  | BlockNode
+  | StanzaNode
+  | TextAuthorNode
+  | VerseNode
+  | DateNode
+  | RowNode
+  | CellNode;
+
+/**
+ * A node `doc.fragmentToXml` takes: block / structural nodes, or the inline nodes of one text
+ * container's content (never a mix in one list). `attrs.nodeId` is never written.
+ */
+export type FragmentNode = FragmentBlockNode | InlineNode;
+
+/**
+ * `N` with `attrs.nodeId` optional at every level: the shape of the nodes `doc.fragmentFromXml`
+ * returns, which carry **no** `nodeId` on any node — the UI assigns `sc_<N>` ids from its own
+ * allocator before they enter the working copy (research C12). Text nodes are unchanged.
+ */
+export type UnidentifiedNode<N> = N extends TextNode
+  ? N
+  : N extends { attrs: infer A extends object; content: Array<infer C> }
+    ? Omit<N, 'attrs' | 'content'> & {
+        attrs: Omit<A, 'nodeId'> & { nodeId?: string };
+        content: UnidentifiedNode<C>[];
+      }
+    : N extends { attrs: infer A extends object }
+      ? Omit<N, 'attrs'> & { attrs: Omit<A, 'nodeId'> & { nodeId?: string } }
+      : N;
+
+/** A node of a parsed fragment: block / structural (`inline: false`) or inline (`true`). */
+export type FragmentResultNode = UnidentifiedNode<FragmentNode>;
+
+/** `data` of 1201 `ai.fragmentNotAllowed`: the first pair the schema does not admit. */
+export interface AiFragmentNotAllowedData {
+  /** The local name; `{ns}name` for a foreign element; `#text` for text in an element-only container. */
+  element: string;
+  /** The local name of its parent (`parent.element` for the fragment's top level). */
+  parent: string;
+}
+
+/** `schema.text` result (feature 005, rpc-api.md §3.13): the schema files as shipped. */
+export interface SchemaTextResult {
+  /** `FictionBook.xsd`, `FictionBookGenres.xsd`, `FictionBookLang.xsd`, `FictionBookLinks.xsd`, `FictionNotes.xsd`, in this order, byte-exact. */
+  files: { name: string; text: string }[];
+  /** The text of `schema/LICENSE.md` (BSD 2-clause, Dmitry Gribov). */
+  notice: string;
+}
+
+/** One file of a script package `scripts.write` writes (feature 005, rpc-api.md §3.8). */
+export interface ScriptPackageFile {
+  /** Relative to the package folder, `/` separators, every segment under the segment rule. */
+  path: string;
+  /** UTF-8 text, written byte for byte (no BOM added); at most 1 MiB. */
+  content: string;
+}
+
+/** `scripts.write` result: the package folder (absolute, UTF-8) and the loader's warnings. */
+export interface ScriptWriteResult {
+  id: string;
+  path: string;
+  reloaded: true;
+  warnings: string[];
+}
+
+/** `data` of 1203 `ai.scriptExists`: the package with the id, or the target folder. */
+export interface AiScriptExistsData {
+  id: string;
+  path: string;
+}
+
+/* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
 
@@ -876,6 +983,79 @@ export interface RpcMethods {
   'test.setKeyboardLayouts': { params: KeyboardLayoutList; result: Empty };
   /** Every `system.activateKeyboardLayout` the stand-in received since start (feature 004). */
   'test.keyboardLayoutRequests': { params: void; result: KeyboardLayoutRequest[] };
+
+  // feature 005 — doc.fragment*, schema.text, scripts.write
+  /**
+   * The FictionBook XML text of the given nodes exactly as the writer writes them inside a
+   * book (feature 005, rpc-api.md §3.2): structural elements one per line, one tab per level
+   * re-based so that the first start tag is at column 0, nodes separated by `\n`, the
+   * session's xlink prefix, no declaration, no namespace declarations, no `nodeId`, an image
+   * as its tag only; inline nodes as the content of a text container. Exactly one of `nodes`
+   * (the nodes as the UI holds them) or `nodeIds` (resolved in `document`, else in the
+   * session's snapshot; written in document order, a nested id once inside its ancestor,
+   * duplicates ignored). Errors: 1000; 1003 for a Source-only session; invalidParams
+   * {field: 'nodes'} (both or neither form, a mixed list, an undecodable node), {field:
+   * 'nodeIds', nodeId} for an unknown id. No side effects - the snapshot is untouched.
+   */
+  'doc.fragmentToXml': {
+    params:
+      | { docId: string; nodes: FragmentNode[] }
+      | { docId: string; document?: Document; nodeIds: string[] };
+    result: { xml: string };
+  };
+  /**
+   * An XML fragment parsed as the children of `parent` into Document nodes **without**
+   * `nodeId` (feature 005, rpc-api.md §3.2; the UI assigns `sc_<N>` ids on receipt). `parent`
+   * is an element name among body, section, title, epigraph, annotation, history, cite, poem,
+   * stanza, table, tr, td, th, p, subtitle, text-author, v, date (else invalidParams {field:
+   * 'parent.element'}) or a node of the session's snapshot ({field: 'parent.nodeId'}); a text
+   * container yields inline nodes and `inline: true`. The wrapper binds `l` and `xlink` to
+   * the xlink namespace; only the five predefined entities exist (`&nbsp;` is 1001). Errors:
+   * 1000; 1001 {line, column, message} counted in `xml` itself; 1201 {element, parent} for
+   * the first element the schema does not admit there (order and multiplicity are not judged
+   * - the validity hook's); invalidParams {field: 'xml'} over 16 MiB. A whitespace-only `xml`
+   * gives no nodes. No side effects.
+   */
+  'doc.fragmentFromXml': {
+    params: { docId: string; xml: string; parent: { nodeId: string } | { element: string } };
+    result: { nodes: FragmentResultNode[]; inline: boolean; warnings: ValidationIssue[] };
+  };
+  /**
+   * The FB2 2.1 schema for the assistant (feature 005, rpc-api.md §3.13): the five XSD files
+   * as shipped, byte-exact, in the order FictionBook.xsd, FictionBookGenres.xsd,
+   * FictionBookLang.xsd, FictionBookLinks.xsd, FictionNotes.xsd, and `notice` = the text of
+   * schema/LICENSE.md (BSD 2-clause), read from the validator's schema folder on every call.
+   * Independent of any document. Errors: 1002 {path, reason} for an unreadable file.
+   * (`schema.element` is reserved for a later minor and not registered in 0.0.5.)
+   */
+  'schema.text': { params: void; result: SchemaTextResult };
+  /**
+   * Writes a **user** script package and re-reads the scripts (feature 005, rpc-api.md §3.8;
+   * the confirmation of FR-082 happens in the UI before this call). Target:
+   * `<Data>/scripts/<group>/<folder>/` - `group` default `90_assistant`, `folder` default the
+   * last segment of `id` with forbidden characters replaced by `_`; `group`, `folder` and
+   * every path segment under the segment rule (no `.`/`..`, `/`, `\`, control characters,
+   * `: * ? " < > |`, NTFS device names; <= 255 bytes); `files` 1-64, distinct paths, <= 1 MiB
+   * each and 4 MiB together, `script.json` among them with the call's `id` and its `entry`
+   * (default `index.js`) in the set. Errors: invalidParams {field: 'id' | 'group' | 'folder'
+   * | 'files' | 'files[<i>].path' | 'files[<i>].content' | 'files.script.json.id'}; 1031 {id,
+   * errors} for a manifest the loader refuses (`missingManifest`, `entryMissing` included);
+   * 1202 {id} for a bundled id; 1203 {id, path} for a non-bundled package with the id
+   * elsewhere or an existing target folder, lifted by `overwrite: true` only when every
+   * conflict is the target folder itself; 1002 {path, reason} - `reason: 'symlink'` for a
+   * link where none may be - with nothing changed (all or nothing through an aside folder).
+   * Then the rescan of `scripts.reload` and `resources.changed {what: 'scripts'}`.
+   */
+  'scripts.write': {
+    params: {
+      id: string;
+      group?: string;
+      folder?: string;
+      files: ScriptPackageFile[];
+      overwrite?: boolean;
+    };
+    result: ScriptWriteResult;
+  };
 }
 
 export type RpcMethodName = keyof RpcMethods;

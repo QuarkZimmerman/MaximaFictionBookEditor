@@ -135,4 +135,41 @@ std::optional<ParseError> check_well_formed(std::string_view utf8_text);
 // Reads a whole file (binary). Throws IoFailure.
 std::string read_file_bytes(const std::filesystem::path& path);
 
+/* ----------------------------------------------------------------------------------------- */
+/* Fragments (feature 005, doc.fragmentFromXml - contracts/rpc-api.md §3.2 of the feature)   */
+/* ----------------------------------------------------------------------------------------- */
+
+// An element of a fragment that its parent cannot hold (RPC 1201 ai.fragmentNotAllowed): an
+// element outside the parent's flattened content model (mfbe/schema_table.hpp) - an element
+// unknown to the schema included -, a foreign-namespace element (`{ns}name`) or
+// non-whitespace text (`#text`) in an element-only container. The first offending pair in
+// document order; order, multiplicity and attribute values are not judged here.
+struct FragmentNotAllowed : std::runtime_error {
+    FragmentNotAllowed(std::string element_, std::string parent_)
+        : std::runtime_error("element " + element_ + " is not allowed in " + parent_),
+          element(std::move(element_)),
+          parent(std::move(parent_)) {}
+    std::string element;
+    std::string parent;  // local name of the parent (`parent_element` for the top level)
+};
+
+struct FragmentResult {
+    std::vector<model::Node> nodes;  // without nodeId on any node
+    bool is_inline = false;          // the parent is a text container: `nodes` are inline nodes
+    std::vector<model::ValidationIssue> warnings;  // the reader's, for the fragment
+};
+
+// Text containers (p, subtitle, text-author, v, td, th, date): a fragment under one of them
+// is inline content.
+bool is_text_container(std::string_view element);
+
+// Parses `xml` as the children of a `parent_element` element: the fragment is wrapped in a
+// minimal FictionBook document (the FB2 default namespace, `l` and `xlink` both bound to the
+// xlink namespace) at the place such a child has and parsed with the hardened parser of
+// read_bytes (no network, no external entities, no DTD - only the five predefined entities
+// exist). Not well-formed -> ParseFailure with line/column counted in `xml` itself; an element
+// the parent cannot hold -> FragmentNotAllowed; the schema table unavailable -> IoFailure.
+// The nodes are the reader's, without node ids; whitespace-only `xml` -> no nodes.
+FragmentResult read_fragment(std::string_view xml, const std::string& parent_element);
+
 }  // namespace mfbe::fb2

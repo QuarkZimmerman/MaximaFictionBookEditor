@@ -1,5 +1,7 @@
 // Script package discovery (T101). See mfbe/scripts.hpp.
+#include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
+#include <mfbe/platform.hpp>
 #include <mfbe/scripts.hpp>
 #include <mfbe/utf8_paths.hpp>
 
@@ -871,6 +873,204 @@ const char* folder_key(resources::LayerName layer) {
 }
 
 }  // namespace
+
+/* ----------------------------------------------------------------------------------------- */
+/* scripts.write (feature 005)                                                               */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+constexpr std::size_t kMaxSegmentBytes = 255;
+constexpr const char* kAsidePrefix = ".scripts-write-";
+
+bool is_forbidden_segment_char(unsigned char c) {
+    return c < 0x20 || c == 0x7F || c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' ||
+           c == '"' || c == '<' || c == '>' || c == '|';
+}
+
+// CON, PRN, AUX, NUL, COM1-COM9, LPT1-LPT9 - the part before the first '.' compared ASCII
+// case-insensitively, as NTFS does ("nul.txt" is NUL too).
+bool is_reserved_device_name(std::string_view segment) {
+    const std::size_t dot = segment.find('.');
+    std::string stem = lower(std::string(segment.substr(0, dot)));
+    while (!stem.empty() && stem.back() == ' ') {
+        stem.pop_back();
+    }
+    if (stem == "con" || stem == "prn" || stem == "aux" || stem == "nul") {
+        return true;
+    }
+    if (stem.size() == 4 && (stem.compare(0, 3, "com") == 0 || stem.compare(0, 3, "lpt") == 0)) {
+        return stem[3] >= '1' && stem[3] <= '9';
+    }
+    return false;
+}
+
+// Moves `from` to `to` (a rename); false with `ec` set on failure.
+bool rename_dir(const fs::path& from, const fs::path& to, std::error_code& ec) {
+    fs::rename(from, to, ec);
+    return !ec;
+}
+
+}  // namespace
+
+bool is_valid_path_segment(std::string_view segment) {
+    if (segment.empty() || segment == "." || segment == ".." || segment.size() > kMaxSegmentBytes) {
+        return false;
+    }
+    for (const char c : segment) {
+        if (is_forbidden_segment_char(static_cast<unsigned char>(c))) {
+            return false;
+        }
+    }
+    return !is_reserved_device_name(segment);
+}
+
+bool is_valid_package_path(std::string_view path) {
+    if (path.empty()) {
+        return false;
+    }
+    std::size_t pos = 0;
+    while (pos <= path.size()) {
+        const std::size_t slash = path.find('/', pos);
+        const std::string_view segment = path.substr(
+            pos, slash == std::string_view::npos ? std::string_view::npos : slash - pos);
+        if (!is_valid_path_segment(segment)) {
+            return false;
+        }
+        if (slash == std::string_view::npos) {
+            break;
+        }
+        pos = slash + 1;
+    }
+    return true;
+}
+
+std::string default_folder_of_id(std::string_view id) {
+    const std::size_t slash = id.rfind('/');
+    std::string folder(slash == std::string_view::npos ? id : id.substr(slash + 1));
+    for (char& c : folder) {
+        if (is_forbidden_segment_char(static_cast<unsigned char>(c))) {
+            c = '_';
+        }
+    }
+    return folder;
+}
+
+bool is_contained(const fs::path& root, const fs::path& candidate) {
+    std::error_code ec;
+    const fs::path base = fs::weakly_canonical(root, ec);
+    if (ec) {
+        return false;
+    }
+    const fs::path resolved = fs::weakly_canonical(candidate, ec);
+    if (ec) {
+        return false;
+    }
+    const std::string base_str = platform::utf8_from_path_generic(base);
+    const std::string cand_str = platform::utf8_from_path_generic(resolved);
+    return cand_str.size() > base_str.size() &&
+           cand_str.compare(0, base_str.size(), base_str) == 0 && cand_str[base_str.size()] == '/';
+}
+
+void refuse_symlinks(const fs::path& root, const fs::path& dir) {
+    const auto is_link = [](const fs::path& p) {
+        std::error_code ec;
+        return fs::is_symlink(fs::symlink_status(p, ec)) && !ec;
+    };
+    // The ancestors of `dir` below `root` (root excluded), then `dir` itself.
+    const fs::path relative = dir.lexically_relative(root);
+    fs::path current = root;
+    for (const fs::path& part : relative) {
+        if (part.empty() || part == ".") {
+            continue;
+        }
+        current /= part;
+        if (is_link(current)) {
+            throw WriteFailure(platform::utf8_from_path(current), "symlink");
+        }
+    }
+    std::error_code ec;
+    if (!fs::is_directory(fs::symlink_status(dir, ec))) {
+        return;
+    }
+    for (fs::recursive_directory_iterator
+             it(dir, fs::directory_options::skip_permission_denied, ec),
+         end;
+         !ec && it != end; it.increment(ec)) {
+        if (is_link(it->path())) {
+            throw WriteFailure(platform::utf8_from_path(it->path()), "symlink");
+        }
+    }
+}
+
+fs::path write_aside_dir(const fs::path& data_dir) {
+    return data_dir / (kAsidePrefix + std::to_string(platform::current_pid()));
+}
+
+void write_package(const fs::path& data_dir, const fs::path& dir,
+                   const std::vector<PackageFile>& files) {
+    const fs::path aside = write_aside_dir(data_dir);
+    const fs::path fresh = aside / "new";
+    const fs::path old = aside / "old";
+    const auto fail = [&](const fs::path& path, const std::string& reason) {
+        std::error_code ignored;
+        fs::remove_all(aside, ignored);
+        throw WriteFailure(platform::utf8_from_path(path), reason);
+    };
+    std::error_code ec;
+    fs::remove_all(aside, ec);  // a leftover of this very process id
+    ec.clear();
+    fs::create_directories(fresh, ec);
+    if (ec) {
+        fail(fresh, platform::utf8_error_message(ec));
+    }
+    for (const PackageFile& file : files) {
+        const fs::path target = fresh / platform::path_from_utf8(file.path);
+        fs::create_directories(target.parent_path(), ec);
+        if (ec) {
+            fail(target, platform::utf8_error_message(ec));
+        }
+        try {
+            atomic_file::write_atomic(target, file.content);
+        } catch (const atomic_file::WriteError& e) {
+            fail(target, e.reason);
+        }
+    }
+    fs::create_directories(dir.parent_path(), ec);
+    if (ec) {
+        fail(dir.parent_path(), platform::utf8_error_message(ec));
+    }
+    const bool existed = fs::exists(fs::symlink_status(dir, ec));
+    ec.clear();
+    if (existed && !rename_dir(dir, old, ec)) {
+        fail(dir, platform::utf8_error_message(ec));
+    }
+    if (!rename_dir(fresh, dir, ec)) {
+        const std::string reason = platform::utf8_error_message(ec);
+        if (existed) {
+            std::error_code back;
+            rename_dir(old, dir, back);  // the target as it was
+        }
+        fail(dir, reason);
+    }
+    fs::remove_all(aside, ec);  // the old set, if any, goes with it
+}
+
+void remove_write_leftovers(const fs::path& data_dir) {
+    std::error_code ec;
+    for (fs::directory_iterator it(data_dir, ec), end; !ec && it != end; it.increment(ec)) {
+        const std::string name = platform::utf8_from_path(it->path().filename());
+        if (name.rfind(kAsidePrefix, 0) != 0) {
+            continue;
+        }
+        std::error_code status_ec;
+        if (!fs::is_directory(fs::symlink_status(it->path(), status_ec))) {
+            continue;
+        }
+        std::error_code remove_ec;
+        fs::remove_all(it->path(), remove_ec);
+    }
+}
 
 Catalog load_catalog(const resources::ResourceLayers& layers) {
     Catalog catalog;

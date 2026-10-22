@@ -42,6 +42,16 @@
 //       FR-042): the live description with the binaries it refers to and one empty section,
 //       written as UTF-8 to another file, atomically; validated and confirmed as Save; 1006
 //       when `path` is the open document's own file; the session is not touched.
+//   doc.fragmentToXml({docId, nodes} | {docId, document?, nodeIds}) -> {xml}   (feature 005,
+//       the AI assistant): the given nodes as the writer writes them inside a book, re-based
+//       to column 0 (fb2::write_fragment); `nodeIds` resolved in `document` or the session
+//       snapshot (1003 for a Source-only session), written in document order, a nested id
+//       once inside its ancestor. No side effects: snapshot, map and allocator untouched.
+//   doc.fragmentFromXml({docId, xml, parent: {nodeId} | {element}}) -> {nodes, inline,
+//       warnings}   (feature 005): the fragment parsed as the children of `parent` by the
+//       hardened reader (fb2::read_fragment) - 1001 with positions in `xml`, 1201
+//       ai.fragmentNotAllowed {element, parent} for an element the schema does not admit
+//       there -, the nodes without nodeId (the UI assigns its own). No side effects.
 //
 // Jobs run on worker threads; everything that touches the session registry is posted back
 // to the loop thread (Services::post), so the registry stays single-threaded.
@@ -69,6 +79,7 @@
 #include <functional>
 #include <future>
 #include <optional>
+#include <set>
 #include <string>
 #include <system_error>
 
@@ -1414,6 +1425,220 @@ void register_doc_handlers(rpc::RpcRouter& router, Services& services) {
             s.watching = false;
         }
         return json::object();
+    });
+
+    register_fragment_handlers(router, services);
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Fragments (feature 005, the AI assistant - rpc-api.md §3.2 of the feature)                */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+// doc.fragmentFromXml: the largest `xml` accepted.
+constexpr std::size_t kFragmentXmlLimitBytes = 16 * 1024 * 1024;
+
+// The elements a fragment may be parsed under (rpc-api §3.2 of feature 005): the containers
+// of the body tree - never FictionBook, description, binary or stylesheet.
+bool is_fragment_parent(const std::string& element) {
+    static const char* const kParents[] = {
+        "body", "section", "title",    "epigraph",    "annotation", "history",
+        "cite", "poem",    "stanza",   "table",       "tr",         "td",
+        "th",   "p",       "subtitle", "text-author", "v",          "date"};
+    return std::any_of(std::begin(kParents), std::end(kParents),
+                       [&](const char* name) { return element == name; });
+}
+
+// doc.fragmentToXml's nodeIds form: appends the listed nodes of `node`'s subtree in document
+// order - a listed node once, as a whole, so an id nested inside a listed ancestor is covered
+// by the ancestor (`inside`) - and records every listed id met in `found`.
+void collect_listed_nodes(const model::Node& node, const std::set<std::string>& wanted,
+                          std::set<std::string>& found, std::vector<model::Node>& out,
+                          bool inside) {
+    const std::string id = node.node_id();
+    const bool listed = !id.empty() && wanted.count(id) != 0;
+    if (listed) {
+        found.insert(id);
+        if (!inside) {
+            out.push_back(node);
+        }
+    }
+    for (const model::Node& child : node.content) {
+        collect_listed_nodes(child, wanted, found, out, inside || listed);
+    }
+}
+
+// The roots of a document in the writer's output order: the description's annotation,
+// src-title-info annotation and history, the outputs, the bodies and the extras.
+void collect_listed_nodes(const model::Document& doc, const std::set<std::string>& wanted,
+                          std::set<std::string>& found, std::vector<model::Node>& out) {
+    const auto visit = [&](const model::Node& root) {
+        collect_listed_nodes(root, wanted, found, out, false);
+    };
+    if (doc.description.titleInfo.annotation) {
+        visit(*doc.description.titleInfo.annotation);
+    }
+    if (doc.description.srcTitleInfo && doc.description.srcTitleInfo->annotation) {
+        visit(*doc.description.srcTitleInfo->annotation);
+    }
+    if (doc.description.documentInfo.history) {
+        visit(*doc.description.documentInfo.history);
+    }
+    for (const model::Node& output : doc.description.outputs) {
+        visit(output);
+    }
+    for (const model::Node& body : doc.bodies) {
+        visit(body);
+    }
+    for (const model::Node& extra : doc.extras) {
+        visit(extra);
+    }
+}
+
+// A fragment is inline content or block content, never both (the writer takes the first
+// node's kind for the whole list).
+void require_unmixed(const std::vector<model::Node>& nodes, const char* field) {
+    if (nodes.empty()) {
+        return;
+    }
+    const bool inline_fragment = fb2::is_inline_node(nodes.front());
+    for (const model::Node& node : nodes) {
+        if (fb2::is_inline_node(node) != inline_fragment) {
+            throw rpc::invalid_params("a fragment mixes block and inline nodes",
+                                      json{{"field", field}});
+        }
+    }
+}
+
+// doc.fragmentToXml's `nodes` form: the nodes as the UI holds them (document-model JSON).
+std::vector<model::Node> nodes_param(const json& nodes) {
+    if (!nodes.is_array()) {
+        throw rpc::invalid_params("nodes must be an array of nodes", json{{"field", "nodes"}});
+    }
+    std::vector<model::Node> out;
+    out.reserve(nodes.size());
+    for (const json& j : nodes) {
+        try {
+            out.push_back(model::node_from_json(j));
+        } catch (const model::CodecError& e) {
+            throw rpc::invalid_params("nodes: " + e.detail, json{{"field", "nodes"}});
+        }
+    }
+    require_unmixed(out, "nodes");
+    return out;
+}
+
+// doc.fragmentToXml's `nodeIds` form, resolved in `doc`.
+std::vector<model::Node> nodes_by_id(const json& ids, const model::Document& doc) {
+    if (!ids.is_array()) {
+        throw rpc::invalid_params("nodeIds must be an array of node ids",
+                                  json{{"field", "nodeIds"}});
+    }
+    std::vector<std::string> listed;
+    std::set<std::string> wanted;
+    for (const json& id : ids) {
+        if (!id.is_string() || id.get<std::string>().empty()) {
+            throw rpc::invalid_params("nodeIds must be non-empty strings",
+                                      json{{"field", "nodeIds"}});
+        }
+        listed.push_back(id.get<std::string>());
+        wanted.insert(listed.back());
+    }
+    std::set<std::string> found;
+    std::vector<model::Node> out;
+    collect_listed_nodes(doc, wanted, found, out);
+    for (const std::string& id : listed) {
+        if (found.count(id) == 0) {
+            throw rpc::invalid_params("unknown node id " + id,
+                                      json{{"field", "nodeIds"}, {"nodeId", id}});
+        }
+    }
+    require_unmixed(out, "nodeIds");
+    return out;
+}
+
+}  // namespace
+
+void register_fragment_handlers(rpc::RpcRouter& router, Services& services) {
+    // The writer's text of the given nodes; never a job, nothing of the session changes - a
+    // `document` given here does not become the snapshot (unlike doc.toXml).
+    router.add_method("doc.fragmentToXml", [&services](const json& params, rpc::RpcContext&) {
+        const session::DocumentSession& s =
+            services.documents.require(rpc::params::string(params, "docId"));
+        const json* nodes = rpc::params::opt_field(params, "nodes");
+        const json* node_ids = rpc::params::opt_field(params, "nodeIds");
+        if ((nodes == nullptr) == (node_ids == nullptr)) {
+            throw rpc::invalid_params("exactly one of nodes and nodeIds is required",
+                                      json{{"field", "nodes"}});
+        }
+        std::vector<model::Node> fragment;
+        if (nodes != nullptr) {
+            fragment = nodes_param(*nodes);
+        } else if (rpc::params::opt_field(params, "document") != nullptr) {
+            fragment = nodes_by_id(*node_ids, document_param(params));
+        } else if (s.snapshot && !s.sourceOnly) {
+            fragment = nodes_by_id(*node_ids, *s.snapshot);
+        } else {
+            // A Source-only session has no model to take nodes from.
+            throw rpc::RpcError(rpc::codes::kDocSourceMalformed, "", json{{"docId", s.docId}});
+        }
+        fb2::FragmentOptions options;
+        options.xlink_prefix = s.xlinkPrefix;
+        return json{{"xml", fb2::write_fragment(fragment, options)}};
+    });
+
+    // The reader's nodes of an XML fragment parsed as the children of `parent`, without node
+    // ids (the UI assigns its own); 1001 / 1201 are the model's mistakes, fed back and not
+    // logged (rpc_router.cpp is_expected_outcome). Never a job, nothing of the session changes.
+    router.add_method("doc.fragmentFromXml", [&services](const json& params, rpc::RpcContext&) {
+        const session::DocumentSession& s =
+            services.documents.require(rpc::params::string(params, "docId"));
+        const std::string xml = rpc::params::string(params, "xml");
+        if (xml.size() > kFragmentXmlLimitBytes) {
+            throw rpc::invalid_params("xml is larger than 16 MiB", json{{"field", "xml"}});
+        }
+        const json& parent = rpc::params::object_field(params, "parent");
+        const std::optional<std::string> element = rpc::params::opt_string(parent, "element");
+        const std::optional<std::string> node_id = rpc::params::opt_string(parent, "nodeId");
+        if (element.has_value() == node_id.has_value()) {
+            throw rpc::invalid_params("parent must name an element or a nodeId",
+                                      json{{"field", "parent"}});
+        }
+        std::string parent_element;
+        if (element) {
+            if (!is_fragment_parent(*element)) {
+                throw rpc::invalid_params("parent.element cannot hold a fragment",
+                                          json{{"field", "parent.element"}});
+            }
+            parent_element = *element;
+        } else {
+            const model::Node* node =
+                s.snapshot && !s.sourceOnly ? model::find_node(*s.snapshot, *node_id) : nullptr;
+            if (node == nullptr || !is_fragment_parent(node->type)) {
+                throw rpc::invalid_params("parent.nodeId is not a node of the session's snapshot",
+                                          json{{"field", "parent.nodeId"}});
+            }
+            parent_element = node->type;
+        }
+        fb2::FragmentResult parsed;
+        try {
+            parsed = fb2::read_fragment(xml, parent_element);
+        } catch (const fb2::FragmentNotAllowed& e) {
+            throw rpc::RpcError(rpc::codes::kAiFragmentNotAllowed, "",
+                                json{{"element", e.element}, {"parent", e.parent}});
+        } catch (const fb2::ParseFailure& e) {
+            throw parse_error(e.error);
+        } catch (const fb2::IoFailure& e) {
+            throw io_error(e.path, e.reason);
+        }
+        json nodes = json::array();
+        for (const model::Node& node : parsed.nodes) {
+            nodes.push_back(model::to_json(node));
+        }
+        return json{{"nodes", std::move(nodes)},
+                    {"inline", parsed.is_inline},
+                    {"warnings", issues_json(parsed.warnings)}};
     });
 }
 
