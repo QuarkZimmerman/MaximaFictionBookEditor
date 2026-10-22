@@ -277,6 +277,7 @@ OutcomeKind kind_of(CURLcode code, const Transfer& transfer) {
         case CURLE_PEER_FAILED_VERIFICATION:
         case CURLE_SSL_ENGINE_NOTFOUND:
         case CURLE_SSL_ENGINE_SETFAILED:
+        case CURLE_SSL_ENGINE_INITFAILED:
         case CURLE_SSL_CERTPROBLEM:
         case CURLE_SSL_CIPHER:
         case CURLE_SSL_CACERT_BADFILE:
@@ -638,24 +639,32 @@ AiOutcome HttpClient::perform(const HttpRequest& request, rpc::JobControl& contr
     const std::string no_proxy = merged_no_proxy(options_.env);
     curl_easy_setopt(easy, CURLOPT_NOPROXY, no_proxy.c_str());
 
-    // CA policy per platform.
+    // CA policy per platform. `ca_file` outlives the transfer: libcurl copies string options,
+    // but the buffer is kept alive for the whole call anyway.
+    const std::string ca_file =
+        ca.source == CaSource::native || ca.source == CaSource::none || ca.path.empty()
+            ? std::string()
+            : platform::utf8_from_path(ca.path);
     const char* const no_path = nullptr;
-    std::string ca_file;
 #if defined(_WIN32)
+    // Schannel and the Windows store; a revocation server that cannot be reached is not a
+    // failure. No CA file is ever set here (the selection answers native).
     (void)no_path;
+    (void)ca_file;
     curl_easy_setopt(easy, CURLOPT_SSL_OPTIONS, static_cast<long>(CURLSSLOPT_REVOKE_BEST_EFFORT));
 #elif defined(__APPLE__)
+    // SecTrust and the keychain, with a readable $SSL_CERT_FILE honoured first; the OpenSSL
+    // backend's compiled-in path is never used (CAINFO and CAPATH explicitly NULL).
     curl_easy_setopt(easy, CURLOPT_SSL_OPTIONS, static_cast<long>(CURLSSLOPT_NATIVE_CA));
     if (ca.source == CaSource::ssl_cert_file) {
-        ca_file = platform::utf8_from_path(ca.path);
         curl_easy_setopt(easy, CURLOPT_CAINFO, ca_file.c_str());
     } else {
         curl_easy_setopt(easy, CURLOPT_CAINFO, no_path);
     }
     curl_easy_setopt(easy, CURLOPT_CAPATH, no_path);
 #else
+    // Linux: always an explicit file (resource-formats §C), CAPATH NULL.
     if (https) {
-        ca_file = platform::utf8_from_path(ca.path);
         curl_easy_setopt(easy, CURLOPT_CAINFO, ca_file.c_str());
     }
     curl_easy_setopt(easy, CURLOPT_CAPATH, no_path);

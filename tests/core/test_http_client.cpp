@@ -311,6 +311,17 @@ TEST_CASE(
         REQUIRE(server.wait_for_requests(1));
     }
 
+    SECTION("https to the plain-http server is a tls outcome on every platform") {
+        const auto outcome = client.perform(
+            get_request("https://127.0.0.1:" + std::to_string(server.port()) + "/v1/models"),
+            control);
+        CHECK_FALSE(outcome.ok());
+        CHECK(outcome.kind == net::OutcomeKind::tls);
+        CHECK_FALSE(outcome.message.empty());
+        CHECK_FALSE(outcome.status.has_value());
+        CHECK(outcome.to_json()["kind"] == "tls");
+    }
+
     SECTION("the caller's mistakes are invalidParams before anything is sent") {
         CHECK_THROWS_AS(client.perform(get_request("file:///etc/hosts"), control), rpc::RpcError);
         CHECK_THROWS_AS(client.perform(get_request("ftp://127.0.0.1/x"), control), rpc::RpcError);
