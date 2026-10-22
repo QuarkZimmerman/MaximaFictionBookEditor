@@ -19,7 +19,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { CustomizeToolbarDialog } from '@/dialogs/CustomizeToolbarDialog';
-import { useAppState } from '@/model/store';
+import { isRunLocked, useAppState } from '@/model/store';
 
 import { useAppServices, useCommandContext, useAppRevision } from './services';
 import { commandDescription, commandTooltip } from './commands';
@@ -218,15 +218,15 @@ function CustomizableToolbarView({
   const services = useAppServices();
   const ctx = useCommandContext();
   const settings = useAppState((s) => s.settings, services.store);
-  // A running script blocks the whole window, as in the original.
-  const scriptRunning = useAppState((s) => s.scriptRunning, services.store);
+  // A running script (or AI request) blocks the whole window, as in the original.
+  const runLocked = useAppState(isRunLocked, services.store);
   const items = shownLayout(settings, toolbar, scriptButtons);
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const label = t(toolbar === 'commands' ? 'toolbar.commands' : 'toolbar.scripts');
-  const drag = useButtonDrag(items, (next) => void saveLayout(ctx, toolbar, next), scriptRunning);
+  const drag = useButtonDrag(items, (next) => void saveLayout(ctx, toolbar, next), runLocked);
 
   const customize = () => {
-    if (scriptRunning) return;
+    if (runLocked) return;
     void services.dialogs.openCustom((close) => (
       <CustomizeToolbarDialog
         ctx={ctx}
@@ -272,7 +272,7 @@ function CustomizableToolbarView({
             {
               id: 'customize',
               label: t('toolbarMenu.customize'),
-              enabled: !scriptRunning,
+              enabled: !runLocked,
               run: customize,
             },
           ]}

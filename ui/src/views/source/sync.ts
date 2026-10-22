@@ -43,7 +43,7 @@ import { switchView } from '@/app/commands';
 import { FIXED_BLOCK_IDS } from '@/editor/schema';
 import { documentStart } from '@/editor/structuralPath';
 import type { Document, ValidationIssue } from '@/model/document';
-import { actions, type AppStore } from '@/model/store';
+import { actions, isRunLocked, type AppStore } from '@/model/store';
 import { RpcError } from '@/rpc/client';
 import {
   RpcErrorCode,
@@ -580,8 +580,8 @@ export async function requestViewSwitch(ctx: CommandContext, view: ViewId): Prom
   const state = store.getState();
   if (state.activeView === view) return true;
   // A running script keeps the Body view (its changes are shown there; the other views would
-  // show the document as it was).
-  if (state.scriptRunning) return false;
+  // show the document as it was); an AI request keeps the view it started in (FR-051).
+  if (isRunLocked(state)) return false;
   const session = sourceSession(store);
   // Feature 004 US7: only a direct switch between the two views carries a position; a detour
   // through the Description view leaves each view at its own (FR-070).

@@ -20,7 +20,7 @@ import { toggleFastMode } from '@/editor/fastMode';
 import { proposedFileName } from '@/features/file/proposedName';
 import { parseAccelerator } from '@/i18n';
 import type { CaretRegistry } from '@/model/caret';
-import { actions, type AppStore, documentFileName } from '@/model/store';
+import { actions, type AppStore, documentFileName, isRunLocked } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import { RpcError, type RpcClient } from '@/rpc/client';
 import type { Document, ViewId } from '@/rpc/types';
@@ -81,10 +81,11 @@ export interface Command {
   /** Present for toggles; drives menu checkmarks and pressed toolbar buttons. */
   checked?: (ctx: CommandContext) => boolean;
   /**
-   * Policy while a script runs (`store.scriptRunning`, the quiet lock of feature 003 FR-011):
-   * `blocked` (the default) disables the command for the whole run; `allowed` leaves it to its
-   * own `enabled` predicate. Only commands that neither change the document nor switch the
-   * view are allowed (Find, copy, Help, About, Exit...).
+   * Policy while the run lock is held (`store.runLock` - a script run or an AI request, the
+   * quiet lock of feature 003 FR-011 and feature 005 FR-022): `blocked` (the default) disables
+   * the command for the whole run; `allowed` leaves it to its own `enabled` predicate. Only
+   * commands that neither change the document nor switch the view are allowed (Find, copy,
+   * Help, About, Exit...).
    */
   duringScriptRun?: 'blocked' | 'allowed';
   /** Registered for parity but not implemented yet; always disabled. */
@@ -131,13 +132,13 @@ export class CommandRegistry {
   }
 
   /**
-   * A stub is never enabled; while a script runs only a command whose `duringScriptRun`
-   * policy is `allowed` is, and then according to its own `enabled` predicate.
+   * A stub is never enabled; while the run lock is held only a command whose
+   * `duringScriptRun` policy is `allowed` is, and then according to its own `enabled` predicate.
    */
   isEnabled(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
     if (!command || command.stub) return false;
-    if (ctx.store.getState().scriptRunning && command.duringScriptRun !== 'allowed') return false;
+    if (isRunLocked(ctx.store.getState()) && command.duringScriptRun !== 'allowed') return false;
     return command.enabled ? command.enabled(ctx) : true;
   }
 

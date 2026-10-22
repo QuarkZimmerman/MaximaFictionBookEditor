@@ -18,7 +18,7 @@ import {
 import { actions } from '@/model/store';
 import type { ReleaseInfo, Settings, VersionCheckSchedule } from '@/rpc/types';
 
-import { fakeRpc, makeContext, rpcError, type FakeRpc } from '../features/testUtils';
+import { fakeRpc, fakeRunLock, makeContext, rpcError, type FakeRpc } from '../features/testUtils';
 import { defaultSettings } from '../settings/fixtures';
 
 const NOW = new Date('2026-10-17T12:00:00.000Z');
@@ -188,7 +188,7 @@ describe('whenQuiet - no modal dialog, file dialog or script run (FR-043)', () =
     expect(quiet).toBe(true);
   });
 
-  it('waits for a file dialog and for a script run to end', async () => {
+  it('waits for a file dialog and for a run - a script or an AI request - to end', async () => {
     const { sources } = await harness({ answer: null });
     sources.setFileDialog(true);
     let quiet = false;
@@ -200,23 +200,26 @@ describe('whenQuiet - no modal dialog, file dialog or script run (FR-043)', () =
     sources.setFileDialog(false);
     await waiting;
 
-    actions.setScriptRunning(sources.store, true);
-    quiet = false;
-    const waitingRun = whenQuiet(sources).then(() => {
-      quiet = true;
-    });
-    await Promise.resolve();
-    expect(quiet).toBe(false);
-    actions.setScriptRunning(sources.store, false);
-    await waitingRun;
-    expect(quiet).toBe(true);
+    // The run lock (feature 005 data-model §4.1) is the idle condition, whoever holds it.
+    for (const kind of ['script', 'ai'] as const) {
+      actions.setRunLock(sources.store, fakeRunLock(kind));
+      quiet = false;
+      const waitingRun = whenQuiet(sources).then(() => {
+        quiet = true;
+      });
+      await Promise.resolve();
+      expect(quiet, kind).toBe(false);
+      actions.setRunLock(sources.store, null);
+      await waitingRun;
+      expect(quiet, kind).toBe(true);
+    }
   });
 
   it('waits for the last of several blockers, and resolves once', async () => {
     const { sources } = await harness({ answer: null });
     const dialogs = sources.dialogs as DialogService;
     void dialogs.open(() => null);
-    actions.setScriptRunning(sources.store, true);
+    actions.setRunLock(sources.store, fakeRunLock());
     let resolved = 0;
     const waiting = whenQuiet(sources).then(() => {
       resolved += 1;
@@ -224,7 +227,7 @@ describe('whenQuiet - no modal dialog, file dialog or script run (FR-043)', () =
     dialogs.closeTop();
     await Promise.resolve();
     expect(resolved).toBe(0);
-    actions.setScriptRunning(sources.store, false);
+    actions.setRunLock(sources.store, null);
     await waiting;
     void dialogs.open(() => null);
     dialogs.closeTop();
@@ -328,7 +331,7 @@ describe('runScheduledCheck - the check at start-up (FR-042, FR-043)', () => {
 
   it('the newer prompt waits for a script run to end', async () => {
     const { ctx, sources } = await harness({ answer: NEWER, schedule: 'everyStart' });
-    actions.setScriptRunning(ctx.store, true);
+    actions.setRunLock(ctx.store, fakeRunLock());
     ctx.dialogs.messageAnswers.push('no');
     const run = runScheduledCheck(ctx, sources, () => NOW);
     await vi.waitFor(() =>
@@ -336,7 +339,7 @@ describe('runScheduledCheck - the check at start-up (FR-042, FR-043)', () => {
     );
     await Promise.resolve();
     expect(ctx.dialogs.shown).toEqual([]);
-    actions.setScriptRunning(ctx.store, false);
+    actions.setRunLock(ctx.store, null);
     expect(await run).toBe('newer');
     expect(ctx.dialogs.shown).toHaveLength(1);
   });

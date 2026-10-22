@@ -13,6 +13,7 @@
 import type { Command } from '@/app/commands';
 import type { FeatureContext } from '@/app/services';
 import { getSpellPlugin } from '@/features/spell';
+import { isRunLocked } from '@/model/store';
 import {
   BODY_MODEL_UNDO_VIEW,
   getBodyController,
@@ -75,12 +76,14 @@ export function installBodyEditor(ctx: FeatureContext): BodyEditorController {
 
   const initial = store.getState();
   controller.setModel(initial.document, initial.docId);
-  controller.setLocked(initial.scriptRunning);
+  controller.setLocked(isRunLocked(initial));
   store.subscribe((state, previous) => {
     if (state.document !== previous.document || state.docId !== previous.docId) {
       controller.setModel(state.document, state.docId);
     }
-    if (state.scriptRunning !== previous.scriptRunning) controller.setLocked(state.scriptRunning);
+    // The run lock (a script run or an AI request): locked while it is held, whoever holds it.
+    const locked = isRunLocked(state);
+    if (locked !== isRunLocked(previous)) controller.setLocked(locked);
   });
   return controller;
 }

@@ -1,13 +1,13 @@
 /**
  * Status bar: message pane ("Ready" / "Not connected" / explicit message / job progress),
  * element path pane and the INS/OVR pane, as in the original frame window. While a script runs
- * the run bar (progress and Cancel) takes the message pane's place, shown even when the status
- * bar is hidden.
+ * (or an AI request holds the run lock) the run bar (progress and Cancel) takes the message
+ * pane's place, shown even when the status bar is hidden.
  */
 
 import { useTranslation } from 'react-i18next';
 
-import { useAppState } from '@/model/store';
+import { isRunLocked, useAppState } from '@/model/store';
 import { RunBar } from '@/scripting/RunBar';
 
 import { useAppServices } from './services';
@@ -21,9 +21,9 @@ export function StatusBar() {
   const progress = useAppState((s) => s.progress, store);
   const selectionPath = useAppState((s) => s.selectionPath, store);
   const insertMode = useAppState((s) => s.insertMode, store);
-  const scriptRunning = useAppState((s) => s.scriptRunning, store);
+  const runLocked = useAppState(isRunLocked, store);
 
-  if (!visible && !scriptRunning) return null;
+  if (!visible && !runLocked) return null;
 
   let text: string;
   if (progress) {
@@ -50,7 +50,7 @@ export function StatusBar() {
 
   return (
     <div className="mfbe-statusbar" role="status" data-testid="statusbar">
-      {scriptRunning ? (
+      {runLocked ? (
         <RunBar />
       ) : (
         <span className="mfbe-status-pane mfbe-status-message" data-testid="status-message">

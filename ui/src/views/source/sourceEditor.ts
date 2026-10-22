@@ -19,7 +19,8 @@
  * the store's `insertMode` (INS/OVR). Tag completion (feature 003 US8, `completion.ts`) sits
  * before the editor keymaps so its Enter / Tab / Escape bindings win while a list is open.
  *
- * While a script runs (`store.scriptRunning`, the quiet lock of feature 003 FR-011) the editor
+ * While a script runs or an AI request is in progress (`store.runLock`, the quiet lock of
+ * feature 003 FR-011 and feature 005 FR-022) the editor
  * is read-only (`EditorState.readOnly` + `EditorView.editable(false)` in a compartment): typing,
  * pasting, cutting and deleting are refused, nothing is greyed, selecting and copying keep
  * working, and the clipboard commands and the context menu follow `state.readOnly`.
@@ -56,7 +57,7 @@ import {
 import type { CommandContext } from '@/app/commands';
 import { nbspMarker } from '@/editor/plugins/nbsp';
 import type { CaretProvider } from '@/model/caret';
-import { actions, type AppStore } from '@/model/store';
+import { actions, isRunLocked, type AppStore } from '@/model/store';
 import type { UndoCoordinator, ViewHistoryAdapter } from '@/model/undo';
 import type { Caret, Settings } from '@/rpc/types';
 
@@ -332,9 +333,9 @@ export class SourceEditorController {
     registerCompletionEditor(this.store, () => this.view);
     this.store.subscribe((state, previous) => {
       if (state.insertMode !== previous.insertMode) this.applyOvertype();
-      // The quiet lock of a script run applies mounted or not (the kept state is what the
-      // next mount shows).
-      if (state.scriptRunning !== previous.scriptRunning) this.applyLock();
+      // The quiet lock of a run applies mounted or not (the kept state is what the next mount
+      // shows).
+      if (isRunLocked(state) !== isRunLocked(previous)) this.applyLock();
     });
     onSourceSessionReset(this.store, () => this.reset());
     // The switch flow reads the selection on the way to the Body view (feature 004 US7).
@@ -539,9 +540,9 @@ export class SourceEditorController {
 
   /* ----------------------------------------------------------------- lock */
 
-  /** A script is running: the quiet lock is on (feature 003 FR-011). */
+  /** A script run or an AI request holds the document: the quiet lock is on (feature 003 FR-011). */
   private isLocked(): boolean {
-    return this.store.getState().scriptRunning;
+    return isRunLocked(this.store.getState());
   }
 
   private applyLock(): void {

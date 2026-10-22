@@ -27,7 +27,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAppServices, useCommandContext, useCommandState, useRunCommand } from '@/app/services';
 import { currentTheme, subscribeTheme } from '@/app/theme';
-import { useAppState } from '@/model/store';
+import { isRunLocked, useAppState } from '@/model/store';
 
 import { parseSourceFont } from './extensions';
 import { SourceContextMenu } from './SourceContextMenu';
@@ -47,9 +47,10 @@ export function SourceView() {
   const docId = useAppState((s) => s.docId, store);
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const parseError = useAppState((s) => s.sourceParseError, store);
-  // The quiet lock of a script run (feature 003 FR-011): the controller follows the flag
-  // itself (read-only editor); the view only exposes it for styling hooks and tests.
-  const scriptRunning = useAppState((s) => s.scriptRunning, store);
+  // The quiet lock of a run (feature 003 FR-011; a script or an AI request): the controller
+  // follows the flag itself (read-only editor); the view only exposes it for styling hooks and
+  // tests.
+  const runLocked = useAppState(isRunLocked, store);
   const appSettings = useAppState((s) => s.settings, store);
   const settings = useMemo(() => sourceSettingsOf(appSettings), [appSettings]);
   const theme = useSyncExternalStore(subscribeTheme, currentTheme, currentTheme);
@@ -150,7 +151,7 @@ export function SourceView() {
         data-match-tags={settings.matchTags ? 'true' : 'false'}
         data-tag-completion={settings.tagCompletion ? 'true' : 'false'}
         data-theme={theme}
-        data-locked={scriptRunning ? 'true' : 'false'}
+        data-locked={runLocked ? 'true' : 'false'}
       >
         <div className="mfbe-source-tools" data-testid="source-tools">
           <label className="mfbe-source-tools-label">

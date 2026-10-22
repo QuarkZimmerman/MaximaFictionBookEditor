@@ -11,7 +11,7 @@ import {
   sourceOnlyDocument,
 } from '@/features/file/fileCommands';
 import { registerSettingsRuntime } from '@/features/settings/apply';
-import { actions } from '@/model/store';
+import { actions, isRunLocked } from '@/model/store';
 import {
   commitPendingSource,
   setSourceOnlyText,
@@ -28,6 +28,7 @@ import {
   fakeDialogs,
   fakeDocument,
   fakeRpc,
+  fakeRunLock,
   flowCalls,
   makeContext,
   rpcError,
@@ -1050,13 +1051,13 @@ describe('Keyboard layout on open (feature 004 US11)', () => {
 });
 
 describe('Exit and window close while a script runs (feature 003 FR-013)', () => {
-  /** A quit flow started while `scriptRunning` is set; the fake "host" ends the run on cancel. */
+  /** A quit flow started while the run lock is held; the fake "host" ends the run on cancel. */
   async function runningSetup() {
     const { registry, feature, rpc, dialogs } = setup({ 'app.quit': {} });
     const ctx = await makeContext({ rpc: rpc.client, dialogs });
     actions.setConnection(ctx.store, 'connected');
     actions.setDocument(ctx.store, fakeDocument());
-    actions.setScriptRunning(ctx.store, true);
+    actions.setRunLock(ctx.store, fakeRunLock());
     return { registry, feature, rpc, dialogs, ctx };
   }
 
@@ -1084,7 +1085,7 @@ describe('Exit and window close while a script runs (feature 003 FR-013)', () =>
       text: 'A script is running. Cancel it and exit?',
     });
     expect(dialogs.custom).toHaveLength(0); // no save prompt
-    expect(ctx.store.getState().scriptRunning).toBe(true);
+    expect(isRunLocked(ctx.store.getState())).toBe(true);
     expect(methods(rpc)).not.toContain('app.quit');
   });
 
@@ -1098,7 +1099,7 @@ describe('Exit and window close while a script runs (feature 003 FR-013)', () =>
     const exiting = feature.exitApplication(ctx);
     await vi.waitFor(() => expect(dialogs.shown).toHaveLength(1));
     expect(dialogs.custom).toHaveLength(0); // the save prompt waits for the run to end
-    actions.setScriptRunning(ctx.store, false);
+    actions.setRunLock(ctx.store, null);
     await exiting;
     expect(dialogs.custom[0]).toMatchObject({
       name: 'SaveChangesPrompt',
@@ -1108,11 +1109,11 @@ describe('Exit and window close while a script runs (feature 003 FR-013)', () =>
 
     // A clean document: Yes cancels the run and quits without a save prompt.
     actions.setModified(ctx.store, false);
-    actions.setScriptRunning(ctx.store, true);
+    actions.setRunLock(ctx.store, fakeRunLock());
     dialogs.messageAnswers.push('yes');
     const quitting = feature.exitApplication(ctx);
     await vi.waitFor(() => expect(dialogs.shown).toHaveLength(2));
-    actions.setScriptRunning(ctx.store, false);
+    actions.setRunLock(ctx.store, null);
     await quitting;
     expect(dialogs.custom).toHaveLength(1);
     expect(rpc.calls.filter((c) => c.method === 'app.quit')).toEqual([
@@ -1122,7 +1123,7 @@ describe('Exit and window close while a script runs (feature 003 FR-013)', () =>
 
   it('Exit without a running script shows no cancel-run prompt', async () => {
     const { feature, rpc, dialogs, ctx } = await runningSetup();
-    actions.setScriptRunning(ctx.store, false);
+    actions.setRunLock(ctx.store, null);
     await feature.exitApplication(ctx);
     expect(dialogs.shown).toHaveLength(0);
     expect(methods(rpc)).toContain('app.quit');
@@ -1166,7 +1167,7 @@ describe('Exit and window close while a script runs (feature 003 FR-013)', () =>
     await vi.waitFor(() => expect(dialogs.shown).toHaveLength(1));
     expect(dialogs.shown[0]!.testId).toBe('cancel-run-prompt');
     await new Promise((resolve) => setTimeout(resolve, 0)); // the declined flow has ended
-    expect(ctx.store.getState().scriptRunning).toBe(true);
+    expect(isRunLocked(ctx.store.getState())).toBe(true);
     expect(methods(rpc)).not.toContain('app.quit');
 
     // Yes, then Don't save: the shell is told to close for real.
@@ -1174,7 +1175,7 @@ describe('Exit and window close while a script runs (feature 003 FR-013)', () =>
     dialogs.customAnswers.push('no');
     rpc.notify('app.closeRequested', {});
     await vi.waitFor(() => expect(dialogs.shown).toHaveLength(2));
-    actions.setScriptRunning(ctx.store, false);
+    actions.setRunLock(ctx.store, null);
     await vi.waitFor(() =>
       expect(rpc.calls.filter((c) => c.method === 'app.quit')).toEqual([
         { method: 'app.quit', params: { force: true } },

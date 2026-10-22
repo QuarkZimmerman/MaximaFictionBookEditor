@@ -24,7 +24,7 @@ export interface DescriptionFormContextValue {
   reloadGenres: () => void;
   docId: string | null;
   binaries: BinaryMeta[];
-  /** A script is running: the form is read-only (`store.scriptRunning`). */
+  /** A script run or an AI request holds the document: the form is read-only (`store.runLock`). */
   readOnly: boolean;
 }
 

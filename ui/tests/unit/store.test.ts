@@ -6,6 +6,7 @@ import {
   createAppStore,
   createStore,
   documentFileName,
+  isRunLocked,
   kindFromPath,
   useAppState,
 } from '@/model/store';
@@ -116,6 +117,39 @@ describe('store', () => {
       selectionPath: 'body[1]/section[2]/p[3]',
       selectionNodeId: 'n12',
     });
+  });
+
+  it('holds the run lock of a script run or an AI request; isRunLocked derives the flag', () => {
+    // Feature 005 T025 (data-model §4.1): `runLock` replaces the `scriptRunning` boolean.
+    const store = createAppStore();
+    expect(store.getState().runLock).toBeNull();
+    expect(isRunLocked(store.getState())).toBe(false);
+
+    const script = { kind: 'script' as const, label: 'Append paragraph', startedAt: 1_000 };
+    actions.setRunLock(store, script);
+    expect(store.getState().runLock).toBe(script);
+    expect(isRunLocked(store.getState())).toBe(true);
+
+    const ai = {
+      kind: 'ai' as const,
+      label: 'OVHcloud AI Endpoints · gpt-oss-120b',
+      startedAt: 2_000,
+      phase: 'waiting for the answer',
+    };
+    actions.setRunLock(store, ai);
+    expect(store.getState().runLock).toEqual(ai);
+    expect(isRunLocked(store.getState())).toBe(true);
+    // The phase changes through a new lock object; the holder stays the same.
+    actions.setRunLock(store, { ...ai, phase: 'running replace_node' });
+    expect(store.getState().runLock?.phase).toBe('running replace_node');
+    expect(store.getState().runLock?.startedAt).toBe(2_000);
+
+    actions.setRunLock(store, null);
+    expect(store.getState().runLock).toBeNull();
+    expect(isRunLocked(store.getState())).toBe(false);
+    // The selector works on a bare state slice too (non-React consumers).
+    expect(isRunLocked({ runLock: null })).toBe(false);
+    expect(isRunLocked({ runLock: script })).toBe(true);
   });
 
   it('adopts the toolbar and tree flags from the first settings snapshot only', () => {

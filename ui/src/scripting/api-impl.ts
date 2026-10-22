@@ -7,7 +7,9 @@
  * no editor transaction, store notification or render. Before the script's dialogs and
  * selection calls the working copy is shown in the editor (`showChanges`), so they see what
  * the script did so far; the host replaces the document with the result when the run ends
- * and keeps the run as one undo entry (host.ts).
+ * and keeps the run as one undo entry (host.ts). A run nested in an AI request (feature 005
+ * FR-080) starts from the request's working copy, shows nothing until the request's commit
+ * (`publish: false`) and captions its dialogs as run by the assistant (`dialogCaption`).
  */
 
 import type { TFunction } from 'i18next';
@@ -100,6 +102,12 @@ export class JsonText {
 
 export interface ScriptApiDeps {
   store: AppStore;
+  /**
+   * The document the run starts from - the working copy's start state: the store's document
+   * for a user-started run, the AI request's working copy (released) for a nested run (feature
+   * 005 T026/T027). Null when no document is open: every `doc.*` call then fails cleanly.
+   */
+  document: Document | null;
   /** Body controller (null without an editing feature: selection calls then fail cleanly). */
   controller: BodyEditorController | null;
   dialogs: Dialogs;
@@ -108,6 +116,17 @@ export interface ScriptApiDeps {
   /** Display name of the running script (default dialog caption). */
   scriptName: string;
   uiLanguage: string;
+  /**
+   * Whether the working copy is shown in the editor before the script's dialogs and selection
+   * calls (default true). False for a nested run inside an AI request (feature 005, review
+   * C10): the live view shows nothing until the request's commit.
+   */
+  publish?: boolean;
+  /**
+   * Decorates the caption of every dialog the script opens (its own caption or `scriptName`):
+   * a nested run marks them as "<name> — run by the AI assistant" (feature 005 FR-080).
+   */
+  dialogCaption?: (caption: string) => string;
   /** Called with `true` while a modal dialog of the script is open (pauses the watchdog). */
   onUiActivity?: (active: boolean) => void;
   /** Progress reports (`ui.progress`). */
@@ -124,6 +143,12 @@ export interface ScriptApi {
   call(method: string, args: unknown[]): Promise<unknown>;
   /** True when the script asked for a sticky status (kept after the run). */
   readonly stickyStatus: boolean;
+  /**
+   * The working copy the `doc.*` and `selection.*` operations write - the one `result()` hands
+   * out; null without a document. An AI request takes its checkpoints and rollbacks on it
+   * (feature 005 T027, data-model §6.2).
+   */
+  readonly workingCopy: WorkingCopy | null;
   /** Clears transient UI state at the end of the run (progress, non-sticky status). */
   finish(): void;
   /** The document the run produced; null when the script changed nothing. */
@@ -271,8 +296,9 @@ function optionalObject<T extends object>(value: unknown, what: string): T {
 export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
   const { store, controller, dialogs, rpc, t } = deps;
   const nextNodeId = createNodeIdGenerator('sc_');
-  const start = store.getState().document;
-  const copy = start ? new WorkingCopy(start) : null;
+  const copy = deps.document ? new WorkingCopy(deps.document) : null;
+  const publish = deps.publish ?? true;
+  const captionFor = (caption: string) => deps.dialogCaption?.(caption) ?? caption;
   /** Whether a children list, as it is, fits its parent (reused while only same-type nodes replace its children). */
   const checkedContent = new WeakMap<readonly ModelNodeJson[], boolean>();
   let stickyStatus = false;
@@ -293,9 +319,13 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     return controller;
   };
 
-  /** Shows the changes made so far in the editor (before the script's dialogs and selection calls). */
+  /**
+   * Shows the changes made so far in the editor (before the script's dialogs and selection
+   * calls); inert for a nested run (`publish: false`), whose changes reach the editor only with
+   * the AI request's commit.
+   */
   const showChanges = () => {
-    if (!copy?.pending) return;
+    if (!publish || !copy?.pending) return;
     const next = copy.release();
     if (controller) controller.showModel(next);
     else actions.updateDocument(store, next);
@@ -696,7 +726,7 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
           dialogs,
           {
             text: asString(text, 'ui.message'),
-            caption: o.caption ?? deps.scriptName,
+            caption: captionFor(o.caption ?? deps.scriptName),
             buttons,
             icon: o.icon,
           },
@@ -712,7 +742,7 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
           dialogs,
           {
             prompt: asString(text, 'ui.prompt'),
-            caption: o.caption ?? deps.scriptName,
+            caption: captionFor(o.caption ?? deps.scriptName),
             defaultValue: o.defaultValue === undefined ? undefined : String(o.defaultValue),
             buttons: o.yesNoCancel ? 'yesNoCancel' : 'okCancel',
             testId: 'dialog-script-prompt',
@@ -729,7 +759,11 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       const s = asObject<FormSpec>(spec, 'ui.form');
       if (!Array.isArray(s.fields)) throw new ScriptApiError('ui.form: fields must be an array');
       return withDialog(() =>
-        showScriptForm(dialogs, { ...s, title: s.title ?? deps.scriptName }, deps.runEnd),
+        showScriptForm(
+          dialogs,
+          { ...s, title: captionFor(s.title ?? deps.scriptName) },
+          deps.runEnd,
+        ),
       );
     },
 
@@ -838,6 +872,7 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
     get stickyStatus() {
       return stickyStatus;
     },
+    workingCopy: copy,
     finish() {
       if (touchedProgress) actions.setProgress(store, null);
       if (touchedStatus && !stickyStatus) actions.setStatusMessage(store, null);

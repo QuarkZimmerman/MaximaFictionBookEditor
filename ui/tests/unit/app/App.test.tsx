@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { App } from '@/app/App';
@@ -204,6 +204,76 @@ describe('App shell', () => {
       actions.setProgress(store, { jobId: 'j', phase: 'parse', done: 1, total: 4 });
     });
     expect(screen.getByTestId('status-message')).toHaveTextContent('parse: 25%');
+  });
+
+  it('shows the run banner per kind of the run lock: a script run, an AI request', async () => {
+    // Feature 005 T025 (data-model §4.1, FR-022): the banner follows `store.runLock`.
+    const { store } = await renderApp();
+    expect(screen.queryByTestId('script-run-banner')).not.toBeInTheDocument();
+
+    // A script run (no host run in this test: the lock alone drives the banner's text).
+    act(() => {
+      actions.setRunLock(store, {
+        kind: 'script',
+        label: 'Append paragraph',
+        startedAt: Date.now() - 65_000,
+      });
+    });
+    const banner = screen.getByTestId('script-run-banner');
+    expect(banner).toHaveAttribute('data-run-kind', 'script');
+    expect(banner).toHaveAttribute('aria-label', 'Running script');
+    expect(screen.getByTestId('script-run-name')).toHaveTextContent(
+      'Script "Append paragraph" is running',
+    );
+    // The clock reads 00:00 the moment the lock appears and the real time from its first tick.
+    expect(screen.getByTestId('script-run-elapsed')).toHaveTextContent('00:00');
+    await waitFor(
+      () => expect(screen.getByTestId('script-run-elapsed')).toHaveTextContent(/^01:0[5-9]$/),
+      { timeout: 2_500 },
+    );
+    expect(screen.queryByTestId('ai-banner-operation')).not.toBeInTheDocument();
+    expect(screen.getByTestId('script-run-cancel')).toHaveTextContent('Cancel');
+    // The status bar's run line takes the message pane's place for the same lock.
+    expect(screen.getByTestId('script-run-bar')).toHaveAttribute('data-run-kind', 'script');
+    expect(screen.getByTestId('script-run-text')).toHaveTextContent(
+      'Running script "Append paragraph"...',
+    );
+    expect(screen.queryByTestId('status-message')).not.toBeInTheDocument();
+
+    // An AI request: `<service name> · <model>`, the current operation, Cancel.
+    act(() => {
+      actions.setRunLock(store, {
+        kind: 'ai',
+        label: 'OVHcloud AI Endpoints · gpt-oss-120b',
+        startedAt: Date.now(),
+        phase: 'waiting for the answer',
+      });
+    });
+    expect(screen.getByTestId('script-run-banner')).toHaveAttribute('data-run-kind', 'ai');
+    expect(screen.getByTestId('script-run-banner')).not.toHaveAttribute('data-script-id');
+    expect(screen.getByTestId('script-run-name')).toHaveTextContent(
+      'OVHcloud AI Endpoints · gpt-oss-120b',
+    );
+    expect(screen.getByTestId('ai-banner-operation')).toHaveTextContent('waiting for the answer');
+    expect(screen.getByTestId('script-run-elapsed')).toHaveTextContent(/^00:0[0-1]$/);
+    expect(screen.getByTestId('script-run-cancel')).toBeInTheDocument();
+    expect(screen.getByTestId('script-run-bar')).toHaveAttribute('data-run-kind', 'ai');
+    expect(screen.getByTestId('script-run-text')).toHaveTextContent('waiting for the answer');
+    // The phase follows the request's state through a new lock object.
+    act(() => {
+      actions.setRunLock(store, {
+        ...store.getState().runLock!,
+        phase: 'running replace_node',
+      });
+    });
+    expect(screen.getByTestId('ai-banner-operation')).toHaveTextContent('running replace_node');
+
+    act(() => {
+      actions.setRunLock(store, null);
+    });
+    expect(screen.queryByTestId('script-run-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('script-run-bar')).not.toBeInTheDocument();
+    expect(screen.getByTestId('status-message')).toBeInTheDocument();
   });
 
   it('renders Russian labels after a language switch', async () => {

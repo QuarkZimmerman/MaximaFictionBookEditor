@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import type { CommandContext } from '@/app/commands';
 import type { FindOptions, SearchSession } from '@/features/search/search';
 import { parseAccelerator } from '@/i18n';
-import { useAppState } from '@/model/store';
+import { isRunLocked, useAppState } from '@/model/store';
 
 import { Dialog, type DialogButton } from './Dialog';
 import { FindFields } from './FindDialog';
@@ -36,7 +36,7 @@ export function ReplaceDialog({ session, ctx, onClose }: ReplaceDialogProps) {
   const [replacement, setReplacement] = useState(session.replacement);
   const [found, setFound] = useState(false);
   const [busy, setBusy] = useState(false);
-  const scriptRunning = useAppState((s) => s.scriptRunning, ctx.store);
+  const runLocked = useAppState(isRunLocked, ctx.store);
   const queryRef = useRef<HTMLInputElement>(null);
   useSearchDialogFocus(session, 'replace', queryRef);
 
@@ -95,13 +95,13 @@ export function ReplaceDialog({ session, ctx, onClose }: ReplaceDialogProps) {
     {
       id: 'replace',
       label: t('dialog.replace.replace'),
-      disabled: !options.query || scriptRunning,
+      disabled: !options.query || runLocked,
       onClick: () => void replace(),
     },
     {
       id: 'replaceAll',
       label: t('dialog.replace.replaceAll'),
-      disabled: !options.query || scriptRunning,
+      disabled: !options.query || runLocked,
       onClick: () => void replaceAll(),
     },
     {

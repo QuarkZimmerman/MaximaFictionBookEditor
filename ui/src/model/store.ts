@@ -22,6 +22,27 @@ export type ConnectionStatus = RpcConnectionStatus;
 export type InsertMode = 'insert' | 'overwrite';
 export type FileKind = Document['fileKind'];
 
+/** Who holds the run lock: a script run or an AI assistant request (feature 005). */
+export type RunKind = 'script' | 'ai';
+
+/**
+ * The run lock (feature 005 data-model §4.1, the generalisation of the `scriptRunning` flag of
+ * feature 003 FR-011): while a script runs or an AI request is in progress the user cannot
+ * change the document - the Body editor is locked, the Source editor read-only, the description
+ * form read-only, the commands follow their `duringScriptRun` policy and the view cannot be
+ * switched. The run banner shows the holder: its `label` (the script's name, or
+ * `<service name> · <model>` for the assistant), the time since `startedAt` and, when set, the
+ * current operation (`phase`).
+ */
+export interface RunLock {
+  kind: RunKind;
+  label: string;
+  /** `Date.now()` at the start of the run. */
+  startedAt: number;
+  /** The current operation, shown by the banner (an AI request's state; scripts leave it unset). */
+  phase?: string;
+}
+
 export interface AppState {
   /** Core connection status (mirrors the RPC client). */
   connection: ConnectionStatus;
@@ -57,8 +78,11 @@ export interface AppState {
   statusMessage: string | null;
   /** Progress of the running long operation, if any. */
   progress: JobProgress | null;
-  /** A script is running: the user cannot change the document until it ends. */
-  scriptRunning: boolean;
+  /**
+   * A script run or an AI request holds the document: the user cannot change it until the run
+   * ends (`isRunLocked(state)` is the derived flag the consumers read).
+   */
+  runLock: RunLock | null;
   /** Result shown in the non-modal validation panel (null = panel hidden). */
   validation: ValidationReport | null;
   toolbars: ToolbarVisibility;
@@ -104,7 +128,7 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     insertMode: 'insert',
     statusMessage: null,
     progress: null,
-    scriptRunning: false,
+    runLock: null,
     validation: null,
     toolbars: { ...DEFAULT_TOOLBARS },
     treeVisible: true,
@@ -174,6 +198,16 @@ export function useAppState<T>(selector: (state: AppState) => T, store: AppStore
     () => selector(store.getState()),
     () => selector(store.getState()),
   );
+}
+
+/**
+ * True while a script run or an AI request holds the document (the quiet lock of feature 003
+ * FR-011 and feature 005 FR-022): the derived flag every consumer of the lock reads - command
+ * enablement, the Body and Source locks, the description form, the bars, the view switch, the
+ * exit confirmation and the version check's idle condition. Usable as a `useAppState` selector.
+ */
+export function isRunLocked(state: Pick<AppState, 'runLock'>): boolean {
+  return state.runLock !== null;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -314,8 +348,9 @@ export const actions = {
     store.setState({ progress });
   },
 
-  setScriptRunning(store: AppStore, scriptRunning: boolean): void {
-    store.setState({ scriptRunning });
+  /** Takes (a lock) or releases (null) the run lock; a run's `phase` changes through a new lock object. */
+  setRunLock(store: AppStore, runLock: RunLock | null): void {
+    store.setState({ runLock });
   },
 
   /** Shows (report) or hides (null) the validation panel. */

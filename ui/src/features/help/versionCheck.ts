@@ -17,7 +17,7 @@
 
 import type { Command, CommandContext } from '@/app/commands';
 import type { FeatureContext } from '@/app/services';
-import type { AppStore } from '@/model/store';
+import { isRunLocked, type AppStore } from '@/model/store';
 import type { ReleaseInfo } from '@/rpc/types';
 
 import { cmdKeys } from '../editing/common';
@@ -144,19 +144,19 @@ export interface QuietSources {
     readonly fileDialogOpen: boolean;
     onFileDialog(listener: (open: boolean) => void): () => void;
   } | null;
-  /** The store: `scriptRunning`. */
+  /** The store: the run lock (`runLock`, a script run or an AI request). */
   store: AppStore;
 }
 
 /**
- * Resolves as soon as no modal dialog, no file dialog and no script run is active - at once
- * when none is; otherwise when the last of them ends.
+ * Resolves as soon as no modal dialog, no file dialog and no run (a script, an AI request) is
+ * active - at once when none is; otherwise when the last of them ends.
  */
 export function whenQuiet(sources: QuietSources): Promise<void> {
   const quiet = () =>
     !sources.dialogs.isModalOpen &&
     !sources.rpc?.fileDialogOpen &&
-    !sources.store.getState().scriptRunning;
+    !isRunLocked(sources.store.getState());
   if (quiet()) return Promise.resolve();
   return new Promise((resolve) => {
     const offs: (() => void)[] = [];

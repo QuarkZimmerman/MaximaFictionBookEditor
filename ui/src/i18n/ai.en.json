@@ -18,6 +18,10 @@
         "name": "LLM7.io",
         "model": "minimax-m2.7"
       }
+    },
+    "script": {
+      "$comment": "Dialogs of a script run by the assistant inside a request (feature 005 FR-080, review C10; scripting/api-impl.ts `dialogCaption`).",
+      "nestedCaption": "{{name}} — run by the AI assistant"
     }
   },
   "dialog": {

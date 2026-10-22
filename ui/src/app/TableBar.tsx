@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ALIGN_VALUES, VALIGN_VALUES, parseSpan, setNodeAttr } from '@/editor/commands/table';
 import type { NodeRef } from '@/editor/plugins/selectionPath';
-import { useAppState } from '@/model/store';
+import { isRunLocked, useAppState } from '@/model/store';
 
 import { useBodySelectionContext } from '@/views/body/useBodySelection';
 
@@ -52,9 +52,9 @@ export function TableBar() {
   const { t } = useTranslation();
   const { store } = useAppServices();
   const activeView = useAppState((s) => s.activeView, store);
-  const scriptRunning = useAppState((s) => s.scriptRunning, store);
+  const runLocked = useAppState(isRunLocked, store);
   const { controller, context } = useBodySelectionContext();
-  const inTable = activeView === 'body' && !scriptRunning && !!controller && !!context?.table;
+  const inTable = activeView === 'body' && !runLocked && !!controller && !!context?.table;
   const table = context?.table ?? null;
   const row = context?.row ?? null;
   const cell = context?.cell ?? null;

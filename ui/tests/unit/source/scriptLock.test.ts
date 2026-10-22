@@ -1,8 +1,9 @@
 /**
  * The Source view's quiet lock while a script runs (feature 003 FR-011, T030): the editor
- * follows `store.scriptRunning` - read-only and not editable while a script runs, back to
- * normal afterwards - mounted or headless, across a text reload, with nothing but the
- * `readOnly` facet and the `editable` facet changed (no styling, the selection untouched).
+ * follows the run lock (`store.runLock`, generalised to AI requests by feature 005 T025) -
+ * read-only and not editable while the lock is held, back to normal afterwards - mounted or
+ * headless, across a text reload, with nothing but the `readOnly` facet and the `editable`
+ * facet changed (no styling, the selection untouched).
  */
 
 import { EditorView } from '@codemirror/view';
@@ -11,6 +12,8 @@ import { actions, createAppStore } from '@/model/store';
 import { UndoCoordinator } from '@/model/undo';
 import { lockExtension, SourceEditorController } from '@/views/source/sourceEditor';
 import { sourceSession } from '@/views/source/sourceSession';
+
+import { fakeRunLock } from '../features/testUtils';
 
 const XML = `<?xml version="1.0"?>
 <FictionBook>
@@ -55,25 +58,31 @@ async function load(controller: SourceEditorController, store: ReturnType<typeof
 }
 
 describe('Source view quiet lock (feature 003 FR-011)', () => {
-  it('is read-only and not editable exactly while a script runs', () => {
-    const { store, controller } = setup();
-    expect(controller.locked).toBe(false);
-    expect(controller.state.facet(EditorView.editable)).toBe(true);
+  it.each(['script', 'ai'] as const)(
+    'is read-only and not editable exactly while the run lock is held (%s run)',
+    (kind) => {
+      const { store, controller } = setup();
+      expect(controller.locked).toBe(false);
+      expect(controller.state.facet(EditorView.editable)).toBe(true);
 
-    actions.setScriptRunning(store, true);
-    expect(controller.locked).toBe(true);
-    expect(controller.state.readOnly).toBe(true);
-    expect(controller.state.facet(EditorView.editable)).toBe(false);
+      actions.setRunLock(store, fakeRunLock(kind));
+      expect(controller.locked).toBe(true);
+      expect(controller.state.readOnly).toBe(true);
+      expect(controller.state.facet(EditorView.editable)).toBe(false);
+      // A new lock object of the same run (an AI request's phase changes) keeps the lock.
+      actions.setRunLock(store, fakeRunLock(kind, { phase: 'validating' }));
+      expect(controller.locked).toBe(true);
 
-    actions.setScriptRunning(store, false);
-    expect(controller.locked).toBe(false);
-    expect(controller.state.readOnly).toBe(false);
-    expect(controller.state.facet(EditorView.editable)).toBe(true);
-  });
+      actions.setRunLock(store, null);
+      expect(controller.locked).toBe(false);
+      expect(controller.state.readOnly).toBe(false);
+      expect(controller.state.facet(EditorView.editable)).toBe(true);
+    },
+  );
 
   it('keeps the lock across a text reload and applies it to a fresh state', async () => {
     const { store, controller } = setup();
-    actions.setScriptRunning(store, true);
+    actions.setRunLock(store, fakeRunLock());
     await load(controller, store);
     expect(controller.text).toBe(XML);
     expect(controller.locked).toBe(true);
@@ -82,7 +91,7 @@ describe('Source view quiet lock (feature 003 FR-011)', () => {
     controller.reset();
     expect(controller.text).toBe('');
     expect(controller.locked).toBe(true);
-    actions.setScriptRunning(store, false);
+    actions.setRunLock(store, null);
     expect(controller.locked).toBe(false);
   });
 
@@ -96,7 +105,7 @@ describe('Source view quiet lock (feature 003 FR-011)', () => {
     expect(view.contentDOM.getAttribute('contenteditable')).toBe('true');
     const classesBefore = stableClasses(view);
 
-    actions.setScriptRunning(store, true);
+    actions.setRunLock(store, fakeRunLock());
     expect(view.contentDOM.getAttribute('contenteditable')).toBe('false');
     expect(view.state.readOnly).toBe(true);
     expect(stableClasses(view)).toEqual(classesBefore); // no styling change: nothing greyed
@@ -104,7 +113,7 @@ describe('Source view quiet lock (feature 003 FR-011)', () => {
     view.dispatch({ selection: { anchor: 3 } });
     expect(view.state.selection.main.head).toBe(3);
 
-    actions.setScriptRunning(store, false);
+    actions.setRunLock(store, null);
     expect(view.contentDOM.getAttribute('contenteditable')).toBe('true');
     controller.destroy();
     host.remove();

@@ -164,10 +164,15 @@ ui/
   src/features/help/      versionCheck.ts (Help > Check for new version, the prompt),
                           schedule.ts (when a start-up check is due: other.versionCheck and
                           session.lastVersionCheck)
-  src/scripting/          host.ts (one run at a time, working copy, cancel, duration), api-impl.ts
-                          (the mfbe allow-list), sandbox*.ts, ScriptRunBanner.tsx (banner above
-                          the document: name, elapsed time, progress, busy sign, Cancel), RunBar.tsx
-                          (the status-bar line), ScriptsMenu.tsx / ScriptsToolbar.tsx
+  src/scripting/          host.ts (one run at a time, working copy, cancel, duration; a run nested
+                          in an AI request), runSession.ts (the run lock `store.runLock`, elapsed
+                          ticks, one undo entry at the commit, restore on cancel - shared by script
+                          runs and AI requests), api-impl.ts (the mfbe allow-list), workingCopy.ts
+                          (copy-on-write document, checkpoint / rollback), sandbox*.ts,
+                          ScriptRunBanner.tsx (banner above the document, per kind of the lock:
+                          name or service · model, elapsed time, progress or current operation,
+                          busy sign, Cancel), RunBar.tsx (the status-bar line), ScriptsMenu.tsx /
+                          ScriptsToolbar.tsx
   src/i18n/               index.ts (i18next setup, parseAccelerator), en.json, ru.json,
                           uk.json, <feature>.<lang>.json, identical-allowlist.json
   src/model/              document.ts (copy of contracts/document-model.d.ts), store.ts

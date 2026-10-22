@@ -18,6 +18,10 @@
         "name": "LLM7.io",
         "model": "minimax-m2.7"
       }
+    },
+    "script": {
+      "$comment": "Диалоги скрипта, запущенного помощником внутри запроса (функция 005 FR-080, решение C10; scripting/api-impl.ts `dialogCaption`).",
+      "nestedCaption": "{{name}} — запущен ИИ-помощником"
     }
   },
   "dialog": {

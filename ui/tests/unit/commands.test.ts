@@ -20,7 +20,7 @@ import type { Dialogs, MessageBoxOptions } from '@/dialogs/types';
 import { initI18n } from '@/i18n';
 import en from '@/i18n/en.json';
 import type { Document } from '@/model/document';
-import { actions, createAppStore } from '@/model/store';
+import { actions, createAppStore, isRunLocked } from '@/model/store';
 import { ArrayHistoryAdapter, UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
 import type { MessageButtonId } from '@/rpc/types';
@@ -486,19 +486,25 @@ describe('command registry', () => {
     expect(registry.isEnabled('test.copy', ctx)).toBe(true);
     expect(registry.isEnabled('test.replace', ctx)).toBe(true);
 
-    actions.setScriptRunning(ctx.store, true);
-    expect(registry.isEnabled('view.source', ctx)).toBe(false); // default policy: blocked
-    expect(registry.isEnabled('test.replace', ctx)).toBe(false);
-    expect(registry.isEnabled('test.copy', ctx)).toBe(true);
-    selectionAvailable = false;
-    expect(registry.isEnabled('test.copy', ctx)).toBe(false); // its own predicate still counts
-    selectionAvailable = true;
-    expect(registry.isEnabled('test.later', ctx)).toBe(false); // a stub is never enabled
+    // The run lock of feature 005 (data-model §4.1): the policy applies whoever holds it - a
+    // script run or an AI request.
+    for (const kind of ['script', 'ai'] as const) {
+      actions.setRunLock(ctx.store, { kind, label: 'Holder', startedAt: Date.now() });
+      expect(isRunLocked(ctx.store.getState())).toBe(true);
+      expect(registry.isEnabled('view.source', ctx), kind).toBe(false); // default policy: blocked
+      expect(registry.isEnabled('test.replace', ctx), kind).toBe(false);
+      expect(registry.isEnabled('test.copy', ctx), kind).toBe(true);
+      selectionAvailable = false;
+      expect(registry.isEnabled('test.copy', ctx), kind).toBe(false); // its own predicate still counts
+      selectionAvailable = true;
+      expect(registry.isEnabled('test.later', ctx), kind).toBe(false); // a stub is never enabled
 
-    actions.setScriptRunning(ctx.store, false);
-    expect(registry.isEnabled('view.source', ctx)).toBe(true);
-    expect(registry.isEnabled('test.replace', ctx)).toBe(true);
-    expect(registry.isEnabled('test.later', ctx)).toBe(false);
+      actions.setRunLock(ctx.store, null);
+      expect(isRunLocked(ctx.store.getState())).toBe(false);
+      expect(registry.isEnabled('view.source', ctx), kind).toBe(true);
+      expect(registry.isEnabled('test.replace', ctx), kind).toBe(true);
+      expect(registry.isEnabled('test.later', ctx), kind).toBe(false);
+    }
   });
 
   it('execute() and dispatch() refuse a blocked command during a run and accept an allowed one', async () => {
@@ -506,7 +512,7 @@ describe('command registry', () => {
     const registry = createCommandRegistry();
     const run = vi.fn();
     registry.register({ id: 'test.copy', group: 'edit', duringScriptRun: 'allowed', run });
-    actions.setScriptRunning(ctx.store, true);
+    actions.setRunLock(ctx.store, { kind: 'script', label: 'Script', startedAt: Date.now() });
 
     expect(await registry.execute('view.source', ctx)).toBe(false);
     expect(registry.dispatch('view.source', ctx)).toBe(false);
@@ -518,7 +524,7 @@ describe('command registry', () => {
     await Promise.resolve();
     expect(run).toHaveBeenCalledTimes(2);
 
-    actions.setScriptRunning(ctx.store, false);
+    actions.setRunLock(ctx.store, null);
     expect(await registry.execute('view.source', ctx)).toBe(true);
     expect(ctx.store.getState().activeView).toBe('source');
   });

@@ -16,7 +16,7 @@ import { setNodeAttr } from '@/editor/commands/table';
 import { registerBarFocus, type BarField } from '@/features/editing/barFocus';
 import { setHrefAtSelection } from '@/features/footnotes';
 import { normalizeHref } from '@/features/linkTargets';
-import { useAppState } from '@/model/store';
+import { isRunLocked, useAppState } from '@/model/store';
 import { useBodySelectionContext } from '@/views/body/useBodySelection';
 
 import { useAppServices } from './services';
@@ -104,9 +104,9 @@ export function LinksBar() {
   const { t } = useTranslation();
   const { store } = useAppServices();
   const activeView = useAppState((s) => s.activeView, store);
-  const scriptRunning = useAppState((s) => s.scriptRunning, store);
+  const runLocked = useAppState(isRunLocked, store);
   const { controller, context } = useBodySelectionContext();
-  const bodyActive = activeView === 'body' && !scriptRunning && !!controller && !!context;
+  const bodyActive = activeView === 'body' && !runLocked && !!controller && !!context;
 
   const attr = (node: { attrs: Record<string, unknown> } | null | undefined, name: string) =>
     node && typeof node.attrs[name] === 'string' ? (node.attrs[name] as string) : '';
