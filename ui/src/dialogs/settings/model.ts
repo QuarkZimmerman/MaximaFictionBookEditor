@@ -9,10 +9,14 @@
 
 import type { TFunction } from 'i18next';
 
+import { hostOf, isLocalAddress, isPlainHttp } from '@/ai/address';
 import { DEFAULT_THEME_SETTING, isThemeSetting } from '@/app/theme';
 import { ENCODING_CHOICES } from '@/dialogs/encodings';
 import { isCssColor } from '@/features/settings/apply';
 import type {
+  AiServiceEntry,
+  AiServicesResult,
+  AiTestResult,
   KeyboardLayoutList,
   Settings,
   SpellDictionaryFolder,
@@ -224,7 +228,163 @@ export function validateSettings(draft: Settings, t: TFunction): SettingsValidat
       }),
     });
   }
+  // The AI assistant's own service (feature 005 FR-003; data-model §2.7): the address must be
+  // an http(s) URL with a host and the model must be named - checked only when that option is
+  // chosen; a plain address is a warning on the page (`serviceAddressProblem`), not an error.
+  if (draft.ai?.mode === 'custom') {
+    const problem = serviceAddressProblem(draft.ai.custom?.address ?? '');
+    if (problem === 'empty' || problem === 'invalid') {
+      errors.push({
+        field: 'ai.custom.address',
+        message: t('dialog.settings.ai.custom.addressError'),
+      });
+    }
+    if (!(draft.ai.custom?.model ?? '').trim()) {
+      errors.push({ field: 'ai.custom.model', message: t('dialog.settings.ai.custom.modelError') });
+    }
+  }
   return errors;
+}
+
+/* ------------------------------------------------------------------------ */
+/* AI assistant (feature 005, Settings > AI assistant)                       */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * What is wrong with a service address (rpc-api Definitions "Address"; FR-003): `empty`,
+ * `invalid` (not an absolute http(s) URL with a host, or with a query, a fragment, user
+ * information, white space or control characters, or over 2048 characters), `plainHosted` (a
+ * plain `http` address that is not on this computer - saved with a warning, FR-003), or null.
+ */
+export type ServiceAddressProblem = 'empty' | 'invalid' | 'plainHosted';
+
+export function serviceAddressProblem(address: string): ServiceAddressProblem | null {
+  const text = address.trim();
+  if (!text) return 'empty';
+  // eslint-disable-next-line no-control-regex
+  if (text.length > 2048 || /[\s\u0000-\u001f\u007f]/.test(text)) return 'invalid';
+  if (!/^https?:\/\//i.test(text)) return 'invalid';
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return 'invalid';
+  }
+  if (!url.hostname || url.username || url.password || url.search || url.hash) return 'invalid';
+  if (text.includes('?') || text.includes('#') || hostOf(text).includes('@')) return 'invalid';
+  return isPlainHttp(text) && !isLocalAddress(text) ? 'plainHosted' : null;
+}
+
+/**
+ * The free option's `<select>` (data-model §2.4; FR-002): the effective list in its order, the
+ * saved id when it is listed, else the first entry with `fallback` set (the saved setting is
+ * not rewritten - the page says so and the user may pick another); an empty list gives no
+ * entry at all.
+ */
+export interface AiServiceChoice {
+  options: AiServiceEntry[];
+  entry: AiServiceEntry | null;
+  shownId: string;
+  /** The saved id is not in the list: the first entry stands in for it. */
+  fallback: boolean;
+}
+
+export function aiServiceChoice(
+  services: Pick<AiServicesResult, 'services'> | null,
+  freeServiceId: string,
+): AiServiceChoice {
+  const options = services?.services ?? [];
+  const saved = options.find((option) => option.id === freeServiceId) ?? null;
+  const entry = saved ?? options[0] ?? null;
+  return {
+    options,
+    entry,
+    shownId: entry?.id ?? '',
+    fallback: saved === null && entry !== null && freeServiceId !== '',
+  };
+}
+
+/** The entry's limits note in the interface language (`en` when the language has none). */
+export function limitsNoteOf(entry: Pick<AiServiceEntry, 'limits'>, language: string): string {
+  const primary = language.toLowerCase().split(/[-_]/)[0] ?? 'en';
+  const limits = entry.limits as Partial<Record<string, string>>;
+  return (limits[primary] || limits.en || '').trim();
+}
+
+/** The text of one list-file issue: the localised reason with its field (FR-013). */
+export function listIssueReason(issue: { reason: string; field?: string }, t: TFunction): string {
+  return t(`ai.listIssue.${issue.reason}`, {
+    field: issue.field ?? '',
+    defaultValue: issue.reason,
+  });
+}
+
+/** The longest service message shown on the page (research R8.13: plain text, capped). */
+const SERVICE_MESSAGE_LIMIT = 2000;
+
+/** HTML reduced to its text with a regex, white space collapsed (never inserted as markup). */
+export function plainServiceText(text: string): string {
+  return text
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, SERVICE_MESSAGE_LIMIT);
+}
+
+/**
+ * The service's own words in an answer body (ai-service-protocol §4, the extraction order the
+ * page needs: `error.message`, a string `error`, `message`, `detail`), or null.
+ */
+export function serviceMessageOf(body: unknown): string | null {
+  if (typeof body === 'string') return plainServiceText(body) || null;
+  if (typeof body !== 'object' || body === null) return null;
+  const record = body as { error?: unknown; message?: unknown; detail?: unknown };
+  const error = record.error;
+  if (typeof error === 'object' && error !== null) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return plainServiceText(message);
+  }
+  if (typeof error === 'string' && error.trim()) return plainServiceText(error);
+  if (typeof record.message === 'string' && record.message.trim()) {
+    return plainServiceText(record.message);
+  }
+  if (typeof record.detail === 'string' && record.detail.trim()) {
+    return plainServiceText(record.detail);
+  }
+  return null;
+}
+
+/**
+ * The text of a failed *Test connection* (FR-005, FR-009): the service's words for an `http`
+ * answer and for a 200 without choices, the localised text of the transport kind with the
+ * transport's message otherwise.
+ */
+export function testFailureText(result: AiTestResult, t: TFunction): string {
+  if (result.ok) {
+    return (
+      serviceMessageOf(result.body) ??
+      t('ai.failure.withMessage', {
+        text: t('ai.failure.format'),
+        message: plainServiceText(JSON.stringify(result.body ?? null)).slice(0, 300),
+      })
+    );
+  }
+  if (result.kind === 'http') {
+    const words =
+      serviceMessageOf(result.body) ?? (result.text ? plainServiceText(result.text) : null);
+    const status = result.status ?? 0;
+    return words ? `${words} (HTTP ${status})` : `${t('ai.failure.service')} (HTTP ${status})`;
+  }
+  const text = t(`ai.failure.${result.kind}`);
+  return result.message ? t('ai.failure.withMessage', { text, message: result.message }) : text;
 }
 
 /** "Font size:" -> "Font size" (labels carry a trailing colon in the original dialogs). */

@@ -312,3 +312,111 @@
 .mfbe-settings-list li {
   overflow-wrap: anywhere;
 }
+
+/* AI assistant page (feature 005) */
+
+.mfbe-settings-radio {
+  margin: 0;
+}
+
+/* The controls under a radio, indented like the radio's text. */
+.mfbe-settings-ai-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 6px 24px;
+}
+
+.mfbe-settings-ai-block[hidden] {
+  display: none;
+}
+
+.mfbe-settings-ai-warning {
+  color: var(--mfbe-color-warning, #9a6700);
+}
+
+.mfbe-settings-ai-test-row {
+  margin-top: 4px;
+}
+
+/* The verification status: green when verified, red otherwise (research R8.7, FR-009); the
+   service's words are plain text, wrapped as written. */
+.mfbe-settings-ai-status {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--status-bad, #c42b1c);
+}
+
+.mfbe-settings-ai-status[data-status='verified'] {
+  color: var(--status-ok, #107c10);
+}
+
+.mfbe-settings-ai-spinner {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--mfbe-color-border, #c8c8c8);
+  border-top-color: var(--mfbe-color-accent, #0078d4);
+  border-radius: 50%;
+  animation: mfbe-settings-ai-spin 0.8s linear infinite;
+}
+
+@keyframes mfbe-settings-ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mfbe-settings-ai-spinner {
+    animation: none;
+  }
+}
+
+.mfbe-settings-ai-paths > div,
+.mfbe-settings-ai-limits {
+  overflow-wrap: anywhere;
+}
+
+.mfbe-settings-ai-issues,
+.mfbe-settings-ai-agreements {
+  max-height: 120px;
+}
+
+.mfbe-settings-ai-agreement {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.mfbe-settings-ai-agreement > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-settings-ai-agreement .mfbe-button {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* The first-use notice (ai/notice.tsx) */
+
+.mfbe-ai-notice {
+  max-width: min(560px, calc(100vw - 32px));
+}
+
+.mfbe-ai-notice p {
+  margin: 0 0 8px;
+}
+
+.mfbe-ai-notice ul {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.mfbe-ai-notice-warning {
+  color: var(--mfbe-color-danger, #c42b1c);
+}

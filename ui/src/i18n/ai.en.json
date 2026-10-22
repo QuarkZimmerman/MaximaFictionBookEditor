@@ -121,14 +121,88 @@
       "errors_other": "{{count}} errors",
       "turns_one": "{{count}} earlier turn",
       "turns_other": "{{count}} earlier turns"
+    },
+    "notice": {
+      "$comment": "The first-use notice shown before the first request to a hosted service (FR-021; ai/notice.tsx). The list names exactly what leaves the computer - nothing else is sent (review C14).",
+      "title": "Sending text to an AI service",
+      "service": "Service: {{name}} ({{host}})",
+      "sentIntro": "When you use this service, the editor sends it over the Internet:",
+      "sent": {
+        "instruction": "your instruction",
+        "conversation": "the conversation of this session",
+        "outline": "the book's title and its chapter titles",
+        "parts": "the parts of the book the assistant reads for the task",
+        "editor": "the editor's name and version"
+      },
+      "terms": "Terms of use and privacy policy of the service",
+      "unencrypted": "The address is plain http: the text travels unencrypted.",
+      "question": "Do you agree to send this to the service?"
     }
   },
   "dialog": {
     "settings": {
       "ai": {
+        "$comment": "Settings > AI assistant (FR-001 to FR-009; dialogs/settings/AiPage.tsx). Service names, model names and addresses are data of the list file and are not translated.",
+        "modeGroup": "AI service",
+        "modeFree": "Free service (no registration)",
+        "modeCustom": "My own service and key",
+        "modeDisabled": "Disabled",
+        "disabledNote": "The assistant is removed from the menus, the toolbar and the shortcuts; nothing of it is loaded.",
+        "service": "Service:",
+        "option": "{{name}} — {{model}}",
+        "limits": "Limits: {{text}}",
+        "limitsUnknown": "Limits: not stated by the list file",
+        "termsLink": "Terms of use and privacy policy of the service",
+        "toolsNote": "answers only — cannot operate the editor",
+        "replaced": "Your list file replaces this entry of the bundled list.",
+        "fallback": "Your list file no longer has \"{{id}}\"; the first entry is selected instead.",
+        "emptyList": "No usable service: the list files contain no valid entry.",
+        "loading": "Reading the service list…",
+        "listUnavailable": "The service list is available only while the editor is connected to its core.",
+        "coreTooOld": "The core of this installation is older than the AI assistant needs (API revision 4): the assistant is not available.",
         "custom": {
+          "address": "Address:",
+          "key": "Key:",
+          "model": "Model:",
           "exampleHosted": "https://api.openai.com/v1",
-          "exampleLocal": "http://127.0.0.1:11434/v1"
+          "exampleLocal": "http://127.0.0.1:11434/v1",
+          "addressError": "The service address must be an http or https URL with a host name (for example https://api.openai.com/v1).",
+          "modelError": "Name the model of your service (type it or pick one with Fetch models)."
+        },
+        "test": "Test connection",
+        "testing": "Testing the connection — {{phase}}",
+        "phase": {
+          "connecting": "connecting",
+          "waiting": "waiting for the answer",
+          "receiving": "receiving the answer"
+        },
+        "status": {
+          "untested": "Connection not tested",
+          "verified": "answered ({{model}})",
+          "noTarget": "No service to test"
+        },
+        "files": {
+          "title": "Service list files",
+          "bundled": "Bundled list: {{path}}",
+          "user": "Your list: {{path}}",
+          "userMissing": "Your list: {{path}} (not created yet — Edit list creates it)",
+          "portable": "Portable list in use: {{path}}",
+          "created": "Your list file was created as a copy of the bundled list; edit it and press Reload list.",
+          "exists": "Your list file already exists and was left unchanged.",
+          "createFailed": "Your list file could not be created: {{reason}}"
+        },
+        "editList": "Edit list",
+        "reloadList": "Reload list",
+        "issues": {
+          "title": "Problems in the list files (the rest of the list is in use):",
+          "entry": "{{file}}, entry {{index}}: {{reason}}",
+          "file": "{{file}}: {{reason}}"
+        },
+        "agreements": {
+          "title": "Services you agreed to send text to",
+          "none": "None yet: the notice is shown before the first request to a hosted service.",
+          "row": "{{service}} ({{host}}), agreed on {{date}}",
+          "revoke": "Withdraw"
         }
       }
     }

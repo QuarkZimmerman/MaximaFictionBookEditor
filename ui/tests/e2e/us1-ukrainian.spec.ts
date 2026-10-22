@@ -189,11 +189,12 @@ interface TextEntry {
 
 /**
  * Regions whose texts are data (the document's words, suggestions, code, the keyboard layouts
- * under the names the system gives them - feature 004 FR-090), not interface.
+ * under the names the system gives them - feature 004 FR-090, the AI services under the names
+ * and models of the list file - feature 005 FR-002), not interface.
  */
 const DATA_REGIONS =
   '[role="grid"], [role="listbox"], tbody, textarea, pre, code, script, style, [aria-hidden="true"], ' +
-  '[data-testid="settings-other-layout"]';
+  '[data-testid="settings-other-layout"], [data-testid="settings-ai-service"]';
 
 /**
  * Snippet collecting every visible text of the element `root` (a CSS selector): the text runs of

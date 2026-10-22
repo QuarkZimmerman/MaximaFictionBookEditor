@@ -1307,12 +1307,14 @@ export interface RpcMethods {
    * with exactly `model` and `stream: false` set by the core; a stored target only. Errors
    * before the job: `invalidParams` {field: 'target' | 'body' | 'body.messages'} (`reason:
    * 'tooLarge'` over 8 MiB), 1200 {reason, id?, service?} - `disabled` while `ai.mode` is.
+   * The first answer is always `{jobId}`; the `MaybeJob` form types what `rpc.runJob` resolves
+   * with once `job.done` arrived (the typed client's convention for every job method).
    */
-  'ai.complete': { params: { target: AiTarget; body: ChatRequest }; result: { jobId: string } };
+  'ai.complete': { params: { target: AiTarget; body: ChatRequest }; result: MaybeJob<AiOutcome> };
   /** `GET <address>/models` as a job whose `job.done` carries an `AiModelsResult`; a draft may be given; no model needed. */
-  'ai.models': { params: { target: AiTarget }; result: { jobId: string } };
+  'ai.models': { params: { target: AiTarget }; result: MaybeJob<AiModelsResult> };
   /** The fixed one-word completion as a job whose `job.done` carries an `AiTestResult`; a draft may be given. */
-  'ai.test': { params: { target: AiTarget }; result: { jobId: string } };
+  'ai.test': { params: { target: AiTarget }; result: MaybeJob<AiTestResult> };
   /** Every AI exchange since start or the last reset; never bodies, headers, keys or answers. */
   'test.aiRequests': { params: void; result: AiRequestRecord[] };
   'test.resetAiRequests': { params: void; result: Empty };

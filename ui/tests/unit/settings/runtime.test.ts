@@ -19,6 +19,7 @@ import {
   settingsPatch,
 } from '@/features/settings/apply';
 import { actions, createAppStore } from '@/model/store';
+import type { Settings } from '@/rpc/types';
 
 import { fakeRpc, rpcError } from '../features/testUtils';
 
@@ -70,6 +71,43 @@ describe('settingsPatch', () => {
       other: { jpegQuality: 50, keepEncoding: true },
     });
     expect(settingsPatch(before, defaultSettings())).toEqual({});
+  });
+
+  it('writes the ai section by value: changed leaves only, object leaves whole (feature 005)', () => {
+    const before = defaultSettings();
+    const same = defaultSettings(); // another object with the same values
+    expect(settingsPatch(before, same)).toEqual({});
+
+    const after = defaultSettings();
+    after.ai.mode = 'custom';
+    after.ai.custom = { address: 'http://127.0.0.1:11434/v1', key: 'k', model: 'llama3.1:8b' };
+    after.ai.customVerified = {
+      fingerprint: 'ab'.repeat(32),
+      model: 'llama3.1:8b',
+      at: '2026-10-22T10:00:00Z',
+    };
+    after.ai.agreements = [{ service: 'ovhcloud', host: 'a.example', at: '2026-10-22T10:00:00Z' }];
+    expect(settingsPatch(before, after)).toEqual({
+      ai: {
+        mode: 'custom',
+        custom: { address: 'http://127.0.0.1:11434/v1', key: 'k', model: 'llama3.1:8b' },
+        customVerified: {
+          fingerprint: 'ab'.repeat(32),
+          model: 'llama3.1:8b',
+          at: '2026-10-22T10:00:00Z',
+        },
+        agreements: [{ service: 'ovhcloud', host: 'a.example', at: '2026-10-22T10:00:00Z' }],
+      },
+    });
+    // One member of the triple changed: the triple travels whole, the rest stays out.
+    const oneLeaf = defaultSettings();
+    oneLeaf.ai.custom.model = 'gpt-4o-mini';
+    expect(settingsPatch(before, oneLeaf)).toEqual({
+      ai: { custom: { address: 'https://api.openai.com/v1', key: '', model: 'gpt-4o-mini' } },
+    });
+    // Settings of a core without the `ai` group (API minor 3): nothing to diff, no error.
+    const older = { ...defaultSettings(), ai: undefined } as unknown as Settings;
+    expect(settingsPatch(older, { ...older })).toEqual({});
   });
 });
 

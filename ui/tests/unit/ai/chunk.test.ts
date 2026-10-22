@@ -91,15 +91,18 @@ describe('the production build', () => {
     const indexSource = readFileSync(path.join(outDir, 'assets', index[0]!), 'utf8');
     const chunkSource = readFileSync(path.join(outDir, 'assets', chunk[0]!), 'utf8');
     const chunkRef = `./${chunk[0]}`;
-    // The main bundle: one dynamic import of the chunk, no static one.
+    // The main bundle reaches the chunk through dynamic imports only - the registrar's
+    // `import('./assistant')` on the first turn-on and the settings page's `import('@/ai/notice')`
+    // when a first-use notice is due (T035) - every one of them naming the one chunk; never a
+    // static import.
     const dynamicImports =
       indexSource.match(/import\((["'`])\.\/ai-assistant-[\w-]+\.js\1\)/g) ?? [];
-    expect(dynamicImports).toHaveLength(1);
-    expect(dynamicImports[0]).toContain(chunkRef);
+    expect(dynamicImports).toHaveLength(2);
+    for (const dynamicImport of dynamicImports) expect(dynamicImport).toContain(chunkRef);
     expect(indexSource).not.toMatch(/from\s*["'`]\.\/ai-assistant-/);
     expect(indexSource).not.toMatch(/import\s*["'`]\.\/ai-assistant-/);
     // The chunk imports the shared code from the main bundle and is small: the skeleton of
-    // `assistant.ts` alone, no store, no React.
+    // `assistant.ts` and the notice dialog, no store, no React.
     expect(chunkSource).toMatch(
       new RegExp(`from\\s*["'\`]\\./${index[0]!.replace('.', '\\.')}["'\`]`),
     );
