@@ -20,8 +20,15 @@ namespace {
 
 namespace fs = std::filesystem;
 
+// The bundled list in the spelling the core gives its resources folder (a canonical path:
+// core_server's resolve_resources_dir); CMake spells the source folder with forward slashes on
+// Windows, which the canonical form - and the loader's lexical normalisation - turn into the
+// preferred separators. The same file, compared in the same form.
 fs::path bundled_file() {
-    return fs::path(MFBE_RESOURCES_SOURCE_DIR) / "ai-services.json";
+    const fs::path file = platform::path_from_utf8(MFBE_RESOURCES_SOURCE_DIR) / "ai-services.json";
+    std::error_code ec;
+    const fs::path canonical = fs::weakly_canonical(file, ec);
+    return ec ? file.lexically_normal() : canonical;
 }
 
 fs::path fixture(const char* name) {
@@ -325,7 +332,9 @@ TEST_CASE(
         for (const auto& issue : list.issues) {
             CHECK(issue.reason == "badField");
             CHECK(issue.index == 0);
-            CHECK(issue.file == fixture("bundled-with-key-and-hidden.json"));
+            // The issue names the file in the loader's normalised spelling (the fixture root
+            // is spelled with forward slashes on Windows).
+            CHECK(issue.file == fixture("bundled-with-key-and-hidden.json").lexically_normal());
             fields.push_back(issue.field.value_or("-"));
         }
         CHECK(fields == std::vector<std::string>{"hidden", "key"});
@@ -376,8 +385,40 @@ TEST_CASE(
         const ai::ServiceList list = env.load();
         CHECK(list.services.size() == 4);
         REQUIRE(list.issues.size() == 1);
-        CHECK(list.issues[0].reason == "unreadable");
+        CHECK(list.issues[0].reason == "unreadable");  // never invalidJson: the kind is checked
+        CHECK(list.issues[0].file == env.data / "ai-services.json");
+        CHECK_FALSE(list.issues[0].index.has_value());
         CHECK(list.files.user_exists);
+        // The same rule for the bundled path: a folder there is unreadable on every platform.
+        fs::create_directories(env.tmp.path() / "bundled-folder");
+        const ai::ServiceList both =
+            ai::ServiceList::load(env.tmp.path() / "bundled-folder", env.layer());
+        CHECK(both.services.empty());
+        REQUIRE(both.issues.size() == 2);
+        CHECK(both.issues[0].reason == "unreadable");
+        CHECK(both.issues[0].file == env.tmp.path() / "bundled-folder");
+        CHECK(both.issues[1].reason == "unreadable");
+        CHECK(both.issues[1].file == env.data / "ai-services.json");
+    }
+    SECTION("the files and the issues are named in one normalised spelling") {
+        Layered env;
+        env.put_user("user-truncated.json");
+        // The caller's spelling: a `.` segment in the bundled path, a `..` one in the user path.
+        ai::UserLayer layer = env.layer();
+        layer.user = env.data / ".." / "data" / "ai-services.json";
+        const ai::ServiceList list =
+            ai::ServiceList::load(bundled_file().parent_path() / "." / "ai-services.json", layer);
+        CHECK(list.files.bundled == bundled_file());
+        CHECK(list.files.user == env.data / "ai-services.json");
+        CHECK(list.files.user_exists);
+        CHECK(list.services.size() == 4);
+        REQUIRE(list.issues.size() == 1);
+        CHECK(list.issues[0].reason == "invalidJson");
+        CHECK(list.issues[0].file == env.data / "ai-services.json");
+        const json j = list.to_json();
+        CHECK(j["files"]["bundled"] == platform::utf8_from_path(bundled_file()));
+        CHECK(j["files"]["user"] == platform::utf8_from_path(env.data / "ai-services.json"));
+        CHECK(j["issues"][0]["file"] == platform::utf8_from_path(env.data / "ai-services.json"));
     }
     SECTION("an unusable bundled file gives the user layer alone") {
         Layered env;

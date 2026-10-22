@@ -215,20 +215,38 @@ struct Parser {
     }
 };
 
-// Reads a file's bytes; nullopt (with the issue) when it cannot be read - a missing file, a
-// permission problem, a directory in its place (the stream's own failure on some platforms).
-std::optional<std::string> read_list_file(const fs::path& file, std::vector<ServiceIssue>& issues) {
-    try {
-        return atomic_file::read_file(file);
-    } catch (const std::exception&) {
-        issues.push_back(ServiceIssue{file, std::nullopt, "unreadable", std::nullopt});
-        return std::nullopt;
+// Reads a list file's bytes; nullopt with the `unreadable` issue (naming the file `name`) when
+// there is no regular file to read - missing, a folder (or another non-file) in its place, a
+// permission problem, a failing read. The kind of the entry is checked before the open: a
+// folder opens as a stream on Linux and macOS (and reads nothing on macOS), so the stream
+// alone would answer differently per platform.
+std::optional<std::string> read_list_file(const fs::path& file, const fs::path& name,
+                                          std::vector<ServiceIssue>& issues) {
+    std::error_code ec;
+    if (fs::is_regular_file(file, ec)) {  // follows a symbolic link to the file
+        try {
+            return atomic_file::read_file(file);
+        } catch (const std::exception&) {
+            // atomic_file::WriteError (cannot open, read failed) or the stream's own
+            // std::ios_base::failure: unreadable alike.
+        }
     }
+    issues.push_back(ServiceIssue{name, std::nullopt, "unreadable", std::nullopt});
+    return std::nullopt;
 }
 
 bool path_exists(const fs::path& path) {
     std::error_code ec;
     return !path.empty() && fs::exists(path, ec);
+}
+
+// The one spelling every path of a result takes, whatever form the caller gave it: `.` and
+// `..` segments and repeated separators removed, the platform's preferred separators (on
+// Windows the install's resources folder may be spelled with either kind). Purely lexical -
+// no symbolic link is resolved, the file need not exist; the files are read by the path as
+// given, so that the existence check and the read agree.
+fs::path normalised(const fs::path& path) {
+    return path.lexically_normal();
 }
 
 void log_issue(const ServiceIssue& issue) {
@@ -366,31 +384,37 @@ json ServiceList::to_json() const {
 
 ServiceList ServiceList::load(const fs::path& bundled_path, const UserLayer& layer) {
     ServiceList list;
-    list.files.bundled = bundled_path;
-    list.files.user = layer.user;
+    // Every path of the result - the files and the issues' - in the one normalised spelling.
+    list.files.bundled = normalised(bundled_path);
+    list.files.user = normalised(layer.user);
     list.files.user_exists = path_exists(layer.user);
 
     // The bundled file.
     std::vector<ServiceEntry> bundled;
-    if (const auto bytes = read_list_file(bundled_path, list.issues)) {
-        ParsedFile parsed = parse_services_file(bundled_path, *bytes, Layer::bundled);
+    if (const auto bytes = read_list_file(bundled_path, list.files.bundled, list.issues)) {
+        ParsedFile parsed = parse_services_file(list.files.bundled, *bytes, Layer::bundled);
         bundled = std::move(parsed.entries);
         list.issues.insert(list.issues.end(), parsed.issues.begin(), parsed.issues.end());
     }
 
     // The one user layer: the data folder's file when it exists, else the read-only portable
     // file when it exists, else none.
+    struct UserFile {
+        const fs::path* path;  // as given: what is read
+        const fs::path* name;  // normalised: what the issues say
+        Layer layer;
+    };
     std::vector<ServiceEntry> user;
-    std::optional<std::pair<fs::path, Layer>> user_file;
+    std::optional<UserFile> user_file;
     if (list.files.user_exists) {
-        user_file = {layer.user, Layer::user};
+        user_file = UserFile{&layer.user, &list.files.user, Layer::user};
     } else if (layer.portable && path_exists(*layer.portable)) {
-        user_file = {*layer.portable, Layer::portable};
-        list.files.portable = *layer.portable;
+        list.files.portable = normalised(*layer.portable);
+        user_file = UserFile{&*layer.portable, &*list.files.portable, Layer::portable};
     }
     if (user_file) {
-        if (const auto bytes = read_list_file(user_file->first, list.issues)) {
-            ParsedFile parsed = parse_services_file(user_file->first, *bytes, user_file->second);
+        if (const auto bytes = read_list_file(*user_file->path, *user_file->name, list.issues)) {
+            ParsedFile parsed = parse_services_file(*user_file->name, *bytes, user_file->layer);
             user = std::move(parsed.entries);
             list.issues.insert(list.issues.end(), parsed.issues.begin(), parsed.issues.end());
         }
@@ -432,7 +456,7 @@ ServiceList ServiceList::load(const fs::path& bundled_path, const UserLayer& lay
 
 UserCopy create_user_copy(const fs::path& bundled_path, const fs::path& user_path) {
     UserCopy result;
-    result.path = user_path;
+    result.path = normalised(user_path);  // the spelling of ServiceList::load's files.user
     if (path_exists(user_path)) {
         result.created = false;
         return result;

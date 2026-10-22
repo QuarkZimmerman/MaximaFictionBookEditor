@@ -2,6 +2,7 @@
 #include "test_support.hpp"
 
 #include <mfbe/atomic_file.hpp>
+#include <mfbe/utf8_paths.hpp>
 
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
@@ -77,6 +78,16 @@ TEST_CASE("atomic_file: WriteError carries path and reason", "[atomic]") {
     }
     CHECK_THROWS_AS(atomic_file::write_atomic("", "x"), atomic_file::WriteError);
     CHECK_THROWS_AS(atomic_file::read_file(tmp / "nope.txt"), atomic_file::WriteError);
+    // A folder in the file's place: WriteError on every platform (a folder opens as a stream
+    // on Linux and macOS, and reads nothing on macOS - never an empty "file").
+    std::filesystem::create_directories(tmp / "a-folder.json");
+    try {
+        atomic_file::read_file(tmp / "a-folder.json");
+        FAIL("expected WriteError");
+    } catch (const atomic_file::WriteError& e) {
+        CHECK(e.path == platform::utf8_from_path(tmp / "a-folder.json"));
+        CHECK(e.reason == "is a directory");
+    }
 }
 
 #ifndef _WIN32

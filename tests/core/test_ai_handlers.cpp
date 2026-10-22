@@ -29,8 +29,14 @@ namespace {
 
 namespace fs = std::filesystem;
 
+// The bundled list as the core names it: its resources folder is the canonical path
+// (core_server's resolve_resources_dir), while CMake spells the source folder with forward
+// slashes on Windows. The same file, compared in the same form.
 fs::path bundled_file() {
-    return fs::path(MFBE_RESOURCES_SOURCE_DIR) / "ai-services.json";
+    const fs::path file = platform::path_from_utf8(MFBE_RESOURCES_SOURCE_DIR) / "ai-services.json";
+    std::error_code ec;
+    const fs::path canonical = fs::weakly_canonical(file, ec);
+    return ec ? file.lexically_normal() : canonical;
 }
 
 fs::path fixture(const char* name) {

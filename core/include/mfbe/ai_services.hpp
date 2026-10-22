@@ -73,6 +73,9 @@ struct ServiceIssue {
     nlohmann::json to_json() const;    // {file, index?, reason, field?}
 };
 
+// The files of a load, each lexically normalised (`path::lexically_normal`: no `.`/`..`
+// segments, the platform's preferred separators) whatever spelling the caller passed in; the
+// issues name their file the same way.
 struct ServiceFiles {
     std::filesystem::path bundled;
     std::filesystem::path user;  // <Data>/ai-services.json, whether or not it exists
@@ -100,7 +103,8 @@ struct ServiceList {
     nlohmann::json to_json() const;  // rpc-api AiServicesResult
 
     // Reads both files and builds the effective list; never throws for a malformed or missing
-    // file (the issues carry them). Logs every issue once.
+    // file (the issues carry them - a file that is not a regular file, a folder in its place
+    // for one, is `unreadable` on every platform). Logs every issue once.
     static ServiceList load(const std::filesystem::path& bundled_path, const UserLayer& layer);
 };
 
@@ -115,7 +119,7 @@ ParsedFile parse_services_file(const std::filesystem::path& file, std::string_vi
                                Layer layer);
 
 struct UserCopy {
-    std::filesystem::path path;
+    std::filesystem::path path;  // the user file, normalised like ServiceFiles::user
     bool created = false;
 };
 
