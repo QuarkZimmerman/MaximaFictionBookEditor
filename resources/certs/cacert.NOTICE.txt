@@ -1,0 +1,37 @@
+Mozilla CA certificate bundle (cacert.pem)
+==========================================
+
+cacert.pem is Mozilla's CA certificate data - the root certificates of the Mozilla root
+store (certdata.txt of the Network Security Services) in PEM form, as extracted and
+distributed by the curl project (https://curl.se/docs/caextract.html). Maxima Fiction
+Book Editor ships the file unmodified.
+
+Licence
+-------
+The certificate data is distributed under the Mozilla Public License, version 2.0
+(MPL-2.0, https://www.mozilla.org/MPL/2.0/). The editor only reads the file at run time
+and never combines it with its code - an aggregated data file in the sense of GPLv3
+section 5 - and redistributes it under the MPL-2.0 together with this notice. The full
+licence text is in MPL-2.0.txt next to this file and, with the other third-party licence
+texts, installed under share/doc/mfbe/licenses/; THIRD-PARTY-NOTICES.md lists the bundle
+in its "Aggregated data files" section.
+
+Provenance of the shipped copy
+------------------------------
+Source : https://curl.se/ca/cacert.pem (digest file cacert.pem.sha256 next to it)
+Date   : Certificate data from Mozilla as of: Tue Oct 20 13:32:40 2026 GMT (2026-10-20)
+Size   : 200116 bytes, 118 root certificates
+SHA-256: 796f1389bfea13c0ed78f663b765baaff54a508e5483786bd6ece73c5e3e3cbe
+
+Use by the editor
+-----------------
+The editor uses this bundle on Linux only, and only when neither the environment
+(SSL_CERT_FILE, CURL_CA_BUNDLE) nor the distribution (/etc/ssl/certs/ca-certificates.crt,
+/etc/pki/tls/certs/ca-bundle.crt, /etc/ssl/ca-bundle.pem, /etc/ssl/cert.pem) provides a
+CA bundle. The Windows and macOS packages do not carry it: there the system certificate
+stores verify the connections.
+
+Refresh
+-------
+python3 tools/refresh-cacert.py downloads the current bundle and its digest from
+https://curl.se/ca/, verifies the digest and rewrites cacert.pem and this notice.

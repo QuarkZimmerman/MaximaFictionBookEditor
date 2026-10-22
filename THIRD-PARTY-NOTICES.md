@@ -125,13 +125,15 @@ distributed and are therefore not listed.
 | Component | Version | Licence | Full text | Notes |
 |---|---|---|---|---|
 | Hunspell dictionary uk_UA (dict_uk) | dict_uk release v6.8.6 | MPL-1.1 | `resources/dictionaries/uk_UA.txt` | uk_UA.aff and uk_UA.dic are read at run time by Hunspell and not combined into the program (aggregate, GPLv3 section 5; decision D16); the upstream generator notice also names GPL-3.0-or-later and LGPL-2.1-or-later; notice installed as share/mfbe/resources/dictionaries/uk_UA.txt and shown in About |
+| Mozilla CA certificate bundle (cacert.pem, as published by the curl project) | Mozilla root store as of 2026-10-20; SHA-256 796f1389bfea | MPL-2.0 | `resources/certs/cacert.NOTICE.txt` | cacert.pem is read at run time by libcurl, on Linux only and only when neither the environment nor the distribution provides a CA bundle, and is not combined into the program (aggregate, GPLv3 section 5; decision D16); the Linux packages ship it with its notice as share/mfbe/resources/certs/, Windows and macOS use the system stores and carry nothing of it; the notice is shown in About on Linux; the MPL-2.0 text is resources/certs/MPL-2.0.txt, exported next to the notice |
 
 Data files the editor's libraries read at run time and that are never combined into the
 program: aggregates in the sense of GPLv3 section 5 (constitution principle VI, decision
 D16). Their licences need not be GPL-3.0-compatible; they must allow free redistribution
-with the notice that ships next to each file (MPL-1.1 qualifies; licences forbidding
-redistribution or commercial use do not). The notice is installed with the file and shown
-in Help > About like the other dictionaries' notices.
+with the notice that ships next to each file (MPL-1.1 and MPL-2.0 qualify; licences
+forbidding redistribution or commercial use do not). The notice is installed with the file
+and shown in Help > About like the other dictionaries' notices; the CA bundle and its notice
+ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-cacert.py).
 
 ## Build and test tooling (not distributed)
 
@@ -160,6 +162,7 @@ in Help > About like the other dictionaries' notices.
 | GPL-3.0-only | 1 |
 | LGPL-2.1-or-later | 1 |
 | MPL-1.1 | 1 |
+| MPL-2.0 | 1 |
 | SCOWL AND BSD-style AND public-domain | 1 |
 | Zlib | 1 |
 | libpng-2.0 | 1 |
