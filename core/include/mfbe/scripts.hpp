@@ -29,6 +29,7 @@
 #include <filesystem>
 #include <map>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -153,5 +154,59 @@ std::filesystem::path resolve_package_file(const ScriptPackage& package, std::st
 
 // Relative paths of every regular file inside the package (sorted, '/' separators).
 std::vector<std::string> package_files(const ScriptPackage& package);
+
+/* ----------------------------------------------------------------------------------------- */
+/* scripts.write (feature 005, the AI assistant - rpc-api.md §3.8 of the feature,            */
+/* resource-formats.md §D)                                                                   */
+/* ----------------------------------------------------------------------------------------- */
+
+// The default group folder of a script the assistant writes.
+inline constexpr const char* kAssistantGroup = "90_assistant";
+
+// The segment rule: non-empty, not "." or "..", no '/' or '\', no control characters
+// (U+0000-U+001F, U+007F), none of : * ? " < > |, not an NTFS reserved device name (CON, PRN,
+// AUX, NUL, COM1-COM9, LPT1-LPT9 - ASCII case-insensitive, with or without an extension - on
+// every platform, so that a package survives a copy to Windows), at most 255 bytes of UTF-8.
+bool is_valid_path_segment(std::string_view segment);
+// A package file path: relative, '/' separators, every segment under the segment rule (so no
+// leading '/' or '\', no empty, "." or ".." segment).
+bool is_valid_package_path(std::string_view path);
+// The default package folder of an id: its last segment with every character the segment
+// rule forbids replaced by '_' ("assistant/my-tool" -> "my-tool"). May still fail the rule
+// (a reserved device name) - the caller checks.
+std::string default_folder_of_id(std::string_view id);
+
+struct PackageFile {
+    std::string path;     // relative, '/' separators, under is_valid_package_path
+    std::string content;  // UTF-8, written byte for byte
+};
+
+// A write that could not be performed (RPC 1002 doc.ioError {path, reason}); `reason` is
+// "symlink" for a link met where none may be, else the operating system's text.
+struct WriteFailure : std::runtime_error {
+    WriteFailure(std::string path_, std::string reason_)
+        : std::runtime_error(reason_), path(std::move(path_)), reason(std::move(reason_)) {}
+    std::string path;  // UTF-8
+    std::string reason;
+};
+
+// Canonical containment: `candidate` made weakly canonical lies strictly below the canonical
+// `root`.
+bool is_contained(const std::filesystem::path& root, const std::filesystem::path& candidate);
+// Throws WriteFailure {path, "symlink"} when an ancestor of `dir` below `root`, `dir` itself
+// or anything inside it is a symbolic link (symlink_status - never followed).
+void refuse_symlinks(const std::filesystem::path& root, const std::filesystem::path& dir);
+
+// The transient aside folder of a write: <data_dir>/.scripts-write-<pid>.
+std::filesystem::path write_aside_dir(const std::filesystem::path& data_dir);
+// Writes the package all or nothing: the files into the aside folder one by one with the
+// atomic writer, an existing `dir` moved aside whole, the new folder renamed into `dir`, the
+// aside folder removed. A failure restores the old folder, removes the aside folder and
+// throws WriteFailure with `dir` as it was.
+void write_package(const std::filesystem::path& data_dir, const std::filesystem::path& dir,
+                   const std::vector<PackageFile>& files);
+// Removes every <data_dir>/.scripts-write-* folder an interrupted write left behind (called
+// by every rescan of the scripts). Best effort.
+void remove_write_leftovers(const std::filesystem::path& data_dir);
 
 }  // namespace mfbe::scripts

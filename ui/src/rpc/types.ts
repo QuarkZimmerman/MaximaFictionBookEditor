@@ -78,6 +78,10 @@ export const RpcErrorCode = {
   // feature 005 — doc.fragment*, schema.text, scripts.write
   /** `doc.fragmentFromXml`: the parent element cannot hold this element; `data` {element, parent}. */
   aiFragmentNotAllowed: 1201,
+  /** `scripts.write`: the id belongs to a bundled script, which is never modified; `data` {id}. */
+  aiScriptIdBundled: 1202,
+  /** `scripts.write`: a user script with this id or this folder exists and `overwrite` is not set; `data` {id, path}. */
+  aiScriptExists: 1203,
   // Client-side conditions raised by the RPC client itself (never sent by the core).
   clientTimeout: -32001,
   clientDisconnected: -32002,
@@ -638,6 +642,28 @@ export interface SchemaTextResult {
   notice: string;
 }
 
+/** One file of a script package `scripts.write` writes (feature 005, rpc-api.md §3.8). */
+export interface ScriptPackageFile {
+  /** Relative to the package folder, `/` separators, every segment under the segment rule. */
+  path: string;
+  /** UTF-8 text, written byte for byte (no BOM added); at most 1 MiB. */
+  content: string;
+}
+
+/** `scripts.write` result: the package folder (absolute, UTF-8) and the loader's warnings. */
+export interface ScriptWriteResult {
+  id: string;
+  path: string;
+  reloaded: true;
+  warnings: string[];
+}
+
+/** `data` of 1203 `ai.scriptExists`: the package with the id, or the target folder. */
+export interface AiScriptExistsData {
+  id: string;
+  path: string;
+}
+
 /* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
@@ -1003,6 +1029,33 @@ export interface RpcMethods {
    * (`schema.element` is reserved for a later minor and not registered in 0.0.5.)
    */
   'schema.text': { params: void; result: SchemaTextResult };
+  /**
+   * Writes a **user** script package and re-reads the scripts (feature 005, rpc-api.md §3.8;
+   * the confirmation of FR-082 happens in the UI before this call). Target:
+   * `<Data>/scripts/<group>/<folder>/` - `group` default `90_assistant`, `folder` default the
+   * last segment of `id` with forbidden characters replaced by `_`; `group`, `folder` and
+   * every path segment under the segment rule (no `.`/`..`, `/`, `\`, control characters,
+   * `: * ? " < > |`, NTFS device names; <= 255 bytes); `files` 1-64, distinct paths, <= 1 MiB
+   * each and 4 MiB together, `script.json` among them with the call's `id` and its `entry`
+   * (default `index.js`) in the set. Errors: invalidParams {field: 'id' | 'group' | 'folder'
+   * | 'files' | 'files[<i>].path' | 'files[<i>].content' | 'files.script.json.id'}; 1031 {id,
+   * errors} for a manifest the loader refuses (`missingManifest`, `entryMissing` included);
+   * 1202 {id} for a bundled id; 1203 {id, path} for a non-bundled package with the id
+   * elsewhere or an existing target folder, lifted by `overwrite: true` only when every
+   * conflict is the target folder itself; 1002 {path, reason} - `reason: 'symlink'` for a
+   * link where none may be - with nothing changed (all or nothing through an aside folder).
+   * Then the rescan of `scripts.reload` and `resources.changed {what: 'scripts'}`.
+   */
+  'scripts.write': {
+    params: {
+      id: string;
+      group?: string;
+      folder?: string;
+      files: ScriptPackageFile[];
+      overwrite?: boolean;
+    };
+    result: ScriptWriteResult;
+  };
 }
 
 export type RpcMethodName = keyof RpcMethods;

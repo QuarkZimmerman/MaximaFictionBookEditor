@@ -60,6 +60,10 @@ const char* error_name(int code) {
             return "cancelled";
         case codes::kAiFragmentNotAllowed:
             return "ai.fragmentNotAllowed";
+        case codes::kAiScriptIdBundled:
+            return "ai.scriptIdBundled";
+        case codes::kAiScriptExists:
+            return "ai.scriptExists";
         default:
             return "";
     }

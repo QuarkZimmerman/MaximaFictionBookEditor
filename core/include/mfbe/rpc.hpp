@@ -64,6 +64,10 @@ inline constexpr int kCancelled = 1090;
 // Feature 005 (the AI assistant): doc.fragmentFromXml - the parent element cannot hold this
 // element {element, parent}.
 inline constexpr int kAiFragmentNotAllowed = 1201;
+// Feature 005: scripts.write - the id belongs to a bundled script, never modified {id}; a
+// non-bundled package with this id or this folder exists and `overwrite` is not set {id, path}.
+inline constexpr int kAiScriptIdBundled = 1202;
+inline constexpr int kAiScriptExists = 1203;
 }  // namespace codes
 
 // Stable name of an error code ("doc.notFound", "invalidParams", ...); "" for unknown codes.
