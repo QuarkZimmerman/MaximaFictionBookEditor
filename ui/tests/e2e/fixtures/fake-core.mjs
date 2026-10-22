@@ -167,6 +167,7 @@ const methods = {
     logDir: path.join(dataDir, 'logs'),
     resourceLayers: [],
     apiVersion: 1,
+    apiMinor: 4,
   }),
   'app.quit': () => {
     setTimeout(() => process.exit(0), 50);

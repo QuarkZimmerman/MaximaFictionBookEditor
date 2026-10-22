@@ -2,8 +2,9 @@
  * Typed surface of the core <-> UI JSON-RPC contract
  * (specs/001-maxima-fb2-editor/contracts/rpc-api.md, version 1, with the additive changes of
  * specs/002-tester-feedback-fixes/contracts/rpc-api.md, minor 1,
- * specs/003-second-feedback-batch/contracts/rpc-api.md, minor 2, and
- * specs/004-third-feedback-batch/contracts/rpc-api.md, minor 3).
+ * specs/003-second-feedback-batch/contracts/rpc-api.md, minor 2,
+ * specs/004-third-feedback-batch/contracts/rpc-api.md, minor 3, and
+ * specs/005-ai-assistant/contracts/rpc-api.md, minor 4).
  *
  * Every method of rpc-api.md §3 and §5 appears in `RpcMethods`; every notification of §4 in
  * `RpcNotifications`. Document types come from the shared model (`@/model/document`).
@@ -24,9 +25,11 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for; it accepts any core answering minor >= 1 (rpc-api.md §6).
+ * revision this UI was written for; it accepts any core answering minor >= 1 (rpc-api.md §6) -
+ * the client performs no minor check at connect time; the AI assistant (feature 005) reads
+ * `app.info().apiMinor` itself and requires >= 4.
  */
-export const RPC_API_MINOR = 3;
+export const RPC_API_MINOR = 4;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -177,8 +180,9 @@ export interface AppInfo {
   resourceLayers: ResourceLayer[];
   apiVersion: number;
   /**
-   * Additive contract revision (feature 002: 1, feature 003: 2, feature 004: 3); the UI accepts
-   * minor >= 1 and, with a core that answers no `serial`, switches views without mapping.
+   * Additive contract revision (feature 002: 1, feature 003: 2, feature 004: 3, feature 005:
+   * 4); the UI accepts minor >= 1 and, with a core that answers no `serial`, switches views
+   * without mapping; the AI assistant requires >= 4 and registers nothing with an older core.
    */
   apiMinor: number;
 }
