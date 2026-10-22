@@ -94,6 +94,9 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('view.tableBar'),
       cmd('view.statusBar'),
       cmd('view.tree'),
+      // The AI assistant panel (feature 005): the entry is hidden while the assistant is
+      // disabled (`Command.visible`), so this list does not change with the setting.
+      cmd('ai.toggle'),
       sep,
       cmd('view.description'),
       cmd('view.body'),

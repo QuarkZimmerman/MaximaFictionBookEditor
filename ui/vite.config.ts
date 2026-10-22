@@ -17,7 +17,11 @@ const core = process.env.MFBE_CORE ?? 'http://127.0.0.1:41237';
 // chunk except the static set the main bundle imports directly (the entry, the address helpers,
 // the agreements and the test hooks); so do the MCP SDK packages and their production
 // transitives (the closure of the three exact pins in package-lock.json). Everything else - the
-// settings page included, it lives outside the folder - stays in the main `index-*.js`.
+// settings page included, it lives outside the folder - stays in the main `index-*.js`. The
+// rule is a rolldown code-splitting group with `includeDependenciesRecursively: false`: the
+// default (and the `manualChunks` compatibility path) would drag the matched modules'
+// dependencies - the store, React - into the chunk and make `index-*.js` import it statically,
+// the opposite of lazy. `tests/unit/ai/chunk.test.ts` checks the built output.
 const aiFolder = fileURLToPath(new URL('./src/ai/', import.meta.url)).replace(/\\/g, '/');
 const aiStaticModules = new Set(['index.ts', 'address.ts', 'agreements.ts', 'testHooks.ts']);
 const aiPackages = [
@@ -35,19 +39,20 @@ const aiPackages = [
   'shebang-regex/',
 ];
 
-function aiAssistantChunk(id: string): string | undefined {
+/** True for a module of the `ai-assistant` chunk (exported for the unit test of the rule). */
+export function isAiAssistantModule(id: string): boolean {
   // Module ids may carry a query (`?raw`, `?worker`, …) and, on Windows, backslashes.
   const path = id.split('?')[0].replace(/\\/g, '/');
   if (path.startsWith(aiFolder)) {
-    return aiStaticModules.has(path.slice(aiFolder.length)) ? undefined : 'ai-assistant';
+    return !aiStaticModules.has(path.slice(aiFolder.length));
   }
   const marker = '/node_modules/';
   const index = path.lastIndexOf(marker);
   if (index >= 0) {
     const packagePath = path.slice(index + marker.length);
-    if (aiPackages.some((prefix) => packagePath.startsWith(prefix))) return 'ai-assistant';
+    return aiPackages.some((prefix) => packagePath.startsWith(prefix));
   }
-  return undefined;
+  return false;
 }
 
 // Kept as a plain object (not a callback) so vitest.config.ts can merge it.
@@ -67,11 +72,19 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        // A function, not a map: the chunk exists only once a module matches, so a build
-        // without AI modules emits no empty `ai-assistant-*.js`.
-        manualChunks: aiAssistantChunk,
+        codeSplitting: {
+          groups: [
+            {
+              name: 'ai-assistant',
+              test: isAiAssistantModule,
+              // The matched modules only: their shared dependencies stay in the main bundle,
+              // which the chunk imports (not the other way round).
+              includeDependenciesRecursively: false,
+            },
+          ],
+        },
       },
     },
   },

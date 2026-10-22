@@ -40,7 +40,10 @@ import { pressAlt } from './fixtures/keys';
 const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const SCRIPT_FIXTURES = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures');
 
-/** The Commands toolbar of the original (`IDR_MAINFRAME TOOLBAR`), "-" for a separator. */
+/**
+ * The Commands toolbar of the original (`IDR_MAINFRAME TOOLBAR`), "-" for a separator, plus
+ * the AI assistant's button after the view buttons (feature 005, research R8.6).
+ */
 const ORIGINAL_COMMANDS = [
   'file.new',
   'file.open',
@@ -51,6 +54,7 @@ const ORIGINAL_COMMANDS = [
   'view.description',
   'view.body',
   'view.source',
+  'ai.toggle',
   '-',
   'insert.binary',
   'insert.image',

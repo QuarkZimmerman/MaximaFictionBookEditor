@@ -9,6 +9,7 @@ import {
   COMMAND_GROUPS,
   commandTooltip,
   type Command,
+  type CommandContext,
   type CommandGroup,
   type CommandRegistry,
 } from '@/app/commands';
@@ -28,14 +29,19 @@ export function qualifiedCommandName(command: Command, t: TFunction): string {
   return `${groupLabel(command.group, t)} \\ ${commandTooltip(command, t)}`;
 }
 
+/**
+ * The commands of a group in the page's order; an invisible command (the AI assistant's while
+ * the assistant is disabled, feature 005 FR-096) has no row.
+ */
 export function commandsOfGroup(
   registry: CommandRegistry,
   group: CommandGroup,
   t: TFunction,
+  ctx: CommandContext,
 ): Command[] {
   return registry
     .byGroup(group)
-    .slice()
+    .filter((command) => registry.isVisible(command.id, ctx))
     .sort((a, b) => commandTooltip(a, t).localeCompare(commandTooltip(b, t)));
 }
 

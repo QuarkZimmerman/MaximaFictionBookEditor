@@ -43,6 +43,85 @@ export interface RunLock {
   phase?: string;
 }
 
+/** A message of the assistant's conversation (feature 005 data-model §5.1). */
+export interface AssistantMessage {
+  id: string;
+  /** `Date.now()` when the message was added. */
+  at: number;
+  requestId: string;
+  /** `notice` is editor-generated, localised text (a failure, "request cancelled"...). */
+  role: 'user' | 'assistant' | 'notice';
+  text: string;
+  /** Assistant words beside tool calls - shown, never the final answer. */
+  interim?: true;
+  /** `finish_reason: length` without tool calls - shown as cut off, never applied. */
+  cutOff?: true;
+  /** Appended to the final text when the turn is resent as history (ai-catalogue §5.2). */
+  appliedLine?: string;
+  /** `assistant` after `committed`: the summary beside the Undo button. */
+  undoLabel?: string;
+}
+
+/** One line of the activity list (feature 005 data-model §5.2; the kinds of ai-catalogue §6.16). */
+export interface AssistantActivityEntry {
+  at: number;
+  requestId: string;
+  elapsedMs: number;
+  kind: string;
+  payload: Record<string, unknown>;
+}
+
+/**
+ * The assistant's conversation (feature 005 data-model §5.1): in memory only, empty while the
+ * assistant is off, cleared by Clear, turn-off, a document change and exit (FR-045).
+ */
+export interface AssistantConversation {
+  /** The document it belongs to; a different `docId` clears it. Null while empty. */
+  docId: string | null;
+  messages: AssistantMessage[];
+  activity: AssistantActivityEntry[];
+  /** How many oldest turns the last exchange left out (FR-025). */
+  droppedTurns: number;
+}
+
+/**
+ * The request the panel and the popup show (feature 005 data-model §4): the stories that run
+ * requests (US2, US3) own its full shape; the store holds what they publish, null while none
+ * runs.
+ */
+export interface AssistantRequestView {
+  /** `r<N>` per page session. */
+  id: string;
+  origin: 'popup' | 'panel';
+  /** The state of data-model §4.3. */
+  state: string;
+  /** `Date.now()` at the start. */
+  startedAt: number;
+  [detail: string]: unknown;
+}
+
+/**
+ * The AI assistant's state (feature 005 data-model §3.1; never persisted): `on` is false at
+ * every start (FR-090) and flips only through the user's `ai.toggle` and the transitions of
+ * §3.3; `width` mirrors `session.aiPanelWidth` like `treeWidth` mirrors `session.treeWidth`
+ * (adopted from the first settings snapshot, written back by the divider's drag end through the
+ * debounced session save); `loaded` records the one import of the lazy chunk; `catalogue`, the
+ * `request` and the `conversation` exist only while `on`; `panelFocus` is set by the popup's
+ * "Continue in panel" and `contextLengthHint` by Fetch models and overflow messages - in memory
+ * only, never a setting (review C13).
+ */
+export interface AssistantState {
+  on: boolean;
+  width: number;
+  loaded: boolean;
+  /** The catalogue instance (§8.5), typed by the lazy chunk that builds and drops it. */
+  catalogue: object | null;
+  request: AssistantRequestView | null;
+  conversation: AssistantConversation;
+  panelFocus: boolean;
+  contextLengthHint: number | null;
+}
+
 export interface AppState {
   /** Core connection status (mirrors the RPC client). */
   connection: ConnectionStatus;
@@ -97,6 +176,8 @@ export interface AppState {
   /** Toolbar layout changes sent to the core and not answered yet (app/toolbarLayouts.ts). */
   layoutSavesPending: number;
   uiLanguage: UiLanguage;
+  /** The AI assistant (feature 005): off at every start, never persisted. */
+  ai: AssistantState;
 }
 
 export const DEFAULT_TOOLBARS: ToolbarVisibility = {
@@ -109,6 +190,29 @@ export const DEFAULT_TOOLBARS: ToolbarVisibility = {
 
 /** The pane width of release 0.0.3 - the default of `session.treeWidth` (resource-formats §6). */
 export const DEFAULT_TREE_WIDTH = 260;
+
+/** The default of `session.aiPanelWidth` (feature 005 resource-formats §B; data-model §3.2). */
+export const DEFAULT_AI_PANEL_WIDTH = 360;
+
+/** An empty conversation (feature 005 data-model §5.1): the state while the assistant is off. */
+export function emptyConversation(): AssistantConversation {
+  return { docId: null, messages: [], activity: [], droppedTurns: 0 };
+}
+
+/** The assistant's state at start-up: off, nothing loaded, the default width until the settings arrive. */
+export function createAssistantState(overrides: Partial<AssistantState> = {}): AssistantState {
+  return {
+    on: false,
+    width: DEFAULT_AI_PANEL_WIDTH,
+    loaded: false,
+    catalogue: null,
+    request: null,
+    conversation: emptyConversation(),
+    panelFocus: false,
+    contextLengthHint: null,
+    ...overrides,
+  };
+}
 
 export function createInitialState(overrides: Partial<AppState> = {}): AppState {
   return {
@@ -137,6 +241,7 @@ export function createInitialState(overrides: Partial<AppState> = {}): AppState 
     settings: null,
     layoutSavesPending: 0,
     uiLanguage: 'en',
+    ai: createAssistantState(),
     ...overrides,
   };
 }
@@ -384,6 +489,19 @@ export const actions = {
   },
 
   /**
+   * The AI panel's divider drag ended: the width the user settled on (feature 005 FR-040),
+   * written back like `treeWidth` through the debounced session save.
+   */
+  setAiPanelWidth(store: AppStore, width: number): void {
+    store.setState((s) => (s.ai.width === width ? {} : { ai: { ...s.ai, width } }));
+  },
+
+  /** Changes part of the assistant's state (feature 005 data-model §3); `width` has its own action. */
+  updateAi(store: AppStore, patch: Partial<Omit<AssistantState, 'width'>>): void {
+    store.setState((s) => ({ ai: { ...s.ai, ...patch } }));
+  },
+
+  /**
    * Applies settings received from the core (settings.get, settings.changed, the result of a
    * settings.set). The toolbar and tree flags and the tree pane width are taken from the first
    * snapshot only - the start-up read of the stored session: from then on they are the
@@ -406,7 +524,10 @@ export const actions = {
     }
     // A core without the key (before API minor 3) leaves the default width.
     const storedWidth = settings.session.treeWidth as number | undefined;
-    store.setState({
+    // Likewise the AI panel width (API minor 4, feature 005): from the first snapshot only; the
+    // on/off state is never a setting (FR-090), so nothing else of `ai` comes from here.
+    const storedPanelWidth = settings.session.aiPanelWidth as number | undefined;
+    store.setState((s) => ({
       settings,
       fastMode: settings.view.fastMode,
       ...(current
@@ -415,8 +536,13 @@ export const actions = {
             toolbars: { ...settings.session.toolbars },
             treeVisible: settings.session.treeVisible,
             treeWidth: typeof storedWidth === 'number' ? storedWidth : DEFAULT_TREE_WIDTH,
+            ai: {
+              ...s.ai,
+              width:
+                typeof storedPanelWidth === 'number' ? storedPanelWidth : DEFAULT_AI_PANEL_WIDTH,
+            },
           }),
-    });
+    }));
   },
 
   /** Counts a toolbar layout change sent to the core (1) or answered (-1). */

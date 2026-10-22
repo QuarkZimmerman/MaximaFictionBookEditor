@@ -60,7 +60,9 @@ export function ToolbarButton({ commandId, size = 24 }: ToolbarButtonProps) {
   const ctx = useCommandContext();
   useAppRevision();
   const command = services.commands.get(commandId);
-  if (!command) return null;
+  // An unregistered command has no button; neither has an invisible one (the AI assistant's
+  // `ai.toggle` while the assistant is disabled, feature 005 FR-096).
+  if (!command || !services.commands.isVisible(commandId, ctx)) return null;
   const enabled = services.commands.isEnabled(commandId, ctx);
   const checked = services.commands.isChecked(commandId, ctx);
   const tooltip = commandTooltip(command, t);

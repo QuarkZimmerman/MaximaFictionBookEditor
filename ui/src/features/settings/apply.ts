@@ -21,11 +21,12 @@
  *    original "In order to process changes the program must be restarted. Restart now?"
  *    prompt (Yes restarts the editor through `app.restart` - the shell starts it again with
  *    the same document and window - or reloads the page in browser mode; feature 003 US3).
- *  - **Session**: toolbar visibility, the document tree flag and the tree pane width
- *    (`session.treeWidth`, feature 004 US1) are written back to `session.*` through
- *    `settings.set` (debounced; `flushSessionSave` writes a pending save at once - the quit
- *    flow waits for it before `app.quit`, so a width dragged just before the exit is stored,
- *    FR-003). They are the window's own state: the store adopts them from the start-up read
+ *  - **Session**: toolbar visibility, the document tree flag, the tree pane width
+ *    (`session.treeWidth`, feature 004 US1) and the AI panel width (`session.aiPanelWidth`,
+ *    feature 005 FR-040) are written back to `session.*` through `settings.set` (debounced;
+ *    `flushSessionSave` writes a pending save at once - the quit flow waits for it before
+ *    `app.quit`, so a width dragged just before the exit is stored, FR-003). They are the
+ *    window's own state: the store adopts them from the start-up read
  *    only, and the snapshots the core reports later (`settings.changed` after any
  *    `settings.set`, the results of `settings.set`) leave them alone - such a snapshot may
  *    predate a change still waiting for its delayed save and would undo it
@@ -325,7 +326,8 @@ export class SettingsFeature {
         state.settings &&
         (state.toolbars !== previous.toolbars ||
           state.treeVisible !== previous.treeVisible ||
-          state.treeWidth !== previous.treeWidth)
+          state.treeWidth !== previous.treeWidth ||
+          state.ai.width !== previous.ai.width)
       ) {
         this.scheduleSessionSave();
       }
@@ -403,7 +405,10 @@ export class SettingsFeature {
     await this.saveSession();
   }
 
-  /** Persists toolbar/tree visibility and the tree width when they differ from the stored session. */
+  /**
+   * Persists toolbar/tree visibility, the tree width and the AI panel width when they differ
+   * from the stored session.
+   */
   async saveSession(): Promise<boolean> {
     const rpc = this.rpcClient;
     const state = this.store.getState();
@@ -418,6 +423,10 @@ export class SettingsFeature {
     // the whole patch.
     if (typeof session.treeWidth === 'number' && session.treeWidth !== state.treeWidth) {
       patch.treeWidth = state.treeWidth;
+    }
+    // The AI panel width the same way (API minor 4, feature 005 FR-040).
+    if (typeof session.aiPanelWidth === 'number' && session.aiPanelWidth !== state.ai.width) {
+      patch.aiPanelWidth = state.ai.width;
     }
     if (Object.keys(patch).length === 0) return false;
     try {

@@ -62,6 +62,94 @@ describe('App shell', () => {
     expect(screen.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('leaves an invisible command out of the menu and the toolbar without doubling a separator (feature 005)', async () => {
+    const { user, services } = await renderApp();
+    // The View menu: the AI entry sits between Document Tree and the first separator; as an
+    // invisible stub it leaves no row, no doubled separator and no gap in the arrow order.
+    await user.click(screen.getByTestId('menu-view'));
+    let view = screen.getByTestId('menu-view-popup');
+    expect(within(view).queryByTestId('menu-view-toggle')).not.toBeInTheDocument();
+    expect(within(view).getAllByRole('separator')).toHaveLength(2);
+    expect(view.querySelectorAll('[role^="menuitem"]')).toHaveLength(10);
+    expect(screen.queryByTestId('toolbar-ai.toggle')).not.toBeInTheDocument();
+    // The wrapper of the toolbar slot stays (the layout is the stored one) but holds no button.
+    expect(
+      screen.getByTestId('toolbar-commands').querySelector('[data-toolbar-item="ai.toggle"]'),
+    ).toBeEmptyDOMElement();
+    await user.keyboard('{Escape}');
+
+    // The feature takes the stub over with a visible command: the row and the button appear,
+    // with the label, the hotkey and the checked state of a toggle.
+    act(() => {
+      services.commands.replace({
+        id: 'ai.toggle',
+        group: 'view',
+        labelKey: 'menu.view.aiAssistant',
+        tooltipKey: 'cmd.ai.toggle.tooltip',
+        icon: 'ai-assistant',
+        checked: () => true,
+        run: () => {},
+      });
+    });
+    await user.click(screen.getByTestId('menu-view'));
+    view = screen.getByTestId('menu-view-popup');
+    const entry = within(view).getByTestId('menu-view-toggle');
+    expect(entry).toHaveTextContent('AI Assistant');
+    expect(entry).toHaveTextContent('Ctrl+Shift+A');
+    expect(entry).toHaveAttribute('data-checked', 'true');
+    expect(within(view).getAllByRole('separator')).toHaveLength(2);
+    expect(screen.getByTestId('toolbar-ai.toggle')).toHaveAttribute(
+      'title',
+      'AI Assistant (Ctrl+Shift+A)',
+    );
+    await user.keyboard('{Escape}');
+
+    // Hidden again (the assistant disabled): both are gone, the separator count unchanged.
+    act(() => {
+      services.commands.replace({
+        id: 'ai.toggle',
+        group: 'view',
+        labelKey: 'menu.view.aiAssistant',
+        visible: () => false,
+        run: () => {},
+      });
+    });
+    await user.click(screen.getByTestId('menu-view'));
+    view = screen.getByTestId('menu-view-popup');
+    expect(within(view).queryByTestId('menu-view-toggle')).not.toBeInTheDocument();
+    expect(within(view).getAllByRole('separator')).toHaveLength(2);
+    expect(screen.queryByTestId('toolbar-ai.toggle')).not.toBeInTheDocument();
+  });
+
+  it('hosts the AI panel slot on the right while the assistant is on (feature 005 FR-040)', async () => {
+    const { store } = await renderApp();
+    expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ai-splitter')).not.toBeInTheDocument();
+
+    act(() => {
+      actions.updateAi(store, { on: true });
+    });
+    const panel = screen.getByTestId('ai-panel');
+    expect(panel).toHaveAttribute('data-ai-width', '360'); // the stored value as is
+    const splitter = screen.getByTestId('ai-splitter');
+    expect(splitter).toHaveAttribute('role', 'separator');
+    expect(splitter).toHaveAttribute('aria-label', 'AI assistant panel divider');
+    // The divider and the panel follow the view area; the applied width is the clamped one
+    // (jsdom's main area is 0 px wide: the panel minimum).
+    const main = panel.parentElement!;
+    expect(main).toHaveClass('mfbe-main');
+    expect(splitter.nextElementSibling).toBe(panel);
+    expect(splitter.previousElementSibling).toBe(screen.getByTestId('view-area'));
+    expect(main.style.getPropertyValue('--mfbe-ai-panel-width')).toBe('280px');
+
+    act(() => {
+      actions.updateAi(store, { on: false });
+    });
+    expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ai-splitter')).not.toBeInTheDocument();
+    expect(store.getState().ai.width).toBe(360); // hiding the panel keeps the width
+  });
+
   it('toggling the status bar through the View menu hides it', async () => {
     const { user } = await renderApp();
     await user.click(screen.getByTestId('menu-view'));

@@ -102,7 +102,29 @@ function fitPopupInViewport(popup: HTMLElement | null): void {
   }
 }
 
-/** Resolves menu specs into labels, states and hotkeys (recursively for submenus). */
+/**
+ * Drops the separators that invisible entries left meaningless: a separator at either end of
+ * the list and the second of two adjacent ones (the first stays).
+ */
+function collapseSeparators(items: ResolvedItem[]): ResolvedItem[] {
+  const out: ResolvedItem[] = [];
+  for (const item of items) {
+    const separator = item.spec.kind === 'separator';
+    if (separator && (out.length === 0 || out[out.length - 1]!.spec.kind === 'separator')) {
+      continue;
+    }
+    out.push(item);
+  }
+  while (out.length > 0 && out[out.length - 1]!.spec.kind === 'separator') out.pop();
+  return out;
+}
+
+/**
+ * Resolves menu specs into labels, states and hotkeys (recursively for submenus). A registered
+ * command whose `visible` predicate says no is left out altogether - not rendered as a disabled
+ * entry as an unregistered command is - and a separator it leaves doubled or dangling goes
+ * with it (feature 005: the AI assistant's entry while the assistant is disabled).
+ */
 function resolveItems(
   menuId: string,
   items: MenuItemSpec[],
@@ -111,10 +133,12 @@ function resolveItems(
 ): ResolvedItem[] {
   const { services, ctx, t, dynamicItems } = deps;
   const source = dynamic && dynamicItems[dynamic]?.length ? dynamicItems[dynamic]! : items;
-  return source.map((spec, index) => {
+  const resolved: ResolvedItem[] = [];
+  let hidden = false;
+  source.forEach((spec, index) => {
     const testId = menuItemTestId(menuId, spec, index);
     if (spec.kind === 'separator') {
-      return {
+      resolved.push({
         spec,
         testId,
         label: '',
@@ -124,13 +148,18 @@ function resolveItems(
         checked: false,
         toggle: false,
         hotkey: undefined,
-      };
+      });
+      return;
     }
     if (spec.kind === 'command') {
       const command = services.commands.get(spec.commandId);
+      if (command && !services.commands.isVisible(spec.commandId, ctx)) {
+        hidden = true;
+        return;
+      }
       const raw = command ? commandLabelRaw(command, t) : spec.commandId;
       const parsed = parseAccelerator(raw);
-      return {
+      resolved.push({
         spec,
         testId,
         label: parsed.text,
@@ -140,11 +169,12 @@ function resolveItems(
         checked: command ? services.commands.isChecked(spec.commandId, ctx) : false,
         toggle: command?.checked !== undefined,
         hotkey: services.hotkeys.display(spec.commandId),
-      };
+      });
+      return;
     }
     const parsed = parseAccelerator(t(spec.labelKey));
     if (spec.kind === 'submenu') {
-      return {
+      resolved.push({
         spec,
         testId,
         label: parsed.text,
@@ -155,9 +185,10 @@ function resolveItems(
         toggle: false,
         hotkey: undefined,
         items: resolveItems(`${menuId}-${spec.id}`, spec.items, spec.dynamic, deps),
-      };
+      });
+      return;
     }
-    return {
+    resolved.push({
       spec,
       testId,
       label: parsed.text,
@@ -167,8 +198,9 @@ function resolveItems(
       checked: false,
       toggle: false,
       hotkey: undefined,
-    };
+    });
   });
+  return hidden ? collapseSeparators(resolved) : resolved;
 }
 
 /** Renders `Save &As...` with the accelerator underlined. */

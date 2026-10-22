@@ -8,7 +8,15 @@
  * is usable (feature 003 US5) and the global hotkey dispatcher.
  */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { DialogHost, ValidationPanel, createIssueNavigator } from '@/dialogs';
@@ -30,7 +38,13 @@ import { installGlobalErrorLogging } from './diagnostics';
 import { createAppServices, useAppServices, useCommandContext, type AppServices } from './services';
 import { MenuBar } from './MenuBar';
 import type { DynamicMenuItems } from './menus';
-import { TREE_WIDTH_VARIABLE, attachSplitterDrag, clampTreeWidth } from './splitter';
+import {
+  AI_PANEL_WIDTH_VARIABLE,
+  TREE_WIDTH_VARIABLE,
+  attachSplitterDrag,
+  clampPanelWidth,
+  clampTreeWidth,
+} from './splitter';
 import { forcedLanguage, openPathAtStartup } from './startup';
 import { StatusBar } from './StatusBar';
 import { followTextFieldFocus, textFieldOf } from './textFields';
@@ -101,6 +115,8 @@ function Shell({
   const activeView = useAppState((s) => s.activeView, store);
   const treeVisible = useAppState((s) => s.treeVisible, store);
   const treeWidth = useAppState((s) => s.treeWidth, store);
+  const aiOn = useAppState((s) => s.ai.on, store);
+  const aiWidth = useAppState((s) => s.ai.width, store);
   const path = useAppState((s) => s.path, store);
   const modified = useAppState((s) => s.modified, store);
   const hasDocument = useAppState((s) => s.document !== null, store);
@@ -287,6 +303,44 @@ function Shell({
     return attachSplitterDrag(divider, main, (width) => actions.setTreeWidth(store, width));
   }, [store, treeVisible]);
 
+  // The AI assistant panel on the right (feature 005 US3, FR-040; data-model §3.2): the same
+  // scheme mirrored - the stored `ai.width` applied clamped to 280-800 px and to what the main
+  // area leaves beside the tree pane and the view's minimum, re-applied on resize, never
+  // rewritten; its divider drags the pane after it and commits once to the store.
+  const aiSplitterRef = useRef<HTMLDivElement>(null);
+  const panelClamp = useCallback(
+    (width: number, mainWidth: number) =>
+      clampPanelWidth(
+        width,
+        mainWidth,
+        treeVisible ? clampTreeWidth(treeWidth, mainWidth) : 0,
+        treeVisible,
+      ),
+    [treeWidth, treeVisible],
+  );
+  useLayoutEffect(() => {
+    const main = mainRef.current;
+    if (!main || !aiOn) return;
+    const apply = () => {
+      main.style.setProperty(AI_PANEL_WIDTH_VARIABLE, `${panelClamp(aiWidth, main.clientWidth)}px`);
+    };
+    apply();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(apply);
+    observer.observe(main);
+    return () => observer.disconnect();
+  }, [aiOn, aiWidth, panelClamp]);
+  useEffect(() => {
+    const divider = aiSplitterRef.current;
+    const main = mainRef.current;
+    if (!divider || !main || !aiOn) return;
+    return attachSplitterDrag(divider, main, (width) => actions.setAiPanelWidth(store, width), {
+      side: 'right',
+      variable: AI_PANEL_WIDTH_VARIABLE,
+      clamp: panelClamp,
+    });
+  }, [store, aiOn, panelClamp]);
+
   const recentFiles = useSyncExternalStore(
     files.recent.subscribe,
     () => files.recent.files,
@@ -361,6 +415,20 @@ function Shell({
             />
           ) : null}
         </section>
+        {aiOn ? (
+          <>
+            <div
+              ref={aiSplitterRef}
+              className="mfbe-splitter"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t('ai.panel.splitter')}
+              data-testid="ai-splitter"
+            />
+            {/* The panel's content (header, conversation, field) is the assistant's (US3). */}
+            <aside className="mfbe-ai-panel" data-testid="ai-panel" data-ai-width={aiWidth} />
+          </>
+        ) : null}
       </div>
       <StatusBar />
       <DialogHost service={dialogs.service} />

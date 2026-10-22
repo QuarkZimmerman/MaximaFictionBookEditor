@@ -45,9 +45,15 @@ export function CustomizeToolbarDialog({
   const services = useAppServices();
   const settings = useAppState((s) => s.settings, ctx.store);
   const current = shownLayout(settings, toolbar, scriptButtons);
+  // An invisible command (the AI assistant's button while the assistant is disabled, feature
+  // 005 FR-096) is not offered; the layout keeps it where a stored layout has it.
   const available = [
     SEPARATOR,
-    ...availableButtons(toolbar, scriptButtons).filter((item) => !current.includes(item)),
+    ...availableButtons(toolbar, scriptButtons).filter(
+      (item) =>
+        !current.includes(item) &&
+        (!services.commands.has(item) || services.commands.isVisible(item, ctx)),
+    ),
   ];
   const [availableIndex, setAvailableIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);

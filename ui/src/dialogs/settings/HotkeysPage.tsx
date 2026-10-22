@@ -42,14 +42,17 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
   useEffect(() => commands.subscribe(bump), [commands]);
 
   const [group, setGroup] = useState<CommandGroup>(HOTKEY_PAGE_GROUPS[0]!);
-  const groupCommands = useMemo(() => commandsOfGroup(commands, group, t), [commands, group, t]);
+  const groupCommands = useMemo(
+    () => commandsOfGroup(commands, group, t, ctx),
+    [commands, group, t, ctx],
+  );
   const [selectedId, setSelectedId] = useState<string | null>(groupCommands[0]?.id ?? null);
   const selected = groupCommands.find((c) => c.id === selectedId) ?? groupCommands[0] ?? null;
   const [captured, setCaptured] = useState<CapturedHotkey | null>(null);
 
   const selectGroup = (next: CommandGroup) => {
     setGroup(next);
-    setSelectedId(commandsOfGroup(commands, next, t)[0]?.id ?? null);
+    setSelectedId(commandsOfGroup(commands, next, t, ctx)[0]?.id ?? null);
     setCaptured(null);
   };
 

@@ -152,6 +152,69 @@ describe('SettingsFeature session persistence', () => {
     expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(1);
   });
 
+  it('writes the AI panel width when its divider drag ends, like the tree width (feature 005 FR-040)', async () => {
+    let current = defaultSettings();
+    const rpc = fakeRpc({
+      'hotkeys.get': rpcError(-32601, 'Method not found'),
+      'settings.set': (params: unknown) => {
+        current = mergeSettings(current, (params as { patch: unknown }).patch);
+        return { settings: current, restartRequired: false };
+      },
+    });
+    const store = createAppStore();
+    const feature = new SettingsFeature(
+      { store, hotkeys: new HotkeyMap('linux') },
+      { root: null, window: null, search: '' },
+    );
+    feature.install();
+    actions.setSettings(store, current);
+    await feature.attach(rpc.client);
+
+    actions.setAiPanelWidth(store, 480);
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(0); // debounced
+    await vi.advanceTimersByTimeAsync(300);
+    const calls = rpc.calls.filter((c) => c.method === 'settings.set');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.params).toEqual({ patch: { session: { aiPanelWidth: 480 } } });
+    expect(current.session.aiPanelWidth).toBe(480);
+    expect(store.getState().settings?.session.aiPanelWidth).toBe(480);
+
+    // The same width again: nothing to write; the on/off state is never written (FR-090).
+    actions.setAiPanelWidth(store, 480);
+    actions.updateAi(store, { on: true });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(1);
+
+    // Both widths in one delayed save; the flush before a quit sends a pending one at once.
+    actions.setTreeWidth(store, 300);
+    actions.setAiPanelWidth(store, 320);
+    await feature.flushSessionSave();
+    const second = rpc.calls.filter((c) => c.method === 'settings.set');
+    expect(second).toHaveLength(2);
+    expect(second[1]!.params).toEqual({
+      patch: { session: { treeWidth: 300, aiPanelWidth: 320 } },
+    });
+
+    // A core without the key (before API minor 4) is not sent the width.
+    const legacy = createAppStore();
+    const legacySettings = defaultSettings();
+    delete (legacySettings.session as Partial<typeof legacySettings.session>).aiPanelWidth;
+    const legacyRpc = fakeRpc({
+      'hotkeys.get': rpcError(-32601, 'Method not found'),
+      'settings.set': () => ({ settings: legacySettings, restartRequired: false }),
+    });
+    const legacyFeature = new SettingsFeature(
+      { store: legacy, hotkeys: new HotkeyMap('linux') },
+      { root: null, window: null, search: '' },
+    );
+    legacyFeature.install();
+    actions.setSettings(legacy, legacySettings);
+    await legacyFeature.attach(legacyRpc.client);
+    actions.setAiPanelWidth(legacy, 500);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(legacyRpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(0);
+  });
+
   it('flushSessionSave writes a pending save at once - the quit flow waits for it (FR-003)', async () => {
     let current = defaultSettings();
     const rpc = fakeRpc({
@@ -353,5 +416,30 @@ describe('FBE defaults table (app/defaultHotkeys.ts)', () => {
     expect(map.get('edit.removeOuter')).toBe('Ctrl+Alt+Space');
     expect(map.get('scripts.last')).toBe('Ctrl+`');
     expect(map.collisions()).toEqual([]);
+  });
+
+  it('lists the AI assistant rows as additions of this editor in both tables (feature 005)', () => {
+    // No original counterpart (`fbeName: ''`), in the View and Tools groups, the same chords as
+    // the engine table - so `diffDefaultTables` above stays at the two documented chords.
+    expect(FBE_DEFAULT_HOTKEYS).toContainEqual({
+      group: 'view',
+      fbeName: '',
+      commandId: 'ai.toggle',
+      keys: 'Mod+Shift+A',
+    });
+    expect(FBE_DEFAULT_HOTKEYS).toContainEqual({
+      group: 'tools',
+      fbeName: '',
+      commandId: 'ai.ask',
+      keys: 'Mod+K',
+    });
+    const stubs = createBuiltinCommands().filter((c) => c.id.startsWith('ai.'));
+    expect(stubs.map((c) => [c.id, c.group])).toEqual([
+      ['ai.toggle', 'view'],
+      ['ai.ask', 'tools'],
+    ]);
+    const map = new HotkeyMap('linux', { defaults: fbeBoundDefaults() });
+    expect(map.get('ai.toggle')).toBe('Ctrl+Shift+A');
+    expect(map.get('ai.ask')).toBe('Ctrl+K');
   });
 });

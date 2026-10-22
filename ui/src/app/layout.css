@@ -45,6 +45,9 @@
   --mfbe-color-danger-soft: rgba(220, 53, 69, 0.18);
   --mfbe-color-warning: #c89b00;
   --mfbe-color-warning-soft: rgba(255, 193, 7, 0.28);
+  /* Status colours (feature 005, research R8.7): a verified connection, a failed one. */
+  --status-ok: #107c10;
+  --status-bad: #c42b1c;
   --mfbe-color-dialog-bg: #f0f0f0;
   /* Menus and context menus carry their own palette: a submenu sits inside its highlighted
      parent item and the Body context menu inside the Body view, whose colours must not reach
@@ -145,6 +148,8 @@
 
   /* Document Tree pane width: the fallback; App.tsx writes the stored width on .mfbe-main. */
   --mfbe-tree-width: 260px;
+  /* AI assistant panel width (feature 005): the fallback, likewise written on .mfbe-main. */
+  --mfbe-ai-panel-width: 360px;
   --mfbe-menubar-height: 26px;
   --mfbe-toolbar-height: 32px;
   --mfbe-statusbar-height: 24px;
@@ -176,6 +181,8 @@
   --mfbe-color-danger-soft: rgba(240, 102, 92, 0.28);
   --mfbe-color-warning: #e3b341;
   --mfbe-color-warning-soft: rgba(227, 179, 65, 0.3);
+  --status-ok: #6ccb5f;
+  --status-bad: #f0665c;
   --mfbe-color-dialog-bg: #262626;
   --mfbe-color-menu-bg: #1e1e1e;
   --mfbe-color-menu-fg: #e4e4e4;
@@ -267,6 +274,8 @@
     color-scheme: dark;
     --mfbe-color-bg: #1e1e1e;
     --mfbe-color-fg: #e4e4e4;
+    --status-ok: #6ccb5f;
+    --status-bad: #f0665c;
   }
 }
 
@@ -612,6 +621,21 @@ textarea {
   content: '';
   width: 1px;
   background: var(--mfbe-color-border);
+}
+
+/* The AI assistant panel on the right of the view area (feature 005 US3, FR-040; data-model
+   §3.2): rendered only while the assistant is on, after a divider of its own (`ai-splitter`),
+   at `--mfbe-ai-panel-width` (the stored `session.aiPanelWidth` clamped to 280-800 px and the
+   window, written on .mfbe-main by App.tsx). Like the tree pane it may shrink under its minimum
+   when the window is too narrow and gets its width back when the window grows. */
+.mfbe-ai-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 var(--mfbe-ai-panel-width);
+  min-width: 0;
+  min-height: 0;
+  background: var(--mfbe-color-chrome-bg);
+  border-left: 1px solid var(--mfbe-color-border);
 }
 
 /* While the divider is dragged (the class is on <html>, app/splitter.ts): the resize cursor

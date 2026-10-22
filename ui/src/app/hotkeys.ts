@@ -457,10 +457,14 @@ export const DEFAULT_HOTKEYS: readonly DefaultHotkey[] = [
   { commandId: 'view.source', keys: 'Alt+F3' },
   { commandId: 'view.fastMode', keys: 'F5' },
   { commandId: 'view.tree', keys: 'Mod+F5' },
+  // Additions of this editor (feature 005): the AI assistant panel and "Ask AI..." - inert
+  // while the assistant is disabled (the commands are invisible stubs then).
+  { commandId: 'ai.toggle', keys: 'Mod+Shift+A' },
   // Tools
   { commandId: 'tools.words', keys: 'Alt+W' },
   { commandId: 'tools.spellcheck', keys: 'F7' },
   { commandId: 'tools.spellHighlight', keys: 'Shift+F7' },
+  { commandId: 'ai.ask', keys: 'Mod+K' },
   // Scripts
   { commandId: 'scripts.last', keys: 'Mod+`' },
 ];

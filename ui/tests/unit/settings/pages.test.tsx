@@ -9,7 +9,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { createCommandRegistry, type CommandContext } from '@/app/commands';
+import { createCommandRegistry, type CommandContext, type CommandRegistry } from '@/app/commands';
 import { HotkeyMap } from '@/app/hotkeys';
 import { SettingsDialog, type SettingsPageId } from '@/dialogs/SettingsDialog';
 import { installBodyEditor } from '@/features/editing';
@@ -34,6 +34,7 @@ interface Harness {
   ctx: CommandContext & { dialogs: FakeDialogs };
   rpc: FakeRpc;
   feature: SettingsFeature;
+  commands: CommandRegistry;
   root: HTMLElement;
   onClose: ReturnType<typeof vi.fn>;
   user: ReturnType<typeof userEvent.setup>;
@@ -108,7 +109,7 @@ async function setup(
     />,
   );
   await screen.findByTestId('settings-page-view');
-  return { ctx, rpc, feature, root, onClose, user, current: () => current, reloads };
+  return { ctx, rpc, feature, root, onClose, user, current: () => current, reloads, commands };
 }
 
 function settingsSetCalls(rpc: FakeRpc): { patch: Record<string, unknown> }[] {
@@ -555,6 +556,36 @@ describe('SettingsDialog - Hotkeys page', () => {
     const names = commands.map((c) => c.firstElementChild?.textContent ?? '');
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
     expect(names).toContain('Open');
+  });
+
+  it('has no row for an invisible command and gains it once the command is visible (feature 005)', async () => {
+    const { user, commands } = await setup({ page: 'hotkeys' });
+    // The AI assistant's `ai.toggle` is an invisible stub while the assistant is disabled: the
+    // View group lists no row for it although the default table binds Mod+Shift+A to it.
+    await user.click(screen.getByTestId('settings-hotkeys-group-view'));
+    expect(screen.queryByTestId('settings-hotkeys-command-ai.toggle')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('settings-hotkeys-group-tools'));
+    expect(screen.queryByTestId('settings-hotkeys-command-ai.ask')).not.toBeInTheDocument();
+
+    // The feature takes the stub over: the row appears with its default chord.
+    act(() => {
+      commands.replace({
+        id: 'ai.toggle',
+        group: 'view',
+        labelKey: 'menu.view.aiAssistant',
+        tooltipKey: 'cmd.ai.toggle.tooltip',
+        descriptionKey: 'cmd.ai.toggle.description',
+        run: () => {},
+      });
+    });
+    await user.click(screen.getByTestId('settings-hotkeys-group-view'));
+    const row = await screen.findByTestId('settings-hotkeys-command-ai.toggle');
+    expect(row).toHaveTextContent('AI Assistant');
+    expect(row).toHaveTextContent('Ctrl+Shift+A');
+    await user.click(row);
+    expect(screen.getByTestId('settings-hotkeys-description')).toHaveTextContent(
+      'Show or hide the AI assistant panel',
+    );
   });
 });
 

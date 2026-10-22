@@ -78,6 +78,13 @@ export interface Command {
   run: (ctx: CommandContext) => void | Promise<void>;
   /** Defaults to always enabled. */
   enabled?: (ctx: CommandContext) => boolean;
+  /**
+   * Defaults to always visible. An invisible command leaves no menu entry (a separator beside
+   * it is not doubled), no toolbar button and no row on the Hotkeys page, while its id stays
+   * registered - the hotkey tables may name it and a feature may take it over with `replace`
+   * (the AI assistant's commands while the assistant is disabled, feature 005 FR-096).
+   */
+  visible?: (ctx: CommandContext) => boolean;
   /** Present for toggles; drives menu checkmarks and pressed toolbar buttons. */
   checked?: (ctx: CommandContext) => boolean;
   /**
@@ -154,6 +161,16 @@ export class CommandRegistry {
   isChecked(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
     return command?.checked ? command.checked(ctx) : false;
+  }
+
+  /**
+   * False for an unregistered command and for a registered one whose `visible` predicate says
+   * so; the menus, the toolbars and the Hotkeys page leave such a command out entirely.
+   */
+  isVisible(id: string, ctx: CommandContext): boolean {
+    const command = this.commands.get(id);
+    if (!command) return false;
+    return command.visible ? command.visible(ctx) : true;
   }
 
   /**
@@ -417,6 +434,29 @@ function cmdKeys(id: string, labelKey?: string): CommandKeys {
   return { labelKey, tooltipKey: `cmd.${id}.tooltip`, descriptionKey: `cmd.${id}.description` };
 }
 
+const NEVER_VISIBLE = (): boolean => false;
+
+/** Icon pair of the AI assistant's toolbar button (`public/icons/toolbar24|16/ai-assistant.png`). */
+export const AI_TOGGLE_ICON = 'ai-assistant';
+
+/**
+ * The inert stubs of the AI assistant's commands (feature 005, research R8.3, R8.5): registered
+ * from the start so that the hotkey tables may name them (`Mod+Shift+A`, `Mod+K`) and the View
+ * menu and the Commands toolbar may list `ai.toggle`, yet invisible and disabled, so nothing of
+ * the feature shows while the assistant is disabled (FR-096). `ui/src/ai/index.ts` takes them
+ * over with `replace` once the first settings snapshot says the assistant is enabled, and puts
+ * them back when it becomes disabled.
+ */
+export function createAiStubCommands(): Command[] {
+  return [
+    {
+      ...stub('ai.toggle', 'view', cmdKeys('ai.toggle', 'menu.view.aiAssistant'), AI_TOGGLE_ICON),
+      visible: NEVER_VISIBLE,
+    },
+    { ...stub('ai.ask', 'tools', cmdKeys('ai.ask')), visible: NEVER_VISIBLE },
+  ];
+}
+
 /* ------------------------------------------------------------------------ */
 /* Built-in commands                                                        */
 /* ------------------------------------------------------------------------ */
@@ -595,6 +635,9 @@ export function createBuiltinCommands(): Command[] {
       checked: (ctx) => ctx.store.getState().fastMode,
       run: (ctx) => toggleFastMode(ctx), // reduced-fidelity Body rendering, persisted (T154)
     },
+    // The AI assistant's `ai.toggle` (View) and `ai.ask` (Tools): inert and invisible until
+    // ui/src/ai/index.ts takes them over (feature 005).
+    ...createAiStubCommands(),
 
     // ---- Add (insert.*) -------------------------------------------------
     stub('insert.body', 'edit', cmdKeys('insert.body', 'menu.add.body'), 'id_edit_add_body'),

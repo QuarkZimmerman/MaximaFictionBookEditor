@@ -1,6 +1,11 @@
 /** Toolbar model: button order of the original Commands toolbar and the icon URL helper. */
 
-/** `IDR_MAINFRAME TOOLBAR 24, 24` - `null` marks a separator. */
+/**
+ * `IDR_MAINFRAME TOOLBAR 24, 24` - `null` marks a separator. The AI assistant's button
+ * (feature 005, research R8.6) follows the three view buttons; it renders nothing while the
+ * assistant is disabled (`Command.visible`), and a customised layout stored before it existed
+ * does not gain it by itself (Customize or Reset do).
+ */
 export const COMMANDS_TOOLBAR: readonly (string | null)[] = [
   'file.new',
   'file.open',
@@ -11,6 +16,7 @@ export const COMMANDS_TOOLBAR: readonly (string | null)[] = [
   'view.description',
   'view.body',
   'view.source',
+  'ai.toggle',
   null,
   'insert.binary',
   'insert.image',

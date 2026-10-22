@@ -1,5 +1,26 @@
 {
-  "$comment": "AI assistant (feature 005): the feature's catalogue, deep-merged into the base catalogue by ui/src/i18n/index.ts; en, ru and uk stay in parity (tools/i18n-check.mjs). Skeleton of T008 - the strings of the settings page (dialog.settings.ai.*), the View menu entry and commands, the popup, the panel, the notice, the failure texts and the list-issue reasons are added by T028 and the stories. The service names, model names and example addresses below are the same in every language (ui/src/i18n/identical-allowlist.json).",
+  "$comment": "AI assistant (feature 005): the feature's catalogue, deep-merged into the base catalogue by ui/src/i18n/index.ts; en, ru and uk stay in parity (tools/i18n-check.mjs). T008 laid the skeleton, T028 added the shared strings - the View menu entry and the three commands, the context-menu entry, the banner label and the operation phases, the failure texts per Failure.kind (data-model §4.5; `ai.failure.withMessage` embeds the service's own words), the 1200 reasons, the list-issue reasons, the end-state lines and the plural families for counts; the settings page (dialog.settings.ai.*), the popup, the panel and the notice are added by the stories. The service names, model names and example addresses below are the same in every language (ui/src/i18n/identical-allowlist.json).",
+  "menu": {
+    "view": {
+      "aiAssistant": "&AI Assistant"
+    }
+  },
+  "cmd": {
+    "ai": {
+      "toggle": {
+        "tooltip": "AI Assistant",
+        "description": "Show or hide the AI assistant panel"
+      },
+      "ask": {
+        "tooltip": "Ask AI",
+        "description": "Change the selected text as you instruct the AI assistant"
+      },
+      "cancel": {
+        "tooltip": "Stop AI request",
+        "description": "Stop the AI assistant's running request"
+      }
+    }
+  },
   "ai": {
     "bundled": {
       "ovhcloud": {
@@ -22,6 +43,84 @@
     "script": {
       "$comment": "Dialogs of a script run by the assistant inside a request (feature 005 FR-080, review C10; scripting/api-impl.ts `dialogCaption`).",
       "nestedCaption": "{{name}} — run by the AI assistant"
+    },
+    "ask": {
+      "label": "Ask AI..."
+    },
+    "panel": {
+      "splitter": "AI assistant panel divider"
+    },
+    "banner": {
+      "$comment": "The run banner's label while an AI request holds the lock (FR-022): `<service name> · <model>`.",
+      "label": "{{service}} · {{model}}"
+    },
+    "phase": {
+      "$comment": "The current operation shown by the banner, the panel and the popup (FR-022; data-model §4.3).",
+      "preparing": "preparing",
+      "waiting": "waiting for the answer",
+      "runningTool": "running {{tool}}",
+      "validating": "validating",
+      "limitWait": "waiting as the service asked: {{seconds}} s left",
+      "runningScript": "running script {{name}}"
+    },
+    "failure": {
+      "$comment": "One text per Failure.kind (data-model §4.5); `withMessage` wraps it with the service's own words when the failure carries them; `limitWait` names the wait that was not waited for.",
+      "offline": "The service could not be reached. Check the network connection and the address.",
+      "timeout": "The service did not answer within the time limit.",
+      "tls": "A secure connection to the service could not be established (certificate or TLS problem).",
+      "auth": "The service refused the request: the key is missing or invalid. Check the key in Settings > AI assistant.",
+      "model": "The service does not know the model. Check the model name in Settings > AI assistant.",
+      "limit": "The service's limit was reached and waiting any longer would take the request past 5 minutes.",
+      "limitWait": "The service asked for a wait of {{seconds}} s, which would take the request past the 5-minute total.",
+      "oversize": "The request is too large for the service even after shortening.",
+      "paragraphTooLarge": "A single paragraph of the selection is too large for the service.",
+      "service": "The service answered with an error.",
+      "format": "The service's answer could not be understood (unexpected format).",
+      "truncated": "The service's answer was cut off before the end; it was not applied.",
+      "contentFilter": "The service declined the request because of its content rules.",
+      "invalidAtEnd": "The result would leave the book invalid; nothing was changed.",
+      "validationUnavailable": "The book cannot be validated right now (the schema is unavailable), so no change was applied.",
+      "busy": "A script is running; wait until it ends.",
+      "noService": "No AI service is available. Check Settings > AI assistant.",
+      "internal": "Something went wrong inside the editor; the book was left unchanged.",
+      "withMessage": "{{text}} The service said: {{message}}"
+    },
+    "noService": {
+      "$comment": "The reasons of RpcError 1200 `ai.noService` (rpc-api §3.12).",
+      "disabled": "The AI assistant is disabled in Settings.",
+      "unknownService": "The chosen service \"{{id}}\" is not in the service list.",
+      "emptyAddress": "The service address is empty.",
+      "noModel": "No model is set for the service.",
+      "noAgreement": "You have not agreed to send text to this service yet."
+    },
+    "listIssue": {
+      "$comment": "The reasons of a service list issue (`ai.services().issues[].reason`, data-model §1.3).",
+      "unreadable": "The file could not be read.",
+      "invalidJson": "The file is not valid JSON.",
+      "badVersion": "The file's version is not 1.",
+      "notObject": "Something else stands where an object was expected.",
+      "missingField": "The field \"{{field}}\" is missing or of the wrong type.",
+      "badAddress": "The address is not a valid http(s) URL.",
+      "badId": "The identifier is not valid (lower-case Latin letters, digits, \".\", \"_\" and \"-\" only).",
+      "duplicateId": "The identifier is already used by an earlier entry; this entry is skipped.",
+      "badField": "The field \"{{field}}\" has a wrong type or value and was ignored."
+    },
+    "end": {
+      "$comment": "The end states of a request (data-model §4.3; review C5).",
+      "committed": "The changes were applied to the book.",
+      "answered": "The assistant answered; the book was not changed.",
+      "askedBack": "The assistant asked a question; the book was not changed.",
+      "failed": "The request failed.",
+      "cancelled": "Request cancelled.",
+      "rejected": "The request was stopped: the same change was rejected three times. The book was not changed."
+    },
+    "count": {
+      "changes_one": "{{count}} change",
+      "changes_other": "{{count}} changes",
+      "errors_one": "{{count}} error",
+      "errors_other": "{{count}} errors",
+      "turns_one": "{{count}} earlier turn",
+      "turns_other": "{{count}} earlier turns"
     }
   },
   "dialog": {

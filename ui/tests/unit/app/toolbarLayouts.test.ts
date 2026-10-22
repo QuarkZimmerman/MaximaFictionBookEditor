@@ -39,9 +39,20 @@ describe('toolbar layouts', () => {
   });
 
   it('offers the original buttons, and "Last script" with the scripts that have an icon', () => {
-    expect(availableButtons('commands')).toHaveLength(31);
+    // The original's 31 buttons plus the AI assistant's (feature 005, research R8.6).
+    expect(availableButtons('commands')).toHaveLength(32);
     expect(availableButtons('commands')).not.toContain(SEPARATOR);
+    expect(availableButtons('commands')).toContain('ai.toggle');
     expect(availableButtons('scripts', SCRIPTS)).toEqual([LAST_SCRIPT, ...SCRIPTS]);
+  });
+
+  it('puts the AI assistant button after the view buttons of the original layout', () => {
+    // A customised layout stored before the button existed does not gain it by itself.
+    const original = originalLayout('commands');
+    expect(original.indexOf('ai.toggle')).toBe(original.indexOf('view.source') + 1);
+    expect(original[original.indexOf('ai.toggle') + 1]).toBe(SEPARATOR);
+    const stored = settingsWith({ commands: ['view.body', 'view.source', '-', 'file.save'] });
+    expect(shownLayout(stored, 'commands')).toEqual(['view.body', 'view.source', '-', 'file.save']);
   });
 
   it('shows only what the toolbar offers, each button once', () => {

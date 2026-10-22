@@ -240,6 +240,62 @@ describe('store', () => {
     expect(older.getState().treeWidth).toBe(260);
   });
 
+  it('keeps the AI panel width like the tree width and never takes the on/off state from the settings (feature 005)', () => {
+    const store = createAppStore();
+    // Off at every start (FR-090), nothing loaded, an empty conversation, the default width.
+    expect(store.getState().ai).toEqual({
+      on: false,
+      width: 360,
+      loaded: false,
+      catalogue: null,
+      request: null,
+      conversation: { docId: null, messages: [], activity: [], droppedTurns: 0 },
+      panelFocus: false,
+      contextLengthHint: null,
+    });
+
+    // The start-up read: the stored width applies; nothing else of `ai` changes.
+    const stored = defaultSettings();
+    stored.session.aiPanelWidth = 520;
+    actions.setSettings(store, stored);
+    expect(store.getState().ai.width).toBe(520);
+    expect(store.getState().ai.on).toBe(false);
+
+    // A drag ends: the window's own width; a later snapshot (before the delayed save) still
+    // says 520 and must not undo the drag.
+    actions.setAiPanelWidth(store, 444);
+    expect(store.getState().ai.width).toBe(444);
+    const before = store.getState().ai;
+    actions.setAiPanelWidth(store, 444); // the same width: no new state object
+    expect(store.getState().ai).toBe(before);
+    const reported = defaultSettings();
+    reported.session.aiPanelWidth = 520;
+    actions.setSettings(store, reported);
+    expect(store.getState().ai.width).toBe(444);
+
+    // The other fields change through `updateAi`; `width` is not among them.
+    actions.updateAi(store, { on: true, loaded: true, contextLengthHint: 131072 });
+    expect(store.getState().ai).toMatchObject({
+      on: true,
+      loaded: true,
+      width: 444,
+      contextLengthHint: 131072,
+    });
+    // A settings snapshot - even the first one - never turns the assistant on or off.
+    const fresh = createAppStore();
+    actions.updateAi(fresh, { on: true });
+    actions.setSettings(fresh, defaultSettings());
+    expect(fresh.getState().ai.on).toBe(true);
+    expect(fresh.getState().ai.width).toBe(360);
+
+    // A first snapshot without the key (a core before API minor 4) leaves the default.
+    const older = createAppStore();
+    const legacy = defaultSettings();
+    delete (legacy.session as Partial<typeof legacy.session>).aiPanelWidth;
+    actions.setSettings(older, legacy);
+    expect(older.getState().ai.width).toBe(360);
+  });
+
   it('useAppState re-renders on selected changes only', () => {
     const store = createAppStore();
     let renders = 0;
