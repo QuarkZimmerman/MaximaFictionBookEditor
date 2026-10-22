@@ -13,6 +13,12 @@
  *   __mfbeTest.ai.lastRequest()  -> the last request's summary {id, state, exchanges,
  *                                   validations: [{durationMs}], fromXmlCalls, changes}
  *                                   (assistant.ts; null before the first request)
+ *   __mfbeTest.ai.failNextTool(name, message?)
+ *                                -> the next call of the tool `name` throws a plain Error inside
+ *                                   the request loop (the `failed (internal)` journey of
+ *                                   ai-catalogue §9.1: the log names the code and `error.name`
+ *                                   only, never the message); null clears it; false when the
+ *                                   chunk is not loaded yet
  */
 
 import type { CommandContext } from '@/app/commands';
@@ -33,6 +39,7 @@ export interface AiTestHooks {
   commands(): AiCommandSnapshot[];
   state(): Omit<AssistantState, 'catalogue'> & { catalogue: boolean };
   lastRequest(): unknown;
+  failNextTool(name: string | null, message?: string): boolean;
 }
 
 /**
@@ -70,6 +77,12 @@ export function installAiTestHooks(feature: AiFeature): void {
       return { ...rest, catalogue: catalogue !== null };
     },
     lastRequest: () => feature.lastRequest(),
+    failNextTool: (name, message) => {
+      const set = feature.assistant?.setFailNextTool;
+      if (!set) return false;
+      set(name, message);
+      return true;
+    },
   };
   // `window.__mfbeTest` is declared by scripting/testHooks.ts (an open record): the hooks of
   // every feature share the one object.

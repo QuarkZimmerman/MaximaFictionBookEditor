@@ -353,7 +353,13 @@ export interface Catalogue {
     name: string,
     args: string | Record<string, unknown> | null | undefined,
   ): Promise<ToolCallOutcome>;
-  /** Drops the client and the server (turn-off, end of the request). */
+  /**
+   * Binds the instance to another request's working copy and surroundings (data-model §8.5:
+   * one instance per turn-on, re-bound to each request - T055). The tools, the server and the
+   * client stay; every later call reads `deps`.
+   */
+  rebind(deps: CatalogueDeps): void;
+  /** Drops the client and the server (turn-off). */
   close(): Promise<void>;
 }
 
@@ -383,7 +389,10 @@ export function chatToolsMembers(
   return offered && tools.length > 0 ? { tools: [...tools], tool_choice: 'auto' } : {};
 }
 
-/** Builds the catalogue of one request: server, client and transport pair, connected. */
+/**
+ * Builds a catalogue instance: server, client and transport pair, connected, bound to `deps`
+ * (one request's working copy) until `rebind` binds it to the next request's.
+ */
 export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
   const server = new McpServer({ name: 'mfbe-ai-catalogue', version: String(CATALOGUE_VERSION) });
   const context = new ToolContext(deps);
@@ -394,7 +403,7 @@ export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
   registerChangeTools(server, context);
   // T076 (US6): `run_script`, `propose_script`, `reload_scripts` - here, after the structural
   // change tools, to keep the §3 order.
-  registerPrompts(server, deps);
+  registerPrompts(server, () => context.deps);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
@@ -483,6 +492,9 @@ export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
     listed: () => listed,
     tools: () => openAiTools,
     call,
+    rebind: (next) => {
+      context.deps = next;
+    },
     close: async () => {
       await client.close();
       await server.close();
@@ -673,7 +685,12 @@ function cursorOf<K extends Cursor['kind']>(text: string, kind: K): Extract<Curs
 const PART_ENVELOPE_UNITS = 240;
 
 class ToolContext {
-  constructor(readonly deps: CatalogueDeps) {}
+  /** The binding of the moment (`Catalogue.rebind` swaps it between requests). */
+  deps: CatalogueDeps;
+
+  constructor(deps: CatalogueDeps) {
+    this.deps = deps;
+  }
 
   get document(): Document {
     return this.deps.copy.document;
@@ -2555,8 +2572,9 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
 /* Prompts (ai-catalogue §5)                                                */
 /* ------------------------------------------------------------------------ */
 
-function registerPrompts(server: McpServer, deps: CatalogueDeps): void {
+function registerPrompts(server: McpServer, depsOf: () => CatalogueDeps): void {
   const messages = async (name: 'selection_edit' | 'general', args: Record<string, unknown>) => {
+    const deps = depsOf();
     const texts = deps.promptMessages
       ? await deps.promptMessages(name, args)
       : [{ role: 'user' as const, text: `Instruction: ${String(args.instruction ?? '')}` }];

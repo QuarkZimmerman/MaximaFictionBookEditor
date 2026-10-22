@@ -6,10 +6,16 @@
  * `us2-ai-popup` journey against the stand-in.
  */
 
-import { appendActivity, appendMessage, conversationFor, nextRequestId } from '@/ai/activity';
-import { rejectionMessage } from '@/ai/assistant';
+import {
+  appendActivity,
+  appendMessage,
+  conversationFor,
+  nextRequestId,
+  updateActivity,
+} from '@/ai/activity';
+import { historyTurns, rejectionMessage } from '@/ai/assistant';
 import { resolveActiveTarget } from '@/ai/target';
-import { createAppStore } from '@/model/store';
+import { createAppStore, type AssistantMessage } from '@/model/store';
 import type { AiServiceEntry, AiServicesResult } from '@/rpc/types';
 
 import { fakeRpc } from '../features/testUtils';
@@ -194,5 +200,80 @@ describe('the conversation writer', () => {
       droppedTurns: 0,
     });
     expect(nextRequestId()).not.toBe(requestId);
+  });
+
+  it('completes the payload of an earlier entry in place (the tool.call summary after the result)', () => {
+    const store = createAppStore();
+    conversationFor(store, 'doc-1');
+    const entry = appendActivity(store, {
+      requestId: 'r1',
+      elapsedMs: 1,
+      kind: 'tool.call',
+      payload: { name: 'find', summary: 'Searched "ё"' },
+    });
+    appendActivity(store, { requestId: 'r1', elapsedMs: 2, kind: 'tool.result' });
+    updateActivity(store, entry, { summary: 'Searched "ё" (12 matches)' });
+    const { activity } = store.getState().ai.conversation;
+    expect(activity.map((e) => e.kind)).toEqual(['tool.call', 'tool.result']);
+    expect(activity[0]!.payload).toEqual({ name: 'find', summary: 'Searched "ё" (12 matches)' });
+    expect(activity[0]!.at).toBe(entry.at);
+    // An entry of a cleared conversation is left alone.
+    conversationFor(store, 'doc-2');
+    updateActivity(store, entry, { summary: 'late' });
+    expect(store.getState().ai.conversation.activity).toEqual([]);
+  });
+});
+
+describe('historyTurns (ai-catalogue §5.2 item 2, data-model §5.3)', () => {
+  const message = (
+    requestId: string,
+    role: AssistantMessage['role'],
+    text: string,
+    extra: Partial<AssistantMessage> = {},
+  ): AssistantMessage => ({
+    id: `${requestId}-${role}-${text}`,
+    at: 0,
+    requestId,
+    role,
+    text,
+    ...extra,
+  });
+
+  it('resends every earlier request as its user text and its final text with the applied line - never tool traffic, interim words or notices', () => {
+    const messages: AssistantMessage[] = [
+      message('r1', 'user', 'Fix the titles'),
+      message('r1', 'assistant', 'Reading the outline first.', { interim: true }),
+      message('r1', 'assistant', 'Done: three titles.', {
+        appliedLine: '[Changes applied in this turn: replace_node ×3]',
+        undoLabel: 'Fix the titles',
+      }),
+      message('r2', 'user', 'How many footnotes?'),
+      message('r2', 'assistant', 'Two.', { appliedLine: '[No change]' }),
+      message('r3', 'user', 'Rename everything'),
+      message('r3', 'notice', 'Request cancelled.'),
+      message('r4', 'user', 'And now?'),
+    ];
+    expect(historyTurns(messages, 'r4')).toEqual([
+      {
+        requestId: 'r1',
+        user: 'Fix the titles',
+        assistant: 'Done: three titles.\n[Changes applied in this turn: replace_node ×3]',
+      },
+      { requestId: 'r2', user: 'How many footnotes?', assistant: 'Two.\n[No change]' },
+    ]);
+  });
+
+  it('falls back to [No change] for a final text without a line and keeps the order of the requests', () => {
+    const messages: AssistantMessage[] = [
+      message('r2', 'user', 'Second'),
+      message('r2', 'assistant', 'Answer two'),
+      message('r1', 'user', 'First'),
+      message('r1', 'assistant', 'Answer one'),
+    ];
+    expect(historyTurns(messages, 'r9').map((turn) => turn.assistant)).toEqual([
+      'Answer two\n[No change]',
+      'Answer one\n[No change]',
+    ]);
+    expect(historyTurns([], 'r1')).toEqual([]);
   });
 });

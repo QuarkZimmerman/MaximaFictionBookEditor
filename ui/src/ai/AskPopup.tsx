@@ -100,6 +100,7 @@ export function AskPopup({
     () => ctx.undo.peekUndo(),
   );
   const live = useAppState((s) => s.ai.request as AiRequestView | null, store);
+  const assistantOn = useAppState((s) => s.ai.on, store);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const closedRef = useRef(false);
@@ -114,6 +115,12 @@ export function AskPopup({
   useEffect(() => {
     registerFocus?.(() => inputRef.current?.focus());
   }, [registerFocus]);
+
+  // The assistant turned off (the panel closed, Disabled applied): the popup goes with it
+  // (FR-092, FR-030) - a running request was cancelled by the turn-off already.
+  useEffect(() => {
+    if (!assistantOn) onClose();
+  }, [assistantOn, onClose]);
 
   // An outside click closes an idle or finished popup (FR-034), never a running one.
   useEffect(() => {

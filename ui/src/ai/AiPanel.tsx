@@ -164,11 +164,19 @@ export function activityText(t: TFunction, entry: AssistantActivityEntry): strin
         summary: asString(p.summary) || asString(p.name),
       });
     case 'tool.error': {
-      const text = t('ai.activity.toolError', {
+      // The envelope's code and message, then the valid form it named (FR-054): the hint and
+      // the expected shape - plain text, as everything model- or editor-generated here.
+      let text = t('ai.activity.toolError', {
         name: asString(p.name),
         code: asString(p.code),
         message: asString(p.message),
       });
+      const hint = asString(p.hint);
+      if (hint) text += ` ${t('ai.activity.toolErrorHint', { hint })}`;
+      if (p.expected !== undefined) {
+        const expected = typeof p.expected === 'string' ? p.expected : JSON.stringify(p.expected);
+        text += ` ${t('ai.activity.toolErrorExpected', { expected })}`;
+      }
       const strike = strikeText(t, p.strike);
       return strike ? `${text} (${strike})` : text;
     }

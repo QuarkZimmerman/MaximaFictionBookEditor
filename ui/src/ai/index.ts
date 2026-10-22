@@ -38,8 +38,9 @@
  *    turns the assistant off as before;
  *  - exit / window close: the file feature's quit flow cancels the run holding the lock
  *    (`fileCommands.ts`, the AI wording of the prompt) before the save-changes prompt.
- * The catalogue instance per turn-on (data-model §8.5) is still built per request by
- * `assistant.ts` (T046) until the loop's second part re-binds one instance (T055).
+ * The catalogue instance per turn-on (data-model §8.5) is built by `assistant.ts`'s
+ * `startAssistant` (kept in `store.ai.catalogue`, re-bound to every request's working copy,
+ * closed by `stopAssistant` - T055).
  */
 
 import i18next from 'i18next';

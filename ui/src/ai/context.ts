@@ -116,6 +116,11 @@ export interface WorkingContext {
   selection: ContextSelection;
   caret: ContextCaret | null;
   outline: OutlineEntry[];
+  /**
+   * Present when the outline was cut to its first top-level entries (ai-catalogue §6.12 step
+   * 4): the `get_outline` cursor for the rest, what remains and how to continue.
+   */
+  outlineMore?: { cursor: string; remaining: Record<string, number>; hint: string };
   request: ContextRequest;
   preExistingErrors: number;
   scriptsAvailable: boolean;
@@ -302,6 +307,8 @@ export interface WorkingContextInput {
   sourceWellFormed?: boolean;
   /** The whole outline is the default; a split request passes its cut (ai-catalogue §6.12). */
   outline?: OutlineEntry[];
+  /** With a cut outline: the `more` of the rest (`split.ts` `cutOutline`). */
+  outlineMore?: WorkingContext['outlineMore'];
 }
 
 /** The `selection` member of the context for a snapshot (null → `kind: 'none'`). */
@@ -352,6 +359,7 @@ export function buildWorkingContext(input: WorkingContextInput): WorkingContext 
     selection: contextSelection(input.selection),
     caret,
     outline: input.outline ?? outlineOf(document),
+    ...(input.outlineMore ? { outlineMore: input.outlineMore } : {}),
     request: {
       kind: request.kind,
       source: request.source,

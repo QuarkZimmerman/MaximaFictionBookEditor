@@ -317,7 +317,11 @@ describe('AI assistant registration', () => {
     const hooks = aiTestHooks()!;
     expect(hooks.on).toBe(true);
     expect(hooks.status()).toBe('registered');
-    expect(hooks.state()).toMatchObject({ on: true, loaded: true, catalogue: false, width: 360 });
+    // The one catalogue instance of the turn-on (data-model §8.5): built in memory - nothing
+    // listens, nothing is sent, no outline is computed - and dropped at turn-off.
+    await vi.waitFor(() => expect(hooks.state().catalogue).toBe(true));
+    expect(hooks.state()).toMatchObject({ on: true, loaded: true, catalogue: true, width: 360 });
+    expect(store.getState().runLock).toBeNull();
     expect(hooks.commands()).toEqual([
       { id: 'ai.toggle', visible: true, enabled: true, stub: false },
       { id: 'ai.ask', visible: true, enabled: true, stub: false },

@@ -102,6 +102,25 @@ export function appendActivity(
   return full;
 }
 
+/**
+ * Completes the payload of an entry written earlier (the `tool.call` entry is written before
+ * the call and gets the result's sizes and counts once it answered - T055): the entry keeps
+ * its place, its kind and its time. Nothing happens when the conversation was cleared
+ * meanwhile.
+ */
+export function updateActivity(
+  store: AppStore,
+  entry: AssistantActivityEntry,
+  payload: Record<string, unknown>,
+): void {
+  const { conversation } = store.getState().ai;
+  const at = conversation.activity.indexOf(entry);
+  if (at < 0) return;
+  const next = [...conversation.activity];
+  next[at] = { ...entry, payload: { ...entry.payload, ...payload } };
+  actions.updateAi(store, { conversation: { ...conversation, activity: next } });
+}
+
 /** Empties the conversation (Clear, turn-off, a document change, exit - FR-045). */
 export function clearConversation(store: AppStore): void {
   actions.updateAi(store, { conversation: emptyConversation() });

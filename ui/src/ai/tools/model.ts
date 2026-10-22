@@ -229,8 +229,8 @@ export function resolveReference(index: DocIndex, reference: string): Entry | nu
   return current ?? null;
 }
 
-/** The plain text of a title node (its paragraphs joined with a space), `''` when absent. */
-function titleText(node: ModelNodeJson): string {
+/** The plain text of a node's own `title` child (its paragraphs joined with a space), whole (review C13); `''` without one. */
+export function titleText(node: ModelNodeJson): string {
   const title = (node.content ?? []).find((child) => child.type === 'title');
   if (!title) return '';
   return (title.content ?? [])

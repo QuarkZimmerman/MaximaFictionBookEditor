@@ -5,27 +5,41 @@
  * the static set `index.ts`, `address.ts`, `agreements.ts` and `testHooks.ts` lands in this
  * chunk (vite.config.ts), the MCP SDK and zod included.
  *
- * The request loop of ai-catalogue §6 (T046; data-model §4.3-§4.7; FR-022 to FR-024, FR-031 to
- * FR-035, FR-043, FR-060 to FR-064), first part - the popup's requests:
+ * The request loop of ai-catalogue §6 (T046 and T055; data-model §4.3-§4.7, §5.3; FR-022 to
+ * FR-026, FR-031 to FR-035, FR-043, FR-044, FR-054, FR-060 to FR-064):
  *
  *  1. preconditions (`canSend`: on, a document, no run lock - a script run answers `busy`), the
  *     target resolved from the settings (`target.ts`), the first-use notice for a hosted
  *     service (`notice.tsx`; *No* → nothing happens, no activity entry);
  *  2. the `RequestSession` (`session.ts`): the lock with the banner label `<service> · <model>`,
  *     the baseline validation, the working copy; the selection snapshot and the working context
- *     (`context.ts`); the catalogue built **per request** over the working copy
- *     (`catalogue.ts`; US3's T053 replaces this by one instance per turn-on);
+ *     (`context.ts`); the **one catalogue instance per turn-on** (`catalogue.ts`, data-model
+ *     §8.5: built when the assistant is turned on, kept in `store.ai.catalogue`, re-bound to
+ *     every request's working copy with `rebind`, closed at turn-off);
  *  3. the exchanges through the `ai.complete` job of the core: the first `ChatRequest` is
- *     `[system, user]` with the `tools` array when the target offers tools (`model` and `stream`
- *     are the core's), a text answer is judged by the fast-path table of `reply.ts`, a
- *     replacement goes through the validity hook (`hook.ts`), tool calls run sequentially
- *     through the catalogue with the hook behind every change tool, a limit is waited out with a
- *     countdown within the 300 s budget (`protocol.ts`), an oversize refusal splits a block
- *     selection along block boundaries (`split.ts`) into consecutive fast-path exchanges whose
- *     replacements accumulate in the working copy through the catalogue's `replace_selection`;
+ *     `[system, …history, user]` with the `tools` array when the target offers tools (`model`
+ *     and `stream` are the core's) - the history being the conversation's earlier **turns**
+ *     (every earlier request's `user` message and the assistant's final text with its
+ *     `[Changes applied in this turn: …]` / `[No change]` line, never tool traffic, interim
+ *     words or notices - §5.2; none for the popup's selection requests); a text answer is
+ *     judged by the fast-path table of `reply.ts` in a selection request and ends a general
+ *     request (`answered` / `askedBack` by wording when nothing changed, else committed with the
+ *     text shown - review C5); a replacement goes through the validity hook (`hook.ts`); tool
+ *     calls run sequentially in the service's order through the catalogue with the hook behind
+ *     every change tool, each with its localised `tool.call` summary (`summaries.ts`); a limit
+ *     is waited out with a countdown within the 300 s budget, and so is the pacing wait of an
+ *     answer with `ratelimit-remaining: 0` before the next exchange (`protocol.ts`); an
+ *     oversize refusal removes its cause in the order of §6.12 - the oldest turns one request
+ *     at a time (`history.trimmed`, the panel told), the largest tool result of the last round
+ *     replaced by its first part, a block selection split along block boundaries into
+ *     consecutive fast-path exchanges, the outline of the system message cut to whole top-level
+ *     entries with `more` (`split.ts`) - and resends; an overflow message that names the limit
+ *     sets the context-length hint the pre-emptive estimate uses for the rest of the session
+ *     (review C13, memory only);
  *  4. the end: `committed` (one undo step named after the instruction, the replacement
  *     selected), `answered` / `askedBack` (nothing committed, `modified` untouched), `failed`,
- *     `cancelled` (Escape, the banner, the document replaced) or `rejected` (the third strike).
+ *     `cancelled` (Stop, Escape, the banner, the document replaced) or `rejected` (the third
+ *     strike).
  *
  * Every step is wrapped (review C17): an unexpected exception ends the request as `failed
  * (internal)`, discards the working copy, releases the lock and logs the fixed code
@@ -46,11 +60,14 @@ import {
   emptyConversation,
   isRunLocked,
   type AppStore,
+  type AssistantActivityEntry,
+  type AssistantMessage,
   type AssistantRequestView,
 } from '@/model/store';
 import { RpcError, type RpcClient } from '@/rpc/client';
 import { RpcErrorCode, type AiOutcome, type ChatRequest, type FragmentNode } from '@/rpc/types';
 import { plainText } from '@/scripting/api-impl';
+import type { WorkingCopy } from '@/scripting/workingCopy';
 import {
   getBodyController,
   hasBodyController,
@@ -62,6 +79,7 @@ import {
   appendMessage,
   conversationFor,
   nextRequestId,
+  updateActivity,
   type ActivityKind,
 } from './activity';
 import {
@@ -70,21 +88,27 @@ import {
   selectionHolder,
   ToolError,
   type Catalogue,
+  type CatalogueDeps,
   type ChangeHook,
   type ModelSelection,
   type SelectionHolder,
   type ToolCallOutcome,
 } from './catalogue';
 import {
+  appliedLine,
   buildWorkingContext,
   caretBlock,
   caretContextMessage,
+  outlineOf,
   selectionEditMessage,
   selectionSnapshot,
   systemPrompt,
   type CaretBlock,
+  type OutlineEntry,
   type SelectionPart,
   type SelectionSnapshot,
+  type WorkingContext,
+  type WorkingContextInput,
 } from './context';
 import {
   applyChange,
@@ -100,17 +124,27 @@ import {
 import { requireAgreement } from './notice';
 import {
   failureText,
+  pacingWait,
   toFailure,
   triage,
   WaitBudget,
+  type ExchangeResult,
   type Failure,
+  type LimitWait,
   type ToolCallEntry,
 } from './protocol';
 import { createRegexRunner } from './regexRunner';
 import { createRegexWorker } from './regexWorkerFactory';
 import { decideTextReply, isQuestion, undoLabel } from './reply';
 import { startRequestSession, type RequestSession, type SessionRpc } from './session';
-import { halve } from './split';
+import { cutOutline, fitsContext, halve, resultBudgetFor, trimTurns } from './split';
+import {
+  argumentsOf,
+  callSummary,
+  continuationKey,
+  resultSummary,
+  type SummarisedCall,
+} from './summaries';
 import { resolveActiveTarget, type ActiveTarget } from './target';
 import { containerSize, TEXT_CONTAINERS } from './tools/model';
 
@@ -195,7 +229,11 @@ export interface LastRequestInfo {
 /* On / off                                                                  */
 /* ------------------------------------------------------------------------ */
 
-/** Turns the assistant on: the state flips, the conversation starts empty; no request, no lock. */
+/**
+ * Turns the assistant on: the state flips, the conversation starts empty and the catalogue
+ * instance of this turn-on is built (data-model §8.5 - server, client and transport in memory;
+ * building it sends nothing, gathers no context, computes no outline); no request, no lock.
+ */
 export function startAssistant(store: AppStore): void {
   const state = store.getState();
   if (state.ai.on) return;
@@ -206,15 +244,18 @@ export function startAssistant(store: AppStore): void {
     conversation: emptyConversation(),
     panelFocus: false,
   });
+  void openCatalogue(store).catch(() => {});
 }
 
 /**
  * Turns the assistant off: a running request is cancelled and discarded, the conversation is
- * cleared (FR-045), the catalogue instance and the request reference dropped; the document
- * and `modified` are untouched (FR-095). The imported chunk stays idle.
+ * cleared (FR-045), the catalogue instance closed and the request reference dropped; the
+ * document and `modified` are untouched (FR-095). The imported chunk stays idle.
  */
 export function stopAssistant(store: AppStore): void {
   active?.cancel();
+  closeCatalogue();
+  failNextTool = null;
   actions.updateAi(store, {
     on: false,
     request: null,
@@ -225,11 +266,86 @@ export function stopAssistant(store: AppStore): void {
 }
 
 /* ------------------------------------------------------------------------ */
+/* The catalogue instance of a turn-on (data-model §8.5)                    */
+/* ------------------------------------------------------------------------ */
+
+let catalogueGeneration = 0;
+let cataloguePromise: Promise<Catalogue> | null = null;
+
+/**
+ * The binding of the instance between requests: every use fails loudly (a tool call outside a
+ * request would be a bug of the loop), nothing of a document is held.
+ */
+function unboundDeps(): CatalogueDeps {
+  const unbound = (): never => {
+    throw new Error('the catalogue is not bound to a request');
+  };
+  const deps = {
+    get copy(): WorkingCopy {
+      return unbound();
+    },
+    selection: { get: unbound, set: unbound },
+    context: unbound,
+    changesInThisRequest: () => 0,
+    startedAt: 0,
+    fragmentToXml: () => Promise.reject(new Error('the catalogue is not bound to a request')),
+    fragmentFromXml: () => Promise.reject(new Error('the catalogue is not bound to a request')),
+    nextNodeId: unbound,
+    runRegex: () => Promise.reject(new Error('the catalogue is not bound to a request')),
+  };
+  return deps as unknown as CatalogueDeps;
+}
+
+/**
+ * The catalogue instance of the current turn-on, built once (`startAssistant`) and shared by
+ * every request until `closeCatalogue`; `store.ai.catalogue` holds it once connected. An
+ * instance whose turn-on ended while it was being built is closed at once.
+ */
+function openCatalogue(store: AppStore): Promise<Catalogue> {
+  if (cataloguePromise) return cataloguePromise;
+  catalogueGeneration += 1;
+  const generation = catalogueGeneration;
+  const promise = createCatalogue(unboundDeps()).then((catalogue) => {
+    if (generation !== catalogueGeneration || !store.getState().ai.on) {
+      void catalogue.close().catch(() => {});
+      throw new Error('the assistant was turned off while its catalogue was built');
+    }
+    actions.updateAi(store, { catalogue });
+    return catalogue;
+  });
+  cataloguePromise = promise;
+  promise.catch(() => {
+    if (cataloguePromise === promise) cataloguePromise = null;
+  });
+  return promise;
+}
+
+/** Closes the instance of the turn-on (turn-off); a later `openCatalogue` builds a new one. */
+function closeCatalogue(): void {
+  catalogueGeneration += 1;
+  const promise = cataloguePromise;
+  cataloguePromise = null;
+  if (promise) void promise.then((catalogue) => catalogue.close()).catch(() => {});
+}
+
+/* ------------------------------------------------------------------------ */
 /* The request                                                               */
 /* ------------------------------------------------------------------------ */
 
 let active: RequestRun | null = null;
 let lastRequest: LastRequestInfo | null = null;
+/** Test hook (hooks builds): the next call of this tool throws inside the loop (review C17). */
+let failNextTool: { name: string; message: string } | null = null;
+
+/**
+ * `__mfbeTest.ai.failNextTool(name, message)`: makes the next call of `name` throw a plain
+ * `Error(message)` inside the loop, so that a journey can prove the `failed (internal)` end and
+ * the log line that names the code and `error.name` only (ai-catalogue §9.1 "internal
+ * failure"); `null` clears it.
+ */
+export function setFailNextTool(name: string | null, message = 'test hook'): void {
+  failNextTool = name === null ? null : { name, message };
+}
 
 /** The last request's summary for the test hook (null before the first). */
 export function lastRequestInfo(): LastRequestInfo | null {
@@ -299,6 +415,7 @@ export interface AssistantModule {
   cancelRequest: typeof cancelRequest;
   lastRequestInfo?: typeof lastRequestInfo;
   activeRequest?: typeof activeRequest;
+  setFailNextTool?: typeof setFailNextTool;
   openAskPopup?: (ctx: CommandContext) => Promise<void>;
 }
 
@@ -409,6 +526,93 @@ interface SplitState {
 
 type ChatMessage = Record<string, unknown>;
 
+/** One earlier turn of the conversation as it is resent (ai-catalogue §5.2 item 2). */
+export interface HistoryTurn {
+  requestId: string;
+  user: string;
+  /** The assistant's final text with its `appliedLine` on the last line. */
+  assistant: string;
+}
+
+/**
+ * The turns of the conversation an exchange carries (data-model §5.3): for every earlier
+ * request - the current one left out - its `user` message and the assistant's **final** text
+ * (the last `assistant` message that is not interim) with its `[Changes applied …]` /
+ * `[No change]` line; `notice` messages, interim words and the tool traffic of earlier requests
+ * are never resent, and a request without a final text (failed, cancelled, rejected) leaves no
+ * turn.
+ */
+export function historyTurns(
+  messages: readonly AssistantMessage[],
+  currentRequestId: string,
+): HistoryTurn[] {
+  const byRequest = new Map<string, { user?: string; final?: AssistantMessage }>();
+  const order: string[] = [];
+  for (const message of messages) {
+    if (message.requestId === currentRequestId) continue;
+    let entry = byRequest.get(message.requestId);
+    if (!entry) {
+      entry = {};
+      byRequest.set(message.requestId, entry);
+      order.push(message.requestId);
+    }
+    if (message.role === 'user') {
+      if (entry.user === undefined) entry.user = message.text;
+    } else if (message.role === 'assistant' && !message.interim) {
+      entry.final = message;
+    }
+  }
+  const turns: HistoryTurn[] = [];
+  for (const requestId of order) {
+    const entry = byRequest.get(requestId)!;
+    if (entry.user === undefined || !entry.final) continue;
+    const line = entry.final.appliedLine ?? appliedLine({});
+    turns.push({ requestId, user: entry.user, assistant: `${entry.final.text}\n${line}` });
+  }
+  return turns;
+}
+
+/** The chat messages of the kept turns. */
+function turnMessages(turns: readonly HistoryTurn[]): ChatMessage[] {
+  return turns.flatMap((turn) => [
+    { role: 'user', content: turn.user },
+    { role: 'assistant', content: turn.assistant },
+  ]);
+}
+
+/** A tool message of the request with what produced it (the shrink rule of §6.12 step 2). */
+interface ToolMessageRecord {
+  message: ChatMessage;
+  call: SummarisedCall;
+  /** The tools round (one per answer with tool calls) the message belongs to. */
+  round: number;
+}
+
+const READ_TOOL_NAMES: ReadonlySet<string> = new Set([
+  'get_context',
+  'get_outline',
+  'read_part',
+  'get_selection',
+  'get_description',
+  'find',
+]);
+
+/** Below this size a tool result is not what overflows an exchange: step 2 is skipped. */
+const MIN_SHRINKABLE_UNITS = 400;
+
+/** The outline reduced to its bodies alone (ai-catalogue §6.12 step 4's last form). */
+function bodiesAlone(entries: readonly OutlineEntry[]): OutlineEntry[] {
+  return entries.map((entry) => ({ ...entry, children: [] }));
+}
+
+function outlineCharacters(entries: readonly OutlineEntry[]): number {
+  return entries.reduce((sum, entry) => sum + entry.characters, 0);
+}
+
+function countEntries(entries: readonly OutlineEntry[]): number {
+  return entries.reduce((sum, entry) => sum + 1 + countEntries(entry.children), 0);
+}
+
 /* ------------------------------------------------------------------------ */
 /* RequestRun                                                                */
 /* ------------------------------------------------------------------------ */
@@ -442,6 +646,29 @@ class RequestRun {
   private view: AiRequestView;
   private readonly t: CommandContext['t'];
   private readonly store: AppStore;
+  /** Accepted changes per tool (the `[Changes applied in this turn: …]` line, §5.2). */
+  private readonly changesByTool = new Map<string, number>();
+  /** The conversation's earlier turns and how many of the oldest were left out (§6.12 step 1). */
+  private turns: HistoryTurn[] = [];
+  private droppedTurns = 0;
+  /** The tool messages of this request with what produced them (§6.12 step 2). */
+  private readonly toolMessages: ToolMessageRecord[] = [];
+  private round = 0;
+  /** The pacing wait a successful answer asked for before the next exchange (§6.7). */
+  private pendingPacing: LimitWait | null = null;
+  /** The context length known for this request (the entry's, a hint, an overflow message's). */
+  private contextLength: number | undefined;
+  /** While a tool result is shrunk to its first part: the budget of that part (§6.12 step 2). */
+  private partBudget: number | undefined;
+  /** The UTF-16 units of the exchange without the result under way (the pre-emptive rule). */
+  private fixedUnits = 0;
+  /** The parts delivered per continued read (`read_part` … with a cursor): the part index. */
+  private readonly partCounters = new Map<string, number>();
+  /** The working context input of the request, rebuilt when the outline is cut (§6.12 step 4). */
+  private contextInput: WorkingContextInput | null = null;
+  private context: WorkingContext | null = null;
+  private outlineEntries: OutlineEntry[] = [];
+  private outlineForm: 'whole' | 'cut' | 'bodies' = 'whole';
 
   constructor(
     private readonly ctx: CommandContext,
@@ -482,13 +709,34 @@ class RequestRun {
     this.publish({ phase });
   }
 
-  private activity(kind: ActivityKind, payload?: Record<string, unknown>): void {
-    appendActivity(this.store, {
+  private activity(kind: ActivityKind, payload?: Record<string, unknown>): AssistantActivityEntry {
+    return appendActivity(this.store, {
       requestId: this.id,
       elapsedMs: Date.now() - this.startedAt,
       kind,
       ...(payload ? { payload } : {}),
     });
+  }
+
+  /** The context length the size rule works with: the request's, else the session's hint, else the entry's. */
+  private knownContextLength(): number | undefined {
+    return (
+      this.contextLength ??
+      this.store.getState().ai.contextLengthHint ??
+      this.target.contextLength ??
+      undefined
+    );
+  }
+
+  /**
+   * The UTF-16 units one tool result may carry (`CatalogueDeps.resultBudget`): the part budget
+   * of a shrink under way, else the pre-emptive bound of a known context length (§3.7), else
+   * none - results go whole (FR-053).
+   */
+  private resultBudget(): number | undefined {
+    const fromContext = resultBudgetFor(this.fixedUnits, this.knownContextLength());
+    if (this.partBudget === undefined) return fromContext;
+    return fromContext === undefined ? this.partBudget : Math.min(this.partBudget, fromContext);
   }
 
   /** Asks the running work to stop: the job is cancelled, a wait cut short (ai-catalogue §6.15). */
@@ -604,8 +852,10 @@ class RequestRun {
     });
     if (this.cancelled) return { kind: 'cancelled' };
 
-    // The working context and the system prompt (ai-catalogue §2), built once per request.
-    const context = buildWorkingContext({
+    // The working context and the system prompt (ai-catalogue §2), built once per request -
+    // rebuilt only when the outline is cut (§6.12 step 4). The Description view counts as the
+    // Body view here: the working copy is the model and every tool is available (§6 step 3).
+    this.contextInput = {
       document: session.before,
       version: this.ctx.version,
       activeView: state.activeView,
@@ -615,15 +865,20 @@ class RequestRun {
       caret: this.caret,
       request: { kind: this.kind, source: options.origin },
       preExistingErrors: session.preExistingErrors,
-    });
-    const system = systemPrompt(context);
+    };
+    this.outlineEntries = outlineOf(session.before);
+    this.context = buildWorkingContext(this.contextInput);
+    let systemMessage: ChatMessage = { role: 'system', content: systemPrompt(this.context) };
 
-    // The catalogue of this request over the working copy (ai-catalogue §1, §3).
+    // The catalogue instance of this turn-on, bound to this request's working copy
+    // (ai-catalogue §1, §3; data-model §8.5).
     this.holder = selectionHolder(modelSelectionOf(this.selection, this.caret));
-    const catalogue = await createCatalogue({
+    const catalogue = await openCatalogue(store);
+    if (this.cancelled) return { kind: 'cancelled' };
+    catalogue.rebind({
       copy: session.copy,
       selection: this.holder,
-      context: () => context as unknown as Record<string, unknown>,
+      context: () => this.context as unknown as Record<string, unknown>,
       changesInThisRequest: () => session.changesInThisRequest,
       startedAt: this.startedAt,
       fragmentToXml: (nodes) => this.toXml(docId, nodes as unknown as ModelNodeJson[]),
@@ -635,15 +890,16 @@ class RequestRun {
       nextNodeId: this.nextNodeId,
       runRegex: createRegexRunner(createRegexWorker),
       applyChange: this.changeHook(session),
+      resultBudget: () => this.resultBudget(),
     });
     this.catalogue = catalogue;
-    if (this.cancelled) return { kind: 'cancelled' };
 
-    // The first user message: the fast path (§5.1) or the caret-context form of `general` (§5.2).
+    // The first user message: the fast path (§5.1), the caret-context form of `general` for
+    // the popup without a selection (§5.2 item 3, FR-033) or the panel's plain instruction.
     let user: string;
     if (this.selection) {
       user = selectionEditMessage(options.instruction, this.selection);
-    } else if (this.caret) {
+    } else if (this.caret && options.origin === 'popup') {
       user = caretContextMessage(options.instruction, {
         id: this.caret.id,
         path: this.caret.path,
@@ -652,26 +908,162 @@ class RequestRun {
     } else {
       user = options.instruction;
     }
+    // The conversation's earlier turns (§5.2 item 2): a panel request and the popup's general
+    // request carry them; the popup's selection request does not (§5.1 item 2).
+    if (options.origin === 'panel' || !this.selection) {
+      this.turns = historyTurns(store.getState().ai.conversation.messages, this.id);
+    }
     const toolsMembers = chatToolsMembers(catalogue.tools(), target.tools);
     const toolCount = 'tools' in toolsMembers ? toolsMembers.tools.length : 0;
-    const systemMessage: ChatMessage = { role: 'system', content: system };
-    let messages: ChatMessage[] = [systemMessage, { role: 'user', content: user }];
+    let own: ChatMessage[] = [{ role: 'user', content: user }];
+    const compose = (): ChatMessage[] => [
+      systemMessage,
+      ...turnMessages(this.turns.slice(this.droppedTurns)),
+      ...own,
+    ];
     let split: SplitState | null = null;
     const nextPart = async (): Promise<void> => {
-      messages = [systemMessage, { role: 'user', content: await this.partMessage(split!) }];
+      own = [{ role: 'user', content: await this.partMessage(split!) }];
       this.publish({ part: { index: split!.done + 1, count: split!.total } });
+    };
+    /** The §6.12 reductions that need no selection: turns (1), the largest tool result (2), the outline (4). */
+    const reduce = async (
+      overflow: Extract<ExchangeResult, { kind: 'oversize' }> | null,
+    ): Promise<boolean> => {
+      const message = overflow?.message;
+      const unitsOf = (turns: readonly HistoryTurn[], system: ChatMessage = systemMessage) =>
+        JSON.stringify({
+          messages: [system, ...turnMessages(turns), ...own],
+          ...toolsMembers,
+        }).length;
+      const fits = (units: number) => fitsContext(units, this.knownContextLength());
+      // 1. The oldest turns, one request at a time while any remain (FR-025).
+      const remaining = this.turns.slice(this.droppedTurns);
+      if (remaining.length > 0) {
+        const trimmed = trimTurns(
+          remaining,
+          (kept) => kept.length < remaining.length && fits(unitsOf(kept)),
+        );
+        this.droppedTurns += Math.max(1, trimmed.dropped);
+        this.activity('history.trimmed', { turns: this.droppedTurns });
+        appendMessage(store, {
+          requestId: this.id,
+          role: 'notice',
+          text: t('ai.panel.historyTrimmed', { count: this.droppedTurns }),
+        });
+        const { conversation } = store.getState().ai;
+        actions.updateAi(store, {
+          conversation: { ...conversation, droppedTurns: this.droppedTurns },
+        });
+        return true;
+      }
+      // 2. The largest tool result of the last round, replaced by its first part (§3.7).
+      const lastRound = this.toolMessages.filter((record) => record.round === this.round);
+      const candidates = lastRound
+        .filter((record) => READ_TOOL_NAMES.has(record.call.name))
+        .map((record) => ({ record, size: String(record.message.content ?? '').length }))
+        .filter(({ size }) => size > MIN_SHRINKABLE_UNITS)
+        .sort((a, b) => b.size - a.size);
+      for (const { record, size } of candidates) {
+        const shrunk = await this.shrinkToolResult(catalogue, record, Math.floor(size / 2));
+        if (!shrunk) continue;
+        this.activity('split', {
+          what: 'toolResult',
+          tool: record.call.name,
+          part: 1,
+          parts: shrunk.parts,
+          ...(message === undefined ? {} : { message }),
+        });
+        return true;
+      }
+      // 4. A general request: the outline cut to its first top-level entries, whole subtrees,
+      // halving; then the bodies alone; then nothing is left to remove.
+      if (this.selection || !this.contextInput) return false;
+      const current = this.outlineEntries;
+      const withOutline = (entries: OutlineEntry[], more?: WorkingContext['outlineMore']) => {
+        const input: WorkingContextInput = {
+          ...this.contextInput!,
+          outline: entries,
+          ...(more ? { outlineMore: more } : {}),
+        };
+        const context = buildWorkingContext(input);
+        return { context, system: { role: 'system', content: systemPrompt(context) } };
+      };
+      const total = countEntries(outlineOf(session.before));
+      let next: { context: WorkingContext; system: ChatMessage; entries: OutlineEntry[] };
+      if (this.outlineForm !== 'bodies') {
+        const cut = cutOutline(
+          current,
+          (prefix) =>
+            prefix.length < current.length &&
+            fits(unitsOf(this.turns.slice(this.droppedTurns), withOutline([...prefix]).system)),
+        );
+        if (cut.ok && cut.entries.length < current.length) {
+          const built = withOutline(cut.entries, cut.more);
+          next = { ...built, entries: cut.entries };
+          this.outlineForm = 'cut';
+        } else {
+          const bodies = bodiesAlone(outlineOf(session.before));
+          const sections = total - bodies.length;
+          const built = withOutline(bodies, {
+            cursor: `after:${bodies[bodies.length - 1]?.id ?? ''}`,
+            remaining: { entries: sections, characters: outlineCharacters(bodies) },
+            hint: 'The outline is reduced to the bodies: call get_outline with node = a body for its sections.',
+          });
+          next = { ...built, entries: bodies };
+          this.outlineForm = 'bodies';
+        }
+      } else {
+        return false;
+      }
+      this.outlineEntries = next.entries;
+      this.context = next.context;
+      systemMessage = next.system;
+      this.activity('split', {
+        what: 'outline',
+        part: 1,
+        parts: Math.max(2, Math.ceil(total / Math.max(1, countEntries(next.entries)))),
+        ...(message === undefined ? {} : { message }),
+      });
+      return true;
     };
 
     for (;;) {
       if (this.cancelled) return { kind: 'cancelled' };
+      // The pacing wait of the previous answer (`ratelimit-remaining: 0`, §6.7) comes first.
+      if (this.pendingPacing) {
+        const pacing = this.pendingPacing;
+        this.pendingPacing = null;
+        const decision = this.budget.take(pacing.seconds);
+        if (!decision.ok) {
+          return {
+            kind: 'failed',
+            failure: { kind: 'limit', waitSeconds: decision.waitSeconds },
+          };
+        }
+        this.activity('limit.wait', { seconds: decision.seconds, source: pacing.source });
+        await this.waitSeconds(decision.seconds);
+        if (this.cancelled) return { kind: 'cancelled' };
+      }
+      // The pre-emptive estimate against a known context length (§3.7, data-model §5.3): the
+      // same reductions as after a refusal, before the exchange goes out.
+      for (let guard = 0; guard < 32; guard += 1) {
+        const units = JSON.stringify({ messages: compose(), ...toolsMembers }).length;
+        if (fitsContext(units, this.knownContextLength())) break;
+        if (!(await reduce(null))) break;
+        if (this.cancelled) return { kind: 'cancelled' };
+      }
+      const messages = compose();
       const body: ChatRequest = { messages, ...toolsMembers };
+      const bytes = JSON.stringify(body).length;
+      this.fixedUnits = bytes;
       this.exchanges += 1;
       const n = this.exchanges;
       this.activity('exchange.sent', {
         n,
         messages: messages.length,
         tools: toolCount,
-        bytes: JSON.stringify(body).length,
+        bytes,
       });
       this.setPhase(t('ai.phase.waiting'));
       this.publish({ state: 'exchanging' });
@@ -719,10 +1111,17 @@ class RequestRun {
         continue;
       }
       if (result.kind === 'oversize') {
+        // An overflow message that names the limit sets the hint for the rest of the session
+        // (memory only - review C13).
         if (result.contextLength !== undefined) {
+          this.contextLength = result.contextLength;
           actions.updateAi(store, { contextLengthHint: result.contextLength });
         }
+        // §6.12 steps 1, 2 and 4: turns, the largest tool result, the outline - then resend.
+        if (await reduce(result)) continue;
+        if (this.cancelled) return { kind: 'cancelled' };
         if (!this.selection) return { kind: 'failed', failure: toFailure(result) };
+        // Step 3: a selection request splits the selection along block boundaries.
         const tooLarge: RequestOutcome = {
           kind: 'failed',
           failure: { kind: 'paragraphTooLarge', message: result.message },
@@ -751,13 +1150,16 @@ class RequestRun {
       }
       if (result.kind !== 'answer') return { kind: 'failed', failure: toFailure(result) };
 
-      // An answer (ai-catalogue §6.8).
+      // An answer (ai-catalogue §6.8). A successful answer with `ratelimit-remaining: 0` and a
+      // reset is paced before the next exchange, when one follows (§6.7; FR-023).
       const { message } = result;
+      this.pendingPacing = pacingWait(outcome);
       if (result.action === 'truncated') {
         return { kind: 'failed', failure: { kind: 'truncated' } };
       }
       if (result.action === 'tools') {
-        messages.push(message.echo);
+        own.push(message.echo);
+        this.round += 1;
         if (message.text) {
           appendMessage(store, {
             requestId: this.id,
@@ -766,10 +1168,22 @@ class RequestRun {
             interim: true,
           });
         }
+        // Parallel calls run sequentially in the service's order, each answered by its own
+        // `tool` message with the matching id (§6.9).
         for (const call of message.toolCalls) {
           if (this.cancelled) return { kind: 'cancelled' };
           const tool = await this.callTool(catalogue, call);
-          messages.push({ role: 'tool', tool_call_id: call.id, content: tool.text });
+          const toolMessage: ChatMessage = {
+            role: 'tool',
+            tool_call_id: call.id,
+            content: tool.text,
+          };
+          own.push(toolMessage);
+          this.toolMessages.push({
+            message: toolMessage,
+            call: { name: call.name, args: argumentsOf(call.arguments) },
+            round: this.round,
+          });
           if (this.rejectedIssues) {
             return {
               kind: 'rejected',
@@ -843,8 +1257,40 @@ class RequestRun {
       }
       // Rejected: the third strike ends the request, else the model is told (§6.11).
       if (rejected.ended) return { kind: 'rejected', issues: rejected.issues };
-      messages.push(message.echo, { role: 'user', content: rejectionMessage(rejected.issues) });
+      own.push(message.echo, { role: 'user', content: rejectionMessage(rejected.issues) });
     }
+  }
+
+  /**
+   * §6.12 step 2: calls `record`'s read tool again with the same arguments under a budget of
+   * `budget` UTF-16 units, so that the result arrives as its first part with `more` (or as the
+   * `tooLarge` envelope when its first block alone does not fit - which travels too), and puts
+   * the part in the tool message's place. `null` when the result did not get smaller (the
+   * caller goes on to the next step).
+   */
+  private async shrinkToolResult(
+    catalogue: Catalogue,
+    record: ToolMessageRecord,
+    budget: number,
+  ): Promise<{ parts: number } | null> {
+    const before = String(record.message.content ?? '');
+    this.partBudget = budget;
+    let outcome: ToolCallOutcome;
+    try {
+      outcome = await catalogue.call(record.call.name, record.call.args);
+    } finally {
+      this.partBudget = undefined;
+    }
+    if (outcome.text.length >= before.length) return null;
+    record.message.content = outcome.text;
+    const more = outcome.result.more as { remaining?: Record<string, unknown> } | undefined;
+    const remaining = more?.remaining;
+    const left = Object.values(remaining ?? {}).reduce<number>(
+      (max, value) => (typeof value === 'number' ? Math.max(max, value) : max),
+      0,
+    );
+    const parts = outcome.isError ? 1 : 1 + Math.max(1, Math.ceil(left / Math.max(1, budget)));
+    return { parts: more ? parts : 1 };
   }
 
   /* ------------------------------------------------------- the fast path */
@@ -912,10 +1358,22 @@ class RequestRun {
   /* ------------------------------------------------------------- tools */
 
   private async callTool(catalogue: Catalogue, call: ToolCallEntry): Promise<ToolCallOutcome> {
-    const { t } = this;
+    const { t, store } = this;
+    const session = this.session!;
     this.setPhase(t('ai.phase.runningTool', { tool: call.name }));
     this.publish({ state: 'executingTools' });
-    this.activity('tool.call', { name: call.name, summary: call.name });
+    // The `tool.call` entry names what is about to be read or changed (the privacy record,
+    // US7 scenario 3); the result completes it with sizes and counts (`summaries.ts`).
+    const summarised: SummarisedCall = { name: call.name, args: argumentsOf(call.arguments) };
+    const entry = this.activity('tool.call', {
+      name: call.name,
+      summary: callSummary(t, summarised, session.copy.document),
+    });
+    if (failNextTool && failNextTool.name === call.name) {
+      const { message } = failNextTool;
+      failNextTool = null;
+      throw new Error(message);
+    }
     const hookCallsBefore = this.hookCalls;
     let outcome: ToolCallOutcome;
     if (call.problem) {
@@ -940,11 +1398,19 @@ class RequestRun {
         name: call.name,
         code: outcome.error?.code ?? 'internal',
         message: outcome.error?.message ?? '',
+        ...(outcome.error?.hint === undefined ? {} : { hint: outcome.error.hint }),
+        ...(outcome.error?.expected === undefined ? {} : { expected: outcome.error.expected }),
         ...(outcome.error?.strike ? { strike: outcome.error.strike } : {}),
       });
-    } else {
-      this.activity('tool.result', { name: call.name, summary: call.name });
+      return outcome;
     }
+    // A continued read counts its parts; the completed summary replaces the provisional one.
+    const key = continuationKey(summarised);
+    const part = summarised.args.cursor === undefined ? 1 : (this.partCounters.get(key) ?? 1) + 1;
+    this.partCounters.set(key, part);
+    const summary = resultSummary(t, summarised, outcome.result, session.copy.document, { part });
+    if (summary) updateActivity(store, entry, { summary });
+    this.activity('tool.result', { name: call.name, summary: summary ?? call.name });
     return outcome;
   }
 
@@ -990,6 +1456,7 @@ class RequestRun {
   private recordChange(outcome: ChangeOutcome<unknown>, tool: string, target: string): void {
     const session = this.session!;
     if (outcome.accepted) {
+      this.changesByTool.set(tool, (this.changesByTool.get(tool) ?? 0) + 1);
       this.activity('validate', {
         new: 0,
         preExisting: session.preExistingErrors,
@@ -1113,12 +1580,14 @@ class RequestRun {
     const { store, t } = this;
     const session = this.session;
     if (session && !session.ended) session.discard();
-    if (this.catalogue) void this.catalogue.close().catch(() => {});
+    // The instance of the turn-on stays; it is bound to nothing between requests.
+    if (this.catalogue) this.catalogue.rebind(unboundDeps());
     this.catalogue = null;
     this.waitAbort?.();
     const elapsedMs = Date.now() - this.startedAt;
     if (session) {
       // Only a request that got as far as the lock has entries (a notice answered No has none).
+      // The final text carries its `appliedLine` for the history of the next request (§5.2).
       switch (outcome.kind) {
         case 'committed':
           this.activity('request.done', {
@@ -1130,6 +1599,7 @@ class RequestRun {
             requestId: this.id,
             role: 'assistant',
             text: outcome.text ?? t('ai.end.committed'),
+            appliedLine: appliedLine(this.changesByTool),
             undoLabel: outcome.undo?.label ?? undoLabel(this.options.instruction),
             ...(outcome.cutOff ? { cutOff: true as const } : {}),
           });
@@ -1141,6 +1611,7 @@ class RequestRun {
             requestId: this.id,
             role: 'assistant',
             text: outcome.text,
+            appliedLine: appliedLine({}),
             ...(outcome.cutOff ? { cutOff: true as const } : {}),
           });
           break;
