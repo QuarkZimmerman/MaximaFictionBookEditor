@@ -23,6 +23,7 @@ each copyright file) and in the npm registry; they are not repeated here.
 | Component | Version | Licence | Full text | Notes |
 |---|---|---|---|---|
 | cli11 | 2.6.2 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/cli11/copyright` |  |
+| curl | 8.21.0 | BSD-3-Clause AND ISC AND curl | `build/vcpkg_installed/<triplet>/share/curl/copyright` |  |
 | fmt | 12.2.0 | MIT | `build/vcpkg_installed/<triplet>/share/fmt/copyright` | transitive dependency |
 | giflib | 6.1.3 | MIT | `build/vcpkg_installed/<triplet>/share/giflib/copyright` |  |
 | hunspell | 1.7.3 | LGPL-2.1-or-later | `build/vcpkg_installed/<triplet>/share/hunspell/copyright` | MPL-1.1/GPL-2.0-or-later/LGPL-2.1-or-later tri-licence (LGPL-2.1-or-later used; MPL-1.1 alone is not compatible with GPL-3.0) |
@@ -31,6 +32,7 @@ each copyright file) and in the npm registry; they are not repeated here.
 | libwebp | 1.6.0 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/libwebp/copyright` |  |
 | libxml2 | 2.15.3 | MIT | `build/vcpkg_installed/<triplet>/share/libxml2/copyright` |  |
 | nlohmann-json | 3.12.0 | MIT | `build/vcpkg_installed/<triplet>/share/nlohmann-json/copyright` |  |
+| openssl | 3.6.3 | Apache-2.0 | `build/vcpkg_installed/<triplet>/share/openssl/copyright` | transitive dependency |
 | platform-folders | 4.3.0 | MIT | `build/vcpkg_installed/<triplet>/share/platform-folders/copyright` |  |
 | spdlog | 1.17.0 | MIT | `build/vcpkg_installed/<triplet>/share/spdlog/copyright` |  |
 | stb | 2024-07-29 | MIT | `build/vcpkg_installed/<triplet>/share/stb/copyright` | dual licence (MIT chosen; alternative: CC-PDDC) |
@@ -134,10 +136,11 @@ in Help > About like the other dictionaries' notices.
 |---|---|
 | MIT | 42 |
 | BSD-3-Clause | 4 |
-| Apache-2.0 | 1 |
+| Apache-2.0 | 2 |
 | Apache-2.0 AND MIT | 1 |
 | BSD-2-Clause | 1 |
 | BSD-3-Clause AND IJG | 1 |
+| BSD-3-Clause AND ISC AND curl | 1 |
 | BSD-style | 1 |
 | GPL-3.0-only | 1 |
 | LGPL-2.1-or-later | 1 |

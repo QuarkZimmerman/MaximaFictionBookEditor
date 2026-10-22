@@ -7,6 +7,10 @@ find_package(CLI11 CONFIG REQUIRED)
 find_package(stduuid CONFIG REQUIRED)
 find_package(platform_folders CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
+# libcurl (feature 005: the AI assistant's HTTP client; ssl feature only, protocols http/https).
+# OpenSSL (Linux/macOS), zlib and Threads are interface dependencies of the imported target;
+# the port pre-defines CURL_STATICLIB on the static triplets.
+find_package(CURL CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
@@ -67,6 +71,7 @@ target_link_libraries(mfbe_core
     stduuid
     sago::platform_folders
     unofficial::uwebsockets::uwebsockets
+    CURL::libcurl
     ZLIB::ZLIB
     JPEG::JPEG
     PNG::PNG

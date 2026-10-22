@@ -72,7 +72,8 @@ REPO = Path(__file__).resolve().parent.parent
 NOTICES = REPO / "THIRD-PARTY-NOTICES.md"
 
 # Licence identifiers that may be distributed as part of a GPL-3.0 work (Constitution VI).
-# Copyleft entries carry a note that is printed next to the component.
+# Copyleft entries, and permissive ones whose name alone does not say so, carry a note that is
+# printed next to the component.
 ALLOWED: dict[str, str] = {
     "MIT": "",
     "MIT-0": "",
@@ -81,6 +82,7 @@ ALLOWED: dict[str, str] = {
     "BSD-style": "",
     "0BSD": "",
     "ISC": "",
+    "curl": "curl licence - X11-derived, GPL-compatible",
     "Apache-2.0": "",
     "Zlib": "",
     "libpng-2.0": "",
