@@ -57,11 +57,22 @@ import fb2ElementsJson from './fb2Elements.json';
 /* The table                                                                */
 /* ------------------------------------------------------------------------ */
 
+/** An attribute of the generated table (feature 005): `type` as the schema writes it. */
+export interface Fb2Attribute {
+  name: string;
+  required: boolean;
+  type?: string;
+}
+
 export interface Fb2Elements {
   /** The document element (`FictionBook`), offered only at the document level. */
   root: string;
-  /** Every element name with the sorted names of the elements it may contain. */
-  elements: Record<string, { children: string[] }>;
+  /**
+   * Every element name with the sorted names of the elements it may contain; since feature
+   * 005 also its attributes and whether it may hold text (read by the assistant's
+   * `get_schema` tool, not by the completion).
+   */
+  elements: Record<string, { children: string[]; attributes?: Fb2Attribute[]; text?: boolean }>;
 }
 
 /** The generated completion table (`tools/fb2-schema-elements.py`, checked by CI). */

@@ -630,6 +630,14 @@ export interface AiFragmentNotAllowedData {
   parent: string;
 }
 
+/** `schema.text` result (feature 005, rpc-api.md §3.13): the schema files as shipped. */
+export interface SchemaTextResult {
+  /** `FictionBook.xsd`, `FictionBookGenres.xsd`, `FictionBookLang.xsd`, `FictionBookLinks.xsd`, `FictionNotes.xsd`, in this order, byte-exact. */
+  files: { name: string; text: string }[];
+  /** The text of `schema/LICENSE.md` (BSD 2-clause, Dmitry Gribov). */
+  notice: string;
+}
+
 /* ------------------------------------------------------------------------ */
 /* Methods (rpc-api.md §3 and §5)                                            */
 /* ------------------------------------------------------------------------ */
@@ -986,6 +994,15 @@ export interface RpcMethods {
     params: { docId: string; xml: string; parent: { nodeId: string } | { element: string } };
     result: { nodes: FragmentResultNode[]; inline: boolean; warnings: ValidationIssue[] };
   };
+  /**
+   * The FB2 2.1 schema for the assistant (feature 005, rpc-api.md §3.13): the five XSD files
+   * as shipped, byte-exact, in the order FictionBook.xsd, FictionBookGenres.xsd,
+   * FictionBookLang.xsd, FictionBookLinks.xsd, FictionNotes.xsd, and `notice` = the text of
+   * schema/LICENSE.md (BSD 2-clause), read from the validator's schema folder on every call.
+   * Independent of any document. Errors: 1002 {path, reason} for an unreadable file.
+   * (`schema.element` is reserved for a later minor and not registered in 0.0.5.)
+   */
+  'schema.text': { params: void; result: SchemaTextResult };
 }
 
 export type RpcMethodName = keyof RpcMethods;

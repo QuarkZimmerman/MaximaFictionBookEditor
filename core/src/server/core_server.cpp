@@ -378,6 +378,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_words_handlers(router, *services);
         server::register_scripts_handlers(router, *services);
         server::register_system_handlers(router, *services);
+        server::register_schema_handlers(router, *services);
 #ifdef MFBE_TEST_HOOKS
         if (services->test_hooks) {
             server::register_test_handlers(router, *services);

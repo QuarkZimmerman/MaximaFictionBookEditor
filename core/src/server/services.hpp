@@ -128,6 +128,8 @@ void register_spell_handlers(rpc::RpcRouter& router, Services& services);
 void register_words_handlers(rpc::RpcRouter& router, Services& services);
 void register_scripts_handlers(rpc::RpcRouter& router, Services& services);
 void register_system_handlers(rpc::RpcRouter& router, Services& services);
+// schema.text (feature 005).
+void register_schema_handlers(rpc::RpcRouter& router, Services& services);
 // Lazily creates the external-change watcher (emits doc.changedOnDisk through the notifier).
 platform::FileWatcher& file_watcher(Services& services);
 // Opens a folder through the shell (dialog provider) or the OS opener; 1050 without a shell.
