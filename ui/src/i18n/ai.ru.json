@@ -1,0 +1,33 @@
+{
+  "$comment": "ИИ-помощник (функция 005): каталог функции, объединяемый с базовым каталогом в ui/src/i18n/index.ts; en, ru и uk держатся в паритете (tools/i18n-check.mjs). Каркас задачи T008 - строки страницы настроек (dialog.settings.ai.*), пункта меню «Вид» и команд, всплывающего окна, панели, уведомления, текстов сбоев и причин ошибок списка добавляют T028 и истории. Названия сервисов, имена моделей и примеры адресов ниже одинаковы во всех языках (ui/src/i18n/identical-allowlist.json).",
+  "ai": {
+    "bundled": {
+      "ovhcloud": {
+        "name": "OVHcloud AI Endpoints",
+        "model": "gpt-oss-120b"
+      },
+      "pollinations": {
+        "name": "Pollinations",
+        "model": "openai-fast"
+      },
+      "kilo": {
+        "name": "Kilo Gateway",
+        "model": "minimax/minimax-m3.1-flash:free"
+      },
+      "llm7": {
+        "name": "LLM7.io",
+        "model": "minimax-m2.7"
+      }
+    }
+  },
+  "dialog": {
+    "settings": {
+      "ai": {
+        "custom": {
+          "exampleHosted": "https://api.openai.com/v1",
+          "exampleLocal": "http://127.0.0.1:11434/v1"
+        }
+      }
+    }
+  }
+}

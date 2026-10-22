@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "id": "ovhcloud",
+      "name": "OVHcloud AI Endpoints (stand-in)",
+      "address": "http://127.0.0.1:8787/v1",
+      "model": "standin-chat",
+      "keyRequired": false,
+      "tools": true,
+      "termsUrl": "http://127.0.0.1:8787/terms",
+      "limits": {
+        "en": "none",
+        "ru": "нет",
+        "uk": "немає"
+      },
+      "contextLength": 131072
+    }
+  ]
+}

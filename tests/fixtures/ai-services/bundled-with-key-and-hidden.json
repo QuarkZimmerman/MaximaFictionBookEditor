@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "id": "bundled-keyed-hidden",
+      "name": "Bundled entry carrying key and hidden",
+      "address": "https://ai.example.test/v1",
+      "model": "example-chat",
+      "keyRequired": false,
+      "key": "sk-bundled",
+      "hidden": true,
+      "tools": true,
+      "limits": {
+        "en": "none",
+        "ru": "нет",
+        "uk": "немає"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$comment": "AI assistant (feature 005): the feature's catalogue, deep-merged into the base catalogue by ui/src/i18n/index.ts; en, ru and uk stay in parity (tools/i18n-check.mjs). Skeleton of T008 - the strings of the settings page (dialog.settings.ai.*), the View menu entry and commands, the popup, the panel, the notice, the failure texts and the list-issue reasons are added by T028 and the stories. The service names, model names and example addresses below are the same in every language (ui/src/i18n/identical-allowlist.json).",
+  "ai": {
+    "bundled": {
+      "ovhcloud": {
+        "name": "OVHcloud AI Endpoints",
+        "model": "gpt-oss-120b"
+      },
+      "pollinations": {
+        "name": "Pollinations",
+        "model": "openai-fast"
+      },
+      "kilo": {
+        "name": "Kilo Gateway",
+        "model": "minimax/minimax-m3.1-flash:free"
+      },
+      "llm7": {
+        "name": "LLM7.io",
+        "model": "minimax-m2.7"
+      }
+    }
+  },
+  "dialog": {
+    "settings": {
+      "ai": {
+        "custom": {
+          "exampleHosted": "https://api.openai.com/v1",
+          "exampleLocal": "http://127.0.0.1:11434/v1"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "id": "keyed",
+      "name": "Service with a key",
+      "address": "http://127.0.0.1:8787/v1",
+      "model": "standin-chat",
+      "keyRequired": true,
+      "key": "sk-user",
+      "tools": true
+    }
+  ]
+}

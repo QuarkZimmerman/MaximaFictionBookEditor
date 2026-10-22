@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "id": "standin",
+      "name": "Stand-in (first entry wins)",
+      "address": "http://127.0.0.1:8787/v1",
+      "model": "standin-chat",
+      "keyRequired": false,
+      "tools": true
+    },
+    {
+      "id": "standin",
+      "name": "Stand-in (duplicate, skipped)",
+      "address": "http://127.0.0.1:8788/v1",
+      "model": "standin-mini",
+      "keyRequired": false,
+      "tools": true
+    }
+  ]
+}

@@ -14,5 +14,7 @@
     "UTF-8"
   ],
   "patterns": [],
-  "files": {}
+  "files": {
+    "src/dialogs/settings/AiPage.tsx": ["https://api.openai.com/v1", "http://127.0.0.1:11434/v1"]
+  }
 }

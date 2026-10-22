@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "id": "kilo",
+      "hidden": true
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "id": "assistant/broken-manifest",
+  "name": {
+    "ru": "Сломанный манифест без английского имени"
+  },
+  "description": {
+    "en": "A proposal whose manifest lacks name.en: the loader refuses it (1031)"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false
+}
