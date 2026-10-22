@@ -2,7 +2,8 @@
 // --test-hooks: test.enqueueDialog, test.corpusSample, test.metrics, test.injectFault,
 // test.enqueueClipboardImage; feature 002: test.dialogRequests, test.beeps,
 // test.enqueueRelease; feature 003: test.requests, test.restartRequests, test.requestClose;
-// feature 004: test.setKeyboardLayouts, test.keyboardLayoutRequests.
+// feature 004: test.setKeyboardLayouts, test.keyboardLayoutRequests; feature 005:
+// test.aiRequests, test.resetAiRequests, test.setAiResolve, test.setAiTimeouts.
 #ifdef MFBE_TEST_HOOKS
 
 #include "server/services.hpp"
@@ -173,6 +174,66 @@ void register_test_handlers(rpc::RpcRouter& router, Services& services) {
                       [recording_layouts](const json&, rpc::RpcContext&) {
                           return json(recording_layouts()->requests());
                       });
+
+    // Feature 005 (rpc-api.md §5): the AI request record and the HTTP client's overrides.
+    // test.aiRequests() -> AiRequestRecord[]: every ai.complete / ai.models / ai.test call
+    // since start or the last reset - a 1200 refusal as `refused`, a job.cancel as
+    // `cancelled`; never a body, a header, a key, the model or the answer.
+    router.add_method("test.aiRequests", [&services](const json&, rpc::RpcContext&) {
+        json out = json::array();
+        for (const auto& record : services.ai.records()) {
+            out.push_back(record.to_json());
+        }
+        return out;
+    });
+    router.add_method("test.resetAiRequests", [&services](const json&, rpc::RpcContext&) {
+        services.ai.reset_records();
+        return json::object();
+    });
+    // test.setAiResolve({entries}) -> {}: CURLOPT_RESOLVE entries "host:port:address" applied
+    // to every later request; [] clears them (a hosted name for the loopback stand-in).
+    router.add_method("test.setAiResolve", [&services](const json& params, rpc::RpcContext&) {
+        const json* entries = rpc::params::opt_field(params, "entries");
+        if (entries == nullptr || !entries->is_array()) {
+            throw rpc::invalid_params("entries must be an array of \"host:port:address\"",
+                                      json{{"field", "entries"}});
+        }
+        std::vector<std::string> resolved;
+        for (const auto& entry : *entries) {
+            if (!entry.is_string()) {
+                throw rpc::invalid_params("entries must be an array of \"host:port:address\"",
+                                          json{{"field", "entries"}});
+            }
+            const std::string text = entry.get<std::string>();
+            const auto first = text.find(':');
+            const auto second = first == std::string::npos ? first : text.find(':', first + 1);
+            if (first == std::string::npos || first == 0 || second == std::string::npos ||
+                second + 1 >= text.size() || second == first + 1) {
+                throw rpc::invalid_params("entries must be an array of \"host:port:address\"",
+                                          json{{"field", "entries"}});
+            }
+            resolved.push_back(text);
+        }
+        services.ai.set_resolve_entries(std::move(resolved));
+        return json::object();
+    });
+    // test.setAiTimeouts({connectMs, totalMs}) -> {}: replaces the connect and the total
+    // time-out for every later exchange until the core exits (every core start begins with
+    // the Definitions' 20 s / 120 s; nothing else can change them).
+    router.add_method("test.setAiTimeouts", [&services](const json& params, rpc::RpcContext&) {
+        const int connect_ms = rpc::params::integer(params, "connectMs");
+        const int total_ms = rpc::params::integer(params, "totalMs");
+        if (connect_ms <= 0) {
+            throw rpc::invalid_params("connectMs must be a positive integer",
+                                      json{{"field", "connectMs"}});
+        }
+        if (total_ms <= 0) {
+            throw rpc::invalid_params("totalMs must be a positive integer",
+                                      json{{"field", "totalMs"}});
+        }
+        services.ai.set_timeouts(connect_ms, total_ms);
+        return json::object();
+    });
 
     router.add_async_method(
         "test.corpusSample", [](const json& params, rpc::RpcContext&, rpc::Responder respond) {

@@ -330,11 +330,13 @@ additive changes of later features in `specs/<feature>/contracts/` (feature 003:
 `app.closeRequested`, `doc.formatDate`, `spell.dictionaryReport`, the new settings keys and
 test hooks - API minor 2 - and the installer's public property; feature 004 - API minor 3 -
 among others `doc.position`, with `doc.caret` and `RecentFile.caret` deprecated for the next
-major):
+major; feature 005 - API minor 4 - the `ai.*` family, `app.openUrl`, `doc.fragmentToXml` /
+`doc.fragmentFromXml`, `schema.text`, `scripts.write`, the `ai` settings group and the AI test
+hooks):
 
 | Contract | Mirrors in this repository |
 |----------|----------------------------|
-| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1, minor 3) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
+| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1, minor 4) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
 | `document-model.d.ts` (JSON document model) | `ui/src/model/document.ts` (verbatim copy with a header), `core/include/mfbe/document.hpp` + `json_codec.hpp` |
 | `script-api.d.ts` (the complete `mfbe` allow-list) | `docs/scripting/mfbe.d.ts` (copy shipped with the editor), `ui/src/scripting/types.ts` (`API_METHODS`), `ui/src/scripting/sandbox.ts` |
 | `script-manifest.md` (package layout, `script.json`, sandbox rules) | `core/src/resources/scripts.cpp`, `ui/src/scripting/sandbox*.ts` |

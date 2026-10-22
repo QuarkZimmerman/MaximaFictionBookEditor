@@ -154,7 +154,8 @@ Services::Services(CoreServerOptions opts, platform::Dirs dirs_, fs::path resour
       hotkeys(dirs.config / "hotkeys.json"),
       layers(resources::Roots{}),
       notifier(notifier_),
-      jobs(notifier_) {
+      jobs(notifier_),
+      ai(resources_dir / ai::kServicesFileName, ai::UserLayer::of(dirs)) {
     settings.load();
     recent.load();
     positions.load();
@@ -383,6 +384,7 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_scripts_handlers(router, *services);
         server::register_system_handlers(router, *services);
         server::register_schema_handlers(router, *services);
+        server::register_ai_handlers(router, *services);
 #ifdef MFBE_TEST_HOOKS
         if (services->test_hooks) {
             server::register_test_handlers(router, *services);

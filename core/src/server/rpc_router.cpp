@@ -58,6 +58,8 @@ const char* error_name(int code) {
             return "app.restartFailed";
         case codes::kCancelled:
             return "cancelled";
+        case codes::kAiNoService:
+            return "ai.noService";
         case codes::kAiFragmentNotAllowed:
             return "ai.fragmentNotAllowed";
         case codes::kAiScriptIdBundled:

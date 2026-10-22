@@ -179,6 +179,39 @@ describe('store', () => {
     expect(store.getState().fastMode).toBe(true);
   });
 
+  it('carries the feature 005 settings (the ai group, session.aiPanelWidth) in the snapshot', () => {
+    // resource-formats.md §B: the defaults of the `ai` group and the panel width travel with
+    // every settings snapshot like the other groups - nothing of them is kept apart.
+    const store = createAppStore();
+    const stored = defaultSettings();
+    expect(stored.ai).toEqual({
+      mode: 'free',
+      freeServiceId: 'ovhcloud',
+      custom: { address: 'https://api.openai.com/v1', key: '', model: '' },
+      customVerified: { fingerprint: '', model: '', at: '' },
+      agreements: [],
+    });
+    expect(stored.session.aiPanelWidth).toBe(360);
+    stored.ai = {
+      ...stored.ai,
+      mode: 'custom',
+      custom: { address: 'http://127.0.0.1:11434/v1', key: 'sk-local', model: 'standin-chat' },
+      agreements: [
+        {
+          service: 'ovhcloud',
+          host: 'oai.endpoints.kepler.ai.cloud.ovh.net',
+          at: '2026-10-22T10:00:00Z',
+        },
+      ],
+    };
+    stored.session.aiPanelWidth = 480;
+    actions.setSettings(store, stored);
+    expect(store.getState().settings?.ai.mode).toBe('custom');
+    expect(store.getState().settings?.ai.custom.model).toBe('standin-chat');
+    expect(store.getState().settings?.ai.agreements).toHaveLength(1);
+    expect(store.getState().settings?.session.aiPanelWidth).toBe(480);
+  });
+
   it('keeps the Document Tree pane width: default 260, the first snapshot, setTreeWidth', () => {
     const store = createAppStore();
     expect(store.getState().treeWidth).toBe(260);

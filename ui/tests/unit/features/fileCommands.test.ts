@@ -68,6 +68,14 @@ const settings = (other: Partial<Settings['other']>): Settings =>
       replaceHistory: [],
       toolbarLayouts: {},
       lastFileDialogFolder: '',
+      aiPanelWidth: 360,
+    },
+    ai: {
+      mode: 'free',
+      freeServiceId: 'ovhcloud',
+      custom: { address: 'https://api.openai.com/v1', key: '', model: '' },
+      customVerified: { fingerprint: '', model: '', at: '' },
+      agreements: [],
     },
   }) as Settings;
 

@@ -1,12 +1,18 @@
 // Per-user settings store (T018) - `settings.json`, schemaVersion 1.
 //
-// Defaults are exactly contracts/resource-formats.md §6 (feature 003 adds its keys). Unknown
-// keys are preserved on load, patch and save; missing keys take defaults; invalid values are
-// replaced by defaults and logged (`settings.invalidValue`). `settings.set` patches are
-// deep-merged: objects merge recursively, scalars/arrays replace, `null` resets a known key to
-// its default (and removes an unknown one). `session.lastVersionCheck` is the one optional key:
-// absent by default, `null` removes it. Invalid patch values raise SettingsError (RPC error
-// 1040 {field}).
+// Defaults are exactly contracts/resource-formats.md §6 (feature 003 adds its keys, feature 005
+// the `ai` group and `session.aiPanelWidth`). Unknown keys are preserved on load, patch and
+// save; missing keys take defaults; invalid values are replaced by defaults and logged
+// (`settings.invalidValue`). `settings.set` patches are deep-merged: objects merge recursively
+// (`session.windowGeometry` and `ai.customVerified` are replaced whole), scalars/arrays replace,
+// `null` resets a known key to its default (and removes an unknown one).
+// `session.lastVersionCheck` is the one optional key: absent by default, `null` removes it.
+// Invalid patch values raise SettingsError (RPC error 1040 {field}).
+//
+// Feature 005 (rpc-api §3.7): `ai.customVerified` is kept only while its `fingerprint` is ""
+// or the SHA-256 of the stored `ai.custom.address` / `key` / `model` triple (after every load
+// and every applied patch; judged against the triple that results from the patch); otherwise
+// the default record is stored silently - never an error, never a log line.
 #pragma once
 
 #include <nlohmann/json.hpp>

@@ -637,3 +637,75 @@ TEST_CASE("security: the errors-only log never receives book text", "[security][
     CHECK(log.find("This paragraph is never closed") == std::string::npos);
     CHECK(log.find(f.token()) == std::string::npos);  // nor the session token
 }
+
+// Feature 005 (rpc-api.md "Logging", FR-100): a 1200 ai.noService refusal reaches the router's
+// log with its allow-listed data only - never the `service` value (the agreement key carries
+// the address) - and a failed exchange writes one `ai.<kind>` entry holding the method, the
+// target kind, the host and the status, never the key, the model, the instruction or the body.
+TEST_CASE(
+    "security: ai.* refusals and failures leave no service text, key or instruction in "
+    "the log",
+    "[security][log][ai]") {
+    ServerFixture f;
+    const std::string address = "http://ai.standin.test:8787/v1";
+    const std::string key = "sk-security-probe-key-4421";
+    const std::string instruction = "Rewrite the chapter about the marker " + std::string(kMarker);
+    f.ws.call(
+        "settings.set",
+        json{{"patch",
+              {{"ai",
+                {{"mode", "custom"},
+                 {"custom", {{"address", address}, {"key", key}, {"model", "probe-model"}}}}}}}});
+    const json body{{"messages", json::array({json{{"role", "user"}, {"content", instruction}}})}};
+
+    // Hosted address, no agreement: 1200 {reason: noAgreement, service: 'custom:<address>'}.
+    const json refused =
+        f.ws.call("ai.complete", json{{"target", {{"kind", "custom"}}}, {"body", body}});
+    REQUIRE(refused.contains("error"));
+    CHECK(refused["error"]["code"] == 1200);
+    CHECK(refused["error"]["data"] ==
+          json{{"reason", "noAgreement"}, {"service", "custom:" + address}});
+    std::string log = f.log_text();
+    CHECK(log.find("rpc.ai.noService") != std::string::npos);
+    CHECK(log.find("\"reason\":\"noAgreement\"") != std::string::npos);
+    CHECK(log.find("custom:") == std::string::npos);
+    CHECK(log.find("ai.standin.test") == std::string::npos);
+
+    // With the agreement the request goes out; whatever its outcome, the log holds the kind,
+    // the host and the status only.
+    f.ws.call("settings.set", json{{"patch",
+                                    {{"ai",
+                                      {{"agreements",
+                                        {json{{"service", "custom:" + address},
+                                              {"host", "ai.standin.test:8787"},
+                                              {"at", "2026-10-22T10:00:00Z"}}}}}}}}});
+    const json started =
+        f.ws.call("ai.complete", json{{"target", {{"kind", "custom"}}}, {"body", body}});
+    REQUIRE(started.contains("result"));
+    const std::string job_id = started["result"]["jobId"].get<std::string>();
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    std::optional<json> ended;
+    while (!ended && std::chrono::steady_clock::now() < deadline) {
+        auto message = f.ws.receive_json(500);
+        if (message &&
+            (message->value("method", "") == "job.done" ||
+             message->value("method", "") == "job.failed") &&
+            (*message)["params"]["jobId"] == job_id) {
+            ended = message;
+        }
+    }
+    REQUIRE(ended);
+    log = f.log_text();
+    for (const char* secret :
+         {kMarker, "sk-security-probe-key", "probe-model", "Rewrite the", "chat/completions"}) {
+        INFO(secret);
+        CHECK(log.find(secret) == std::string::npos);
+    }
+    CHECK(log.find(f.token()) == std::string::npos);
+    if (log.find("\"code\":\"ai.") != std::string::npos) {
+        // One errors-only entry per failed outcome with the allowed context only.
+        CHECK(log.find("\"method\":\"ai.complete\"") != std::string::npos);
+        CHECK(log.find("\"targetKind\":\"custom\"") != std::string::npos);
+        CHECK(log.find("\"host\":\"ai.standin.test:8787\"") != std::string::npos);
+    }
+}

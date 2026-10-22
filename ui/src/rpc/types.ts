@@ -2,8 +2,9 @@
  * Typed surface of the core <-> UI JSON-RPC contract
  * (specs/001-maxima-fb2-editor/contracts/rpc-api.md, version 1, with the additive changes of
  * specs/002-tester-feedback-fixes/contracts/rpc-api.md, minor 1,
- * specs/003-second-feedback-batch/contracts/rpc-api.md, minor 2, and
- * specs/004-third-feedback-batch/contracts/rpc-api.md, minor 3).
+ * specs/003-second-feedback-batch/contracts/rpc-api.md, minor 2,
+ * specs/004-third-feedback-batch/contracts/rpc-api.md, minor 3, and
+ * specs/005-ai-assistant/contracts/rpc-api.md, minor 4).
  *
  * Every method of rpc-api.md §3 and §5 appears in `RpcMethods`; every notification of §4 in
  * `RpcNotifications`. Document types come from the shared model (`@/model/document`).
@@ -38,9 +39,11 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for; it accepts any core answering minor >= 1 (rpc-api.md §6).
+ * revision this UI was written for; it accepts any core answering minor >= 1 (rpc-api.md §6) -
+ * the client performs no minor check at connect time; the AI assistant (feature 005) reads
+ * `app.info().apiMinor` itself and requires >= 4.
  */
-export const RPC_API_MINOR = 3;
+export const RPC_API_MINOR = 4;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -75,6 +78,12 @@ export const RpcErrorCode = {
   /** `app.restart`: the shell could not start the new instance; `data.reason` (feature 003). */
   restartFailed: 1071,
   cancelled: 1090,
+  /**
+   * `ai.complete` / `ai.models` / `ai.test`: the target cannot be resolved to a service the
+   * call may contact - `data.reason` is `disabled` | `unknownService` | `emptyAddress` |
+   * `noModel` | `noAgreement`, with `id` or `service` (feature 005, rpc-api.md §3.12).
+   */
+  aiNoService: 1200,
   // feature 005 — doc.fragment*, schema.text, scripts.write
   /** `doc.fragmentFromXml`: the parent element cannot hold this element; `data` {element, parent}. */
   aiFragmentNotAllowed: 1201,
@@ -198,8 +207,9 @@ export interface AppInfo {
   resourceLayers: ResourceLayer[];
   apiVersion: number;
   /**
-   * Additive contract revision (feature 002: 1, feature 003: 2, feature 004: 3); the UI accepts
-   * minor >= 1 and, with a core that answers no `serial`, switches views without mapping.
+   * Additive contract revision (feature 002: 1, feature 003: 2, feature 004: 3, feature 005:
+   * 4); the UI accepts minor >= 1 and, with a core that answers no `serial`, switches views
+   * without mapping; the AI assistant requires >= 4 and registers nothing with an older core.
    */
   apiMinor: number;
 }
@@ -293,7 +303,15 @@ export interface Settings {
      * absent until one did, never written on failure (feature 003, data-model §5).
      */
     lastVersionCheck?: string;
+    /**
+     * Width of the AI panel in CSS px (feature 005, FR-040; default 360, core range 100-10000,
+     * never clamped by the core). Written when the panel's divider drag ends; the UI clamps
+     * the width it applies to 280-800 px and the window without rewriting the setting.
+     */
+    aiPanelWidth: number;
   };
+  /** The AI assistant (feature 005, rpc-api.md §3.7, resource-formats.md §B). */
+  ai: AiSettings;
 }
 
 export interface ToolbarVisibility {
@@ -313,7 +331,11 @@ export type DeepPartial<T> = {
       : T[K];
 };
 
-/** `settings.set` patch; a toolbar layout set to `null` restores the original layout. */
+/**
+ * `settings.set` patch; a toolbar layout set to `null` restores the original layout. The `ai`
+ * group patches like the others (feature 005, rpc-api.md §3.7): `ai.customVerified` is written
+ * whole with its three members, `ai.agreements` replaces the array whole.
+ */
 export type SettingsPatch = DeepPartial<Omit<Settings, 'session'>> & {
   session?: DeepPartial<Omit<Settings['session'], 'toolbarLayouts'>> & {
     toolbarLayouts?: Partial<Record<string, string[] | null>>;
@@ -662,6 +684,211 @@ export interface ScriptWriteResult {
 export interface AiScriptExistsData {
   id: string;
   path: string;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Feature 005 - AI assistant (specs/005-ai-assistant/contracts/rpc-api.md) */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Settings group `ai` (rpc-api.md §3.7, resource-formats.md §B). The custom key is stored in
+ * clear with the settings and shown masked by the page; for a request it never travels from
+ * the UI to the core.
+ */
+export interface AiSettings {
+  /** `free` (default): a bundled or user list entry; `custom`: the triple; `disabled`. */
+  mode: 'free' | 'custom' | 'disabled';
+  /** The chosen free entry's id (default `ovhcloud`); not validated against the list. */
+  freeServiceId: string;
+  custom: {
+    /** `""` or an absolute http(s) URL with a host, no query/fragment/user info, <= 2048. */
+    address: string;
+    /** <= 4096 characters, no control characters; stored as given. */
+    key: string;
+    /** <= 256 characters, no control characters; empty until picked or typed. */
+    model: string;
+  };
+  /**
+   * Written by the UI at OK together with the triple from a verified `ai.test`; the core keeps
+   * it only while `fingerprint` is the SHA-256 of `address\0key\0model` of the stored triple,
+   * else stores the default `{fingerprint: '', model: '', at: ''}` (never an error).
+   */
+  customVerified: AiVerifiedRecord;
+  /** First-use agreements, one per agreement key (an entry id or `custom:<address>`). */
+  agreements: AiAgreement[];
+}
+
+export interface AiVerifiedRecord {
+  /** `""` or 64 lower-case hex digits. */
+  fingerprint: string;
+  /** The model that answered (<= 256 characters). */
+  model: string;
+  /** `""` or ISO 8601 UTC - the time of the test. */
+  at: string;
+}
+
+export interface AiAgreement {
+  /** The agreement key: a free entry's `id` or `custom:<address as stored>`. */
+  service: string;
+  /** The service's host (`host` or `host:port`) when the user agreed. */
+  host: string;
+  /** ISO 8601 UTC. */
+  at: string;
+}
+
+/** `data` of 1200 `ai.noService`. */
+export interface AiNoServiceData {
+  reason: 'disabled' | 'unknownService' | 'emptyAddress' | 'noModel' | 'noAgreement';
+  /** The unknown free entry's id (`unknownService`). */
+  id?: string;
+  /** The agreement key without an agreement (`noAgreement`). */
+  service?: string;
+}
+
+/** One entry of the effective service list (rpc-api.md §3.12; resource-formats.md §A). */
+export interface AiServiceEntry {
+  id: string;
+  name: string;
+  /** The base address as written in the file (trailing `/` removed by the core on use). */
+  address: string;
+  model: string;
+  keyRequired: boolean;
+  /** The entry carries a key (user layer); the key itself is never returned. */
+  hasKey: boolean;
+  tools: boolean;
+  termsUrl?: string;
+  /** Missing languages filled from `en`. */
+  limits: { en: string; ru: string; uk: string };
+  contextLength?: number;
+  /** The file the entry in effect comes from. */
+  source: 'bundled' | 'user' | 'portable';
+  /** A user entry that replaced a bundled one. */
+  replaced: boolean;
+  /** Derived from the address: localhost, 127.0.0.0/8 or ::1; scheme http. */
+  local: boolean;
+  plainHttp: boolean;
+}
+
+/** A problem of a list file or of one of its entries (never a value of the entry). */
+export interface AiServiceIssue {
+  file: string;
+  /** The entry's position in that file's `services`; absent for a file-level issue. */
+  index?: number;
+  reason:
+    | 'unreadable'
+    | 'invalidJson'
+    | 'badVersion'
+    | 'notObject'
+    | 'missingField'
+    | 'badAddress'
+    | 'badId'
+    | 'duplicateId'
+    | 'badField';
+  /** For `missingField` / `badField`. */
+  field?: string;
+}
+
+export interface AiServicesResult {
+  /** Bundled order, user-only entries after. */
+  services: AiServiceEntry[];
+  /** Bundled ids removed by a user entry's `hidden: true`. */
+  hidden: string[];
+  files: {
+    bundled: string;
+    /** `<Data>/ai-services.json`, whether or not it exists. */
+    user: string;
+    userExists: boolean;
+    /** The read-only portable file when it is the user layer in effect. */
+    portable?: string;
+  };
+  issues: AiServiceIssue[];
+}
+
+/**
+ * The service a call addresses (rpc-api.md "Definitions"): a free entry by id, the stored
+ * custom triple, or - for `ai.test` / `ai.models` only - the settings page's unsaved draft with
+ * all three members. For a request the key never travels from the UI to the core.
+ */
+export type AiTarget =
+  | { kind: 'free'; id: string }
+  | { kind: 'custom' }
+  | { kind: 'custom'; address: string; key: string; model: string };
+
+export interface AiRateLimit {
+  limit?: number;
+  remaining?: number;
+  resetSeconds?: number;
+}
+
+export type AiFailureKind = 'offline' | 'timeout' | 'tls' | 'http' | 'format' | 'cancelled';
+
+/**
+ * The result of one exchange with a service - a service failure is a result, never an
+ * RpcError: `ok` for a 2xx whose body parsed as JSON; `http` for any other status (`body` when
+ * it parses, else the first 64 KiB as `text`, never `message`); `offline`, `timeout`, `tls`,
+ * `format` and `cancelled` with the transport's own `message`. A 3xx is an `http` outcome -
+ * redirects are never followed. `retryAfterSeconds` and `rateLimit` come from the headers on
+ * `ok` and `http` outcomes alike.
+ */
+export type AiOutcome =
+  | {
+      ok: true;
+      status: number;
+      body: unknown;
+      retryAfterSeconds?: number;
+      rateLimit?: AiRateLimit;
+      elapsedMs: number;
+    }
+  | {
+      ok: false;
+      kind: AiFailureKind;
+      status?: number;
+      message?: string;
+      body?: unknown;
+      text?: string;
+      retryAfterSeconds?: number;
+      rateLimit?: AiRateLimit;
+      elapsedMs: number;
+    };
+
+/** The OpenAI chat-completions request the UI built; `model` and `stream` are set by the core. */
+export type ChatRequest = { messages: unknown[]; [member: string]: unknown };
+
+/** `ai.models`: the service's list normalised (`id` from `id` or `name`, strings as ids). */
+export type AiModelsResult =
+  | {
+      ok: true;
+      status: number;
+      models: { id: string; contextLength?: number; tools?: boolean }[];
+      retryAfterSeconds?: number;
+      rateLimit?: AiRateLimit;
+      elapsedMs: number;
+    }
+  | Extract<AiOutcome, { ok: false }>;
+
+/**
+ * `ai.test`: `verified` iff `ok` and `body.choices` is a non-empty array; `model` the name
+ * that answered (else the requested one); `fingerprint` - SHA-256 of `address\0key\0model` of
+ * the triple used - for a verified custom target only (the core writes no setting).
+ */
+export type AiTestResult = AiOutcome & { verified: boolean; model?: string; fingerprint?: string };
+
+/** `test.aiRequests` (rpc-api.md §5): one `ai.complete` / `ai.models` / `ai.test` call. */
+export interface AiRequestRecord {
+  /** ISO 8601 UTC. */
+  at: string;
+  method: 'ai.complete' | 'ai.models' | 'ai.test';
+  targetKind: 'free' | 'custom';
+  /** The free entry's id. */
+  serviceId?: string;
+  /** `host` or `host:port`; absent when unresolved. */
+  host?: string;
+  outcome: 'ok' | 'offline' | 'timeout' | 'tls' | 'http' | 'format' | 'cancelled' | 'refused';
+  /** The HTTP status. */
+  status?: number;
+  /** The 1200 reason for `refused`. */
+  reason?: string;
+  elapsedMs?: number;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1056,6 +1283,43 @@ export interface RpcMethods {
     };
     result: ScriptWriteResult;
   };
+
+  // feature 005 — ai.*, app.openUrl, test hooks
+  /**
+   * Opens `url` in the system browser (http and https only; anything else `invalidParams`
+   * {field: 'url'}; 1050 when no opener can be started) - the one mechanism behind every terms
+   * / privacy link of the AI assistant (rpc-api.md §3.1).
+   */
+  'app.openUrl': { params: { url: string }; result: Empty };
+  /** The effective service list, loaded on the first `ai.*` call or at the last reload. */
+  'ai.services': { params: void; result: AiServicesResult };
+  /** Re-reads both list files and emits `resources.changed {what: 'aiServices'}`. */
+  'ai.reloadServices': { params: void; result: AiServicesResult };
+  /**
+   * *Edit list*: copies the bundled file to `<Data>/ai-services.json` when absent (`created`),
+   * never overwrites, reloads and notifies; 1002 {path, reason} when it cannot be written.
+   */
+  'ai.createUserServices': { params: void; result: { path: string; created: boolean } };
+  /**
+   * One chat-completion exchange as a job: `{jobId}` at once, `job.progress` with the phases
+   * `connecting` | `waiting` | `receiving`, the `AiOutcome` as the result of `job.done` (a
+   * service failure included), `job.failed` 1090 on `job.cancel`. The body is sent as given
+   * with exactly `model` and `stream: false` set by the core; a stored target only. Errors
+   * before the job: `invalidParams` {field: 'target' | 'body' | 'body.messages'} (`reason:
+   * 'tooLarge'` over 8 MiB), 1200 {reason, id?, service?} - `disabled` while `ai.mode` is.
+   */
+  'ai.complete': { params: { target: AiTarget; body: ChatRequest }; result: { jobId: string } };
+  /** `GET <address>/models` as a job whose `job.done` carries an `AiModelsResult`; a draft may be given; no model needed. */
+  'ai.models': { params: { target: AiTarget }; result: { jobId: string } };
+  /** The fixed one-word completion as a job whose `job.done` carries an `AiTestResult`; a draft may be given. */
+  'ai.test': { params: { target: AiTarget }; result: { jobId: string } };
+  /** Every AI exchange since start or the last reset; never bodies, headers, keys or answers. */
+  'test.aiRequests': { params: void; result: AiRequestRecord[] };
+  'test.resetAiRequests': { params: void; result: Empty };
+  /** `CURLOPT_RESOLVE` entries `"host:port:address"` for every later request; `[]` clears. */
+  'test.setAiResolve': { params: { entries: string[] }; result: Empty };
+  /** The connect and total time-outs (ms, positive) until the core exits; a start restores 20 s / 120 s. */
+  'test.setAiTimeouts': { params: { connectMs: number; totalMs: number }; result: Empty };
 }
 
 export type RpcMethodName = keyof RpcMethods;
@@ -1071,7 +1335,7 @@ export interface RpcNotifications {
   'job.progress': JobProgress;
   'job.done': { jobId: string; result?: unknown };
   'job.failed': { jobId: string; error: RpcErrorObject };
-  'resources.changed': { what: 'genres' | 'scripts' | 'dictionaries' };
+  'resources.changed': { what: 'genres' | 'scripts' | 'dictionaries' | 'aiServices' };
   'app.openPaths': { paths: string[] };
   'settings.changed': { settings: Settings };
   /** The shell was asked to close its window; the UI runs its quit flow (feature 003). */

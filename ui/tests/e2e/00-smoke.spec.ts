@@ -113,7 +113,7 @@ test.describe('smoke', () => {
       'app.info',
     );
     expect(info.apiVersion).toBe(1);
-    expect(info.apiMinor).toBe(3);
+    expect(info.apiMinor).toBe(4);
     expect(typeof info.version).toBe('string');
   });
 
