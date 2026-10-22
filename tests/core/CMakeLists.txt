@@ -14,6 +14,9 @@ if(MFBE_CORE_TEST_SOURCES)
   add_executable(mfbe_core_tests ${MFBE_CORE_TEST_SOURCES})
   target_link_libraries(mfbe_core_tests PRIVATE
     mfbe::core Catch2::Catch2WithMain unofficial::uwebsockets::uwebsockets)
+  # Internal helpers without a public header (core/src/util/sha256.hpp) are included as the
+  # core's own sources include them ("util/sha256.hpp").
+  target_include_directories(mfbe_core_tests PRIVATE "${CMAKE_SOURCE_DIR}/core/src")
   target_compile_definitions(mfbe_core_tests PRIVATE
     MFBE_TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures"
     MFBE_TEST_CORPUS_DIR="${CMAKE_SOURCE_DIR}/tests/corpus"
