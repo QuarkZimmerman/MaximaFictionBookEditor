@@ -86,20 +86,88 @@ through `fixtures/i18n.ts`, which reads them from the catalogues in the language
 shows, never as English literals; `us1-ukrainian.spec.ts` additionally fails on any visible
 text that is not a Ukrainian catalogue value.
 
+### AI journeys and the stand-in service (feature 005)
+
+The ten AI journeys (`us1-ai-settings`, `us2-ai-popup`, `us3-ai-panel`, `us3-ai-tools`,
+`us4-ai-validity`, `us5-ai-source`, `us6-ai-scripts`, `us7-ai-privacy`, `us8-ai-own-key`,
+`us9-ai-disabled`) never contact a real AI service (FR-102) - not in CI, not on a developer's
+machine. They run against `tests/e2e/fixtures/ai-standin.mjs`, a dependency-free Node stand-in
+for an OpenAI-compatible service that the fixtures start themselves: `npx playwright test`
+starts `mfbe-core` **and** the stand-in, nothing is configured by hand. The rules:
+
+- **One stand-in per worker, or one of a test's own.** The worker fixture `standin` (from
+  `./fixtures/core`) spawns `node ai-standin.mjs --port 0` on `127.0.0.1` only and reads its
+  ready line `{"port","url"}`; a test that needs a stand-in of its own (a second service, a
+  hosted name of its own) calls `startStandin()` and stops it in its teardown. Every journey
+  calls `standin.reset()` first - the worker's stand-in is shared by its tests. For a manual
+  session: `node tests/e2e/fixtures/ai-standin.mjs --port 8787` prints
+  `{"port":8787,"url":"http://127.0.0.1:8787"}`; point a user list file or the custom address
+  at `http://127.0.0.1:8787/v1`.
+- **Scenarios are queued, never improvised.** `POST <base>/chat/completions` answers with the
+  next item of the queue and an **empty queue is HTTP 500** (`stand-in: no scenario queued`) -
+  a journey that forgot to queue an answer fails loudly instead of passing on a default. The
+  vocabulary is the one list of ai-catalogue §9.1 (`standin.scenario()` / `scenarios()`):
+  `{text}` (200, `finish_reason: "stop"`), `{toolCalls: [{name, arguments, id?}], content?}`
+  (200, `finish_reason: "tool_calls"`; `arguments` an object or the JSON string a real service
+  sends), `{status: 429 | 402 | 503, retryAfter?, body?}` (a limit),
+  `{status, body, contentType?}` (any other HTTP answer), `{delayMs}`, `{overflow: true}`
+  (one 400 `context_length_exceeded`, then the next item), `{finishReason: "length", text}`
+  (a cut answer), the modes `{keyRequired: "<key>"}` (401 `missing_api_key` /
+  `invalid_api_key` unless `Authorization: Bearer <key>`) and `{models: [...] | {...}}` for
+  `GET <base>/models`; every item accepts `headers` (the `ratelimit-*` headers, `Location`)
+  and `delayMs`.
+  `standin.requests()` returns what the service received - method, path, headers with
+  `authorization: "present" | "absent"` only (a key never lands in the record), body size and
+  the parsed body - and is how a journey asserts the request the core built (`model`,
+  `stream: false`, no `max_tokens`, no base64).
+- **`recordOutside(context)` on every AI journey.** It routes every browser request to a host
+  other than `127.0.0.1` into an aborting handler and records its URL; the journey asserts
+  that the list stays empty at the end - the page itself never contacts anything. The core's
+  own requests do not pass through the browser: `core.aiRequests()` (the `test.aiRequests`
+  hook - method, target kind, host, outcome, status, never a body or a key) and the stand-in's
+  record cover them.
+- **Hosted names through `test.setAiResolve`, never a real host.** The stand-in is loopback;
+  a journey that needs a _hosted_ service (the first-use notice, the agreement per host, the
+  bundled entries) gives it one with `core.setAiResolve(['ai.standin.test:<port>:127.0.0.1'])`
+  (libcurl's `host:port:address` form, cleared with `[]`) on a core started with
+  `no_proxy=ai.standin.test` - `test.use({ coreEnv: { no_proxy: 'ai.standin.test' } })` for a
+  core of its own, or `startCoreWith(..., { env })` - so that a runner's proxy never sees the
+  name. The bundled entries are tested only after a user list file
+  (`tests/fixtures/ai-services/user-override.json`) redirected them to the stand-in; terms
+  links are asserted by `href` and never clicked.
+- **The time-out case through `test.setAiTimeouts`.** `core.setAiTimeouts(connectMs, totalMs)`
+  shortens the core's 20 s / 120 s for one case (a `{delayMs}` item longer than `totalMs`) and
+  is restored to the defaults afterwards; no journey waits two minutes for real.
+- **Every assertion through the UI or the hooks**, and the document checked afterwards: the
+  working copy, the one undo step and the discard on cancel are the story's claims. Interface
+  texts come from the catalogues (`fixtures/i18n.ts`); `chromium-ru` / `chromium-uk` run
+  `us1-ai-settings` and `us7-ai-privacy` as well.
+
+The vitest `tests/unit/ai/standin.test.ts` drives the stand-in in-process (`serveStandin()`,
+`standinClient()`); `fake-core.mjs` answers the `ai.*` family with canned results for UI-only
+runs and knows no scenarios.
+
 The script benchmark `perf-scripts.spec.ts` is tagged `@perf`, as are the timing journeys of
-`perf-large-book.spec.ts`, `us1-tree-divider.spec.ts` (the divider's layout step) and
-`us4-import-description.spec.ts` (the 10 MB book as an import source): CI runs the journeys with
+`perf-large-book.spec.ts`, `us1-tree-divider.spec.ts` (the divider's layout step),
+`us4-import-description.spec.ts` (the 10 MB book as an import source) and feature 005's one
+`@perf` test in `us4-ai-validity.spec.ts` (a request with five change tools on the 10 MB book
+against a zero-delay stand-in: each per-change validation of the hook under 1 000 ms × the
+factor, the end-to-end time recorded as an annotation): CI runs the journeys with
 `--grep-invert @perf` and the timed ones alone with `--grep @perf --workers=1` against the
 Release core; `MFBE_PERF_FACTOR` (default 2) widens the budgets they check - the script
 benchmark's 1 MB budget (5 s × the factor), the Body ↔ Source mapping step and the divider
-layout step (100 ms × the factor), the import source's opening budget (3 s × the factor) - for
-the hosted runners (`docs/performance.md`).
+layout step (100 ms × the factor), the import source's opening budget (3 s × the factor), the
+validity hook's per-change budget (1 s × the factor) - for the hosted runners
+(`docs/performance.md`).
 
 A journey tagged `@platform` (feature 004: the proposed and typed file names, the spelling
-scope) runs on the Windows and macOS e2e legs of CI as well, against the hooks-enabled
-`mfbe-core` built for that system (`npx playwright test --grep @platform`). Such a journey must
-hold on all three systems: no `locale-gen`, `LC_ALL` or `chmod`, no `/tmp` or other Linux path
-assumptions (use `os.tmpdir()` and `path.join`), file names compared after `normalize('NFC')`
+scope; feature 005: `us1-ai-settings.spec.ts` and `us8-ai-own-key.spec.ts`, the whole files -
+the UI → core → libcurl → loopback stand-in path once per operating system, since the HTTP
+backends differ) runs on the Windows and macOS e2e legs of CI as well, against the
+hooks-enabled `mfbe-core` built for that system (`npx playwright test --grep @platform`). Such
+a journey must hold on all three systems: no `locale-gen`, `LC_ALL` or `chmod`, no `/tmp` or
+other Linux path assumptions (use `os.tmpdir()` and `path.join`; the stand-in and a second
+core are started through the fixtures, which do), file names compared after `normalize('NFC')`
 where macOS may answer a decomposed spelling, and nothing the Linux leg installs through
 `apt-get`. The Linux leg still runs the whole suite.
 
@@ -141,6 +209,19 @@ ui/
   index.html              entry page (no CSP meta: the core sends the security headers)
   public/icons/           toolbar PNGs copied from resources/icons (see public/icons/README.md)
   src/main.tsx            React bootstrap: i18n init, services, RpcClient, <App>
+  src/ai/                 the AI assistant (feature 005). Static, in the main bundle: index.ts
+                          (the feature registrar: the commands ai.toggle / ai.ask / ai.cancel,
+                          the Disabled rule, the one import() of the chunk), address.ts,
+                          agreements.ts, testHooks.ts. Everything else is the lazy `ai-assistant`
+                          chunk (the folder rule of vite.config.ts; tests/unit/ai/chunk.test.ts
+                          checks the build): chunk.ts (the chunk's entry), assistant.ts (the
+                          request loop), catalogue.ts (+ tools/: the MCP server and client over an
+                          in-memory transport), protocol.ts (the wire format, error and wait
+                          ladders), hook.ts (the validity hook), context.ts, split.ts, reply.ts,
+                          source.ts (the Source text path), session.ts, activity.ts, summaries.ts,
+                          target.ts, proposal.ts(x), notice.tsx, regexRunner.ts + regex.worker.ts,
+                          AiPanel.tsx, AskPopup.tsx, ai.css. The settings page lives in
+                          src/dialogs/settings/AiPage.tsx (main bundle).
   src/app/                shell: App.tsx, MenuBar.tsx (+ menus.ts model), Toolbars.tsx
                           (+ toolbars.ts), StatusBar.tsx, ViewSwitcher.tsx, layout.css (CSS
                           variables for fonts/colours), commands.ts (registry + built-in
@@ -187,8 +268,11 @@ ui/
                           description/ (read-only summary until US3), tree/ placeholder (US5)
   src/vite-env.d.ts       Vite client types + compile-time constants
   tests/unit/             Vitest unit tests (+ setup.ts with jest-dom matchers)
-  tests/e2e/              Playwright end-to-end tests (fixtures/core.ts starts mfbe-core)
-  vite.config.ts          build, dev server, proxy, defines, `@` -> `src/` alias
+  tests/e2e/              Playwright end-to-end tests (fixtures/core.ts starts mfbe-core and the
+                          AI stand-in fixtures/ai-standin.mjs; fixtures/ai-proposals/ holds the
+                          script packages the US6 journey has the stand-in propose)
+  vite.config.ts          build, dev server, proxy, defines, `@` -> `src/` alias, the
+                          `ai-assistant` chunk rule (isAiAssistantModule)
   vitest.config.ts        merges vite.config.ts; jsdom, globals, v8 coverage
   playwright.config.ts    Chromium only, headless, list + HTML reporter, 60 s timeout
   tsconfig.json           browser code: src/ + tests/unit/ (strict, ES2022, bundler resolution)
