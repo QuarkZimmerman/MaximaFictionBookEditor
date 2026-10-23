@@ -438,7 +438,7 @@ export async function startRequest(
   if (!options.instruction.trim()) return { kind: 'failed', failure: { kind: 'internal' } };
   let target: ActiveTarget;
   try {
-    const resolved = await resolveActiveTarget(rpc, state.settings);
+    const resolved = await resolveActiveTarget(rpc, state.settings, state.ai.customModels);
     if (!resolved.ok) return { kind: 'failed', failure: { kind: 'noService' } };
     target = resolved.target;
   } catch (error) {

@@ -252,6 +252,7 @@ describe('store', () => {
       conversation: { docId: null, messages: [], activity: [], droppedTurns: 0 },
       panelFocus: false,
       contextLengthHint: null,
+      customModels: null,
     });
 
     // The start-up read: the stored width applies; nothing else of `ai` changes.

@@ -14,7 +14,7 @@ import {
   updateActivity,
 } from '@/ai/activity';
 import { historyTurns, rejectionMessage } from '@/ai/assistant';
-import { resolveActiveTarget } from '@/ai/target';
+import { fetchedModelInfo, resolveActiveTarget } from '@/ai/target';
 import { createAppStore, type AssistantMessage } from '@/model/store';
 import type { AiServiceEntry, AiServicesResult } from '@/rpc/types';
 
@@ -137,6 +137,48 @@ describe('resolveActiveTarget', () => {
       ok: false,
       reason: 'noSettings',
     });
+  });
+
+  it("takes the custom target's tools and context length from the last Fetch models answer when the chosen model was in it (US8, data-model §2.4)", async () => {
+    const rpc = fakeRpc({});
+    const settings = defaultSettings();
+    settings.ai.mode = 'custom';
+    settings.ai.custom = { address: 'http://127.0.0.1:8787/v1', key: '', model: 'standin-mini' };
+    const memory = {
+      address: 'http://127.0.0.1:8787/v1/',
+      models: [
+        { id: 'standin-chat', contextLength: 131072 },
+        { id: 'standin-mini', contextLength: 8192, tools: false },
+        { id: 'standin-embed', contextLength: 0 },
+      ],
+    };
+    // The chosen model is in the list (trailing slashes aside): its tools and context length.
+    expect(await resolveActiveTarget(rpc.client, settings, memory)).toMatchObject({
+      ok: true,
+      target: { tools: false, contextLength: 8192, model: 'standin-mini', hosted: false },
+    });
+    // Listed without `tools`: assumed true; a context length of 0 is no length.
+    settings.ai.custom.model = 'standin-embed';
+    const embed = await resolveActiveTarget(rpc.client, settings, memory);
+    expect(embed).toMatchObject({ ok: true, target: { tools: true } });
+    if (embed.ok) expect(embed.target.contextLength).toBeUndefined();
+    // A model the list did not have, another address, or no fetch at all: tools assumed true.
+    settings.ai.custom.model = 'typed-model';
+    expect(await resolveActiveTarget(rpc.client, settings, memory)).toMatchObject({
+      ok: true,
+      target: { tools: true },
+    });
+    settings.ai.custom.model = 'standin-mini';
+    settings.ai.custom.address = 'http://127.0.0.1:9999/v1';
+    expect(await resolveActiveTarget(rpc.client, settings, memory)).toMatchObject({
+      ok: true,
+      target: { tools: true },
+    });
+    expect(fetchedModelInfo(null, 'http://127.0.0.1:8787/v1', 'standin-mini')).toEqual({});
+    expect(fetchedModelInfo(memory, 'http://127.0.0.1:8787/v1', 'standin-chat')).toEqual({
+      contextLength: 131072,
+    });
+    expect(rpc.calls).toEqual([]);
   });
 });
 

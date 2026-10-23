@@ -368,7 +368,21 @@
           "exampleHosted": "https://api.openai.com/v1",
           "exampleLocal": "http://127.0.0.1:11434/v1",
           "addressError": "The service address must be an http or https URL with a host name (for example https://api.openai.com/v1).",
-          "modelError": "Name the model of your service (type it or pick one with Fetch models)."
+          "modelError": "Name the model of your service (type it or pick one with Fetch models).",
+          "addressPlaceholder": "for example {{hosted}} — or {{local}} for a model server on this computer",
+          "keyPlaceholder": "leave empty for a server on this computer that needs none",
+          "showKey": "Show",
+          "hideKey": "Hide",
+          "modelPlaceholder": "type the model name or pick one after Fetch models",
+          "fetchModels": "Fetch models",
+          "fetching": "Fetching the model list — {{phase}}",
+          "modelsFetched_one": "{{count}} model listed by the service — pick one in the Model field or type a name.",
+          "modelsFetched_other": "{{count}} models listed by the service — pick one in the Model field or type a name.",
+          "modelsNone": "The service lists no models; type the model name.",
+          "modelsFailed": "The model list could not be fetched. {{text}}",
+          "notChatModel": "not a chat model?",
+          "noTools": "answers only",
+          "httpWarning": "This address is plain http and not on this computer: the text will travel unencrypted."
         },
         "test": "Test connection",
         "testing": "Testing the connection — {{phase}}",
@@ -380,7 +394,8 @@
         "status": {
           "untested": "Connection not tested",
           "verified": "answered ({{model}})",
-          "noTarget": "No service to test"
+          "noTarget": "No service to test",
+          "customVerified": "Verified — model {{model}}"
         },
         "files": {
           "title": "Service list files",

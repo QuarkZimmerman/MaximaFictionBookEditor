@@ -1,16 +1,20 @@
 /**
- * The service a request goes to (feature 005 T046; data-model §2.4 `ActiveTarget`): derived
- * from the latest settings snapshot on every use - never stored. `free`: the effective list's
- * entry with the chosen id, else the first entry with `fallback: true` (an empty list → no
- * target); `custom`: the stored triple (`tools` assumed true - the Fetch models answer of US8
- * refines it in memory); `disabled`: no target. The key never reaches this module: the core
- * resolves the stored target by itself (`{kind: 'custom'}` names the stored triple).
+ * The service a request goes to (feature 005 T046, T087; data-model §2.4 `ActiveTarget`):
+ * derived from the latest settings snapshot on every use - never stored. `free`: the effective
+ * list's entry with the chosen id, else the first entry with `fallback: true` (an empty list →
+ * no target); `custom`: the stored triple as `{kind: 'custom'}` - the key never travels, the
+ * core resolves the stored triple by itself -, named by its host, `tools` and `contextLength`
+ * from the last *Fetch models* answer of the settings page (`store.ai.customModels`, kept in
+ * memory with the address it was fetched from; review C13) when the chosen model was in it,
+ * `tools` assumed true otherwise; its notice subject is `custom:<address>` with the host
+ * (FR-021) - a local address never asks; `disabled`: no target.
  */
 
+import type { CustomModelsMemory } from '@/model/store';
 import type { RpcClient } from '@/rpc/client';
 import type { AiServiceEntry, AiTarget, Settings } from '@/rpc/types';
 
-import { hostOf, isHostedAddress, isPlainHttp } from './address';
+import { hostOf, isHostedAddress, isPlainHttp, stripTrailingSlash } from './address';
 import type { NoticeTarget } from './notice';
 
 export interface ActiveTarget {
@@ -58,12 +62,38 @@ function fromEntry(entry: AiServiceEntry, fallback: boolean): ActiveTarget {
 }
 
 /**
+ * What the last *Fetch models* answer says about `model` at `address`: its `tools` and
+ * `contextLength` when the answer came from the same address (trailing slashes aside) and
+ * listed the model; nothing otherwise (data-model §2.4).
+ */
+export function fetchedModelInfo(
+  memory: CustomModelsMemory | null | undefined,
+  address: string,
+  model: string,
+): { tools?: boolean; contextLength?: number } {
+  if (!memory || stripTrailingSlash(memory.address.trim()) !== stripTrailingSlash(address)) {
+    return {};
+  }
+  const known = memory.models.find((item) => item.id === model);
+  if (!known) return {};
+  return {
+    ...(known.tools === undefined ? {} : { tools: known.tools }),
+    ...(known.contextLength !== undefined && known.contextLength > 0
+      ? { contextLength: known.contextLength }
+      : {}),
+  };
+}
+
+/**
  * Resolves the active target from `settings` and - for the free mode - the effective service
- * list (`ai.services()`, loaded by the core on the first call).
+ * list (`ai.services()`, loaded by the core on the first call); `customModels` is the settings
+ * page's last *Fetch models* answer (`store.ai.customModels`) for the custom mode's `tools`
+ * and `contextLength`.
  */
 export async function resolveActiveTarget(
   rpc: Pick<RpcClient, 'call'>,
   settings: Settings | null,
+  customModels: CustomModelsMemory | null = null,
 ): Promise<ResolveTargetResult> {
   const ai = settings?.ai;
   if (!ai) return { ok: false, reason: 'noSettings' };
@@ -71,8 +101,10 @@ export async function resolveActiveTarget(
   if (ai.mode === 'custom') {
     const address = ai.custom.address.trim();
     if (!address) return { ok: false, reason: 'emptyAddress' };
-    if (!ai.custom.model.trim()) return { ok: false, reason: 'noModel' };
+    const model = ai.custom.model.trim();
+    if (!model) return { ok: false, reason: 'noModel' };
     const host = hostOf(address);
+    const known = fetchedModelInfo(customModels, address, ai.custom.model);
     return {
       ok: true,
       target: {
@@ -82,7 +114,8 @@ export async function resolveActiveTarget(
         address,
         hosted: isHostedAddress(address),
         plain: isPlainHttp(address),
-        tools: true,
+        tools: known.tools ?? true,
+        ...(known.contextLength === undefined ? {} : { contextLength: known.contextLength }),
         fallback: false,
         notice: { kind: 'custom', address, name: host || address },
       },

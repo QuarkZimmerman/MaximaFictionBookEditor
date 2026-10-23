@@ -9,16 +9,36 @@
  * that writes `ai.agreements` at once; the terms link (href, `app.openUrl` on click, default
  * navigation prevented, no `target`, never a link for a `javascript:` or `file:` URL); the
  * "core too old" text.
+ *
+ * The custom half (US8 T085; FR-003, FR-004, FR-009; data-model §2.2, review A1-A5): the
+ * fields under the custom radio, the masked key with its reveal toggle, the live status
+ * computed with WebCrypto over the draft triple against the draft's record (green iff equal
+ * and non-empty, red "not tested" otherwise, the service's words after a failed test of the
+ * same draft), the plain-http warning, *Test connection* and *Fetch models* as jobs on the
+ * draft target (the record kept in the draft, nothing written before OK, the notice for a
+ * hosted draft, the running job cancelled with the dialog), the suggestions list with
+ * `contextLength === 0` last and marked, and the one patch of the triple with the record.
  */
+
+import { createHash } from 'node:crypto';
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { CommandContext } from '@/app/commands';
 import { AiPage, type AiPageProps, type RequireAgreementFn } from '@/dialogs/settings/AiPage';
+import { tripleFingerprint } from '@/dialogs/settings/model';
+import { cloneSettings, settingsPatch } from '@/features/settings/apply';
 import { changeLanguage, initI18n } from '@/i18n';
 import { actions } from '@/model/store';
-import type { AiServiceEntry, AiServicesResult, AiTestResult, Settings } from '@/rpc/types';
+import type {
+  AiModelsResult,
+  AiServiceEntry,
+  AiServicesResult,
+  AiTestResult,
+  AiVerifiedRecord,
+  Settings,
+} from '@/rpc/types';
 
 import {
   fakeDialogs,
@@ -616,5 +636,380 @@ describe('AiPage - without a core', () => {
     expect(screen.getByTestId('settings-ai-mode-free')).toBeChecked();
     expect(screen.getByTestId('settings-ai-list-unavailable')).toBeInTheDocument();
     expect(screen.queryByTestId('settings-ai-test')).not.toBeInTheDocument();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* The custom option (US8 T085; FR-003, FR-004, FR-009; data-model §2.2)      */
+/* ------------------------------------------------------------------------ */
+
+const ADDRESS = 'http://127.0.0.1:8787/v1';
+
+/** The fingerprint the core computes (rpc-api §3.7): SHA-256 hex of `address\0key\0model`. */
+function fingerprintOf(address: string, key: string, model: string): string {
+  return createHash('sha256').update(`${address}\0${key}\0${model}`, 'utf8').digest('hex');
+}
+
+function customSettings(
+  triple: { address?: string; key?: string; model?: string } = {},
+  verified?: AiVerifiedRecord,
+): Settings {
+  const settings = defaultSettings();
+  settings.ai.mode = 'custom';
+  settings.ai.custom = {
+    address: triple.address ?? ADDRESS,
+    key: triple.key ?? 'sk-test-123',
+    model: triple.model ?? 'standin-chat',
+  };
+  if (verified) settings.ai.customVerified = verified;
+  return settings;
+}
+
+const CUSTOM_VERIFIED: AiTestResult = {
+  ok: true,
+  status: 200,
+  body: { choices: [{ message: { content: 'OK' } }], model: 'standin-chat' },
+  elapsedMs: 3,
+  verified: true,
+  model: 'standin-chat',
+  fingerprint: fingerprintOf(ADDRESS, 'sk-test-123', 'standin-chat'),
+};
+
+const MODELS: AiModelsResult = {
+  ok: true,
+  status: 200,
+  models: [
+    { id: 'standin-embed', contextLength: 0 },
+    { id: 'standin-chat', contextLength: 131072 },
+    { id: 'standin-mini', tools: false },
+  ],
+  elapsedMs: 2,
+};
+
+const suggestionValues = () =>
+  Array.from(
+    screen.getByTestId('settings-ai-model-list').querySelectorAll('option'),
+    (option) => option.value,
+  );
+
+describe('AiPage - the custom option: fields, masking and the live status', () => {
+  it('jsdom keeps WebCrypto: crypto.subtle.digest answers 32 bytes (the probe of 2026-10-22)', async () => {
+    expect(window.crypto).toBe(globalThis.crypto);
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('a\0b\0c'));
+    expect(digest.byteLength).toBe(32);
+    const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+    expect(hex).toBe(fingerprintOf('a', 'b', 'c'));
+    expect(await tripleFingerprint({ address: 'a', key: 'b', model: 'c' })).toBe(hex);
+  });
+
+  it('enables the fields under the custom radio with the OpenAI default and both examples in the placeholder; the key is masked with a reveal toggle and trimmed', async () => {
+    const settings = defaultSettings();
+    settings.ai.mode = 'custom';
+    const { user, onChange } = await setup({ settings });
+    const address = screen.getByTestId('settings-ai-address');
+    const key = screen.getByTestId('settings-ai-key');
+    const model = screen.getByTestId('settings-ai-model');
+    for (const field of [address, key, model]) expect(field).toBeEnabled();
+    expect(address).toHaveValue('https://api.openai.com/v1');
+    expect(address).toHaveAttribute('placeholder', expect.stringContaining('api.openai.com/v1'));
+    expect(address).toHaveAttribute('placeholder', expect.stringContaining('127.0.0.1:11434/v1'));
+    // Masked, revealed while editing, masked again (FR-003).
+    expect(key).toHaveAttribute('type', 'password');
+    const reveal = screen.getByTestId('settings-ai-key-reveal');
+    expect(reveal).toHaveAttribute('aria-pressed', 'false');
+    await user.click(reveal);
+    expect(key).toHaveAttribute('type', 'text');
+    expect(reveal).toHaveAttribute('aria-pressed', 'true');
+    await user.click(reveal);
+    expect(key).toHaveAttribute('type', 'password');
+    // Surrounding white space of a pasted key never reaches the draft.
+    fireEvent.change(key, { target: { value: '  sk-pasted ' } });
+    expect(onChange).toHaveBeenLastCalledWith({
+      custom: { ...settings.ai.custom, key: 'sk-pasted' },
+    });
+    fireEvent.change(model, { target: { value: 'llama3.1:8b' } });
+    expect(onChange).toHaveBeenLastCalledWith({
+      custom: { ...settings.ai.custom, model: 'llama3.1:8b' },
+    });
+    // The suggestions list exists (empty before Fetch models) and the field accepts any name.
+    expect(model).toHaveAttribute('list', 'settings-ai-model-list');
+    expect(suggestionValues()).toEqual([]);
+    // No Fetch models under the free radio.
+    expect(screen.getByTestId('settings-ai-fetch-models')).toBeInTheDocument();
+  });
+
+  it('computes the status with WebCrypto over the draft triple: untested red, verified green while the record matches, red at once after an edit, green again with the same values', async () => {
+    const record: AiVerifiedRecord = {
+      fingerprint: fingerprintOf(ADDRESS, 'sk-test-123', 'standin-chat'),
+      model: 'standin-chat',
+      at: '2026-10-22T10:00:00.000Z',
+    };
+    const settings = customSettings({}, record);
+    const { rerender, rpc } = await setup({ settings });
+    const status = screen.getByTestId('settings-ai-status');
+    await waitFor(() => expect(status).toHaveAttribute('data-status', 'verified'));
+    expect(status).toHaveTextContent('Verified — model standin-chat');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status).toHaveClass('mfbe-settings-ai-status');
+    // An edit of the model: red "not tested" at once (no RPC involved).
+    rerender({
+      ...settings,
+      ai: { ...settings.ai, custom: { ...settings.ai.custom, model: 'x' } },
+    });
+    await waitFor(() => expect(status).toHaveAttribute('data-status', 'untested'));
+    expect(status).toHaveTextContent('Connection not tested');
+    // An edit of the key: red too.
+    rerender({ ...settings, ai: { ...settings.ai, custom: { ...settings.ai.custom, key: 'k' } } });
+    await waitFor(() => expect(status).toHaveAttribute('data-status', 'untested'));
+    // The same values again: green without a new test.
+    rerender(settings);
+    await waitFor(() => expect(status).toHaveAttribute('data-status', 'verified'));
+    expect(rpc.calls.filter((c) => c.method === 'ai.test')).toEqual([]);
+    // An empty record is never green, whatever the triple.
+    rerender(customSettings({}, { fingerprint: '', model: '', at: '' }));
+    await waitFor(() => expect(status).toHaveAttribute('data-status', 'untested'));
+  });
+
+  it('shows the plain-http warning for a hosted http address only', async () => {
+    const settings = customSettings({ address: 'http://192.0.2.10:8080/v1' });
+    const { rerender } = await setup({ settings });
+    expect(screen.getByTestId('settings-ai-http-warning')).toHaveTextContent(/unencrypted/);
+    for (const address of [
+      'https://example.invalid/v1',
+      'http://127.0.0.1:8787/v1',
+      'http://localhost:8787/v1',
+      'http://[::1]:8787/v1',
+    ]) {
+      rerender(customSettings({ address }));
+      expect(screen.queryByTestId('settings-ai-http-warning')).not.toBeInTheDocument();
+    }
+    // Under the free radio the warning is not shown for the (inactive) custom address.
+    const free = customSettings({ address: 'http://192.0.2.10:8080/v1' });
+    free.ai.mode = 'free';
+    rerender(free);
+    expect(screen.queryByTestId('settings-ai-http-warning')).not.toBeInTheDocument();
+  });
+});
+
+describe('AiPage - the custom option: Test connection and Fetch models on the draft', () => {
+  it('Test connection sends the draft triple, keeps the verified record in the draft and writes nothing', async () => {
+    const settings = customSettings();
+    const { user, rpc, onChange, rerender } = await setup({
+      settings,
+      responses: { 'ai.test': CUSTOM_VERIFIED },
+    });
+    const status = screen.getByTestId('settings-ai-status');
+    expect(status).toHaveAttribute('data-status', 'untested');
+    expect(screen.getByTestId('settings-ai-test')).toBeEnabled();
+    await user.click(screen.getByTestId('settings-ai-test'));
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+    expect(rpc.calls.find((c) => c.method === 'ai.test')?.params).toEqual({
+      target: { kind: 'custom', address: ADDRESS, key: 'sk-test-123', model: 'standin-chat' },
+    });
+    const patch = onChange.mock.calls.at(-1)![0] as { customVerified: AiVerifiedRecord };
+    expect(patch.customVerified).toEqual({
+      fingerprint: CUSTOM_VERIFIED.fingerprint,
+      model: 'standin-chat',
+      at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*Z$/),
+    });
+    // Nothing written: the record travels with the triple at OK (review A2).
+    expect(settingsSetCalls(rpc)).toEqual([]);
+    // The dialog re-renders the page with the record: green.
+    rerender({ ...settings, ai: { ...settings.ai, customVerified: patch.customVerified } });
+    await waitFor(() => expect(status).toHaveAttribute('data-status', 'verified'));
+    expect(status).toHaveTextContent('Verified — model standin-chat');
+  });
+
+  it('a failed test shows the service words with the key masked until the draft changes; an empty address or model disables Test', async () => {
+    const settings = customSettings({ key: 'sk-wrong-key' });
+    const { user, rerender } = await setup({
+      settings,
+      responses: {
+        'ai.test': {
+          ok: false,
+          kind: 'http',
+          status: 401,
+          body: {
+            error: {
+              message: 'Incorrect API key provided: sk-wrong-key.',
+              code: 'invalid_api_key',
+            },
+          },
+          elapsedMs: 2,
+          verified: false,
+        } satisfies AiTestResult,
+      },
+    });
+    const status = screen.getByTestId('settings-ai-status');
+    await user.click(screen.getByTestId('settings-ai-test'));
+    await waitFor(() => expect(status).toHaveAttribute('data-status', 'failed'));
+    expect(status).toHaveTextContent('Incorrect API key provided: •••.');
+    expect(status).not.toHaveTextContent('sk-wrong-key');
+    // The failure belongs to the tested draft: an edit makes it "not tested" again.
+    rerender(customSettings({ key: 'sk-other' }));
+    await waitFor(() => expect(status).toHaveAttribute('data-status', 'untested'));
+    rerender(customSettings({ key: 'sk-wrong-key' }));
+    await waitFor(() => expect(status).toHaveAttribute('data-status', 'failed'));
+    // Nothing to test without an address or a model.
+    rerender(customSettings({ model: '' }));
+    expect(screen.getByTestId('settings-ai-test')).toBeDisabled();
+    expect(screen.getByTestId('settings-ai-fetch-models')).toBeEnabled();
+    rerender(customSettings({ address: '' }));
+    expect(screen.getByTestId('settings-ai-test')).toBeDisabled();
+    expect(screen.getByTestId('settings-ai-fetch-models')).toBeDisabled();
+  });
+
+  it('Fetch models fills the suggestions in the service order with contextLength 0 last and marked, keeps the list and the context length in memory, reports none and a format failure', async () => {
+    const settings = customSettings();
+    const { user, rpc, ctx } = await setup({ settings, responses: { 'ai.models': MODELS } });
+    await user.click(screen.getByTestId('settings-ai-fetch-models'));
+    await waitFor(() =>
+      expect(suggestionValues()).toEqual(['standin-chat', 'standin-mini', 'standin-embed']),
+    );
+    expect(rpc.calls.find((c) => c.method === 'ai.models')?.params).toEqual({
+      target: { kind: 'custom', address: ADDRESS, key: 'sk-test-123', model: 'standin-chat' },
+    });
+    const options = screen.getByTestId('settings-ai-model-list').querySelectorAll('option');
+    expect(options[0]!.label).toBe('');
+    expect(options[1]!.label).toBe('answers only');
+    expect(options[2]!.label).toBe('not a chat model?');
+    expect(screen.getByTestId('settings-ai-models-note')).toHaveTextContent('3 models');
+    // The answer is kept in memory for the session - never a setting (review C13): the
+    // chosen model's context length as the hint, the list for the assistant's target.
+    const memory = ctx.store.getState().ai;
+    expect(memory.contextLengthHint).toBe(131072);
+    expect(memory.customModels).toEqual({ address: ADDRESS, models: MODELS.ok && MODELS.models });
+    expect(settingsSetCalls(rpc)).toEqual([]);
+
+    // No models: the field is typed-only.
+    rpc.responses['ai.models'] = { ok: true, status: 200, models: [], elapsedMs: 1 };
+    await user.click(screen.getByTestId('settings-ai-fetch-models'));
+    await waitFor(() =>
+      expect(screen.getByTestId('settings-ai-models-note')).toHaveTextContent(/lists no models/),
+    );
+    expect(suggestionValues()).toEqual([]);
+    expect(screen.getByTestId('settings-ai-model')).toBeEnabled();
+
+    // A non-list body: the format message under the button.
+    rpc.responses['ai.models'] = {
+      ok: false,
+      kind: 'format',
+      status: 200,
+      text: '{"message":"not a list"}',
+      elapsedMs: 1,
+    };
+    await user.click(screen.getByTestId('settings-ai-fetch-models'));
+    await waitFor(() =>
+      expect(screen.getByTestId('settings-ai-models-note')).toHaveTextContent(
+        /could not be understood/,
+      ),
+    );
+    expect(suggestionValues()).toEqual([]);
+  });
+
+  it('shows the notice before Fetch models and Test on a hosted draft, re-asks on 1200 noAgreement, never for a local draft', async () => {
+    const requireAgreement = vi.fn<RequireAgreementFn>(() => Promise.resolve(true));
+    let tests = 0;
+    const hosted = customSettings({ address: 'http://ai.standin.test:8787/v1' });
+    const { user, rpc, rerender } = await setup({
+      settings: hosted,
+      responses: {
+        'ai.models': MODELS,
+        'ai.test': () => {
+          tests += 1;
+          return tests === 1
+            ? rpcError(1200, 'ai.noService', {
+                reason: 'noAgreement',
+                service: 'custom:http://ai.standin.test:8787/v1',
+              })
+            : CUSTOM_VERIFIED;
+        },
+      },
+      props: { requireAgreement },
+    });
+    await user.click(screen.getByTestId('settings-ai-fetch-models'));
+    await waitFor(() => expect(rpc.calls.map((c) => c.method)).toContain('ai.models'));
+    expect(requireAgreement).toHaveBeenCalledTimes(1);
+    expect(requireAgreement.mock.calls[0]![0]).toEqual({
+      kind: 'custom',
+      address: 'http://ai.standin.test:8787/v1',
+      name: 'ai.standin.test:8787',
+    });
+    await user.click(screen.getByTestId('settings-ai-test'));
+    await waitFor(() => expect(rpc.calls.filter((c) => c.method === 'ai.test')).toHaveLength(2));
+    // Once before the test, once more after the core's gate refused.
+    expect(requireAgreement).toHaveBeenCalledTimes(3);
+    expect(requireAgreement.mock.calls[2]![1]).toEqual({ force: true });
+
+    // No: nothing is called.
+    requireAgreement.mockImplementation(() => Promise.resolve(false));
+    await user.click(screen.getByTestId('settings-ai-fetch-models'));
+    await act(async () => {});
+    expect(rpc.calls.filter((c) => c.method === 'ai.models')).toHaveLength(1);
+
+    // A local draft never asks.
+    rerender(customSettings());
+    await user.click(screen.getByTestId('settings-ai-fetch-models'));
+    await waitFor(() => expect(rpc.calls.filter((c) => c.method === 'ai.models')).toHaveLength(2));
+    expect(requireAgreement).toHaveBeenCalledTimes(4);
+  });
+
+  it('cancels a running Fetch or Test job when the dialog closes', async () => {
+    const settings = customSettings();
+    const cancellers = new Set<() => void>();
+    const { user, rpc } = await setup({
+      settings,
+      responses: { 'job.cancel': {} },
+      props: {
+        registerCancel: (cancel) => {
+          cancellers.add(cancel);
+          return () => cancellers.delete(cancel);
+        },
+      },
+    });
+    let started: string | null = null;
+    (rpc.client as unknown as { runJob: unknown }).runJob = (
+      method: string,
+      params: unknown,
+      options?: { onStart?: (jobId: string) => void },
+    ) => {
+      rpc.calls.push({ method, params });
+      started = method;
+      options?.onStart?.(`job-${method}`);
+      return new Promise(() => {}); // never answers: the dialog closes first
+    };
+    await user.click(screen.getByTestId('settings-ai-fetch-models'));
+    await waitFor(() => expect(started).toBe('ai.models'));
+    expect(screen.getByTestId('settings-ai-fetch-models')).toBeDisabled();
+    expect(screen.getByTestId('settings-ai-test')).toBeDisabled();
+    act(() => {
+      for (const cancel of cancellers) cancel();
+    });
+    await waitFor(() =>
+      expect(rpc.calls.find((c) => c.method === 'job.cancel')?.params).toEqual({
+        jobId: 'job-ai.models',
+      }),
+    );
+  });
+
+  it('the draft diff writes the triple and ai.customVerified in one patch (the dialog at OK) and Cancel discards the draft', () => {
+    const original = defaultSettings();
+    const draft = customSettings(
+      {},
+      {
+        fingerprint: fingerprintOf(ADDRESS, 'sk-test-123', 'standin-chat'),
+        model: 'standin-chat',
+        at: '2026-10-22T10:00:00.000Z',
+      },
+    );
+    expect(settingsPatch(original, draft)).toEqual({
+      ai: {
+        mode: 'custom',
+        custom: { address: ADDRESS, key: 'sk-test-123', model: 'standin-chat' },
+        customVerified: draft.ai.customVerified,
+      },
+    });
+    // Nothing changed (Cancel keeps the original): an empty patch.
+    expect(settingsPatch(original, cloneSettings(original))).toEqual({});
   });
 });

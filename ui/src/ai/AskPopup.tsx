@@ -464,7 +464,11 @@ export async function openAskPopup(ctx: CommandContext): Promise<void> {
   }
   let service: { name: string; model: string } | null = null;
   try {
-    const resolved = await resolveActiveTarget(rpc, store.getState().settings);
+    const resolved = await resolveActiveTarget(
+      rpc,
+      store.getState().settings,
+      store.getState().ai.customModels,
+    );
     if (resolved.ok) service = { name: resolved.target.name, model: resolved.target.model };
   } catch {
     service = null;

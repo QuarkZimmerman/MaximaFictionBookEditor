@@ -14,6 +14,7 @@ import { DEFAULT_THEME_SETTING, isThemeSetting } from '@/app/theme';
 import { ENCODING_CHOICES } from '@/dialogs/encodings';
 import { isCssColor } from '@/features/settings/apply';
 import type {
+  AiModelsResult,
   AiServiceEntry,
   AiServicesResult,
   AiTestResult,
@@ -385,6 +386,86 @@ export function testFailureText(result: AiTestResult, t: TFunction): string {
   }
   const text = t(`ai.failure.${result.kind}`);
   return result.message ? t('ai.failure.withMessage', { text, message: result.message }) : text;
+}
+
+/**
+ * The text of a failed *Fetch models* (FR-004): the service's words for an `http` answer, the
+ * localised text of the transport kind otherwise (`format` for a body that is no model list).
+ */
+export function modelsFailureText(
+  result: Exclude<AiModelsResult, { ok: true }>,
+  t: TFunction,
+): string {
+  return testFailureText({ ...result, verified: false }, t);
+}
+
+/* ------------------------------------------------------------------------ */
+/* The custom option (US8; FR-003, FR-004, FR-009; data-model §2.2, §2.4)     */
+/* ------------------------------------------------------------------------ */
+
+/** The custom triple as the page tests and the core fingerprints it. */
+export interface CustomTriple {
+  address: string;
+  key: string;
+  model: string;
+}
+
+/** The three fields of the draft's `ai.custom` (an older snapshot without them → empty). */
+export function customTripleOf(ai: Partial<Settings['ai']> | undefined): CustomTriple {
+  return {
+    address: ai?.custom?.address ?? '',
+    key: ai?.custom?.key ?? '',
+    model: ai?.custom?.model ?? '',
+  };
+}
+
+export function sameTriple(a: CustomTriple, b: CustomTriple): boolean {
+  return a.address === b.address && a.key === b.key && a.model === b.model;
+}
+
+/**
+ * The fingerprint of a triple as the core computes it (rpc-api §3.7; data-model §2.2): the
+ * lower-case SHA-256 hex of the UTF-8 bytes of `address + "\0" + key + "\0" + model`, here
+ * with WebCrypto (`crypto.subtle.digest` - the loopback origin is a secure context; review A3).
+ * The algorithm is pinned on both sides by a unit test; no `ai.fingerprint` RPC exists.
+ */
+export async function tripleFingerprint(triple: CustomTriple): Promise<string> {
+  const bytes = new TextEncoder().encode(`${triple.address}\0${triple.key}\0${triple.model}`);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** One suggestion of the model field after *Fetch models* (data-model §2.2 "Notice and mode"). */
+export interface ModelSuggestion {
+  id: string;
+  /** `contextLength === 0`: listed last and marked "not a chat model?". */
+  doubtful: boolean;
+  /** `tools: false`: hinted as answers only. */
+  noTools: boolean;
+}
+
+/**
+ * The suggestions in the service's order, the models with `contextLength === 0` (an embedding
+ * or another non-chat model, as the OpenAI list reports it) moved to the end and marked;
+ * duplicates and empty ids dropped.
+ */
+export function modelSuggestions(
+  models: readonly { id: string; contextLength?: number; tools?: boolean }[],
+): ModelSuggestion[] {
+  const seen = new Set<string>();
+  const usual: ModelSuggestion[] = [];
+  const doubtful: ModelSuggestion[] = [];
+  for (const model of models) {
+    if (!model.id || seen.has(model.id)) continue;
+    seen.add(model.id);
+    const suggestion: ModelSuggestion = {
+      id: model.id,
+      doubtful: model.contextLength === 0,
+      noTools: model.tools === false,
+    };
+    (suggestion.doubtful ? doubtful : usual).push(suggestion);
+  }
+  return [...usual, ...doubtful];
 }
 
 /** "Font size:" -> "Font size" (labels carry a trailing colon in the original dialogs). */

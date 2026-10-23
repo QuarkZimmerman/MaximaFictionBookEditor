@@ -351,7 +351,7 @@ export function AiPanel() {
   // service list is the core's; nothing reaches a service here.
   useEffect(() => {
     let cancelled = false;
-    resolveActiveTarget(rpc ?? NO_RPC, settings)
+    resolveActiveTarget(rpc ?? NO_RPC, settings, store.getState().ai.customModels)
       .then((resolved) => {
         if (cancelled) return;
         setTarget(resolved.ok ? { kind: 'ok', target: resolved.target } : { kind: 'none' });
@@ -362,7 +362,7 @@ export function AiPanel() {
     return () => {
       cancelled = true;
     };
-  }, [rpc, settings]);
+  }, [rpc, settings, store]);
 
   // The popup's "Continue in panel" and the turn-on ask for the focus (`panelFocus`).
   useEffect(() => {

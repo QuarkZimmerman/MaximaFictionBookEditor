@@ -108,7 +108,10 @@ export interface AssistantRequestView {
  * debounced session save); `loaded` records the one import of the lazy chunk; `catalogue`, the
  * `request` and the `conversation` exist only while `on`; `panelFocus` is set by the popup's
  * "Continue in panel" and `contextLengthHint` by Fetch models and overflow messages - in memory
- * only, never a setting (review C13).
+ * only, never a setting (review C13); `customModels` is the last *Fetch models* answer of the
+ * settings page (US8, data-model §2.4): the models the custom service listed, kept with the
+ * address they were fetched from so that the active target takes `tools` and `contextLength`
+ * from it while the chosen model is among them - transient as well, never a setting.
  */
 export interface AssistantState {
   on: boolean;
@@ -120,6 +123,20 @@ export interface AssistantState {
   conversation: AssistantConversation;
   panelFocus: boolean;
   contextLengthHint: number | null;
+  customModels: CustomModelsMemory | null;
+}
+
+/** One model of a *Fetch models* answer (`ai.models`, rpc-api §3.12), as the core normalised it. */
+export interface FetchedModel {
+  id: string;
+  contextLength?: number;
+  tools?: boolean;
+}
+
+/** The last *Fetch models* answer and the custom address it came from (data-model §2.4, §2.6). */
+export interface CustomModelsMemory {
+  address: string;
+  models: FetchedModel[];
 }
 
 export interface AppState {
@@ -210,6 +227,7 @@ export function createAssistantState(overrides: Partial<AssistantState> = {}): A
     conversation: emptyConversation(),
     panelFocus: false,
     contextLengthHint: null,
+    customModels: null,
     ...overrides,
   };
 }
