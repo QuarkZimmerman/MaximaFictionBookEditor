@@ -157,7 +157,7 @@ TEST_CASE(
         CHECK(f.ai_log_entries().empty());
 
         const json list = f.result("ai.services");
-        CHECK(list["services"].size() == 4);
+        CHECK(list["services"].size() == 3);
         CHECK(list["hidden"] == json::array());
         REQUIRE(list["issues"].size() == 1);
         CHECK(list["issues"][0]["reason"] == "unreadable");
@@ -179,7 +179,7 @@ TEST_CASE(
     SECTION("the user override replaces the bundled entry in place") {
         AiFixture f(false, "user-override.json");
         const json list = f.result("ai.services");
-        REQUIRE(list["services"].size() == 4);
+        REQUIRE(list["services"].size() == 3);
         const json& ovh = list["services"][0];
         CHECK(ovh["id"] == "ovhcloud");
         CHECK(ovh["source"] == "user");
@@ -195,26 +195,26 @@ TEST_CASE(
         CHECK(list["issues"] == json::array());
     }
     SECTION("a hidden bundled id, a user-only entry, a keyed entry without its key") {
-        AiFixture f(false, "user-hidden-kilo.json");
+        AiFixture f(false, "user-hidden-pollinations.json");
         json list = f.result("ai.services");
-        CHECK(list["services"].size() == 3);
-        CHECK(list["hidden"] == json::array({"kilo"}));
+        CHECK(list["services"].size() == 2);
+        CHECK(list["hidden"] == json::array({"pollinations"}));
         fs::copy_file(fixture("user-with-key.json"), f.user_file(),
                       fs::copy_options::overwrite_existing);
         list = f.result("ai.reloadServices");
-        REQUIRE(list["services"].size() == 5);
-        CHECK(list["services"][4]["id"] == "keyed");
-        CHECK(list["services"][4]["hasKey"] == true);
-        CHECK(list["services"][4]["keyRequired"] == true);
-        CHECK(list["services"][4]["source"] == "user");
-        CHECK(list["services"][4]["replaced"] == false);
+        REQUIRE(list["services"].size() == 4);
+        CHECK(list["services"][3]["id"] == "keyed");
+        CHECK(list["services"][3]["hasKey"] == true);
+        CHECK(list["services"][3]["keyRequired"] == true);
+        CHECK(list["services"][3]["source"] == "user");
+        CHECK(list["services"][3]["replaced"] == false);
         CHECK(list.dump().find("sk-user") == std::string::npos);
         CHECK(f.log_text().find("sk-user") == std::string::npos);
     }
     SECTION("a malformed user file is reported and the bundled list is used") {
         AiFixture f(false, "user-truncated.json");
         const json list = f.result("ai.services");
-        CHECK(list["services"].size() == 4);
+        CHECK(list["services"].size() == 3);
         REQUIRE(list["issues"].size() == 1);
         CHECK(list["issues"][0] ==
               json{{"file", platform::utf8_from_path(f.user_file())}, {"reason", "invalidJson"}});
@@ -235,11 +235,11 @@ TEST_CASE(
     CHECK(f.count_notifications("resources.changed", 100) == 0);
 
     // A file written after the first read is not seen until a reload.
-    fs::copy_file(fixture("user-hidden-kilo.json"), f.user_file());
-    CHECK(f.result("ai.services")["services"].size() == 4);
+    fs::copy_file(fixture("user-hidden-pollinations.json"), f.user_file());
+    CHECK(f.result("ai.services")["services"].size() == 3);
     list = f.result("ai.reloadServices");
-    CHECK(list["services"].size() == 3);
-    CHECK(list["hidden"] == json::array({"kilo"}));
+    CHECK(list["services"].size() == 2);
+    CHECK(list["hidden"] == json::array({"pollinations"}));
     CHECK(list["files"]["userExists"] == true);
     auto changed = f.ws.wait_notification("resources.changed");
     REQUIRE(changed);
@@ -265,7 +265,7 @@ TEST_CASE(
     CHECK(test::read_text(f.user_file()) == test::read_text(bundled_file()));
     CHECK(f.count_notifications("resources.changed", 300) == 1);
     list = f.result("ai.services");
-    REQUIRE(list["services"].size() == 4);
+    REQUIRE(list["services"].size() == 3);
     for (const auto& entry : list["services"]) {
         CHECK(entry["source"] == "user");
         CHECK(entry["replaced"] == true);
@@ -318,7 +318,7 @@ TEST_CASE(
     CHECK(launched.size() == 2);  // nothing else reached the opener
     // An opener that cannot be started is 1050, which the callers tolerate.
     start_ok = false;
-    const json unavailable = f.call("app.openUrl", json{{"url", "https://kilo.ai/terms"}});
+    const json unavailable = f.call("app.openUrl", json{{"url", "https://pollinations.ai/terms"}});
     CHECK(unavailable["error"]["code"] == 1050);
     CHECK(unavailable["error"]["message"] == "dialog.unavailable");
     process::set_command_runner_for_tests(nullptr);
@@ -659,7 +659,7 @@ TEST_CASE(
     "noModel, noAgreement - and nothing is sent",
     "[ai][server][jobs]") {
     test::HttpTestServer http;
-    AiFixture f(false, "user-hidden-kilo.json");
+    AiFixture f(false, "user-hidden-pollinations.json");
     http.route("POST", "/*", test::ScriptedResponse::json(200, kOkCompletion));
     http.route(
         "GET", "/*",
@@ -704,10 +704,11 @@ TEST_CASE(
     // (2) an unknown id and a hidden one.
     expect_1200("ai.complete", json{{"target", {{"kind", "free"}, {"id", "nope"}}}, {"body", body}},
                 json{{"reason", "unknownService"}, {"id", "nope"}});
-    expect_1200("ai.complete", json{{"target", {{"kind", "free"}, {"id", "kilo"}}}, {"body", body}},
-                json{{"reason", "unknownService"}, {"id", "kilo"}});
-    expect_1200("ai.models", json{{"target", {{"kind", "free"}, {"id", "kilo"}}}},
-                json{{"reason", "unknownService"}, {"id", "kilo"}});
+    expect_1200("ai.complete",
+                json{{"target", {{"kind", "free"}, {"id", "pollinations"}}}, {"body", body}},
+                json{{"reason", "unknownService"}, {"id", "pollinations"}});
+    expect_1200("ai.models", json{{"target", {{"kind", "free"}, {"id", "pollinations"}}}},
+                json{{"reason", "unknownService"}, {"id", "pollinations"}});
     // (3) an empty stored address; (4) an empty model - ai.models exempt.
     f.result("settings.set",
              json{{"patch", {{"ai", {{"custom", {{"address", ""}, {"model", ""}}}}}}}});
@@ -945,7 +946,7 @@ TEST_CASE(
         REQUIRE(http.wait_for_requests(1));
         test::write_text(f.user_file(), R"({"version": 1, "services": []})");
         const json reloaded = f.result("ai.reloadServices");
-        CHECK(reloaded["services"].size() == 4);
+        CHECK(reloaded["services"].size() == 3);
         auto done = f.ws.wait_notification("job.done", 5000);
         REQUIRE(done);
         CHECK((*done)["params"]["jobId"] == started["jobId"]);
@@ -1173,7 +1174,7 @@ TEST_CASE(
                                    {"connectMs", 1},
                                    {"totalMs", 1}})["error"]["code"] == -32601);
     }
-    CHECK(ws.call("ai.services")["result"]["services"].size() == 4);  // the family itself stays
+    CHECK(ws.call("ai.services")["result"]["services"].size() == 3);  // the family itself stays
 }
 
 TEST_CASE(

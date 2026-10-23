@@ -31,21 +31,6 @@
       }
     },
     {
-      "id": "kilo",
-      "name": "Kilo Gateway",
-      "address": "https://ai-gateway.kilo.ai/api/v1",
-      "model": "minimax/minimax-m3.1-flash:free",
-      "keyRequired": false,
-      "tools": true,
-      "termsUrl": "https://kilo.ai/terms",
-      "limits": {
-        "en": "200 requests per hour per address for the free models",
-        "ru": "200 запросов в час с одного адреса для бесплатных моделей",
-        "uk": "200 запитів на годину з однієї адреси для безкоштовних моделей"
-      },
-      "contextLength": 1000000
-    },
-    {
       "id": "llm7",
       "name": "LLM7.io",
       "address": "https://api.llm7.io/v1",

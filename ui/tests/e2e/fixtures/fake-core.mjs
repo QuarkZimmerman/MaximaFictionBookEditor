@@ -149,7 +149,7 @@ function readBlankTemplate() {
 }
 
 /**
- * Feature 005: the effective AI service list of the UI-only runs - the four bundled entries of
+ * Feature 005: the effective AI service list of the UI-only runs - the bundled entries of
  * resources/ai-services.json as `ai.services()` returns them (rpc-api §3.12), never a key.
  */
 function aiServicesResult() {

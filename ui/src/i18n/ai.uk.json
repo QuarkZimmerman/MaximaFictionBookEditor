@@ -31,10 +31,6 @@
         "name": "Pollinations",
         "model": "openai-fast"
       },
-      "kilo": {
-        "name": "Kilo Gateway",
-        "model": "minimax/minimax-m3.1-flash:free"
-      },
       "llm7": {
         "name": "LLM7.io",
         "model": "minimax-m2.7"

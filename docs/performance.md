@@ -19,6 +19,7 @@ update this page when the reader, the binary store or the Body view windowing ch
 | Document Tree divider on the 10 MB book: every layout step of a drag (pointer move → forced layout → painted frame, 20 steps; feature 004, SC-001) | 100 ms × `MFBE_PERF_FACTOR` |
 | Description import with the 10 MB book as the source: File > Import until the status bar reports the import (feature 004, FR-031 — the constitution's opening budget applied to the source file; the import's apply step and the FBD export have no budget of their own) | 3 s × `MFBE_PERF_FACTOR` |
 | File > Open of the 10 MB book with a remembered position: until the Body view is editable with the caret in place (feature 004, US8) | 3 s |
+| AI assistant request on the 10 MB book: the validation of the working copy in the core after every change the request makes (`doc.validate`; feature 005, FR-060 — research R5's acceptance number for a locked request, not a constitution budget) | 1 000 ms × `MFBE_PERF_FACTOR` |
 
 ## Measurements (T150)
 
@@ -94,6 +95,22 @@ position remembered in a paragraph three quarters into the book, the Body view i
 the caret in place and scrolled into view after **592 ms** against the 3 s opening budget — the
 same run opened the book without a position in 677 ms, so the resolution of the structural path
 against the loaded model (one walk per segment) adds nothing measurable to the open.
+
+**AI assistant: the validity hook on the 10 MB book** (feature 005 User Story 4, FR-060 to
+FR-065; measured 2026-10-23 by the one `@perf` journey of feature 005 in
+`ui/tests/e2e/us4-ai-validity.spec.ts` on the same host - the 4 vCPU shared VM - with the
+Release core, the 10 MB book of `tests/fixtures/gen-large-book.py` open and the loopback stand-in
+answering without delay): a request of five `replace_node` changes spread over the book
+validates the whole working copy after each change - `doc.validate({docId, document})`, the
+10 MB model sent to the core as a job - in **65–73 ms per validation in the core** against the
+acceptance number of 1 000 ms × `MFBE_PERF_FACTOR` (research R5); the hook's round trip per
+change (`change.try` → `change.accepted`: the fragment parse, the pre-check, the write to the
+copy, the transfer and the validation) is ≈ 340 ms, and the request end to end (Enter → done,
+six exchanges) ≈ 3.6 s. The commit calls no `doc.toXml` (310 ms at 10 MB, R5 §4), which the
+journey asserts from the record of the page's JSON-RPC methods. With the assistant off nothing
+of the feature runs (SC-013) and the numbers above stand: the same day's run of the `@perf`
+journeys on the Release core opened the 10 MB book to an editable Body view in 617 ms, typed
+at ~15 ms per keystroke (median) and mapped the caret between Body and Source in 1 ms.
 
 ## What was changed (T150)
 

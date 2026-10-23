@@ -24,8 +24,6 @@
     "ai.bundled.ovhcloud.model",
     "ai.bundled.pollinations.name",
     "ai.bundled.pollinations.model",
-    "ai.bundled.kilo.name",
-    "ai.bundled.kilo.model",
     "ai.bundled.llm7.name",
     "ai.bundled.llm7.model",
     "dialog.settings.ai.custom.exampleHosted",

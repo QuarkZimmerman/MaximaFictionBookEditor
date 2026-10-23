@@ -10,7 +10,7 @@
  * `app.openUrl` - the click handler is AiPage.test.tsx's unit case).
  *
  * Scenarios (spec.md US1; quickstart §1):
- *  1. a fresh core: the AI assistant page, Free selected, the four bundled entries in order as
+ *  1. a fresh core: the AI assistant page, Free selected, the three bundled entries in order as
  *     `<name> — <model>`, the first selected, the custom fields disabled (FR-001, FR-002)
  *  6. for each entry its limits note in the interface language, its terms link and - for
  *     LLM7.io - the undocumented-keyless remark (FR-002, FR-010)
@@ -205,12 +205,12 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
     await core.rpc('settings.set', { patch: { ai: null } }).catch(() => {});
   });
 
-  test('1+6. a fresh core: Free selected, the four bundled entries with limits, terms and the LLM7 remark; the page by keyboard', async ({
+  test('1+6. a fresh core: Free selected, the three bundled entries with limits, terms and the LLM7 remark; the page by keyboard', async ({
     core,
     page,
   }) => {
     const { entries } = await bundledEntries(core);
-    expect(entries.map((e) => e.id)).toEqual(['ovhcloud', 'pollinations', 'kilo', 'llm7']);
+    expect(entries.map((e) => e.id)).toEqual(['ovhcloud', 'pollinations', 'llm7']);
     await openApp(page, core);
     await openAiPage(page);
     const lang = await pageLang(page);
@@ -221,7 +221,7 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
     await expect(page.getByTestId('settings-ai-mode-custom')).not.toBeChecked();
     await expect(page.getByTestId('settings-ai-mode-disabled')).not.toBeChecked();
     const select = page.getByTestId('settings-ai-service');
-    expect(await optionValues(select)).toEqual(['ovhcloud', 'pollinations', 'kilo', 'llm7']);
+    expect(await optionValues(select)).toEqual(['ovhcloud', 'pollinations', 'llm7']);
     expect(await optionTexts(select)).toEqual(entries.map((e) => `${e.name} — ${e.model}`));
     await expect(select).toHaveValue('ovhcloud');
     for (const field of ['settings-ai-address', 'settings-ai-key', 'settings-ai-model']) {
@@ -240,7 +240,7 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
     );
 
     // Scenario 6: for each entry the limits note in the interface language, the terms link by
-    // href (never clicked), the LLM7 remark inside its note; all four can use the tools.
+    // href (never clicked), the LLM7 remark inside its note; all three can use the tools.
     for (const entry of entries) {
       await select.selectOption(entry.id);
       await expect(page.getByTestId('settings-ai-limits')).toContainText(entry.limits[lang]);
@@ -314,7 +314,7 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
     await expect(select.locator('option').first()).toHaveText(
       'OVHcloud AI Endpoints (stand-in) — standin-chat',
     );
-    expect(await optionValues(select)).toEqual(['ovhcloud', 'pollinations', 'kilo', 'llm7']);
+    expect(await optionValues(select)).toEqual(['ovhcloud', 'pollinations', 'llm7']);
     await expect(page.getByTestId('settings-ai-replaced')).toBeVisible();
     await expect(page.getByTestId('settings-ai-replaced')).toHaveText(
       await pageText(page, 'dialog.settings.ai.replaced'),
@@ -327,7 +327,7 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
     await reload();
     await expect
       .poll(() => optionValues(select))
-      .toEqual(['ovhcloud', 'pollinations', 'kilo', 'llm7', 'my-local']);
+      .toEqual(['ovhcloud', 'pollinations', 'llm7', 'my-local']);
     await expect(page.getByTestId('settings-ai-replaced')).toHaveCount(0);
     await select.selectOption('my-local');
     await expect(page.getByTestId('settings-ai-tools-note')).toHaveText(
@@ -341,10 +341,10 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
     await select.selectOption('ovhcloud');
     await expect(page.getByTestId('settings-ai-tools-note')).toHaveCount(0);
 
-    // (c) a hidden bundled entry is absent.
-    writeUserFile(core.dataDir!, fixtureText('user-hidden-kilo.json', standin.port));
+    // (c) a hidden bundled entry is absent; the others keep their order.
+    writeUserFile(core.dataDir!, fixtureText('user-hidden-pollinations.json', standin.port));
     await reload();
-    await expect.poll(() => optionValues(select)).toEqual(['ovhcloud', 'pollinations', 'llm7']);
+    await expect.poll(() => optionValues(select)).toEqual(['ovhcloud', 'llm7']);
 
     // (d) an entry without a model: the issue names the file, the entry and the field; the
     // rest stays usable.
@@ -360,9 +360,9 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
         reason: await pageText(page, 'ai.listIssue.missingField', { field: 'model' }),
       }),
     );
-    expect(await optionValues(select)).toEqual(['ovhcloud', 'pollinations', 'kilo', 'llm7']);
+    expect(await optionValues(select)).toEqual(['ovhcloud', 'pollinations', 'llm7']);
 
-    // (e) a truncated file: `invalidJson` named with the file, the four bundled entries back.
+    // (e) a truncated file: `invalidJson` named with the file, the three bundled entries back.
     writeUserFile(core.dataDir!, fixtureText('user-truncated.json', standin.port));
     await reload();
     await expect(issues).toContainText(
@@ -371,14 +371,14 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
         reason: await pageText(page, 'ai.listIssue.invalidJson'),
       }),
     );
-    expect(await optionValues(select)).toEqual(['ovhcloud', 'pollinations', 'kilo', 'llm7']);
+    expect(await optionValues(select)).toEqual(['ovhcloud', 'pollinations', 'llm7']);
 
     // (f) two entries with one id: the first wins, the second is a `duplicateId` issue.
     writeUserFile(core.dataDir!, fixtureText('user-duplicate-id.json', standin.port));
     await reload();
     await expect
       .poll(() => optionValues(select))
-      .toEqual(['ovhcloud', 'pollinations', 'kilo', 'llm7', 'standin']);
+      .toEqual(['ovhcloud', 'pollinations', 'llm7', 'standin']);
     await expect(issues).toContainText(
       await pageText(page, 'dialog.settings.ai.issues.entry', {
         file: userFile,

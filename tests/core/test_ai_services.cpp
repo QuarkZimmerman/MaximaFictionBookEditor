@@ -95,14 +95,14 @@ std::vector<json> log_entries(const fs::path& logs) {
 }  // namespace
 
 TEST_CASE(
-    "ai.services: the bundled file holds exactly the four entries in order with three "
+    "ai.services: the bundled file holds exactly the three entries in order with three "
     "limits languages and no key requirement",
     "[ai][services]") {
     Layered env;  // no user file
     const ai::ServiceList list = env.load();
     CHECK(list.issues.empty());
     CHECK(list.hidden.empty());
-    CHECK(ids(list) == std::vector<std::string>{"ovhcloud", "pollinations", "kilo", "llm7"});
+    CHECK(ids(list) == std::vector<std::string>{"ovhcloud", "pollinations", "llm7"});
     for (const auto& entry : list.services) {
         INFO(entry.id);
         CHECK(entry.source == ai::Layer::bundled);
@@ -128,17 +128,14 @@ TEST_CASE(
     CHECK(list.services[1].address == "https://text.pollinations.ai/openai");
     CHECK(list.services[1].model == "openai-fast");
     CHECK_FALSE(list.services[1].context_length.has_value());
-    CHECK(list.services[2].address == "https://ai-gateway.kilo.ai/api/v1");
-    CHECK(list.services[2].model == "minimax/minimax-m3.1-flash:free");
-    CHECK(list.services[2].context_length == 1000000);
-    CHECK(list.services[3].address == "https://api.llm7.io/v1");
-    CHECK(list.services[3].model == "minimax-m2.7");
-    CHECK(list.services[3].terms_url == "https://llm7.io/privacy");
-    CHECK(list.services[3].context_length == 180000);
+    CHECK(list.services[2].address == "https://api.llm7.io/v1");
+    CHECK(list.services[2].model == "minimax-m2.7");
+    CHECK(list.services[2].terms_url == "https://llm7.io/privacy");
+    CHECK(list.services[2].context_length == 180000);
 
     // The AiServicesResult shape.
     const json j = list.to_json();
-    CHECK(j["services"].size() == 4);
+    CHECK(j["services"].size() == 3);
     CHECK(j["hidden"] == json::array());
     CHECK(j["issues"] == json::array());
     CHECK(j["files"]["bundled"] == platform::utf8_from_path(bundled_file()));
@@ -176,7 +173,7 @@ TEST_CASE(
         env.put_user("user-override.json");
         const ai::ServiceList list = env.load();
         CHECK(list.issues.empty());
-        CHECK(ids(list) == std::vector<std::string>{"ovhcloud", "pollinations", "kilo", "llm7"});
+        CHECK(ids(list) == std::vector<std::string>{"ovhcloud", "pollinations", "llm7"});
         const ai::ServiceEntry& ovh = list.services[0];
         CHECK(ovh.name == "OVHcloud AI Endpoints (stand-in)");
         CHECK(ovh.address == "http://127.0.0.1:8787/v1");
@@ -198,14 +195,14 @@ TEST_CASE(
     }
     SECTION("hidden: true removes the bundled entry and lists its id") {
         Layered env;
-        env.put_user("user-hidden-kilo.json");
+        env.put_user("user-hidden-pollinations.json");
         const ai::ServiceList list = env.load();
         CHECK(list.issues.empty());
-        CHECK(ids(list) == std::vector<std::string>{"ovhcloud", "pollinations", "llm7"});
-        CHECK(list.hidden == std::vector<std::string>{"kilo"});
-        CHECK(list.find("kilo") == nullptr);
+        CHECK(ids(list) == std::vector<std::string>{"ovhcloud", "llm7"});
+        CHECK(list.hidden == std::vector<std::string>{"pollinations"});
+        CHECK(list.find("pollinations") == nullptr);
         CHECK(list.find("llm7") != nullptr);
-        CHECK(list.to_json()["hidden"] == json::array({"kilo"}));
+        CHECK(list.to_json()["hidden"] == json::array({"pollinations"}));
     }
     SECTION("user-only entries follow the bundled ones in user-file order; limits as a string") {
         Layered env;
@@ -213,7 +210,7 @@ TEST_CASE(
         const ai::ServiceList list = env.load();
         CHECK(list.issues.empty());
         CHECK(ids(list) ==
-              std::vector<std::string>{"ovhcloud", "pollinations", "kilo", "llm7", "my-local"});
+              std::vector<std::string>{"ovhcloud", "pollinations", "llm7", "my-local"});
         const ai::ServiceEntry& local = list.services.back();
         CHECK(local.source == ai::Layer::user);
         CHECK_FALSE(local.replaced);
@@ -243,7 +240,7 @@ TEST_CASE(
         REQUIRE(list.find("standin") != nullptr);
         CHECK(list.find("standin")->name == "Stand-in (first entry wins)");
         CHECK(list.find("standin")->address == "http://127.0.0.1:8787/v1");
-        CHECK(list.services.size() == 5);
+        CHECK(list.services.size() == 4);
     }
     SECTION("a user entry replacing a bundled id with a hosted name and a trailing slash") {
         Layered env;
@@ -270,7 +267,7 @@ TEST_CASE(
         Layered env;
         env.put_user("user-missing-model.json");
         const ai::ServiceList list = env.load();
-        CHECK(list.services.size() == 4);
+        CHECK(list.services.size() == 3);
         REQUIRE(list.issues.size() == 1);
         CHECK(list.issues[0].to_json() ==
               json{{"file", platform::utf8_from_path(env.data / "ai-services.json")},
@@ -282,7 +279,7 @@ TEST_CASE(
         Layered env;
         env.put_user("user-truncated.json");
         const ai::ServiceList list = env.load();
-        CHECK(ids(list) == std::vector<std::string>{"ovhcloud", "pollinations", "kilo", "llm7"});
+        CHECK(ids(list) == std::vector<std::string>{"ovhcloud", "pollinations", "llm7"});
         REQUIRE(list.issues.size() == 1);
         CHECK(list.issues[0].reason == "invalidJson");
         CHECK_FALSE(list.issues[0].index.has_value());
@@ -292,7 +289,7 @@ TEST_CASE(
         Layered env;
         env.put_user("user-bad-version.json");
         const ai::ServiceList list = env.load();
-        CHECK(list.services.size() == 4);
+        CHECK(list.services.size() == 3);
         CHECK(list.find("standin") == nullptr);
         REQUIRE(list.issues.size() == 1);
         CHECK(list.issues[0].reason == "badVersion");
@@ -383,7 +380,7 @@ TEST_CASE(
         Layered env;
         fs::create_directories(env.data / "ai-services.json");
         const ai::ServiceList list = env.load();
-        CHECK(list.services.size() == 4);
+        CHECK(list.services.size() == 3);
         REQUIRE(list.issues.size() == 1);
         CHECK(list.issues[0].reason == "unreadable");  // never invalidJson: the kind is checked
         CHECK(list.issues[0].file == env.data / "ai-services.json");
@@ -411,7 +408,7 @@ TEST_CASE(
         CHECK(list.files.bundled == bundled_file());
         CHECK(list.files.user == env.data / "ai-services.json");
         CHECK(list.files.user_exists);
-        CHECK(list.services.size() == 4);
+        CHECK(list.services.size() == 3);
         REQUIRE(list.issues.size() == 1);
         CHECK(list.issues[0].reason == "invalidJson");
         CHECK(list.issues[0].file == env.data / "ai-services.json");
@@ -483,7 +480,7 @@ TEST_CASE("ai.services: the portable layer is chosen only when <Data> has no fil
     env.put_portable("user-added-no-tools.json");
     const ai::ServiceList portable = env.load();
     CHECK(ids(portable) ==
-          std::vector<std::string>{"ovhcloud", "pollinations", "kilo", "llm7", "my-local"});
+          std::vector<std::string>{"ovhcloud", "pollinations", "llm7", "my-local"});
     CHECK(portable.services.back().source == ai::Layer::portable);
     CHECK(portable.files.portable == env.portable_dir / "ai-services.json");
     CHECK_FALSE(portable.files.user_exists);
@@ -493,9 +490,9 @@ TEST_CASE("ai.services: the portable layer is chosen only when <Data> has no fil
 
     // The data file wins whole: the portable entries stop being in effect and the result says
     // which file is.
-    env.put_user("user-hidden-kilo.json");
+    env.put_user("user-hidden-pollinations.json");
     const ai::ServiceList data = env.load();
-    CHECK(ids(data) == std::vector<std::string>{"ovhcloud", "pollinations", "llm7"});
+    CHECK(ids(data) == std::vector<std::string>{"ovhcloud", "llm7"});
     CHECK(data.files.user_exists);
     CHECK_FALSE(data.files.portable.has_value());
     CHECK_FALSE(data.to_json()["files"].contains("portable"));
@@ -535,7 +532,7 @@ TEST_CASE(
     const ai::ServiceList copied = env.load();
     CHECK(copied.issues.empty());
     CHECK(copied.files.user_exists);
-    CHECK(ids(copied) == std::vector<std::string>{"ovhcloud", "pollinations", "kilo", "llm7"});
+    CHECK(ids(copied) == std::vector<std::string>{"ovhcloud", "pollinations", "llm7"});
     for (const auto& entry : copied.services) {
         CHECK(entry.source == ai::Layer::user);
         CHECK(entry.replaced);
@@ -554,10 +551,9 @@ TEST_CASE(
     test::write_text(user, R"({"version": 1, "services": [
         {"id": "ovhcloud", "name": "A", "address": "http://127.0.0.1:1/v1", "model": "m"},
         {"id": "pollinations", "name": "B", "address": "http://127.0.0.1:2/v1", "model": "m"},
-        {"id": "kilo", "name": "C", "address": "http://127.0.0.1:3/v1", "model": "m"},
-        {"id": "llm7", "name": "D", "address": "http://127.0.0.1:4/v1", "model": "m"}]})");
+        {"id": "llm7", "name": "C", "address": "http://127.0.0.1:3/v1", "model": "m"}]})");
     const ai::ServiceList replaced = env.load();
-    CHECK(replaced.services.size() == 4);
+    CHECK(replaced.services.size() == 3);
     for (const auto& entry : replaced.services) {
         CHECK(entry.replaced);
         CHECK(entry.local);

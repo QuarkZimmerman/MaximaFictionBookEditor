@@ -15,21 +15,26 @@
  *      the final answer names section 2;
  *   3. the proof-reading instruction of R3: `Он вышел на улицу , было холодно и шол дождь. Никто
  *      его не ждал .` must come back as `Он вышел на улицу, было холодно и шёл дождь. Никто его
- *      не ждал.` - compared after normalising U+202F / U+00A0 and surrounding whitespace (a
- *      wrapping code fence is stripped, as the editor does for a replacement), sent without
- *      `max_tokens` like every request of the editor (ai-service-protocol §2.2);
+ *      не ждал.` or with a comma before `и` (`..., было холодно, и шёл дождь.` - the two
+ *      independent clauses of a compound sentence may be separated by one; both are correct) -
+ *      compared after normalising U+202F / U+00A0 and surrounding whitespace (a wrapping code
+ *      fence is stripped, as the editor does for a replacement); an answer that differs only by
+ *      writing е for ё (`шел`) is `ok (е for ё)`, a note under the table, not a failure (ё is
+ *      optional in Russian print); sent without `max_tokens` like every request of the editor
+ *      (ai-service-protocol §2.2);
  *   4. the wall time of every exchange;
  *   5. the limits: a pause between two requests of one entry (OVHcloud 31 s, Pollinations 31 s,
- *      Kilo none, LLM7 1.5 s); a 429 / 402 / 503-with-Retry-After answer is waited out - the
- *      `Retry-After` header, the body's `error.retry_after`, "Retry after N s" in the message,
- *      else 30 s - within a budget of 300 s per entry; a wait beyond it gives the verdict `limit`;
+ *      LLM7 1.5 s, 5 s for any other entry); a 429 / 402 / 503-with-Retry-After answer is
+ *      waited out - the `Retry-After` header, the body's `error.retry_after`, "Retry after N s"
+ *      in the message, else 30 s - within a budget of 300 s per entry; a wait beyond it gives
+ *      the verdict `limit`;
  *   6. a Markdown table with the UTC date for `docs/releases/0.0.5.md` ("Free services verified
  *      on <date>"): Service | Model | /models | Tool call (exchanges, s) | Proof-reading (s,
  *      result) | Verdict.
  *
  * Verdicts: `pass`; `fail` - the model is not listed, an exchange failed, no tool call was made,
- * the final answer does not name section 2, or the proof-reading differs (`differs (е for ё)`
- * when that is the only difference); `limit` - a wait beyond the budget (on LLM7 re-run the next
+ * the final answer does not name section 2, or the proof-reading differs beyond the comma and
+ * the е-for-ё tolerance above; `limit` - a wait beyond the budget (on LLM7 re-run the next
  * day or from another address before it counts as a failure, quickstart §12). Exit code 1 when
  * any entry fails, 2 on a usage error, 0 otherwise. The reasons follow the table; a model the
  * service no longer lists comes with the listed ids that resemble it and how many ids the list
@@ -55,12 +60,12 @@ const DEFAULT_FILE = path.join(ROOT, 'resources', 'ai-services.json');
 const DEFAULT_TIMEOUT_SECONDS = 120;
 /** Total waiting on limit answers per entry; beyond it the verdict is `limit` (protocol §5). */
 const WAIT_BUDGET_SECONDS = 300;
-/** The wait when a limit answer names none (Kilo gives no hint - protocol §5). */
+/** The wait when a limit answer names none (a service that gives no hint - protocol §5). */
 const DEFAULT_WAIT_SECONDS = 30;
 /** Safety stop of this tool only (the editor has none - research R3.3, decision C2). */
 const MAX_EXCHANGES = 6;
 /** Pause between two requests of one entry (quickstart §12 item 5). */
-const PAUSE_SECONDS = { ovhcloud: 31, pollinations: 31, kilo: 0, llm7: 1.5 };
+const PAUSE_SECONDS = { ovhcloud: 31, pollinations: 31, llm7: 1.5 };
 const DEFAULT_PAUSE_SECONDS = 5;
 
 const SECTIONS = {
@@ -104,7 +109,16 @@ const PROOF_SYSTEM =
   'no Markdown, nothing else.';
 const PROOF_INPUT = 'Он вышел на улицу , было холодно и шол дождь. Никто его не ждал .';
 const PROOF_USER = `Исправь орфографию и пунктуацию. Верни только исправленный текст.\n\n${PROOF_INPUT}`;
-const PROOF_EXPECTED = 'Он вышел на улицу, было холодно и шёл дождь. Никто его не ждал.';
+/**
+ * The correct answers: R3's sentence, and the same with a comma before `и` - `было холодно` and
+ * `шёл дождь` are two independent clauses of a compound sentence, which Russian punctuation
+ * lets a comma separate (Pollinations `openai-fast` answered so on 2026-10-23). Anything else is
+ * a difference, except е written for ё (`onlyYoDropped`), which is noted and accepted.
+ */
+const PROOF_ACCEPTED = [
+  'Он вышел на улицу, было холодно и шёл дождь. Никто его не ждал.',
+  'Он вышел на улицу, было холодно, и шёл дождь. Никто его не ждал.',
+];
 
 /** "section 2", "section two", "the second", "раздел 2", "второй" ... (`\b` is ASCII-only). */
 const NAMES_SECTION_2 =
@@ -684,8 +698,51 @@ function normaliseProof(text) {
   return normalised;
 }
 
+/**
+ * True when `got` is `accepted` with at least one of its ё written as е and nothing else
+ * different - never the other way round (a ё where е is expected is a difference). Both letters
+ * are one UTF-16 unit, so the comparison is positional.
+ */
+function onlyYoDropped(got, accepted) {
+  if (got.length !== accepted.length) return false;
+  let dropped = false;
+  for (let i = 0; i < accepted.length; i++) {
+    if (got[i] === accepted[i]) continue;
+    if ((accepted[i] === 'ё' && got[i] === 'е') || (accepted[i] === 'Ё' && got[i] === 'Е')) {
+      dropped = true;
+      continue;
+    }
+    return false;
+  }
+  return dropped;
+}
+
+/**
+ * The verdict of a normalised proof-reading answer: `{ok: true, result: 'ok'}` for an accepted
+ * form, `{ok: true, result: 'ok (е for ё)', note}` for one with е written for ё, else
+ * `{ok: false, result: 'differs'}`.
+ */
+function judgeProof(got) {
+  if (PROOF_ACCEPTED.includes(got)) return { ok: true, result: 'ok', note: null };
+  if (PROOF_ACCEPTED.some((accepted) => onlyYoDropped(got, accepted))) {
+    return {
+      ok: true,
+      result: 'ok (е for ё)',
+      note: 'proof-reading wrote е for ё (accepted: ё is optional in Russian print)',
+    };
+  }
+  return { ok: false, result: 'differs', note: null };
+}
+
 async function checkProofReading(ctx) {
-  const out = { elapsedMs: 0, answer: null, result: null, error: null };
+  const out = {
+    elapsedMs: 0,
+    answer: null,
+    result: null,
+    ok: false,
+    note: null,
+    error: null,
+  };
   const body = {
     model: ctx.entry.model,
     stream: false,
@@ -702,11 +759,10 @@ async function checkProofReading(ctx) {
       throw new StepError('the service cut the answer (finish_reason "length")');
     }
     out.answer = contentText(choice.message.content);
-    const got = normaliseProof(out.answer);
-    if (got === PROOF_EXPECTED) out.result = 'ok';
-    else if (got.replace(/ё/g, 'е') === PROOF_EXPECTED.replace(/ё/g, 'е')) {
-      out.result = 'differs (е for ё)';
-    } else out.result = 'differs';
+    const verdict = judgeProof(normaliseProof(out.answer));
+    out.ok = verdict.ok;
+    out.result = verdict.result;
+    out.note = verdict.note;
   } catch (error) {
     if (error instanceof LimitExceeded) throw limitWithPartial(error, 'proof', out);
     out.error = error.message;
@@ -767,20 +823,24 @@ async function checkEntry(entry, timeoutSeconds) {
     reasons.push(`tool call: the final answer does not name section 2: "${toolCall.answer}"`);
   }
   if (proof?.error) reasons.push(`proof-reading: ${proof.error}`);
-  else if (proof && !proof.limited && proof.result !== 'ok') {
+  else if (proof && !proof.limited && !proof.ok) {
     reasons.push(`proof-reading ${proof.result}: "${proof.answer}"`);
   }
   if (limited !== null) report.verdict = 'limit';
   else report.verdict = reasons.length === 0 ? 'pass' : 'fail';
+  // Notes: what passed with a remark - printed under the table, no effect on the verdict.
+  const notes = [];
+  if (proof?.note) notes.push(`${proof.note}: "${proof.answer}"`);
   if (
     report.models?.contextLength &&
     entry.contextLength &&
     report.models.contextLength !== entry.contextLength
   ) {
-    report.notes = [
+    notes.push(
       `/models reports a context of ${report.models.contextLength}, the entry says ${entry.contextLength}`,
-    ];
+    );
   }
+  if (notes.length > 0) report.notes = notes;
   return report;
 }
 
