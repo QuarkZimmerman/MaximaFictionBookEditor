@@ -413,6 +413,15 @@ export interface ChangeSpec<T = unknown> {
    * an accepted outcome (the tool's success data).
    */
   apply: () => T | Promise<T>;
+  /**
+   * The Source text path (US5, ai-catalogue §8.1): validates what `apply` produced instead of
+   * the copy - `doc.validate({text})` of the spliced text; may throw a `ChangeRejection`
+   * (`invalidXml` for a text that is not well-formed), which is a rejected attempt like one
+   * thrown by `apply`.
+   */
+  validate?: () => Promise<ValidationReport>;
+  /** The text path: told the decision - the accepted text is kept, a rejected one dropped. */
+  settle?: (accepted: boolean) => void;
 }
 
 export interface ChangeAccepted<T> {
@@ -492,6 +501,7 @@ export async function applyChange<T>(
     outcome: Omit<ChangeRejected, 'accepted' | 'strike' | 'ended'>,
   ): ChangeRejected => {
     session.copy.rollback(checkpoint);
+    change.settle?.(false);
     const count = session.strikes.strike(key);
     const rejected: ChangeRejected = {
       accepted: false,
@@ -502,31 +512,34 @@ export async function applyChange<T>(
     session.endChange(record, rejected);
     return rejected;
   };
+  const rejectionOf = (error: ChangeRejection): ChangeRejected =>
+    reject({
+      code: error.code,
+      stage: error.stage,
+      message: error.message,
+      hint: error.hint ?? HOOK_HINT,
+      ...(error.expected === undefined ? {} : { expected: error.expected }),
+      issues: error.issues,
+    });
 
   let result: T;
   try {
     result = await change.apply();
   } catch (error) {
-    if (error instanceof ChangeRejection) {
-      return reject({
-        code: error.code,
-        stage: error.stage,
-        message: error.message,
-        hint: error.hint ?? HOOK_HINT,
-        ...(error.expected === undefined ? {} : { expected: error.expected }),
-        issues: error.issues,
-      });
-    }
+    if (error instanceof ChangeRejection) return rejectionOf(error);
     session.copy.rollback(checkpoint);
+    change.settle?.(false);
     session.endChange(record, null);
     throw error;
   }
 
   let report: ValidationReport;
   try {
-    report = await session.validate();
+    report = change.validate ? await change.validate() : await session.validate();
   } catch (error) {
+    if (error instanceof ChangeRejection) return rejectionOf(error);
     session.copy.rollback(checkpoint);
+    change.settle?.(false);
     session.endChange(record, null);
     throw error;
   }
@@ -547,6 +560,7 @@ export async function applyChange<T>(
     });
   }
   session.strikes.reset(key);
+  change.settle?.(true);
   const accepted: ChangeAccepted<T> = {
     accepted: true,
     result,

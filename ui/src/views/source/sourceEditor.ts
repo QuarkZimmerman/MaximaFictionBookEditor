@@ -42,8 +42,8 @@ import {
   Compartment,
   EditorSelection,
   EditorState,
+  Transaction,
   type Extension,
-  type Transaction,
   type TransactionSpec,
 } from '@codemirror/state';
 import {
@@ -576,6 +576,30 @@ export class SourceEditorController {
     }
     // The user is editing: the old error position is stale.
     if (this.store.getState().sourceParseError) actions.setSourceParseError(this.store, null);
+  }
+
+  /**
+   * Replaces the whole text as one change kept out of the editor's history and selects
+   * `selection` (offsets into the new text; the start of the text by default) - the AI
+   * assistant's commit in the Source view and the undo / redo of its one snapshot step (feature
+   * 005 US5): the step is the undo coordinator's snapshot entry, not a Source history event,
+   * and the editor's own earlier events are mapped through the change. The caller has set the
+   * Source session's baseline to `text` when the text is to count as clean. Works mounted and
+   * headless; the lock is bypassed (the editor's `readOnly` applies to the user's input).
+   */
+  replaceWholeText(text: string, selection?: { anchor: number; head: number }): void {
+    const length = this.state.doc.length;
+    const clamp = (offset: number) => Math.min(Math.max(Math.floor(offset) || 0, 0), text.length);
+    const range = selection
+      ? EditorSelection.single(clamp(selection.anchor), clamp(selection.head))
+      : EditorSelection.single(0);
+    this.target.dispatch({
+      changes: { from: 0, to: length, insert: text },
+      selection: range,
+      annotations: Transaction.addToHistory.of(false),
+      filter: false,
+    });
+    this.revealSelection();
   }
 
   /* ----------------------------------------------------------- navigation */

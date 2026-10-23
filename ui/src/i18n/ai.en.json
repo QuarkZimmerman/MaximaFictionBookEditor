@@ -66,7 +66,9 @@
       "continue": "Continue in panel",
       "settingsLink": "Open Settings > AI assistant",
       "cutOff": "The answer was cut off by the service and was not applied.",
-      "nothingToChange": "Nothing to change: the assistant returned the selection as it is."
+      "nothingToChange": "Nothing to change: the assistant returned the selection as it is.",
+      "selectionSource": "{{characters}} characters of XML text",
+      "refusedRange": "The selection includes binary data, the stylesheet, the XML declaration or the root element, which are never changed as text. Select XML inside the book's body."
     },
     "panel": {
       "$comment": "The chat panel on the right of the window (FR-040 to FR-045, FR-093, FR-105; ai/AiPanel.tsx): the header with the service and model and the settings link, the conversation, the activity list, the instruction field, Send / Stop / Clear / Undo and the close button.",
@@ -250,6 +252,9 @@
       "busy": "A script is running; wait until it ends.",
       "noService": "No AI service is available. Check Settings > AI assistant.",
       "internal": "Something went wrong inside the editor; the book was left unchanged.",
+      "sourceNotWellFormed": "The Source text is not well-formed XML. Select the text to change and use Ask AI..., or repair the text first.",
+      "sourceRefused": "The selection includes binary data, the stylesheet, the XML declaration or the root element, which are never changed as text.",
+      "binariesChanged": "The result would change the book's binary data; nothing was changed.",
       "withMessage": "{{text}} The service said: {{message}}"
     },
     "noService": {

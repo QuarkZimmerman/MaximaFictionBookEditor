@@ -55,6 +55,7 @@ import { logUiError } from '@/app/diagnostics';
 import type { ModelNodeJson } from '@/editor/fromModel';
 import { createNodeIdGenerator } from '@/editor/schema';
 import { nodeToModel } from '@/editor/toModel';
+import type { ValidationReport } from '@/model/document';
 import {
   actions,
   emptyConversation,
@@ -73,6 +74,7 @@ import {
   hasBodyController,
   type BodyEditorController,
 } from '@/views/body/bodyEditor';
+import { getSourceEditor } from '@/views/source/sourceEditor';
 
 import {
   appendActivity,
@@ -90,6 +92,7 @@ import {
   type Catalogue,
   type CatalogueDeps,
   type ChangeHook,
+  type ChangeHookOptions,
   type ModelSelection,
   type SelectionHolder,
   type ToolCallOutcome,
@@ -140,6 +143,18 @@ import { createRegexRunner } from './regexRunner';
 import { createRegexWorker } from './regexWorkerFactory';
 import { decideTextReply, isQuestion, undoLabel } from './reply';
 import { startRequestSession, type RequestSession, type SessionRpc } from './session';
+import {
+  commitSource,
+  firstChangedNodeId,
+  prepareSource,
+  SOURCE_TEXT_MODE_TOOL_NAMES,
+  sourceModelSelection,
+  sourcePresenter,
+  sourceTextReplacer,
+  sourceToolGate,
+  textPathSpec,
+  type SourceRequestState,
+} from './source';
 import { cutOutline, fitsContext, halve, resultBudgetFor, trimTurns } from './split';
 import {
   argumentsOf,
@@ -169,6 +184,12 @@ export type RequestFailureKind =
   | 'validationUnavailable'
   | 'busy'
   | 'noService'
+  /** US5: the Source text is not well-formed and nothing is selected (FR-072). */
+  | 'sourceNotWellFormed'
+  /** US5: the Source selection intersects a binary, the stylesheet or the prolog (C11). */
+  | 'sourceRefused'
+  /** US5: the text path's `doc.fromXml` changed the binary store (never expected). */
+  | 'binariesChanged'
   | 'internal';
 
 export interface RequestFailure {
@@ -199,7 +220,9 @@ export interface StartRequestOptions {
   instruction: string;
   /**
    * The Body selection the popup showed when it opened (`selectionSnapshot`); `undefined`
-   * takes the editor's selection at the start, `null` is a caret (a `general` request).
+   * takes the editor's selection at the start, `null` is a caret (a `general` request). In
+   * the Source view the popup's snapshot carries the selected range (`range`), which the
+   * `preparing` step classifies (US5).
    */
   selection?: SelectionSnapshot | null;
 }
@@ -608,6 +631,10 @@ class RequestRun {
   private catalogue: Catalogue | null = null;
   private holder: SelectionHolder | null = null;
   private controller: BodyEditorController | null = null;
+  /** The Source view's state when the request runs there (US5; null in the Body view). */
+  private source: SourceRequestState | null = null;
+  /** The RPC surface that counts the request's parses (`fromXmlCalls`). */
+  private sessionRpc: SessionRpc | null = null;
   private selection: SelectionSnapshot | null = null;
   private caret: CaretBlock | null = null;
   private kind: 'selection' | 'general' = 'general';
@@ -764,26 +791,59 @@ class RequestRun {
     const editorState = controller?.editorState ?? null;
     const window = controller?.currentWindow ?? null;
     const toXml = (nodes: ModelNodeJson[]) => this.toXml(docId, nodes);
-    let selection = options.selection;
-    if (selection === undefined) {
-      selection = editorState ? await selectionSnapshot(editorState, window, toXml) : null;
-    }
-    this.selection = selection ?? null;
-    this.caret = editorState ? caretBlock(editorState, window) : null;
-    this.kind = this.selection ? 'selection' : 'general';
-    this.publish({ kind: this.kind });
-
-    const label = t('ai.banner.label', { service: target.name, model: target.model });
-    // The session's RPC counts the fragment parses of the fast path (the test hook's `fromXmlCalls`).
+    // The session's RPC counts the parses of the request (the test hook's `fromXmlCalls`): the
+    // fragment parses of the fast path and the tools, and the text path's one `doc.fromXml`.
     const rpc = this.rpc;
     const sessionRpc: SessionRpc = {
       call: ((method: string, ...rest: unknown[]) => {
-        if (method === 'doc.fragmentFromXml') this.fromXmlCalls += 1;
+        if (method === 'doc.fragmentFromXml' || method === 'doc.fromXml') this.fromXmlCalls += 1;
         return (rpc.call as (...args: unknown[]) => unknown)(method, ...rest);
       }) as RpcClient['call'],
       runJob: ((...args: unknown[]) =>
         (rpc.runJob as (...a: unknown[]) => unknown)(...args)) as RpcClient['runJob'],
     };
+    this.sessionRpc = sessionRpc;
+    const sourceEditor = state.activeView === 'source' ? getSourceEditor(store) : null;
+    let selection = options.selection;
+    // The text's own report when the text path starts on a well-formed text (its baseline).
+    let textReport: ValidationReport | null = null;
+    // The Source selection the catalogue works on - the panel's request stays `general` (its
+    // instruction as typed) while `get_selection` / `replace_selection` see the selected text.
+    let sourceSelection: SelectionSnapshot | null = null;
+    if (sourceEditor) {
+      // The Source view (US5, ai-catalogue §8.1, §8.4): the pending text committed only when
+      // the request will use structured tools, the selection mapped and classified, or the
+      // text path on the text as it stands; a refused range and a text-mode request without a
+      // selection end here, before the lock - nothing is sent.
+      const prepared = await prepareSource({
+        ctx: this.ctx,
+        rpc: sessionRpc,
+        editor: sourceEditor,
+        docId,
+        offersTools: target.tools,
+        origin: options.origin,
+        // The popup's captured range; the editor's selection for the panel and for a caret.
+        ...(selection?.range ? { range: selection.range } : {}),
+        toXml,
+      });
+      if (prepared.kind === 'failed') {
+        return { kind: 'failed', failure: { kind: prepared.failure } };
+      }
+      this.source = prepared.state;
+      sourceSelection = prepared.selection;
+      selection = options.origin === 'panel' ? null : prepared.selection;
+      textReport = prepared.textReport;
+      this.caret = null;
+    } else if (selection === undefined) {
+      selection = editorState ? await selectionSnapshot(editorState, window, toXml) : null;
+    }
+    if (this.cancelled) return { kind: 'cancelled' };
+    this.selection = selection ?? null;
+    if (!sourceEditor) this.caret = editorState ? caretBlock(editorState, window) : null;
+    this.kind = this.selection ? 'selection' : 'general';
+    this.publish({ kind: this.kind });
+
+    const label = t('ai.banner.label', { service: target.name, model: target.model });
     const started = await startRequestSession(
       {
         store,
@@ -802,6 +862,11 @@ class RequestRun {
         onCancel: () => this.cancel(),
         onDocumentReplaced: () => this.cancel(),
         onTick: (elapsedMs) => this.publish({ elapsedMs }),
+        // The Source view: the step tagged with it (Edit → Undo there stays there, the Body
+        // view's Ctrl+Z activates it) and the text put back along with the model (§8.3).
+        ...(this.source
+          ? { present: sourcePresenter(store, this.source), undoView: 'source' as const }
+          : {}),
       },
     );
     if (!started.ok) {
@@ -818,6 +883,24 @@ class RequestRun {
     }
     const session = started.session;
     this.session = session;
+    const source = this.source;
+    if (source) {
+      // The Source text the request works on (data-model §6.1 `source`): the text path keeps
+      // an accepted replacement here until the commit; a well-formed text validated as text
+      // is its own baseline (§7.2), a text that is not well-formed compares against the live
+      // model's - the last well-formed text's - report (FR-072).
+      const range = source.classification?.range ?? { from: 0, to: 0 };
+      session.source = {
+        text: source.textBefore,
+        textBefore: source.textBefore,
+        from: range.from,
+        to: range.to,
+        wellFormed: source.wellFormed,
+        changed: false,
+        pending: null,
+      };
+      if (textReport) session.setBaseline(textReport);
+    }
     conversationFor(store, docId);
     appendMessage(store, { requestId: this.id, role: 'user', text: options.instruction });
     this.activity('request.start', {
@@ -845,10 +928,12 @@ class RequestRun {
       activeView: state.activeView,
       uiLanguage: state.uiLanguage,
       modified: session.modifiedBefore,
-      selection: this.selection,
-      caret: this.caret,
+      // The Source view's panel request describes the selected text too (the tools see it).
+      selection: this.selection ?? sourceSelection,
+      caret: this.caret ?? source?.caret?.ref ?? null,
       request: { kind: this.kind, source: options.origin },
       preExistingErrors: session.preExistingErrors,
+      ...(source ? { sourceWellFormed: source.wellFormed } : {}),
     };
     this.outlineEntries = outlineOf(session.before);
     this.context = buildWorkingContext(this.contextInput);
@@ -856,12 +941,17 @@ class RequestRun {
 
     // The catalogue instance of this turn-on, bound to this request's working copy
     // (ai-catalogue §1, §3; data-model §8.5).
-    this.holder = selectionHolder(modelSelectionOf(this.selection, this.caret));
+    const holder = selectionHolder(
+      source
+        ? sourceModelSelection(source, sourceSelection)
+        : modelSelectionOf(this.selection, this.caret),
+    );
+    this.holder = holder;
     const catalogue = await openCatalogue(store);
     if (this.cancelled) return { kind: 'cancelled' };
     catalogue.rebind({
       copy: session.copy,
-      selection: this.holder,
+      selection: holder,
       context: () => this.context as unknown as Record<string, unknown>,
       changesInThisRequest: () => session.changesInThisRequest,
       startedAt: this.startedAt,
@@ -877,9 +967,26 @@ class RequestRun {
       resultBudget: () => this.resultBudget(),
       // US4 (T061): the `validate` tool runs the session's validation against its baseline;
       // `get_schema` and the schema resources read `schema.text()` once per catalogue instance.
-      validate: () => session.validate(),
+      // US5: in the Source view the text is validated once it is what the request works on
+      // (text mode, or after a text-path change), the copy otherwise.
+      validate: () =>
+        session.source && (session.source.changed || !session.source.wellFormed)
+          ? session.validateText(session.source.text)
+          : session.validate(),
       baseline: () => session.baseline,
       schemaText: () => this.rpc.call('schema.text'),
+      // US5 (ai-catalogue §8): the text path of `replace_selection` on a `source` selection and
+      // the gate - the six tools of the text mode, the structured change tools after a text
+      // change, `run_script` outside the Body view (C8).
+      ...(source
+        ? {
+            replaceSourceText: sourceTextReplacer(session, () => holder.get()),
+            gate: sourceToolGate(() => ({
+              wellFormed: source.wellFormed,
+              structuredAllowed: session.structuredAllowed,
+            })),
+          }
+        : {}),
     });
     this.catalogue = catalogue;
 
@@ -902,7 +1009,16 @@ class RequestRun {
     if (options.origin === 'panel' || !this.selection) {
       this.turns = historyTurns(store.getState().ai.conversation.messages, this.id);
     }
-    const toolsMembers = chatToolsMembers(catalogue.tools(), target.tools);
+    // Source text mode (§8.4): the `tools` array holds the restricted six alone.
+    const offeredTools =
+      source && !source.wellFormed
+        ? catalogue
+            .tools()
+            .filter((tool) =>
+              (SOURCE_TEXT_MODE_TOOL_NAMES as readonly string[]).includes(tool.function.name),
+            )
+        : catalogue.tools();
+    const toolsMembers = chatToolsMembers(offeredTools, target.tools);
     const toolCount = 'tools' in toolsMembers ? toolsMembers.tools.length : 0;
     let own: ChatMessage[] = [{ role: 'user', content: user }];
     const compose = (): ChatMessage[] => [
@@ -1209,7 +1325,14 @@ class RequestRun {
       this.setPhase(t('ai.phase.validating'));
       this.publish({ state: 'validating' });
       let rejected: ChangeRejected;
-      if (!split || !part) {
+      if (this.source && !split) {
+        // The Source view (US5, §8.1): the replacement goes through the catalogue's
+        // `replace_selection` - `inline` / `blocks` at the model level in the parent's context,
+        // `source` as the text path - with the hook behind it (`changeHook` writes the entries).
+        const applied = await this.applySourceReplacement(catalogue, decision);
+        if (applied.accepted) return this.commit(undefined, false, null);
+        rejected = applied;
+      } else if (!split || !part) {
         if (!controller) return { kind: 'failed', failure: { kind: 'internal' } };
         const content =
           decision.form === 'inline'
@@ -1350,6 +1473,32 @@ class RequestRun {
     throw new Error(outcome.error?.message ?? 'replace_selection did not reach the hook');
   }
 
+  /**
+   * The fast-path replacement in the Source view (US5): through the catalogue's
+   * `replace_selection` on the request's selection - `{xml}` (or `{text}` for a plain inline
+   * reply); an inline reply whose XML does not parse as inline content is applied as plain
+   * text afterwards (§5.1 row i - the second attempt is one of the same strike key).
+   */
+  private async applySourceReplacement(
+    catalogue: Catalogue,
+    decision: Extract<ReturnType<typeof decideTextReply>, { kind: 'replacement' }>,
+  ): Promise<ChangeOutcome<Record<string, unknown>>> {
+    const attempt = async (
+      content: { xml: string } | { text: string },
+    ): Promise<ChangeOutcome<Record<string, unknown>>> => {
+      this.lastChangeOutcome = null;
+      const outcome = await catalogue.call('replace_selection', { content });
+      const recorded: ChangeOutcome<Record<string, unknown>> | null = this.lastChangeOutcome;
+      if (recorded) return recorded;
+      throw new Error(outcome.error?.message ?? 'replace_selection did not reach the hook');
+    };
+    if (decision.form !== 'inline') return attempt({ xml: decision.xml });
+    if (decision.xml === null) return attempt({ text: decision.text });
+    const first = await attempt({ xml: decision.xml });
+    if (first.accepted || first.ended || first.stage !== 'parse') return first;
+    return attempt({ text: decision.text });
+  }
+
   /* ------------------------------------------------------------- tools */
 
   private async callTool(catalogue: Catalogue, call: ToolCallEntry): Promise<ToolCallOutcome> {
@@ -1417,7 +1566,11 @@ class RequestRun {
    * `cancelled`, `internal`) is rolled back too but counts nothing and is answered as it is.
    */
   private changeHook(session: RequestSession): ChangeHook {
-    return async <T extends object>(key: string, change: () => Promise<T>) => {
+    return async <T extends object>(
+      key: string,
+      change: () => Promise<T>,
+      options?: ChangeHookOptions,
+    ) => {
       const colon = key.indexOf(':');
       const tool = colon < 0 ? key : key.slice(0, colon);
       const target = colon < 0 ? '' : key.slice(colon + 1);
@@ -1440,6 +1593,8 @@ class RequestRun {
               throw error;
             }
           },
+          // The Source text path (US5): the spliced text validated whole instead of the copy.
+          ...(options?.textPath && this.holder ? textPathSpec(session, this.holder) : {}),
         });
       } catch (error) {
         // A gate or failure: the copy is back at the checkpoint, no strike, the envelope as is.
@@ -1510,10 +1665,21 @@ class RequestRun {
     const session = this.session!;
     this.setPhase(this.t('ai.phase.validating'));
     this.publish({ state: 'committing' });
-    const result = await session.commit();
+    // The Source view (US5, §8.3): the text path's one `doc.fromXml` with the binary store
+    // asserted, the structured path's re-render, the caret at the first change.
+    const result = this.source
+      ? await commitSource({
+          ctx: this.ctx,
+          rpc: this.sessionRpc ?? this.rpc,
+          session,
+          state: this.source,
+          firstChangedNodeId: firstChangedNodeId(session),
+          insertedIds: this.insertedIds(),
+        })
+      : await session.commit();
     switch (result.kind) {
       case 'committed':
-        this.selectReplacement(split, replacement);
+        if (!this.source) this.selectReplacement(split, replacement);
         return {
           kind: 'committed',
           ...(text === undefined ? {} : { text }),
@@ -1530,9 +1696,30 @@ class RequestRun {
       default:
         return {
           kind: 'failed',
-          failure: { kind: 'invalidAtEnd', errors: result.failure.errors },
+          failure:
+            result.failure.kind === 'binariesChanged'
+              ? { kind: 'binariesChanged' }
+              : { kind: 'invalidAtEnd', errors: result.failure.errors },
         };
     }
+  }
+
+  /**
+   * The ids of the nodes a fast-path replacement of the Source view inserted (selected in the
+   * re-rendered text): the last accepted `replace_selection`'s `inserted` list.
+   */
+  private insertedIds(): string[] {
+    const session = this.session!;
+    for (let i = session.changes.length - 1; i >= 0; i -= 1) {
+      const record = session.changes[i]!;
+      if (record.tool !== 'replace_selection' || !record.outcome?.accepted) continue;
+      const inserted = (record.outcome.result as { inserted?: { id?: unknown }[] } | undefined)
+        ?.inserted;
+      return (inserted ?? [])
+        .map((node) => node.id)
+        .filter((id): id is string => typeof id === 'string' && id !== '');
+    }
+    return [];
   }
 
   /** Selects the replacement in the Body view (FR-031): by its nodes, else by its range. */

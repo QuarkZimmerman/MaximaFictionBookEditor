@@ -33,6 +33,7 @@ import type { UndoEntry } from '@/model/undo';
 import type { FragmentNode } from '@/rpc/types';
 import { formatElapsed } from '@/scripting/host';
 import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
+import { getSourceEditor } from '@/views/source/sourceEditor';
 
 import {
   activeRequest,
@@ -43,12 +44,13 @@ import {
 } from './assistant';
 import { selectionSnapshot, type SelectionSnapshot } from './context';
 import { failureText, needsSettingsLink, type Failure } from './protocol';
+import { countContainerTags, editorSelectionRange, refusedRange } from './source';
 import { resolveActiveTarget } from './target';
 
 import './ai.css';
 
 /** The popup's display state (`dialog-ai-ask-status[data-state]`, quickstart §0.5). */
-export type PopupState = 'idle' | 'running' | 'done' | 'answered' | 'failed';
+export type PopupState = 'idle' | 'running' | 'done' | 'answered' | 'failed' | 'refused';
 
 export interface AskPopupProps {
   ctx: CommandContext;
@@ -60,10 +62,20 @@ export interface AskPopupProps {
   onClose: () => void;
   /** Lets the opener focus the input of an already open popup (`Mod+K` again). */
   registerFocus?: (focus: () => void) => void;
+  /**
+   * The Source selection is refused before any request (US5, review C11): it intersects a
+   * binary, the stylesheet, the XML declaration or the root start tag. Send stays disabled.
+   */
+  refused?: boolean;
 }
 
-function popupStateOf(outcome: RequestOutcome | null, running: boolean): PopupState {
+function popupStateOf(
+  outcome: RequestOutcome | null,
+  running: boolean,
+  refused: boolean,
+): PopupState {
   if (running) return 'running';
+  if (refused) return 'refused';
   if (!outcome) return 'idle';
   switch (outcome.kind) {
     case 'committed':
@@ -83,6 +95,7 @@ export function AskPopup({
   position,
   onClose,
   registerFocus,
+  refused = false,
 }: AskPopupProps) {
   const { t } = useTranslation();
   const { store } = ctx;
@@ -109,7 +122,7 @@ export function AskPopup({
     runningRef.current = running;
   }, [running]);
 
-  const state = popupStateOf(outcome, running);
+  const state = popupStateOf(outcome, running, refused);
   const mine = live && live.origin === 'popup' ? live : null;
 
   useEffect(() => {
@@ -143,7 +156,7 @@ export function AskPopup({
 
   const send = useCallback(async () => {
     const text = instruction.trim();
-    if (!text || runningRef.current) return;
+    if (!text || runningRef.current || refused) return;
     runningRef.current = true;
     setRunning(true);
     setOutcome(null);
@@ -155,7 +168,7 @@ export function AskPopup({
     if (result.kind === 'committed') setUndoEntry(ctx.undo.peekUndo() ?? null);
     // The focus back in the popup, so that Escape and Tab keep working after the answer.
     inputRef.current?.focus();
-  }, [ctx, instruction, selection]);
+  }, [ctx, instruction, refused, selection]);
 
   const stop = useCallback(() => {
     cancelRequest(store);
@@ -207,23 +220,30 @@ export function AskPopup({
       id: 'send',
       label: running ? t('ai.popup.stop') : t('ai.popup.send'),
       onClick: () => (running ? stop() : void send()),
-      disabled: !running && (instruction.trim() === '' || state === 'done'),
+      disabled: !running && (instruction.trim() === '' || state === 'done' || refused),
     },
     { id: 'cancel', label: t('dialog.buttons.cancel'), onClick: cancel },
   ];
 
-  const selectionText = selection
-    ? t('ai.popup.selectionSize', {
-        count: selection.paragraphs,
-        characters: selection.characters,
-      })
-    : t('ai.popup.noSelection');
+  // The Source view's text selection is sized by its characters alone (data-model §4.2).
+  let selectionText: string;
+  if (!selection) selectionText = t('ai.popup.noSelection');
+  else if (selection.form === 'xml') {
+    selectionText = t('ai.popup.selectionSource', { characters: selection.characters });
+  } else {
+    selectionText = t('ai.popup.selectionSize', {
+      count: selection.paragraphs,
+      characters: selection.characters,
+    });
+  }
   const serviceText = service
     ? t('ai.banner.label', { service: service.name, model: service.model })
     : t('ai.popup.noService');
 
   let statusText = '';
-  if (state === 'running') {
+  if (state === 'refused') {
+    statusText = t('ai.popup.refusedRange');
+  } else if (state === 'running') {
     const phase = mine?.phase ?? t('ai.phase.preparing');
     const elapsed = formatElapsed(mine?.elapsedMs ?? 0);
     const part = mine?.part
@@ -363,24 +383,80 @@ export async function openAskPopup(ctx: CommandContext): Promise<void> {
   }
   const state = store.getState();
   if (!state.ai.on || !state.document || !state.docId || !ctx.rpc) return;
-  if (state.activeView !== 'body' || !hasBodyController(store)) return;
-  const controller = getBodyController(store);
-  const editorState = controller.editorState;
-  if (!editorState) return;
   const docId = state.docId;
   const rpc = ctx.rpc;
-  const toXml = async (nodes: ModelNodeJson[]) => {
-    const { xml } = await rpc.call('doc.fragmentToXml', {
-      docId,
-      nodes: nodes as unknown as FragmentNode[],
-    });
-    return xml;
-  };
   let selection: SelectionSnapshot | null = null;
-  try {
-    selection = await selectionSnapshot(editorState, controller.currentWindow, toXml);
-  } catch {
-    selection = null;
+  let position: { left: number; top: number } | null = null;
+  let refused = false;
+  if (state.activeView === 'source') {
+    // The Source view (US5): the selected range as text - its kind is decided by the request's
+    // `preparing` step (the position map may need the pending text committed first); a range
+    // over a binary, the stylesheet or the prolog is refused here, before any request (C11).
+    const editor = getSourceEditor(store);
+    if (!editor) return;
+    const text = editor.text;
+    const range = editorSelectionRange(editor);
+    if (range) {
+      const selected = text.slice(range.from, range.to);
+      refused = refusedRange(text, range) !== null;
+      selection = {
+        form: 'xml',
+        anchor: null,
+        head: null,
+        range,
+        openStart: false,
+        openEnd: false,
+        nodeIds: [],
+        parent: null,
+        xml: selected,
+        text: selected,
+        characters: selected.length,
+        paragraphs: countContainerTags(selected),
+        blocks: 0,
+        hasInlineElements: false,
+        from: null,
+        to: null,
+        pm: null,
+      };
+    }
+    const view = editor.editorView;
+    if (view) {
+      try {
+        const coords = view.coordsAtPos(editor.state.selection.main.to);
+        if (coords) {
+          position = { left: Math.max(0, coords.left), top: Math.max(0, coords.bottom + 6) };
+        }
+      } catch {
+        position = null;
+      }
+    }
+  } else {
+    if (state.activeView !== 'body' || !hasBodyController(store)) return;
+    const controller = getBodyController(store);
+    const editorState = controller.editorState;
+    if (!editorState) return;
+    const toXml = async (nodes: ModelNodeJson[]) => {
+      const { xml } = await rpc.call('doc.fragmentToXml', {
+        docId,
+        nodes: nodes as unknown as FragmentNode[],
+      });
+      return xml;
+    };
+    try {
+      selection = await selectionSnapshot(editorState, controller.currentWindow, toXml);
+    } catch {
+      selection = null;
+    }
+    // Anchored below the end of the selection (the caret), as the context menu is at the pointer.
+    const view = controller.editorView;
+    if (view) {
+      try {
+        const coords = view.coordsAtPos(editorState.selection.to);
+        position = { left: Math.max(0, coords.left), top: Math.max(0, coords.bottom + 6) };
+      } catch {
+        position = null;
+      }
+    }
   }
   let service: { name: string; model: string } | null = null;
   try {
@@ -388,17 +464,6 @@ export async function openAskPopup(ctx: CommandContext): Promise<void> {
     if (resolved.ok) service = { name: resolved.target.name, model: resolved.target.model };
   } catch {
     service = null;
-  }
-  // Anchored below the end of the selection (the caret), as the context menu is at the pointer.
-  let position: { left: number; top: number } | null = null;
-  const view = controller.editorView;
-  if (view) {
-    try {
-      const coords = view.coordsAtPos(editorState.selection.to);
-      position = { left: Math.max(0, coords.left), top: Math.max(0, coords.bottom + 6) };
-    } catch {
-      position = null;
-    }
   }
   if (activeRequest()) return; // the one request slot is taken (the panel's request runs)
   let focus: (() => void) | null = null;
@@ -415,6 +480,7 @@ export async function openAskPopup(ctx: CommandContext): Promise<void> {
           registerFocus={(f) => {
             focus = f;
           }}
+          refused={refused}
         />
       ),
       { modeless: true },

@@ -324,7 +324,22 @@ export function selectionHolder(initial: ModelSelection): SelectionHolder {
 export type ChangeHook = <T extends object>(
   strikeKey: string,
   change: () => Promise<T>,
+  options?: ChangeHookOptions,
 ) => Promise<T | ToolErrorEnvelope>;
+
+export interface ChangeHookOptions {
+  /**
+   * The Source text path (US5, ai-catalogue §8.1): the change spliced the session's Source
+   * text; the hook validates that text (`doc.validate({text})`) instead of the copy.
+   */
+  textPath?: boolean;
+}
+
+/** Why a tool is unavailable right now: the `unavailable` envelope's message and hint (§8). */
+export interface ToolGate {
+  message: string;
+  hint?: string;
+}
 
 /** The parsed form of `{xml}` content: the nodes without ids and whether they are inline. */
 export interface ParsedFragment {
@@ -377,8 +392,19 @@ export interface CatalogueDeps {
     name: 'selection_edit' | 'general',
     args: Record<string, unknown>,
   ) => PromptText[] | Promise<PromptText[]>;
-  /** The Source view's text path (US5 T070): `replace_selection` on a `source` selection. */
+  /**
+   * The Source view's text path (US5 T070): `replace_selection` on a `source` selection
+   * splices the replacement into the request's Source text as its pending text (a refused
+   * range throws `notAllowed`); the hook's text-path validation decides (`ChangeHookOptions`).
+   */
   replaceSourceText?: (xml: string) => Promise<{ from: number; to: number }>;
+  /**
+   * The gate of the Source view (US5, ai-catalogue §8): asked before every call with the
+   * current selection; a non-null answer is returned as the `unavailable` envelope without the
+   * tool running (no hook, no strike) - the restricted six of the text mode, the structured
+   * change tools after a text-path change, `run_script` outside the Body view.
+   */
+  gate?: (name: string, selection: ModelSelection) => ToolGate | null;
   /**
    * The validity check of the working copy as it stands (`RequestSession.validate`:
    * `doc.validate({docId, document})`, recorded for the test hook; the Source text mode of US5
@@ -525,6 +551,16 @@ export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
           hint: `The tools are: ${names.join(', ')}.`,
         }),
       );
+    }
+    // The Source view's gate (US5, §8): an `unavailable` result, nothing runs, no strike.
+    const gate = context.deps.gate;
+    if (gate) {
+      const closed = gate(name, context.deps.selection.get());
+      if (closed) {
+        return failure(
+          new ToolError('unavailable', closed.message, closed.hint ? { hint: closed.hint } : {}),
+        );
+      }
     }
     let result: CallToolResult;
     try {
@@ -1035,9 +1071,10 @@ class ToolContext {
   async change<T extends AnyObject>(
     strikeKey: string,
     run: () => Promise<T>,
+    options?: ChangeHookOptions,
   ): Promise<T | ToolErrorEnvelope> {
     const hook = this.deps.applyChange;
-    if (hook) return hook(strikeKey, run);
+    if (hook) return hook(strikeKey, run, options);
     const checkpoint = this.deps.copy.checkpoint();
     try {
       return await run();
@@ -2176,15 +2213,25 @@ function registerSelectionTools(server: McpServer, ctx: ToolContext): void {
           );
         }
         const replace = ctx.deps.replaceSourceText;
-        return ctx.change('replace_selection:selection', async () => {
-          const range = await replace(xml);
-          ctx.deps.selection.set({ kind: 'source', from: range.from, to: range.to, text: xml });
-          return {
-            replaced: { characters: selection.text.length, paragraphs: 0 },
-            inserted: [],
-            selection: await ctx.selectionSummary('text'),
-          };
-        });
+        return ctx.change(
+          'replace_selection:selection',
+          async () => {
+            const range = await replace(xml);
+            const inserted = stripFences(xml);
+            ctx.deps.selection.set({
+              kind: 'source',
+              from: range.from,
+              to: range.to,
+              text: inserted,
+            });
+            return {
+              replaced: { characters: selection.text.length, paragraphs: 0 },
+              inserted: [],
+              selection: await ctx.selectionSummary('text'),
+            };
+          },
+          { textPath: true },
+        );
       }
       return ctx.change('replace_selection:selection', () =>
         selection.kind === 'inline'

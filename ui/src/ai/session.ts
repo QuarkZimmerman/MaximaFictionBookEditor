@@ -29,7 +29,12 @@ import type { AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
 import type { FragmentResultNode, ValidationIssue } from '@/rpc/types';
-import { startRunSession, type RunSession, type RunSessionOutcome } from '@/scripting/runSession';
+import {
+  startRunSession,
+  type RunSession,
+  type RunSessionOptions,
+  type RunSessionOutcome,
+} from '@/scripting/runSession';
 import { WorkingCopy, type Checkpoint } from '@/scripting/workingCopy';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
 
@@ -77,6 +82,9 @@ export interface StartRequestSessionOptions {
   onCancel?: () => void;
   onDocumentReplaced?: () => void;
   onTick?: (elapsedMs: number) => void;
+  /** The Source view's presenter and undo view (US5; `RunSessionOptions`). */
+  present?: RunSessionOptions['present'];
+  undoView?: RunSessionOptions['undoView'];
 }
 
 /** Why a session could not start (ai-catalogue §6 steps 1 and 4). */
@@ -131,16 +139,21 @@ export interface ValidationRecord {
 }
 
 /**
- * Source-view flags of a request (ai-catalogue §8; data-model §4.1 `structuredAllowed`, §6.1
- * `source`; review C11): the text the request works on when it took the text path, and whether
- * the structured change tools are still available.
+ * The Source text of a request made in the Source view (ai-catalogue §8; data-model §4.1
+ * `structuredAllowed`, §6.1 `source`; review C11): the text the request works on - an accepted
+ * text-path replacement stays TEXT here until the commit -, the text at the start (what the
+ * undo step restores, byte for byte), the selection's range in it, whether it was well-formed
+ * at the start and whether a text-path change was accepted. `pending` is a splice awaiting the
+ * gate (`doc.validate({text})` of the whole text), promoted to `text` when accepted.
  */
 export interface SourceTextState {
   text: string;
+  textBefore: string;
   from: number;
   to: number;
   wellFormed: boolean;
   changed: boolean;
+  pending: { text: string; from: number; to: number } | null;
 }
 
 export class RequestSession {
@@ -150,8 +163,11 @@ export class RequestSession {
   readonly before: Document;
   readonly modifiedBefore: boolean;
   readonly copy: WorkingCopy;
-  /** Error keys of `before` with their counts (data-model §7.2). */
-  readonly baseline: IssueMultiset;
+  /**
+   * Error keys of `before` with their counts (data-model §7.2) - the live model's report; the
+   * Source text path of a well-formed text replaces it by the text's own report (`setBaseline`).
+   */
+  baseline: IssueMultiset;
   readonly baselineReport: ValidationRecord;
   /** The `sc_<N>` allocator every node created in this request draws from (review C12). */
   readonly newNodeIds: () => string;
@@ -238,6 +254,34 @@ export class RequestSession {
     this.validationJobId = null;
     this.validations.push(summarise(report));
     return report;
+  }
+
+  /**
+   * The Source text path (US5): `doc.validate({docId, text})` of a whole text - the spliced
+   * text of a pending replacement, or the current text for the `validate` tool. Recorded in
+   * `validations` like a copy validation; cancellable the same way.
+   */
+  async validateText(text: string): Promise<ValidationReport> {
+    const report = await this.deps.rpc.runJob(
+      'doc.validate',
+      { docId: this.docId, text },
+      {
+        onStart: (jobId) => {
+          this.validationJobId = jobId;
+        },
+      },
+    );
+    this.validationJobId = null;
+    this.validations.push(summarise(report));
+    return report;
+  }
+
+  /**
+   * Replaces the baseline (data-model §7.2): the Source text path of a text that is well-formed
+   * at the start compares against the report of that very text rather than the live model's.
+   */
+  setBaseline(report: Pick<ValidationReport, 'issues'>): void {
+    this.baseline = multiset(report.issues);
   }
 
   /** Cancels a running validation job (Cancel during `validating`); 1090 and the like are swallowed. */
@@ -331,7 +375,16 @@ export class RequestSession {
       this.run.discard();
       return { kind: 'failed', failure: { kind: 'invalidAtEnd', errors } };
     }
-    const after = this.copy.release();
+    return this.publish(this.copy.release());
+  }
+
+  /**
+   * Publishes `after` as the request's result (the Source view's commit of US5 computes it
+   * itself - the text path's `doc.fromXml`, the structured path's re-render - and hands it in
+   * here): shown and recorded by the run session as one undo entry.
+   */
+  publish(after: Document): CommitResult {
+    if (this.run.ended) return { kind: 'lost' };
     this.after = after;
     const outcome = this.run.commit(after);
     if (outcome === 'committed') return { kind: 'committed', after };
@@ -398,6 +451,8 @@ export async function startRequestSession(
       ...(options.onCancel ? { onCancel: options.onCancel } : {}),
       ...(options.onDocumentReplaced ? { onDocumentReplaced: options.onDocumentReplaced } : {}),
       ...(options.onTick ? { onTick: options.onTick } : {}),
+      ...(options.present ? { present: options.present } : {}),
+      ...(options.undoView ? { undoView: options.undoView } : {}),
     },
   );
   if (!run) return { ok: false, reason: 'busy' };

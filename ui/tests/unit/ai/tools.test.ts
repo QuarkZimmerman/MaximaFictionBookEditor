@@ -7,7 +7,7 @@
  * answered as `invalidArguments` "the pattern took too long". US4 adds `get_schema` here.
  */
 
-import { chatToolsMembers, toOpenAiTools } from '@/ai/catalogue';
+import { chatToolsMembers, toOpenAiTools, type ModelSelection } from '@/ai/catalogue';
 import {
   createRegexRunner,
   REGEX_BUDGET_MS,
@@ -15,6 +15,12 @@ import {
   type RegexSearchRequest,
   type RegexWorkerLike,
 } from '@/ai/regexRunner';
+import {
+  SOURCE_TEXT_MODE_TOOL_NAMES,
+  sourceToolGate,
+  TEXT_CHANGED_HINT,
+  TEXT_MODE_HINT,
+} from '@/ai/source';
 
 import { harness } from './catalogueHarness';
 
@@ -92,6 +98,148 @@ describe('chatToolsMembers', () => {
     expect(chatToolsMembers(tools, false)).toEqual({});
     expect(Object.keys(chatToolsMembers(tools, false))).toEqual([]);
     expect(chatToolsMembers([], true)).toEqual({});
+  });
+});
+
+describe('the Source view gate through the catalogue (US5, ai-catalogue §8)', () => {
+  const sourceSelection: ModelSelection = { kind: 'source', from: 10, to: 20, text: '<p>x</p>' };
+
+  it('Source text mode: the tools array holds the six, every other tool answers unavailable without running or striking', async () => {
+    const state = { wellFormed: false, structuredAllowed: true };
+    const h = await harness({
+      gate: sourceToolGate(() => state),
+      replaceSourceText: (xml) => Promise.resolve({ from: 10, to: 10 + xml.length }),
+    });
+    try {
+      h.setSelection(sourceSelection);
+      const offered = h.catalogue
+        .tools()
+        .filter((tool) =>
+          (SOURCE_TEXT_MODE_TOOL_NAMES as readonly string[]).includes(tool.function.name),
+        )
+        .map((tool) => tool.function.name);
+      // `read_resource` joins the six once US6 registers it; the five of this release's catalogue so far.
+      expect(offered).toEqual([
+        'get_context',
+        'get_selection',
+        'validate',
+        'get_schema',
+        'replace_selection',
+      ]);
+      expect(
+        chatToolsMembers(
+          h.catalogue.tools().filter((t) => offered.includes(t.function.name)),
+          true,
+        ),
+      ).toMatchObject({
+        tool_choice: 'auto',
+      });
+      const before = JSON.stringify(h.copy.document);
+      for (const name of [
+        'get_outline',
+        'read_part',
+        'find',
+        'set_selection',
+        'replace_node',
+        'insert_node',
+        'remove_node',
+        'set_text',
+        'replace_all',
+        'set_description',
+      ]) {
+        const out = await h.catalogue.call(name, {
+          node: 'n13',
+          text: 'x',
+          replacement: 'y',
+          where: 'after',
+          content: { xml: '<p>x</p>' },
+        });
+        expect(out.isError, name).toBe(true);
+        expect(out.error?.code, name).toBe('unavailable');
+        expect(out.error?.hint, name).toBe(TEXT_MODE_HINT);
+      }
+      expect(h.hookCalls).toEqual([]);
+      expect(JSON.stringify(h.copy.document)).toBe(before);
+      // The six work: get_selection reports the text selection, replace_selection splices.
+      const selection = await h.catalogue.call('get_selection', {});
+      expect(selection.result).toMatchObject({ kind: 'source', xml: '<p>x</p>' });
+      const replaced = await h.catalogue.call('replace_selection', {
+        content: { xml: '<p>y</p>' },
+      });
+      expect(replaced.isError).toBe(false);
+      expect(h.hookCalls).toEqual(['replace_selection:selection']);
+      expect(h.selection()).toEqual({ kind: 'source', from: 10, to: 18, text: '<p>y</p>' });
+    } finally {
+      await h.catalogue.close();
+    }
+  });
+
+  it('after a text-path change the structured change tools answer unavailable, the read tools and the text replacement go on', async () => {
+    const state = { wellFormed: true, structuredAllowed: true };
+    const h = await harness({
+      gate: sourceToolGate(() => state),
+      replaceSourceText: (xml) => Promise.resolve({ from: 10, to: 10 + xml.length }),
+    });
+    try {
+      h.setSelection(sourceSelection);
+      // Before the text change the structured tools work.
+      const structured = await h.catalogue.call('set_text', { node: 'n13', text: 'Changed.' });
+      expect(structured.isError).toBe(false);
+      // The text change (the request loop flips the flag when the hook accepts it).
+      const replaced = await h.catalogue.call('replace_selection', {
+        content: { xml: '<p>y</p>' },
+      });
+      expect(replaced.isError).toBe(false);
+      state.structuredAllowed = false;
+      const hookCallsBefore = h.hookCalls.length;
+      for (const name of [
+        'replace_node',
+        'insert_node',
+        'remove_node',
+        'set_text',
+        'replace_all',
+        'set_description',
+        'run_script',
+      ]) {
+        const out = await h.catalogue.call(name, {
+          node: 'n13',
+          text: 'x',
+          replacement: 'y',
+          where: 'after',
+          content: { xml: '<p>x</p>' },
+        });
+        expect(out.error?.code, name).toBe(name === 'run_script' ? 'unknownTool' : 'unavailable');
+        if (name !== 'run_script') expect(out.error?.hint, name).toBe(TEXT_CHANGED_HINT);
+      }
+      expect(h.hookCalls).toHaveLength(hookCallsBefore);
+      for (const name of [
+        'get_context',
+        'get_outline',
+        'read_part',
+        'get_selection',
+        'find',
+        'validate',
+        'get_schema',
+      ]) {
+        const out = await h.catalogue.call(name, { node: 'n13', text: 'beta', element: 'section' });
+        // (`validate` and `get_schema` answer their own `unavailable` in this bare harness.)
+        expect(out.error?.hint, name).not.toBe(TEXT_CHANGED_HINT);
+      }
+      // Another text replacement of the selection is still allowed ...
+      const again = await h.catalogue.call('replace_selection', { content: { xml: '<p>z</p>' } });
+      expect(again.isError).toBe(false);
+      // ... but not a structured one once the selection is a model selection.
+      h.setSelection({
+        kind: 'inline',
+        anchor: { nodeId: 'n13', offset: 0 },
+        head: { nodeId: 'n13', offset: 3 },
+      });
+      const inline = await h.catalogue.call('replace_selection', { content: { text: 'x' } });
+      expect(inline.error?.code).toBe('unavailable');
+      expect(inline.error?.hint).toBe(TEXT_CHANGED_HINT);
+    } finally {
+      await h.catalogue.close();
+    }
   });
 });
 

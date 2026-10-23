@@ -16,11 +16,14 @@
 
 import type { Document } from '@/model/document';
 import { actions, type AppStore, type RunKind, type RunLock } from '@/model/store';
-import type { UndoCoordinator } from '@/model/undo';
+import type { UndoCoordinator, UndoView } from '@/model/undo';
 import type { BodyEditorController } from '@/views/body/bodyEditor';
 
 /** Undo view of a run's snapshot entry: undoing it shows the Body view. */
 export const RUN_UNDO_VIEW = 'body';
+
+/** Why a document is shown: the commit, the snapshot's undo / redo, or the discard's restore. */
+export type PresentPhase = 'commit' | 'undo' | 'redo' | 'discard';
 
 /** The elapsed time is refreshed this often (FR-010: at least every second). */
 export const DEFAULT_TICK_MS = 1_000;
@@ -51,6 +54,18 @@ export interface RunSessionOptions {
   onDocumentReplaced?: () => void;
   /** One elapsed-time tick (the owner mirrors it into its own state). */
   onTick?: (elapsedMs: number) => void;
+  /**
+   * The view the snapshot entry belongs to (default `RUN_UNDO_VIEW`): the undo coordinator
+   * activates it before the entry is undone or redone, so a request of the Source view tags its
+   * step with that view (feature 005 US5) and Edit → Undo there stays in it.
+   */
+  undoView?: UndoView;
+  /**
+   * Shows a document instead of the default presentation (the Body controller's `showModel`,
+   * else the store): the Source view of an AI request re-renders its text along with the model
+   * (feature 005 US5). `showDefault` performs the default part.
+   */
+  present?: (document: Document, phase: PresentPhase, showDefault: () => void) => void;
 }
 
 /** How a session ended. */
@@ -183,11 +198,11 @@ export class RunSession {
     if (this.outcomeValue) return this.outcomeValue;
     if (!this.own) return this.end('lost');
     if (!after) return this.end('unchanged');
-    this.show(after);
+    this.show(after, 'commit');
     const before = this.before;
-    this.deps.undo.recordSnapshot(RUN_UNDO_VIEW, this.undoLabel, {
-      undo: () => this.show(before),
-      redo: () => this.show(after),
+    this.deps.undo.recordSnapshot(this.options.undoView ?? RUN_UNDO_VIEW, this.undoLabel, {
+      undo: () => this.show(before, 'undo'),
+      redo: () => this.show(after, 'redo'),
     });
     return this.end('committed');
   }
@@ -202,7 +217,7 @@ export class RunSession {
     if (!this.own) return this.end('lost');
     const { store } = this.deps;
     if (store.getState().document !== this.before) {
-      this.show(this.before);
+      this.show(this.before, 'discard');
       actions.setModified(store, this.modifiedBefore);
     }
     return this.end('discarded');
@@ -256,11 +271,15 @@ export class RunSession {
     return outcome;
   }
 
-  /** Shows `document` in the editor (and the store). */
-  private show(document: Document): void {
-    const controller = this.deps.getController();
-    if (controller) controller.showModel(document);
-    else actions.updateDocument(this.deps.store, document);
+  /** Shows `document` in the editor (and the store) - through the owner's presenter when it has one. */
+  private show(document: Document, phase: PresentPhase): void {
+    const showDefault = () => {
+      const controller = this.deps.getController();
+      if (controller) controller.showModel(document);
+      else actions.updateDocument(this.deps.store, document);
+    };
+    if (this.options.present) this.options.present(document, phase, showDefault);
+    else showDefault();
   }
 
   private emit(): void {
