@@ -104,11 +104,18 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** A template of a value with placeholders: any text where they stand, literal parts kept. */
+/**
+ * A template of a value with placeholders: any text where they stand, literal parts kept. A
+ * literal part that begins or ends with a letter stands for whole words: "{{element}} at
+ * {{path}}" names "p at body[1]/p[1]", not every text with "at" inside a word ("annotation",
+ * "literature").
+ */
 function templateOf(normalisedValue: string): RegExp | null {
   const parts = normalisedValue.split(PLACEHOLDERS).map((part) => part.trim());
   if (!parts.some((part) => /\p{L}.*\p{L}/u.test(part))) return null;
-  return new RegExp(`^${parts.map(escapeRegExp).join('[\\s\\S]*?')}$`, 'u');
+  const literal = (part: string) =>
+    `${/^\p{L}/u.test(part) ? '(?<!\\p{L})' : ''}${escapeRegExp(part)}${/\p{L}$/u.test(part) ? '(?!\\p{L})' : ''}`;
+  return new RegExp(`^${parts.map(literal).join('[\\s\\S]*?')}$`, 'u');
 }
 
 const languageTexts = new Map<UiLang, LanguageTexts>();
