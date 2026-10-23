@@ -29,6 +29,7 @@
 import type { Locator, Page } from '@playwright/test';
 
 import {
+  ensureAssistantOn,
   expect,
   fixtureBook,
   recordOutside,
@@ -148,9 +149,12 @@ async function toggleAssistant(page: Page): Promise<void> {
   await page.getByTestId('menu-view-toggle').click();
 }
 
+/**
+ * The assistant on: the panel is restored as the session left it (FR-040 as amended, T100) -
+ * live already at start, or shown through View → AI Assistant when hidden.
+ */
 async function turnOn(page: Page): Promise<void> {
-  await toggleAssistant(page);
-  await expect.poll(() => page.evaluate<boolean>('window.__mfbeTest.ai.on')).toBe(true);
+  await ensureAssistantOn(page);
 }
 
 /** Right-click inside the selection → Ask AI... → the popup. */

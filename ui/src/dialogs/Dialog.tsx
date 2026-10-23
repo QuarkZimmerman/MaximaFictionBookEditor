@@ -1,14 +1,17 @@
 /**
  * Dialog framework components: `DialogHost` renders the dialog stack of a `DialogService`
  * (DialogService.ts); `Dialog` is the frame with focus trap, Escape/Enter handling, Tab
- * cycling, `&` button accelerators and stable testids. A `modeless` dialog (the original's
- * Find and Replace) has no backdrop and no focus trap, moves by its title and opens where the
- * last modeless dialog was closed. No user-visible literals here.
+ * cycling, `&` button accelerators and stable testids. Every dialog moves by its title bar
+ * (mouse, pen and touch through Pointer Events; feature 005 FR-107) and keeps the place while
+ * it is open, inside the window. A `modeless` dialog (the original's Find and Replace) has no
+ * backdrop and no focus trap and opens where the last modeless dialog was closed. No
+ * user-visible literals here.
  */
 
 import {
   Fragment,
   useCallback,
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -63,7 +66,7 @@ export function DialogHost({ service }: { service: DialogService }) {
 }
 
 /* ------------------------------------------------------------------------ */
-/* Modeless placement                                                       */
+/* Placement                                                                */
 /* ------------------------------------------------------------------------ */
 
 /**
@@ -72,13 +75,48 @@ export function DialogHost({ service }: { service: DialogService }) {
  */
 let modelessPlace: { left: number; top: number } | null = null;
 
+/**
+ * The viewport position nearest to `left`/`top` at which a dialog of `width` x `height` is
+ * inside the window; a dialog bigger than the window keeps its title bar at the window's
+ * top-left corner, so it stays reachable.
+ */
+function clampToWindow(
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+): { left: number; top: number } {
+  return {
+    left: Math.round(Math.max(0, Math.min(left, window.innerWidth - width))),
+    top: Math.round(Math.max(0, Math.min(top, window.innerHeight - height))),
+  };
+}
+
+/**
+ * Puts a dialog at the viewport position `left`/`top`, kept inside the window. A modeless
+ * dialog is placed absolutely in the floating layer; a modal one is centred by its backdrop
+ * and shifted from there by a relative offset (so a resize of the window re-centres it and
+ * the layout of its content is untouched). Both are inline styles on the dialog's root, which
+ * go with the root when the dialog closes: a dialog opens at its default place again.
+ */
+function placeAt(root: HTMLElement, modeless: boolean, left: number, top: number): void {
+  const box = root.getBoundingClientRect();
+  const target = clampToWindow(left, top, box.width, box.height);
+  if (modeless) {
+    root.style.left = `${target.left}px`;
+    root.style.top = `${target.top}px`;
+    return;
+  }
+  // `box` includes the current offset: the centred place is the box without it.
+  const dx = parseFloat(root.style.left) || 0;
+  const dy = parseFloat(root.style.top) || 0;
+  root.style.left = `${target.left - (box.left - dx)}px`;
+  root.style.top = `${target.top - (box.top - dy)}px`;
+}
+
 /** Moves a modeless dialog to `left`/`top`, kept inside the window. */
 function moveModeless(root: HTMLElement, left: number, top: number): void {
-  const { width, height } = root.getBoundingClientRect();
-  const x = Math.max(0, Math.min(left, window.innerWidth - width));
-  const y = Math.max(0, Math.min(top, window.innerHeight - height));
-  root.style.left = `${Math.round(x)}px`;
-  root.style.top = `${Math.round(y)}px`;
+  placeAt(root, true, left, top);
 }
 
 /** First placement: the remembered place, or centred in the window like a modal dialog. */
@@ -90,6 +128,9 @@ function placeModeless(root: HTMLElement): void {
     moveModeless(root, (window.innerWidth - width) / 2, (window.innerHeight - height) / 2);
   }
 }
+
+/** Elements inside the title bar that take the pointer for themselves (the close box). */
+const TITLE_CONTROLS = 'button, a, input, select, textarea';
 
 /* ------------------------------------------------------------------------ */
 /* Dialog frame                                                             */
@@ -123,7 +164,7 @@ export interface DialogProps {
   icon?: ReactNode;
   /** Label of the close box (localised by the caller). */
   closeLabel?: string;
-  /** The window stays usable: no focus trap, moved by its title (open it modeless too). */
+  /** The window stays usable: no focus trap, no backdrop (open it modeless too). */
   modeless?: boolean;
   /**
    * Modeless only: opens at this viewport position (kept inside the window) instead of the
@@ -298,22 +339,29 @@ export function Dialog({
     [buttons, cancelButton, defaultButton],
   );
 
-  // A modeless dialog is dragged by its title (the close box excepted).
+  // The dialog is dragged by its title bar with the primary button or a touch (the close box
+  // and any other control in the bar excepted): the title captures the pointer, so the drag
+  // goes on outside the bar and ends with the pointer wherever it is released. The place is
+  // the root's inline style, kept for as long as the dialog is open. The keyboard is not
+  // involved: Escape, Enter, Tab and the accelerators work as before.
   const onTitlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const root = rootRef.current;
-      if (!modeless || !root || event.button !== 0) return;
-      if ((event.target as HTMLElement).closest('.mfbe-dialog-close')) return;
+      if (!root || event.button !== 0) return;
+      if ((event.target as HTMLElement).closest(TITLE_CONTROLS)) return;
       event.preventDefault();
       const start = root.getBoundingClientRect();
       const offsetX = event.clientX - start.left;
       const offsetY = event.clientY - start.top;
       const title = event.currentTarget;
-      title.setPointerCapture(event.pointerId);
+      const { pointerId } = event;
+      title.setPointerCapture(pointerId);
       const onMove = (move: PointerEvent) => {
-        moveModeless(root, move.clientX - offsetX, move.clientY - offsetY);
+        if (move.pointerId !== pointerId) return;
+        placeAt(root, modeless, move.clientX - offsetX, move.clientY - offsetY);
       };
-      const onEnd = () => {
+      const onEnd = (end: PointerEvent) => {
+        if (end.pointerId !== pointerId) return;
         title.removeEventListener('pointermove', onMove);
         title.removeEventListener('pointerup', onEnd);
         title.removeEventListener('pointercancel', onEnd);
@@ -324,6 +372,32 @@ export function Dialog({
     },
     [modeless],
   );
+
+  // A smaller window must not leave a moved dialog outside: its place is clamped again on
+  // every resize of the window (a modal dialog's default place follows the centre of the
+  // window by itself) and, once moved, when the dialog itself grows (a longer message, another
+  // Settings page).
+  useEffect(() => {
+    const reclamp = () => {
+      const root = rootRef.current;
+      if (!root) return;
+      const box = root.getBoundingClientRect();
+      placeAt(root, modeless, box.left, box.top);
+    };
+    window.addEventListener('resize', reclamp);
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') {
+      return () => window.removeEventListener('resize', reclamp);
+    }
+    const observer = new ResizeObserver(() => {
+      if (root.style.left || root.style.top) reclamp();
+    });
+    observer.observe(root);
+    return () => {
+      window.removeEventListener('resize', reclamp);
+      observer.disconnect();
+    };
+  }, [modeless]);
 
   return (
     <div
@@ -340,7 +414,7 @@ export function Dialog({
         className="mfbe-dialog-title"
         id={titleId}
         data-testid={`${testId}-title`}
-        onPointerDown={modeless ? onTitlePointerDown : undefined}
+        onPointerDown={onTitlePointerDown}
       >
         <span className="mfbe-dialog-title-text">{title}</span>
         {cancelButton ? (

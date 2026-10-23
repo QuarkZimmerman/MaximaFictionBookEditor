@@ -194,6 +194,50 @@ describe('AiPanel', () => {
     expect(screen.getByTestId('ai-clear')).toBeEnabled();
   });
 
+  it('marks the final message of a request with where its changes went, or that a claimed change was never made (FR-106)', async () => {
+    const { store } = await renderPanel();
+    // Request 1: committed with a description change - the mark names the Description view.
+    message(store, { requestId: 'r1', role: 'user', text: 'Translate the title' });
+    message(store, { requestId: 'r1', role: 'assistant', text: 'Reading…', interim: true });
+    message(store, { requestId: 'r1', role: 'assistant', text: 'The title is translated.' });
+    activity(store, 'request.done', {
+      changes: { total: 1, body: 0, description: 1, fields: ['titleInfo.bookTitle'] },
+      exchanges: 3,
+      elapsedMs: 46000,
+    });
+    // Request 2: words only, claiming a change - the mark says no change was made.
+    message(store, { requestId: 'r2', role: 'user', text: 'Translate it again' });
+    message(store, { requestId: 'r2', role: 'assistant', text: 'The title has been translated.' });
+    activity(store, 'request.answered', { claimedChange: true }, 'r2');
+    // Request 3: a plain answer - no mark.
+    message(store, { requestId: 'r3', role: 'user', text: 'How many footnotes?' });
+    message(store, { requestId: 'r3', role: 'assistant', text: 'Two.' });
+    activity(store, 'request.answered', {}, 'r3');
+
+    expect(screen.queryByTestId('ai-result-1')).not.toBeInTheDocument(); // interim
+    const first = screen.getByTestId('ai-message-2');
+    expect(first).toHaveAttribute('data-result', 'applied');
+    expect(screen.getByTestId('ai-result-2')).toHaveTextContent(
+      'Applied to the book: 1 change in the Description view (book title)',
+    );
+    const second = screen.getByTestId('ai-message-4');
+    expect(second).toHaveAttribute('data-result', 'claimedChange');
+    expect(screen.getByTestId('ai-result-4')).toHaveTextContent(
+      'No change was made — the assistant only described one.',
+    );
+    expect(screen.getByTestId('ai-message-6')).not.toHaveAttribute('data-result');
+    expect(screen.queryByTestId('ai-result-6')).not.toBeInTheDocument();
+    // The end lines of the activity list say the same: the place, or words only - never Done.
+    const lines = Array.from(screen.getByTestId('ai-activity').children).map(
+      (li) => li.querySelector('.mfbe-ai-activity-text')!.textContent,
+    );
+    expect(lines).toEqual([
+      'Done: 1 change in the Description view (book title) — 3 exchanges, 00:46',
+      'Answered — the book was not changed (no change was made — the assistant only described one)',
+      'Answered — the book was not changed',
+    ]);
+  });
+
   it('lists every activity entry in order with its kind and a localised line (FR-042)', async () => {
     const { store } = await renderPanel();
     const entries: Array<[string, Record<string, unknown>, string]> = [
@@ -512,16 +556,79 @@ describe('AiPanel', () => {
     expect(store.getState().ai.panelFocus).toBe(false);
   });
 
-  it('the close button turns the assistant off through the feature (FR-092)', async () => {
+  it("the close button hides the panel and turns the assistant off (FR-092; the visibility is the session's, FR-040)", async () => {
     const { store, user } = await renderPanel();
     await screen.findByText('api.example.test · my-model');
     message(store, { requestId: 'r1', role: 'user', text: 'x' });
+    expect(store.getState().ai.visible).toBe(true);
     await user.click(screen.getByTestId('ai-panel-close'));
     await act(async () => {
       await Promise.resolve();
     });
     expect(store.getState().ai.on).toBe(false);
+    expect(store.getState().ai.visible).toBe(false);
     expect(store.getState().ai.conversation.messages).toEqual([]);
     expect(store.getState().modified).toBe(false);
+  });
+});
+
+describe('DisabledPanel (the inert panel of FR-096, T100)', () => {
+  beforeEach(() => {
+    openSettingsDialog.mockReset();
+  });
+
+  async function renderInert(): Promise<Harness> {
+    await initI18n({ language: 'en' });
+    await changeLanguage('en');
+    const store = createAppStore();
+    const services = createAppServices({ store, platform: 'linux' });
+    const settings = defaultSettings();
+    settings.ai.mode = 'disabled';
+    actions.setSettings(store, settings);
+    const user = userEvent.setup();
+    const { DisabledPanel } = await import('@/ai/DisabledPanel');
+    render(
+      <AppProvider services={services}>
+        <DisabledPanel />
+      </AppProvider>,
+    );
+    return { store, services, user };
+  }
+
+  it('shows every control disabled and greyed, no conversation, and the centred notice with the link that opens Settings → AI assistant', async () => {
+    const { user } = await renderInert();
+    const panel = screen.getByTestId('ai-panel-disabled');
+    expect(panel).toHaveAttribute('data-inert', 'true');
+    expect(panel).not.toHaveAttribute('aria-disabled'); // the link and the close button are live
+    expect(screen.getByTestId('ai-service')).toHaveTextContent('disabled');
+    expect(screen.queryByTestId('ai-messages')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ai-activity')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ai-settings-link')).not.toBeInTheDocument();
+    for (const id of ['ai-input', 'ai-send', 'ai-clear', 'ai-undo']) {
+      expect(screen.getByTestId(id), id).toBeDisabled();
+    }
+    const notice = screen.getByTestId('ai-panel-disabled-notice');
+    expect(notice).toHaveTextContent(
+      'The AI assistant is disabled. Enable it in Settings → AI assistant to work with it.',
+    );
+    const link = screen.getByTestId('ai-panel-disabled-settings');
+    expect(link).toBeEnabled();
+    expect(link).toHaveTextContent('Open Settings → AI assistant');
+    await user.click(link);
+    expect(openSettingsDialog).toHaveBeenCalledTimes(1);
+    expect(openSettingsDialog.mock.calls[0]![2]).toEqual({ initialPage: 'ai' });
+    // The close button is the panel's own (it hides the panel like the View entry does).
+    expect(screen.getByTestId('ai-panel-close')).toHaveAccessibleName(
+      'Close the AI assistant panel',
+    );
+  });
+
+  it('the close button hides the panel (a bare render: the store flag directly)', async () => {
+    const { store, user } = await renderInert();
+    expect(store.getState().ai.visible).toBe(true);
+    await user.click(screen.getByTestId('ai-panel-close'));
+    expect(store.getState().ai.visible).toBe(false);
+    expect(store.getState().ai.on).toBe(false);
+    expect(store.getState().ai.loaded).toBe(false); // nothing of the chunk
   });
 });

@@ -19,7 +19,8 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { getAiFeature } from '@/ai';
+import { getAiFeature, type AiFeatureStatus } from '@/ai';
+import { DisabledPanel } from '@/ai/DisabledPanel';
 import { DialogHost, ValidationPanel, createIssueNavigator } from '@/dialogs';
 import { changeLanguage, resolveUiLanguage } from '@/i18n';
 import { actions, documentFileName, useAppState } from '@/model/store';
@@ -131,8 +132,24 @@ function Shell({
   const activeView = useAppState((s) => s.activeView, store);
   const treeVisible = useAppState((s) => s.treeVisible, store);
   const treeWidth = useAppState((s) => s.treeWidth, store);
+  const aiVisible = useAppState((s) => s.ai.visible, store);
   const aiOn = useAppState((s) => s.ai.on, store);
   const aiWidth = useAppState((s) => s.ai.width, store);
+  // The feature's status (feature 005 FR-096 as amended): a visible panel is the live one while
+  // the assistant is on and the inert, static one while the mode is Disabled; before the first
+  // settings snapshot (`waiting`), with an older core or while the chunk still loads, no pane.
+  const aiFeature = getAiFeature(store);
+  const subscribeAiStatus = useCallback(
+    (listener: () => void) => aiFeature?.subscribe(listener) ?? NO_SUBSCRIPTION(),
+    [aiFeature],
+  );
+  const aiStatus = useSyncExternalStore<AiFeatureStatus>(
+    subscribeAiStatus,
+    () => aiFeature?.status ?? 'waiting',
+    () => 'waiting',
+  );
+  const aiInert = aiVisible && aiStatus === 'disabled';
+  const aiPane = aiVisible && (aiOn || aiInert);
   const path = useAppState((s) => s.path, store);
   const modified = useAppState((s) => s.modified, store);
   const hasDocument = useAppState((s) => s.document !== null, store);
@@ -327,7 +344,8 @@ function Shell({
   // The AI assistant panel on the right (feature 005 US3, FR-040; data-model §3.2): the same
   // scheme mirrored - the stored `ai.width` applied clamped to 280-800 px and to what the main
   // area leaves beside the tree pane and the view's minimum, re-applied on resize, never
-  // rewritten; its divider drags the pane after it and commits once to the store.
+  // rewritten; its divider drags the pane after it and commits once to the store. The pane is
+  // the live panel's and the inert one's alike.
   const aiSplitterRef = useRef<HTMLDivElement>(null);
   const panelClamp = useCallback(
     (width: number, mainWidth: number) =>
@@ -341,7 +359,7 @@ function Shell({
   );
   useLayoutEffect(() => {
     const main = mainRef.current;
-    if (!main || !aiOn) return;
+    if (!main || !aiPane) return;
     const apply = () => {
       main.style.setProperty(AI_PANEL_WIDTH_VARIABLE, `${panelClamp(aiWidth, main.clientWidth)}px`);
     };
@@ -350,17 +368,17 @@ function Shell({
     const observer = new ResizeObserver(apply);
     observer.observe(main);
     return () => observer.disconnect();
-  }, [aiOn, aiWidth, panelClamp]);
+  }, [aiPane, aiWidth, panelClamp]);
   useEffect(() => {
     const divider = aiSplitterRef.current;
     const main = mainRef.current;
-    if (!divider || !main || !aiOn) return;
+    if (!divider || !main || !aiPane) return;
     return attachSplitterDrag(divider, main, (width) => actions.setAiPanelWidth(store, width), {
       side: 'right',
       variable: AI_PANEL_WIDTH_VARIABLE,
       clamp: panelClamp,
     });
-  }, [store, aiOn, panelClamp]);
+  }, [store, aiPane, panelClamp]);
 
   const recentFiles = useSyncExternalStore(
     files.recent.subscribe,
@@ -380,9 +398,10 @@ function Shell({
 
   const navigateToIssue = useMemo(() => createIssueNavigator(ctx), [ctx]);
 
-  // The panel's content comes with the lazy chunk the feature imports before it turns the
+  // The live panel's content comes with the lazy chunk the feature imports before it turns the
   // assistant on (feature 005 US3, T052); without the feature (bare renders) the pane is empty.
-  const AiPanel = aiOn ? (getAiFeature(store)?.panel ?? null) : null;
+  // While Disabled the pane holds the static inert panel instead (FR-096; no chunk).
+  const AiPanel = aiOn ? (aiFeature?.panel ?? null) : null;
 
   // Busy pointer over the document pane while a script computes - not while it waits for the
   // user in one of its own dialogs (feature 003, FR-011).
@@ -440,7 +459,7 @@ function Shell({
             />
           ) : null}
         </section>
-        {aiOn ? (
+        {aiPane ? (
           <>
             <div
               ref={aiSplitterRef}
@@ -450,8 +469,13 @@ function Shell({
               aria-label={t('ai.panel.splitter')}
               data-testid="ai-splitter"
             />
-            <aside className="mfbe-ai-panel" data-testid="ai-panel" data-ai-width={aiWidth}>
-              {AiPanel ? <AiPanel /> : null}
+            <aside
+              className="mfbe-ai-panel"
+              data-testid="ai-panel"
+              data-ai-width={aiWidth}
+              data-ai-inert={aiInert ? 'true' : undefined}
+            >
+              {aiInert ? <DisabledPanel /> : AiPanel ? <AiPanel /> : null}
             </aside>
           </>
         ) : null}

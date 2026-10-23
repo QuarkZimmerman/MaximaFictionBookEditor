@@ -309,6 +309,13 @@ export interface Settings {
      * the width it applies to 280-800 px and the window without rewriting the setting.
      */
     aiPanelWidth: number;
+    /**
+     * Whether the AI panel is shown (feature 005, FR-040 as amended 2026-10-23; default true:
+     * open at the first start, restored at every start). Written like `treeVisible` when the
+     * user shows or hides the panel; whether the visible panel is live or inert follows
+     * `ai.mode` and is not stored.
+     */
+    aiPanelVisible: boolean;
   };
   /** The AI assistant (feature 005, rpc-api.md §3.7, resource-formats.md §B). */
   ai: AiSettings;
@@ -696,7 +703,10 @@ export interface AiScriptExistsData {
  * the UI to the core.
  */
 export interface AiSettings {
-  /** `free` (default): a bundled or user list entry; `custom`: the triple; `disabled`. */
+  /**
+   * `disabled` (the default, FR-001: the assistant works only after the user has chosen a
+   * service); `free`: a bundled or user list entry; `custom`: the triple.
+   */
   mode: 'free' | 'custom' | 'disabled';
   /** The chosen free entry's id (default `ovhcloud`); not validated against the list. */
   freeServiceId: string;

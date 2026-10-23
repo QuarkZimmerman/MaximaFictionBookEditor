@@ -8,6 +8,7 @@
 
 import type { SelectionSnapshot } from '@/ai/context';
 import {
+  claimsChange,
   decideTextReply,
   isNoChange,
   isQuestion,
@@ -75,6 +76,55 @@ describe('isNoChange / isQuestion', () => {
     expect(isQuestion('Which one? I changed the first.')).toBe(false);
     expect(isQuestion('I changed the title of chapter 3.')).toBe(false);
     expect(isQuestion('')).toBe(false);
+  });
+});
+
+describe('claimsChange (FR-106)', () => {
+  it('reads a past-tense claim of a change in English, Russian and Ukrainian - the rc.1 answers included', () => {
+    const claims = [
+      // The two answers gpt-oss-120b gave for "translate the book's title" (2026-10-23).
+      'The book’s title in the metadata has been changed from “Книга для помощника” to “Book for Assistant”.',
+      "The book's title has been translated to English: **“Book for the Assistant.”**",
+      'I have translated the title into English.',
+      "I've renamed the chapter.",
+      'I replaced the word in three paragraphs.',
+      'Done. The title is now "Book for Assistant".',
+      'Done: two typos fixed.',
+      'The title is now “A Book for the Assistant”.',
+      'Название книги переведено на английский: «Book for Assistant».',
+      'Я изменил название книги на «Book for Assistant».',
+      'Готово.',
+      'Заголовок исправлен, остальное без изменений.',
+      'Теперь книга называется «Book for Assistant».',
+      'Назву книги перекладено англійською: «Book for Assistant».',
+      'Я змінила назву книги.',
+      'Готово — назву перекладено.',
+      // A claim beside a question: the claim counts.
+      'The title has been translated. Shall I translate the chapter titles too?',
+    ];
+    for (const text of claims) expect(claimsChange(text), text).toBe(true);
+  });
+
+  it('is silent for questions, offers, conditionals, negations and plain answers', () => {
+    const notClaims = [
+      'Which title do you mean - the book’s or the first chapter’s?',
+      'I can translate the title to "Book for Assistant" - shall I apply it?',
+      'The title would be "Book for the Assistant" in English.',
+      'Nothing was changed.',
+      'I did not change anything; the title is already in English.',
+      'No change was made because the title is already English.',
+      'The book has 2 footnotes.',
+      'The title of the book is «Книга для помощника».',
+      'В книге 2 сноски.',
+      'Название книги — «Книга для помощника». Перевести его как «Book for Assistant»?',
+      'Я могу перевести название, если хотите.',
+      'Ничего не изменено: название уже на английском.',
+      'Назва книги — «Книга для помічника». Перекласти?',
+      'Я можу перекласти назву, якщо хочете.',
+      'Нічого не змінено.',
+      '',
+    ];
+    for (const text of notClaims) expect(claimsChange(text), text).toBe(false);
   });
 });
 

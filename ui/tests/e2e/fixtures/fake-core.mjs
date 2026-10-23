@@ -100,10 +100,11 @@ const defaultSettings = {
     toolbarLayouts: {},
     lastFileDialogFolder: '',
     aiPanelWidth: 360,
+    aiPanelVisible: true,
   },
-  // Feature 005 (resource-formats §B).
+  // Feature 005 (resource-formats §B): Disabled by default (FR-001), the panel open and inert.
   ai: {
-    mode: 'free',
+    mode: 'disabled',
     freeServiceId: 'ovhcloud',
     custom: { address: 'https://api.openai.com/v1', key: '', model: '' },
     customVerified: { fingerprint: '', model: '', at: '' },

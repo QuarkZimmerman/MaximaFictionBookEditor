@@ -128,6 +128,45 @@ function issuesText(t: TFunction, issues: unknown): string {
     .join('; ');
 }
 
+/** The description field a `set_description` change wrote, as the end line names it (`ai.activity.field.*`; a member not listed keeps its dotted name). */
+function fieldName(t: TFunction, field: string): string {
+  const key = `ai.activity.field.${field.replace(/\./g, '_')}`;
+  return i18next.exists(key) ? t(key) : field;
+}
+
+/**
+ * The count and the place of the changes of a committed request (FR-106): the `changes` of
+ * the `request.done` entry as `{total, body, description, fields}` - "1 change in the
+ * Description view (book title)", "3 changes in the body text", or both joined -; an older
+ * entry's plain number is counted without a place. An empty string when nothing is known.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- the formatter lives with the list it feeds, in the lazy chunk
+export function changesText(t: TFunction, changes: unknown): string {
+  if (typeof changes === 'number') return t('ai.count.changes', { count: changes });
+  if (!changes || typeof changes !== 'object') return '';
+  const record = changes as Record<string, unknown>;
+  const body = asNumber(record.body);
+  const description = asNumber(record.description);
+  const fields = Array.isArray(record.fields)
+    ? record.fields.filter((f): f is string => typeof f === 'string' && f !== '')
+    : [];
+  const parts: string[] = [];
+  if (body > 0) parts.push(t('ai.activity.changesBody', { count: body }));
+  if (description > 0) {
+    parts.push(
+      fields.length > 0
+        ? t('ai.activity.changesDescriptionFields', {
+            count: description,
+            fields: fields.map((field) => fieldName(t, field)).join(', '),
+          })
+        : t('ai.activity.changesDescription', { count: description }),
+    );
+  }
+  if (parts.length > 0) return parts.join(', ');
+  const total = asNumber(record.total);
+  return total > 0 ? t('ai.count.changes', { count: total }) : '';
+}
+
 /**
  * The localised line of one activity entry (data-model §5.2). Every model- or service-supplied
  * member (summaries, messages) is interpolated as data: i18next escapes nothing here because
@@ -267,17 +306,30 @@ export function activityText(t: TFunction, entry: AssistantActivityEntry, key?: 
         outcome: p.written ? t('ai.activity.written') : t('ai.activity.declined'),
       });
     case 'request.done': {
-      const exchanges = asNumber(p.exchanges);
-      return t('ai.activity.requestDone', {
-        count: asNumber(p.changes),
-        exchanges: t('ai.activity.exchanges', { count: exchanges }),
-        elapsed: formatElapsed(asNumber(p.elapsedMs)),
-      });
+      // The end line names the count AND the place of the changes (FR-106): `changes` is the
+      // `{total, body, description, fields}` object of the loop; a plain number (an older
+      // entry) keeps the count-only line.
+      const exchanges = t('ai.activity.exchanges', { count: asNumber(p.exchanges) });
+      const elapsed = formatElapsed(asNumber(p.elapsedMs));
+      if (p.changes && typeof p.changes === 'object') {
+        return t('ai.activity.requestDonePlaces', {
+          changes: changesText(t, p.changes),
+          exchanges,
+          elapsed,
+        });
+      }
+      return t('ai.activity.requestDone', { count: asNumber(p.changes), exchanges, elapsed });
     }
     case 'request.answered':
-      return t('ai.activity.requestAnswered');
-    case 'request.askedBack':
-      return t('ai.activity.requestAskedBack');
+    case 'request.askedBack': {
+      // Words only (FR-106): never "Done"; a text that claims a change no tool made says so.
+      const base = t(
+        entry.kind === 'request.answered'
+          ? 'ai.activity.requestAnswered'
+          : 'ai.activity.requestAskedBack',
+      );
+      return p.claimedChange ? `${base} (${t('ai.activity.claimedChange')})` : base;
+    }
     case 'request.cancelled':
       return t('ai.activity.requestCancelled');
     case 'request.failed': {
@@ -305,6 +357,61 @@ export function activityText(t: TFunction, entry: AssistantActivityEntry, key?: 
 const NO_RPC: Pick<RpcClient, 'call'> = {
   call: () => Promise.reject(new Error('no core')),
 } as Pick<RpcClient, 'call'>;
+
+/**
+ * The mark under the assistant's final message of a request (FR-106): `applied` with where the
+ * committed changes went, or `claimedChange` when the words claim a change no tool made.
+ */
+export interface ResultMark {
+  kind: 'applied' | 'claimedChange';
+  text: string;
+}
+
+/**
+ * The result marks by message id: for every request whose end entry is `request.done` with
+ * the places of its changes, or `request.answered` / `request.askedBack` with `claimedChange`,
+ * the last final (non-interim) assistant message of that request gets the mark.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- the formatter lives with the list it feeds, in the lazy chunk
+export function resultMarks(
+  t: TFunction,
+  messages: readonly AssistantMessage[],
+  activity: readonly AssistantActivityEntry[],
+): Map<string, ResultMark> {
+  const marks = new Map<string, ResultMark>();
+  const byRequest = new Map<string, ResultMark>();
+  for (const entry of activity) {
+    if (entry.kind === 'request.done') {
+      const changes = changesText(t, entry.payload.changes);
+      if (changes) {
+        byRequest.set(entry.requestId, {
+          kind: 'applied',
+          text: t('ai.result.applied', { changes }),
+        });
+      }
+    } else if (
+      (entry.kind === 'request.answered' || entry.kind === 'request.askedBack') &&
+      entry.payload.claimedChange
+    ) {
+      byRequest.set(entry.requestId, {
+        kind: 'claimedChange',
+        text: t('ai.result.claimedChange'),
+      });
+    }
+  }
+  if (byRequest.size === 0) return marks;
+  const finalMessage = new Map<string, string>();
+  for (const message of messages) {
+    if (message.role === 'assistant' && !message.interim) {
+      finalMessage.set(message.requestId, message.id);
+    }
+  }
+  for (const [requestId, mark] of byRequest) {
+    const id = finalMessage.get(requestId);
+    if (id) marks.set(id, mark);
+  }
+  return marks;
+}
 
 export function AiPanel() {
   const { t } = useTranslation();
@@ -409,6 +516,9 @@ export function AiPanel() {
   // (Edit > Undo still reaches the step).
   const conversationEmpty = empty && conversation.activity.length === 0;
   const requestUndo = conversationEmpty ? null : undoEntry;
+  // The result marks under the final messages (FR-106): where the changes went, or that a
+  // claimed change was never made.
+  const marks = resultMarks(t, conversation.messages, conversation.activity);
 
   const send = useCallback(async () => {
     const text = instruction.trim();
@@ -457,7 +567,8 @@ export function AiPanel() {
       void feature.close(ctx);
       return;
     }
-    // Without the feature (a bare render): off at once, the conversation discarded (FR-045).
+    // Without the feature (a bare render): off and hidden at once, the conversation discarded
+    // (FR-045); the visibility is the session's (FR-040).
     actions.updateAi(store, {
       on: false,
       request: null,
@@ -465,6 +576,7 @@ export function AiPanel() {
       conversation: emptyConversation(),
       panelFocus: false,
     });
+    actions.setAiPanelVisible(store, false);
   }, [ctx, store]);
 
   const openSettings = useCallback(() => {
@@ -567,6 +679,7 @@ export function AiPanel() {
             index={index}
             t={t}
             displayKey={displayKey}
+            mark={marks.get(message.id)}
           />
         ))}
       </div>
@@ -692,12 +805,15 @@ function MessageRow({
   index,
   t,
   displayKey,
+  mark,
 }: {
   message: AssistantMessage;
   index: number;
   t: TFunction;
   /** The configured key, masked in the model's and the editor's texts (never in the user's own). */
   displayKey: string | undefined;
+  /** The result mark of a request's final message (FR-106), when it has one. */
+  mark?: ResultMark | undefined;
 }) {
   const role =
     message.role === 'user'
@@ -716,12 +832,23 @@ function MessageRow({
       data-request={message.requestId}
       data-interim={message.interim ? 'true' : undefined}
       data-cutoff={message.cutOff ? 'true' : undefined}
+      data-result={mark?.kind}
     >
       <div className="mfbe-ai-message-role">{role}</div>
       <div className="mfbe-ai-message-text">{text}</div>
       {message.interim ? <div className="mfbe-ai-message-mark">{t('ai.panel.interim')}</div> : null}
       {message.cutOff ? (
         <div className="mfbe-ai-message-mark mfbe-ai-message-cutoff">{t('ai.popup.cutOff')}</div>
+      ) : null}
+      {mark ? (
+        // The result of the request under its final words (FR-106): where the changes went,
+        // or that the change the words claim was never made.
+        <div
+          className={`mfbe-ai-message-mark mfbe-ai-message-result mfbe-ai-message-result-${mark.kind}`}
+          data-testid={`ai-result-${index}`}
+        >
+          {mark.text}
+        </div>
       ) : null}
     </div>
   );

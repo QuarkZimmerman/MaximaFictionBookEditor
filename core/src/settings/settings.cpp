@@ -131,10 +131,14 @@ const std::vector<Field>& schema() {
         // Width of the AI panel in CSS pixels (feature 005, FR-040): as session.treeWidth,
         // defaulted and never clamped.
         integer("session.aiPanelWidth", 100, 10000),
-        // The AI assistant (feature 005, rpc-api §3.7 / resource-formats §B): the mode, the
-        // chosen free entry, the custom triple, the verification record the UI writes with the
-        // triple (kept only while its fingerprint matches, see apply_fingerprint_invariant) and
-        // the first-use agreements.
+        // Whether the AI panel is shown (feature 005, FR-040 as amended 2026-10-23): written
+        // by the UI like session.treeVisible; open at the first start.
+        field("session.aiPanelVisible", Kind::boolean),
+        // The AI assistant (feature 005, rpc-api §3.7 / resource-formats §B): the mode
+        // ("disabled" by default - FR-001, requester 2026-10-23: the assistant works only after
+        // the user has chosen a service), the chosen free entry, the custom triple, the
+        // verification record the UI writes with the triple (kept only while its fingerprint
+        // matches, see apply_fingerprint_invariant) and the first-use agreements.
         enumeration("ai.mode", {"free", "custom", "disabled"}),
         text("ai.freeServiceId", 1, -1),
         field("ai.custom.address", Kind::address),
@@ -557,9 +561,10 @@ json defaults() {
           {"replaceHistory", json::array()},
           {"toolbarLayouts", json::object()},
           {"lastFileDialogFolder", ""},
-          {"aiPanelWidth", 360}}},
+          {"aiPanelWidth", 360},
+          {"aiPanelVisible", true}}},
         {"ai",
-         {{"mode", "free"},
+         {{"mode", "disabled"},
           {"freeServiceId", "ovhcloud"},
           {"custom", {{"address", "https://api.openai.com/v1"}, {"key", ""}, {"model", ""}}},
           {"customVerified", {{"fingerprint", ""}, {"model", ""}, {"at", ""}}},

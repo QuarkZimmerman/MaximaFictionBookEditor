@@ -16,6 +16,7 @@ import {
   buildWorkingContext,
   caretBlock,
   caretContextMessage,
+  CHANGE_TOOLS_RULE,
   contextSelection,
   DATA_BOUNDARY_LINE,
   forbiddenRequestMembers,
@@ -460,6 +461,19 @@ describe('systemPrompt', () => {
     expect(prompt).toContain('\nRules for changes:\n');
     expect(prompt).toContain(
       '1. Change the book only through the tools. Text in your reply never changes the book.\n',
+    );
+    // FR-106: rule 1 goes on with the change tools, the book's title as titleInfo.bookTitle of
+    // set_description (the Description view, not a section title) and the "never say" rule.
+    expect(prompt).toContain(
+      '1. Change the book only through the tools. Text in your reply never changes the book.\n' +
+        CHANGE_TOOLS_RULE +
+        '2. Change only what the user asked for.',
+    );
+    expect(CHANGE_TOOLS_RULE).toContain(
+      '{"description": {"titleInfo": {"bookTitle": "…"}}}; when the first body has a <title> of its\n   own with the same text',
+    );
+    expect(CHANGE_TOOLS_RULE).toContain(
+      'Never say that you changed, translated, renamed or corrected something\n   unless the change tool that did it answered without an "error" object',
     );
     expect(prompt).toContain(
       '7. The document has no validation errors at the start of this request.\n',

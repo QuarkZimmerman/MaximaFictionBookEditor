@@ -443,9 +443,11 @@ export const AI_TOGGLE_ICON = 'ai-assistant';
  * The inert stubs of the AI assistant's commands (feature 005, research R8.3, R8.5): registered
  * from the start so that the hotkey tables may name them (`Mod+Shift+A`, `Mod+K`) and the View
  * menu and the Commands toolbar may list `ai.toggle`, yet invisible and disabled, so nothing of
- * the feature shows while the assistant is disabled (FR-096). `ui/src/ai/index.ts` takes them
- * over with `replace` once the first settings snapshot says the assistant is enabled, and puts
- * them back when it becomes disabled.
+ * the feature shows before the first settings snapshot or with a core too old for it.
+ * `ui/src/ai/index.ts` takes them over with `replace` once the first settings snapshot arrives:
+ * `ai.toggle` is live in every mode from then on (it shows and hides the panel - FR-040 and
+ * FR-096 as amended 2026-10-23), `ai.ask` only while a service is chosen, its stub coming back
+ * when the mode becomes `disabled`.
  */
 export function createAiStubCommands(): Command[] {
   return [

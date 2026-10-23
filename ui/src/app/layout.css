@@ -624,8 +624,9 @@ textarea {
 }
 
 /* The AI assistant panel on the right of the view area (feature 005 US3, FR-040; data-model
-   §3.2): rendered only while the assistant is on, after a divider of its own (`ai-splitter`),
-   at `--mfbe-ai-panel-width` (the stored `session.aiPanelWidth` clamped to 280-800 px and the
+   §3.2): rendered while the panel is visible - live with the assistant on, inert while the
+   assistant is Disabled in Settings (FR-096) -, after a divider of its own (`ai-splitter`), at
+   `--mfbe-ai-panel-width` (the stored `session.aiPanelWidth` clamped to 280-800 px and the
    window, written on .mfbe-main by App.tsx). Like the tree pane it may shrink under its minimum
    when the window is too narrow and gets its width back when the window grows. */
 .mfbe-ai-panel {
@@ -636,6 +637,129 @@ textarea {
   min-height: 0;
   background: var(--mfbe-color-chrome-bg);
   border-left: 1px solid var(--mfbe-color-border);
+}
+
+/* The inert panel of the Disabled state (feature 005 FR-096 as amended; ai/DisabledPanel.tsx,
+   part of the main bundle - the live panel's `ai.css` travels with the lazy chunk, so the inert
+   one carries its own rules): the live panel's layout with every control disabled and greyed,
+   no conversation, and the centred notice with the link to the settings page. */
+.mfbe-ai-inert {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  background: var(--mfbe-color-bg);
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+.mfbe-ai-inert-header {
+  flex: 0 0 auto;
+  padding: 4px 32px 6px 8px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+  background: var(--mfbe-color-chrome-bg);
+}
+
+.mfbe-ai-inert-title {
+  font-weight: 600;
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+.mfbe-ai-inert-service {
+  font-size: 0.92em;
+  font-style: italic;
+}
+
+.mfbe-ai-inert-body {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  padding: 12px 16px;
+  overflow: auto;
+}
+
+.mfbe-ai-inert-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 32em;
+  margin: 0;
+  text-align: center;
+  color: var(--mfbe-color-fg, #000);
+}
+
+.mfbe-ai-inert-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--mfbe-color-link, #0066cc);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.mfbe-ai-inert-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--mfbe-color-border);
+  background: var(--mfbe-color-chrome-bg);
+  opacity: 0.6;
+}
+
+.mfbe-ai-inert-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  font: var(--mfbe-font-ui, 13px system-ui, sans-serif);
+  color: var(--mfbe-color-fg-muted, #555);
+  background: var(--mfbe-color-chrome-bg-2, #f3f3f3);
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  padding: 4px 6px;
+}
+
+.mfbe-ai-inert-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mfbe-ai-inert-buttons .mfbe-button {
+  min-width: 0;
+  padding: 3px 12px;
+}
+
+.mfbe-ai-inert-close {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--mfbe-color-fg);
+  font: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.mfbe-ai-inert-close:hover {
+  background: var(--mfbe-color-button-hover, #e5f1fb);
+  border-color: var(--mfbe-color-accent, #0078d4);
+}
+
+.mfbe-ai-inert-close:focus-visible,
+.mfbe-ai-inert-link:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: 1px;
 }
 
 /* While the divider is dragged (the class is on <html>, app/splitter.ts): the resize cursor

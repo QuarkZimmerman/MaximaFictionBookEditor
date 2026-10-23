@@ -69,6 +69,7 @@ const settings = (other: Partial<Settings['other']>): Settings =>
       toolbarLayouts: {},
       lastFileDialogFolder: '',
       aiPanelWidth: 360,
+      aiPanelVisible: true,
     },
     ai: {
       mode: 'free',

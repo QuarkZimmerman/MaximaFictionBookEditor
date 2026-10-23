@@ -54,6 +54,7 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
       toolbarLayouts: {},
       lastFileDialogFolder: '',
       aiPanelWidth: 360,
+      aiPanelVisible: true,
     },
     ai: {
       mode: 'free',

@@ -152,7 +152,7 @@ TEST_CASE(
         AiFixture f;
         fs::create_directories(f.user_file());
         CHECK(f.result("app.info")["apiMinor"] == 4);
-        CHECK(f.result("settings.get")["ai"]["mode"] == "free");
+        CHECK(f.result("settings.get")["ai"]["mode"] == "disabled");  // FR-001: the default
         CHECK(f.transports->created.load() == 0);
         CHECK(f.ai_log_entries().empty());
 
@@ -673,6 +673,9 @@ TEST_CASE(
         CHECK(refused["error"]["message"] == "ai.noService");
         CHECK(refused["error"]["data"] == data);
     };
+    // The stored mode is Disabled by default (FR-001): a service mode first, so that the other
+    // reasons are reached; (0) Disabled itself is at the end.
+    f.result("settings.set", json{{"patch", {{"ai", {{"mode", "free"}}}}}});
 
     // (5) a hosted free entry without an agreement; a hosted custom address likewise; the
     // agreement must match service and host both.
@@ -940,6 +943,7 @@ TEST_CASE(
                              R"(/v1", "model": "standin-chat"}]})");
         http.route("POST", "/v1/chat/completions",
                    test::ScriptedResponse::json(200, kOkCompletion).with_delay(700));
+        f.result("settings.set", json{{"patch", {{"ai", {{"mode", "free"}}}}}});  // not Disabled
         const json started = f.result(
             "ai.complete",
             json{{"target", {{"kind", "free"}, {"id", "standin"}}}, {"body", chat_body()}});

@@ -168,7 +168,7 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
   const storedAgreements = useAppState((state) => state.settings?.ai?.agreements, store);
   const agreements: AiAgreement[] = storedAgreements ?? agreementsOf(draft);
 
-  const mode = ai?.mode ?? 'free';
+  const mode = ai?.mode ?? 'disabled'; // the stored default (FR-001; resource-formats §B)
   const triple = customTripleOf(ai);
   const record = ai?.customVerified;
 

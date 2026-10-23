@@ -41,6 +41,7 @@ import { fileURLToPath } from 'node:url';
 import type { Locator, Page } from '@playwright/test';
 
 import {
+  ensureAssistantOn,
   expect,
   fixtureBook,
   NodeRpcClient,
@@ -106,10 +107,8 @@ declare const window: {
 const lastRequest = (page: Page) =>
   page.evaluate<LastRequest | null>(() => window.__mfbeTest.ai.lastRequest());
 const lastRequestId = async (page: Page) => (await lastRequest(page))?.id ?? null;
-const assistantOn = (page: Page) => page.evaluate<boolean>(() => window.__mfbeTest.ai.on);
 const documentXml = (page: Page) => page.evaluate(() => window.__mfbeTest.scripts.toXml());
 
-const panel = (page: Page) => page.getByTestId('ai-panel');
 const input = (page: Page) => page.getByTestId('ai-input');
 const notice = (page: Page) => page.getByTestId('dialog-ai-notice');
 
@@ -205,11 +204,12 @@ async function openBook(core: CoreHandle, page: Page, book: string): Promise<voi
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
 }
 
+/**
+ * The assistant on: the panel is restored as the session left it (FR-040 as amended, T100) -
+ * live already at start, or shown through View → AI Assistant when hidden.
+ */
 async function turnOn(page: Page): Promise<void> {
-  await page.getByTestId('menu-view').click();
-  await page.getByTestId('menu-view-toggle').click();
-  await expect(panel(page)).toBeVisible();
-  await expect.poll(() => assistantOn(page)).toBe(true);
+  await ensureAssistantOn(page);
 }
 
 /** Types the instruction into the panel's field and presses Enter; returns the id to wait past. */

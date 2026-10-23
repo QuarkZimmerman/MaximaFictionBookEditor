@@ -55,7 +55,7 @@ import { logUiError } from '@/app/diagnostics';
 import type { ModelNodeJson } from '@/editor/fromModel';
 import { createNodeIdGenerator } from '@/editor/schema';
 import { nodeToModel } from '@/editor/toModel';
-import type { ValidationReport } from '@/model/document';
+import type { Document, ValidationReport } from '@/model/document';
 import {
   actions,
   emptyConversation,
@@ -160,7 +160,7 @@ import {
 } from './protocol';
 import { createRegexRunner } from './regexRunner';
 import { createRegexWorker } from './regexWorkerFactory';
-import { decideTextReply, isQuestion, undoLabel } from './reply';
+import { claimsChange, decideTextReply, isQuestion, undoLabel } from './reply';
 import { startRequestSession, type RequestSession, type SessionRpc } from './session';
 import {
   commitSource,
@@ -183,7 +183,8 @@ import {
   type SummarisedCall,
 } from './summaries';
 import { resolveActiveTarget, type ActiveTarget } from './target';
-import { containerSize, TEXT_CONTAINERS } from './tools/model';
+import { containerSize, indexDocument, resolveReference, TEXT_CONTAINERS } from './tools/model';
+import { inDescription } from './tools/write';
 
 /** The end of a request as the panel and the popup see it (data-model §4.1 `outcome`, §4.5). */
 export type RequestFailureKind =
@@ -225,10 +226,40 @@ export interface RequestFailure {
   errors?: ErrorForModel[];
 }
 
+/**
+ * Where the accepted changes of a request went (FR-106): the `request.done` entry's `changes`
+ * and the test hook's `places`. The Body view shows the bodies' text alone, so a change to the
+ * description - the book title, the authors, the annotation … - is named as such.
+ */
+export interface ChangePlaces {
+  total: number;
+  /** Changes in the text of the bodies. */
+  body: number;
+  /** Changes in the description (metadata) - the Description view shows them, the Body view not. */
+  description: number;
+  /** The description fields written (`titleInfo.bookTitle`, …), each once, in order. */
+  fields: string[];
+}
+
+/** One accepted change's place: known at once, or `unknown` until the commit's diff decides. */
+type ChangePlace = 'body' | 'description' | 'unknown';
+
 export type RequestOutcome =
-  | { kind: 'committed'; text?: string; cutOff?: boolean; undo?: { label: string } }
-  | { kind: 'answered'; text: string; cutOff?: boolean }
-  | { kind: 'askedBack'; text: string; cutOff?: boolean }
+  | {
+      kind: 'committed';
+      text?: string;
+      cutOff?: boolean;
+      undo?: { label: string };
+      /** Where the changes went (FR-106). */
+      changes?: ChangePlaces;
+    }
+  /**
+   * `answered` / `askedBack`: nothing was changed. `claimedChange` marks a text that claims a
+   * change ("I have translated the title…") made through no tool - shown as words only, never
+   * as done (FR-106).
+   */
+  | { kind: 'answered'; text: string; cutOff?: boolean; claimedChange?: true }
+  | { kind: 'askedBack'; text: string; cutOff?: boolean; claimedChange?: true }
   | { kind: 'failed'; failure: RequestFailure }
   | { kind: 'cancelled' }
   | { kind: 'rejected'; text?: string; issues: ErrorForModel[] };
@@ -268,6 +299,10 @@ export interface LastRequestInfo {
   validations: { durationMs: number }[];
   fromXmlCalls: number;
   changes: number;
+  /** Where the changes went (FR-106; a committed request). */
+  places?: ChangePlaces;
+  /** `answered` / `askedBack`: the text claimed a change that no tool made (FR-106). */
+  claimedChange?: boolean;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -521,6 +556,47 @@ async function readScriptFile(id: string, file: string): Promise<ScriptFileConte
   return { content: await response.text() };
 }
 
+/** One accepted change with its place and, for `set_description`, the fields it wrote. */
+interface PlacedChange {
+  place: ChangePlace;
+  fields: string[];
+}
+
+/**
+ * The `changes` of the `request.done` entry (FR-106): the accepted changes counted by place;
+ * an `unknown` place (a nested script run, the Source view's text path) is decided by the
+ * commit's diff of the document before and after - `descriptionChanged` / `bodiesChanged` -
+ * and counts for the bodies unless the description alone changed.
+ */
+export function summarisePlaces(
+  changes: readonly PlacedChange[],
+  diff: { descriptionChanged: boolean; bodiesChanged: boolean },
+): ChangePlaces {
+  const out: ChangePlaces = { total: changes.length, body: 0, description: 0, fields: [] };
+  for (const change of changes) {
+    let place = change.place;
+    if (place === 'unknown') {
+      place = diff.descriptionChanged && !diff.bodiesChanged ? 'description' : 'body';
+    }
+    if (place === 'description') out.description += 1;
+    else out.body += 1;
+    for (const field of change.fields) if (!out.fields.includes(field)) out.fields.push(field);
+  }
+  return out;
+}
+
+/** The commit's diff for `summarisePlaces`: by reference first, then by content (copy-on-write documents). */
+function documentDiff(
+  before: Pick<Document, 'description' | 'bodies'>,
+  after: Pick<Document, 'description' | 'bodies'>,
+): { descriptionChanged: boolean; bodiesChanged: boolean } {
+  const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b);
+  return {
+    descriptionChanged: !same(before.description, after.description),
+    bodiesChanged: !same(before.bodies, after.bodies),
+  };
+}
+
 /** The sections of an outline, nested ones included (the `request.start` entry names the count). */
 function countSections(entries: readonly OutlineEntry[]): number {
   return entries.reduce(
@@ -739,6 +815,10 @@ class RequestRun {
   private readonly store: AppStore;
   /** Accepted changes per tool (the `[Changes applied in this turn: …]` line, §5.2). */
   private readonly changesByTool = new Map<string, number>();
+  /** The accepted changes with their places (the `request.done` entry's `changes`, FR-106). */
+  private readonly placedChanges: PlacedChange[] = [];
+  /** Where the changes went, decided at the commit (`summarisePlaces`). */
+  private places: ChangePlaces | null = null;
   /** The conversation's earlier turns and how many of the oldest were left out (§6.12 step 1). */
   private turns: HistoryTurn[] = [];
   private droppedTurns = 0;
@@ -1442,7 +1522,7 @@ class RequestRun {
           session,
           selectionReplacement(session, this.selection, content, controller),
         );
-        this.recordChange(applied, 'replace_selection', 'selection');
+        this.recordChange(applied, 'replace_selection', 'selection', 'body');
         if (applied.accepted) return this.commit(undefined, false, null, applied.result);
         rejected = applied;
       } else {
@@ -1873,6 +1953,9 @@ class RequestRun {
       const target = colon < 0 ? '' : key.slice(colon + 1);
       this.hookCalls += 1;
       this.activity('change.try', { tool, target });
+      // Where the change goes, from the target as it stands before the change (a removed node
+      // cannot be resolved afterwards) - FR-106.
+      const place = this.placeOf(tool, target, session.copy.document);
       const thrown: { error: ToolError | null } = { error: null };
       let outcome: ChangeOutcome<T>;
       try {
@@ -1899,7 +1982,7 @@ class RequestRun {
         throw error;
       }
       this.lastChangeOutcome = outcome as ChangeOutcome<Record<string, unknown>>;
-      this.recordChange(outcome, tool, target);
+      this.recordChange(outcome, tool, target, place);
       if (outcome.accepted) return outcome.result;
       if (outcome.ended) this.rejectedIssues = strikeIssues(session, key);
       if (thrown.error) return { error: { ...thrown.error.body, strike: outcome.strike } };
@@ -1907,11 +1990,63 @@ class RequestRun {
     };
   }
 
+  /**
+   * Where a change tool's change goes (FR-106), from its strike target (ai-catalogue §3.5)
+   * before the change runs: the description for `set_description`; the root of the target
+   * node - a body or a description root (the annotation, the history) - for the node tools;
+   * the bodies for `replace_all` and a Body selection; `unknown` for a nested script run and
+   * the Source view's text path, which the commit's diff decides.
+   */
+  private placeOf(tool: string, target: string, document: Document): ChangePlace {
+    switch (tool) {
+      case 'set_description':
+        return 'description';
+      case 'replace_all':
+        return 'body';
+      case 'replace_selection':
+        return this.holder?.get().kind === 'source' ? 'unknown' : 'body';
+      case 'run_script':
+        return 'unknown';
+      case 'replace_node':
+      case 'remove_node':
+      case 'set_text':
+      case 'insert_node': {
+        const at = target.indexOf('@');
+        const reference = tool === 'insert_node' && at >= 0 ? target.slice(at + 1) : target;
+        if (!reference) return 'unknown';
+        let entry: ReturnType<typeof resolveReference>;
+        try {
+          entry = resolveReference(indexDocument(document), reference);
+        } catch {
+          entry = null;
+        }
+        if (!entry) return 'unknown';
+        return inDescription(entry) ? 'description' : 'body';
+      }
+      default:
+        return 'unknown';
+    }
+  }
+
   /** The activity entries of a change's outcome (`validate`, `change.accepted` / `change.rejected`). */
-  private recordChange(outcome: ChangeOutcome<unknown>, tool: string, target: string): void {
+  private recordChange(
+    outcome: ChangeOutcome<unknown>,
+    tool: string,
+    target: string,
+    place: ChangePlace,
+  ): void {
     const session = this.session!;
     if (outcome.accepted) {
       this.changesByTool.set(tool, (this.changesByTool.get(tool) ?? 0) + 1);
+      // The place of the change for the end line (FR-106); `set_description` names its fields.
+      const fields = (outcome.result as { fields?: unknown } | undefined)?.fields;
+      this.placedChanges.push({
+        place,
+        fields:
+          tool === 'set_description' && Array.isArray(fields)
+            ? fields.filter((field): field is string => typeof field === 'string')
+            : [],
+      });
       this.activity('validate', {
         new: 0,
         preExisting: session.preExistingErrors,
@@ -1942,9 +2077,22 @@ class RequestRun {
   private async textEnd(text: string, cutOff: boolean): Promise<RequestOutcome> {
     const session = this.session!;
     if (session.changesInThisRequest > 0) return this.commit(text, cutOff, null);
-    return isQuestion(text)
-      ? { kind: 'askedBack', text, ...(cutOff ? { cutOff: true } : {}) }
-      : { kind: 'answered', text, ...(cutOff ? { cutOff: true } : {}) };
+    return this.wordsOnly(text, cutOff);
+  }
+
+  /**
+   * The end of a request that changed nothing (§5.2): `askedBack` when the text is a question
+   * by wording, `answered` otherwise; a text that claims a change - "I have translated the
+   * title" - which no tool made is marked `claimedChange`, so that the panel shows it as words
+   * only and never as done (FR-106: the rc.1 smoke test read such an answer as done).
+   */
+  private wordsOnly(text: string, cutOff: boolean): RequestOutcome {
+    return {
+      kind: isQuestion(text) ? 'askedBack' : 'answered',
+      text,
+      ...(cutOff ? { cutOff: true } : {}),
+      ...(claimsChange(text) ? { claimedChange: true } : {}),
+    };
   }
 
   /** Row d of the fast-path table: the reply equals the selection (FR-043: nothing changes). */
@@ -1977,17 +2125,24 @@ class RequestRun {
     switch (result.kind) {
       case 'committed':
         if (!this.source) this.selectReplacement(split, replacement);
+        // Where the changes went (FR-106): the places known per change, the unknown ones
+        // decided by the diff of the document before and after.
+        this.places = summarisePlaces(
+          this.placedChanges,
+          this.placedChanges.some((change) => change.place === 'unknown')
+            ? documentDiff(session.before, result.after)
+            : { descriptionChanged: false, bodiesChanged: false },
+        );
         return {
           kind: 'committed',
           ...(text === undefined ? {} : { text }),
           ...(cutOff ? { cutOff: true } : {}),
           undo: { label: undoLabel(this.options.instruction) },
+          changes: this.places,
         };
       case 'unchanged':
         if (text === undefined) return this.nothingToChange();
-        return isQuestion(text)
-          ? { kind: 'askedBack', text, ...(cutOff ? { cutOff: true } : {}) }
-          : { kind: 'answered', text, ...(cutOff ? { cutOff: true } : {}) };
+        return this.wordsOnly(text, cutOff);
       case 'lost':
         return { kind: 'cancelled' };
       default:
@@ -2076,9 +2231,17 @@ class RequestRun {
       // Only a request that got as far as the lock has entries (a notice answered No has none).
       // The final text carries its `appliedLine` for the history of the next request (§5.2).
       switch (outcome.kind) {
-        case 'committed':
+        case 'committed': {
+          // The end line names the count and the place of the changes (FR-106): `changes` is
+          // the `ChangePlaces` object - the Body text, the Description with its fields, or both.
+          const places: ChangePlaces = this.places ?? {
+            total: session.changesInThisRequest,
+            body: session.changesInThisRequest,
+            description: 0,
+            fields: [],
+          };
           this.activity('request.done', {
-            changes: session.changesInThisRequest,
+            changes: places,
             exchanges: this.exchanges,
             elapsedMs,
           });
@@ -2091,9 +2254,15 @@ class RequestRun {
             ...(outcome.cutOff ? { cutOff: true as const } : {}),
           });
           break;
+        }
         case 'answered':
         case 'askedBack':
-          this.activity(outcome.kind === 'answered' ? 'request.answered' : 'request.askedBack');
+          // Words only: nothing changed; a text that claims a change no tool made is marked
+          // so that the panel says so beside it (FR-106).
+          this.activity(
+            outcome.kind === 'answered' ? 'request.answered' : 'request.askedBack',
+            outcome.claimedChange ? { claimedChange: true } : undefined,
+          );
           appendMessage(store, {
             requestId: this.id,
             role: 'assistant',
@@ -2135,6 +2304,10 @@ class RequestRun {
       validations: (session?.validations ?? []).map((v) => ({ durationMs: v.durationMs })),
       fromXmlCalls: this.fromXmlCalls,
       changes: session?.changesInThisRequest ?? 0,
+      ...(outcome.kind === 'committed' && this.places ? { places: this.places } : {}),
+      ...((outcome.kind === 'answered' || outcome.kind === 'askedBack') && outcome.claimedChange
+        ? { claimedChange: true }
+        : {}),
     };
     this.ended = true;
     if (store.getState().ai.request?.id === this.id) actions.updateAi(store, { request: null });

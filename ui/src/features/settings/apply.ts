@@ -22,8 +22,9 @@
  *    prompt (Yes restarts the editor through `app.restart` - the shell starts it again with
  *    the same document and window - or reloads the page in browser mode; feature 003 US3).
  *  - **Session**: toolbar visibility, the document tree flag, the tree pane width
- *    (`session.treeWidth`, feature 004 US1) and the AI panel width (`session.aiPanelWidth`,
- *    feature 005 FR-040) are written back to `session.*` through `settings.set` (debounced;
+ *    (`session.treeWidth`, feature 004 US1) and the AI panel's width and visibility
+ *    (`session.aiPanelWidth`, `session.aiPanelVisible`, feature 005 FR-040) are written back
+ *    to `session.*` through `settings.set` (debounced;
  *    `flushSessionSave` writes a pending save at once - the quit flow waits for it before
  *    `app.quit`, so a width dragged just before the exit is stored, FR-003). They are the
  *    window's own state: the store adopts them from the start-up read
@@ -344,7 +345,8 @@ export class SettingsFeature {
         (state.toolbars !== previous.toolbars ||
           state.treeVisible !== previous.treeVisible ||
           state.treeWidth !== previous.treeWidth ||
-          state.ai.width !== previous.ai.width)
+          state.ai.width !== previous.ai.width ||
+          state.ai.visible !== previous.ai.visible)
       ) {
         this.scheduleSessionSave();
       }
@@ -423,8 +425,8 @@ export class SettingsFeature {
   }
 
   /**
-   * Persists toolbar/tree visibility, the tree width and the AI panel width when they differ
-   * from the stored session.
+   * Persists toolbar/tree visibility, the tree width and the AI panel's width and visibility
+   * when they differ from the stored session.
    */
   async saveSession(): Promise<boolean> {
     const rpc = this.rpcClient;
@@ -441,9 +443,16 @@ export class SettingsFeature {
     if (typeof session.treeWidth === 'number' && session.treeWidth !== state.treeWidth) {
       patch.treeWidth = state.treeWidth;
     }
-    // The AI panel width the same way (API minor 4, feature 005 FR-040).
+    // The AI panel's width and visibility the same way (API minor 4, feature 005 FR-040; the
+    // visibility key since the 2026-10-23 amendment - a core without it keeps the panel open).
     if (typeof session.aiPanelWidth === 'number' && session.aiPanelWidth !== state.ai.width) {
       patch.aiPanelWidth = state.ai.width;
+    }
+    if (
+      typeof session.aiPanelVisible === 'boolean' &&
+      session.aiPanelVisible !== state.ai.visible
+    ) {
+      patch.aiPanelVisible = state.ai.visible;
     }
     if (Object.keys(patch).length === 0) return false;
     try {

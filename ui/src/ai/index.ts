@@ -1,56 +1,68 @@
 /**
  * AI assistant feature registrar (feature 005; research R8.3-R8.4; data-model §3.1, §3.3
  * "start-up"). Static - part of the main bundle - and deliberately small: it decides whether
- * the assistant exists in this session and loads everything else lazily.
+ * the assistant is live in this session and loads everything else lazily.
  *
- * The Disabled rule (FR-096, FR-098): features register before the first settings snapshot, so
- * this one registers **nothing** until the snapshot arrives - the inert, invisible stubs of
- * `createBuiltinCommands()` (`ai.toggle`, `ai.ask`) stand in for the hotkey tables, the View
- * menu and the toolbar meanwhile. Then, iff `settings.ai.mode !== 'disabled'` **and** the core's
- * `app.info().apiMinor` is at least 4 (one call by this module - the RPC client makes no minor
- * check), the stubs are taken over by the live commands `ai.toggle` (View → AI Assistant,
- * `checked` = `store.ai.on`), `ai.ask` (visible and enabled only while on) and `ai.cancel`.
- * An older core: nothing is registered and `coreTooOld` tells the settings page (rpc-api §6).
- * When the mode becomes `disabled` later the live commands go, the stubs come back (the View
- * entry hidden by `visible`, the toolbar button gone, the hotkeys inert), the panel closes and
- * the conversation is dropped; when it changes back the commands return - without a restart
- * (FR-097).
+ * The model (FR-040 and FR-096 as amended by the requester on 2026-10-23, T100):
+ *  - `store.ai.visible` - the panel's visibility, the user's: persisted as
+ *    `session.aiPanelVisible` (default true: the panel is open at the first start and restored
+ *    at every start), flipped by `ai.toggle` (View → AI Assistant, `Mod+Shift+A`, the toolbar
+ *    button) and the panel's close button, in **every** mode;
+ *  - `enabled` - `settings.ai.mode !== 'disabled'` by the latest snapshot;
+ *  - `store.ai.on` - the assistant is *live*: `visible && enabled`, realised once the chunk is
+ *    imported and `startAssistant` has built the catalogue instance; derived here, never set by
+ *    the user directly. A visible panel while Disabled is *inert*: App.tsx renders the static
+ *    `DisabledPanel` (every control disabled and greyed, no conversation, the centred notice
+ *    with the link to Settings → AI assistant) and nothing of the chunk is loaded (SC-013).
+ *
+ * Registration: features register before the first settings snapshot, so this one registers
+ * nothing until the snapshot arrives - the inert, invisible stubs of `createBuiltinCommands()`
+ * (`ai.toggle`, `ai.ask`) stand in for the hotkey tables, the View menu and the toolbar
+ * meanwhile. Then, provided the core's `app.info().apiMinor` is at least 4 (one call by this
+ * module - the RPC client makes no minor check), the live `ai.toggle` takes its stub over in
+ * every mode (always visible and enabled, `checked` = `store.ai.visible`); iff the mode is a
+ * service, `ai.ask` (visible and enabled only while on) and `ai.cancel` join it and a visible
+ * panel is made live at once. An older core: nothing is registered and `coreTooOld` tells the
+ * settings page (rpc-api §6). When the mode becomes `disabled` later `ai.ask` goes back to its
+ * stub, `ai.cancel` is removed outright (no stub exists for it), the context-menu slot goes,
+ * the conversation and the catalogue are dropped and a visible panel turns inert - the View
+ * entry, the toolbar button and the hotkey stay; when a service is chosen again the commands
+ * return and a visible panel is live again - without a restart (FR-097, FR-096).
  *
  * The Disabled transitions (US9 T065; data-model §3.3 rows "settings OK, mode → disabled" and
  * "disabled → free | custom", §3.4 invariants): `deregister()` turns off if on (a request still
  * running - a snapshot that did not come through the dialog's question - is cancelled and
- * waited for first), which clears the conversation, closes the popup and the panel (App.tsx
- * renders them while `on`), removes the context-menu slot and drops the catalogue instance;
- * `ai.toggle` and `ai.ask` are replaced by the inert, invisible stubs and `ai.cancel` is
- * removed outright (no stub exists for it); `register()` brings the live commands back with
- * the assistant off. Where the two commands are listed by name, invisibility is honoured
- * everywhere else as decided here (FR-096 - nothing of the assistant in the editor but the
- * settings page): the Customize Toolbar dialog **hides** a stored layout's `ai.toggle`
- * rather than greying it out and keeps it stored (`toolbarLayouts.ts` `withHiddenItems`),
- * and the Hotkeys page never names an invisible command in "Assigned to ..." - its chord is
- * free and a default it holds is taken back silently (`hotkeysModel.ts`). Nothing of the
- * feature runs a timer or a listener while off (§3.4).
+ * waited for first), which clears the conversation, closes the popup, removes the context-menu
+ * slot and drops the catalogue instance; `register()` brings the live commands back. Where
+ * `ai.ask` is invisible, invisibility is honoured everywhere else as decided here: the
+ * Customize Toolbar dialog **hides** a stored layout's invisible command rather than greying
+ * it out and keeps it stored (`toolbarLayouts.ts` `withHiddenItems`), and the Hotkeys page
+ * never names an invisible command in "Assigned to ..." - its chord is free and a default it
+ * holds is taken back silently (`hotkeysModel.ts`). Nothing of the feature runs a timer or a
+ * listener while off (§3.4).
  *
- * Nothing contacts a service, gathers context or takes the lock here (FR-020, FR-091):
- * `ai.toggle` on the first turn-on performs the one `import('./chunk')` of the `ai-assistant`
- * chunk (vite.config.ts; `chunk.ts` re-exports `assistant.ts` and the panel component) and
- * flips `store.ai.on`.
+ * Nothing contacts a service, gathers context or takes the lock here (FR-020, FR-091): the
+ * first turn-on performs the one `import('./chunk')` of the `ai-assistant` chunk
+ * (vite.config.ts; `chunk.ts` re-exports `assistant.ts` and the panel component) and flips
+ * `store.ai.on`.
  *
- * The transitions of data-model §3.3 (US3 T053; FR-090 to FR-095):
- *  - on: the chunk imported once, the state flipped, the panel opened at `width` with the
+ * The transitions of data-model §3.3 (US3 T053; FR-091 to FR-095):
+ *  - shown (`ai.toggle` while hidden): `visible` set and written back; while enabled, the
+ *    turn-on - the chunk imported once, `on` flipped, the panel opened at `width` with the
  *    focus in its field, the Body context menu's "Ask AI..." slot added - no request, no
- *    context gathering, no outline, no lock;
- *  - off (the close button, the View entry, the hotkey, the toolbar button alike): the
- *    conversation cleared (FR-045), the slot removed, the panel unmounted, the request and
- *    catalogue references dropped; the document and `modified` untouched, no undo step;
- *  - off while a request runs: the question `dialog-ai-stop-confirm` first (FR-093) - Yes
- *    cancels the request, waits for its end and turns off, No changes nothing;
+ *    context gathering, no outline, no lock; while Disabled, the inert panel and nothing else;
+ *  - hidden (the close button, the View entry, the hotkey, the toolbar button alike): when
+ *    live, the turn-off first - the conversation cleared (FR-045), the slot removed, the
+ *    request and catalogue references dropped; the document and `modified` untouched, no undo
+ *    step -, then `visible` cleared and written back;
+ *  - hidden while a request runs: the question `dialog-ai-stop-confirm` first (FR-093) - Yes
+ *    cancels the request, waits for its end and hides, No changes nothing;
  *  - the document replaced (`docId` changes: open, new, close): a running request is cancelled
  *    (its session's watch does it; made sure here) and the conversation cleared; the panel
  *    stays open and empty;
  *  - Disabled chosen in Settings while a request runs: the same question before OK applies
  *    (`registerBeforeApply`, FR-097) - No keeps the dialog open; the de-registration then
- *    turns the assistant off as before;
+ *    turns the assistant off as before, the panel staying visible and inert;
  *  - exit / window close: the file feature's quit flow cancels the run holding the lock
  *    (`fileCommands.ts`, the AI wording of the prompt) before the save-changes prompt.
  * The catalogue instance per turn-on (data-model §8.5) is built by `assistant.ts`'s
@@ -90,8 +102,10 @@ export const AI_COMMAND_IDS = ['ai.toggle', 'ai.ask', 'ai.cancel'] as const;
 
 /**
  * Where the feature stands: `waiting` (no settings snapshot yet - nothing registered),
- * `registered` (the live commands), `disabled` (the inert stubs; `ai.mode === 'disabled'`),
- * `coreTooOld` (nothing registered; the settings page says so).
+ * `registered` (the three live commands; the mode is a service), `disabled` (`ai.mode ===
+ * 'disabled'`: the live `ai.toggle` only - it shows and hides the inert panel -, the stub of
+ * `ai.ask`, no `ai.cancel`, no chunk), `coreTooOld` (nothing registered; the settings page
+ * says so).
  */
 export type AiFeatureStatus = 'waiting' | 'registered' | 'disabled' | 'coreTooOld';
 
@@ -180,6 +194,14 @@ export class AiFeature {
     return this.module?.AiPanel ?? null;
   }
 
+  /**
+   * True while a visible panel is the inert one of FR-096: the mode is `disabled` and the
+   * panel is shown (App.tsx renders the static `DisabledPanel` then; nothing is loaded).
+   */
+  get inert(): boolean {
+    return this.statusValue === 'disabled' && this.store.getState().ai.visible;
+  }
+
   /** True while a request of the assistant runs (the popup's or the panel's - one slot). */
   requestRunning(): boolean {
     return (
@@ -229,37 +251,32 @@ export class AiFeature {
   }
 
   /**
-   * View → AI Assistant, `Mod+Shift+A`, the toolbar button: turns the assistant on (importing
-   * the chunk on the first time) or off - off goes through `close()` and its question while a
-   * request runs (FR-093).
+   * View → AI Assistant, `Mod+Shift+A`, the toolbar button: shows the panel - live when the
+   * mode is a service (the turn-on: the chunk imported on the first time), inert while
+   * Disabled - or hides it; hiding goes through `close()` and its question while a request
+   * runs (FR-093). The visibility is written back to `session.aiPanelVisible` (FR-040).
    */
   async toggle(ctx: CommandContext): Promise<void> {
     this.lastContext = ctx;
-    if (this.store.getState().ai.on) {
+    if (this.store.getState().ai.visible) {
       await this.close(ctx);
       return;
     }
-    const module = await this.load();
-    // The mode may have become `disabled` while the chunk loaded (FR-097); a second toggle
-    // may have turned the assistant on meanwhile.
-    if (this.statusValue !== 'registered' || this.store.getState().ai.on) return;
-    module.startAssistant(this.store);
-    this.addMenuSlot(ctx);
-    // The panel opens (App.tsx renders it while on) with the focus in its field; nothing is
-    // sent, gathered or locked (FR-091).
-    actions.updateAi(this.store, { panelFocus: true });
+    actions.setAiPanelVisible(this.store, true);
+    await this.activate(ctx, { focus: true });
   }
 
   /**
-   * Turns the assistant off - the panel's close button, the View entry, the hotkey and the
-   * toolbar button alike (FR-092). While a request runs the user is asked first
-   * (`dialog-ai-stop-confirm`, FR-093): Yes cancels the request, waits for its end (the working
-   * copy discarded, the lock released) and turns off; No changes nothing. Resolves true when
-   * the assistant is off afterwards. A second call while the question is open joins it.
+   * Hides the panel - its close button, the View entry, the hotkey and the toolbar button
+   * alike (FR-092): a live assistant is turned off first. While a request runs the user is
+   * asked first (`dialog-ai-stop-confirm`, FR-093): Yes cancels the request, waits for its end
+   * (the working copy discarded, the lock released), turns off and hides; No changes nothing.
+   * Resolves true when the panel is hidden afterwards. A second call while the question is
+   * open joins it.
    */
   close(ctx: CommandContext): Promise<boolean> {
     this.lastContext = ctx;
-    if (!this.store.getState().ai.on) return Promise.resolve(true);
+    if (!this.store.getState().ai.visible) return Promise.resolve(true);
     if (this.closing) return this.closing;
     this.closing = this.closeNow(ctx).finally(() => {
       this.closing = null;
@@ -268,7 +285,7 @@ export class AiFeature {
   }
 
   private async closeNow(ctx: CommandContext): Promise<boolean> {
-    if (this.requestRunning()) {
+    if (this.store.getState().ai.on && this.requestRunning()) {
       const answer = await ctx.dialogs.showMessage({
         text: ctx.t('ai.stopConfirm.closeText'),
         caption: ctx.t('ai.stopConfirm.title'),
@@ -280,9 +297,33 @@ export class AiFeature {
       if (answer !== 'yes') return false;
       await this.cancelAndWait();
     }
-    if (!this.store.getState().ai.on) return true; // turned off meanwhile (Disabled applied)
-    this.turnOff();
+    if (this.store.getState().ai.on || this.removeMenuSlot) this.turnOff();
+    actions.setAiPanelVisible(this.store, false);
     return true;
+  }
+
+  /**
+   * The turn-on of a visible panel while the mode is a service (data-model §3.3): the one
+   * import of the chunk, `startAssistant` (the catalogue instance built in memory), the
+   * context-menu slot and - for the user's own show - the focus in the field. Nothing is sent,
+   * gathered or locked (FR-091). A no-op while Disabled, hidden or already live; the mode may
+   * have changed and the panel may have been hidden again while the chunk loaded.
+   */
+  private async activate(
+    ctx: CommandContext | null,
+    options: { focus?: boolean } = {},
+  ): Promise<void> {
+    if (!this.live() || this.store.getState().ai.on) return;
+    const module = await this.load();
+    if (!this.live() || this.store.getState().ai.on) return;
+    module.startAssistant(this.store);
+    this.addMenuSlot(ctx);
+    if (options.focus) actions.updateAi(this.store, { panelFocus: true });
+  }
+
+  /** `visible && enabled`: what `on` is to become (data-model §3.1 `live`). */
+  private live(): boolean {
+    return this.statusValue === 'registered' && this.store.getState().ai.visible;
   }
 
   /**
@@ -370,12 +411,16 @@ export class AiFeature {
     return 'apply';
   }
 
-  /** The Body context menu's "Ask AI..." entry, present only while on (FR-030; T047). */
-  private addMenuSlot(ctx: CommandContext): void {
+  /**
+   * The Body context menu's "Ask AI..." entry, present only while on (FR-030; T047). The
+   * context is the latest one seen (a start-up turn-on has none yet: the scripts feature's
+   * serves until a command runs).
+   */
+  private addMenuSlot(ctx: CommandContext | null): void {
     if (this.removeMenuSlot) return;
     this.removeMenuSlot = registerContextMenuExtension('ai', () => {
-      const context = this.lastContext ?? ctx;
-      if (!context.store.getState().ai.on) return [];
+      const context = this.lastContext ?? ctx ?? this.commandContext();
+      if (!context || !context.store.getState().ai.on) return [];
       return [
         {
           id: 'ai.ask',
@@ -467,23 +512,38 @@ export class AiFeature {
     return this.versionCheck;
   }
 
+  /**
+   * The mode is a service: the three live commands (the toggle in place already when the
+   * feature was disabled) and the turn-on of a visible panel - the one restored at start-up or
+   * the inert one the user kept open while Disabled - without a restart (FR-096, FR-097).
+   */
   private register(): void {
     if (this.statusValue === 'registered') return;
     for (const command of this.liveCommands()) this.commands.replace(command);
     this.setStatus('registered');
+    this.activate(null).catch(() => {
+      // a failed import of the chunk: `load()` forgets it, the next show tries again
+    });
   }
 
   /**
-   * Back to the inert stubs; the panel closes and the conversation is dropped (FR-096, FR-097).
-   * A request still running (a snapshot that did not come through the dialog's question) is
-   * cancelled and waited for before the turn-off, so that its end entry lands nowhere.
+   * Disabled: `ai.ask` back to its inert, invisible stub, `ai.cancel` gone, the live `ai.toggle`
+   * kept (it shows and hides the inert panel); the assistant turned off - the conversation and
+   * the catalogue dropped, the slot removed -, the panel staying visible and inert (FR-096,
+   * FR-097). A request still running (a snapshot that did not come through the dialog's
+   * question) is cancelled and waited for before the turn-off, so that its end entry lands
+   * nowhere.
    */
   private deregister(): void {
     if (this.statusValue === 'disabled') return;
     if (this.statusValue === 'registered') {
       void this.turnOffAfterRequest();
-      for (const stub of createAiStubCommands()) this.commands.replace(stub);
       this.commands.unregister('ai.cancel');
+    } else {
+      this.commands.replace(this.toggleCommand());
+    }
+    for (const stub of createAiStubCommands()) {
+      if (stub.id === 'ai.ask') this.commands.replace(stub);
     }
     this.setStatus('disabled');
   }
@@ -507,26 +567,33 @@ export class AiFeature {
 
   /* ------------------------------------------------------------ commands */
 
-  private liveCommands(): Command[] {
-    const remember = (ctx: CommandContext) => {
-      this.lastContext = ctx;
-    };
-    const toggle: Command = {
+  /**
+   * View → AI Assistant, `Mod+Shift+A`, the toolbar button - live in every mode (FR-040,
+   * FR-096 as amended): always visible and enabled, since it only shows and hides the panel
+   * (also while a request holds the lock - US3's "Stop the request?" prompt - and without a
+   * document: the inert panel and the live panel's header exist without one).
+   */
+  private toggleCommand(): Command {
+    return {
       id: 'ai.toggle',
       group: 'view',
       ...cmdKeys('ai.toggle', 'menu.view.aiAssistant'),
       icon: AI_TOGGLE_ICON,
-      checked: (ctx) => ctx.store.getState().ai.on,
-      // Turning on needs a document; turning off is always possible - also while a request
-      // holds the lock (US3: the "Stop the request?" prompt).
+      checked: (ctx) => ctx.store.getState().ai.visible,
       enabled: (ctx) => {
-        remember(ctx);
-        const state = ctx.store.getState();
-        return state.ai.on || state.document !== null;
+        this.lastContext = ctx;
+        return true;
       },
       duringScriptRun: 'allowed',
       run: (ctx) => this.toggle(ctx),
     };
+  }
+
+  private liveCommands(): Command[] {
+    const remember = (ctx: CommandContext) => {
+      this.lastContext = ctx;
+    };
+    const toggle = this.toggleCommand();
     const ask: Command = {
       id: 'ai.ask',
       group: 'tools',

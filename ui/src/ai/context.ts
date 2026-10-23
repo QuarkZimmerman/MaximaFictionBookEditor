@@ -455,6 +455,25 @@ const SELECTION_NOTE =
   ', except that in this selection request a reply that consists of the replacement alone is\n' +
   'applied to the selection — see the user message';
 
+/**
+ * The continuation of rule 1 (FR-106; the rc.1 smoke test: a title translation reported done
+ * while the book was unchanged): which tools change what, that the book's title is the
+ * description's `titleInfo.bookTitle` (the Description view, not the body text) and that a
+ * change is claimed only after the tool answered ok.
+ */
+export const CHANGE_TOOLS_RULE =
+  "   The change tools are set_description (the book's title and every other description field —\n" +
+  '   the metadata the Description view shows), set_text, replace_node, insert_node, remove_node,\n' +
+  '   replace_all and replace_selection (the text of the bodies). "The title of the book" / "the\n' +
+  "   book's title\" is the description's book title: set_description with\n" +
+  '   {"description": {"titleInfo": {"bookTitle": "…"}}}; when the first body has a <title> of its\n' +
+  '   own with the same text (the title as printed on the first page — what the Body view shows;\n' +
+  "   the outline's body entry names it), change that <title> too, so that both stay in step. A\n" +
+  '   chapter title is the <title> element inside its section; ask when it is unclear which one\n' +
+  '   the user means. Never say that you changed, translated, renamed or corrected something\n' +
+  '   unless the change tool that did it answered without an "error" object; when you called no\n' +
+  '   change tool, say that nothing was changed.\n';
+
 const SOURCE_VIEW_RULES =
   '8. Source view: the user is looking at the XML text of the book. A selection you receive is XML\n' +
   '   text; a replacement for it must be XML text that fits exactly in the place of the selected\n' +
@@ -515,6 +534,7 @@ export function systemPrompt(context: WorkingContext): string {
     '\n' +
     'Rules for changes:\n' +
     `1. Change the book only through the tools. Text in your reply never changes the book${selectionNote}.\n` +
+    CHANGE_TOOLS_RULE +
     "2. Change only what the user asked for. Keep the author's wording, spelling conventions and\n" +
     '   punctuation style, and keep the inline formatting — emphasis, strong, strikethrough, code,\n' +
     '   sub/sup, styles, links and footnote references — unless the instruction is about them. Never\n' +

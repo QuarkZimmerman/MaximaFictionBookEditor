@@ -66,10 +66,12 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["session"]["lastFileDialogFolder"] == "");
     CHECK_FALSE(d["session"].contains("lastVersionCheck"));  // feature 003: absent until a check
     CHECK(d["session"]["aiPanelWidth"] == 360);              // feature 005
-    CHECK(d["session"].size() == 9);
-    // Feature 005 (resource-formats §B): the ai group - mode, freeServiceId, the custom triple,
-    // the verification record and the agreements.
-    CHECK(d["ai"]["mode"] == "free");
+    CHECK(d["session"]["aiPanelVisible"] == true);           // feature 005: open at the first start
+    CHECK(d["session"].size() == 10);
+    // Feature 005 (resource-formats §B): the ai group - mode (Disabled by default, FR-001 as
+    // amended 2026-10-23), freeServiceId, the custom triple, the verification record and the
+    // agreements.
+    CHECK(d["ai"]["mode"] == "disabled");
     CHECK(d["ai"]["freeServiceId"] == "ovhcloud");
     CHECK(d["ai"]["custom"] ==
           json{{"address", "https://api.openai.com/v1"}, {"key", ""}, {"model", ""}});
@@ -509,10 +511,11 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["other"]["keyboardLayoutName"] == "");
     CHECK(s["session"]["treeWidth"] == 260);
     CHECK(s["session"]["aiPanelWidth"] == 360);  // feature 005
+    CHECK(s["session"]["aiPanelVisible"] == true);
     CHECK(s["ai"] == settings::defaults()["ai"]);
     CHECK(s["view"].size() == 18);
     CHECK(s["other"].size() == 16);
-    CHECK(s["session"].size() == 9);
+    CHECK(s["session"].size() == 10);
 
     // Saving the migrated file keeps the key absent; the shell's maximised flag is accepted.
     CHECK(store.save());
@@ -582,9 +585,11 @@ TEST_CASE(
     CHECK(s["other"]["keyboardLayoutName"] == "");
     CHECK(s["session"]["treeWidth"] == 260);
     CHECK(s["other"].size() == 16);
-    // The eight of 0.0.3 (lastVersionCheck set) + treeWidth + aiPanelWidth (feature 005).
-    CHECK(s["session"].size() == 10);
+    // The eight of 0.0.3 (lastVersionCheck set) + treeWidth + aiPanelWidth and aiPanelVisible
+    // (feature 005).
+    CHECK(s["session"].size() == 11);
     CHECK(s["session"]["aiPanelWidth"] == 360);
+    CHECK(s["session"]["aiPanelVisible"] == true);
     CHECK(s["ai"] == settings::defaults()["ai"]);
 
     // The migrated file saves and reloads unchanged.
@@ -689,6 +694,8 @@ TEST_CASE(
     expect_field(json{{"session", {{"aiPanelWidth", 10001}}}}, "session.aiPanelWidth");
     expect_field(json{{"session", {{"aiPanelWidth", "wide"}}}}, "session.aiPanelWidth");
     expect_field(json{{"session", {{"aiPanelWidth", 360.5}}}}, "session.aiPanelWidth");
+    expect_field(json{{"session", {{"aiPanelVisible", "yes"}}}}, "session.aiPanelVisible");
+    expect_field(json{{"session", {{"aiPanelVisible", 1}}}}, "session.aiPanelVisible");
     CHECK(store.get() == before);  // nothing applied
 
     // Every valid value is stored as given; no change asks for a restart.
@@ -720,6 +727,15 @@ TEST_CASE(
         CHECK(store.apply_patch(json{{"session", {{"aiPanelWidth", width}}}})
                   .settings["session"]["aiPanelWidth"] == width);
     }
+    // The panel's visibility is written like session.treeVisible (FR-040); null resets it.
+    for (bool shown : {false, true, false}) {
+        auto r = store.apply_patch(json{{"session", {{"aiPanelVisible", shown}}}});
+        CHECK(r.settings["session"]["aiPanelVisible"] == shown);
+        CHECK_FALSE(r.restartRequired);
+    }
+    CHECK(store.apply_patch(json{{"session", {{"aiPanelVisible", nullptr}}}})
+              .settings["session"]["aiPanelVisible"] == true);
+    store.apply_patch(json{{"session", {{"aiPanelVisible", false}}}});
     // Agreements carry service, host and at and are replaced whole by a patch.
     const json agreement{{"service", "ovhcloud"},
                          {"host", "oai.endpoints.kepler.ai.cloud.ovh.net"},
@@ -733,9 +749,9 @@ TEST_CASE(
               .settings["ai"]["agreements"] == json::array({custom_agreement}));
     CHECK(store.apply_patch(json{{"ai", {{"agreements", json::array()}}}})
               .settings["ai"]["agreements"] == json::array());
-    // null resets a key to its default; unknown keys under ai are preserved.
+    // null resets a key to its default (Disabled, FR-001); unknown keys under ai are preserved.
     auto reset = store.apply_patch(json{{"ai", {{"mode", nullptr}, {"future", {{"x", 1}}}}}});
-    CHECK(reset.settings["ai"]["mode"] == "free");
+    CHECK(reset.settings["ai"]["mode"] == "disabled");
     CHECK(reset.settings["ai"]["future"]["x"] == 1);
 
     // Persisted and read back as written.
@@ -743,6 +759,7 @@ TEST_CASE(
     reloaded.load();
     CHECK(reloaded.get() == store.get());
     CHECK(reloaded.get_int("session.aiPanelWidth") == 10000);
+    CHECK(reloaded.get_bool("session.aiPanelVisible") == false);
     CHECK(reloaded.get_string("ai.custom.key") == " sk-with spaces ");
 
     // Stored values the schema refuses are replaced by the default and reported by field name;
@@ -762,6 +779,16 @@ TEST_CASE(
         CHECK(settings::sanitize(loaded).empty());
         CHECK(loaded["session"]["aiPanelWidth"] == json::parse(stored)["session"]["aiPanelWidth"]);
     }
+    {
+        json loaded = json::parse(R"({"schemaVersion": 1, "session": {"aiPanelVisible": "no"}})");
+        const auto invalid = settings::sanitize(loaded);
+        REQUIRE(invalid.size() == 1);
+        CHECK(invalid[0].field == "session.aiPanelVisible");
+        CHECK(loaded["session"]["aiPanelVisible"] == true);
+        json hidden = json::parse(R"({"schemaVersion": 1, "session": {"aiPanelVisible": false}})");
+        CHECK(settings::sanitize(hidden).empty());
+        CHECK(hidden["session"]["aiPanelVisible"] == false);
+    }
     json broken = json::parse(R"({"schemaVersion": 1, "ai": {
         "mode": "always", "freeServiceId": "", "custom": {"address": "ftp://x", "key": 5, "model": "a\u0007b"},
         "customVerified": {"fingerprint": "nope", "model": "", "at": ""},
@@ -775,7 +802,7 @@ TEST_CASE(
     CHECK(fields == std::vector<std::string>{"ai.mode", "ai.freeServiceId", "ai.custom.address",
                                              "ai.custom.key", "ai.custom.model",
                                              "ai.customVerified", "ai.agreements"});
-    CHECK(broken["ai"]["mode"] == "free");
+    CHECK(broken["ai"]["mode"] == "disabled");
     CHECK(broken["ai"]["freeServiceId"] == "ovhcloud");
     CHECK(broken["ai"]["custom"] == settings::defaults()["ai"]["custom"]);
     CHECK(broken["ai"]["customVerified"] == settings::defaults()["ai"]["customVerified"]);

@@ -47,6 +47,7 @@ import { fileURLToPath } from 'node:url';
 import type { Browser, Locator, Page } from '@playwright/test';
 
 import {
+  ensureAssistantOn,
   expect,
   fixtureBook,
   NodeRpcClient,
@@ -162,11 +163,12 @@ async function openBook(page: Page, core: CoreHandle): Promise<void> {
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
 }
 
-/** View → AI Assistant until the assistant is on. */
+/**
+ * The assistant on: the panel is restored as the session left it (FR-040 as amended, T100) -
+ * live already at start, or shown through View → AI Assistant when hidden.
+ */
 async function turnOn(page: Page): Promise<void> {
-  await page.getByTestId('menu-view').click();
-  await page.getByTestId('menu-view-toggle').click();
-  await expect.poll(() => page.evaluate<boolean>('window.__mfbeTest.ai.on')).toBe(true);
+  await ensureAssistantOn(page);
 }
 
 /** The caret in the first paragraph, right-click → Ask AI... → the popup, the instruction sent. */
@@ -433,7 +435,7 @@ test.describe('US8 (005) - use my own service and key @platform', () => {
     await cancelSettings(page);
     await page.waitForTimeout(500);
     expect(settingsBytes(core.dataDir!).equals(before)).toBe(true);
-    expect(settingsJson(core.dataDir!).ai.mode).toBe('free');
+    expect(settingsJson(core.dataDir!).ai.mode).toBe('disabled'); // the stored default, untouched
     expect(await core.aiRequests()).toHaveLength(2);
     expect(await requestsOf(standin)).toHaveLength(2);
 
@@ -640,6 +642,8 @@ test.describe('US8 (005) - use my own service and key @platform', () => {
     await openApp(page, core);
     await openBook(page, core);
     await openAiPage(page);
+    // The stored default is Disabled (FR-001): the list exists for the free choice.
+    await page.getByTestId('settings-ai-mode-free').check();
     await page.getByTestId('settings-ai-service').selectOption('keyed');
     await expect(page.getByTestId('settings-ai-entry-key')).toContainText('•••');
     expect(await bodyText(page)).not.toContain('sk-user');

@@ -10,8 +10,10 @@
  * `app.openUrl` - the click handler is AiPage.test.tsx's unit case).
  *
  * Scenarios (spec.md US1; quickstart §1):
- *  1. a fresh core: the AI assistant page, Free selected, the two bundled entries in order as
- *     `<name> — <model>`, the first selected, the custom fields disabled (FR-001, FR-002)
+ *  1. a fresh core: the AI assistant page with *Disabled* selected (FR-001 as amended by the
+ *     requester on 2026-10-23: the assistant works only after the user has chosen a service);
+ *     *Free service* chosen shows the two bundled entries in order as `<name> — <model>`, the
+ *     first selected, the custom fields disabled (FR-002)
  *  6. for each entry its limits note in the interface language and its terms link (FR-002,
  *     FR-010)
  *  5. the user list file (FR-012, FR-013): a replaced bundled entry, an added `tools: false`
@@ -134,6 +136,18 @@ async function cancelSettings(page: Page): Promise<void> {
   await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
 }
 
+/**
+ * The free option on the page (the stored default is *Disabled*, FR-001; the drop-down and the
+ * test button exist for a service choice only): the radio checked, the list shown.
+ */
+async function chooseFree(page: Page): Promise<Locator> {
+  const free = page.getByTestId('settings-ai-mode-free');
+  if (!(await free.isChecked())) await free.check();
+  const select = page.getByTestId('settings-ai-service');
+  await expect(select).toBeVisible();
+  return select;
+}
+
 async function openApp(page: Page, core: CoreHandle): Promise<void> {
   await core.openApp(page);
   await expect(page.getByTestId('status-message')).toHaveText(await pageText(page, 'status.ready'));
@@ -205,7 +219,7 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
     await core.rpc('settings.set', { patch: { ai: null } }).catch(() => {});
   });
 
-  test('1+6. a fresh core: Free selected, the two bundled entries with limits and terms; the page by keyboard', async ({
+  test('1+6. a fresh core: Disabled selected; Free chosen shows the two bundled entries with limits and terms; the page by keyboard', async ({
     core,
     page,
   }) => {
@@ -215,12 +229,16 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
     await openAiPage(page);
     const lang = await pageLang(page);
 
-    // Scenario 1: the free radio, the bundled order with "<name> — <model>", the first
+    // Scenario 1: Disabled is the stored default (FR-001 as amended): no list, no Test
+    // connection; Free chosen shows the bundled order with "<name> — <model>", the first
     // selected, the custom fields disabled.
-    await expect(page.getByTestId('settings-ai-mode-free')).toBeChecked();
+    await expect(page.getByTestId('settings-ai-mode-disabled')).toBeChecked();
+    await expect(page.getByTestId('settings-ai-mode-free')).not.toBeChecked();
     await expect(page.getByTestId('settings-ai-mode-custom')).not.toBeChecked();
-    await expect(page.getByTestId('settings-ai-mode-disabled')).not.toBeChecked();
-    const select = page.getByTestId('settings-ai-service');
+    await expect(page.getByTestId('settings-ai-service')).toBeHidden();
+    await expect(page.getByTestId('settings-ai-test')).toHaveCount(0);
+    const select = await chooseFree(page);
+    await expect(page.getByTestId('settings-ai-mode-free')).toBeChecked();
     expect(await optionValues(select)).toEqual(['ovhcloud', 'pollinations']);
     expect(await optionTexts(select)).toEqual(entries.map((e) => `${e.name} — ${e.model}`));
     await expect(select).toHaveValue('ovhcloud');
@@ -299,7 +317,7 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
   }) => {
     await openApp(page, core);
     await openAiPage(page);
-    const select = page.getByTestId('settings-ai-service');
+    const select = await chooseFree(page);
     const reload = async () => {
       await page.getByTestId('settings-ai-reload-list').click();
     };
@@ -399,7 +417,7 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
     await openApp(page, core);
     const xmlBefore = await documentXml(page);
     await openAiPage(page);
-    await expect(page.getByTestId('settings-ai-service')).toHaveValue('ovhcloud');
+    await expect(await chooseFree(page)).toHaveValue('ovhcloud');
     await expect(page.getByTestId('settings-ai-replaced')).toBeVisible();
     const status = page.getByTestId('settings-ai-status');
     await expect(status).toHaveAttribute('data-status', 'untested');
@@ -476,6 +494,7 @@ test.describe('US1 (005) - choose a free AI service in Settings @platform', () =
       await pageText(page, 'dialog.settings.ai.files.user', { path: userFile }),
     );
     // The entries now come from the user file and replace the bundled ones.
+    await chooseFree(page);
     await expect(page.getByTestId('settings-ai-replaced')).toBeVisible();
 
     // A second press: nothing written, the file byte-identical.
@@ -574,7 +593,8 @@ test.describe('US1 (005) - the choice survives a restart and a portable move @pl
     const first = await coreAndPage(browser, dataDir, uiLang);
     try {
       await openAiPage(first.page);
-      await expect(first.page.getByTestId('settings-ai-service')).toHaveValue('ovhcloud');
+      await expect(first.page.getByTestId('settings-ai-mode-disabled')).toBeChecked(); // fresh
+      await expect(await chooseFree(first.page)).toHaveValue('ovhcloud');
       await first.page.getByTestId('settings-ai-service').selectOption('pollinations');
       await first.page.getByTestId('dialog-settings-button-ok').click();
       await expect(first.page.getByTestId('dialog-settings')).toHaveCount(0);
@@ -672,7 +692,7 @@ test.describe('US1 (005) - the first-use notice before testing a hosted service 
     const host = `ai.standin.test:${standin.port}`;
     await openApp(page, core);
     await openAiPage(page);
-    const select = page.getByTestId('settings-ai-service');
+    const select = await chooseFree(page);
     await select.selectOption('standin');
     const status = page.getByTestId('settings-ai-status');
     const notice = page.getByTestId('dialog-ai-notice');
@@ -731,8 +751,10 @@ test.describe('US1 (005) - the first-use notice before testing a hosted service 
     expect(await standin.requests()).toHaveLength(2);
     expect((await core.aiRequests()).filter((r) => r.outcome === 'refused')).toEqual([]);
 
-    // Cancel keeps the dialog's draft out of the settings: the choice was never saved.
+    // Cancel keeps the dialog's draft out of the settings: the choice was never saved (the
+    // mode stays Disabled too).
     await cancelSettings(page);
     expect(settingsJson(core.dataDir!).ai.freeServiceId).toBe('ovhcloud');
+    expect(settingsJson(core.dataDir!).ai.mode).toBe('disabled');
   });
 });

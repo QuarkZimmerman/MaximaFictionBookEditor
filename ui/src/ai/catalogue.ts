@@ -3529,9 +3529,13 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Change the description',
       description:
-        'Changes the description (metadata) by a partial merge, one level deep: give the blocks to change (titleInfo, srcTitleInfo, documentInfo, publishInfo) with only the members to change - members given replace the existing value, members absent stay; the lists genres, authors, translators, sequences, coverpage, srcUrls, homePages, emails, publishers replace whole; customInfo and outputs replace whole. annotation / history are {xml} (FictionBook XML of their content) or null to remove; srcTitleInfo / publishInfo null removes the block; titleInfo and documentInfo cannot be removed. Returns the description afterwards. The change is checked against the FB2 schema (genre codes, lang, dates, required members).',
+        'Changes the description (metadata - the book\'s title, authors, genres, language, annotation, document and publisher info; shown in the Description view, not in the body text) by a partial merge, one level deep: give the blocks to change (titleInfo, srcTitleInfo, documentInfo, publishInfo) with only the members to change - members given replace the existing value, members absent stay; the lists genres, authors, translators, sequences, coverpage, srcUrls, homePages, emails, publishers replace whole; customInfo and outputs replace whole. The book\'s title is titleInfo.bookTitle: {"description": {"titleInfo": {"bookTitle": "New title"}}}. annotation / history are {xml} (FictionBook XML of their content) or null to remove; srcTitleInfo / publishInfo null removes the block; titleInfo and documentInfo cannot be removed. Returns the description afterwards. The change is checked against the FB2 schema (genre codes, lang, dates, required members).',
       inputSchema: z.object({
-        description: z.looseObject({}).describe('the members of the description to change'),
+        description: z
+          .looseObject({})
+          .describe(
+            'the members of the description to change, e.g. {"titleInfo": {"bookTitle": "New title"}} - the book\'s title is titleInfo.bookTitle (the member is named bookTitle, not title)',
+          ),
       }),
       outputSchema: z.looseObject({
         description: z.looseObject({}),

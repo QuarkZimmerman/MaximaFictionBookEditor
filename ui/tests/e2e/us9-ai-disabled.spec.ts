@@ -1,5 +1,11 @@
 /**
- * User Story 9 (feature 005) - switch the assistant off completely (T063; quickstart §9).
+ * User Story 9 (feature 005) - switch the assistant off completely (T063; quickstart §9), as
+ * amended by the requester on 2026-10-23 after the rc.1 smoke test (T100; FR-040, FR-096): the
+ * View entry, its hotkey and the toolbar button stay in every mode - they show and hide the
+ * panel -, the panel's visibility is a session key (`session.aiPanelVisible`, open at the first
+ * start and restored at every start) and a visible panel while Disabled is **inert**: every
+ * control disabled and greyed, no conversation, a centred notice with a link to Settings → AI
+ * assistant; nothing of the `ai-assistant` chunk is loaded while disabled.
  *
  * Needs the real core (`MFBE_CORE_BIN`); skipped in core-less mode. The stand-in service
  * (`fixtures/ai-standin.mjs`, loopback only) is the only service the editor could reach: the
@@ -8,26 +14,30 @@
  * instead of leaving the machine; `recordOutside` aborts anything else.
  *
  * Scenarios (spec.md US9; FR-020, FR-096 to FR-098, FR-104, SC-013):
- *  1+4. from `free` with the assistant on: Settings → Disabled → OK → the View entry, the
- *     toolbar button, the hotkeys and the context-menu entry are gone at once, the panel is
- *     closed, the registry holds the two inert stubs and no `ai.cancel`; Disabled → Free → OK
- *     brings them back with the assistant off; the XML, the modified state and the undo
- *     history are untouched throughout (FR-095, FR-097)
+ *  1+4. from `custom` with the panel restored open and live: Settings → Disabled → OK → the
+ *     context-menu entry and the Ask hotkey are gone at once, the visible panel turns inert,
+ *     the registry holds the live `ai.toggle`, the inert stub of `ai.ask` and no `ai.cancel`;
+ *     the View entry, the button and the toggle hotkey stay and hide / show the inert panel
+ *     without loading anything; Disabled → Free → OK makes the visible panel live again
+ *     without a restart; the XML, the modified state and the undo history are untouched
+ *     throughout (FR-095, FR-096, FR-097)
  *  3. Disabled chosen while a request runs: `dialog-ai-stop-confirm` before anything is
  *     applied - No keeps the settings dialog open and the request running, Yes cancels it,
- *     turns the assistant off and de-registers it (FR-093, FR-097). The page is reached
- *     through the panel's settings link: the run lock of the request blocks the Tools menu's
- *     Settings entry like every other command (feature 003 FR-011, feature 005 FR-022)
- *  2. the silence proof (SC-013), run twice - with `free` and the assistant off, then with
- *     `disabled`: a whole editing session (open, type, save, a script on a selection, the
- *     spelling check, Source and back, Settings opened and closed) makes no request of the
- *     feature (the stand-in's record and `test.aiRequests()` empty), loads nothing of the
- *     `ai-assistant` chunk (every `/assets/` request is one of the main bundle's files - the
- *     set the `00-smoke` journey loads) and shows exactly the View entry and the button while
- *     off and nothing while disabled (FR-094, FR-096)
- *  5. a second core on the data directory with Disabled saved starts without the assistant
- *     from the first paint (no element of the feature ever appears - FR-098), and so does a
- *     third core on a copy of the directory (the portable move)
+ *     turns the assistant off (the panel inert) and de-registers it (FR-093, FR-097). The page
+ *     is reached through the panel's settings link: the run lock of the request blocks the
+ *     Tools menu's Settings entry like every other command (feature 003 FR-011, feature 005
+ *     FR-022)
+ *  2. the silence proof (SC-013), run twice - with `free` and the panel hidden (the assistant
+ *     off), then with `disabled` and the panel open (inert): a whole editing session (open,
+ *     type, save, a script on a selection, the spelling check, Source and back, Settings
+ *     opened and closed) makes no request of the feature (the stand-in's record and
+ *     `test.aiRequests()` empty), loads nothing of the `ai-assistant` chunk (every `/assets/`
+ *     request is one of the main bundle's files - the set the `00-smoke` journey loads) and
+ *     shows exactly the View entry and the button while off, and those plus the inert panel
+ *     with its notice while disabled (FR-094, FR-096)
+ *  5. a second core on the data directory with Disabled saved starts disabled from the first
+ *     paint (no element of the live assistant ever appears - FR-098), and so does a third core
+ *     on a copy of the directory (the portable move)
  *  - FR-096 (requester, 2026-10-22): with Disabled saved the settings page offers Test
  *    connection only while the page's radio is a service; the test then goes to the selected
  *    model, exactly once; Cancel leaves settings.json byte-identical and sends nothing more.
@@ -71,30 +81,58 @@ interface AiCommandSnapshot {
   stub: boolean;
 }
 
-/** The registry as US9 expects it while the assistant is disabled: the two inert stubs. */
+/**
+ * The registry as US9 expects it while the assistant is disabled: the live `ai.toggle` (it
+ * shows and hides the inert panel), the inert stub of `ai.ask`, no `ai.cancel`.
+ */
 const DISABLED_COMMANDS: AiCommandSnapshot[] = [
-  { id: 'ai.toggle', visible: false, enabled: false, stub: true },
+  { id: 'ai.toggle', visible: true, enabled: true, stub: false },
   { id: 'ai.ask', visible: false, enabled: false, stub: true },
 ];
 
-/** The three live commands while the assistant is off with a document open. */
+/** The three live commands while the assistant is off (the panel hidden). */
 const OFF_COMMANDS: AiCommandSnapshot[] = [
   { id: 'ai.toggle', visible: true, enabled: true, stub: false },
   { id: 'ai.ask', visible: false, enabled: false, stub: false },
   { id: 'ai.cancel', visible: true, enabled: false, stub: false },
 ];
 
-/** Test ids of the feature's elements that must never appear while it is disabled. */
-const FEATURE_TEST_IDS = [
-  'toolbar-ai.toggle',
-  'menu-view-toggle',
+/** The three live commands while the assistant is on (the panel visible and live). */
+const ON_COMMANDS: AiCommandSnapshot[] = [
+  { id: 'ai.toggle', visible: true, enabled: true, stub: false },
+  { id: 'ai.ask', visible: true, enabled: true, stub: false },
+  { id: 'ai.cancel', visible: true, enabled: false, stub: false },
+];
+
+/**
+ * Test ids of the live assistant's elements: never attached while it is disabled (FR-096) or
+ * off (FR-094) - the context-menu entries, the live panel's content, the popup, the notice.
+ */
+const LIVE_TEST_IDS = [
   'context-menu-ai.ask',
   'source-context-menu-ai.ask',
-  'ai-panel',
-  'ai-splitter',
+  'ai-panel-content',
+  'ai-messages',
+  'ai-activity',
+  'ai-empty',
+  'ai-settings-link',
+  'ai-stop',
   'dialog-ai-ask',
   'dialog-ai-notice',
 ];
+
+/** What remains while disabled: the entry, the button and - when visible - the inert panel. */
+const SHELL_TEST_IDS = [
+  'toolbar-ai.toggle',
+  'menu-view-toggle',
+  'ai-panel',
+  'ai-splitter',
+  'ai-panel-disabled',
+  'ai-panel-disabled-notice',
+  'ai-panel-disabled-settings',
+];
+
+const FEATURE_TEST_IDS = [...LIVE_TEST_IDS, ...SHELL_TEST_IDS];
 
 /**
  * Watches the DOM from the first script of the page: every element of the feature that is
@@ -124,10 +162,16 @@ async function watchForFeatureElements(page: Page): Promise<void> {
 const featureElementsSeen = (page: Page) =>
   page.evaluate<string[]>('(window.__us9Seen ?? []).slice()');
 
+/** The live assistant's elements the watcher saw (expected empty while off or disabled). */
+async function liveElementsSeen(page: Page): Promise<string[]> {
+  return (await featureElementsSeen(page)).filter((id) => LIVE_TEST_IDS.includes(id));
+}
+
 const aiCommands = (page: Page) =>
   page.evaluate<AiCommandSnapshot[]>('window.__mfbeTest.ai.commands()');
 const aiStatus = (page: Page) => page.evaluate<string>('window.__mfbeTest.ai.status()');
 const assistantOn = (page: Page) => page.evaluate<boolean>('window.__mfbeTest.ai.on');
+const panelVisible = (page: Page) => page.evaluate<boolean>('window.__mfbeTest.ai.state().visible');
 const aiHooksInstalled = (page: Page) =>
   page.evaluate<boolean>('typeof window.__mfbeTest?.ai?.commands === "function"');
 const documentXml = (page: Page) => page.evaluate<string>('window.__mfbeTest.scripts.toXml()');
@@ -269,31 +313,77 @@ async function sourceMenuOffersAsk(page: Page): Promise<boolean> {
   return offered;
 }
 
-/** The two hotkeys change nothing: no panel, no popup (a short wait lets a wrong one show). */
-async function expectHotkeysInert(page: Page): Promise<void> {
+/** The Ask hotkey changes nothing: no popup, no request (a short wait lets a wrong one show). */
+async function expectAskHotkeyInert(page: Page): Promise<void> {
   await page.getByTestId('body-editor').click();
-  await page.keyboard.press(`${MOD}+Shift+A`);
   await page.keyboard.press(`${MOD}+k`);
   await page.waitForTimeout(300);
-  await expect(page.getByTestId('ai-panel')).toHaveCount(0);
   await expect(page.getByTestId('dialog-ai-ask')).toHaveCount(0);
   await expect(page.getByTestId('script-run-banner')).toHaveCount(0);
 }
 
-/** Everything of scenario 1: nothing of the assistant but the settings page. */
-async function expectNothingOfTheAssistant(page: Page, paragraph: string): Promise<void> {
-  await expect(page.getByTestId('toolbar-ai.toggle')).toHaveCount(0);
-  expect(await viewMenuOffersAssistant(page)).toBe(false);
-  await expectHotkeysInert(page);
-  expect(await bodyMenuOffersAsk(page, paragraph)).toBe(false);
-  expect(await sourceMenuOffersAsk(page)).toBe(false);
+/**
+ * The inert panel of FR-096: the pane marked inert, every control disabled, no conversation,
+ * the centred notice with the link to the settings page; nothing of the live panel.
+ */
+async function expectInertPanel(page: Page): Promise<void> {
+  const panel = page.getByTestId('ai-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel).toHaveAttribute('data-ai-inert', 'true');
+  await expect(page.getByTestId('ai-splitter')).toBeVisible();
+  const inert = page.getByTestId('ai-panel-disabled');
+  await expect(inert).toBeVisible();
+  await expect(inert).toHaveAttribute('data-inert', 'true');
+  for (const id of ['ai-input', 'ai-send', 'ai-clear', 'ai-undo']) {
+    await expect(inert.getByTestId(id), id).toBeDisabled();
+  }
+  await expect(page.getByTestId('ai-panel-disabled-notice')).toHaveText(
+    (await pageText(page, 'ai.panel.disabledNotice')) +
+      (await pageText(page, 'ai.panel.disabledSettingsLink')),
+  );
+  await expect(page.getByTestId('ai-panel-disabled-settings')).toBeEnabled();
+  await expect(page.getByTestId('ai-panel-content')).toHaveCount(0);
+  await expect(page.getByTestId('ai-messages')).toHaveCount(0);
+  await expect(page.getByTestId('ai-settings-link')).toHaveCount(0);
+  expect(await panelVisible(page)).toBe(true);
+  expect(await assistantOn(page)).toBe(false);
+}
+
+/**
+ * The toggle hotkey hides the inert panel and shows it again - nothing becomes live, no
+ * request, no chunk (the caller checks the assets); the panel is left visible.
+ */
+async function expectToggleHotkeyShowsAndHidesTheInertPanel(page: Page): Promise<void> {
+  await page.getByTestId('body-editor').click();
+  await page.keyboard.press(`${MOD}+Shift+A`);
   await expect(page.getByTestId('ai-panel')).toHaveCount(0);
   await expect(page.getByTestId('ai-splitter')).toHaveCount(0);
+  expect(await panelVisible(page)).toBe(false);
+  expect(await aiCommands(page)).toEqual(DISABLED_COMMANDS);
+  await page.keyboard.press(`${MOD}+Shift+A`);
+  await expectInertPanel(page);
+}
+
+/**
+ * Everything of scenario 1 as amended: the View entry, the toolbar button and the toggle
+ * hotkey (showing and hiding the inert panel), the inert panel itself, and the settings page -
+ * nothing of the live assistant (FR-096).
+ */
+async function expectDisabledState(page: Page, paragraph: string): Promise<void> {
+  await expect(page.getByTestId('toolbar-ai.toggle')).toBeVisible();
+  expect(await viewMenuOffersAssistant(page)).toBe(true);
+  await expectInertPanel(page);
+  await expectToggleHotkeyShowsAndHidesTheInertPanel(page);
+  await expectAskHotkeyInert(page);
+  expect(await bodyMenuOffersAsk(page, paragraph)).toBe(false);
+  expect(await sourceMenuOffersAsk(page)).toBe(false);
   expect(await aiStatus(page)).toBe('disabled');
   expect(await aiCommands(page)).toEqual(DISABLED_COMMANDS);
   expect(await assistantOn(page)).toBe(false);
-  // The settings page still exists, with Disabled chosen.
-  await openAiSettings(page);
+  // The settings page still exists, with Disabled chosen; the notice's link opens it there.
+  await page.getByTestId('ai-panel-disabled-settings').click();
+  await expect(page.getByTestId('dialog-settings')).toBeVisible();
+  await expect(page.getByTestId('settings-page-ai')).toBeVisible();
   await expect(page.getByTestId('settings-ai-mode-disabled')).toBeChecked();
   await page.getByTestId('dialog-settings-button-cancel').click();
   await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
@@ -399,7 +489,9 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     await standin.reset();
     await core.resetAiRequests();
     await core.setAiResolve([]);
-    await core.rpc('settings.set', { patch: { ai: null } });
+    // The AI settings back to their defaults and the panel open, as a first start has it (the
+    // visibility is a session key the journeys hide and show).
+    await core.rpc('settings.set', { patch: { ai: null, session: { aiPanelVisible: true } } });
     // The free entry reaches the stand-in, never a real service (FR-102).
     writeStandinOverride(core.dataDir!, standin.port);
     await core.rpc('ai.reloadServices');
@@ -409,11 +501,13 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     if (!core.hasCore) return;
     expect(outside).toEqual([]);
     removeStandinOverride(core.dataDir!);
-    await core.rpc('settings.set', { patch: { ai: null } }).catch(() => {});
+    await core
+      .rpc('settings.set', { patch: { ai: null, session: { aiPanelVisible: true } } })
+      .catch(() => {});
     await core.rpc('ai.reloadServices').catch(() => {});
   });
 
-  test('1+4. Disabled at OK removes the entry, button, hotkeys and context entry at once and closes the panel; Free again brings them back with the assistant off; nothing of the document changed', async ({
+  test('1+4. Disabled at OK removes the context entry and the Ask hotkey at once and turns the visible panel inert - the entry, the button and the toggle hotkey stay; Free again makes the panel live without a restart; nothing of the document changed', async ({
     core,
     page,
     standin,
@@ -425,53 +519,58 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     const xmlBefore = await documentXml(page);
     const paragraph = 'Поезд пришёл';
 
-    // Off, enabled: the entry, the button, the three live commands.
+    // Restored open and live (FR-040 as amended): the panel with its content, the entry, the
+    // button, the three live commands, the context entry; nothing sent, locked or changed.
+    await expect(page.getByTestId('ai-panel')).toBeVisible();
+    await expect(page.getByTestId('ai-panel-content')).toBeVisible();
+    await expect(page.getByTestId('ai-empty')).toBeVisible();
     await expect(page.getByTestId('toolbar-ai.toggle')).toBeVisible();
     expect(await viewMenuOffersAssistant(page)).toBe(true);
     expect(await aiStatus(page)).toBe('registered');
-    expect(await aiCommands(page)).toEqual(OFF_COMMANDS);
-    // On: the panel and the context entry.
-    await page.getByTestId('toolbar-ai.toggle').click();
-    await expect(page.getByTestId('ai-panel')).toBeVisible();
+    expect(await assistantOn(page)).toBe(true);
+    expect(await aiCommands(page)).toEqual(ON_COMMANDS);
     expect(await bodyMenuOffersAsk(page, paragraph)).toBe(true);
-    expect(await aiCommands(page)).toEqual([
-      { id: 'ai.toggle', visible: true, enabled: true, stub: false },
-      { id: 'ai.ask', visible: true, enabled: true, stub: false },
-      { id: 'ai.cancel', visible: true, enabled: false, stub: false },
-    ]);
+    expect(await isModified(page)).toBe(false);
 
-    // Scenario 1: Disabled at OK - idle, so no question - and everything is gone at once.
+    // Scenario 1: Disabled at OK - idle, so no question - and the panel turns inert at once,
+    // the live traces gone, the entry and the button kept.
     await chooseModeAndOk(page, 'disabled');
     await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
     await expect(page.getByTestId('dialog-ai-stop-confirm')).toHaveCount(0);
-    await expect(page.getByTestId('ai-panel')).toHaveCount(0);
-    await expectNothingOfTheAssistant(page, paragraph);
+    await expectDisabledState(page, paragraph);
     expect(await documentXml(page)).toBe(xmlBefore);
     expect(await isModified(page)).toBe(false);
     await expect(page.getByTestId('toolbar-edit.undo')).toBeDisabled(); // FR-095: no undo step
 
-    // Scenario 4: Free at OK - the entry, the button and the hotkey are back, the assistant
-    // stays off, nothing else changed.
+    // Scenario 4: Free at OK - the visible panel is live again at once (no restart), the
+    // entry and the button as before, nothing else changed.
     await chooseModeAndOk(page, 'free');
     await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
     await expect(page.getByTestId('toolbar-ai.toggle')).toBeVisible();
     expect(await viewMenuOffersAssistant(page)).toBe(true);
-    await expect(page.getByTestId('ai-panel')).toHaveCount(0);
-    expect(await assistantOn(page)).toBe(false);
+    await expect(page.getByTestId('ai-panel')).toBeVisible();
+    await expect(page.getByTestId('ai-panel')).not.toHaveAttribute('data-ai-inert', 'true');
+    await expect(page.getByTestId('ai-panel-content')).toBeVisible();
+    await expect(page.getByTestId('ai-empty')).toBeVisible();
+    await expect(page.getByTestId('ai-panel-disabled')).toHaveCount(0);
+    expect(await assistantOn(page)).toBe(true);
     expect(await aiStatus(page)).toBe('registered');
-    expect(await aiCommands(page)).toEqual(OFF_COMMANDS);
-    expect(await bodyMenuOffersAsk(page, paragraph)).toBe(false); // off: no context entry
+    expect(await aiCommands(page)).toEqual(ON_COMMANDS);
+    expect(await bodyMenuOffersAsk(page, paragraph)).toBe(true);
     expect(await documentXml(page)).toBe(xmlBefore);
     expect(await isModified(page)).toBe(false);
     await expect(page.getByTestId('toolbar-edit.undo')).toBeDisabled();
-    // The hotkey is live again: Mod+Shift+A opens the panel (empty), and closes it.
+    // The toggle hotkey hides the live panel (the assistant off, FR-092) and shows it again.
     await page.getByTestId('body-editor').click();
-    await page.keyboard.press(`${MOD}+Shift+A`);
-    await expect(page.getByTestId('ai-panel')).toBeVisible();
-    await expect(page.getByTestId('ai-empty')).toBeVisible();
     await page.keyboard.press(`${MOD}+Shift+A`);
     await expect(page.getByTestId('ai-panel')).toHaveCount(0);
     expect(await assistantOn(page)).toBe(false);
+    expect(await aiCommands(page)).toEqual(OFF_COMMANDS);
+    expect(await bodyMenuOffersAsk(page, paragraph)).toBe(false); // off: no context entry
+    await page.keyboard.press(`${MOD}+Shift+A`);
+    await expect(page.getByTestId('ai-panel')).toBeVisible();
+    await expect(page.getByTestId('ai-empty')).toBeVisible();
+    expect(await assistantOn(page)).toBe(true);
 
     // Nothing was ever sent, nothing went wrong.
     expect(await standin.requests()).toEqual([]);
@@ -488,8 +587,9 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     await openApp(page, core);
     await openBook(page, core, SELECTION_BOOK);
     const xmlBefore = await documentXml(page);
-    await page.getByTestId('toolbar-ai.toggle').click();
+    // The panel restored open and live (FR-040 as amended).
     await expect(page.getByTestId('ai-panel')).toBeVisible();
+    await expect(page.getByTestId('ai-panel-content')).toBeVisible();
 
     // A held exchange: the request runs while the settings dialog is used.
     await standin.scenario({ text: 'late', delayMs: 20_000 });
@@ -524,14 +624,15 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     expect(await assistantOn(page)).toBe(true);
     expect((await core.rpc<{ ai: { mode: string } }>('settings.get')).ai.mode).toBe('custom');
 
-    // OK again, Yes: cancelled, the panel gone, the assistant off and disabled, the XML as it
-    // was, the dialog closed.
+    // OK again, Yes: cancelled, the panel inert, the assistant off and disabled, the XML as
+    // it was, the dialog closed.
     await page.getByTestId('dialog-settings-button-ok').click();
     await expect(confirm).toBeVisible();
     await page.getByTestId('dialog-ai-stop-confirm-button-yes').click();
     await expect(confirm).toHaveCount(0);
     await expect(page.getByTestId('dialog-settings')).toHaveCount(0);
-    await expect(page.getByTestId('ai-panel')).toHaveCount(0);
+    await expect(page.getByTestId('ai-panel')).toHaveAttribute('data-ai-inert', 'true');
+    await expect(page.getByTestId('ai-panel-content')).toHaveCount(0);
     await expect(page.getByTestId('script-run-banner')).toHaveCount(0);
     await expect.poll(() => lastRequestState(page)).toBe('cancelled');
     await expect
@@ -541,19 +642,25 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     expect(await documentXml(page)).toBe(xmlBefore);
     expect(await isModified(page)).toBe(false);
     await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
-    await expectNothingOfTheAssistant(page, 'Поезд пришёл');
+    await expectDisabledState(page, 'Поезд пришёл');
     // The one request the journey made is the cancelled one; nothing after the turn-off.
     await page.waitForTimeout(1000);
     expect(await standin.requests()).toHaveLength(1);
     expect(await core.aiRequests()).toHaveLength(1);
   });
 
-  test('2. silence (SC-013) with the assistant off: a whole editing session makes no request and loads no chunk; the View entry and the button are the only traces', async ({
+  test('2. silence (SC-013) with the assistant off (the panel hidden): a whole editing session makes no request and loads no chunk; the View entry and the button are the only traces', async ({
     core,
     page,
     standin,
   }) => {
-    await core.rpc('settings.set', { patch: { ai: { mode: 'free', freeServiceId: 'ovhcloud' } } });
+    // Off = a service chosen and the panel hidden, as a session that closed it restores it.
+    await core.rpc('settings.set', {
+      patch: {
+        ai: { mode: 'free', freeServiceId: 'ovhcloud' },
+        session: { aiPanelVisible: false },
+      },
+    });
     await watchForFeatureElements(page);
     const assets = recordAssets(page);
     const errors = recordErrors(page);
@@ -568,6 +675,7 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     await expect(page.getByTestId('ai-panel')).toHaveCount(0);
     await expect(page.getByTestId('dialog-ai-ask')).toHaveCount(0);
     expect(await assistantOn(page)).toBe(false);
+    expect(await panelVisible(page)).toBe(false);
     expect(await aiStatus(page)).toBe('registered');
     expect(await aiCommands(page)).toEqual(OFF_COMMANDS);
 
@@ -583,7 +691,7 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     );
   });
 
-  test('2. silence (SC-013) with Disabled saved: the same session, nothing of the feature at all, only the two stubs', async ({
+  test('2. silence (SC-013) with Disabled saved and the panel open: the same session with the inert panel, nothing of the live assistant, no chunk', async ({
     core,
     page,
     standin,
@@ -593,18 +701,20 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     const assets = recordAssets(page);
     const errors = recordErrors(page);
     await openApp(page, core);
-    // Honoured before anything of the feature renders (FR-098): the stubs from the first
-    // moment the hooks exist.
+    // Honoured before anything of the feature renders (FR-098): the live toggle and the stub
+    // of ai.ask from the first moment the hooks exist, the inert panel from the first paint.
     await expect.poll(() => aiHooksInstalled(page)).toBe(true);
-    expect(await aiCommands(page)).toEqual(DISABLED_COMMANDS);
     await expect.poll(() => aiStatus(page)).toBe('disabled');
+    expect(await aiCommands(page)).toEqual(DISABLED_COMMANDS);
+    await expectInertPanel(page);
     await editingSession(page, core, dir);
 
-    await expectNothingOfTheAssistant(page, 'Последний');
+    await expectDisabledState(page, 'Последний');
     expect(await standin.requests()).toEqual([]);
     expect(await core.aiRequests()).toEqual([]);
     expectMainBundleOnly(assets);
-    expect(await featureElementsSeen(page)).toEqual([]);
+    expect(await liveElementsSeen(page)).toEqual([]);
+    expect(new Set(await featureElementsSeen(page))).toEqual(new Set(SHELL_TEST_IDS));
     expect(errors).toEqual([]);
   });
 
@@ -686,7 +796,8 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     expect(await core.aiRequests()).toHaveLength(expectedRequests);
     expect(await aiStatus(page)).toBe('disabled');
     expect(await aiCommands(page)).toEqual(DISABLED_COMMANDS);
-    await expect(page.getByTestId('toolbar-ai.toggle')).toHaveCount(0);
+    await expect(page.getByTestId('toolbar-ai.toggle')).toBeVisible();
+    await expect(page.getByTestId('ai-panel')).toHaveAttribute('data-ai-inert', 'true');
   });
 });
 
@@ -746,25 +857,30 @@ test.describe('US9 (005) - Disabled survives a restart and a portable move', () 
     };
   }
 
-  /** Scenario 1 on a freshly started core: disabled from the first paint, no flash. */
+  /**
+   * Scenario 1 on a freshly started core: disabled from the first paint, no flash of the live
+   * assistant; the panel restored open and inert, the entry and the button present.
+   */
   async function expectDisabledFromTheFirstPaint(
     page: Page,
     assets: string[],
     errors: string[],
   ): Promise<void> {
     await expect(page.getByTestId('toolbar-commands')).toBeVisible();
-    await expect(page.getByTestId('toolbar-ai.toggle')).toHaveCount(0);
     await expect.poll(() => aiHooksInstalled(page)).toBe(true);
-    expect(await aiCommands(page)).toEqual(DISABLED_COMMANDS);
     await expect.poll(() => aiStatus(page)).toBe('disabled');
+    expect(await aiCommands(page)).toEqual(DISABLED_COMMANDS);
     await expect(page.getByTestId('status-message')).toHaveText(
       await pageText(page, 'status.ready'),
     );
-    expect(await viewMenuOffersAssistant(page)).toBe(false);
-    await expectHotkeysInert(page);
+    await expect(page.getByTestId('toolbar-ai.toggle')).toBeVisible();
+    expect(await viewMenuOffersAssistant(page)).toBe(true);
+    await expectInertPanel(page);
+    await expectToggleHotkeyShowsAndHidesTheInertPanel(page);
+    await expectAskHotkeyInert(page);
     expect(await bodyMenuOffersAsk(page)).toBe(false); // the start-up document
     expect(await aiCommands(page)).toEqual(DISABLED_COMMANDS);
-    expect(await featureElementsSeen(page)).toEqual([]);
+    expect(await liveElementsSeen(page)).toEqual([]);
     expectMainBundleOnly(assets);
     expect(errors).toEqual([]);
   }
@@ -782,9 +898,16 @@ test.describe('US9 (005) - Disabled survives a restart and a portable move', () 
         await pageText(first.page, 'status.ready'),
       );
       await expect(first.page.getByTestId('toolbar-ai.toggle')).toBeVisible();
+      // A fresh data directory: Disabled is the stored default (FR-001) and the panel is open
+      // and inert. Free at OK makes it live; Disabled at OK again writes the choice.
+      await expectInertPanel(first.page);
+      await chooseModeAndOk(first.page, 'free');
+      await expect(first.page.getByTestId('dialog-settings')).toHaveCount(0);
+      await expect(first.page.getByTestId('ai-panel-content')).toBeVisible();
       await chooseModeAndOk(first.page, 'disabled');
       await expect(first.page.getByTestId('dialog-settings')).toHaveCount(0);
-      await expect(first.page.getByTestId('toolbar-ai.toggle')).toHaveCount(0);
+      await expect(first.page.getByTestId('toolbar-ai.toggle')).toBeVisible();
+      await expectInertPanel(first.page);
       await expect
         .poll(
           () =>

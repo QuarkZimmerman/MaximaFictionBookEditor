@@ -1,27 +1,34 @@
 /**
  * Registration of the AI assistant (feature 005 T031; research R8.3-R8.4; data-model §3.1, §3.3
- * "start-up"; FR-090, FR-094, FR-096 to FR-098): nothing is registered before the first settings
- * snapshot; the live commands `ai.toggle` / `ai.ask` / `ai.cancel` take the inert stubs over for
- * the `free` and `custom` modes and only then; `disabled` leaves the stubs (invisible, inert);
- * a core with `apiMinor` 3 gets nothing and `coreTooOld`; a mode change re-registers or
- * de-registers without a reload; the chunk is imported once, on the first turn-on, never while
- * off; and the `__mfbeTest.ai` hooks report it all.
+ * "start-up"; FR-094, FR-096 to FR-098; the visibility model of FR-040 / FR-096 as amended on
+ * 2026-10-23, T100): nothing is registered before the first settings snapshot; the live
+ * `ai.toggle` takes its stub over in every mode (it shows and hides the panel), `ai.ask` and
+ * `ai.cancel` join it for the `free` and `custom` modes and only then; `disabled` leaves the
+ * stub of `ai.ask` (invisible, inert) and no `ai.cancel`; a core with `apiMinor` 3 gets nothing
+ * and `coreTooOld`; a mode change re-registers or de-registers without a reload; the chunk is
+ * imported once, on the first turn-on - the start-up restore of a visible panel included -,
+ * never while the panel is hidden or the mode is disabled; and the `__mfbeTest.ai` hooks
+ * report it all.
  *
- * The transitions of data-model §3.3 (US3 T053; FR-090 to FR-095): the turn-on opens the panel
- * with the focus in its field and sends nothing; the turn-off clears the conversation and the
- * slot without touching the document; off while a request runs asks `dialog-ai-stop-confirm`
- * (No: nothing changes, Yes: cancelled first, then off); the document replaced clears the
- * conversation with the panel open; Disabled chosen in Settings while a request runs asks the
- * same question before OK (`beforeApply`); the quit flow's prompt names the AI request.
+ * The transitions of data-model §3.3 (US3 T053; FR-091 to FR-095): the panel's visibility
+ * (`store.ai.visible`, the session key `aiPanelVisible`, true by default) is the user's toggle;
+ * `on` (live) follows it while the mode is a service. The turn-on opens the panel with the
+ * focus in its field and sends nothing; hiding turns the assistant off - clears the
+ * conversation and the slot without touching the document; hiding while a request runs asks
+ * `dialog-ai-stop-confirm` (No: nothing changes, Yes: cancelled first, then off and hidden);
+ * the document replaced clears the conversation with the panel open; Disabled chosen in
+ * Settings while a request runs asks the same question before OK (`beforeApply`); the quit
+ * flow's prompt names the AI request.
  *
  * The Disabled transitions of data-model §3.3 rows "settings OK, mode → disabled" and
  * "disabled → free | custom" (US9 T064-T066; FR-096 to FR-098): the de-registration restores
- * the inert stubs (the View entry hidden by `visible`, the toolbar button gone, the hotkeys
- * inert), removes the context-menu slot, closes the panel and drops the catalogue and the
- * conversation; a request still running then is cancelled and waited for; `enabled` /
- * `canAsk` / `canSend` are false under `disabled` whatever the rest of the state; no dynamic
- * import happens while off or disabled; the re-registration brings the live commands back
- * with the assistant off and without a second import.
+ * the inert stub of `ai.ask`, removes `ai.cancel` and the context-menu slot, drops the catalogue
+ * and the conversation and leaves a visible panel visible - inert (`feature.inert`, the static
+ * `DisabledPanel` in App.tsx) -, the View entry, the toolbar button and the hotkey staying; a
+ * request still running then is cancelled and waited for; `enabled` / `canAsk` / `canSend` are
+ * false under `disabled` whatever the rest of the state; no dynamic import happens while hidden
+ * or disabled; the re-registration brings the live commands back and makes a visible panel
+ * live again without a second import, a hidden one staying hidden.
  */
 
 import {
@@ -58,9 +65,11 @@ async function settle(): Promise<void> {
   for (let i = 0; i < 4; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function settingsWithMode(mode: Settings['ai']['mode']): Settings {
+/** A snapshot with the mode and, as the first snapshot adopts it, the stored panel visibility. */
+function settingsWithMode(mode: Settings['ai']['mode'], panelVisible = true): Settings {
   const settings = defaultSettings();
   settings.ai.mode = mode;
+  settings.session.aiPanelVisible = panelVisible;
   return settings;
 }
 
@@ -72,6 +81,18 @@ interface Harness {
   ctx: CommandContext;
   dialogs: FakeDialogs;
   load: ReturnType<typeof vi.fn>;
+}
+
+/** The harness of the running test: `stopLeftovers` turns a live assistant off after it. */
+let current: Harness | null = null;
+
+/**
+ * The catalogue instance of a turn-on lives in `assistant.ts`'s module state (one per page):
+ * a test that leaves the assistant on would hand its instance to the next test's store.
+ */
+function stopLeftovers(): void {
+  if (current?.store.getState().ai.on) current.feature.assistant?.stopAssistant(current.store);
+  current = null;
 }
 
 function setup(
@@ -118,7 +139,8 @@ function setup(
     t: ((key: string) => key) as unknown as CommandContext['t'],
     version: '0.0.5-test',
   };
-  return { store, commands, rpc, feature, ctx, dialogs, load };
+  current = { store, commands, rpc, feature, ctx, dialogs, load };
+  return current;
 }
 
 /**
@@ -184,6 +206,7 @@ function ids(commands: CommandRegistry): string[] {
 
 describe('AI assistant registration', () => {
   afterEach(() => {
+    stopLeftovers();
     delete (window as { __mfbeTest?: unknown }).__mfbeTest;
   });
 
@@ -201,10 +224,11 @@ describe('AI assistant registration', () => {
   });
 
   it.each(['free', 'custom'] as const)(
-    'takes the stubs over with the three live commands for the %s mode',
+    'takes the stubs over with the three live commands for the %s mode (the panel hidden: nothing loaded)',
     async (mode) => {
       const { store, commands, feature, rpc, ctx, load } = setup();
-      actions.setSettings(store, settingsWithMode(mode));
+      // As a session with the panel closed restores it: the first snapshot adopts `visible`.
+      actions.setSettings(store, settingsWithMode(mode, false));
       await settle();
       expect(feature.status).toBe('registered');
       expect(feature.coreTooOld).toBe(false);
@@ -212,7 +236,8 @@ describe('AI assistant registration', () => {
       expect(rpc.calls.map((c) => c.method)).toEqual(['app.info']);
       expect(ids(commands)).toEqual(['ai.ask', 'ai.cancel', 'ai.toggle']);
 
-      // View → AI Assistant: visible, a toggle, enabled only with a document while off.
+      // View → AI Assistant: visible, a toggle checked while the panel is shown, enabled in
+      // every state - it only shows and hides the panel (FR-040 as amended).
       const toggle = commands.get('ai.toggle')!;
       expect(toggle.stub).toBeUndefined();
       expect(toggle.labelKey).toBe('menu.view.aiAssistant');
@@ -220,7 +245,7 @@ describe('AI assistant registration', () => {
       expect(toggle.group).toBe('view');
       expect(commands.isVisible('ai.toggle', ctx)).toBe(true);
       expect(commands.isChecked('ai.toggle', ctx)).toBe(false);
-      expect(commands.isEnabled('ai.toggle', ctx)).toBe(false); // no document
+      expect(commands.isEnabled('ai.toggle', ctx)).toBe(true); // no document needed
       actions.setDocument(store, fakeDocument());
       expect(commands.isEnabled('ai.toggle', ctx)).toBe(true);
 
@@ -236,30 +261,71 @@ describe('AI assistant registration', () => {
       expect(load).not.toHaveBeenCalled();
       expect(store.getState().ai.loaded).toBe(false);
       expect(store.getState().ai.on).toBe(false);
+      expect(store.getState().ai.visible).toBe(false);
     },
   );
 
-  it('leaves the inert stubs for the disabled mode: nothing of the feature exists', async () => {
+  it('restores a visible panel live at start-up: the first snapshot with a service imports the chunk once and turns on, nothing sent (FR-040 as amended)', async () => {
+    const { store, commands, feature, rpc, ctx, load } = setup();
+    expect(store.getState().ai.visible).toBe(true); // the default: open at the first start
+    actions.setSettings(store, settingsWithMode('free'));
+    await settle();
+    expect(feature.status).toBe('registered');
+    expect(load).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(store.getState().ai.on).toBe(true)); // the chunk's import
+    expect(store.getState().ai).toMatchObject({ visible: true, on: true, loaded: true });
+    expect(store.getState().ai.panelFocus).toBe(false); // the restore does not steal the focus
+    expect(commands.isChecked('ai.toggle', ctx)).toBe(true);
+    expect(rpc.calls.map((c) => c.method)).toEqual(['app.info']); // no service, no context
+    expect(store.getState().runLock).toBeNull();
+    expect(feature.inert).toBe(false);
+    // A later snapshot with the same mode changes nothing.
+    actions.setSettings(store, settingsWithMode('free'));
+    await settle();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(store.getState().ai.on).toBe(true);
+  });
+
+  it('leaves the stub of ai.ask for the disabled mode: the toggle live, no ai.cancel, nothing loaded, a visible panel inert', async () => {
     const { store, commands, feature, ctx, load } = setup();
     actions.setSettings(store, settingsWithMode('disabled'));
     await settle();
     expect(feature.status).toBe('disabled');
     expect(feature.enabled()).toBe(false);
     expect(ids(commands)).toEqual(['ai.ask', 'ai.toggle']);
-    for (const id of ['ai.toggle', 'ai.ask']) {
-      expect(commands.get(id)!.stub).toBe(true);
-      expect(commands.isVisible(id, ctx)).toBe(false);
-      expect(commands.isEnabled(id, ctx)).toBe(false);
-      expect(commands.dispatch(id, ctx)).toBe(false); // the hotkeys are inert
-    }
+    // The View entry, the toolbar button and the hotkey stay: they show and hide the panel.
+    expect(commands.get('ai.toggle')!.stub).toBeUndefined();
+    expect(commands.isVisible('ai.toggle', ctx)).toBe(true);
+    expect(commands.isEnabled('ai.toggle', ctx)).toBe(true);
+    expect(commands.isChecked('ai.toggle', ctx)).toBe(true); // the panel is shown (inert)
+    // Ask AI: the inert, invisible stub; its chord dispatches nothing.
+    expect(commands.get('ai.ask')!.stub).toBe(true);
+    expect(commands.isVisible('ai.ask', ctx)).toBe(false);
+    expect(commands.isEnabled('ai.ask', ctx)).toBe(false);
+    expect(commands.dispatch('ai.ask', ctx)).toBe(false);
     expect(load).not.toHaveBeenCalled();
     expect(store.getState().ai.on).toBe(false);
+    expect(store.getState().ai.visible).toBe(true);
+    expect(feature.inert).toBe(true);
     // The hooks read the same picture (US9's journey).
     expect(aiTestHooks()!.status()).toBe('disabled');
+    expect(aiTestHooks()!.on).toBe(false);
+    expect(aiTestHooks()!.state().visible).toBe(true);
     expect(aiTestHooks()!.commands()).toEqual([
-      { id: 'ai.toggle', visible: false, enabled: false, stub: true },
+      { id: 'ai.toggle', visible: true, enabled: true, stub: false },
       { id: 'ai.ask', visible: false, enabled: false, stub: true },
     ]);
+    // The toggle hides and shows the inert panel without loading anything.
+    expect(commands.dispatch('ai.toggle', ctx)).toBe(true);
+    await settle();
+    expect(store.getState().ai.visible).toBe(false);
+    expect(feature.inert).toBe(false);
+    expect(commands.isChecked('ai.toggle', ctx)).toBe(false);
+    await feature.toggle(ctx);
+    expect(store.getState().ai.visible).toBe(true);
+    expect(feature.inert).toBe(true);
+    expect(load).not.toHaveBeenCalled();
+    expect(store.getState().ai.on).toBe(false);
   });
 
   it('registers nothing with a core before API minor 4 and says so', async () => {
@@ -296,14 +362,20 @@ describe('AI assistant registration', () => {
 
   it('turns on with one import of the chunk, off without a new one; the hooks follow', async () => {
     const { store, commands, feature, ctx, load } = setup();
-    actions.setSettings(store, settingsWithMode('free'));
+    actions.setSettings(store, settingsWithMode('free', false)); // the panel hidden
     actions.setDocument(store, fakeDocument());
     await settle();
+    expect(load).not.toHaveBeenCalled(); // hidden: nothing of the chunk
 
     expect(await commands.execute('ai.toggle', ctx)).toBe(true);
     await settle();
     expect(load).toHaveBeenCalledTimes(1);
-    expect(store.getState().ai).toMatchObject({ on: true, loaded: true, request: null });
+    expect(store.getState().ai).toMatchObject({
+      visible: true,
+      on: true,
+      loaded: true,
+      request: null,
+    });
     expect(store.getState().ai.conversation.messages).toEqual([]);
     expect(commands.isChecked('ai.toggle', ctx)).toBe(true);
     expect(commands.isVisible('ai.ask', ctx)).toBe(true);
@@ -330,7 +402,13 @@ describe('AI assistant registration', () => {
     // The one catalogue instance of the turn-on (data-model §8.5): built in memory - nothing
     // listens, nothing is sent, no outline is computed - and dropped at turn-off.
     await vi.waitFor(() => expect(hooks.state().catalogue).toBe(true));
-    expect(hooks.state()).toMatchObject({ on: true, loaded: true, catalogue: true, width: 360 });
+    expect(hooks.state()).toMatchObject({
+      visible: true,
+      on: true,
+      loaded: true,
+      catalogue: true,
+      width: 360,
+    });
     expect(store.getState().runLock).toBeNull();
     expect(hooks.commands()).toEqual([
       { id: 'ai.toggle', visible: true, enabled: true, stub: false },
@@ -339,10 +417,17 @@ describe('AI assistant registration', () => {
     ]);
     expect(hooks.lastRequest()).toBeNull();
 
+    // Off = hidden: the toggle hides the panel and turns the assistant off.
     expect(await commands.execute('ai.toggle', ctx)).toBe(true);
     await settle();
     expect(load).toHaveBeenCalledTimes(1); // the module is kept
-    expect(store.getState().ai).toMatchObject({ on: false, loaded: true, request: null });
+    expect(store.getState().ai).toMatchObject({
+      visible: false,
+      on: false,
+      loaded: true,
+      request: null,
+    });
+    expect(commands.isChecked('ai.toggle', ctx)).toBe(false);
     expect(commands.isVisible('ai.ask', ctx)).toBe(false);
     expect(hooks.on).toBe(false);
 
@@ -364,16 +449,20 @@ describe('AI assistant registration', () => {
     actions.setSettings(store, settingsWithMode('free'));
     actions.setDocument(store, fakeDocument());
     await settle();
-    await commands.execute('ai.toggle', ctx);
-    await settle();
-    expect(store.getState().ai.on).toBe(true);
+    expect(store.getState().ai.on).toBe(true); // the visible panel restored live
 
-    // Settings OK with Disabled: the panel closes, the conversation is dropped, the stubs are
-    // back, `ai.cancel` is gone, the hotkeys are inert.
+    // Settings OK with Disabled: the panel stays visible but inert, the conversation is
+    // dropped, `ai.ask` is its stub, `ai.cancel` is gone; the toggle stays live.
     actions.setSettings(store, settingsWithMode('disabled'));
     await settle();
     expect(feature.status).toBe('disabled');
-    expect(store.getState().ai).toMatchObject({ on: false, request: null, catalogue: null });
+    expect(store.getState().ai).toMatchObject({
+      visible: true,
+      on: false,
+      request: null,
+      catalogue: null,
+    });
+    expect(feature.inert).toBe(true);
     expect(store.getState().ai.conversation).toEqual({
       docId: null,
       messages: [],
@@ -382,24 +471,25 @@ describe('AI assistant registration', () => {
     });
     expect(store.getState().ai.loaded).toBe(true); // the imported chunk stays idle
     expect(ids(commands)).toEqual(['ai.ask', 'ai.toggle']);
-    expect(commands.get('ai.toggle')!.stub).toBe(true);
-    expect(commands.isVisible('ai.toggle', ctx)).toBe(false);
-    expect(commands.dispatch('ai.toggle', ctx)).toBe(false);
-    expect(
-      aiTestHooks()!
-        .commands()
-        .every((c) => c.stub && !c.visible && !c.enabled),
-    ).toBe(true);
+    expect(commands.get('ai.toggle')!.stub).toBeUndefined();
+    expect(commands.isVisible('ai.toggle', ctx)).toBe(true);
+    expect(commands.get('ai.ask')!.stub).toBe(true);
+    expect(commands.dispatch('ai.ask', ctx)).toBe(false);
+    expect(aiTestHooks()!.commands()).toEqual([
+      { id: 'ai.toggle', visible: true, enabled: true, stub: false },
+      { id: 'ai.ask', visible: false, enabled: false, stub: true },
+    ]);
 
-    // Back to a live mode: the entry, the button and the hotkeys return; the assistant stays
-    // off and the chunk is not imported again.
+    // Back to a live mode: the commands return and the visible panel is live again without
+    // a second import.
     actions.setSettings(store, settingsWithMode('custom'));
     await settle();
     expect(feature.status).toBe('registered');
     expect(ids(commands)).toEqual(['ai.ask', 'ai.cancel', 'ai.toggle']);
     expect(commands.get('ai.toggle')!.stub).toBeUndefined();
     expect(commands.isVisible('ai.toggle', ctx)).toBe(true);
-    expect(store.getState().ai.on).toBe(false);
+    expect(store.getState().ai.on).toBe(true);
+    expect(feature.inert).toBe(false);
     expect(load).toHaveBeenCalledTimes(1);
     expect(statuses).toEqual(['registered', 'disabled', 'registered']);
 
@@ -457,15 +547,17 @@ describe('AI assistant registration', () => {
 
 describe('AI assistant transitions (data-model §3.3)', () => {
   afterEach(() => {
+    stopLeftovers();
     delete (window as { __mfbeTest?: unknown }).__mfbeTest;
   });
 
-  /** A registered feature with a document, the assistant off. */
+  /** A registered feature with a document, the panel hidden (the assistant off). */
   async function registered(options: Parameters<typeof setup>[0] = {}): Promise<Harness> {
     const harness = setup(options);
-    actions.setSettings(harness.store, settingsWithMode('free'));
+    actions.setSettings(harness.store, settingsWithMode('free', false));
     actions.setDocument(harness.store, fakeDocument());
     await settle();
+    expect(harness.store.getState().ai.on).toBe(false);
     return harness;
   }
 
@@ -474,7 +566,12 @@ describe('AI assistant transitions (data-model §3.3)', () => {
     await commands.execute('ai.toggle', ctx);
     await settle();
     expect(load).toHaveBeenCalledTimes(1);
-    expect(store.getState().ai).toMatchObject({ on: true, loaded: true, panelFocus: true });
+    expect(store.getState().ai).toMatchObject({
+      visible: true,
+      on: true,
+      loaded: true,
+      panelFocus: true,
+    });
     expect(feature.panel).not.toBeNull(); // App.tsx renders it inside the right pane
     expect(feature.panel).toBe(feature.assistant && (await import('@/ai/chunk')).AiPanel);
     expect(store.getState().ai.width).toBe(360);
@@ -483,16 +580,16 @@ describe('AI assistant transitions (data-model §3.3)', () => {
     expect(store.getState().modified).toBe(false);
     expect(ctx.undo.canUndo).toBe(false);
     expect(feature.requestRunning()).toBe(false);
-    // Turning on a second time changes nothing.
+    // The second toggle hides the panel (off); the third shows it again without an import.
     await feature.toggle(ctx);
     await settle();
-    expect(store.getState().ai.on).toBe(false); // the second toggle turned it off
+    expect(store.getState().ai).toMatchObject({ visible: false, on: false });
     await feature.toggle(ctx);
-    expect(store.getState().ai.on).toBe(true);
+    expect(store.getState().ai).toMatchObject({ visible: true, on: true });
     expect(load).toHaveBeenCalledTimes(1);
   });
 
-  it('turns off idle: the conversation gone, nothing of the document touched, no question asked (FR-092, FR-095)', async () => {
+  it('turns off idle: the panel hidden, the conversation gone, nothing of the document touched, no question asked (FR-092, FR-095)', async () => {
     const { store, commands, feature, ctx, dialogs } = await registered();
     await commands.execute('ai.toggle', ctx);
     await settle();
@@ -502,6 +599,7 @@ describe('AI assistant transitions (data-model §3.3)', () => {
     await expect(feature.close(ctx)).resolves.toBe(true);
     expect(dialogs.shown).toEqual([]);
     expect(store.getState().ai).toMatchObject({
+      visible: false,
       on: false,
       request: null,
       catalogue: null,
@@ -623,7 +721,7 @@ describe('AI assistant transitions (data-model §3.3)', () => {
 
   it('leaves the conversation alone while the assistant is off or the document stays', async () => {
     const { store, feature, ctx } = await registered();
-    actions.setDocument(store, fakeDocument({ docId: 'doc-2' })); // off: nothing to clear, nothing done
+    actions.setDocument(store, fakeDocument({ docId: 'doc-2' })); // hidden: nothing to clear, nothing done
     expect(store.getState().ai.on).toBe(false);
     await feature.toggle(ctx);
     await settle();
@@ -707,14 +805,15 @@ describe('AI assistant transitions (data-model §3.3)', () => {
 
 describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR-098)', () => {
   afterEach(() => {
+    stopLeftovers();
     delete (window as { __mfbeTest?: unknown }).__mfbeTest;
     delete contextMenuExtensions.ai;
   });
 
-  /** A registered feature with a document, the assistant on through the toggle. */
+  /** A registered feature with a document, the assistant on through the user's toggle. */
   async function turnedOn(options: Parameters<typeof setup>[0] = {}): Promise<Harness> {
     const harness = setup(options);
-    actions.setSettings(harness.store, settingsWithMode('free'));
+    actions.setSettings(harness.store, settingsWithMode('free', false));
     actions.setDocument(harness.store, fakeDocument());
     await settle();
     await harness.commands.execute('ai.toggle', harness.ctx);
@@ -723,7 +822,7 @@ describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR
     return harness;
   }
 
-  it('settings OK with Disabled while on and idle: off and de-registered - the slot removed, the panel closed, the catalogue and the conversation dropped, the stubs back, no ai.cancel, the hotkeys inert, the document untouched', async () => {
+  it('settings OK with Disabled while on and idle: off and de-registered - the slot removed, the panel visible but inert, the catalogue and the conversation dropped, the stub of ai.ask back, no ai.cancel, the toggle live, the document untouched', async () => {
     const { store, commands, feature, ctx, dialogs, load } = await turnedOn();
     const hooks = aiTestHooks()!;
     await vi.waitFor(() => expect(hooks.state().catalogue).toBe(true));
@@ -733,11 +832,13 @@ describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR
 
     actions.setSettings(store, settingsWithMode('disabled'));
     await settle();
-    // Nothing was asked (idle); off and de-registered at once.
+    // Nothing was asked (idle); off and de-registered at once; the panel stays, inert.
     expect(dialogs.shown).toEqual([]);
     expect(feature.status).toBe('disabled');
     expect(feature.enabled()).toBe(false);
+    expect(feature.inert).toBe(true);
     expect(store.getState().ai).toMatchObject({
+      visible: true,
       on: false,
       request: null,
       catalogue: null,
@@ -752,20 +853,21 @@ describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR
     expect(contextMenuExtensions.ai).toBeUndefined(); // the slot removed (FR-030, FR-096)
     expect(hooks.state().catalogue).toBe(false);
     expect(hooks.on).toBe(false);
-    // The registry: the two inert, invisible stubs and no `ai.cancel` - so the View entry
-    // (`visible`), the toolbar button and the Hotkeys rows are gone and the chords dispatch
-    // nothing.
+    // The registry: the live toggle (the View entry, the toolbar button and the hotkey stay -
+    // they show and hide the inert panel), the inert, invisible stub of `ai.ask` (its Hotkeys
+    // row gone, its chord dispatching nothing) and no `ai.cancel`.
     expect(ids(commands)).toEqual(['ai.ask', 'ai.toggle']);
     expect(commands.has('ai.cancel')).toBe(false);
-    for (const id of ['ai.toggle', 'ai.ask']) {
-      expect(commands.get(id)!.stub).toBe(true);
-      expect(commands.isVisible(id, ctx)).toBe(false);
-      expect(commands.isEnabled(id, ctx)).toBe(false);
-      expect(commands.dispatch(id, ctx)).toBe(false);
-      expect(await commands.execute(id, ctx)).toBe(false);
-    }
+    expect(commands.get('ai.toggle')!.stub).toBeUndefined();
+    expect(commands.isVisible('ai.toggle', ctx)).toBe(true);
+    expect(commands.isEnabled('ai.toggle', ctx)).toBe(true);
+    expect(commands.get('ai.ask')!.stub).toBe(true);
+    expect(commands.isVisible('ai.ask', ctx)).toBe(false);
+    expect(commands.isEnabled('ai.ask', ctx)).toBe(false);
+    expect(commands.dispatch('ai.ask', ctx)).toBe(false);
+    expect(await commands.execute('ai.ask', ctx)).toBe(false);
     expect(hooks.commands()).toEqual([
-      { id: 'ai.toggle', visible: false, enabled: false, stub: true },
+      { id: 'ai.toggle', visible: true, enabled: true, stub: false },
       { id: 'ai.ask', visible: false, enabled: false, stub: true },
     ]);
     // The document, its modified state and the undo history are untouched (FR-095); the
@@ -778,10 +880,15 @@ describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR
     // The predicates say no whatever the rest of the state (data-model §3.4).
     expect(feature.canAsk(ctx)).toBe(false);
     expect(feature.canSend(ctx)).toBe(false);
-    // Toggling by hand (a stale caller) does nothing while disabled: the status gate.
+    // The toggle hides and shows the inert panel; nothing becomes live, nothing is imported.
     await feature.toggle(ctx);
     await settle();
-    expect(store.getState().ai.on).toBe(false);
+    expect(store.getState().ai).toMatchObject({ visible: false, on: false });
+    expect(feature.inert).toBe(false);
+    await feature.toggle(ctx);
+    await settle();
+    expect(store.getState().ai).toMatchObject({ visible: true, on: false });
+    expect(feature.inert).toBe(true);
     expect(load).toHaveBeenCalledTimes(1);
   });
 
@@ -806,11 +913,13 @@ describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR
     expect(contextMenuExtensions.ai).toBeUndefined();
   });
 
-  it('disabled → free | custom: the live commands return with the assistant off, the panel closed, no import, nothing else changed (FR-097)', async () => {
+  it('disabled → free | custom with the panel hidden: the live commands return with the assistant off, no import, nothing else changed (FR-097)', async () => {
     const { store, commands, feature, ctx, load } = await turnedOn();
     actions.setSettings(store, settingsWithMode('disabled'));
     await settle();
     expect(store.getState().ai.on).toBe(false);
+    await feature.toggle(ctx); // the user hides the inert panel
+    expect(store.getState().ai.visible).toBe(false);
 
     for (const mode of ['free', 'custom'] as const) {
       actions.setSettings(store, settingsWithMode(mode));
@@ -820,12 +929,11 @@ describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR
       expect(ids(commands)).toEqual(['ai.ask', 'ai.cancel', 'ai.toggle']);
       expect(commands.get('ai.toggle')!.stub).toBeUndefined();
       expect(commands.isVisible('ai.toggle', ctx)).toBe(true);
-      expect(commands.isEnabled('ai.toggle', ctx)).toBe(true); // a document is open
-      expect(commands.isChecked('ai.toggle', ctx)).toBe(false); // off
+      expect(commands.isEnabled('ai.toggle', ctx)).toBe(true);
+      expect(commands.isChecked('ai.toggle', ctx)).toBe(false); // hidden
       expect(commands.isVisible('ai.ask', ctx)).toBe(false); // off: no Ask AI
       expect(commands.isEnabled('ai.cancel', ctx)).toBe(false);
-      expect(store.getState().ai.on).toBe(false);
-      expect(store.getState().ai.catalogue).toBeNull();
+      expect(store.getState().ai).toMatchObject({ visible: false, on: false, catalogue: null });
       expect(contextMenuExtensions.ai).toBeUndefined();
       expect(feature.canAsk(ctx)).toBe(false); // off
       expect(feature.canSend(ctx)).toBe(false);
@@ -841,34 +949,63 @@ describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR
     }
     expect(load).toHaveBeenCalledTimes(1); // the first turn-on's import only
 
-    // The hotkey is live again once registered: the toggle turns the assistant on.
+    // The hotkey shows the panel again once registered: live, without a second import.
     actions.setSettings(store, settingsWithMode('free'));
     await settle();
     expect(commands.dispatch('ai.toggle', ctx)).toBe(true);
     await settle();
-    expect(store.getState().ai.on).toBe(true);
+    expect(store.getState().ai).toMatchObject({ visible: true, on: true });
     expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('disabled → free | custom with the panel visible: the inert panel becomes live at once, no second import (FR-096, FR-097)', async () => {
+    const { store, feature, ctx, load } = await turnedOn();
+    conversationWith(store);
+    actions.setSettings(store, settingsWithMode('disabled'));
+    await settle();
+    expect(store.getState().ai).toMatchObject({ visible: true, on: false });
+    expect(feature.inert).toBe(true);
+    expect(contextMenuExtensions.ai).toBeUndefined();
+
+    actions.setSettings(store, settingsWithMode('custom'));
+    await settle();
+    expect(feature.status).toBe('registered');
+    expect(feature.inert).toBe(false);
+    expect(store.getState().ai).toMatchObject({ visible: true, on: true, panelFocus: false });
+    expect(store.getState().ai.conversation.messages).toEqual([]); // a fresh conversation
+    expect(contextMenuExtensions.ai).toBeDefined(); // the "Ask AI..." slot is back
+    expect(feature.canSend(ctx)).toBe(true);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(store.getState().modified).toBe(false);
+    expect(ctx.undo.canUndo).toBe(false);
   });
 
   it('enabled / canAsk / canSend under each mode; no dynamic import while off or disabled', async () => {
     const { store, commands, feature, ctx, load } = setup();
     actions.setDocument(store, fakeDocument());
-    // Before the first snapshot: nothing.
+    // Before the first snapshot: nothing.  (The panel hidden throughout, as a session with it
+    // closed restores it - the first snapshot below adopts the stored visibility.)
     expect(feature.enabled()).toBe(false);
     expect(feature.canAsk(ctx)).toBe(false);
     expect(feature.canSend(ctx)).toBe(false);
-    // Disabled: nothing, and the stubs' chords import nothing.
-    actions.setSettings(store, settingsWithMode('disabled'));
+    expect(commands.dispatch('ai.toggle', ctx)).toBe(false); // the stub before the snapshot
+    // Disabled: nothing, and the chords import nothing - the toggle shows the inert panel.
+    actions.setSettings(store, settingsWithMode('disabled', false));
     await settle();
     expect(feature.enabled()).toBe(false);
     expect(feature.canAsk(ctx)).toBe(false);
     expect(feature.canSend(ctx)).toBe(false);
-    expect(commands.dispatch('ai.toggle', ctx)).toBe(false);
+    expect(commands.dispatch('ai.toggle', ctx)).toBe(true);
+    await settle();
+    expect(store.getState().ai).toMatchObject({ visible: true, on: false });
+    expect(commands.dispatch('ai.toggle', ctx)).toBe(true); // hidden again
+    await settle();
+    expect(store.getState().ai.visible).toBe(false);
     expect(commands.dispatch('ai.ask', ctx)).toBe(false);
     await settle();
     expect(load).not.toHaveBeenCalled();
     expect(store.getState().ai.loaded).toBe(false);
-    // Free and custom, off: enabled, yet nothing to ask or send with and no import.
+    // Free and custom, off (hidden): enabled, yet nothing to ask or send with and no import.
     for (const mode of ['free', 'custom'] as const) {
       actions.setSettings(store, settingsWithMode(mode));
       await settle();

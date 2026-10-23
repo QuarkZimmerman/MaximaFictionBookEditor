@@ -4,11 +4,14 @@
  * page was opened with `?test=1` or the core reports `testHooks: true` in `app.info`. Never
  * active in a normal session.
  *
- *   __mfbeTest.ai.on             -> store.ai.on
+ *   __mfbeTest.ai.on             -> store.ai.on (the assistant is live: the panel visible and
+ *                                   the mode a service; `state().visible` is the panel's own
+ *                                   visibility, inert panel included)
  *   __mfbeTest.ai.status()       -> 'waiting' | 'registered' | 'disabled' | 'coreTooOld'
  *   __mfbeTest.ai.commands()     -> the registry's `ai.*` entries as {id, visible, enabled, stub}
- *                                   (US9's journey: the two inert stubs while disabled, the
- *                                   three live commands while off)
+ *                                   (US9's journey: the live `ai.toggle` and the inert stub of
+ *                                   `ai.ask`, no `ai.cancel`, while disabled; the three live
+ *                                   commands while a service is chosen)
  *   __mfbeTest.ai.state()        -> store.ai without the catalogue instance
  *   __mfbeTest.ai.lastRequest()  -> the last request's summary {id, state, exchanges,
  *                                   validations: [{durationMs}], fromXmlCalls, changes}

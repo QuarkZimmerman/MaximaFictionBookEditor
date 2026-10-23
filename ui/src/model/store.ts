@@ -101,19 +101,26 @@ export interface AssistantRequestView {
 }
 
 /**
- * The AI assistant's state (feature 005 data-model §3.1; never persisted): `on` is false at
- * every start (FR-090) and flips only through the user's `ai.toggle` and the transitions of
- * §3.3; `width` mirrors `session.aiPanelWidth` like `treeWidth` mirrors `session.treeWidth`
- * (adopted from the first settings snapshot, written back by the divider's drag end through the
- * debounced session save); `loaded` records the one import of the lazy chunk; `catalogue`, the
- * `request` and the `conversation` exist only while `on`; `panelFocus` is set by the popup's
- * "Continue in panel" and `contextLengthHint` by Fetch models and overflow messages - in memory
- * only, never a setting (review C13); `customModels` is the last *Fetch models* answer of the
- * settings page (US8, data-model §2.4): the models the custom service listed, kept with the
- * address they were fetched from so that the active target takes `tools` and `contextLength`
- * from it while the chosen model is among them - transient as well, never a setting.
+ * The AI assistant's state (feature 005 data-model §3.1). `visible` is the panel's visibility
+ * (FR-040 as amended 2026-10-23): it mirrors `session.aiPanelVisible` like `treeVisible`
+ * mirrors `session.treeVisible` - adopted from the first settings snapshot (true at the first
+ * start), flipped by the user's `ai.toggle` and the panel's close button, written back through
+ * the debounced session save - and is independent of the mode: a visible panel is *live* while
+ * `ai.mode` is a service and *inert* while it is `disabled` (FR-096). `on` is the live state -
+ * `visible` and enabled, the chunk imported and the catalogue instance built - derived by the
+ * feature (`ai/index.ts`) and never set by the user directly (`on ⇒ visible`); `width` mirrors
+ * `session.aiPanelWidth` like `treeWidth` mirrors `session.treeWidth` (adopted from the first
+ * snapshot, written back by the divider's drag end). Nothing else is persisted: `loaded`
+ * records the one import of the lazy chunk; `catalogue`, the `request` and the `conversation`
+ * exist only while `on`; `panelFocus` is set by the popup's "Continue in panel" and
+ * `contextLengthHint` by Fetch models and overflow messages - in memory only, never a setting
+ * (review C13); `customModels` is the last *Fetch models* answer of the settings page (US8,
+ * data-model §2.4): the models the custom service listed, kept with the address they were
+ * fetched from so that the active target takes `tools` and `contextLength` from it while the
+ * chosen model is among them - transient as well, never a setting.
  */
 export interface AssistantState {
+  visible: boolean;
   on: boolean;
   width: number;
   loaded: boolean;
@@ -193,7 +200,7 @@ export interface AppState {
   /** Toolbar layout changes sent to the core and not answered yet (app/toolbarLayouts.ts). */
   layoutSavesPending: number;
   uiLanguage: UiLanguage;
-  /** The AI assistant (feature 005): off at every start, never persisted. */
+  /** The AI assistant (feature 005): the panel's visibility and width mirror two session keys. */
   ai: AssistantState;
 }
 
@@ -211,14 +218,21 @@ export const DEFAULT_TREE_WIDTH = 260;
 /** The default of `session.aiPanelWidth` (feature 005 resource-formats §B; data-model §3.2). */
 export const DEFAULT_AI_PANEL_WIDTH = 360;
 
+/** The default of `session.aiPanelVisible` (feature 005 FR-040): the panel is open at the first start. */
+export const DEFAULT_AI_PANEL_VISIBLE = true;
+
 /** An empty conversation (feature 005 data-model §5.1): the state while the assistant is off. */
 export function emptyConversation(): AssistantConversation {
   return { docId: null, messages: [], activity: [], droppedTurns: 0 };
 }
 
-/** The assistant's state at start-up: off, nothing loaded, the default width until the settings arrive. */
+/**
+ * The assistant's state at start-up: not live, nothing loaded, the panel's visibility and
+ * width at their defaults until the settings arrive (the first snapshot adopts the stored ones).
+ */
 export function createAssistantState(overrides: Partial<AssistantState> = {}): AssistantState {
   return {
+    visible: DEFAULT_AI_PANEL_VISIBLE,
     on: false,
     width: DEFAULT_AI_PANEL_WIDTH,
     loaded: false,
@@ -514,8 +528,18 @@ export const actions = {
     store.setState((s) => (s.ai.width === width ? {} : { ai: { ...s.ai, width } }));
   },
 
-  /** Changes part of the assistant's state (feature 005 data-model §3); `width` has its own action. */
-  updateAi(store: AppStore, patch: Partial<Omit<AssistantState, 'width'>>): void {
+  /**
+   * The user showed or hid the AI panel (feature 005 FR-040 as amended: View → AI Assistant,
+   * the hotkey, the toolbar button, the close button), written back like `treeVisible`. The
+   * live state (`on`) is the feature's to follow (`ai/index.ts` turns the assistant off before
+   * it hides the panel and on after it shows one while the mode is a service).
+   */
+  setAiPanelVisible(store: AppStore, visible: boolean): void {
+    store.setState((s) => (s.ai.visible === visible ? {} : { ai: { ...s.ai, visible } }));
+  },
+
+  /** Changes part of the assistant's state (feature 005 data-model §3); `width` and `visible` have their own actions. */
+  updateAi(store: AppStore, patch: Partial<Omit<AssistantState, 'width' | 'visible'>>): void {
     store.setState((s) => ({ ai: { ...s.ai, ...patch } }));
   },
 
@@ -542,9 +566,11 @@ export const actions = {
     }
     // A core without the key (before API minor 3) leaves the default width.
     const storedWidth = settings.session.treeWidth as number | undefined;
-    // Likewise the AI panel width (API minor 4, feature 005): from the first snapshot only; the
-    // on/off state is never a setting (FR-090), so nothing else of `ai` comes from here.
+    // Likewise the AI panel's width and visibility (API minor 4, feature 005): from the first
+    // snapshot only - a core without the visibility key leaves the panel open, the default of
+    // FR-040; whether the visible panel is live follows the mode (the feature's), not a setting.
     const storedPanelWidth = settings.session.aiPanelWidth as number | undefined;
+    const storedPanelVisible = settings.session.aiPanelVisible as boolean | undefined;
     store.setState((s) => ({
       settings,
       fastMode: settings.view.fastMode,
@@ -558,6 +584,10 @@ export const actions = {
               ...s.ai,
               width:
                 typeof storedPanelWidth === 'number' ? storedPanelWidth : DEFAULT_AI_PANEL_WIDTH,
+              visible:
+                typeof storedPanelVisible === 'boolean'
+                  ? storedPanelVisible
+                  : DEFAULT_AI_PANEL_VISIBLE,
             },
           }),
     }));

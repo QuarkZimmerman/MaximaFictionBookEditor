@@ -122,6 +122,7 @@ function settings(view: Partial<Settings['view']> = {}): Settings {
       toolbarLayouts: {},
       lastFileDialogFolder: '',
       aiPanelWidth: 360,
+      aiPanelVisible: true,
     },
     ai: {
       mode: 'free',

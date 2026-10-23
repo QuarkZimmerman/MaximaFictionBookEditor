@@ -36,6 +36,7 @@ import path from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 
 import {
+  ensureAssistantOn,
   expect,
   fixtureBook,
   recordOutside,
@@ -56,6 +57,10 @@ interface LastRequest {
   state: string;
   exchanges: number;
   changes: number;
+  /** FR-106: where the changes of a committed request went. */
+  places?: { total: number; body: number; description: number; fields: string[] };
+  /** FR-106: a words-only end whose text claimed a change no tool made. */
+  claimedChange?: boolean;
 }
 
 interface ChatMessage {
@@ -160,10 +165,12 @@ async function toggleFromMenu(page: Page): Promise<void> {
   await page.getByTestId('menu-view-toggle').click();
 }
 
+/**
+ * The assistant on: the panel is restored as the session left it (FR-040 as amended, T100) -
+ * live already at start, or shown through View → AI Assistant when hidden.
+ */
 async function turnOn(page: Page): Promise<void> {
-  await toggleFromMenu(page);
-  await expect(panel(page)).toBeVisible();
-  await expect.poll(() => assistantOn(page)).toBe(true);
+  await ensureAssistantOn(page);
 }
 
 /** The id of the last request so far (null before the first) - `waitForEnd` waits for a newer one. */
@@ -262,18 +269,22 @@ test.describe('US3 (005) - the AI assistant panel', () => {
     await standin.reset();
     await core.resetAiRequests();
     await core.setAiResolve([]);
-    await core.rpc('settings.set', { patch: { ai: null } });
+    // The AI settings back to their defaults and the panel hidden, as a session that closed it
+    // restores it (FR-040 as amended 2026-10-23): the journeys turn the assistant on themselves.
+    await core.rpc('settings.set', { patch: { ai: null, session: { aiPanelVisible: false } } });
   });
 
   test.afterEach(async ({ core }) => {
     if (!core.hasCore) return;
     expect(outside).toEqual([]);
     await core
-      .rpc('settings.set', { patch: { ai: null, session: { aiPanelWidth: DEFAULT_WIDTH } } })
+      .rpc('settings.set', {
+        patch: { ai: null, session: { aiPanelWidth: DEFAULT_WIDTH, aiPanelVisible: true } },
+      })
       .catch(() => {});
   });
 
-  test('1+2. nothing at start but the entry and the button; turn on → the panel at 360 px with service, link, empty conversation and context entry, no request, nothing changed; the divider is stored, presets clamped; a reload turns it off', async ({
+  test('1+2. nothing at start but the entry and the button (the panel hidden by the session); turn on → the panel at 360 px with service, link, empty conversation and context entry, no request, nothing changed; the divider is stored, presets clamped; a reload restores the open panel', async ({
     core,
     page,
     standin,
@@ -281,7 +292,8 @@ test.describe('US3 (005) - the AI assistant panel', () => {
     await openBook(core, page, standin);
     const xmlBefore = await documentXml(page);
 
-    // Scenario 1: no panel, no popup, no context entry; the View entry and the toolbar button.
+    // Scenario 1 (the session restores the panel hidden): no panel, no popup, no context
+    // entry; the View entry and the toolbar button.
     await expect(panel(page)).toHaveCount(0);
     await expect(page.getByTestId('ai-splitter')).toHaveCount(0);
     await expect(page.getByTestId('dialog-ai-ask')).toHaveCount(0);
@@ -357,7 +369,38 @@ test.describe('US3 (005) - the AI assistant panel', () => {
       })
       .toBe(committed);
 
-    // A reload: the assistant is off again (FR-090) - the width is the one thing remembered.
+    // The visibility is remembered like the width (FR-040 as amended): `session.aiPanelVisible`
+    // is true now, and a reload restores the panel open and live, at the stored width, with an
+    // empty conversation and no request (FR-091).
+    await expect
+      .poll(
+        async () =>
+          (await core.rpc<{ session: { aiPanelVisible: boolean } }>('settings.get')).session
+            .aiPanelVisible,
+      )
+      .toBe(true);
+    await page.reload();
+    await page.getByTestId('app-root').waitFor();
+    await expect(page.getByTestId('status-message')).toHaveText(
+      await pageText(page, 'status.ready'),
+    );
+    await expect(panel(page)).toBeVisible();
+    await expect(panel(page)).toHaveAttribute('data-ai-width', String(committed));
+    await expect.poll(() => assistantOn(page)).toBe(true);
+    await expect(page.getByTestId('ai-empty')).toBeVisible();
+    await expect(page.getByTestId('toolbar-ai.toggle')).toBeVisible();
+    expect(await standin.requests()).toHaveLength(0);
+    // The close button hides it; the hidden state is remembered the same way.
+    await page.getByTestId('ai-panel-close').click();
+    await expect(panel(page)).toHaveCount(0);
+    await expect.poll(() => assistantOn(page)).toBe(false);
+    await expect
+      .poll(
+        async () =>
+          (await core.rpc<{ session: { aiPanelVisible: boolean } }>('settings.get')).session
+            .aiPanelVisible,
+      )
+      .toBe(false);
     await page.reload();
     await page.getByTestId('app-root').waitFor();
     await expect(page.getByTestId('status-message')).toHaveText(
@@ -365,7 +408,6 @@ test.describe('US3 (005) - the AI assistant panel', () => {
     );
     await expect(panel(page)).toHaveCount(0);
     await expect.poll(() => assistantOn(page)).toBe(false);
-    await expect(page.getByTestId('toolbar-ai.toggle')).toBeVisible();
 
     // Presets: a stored 200 is applied as 280, a stored 900 as 800 (the core keeps the values).
     for (const [stored, applied] of [
@@ -378,7 +420,7 @@ test.describe('US3 (005) - the AI assistant panel', () => {
       await expect(page.getByTestId('status-message')).toHaveText(
         await pageText(page, 'status.ready'),
       );
-      await page.getByTestId('toolbar-ai.toggle').click();
+      await turnOn(page);
       await expect(panel(page)).toHaveAttribute('data-ai-width', String(stored));
       const shown = (await panel(page).boundingBox())!;
       expect(Math.abs(shown.width - applied)).toBeLessThanOrEqual(1);
@@ -561,14 +603,16 @@ test.describe('US3 (005) - the AI assistant panel', () => {
       }),
     );
     expect(kinds[kinds.length - 1]).toBe('request.done');
+    // The end line names the count and the place of the changes (FR-106): three in the bodies.
     const donePrefix = (
-      await pageText(page, 'ai.activity.requestDone', {
-        count: 3,
+      await pageText(page, 'ai.activity.requestDonePlaces', {
+        changes: await pageText(page, 'ai.activity.changesBody', { count: 3 }),
         exchanges: await pageText(page, 'ai.activity.exchanges', { count: 9 }),
         elapsed: 'ELAPSED',
       })
     ).split('ELAPSED')[0]!;
     expect(rows[rows.length - 1]!.text).toContain(donePrefix);
+    expect(done).toMatchObject({ places: { total: 3, body: 3, description: 0, fields: [] } });
     const messages = await messageRows(page);
     expect(messages[0]).toEqual({ role: 'user', text: instruction });
     expect(messages[messages.length - 1]).toEqual({
@@ -1106,5 +1150,294 @@ test.describe('US3 (005) - the AI assistant panel', () => {
     expect(['committed', 'answered', 'askedBack', 'failed', 'cancelled', 'rejected']).toContain(
       (await lastRequest(page))!.state,
     );
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* FR-106: every ended request tells the user what happened to the book       */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The rc.1 smoke test (requester, 2026-10-23): asked to translate the book's title, the
+ * assistant (gpt-oss-120b) changed `title-info/book-title` through `set_description` and said
+ * so, but the Body view - which does not display the description - showed no change and the
+ * end line said only "Done: 1 change in 3 exchanges". The three stand-in scenarios replay the
+ * real exchange (the model's two calls as recorded) and its two neighbours:
+ *  - the title changed through `set_description`: the end line and the mark under the answer
+ *    name the Description view and the field, the Description view shows the new title, one
+ *    undo restores the XML byte for byte;
+ *  - the same words with no tool call: "answered", never "Done", the note that no change was
+ *    made, the book untouched and not modified;
+ *  - a body change beside a description change: both places named.
+ */
+test.describe('US3 (005) - the end line names the place of the changes (FR-106)', () => {
+  let outside: string[] = [];
+
+  test.beforeEach(async ({ core, standin, context }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+    outside = await recordOutside(context);
+    await standin.reset();
+    await core.resetAiRequests();
+    await core.setAiResolve([]);
+    await core.rpc('settings.set', { patch: { ai: null } });
+  });
+
+  test.afterEach(async ({ core }) => {
+    if (!core.hasCore) return;
+    expect(outside).toEqual([]);
+    await core
+      .rpc('settings.set', { patch: { ai: null, session: { aiPanelWidth: DEFAULT_WIDTH } } })
+      .catch(() => {});
+  });
+
+  const TITLE_RU = 'Книга для помощника';
+  const TITLE_EN = 'Book for the Assistant';
+  const claim = `The book's title has been translated to English: “${TITLE_EN}”.`;
+  const bookTitleOf = (xml: string) => /<book-title>([^<]*)<\/book-title>/.exec(xml)?.[1];
+
+  /**
+   * The assistant on with its panel shown: through View → AI Assistant unless it is on already
+   * (FR-040 as amended 2026-10-23: the panel may be open at the first start, in which case the
+   * entry would hide it).
+   */
+  async function ensureOn(page: Page): Promise<void> {
+    if (!(await assistantOn(page))) await toggleFromMenu(page);
+    await expect(panel(page)).toBeVisible();
+    await expect.poll(() => assistantOn(page)).toBe(true);
+    await expect(input(page)).toBeVisible();
+  }
+
+  /** The result mark under the last assistant message (`ai-result-<n>`), or null. */
+  const lastResultMark = (page: Page) =>
+    page.evaluate<{ kind: string | null; text: string | null } | null>(`(() => {
+      const rows = Array.from(document.querySelectorAll('[data-testid^="ai-message-"][data-role="assistant"]'));
+      const last = rows[rows.length - 1];
+      if (!last) return null;
+      const mark = last.querySelector('.mfbe-ai-message-result');
+      return { kind: last.getAttribute('data-result'), text: mark ? mark.textContent : null };
+    })()`);
+
+  test('the title translated through set_description: Done names 1 change in the Description view (book title); the Description view shows it; one undo restores the XML', async ({
+    core,
+    page,
+    standin,
+  }) => {
+    await openBook(core, page, standin);
+    const xmlBefore = await documentXml(page);
+    expect(bookTitleOf(xmlBefore)).toBe(TITLE_RU);
+    await ensureOn(page);
+
+    // The real exchange of 2026-10-23, as gpt-oss-120b made it: get_description, then
+    // set_description with {description: {titleInfo: {bookTitle}}}, then the words.
+    await standin.scenarios([
+      { toolCalls: [{ id: 'c-desc', name: 'get_description', arguments: {} }] },
+      {
+        toolCalls: [
+          {
+            id: 'c-set',
+            name: 'set_description',
+            arguments: { description: { titleInfo: { bookTitle: TITLE_EN } } },
+          },
+        ],
+      },
+      { text: claim },
+    ]);
+    const done = await sendAndWait(page, 'Переведи название книги на английский');
+    expect(done.state).toBe('committed');
+    expect(done.changes).toBe(1);
+    expect(done.places).toEqual({
+      total: 1,
+      body: 0,
+      description: 1,
+      fields: ['titleInfo.bookTitle'],
+    });
+    expect(done.claimedChange).toBeUndefined();
+
+    // The book: the title changed in the description, nothing else; modified.
+    const xmlAfter = await documentXml(page);
+    expect(bookTitleOf(xmlAfter)).toBe(TITLE_EN);
+    expect(xmlAfter.replace(TITLE_EN, TITLE_RU)).toBe(xmlBefore);
+    expect(await isModified(page)).toBe(true);
+
+    // The end line names the count and the place; the activity names the field written.
+    const rows = await activityRows(page);
+    expect(rows.at(-1)!.kind).toBe('request.done');
+    const changes = await pageText(page, 'ai.activity.changesDescriptionFields', {
+      count: 1,
+      fields: await pageText(page, 'ai.activity.field.titleInfo_bookTitle'),
+    });
+    const donePrefix = (
+      await pageText(page, 'ai.activity.requestDonePlaces', {
+        changes,
+        exchanges: await pageText(page, 'ai.activity.exchanges', { count: 3 }),
+        elapsed: 'ELAPSED',
+      })
+    ).split('ELAPSED')[0]!;
+    expect(rows.at(-1)!.text).toContain(donePrefix);
+    expect(rows.at(-1)!.text).not.toContain(TITLE_EN); // never the value written (C14)
+    expect(
+      rows.find((r) => r.kind === 'tool.call' && r.text.includes('titleInfo.bookTitle')),
+    ).toBeTruthy();
+    // The mark under the assistant's words says where the change went.
+    const messages = await messageRows(page);
+    expect(messages.at(-1)).toEqual({ role: 'assistant', text: claim });
+    expect(await lastResultMark(page)).toEqual({
+      kind: 'applied',
+      text: await pageText(page, 'ai.result.applied', { changes }),
+    });
+
+    // The Description view shows the new title (the published document reached the form).
+    await page.getByTestId('view-description').click();
+    await expect(page.getByTestId('description-book-title')).toHaveValue(TITLE_EN);
+    await page.getByTestId('view-body').click();
+    await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
+
+    // One undo step (the panel's Undo) restores the XML byte for byte.
+    await expect(page.getByTestId('ai-undo')).toBeEnabled();
+    await page.getByTestId('ai-undo').click();
+    await expect.poll(() => documentXml(page)).toBe(xmlBefore);
+    await page.getByTestId('view-description').click();
+    await expect(page.getByTestId('description-book-title')).toHaveValue(TITLE_RU);
+  });
+
+  test('the same words with no tool call: answered - never Done - with the note that no change was made; the book untouched', async ({
+    core,
+    page,
+    standin,
+  }) => {
+    await openBook(core, page, standin);
+    const xmlBefore = await documentXml(page);
+    await ensureOn(page);
+
+    await standin.scenario({ text: claim });
+    const answered = await sendAndWait(page, 'Translate the title of the book into English');
+    expect(answered.state).toBe('answered');
+    expect(answered.changes).toBe(0);
+    expect(answered.claimedChange).toBe(true);
+    expect(await documentXml(page)).toBe(xmlBefore);
+    expect(await isModified(page)).toBe(false);
+    await expect(page.getByTestId('ai-undo')).toBeDisabled();
+    await expect(page.getByTestId('toolbar-edit.undo')).toBeDisabled();
+    await expect(banner(page)).toHaveCount(0);
+
+    const rows = await activityRows(page);
+    expect(rows.map((r) => r.kind)).not.toContain('request.done');
+    expect(rows.at(-1)!.kind).toBe('request.answered');
+    expect(rows.at(-1)!.text).toBe(
+      `${await pageText(page, 'ai.activity.requestAnswered')} (${await pageText(page, 'ai.activity.claimedChange')})`,
+    );
+    const messages = await messageRows(page);
+    expect(messages.at(-1)).toEqual({ role: 'assistant', text: claim });
+    expect(await lastResultMark(page)).toEqual({
+      kind: 'claimedChange',
+      text: await pageText(page, 'ai.result.claimedChange'),
+    });
+
+    // A plain answer carries no such note.
+    await standin.reset();
+    await standin.scenario({ text: 'В книге 2 сноски.' });
+    const plain = await sendAndWait(page, 'How many footnotes does the book have?');
+    expect(plain.state).toBe('answered');
+    expect(plain.claimedChange).toBeUndefined();
+    expect((await activityRows(page)).at(-1)!.text).toBe(
+      await pageText(page, 'ai.activity.requestAnswered'),
+    );
+    expect(await lastResultMark(page)).toEqual({ kind: null, text: null });
+  });
+
+  test('a body change beside a description change: both places named; a body change alone names the body text', async ({
+    core,
+    page,
+    standin,
+  }) => {
+    await openBook(core, page, standin);
+    const xmlBefore = await documentXml(page);
+    await ensureOn(page);
+
+    await standin.scenarios([
+      {
+        toolCalls: [
+          {
+            id: 'c-text',
+            name: 'set_text',
+            arguments: { node: 'body[1]/section[1]/p[1]', text: 'Поезд пришёл вовремя.' },
+          },
+          {
+            id: 'c-set',
+            name: 'set_description',
+            arguments: { description: { titleInfo: { bookTitle: TITLE_EN, keywords: 'train' } } },
+          },
+        ],
+      },
+      { text: 'Готово: абзац и название изменены.' },
+    ]);
+    const mixed = await sendAndWait(page, 'Fix the first paragraph and translate the title');
+    expect(mixed.state).toBe('committed');
+    expect(mixed.changes).toBe(2);
+    expect(mixed.places).toEqual({
+      total: 2,
+      body: 1,
+      description: 1,
+      fields: ['titleInfo.bookTitle', 'titleInfo.keywords'],
+    });
+    const xmlAfter = await documentXml(page);
+    expect(xmlAfter).toContain('<p>Поезд пришёл вовремя.</p>');
+    expect(bookTitleOf(xmlAfter)).toBe(TITLE_EN);
+    expect(xmlAfter).toContain('<keywords>train</keywords>');
+    const both = [
+      await pageText(page, 'ai.activity.changesBody', { count: 1 }),
+      await pageText(page, 'ai.activity.changesDescriptionFields', {
+        count: 1,
+        fields: [
+          await pageText(page, 'ai.activity.field.titleInfo_bookTitle'),
+          await pageText(page, 'ai.activity.field.titleInfo_keywords'),
+        ].join(', '),
+      }),
+    ].join(', ');
+    let rows = await activityRows(page);
+    expect(rows.at(-1)!.kind).toBe('request.done');
+    expect(rows.at(-1)!.text).toContain(
+      (
+        await pageText(page, 'ai.activity.requestDonePlaces', {
+          changes: both,
+          exchanges: await pageText(page, 'ai.activity.exchanges', { count: 2 }),
+          elapsed: 'ELAPSED',
+        })
+      ).split('ELAPSED')[0],
+    );
+    expect(await lastResultMark(page)).toEqual({
+      kind: 'applied',
+      text: await pageText(page, 'ai.result.applied', { changes: both }),
+    });
+    await page.getByTestId('ai-undo').click();
+    await expect.poll(() => documentXml(page)).toBe(xmlBefore);
+
+    // A body change alone.
+    await standin.reset();
+    await standin.scenarios([
+      {
+        toolCalls: [
+          {
+            name: 'set_text',
+            arguments: { node: 'body[1]/section[1]/p[1]', text: 'Поезд пришёл поздно.' },
+          },
+        ],
+      },
+      { text: 'Абзац исправлен.' },
+    ]);
+    const body = await sendAndWait(page, 'Fix the first paragraph');
+    expect(body.state).toBe('committed');
+    expect(body.places).toEqual({ total: 1, body: 1, description: 0, fields: [] });
+    rows = await activityRows(page);
+    expect(rows.at(-1)!.text).toContain(
+      (
+        await pageText(page, 'ai.activity.requestDonePlaces', {
+          changes: await pageText(page, 'ai.activity.changesBody', { count: 1 }),
+          exchanges: await pageText(page, 'ai.activity.exchanges', { count: 2 }),
+          elapsed: 'ELAPSED',
+        })
+      ).split('ELAPSED')[0],
+    );
+    expect(bookTitleOf(await documentXml(page))).toBe(TITLE_RU);
   });
 });

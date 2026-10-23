@@ -179,9 +179,10 @@ describe('store', () => {
     expect(store.getState().fastMode).toBe(true);
   });
 
-  it('carries the feature 005 settings (the ai group, session.aiPanelWidth) in the snapshot', () => {
-    // resource-formats.md §B: the defaults of the `ai` group and the panel width travel with
-    // every settings snapshot like the other groups - nothing of them is kept apart.
+  it('carries the feature 005 settings (the ai group, session.aiPanelWidth, session.aiPanelVisible) in the snapshot', () => {
+    // resource-formats.md §B: the `ai` group and the panel's width and visibility travel with
+    // every settings snapshot like the other groups - nothing of them is kept apart. (The
+    // fixture keeps a service mode for the tests' sake; the stored default is `disabled`.)
     const store = createAppStore();
     const stored = defaultSettings();
     expect(stored.ai).toEqual({
@@ -192,6 +193,7 @@ describe('store', () => {
       agreements: [],
     });
     expect(stored.session.aiPanelWidth).toBe(360);
+    expect(stored.session.aiPanelVisible).toBe(true);
     stored.ai = {
       ...stored.ai,
       mode: 'custom',
@@ -240,10 +242,12 @@ describe('store', () => {
     expect(older.getState().treeWidth).toBe(260);
   });
 
-  it('keeps the AI panel width like the tree width and never takes the on/off state from the settings (feature 005)', () => {
+  it("keeps the AI panel width and visibility like the tree pane's and never takes the live state from the settings (feature 005)", () => {
     const store = createAppStore();
-    // Off at every start (FR-090), nothing loaded, an empty conversation, the default width.
+    // Not live at start, nothing loaded, an empty conversation, the panel open (FR-040 as
+    // amended: the default of `session.aiPanelVisible`) at the default width.
     expect(store.getState().ai).toEqual({
+      visible: true,
       on: false,
       width: 360,
       loaded: false,
@@ -255,46 +259,61 @@ describe('store', () => {
       customModels: null,
     });
 
-    // The start-up read: the stored width applies; nothing else of `ai` changes.
+    // The start-up read: the stored width and visibility apply; nothing else of `ai` changes.
     const stored = defaultSettings();
     stored.session.aiPanelWidth = 520;
+    stored.session.aiPanelVisible = false;
     actions.setSettings(store, stored);
     expect(store.getState().ai.width).toBe(520);
+    expect(store.getState().ai.visible).toBe(false);
     expect(store.getState().ai.on).toBe(false);
 
     // A drag ends: the window's own width; a later snapshot (before the delayed save) still
-    // says 520 and must not undo the drag.
+    // says 520 and must not undo the drag. The same for the visibility.
     actions.setAiPanelWidth(store, 444);
     expect(store.getState().ai.width).toBe(444);
     const before = store.getState().ai;
     actions.setAiPanelWidth(store, 444); // the same width: no new state object
     expect(store.getState().ai).toBe(before);
+    actions.setAiPanelVisible(store, true);
+    expect(store.getState().ai.visible).toBe(true);
+    const shown = store.getState().ai;
+    actions.setAiPanelVisible(store, true); // the same visibility: no new state object
+    expect(store.getState().ai).toBe(shown);
     const reported = defaultSettings();
     reported.session.aiPanelWidth = 520;
+    reported.session.aiPanelVisible = false;
     actions.setSettings(store, reported);
     expect(store.getState().ai.width).toBe(444);
+    expect(store.getState().ai.visible).toBe(true);
 
-    // The other fields change through `updateAi`; `width` is not among them.
+    // The other fields change through `updateAi`; `width` and `visible` are not among them.
     actions.updateAi(store, { on: true, loaded: true, contextLengthHint: 131072 });
     expect(store.getState().ai).toMatchObject({
+      visible: true,
       on: true,
       loaded: true,
       width: 444,
       contextLengthHint: 131072,
     });
-    // A settings snapshot - even the first one - never turns the assistant on or off.
+    // A settings snapshot - even the first one - never turns the assistant on or off: the
+    // live state is the feature's, derived from the visibility and the mode.
     const fresh = createAppStore();
     actions.updateAi(fresh, { on: true });
     actions.setSettings(fresh, defaultSettings());
     expect(fresh.getState().ai.on).toBe(true);
     expect(fresh.getState().ai.width).toBe(360);
+    expect(fresh.getState().ai.visible).toBe(true);
 
-    // A first snapshot without the key (a core before API minor 4) leaves the default.
+    // A first snapshot without the keys (a core before API minor 4, or before the visibility
+    // key) leaves the defaults: the default width, the panel open.
     const older = createAppStore();
     const legacy = defaultSettings();
     delete (legacy.session as Partial<typeof legacy.session>).aiPanelWidth;
+    delete (legacy.session as Partial<typeof legacy.session>).aiPanelVisible;
     actions.setSettings(older, legacy);
     expect(older.getState().ai.width).toBe(360);
+    expect(older.getState().ai.visible).toBe(true);
   });
 
   it('useAppState re-renders on selected changes only', () => {

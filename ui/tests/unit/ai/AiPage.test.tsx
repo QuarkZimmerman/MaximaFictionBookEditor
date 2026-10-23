@@ -22,7 +22,7 @@
 
 import { createHash } from 'node:crypto';
 
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { CommandContext } from '@/app/commands';
@@ -182,7 +182,7 @@ const settingsSetCalls = (rpc: FakeRpc) =>
     .map((call) => (call.params as { patch: Record<string, unknown> }).patch);
 
 describe('AiPage - the radios and the list', () => {
-  it('offers Free / own service / Disabled with Free checked and the custom fields disabled', async () => {
+  it('offers Free / own service / Disabled with the saved mode checked and the custom fields disabled', async () => {
     const { user, onChange } = await setup();
     expect(screen.getByTestId('settings-ai-mode-free')).toBeChecked();
     expect(screen.getByTestId('settings-ai-mode-custom')).not.toBeChecked();
@@ -196,6 +196,26 @@ describe('AiPage - the radios and the list', () => {
     expect(onChange).toHaveBeenLastCalledWith({ mode: 'disabled' });
     await user.click(screen.getByTestId('settings-ai-mode-custom'));
     expect(onChange).toHaveBeenLastCalledWith({ mode: 'custom' });
+  });
+
+  it('shows Disabled checked for a fresh installation - the stored default (FR-001) - and for a draft without the ai group; Free selects the first bundled entry', async () => {
+    const fresh = defaultSettings();
+    fresh.ai.mode = 'disabled';
+    const { user, onChange } = await setup({ settings: fresh });
+    expect(screen.getByTestId('settings-ai-mode-disabled')).toBeChecked();
+    expect(screen.getByTestId('settings-ai-mode-free')).not.toBeChecked();
+    expect(screen.queryByTestId('settings-ai-test')).not.toBeInTheDocument();
+    // Free chosen on the page: the drop-down with the first bundled entry selected (FR-002).
+    await user.click(screen.getByTestId('settings-ai-mode-free'));
+    expect(onChange).toHaveBeenLastCalledWith({ mode: 'free' });
+    cleanup();
+
+    // A draft without the group (an older settings shape) reads as the default: Disabled.
+    const legacy = defaultSettings();
+    delete (legacy as Partial<Settings>).ai;
+    await setup({ settings: legacy });
+    expect(screen.getByTestId('settings-ai-mode-disabled')).toBeChecked();
+    expect(screen.getByTestId('settings-ai-mode-free')).not.toBeChecked();
   });
 
   it('lists the entries in order as "<name> — <model>" with the first selected, limits and terms', async () => {

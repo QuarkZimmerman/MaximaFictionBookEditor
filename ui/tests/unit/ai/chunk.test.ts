@@ -22,7 +22,13 @@ const NODE_MODULES = path.join(UI_ROOT, 'node_modules');
 
 describe('the ai-assistant chunk rule', () => {
   it('captures every module under src/ai/ but the static set, and the MCP SDK packages', () => {
-    for (const file of ['index.ts', 'address.ts', 'agreements.ts', 'testHooks.ts']) {
+    for (const file of [
+      'index.ts',
+      'address.ts',
+      'agreements.ts',
+      'testHooks.ts',
+      'DisabledPanel.tsx', // the inert panel of FR-096 renders without the chunk (T100)
+    ]) {
       expect(isAiAssistantModule(path.join(AI, file)), file).toBe(false);
     }
     for (const file of [

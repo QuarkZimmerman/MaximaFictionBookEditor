@@ -102,6 +102,27 @@ export function fixtureBook(name: string): string {
   return path.join(REPO_ROOT, 'tests', 'fixtures', 'books', name);
 }
 
+/**
+ * The AI assistant on with its panel visible (feature 005, FR-040 as amended 2026-10-23): the
+ * panel is restored as the session left it - open at the first start and live when a service
+ * is chosen, or hidden when the previous journey closed it -, so the journeys that need the
+ * assistant wait for the restore or show the panel through View → AI Assistant. Reads the
+ * panel's visibility from the test hooks (installed with the first settings snapshot) rather
+ * than `on`, which the asynchronous chunk import flips a moment later.
+ */
+export async function ensureAssistantOn(page: Page): Promise<void> {
+  await expect
+    .poll(() => page.evaluate<boolean>('typeof window.__mfbeTest?.ai?.state === "function"'))
+    .toBe(true);
+  const visible = await page.evaluate<boolean>('window.__mfbeTest.ai.state().visible');
+  if (!visible) {
+    await page.getByTestId('menu-view').click();
+    await page.getByTestId('menu-view-toggle').click();
+  }
+  await expect(page.getByTestId('ai-panel')).toBeVisible();
+  await expect.poll(() => page.evaluate<boolean>('window.__mfbeTest.ai.on')).toBe(true);
+}
+
 export const PREVIEW_PORT = Number(process.env.MFBE_PREVIEW_PORT ?? 4173);
 export const PREVIEW_URL = `http://127.0.0.1:${PREVIEW_PORT}/`;
 

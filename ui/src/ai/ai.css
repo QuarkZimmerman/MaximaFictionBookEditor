@@ -134,6 +134,17 @@
   color: var(--status-bad, #c42b1c);
 }
 
+/* The result of a request under its final words (FR-106): where the changes went, or that a
+   change the words claim was never made - the latter in the warning colour, upright. */
+.mfbe-ai-message-result {
+  font-style: normal;
+}
+
+.mfbe-ai-message-result-claimedChange {
+  color: var(--status-bad, #c42b1c);
+  font-weight: 600;
+}
+
 /* The activity list (FR-042): every operation of the request as it happens, in a column of its
    own under the conversation, the newest entry kept in view. */
 .mfbe-ai-activity-section {

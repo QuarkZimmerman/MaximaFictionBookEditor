@@ -217,7 +217,8 @@ describe('SettingsFeature session persistence', () => {
     expect(current.session.aiPanelWidth).toBe(480);
     expect(store.getState().settings?.session.aiPanelWidth).toBe(480);
 
-    // The same width again: nothing to write; the on/off state is never written (FR-090).
+    // The same width again: nothing to write; the live state is never written (only the
+    // panel's visibility is, below - FR-040 as amended).
     actions.setAiPanelWidth(store, 480);
     actions.updateAi(store, { on: true });
     await vi.advanceTimersByTimeAsync(300);
@@ -233,10 +234,24 @@ describe('SettingsFeature session persistence', () => {
       patch: { session: { treeWidth: 300, aiPanelWidth: 320 } },
     });
 
-    // A core without the key (before API minor 4) is not sent the width.
+    // The panel hidden and shown: `session.aiPanelVisible` written like `treeVisible`.
+    actions.setAiPanelVisible(store, false);
+    await vi.advanceTimersByTimeAsync(300);
+    const third = rpc.calls.filter((c) => c.method === 'settings.set');
+    expect(third).toHaveLength(3);
+    expect(third[2]!.params).toEqual({ patch: { session: { aiPanelVisible: false } } });
+    expect(current.session.aiPanelVisible).toBe(false);
+    actions.setAiPanelVisible(store, true);
+    await feature.flushSessionSave();
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')[3]!.params).toEqual({
+      patch: { session: { aiPanelVisible: true } },
+    });
+
+    // A core without the keys (before API minor 4) is not sent the width or the visibility.
     const legacy = createAppStore();
     const legacySettings = defaultSettings();
     delete (legacySettings.session as Partial<typeof legacySettings.session>).aiPanelWidth;
+    delete (legacySettings.session as Partial<typeof legacySettings.session>).aiPanelVisible;
     const legacyRpc = fakeRpc({
       'hotkeys.get': rpcError(-32601, 'Method not found'),
       'settings.set': () => ({ settings: legacySettings, restartRequired: false }),
@@ -249,6 +264,7 @@ describe('SettingsFeature session persistence', () => {
     actions.setSettings(legacy, legacySettings);
     await legacyFeature.attach(legacyRpc.client);
     actions.setAiPanelWidth(legacy, 500);
+    actions.setAiPanelVisible(legacy, false);
     await vi.advanceTimersByTimeAsync(300);
     expect(legacyRpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(0);
   });

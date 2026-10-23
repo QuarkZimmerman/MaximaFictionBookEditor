@@ -33,6 +33,7 @@ import type { Page } from '@playwright/test';
 
 import type { JsonValue } from './fixtures/ai-standin.mjs';
 import {
+  ensureAssistantOn,
   expect,
   fixtureBook,
   recordOutside,
@@ -113,7 +114,6 @@ const documentXml = (page: Page) => page.evaluate<string>('window.__mfbeTest.scr
 const lastRequest = (page: Page) =>
   page.evaluate<LastRequest | null>('window.__mfbeTest.ai.lastRequest()');
 const lastRequestId = async (page: Page) => (await lastRequest(page))?.id ?? null;
-const assistantOn = (page: Page) => page.evaluate<boolean>('window.__mfbeTest.ai.on');
 const isModified = (page: Page) =>
   page.title().then((title) => title.startsWith('*') || /\* - /.test(title));
 const scriptIds = (page: Page) =>
@@ -208,11 +208,12 @@ async function openBook(core: CoreHandle, page: Page, standin: StandinHandle): P
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
 }
 
+/**
+ * The assistant on: the panel is restored as the session left it (FR-040 as amended, T100) -
+ * live already at start, or shown through View → AI Assistant when hidden.
+ */
 async function turnOn(page: Page): Promise<void> {
-  await page.getByTestId('menu-view').click();
-  await page.getByTestId('menu-view-toggle').click();
-  await expect(page.getByTestId('ai-panel')).toBeVisible();
-  await expect.poll(() => assistantOn(page)).toBe(true);
+  await ensureAssistantOn(page);
 }
 
 /** Sends from the panel without waiting for the end (a dialog or a cancel follows). */

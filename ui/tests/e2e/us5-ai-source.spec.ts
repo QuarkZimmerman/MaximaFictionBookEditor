@@ -31,6 +31,7 @@ import type { Locator, Page } from '@playwright/test';
 
 import type { JsonValue } from './fixtures/ai-standin.mjs';
 import {
+  ensureAssistantOn,
   expect,
   fixtureBook,
   recordOutside,
@@ -137,11 +138,12 @@ async function openBook(core: CoreHandle, page: Page, standin: StandinHandle): P
   await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
 }
 
+/**
+ * The assistant on: the panel is restored as the session left it (FR-040 as amended, T100) -
+ * live already at start, or shown through View → AI Assistant when hidden.
+ */
 async function turnOn(page: Page): Promise<void> {
-  await page.getByTestId('menu-view').click();
-  await page.getByTestId('menu-view-toggle').click();
-  await expect(page.getByTestId('ai-panel')).toBeVisible();
-  await expect.poll(() => page.evaluate<boolean>('window.__mfbeTest.ai.on')).toBe(true);
+  await ensureAssistantOn(page);
 }
 
 async function showSource(page: Page): Promise<string> {

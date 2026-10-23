@@ -110,6 +110,67 @@ export function isQuestion(text: string): boolean {
   return false;
 }
 
+/*
+ * A text that claims a change (FR-106). The rc.1 smoke test: the assistant answered "the
+ * title has been translated" while no change tool had run, and the answer was read as done.
+ * A text-only end with no accepted change is a claim when one of its sentences says, in the
+ * past tense and without a negation, a modal or a condition, that something of the book was
+ * changed - English, Russian and Ukrainian wordings (the model answers in the interface or the
+ * user's language, §2.3). A heuristic: a missed claim leaves the "answered — the book was not
+ * changed" line alone; a false positive adds a true note (nothing was changed).
+ */
+
+/** English: a perfect / passive / simple-past form of a change verb. */
+const CLAIM_EN =
+  /\b(?:(?:has|have|had|is|are|was|were)\s+(?:been\s+|now\s+|already\s+|successfully\s+)?|(?:i|i've|we|we've)\s+(?:have\s+|'ve\s+)?(?:now\s+|already\s+|successfully\s+|just\s+)?)(?:changed|translated|renamed|replaced|updated|corrected|fixed|inserted|removed|deleted|added|rewritten|edited|applied|modified|adjusted|converted|moved|reworded|rephrased|capitalised|capitalized|shortened|expanded)\b/i;
+/** English: a done-line ("Done.", "Done: the title is now …") or "X is now Y". */
+const CLAIM_EN_DONE =
+  /^\s*done\b[.!:]|\b(?:title|text|paragraph|section|heading|name|description|annotation|book)\b[^.?!\n]{0,40}\b(?:is|are)\s+now\b/i;
+/** Russian: a short passive participle or a past-tense verb of change, or "готово" / "теперь называется". */
+const CLAIM_RU =
+  /(?:^|[^а-яё])(?:измен[её]н[аоы]?|перевед[её]н[аоы]?|переименован[аоы]?|замен[её]н[аоы]?|обновл[её]н[аоы]?|исправлен[аоы]?|добавлен[аоы]?|удал[её]н[аоы]?|вставлен[аоы]?|применен[аоы]?|применён[аоы]?|отредактирован[аоы]?|переписан[аоы]?|изменил[аи]?|перев[её]л[аи]?|переименовал[аи]?|заменил[аи]?|обновил[аи]?|исправил[аи]?|добавил[аи]?|удалил[аи]?|вставил[аи]?|установил[аи]?|применил[аи]?|отредактировал[аи]?|переписал[аи]?|готово|сделано|выполнено)(?=$|[^а-яё])|(?:^|[^а-яё])теперь[^.?!]{0,40}?(?:называется|звучит|выглядит|гласит)/i;
+/** Ukrainian: the same forms. */
+const CLAIM_UK =
+  /(?:^|[^а-яіїєґ'’])(?:змінен[оаі]?|перекладен[оаі]?|перейменован[оаі]?|замінен[оаі]?|оновлен[оаі]?|виправлен[оаі]?|додан[оаі]?|видален[оаі]?|вставлен[оаі]?|застосован[оаі]?|відредагован[оаі]?|переписан[оаі]?|змінив|змінила|переклав|переклала|перейменував|перейменувала|замінив|замінила|оновив|оновила|виправив|виправила|додав|додала|видалив|видалила|вставив|вставила|встановив|встановила|застосував|застосувала|відредагував|відредагувала|переписав|переписала|готово|зроблено|виконано)(?=$|[^а-яіїєґ'’])|(?:^|[^а-яіїєґ])тепер[^.?!]{0,40}?(?:називається|звучить|виглядає)/i;
+/** A negation, a modal, a condition or an offer in the same sentence: no claim. */
+const NOT_A_CLAIM =
+  /\b(?:not|no|nothing|none|never|without|unable|cannot|can't|couldn't|wouldn't|didn't|doesn't|don't|haven't|hasn't|wasn't|weren't|isn't|aren't|unchanged|untouched|can|could|will|would|shall|should|may|might|if|whether|unless|want|need|ready|about to|going to)\b|n't\b|(?:^|[^а-яёіїєґ])(?:не|нет|ні|ничего|нічого|без|нельзя|невозможно|неможливо|могу|можу|может|може|можно|можна|хотите|хочете|нужно|потрібно|треба|стоит|варто|если|якщо|будет|буде|буду|сделаю|зроблю|изменю|зміню|переведу|перекладу|ли|чи)(?=$|[^а-яёіїєґ])/i;
+
+/** The sentences of a text (the parts between sentence-ending punctuation and line breaks). */
+function sentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?…])\s+|\r?\n+/)
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+}
+
+/** The clauses of a sentence: split at commas, semicolons and spaced dashes (a negation in one clause does not cancel a claim in another). */
+function clauses(sentence: string): string[] {
+  return sentence
+    .split(/\s*[,;]\s*|\s+[—–-]\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+}
+
+/**
+ * True when `text` claims, in words, that the book was changed (FR-106) - see the note above;
+ * a question is never a claim.
+ */
+export function claimsChange(text: string): boolean {
+  for (const sentence of sentences(text)) {
+    if (/[?？]["'”’)»]*$/.test(sentence)) continue;
+    for (const clause of clauses(sentence)) {
+      const claims =
+        CLAIM_EN.test(clause) ||
+        CLAIM_EN_DONE.test(clause) ||
+        CLAIM_RU.test(clause) ||
+        CLAIM_UK.test(clause);
+      if (claims && !NOT_A_CLAIM.test(clause)) return true;
+    }
+  }
+  return false;
+}
+
 /** The undo label of a request: the instruction on one line, at most 60 characters, `…` when cut. */
 export function undoLabel(instruction: string): string {
   const oneLine = instruction.replace(/\s+/g, ' ').trim();

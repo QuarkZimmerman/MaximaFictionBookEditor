@@ -413,19 +413,25 @@ describe('App shell', () => {
     const user = userEvent.setup();
     render(<App services={services} />);
     act(() => {
-      actions.setSettings(store, defaultSettings());
+      // The session restores the panel hidden (FR-040 as amended): nothing of the chunk.
+      actions.setSettings(
+        store,
+        defaultSettings({ session: { ...defaultSettings().session, aiPanelVisible: false } }),
+      );
       actions.setDocument(store, fakeDocument());
     });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument();
+    expect(store.getState().ai.visible).toBe(false);
 
     await user.click(screen.getByTestId('menu-view'));
     await user.click(screen.getByTestId('menu-view-toggle'));
     const panel = await screen.findByTestId('ai-panel');
     expect(within(panel).getByTestId('ai-panel-stub')).toBeInTheDocument();
-    expect(store.getState().ai.on).toBe(true);
+    expect(panel).not.toHaveAttribute('data-ai-inert');
+    expect(store.getState().ai).toMatchObject({ visible: true, on: true });
 
     // In the panel's field Shift+Enter is a line break, not `edit.split`; Enter and Escape are
     // the field's as well; Mod+Z is the field's own undo, not the document's.
@@ -443,10 +449,109 @@ describe('App shell', () => {
     await user.keyboard('{Control>}z{/Control}');
     expect(dispatch).toHaveBeenCalledWith('edit.undo', expect.anything());
 
-    // Off through the toolbar button: the pane and its content are gone.
+    // Hidden through the toolbar button: the pane and its content are gone, the assistant off.
     await user.click(screen.getByTestId('toolbar-ai.toggle'));
     await waitFor(() => expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument());
     expect(screen.queryByTestId('ai-panel-stub')).not.toBeInTheDocument();
+    expect(store.getState().ai).toMatchObject({ visible: false, on: false });
+    unregisterAiFeature(store);
+  });
+
+  it('renders the inert panel while the assistant is Disabled: every control disabled, the centred notice with its settings link, the toggle hides it, nothing of the chunk loaded (feature 005 FR-096, T100)', async () => {
+    await initI18n({ language: 'en' });
+    await changeLanguage('en');
+    const store = createAppStore();
+    const commands = createCommandRegistry();
+    const undo = new UndoCoordinator();
+    const hotkeys = new HotkeyMap('linux');
+    const load = vi.fn(async () => ({
+      AiPanel: () => <div data-testid="ai-panel-stub" />,
+      startAssistant: (s: typeof store) => actions.updateAi(s, { on: true, loaded: true }),
+      stopAssistant: (s: typeof store) =>
+        actions.updateAi(s, { on: false, request: null, conversation: emptyConversation() }),
+      startRequest: async () => ({ kind: 'cancelled' as const }),
+      cancelRequest: () => {},
+      activeRequest: () => null,
+    }));
+    registerAiFeature(
+      { commands, rpc: null, undo, carets: new CaretRegistry(), store, hotkeys },
+      { loadAssistant: load },
+    );
+    const services = createAppServices({ store, commands, undo, hotkeys, platform: 'linux' });
+    const user = userEvent.setup();
+    render(<App services={services} />);
+    expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument(); // before the snapshot
+    const disabled = defaultSettings();
+    disabled.ai.mode = 'disabled';
+    act(() => {
+      actions.setSettings(store, disabled);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The pane with the inert panel (the default visibility: open at the first start).
+    const panel = await screen.findByTestId('ai-panel');
+    expect(panel).toHaveAttribute('data-ai-inert', 'true');
+    expect(screen.getByTestId('ai-splitter')).toBeInTheDocument();
+    const inert = within(panel).getByTestId('ai-panel-disabled');
+    expect(inert).toHaveAttribute('data-inert', 'true');
+    expect(within(inert).queryByTestId('ai-panel-stub')).not.toBeInTheDocument();
+    expect(within(inert).queryByTestId('ai-messages')).not.toBeInTheDocument(); // no conversation
+    for (const id of ['ai-input', 'ai-send', 'ai-clear', 'ai-undo']) {
+      expect(within(inert).getByTestId(id), id).toBeDisabled();
+    }
+    expect(within(inert).getByTestId('ai-panel-disabled-notice')).toHaveTextContent(
+      'The AI assistant is disabled. Enable it in Settings → AI assistant to work with it.',
+    );
+    expect(within(inert).getByTestId('ai-panel-disabled-settings')).toBeEnabled();
+    expect(load).not.toHaveBeenCalled();
+    expect(store.getState().ai).toMatchObject({ visible: true, on: false, loaded: false });
+
+    // The View entry and the toolbar button are present and checked; the toggle hides the
+    // inert panel and shows it again without loading anything.
+    await user.click(screen.getByTestId('menu-view'));
+    const entry = screen.getByTestId('menu-view-toggle');
+    expect(entry).toHaveAttribute('data-checked', 'true');
+    expect(entry).not.toHaveAttribute('aria-disabled');
+    await user.click(entry);
+    await waitFor(() => expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument());
+    expect(store.getState().ai.visible).toBe(false);
+    await user.click(screen.getByTestId('toolbar-ai.toggle'));
+    await screen.findByTestId('ai-panel-disabled');
+    expect(load).not.toHaveBeenCalled();
+
+    // The close button hides it too.
+    await user.click(screen.getByTestId('ai-panel-close'));
+    await waitFor(() => expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument());
+    expect(store.getState().ai.visible).toBe(false);
+
+    // A service chosen (the settings snapshot): the hidden panel stays hidden; shown, it is
+    // the live one - the chunk loaded then, and only then.
+    act(() => {
+      actions.setSettings(store, defaultSettings());
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.queryByTestId('ai-panel')).not.toBeInTheDocument();
+    expect(load).not.toHaveBeenCalled();
+    await user.click(screen.getByTestId('toolbar-ai.toggle'));
+    const live = await screen.findByTestId('ai-panel');
+    expect(within(live).getByTestId('ai-panel-stub')).toBeInTheDocument();
+    expect(live).not.toHaveAttribute('data-ai-inert');
+    expect(load).toHaveBeenCalledTimes(1);
+    // Disabled again at once: the same visible pane turns inert, the chunk stays idle.
+    act(() => {
+      actions.setSettings(store, disabled);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.getByTestId('ai-panel')).toHaveAttribute('data-ai-inert', 'true');
+    expect(screen.getByTestId('ai-panel-disabled')).toBeInTheDocument();
+    expect(screen.queryByTestId('ai-panel-stub')).not.toBeInTheDocument();
+    expect(load).toHaveBeenCalledTimes(1);
     unregisterAiFeature(store);
   });
 
