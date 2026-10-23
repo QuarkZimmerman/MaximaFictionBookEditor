@@ -641,7 +641,7 @@ describe('SettingsDialog - Hotkeys page', () => {
 
     // Ctrl+Y is Redo's: "Assigned to ...".
     const capture = screen.getByTestId('settings-hotkeys-capture');
-    capture.focus();
+    act(() => capture.focus()); // the field clears the capture on focus: a state update
     fireEvent.keyDown(capture, keyY);
     expect(capture).toHaveValue('Ctrl+Y');
     expect(screen.getByTestId('settings-hotkeys-collision')).toHaveTextContent(
@@ -769,7 +769,7 @@ describe('SettingsDialog - Hotkeys page', () => {
     // the page does not say "Assigned to Tools \ Ask AI..." - the chord is free.
     await user.click(screen.getByTestId('settings-hotkeys-group-edit'));
     await user.click(screen.getByTestId('settings-hotkeys-command-edit.undo'));
-    capture.focus();
+    act(() => capture.focus()); // the field clears the capture on focus: a state update
     fireEvent.keyDown(capture, keyK);
     expect(screen.getByTestId('settings-hotkeys-collision')).toHaveTextContent(
       'Not assigned to other command',

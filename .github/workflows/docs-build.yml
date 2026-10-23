@@ -33,7 +33,7 @@ jobs:
     name: tags and fences
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: |
           python3 tools/extract-doc-commands.py --check
           python3 tools/extract-doc-commands.py linux --list
@@ -56,25 +56,31 @@ jobs:
           - target: macos
             os: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Cache vcpkg binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
           key: docs-vcpkg-${{ matrix.target }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json') }}
           restore-keys: docs-vcpkg-${{ matrix.target }}-
 
       # Windows prerequisites are manual installer steps in the guide (section 1): the runner
-      # image provides Visual Studio 2022, CMake and Git; Ninja and Node.js 24 are added here.
-      - name: Windows prerequisites (Node.js 24, Ninja)
+      # image provides Visual Studio 2022, CMake, Git and Ninja; Node.js 24 is added here.
+      - name: Windows prerequisites (Node.js 24)
         if: runner.os == 'Windows'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
       - name: Windows prerequisites (Ninja)
+        # Ninja comes with the windows-2025 image; the install is only a fallback for an image
+        # without it. (seanmiddleditch/gha-setup-ninja, used before, is archived and stays on the
+        # Node 20 runtime.)
         if: runner.os == 'Windows'
-        uses: seanmiddleditch/gha-setup-ninja@v5
+        shell: bash
+        run: |
+          command -v ninja >/dev/null 2>&1 || choco install ninja --no-progress -y
+          ninja --version
 
       - name: Extract the documented commands
         shell: bash
@@ -111,7 +117,7 @@ jobs:
       # the traces of the retried tests, when the replay fails.
       - name: Upload the Playwright report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: docs-replay-playwright-report-${{ matrix.target }}
           path: ui/playwright-report/
@@ -119,7 +125,7 @@ jobs:
 
       - name: Upload the packages produced by the documented steps
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: docs-replay-packages-${{ matrix.target }}
           path: |

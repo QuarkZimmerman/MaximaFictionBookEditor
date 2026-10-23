@@ -164,7 +164,9 @@ describe('Spelling dialog', { timeout: 30_000 }, () => {
       'annotation:Это аннотацыя | history:Это исторья | body:Привет превет мирр | body:и снова превет helo world',
     );
 
-    void services.commands.execute('tools.spellcheck', ctx);
+    act(() => {
+      void services.commands.execute('tools.spellcheck', ctx); // opens the dialog: a render
+    });
     const dialog = await screen.findByTestId('dialog-spelling');
     const word = within(dialog).getByTestId('spelling-not-in-dictionary');
     const changeTo = within(dialog).getByTestId('spelling-change-to');
@@ -247,7 +249,9 @@ describe('Spelling dialog', { timeout: 30_000 }, () => {
     doc.description.titleInfo.annotation = undefined;
     doc.description.documentInfo.history = undefined;
     const { services, user, ctx, custom } = await renderApp(doc);
-    void services.commands.execute('tools.spellcheck', ctx);
+    act(() => {
+      void services.commands.execute('tools.spellcheck', ctx); // opens the dialog: a render
+    });
     const dialog = await screen.findByTestId('dialog-spelling');
     const word = within(dialog).getByTestId('spelling-not-in-dictionary');
     await waitFor(() => expect(word).toHaveValue('превет'));

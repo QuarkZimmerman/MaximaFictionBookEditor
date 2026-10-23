@@ -384,7 +384,7 @@ TEST_CASE("settings: feature 003 keys are validated with the field name", "[sett
               .settings["session"]["lastVersionCheck"] == "2028-02-29T00:00:00Z");
     store.apply_patch(json{{"session", {{"lastVersionCheck", nullptr}}}});
     // The window placement is {x, y, width, height, maximized?} or null, nothing else.
-    for (const json malformed :
+    for (const json& malformed :
          {json::object(), json{{"x", "10"}, {"y", 20}, {"width", 800}, {"height", 600}},
           json{{"x", 10}, {"y", 20}, {"width", 800}},
           json{{"x", 10}, {"y", 20}, {"width", 800}, {"height", 600}, {"maximized", "yes"}},

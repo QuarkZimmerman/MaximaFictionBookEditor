@@ -8,7 +8,9 @@
 
 #include <string>
 
+#ifndef WIN32_LEAN_AND_MEAN  // also a compile definition of mfbe::options (MSVC C4005 otherwise)
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 
 namespace mfbe::platform::date_format {

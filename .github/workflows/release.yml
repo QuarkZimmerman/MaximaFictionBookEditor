@@ -53,7 +53,7 @@ jobs:
             preset: macos-app-release
             cef: macosx64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
           fetch-depth: 0
@@ -69,15 +69,25 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
 
-      - name: Install Ninja (Windows/macOS)
+      - name: Ninja (Windows/macOS)
+        # The windows-2025 and macos-15 runner images ship Ninja; the install is only a fallback
+        # for an image without it. (seanmiddleditch/gha-setup-ninja, used before, is archived and
+        # stays on the Node 20 runtime.)
         if: runner.os != 'Linux'
-        uses: seanmiddleditch/gha-setup-ninja@v5
+        shell: bash
+        run: |
+          if ! command -v ninja >/dev/null 2>&1; then
+            if [ "$RUNNER_OS" = "macOS" ]; then brew install ninja; else choco install ninja --no-progress -y; fi
+          fi
+          ninja --version
 
       - name: Install macOS build dependencies
         if: runner.os == 'macOS'
         run: brew install autoconf automake autoconf-archive libtool pkg-config
 
       - name: Set up MSVC environment
+        # Still a Node 20 action (no release of it runs on Node 24; the runner forces Node 24 and
+        # it works): the deprecation notice of this step is known.
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -115,7 +125,7 @@ jobs:
         shell: pwsh
         run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP/wix.log" -Title "WiX install"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -127,14 +137,14 @@ jobs:
           vcpkgJsonGlob: vcpkg.json
           runVcpkgInstall: false
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json') }}
           restore-keys: vcpkg-${{ matrix.name }}-
 
       - name: Cache CEF distribution
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: third_party/downloads
           key: cef-${{ hashFiles('cmake/CefVersion.cmake') }}-${{ matrix.cef }}
@@ -289,7 +299,7 @@ jobs:
         run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/script-bench.log" "Script benchmark"
       - name: Upload script benchmark
         if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: script-benchmark
           path: tests/bench/results/script-benchmark.json
@@ -435,12 +445,12 @@ jobs:
           $iconFile = ($link.IconLocation -split ',')[0]
           if (-not $iconFile -or -not (Test-Path -LiteralPath $iconFile)) { throw "the shortcut has no icon file ('$($link.IconLocation)')" }
           if ((Get-Choice) -ne '1') { throw "recorded choice '$(Get-Choice)', expected 1" }
-          $codes = Get-ProductCodes
+          $codes = @(Get-ProductCodes)  # @(): one code must stay an array, not a string
           if ($codes.Count -ne 1) { throw "expected one registered product, found $($codes.Count): $($codes -join ', ')" }
           tools/ci/windows-start-smoke.ps1 -Shortcut $lnk
           Write-Host "Upgrading with $msi2 without the property: the shortcut stays"
           Install-Msi $msi2 "$env:RUNNER_TEMP\install-shortcut-upgrade.log"
-          $codesAfter = Get-ProductCodes
+          $codesAfter = @(Get-ProductCodes)
           Write-Host "Registered products before the upgrade: $($codes -join ', '); after: $($codesAfter -join ', ')"
           if ($codesAfter.Count -ne 1 -or $codesAfter[0] -eq $codes[0]) {
             Write-Host "::warning::unexpected product registration after the upgrade (see the upgrade log below)"
@@ -537,7 +547,7 @@ jobs:
         run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/smoke.log" "Package smoke"
 
       - name: Upload packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: packages-${{ matrix.name }}
           path: |
@@ -556,11 +566,11 @@ jobs:
     runs-on: ubuntu-22.04
     if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag != ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: packages-*
           path: dist
@@ -604,7 +614,7 @@ jobs:
           cat release-notes.md
 
       - name: Create or update the GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: Maxima Fiction Book Editor ${{ github.event.inputs.tag || github.ref_name }}

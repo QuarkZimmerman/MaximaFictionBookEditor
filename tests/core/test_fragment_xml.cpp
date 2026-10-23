@@ -18,6 +18,7 @@
 #include <catch2/matchers/catch_matchers_string.hpp>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -116,7 +117,10 @@ std::string slice_lines(const std::string& text, const std::string& open, const 
     return out;
 }
 
-const model::Node& child_of_type(const model::Node& parent, const std::string& type,
+// `type` is taken by value: a `const std::string&` parameter makes GCC's -Wdangling-reference
+// (a heuristic that only sees a temporary bound to a reference parameter of a function returning
+// a reference) warn at callers that bind the result, `const Node& p = child_of_type(s, "p")`.
+const model::Node& child_of_type(const model::Node& parent, std::string_view type,
                                  std::size_t nth = 0) {
     std::size_t seen = 0;
     for (const model::Node& child : parent.content) {
@@ -155,10 +159,10 @@ struct ServerFixture {
     }
 };
 
-const json& json_child_of_type(const json& parent, const std::string& type, std::size_t nth = 0) {
+const json& json_child_of_type(const json& parent, std::string_view type, std::size_t nth = 0) {
     std::size_t seen = 0;
     for (const json& child : parent["content"]) {
-        if (child["type"] == type) {
+        if (child["type"] == std::string(type)) {
             if (seen == nth) {
                 return child;
             }

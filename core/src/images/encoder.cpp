@@ -13,11 +13,18 @@
 namespace mfbe::images {
 namespace {
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4324)  // jmp_buf is 16-byte aligned on x64: padding after pub is expected
+#endif
 struct JpegErrorManager {
-    jpeg_error_mgr pub;
+    jpeg_error_mgr pub;  // first: libjpeg hands back cinfo->err, which jpeg_error_exit casts
     std::jmp_buf jump;
     char message[JMSG_LENGTH_MAX];
 };
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 void jpeg_error_exit(j_common_ptr cinfo) {
     auto* err = reinterpret_cast<JpegErrorManager*>(cinfo->err);
@@ -129,11 +136,20 @@ std::string encode_jpeg(const Bitmap& bitmap, int quality) {
     st->cinfo.err = jpeg_std_error(&st->err.pub);
     st->err.pub.error_exit = jpeg_error_exit;
     st->err.pub.output_message = jpeg_output_message;
+    // C4611 (setjmp next to C++ objects): the longjmp lands in this frame, whose only object is
+    // the unique_ptr, and jpeg_encode_body holds nothing with a destructor while libjpeg runs.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4611)
+#endif
     if (setjmp(st->err.jump)) {
         jpeg_destroy_compress(&st->cinfo);
         std::free(st->buffer);
         throw DecodeError("corrupt", std::string("JPEG encode: ") + st->err.message);
     }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
     jpeg_create_compress(&st->cinfo);
     jpeg_encode_body(*st, bitmap, quality);
     jpeg_destroy_compress(&st->cinfo);

@@ -70,11 +70,18 @@ Bitmap make_bitmap(int width, int height, std::string_view type) {
 /* JPEG (libjpeg-turbo)                                                                       */
 /* ----------------------------------------------------------------------------------------- */
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4324)  // jmp_buf is 16-byte aligned on x64: padding after pub is expected
+#endif
 struct JpegErrorManager {
-    jpeg_error_mgr pub;
+    jpeg_error_mgr pub;  // first: libjpeg hands back cinfo->err, which jpeg_error_exit casts
     std::jmp_buf jump;
     char message[JMSG_LENGTH_MAX];
 };
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 void jpeg_error_exit(j_common_ptr cinfo) {
     auto* err = reinterpret_cast<JpegErrorManager*>(cinfo->err);
@@ -154,10 +161,19 @@ Bitmap decode_jpeg(std::string_view bytes, int min_width, int min_height) {
     st->cinfo.err = jpeg_std_error(&st->err.pub);
     st->err.pub.error_exit = jpeg_error_exit;
     st->err.pub.output_message = jpeg_output_message;
+    // C4611 (setjmp next to C++ objects): the longjmp lands in this frame, whose only object is
+    // the unique_ptr, and jpeg_decode_body holds nothing with a destructor while libjpeg runs.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4611)
+#endif
     if (setjmp(st->err.jump)) {
         jpeg_destroy_decompress(&st->cinfo);
         throw DecodeError("corrupt", std::string("JPEG: ") + st->err.message);
     }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
     jpeg_create_decompress(&st->cinfo);
     try {
         jpeg_decode_body(*st, bytes);

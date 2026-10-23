@@ -253,7 +253,7 @@ describe('App shell', () => {
 
     // Ctrl+Z is bound to edit.undo, disabled while there is nothing to undo.
     const adapter = new ArrayHistoryAdapter<string>();
-    services.undo.registerView('body', adapter);
+    act(() => services.undo.registerView('body', adapter)); // the toolbar re-renders on it
     adapter.push('x');
     act(() => services.undo.record('body', 'typing'));
     expect(screen.getByTestId('toolbar-edit.undo')).toBeEnabled();
@@ -429,7 +429,7 @@ describe('App shell', () => {
 
     // In the panel's field Shift+Enter is a line break, not `edit.split`; Enter and Escape are
     // the field's as well; Mod+Z is the field's own undo, not the document's.
-    services.commands.replace({ id: 'edit.split', group: 'edit', run: split });
+    act(() => services.commands.replace({ id: 'edit.split', group: 'edit', run: split }));
     const dispatch = vi.spyOn(services.commands, 'dispatch');
     const field = within(panel).getByTestId('ai-input');
     await user.click(field);

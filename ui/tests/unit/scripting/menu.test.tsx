@@ -217,7 +217,9 @@ describe('Scripts menu and toolbar', () => {
     expect(screen.getByTestId('menu-scripts-01_Case-test.case.upper')).toHaveTextContent(
       'Имя test.case.upper',
     );
-    await changeLanguage('en');
+    await act(async () => {
+      await changeLanguage('en'); // the mounted shell re-renders on the language change
+    });
   });
 
   it('registers script commands with the manifest hotkeys and keeps the catalogue fresh', async () => {
