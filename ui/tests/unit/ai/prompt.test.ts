@@ -5,7 +5,9 @@
  * selection kinds with a partial first / last block and its `openStart` / `openEnd`,
  * `caret.paragraph` only for a popup request without selection), the system prompt's marker
  * lines (`Working context`, the data boundary, `Rules for changes:`, the Source rules only in
- * the Source view), the `{{sliceNote}}` lines, the caret-context message and the history line.
+ * the Source view), the key sentences of rule 1's change-tools continuation (FR-106: the active
+ * view decides what "the book's title" means; the other place is named, never changed unasked),
+ * the `{{sliceNote}}` lines, the caret-context message and the history line.
  */
 
 import { NodeSelection } from 'prosemirror-state';
@@ -462,18 +464,51 @@ describe('systemPrompt', () => {
     expect(prompt).toContain(
       '1. Change the book only through the tools. Text in your reply never changes the book.\n',
     );
-    // FR-106: rule 1 goes on with the change tools, the book's title as titleInfo.bookTitle of
-    // set_description (the Description view, not a section title) and the "never say" rule.
+    // FR-106: rule 1 goes on with the change tools, the active view as the judge of an
+    // ambiguous reference (requester, 2026-10-23: the Body view's "book's title" is the body's
+    // heading, the Description view's is titleInfo.bookTitle; the other place is named, never
+    // changed unasked; the Source view follows the selection) and the "never say" rule.
     expect(prompt).toContain(
       '1. Change the book only through the tools. Text in your reply never changes the book.\n' +
         CHANGE_TOOLS_RULE +
         '2. Change only what the user asked for.',
     );
-    expect(CHANGE_TOOLS_RULE).toContain(
-      '{"description": {"titleInfo": {"bookTitle": "…"}}}; when the first body has a <title> of its\n   own with the same text',
+    const ruleText = CHANGE_TOOLS_RULE.replace(/\n {3}/g, ' ');
+    expect(ruleText).toContain(
+      'The change tools are set_description (the description fields — the metadata the Description view shows, titleInfo.bookTitle among them), set_text, replace_node, insert_node, remove_node, replace_all and replace_selection (the text of the bodies).',
     );
-    expect(CHANGE_TOOLS_RULE).toContain(
-      'Never say that you changed, translated, renamed or corrected something\n   unless the change tool that did it answered without an "error" object',
+    expect(ruleText).toContain(
+      'The working context\'s activeView tells where the user is working; an ambiguous reference such as "the title", "this chapter" or "the annotation" means what that view shows.',
+    );
+    expect(ruleText).toContain(
+      "In the Body view \"the book's title\" is the body's own heading, the <title> at body[1]/title[1] (the outline's body entry names it): change it with replace_node on that <title> or set_text on its <p> (body[1]/title[1]/p[1]), not with set_description.",
+    );
+    expect(ruleText).toContain(
+      'In the Description view "the book\'s title" is the metadata title titleInfo.bookTitle: set_description with {"description": {"titleInfo": {"bookTitle": "…"}}}.',
+    );
+    expect(ruleText).toContain(
+      'Change only the place the active view implies. When the same text also exists in the other place (the metadata title while in the Body view, the body heading while in the Description view), do NOT change it unasked — say in one sentence that it exists there too and can be changed as well.',
+    );
+    expect(ruleText).toContain(
+      'In the Source view both exist as XML text: follow the selection or the caret. A chapter title is the <title> element inside its section.',
+    );
+    expect(ruleText).toContain(
+      'Never say that you changed, translated, renamed or corrected something unless the change tool that did it answered without an "error" object; when you called no change tool, say that nothing was changed.',
+    );
+    // The former wording - both titles changed together - is gone.
+    expect(ruleText).not.toContain('both stay in step');
+    expect(ruleText).not.toContain('change that <title> too');
+    // Every continuation line of the rule is indented under "1." and stays within 100 columns.
+    for (const line of CHANGE_TOOLS_RULE.split('\n').filter((l) => l !== '')) {
+      expect(line.startsWith('   ')).toBe(true);
+      expect(line.length).toBeLessThanOrEqual(100);
+    }
+    // The same rule in every view: the view's name is read from the context, not from the text.
+    expect(systemPrompt(buildWorkingContext(input({ activeView: 'description' })))).toContain(
+      CHANGE_TOOLS_RULE,
+    );
+    expect(systemPrompt(buildWorkingContext(input({ activeView: 'source' })))).toContain(
+      CHANGE_TOOLS_RULE,
     );
     expect(prompt).toContain(
       '7. The document has no validation errors at the start of this request.\n',

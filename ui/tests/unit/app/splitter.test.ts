@@ -1,8 +1,11 @@
 /**
  * Divider between the Document Tree pane and the view area (feature 004 US1, FR-001 and
- * FR-002; research R1.1): the clamp of the applied width and the pointer-captured drag of
- * `app/splitter.ts` driven with fake pointer events - capture on `pointerdown`, one animation
- * frame per burst of moves, exactly one commit when the drag ends.
+ * FR-002; research R1.1) and its mirror between the view area and the AI assistant panel
+ * (feature 005 US3, FR-040; data-model §3.2): the clamps of the applied widths - each pane's
+ * subtracting the other pane while it is shown, so that neither divider squeezes the far pane
+ * under its minimum - and the pointer-captured drag of `app/splitter.ts` driven with fake
+ * pointer events - capture on `pointerdown`, one animation frame per burst of moves, exactly
+ * one commit when the drag ends.
  */
 
 import {
@@ -20,28 +23,65 @@ import {
 } from '@/app/splitter';
 
 describe('clampTreeWidth', () => {
-  it('keeps the pane at its minimum and leaves the view its own', () => {
+  it('keeps the pane at its minimum and leaves the view its own (no AI panel)', () => {
     const max = 1000 - VIEW_MIN - DIVIDER_W;
-    expect(clampTreeWidth(260, 1000)).toBe(260);
-    expect(clampTreeWidth(PANE_MIN, 1000)).toBe(PANE_MIN);
-    expect(clampTreeWidth(PANE_MIN - 1, 1000)).toBe(PANE_MIN);
-    expect(clampTreeWidth(0, 1000)).toBe(PANE_MIN);
-    expect(clampTreeWidth(-50, 1000)).toBe(PANE_MIN);
-    expect(clampTreeWidth(max, 1000)).toBe(max);
-    expect(clampTreeWidth(max + 1, 1000)).toBe(max);
-    expect(clampTreeWidth(5000, 1000)).toBe(max);
+    expect(clampTreeWidth(260, 1000, 0, false)).toBe(260);
+    expect(clampTreeWidth(PANE_MIN, 1000, 0, false)).toBe(PANE_MIN);
+    expect(clampTreeWidth(PANE_MIN - 1, 1000, 0, false)).toBe(PANE_MIN);
+    expect(clampTreeWidth(0, 1000, 0, false)).toBe(PANE_MIN);
+    expect(clampTreeWidth(-50, 1000, 0, false)).toBe(PANE_MIN);
+    expect(clampTreeWidth(max, 1000, 0, false)).toBe(max);
+    expect(clampTreeWidth(max + 1, 1000, 0, false)).toBe(max);
+    expect(clampTreeWidth(5000, 1000, 0, false)).toBe(max);
+  });
+
+  it('subtracts the AI panel and its divider while the panel is shown (feature 005)', () => {
+    // The mirror of clampPanelWidth: the pane stops where the panel keeps its applied width and
+    // the view its minimum, so a drag of the tree divider never squeezes the panel under 280.
+    const withPanel = 1000 - (360 + DIVIDER_W) - DIVIDER_W - VIEW_MIN;
+    expect(clampTreeWidth(5000, 1000, 360, true)).toBe(withPanel);
+    expect(clampTreeWidth(withPanel, 1000, 360, true)).toBe(withPanel);
+    expect(clampTreeWidth(withPanel + 1, 1000, 360, true)).toBe(withPanel);
+    expect(clampTreeWidth(260, 1000, 360, true)).toBe(260);
+    expect(clampTreeWidth(PANE_MIN - 1, 1000, 360, true)).toBe(PANE_MIN);
+    // The panel at its minimum leaves the pane the most it can have beside a shown panel.
+    expect(clampTreeWidth(5000, 1000, PANEL_MIN, true)).toBe(
+      1000 - (PANEL_MIN + DIVIDER_W) - DIVIDER_W - VIEW_MIN,
+    );
+    // The panel's width does not count while the panel is hidden.
+    expect(clampTreeWidth(5000, 1000, 360, false)).toBe(1000 - VIEW_MIN - DIVIDER_W);
+    expect(clampTreeWidth(5000, 1000, 800, false)).toBe(1000 - VIEW_MIN - DIVIDER_W);
+    // Too narrow for the minimums together: the pane minimum wins, the stylesheet shrinks.
+    expect(clampTreeWidth(400, 700, 360, true)).toBe(PANE_MIN);
+    expect(
+      clampTreeWidth(300, PANE_MIN + PANEL_MIN + 2 * DIVIDER_W + VIEW_MIN - 1, PANEL_MIN, true),
+    ).toBe(PANE_MIN);
+  });
+
+  it('mirrors clampPanelWidth: neither pane can take the other under its minimum', () => {
+    // A 1000 px main area with the tree at 260 and the panel at 360: each clamp leaves the
+    // other pane exactly what it has when the view is at its minimum.
+    const treeMax = clampTreeWidth(5000, 1000, 360, true);
+    const panelMax = clampPanelWidth(5000, 1000, 260, true);
+    expect(treeMax + DIVIDER_W + VIEW_MIN + DIVIDER_W + 360).toBe(1000);
+    expect(260 + DIVIDER_W + VIEW_MIN + DIVIDER_W + panelMax).toBe(1000);
+    // At the other pane's minimum the two maxima are the complements of each other.
+    expect(clampTreeWidth(5000, 1000, PANEL_MIN, true) + PANEL_MIN).toBe(
+      clampPanelWidth(5000, 1000, PANE_MIN, true) + PANE_MIN,
+    );
   });
 
   it('answers whole pixels: the setting is an integer', () => {
-    expect(clampTreeWidth(300.4, 1000)).toBe(300);
-    expect(clampTreeWidth(300.6, 1000)).toBe(301);
-    expect(clampTreeWidth(500, 1000.7)).toBe(500);
+    expect(clampTreeWidth(300.4, 1000, 0, false)).toBe(300);
+    expect(clampTreeWidth(300.6, 1000, 0, false)).toBe(301);
+    expect(clampTreeWidth(500, 1000.7, 0, false)).toBe(500);
+    expect(clampTreeWidth(300.4, 1000, 360, true)).toBe(300);
   });
 
   it('lets the pane minimum win in a main area too narrow for both minimums', () => {
     // The stylesheet shrinks the pane under its minimum while the view keeps its own (FR-002).
-    expect(clampTreeWidth(500, 400)).toBe(PANE_MIN);
-    expect(clampTreeWidth(100, PANE_MIN + DIVIDER_W + VIEW_MIN)).toBe(PANE_MIN);
+    expect(clampTreeWidth(500, 400, 0, false)).toBe(PANE_MIN);
+    expect(clampTreeWidth(100, PANE_MIN + DIVIDER_W + VIEW_MIN, 0, false)).toBe(PANE_MIN);
   });
 });
 
@@ -123,16 +163,25 @@ interface Harness {
   detach(): void;
 }
 
+interface HarnessOptions {
+  side?: 'left' | 'right';
+  /** The tree pane the right-hand divider's clamp subtracts (260 px, shown, by default). */
+  treeWidth?: number;
+  treeVisible?: boolean;
+  /**
+   * The AI panel the left-hand divider's clamp subtracts; without it the drag runs with its
+   * default clamp (no panel), as before feature 005.
+   */
+  panelWidth?: number;
+  panelVisible?: boolean;
+}
+
 /**
  * A main area `mainWidth` px wide whose divider starts `startWidth` px from its left edge (the
  * tree pane before it) or, for `side: 'right'`, leaves `startWidth` px between its right edge
  * and the main area's right edge (the AI panel after it).
  */
-function harness(
-  startWidth = 260,
-  mainWidth = 1000,
-  options: { side?: 'left' | 'right'; treeWidth?: number; treeVisible?: boolean } = {},
-): Harness {
+function harness(startWidth = 260, mainWidth = 1000, options: HarnessOptions = {}): Harness {
   const side = options.side ?? 'left';
   const main = document.createElement('div');
   const divider = document.createElement('div');
@@ -162,9 +211,20 @@ function harness(
   });
   const onCommit = vi.fn();
   const variable = side === 'left' ? TREE_WIDTH_VARIABLE : AI_PANEL_WIDTH_VARIABLE;
+  const { panelWidth = 360, panelVisible } = options;
   const detach =
     side === 'left'
-      ? attachSplitterDrag(divider, main, onCommit)
+      ? attachSplitterDrag(
+          divider,
+          main,
+          onCommit,
+          panelVisible === undefined
+            ? {}
+            : {
+                clamp: (width, available) =>
+                  clampTreeWidth(width, available, panelWidth, panelVisible),
+              },
+        )
       : attachSplitterDrag(divider, main, onCommit, {
           side: 'right',
           variable,
@@ -282,6 +342,34 @@ describe('attachSplitterDrag', () => {
     expect(h.appliedWidth()).toBe(`${1000 - VIEW_MIN - DIVIDER_W}px`);
     h.divider.dispatchEvent(pointer('pointerup', { clientX: 2000 }));
     expect(h.onCommit).toHaveBeenCalledWith(1000 - VIEW_MIN - DIVIDER_W);
+  });
+
+  it('stops at what a shown AI panel and the view leave; the hidden panel does not count (feature 005)', () => {
+    // A 1000 px main area with the panel shown at 360 px: far right stops the pane where the
+    // panel keeps its 360 px and the view its 320 - the panel is never squeezed under 280.
+    const treeMax = 1000 - (360 + DIVIDER_W) - DIVIDER_W - VIEW_MIN;
+    const h = harness(260, 1000, { panelWidth: 360, panelVisible: true });
+    h.divider.dispatchEvent(pointer('pointerdown', { clientX: 263 }));
+    h.divider.dispatchEvent(pointer('pointermove', { clientX: 2000 }));
+    h.flushFrames();
+    expect(h.appliedWidth()).toBe(`${treeMax}px`);
+    expect(treeMax + DIVIDER_W + VIEW_MIN + DIVIDER_W + 360).toBe(1000);
+    h.divider.dispatchEvent(pointer('pointermove', { clientX: -400 })); // the pane minimum as ever
+    h.flushFrames();
+    expect(h.appliedWidth()).toBe(`${PANE_MIN}px`);
+    h.divider.dispatchEvent(pointer('pointermove', { clientX: 2000 }));
+    h.divider.dispatchEvent(pointer('pointerup', { clientX: 2000 }));
+    expect(h.onCommit).toHaveBeenCalledTimes(1);
+    expect(h.onCommit).toHaveBeenCalledWith(treeMax);
+    expect(h.main.style.getPropertyValue(AI_PANEL_WIDTH_VARIABLE)).toBe(''); // the panel's variable untouched
+    h.detach();
+
+    // The same panel width hidden: the pane may take everything but the view's minimum.
+    const hidden = harness(260, 1000, { panelWidth: 360, panelVisible: false });
+    hidden.divider.dispatchEvent(pointer('pointerdown', { clientX: 263 }));
+    hidden.divider.dispatchEvent(pointer('pointermove', { clientX: 2000 }));
+    hidden.divider.dispatchEvent(pointer('pointerup', { clientX: 2000 }));
+    expect(hidden.onCommit).toHaveBeenCalledWith(1000 - VIEW_MIN - DIVIDER_W);
   });
 
   it('ignores a secondary button, another pointer and a click without a move', () => {

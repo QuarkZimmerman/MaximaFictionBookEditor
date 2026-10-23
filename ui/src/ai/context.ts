@@ -457,20 +457,31 @@ const SELECTION_NOTE =
 
 /**
  * The continuation of rule 1 (FR-106; the rc.1 smoke test: a title translation reported done
- * while the book was unchanged): which tools change what, that the book's title is the
- * description's `titleInfo.bookTitle` (the Description view, not the body text) and that a
+ * while the book was unchanged, then - requester, 2026-10-23 - the metadata title changed while
+ * the user looked at the body's heading): which tools change what; that the active view decides
+ * what an ambiguous reference ("the title", "this chapter", "the annotation") means - in the
+ * Body view the book's title is the body's own heading `body[1]/title[1]` (`replace_node` /
+ * `set_text`), in the Description view the metadata `titleInfo.bookTitle` (`set_description`),
+ * in the Source view the selection or caret decides; that only the place the view implies is
+ * changed and the same text in the other place is named, never changed unasked; and that a
  * change is claimed only after the tool answered ok.
  */
 export const CHANGE_TOOLS_RULE =
-  "   The change tools are set_description (the book's title and every other description field —\n" +
-  '   the metadata the Description view shows), set_text, replace_node, insert_node, remove_node,\n' +
-  '   replace_all and replace_selection (the text of the bodies). "The title of the book" / "the\n' +
-  "   book's title\" is the description's book title: set_description with\n" +
-  '   {"description": {"titleInfo": {"bookTitle": "…"}}}; when the first body has a <title> of its\n' +
-  '   own with the same text (the title as printed on the first page — what the Body view shows;\n' +
-  "   the outline's body entry names it), change that <title> too, so that both stay in step. A\n" +
-  '   chapter title is the <title> element inside its section; ask when it is unclear which one\n' +
-  '   the user means. Never say that you changed, translated, renamed or corrected something\n' +
+  '   The change tools are set_description (the description fields — the metadata the Description\n' +
+  '   view shows, titleInfo.bookTitle among them), set_text, replace_node, insert_node,\n' +
+  '   remove_node, replace_all and replace_selection (the text of the bodies). The working\n' +
+  '   context\'s activeView tells where the user is working; an ambiguous reference such as "the\n' +
+  '   title", "this chapter" or "the annotation" means what that view shows. In the Body view "the\n' +
+  "   book's title\" is the body's own heading, the <title> at body[1]/title[1] (the outline's body\n" +
+  '   entry names it): change it with replace_node on that <title> or set_text on its <p>\n' +
+  '   (body[1]/title[1]/p[1]), not with set_description. In the Description view "the book\'s\n' +
+  '   title" is the metadata title titleInfo.bookTitle: set_description with\n' +
+  '   {"description": {"titleInfo": {"bookTitle": "…"}}}. Change only the place the active view\n' +
+  '   implies. When the same text also exists in the other place (the metadata title while in the\n' +
+  '   Body view, the body heading while in the Description view), do NOT change it unasked — say\n' +
+  '   in one sentence that it exists there too and can be changed as well. In the Source view both\n' +
+  '   exist as XML text: follow the selection or the caret. A chapter title is the <title> element\n' +
+  '   inside its section. Never say that you changed, translated, renamed or corrected something\n' +
   '   unless the change tool that did it answered without an "error" object; when you called no\n' +
   '   change tool, say that nothing was changed.\n';
 

@@ -313,50 +313,56 @@ function Shell({
 
   // Document Tree pane width (feature 004 US1, FR-002): the stored width is applied to the
   // layout variable clamped to the main area - the pane never under its minimum, the view never
-  // under its own - and re-applied when the window changes size, so a width from a larger
-  // screen comes back when the window grows; the stored value itself is never rewritten. The
-  // drag (`attachSplitterDrag`) writes the same variable per frame and commits once to the
-  // store when the button is released.
+  // under its own, the AI panel (feature 005) keeping its applied width while it is shown - and
+  // re-applied when the window changes size, so a width from a larger screen comes back when
+  // the window grows; the stored value itself is never rewritten. The drag
+  // (`attachSplitterDrag`) writes the same variable per frame with the same clamp and commits
+  // once to the store when the button is released. The panel's clamp comes first: the tree
+  // pane's reserves the width the panel takes (see `app/splitter.ts` for the order).
   const mainRef = useRef<HTMLDivElement>(null);
   const splitterRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const main = mainRef.current;
-    if (!main) return;
-    const apply = () => {
-      main.style.setProperty(
-        TREE_WIDTH_VARIABLE,
-        `${clampTreeWidth(treeWidth, main.clientWidth)}px`,
-      );
-    };
-    apply();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(apply);
-    observer.observe(main);
-    return () => observer.disconnect();
-  }, [treeWidth]);
-  useEffect(() => {
-    const divider = splitterRef.current;
-    const main = mainRef.current;
-    if (!divider || !main) return;
-    return attachSplitterDrag(divider, main, (width) => actions.setTreeWidth(store, width));
-  }, [store, treeVisible]);
-
-  // The AI assistant panel on the right (feature 005 US3, FR-040; data-model §3.2): the same
-  // scheme mirrored - the stored `ai.width` applied clamped to 280-800 px and to what the main
-  // area leaves beside the tree pane and the view's minimum, re-applied on resize, never
-  // rewritten; its divider drags the pane after it and commits once to the store. The pane is
-  // the live panel's and the inert one's alike.
   const aiSplitterRef = useRef<HTMLDivElement>(null);
   const panelClamp = useCallback(
     (width: number, mainWidth: number) =>
       clampPanelWidth(
         width,
         mainWidth,
-        treeVisible ? clampTreeWidth(treeWidth, mainWidth) : 0,
+        treeVisible ? clampTreeWidth(treeWidth, mainWidth, 0, false) : 0,
         treeVisible,
       ),
     [treeWidth, treeVisible],
   );
+  const treeClamp = useCallback(
+    (width: number, mainWidth: number) =>
+      clampTreeWidth(width, mainWidth, aiPane ? panelClamp(aiWidth, mainWidth) : 0, aiPane),
+    [aiPane, aiWidth, panelClamp],
+  );
+  useLayoutEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const apply = () => {
+      main.style.setProperty(TREE_WIDTH_VARIABLE, `${treeClamp(treeWidth, main.clientWidth)}px`);
+    };
+    apply();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(apply);
+    observer.observe(main);
+    return () => observer.disconnect();
+  }, [treeWidth, treeClamp]);
+  useEffect(() => {
+    const divider = splitterRef.current;
+    const main = mainRef.current;
+    if (!divider || !main) return;
+    return attachSplitterDrag(divider, main, (width) => actions.setTreeWidth(store, width), {
+      clamp: treeClamp,
+    });
+  }, [store, treeVisible, treeClamp]);
+
+  // The AI assistant panel on the right (feature 005 US3, FR-040; data-model §3.2): the same
+  // scheme mirrored - the stored `ai.width` applied clamped to 280-800 px and to what the main
+  // area leaves beside the tree pane and the view's minimum, re-applied on resize, never
+  // rewritten; its divider drags the pane after it and commits once to the store. The pane is
+  // the live panel's and the inert one's alike.
   useLayoutEffect(() => {
     const main = mainRef.current;
     if (!main || !aiPane) return;

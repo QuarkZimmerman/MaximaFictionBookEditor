@@ -8,10 +8,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 ### Added
 
 - The AI assistant (feature 005). Settings gains an **AI assistant** page with three choices:
-  *Free service (no registration)* - the default - with a drop-down of the bundled services
-  that need no account and no key, each shown as "name - model" with its limits note in the
-  interface language and a link to its terms: OVHcloud AI Endpoints (`gpt-oss-120b`, first,
-  the default) and Pollinations (`openai-fast`); *My own service and key*; and *Disabled*.
+  *Disabled* - the default, so the assistant works only after a service has been chosen
+  there -; *Free service (no registration)* with a drop-down of the bundled services that need
+  no account and no key, each shown as "name - model" with its limits note in the interface
+  language and a link to its terms: OVHcloud AI Endpoints (`gpt-oss-120b`, first, the entry
+  the choice starts with) and Pollinations (`openai-fast`); and *My own service and key*.
   *Test connection* sends one small request and reports "answered (model)" or the failure in
   the service's own words. The services come from a list file: the bundled `ai-services.json`
   is always read, never modified by the editor, and a copy of the user's own in the data folder
@@ -31,19 +32,30 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   No sends nothing. A server on the user's own computer is never asked about; a plain `http`
   address that is not on this computer is accepted with a warning that the text travels
   unencrypted, repeated in the notice.
-- The assistant panel. View > AI Assistant (Ctrl+Shift+A, Cmd+Shift+A on macOS) and a button in
-  the toolbar's View group turn the assistant on and open a panel on the right of the view -
-  its width set by a divider and remembered in `session.aiPanelWidth` - with the service and
-  model in use and a link to the settings page, the conversation, an activity list naming what
-  the assistant did (the parts of the book it read, the changes it made, the scripts it ran,
-  the validations, the waits), the phase and the elapsed time while a request runs, and the
-  instruction field (Enter sends, Shift+Enter inserts a newline; Send becomes Stop; Clear;
-  Undo). The assistant is off at every start; closing the panel - its close button, the View
-  entry, the hotkey or the toolbar button - turns it off, drops the conversation (never written
-  to disk) and leaves the editor in its ordinary flow, after a question when a request runs. A
-  text answer is shown without a change; an unsure assistant asks back and the next instruction
-  continues the conversation; the history is trimmed from the oldest turn when it outgrows the
-  service's context, and the panel says so.
+- The assistant panel. A panel on the right of the view - its width set by a divider and
+  remembered in `session.aiPanelWidth`, its visibility in `session.aiPanelVisible`: open at the
+  first start and back at every start as it was left. View > AI Assistant (Ctrl+Shift+A,
+  Cmd+Shift+A on macOS), a button in the toolbar's View group and the panel's close box show
+  and hide it in every mode. While the assistant is *Disabled* the panel is inert - its
+  controls greyed, no conversation, a notice that the assistant is disabled with a link that
+  opens the settings page - and nothing of the feature is loaded or contacted. With a service
+  chosen the visible panel is live, at once when OK is pressed and without a restart: the
+  service and model in use and a link to the settings page, the conversation, an activity list
+  naming what the assistant did (the parts of the book it read, the changes it made, the
+  scripts it ran, the validations, the waits), the phase and the elapsed time while a request
+  runs, and the instruction field (Enter sends, Shift+Enter inserts a newline; Send becomes
+  Stop; Clear; Undo). Hiding a live panel turns the assistant off, drops the conversation
+  (never written to disk) and leaves the editor in its ordinary flow, after a question when a
+  request runs. A text answer is shown without a change; an unsure assistant asks back and the
+  next instruction continues the conversation; the history is trimmed from the oldest turn
+  when it outgrows the service's context, and the panel says so.
+- The end line of a request names the count and the place of its changes - "Done: 2 changes
+  in the body text", "Done: 1 change in the Description view (book title)", or both - with the
+  number of exchanges and the elapsed time. An answer that called no change is marked as words
+  only, never as "Done", and when its words claim a change that no operation made the line
+  carries the note that none was made - the book is as it was. The assistant is also told that
+  a change exists only when an operation confirmed it, and that the book's title means the
+  title in the description and the body's own title alike.
 - *Ask AI...* in the context menu of the Body view and of the Source view (Ctrl+K) while the
   assistant is on: a popup next to the selection shows how much is selected and which service
   answers, takes one instruction and replaces the selection with the result - emphasis and
@@ -99,12 +111,21 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   portable copy takes it along, shown masked, replaced by `•••` wherever a service echoes it
   and never written to the diagnostics log; a wrong or missing key is reported in the service's
   own words with a link to the settings page.
-- *Disabled*: with it chosen and OK pressed the View entry, the toolbar button, the hotkeys, the
-  context-menu entry, the panel, the popup and the notice are gone, no request leaves the
-  editor and no code of the feature runs - without a restart, and after one; the settings page
-  is the only place where the assistant still exists. Choosing a service again brings the
-  entry back with the assistant off. Chosen while a request runs, the editor asks whether to
-  stop it first.
+- *Disabled* - the default: the editor starts with it, and choosing it again later (OK) brings
+  the same state back without a restart and after one: *Ask AI...*, its hotkey, the popup and
+  the first-use notice are gone, no request leaves the editor and no code of the feature is
+  loaded or runs. What stays is the panel's place: View > AI Assistant, Ctrl+Shift+A and the
+  toolbar button still show and hide the panel, inert then and pointing to the settings page.
+  Choosing *Free service* or *My own service and key* makes a visible panel live at once and
+  brings *Ask AI...* back. Chosen while a request runs, the editor asks whether to stop it
+  first.
+- Every dialog can be moved by its title bar - with the mouse, a pen or a finger - within the
+  window: Settings, the message boxes, the AI popup and the first-use notice, the script
+  proposal and the scripts' own dialogs alike (Find and Replace could be moved before). A
+  dialog keeps its place while it is open and never leaves the window (a smaller window pulls
+  it back in); a moved dialog opens centred again the next time, Find and Replace where they
+  were closed, as before; nothing is stored about where a dialog was left. The keyboard -
+  Escape, Enter, Tab, the accelerators - works as before.
 - Limits and slow services: a service's "wait" - a 429, a 402 or a 503 that names the wait -
   is waited out with a visible, cancellable countdown and the request retried, up to 5 minutes
   per request, and a service that reports its remaining quota in its headers is paced before
@@ -126,12 +147,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Core API minor 4 (additive): the `ai.*` family (`ai.services`, `ai.reloadServices`,
   `ai.createUserServices`, and the jobs `ai.complete`, `ai.models`, `ai.test` with the
   phases `connecting` / `waiting` / `receiving`), `app.openUrl`, `doc.fragmentToXml` /
-  `doc.fragmentFromXml`, `schema.text`, `scripts.write`, the `ai` settings group, the error
-  codes 1200-1203 and the test hooks `test.aiRequests`, `test.resetAiRequests`,
-  `test.setAiResolve`, `test.setAiTimeouts` (hooks-enabled builds only). Service failures are
-  results, never RPC errors, so that a service's words never reach the diagnostics log; the
-  core logs a failed request as `ai.<kind>` with the method, the kind of target, the host and
-  the status only, and never a limit wait or a redirect.
+  `doc.fragmentFromXml`, `schema.text`, `scripts.write`, the `ai` settings group,
+  `session.aiPanelWidth` and `session.aiPanelVisible`, the error codes 1200-1203 and the test
+  hooks `test.aiRequests`, `test.resetAiRequests`, `test.setAiResolve`, `test.setAiTimeouts`
+  (hooks-enabled builds only). Service failures are results, never RPC errors, so that a
+  service's words never reach the diagnostics log; the core logs a failed request as
+  `ai.<kind>` with the method, the kind of target, the host and the status only, and never a
+  limit wait or a redirect.
 
 ### Changed
 
@@ -163,15 +185,18 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   script's behaviour changes.
 - The Commands toolbar's View group gains the AI Assistant button after the three view buttons.
   A customised toolbar layout stored by an earlier release does not gain it by itself:
-  *Customize Toolbar* adds it and *Reset* restores the default order with it; the button is
-  hidden while the assistant is disabled, and so is the entry in the Customize lists. The two
-  hotkey tables gain Ctrl+Shift+A (View > AI Assistant) and Ctrl+K (Ask AI...), rebindable like
-  every other and absent from the Hotkeys page while the assistant is disabled.
-- Settings file: the `ai` group (`ai.mode` with the default `free`, `ai.freeServiceId` with the
-  default `ovhcloud`, `ai.custom.address` / `ai.custom.key` / `ai.custom.model`,
-  `ai.customVerified`, `ai.agreements`) and `session.aiPanelWidth` (360) are new; a 0.0.4
-  settings file keeps every value and the new keys take their defaults. The core's API minor
-  is 4; every change is additive.
+  *Customize Toolbar* adds it and *Reset* restores the default order with it; the button shows
+  and hides the panel in every mode, under *Disabled* too. The two hotkey tables gain
+  Ctrl+Shift+A (View > AI Assistant) and Ctrl+K (Ask AI...), rebindable like every other;
+  Ctrl+Shift+A shows and hides the panel in every mode, while Ctrl+K does nothing under
+  *Disabled* and is absent from the Hotkeys page then.
+- Settings file: the `ai` group (`ai.mode` with the default `disabled`, `ai.freeServiceId`
+  with the default `ovhcloud`, `ai.custom.address` / `ai.custom.key` / `ai.custom.model`,
+  `ai.customVerified`, `ai.agreements`), `session.aiPanelWidth` (360) and
+  `session.aiPanelVisible` (`true`: the panel is open at the first start and written, like
+  `session.treeVisible`, when it is hidden or shown) are new; a 0.0.4 settings file keeps every
+  value and the new keys take their defaults. The core's API minor is 4; every change is
+  additive.
 
 ## 0.0.4 - 2026-10-21
 
