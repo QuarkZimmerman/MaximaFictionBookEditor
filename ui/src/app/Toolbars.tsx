@@ -30,8 +30,10 @@ import { iconUrl } from './toolbarDefinitions';
 import {
   LAST_SCRIPT,
   SEPARATOR,
+  isHiddenItem,
   saveLayout,
   shownLayout,
+  withHiddenItems,
   type CustomizableToolbar,
 } from './toolbarLayouts';
 
@@ -220,12 +222,21 @@ function CustomizableToolbarView({
   const services = useAppServices();
   const ctx = useCommandContext();
   const settings = useAppState((s) => s.settings, services.store);
+  useAppRevision(); // the hidden items follow the command registry (feature 005 FR-096)
   // A running script (or AI request) blocks the whole window, as in the original.
   const runLocked = useAppState(isRunLocked, services.store);
-  const items = shownLayout(settings, toolbar, scriptButtons);
+  // A hidden item (toolbarLayouts.ts: the AI assistant's button while the assistant is
+  // disabled) has no element at all - not even an empty wrapper - and a drag keeps it stored.
+  const stored = shownLayout(settings, toolbar, scriptButtons);
+  const hidden = (item: string) => isHiddenItem(item, services.commands, ctx);
+  const items = stored.filter((item) => !hidden(item));
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const label = t(toolbar === 'commands' ? 'toolbar.commands' : 'toolbar.scripts');
-  const drag = useButtonDrag(items, (next) => void saveLayout(ctx, toolbar, next), runLocked);
+  const drag = useButtonDrag(
+    items,
+    (next) => void saveLayout(ctx, toolbar, withHiddenItems(stored, next, hidden)),
+    runLocked,
+  );
 
   const customize = () => {
     if (runLocked) return;

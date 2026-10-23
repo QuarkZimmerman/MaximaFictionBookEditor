@@ -13,6 +13,15 @@
  * (No: nothing changes, Yes: cancelled first, then off); the document replaced clears the
  * conversation with the panel open; Disabled chosen in Settings while a request runs asks the
  * same question before OK (`beforeApply`); the quit flow's prompt names the AI request.
+ *
+ * The Disabled transitions of data-model §3.3 rows "settings OK, mode → disabled" and
+ * "disabled → free | custom" (US9 T064-T066; FR-096 to FR-098): the de-registration restores
+ * the inert stubs (the View entry hidden by `visible`, the toolbar button gone, the hotkeys
+ * inert), removes the context-menu slot, closes the panel and drops the catalogue and the
+ * conversation; a request still running then is cancelled and waited for; `enabled` /
+ * `canAsk` / `canSend` are false under `disabled` whatever the rest of the state; no dynamic
+ * import happens while off or disabled; the re-registration brings the live commands back
+ * with the assistant off and without a second import.
  */
 
 import {
@@ -32,6 +41,7 @@ import { CaretRegistry } from '@/model/caret';
 import { actions, createAppStore, type AppStore } from '@/model/store';
 import { UndoCoordinator } from '@/model/undo';
 import type { MessageButtonId, Settings } from '@/rpc/types';
+import { contextMenuExtensions } from '@/views/body/contextMenuExtensions';
 
 import {
   fakeDialogs,
@@ -692,5 +702,247 @@ describe('AI assistant transitions (data-model §3.3)', () => {
       text: 'msg.cancelRunningScript',
       caption: 'app.name',
     });
+  });
+});
+
+describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR-098)', () => {
+  afterEach(() => {
+    delete (window as { __mfbeTest?: unknown }).__mfbeTest;
+    delete contextMenuExtensions.ai;
+  });
+
+  /** A registered feature with a document, the assistant on through the toggle. */
+  async function turnedOn(options: Parameters<typeof setup>[0] = {}): Promise<Harness> {
+    const harness = setup(options);
+    actions.setSettings(harness.store, settingsWithMode('free'));
+    actions.setDocument(harness.store, fakeDocument());
+    await settle();
+    await harness.commands.execute('ai.toggle', harness.ctx);
+    await settle();
+    expect(harness.store.getState().ai.on).toBe(true);
+    return harness;
+  }
+
+  it('settings OK with Disabled while on and idle: off and de-registered - the slot removed, the panel closed, the catalogue and the conversation dropped, the stubs back, no ai.cancel, the hotkeys inert, the document untouched', async () => {
+    const { store, commands, feature, ctx, dialogs, load } = await turnedOn();
+    const hooks = aiTestHooks()!;
+    await vi.waitFor(() => expect(hooks.state().catalogue).toBe(true));
+    conversationWith(store);
+    expect(contextMenuExtensions.ai).toBeDefined(); // the "Ask AI..." slot while on
+    expect(contextMenuExtensions.ai!(null as never)).toHaveLength(1);
+
+    actions.setSettings(store, settingsWithMode('disabled'));
+    await settle();
+    // Nothing was asked (idle); off and de-registered at once.
+    expect(dialogs.shown).toEqual([]);
+    expect(feature.status).toBe('disabled');
+    expect(feature.enabled()).toBe(false);
+    expect(store.getState().ai).toMatchObject({
+      on: false,
+      request: null,
+      catalogue: null,
+      panelFocus: false,
+    });
+    expect(store.getState().ai.conversation).toEqual({
+      docId: null,
+      messages: [],
+      activity: [],
+      droppedTurns: 0,
+    });
+    expect(contextMenuExtensions.ai).toBeUndefined(); // the slot removed (FR-030, FR-096)
+    expect(hooks.state().catalogue).toBe(false);
+    expect(hooks.on).toBe(false);
+    // The registry: the two inert, invisible stubs and no `ai.cancel` - so the View entry
+    // (`visible`), the toolbar button and the Hotkeys rows are gone and the chords dispatch
+    // nothing.
+    expect(ids(commands)).toEqual(['ai.ask', 'ai.toggle']);
+    expect(commands.has('ai.cancel')).toBe(false);
+    for (const id of ['ai.toggle', 'ai.ask']) {
+      expect(commands.get(id)!.stub).toBe(true);
+      expect(commands.isVisible(id, ctx)).toBe(false);
+      expect(commands.isEnabled(id, ctx)).toBe(false);
+      expect(commands.dispatch(id, ctx)).toBe(false);
+      expect(await commands.execute(id, ctx)).toBe(false);
+    }
+    expect(hooks.commands()).toEqual([
+      { id: 'ai.toggle', visible: false, enabled: false, stub: true },
+      { id: 'ai.ask', visible: false, enabled: false, stub: true },
+    ]);
+    // The document, its modified state and the undo history are untouched (FR-095); the
+    // imported chunk stays idle, no second import.
+    expect(store.getState().modified).toBe(false);
+    expect(store.getState().runLock).toBeNull();
+    expect(ctx.undo.canUndo).toBe(false);
+    expect(store.getState().ai.loaded).toBe(true);
+    expect(load).toHaveBeenCalledTimes(1);
+    // The predicates say no whatever the rest of the state (data-model §3.4).
+    expect(feature.canAsk(ctx)).toBe(false);
+    expect(feature.canSend(ctx)).toBe(false);
+    // Toggling by hand (a stale caller) does nothing while disabled: the status gate.
+    await feature.toggle(ctx);
+    await settle();
+    expect(store.getState().ai.on).toBe(false);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('a Disabled snapshot while a request runs (a route without the dialog question): the request is cancelled and waited for, then off and de-registered', async () => {
+    const standIn = requestStandIn();
+    const { store, commands, feature } = await turnedOn({ module: standIn.module });
+    standIn.begin(store);
+    expect(feature.requestRunning()).toBe(true);
+
+    actions.setSettings(store, settingsWithMode('disabled'));
+    await settle();
+    // De-registered at once; the turn-off waits for the request's end.
+    expect(feature.status).toBe('disabled');
+    expect(ids(commands)).toEqual(['ai.ask', 'ai.toggle']);
+    expect(standIn.cancelled()).toBe(1);
+    await settleCancel();
+    await settle();
+    expect(store.getState().ai).toMatchObject({ on: false, request: null, catalogue: null });
+    expect(store.getState().ai.conversation.messages).toEqual([]);
+    expect(store.getState().ai.conversation.activity).toEqual([]);
+    expect(store.getState().runLock).toBeNull();
+    expect(contextMenuExtensions.ai).toBeUndefined();
+  });
+
+  it('disabled → free | custom: the live commands return with the assistant off, the panel closed, no import, nothing else changed (FR-097)', async () => {
+    const { store, commands, feature, ctx, load } = await turnedOn();
+    actions.setSettings(store, settingsWithMode('disabled'));
+    await settle();
+    expect(store.getState().ai.on).toBe(false);
+
+    for (const mode of ['free', 'custom'] as const) {
+      actions.setSettings(store, settingsWithMode(mode));
+      await settle();
+      expect(feature.status).toBe('registered');
+      expect(feature.enabled()).toBe(true);
+      expect(ids(commands)).toEqual(['ai.ask', 'ai.cancel', 'ai.toggle']);
+      expect(commands.get('ai.toggle')!.stub).toBeUndefined();
+      expect(commands.isVisible('ai.toggle', ctx)).toBe(true);
+      expect(commands.isEnabled('ai.toggle', ctx)).toBe(true); // a document is open
+      expect(commands.isChecked('ai.toggle', ctx)).toBe(false); // off
+      expect(commands.isVisible('ai.ask', ctx)).toBe(false); // off: no Ask AI
+      expect(commands.isEnabled('ai.cancel', ctx)).toBe(false);
+      expect(store.getState().ai.on).toBe(false);
+      expect(store.getState().ai.catalogue).toBeNull();
+      expect(contextMenuExtensions.ai).toBeUndefined();
+      expect(feature.canAsk(ctx)).toBe(false); // off
+      expect(feature.canSend(ctx)).toBe(false);
+      expect(aiTestHooks()!.commands()).toEqual([
+        { id: 'ai.toggle', visible: true, enabled: true, stub: false },
+        { id: 'ai.ask', visible: false, enabled: false, stub: false },
+        { id: 'ai.cancel', visible: true, enabled: false, stub: false },
+      ]);
+      expect(store.getState().modified).toBe(false);
+      expect(ctx.undo.canUndo).toBe(false);
+      actions.setSettings(store, settingsWithMode('disabled'));
+      await settle();
+    }
+    expect(load).toHaveBeenCalledTimes(1); // the first turn-on's import only
+
+    // The hotkey is live again once registered: the toggle turns the assistant on.
+    actions.setSettings(store, settingsWithMode('free'));
+    await settle();
+    expect(commands.dispatch('ai.toggle', ctx)).toBe(true);
+    await settle();
+    expect(store.getState().ai.on).toBe(true);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('enabled / canAsk / canSend under each mode; no dynamic import while off or disabled', async () => {
+    const { store, commands, feature, ctx, load } = setup();
+    actions.setDocument(store, fakeDocument());
+    // Before the first snapshot: nothing.
+    expect(feature.enabled()).toBe(false);
+    expect(feature.canAsk(ctx)).toBe(false);
+    expect(feature.canSend(ctx)).toBe(false);
+    // Disabled: nothing, and the stubs' chords import nothing.
+    actions.setSettings(store, settingsWithMode('disabled'));
+    await settle();
+    expect(feature.enabled()).toBe(false);
+    expect(feature.canAsk(ctx)).toBe(false);
+    expect(feature.canSend(ctx)).toBe(false);
+    expect(commands.dispatch('ai.toggle', ctx)).toBe(false);
+    expect(commands.dispatch('ai.ask', ctx)).toBe(false);
+    await settle();
+    expect(load).not.toHaveBeenCalled();
+    expect(store.getState().ai.loaded).toBe(false);
+    // Free and custom, off: enabled, yet nothing to ask or send with and no import.
+    for (const mode of ['free', 'custom'] as const) {
+      actions.setSettings(store, settingsWithMode(mode));
+      await settle();
+      expect(feature.enabled()).toBe(true);
+      expect(feature.canAsk(ctx)).toBe(false);
+      expect(feature.canSend(ctx)).toBe(false);
+      expect(commands.dispatch('ai.ask', ctx)).toBe(false); // Mod+K is inert while off
+      await settle();
+      expect(load).not.toHaveBeenCalled();
+    }
+    // On: the predicates follow the view and the lock; the import happened once.
+    await feature.toggle(ctx);
+    await settle();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(feature.canAsk(ctx)).toBe(true);
+    expect(feature.canSend(ctx)).toBe(true);
+    actions.setActiveView(store, 'description');
+    expect(feature.canAsk(ctx)).toBe(false);
+    expect(feature.canSend(ctx)).toBe(true); // the panel sends from any view
+    actions.setActiveView(store, 'body');
+    actions.setRunLock(store, { kind: 'script', label: 's', startedAt: Date.now() });
+    expect(feature.canAsk(ctx)).toBe(false);
+    expect(feature.canSend(ctx)).toBe(false);
+    actions.setRunLock(store, null);
+    // Disabled while on: everything false again, and `on` is false (data-model §3.4).
+    actions.setSettings(store, settingsWithMode('disabled'));
+    await settle();
+    expect(store.getState().ai.on).toBe(false);
+    expect(feature.enabled()).toBe(false);
+    expect(feature.canAsk(ctx)).toBe(false);
+    expect(feature.canSend(ctx)).toBe(false);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('the pre-apply hook: the question only for Disabled while a request runs; No keeps the dialog, Yes cancels and waits, then the snapshot turns off (FR-097, FR-093)', async () => {
+    const standIn = requestStandIn();
+    const { store, feature, dialogs } = await turnedOn({
+      module: standIn.module,
+      answers: ['no', 'yes'],
+    });
+    const free = settingsWithMode('free');
+    const custom = settingsWithMode('custom');
+    const disabled = settingsWithMode('disabled');
+    standIn.begin(store);
+    // Other changes while a request runs apply without a question - the target change among
+    // them (data-model §3.3 "settings OK, target changed").
+    await expect(feature.beforeApply(custom, free)).resolves.toBe('apply');
+    await expect(feature.beforeApply(disabled, disabled)).resolves.toBe('apply'); // already
+    expect(dialogs.shown).toEqual([]);
+    // Disabled: the question in its Settings wording; No → keepOpen, nothing cancelled.
+    await expect(feature.beforeApply(disabled, free)).resolves.toBe('keepOpen');
+    expect(dialogs.shown).toHaveLength(1);
+    expect(dialogs.shown[0]).toMatchObject({
+      testId: 'dialog-ai-stop-confirm',
+      text: 'ai.stopConfirm.disableText',
+      caption: 'ai.stopConfirm.title',
+      buttons: 'yesNo',
+      defaultButton: 'no',
+    });
+    expect(standIn.cancelled()).toBe(0);
+    expect(store.getState().ai.on).toBe(true);
+    expect(feature.status).toBe('registered');
+    // Yes → the request is cancelled and has ended before 'apply' is returned.
+    const applying = feature.beforeApply(disabled, free);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(standIn.cancelled()).toBe(1);
+    await expect(applying).resolves.toBe('apply');
+    expect(feature.requestRunning()).toBe(false);
+    expect(store.getState().runLock).toBeNull();
+    expect(store.getState().ai.on).toBe(true); // the snapshot turns it off, not the hook
+    actions.setSettings(store, disabled);
+    await settle();
+    expect(feature.status).toBe('disabled');
+    expect(store.getState().ai.on).toBe(false);
+    expect(dialogs.shown).toHaveLength(2);
   });
 });

@@ -79,10 +79,16 @@ describe('App shell', () => {
     expect(within(view).getAllByRole('separator')).toHaveLength(2);
     expect(view.querySelectorAll('[role^="menuitem"]')).toHaveLength(10);
     expect(screen.queryByTestId('toolbar-ai.toggle')).not.toBeInTheDocument();
-    // The wrapper of the toolbar slot stays (the layout is the stored one) but holds no button.
-    expect(
-      screen.getByTestId('toolbar-commands').querySelector('[data-toolbar-item="ai.toggle"]'),
-    ).toBeEmptyDOMElement();
+    // Not even an empty wrapper of the toolbar slot (US9 T065: a hidden item has no element;
+    // the stored layout keeps it - toolbarLayouts.ts), and no doubled separator either.
+    const toolbar = screen.getByTestId('toolbar-commands');
+    expect(toolbar.querySelector('[data-toolbar-item="ai.toggle"]')).toBeNull();
+    const toolbarItems = [...toolbar.querySelectorAll('[data-toolbar-item]')].map((item) =>
+      item.getAttribute('data-toolbar-item'),
+    );
+    expect(toolbarItems).toContain('view.source');
+    expect(toolbarItems[toolbarItems.indexOf('view.source') + 1]).toBe('-');
+    expect(toolbarItems[toolbarItems.indexOf('view.source') + 2]).toBe('insert.binary');
     await user.keyboard('{Escape}');
 
     // The feature takes the stub over with a visible command: the row and the button appear,
@@ -109,6 +115,10 @@ describe('App shell', () => {
       'title',
       'AI Assistant (Ctrl+Shift+A)',
     );
+    // Back in its stored place: after the view buttons, before their separator.
+    expect(
+      toolbar.querySelector('[data-toolbar-item="view.source"] + [data-toolbar-item]'),
+    ).toHaveAttribute('data-toolbar-item', 'ai.toggle');
     await user.keyboard('{Escape}');
 
     // Hidden again (the assistant disabled): both are gone, the separator count unchanged.

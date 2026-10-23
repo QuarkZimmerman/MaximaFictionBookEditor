@@ -16,6 +16,21 @@
  * the conversation is dropped; when it changes back the commands return - without a restart
  * (FR-097).
  *
+ * The Disabled transitions (US9 T065; data-model §3.3 rows "settings OK, mode → disabled" and
+ * "disabled → free | custom", §3.4 invariants): `deregister()` turns off if on (a request still
+ * running - a snapshot that did not come through the dialog's question - is cancelled and
+ * waited for first), which clears the conversation, closes the popup and the panel (App.tsx
+ * renders them while `on`), removes the context-menu slot and drops the catalogue instance;
+ * `ai.toggle` and `ai.ask` are replaced by the inert, invisible stubs and `ai.cancel` is
+ * removed outright (no stub exists for it); `register()` brings the live commands back with
+ * the assistant off. Where the two commands are listed by name, invisibility is honoured
+ * everywhere else as decided here (FR-096 - nothing of the assistant in the editor but the
+ * settings page): the Customize Toolbar dialog **hides** a stored layout's `ai.toggle`
+ * rather than greying it out and keeps it stored (`toolbarLayouts.ts` `withHiddenItems`),
+ * and the Hotkeys page never names an invisible command in "Assigned to ..." - its chord is
+ * free and a default it holds is taken back silently (`hotkeysModel.ts`). Nothing of the
+ * feature runs a timer or a listener while off (§3.4).
+ *
  * Nothing contacts a service, gathers context or takes the lock here (FR-020, FR-091):
  * `ai.toggle` on the first turn-on performs the one `import('./chunk')` of the `ai-assistant`
  * chunk (vite.config.ts; `chunk.ts` re-exports `assistant.ts` and the panel component) and

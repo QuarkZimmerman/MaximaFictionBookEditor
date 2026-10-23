@@ -751,6 +751,66 @@ describe('SettingsDialog - Hotkeys page', () => {
       'Show or hide the AI assistant panel',
     );
   });
+
+  it('never names an invisible command: its chord counts as free and a default it holds is taken back without a prompt (feature 005 US9, FR-096)', async () => {
+    const { ctx, user, commands } = await setup({ page: 'hotkeys' });
+    const askLive = {
+      id: 'ai.ask',
+      group: 'tools' as const,
+      tooltipKey: 'cmd.ai.ask.tooltip',
+      descriptionKey: 'cmd.ai.ask.description',
+      run: () => {},
+    };
+    const askHidden = { ...askLive, stub: true, visible: () => false };
+    const capture = screen.getByTestId('settings-hotkeys-capture');
+    const keyK = { key: 'k', code: 'KeyK', ctrlKey: true };
+
+    // Ctrl+K is the default of `ai.ask`, an invisible stub while the assistant is disabled:
+    // the page does not say "Assigned to Tools \ Ask AI..." - the chord is free.
+    await user.click(screen.getByTestId('settings-hotkeys-group-edit'));
+    await user.click(screen.getByTestId('settings-hotkeys-command-edit.undo'));
+    capture.focus();
+    fireEvent.keyDown(capture, keyK);
+    expect(screen.getByTestId('settings-hotkeys-collision')).toHaveTextContent(
+      'Not assigned to other command',
+    );
+    expect(screen.getByTestId('settings-hotkeys-collision')).not.toHaveTextContent('AI');
+    // Assigning it displaces the invisible holder, as any assignment does.
+    await user.click(screen.getByTestId('settings-hotkeys-assign'));
+    expect(screen.getByTestId('settings-hotkeys-current')).toHaveTextContent('Ctrl+K');
+
+    // The same chord with the command visible (the assistant enabled) is reported.
+    act(() => commands.replace(askLive));
+    await user.click(screen.getByTestId('settings-hotkeys-command-edit.redo'));
+    fireEvent.keyDown(capture, keyK);
+    expect(screen.getByTestId('settings-hotkeys-collision')).toHaveTextContent(
+      'Assigned to "Edit \\ Undo"',
+    );
+    // Ask AI takes Redo's default chord while visible ...
+    await user.click(screen.getByTestId('settings-hotkeys-group-tools'));
+    await user.click(await screen.findByTestId('settings-hotkeys-command-ai.ask'));
+    fireEvent.keyDown(capture, { key: 'y', code: 'KeyY', ctrlKey: true });
+    expect(screen.getByTestId('settings-hotkeys-collision')).toHaveTextContent(
+      'Assigned to "Edit \\ Redo"',
+    );
+    await user.click(screen.getByTestId('settings-hotkeys-assign'));
+    expect(screen.getByTestId('settings-hotkeys-current')).toHaveTextContent('Ctrl+Y');
+    // ... and becomes invisible again: restoring Redo's default asks nothing and takes the
+    // chord back (the "Replace?" prompt would have named the feature).
+    act(() => commands.replace(askHidden));
+    await user.click(screen.getByTestId('settings-hotkeys-group-edit'));
+    await user.click(screen.getByTestId('settings-hotkeys-command-edit.redo'));
+    expect(screen.getByTestId('settings-hotkeys-current')).toHaveTextContent('None');
+    await user.click(screen.getByTestId('settings-hotkeys-default'));
+    await waitFor(() =>
+      expect(screen.getByTestId('settings-hotkeys-current')).toHaveTextContent('Ctrl+Y'),
+    );
+    expect(ctx.dialogs.shown).toEqual([]);
+    act(() => commands.replace(askLive));
+    await user.click(screen.getByTestId('settings-hotkeys-group-tools'));
+    const row = await screen.findByTestId('settings-hotkeys-command-ai.ask');
+    expect(row).not.toHaveTextContent('Ctrl+');
+  });
 });
 
 describe('SettingsDialog - Words page', () => {

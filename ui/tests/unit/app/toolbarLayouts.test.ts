@@ -16,6 +16,7 @@ import {
   saveLayout,
   SEPARATOR,
   shownLayout,
+  withHiddenItems,
 } from '@/app/toolbarLayouts';
 import { actions, createAppStore } from '@/model/store';
 
@@ -64,6 +65,63 @@ describe('toolbar layouts', () => {
     expect(shownLayout(settings, 'scripts', SCRIPTS)).toEqual(['script.b', LAST_SCRIPT, '-']);
     // Before the catalogue is loaded no script is offered: its buttons wait.
     expect(shownLayout(settings, 'scripts')).toEqual([LAST_SCRIPT, '-']);
+  });
+
+  it('puts the hidden items of a layout back into an edited copy of its visible part (feature 005 US9)', () => {
+    // The AI assistant's button while the assistant is disabled: neither the toolbar nor the
+    // Customize dialog shows it, yet the stored layout keeps it after every edit, so it is
+    // back in its place when the assistant is enabled again (FR-096, FR-097).
+    const hidden = (item: string) => item === 'ai.toggle' || item === 'ai.other';
+    const stored = ['file.new', 'view.body', 'view.source', 'ai.toggle', '-', 'edit.find'];
+    const visible = stored.filter((item) => !hidden(item));
+    expect(visible).toEqual(['file.new', 'view.body', 'view.source', '-', 'edit.find']);
+    // Unchanged visible part: the stored layout as it was.
+    expect(withHiddenItems(stored, visible, hidden)).toEqual(stored);
+    // A button added before the anchor, a separator added after it: the hidden item follows
+    // its anchor (the nearest button before it).
+    expect(withHiddenItems(stored, ['file.save', ...visible], hidden)[4]).toBe('ai.toggle');
+    expect(
+      withHiddenItems(
+        stored,
+        ['file.new', 'view.body', 'view.source', '-', '-', 'edit.find'],
+        hidden,
+      ),
+    ).toEqual(['file.new', 'view.body', 'view.source', 'ai.toggle', '-', '-', 'edit.find']);
+    // The anchor moved: the hidden item moves with it.
+    expect(
+      withHiddenItems(stored, ['view.source', 'file.new', 'view.body', '-', 'edit.find'], hidden),
+    ).toEqual(['view.source', 'ai.toggle', 'file.new', 'view.body', '-', 'edit.find']);
+    // The anchor removed: the next button before it is the anchor.
+    expect(withHiddenItems(stored, ['file.new', 'view.body', '-', 'edit.find'], hidden)).toEqual([
+      'file.new',
+      'view.body',
+      'ai.toggle',
+      '-',
+      'edit.find',
+    ]);
+    // No button before it any more: it leads the layout; several hidden items keep their order.
+    const leading = ['ai.toggle', 'ai.other', 'file.new', '-'];
+    expect(withHiddenItems(leading, ['-', 'file.open'], hidden)).toEqual([
+      'ai.toggle',
+      'ai.other',
+      '-',
+      'file.open',
+    ]);
+    expect(withHiddenItems(['file.new', 'ai.toggle', 'ai.other', '-'], ['-'], hidden)).toEqual([
+      'ai.toggle',
+      'ai.other',
+      '-',
+    ]);
+    // A layout without hidden items is the edited one; an edited list already holding the
+    // item (a stale caller) gets no second copy.
+    expect(withHiddenItems(['file.new', '-'], ['-', 'file.new'], hidden)).toEqual([
+      '-',
+      'file.new',
+    ]);
+    expect(withHiddenItems(stored, [...visible, 'ai.toggle'], hidden)).toEqual([
+      ...visible,
+      'ai.toggle',
+    ]);
   });
 
   it('keeps the shown layout while a later change is on its way to the core', async () => {

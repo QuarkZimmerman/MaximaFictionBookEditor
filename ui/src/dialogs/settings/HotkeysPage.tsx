@@ -6,6 +6,10 @@
  *
  * The page edits a scratch `HotkeyMap` (a copy of the live one) so Cancel discards the changes;
  * the dialog copies the scratch overrides into the live map on OK / Apply.
+ *
+ * An invisible command (the AI assistant's stubs while the assistant is disabled, feature 005
+ * FR-096) has no row and is never named: its chord is reported as free and a default it holds
+ * is taken back without the "Replace?" question (`hotkeysModel.ts`).
  */
 
 import { useEffect, useMemo, useReducer, useState, type KeyboardEvent } from 'react';
@@ -26,6 +30,8 @@ import {
   commandsOfGroup,
   groupLabel,
   qualifiedCommandName,
+  reportedCollision,
+  restoreDefaultChord,
 } from './hotkeysModel';
 
 export interface HotkeysPageProps {
@@ -72,7 +78,7 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
 
   const collision =
     captured?.complete && captured.validation.ok && captured.chord && selected
-      ? hotkeys.findCollision(captured.chord, selected.id)
+      ? reportedCollision(hotkeys, commands, captured.chord, selected.id, ctx)
       : undefined;
   const collisionCommand = collision ? commands.get(collision) : undefined;
 
@@ -102,7 +108,7 @@ export function HotkeysPage({ commands, hotkeys, ctx }: HotkeysPageProps) {
 
   const restoreDefault = async () => {
     if (!selected) return;
-    const result = hotkeys.resetToDefault(selected.id);
+    const result = restoreDefaultChord(hotkeys, commands, selected.id, ctx);
     if (!result.ok && result.collision) {
       const other = commands.get(result.collision);
       const answer = await ctx.dialogs.showMessage({
