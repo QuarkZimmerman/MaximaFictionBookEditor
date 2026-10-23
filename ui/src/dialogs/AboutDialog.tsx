@@ -10,6 +10,13 @@
  * `spell.dictionaries()` - built in or found in the user, portable or chosen folder - is listed
  * with its tag and origin, and its `<tag>.txt` notice (`spell.dictionaryLicense`) is shown in a
  * second scrollable box, one section per dictionary (`about-dictionary-<tag>`).
+ *
+ * CA bundle (feature 005, research R12.3; resource-formats §C): the Linux packages ship
+ * Mozilla's CA certificate bundle (`resources/certs/cacert.pem`, MPL-2.0) for the assistant's
+ * TLS connections, so where the bundle ships - `app.info().platform === 'linux'` - its notice
+ * `cacert.NOTICE.txt` is shown in a third captioned scrollable box (`about-ca-bundle`), bundled
+ * at build time like the contributor notice; the Windows and macOS packages carry no bundle and
+ * show no box. No RPC is involved.
  */
 
 import { useEffect, useId, useState } from 'react';
@@ -24,6 +31,7 @@ import { Dialog, type DialogButton } from './Dialog';
 import './about.css';
 
 import contributorsNotice from '../../../CONTRIBUTORS.txt?raw';
+import caBundleNotice from '../../../resources/certs/cacert.NOTICE.txt?raw';
 
 export const REPOSITORY_URL = 'https://github.com/QuarkZimmerman/MaximaFictionBookEditor';
 export const MAXIMA_LIBRARY_URL = 'https://www.maxima-library.com';
@@ -31,6 +39,15 @@ export const LICENCE_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
 
 /** The original's contributor notice as its About dialog showed it (without the final newline). */
 const CONTRIBUTORS_TEXT = contributorsNotice.replace(/\r?\n$/, '');
+
+/**
+ * The notice of the shipped CA bundle (`resources/certs/cacert.NOTICE.txt`, without the final
+ * newline) - shown where the bundle ships, the Linux packages (resource-formats §C).
+ */
+const CA_BUNDLE_TEXT = caBundleNotice.replace(/\r?\n$/, '');
+
+/** The platforms whose packages ship `resources/certs/` (resource-formats §C "Shipping rule"). */
+const CA_BUNDLE_PLATFORMS: ReadonlySet<string> = new Set(['linux']);
 
 export interface AboutDialogProps {
   ctx: CommandContext;
@@ -102,6 +119,7 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
   );
   const [opening, setOpening] = useState(false);
   const dictionariesCaptionId = useId();
+  const caBundleCaptionId = useId();
 
   useEffect(() => {
     if (!rpc) return;
@@ -132,6 +150,9 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
   };
 
   const version = info?.version ?? ctx.version;
+  // The bundle ships with the Linux packages only: the box follows the running core's
+  // platform, never the browser's (a core-less page shows no box).
+  const showsCaBundle = info?.platform !== undefined && CA_BUNDLE_PLATFORMS.has(info.platform);
   const chromium =
     info?.chromiumVersion ??
     (typeof navigator !== 'undefined'
@@ -324,6 +345,28 @@ export function AboutDialog({ ctx, onClose }: AboutDialogProps) {
               </section>
             ))}
           </div>
+        ) : null}
+        {showsCaBundle ? (
+          <>
+            <p
+              className="mfbe-about-note"
+              id={caBundleCaptionId}
+              data-testid="about-ca-bundle-caption"
+            >
+              {t('dialog.about.caBundle.caption')}
+            </p>
+            <div
+              className="mfbe-about-notices"
+              role="region"
+              tabIndex={0}
+              aria-labelledby={caBundleCaptionId}
+              data-testid="about-ca-bundle"
+            >
+              <pre className="mfbe-about-notice-text" data-testid="about-ca-bundle-notice">
+                {CA_BUNDLE_TEXT}
+              </pre>
+            </div>
+          </>
         ) : null}
         <div className="mfbe-about-log">
           <button

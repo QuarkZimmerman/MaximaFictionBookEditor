@@ -5,13 +5,16 @@
  * contributor notice word for word, "Open log folder" with the headless (1050) fallback.
  * Feature 003 (T024, FR-004 / FR-033): every dictionary of `spell.dictionaries()` is listed
  * with its tag and origin and its `spell.dictionaryLicense` notice (`about-dictionary-<tag>`).
+ * Feature 005 (T091, research R12.3; resource-formats §C): the notice of the shipped CA bundle
+ * (`resources/certs/cacert.NOTICE.txt`) in a captioned scrollable box, `about-ca-bundle`, where
+ * the bundle ships - a `linux` core - and nowhere else (`windows`, `mac`, no core).
  */
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { createCommandRegistry } from '@/app/commands';
@@ -25,9 +28,16 @@ import type { UiLanguage } from '@/rpc/types';
 
 import { fakeRpc, makeContext, rpcError, type Responder } from '../features/testUtils';
 
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+
 // A text area's value has LF line ends; a Windows checkout gives the file CRLF.
-const CONTRIBUTORS = readFileSync(
-  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../CONTRIBUTORS.txt'),
+const CONTRIBUTORS = readFileSync(path.join(REPO_ROOT, 'CONTRIBUTORS.txt'), 'utf8')
+  .replace(/\r\n/g, '\n')
+  .replace(/\n$/, '');
+
+/** The CA bundle notice as the Linux packages install it (resource-formats §C). */
+const CA_BUNDLE_NOTICE = readFileSync(
+  path.join(REPO_ROOT, 'resources', 'certs', 'cacert.NOTICE.txt'),
   'utf8',
 )
   .replace(/\r\n/g, '\n')
@@ -374,6 +384,70 @@ describe('AboutDialog', () => {
       expect(screen.getByTestId('about-dictionary-be_BY-notice')).toHaveTextContent(
         'Belarusian notice.',
       );
+    });
+  });
+
+  describe('CA bundle notice where the bundle ships (feature 005 T091, resource-formats §C)', () => {
+    it('shows the notice of cacert.pem in a captioned scrollable box on a Linux core', async () => {
+      await setup();
+      const box = await screen.findByTestId('about-ca-bundle');
+      expect(box).toHaveAttribute('role', 'region');
+      expect(box).toHaveAttribute('tabindex', '0');
+      const caption = screen.getByTestId('about-ca-bundle-caption');
+      expect(box).toHaveAttribute('aria-labelledby', caption.id);
+      expect(caption).toHaveTextContent(/^Root certificate bundle of the Linux packages/);
+      expect(caption).toHaveTextContent(/and its notice:$/);
+      // The notice file word for word (without its final newline), never translated.
+      expect(screen.getByTestId('about-ca-bundle-notice').textContent).toBe(CA_BUNDLE_NOTICE);
+      expect(CA_BUNDLE_NOTICE).toContain('Mozilla CA certificate bundle (cacert.pem)');
+      expect(CA_BUNDLE_NOTICE).toContain('Mozilla Public License, version 2.0');
+      expect(CA_BUNDLE_NOTICE).toContain('on Linux only');
+      expect(screen.getByTestId('dialog-about').textContent ?? '').not.toMatch(/\bMIT\b/);
+      // Below the dictionaries' notices, above the log folder row.
+      const dialog = screen.getByTestId('dialog-about');
+      const order = Array.from(dialog.querySelectorAll('[data-testid]')).map(
+        (el) => (el as HTMLElement).dataset['testid'],
+      );
+      expect(order.indexOf('about-ca-bundle')).toBeGreaterThan(order.indexOf('about-dictionaries'));
+      expect(order.indexOf('about-ca-bundle')).toBeLessThan(order.indexOf('about-open-log-folder'));
+    });
+
+    it('captions the box in the interface language (Russian, Ukrainian)', async () => {
+      await setup({ language: 'ru' });
+      await screen.findByTestId('about-ca-bundle');
+      expect(screen.getByTestId('about-ca-bundle-caption')).toHaveTextContent(
+        /^Набор корневых сертификатов пакетов для Linux/,
+      );
+      expect(screen.getByTestId('about-ca-bundle-notice').textContent).toBe(CA_BUNDLE_NOTICE);
+      cleanup();
+      await setup({ language: 'uk' });
+      await screen.findByTestId('about-ca-bundle');
+      expect(screen.getByTestId('about-ca-bundle-caption')).toHaveTextContent(
+        /^Набір кореневих сертифікатів пакетів для Linux/,
+      );
+      expect(screen.getByTestId('about-ca-bundle-notice').textContent).toBe(CA_BUNDLE_NOTICE);
+    });
+
+    it.each(['windows', 'mac'])(
+      'shows no box on a %s core (no bundle ships there)',
+      async (platform) => {
+        await setup({ info: { ...INFO, platform } });
+        await waitFor(() =>
+          expect(screen.getByTestId('about-platform')).toHaveTextContent(platform),
+        );
+        // The dictionaries' notices are there as before; the bundle's box is not.
+        await screen.findByTestId('about-dictionaries');
+        expect(screen.queryByTestId('about-ca-bundle')).toBeNull();
+        expect(screen.queryByTestId('about-ca-bundle-caption')).toBeNull();
+        expect(screen.getByTestId('dialog-about').textContent ?? '').not.toContain('cacert.pem');
+      },
+    );
+
+    it('shows no box without a core (the platform is unknown)', async () => {
+      await setup({ rpc: false });
+      expect(screen.queryByTestId('about-platform')).toBeNull();
+      expect(screen.queryByTestId('about-ca-bundle')).toBeNull();
+      expect(screen.getByTestId('dialog-about').textContent ?? '').not.toContain('cacert.pem');
     });
   });
 

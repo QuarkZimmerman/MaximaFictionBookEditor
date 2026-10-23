@@ -1,6 +1,7 @@
 /* About dialog (T149) after IDD_ABOUTBOX: name + version, build stamp, link, licence notices,
    the original's contributor notice (IDC_CONTRIBS), the spelling dictionaries' notices
-   (feature 003, FR-033), log folder. */
+   (feature 003, FR-033), the CA bundle notice where the bundle ships (feature 005,
+   resource-formats §C), log folder. */
 
 .mfbe-aboutdialog {
   width: min(520px, calc(100vw - 32px));
@@ -134,6 +135,14 @@
 
 .mfbe-about-dictionary-none {
   color: var(--mfbe-color-fg-muted, #6b6b6b);
+}
+
+/* A notice shown as one text (the CA bundle's), in the same read-only box. */
+.mfbe-about-notice-text {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .mfbe-about-log {
