@@ -27,6 +27,7 @@ import { useTranslation } from 'react-i18next';
 
 import { getAiFeature } from '@/ai';
 import type { NoticeTarget, RequireAgreementOptions } from '@/ai/notice';
+import { KEY_MASK, maskKey } from '@/ai/address';
 import { agreementsOf, saveAgreements, settingsWithoutAgreement } from '@/ai/agreements';
 import type { CommandContext } from '@/app/commands';
 import { ExternalLink } from '@/dialogs/ExternalLink';
@@ -318,7 +319,9 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
       case 'verified':
         return t('dialog.settings.ai.status.verified', { model: status.model });
       case 'failed':
-        return status.text;
+        // The service's words with the key the page holds (the custom draft's) masked - a
+        // service that echoes the Authorization value never puts it on screen (§9, C16).
+        return maskKey(status.text, ai?.custom.key);
     }
   };
   const statusAttribute = status.kind === 'running' ? 'untested' : status.kind;
@@ -422,6 +425,13 @@ export function AiPage({ draft, onChange, ctx, registerCancel, requireAgreement 
                 data-testid="settings-ai-tools-note"
               >
                 {t('dialog.settings.ai.toolsNote')}
+              </div>
+            ) : null}
+            {entry?.hasKey ? (
+              // FR-014: a user list entry's key is named, never shown - the core reports
+              // `hasKey` alone and the key itself never reaches the page.
+              <div className="mfbe-settings-note" data-testid="settings-ai-entry-key">
+                {t('dialog.settings.ai.entryKey', { mask: KEY_MASK })}
               </div>
             ) : null}
           </div>

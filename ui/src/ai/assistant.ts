@@ -87,6 +87,7 @@ import {
   updateActivity,
   type ActivityKind,
 } from './activity';
+import { displayKeyOf } from './address';
 import {
   chatToolsMembers,
   createCatalogue,
@@ -108,6 +109,7 @@ import {
 } from './catalogue';
 import {
   appliedLine,
+  assertChatRequestPrivate,
   buildWorkingContext,
   caretBlock,
   caretContextMessage,
@@ -146,6 +148,7 @@ import {
 import { showProposal } from './proposal.tsx';
 import {
   failureText,
+  maskKey,
   pacingWait,
   toFailure,
   triage,
@@ -516,6 +519,14 @@ async function readScriptFile(id: string, file: string): Promise<ScriptFileConte
     throw new ToolError('internal', `GET /scripts/${id}/${file} failed: ${response.status}`);
   }
   return { content: await response.text() };
+}
+
+/** The sections of an outline, nested ones included (the `request.start` entry names the count). */
+function countSections(entries: readonly OutlineEntry[]): number {
+  return entries.reduce(
+    (sum, entry) => sum + (entry.type === 'section' ? 1 : 0) + countSections(entry.children),
+    0,
+  );
 }
 
 /** The failure a thrown value stands for: 1200 → `noService`, everything else `internal`. */
@@ -981,11 +992,15 @@ class RequestRun {
     }
     conversationFor(store, docId);
     appendMessage(store, { requestId: this.id, role: 'user', text: options.instruction });
+    // The privacy record's first line (US7 T081, FR-042): what the system message carries - the
+    // outline (its sections) - and the selection that goes with a selection request, by size.
+    this.outlineEntries = outlineOf(session.before);
     this.activity('request.start', {
       kind: this.kind,
       origin: options.origin,
       service: target.name,
       model: target.model,
+      outline: { sections: countSections(this.outlineEntries) },
       ...(this.selection
         ? { selection: { characters: this.selection.characters, blocks: this.selection.blocks } }
         : {}),
@@ -1013,7 +1028,6 @@ class RequestRun {
       preExistingErrors: session.preExistingErrors,
       ...(source ? { sourceWellFormed: source.wellFormed } : {}),
     };
-    this.outlineEntries = outlineOf(session.before);
     this.context = buildWorkingContext(this.contextInput);
     let systemMessage: ChatMessage = { role: 'system', content: systemPrompt(this.context) };
 
@@ -1241,6 +1255,8 @@ class RequestRun {
       }
       const messages = compose();
       const body: ChatRequest = { messages, ...toolsMembers };
+      // Development builds: no docId, path, key or token member leaves with the body (§9, T082).
+      assertChatRequestPrivate(body);
       const bytes = JSON.stringify(body).length;
       this.fixedUnits = bytes;
       this.exchanges += 1;
@@ -2090,17 +2106,22 @@ class RequestRun {
           this.activity('request.cancelled');
           appendMessage(store, { requestId: this.id, role: 'notice', text: t('ai.end.cancelled') });
           break;
-        case 'failed':
+        case 'failed': {
+          // The service's words reach the record and the notice with the configured key masked
+          // (ai-service-protocol §9, review C16) - the panel masks again when it renders.
+          const key = displayKeyOf(store.getState().settings);
+          const failure = outcome.failure as Failure;
           this.activity('request.failed', {
-            kind: outcome.failure.kind,
-            ...(outcome.failure.message === undefined ? {} : { message: outcome.failure.message }),
+            kind: failure.kind,
+            ...(failure.message === undefined ? {} : { message: maskKey(failure.message, key) }),
           });
           appendMessage(store, {
             requestId: this.id,
             role: 'notice',
-            text: failureText(t, outcome.failure as Failure),
+            text: failureText(t, failure, key),
           });
           break;
+        }
         default:
           this.activity('request.rejected', { issues: outcome.issues });
           appendMessage(store, { requestId: this.id, role: 'notice', text: t('ai.end.rejected') });

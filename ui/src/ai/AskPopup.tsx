@@ -35,6 +35,7 @@ import { formatElapsed } from '@/scripting/host';
 import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 import { getSourceEditor } from '@/views/source/sourceEditor';
 
+import { displayKeyOf } from './address';
 import {
   activeRequest,
   cancelRequest,
@@ -43,7 +44,7 @@ import {
   type RequestOutcome,
 } from './assistant';
 import { selectionSnapshot, type SelectionSnapshot } from './context';
-import { failureText, needsSettingsLink, type Failure } from './protocol';
+import { failureText, maskKey, needsSettingsLink, type Failure } from './protocol';
 import { countContainerTags, editorSelectionRange, refusedRange } from './source';
 import { resolveActiveTarget } from './target';
 
@@ -114,6 +115,8 @@ export function AskPopup({
   );
   const live = useAppState((s) => s.ai.request as AiRequestView | null, store);
   const assistantOn = useAppState((s) => s.ai.on, store);
+  // The configured key is `•••` in every service- or model-supplied text shown here (C16, §9).
+  const displayKey = useAppState((s) => displayKeyOf(s.settings), store);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const closedRef = useRef(false);
@@ -263,17 +266,18 @@ export function AskPopup({
         statusText = t('ai.end.cancelled');
         break;
       case 'failed':
-        statusText = failureText(t, outcome.failure as Failure);
+        statusText = failureText(t, outcome.failure as Failure, displayKey);
         break;
       default:
         statusText = t('ai.end.rejected');
         break;
     }
   }
+  // The model's words as a text node (C16), the key masked should a service have echoed it.
   const answer =
     outcome &&
     (outcome.kind === 'answered' || outcome.kind === 'askedBack' || outcome.kind === 'committed')
-      ? (outcome.text ?? '')
+      ? maskKey(outcome.text ?? '', displayKey)
       : '';
   const cutOff = outcome !== null && 'cutOff' in outcome && outcome.cutOff === true;
   const settingsLink = outcome?.kind === 'failed' && needsSettingsLink(outcome.failure as Failure);

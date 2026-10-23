@@ -19,7 +19,12 @@ import { z } from 'zod';
 
 import type { AiOutcome } from '@/rpc/types';
 
+import { KEY_MASK, maskKey } from './address';
 import type { RequestFailure } from './assistant';
+
+// The mask lives in the static `address.ts` (the settings page masks its status while the
+// assistant is off); the chunk's callers keep importing it from here.
+export { KEY_MASK, maskKey };
 
 /* ------------------------------------------------------------------------ */
 /* Constants of the contract                                                 */
@@ -33,8 +38,6 @@ export const WAIT_BUDGET_SECONDS = 300;
 export const REDUCED_TEXT_LIMIT = 300;
 /** The cap of the message shown to the user (§4). */
 export const SHOWN_MESSAGE_LIMIT = 2000;
-/** What replaces the configured key in a displayed service text (§9). */
-export const KEY_MASK = '•••';
 /**
  * The catalogue key of the 3xx failure text "the address redirects — enter the final address"
  * (§4; the integration task adds the text to `ai.{en,ru,uk}.json`).
@@ -276,13 +279,6 @@ export function capMessage(text: string, limit = SHOWN_MESSAGE_LIMIT): string {
   const last = text.charCodeAt(cut - 1);
   if (cut > 0 && last >= 0xd800 && last <= 0xdbff) cut -= 1;
   return `${text.slice(0, cut)}…`;
-}
-
-/** §9: every occurrence of the configured key in a displayed service text becomes `•••`. */
-export function maskKey(text: string, key: string | undefined): string {
-  const needle = key?.trim() ?? '';
-  if (needle === '') return text;
-  return text.split(needle).join(KEY_MASK);
 }
 
 /**

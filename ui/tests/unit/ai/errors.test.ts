@@ -25,6 +25,7 @@ import {
   toFailure,
   triage,
   type ExchangeResult,
+  type Failure,
 } from '@/ai/protocol';
 import type { AiOutcome } from '@/rpc/types';
 
@@ -463,6 +464,62 @@ describe('capMessage, maskKey, formatServiceMessage', () => {
     expect(long.endsWith(' (code)')).toBe(true);
     expect(formatServiceMessage('', 'code')).toBe('(code)');
     expect(formatServiceMessage('  spaced  ')).toBe('spaced');
+  });
+
+  it('every rendered service text of a failure masks the key, whatever row it came from, and keeps URLs plain (US7 T080)', () => {
+    const key = 'sk-live-0123456789';
+    const t = ((k: string, params?: Record<string, unknown>) =>
+      k === 'ai.failure.withMessage'
+        ? `${String(params?.text)} The service said: ${String(params?.message)}`
+        : `[${k}]`) as unknown as Parameters<typeof failureText>[0];
+    const cases: { failure: Failure; expectKind: string }[] = [
+      {
+        failure: { kind: 'auth', status: 401, message: `Incorrect API key provided: ${key}.` },
+        expectKind: 'auth',
+      },
+      {
+        failure: {
+          kind: 'service',
+          status: 400,
+          message: `Bad request for Bearer ${key} at https://api.test/v1/chat/completions`,
+        },
+        expectKind: 'service',
+      },
+      {
+        failure: { kind: 'format', status: 200, message: `{"echo":"${key}"}` },
+        expectKind: 'format',
+      },
+      {
+        failure: {
+          kind: 'limit',
+          status: 429,
+          message: `Quota of ${key} exhausted`,
+          waitSeconds: 400,
+        },
+        expectKind: 'limitWait',
+      },
+      {
+        failure: { kind: 'service', status: 302, message: `Moved: ${key}`, redirect: true },
+        expectKind: 'redirect',
+      },
+    ];
+    for (const { failure, expectKind } of cases) {
+      const text = failureText(t, failure, key);
+      expect(text, failure.kind).toContain(`[ai.failure.${expectKind}]`);
+      expect(text, failure.kind).not.toContain(key);
+      expect(text, failure.kind).toContain('•••');
+    }
+    // URLs stay literal text, the key inside one is masked as well.
+    const url = failureText(
+      t,
+      { kind: 'service', status: 400, message: `See https://api.test/v1?key=${key}` },
+      key,
+    );
+    expect(url).toContain('https://api.test/v1?key=•••');
+    expect(url).not.toMatch(/<a\b/);
+    // Without a configured key nothing is masked (a local model server, an empty custom key).
+    expect(failureText(t, { kind: 'auth', message: `key ${key}` }, undefined)).toContain(key);
+    expect(failureText(t, { kind: 'auth', message: `key ${key}` }, '')).toContain(key);
   });
 });
 

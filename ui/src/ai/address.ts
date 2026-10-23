@@ -88,6 +88,43 @@ export function stripTrailingSlash(address: string): string {
   return address.replace(/\/+$/, '');
 }
 
+/* ------------------------------------------------------------------------ */
+/* The configured key on screen (ai-service-protocol §9, ai-catalogue §1.8; review C16)         */
+/* ------------------------------------------------------------------------ */
+
+/** What replaces the configured key in a displayed service text (ai-service-protocol §9). */
+export const KEY_MASK = '•••';
+
+/**
+ * Every occurrence of the configured key in a text that is about to be shown becomes `•••` -
+ * a service that echoes the `Authorization` value in an error body must not put the key on
+ * screen or into a screenshot. Static (the settings page masks its status while the assistant
+ * is off); `protocol.ts` re-exports it for the chunk.
+ */
+export function maskKey(text: string, key: string | undefined): string {
+  const needle = key?.trim() ?? '';
+  if (needle === '') return text;
+  return text.split(needle).join(KEY_MASK);
+}
+
+/** A key shorter than this is no credential a service issues; masking it would strike letters out of ordinary text. */
+const MIN_MASKED_KEY_LENGTH = 4;
+
+/**
+ * The key the UI knows and masks wherever a service text is displayed (US7 T081): the custom
+ * key of the settings while the custom option is in use - the only key the UI ever holds. A
+ * user list entry's key (FR-014) never reaches the UI (`hasKey` alone travels), so there is
+ * nothing of it to mask here; the settings page names such an entry's key as `•••` only.
+ */
+export function displayKeyOf(
+  settings: { ai?: { mode: string; custom: { key: string } } } | null | undefined,
+): string | undefined {
+  const ai = settings?.ai;
+  if (!ai || ai.mode !== 'custom') return undefined;
+  const key = ai.custom.key.trim();
+  return key.length < MIN_MASKED_KEY_LENGTH ? undefined : key;
+}
+
 /** What an agreement key is derived from: a free entry by id, the custom target by its stored address. */
 export type AgreementTarget = { kind: 'free'; id: string } | { kind: 'custom'; address: string };
 

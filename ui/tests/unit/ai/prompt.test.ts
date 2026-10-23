@@ -12,11 +12,13 @@ import { NodeSelection } from 'prosemirror-state';
 
 import {
   appliedLine,
+  assertChatRequestPrivate,
   buildWorkingContext,
   caretBlock,
   caretContextMessage,
   contextSelection,
   DATA_BOUNDARY_LINE,
+  forbiddenRequestMembers,
   languageName,
   outlineOf,
   preExistingNote,
@@ -366,6 +368,77 @@ describe('buildWorkingContext', () => {
     expect(languageName('en-US')).toBe('English');
     expect(languageName('de')).toBe('German');
     expect(languageName('zz')).toBe('zz');
+  });
+});
+
+describe('the serialised ChatRequest and its privacy guard (ai-service-protocol §9; US7 T080, T082)', () => {
+  it('the system message carries the book title and language only - no docId, file path, authors, genres or key', () => {
+    const document = book();
+    const prompt = systemPrompt(buildWorkingContext(input({ document })));
+    const body = {
+      messages: [
+        { role: 'system', content: prompt },
+        { role: 'user', content: 'Fix' },
+      ],
+    };
+    const serialised = JSON.stringify(body);
+    expect(prompt).toContain('"book": {\n    "title": "Alpha"\n  }');
+    for (const forbidden of [
+      'docId',
+      document.docId,
+      document.path,
+      '"authors"',
+      '"genres"',
+      'Petrov',
+      'sk-',
+    ]) {
+      expect(serialised, forbidden).not.toContain(forbidden);
+    }
+    expect(forbiddenRequestMembers(body)).toEqual([]);
+    expect(() => assertChatRequestPrivate(body)).not.toThrow();
+  });
+
+  it('forbiddenRequestMembers names a docId, path, key, token, user or metadata member at any depth; the tool schemas are left out of the assertion', () => {
+    expect(
+      forbiddenRequestMembers({
+        messages: [{ role: 'user', content: 'x', docId: 'doc-1' }],
+        user: 'u1',
+        metadata: {},
+        nested: { deep: [{ apiKey: 'k', Authorization: 'Bearer', path: '/f.fb2', token: 't' }] },
+      }).sort(),
+    ).toEqual(
+      [
+        'messages[0].docId',
+        'user',
+        'metadata',
+        'nested.deep[0].apiKey',
+        'nested.deep[0].Authorization',
+        'nested.deep[0].path',
+        'nested.deep[0].token',
+      ].sort(),
+    );
+    // A value named like a member is not a member: `role: 'user'`, a `path` inside a string.
+    expect(
+      forbiddenRequestMembers({
+        messages: [{ role: 'user', content: '{"path":"body[1]","docId":"x"}' }],
+      }),
+    ).toEqual([]);
+    // Development builds throw a PrivacyAssertionError; the tools' schemas (which name a
+    // `path` for propose_script files) are not checked.
+    const withTools = {
+      messages: [{ role: 'user', content: 'x' }],
+      tools: [{ type: 'function', function: { parameters: { properties: { path: {} } } } }],
+    };
+    expect(() => assertChatRequestPrivate(withTools)).not.toThrow();
+    let thrown: unknown = null;
+    try {
+      assertChatRequestPrivate({ messages: [{ role: 'user', content: 'x', key: 'sk' }] });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).name).toBe('PrivacyAssertionError');
+    expect((thrown as Error).message).toContain('messages[0].key');
   });
 });
 

@@ -20,6 +20,10 @@
  *   `inline` inside one text container, else `blocks` - the ProseMirror slice's outermost nodes
  *   rendered as complete elements by `doc.fragmentToXml`, a partial first / last block holding
  *   only its selected part, `openStart` / `openEnd` saying so.
+ * - `assertChatRequestPrivate` is the development-build guard of ai-service-protocol §9 (US7
+ *   T082): the request body the loop is about to hand to `ai.complete` carries no member named
+ *   after a document id, a file path, a key or a token - the working context travels as text
+ *   inside the system message, and the core adds `model` and `stream` itself.
  */
 
 import type { Fragment, Node as PMNode } from 'prosemirror-model';
@@ -31,7 +35,7 @@ import { pathOfNode } from '@/editor/structuralPath';
 import { nodeToModel } from '@/editor/toModel';
 import type { SectionWindow } from '@/editor/virtualization';
 import type { Document } from '@/model/document';
-import type { ModelPoint, ViewId } from '@/rpc/types';
+import type { ChatRequest, ModelPoint, ViewId } from '@/rpc/types';
 import { documentStats, plainText } from '@/scripting/api-impl';
 
 /** This contract's version (ai-catalogue §2.1 `catalogueVersion`). */
@@ -39,6 +43,73 @@ export const CATALOGUE_VERSION = 1;
 
 /** The editor's name as the model reads it. */
 export const EDITOR_NAME = 'Maxima Fiction Book Editor';
+
+/* ------------------------------------------------------------------------ */
+/* The privacy guard of the request body (ai-service-protocol §9; US7 T082)                       */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Members a `ChatRequest` never carries (ai-service-protocol §9): the document's identity and
+ * file, the key under any of its usual names, the session token, and the `user` / `metadata`
+ * members of the chat-completions format. Matched case-insensitively on every object member of
+ * the body except the tool schemas (a `propose_script` file has a `path` property by design).
+ */
+const FORBIDDEN_REQUEST_MEMBERS: ReadonlySet<string> = new Set([
+  'docid',
+  'path',
+  'filepath',
+  'filename',
+  'file',
+  'key',
+  'apikey',
+  'api_key',
+  'authorization',
+  'token',
+  'user',
+  'metadata',
+]);
+
+/**
+ * The member names of `value` that are in the forbidden set, as `a.b[2].c` paths; `maxDepth`
+ * bounds the walk (an echoed assistant message is as deep as the service made it).
+ */
+export function forbiddenRequestMembers(value: unknown, prefix = '', maxDepth = 12): string[] {
+  if (maxDepth <= 0 || value === null || typeof value !== 'object') return [];
+  const found: string[] = [];
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      found.push(...forbiddenRequestMembers(item, `${prefix}[${index}]`, maxDepth - 1));
+    });
+    return found;
+  }
+  for (const [name, member] of Object.entries(value as Record<string, unknown>)) {
+    const here = prefix === '' ? name : `${prefix}.${name}`;
+    if (FORBIDDEN_REQUEST_MEMBERS.has(name.toLowerCase())) found.push(here);
+    found.push(...forbiddenRequestMembers(member, here, maxDepth - 1));
+  }
+  return found;
+}
+
+/**
+ * The §9 guard over the body of an `ai.complete` call: the top-level members and every member
+ * of the messages (the system text, the turns, the tool results, the echoed assistant messages)
+ * are checked, the `tools` array only at its top level - its JSON schemas legitimately name a
+ * `path` (`propose_script` files). Throws a `PrivacyAssertionError` naming the first offending
+ * members; a no-op in production builds (the body is built by the loop alone; the check guards
+ * the development of the loop, never the user's request).
+ */
+export function assertChatRequestPrivate(body: ChatRequest): void {
+  if (!import.meta.env.DEV) return;
+  const { tools: _tools, ...rest } = body;
+  void _tools;
+  const offending = forbiddenRequestMembers(rest);
+  if (offending.length === 0) return;
+  const error = new Error(
+    `the request body carries members that never leave the computer: ${offending.slice(0, 5).join(', ')}`,
+  );
+  error.name = 'PrivacyAssertionError';
+  throw error;
+}
 
 /* ------------------------------------------------------------------------ */
 /* Types                                                                    */

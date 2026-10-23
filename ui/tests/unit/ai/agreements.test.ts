@@ -82,6 +82,23 @@ describe('isNoticeDue / agreementDue', () => {
     ).toBe(true);
   });
 
+  it("compares host and port as one: the us7 journey's stand-in names (US7 T080)", () => {
+    // `standin` agreed at `ai.standin.test:8787`; the entry is then pointed elsewhere.
+    const agreed = [{ service: 'standin', host: 'ai.standin.test:8787', at: AT }];
+    const target = { kind: 'free', id: 'standin' } as const;
+    expect(isNoticeDue(agreed, target, 'http://ai.standin.test:8787/v1')).toBe(false);
+    expect(isNoticeDue(agreed, target, 'http://ai.standin.test:8787/v1/')).toBe(false);
+    // Another name on the same port, the same name on another port, the name without a port.
+    expect(isNoticeDue(agreed, target, 'http://ai2.standin.test:8787/v1')).toBe(true);
+    expect(isNoticeDue(agreed, target, 'http://ai.standin.test:8788/v1')).toBe(true);
+    expect(isNoticeDue(agreed, target, 'http://ai.standin.test/v1')).toBe(true);
+    // Yes at the new host replaces the agreement in place - one per service, the host updated.
+    const updated = withAgreement(agreed, 'standin', 'ai2.standin.test:8787', AT);
+    expect(updated).toEqual([{ service: 'standin', host: 'ai2.standin.test:8787', at: AT }]);
+    expect(isNoticeDue(updated, target, 'http://ai2.standin.test:8787/v1')).toBe(false);
+    expect(isNoticeDue(updated, target, 'http://ai.standin.test:8787/v1')).toBe(true);
+  });
+
   it('is never due for a local address, agreement or not', () => {
     for (const address of [
       'http://127.0.0.1:8787/v1',

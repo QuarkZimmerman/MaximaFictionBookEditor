@@ -51,8 +51,9 @@ import type { RpcClient } from '@/rpc/client';
 import { formatElapsed } from '@/scripting/host';
 
 import { clearConversation } from './activity';
+import { displayKeyOf } from './address';
 import { cancelRequest, startRequest, type AiRequestView } from './assistant';
-import { failureText, type Failure } from './protocol';
+import { failureText, maskKey, type Failure } from './protocol';
 import { resolveActiveTarget, type ActiveTarget } from './target';
 
 import './ai.css';
@@ -130,17 +131,40 @@ function issuesText(t: TFunction, issues: unknown): string {
 /**
  * The localised line of one activity entry (data-model §5.2). Every model- or service-supplied
  * member (summaries, messages) is interpolated as data: i18next escapes nothing here because
- * the result is rendered as a text node, never as markup.
+ * the result is rendered as a text node, never as markup; `key` - the configured key, when the
+ * UI holds one - is replaced by `•••` wherever a service's words are shown (US7 T081, C16).
  */
 // eslint-disable-next-line react-refresh/only-export-components -- the formatter lives with the list it feeds, in the lazy chunk
-export function activityText(t: TFunction, entry: AssistantActivityEntry): string {
+export function activityText(t: TFunction, entry: AssistantActivityEntry, key?: string): string {
   const p = entry.payload;
   switch (entry.kind) {
-    case 'request.start':
-      return t('ai.activity.requestStart', {
+    case 'request.start': {
+      // The privacy record's first line (FR-042, US7): the service, then what the request sent
+      // with its first exchange - the outline by its sections, the selection by its size.
+      const base = t('ai.activity.requestStart', {
         service: asString(p.service),
         model: asString(p.model),
       });
+      const sent: string[] = [];
+      const outline = p.outline;
+      if (outline && typeof outline === 'object') {
+        const count = asNumber((outline as Record<string, unknown>).sections);
+        sent.push(t('ai.activity.sentOutline', { count }));
+      }
+      const selection = p.selection;
+      if (selection && typeof selection === 'object') {
+        const record = selection as Record<string, unknown>;
+        sent.push(
+          t('ai.activity.sentSelection', {
+            characters: asNumber(record.characters),
+            count: asNumber(record.blocks),
+          }),
+        );
+      }
+      return sent.length === 0
+        ? base
+        : `${base} — ${t('ai.activity.sent', { items: sent.join(', ') })}`;
+    }
     case 'validate.baseline':
       return t('ai.activity.validateBaseline', { count: asNumber(p.errors) });
     case 'exchange.sent':
@@ -261,7 +285,7 @@ export function activityText(t: TFunction, entry: AssistantActivityEntry): strin
         kind: (asString(p.kind) || 'internal') as Failure['kind'],
         ...(typeof p.message === 'string' ? { message: p.message } : {}),
       };
-      return t('ai.activity.requestFailed', { text: failureText(t, failure) });
+      return t('ai.activity.requestFailed', { text: failureText(t, failure, key) });
     }
     case 'request.rejected': {
       // The three rejections' issues (FR-063, US4 scenario 3).
@@ -378,6 +402,9 @@ export function AiPanel() {
   const sendable = hasDocument && !locked && target.kind === 'ok';
   const trimmed = instruction.trim();
   const empty = conversation.messages.length === 0;
+  // The configured key (the custom option's) is `•••` wherever the service's or the model's
+  // words are shown: the failure texts, the activity entries, the messages (C16, US7 T081).
+  const displayKey = displayKeyOf(settings);
   // Clear, a document change and turn-off empty the conversation: its Undo button goes with it
   // (Edit > Undo still reaches the step).
   const conversationEmpty = empty && conversation.activity.length === 0;
@@ -400,10 +427,12 @@ export function AiPanel() {
       // The request never got as far as the lock (no service, a script holding the lock, the
       // notice answered No): the instruction comes back and the reason is shown here.
       setInstruction(text);
-      if (outcome.kind === 'failed') setSendFailure(failureText(t, outcome.failure as Failure));
+      if (outcome.kind === 'failed') {
+        setSendFailure(failureText(t, outcome.failure as Failure, displayKey));
+      }
     }
     inputRef.current?.focus();
-  }, [ctx, instruction, running, sendable, store, t]);
+  }, [ctx, displayKey, instruction, running, sendable, store, t]);
 
   const stop = useCallback(() => {
     cancelRequest(store);
@@ -532,7 +561,13 @@ export function AiPanel() {
           </p>
         ) : null}
         {conversation.messages.map((message, index) => (
-          <MessageRow key={message.id} message={message} index={index} t={t} />
+          <MessageRow
+            key={message.id}
+            message={message}
+            index={index}
+            t={t}
+            displayKey={displayKey}
+          />
         ))}
       </div>
 
@@ -553,7 +588,7 @@ export function AiPanel() {
               data-request={entry.requestId}
             >
               <span className="mfbe-ai-activity-time">{formatElapsed(entry.elapsedMs)}</span>
-              <span className="mfbe-ai-activity-text">{activityText(t, entry)}</span>
+              <span className="mfbe-ai-activity-text">{activityText(t, entry, displayKey)}</span>
             </li>
           ))}
         </ol>
@@ -656,10 +691,13 @@ function MessageRow({
   message,
   index,
   t,
+  displayKey,
 }: {
   message: AssistantMessage;
   index: number;
   t: TFunction;
+  /** The configured key, masked in the model's and the editor's texts (never in the user's own). */
+  displayKey: string | undefined;
 }) {
   const role =
     message.role === 'user'
@@ -667,6 +705,9 @@ function MessageRow({
       : message.role === 'assistant'
         ? t('ai.panel.roleAssistant')
         : t('ai.panel.roleNotice');
+  // A text node, never markup (C16): the model's words, the key replaced by `•••` should a
+  // service have echoed it (ai-service-protocol §9).
+  const text = message.role === 'user' ? message.text : maskKey(message.text, displayKey);
   return (
     <div
       className={`mfbe-ai-message mfbe-ai-message-${message.role}`}
@@ -677,7 +718,7 @@ function MessageRow({
       data-cutoff={message.cutOff ? 'true' : undefined}
     >
       <div className="mfbe-ai-message-role">{role}</div>
-      <div className="mfbe-ai-message-text">{message.text}</div>
+      <div className="mfbe-ai-message-text">{text}</div>
       {message.interim ? <div className="mfbe-ai-message-mark">{t('ai.panel.interim')}</div> : null}
       {message.cutOff ? (
         <div className="mfbe-ai-message-mark mfbe-ai-message-cutoff">{t('ai.popup.cutOff')}</div>
