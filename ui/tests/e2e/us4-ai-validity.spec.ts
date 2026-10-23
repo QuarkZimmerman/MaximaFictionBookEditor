@@ -22,11 +22,19 @@
  *  4. the SC-002 table: 26 invalid answers through the change tools, 0 applied
  *  5. `set_description`: an invalid description change rejected, a new title applied; FR-055:
  *     no image data in any request; the §9.1 refusals as results while the request goes on
+ *
+ * Performance (T094; quickstart §11; research R4.8, R5, R11.3; tagged `@perf`, run on the
+ * Release core with `--workers=1`): the one `@perf` journey of feature 005 - five `replace_node`
+ * changes on the 10 MB book of `tests/fixtures/gen-large-book.py`, the validation of the working
+ * copy after each change (`doc.validate({docId, document})`) asserted under 1 000 ms ×
+ * `MFBE_PERF_FACTOR` each, the request end to end annotated, no `doc.toXml` at the commit.
  */
 
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { Page } from '@playwright/test';
 
@@ -52,6 +60,7 @@ interface LastRequest {
   exchanges: number;
   changes: number;
   validations: { durationMs: number }[];
+  fromXmlCalls: number;
 }
 
 interface ChatMessage {
@@ -149,6 +158,7 @@ async function openBook(
   page: Page,
   standin: StandinHandle,
   book: string,
+  timeout?: number,
 ): Promise<void> {
   await core.rpc('settings.set', {
     patch: {
@@ -163,8 +173,10 @@ async function openBook(
   await core.enqueueDialog('dialog.openFile', { paths: [book] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
-  await waitForBook(page, book);
-  await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
+  await waitForBook(page, book, timeout);
+  await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true', {
+    timeout,
+  });
 }
 
 async function turnOn(page: Page): Promise<void> {
@@ -894,4 +906,216 @@ test.describe('US4 (005) - nothing invalid reaches the book', () => {
     expect(rows.at(-1)!.kind).toBe('request.answered');
     expect(await documentXml(page)).toBe(xmlBefore);
   });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Performance (T094, quickstart §11) - the one @perf journey of feature 005 */
+/* ------------------------------------------------------------------------ */
+
+const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
+const GENERATOR = path.join(REPO_ROOT, 'tests', 'fixtures', 'gen-large-book.py');
+/** R5's acceptance number for one validation of the 10 MB working copy (quickstart §11). */
+const VALIDATION_BUDGET_MS = 1000;
+/** Hosted CI runners against a 2020-era laptop (docs/performance.md; as perf-large-book.spec.ts). */
+const PERF_FACTOR = Number(process.env.MFBE_PERF_FACTOR ?? 2) || 2;
+/** The constitution's open budget, as the opening timeout of the 10 MB book. */
+const OPEN_TIMEOUT_MS = 12_000;
+const CHANGE_TOOLS = 5;
+
+/**
+ * Records the method of every JSON-RPC request the page sends to the core (the envelope's
+ * first bytes - `{"jsonrpc":"2.0","id":N,"method":"…"` - so a 10 MB `doc.validate` payload is
+ * never parsed here): the proof that the commit calls no `doc.toXml` (R5 §4: 310 ms at 10 MB)
+ * and that the request made exactly its validations and fragment parses.
+ */
+const INSTALL_RPC_RECORDER = `(() => {
+  const w = window;
+  if (Array.isArray(w.__mfbeRpcMethods)) {
+    w.__mfbeRpcMethods.length = 0;
+    return;
+  }
+  w.__mfbeRpcMethods = [];
+  const send = WebSocket.prototype.send;
+  WebSocket.prototype.send = function (data) {
+    if (typeof data === 'string') {
+      const match = /^\\{"jsonrpc":"2\\.0","id":\\d+,"method":"([^"]+)"/.exec(data.slice(0, 200));
+      if (match) w.__mfbeRpcMethods.push(match[1]);
+    }
+    return send.call(this, data);
+  };
+})()`;
+const RPC_METHODS = `window.__mfbeRpcMethods ?? []`;
+
+/** An entry of `store.ai.conversation.activity` (data-model §5.2): `at` is `Date.now()`. */
+interface ActivityEntry {
+  at: number;
+  requestId: string;
+  elapsedMs: number;
+  kind: string;
+  payload: Record<string, unknown>;
+}
+
+const activityEntries = (page: Page) =>
+  page.evaluate<ActivityEntry[]>('window.__mfbeTest.ai.state().conversation.activity');
+
+test.describe('US4 (005) - performance: the validity hook on the 10 MB book', () => {
+  let dir = '';
+  let book = '';
+  let outside: string[] = [];
+
+  test.beforeAll(() => {
+    dir = mkdtempSync(path.join(tmpdir(), 'mfbe-ai-perf-'));
+    book = path.join(dir, 'large.fb2');
+    const result = spawnSync('python3', [GENERATOR, '--out', book, '--size-mb', '10'], {
+      encoding: 'utf8',
+    });
+    if (result.status !== 0) book = '';
+  });
+
+  test.afterAll(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
+  test.beforeEach(async ({ core, standin, context }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+    test.skip(!book || !existsSync(book), 'python3 / the generator are not available');
+    outside = await recordOutside(context);
+    await standin.reset();
+    await core.resetAiRequests();
+    await core.setAiResolve([]);
+    await core.rpc('settings.set', { patch: { ai: null } });
+  });
+
+  test.afterEach(async ({ core }) => {
+    if (!core.hasCore) return;
+    expect(outside).toEqual([]);
+    await core.rpc('settings.set', { patch: { ai: null } }).catch(() => {});
+  });
+
+  test(
+    'five replace_node changes on the 10 MB book: every validation of the working copy under 1 s × MFBE_PERF_FACTOR, the request end to end annotated, no doc.toXml at the commit (R4.8, R11.3, SC-013)',
+    { tag: '@perf' },
+    async ({ core, page, standin }) => {
+      test.setTimeout(240_000);
+      expect(statSync(book).size).toBeGreaterThan(9 * 1024 * 1024);
+      await openBook(core, page, standin, book, OPEN_TIMEOUT_MS);
+      const xmlBefore = await documentXml(page);
+      await turnOn(page);
+
+      // Five sections spread over the book (the window shows a slice of them only; the copy
+      // is the whole model), each replaced by a short rewritten chapter.
+      const total = Number(
+        await page.getByTestId('panel-body-document').getAttribute('data-section-total'),
+      );
+      expect(total).toBeGreaterThan(100);
+      const targets = [
+        2,
+        Math.floor(total / 4),
+        Math.floor(total / 2),
+        Math.floor((total * 3) / 4),
+        total - 1,
+      ];
+      expect(new Set(targets).size).toBe(CHANGE_TOOLS);
+      const rewritten = (n: number) =>
+        `<section><title><p>Глава ${n}. Переписана помощником</p></title>` +
+        `<p>Первый абзац переписанной главы ${n}.</p>` +
+        `<p>Второй абзац: книга, глава, страница, слово, текст.</p>` +
+        `<p>Третий абзац завершает главу.</p></section>`;
+      // One tool per exchange, as a model answers; the stand-in answers without delay.
+      await standin.scenarios([
+        ...targets.map((n, i) =>
+          toolCall(`perf-${i}`, 'replace_node', {
+            node: `body[1]/section[${n}]`,
+            content: { xml: rewritten(n) },
+          }),
+        ),
+        { text: 'Пять глав переписаны.' },
+      ]);
+
+      await page.evaluate(INSTALL_RPC_RECORDER);
+      const started = Date.now();
+      const request = await sendAndWait(page, 'Rewrite five chapters', 180_000);
+      const endToEndMs = Date.now() - started;
+      // Read the record before anything else of the test serialises the document.
+      const methods = await page.evaluate<string[]>(RPC_METHODS);
+
+      expect(request.state).toBe('committed');
+      expect(request.changes).toBe(CHANGE_TOOLS);
+      expect(request.exchanges).toBe(CHANGE_TOOLS + 1);
+      // validations[]: the baseline, one per accepted change, the commit's last one.
+      const validations = request.validations.map((v) => v.durationMs);
+      expect(validations).toHaveLength(CHANGE_TOOLS + 2);
+      const perChange = validations.slice(1, 1 + CHANGE_TOOLS);
+      const rows = await activityRows(page);
+      expect(rows.filter((r) => r.kind === 'validate')).toHaveLength(CHANGE_TOOLS);
+      expect(rows.filter((r) => r.kind === 'change.accepted')).toHaveLength(CHANGE_TOOLS);
+      expect(rows.filter((r) => r.kind === 'change.rejected')).toHaveLength(0);
+      const done = rows.at(-1)!;
+      expect(done.kind).toBe('request.done');
+      // The `validate` entries carry the same core timings; the hook's wall time per change
+      // (change.try → change.accepted: the parse, the pre-check, the write to the copy and the
+      // validation with its 10 MB transfer) comes from the entries' clock.
+      const entries = (await activityEntries(page)).filter((e) => e.requestId === request.id);
+      const validateEntries = entries.filter((e) => e.kind === 'validate');
+      expect(validateEntries.map((e) => e.payload.durationMs)).toEqual(perChange);
+      expect(validateEntries.every((e) => e.payload.new === 0)).toBe(true);
+      const hookWallMs: number[] = [];
+      for (const [i, tried] of entries.filter((e) => e.kind === 'change.try').entries()) {
+        const accepted = entries.find((e) => e.kind === 'change.accepted' && e.at >= tried.at);
+        expect(accepted, `change ${i + 1} accepted`).toBeTruthy();
+        hookWallMs.push(accepted!.at - tried.at);
+      }
+      expect(hookWallMs).toHaveLength(CHANGE_TOOLS);
+
+      const annotations = test.info().annotations;
+      annotations.push({
+        type: 'perf',
+        description:
+          `validity hook on the 10 MB book (${(statSync(book).size / 1024 / 1024).toFixed(1)} MB, ` +
+          `${total} sections): per-change validations in the core ${perChange.map((ms) => ms.toFixed(0)).join(', ')} ms ` +
+          `(max ${Math.max(...perChange).toFixed(0)} ms, budget ${VALIDATION_BUDGET_MS * PERF_FACTOR} ms); ` +
+          `baseline ${validations[0]!.toFixed(0)} ms; commit ${validations.at(-1)!.toFixed(0)} ms; ` +
+          `hook wall time per change (change.try → change.accepted) ${hookWallMs.map((ms) => ms.toFixed(0)).join(', ')} ms`,
+      });
+      annotations.push({
+        type: 'perf',
+        description:
+          `request end to end (Enter → done) ${endToEndMs} ms for ${CHANGE_TOOLS} replace_node changes ` +
+          `in ${request.exchanges} exchanges; the panel: "${done.text}"`,
+      });
+      for (const [i, ms] of perChange.entries()) {
+        expect(ms, `validation after change ${i + 1} (core durationMs)`).toBeLessThan(
+          VALIDATION_BUDGET_MS * PERF_FACTOR,
+        );
+      }
+
+      // The request record of the core's methods: the baseline, five per-change and one commit
+      // validation, five fragment parses (the test hook's count) and no doc.toXml at all.
+      expect(methods.filter((m) => m === 'doc.toXml')).toEqual([]);
+      expect(methods.filter((m) => m === 'doc.validate')).toHaveLength(CHANGE_TOOLS + 2);
+      expect(request.fromXmlCalls).toBe(CHANGE_TOOLS);
+      expect(methods.filter((m) => m === 'doc.fragmentFromXml')).toHaveLength(CHANGE_TOOLS);
+      // The stand-in saw the six exchanges, each tool answered with the replaced node's path.
+      const tools = await lastToolMessages(standin);
+      expect(tools.map((m) => m.tool_call_id)).toEqual(targets.map((_, i) => `perf-${i}`));
+      for (const [i, message] of tools.entries()) {
+        const result = parse<{ node: { path: string; type: string } }>(message);
+        expect([result.node.type, result.node.path]).toEqual([
+          'section',
+          `body[1]/section[${targets[i]}]`,
+        ]);
+      }
+
+      // The document: the five chapters replaced, nothing else; one undo step restores it.
+      const xmlAfter = await documentXml(page);
+      expect(xmlAfter).not.toBe(xmlBefore);
+      for (const n of targets) {
+        expect(xmlAfter).toContain(`<p>Глава ${n}. Переписана помощником</p>`);
+        expect(xmlAfter).not.toContain(`<section id="s${n}">`);
+      }
+      expect((xmlAfter.match(/Переписана помощником/g) ?? []).length).toBe(CHANGE_TOOLS);
+      expect(await isModified(page)).toBe(true);
+      await undoAll(page, xmlBefore);
+    },
+  );
 });
