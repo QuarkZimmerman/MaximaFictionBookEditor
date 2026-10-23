@@ -27,6 +27,7 @@ import { RpcError, type RpcClient } from '@/rpc/client';
 import { RpcErrorCode, type AppInfo } from '@/rpc/types';
 
 import { Dialog, type DialogButton } from './Dialog';
+import { noticeText } from './notices';
 
 import './about.css';
 
@@ -38,13 +39,14 @@ export const MAXIMA_LIBRARY_URL = 'https://www.maxima-library.com';
 export const LICENCE_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
 
 /** The original's contributor notice as its About dialog showed it (without the final newline). */
-const CONTRIBUTORS_TEXT = contributorsNotice.replace(/\r?\n$/, '');
+const CONTRIBUTORS_TEXT = noticeText(contributorsNotice);
 
 /**
- * The notice of the shipped CA bundle (`resources/certs/cacert.NOTICE.txt`, without the final
- * newline) - shown where the bundle ships, the Linux packages (resource-formats §C).
+ * The notice of the shipped CA bundle (`resources/certs/cacert.NOTICE.txt`) - shown where the
+ * bundle ships, the Linux packages (resource-formats §C) - with LF line ends whatever the
+ * checkout's (the `<pre>` keeps every character) and without the final newline.
  */
-const CA_BUNDLE_TEXT = caBundleNotice.replace(/\r?\n$/, '');
+const CA_BUNDLE_TEXT = noticeText(caBundleNotice);
 
 /** The platforms whose packages ship `resources/certs/` (resource-formats §C "Shipping rule"). */
 const CA_BUNDLE_PLATFORMS: ReadonlySet<string> = new Set(['linux']);

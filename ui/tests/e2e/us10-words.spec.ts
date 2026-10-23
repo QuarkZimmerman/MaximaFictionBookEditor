@@ -106,30 +106,68 @@ async function openWords(page: Page): Promise<Locator> {
   return dialog;
 }
 
-/** Browser-side snippet: scrolls the virtualised grid one page down; true when it could. */
-const SCROLL_GRID = `((step) => {
+/**
+ * Browser-side snippet: brings the row of a word into the virtualised grid's view and lets the
+ * table settle; resolves to true when the row is mounted, inside the grid's viewport and still
+ * the same element two frames later, false when the word is not listed.
+ *
+ * The grid mounts only the rows around its scroll position, and it renders them from a state
+ * the scroll event updates one frame later - so right after a scroll the mounted rows belong
+ * to the position before it, and a row found then can vanish with the next render (on a slow
+ * runner Playwright's check() then waited for a row nothing would mount again). Hence: scroll
+ * from the top one page at a time, wait two frames (the scroll event, then the render) before
+ * looking, scroll the row into the viewport, and accept it only once the grid's position and
+ * the row have stayed put over two more frames.
+ */
+const SETTLE_ROW = `((word) => new Promise((resolve) => {
   const grid = document.querySelector('[data-testid="words-grid"]');
-  if (!grid) return false;
-  const before = grid.scrollTop;
-  grid.scrollTop = step === 'top' ? 0 : grid.scrollTop + grid.clientHeight;
-  return step === 'top' || grid.scrollTop !== before;
-})`;
+  if (!grid) { resolve(false); return; }
+  const find = () => grid.querySelector('[data-testid^="words-row-"][data-word="' + word + '"]');
+  // How far the row sticks out of the grid's viewport (0 when inside).
+  const overflow = (row) => {
+    const g = grid.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    return r.top < g.top ? r.top - g.top : r.bottom > g.bottom ? r.bottom - g.bottom : 0;
+  };
+  const frames = (n, then) => (n === 0 ? then() : requestAnimationFrame(() => frames(n - 1, then)));
+  let attempts = 0;
+  let scrolled = false;
+  const step = () => {
+    attempts += 1;
+    if (attempts > 400) { resolve(false); return; }
+    const row = find();
+    if (!row) {
+      const before = grid.scrollTop;
+      if (!scrolled) { grid.scrollTop = 0; scrolled = true; }
+      else {
+        grid.scrollTop = before + grid.clientHeight;
+        if (grid.scrollTop === before) { frames(2, () => resolve(find() !== null)); return; }
+      }
+      frames(2, step);
+      return;
+    }
+    const outside = overflow(row);
+    if (outside !== 0) { grid.scrollTop += outside; frames(2, step); return; }
+    const top = grid.scrollTop;
+    frames(2, () => {
+      const again = find();
+      if (again === row && row.isConnected && overflow(row) === 0 && grid.scrollTop === top) {
+        resolve(true);
+      } else step();
+    });
+  };
+  step();
+}))`;
 
 /**
- * The table row of `word`. The table is virtualised (only the rows around the viewport are
- * mounted), so the grid is scrolled until the row exists; `null` when the word is not listed.
+ * The table row of `word`, scrolled into the grid's view and settled (`SETTLE_ROW`); `null`
+ * when the word is not listed. The table is virtualised: only the rows around the viewport are
+ * mounted, so a word's row exists only once the grid shows it.
  */
 async function findRow(page: Page, word: string): Promise<Locator | null> {
-  const locator = page.locator(`[data-testid^="words-row-"][data-word="${word}"]`);
-  if ((await locator.count()) > 0) return locator;
-  await page.evaluate(`${SCROLL_GRID}('top')`);
-  for (let i = 0; i < 100; i += 1) {
-    await page.waitForTimeout(60); // the scroll handler re-renders the window asynchronously
-    if ((await locator.count()) > 0) return locator;
-    if (!(await page.evaluate<boolean>(`${SCROLL_GRID}('down')`))) break;
-  }
-  await page.waitForTimeout(60);
-  return (await locator.count()) > 0 ? locator : null;
+  const settled = await page.evaluate<boolean>(`${SETTLE_ROW}(${JSON.stringify(word)})`);
+  if (!settled) return null;
+  return page.locator(`[data-testid^="words-row-"][data-word="${word}"]`);
 }
 
 /** Like `findRow` but the word must be listed; the table may still be re-rendering. */

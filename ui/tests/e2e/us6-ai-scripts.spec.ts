@@ -12,7 +12,7 @@
  *     binary; `read_resource` → the three references (sizes, first lines, the example whole
  *     with its notice header).
  *  2. `run_script` nested in a request: with a selection the spaces go, together with a
- *     `set_text` of the same request one Control+z restores both (SC-003), no `scripts.lastRun`;
+ *     `set_text` of the same request one Mod+z restores both (SC-003), no `scripts.lastRun`;
  *     without a selection `selectionRequired` shown in the activity (FR-054); the form dialog
  *     captioned as run by the assistant and filled; a throwing script → `scriptFailed`, the
  *     request going on; Cancel on the banner during the script's prompt → script and request
@@ -42,6 +42,7 @@ import {
   type StandinHandle,
 } from './fixtures/core';
 import { pageText } from './fixtures/i18n';
+import { MOD } from './fixtures/keys';
 
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                  */
@@ -514,9 +515,9 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     expect(await page.evaluate<string | null>('window.__mfbeTest.scripts.lastRunId()')).toBe(
       lastScriptBefore ?? null,
     );
-    // One Control+z restores both changes (SC-003).
+    // One Mod+z restores both changes (SC-003).
     await page.getByTestId('body-editor').focus();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
 
     // (b) Without a selection: selectionRequired, shown in the activity (FR-054), one strike.
@@ -564,7 +565,7 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     expect(dialogRows).toHaveLength(1);
     expect(dialogRows[0]!.text).toContain('Form dialog');
     await page.getByTestId('body-editor').focus();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
 
     // (d) A throwing script: its checkpoint rolled back, the request continues with scriptFailed.
@@ -763,7 +764,7 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     expect(p1Nbsp!.text).toContain(`и${NBSP}на`);
     expect(await documentXml(page)).toContain(`и${NBSP}на`);
     await page.getByTestId('body-editor').focus();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
 
     // (c) Run from the menu on a selection, as any user script: its own run, one undo step.
@@ -778,7 +779,7 @@ test.describe('US6 (005) - scripts through the assistant', () => {
       'assistant/nbsp-prepositions',
     );
     await page.getByTestId('body-editor').focus();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
   });
 

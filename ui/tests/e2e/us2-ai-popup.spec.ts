@@ -9,7 +9,7 @@
  *  1. the popup near the selection with the focus in the field, the size as selected, the
  *     service and model (FR-030)
  *  2. Enter → the banner with service · model and an operation, the popup's progress, the
- *     corrected pair applied and selected, Done with Undo, one Control+z restores the XML byte
+ *     corrected pair applied and selected, Done with Undo, one Mod+z restores the XML byte
  *     for byte; the record: one POST, the `selection_edit` form, `tools` + `tool_choice`, no
  *     `max_tokens`, the system message with the working context and the data boundary and no
  *     authors or genres (FR-031, FR-032, SC-003, SC-004)
@@ -38,6 +38,7 @@ import {
   type StandinHandle,
 } from './fixtures/core';
 import { pageText } from './fixtures/i18n';
+import { MOD } from './fixtures/keys';
 
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                  */
@@ -165,7 +166,7 @@ async function openPopupFromMenu(page: Page, target: Locator): Promise<Locator> 
 /** Mod+K → the popup (the Body editor focused first). */
 async function openPopupByHotkey(page: Page): Promise<Locator> {
   await page.getByTestId('body-editor').focus();
-  await page.keyboard.press('Control+k');
+  await page.keyboard.press(`${MOD}+k`);
   const popup = page.getByTestId('dialog-ai-ask');
   await expect(popup).toBeVisible();
   return popup;
@@ -216,7 +217,7 @@ test.describe('US2 (005) - Ask AI... from the Body context menu', () => {
     await core.rpc('settings.set', { patch: { ai: null } }).catch(() => {});
   });
 
-  test('1+2. the popup near the selection; Enter replaces the two paragraphs, keeps emphasis and notes, Done with Undo; one Control+z restores the XML; the one recorded POST', async ({
+  test('1+2. the popup near the selection; Enter replaces the two paragraphs, keeps emphasis and notes, Done with Undo; one Mod+z restores the XML; the one recorded POST', async ({
     core,
     page,
     standin,
@@ -339,9 +340,9 @@ test.describe('US2 (005) - Ask AI... from the Body context menu', () => {
     await expect(popup).toHaveCount(0);
     expect(await documentXml(page)).toBe(xmlAfter);
 
-    // One Control+z restores the XML byte for byte (SC-003).
+    // One Mod+z restores the XML byte for byte (SC-003).
     await page.getByTestId('body-editor').click();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
   });
 
@@ -373,7 +374,7 @@ test.describe('US2 (005) - Ask AI... from the Body context menu', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('dialog-ai-ask')).toHaveCount(0);
     await page.getByTestId('body-editor').click();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
 
     // Partial multi-block selection: from the middle of paragraph 1 to the middle of
@@ -421,7 +422,7 @@ test.describe('US2 (005) - Ask AI... from the Body context menu', () => {
     expect(xml).toMatch(/<a [^>]*l:href="#n2"[^>]*>\[2\]<\/a>\.<\/p>/);
     await page.keyboard.press('Escape');
     await page.getByTestId('body-editor').click();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
   });
 
@@ -725,7 +726,7 @@ test.describe('US2 (005) - Ask AI... from the Body context menu', () => {
     await toggleAssistant(page);
     await expect.poll(() => page.evaluate<boolean>('window.__mfbeTest.ai.on')).toBe(false);
     await page.getByTestId('body-editor').focus();
-    await page.keyboard.press('Control+k');
+    await page.keyboard.press(`${MOD}+k`);
     await page.waitForTimeout(300);
     await expect(popup).toHaveCount(0);
     await paragraphLocator(page, 'Поезд пришёл').click({ button: 'right' });

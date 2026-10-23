@@ -15,7 +15,7 @@
  *     (FR-095); the divider drag is stored, the presets 200 → 280 and 900 → 800 (FR-040)
  *  5. a document-wide request on `many-sections.fb2`: the chain of tool calls answered with
  *     `tool` messages, the activity list in order, the summary as the last message, the titles
- *     changed, one Control+z, the panel's Undo and its hint after a later edit; the banner
+ *     changed, one Mod+z, the panel's Undo and its hint after a later edit; the banner
  *     naming the exchange and the countdown of a 429 wait; no cap on exchanges (45 reads)
  *  6+7. a question → the number in the panel, not modified, no undo step (`answered`); an
  *     ask-back → unlocked, unchanged, the reply continues the conversation with the history
@@ -45,6 +45,7 @@ import {
   type StandinHandle,
 } from './fixtures/core';
 import { pageText } from './fixtures/i18n';
+import { MOD } from './fixtures/keys';
 
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                  */
@@ -575,14 +576,14 @@ test.describe('US3 (005) - the AI assistant panel', () => {
       text: 'Три заголовка приведены к обычному регистру.',
     });
 
-    // The three titles changed; one Control+z restores the XML byte for byte (SC-003).
+    // The three titles changed; one Mod+z restores the XML byte for byte (SC-003).
     const xmlAfter = await documentXml(page);
     for (const t of NEW_TITLES) expect(xmlAfter).toContain(`<p>${t}</p>`);
     expect(xmlAfter).not.toBe(xmlBefore);
     expect(await isModified(page)).toBe(true);
     await expect(page.getByTestId('ai-undo')).toBeEnabled();
     await page.getByTestId('body-editor').click();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
 
     // The same chain again: the panel's Undo does it; after a further user edit it is
@@ -735,16 +736,16 @@ test.describe('US3 (005) - the AI assistant panel', () => {
     );
     expect(next.at(-1)!.content).toBe('Yes, all of them');
     expect(next.filter((m) => m.role === 'tool')).toHaveLength(0);
-    // One Control+z undoes the change of that request alone.
+    // One Mod+z undoes the change of that request alone.
     await page.getByTestId('body-editor').click();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
 
     // US2 scenario 4's panel half: a general popup request's answer appears in the panel and
     // Continue in panel focuses the field.
     await standin.reset();
     await paragraphLocator(page, 'Дежурный подошёл').click();
-    await page.keyboard.press('Control+k');
+    await page.keyboard.press(`${MOD}+k`);
     const popup = page.getByTestId('dialog-ai-ask');
     await expect(popup).toBeVisible();
     await standin.scenario({ text: 'Это значит, что дежурный спросил, куда ей нужно.' });
@@ -840,7 +841,7 @@ test.describe('US3 (005) - the AI assistant panel', () => {
     }
     expect(await standin.requests()).toHaveLength(0);
     expect(await core.aiRequests()).toHaveLength(0);
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await turnOn(page);
     await expect(page.getByTestId('ai-empty')).toBeVisible();
     await expect(page.locator('[data-testid^="ai-message-"]')).toHaveCount(0);

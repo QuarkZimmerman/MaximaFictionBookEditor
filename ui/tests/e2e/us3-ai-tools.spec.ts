@@ -38,6 +38,7 @@ import {
   type StandinHandle,
 } from './fixtures/core';
 import { pageText } from './fixtures/i18n';
+import { MOD } from './fixtures/keys';
 
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                  */
@@ -360,7 +361,7 @@ test.describe('US3 (005) - the catalogue through the panel', () => {
     );
 
     // The document: the two paragraphs inserted, note 1 gone, the marker replaced, Анна →
-    // Марта; one Control+z restores everything.
+    // Марта; one Mod+z restores everything.
     const xmlAfter = await documentXml(page);
     expect(xmlAfter).toContain('<p>Новый абзац.</p>');
     expect(xmlAfter).toContain('<p>И ещё один.</p>');
@@ -373,7 +374,7 @@ test.describe('US3 (005) - the catalogue through the panel', () => {
     expect(xmlAfter).toContain('<first-name>Анна</first-name>');
     expect(await isModified(page)).toBe(true);
     await page.getByTestId('body-editor').click();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
 
     // Parallel calls: three in one answer → three tool messages in the service's order.
@@ -714,7 +715,7 @@ test.describe('US3 (005) - the catalogue through the panel', () => {
       .getByTestId('body-editor')
       .locator('p.fb-p', { hasText: 'Дежурный подошёл' })
       .click();
-    await page.keyboard.press('Control+k');
+    await page.keyboard.press(`${MOD}+k`);
     const popup = page.getByTestId('dialog-ai-ask');
     await expect(popup).toBeVisible();
     await expect(page.getByTestId('dialog-ai-ask-input')).toBeFocused();

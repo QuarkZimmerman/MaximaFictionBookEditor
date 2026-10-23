@@ -49,6 +49,7 @@ import {
   type StandinHandle,
 } from './fixtures/core';
 import { pageText } from './fixtures/i18n';
+import { MOD } from './fixtures/keys';
 
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                  */
@@ -211,7 +212,7 @@ const logText = (core: CoreHandle) =>
 
 async function undoAll(page: Page, xmlBefore: string): Promise<void> {
   await page.getByTestId('body-editor').click();
-  await page.keyboard.press('Control+z');
+  await page.keyboard.press(`${MOD}+z`);
   await expect.poll(() => documentXml(page)).toBe(xmlBefore);
 }
 

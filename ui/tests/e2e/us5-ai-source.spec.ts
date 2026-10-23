@@ -11,7 +11,7 @@
  *     `source-context-menu-ai.ask` → the popup; the user message holds the XML as "1 whole
  *     block(s)"; the `<poem>` answer is parsed in the parent's context, validated and applied;
  *     the Source text re-rendered with the new block selected; Edit → Undo in the Source view
- *     restores the text byte for byte; the Body view's Control+z reaches the same step; the
+ *     restores the text byte for byte; the Body view's Mod+z reaches the same step; the
  *     panel's `ai-undo` too
  *  2. the text path: half an element → the answer spliced, the whole text validated, one
  *     `doc.fromXml` at the commit and none before; a queued `replace_node` after the splice →
@@ -40,6 +40,7 @@ import {
   type StandinHandle,
 } from './fixtures/core';
 import { pageText } from './fixtures/i18n';
+import { MOD } from './fixtures/keys';
 
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                  */
@@ -356,7 +357,7 @@ test.describe('US5 (005) - Ask AI... in the Source view', () => {
     expect(await documentXml(page)).toBe(xmlBefore);
     await expect.poll(() => sourceSelection(page)).toEqual({ anchor: from, head: to });
 
-    // Redo, then the Body view's Control+z reaches the same step (the Source view, which owns
+    // Redo, then the Body view's Mod+z reaches the same step (the Source view, which owns
     // it, is activated and shows the restored text).
     await page.getByTestId('menu-edit').click();
     await page.getByTestId('menu-edit-redo').click();
@@ -364,7 +365,7 @@ test.describe('US5 (005) - Ask AI... in the Source view', () => {
     await showBody(page);
     expect(await documentXml(page)).toBe(xmlAfter);
     await page.getByTestId('body-editor').click();
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press(`${MOD}+z`);
     await expect.poll(() => documentXml(page)).toBe(xmlBefore);
     await expect(page.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
     await expect.poll(() => sourceText(page)).toBe(text);

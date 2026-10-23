@@ -22,15 +22,20 @@ import type { Page } from '@playwright/test';
 import { expect, test, type CoreHandle } from './fixtures/core';
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
-const CONTRIBUTORS = readFileSync(path.join(REPO_ROOT, 'CONTRIBUTORS.txt'), 'utf8').replace(
-  /\n$/,
-  '',
+
+/**
+ * A bundled notice as the dialog shows it (`src/dialogs/notices.ts`): LF line ends on every
+ * platform - a Windows checkout gives the files CRLF - and without the final newline.
+ */
+function noticeText(raw: string): string {
+  return raw.replace(/\r\n/g, '\n').replace(/\n$/, '');
+}
+
+const CONTRIBUTORS = noticeText(readFileSync(path.join(REPO_ROOT, 'CONTRIBUTORS.txt'), 'utf8'));
+/** The shipped CA bundle's notice as the dialog shows it. */
+const CA_BUNDLE_NOTICE = noticeText(
+  readFileSync(path.join(REPO_ROOT, 'resources', 'certs', 'cacert.NOTICE.txt'), 'utf8'),
 );
-/** The shipped CA bundle's notice as the dialog shows it (without the final newline). */
-const CA_BUNDLE_NOTICE = readFileSync(
-  path.join(REPO_ROOT, 'resources', 'certs', 'cacert.NOTICE.txt'),
-  'utf8',
-).replace(/\r?\n$/, '');
 const GPL_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
 
 async function openAbout(core: CoreHandle, page: Page, lang?: 'ru'): Promise<void> {

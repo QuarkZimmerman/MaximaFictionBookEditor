@@ -20,6 +20,7 @@ import userEvent from '@testing-library/user-event';
 import { createCommandRegistry } from '@/app/commands';
 import { HotkeyMap } from '@/app/hotkeys';
 import { AboutDialog, REPOSITORY_URL } from '@/dialogs/AboutDialog';
+import { noticeText } from '@/dialogs/notices';
 import { registerSettingsFeature } from '@/features/settings';
 import { changeLanguage, initI18n } from '@/i18n';
 import { CaretRegistry } from '@/model/caret';
@@ -30,18 +31,14 @@ import { fakeRpc, makeContext, rpcError, type Responder } from '../features/test
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 
-// A text area's value has LF line ends; a Windows checkout gives the file CRLF.
-const CONTRIBUTORS = readFileSync(path.join(REPO_ROOT, 'CONTRIBUTORS.txt'), 'utf8')
-  .replace(/\r\n/g, '\n')
-  .replace(/\n$/, '');
+// The dialog shows both notices with LF line ends and without the final newline (`noticeText`);
+// a Windows checkout gives the files CRLF, so the expectations go through the same normalisation.
+const CONTRIBUTORS = noticeText(readFileSync(path.join(REPO_ROOT, 'CONTRIBUTORS.txt'), 'utf8'));
 
 /** The CA bundle notice as the Linux packages install it (resource-formats §C). */
-const CA_BUNDLE_NOTICE = readFileSync(
-  path.join(REPO_ROOT, 'resources', 'certs', 'cacert.NOTICE.txt'),
-  'utf8',
-)
-  .replace(/\r\n/g, '\n')
-  .replace(/\n$/, '');
+const CA_BUNDLE_NOTICE = noticeText(
+  readFileSync(path.join(REPO_ROOT, 'resources', 'certs', 'cacert.NOTICE.txt'), 'utf8'),
+);
 
 const INFO = {
   version: '0.0.1',
@@ -410,6 +407,20 @@ describe('AboutDialog', () => {
       );
       expect(order.indexOf('about-ca-bundle')).toBeGreaterThan(order.indexOf('about-dictionaries'));
       expect(order.indexOf('about-ca-bundle')).toBeLessThan(order.indexOf('about-open-log-folder'));
+    });
+
+    it('shows the same text from a CRLF checkout (Windows) as from an LF one', () => {
+      // The `<pre>` keeps every character, so the import's CRLF line ends are folded to LF
+      // before the final newline goes - the text is identical on every platform.
+      const lf = 'Mozilla CA certificate bundle (cacert.pem)\n====\n\nLicence\n-------\n';
+      const crlf = lf.replace(/\n/g, '\r\n');
+      expect(noticeText(crlf)).toBe(noticeText(lf));
+      expect(noticeText(crlf)).toBe(
+        'Mozilla CA certificate bundle (cacert.pem)\n====\n\nLicence\n-------',
+      );
+      expect(noticeText(crlf)).not.toContain('\r');
+      // The whole notice: the committed file's text no matter how it was checked out.
+      expect(noticeText(CA_BUNDLE_NOTICE.replace(/\n/g, '\r\n') + '\r\n')).toBe(CA_BUNDLE_NOTICE);
     });
 
     it('captions the box in the interface language (Russian, Ukrainian)', async () => {
