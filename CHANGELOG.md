@@ -11,17 +11,18 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   *Free service (no registration)* - the default - with a drop-down of the bundled services
   that need no account and no key, each shown as "name - model" with its limits note in the
   interface language and a link to its terms: OVHcloud AI Endpoints (`gpt-oss-120b`, first,
-  the default), Pollinations (`openai-fast`) and LLM7.io (`minimax-m2.7`, whose entry says that
-  its keyless use is undocumented); *My own service and key*; and *Disabled*. *Test connection*
-  sends one small request and reports "answered (model)" or the failure in the service's own
-  words. The services come from a list file: the bundled `ai-services.json` is always read,
-  never modified by the editor, and a copy of the user's own in the data folder (the `user`
-  folder of a portable copy) - created by *Edit list*, applied by *Reload list* - adds entries,
-  overrides a bundled entry with the same id (a stale address is corrected without an update)
-  or hides one; a malformed user file is reported on the page, entry by entry, and the bundled
-  list stays in use. The choice travels with a portable copy. Kilo Gateway, a fourth bundled
-  entry during development, was dropped at the release-day check: its free tier withdrew the
-  verified model and the replacement answered unstably.
+  the default) and Pollinations (`openai-fast`); *My own service and key*; and *Disabled*.
+  *Test connection* sends one small request and reports "answered (model)" or the failure in
+  the service's own words. The services come from a list file: the bundled `ai-services.json`
+  is always read, never modified by the editor, and a copy of the user's own in the data folder
+  (the `user` folder of a portable copy) - created by *Edit list*, applied by *Reload list* -
+  adds entries, overrides a bundled entry with the same id (a stale address is corrected without
+  an update) or hides one; a malformed user file is reported on the page, entry by entry, and
+  the bundled list stays in use. The choice travels with a portable copy. Two further entries
+  bundled during development were dropped at the release-day check of 2026-10-23: Kilo Gateway
+  (its free tier withdrew the verified model and the replacement answered unstably) and LLM7.io
+  (its tool-call round trip answered 502 from the origin at the second exchange in two runs;
+  the proof-reading alone passed).
 - The first-use notice. Before anything leaves the computer for a hosted service - the first
   request, *Test connection* or *Fetch models* - a notice names the service, says that the
   instruction and the parts of the book the assistant reads will be sent to it, links to its

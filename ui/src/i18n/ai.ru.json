@@ -30,10 +30,6 @@
       "pollinations": {
         "name": "Pollinations",
         "model": "openai-fast"
-      },
-      "llm7": {
-        "name": "LLM7.io",
-        "model": "minimax-m2.7"
       }
     },
     "script": {

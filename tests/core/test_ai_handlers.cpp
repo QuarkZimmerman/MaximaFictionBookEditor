@@ -157,7 +157,7 @@ TEST_CASE(
         CHECK(f.ai_log_entries().empty());
 
         const json list = f.result("ai.services");
-        CHECK(list["services"].size() == 3);
+        CHECK(list["services"].size() == 2);
         CHECK(list["hidden"] == json::array());
         REQUIRE(list["issues"].size() == 1);
         CHECK(list["issues"][0]["reason"] == "unreadable");
@@ -179,7 +179,7 @@ TEST_CASE(
     SECTION("the user override replaces the bundled entry in place") {
         AiFixture f(false, "user-override.json");
         const json list = f.result("ai.services");
-        REQUIRE(list["services"].size() == 3);
+        REQUIRE(list["services"].size() == 2);
         const json& ovh = list["services"][0];
         CHECK(ovh["id"] == "ovhcloud");
         CHECK(ovh["source"] == "user");
@@ -197,24 +197,24 @@ TEST_CASE(
     SECTION("a hidden bundled id, a user-only entry, a keyed entry without its key") {
         AiFixture f(false, "user-hidden-pollinations.json");
         json list = f.result("ai.services");
-        CHECK(list["services"].size() == 2);
+        CHECK(list["services"].size() == 1);
         CHECK(list["hidden"] == json::array({"pollinations"}));
         fs::copy_file(fixture("user-with-key.json"), f.user_file(),
                       fs::copy_options::overwrite_existing);
         list = f.result("ai.reloadServices");
-        REQUIRE(list["services"].size() == 4);
-        CHECK(list["services"][3]["id"] == "keyed");
-        CHECK(list["services"][3]["hasKey"] == true);
-        CHECK(list["services"][3]["keyRequired"] == true);
-        CHECK(list["services"][3]["source"] == "user");
-        CHECK(list["services"][3]["replaced"] == false);
+        REQUIRE(list["services"].size() == 3);
+        CHECK(list["services"][2]["id"] == "keyed");
+        CHECK(list["services"][2]["hasKey"] == true);
+        CHECK(list["services"][2]["keyRequired"] == true);
+        CHECK(list["services"][2]["source"] == "user");
+        CHECK(list["services"][2]["replaced"] == false);
         CHECK(list.dump().find("sk-user") == std::string::npos);
         CHECK(f.log_text().find("sk-user") == std::string::npos);
     }
     SECTION("a malformed user file is reported and the bundled list is used") {
         AiFixture f(false, "user-truncated.json");
         const json list = f.result("ai.services");
-        CHECK(list["services"].size() == 3);
+        CHECK(list["services"].size() == 2);
         REQUIRE(list["issues"].size() == 1);
         CHECK(list["issues"][0] ==
               json{{"file", platform::utf8_from_path(f.user_file())}, {"reason", "invalidJson"}});
@@ -236,9 +236,9 @@ TEST_CASE(
 
     // A file written after the first read is not seen until a reload.
     fs::copy_file(fixture("user-hidden-pollinations.json"), f.user_file());
-    CHECK(f.result("ai.services")["services"].size() == 3);
+    CHECK(f.result("ai.services")["services"].size() == 2);
     list = f.result("ai.reloadServices");
-    CHECK(list["services"].size() == 2);
+    CHECK(list["services"].size() == 1);
     CHECK(list["hidden"] == json::array({"pollinations"}));
     CHECK(list["files"]["userExists"] == true);
     auto changed = f.ws.wait_notification("resources.changed");
@@ -265,7 +265,7 @@ TEST_CASE(
     CHECK(test::read_text(f.user_file()) == test::read_text(bundled_file()));
     CHECK(f.count_notifications("resources.changed", 300) == 1);
     list = f.result("ai.services");
-    REQUIRE(list["services"].size() == 3);
+    REQUIRE(list["services"].size() == 2);
     for (const auto& entry : list["services"]) {
         CHECK(entry["source"] == "user");
         CHECK(entry["replaced"] == true);
@@ -679,8 +679,8 @@ TEST_CASE(
     expect_1200("ai.complete",
                 json{{"target", {{"kind", "free"}, {"id", "ovhcloud"}}}, {"body", body}},
                 json{{"reason", "noAgreement"}, {"service", "ovhcloud"}});
-    expect_1200("ai.test", json{{"target", {{"kind", "free"}, {"id", "llm7"}}}},
-                json{{"reason", "noAgreement"}, {"service", "llm7"}});
+    expect_1200("ai.test", json{{"target", {{"kind", "free"}, {"id", "ovhcloud"}}}},
+                json{{"reason", "noAgreement"}, {"service", "ovhcloud"}});
     const std::string hosted = "http://ai.standin.test:" + std::to_string(http.port()) + "/v1";
     f.result(
         "settings.set",
@@ -946,7 +946,7 @@ TEST_CASE(
         REQUIRE(http.wait_for_requests(1));
         test::write_text(f.user_file(), R"({"version": 1, "services": []})");
         const json reloaded = f.result("ai.reloadServices");
-        CHECK(reloaded["services"].size() == 3);
+        CHECK(reloaded["services"].size() == 2);
         auto done = f.ws.wait_notification("job.done", 5000);
         REQUIRE(done);
         CHECK((*done)["params"]["jobId"] == started["jobId"]);
@@ -1174,7 +1174,7 @@ TEST_CASE(
                                    {"connectMs", 1},
                                    {"totalMs", 1}})["error"]["code"] == -32601);
     }
-    CHECK(ws.call("ai.services")["result"]["services"].size() == 3);  // the family itself stays
+    CHECK(ws.call("ai.services")["result"]["services"].size() == 2);  // the family itself stays
 }
 
 TEST_CASE(

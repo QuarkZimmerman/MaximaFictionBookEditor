@@ -24,7 +24,7 @@
  *      (ai-service-protocol §2.2);
  *   4. the wall time of every exchange;
  *   5. the limits: a pause between two requests of one entry (OVHcloud 31 s, Pollinations 31 s,
- *      LLM7 1.5 s, 5 s for any other entry); a 429 / 402 / 503-with-Retry-After answer is
+ *      5 s for any other entry); a 429 / 402 / 503-with-Retry-After answer is
  *      waited out - the `Retry-After` header, the body's `error.retry_after`, "Retry after N s"
  *      in the message, else 30 s - within a budget of 300 s per entry; a wait beyond it gives
  *      the verdict `limit`;
@@ -34,12 +34,13 @@
  *
  * Verdicts: `pass`; `fail` - the model is not listed, an exchange failed, no tool call was made,
  * the final answer does not name section 2, or the proof-reading differs beyond the comma and
- * the е-for-ё tolerance above; `limit` - a wait beyond the budget (on LLM7 re-run the next
- * day or from another address before it counts as a failure, quickstart §12). Exit code 1 when
- * any entry fails, 2 on a usage error, 0 otherwise. The reasons follow the table; a model the
- * service no longer lists comes with the listed ids that resemble it and how many ids the list
- * marks free (`isFree`, `:free`, `tier: "turbo"`) - the input of the one-line change of T098.
- * Every answer text is printed verbatim in the details (without `--table`) for a human to judge.
+ * the е-for-ё tolerance above; `limit` - a wait beyond the budget (on a service with a daily
+ * quota re-run the next day or from another address before it counts as a failure, quickstart
+ * §12). Exit code 1 when any entry fails, 2 on a usage error, 0 otherwise. The reasons follow
+ * the table; a model the service no longer lists comes with the listed ids that resemble it and
+ * how many ids the list marks free (`isFree`, `:free`, `tier: "turbo"`) - the input of the
+ * one-line change of T098. Every answer text is printed verbatim in the details (without
+ * `--table`) for a human to judge.
  *
  * Usage: node tools/ai-services-check.mjs [--entry <id>]... [--file <path>] [--table]
  *                                         [--timeout <seconds>]
@@ -65,7 +66,7 @@ const DEFAULT_WAIT_SECONDS = 30;
 /** Safety stop of this tool only (the editor has none - research R3.3, decision C2). */
 const MAX_EXCHANGES = 6;
 /** Pause between two requests of one entry (quickstart §12 item 5). */
-const PAUSE_SECONDS = { ovhcloud: 31, pollinations: 31, llm7: 1.5 };
+const PAUSE_SECONDS = { ovhcloud: 31, pollinations: 31 };
 const DEFAULT_PAUSE_SECONDS = 5;
 
 const SECTIONS = {

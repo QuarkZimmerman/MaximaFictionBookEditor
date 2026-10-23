@@ -47,7 +47,7 @@ instead of a second window starting.
 
 Release 0.0.5 adds an optional AI assistant: tell it in plain words what to change in the open
 book - in the Body view or in the Source view - and it makes the change, which is checked
-against the FB2 2.1 schema before it reaches the document. Three free services that need no
+against the FB2 2.1 schema before it reaches the document. Two free services that need no
 account and no key are bundled (OVHcloud AI Endpoints first), and your own service and key or
 a model server on your own computer work as well; *View > AI Assistant* turns it on and opens
 the panel, *Ask AI...* in the context menu takes one instruction for the selection, every
