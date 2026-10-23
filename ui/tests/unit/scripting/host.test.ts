@@ -16,6 +16,7 @@ import { createAppServices, type AppServices } from '@/app/services';
 import { transientNotices } from '@/app/transientNotices';
 import { initI18n } from '@/i18n';
 import { actions, createAppStore, type AppStore } from '@/model/store';
+import type { RpcClient } from '@/rpc/client';
 import {
   ScriptHost,
   durationSeconds,
@@ -25,7 +26,9 @@ import {
   type RunResult,
   type WorkerLike,
 } from '@/scripting/host';
+import { activeRunSession, cancelActiveRun, startRunSession } from '@/scripting/runSession';
 import type { HostMessage, InitMessage, ScriptInfo, WorkerMessage } from '@/scripting/types';
+import { WorkingCopy } from '@/scripting/workingCopy';
 import { getBodyController } from '@/views/body/bodyEditor';
 
 import { fakeDialogs, fakeDocument, fakeRpc, type FakeDialogs } from '../features/testUtils';
@@ -97,6 +100,7 @@ interface Harness {
   dialogs: FakeDialogs;
   worker: FakeWorker;
   host: ScriptHost;
+  rpc: RpcClient;
   calls: { method: string; params: unknown }[];
   t: Awaited<ReturnType<typeof initI18n>>['t'];
   run(options?: { treeNode?: { nodeId: string; type: string } }): Promise<RunResult>;
@@ -134,6 +138,7 @@ async function harness(
     dialogs,
     worker,
     host,
+    rpc: rpc.client,
     calls: rpc.calls,
     t: i18n.t,
     run: (runOptions = {}) =>
@@ -237,7 +242,11 @@ describe('ScriptHost', () => {
     const controller = getBodyController(h.store);
     expect(controller.isEditable).toBe(true);
     const { done } = await started(h);
-    expect(h.store.getState().scriptRunning).toBe(true);
+    expect(h.store.getState().runLock).toEqual({
+      kind: 'script',
+      label: 'Append paragraph',
+      startedAt: h.host.current!.startedAt,
+    });
     expect(controller.isEditable).toBe(false);
     // An edit of the user (here a transaction as a command would build it) is refused.
     const state = controller.editorState!;
@@ -245,7 +254,7 @@ describe('ScriptHost', () => {
     expect(controller.editorState!.doc.textContent).not.toContain('typed');
     h.worker.send({ type: 'done' });
     await done;
-    expect(h.store.getState().scriptRunning).toBe(false);
+    expect(h.store.getState().runLock).toBeNull();
     expect(controller.isEditable).toBe(true);
   });
 
@@ -307,7 +316,7 @@ describe('ScriptHost', () => {
     expect(h.worker.terminated).toBe(1);
     expect(paragraphTexts(h.store)).toEqual(['Hello']);
     expect(h.store.getState().modified).toBe(false);
-    expect(h.store.getState().scriptRunning).toBe(false);
+    expect(h.store.getState().runLock).toBeNull();
     expect(h.services.undo.canUndo).toBe(false);
     expect(h.services.undo.canRedo).toBe(false);
     expect(h.store.getState().statusMessage).toBe('Script "Append paragraph" was cancelled');
@@ -315,6 +324,43 @@ describe('ScriptHost', () => {
     // Cancelling again is a no-op.
     h.host.cancel();
     expect(h.worker.terminated).toBe(1);
+  });
+
+  it("runs under a run session: the lock is the session's, Cancel reaches it from the banner", async () => {
+    // Feature 005 T026: the lifecycle pieces moved into the RunSession the AI requests share.
+    const h = await harness();
+    expect(activeRunSession(h.store)).toBeNull();
+    const { done } = await started(h);
+    const session = activeRunSession(h.store)!;
+    expect(session.kind).toBe('script');
+    expect(session.label).toBe('Append paragraph');
+    expect(session.undoLabel).toBe('Append');
+    expect(session.before).toBe(h.store.getState().document);
+    expect(h.store.getState().runLock).toEqual(session.lock);
+    expect(h.host.current?.startedAt).toBe(session.startedAt);
+    h.worker.send(APPEND_CALL);
+    await h.worker.waitFor('result');
+    // The banner's Cancel: through the session to the host, which restores the document.
+    cancelActiveRun(h.store);
+    await expect(done).resolves.toMatchObject({ status: 'cancelled' });
+    expect(session.ended).toBe(true);
+    expect(session.outcome).toBe('discarded');
+    expect(activeRunSession(h.store)).toBeNull();
+    expect(h.store.getState().runLock).toBeNull();
+    expect(paragraphTexts(h.store)).toEqual(['Hello']);
+    expect(h.services.undo.canUndo).toBe(false);
+
+    // A completed run ends its session as committed: one undo entry.
+    const other = await harness();
+    const second = await started(other);
+    other.worker.send(APPEND_CALL);
+    await other.worker.waitFor('result');
+    const committed = activeRunSession(other.store)!;
+    other.worker.send({ type: 'done' });
+    await second.done;
+    expect(committed.outcome).toBe('committed');
+    expect(other.services.undo.undoDepth).toBe(1);
+    expect(paragraphTexts(other.store)).toEqual(['Hello', 'Added']);
   });
 
   it('reports failures with line and column, logs them and restores the document', async () => {
@@ -387,7 +433,7 @@ describe('ScriptHost', () => {
     expect(h.worker.terminated).toBe(1);
     expect(h.store.getState().docId).toBe('doc-2');
     expect(paragraphTexts(h.store)).toEqual(['Hello']);
-    expect(h.store.getState().scriptRunning).toBe(false);
+    expect(h.store.getState().runLock).toBeNull();
     expect(h.services.undo.canUndo).toBe(false);
   });
 
@@ -610,5 +656,270 @@ describe('ScriptHost', () => {
     expect(formatRunProgress(h.t, progress(0, 0, 'Preparing'))).toBe('Preparing');
     expect(formatRunProgress(h.t, null)).toBeNull();
     expect(formatRunProgress(h.t, { ...progress(1, 2, 'Other'), jobId: 'job-7' })).toBeNull();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 005 T026: a run nested in an AI request (FR-080; data-model §6.6) */
+/* ------------------------------------------------------------------------ */
+
+describe('ScriptHost nested in an AI request', () => {
+  /**
+   * An AI request in progress: its session holds the lock (kind `ai`) and its working copy
+   * carries a change the live view does not show yet (`n3` reads "Outer", the editor "Hello").
+   */
+  async function nestedHarness(options: { customAnswers?: unknown[]; cancelsHost?: boolean } = {}) {
+    const h = await harness({ customAnswers: options.customAnswers });
+    const onCancel = vi.fn(() => {
+      // The assistant's cancel ends the nested run first (T076), then its own session.
+      if (options.cancelsHost) h.host.cancel();
+    });
+    const session = startRunSession(
+      { store: h.store, undo: h.services.undo, getController: () => getBodyController(h.store) },
+      { kind: 'ai', label: 'Service · model', phase: 'running script Append paragraph', onCancel },
+    )!;
+    const copy = new WorkingCopy(h.store.getState().document!);
+    copy.replace('n3', {
+      type: 'p',
+      attrs: { nodeId: 'n3' },
+      content: [{ type: 'text', text: 'Outer' }],
+    });
+    const lock = h.store.getState().runLock;
+    const start = async () => {
+      const done = h.host.run(
+        SCRIPT,
+        { rpc: h.rpc, dialogs: h.dialogs, t: h.t, uiLanguage: 'en' },
+        { nested: { workingCopy: copy, session } },
+      );
+      await tick();
+      h.worker.send({ type: 'ready' });
+      await h.worker.waitFor('run');
+      // Wrapped: `await start()` must not wait for the run itself.
+      return { done };
+    };
+    return { ...h, session, copy, onCancel, lock, start };
+  }
+
+  const texts = (document: { bodies: unknown[] }) => {
+    const section = (document.bodies[0] as { content: unknown[] }).content[0] as {
+      content: { type: string; content?: { text?: string }[] }[];
+    };
+    return section.content.filter((c) => c.type === 'p').map((c) => c.content?.[0]?.text ?? '');
+  };
+
+  it("starts from the request's working copy, takes no lock or banner of its own, publishes nothing and hands the result back", async () => {
+    const n = await nestedHarness({ customAnswers: ['ok'] });
+    const { done } = await n.start();
+    // The request's lock stays as it is: the same object, kind `ai`; the host knows the run as nested.
+    expect(n.store.getState().runLock).toBe(n.lock);
+    expect(activeRunSession(n.store)).toBe(n.session);
+    expect(n.host.isRunning).toBe(true);
+    expect(n.host.current).toMatchObject({
+      scriptId: 'test.append',
+      status: 'running',
+      nested: true,
+    });
+    expect(n.store.getState().statusMessage).toBeNull();
+    // The script reads the request's state, not the live document.
+    n.worker.send({ type: 'call', id: 1, method: 'doc.textOf', args: ['n3'] });
+    const read = (await n.worker.waitFor('result')) as { value: string };
+    expect(read.value).toBe('Outer');
+    expect(paragraphTexts(n.store)).toEqual(['Hello']);
+    n.worker.send({ ...APPEND_CALL, id: 2 });
+    await waitUntil(
+      () => n.worker.received.some((m) => m.type === 'result' && m.id === 2),
+      'the append',
+    );
+    // A dialog shows nothing of the working copy and is captioned as run by the assistant.
+    n.worker.send({ type: 'call', id: 3, method: 'ui.message', args: ['So far'] });
+    await waitUntil(
+      () => n.worker.received.some((m) => m.type === 'result' && m.id === 3),
+      'the answer',
+    );
+    expect(n.dialogs.custom).toHaveLength(1);
+    expect(n.dialogs.custom[0]!.props.options).toMatchObject({
+      caption: 'Append paragraph — run by the AI assistant',
+      text: 'So far',
+    });
+    expect(paragraphTexts(n.store)).toEqual(['Hello']);
+    expect(n.store.getState().modified).toBe(false);
+    // The script's own caption keeps the marker; so does a form's title.
+    n.worker.send({ type: 'call', id: 4, method: 'ui.message', args: ['Hi', { caption: 'Mine' }] });
+    n.dialogs.customAnswers.push('ok', { x: '1' });
+    await waitUntil(
+      () => n.worker.received.some((m) => m.type === 'result' && m.id === 4),
+      'the answer',
+    );
+    expect(n.dialogs.custom[1]!.props.options).toMatchObject({
+      caption: 'Mine — run by the AI assistant',
+    });
+    n.worker.send({
+      type: 'call',
+      id: 5,
+      method: 'ui.form',
+      args: [{ title: 'Form', fields: [] }],
+    });
+    await waitUntil(
+      () => n.worker.received.some((m) => m.type === 'result' && m.id === 5),
+      'the answer',
+    );
+    expect(n.dialogs.custom[2]!.props.spec).toMatchObject({
+      title: 'Form — run by the AI assistant',
+    });
+
+    n.worker.send({ type: 'done' });
+    const result = await done;
+    expect(result.status).toBe('done');
+    expect(result.document).toBeTruthy();
+    expect(texts(result.document!)).toEqual(['Outer', 'Added']);
+    // Nothing published, no undo entry, no "last script", no status, the request still running.
+    expect(paragraphTexts(n.store)).toEqual(['Hello']);
+    expect(n.store.getState().modified).toBe(false);
+    expect(n.services.undo.undoDepth).toBe(0);
+    expect(n.host.lastRunId).toBeNull();
+    expect(n.calls.map((c) => c.method)).not.toContain('scripts.lastRun');
+    expect(n.store.getState().statusMessage).toBeNull();
+    expect(n.store.getState().runLock).toBe(n.lock);
+    expect(n.session.ended).toBe(false);
+    expect(n.session.cancelRequested).toBe(false);
+    expect(n.onCancel).not.toHaveBeenCalled();
+    expect(n.host.isRunning).toBe(false);
+    expect(n.host.current).toMatchObject({ status: 'done', nested: true });
+    // The request takes the result over and commits the whole as one change.
+    n.copy.reset(result.document!);
+    expect(n.session.commit(n.copy.release())).toBe('committed');
+    expect(paragraphTexts(n.store)).toEqual(['Outer', 'Added']);
+    expect(n.services.undo.undoDepth).toBe(1);
+    expect(n.store.getState().runLock).toBeNull();
+  });
+
+  it('hands back null when the script changed nothing', async () => {
+    const n = await nestedHarness();
+    const { done } = await n.start();
+    n.worker.send({ type: 'call', id: 1, method: 'doc.getNode', args: ['n3'] });
+    await n.worker.waitFor('result');
+    n.worker.send({ type: 'done' });
+    await expect(done).resolves.toEqual({
+      status: 'done',
+      error: undefined,
+      message: undefined,
+      document: null,
+    });
+    expect(n.session.ended).toBe(false);
+  });
+
+  it('is refused while the request has ended, and refuses a user-started run while the request holds the lock', async () => {
+    const n = await nestedHarness();
+    // A user-started script cannot start during the request (the lock is the request's).
+    await expect(n.run()).resolves.toEqual({ status: 'busy' });
+    expect(n.host.isRunning).toBe(false);
+    expect(n.store.getState().runLock).toBe(n.lock);
+    n.session.discard();
+    const late = await n.host.run(
+      SCRIPT,
+      { rpc: n.rpc, dialogs: n.dialogs, t: n.t, uiLanguage: 'en' },
+      { nested: { workingCopy: n.copy, session: n.session } },
+    );
+    expect(late.status).toBe('unavailable');
+  });
+
+  it('cancelled from the banner: the request cancels it and it cancels the request', async () => {
+    // The banner's Cancel reaches the request's session, whose owner ends the nested run.
+    const banner = await nestedHarness({
+      cancelsHost: true,
+      customAnswers: [new Promise(() => {})],
+    });
+    const { done } = await banner.start();
+    banner.worker.send({ ...APPEND_CALL, id: 1 });
+    await banner.worker.waitFor('result');
+    banner.worker.send({ type: 'call', id: 2, method: 'ui.message', args: ['Waiting'] });
+    await waitUntil(() => banner.dialogs.custom.length === 1, 'the dialog');
+    const runEnd = banner.dialogs.custom[0]!.props.runEnd as { ended: boolean };
+    cancelActiveRun(banner.store);
+    await expect(done).resolves.toMatchObject({ status: 'cancelled' });
+    expect(banner.onCancel).toHaveBeenCalledTimes(1);
+    expect(runEnd.ended).toBe(true);
+    expect(banner.worker.terminated).toBe(1);
+    expect(paragraphTexts(banner.store)).toEqual(['Hello']);
+    expect(banner.store.getState().modified).toBe(false);
+    expect(banner.store.getState().statusMessage).toBeNull();
+    // The request's session is the request's to end: still holding the lock, cancel requested.
+    expect(banner.session.cancelRequested).toBe(true);
+    expect(banner.session.ended).toBe(false);
+    expect(banner.store.getState().runLock).toBe(banner.lock);
+
+    // The other direction: the nested run cancelled directly (the exit flow) cancels the request.
+    const direct = await nestedHarness();
+    const { done: directDone } = await direct.start();
+    direct.host.cancel();
+    await expect(directDone).resolves.toMatchObject({ status: 'cancelled' });
+    expect(direct.onCancel).toHaveBeenCalledTimes(1);
+    expect(direct.session.cancelRequested).toBe(true);
+    expect(direct.session.ended).toBe(false);
+  });
+
+  it('a failure returns the error to the caller and leaves the request running; the log holds the id and the error name only', async () => {
+    const n = await nestedHarness();
+    actions.setModified(n.store, true);
+    const { done } = await n.start();
+    n.worker.send({ ...APPEND_CALL, id: 1 });
+    await n.worker.waitFor('result');
+    n.worker.send({
+      type: 'fail',
+      error: {
+        name: 'TypeError',
+        message: 'boom',
+        line: 4,
+        column: 9,
+        stack: 'TypeError: boom\n at x',
+      },
+    });
+    const result = await done;
+    expect(result).toEqual({
+      status: 'failed',
+      error: {
+        name: 'TypeError',
+        message: 'boom',
+        line: 4,
+        column: 9,
+        stack: 'TypeError: boom\n at x',
+      },
+      message: 'Script error: boom at line 4, column 9',
+      document: undefined,
+    });
+    // No error dialog of the host's own: the caller reports it as the tool result.
+    expect(n.dialogs.shown).toEqual([]);
+    const logged = n.calls.find((c) => c.method === 'log.error')?.params as {
+      message: string;
+      stack?: string;
+      context: { scriptId: string; line: string; column: string };
+    };
+    expect(logged.message).toBe('test.append: TypeError');
+    expect(logged.stack).toBeUndefined();
+    expect(logged.context).toMatchObject({ scriptId: 'test.append', line: '4', column: '9' });
+    expect(n.calls.map((c) => c.method)).not.toContain('scripts.lastRun');
+    expect(n.host.lastRunId).toBeNull();
+    // The request goes on: its lock and session untouched, the live document as it was.
+    expect(n.session.ended).toBe(false);
+    expect(n.session.cancelRequested).toBe(false);
+    expect(n.onCancel).not.toHaveBeenCalled();
+    expect(n.store.getState().runLock).toBe(n.lock);
+    expect(paragraphTexts(n.store)).toEqual(['Hello']);
+    expect(n.store.getState().modified).toBe(true);
+    expect(n.services.undo.canUndo).toBe(false);
+  });
+
+  it("ends as cancelled when the request's document is replaced, and cancels the request", async () => {
+    const n = await nestedHarness();
+    const { done } = await n.start();
+    n.worker.send({ ...APPEND_CALL, id: 1 });
+    await n.worker.waitFor('result');
+    actions.setDocument(n.store, fakeDocument({ docId: 'doc-2' }));
+    // The nested run has no watch of its own; a `done` on a replaced document is a cancel.
+    n.worker.send({ type: 'done' });
+    await expect(done).resolves.toMatchObject({ status: 'cancelled' });
+    expect(n.onCancel).toHaveBeenCalledTimes(1);
+    expect(n.store.getState().docId).toBe('doc-2');
+    expect(paragraphTexts(n.store)).toEqual(['Hello']);
   });
 });

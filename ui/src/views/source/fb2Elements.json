@@ -2,34 +2,78 @@
   "root": "FictionBook",
   "elements": {
     "FictionBook": {
-      "children": ["binary", "body", "description", "stylesheet"]
+      "children": ["binary", "body", "description", "stylesheet"],
+      "attributes": [],
+      "text": false
     },
     "a": {
-      "children": ["code", "emphasis", "image", "strikethrough", "strong", "style", "sub", "sup"]
+      "children": ["code", "emphasis", "image", "strikethrough", "strong", "style", "sub", "sup"],
+      "attributes": [
+        { "name": "type", "required": false, "type": "xs:token" },
+        { "name": "xlink:href", "required": true, "type": "xs:string" },
+        { "name": "xlink:type", "required": false, "type": "xs:string" }
+      ],
+      "text": true
     },
     "annotation": {
-      "children": ["cite", "empty-line", "p", "poem", "subtitle", "table"]
+      "children": ["cite", "empty-line", "p", "poem", "subtitle", "table"],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": false
     },
     "author": {
-      "children": ["email", "first-name", "home-page", "id", "last-name", "middle-name", "nickname"]
+      "children": [
+        "email",
+        "first-name",
+        "home-page",
+        "id",
+        "last-name",
+        "middle-name",
+        "nickname"
+      ],
+      "attributes": [],
+      "text": false
     },
     "binary": {
-      "children": []
+      "children": [],
+      "attributes": [
+        { "name": "content-type", "required": true, "type": "xs:string" },
+        { "name": "id", "required": true, "type": "xs:ID" }
+      ],
+      "text": true
     },
     "body": {
-      "children": ["epigraph", "image", "section", "title"]
+      "children": ["epigraph", "image", "section", "title"],
+      "attributes": [
+        { "name": "name", "required": false, "type": "xs:token" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": false
     },
     "book-name": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "book-title": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "cite": {
-      "children": ["empty-line", "p", "poem", "subtitle", "table", "text-author"]
+      "children": ["empty-line", "p", "poem", "subtitle", "table", "text-author"],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": false
     },
     "city": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "code": {
       "children": [
@@ -42,16 +86,30 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "coverpage": {
-      "children": ["image"]
+      "children": ["image"],
+      "attributes": [],
+      "text": false
     },
     "custom-info": {
-      "children": []
+      "children": [],
+      "attributes": [
+        { "name": "info-type", "required": true, "type": "xs:string" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": true
     },
     "date": {
-      "children": []
+      "children": [],
+      "attributes": [
+        { "name": "value", "required": false, "type": "xs:date" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": true
     },
     "description": {
       "children": [
@@ -61,7 +119,9 @@
         "publish-info",
         "src-title-info",
         "title-info"
-      ]
+      ],
+      "attributes": [],
+      "text": false
     },
     "document-info": {
       "children": [
@@ -74,10 +134,14 @@
         "src-ocr",
         "src-url",
         "version"
-      ]
+      ],
+      "attributes": [],
+      "text": false
     },
     "email": {
-      "children": []
+      "children": [],
+      "attributes": [],
+      "text": true
     },
     "emphasis": {
       "children": [
@@ -90,55 +154,107 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "empty-line": {
-      "children": []
+      "children": [],
+      "attributes": [],
+      "text": false
     },
     "epigraph": {
-      "children": ["cite", "empty-line", "p", "poem", "text-author"]
+      "children": ["cite", "empty-line", "p", "poem", "text-author"],
+      "attributes": [{ "name": "id", "required": false, "type": "xs:ID" }],
+      "text": false
     },
     "first-name": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "genre": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "match", "required": false, "type": "xs:integer" }],
+      "text": true
     },
     "history": {
-      "children": ["cite", "empty-line", "p", "poem", "subtitle", "table"]
+      "children": ["cite", "empty-line", "p", "poem", "subtitle", "table"],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": false
     },
     "home-page": {
-      "children": []
+      "children": [],
+      "attributes": [],
+      "text": true
     },
     "id": {
-      "children": []
+      "children": [],
+      "attributes": [],
+      "text": true
     },
     "image": {
-      "children": []
+      "children": [],
+      "attributes": [
+        { "name": "alt", "required": false, "type": "xs:string" },
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "title", "required": false, "type": "xs:string" },
+        { "name": "xlink:href", "required": false, "type": "xs:string" },
+        { "name": "xlink:type", "required": false, "type": "xs:string" }
+      ],
+      "text": false
     },
     "isbn": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "keywords": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "lang": {
-      "children": []
+      "children": [],
+      "attributes": [],
+      "text": true
     },
     "last-name": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "middle-name": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "nickname": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "output": {
-      "children": ["output-document-class", "part"]
+      "children": ["output-document-class", "part"],
+      "attributes": [
+        { "name": "currency", "required": false, "type": "xs:string" },
+        { "name": "include-all", "required": true, "type": "docGenerationInstructionType" },
+        { "name": "mode", "required": true, "type": "shareModesType" },
+        { "name": "price", "required": false, "type": "xs:float" }
+      ],
+      "text": false
     },
     "output-document-class": {
-      "children": ["part"]
+      "children": ["part"],
+      "attributes": [
+        { "name": "create", "required": false, "type": "docGenerationInstructionType" },
+        { "name": "name", "required": true, "type": "xs:string" },
+        { "name": "price", "required": false, "type": "xs:float" }
+      ],
+      "text": false
     },
     "p": {
       "children": [
@@ -151,22 +267,53 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "style", "required": false, "type": "xs:string" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": true
     },
     "part": {
-      "children": []
+      "children": [],
+      "attributes": [
+        { "name": "include", "required": true, "type": "docGenerationInstructionType" },
+        { "name": "xlink:href", "required": true, "type": "xs:string" },
+        { "name": "xlink:type", "required": false, "type": "xs:string" }
+      ],
+      "text": false
     },
     "poem": {
-      "children": ["date", "epigraph", "stanza", "subtitle", "text-author", "title"]
+      "children": ["date", "epigraph", "stanza", "subtitle", "text-author", "title"],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": false
     },
     "program-used": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "publish-info": {
-      "children": ["book-name", "city", "isbn", "publisher", "sequence", "year"]
+      "children": ["book-name", "city", "isbn", "publisher", "sequence", "year"],
+      "attributes": [],
+      "text": false
     },
     "publisher": {
-      "children": ["email", "first-name", "home-page", "id", "last-name", "middle-name", "nickname"]
+      "children": [
+        "email",
+        "first-name",
+        "home-page",
+        "id",
+        "last-name",
+        "middle-name",
+        "nickname"
+      ],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "section": {
       "children": [
@@ -181,16 +328,31 @@
         "subtitle",
         "table",
         "title"
-      ]
+      ],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": false
     },
     "sequence": {
-      "children": ["sequence"]
+      "children": ["sequence"],
+      "attributes": [
+        { "name": "name", "required": true, "type": "xs:string" },
+        { "name": "number", "required": false, "type": "xs:integer" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": false
     },
     "src-lang": {
-      "children": []
+      "children": [],
+      "attributes": [],
+      "text": true
     },
     "src-ocr": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "src-title-info": {
       "children": [
@@ -205,13 +367,19 @@
         "sequence",
         "src-lang",
         "translator"
-      ]
+      ],
+      "attributes": [],
+      "text": false
     },
     "src-url": {
-      "children": []
+      "children": [],
+      "attributes": [],
+      "text": true
     },
     "stanza": {
-      "children": ["subtitle", "title", "v"]
+      "children": ["subtitle", "title", "v"],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": false
     },
     "strikethrough": {
       "children": [
@@ -224,7 +392,9 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "strong": {
       "children": [
@@ -237,7 +407,9 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "style": {
       "children": [
@@ -250,10 +422,17 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [
+        { "name": "name", "required": true, "type": "xs:token" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": true
     },
     "stylesheet": {
-      "children": []
+      "children": [],
+      "attributes": [{ "name": "type", "required": true, "type": "xs:string" }],
+      "text": true
     },
     "sub": {
       "children": [
@@ -266,7 +445,9 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "subtitle": {
       "children": [
@@ -279,7 +460,13 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "style", "required": false, "type": "xs:string" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": true
     },
     "sup": {
       "children": [
@@ -292,10 +479,17 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": true
     },
     "table": {
-      "children": ["tr"]
+      "children": ["tr"],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "style", "required": false, "type": "xs:string" }
+      ],
+      "text": false
     },
     "td": {
       "children": [
@@ -308,7 +502,17 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [
+        { "name": "align", "required": false, "type": "alignType" },
+        { "name": "colspan", "required": false, "type": "xs:integer" },
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "rowspan", "required": false, "type": "xs:integer" },
+        { "name": "style", "required": false, "type": "xs:string" },
+        { "name": "valign", "required": false, "type": "vAlignType" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": true
     },
     "text-author": {
       "children": [
@@ -321,7 +525,13 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "style", "required": false, "type": "xs:string" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": true
     },
     "th": {
       "children": [
@@ -334,10 +544,22 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [
+        { "name": "align", "required": false, "type": "alignType" },
+        { "name": "colspan", "required": false, "type": "xs:integer" },
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "rowspan", "required": false, "type": "xs:integer" },
+        { "name": "style", "required": false, "type": "xs:string" },
+        { "name": "valign", "required": false, "type": "vAlignType" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": true
     },
     "title": {
-      "children": ["empty-line", "p"]
+      "children": ["empty-line", "p"],
+      "attributes": [{ "name": "xml:lang", "required": false, "type": "xs:language" }],
+      "text": false
     },
     "title-info": {
       "children": [
@@ -352,13 +574,27 @@
         "sequence",
         "src-lang",
         "translator"
-      ]
+      ],
+      "attributes": [],
+      "text": false
     },
     "tr": {
-      "children": ["td", "th"]
+      "children": ["td", "th"],
+      "attributes": [{ "name": "align", "required": false, "type": "alignType" }],
+      "text": false
     },
     "translator": {
-      "children": ["email", "first-name", "home-page", "id", "last-name", "middle-name", "nickname"]
+      "children": [
+        "email",
+        "first-name",
+        "home-page",
+        "id",
+        "last-name",
+        "middle-name",
+        "nickname"
+      ],
+      "attributes": [],
+      "text": false
     },
     "v": {
       "children": [
@@ -371,13 +607,23 @@
         "style",
         "sub",
         "sup"
-      ]
+      ],
+      "attributes": [
+        { "name": "id", "required": false, "type": "xs:ID" },
+        { "name": "style", "required": false, "type": "xs:string" },
+        { "name": "xml:lang", "required": false, "type": "xs:language" }
+      ],
+      "text": true
     },
     "version": {
-      "children": []
+      "children": [],
+      "attributes": [],
+      "text": true
     },
     "year": {
-      "children": []
+      "children": [],
+      "attributes": [],
+      "text": true
     }
   }
 }

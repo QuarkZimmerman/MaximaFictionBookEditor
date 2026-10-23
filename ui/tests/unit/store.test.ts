@@ -6,6 +6,7 @@ import {
   createAppStore,
   createStore,
   documentFileName,
+  isRunLocked,
   kindFromPath,
   useAppState,
 } from '@/model/store';
@@ -118,6 +119,39 @@ describe('store', () => {
     });
   });
 
+  it('holds the run lock of a script run or an AI request; isRunLocked derives the flag', () => {
+    // Feature 005 T025 (data-model §4.1): `runLock` replaces the `scriptRunning` boolean.
+    const store = createAppStore();
+    expect(store.getState().runLock).toBeNull();
+    expect(isRunLocked(store.getState())).toBe(false);
+
+    const script = { kind: 'script' as const, label: 'Append paragraph', startedAt: 1_000 };
+    actions.setRunLock(store, script);
+    expect(store.getState().runLock).toBe(script);
+    expect(isRunLocked(store.getState())).toBe(true);
+
+    const ai = {
+      kind: 'ai' as const,
+      label: 'OVHcloud AI Endpoints · gpt-oss-120b',
+      startedAt: 2_000,
+      phase: 'waiting for the answer',
+    };
+    actions.setRunLock(store, ai);
+    expect(store.getState().runLock).toEqual(ai);
+    expect(isRunLocked(store.getState())).toBe(true);
+    // The phase changes through a new lock object; the holder stays the same.
+    actions.setRunLock(store, { ...ai, phase: 'running replace_node' });
+    expect(store.getState().runLock?.phase).toBe('running replace_node');
+    expect(store.getState().runLock?.startedAt).toBe(2_000);
+
+    actions.setRunLock(store, null);
+    expect(store.getState().runLock).toBeNull();
+    expect(isRunLocked(store.getState())).toBe(false);
+    // The selector works on a bare state slice too (non-React consumers).
+    expect(isRunLocked({ runLock: null })).toBe(false);
+    expect(isRunLocked({ runLock: script })).toBe(true);
+  });
+
   it('adopts the toolbar and tree flags from the first settings snapshot only', () => {
     const store = createAppStore();
     const stored = defaultSettings();
@@ -143,6 +177,41 @@ describe('store', () => {
     expect(store.getState().treeVisible).toBe(true);
     expect(store.getState().settings).toBe(reported);
     expect(store.getState().fastMode).toBe(true);
+  });
+
+  it('carries the feature 005 settings (the ai group, session.aiPanelWidth, session.aiPanelVisible) in the snapshot', () => {
+    // resource-formats.md §B: the `ai` group and the panel's width and visibility travel with
+    // every settings snapshot like the other groups - nothing of them is kept apart. (The
+    // fixture keeps a service mode for the tests' sake; the stored default is `disabled`.)
+    const store = createAppStore();
+    const stored = defaultSettings();
+    expect(stored.ai).toEqual({
+      mode: 'free',
+      freeServiceId: 'ovhcloud',
+      custom: { address: 'https://api.openai.com/v1', key: '', model: '' },
+      customVerified: { fingerprint: '', model: '', at: '' },
+      agreements: [],
+    });
+    expect(stored.session.aiPanelWidth).toBe(360);
+    expect(stored.session.aiPanelVisible).toBe(true);
+    stored.ai = {
+      ...stored.ai,
+      mode: 'custom',
+      custom: { address: 'http://127.0.0.1:11434/v1', key: 'sk-local', model: 'standin-chat' },
+      agreements: [
+        {
+          service: 'ovhcloud',
+          host: 'oai.endpoints.kepler.ai.cloud.ovh.net',
+          at: '2026-10-22T10:00:00Z',
+        },
+      ],
+    };
+    stored.session.aiPanelWidth = 480;
+    actions.setSettings(store, stored);
+    expect(store.getState().settings?.ai.mode).toBe('custom');
+    expect(store.getState().settings?.ai.custom.model).toBe('standin-chat');
+    expect(store.getState().settings?.ai.agreements).toHaveLength(1);
+    expect(store.getState().settings?.session.aiPanelWidth).toBe(480);
   });
 
   it('keeps the Document Tree pane width: default 260, the first snapshot, setTreeWidth', () => {
@@ -171,6 +240,80 @@ describe('store', () => {
     delete (legacy.session as Partial<typeof legacy.session>).treeWidth;
     actions.setSettings(older, legacy);
     expect(older.getState().treeWidth).toBe(260);
+  });
+
+  it("keeps the AI panel width and visibility like the tree pane's and never takes the live state from the settings (feature 005)", () => {
+    const store = createAppStore();
+    // Not live at start, nothing loaded, an empty conversation, the panel open (FR-040 as
+    // amended: the default of `session.aiPanelVisible`) at the default width.
+    expect(store.getState().ai).toEqual({
+      visible: true,
+      on: false,
+      width: 360,
+      loaded: false,
+      catalogue: null,
+      request: null,
+      conversation: { docId: null, messages: [], activity: [], droppedTurns: 0 },
+      panelFocus: false,
+      contextLengthHint: null,
+      customModels: null,
+    });
+
+    // The start-up read: the stored width and visibility apply; nothing else of `ai` changes.
+    const stored = defaultSettings();
+    stored.session.aiPanelWidth = 520;
+    stored.session.aiPanelVisible = false;
+    actions.setSettings(store, stored);
+    expect(store.getState().ai.width).toBe(520);
+    expect(store.getState().ai.visible).toBe(false);
+    expect(store.getState().ai.on).toBe(false);
+
+    // A drag ends: the window's own width; a later snapshot (before the delayed save) still
+    // says 520 and must not undo the drag. The same for the visibility.
+    actions.setAiPanelWidth(store, 444);
+    expect(store.getState().ai.width).toBe(444);
+    const before = store.getState().ai;
+    actions.setAiPanelWidth(store, 444); // the same width: no new state object
+    expect(store.getState().ai).toBe(before);
+    actions.setAiPanelVisible(store, true);
+    expect(store.getState().ai.visible).toBe(true);
+    const shown = store.getState().ai;
+    actions.setAiPanelVisible(store, true); // the same visibility: no new state object
+    expect(store.getState().ai).toBe(shown);
+    const reported = defaultSettings();
+    reported.session.aiPanelWidth = 520;
+    reported.session.aiPanelVisible = false;
+    actions.setSettings(store, reported);
+    expect(store.getState().ai.width).toBe(444);
+    expect(store.getState().ai.visible).toBe(true);
+
+    // The other fields change through `updateAi`; `width` and `visible` are not among them.
+    actions.updateAi(store, { on: true, loaded: true, contextLengthHint: 131072 });
+    expect(store.getState().ai).toMatchObject({
+      visible: true,
+      on: true,
+      loaded: true,
+      width: 444,
+      contextLengthHint: 131072,
+    });
+    // A settings snapshot - even the first one - never turns the assistant on or off: the
+    // live state is the feature's, derived from the visibility and the mode.
+    const fresh = createAppStore();
+    actions.updateAi(fresh, { on: true });
+    actions.setSettings(fresh, defaultSettings());
+    expect(fresh.getState().ai.on).toBe(true);
+    expect(fresh.getState().ai.width).toBe(360);
+    expect(fresh.getState().ai.visible).toBe(true);
+
+    // A first snapshot without the keys (a core before API minor 4, or before the visibility
+    // key) leaves the defaults: the default width, the panel open.
+    const older = createAppStore();
+    const legacy = defaultSettings();
+    delete (legacy.session as Partial<typeof legacy.session>).aiPanelWidth;
+    delete (legacy.session as Partial<typeof legacy.session>).aiPanelVisible;
+    actions.setSettings(older, legacy);
+    expect(older.getState().ai.width).toBe(360);
+    expect(older.getState().ai.visible).toBe(true);
   });
 
   it('useAppState re-renders on selected changes only', () => {

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "id": "ovhcloud",
+      "name": "OVHcloud AI Endpoints",
+      "address": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
+      "model": "gpt-oss-120b",
+      "keyRequired": false,
+      "tools": true,
+      "termsUrl": "https://www.ovhcloud.com/en/terms-and-conditions/",
+      "limits": {
+        "en": "2 requests per minute per model for anonymous use; beyond it the service answers 429 and names the wait",
+        "ru": "2 запроса в минуту на модель при анонимном доступе; при превышении сервис отвечает 429 и называет время ожидания",
+        "uk": "2 запити на хвилину на модель при анонімному доступі; при перевищенні сервіс відповідає 429 і називає час очікування"
+      },
+      "contextLength": 131072
+    },
+    {
+      "id": "pollinations",
+      "name": "Pollinations",
+      "address": "https://text.pollinations.ai/openai",
+      "model": "openai-fast",
+      "keyRequired": false,
+      "tools": true,
+      "termsUrl": "https://pollinations.ai/terms",
+      "limits": {
+        "en": "one request every 30 seconds per address; beyond it the service answers 402 and names the wait",
+        "ru": "один запрос в 30 секунд с одного адреса; при превышении сервис отвечает 402 и называет время ожидания",
+        "uk": "один запит на 30 секунд з однієї адреси; при перевищенні сервіс відповідає 402 і називає час очікування"
+      }
+    }
+  ]
+}

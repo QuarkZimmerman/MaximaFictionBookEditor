@@ -26,7 +26,10 @@
         "portable": "portable folder",
         "settings": "chosen folder"
       },
-      "dictionaryNoNotice": "This dictionary has no notice file."
+      "dictionaryNoNotice": "This dictionary has no notice file.",
+      "caBundle": {
+        "caption": "Root certificate bundle of the Linux packages (used by the AI assistant's secure connections when the system provides none) and its notice:"
+      }
     }
   }
 }

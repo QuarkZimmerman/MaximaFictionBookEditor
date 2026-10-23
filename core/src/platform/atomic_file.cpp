@@ -12,7 +12,9 @@
 #include <system_error>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN  // also a compile definition of mfbe::options (MSVC C4005 otherwise)
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #else
 #include <fcntl.h>
@@ -222,12 +224,23 @@ void write_atomic(const std::filesystem::path& path, std::string_view bytes) {
 }
 
 std::string read_file(const std::filesystem::path& path) {
+    // A folder opens as a stream on Linux and macOS (libstdc++ then throws from the read,
+    // libc++ reads nothing); refused up front so every platform answers alike.
+    std::error_code ec;
+    if (std::filesystem::is_directory(path, ec)) {
+        throw WriteError(platform::utf8_from_path(path), "is a directory");
+    }
     std::ifstream in(path, std::ios::binary);
     if (!in) {
         throw WriteError(platform::utf8_from_path(path),
                          "cannot open file: " + errno_message(errno));
     }
-    std::string data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    std::string data;
+    try {
+        data.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    } catch (const std::ios_base::failure&) {
+        throw WriteError(platform::utf8_from_path(path), "read failed");
+    }
     if (in.bad()) {
         throw WriteError(platform::utf8_from_path(path), "read failed");
     }

@@ -1,18 +1,22 @@
 /**
  * Settings dialog (US9, T129): the tabbed shell with the View / Other / Hotkeys / Words pages
- * and the OK / Cancel / Apply buttons of the original property sheet. The pages edit a draft
- * copy of the settings (and a scratch copy of the hotkey map); OK / Apply validate the draft,
- * send one `settings.set` patch with the changed leaves, copy the hotkey overrides into the
- * live map (`hotkeys.set`) and, when the core reports `restartRequired` (interface language),
- * show "In order to process changes the program must be restarted. Restart now?" - Yes runs
- * the usual save prompt (Cancel abandons the restart) and then `app.restart({reopen: path})`
- * (feature 003 US3, rpc-api.md §3.1): the shell starts the editor again with the same
- * options, window placement and document and quits. Without a shell (browser/dev mode, error
- * 1070) the page reloads itself with `?open=<path>`; when the shell could not start the new
- * instance (1071) the failure is shown and the editor stays open.
+ * - and, since feature 005, the AI assistant page - and the OK / Cancel / Apply buttons of the
+ * original property sheet. The pages edit a draft copy of the settings (and a scratch copy of
+ * the hotkey map); OK / Apply validate the draft, run the optional pre-apply hook
+ * (`beforeApply`: feature 005 US9 asks before Disabled takes effect while a request runs), send
+ * one `settings.set` patch with the changed leaves, copy the hotkey overrides into the live map
+ * (`hotkeys.set`) and, when the core reports `restartRequired` (interface language), show "In
+ * order to process changes the program must be restarted. Restart now?" - Yes runs the usual
+ * save prompt (Cancel abandons the restart) and then `app.restart({reopen: path})` (feature 003
+ * US3, rpc-api.md §3.1): the shell starts the editor again with the same options, window
+ * placement and document and quits. Without a shell (browser/dev mode, error 1070) the page
+ * reloads itself with `?open=<path>`; when the shell could not start the new instance (1071)
+ * the failure is shown and the editor stays open. A page that started a job (the AI page's
+ * Test connection) registers a canceller; closing the dialog runs every registered one
+ * (feature 005 review A4).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { confirmDiscardChanges, createCommandRegistry, type CommandContext } from '@/app/commands';
@@ -29,6 +33,7 @@ import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode, type Settings } from '@/rpc/types';
 
+import { AiPage } from './settings/AiPage';
 import { Dialog, type DialogButton } from './Dialog';
 import { HotkeysPage } from './settings/HotkeysPage';
 import { createScratchHotkeys, sameUserBindings } from './settings/hotkeysModel';
@@ -39,16 +44,31 @@ import { WordsPage } from './settings/WordsPage';
 
 import './settings/settings.css';
 
-export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words';
+export type SettingsPageId = 'view' | 'other' | 'hotkeys' | 'words' | 'ai';
 
-const PAGES: readonly SettingsPageId[] = ['view', 'other', 'hotkeys', 'words'];
+const PAGES: readonly SettingsPageId[] = ['view', 'other', 'hotkeys', 'words', 'ai'];
+
+/** The sections of the draft the pages edit (`session` is never part of the dialog). */
+type DraftSection = 'view' | 'other' | 'words' | 'ai';
+
+/**
+ * The pre-apply hook (feature 005 R8.8): asked with the validated draft before anything is
+ * written; `keepOpen` leaves the dialog as it is (the user declined a consequence of the
+ * change, such as stopping a running AI request when choosing Disabled - US9).
+ */
+export type BeforeApplyHook = (
+  draft: Settings,
+  original: Settings,
+) => Promise<'apply' | 'keepOpen'>;
 
 export interface SettingsDialogProps {
   ctx: CommandContext;
   feature: SettingsFeature;
   onClose: () => void;
-  /** Page shown first (tests). */
+  /** Page shown first (tests, the AI panel's and the failure messages' link to the AI page). */
   initialPage?: SettingsPageId;
+  /** Asked before OK / Apply write anything; absent: apply. */
+  beforeApply?: BeforeApplyHook;
   /**
    * Reloads the page for the browser-mode restart (`app.restart` unavailable, 1070); defaults
    * to `window.location.replace`. Tests inject a recorder.
@@ -74,6 +94,7 @@ export function SettingsDialog({
   feature,
   onClose,
   initialPage = 'view',
+  beforeApply,
   reloadPage,
 }: SettingsDialogProps) {
   const { t, i18n } = useTranslation();
@@ -95,6 +116,26 @@ export function SettingsDialog({
     [feature.hotkeys, registry],
   );
 
+  // The cancel registry (feature 005 review A4): a page that started a job hands in a
+  // canceller; closing the dialog - OK, Cancel, Escape, the close box - runs the ones still
+  // registered, so no test or fetch outlives the dialog.
+  const cancellers = useRef(new Set<() => void>());
+  const registerCancel = useCallback((cancel: () => void): (() => void) => {
+    cancellers.current.add(cancel);
+    return () => {
+      cancellers.current.delete(cancel);
+    };
+  }, []);
+  const runCancellers = () => {
+    for (const cancel of [...cancellers.current]) cancel();
+    cancellers.current.clear();
+  };
+  useEffect(() => runCancellers, []); // unmounted another way: the jobs go with it
+  const close = () => {
+    runCancellers();
+    onClose();
+  };
+
   // Settings from the core when the store does not have them yet.
   useEffect(() => {
     if (draft || !rpc) return;
@@ -115,10 +156,7 @@ export function SettingsDialog({
     };
   }, [draft, rpc, store]);
 
-  const update = <S extends 'view' | 'other' | 'words'>(
-    section: S,
-    patch: Partial<Settings[S]>,
-  ) => {
+  const update = <S extends DraftSection>(section: S, patch: Partial<Settings[S]>) => {
     setDraft((current) =>
       current ? { ...current, [section]: { ...current[section], ...patch } } : current,
     );
@@ -170,6 +208,10 @@ export function SettingsDialog({
     const problems = validateSettings(draft, t);
     if (problems.length > 0) {
       setErrors(problems);
+      return { ok: false, restartRequired: false };
+    }
+    // The pre-apply hook: nothing is written while it keeps the dialog open.
+    if (beforeApply && (await beforeApply(draft, original)) === 'keepOpen') {
       return { ok: false, restartRequired: false };
     }
     let restartRequired = false;
@@ -243,7 +285,7 @@ export function SettingsDialog({
     run(async () => {
       const outcome = await apply();
       if (!outcome.ok) return;
-      onClose();
+      close();
       if (outcome.restartRequired) await promptRestart();
     });
 
@@ -261,7 +303,7 @@ export function SettingsDialog({
       disabled: !editable || busy,
       onClick: () => void onOk(),
     },
-    { id: 'cancel', label: t('dialog.buttons.cancel'), onClick: onClose },
+    { id: 'cancel', label: t('dialog.buttons.cancel'), onClick: close },
     {
       id: 'apply',
       label: t('dialog.settings.apply'),
@@ -343,6 +385,14 @@ export function SettingsDialog({
           </div>
           <div role="tabpanel" id="settings-page-words" hidden={page !== 'words'}>
             <WordsPage draft={draft} onChange={(patch) => update('words', patch)} ctx={ctx} />
+          </div>
+          <div role="tabpanel" id="settings-page-ai" hidden={page !== 'ai'}>
+            <AiPage
+              draft={draft}
+              onChange={(patch) => update('ai', patch)}
+              ctx={ctx}
+              registerCancel={registerCancel}
+            />
           </div>
         </>
       ) : (

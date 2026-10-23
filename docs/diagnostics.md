@@ -25,7 +25,7 @@ One JSON object per line:
 
 ```json
 {"ts":"2026-10-13T04:40:22.857Z","level":"error","source":"core","code":"rpc.doc.ioError",
- "message":"doc.ioError","context":{"version":"0.0.4","platform":"linux","docId":"d3",
+ "message":"doc.ioError","context":{"version":"0.0.5","platform":"linux","docId":"d3",
  "method":"doc.save","path":"/books/novel.fb2","reason":"cannot create temp file: Not a directory",
  "rpcCode":"1002"}}
 ```
@@ -101,11 +101,15 @@ rules (one entry per failure, context present, fixture text absent, token absent
 | `binary.spillDirFailed`, `binary.spillFailed`, `binary.spillReadFailed` | warning / error | id, size, reason | temporary files of large binaries |
 | `image.convertFailed`, `image.previewFailed` | warning | docId, id, reason | undecodable or oversized images |
 | `io.createDirFailed`, `process.spawnFailed` | warning | path / program, reason | per-user folders, opening a folder with the OS |
+| `ai.<kind>` - `ai.offline`, `ai.timeout`, `ai.tls`, `ai.http`, `ai.format` | warning | method (`ai.complete` / `ai.models` / `ai.test`), targetKind (`free` / `custom`), host, status (HTTP answers only) | an AI request failed (feature 005, FR-100): one entry per failed outcome and nothing else - never for a success, a cancel, a limit wait (429, 402, 503 with `Retry-After`) or a redirect; never the instruction, the conversation, the book's text, the key, the model or the service's words (a service failure is a result, not an RPC error) |
+| `ai.caBundleMissing` | warning | path | `SSL_CERT_FILE` / `CURL_CA_BUNDLE` names no readable file (once per path and process); the next source of the CA order is used |
+| `aiServices.<reason>` - `invalidJson`, `badVersion`, `missingField`, `badField`, `duplicateId`, ... | warning | path, index, field | an entry or file of the AI service list (`ai-services.json`, bundled or the user's) was skipped; the same issue is shown on the settings page |
 | `command.<commandId>` | error | commandId, docId | a menu/toolbar/hotkey command threw |
 | `file.openFailed`, `file.saveFailed` | error | path, docId | client-side open/save failure (timeout, lost connection) |
 | `images.upload` | error | docId | image upload from the clipboard / drag-and-drop failed |
 | `ui.unhandledError`, `ui.unhandledRejection` | error | docId, view | uncaught interface exception / rejection |
 | `script.error` | error | scriptId, line, column | a user script threw (`Script error: … at line L, column C`) |
+| `ai.internal` | error | requestId, the exception's `name` | an unexpected exception inside the AI assistant's request loop (`source: ui`; the request ends as failed; never the message or the stack) |
 
 Shell codes (`source: shell`) are documented in `docs/installing.md` (sandbox fallback) and
 emitted by `app/src/*`.

@@ -578,7 +578,9 @@ test.describe('dialogs from the keyboard', () => {
     const dialog = page.getByTestId('dialog-settings');
     await expect(dialog).toBeVisible();
     await expect(page.getByTestId('settings-loading')).toHaveCount(0, { timeout: 15_000 });
-    const pages = ['view', 'other', 'hotkeys', 'words'];
+    // The dialog's page order (`SettingsDialog.tsx` PAGES); the AI assistant page of feature 005
+    // is the last one, so ArrowRight on it wraps to View.
+    const pages = ['view', 'other', 'hotkeys', 'words', 'ai'];
     for (const [index, id] of pages.entries()) {
       const tab = page.getByTestId(`settings-tab-${id}`);
       await expect(tab).toHaveAttribute('aria-selected', 'true');

@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "services": [
+    {
+      "id": "standin",
+      "name": "Stand-in (ignored: unknown file version)",
+      "address": "http://127.0.0.1:8787/v1",
+      "model": "standin-chat",
+      "keyRequired": false,
+      "tools": true
+    }
+  ]
+}

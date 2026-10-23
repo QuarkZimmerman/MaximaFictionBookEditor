@@ -1,8 +1,10 @@
 // app.* handlers (T024): app.info, app.quit, app.openLogFolder, app.openFolder,
 // app.setUiLanguage; feature 002: app.latestRelease, app.beep; feature 003: app.restart;
-// job.cancel({jobId}) -> {} of rpc-api.md §1 (the job then reports job.failed 1090).
+// feature 005: app.openUrl; job.cancel({jobId}) -> {} of rpc-api.md §1 (the job then reports
+// job.failed 1090).
 #include "server/services.hpp"
 
+#include <mfbe/ai_address.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/platform.hpp>
 #include <mfbe/version.hpp>
@@ -127,6 +129,23 @@ void register_app_handlers(rpc::RpcRouter& router, Services& services) {
 
     router.add_method("app.openFolder", [&services](const json& params, rpc::RpcContext&) {
         return open_folder(services, platform::path_from_utf8(rpc::params::string(params, "path")));
+    });
+
+    // app.openUrl({url}) -> {} (feature 005, rpc-api.md §3.1): the one mechanism behind every
+    // terms / privacy link of the AI assistant - the system browser through the OS opener,
+    // http and https only; any other scheme or a malformed URL is invalidParams {field: 'url'},
+    // an opener that cannot be started 1050 (tolerated by the callers). Logs nothing.
+    router.add_method("app.openUrl", [](const json& params, rpc::RpcContext&) {
+        const std::string url = rpc::params::string(params, "url");
+        if (!ai::is_http_url(url)) {
+            throw rpc::invalid_params("url must be an absolute http or https URL",
+                                      json{{"field", "url"}});
+        }
+        if (!process::open_url(url)) {
+            throw rpc::RpcError(rpc::codes::kDialogUnavailable, "",
+                                json{{"reason", "cannot start the browser"}});
+        }
+        return json::object();
     });
 
     // Help > Check for new version (feature 002, decision D15): the shell asks the release

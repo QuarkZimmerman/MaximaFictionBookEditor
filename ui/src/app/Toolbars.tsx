@@ -19,7 +19,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { CustomizeToolbarDialog } from '@/dialogs/CustomizeToolbarDialog';
-import { useAppState } from '@/model/store';
+import { isRunLocked, useAppState } from '@/model/store';
 
 import { useAppServices, useCommandContext, useAppRevision } from './services';
 import { commandDescription, commandTooltip } from './commands';
@@ -30,8 +30,10 @@ import { iconUrl } from './toolbarDefinitions';
 import {
   LAST_SCRIPT,
   SEPARATOR,
+  isHiddenItem,
   saveLayout,
   shownLayout,
+  withHiddenItems,
   type CustomizableToolbar,
 } from './toolbarLayouts';
 
@@ -60,7 +62,9 @@ export function ToolbarButton({ commandId, size = 24 }: ToolbarButtonProps) {
   const ctx = useCommandContext();
   useAppRevision();
   const command = services.commands.get(commandId);
-  if (!command) return null;
+  // An unregistered command has no button; neither has an invisible one (the AI assistant's
+  // `ai.toggle` while the assistant is disabled, feature 005 FR-096).
+  if (!command || !services.commands.isVisible(commandId, ctx)) return null;
   const enabled = services.commands.isEnabled(commandId, ctx);
   const checked = services.commands.isChecked(commandId, ctx);
   const tooltip = commandTooltip(command, t);
@@ -218,15 +222,24 @@ function CustomizableToolbarView({
   const services = useAppServices();
   const ctx = useCommandContext();
   const settings = useAppState((s) => s.settings, services.store);
-  // A running script blocks the whole window, as in the original.
-  const scriptRunning = useAppState((s) => s.scriptRunning, services.store);
-  const items = shownLayout(settings, toolbar, scriptButtons);
+  useAppRevision(); // the hidden items follow the command registry (feature 005 FR-096)
+  // A running script (or AI request) blocks the whole window, as in the original.
+  const runLocked = useAppState(isRunLocked, services.store);
+  // A hidden item (toolbarLayouts.ts: the AI assistant's button while the assistant is
+  // disabled) has no element at all - not even an empty wrapper - and a drag keeps it stored.
+  const stored = shownLayout(settings, toolbar, scriptButtons);
+  const hidden = (item: string) => isHiddenItem(item, services.commands, ctx);
+  const items = stored.filter((item) => !hidden(item));
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const label = t(toolbar === 'commands' ? 'toolbar.commands' : 'toolbar.scripts');
-  const drag = useButtonDrag(items, (next) => void saveLayout(ctx, toolbar, next), scriptRunning);
+  const drag = useButtonDrag(
+    items,
+    (next) => void saveLayout(ctx, toolbar, withHiddenItems(stored, next, hidden)),
+    runLocked,
+  );
 
   const customize = () => {
-    if (scriptRunning) return;
+    if (runLocked) return;
     void services.dialogs.openCustom((close) => (
       <CustomizeToolbarDialog
         ctx={ctx}
@@ -272,7 +285,7 @@ function CustomizableToolbarView({
             {
               id: 'customize',
               label: t('toolbarMenu.customize'),
-              enabled: !scriptRunning,
+              enabled: !runLocked,
               run: customize,
             },
           ]}

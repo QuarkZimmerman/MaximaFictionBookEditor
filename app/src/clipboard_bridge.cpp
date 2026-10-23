@@ -24,6 +24,9 @@ namespace mfbe::shell {
 
 namespace {
 
+#if defined(OS_LINUX)
+// Linux only (the GTK clipboard is read on the UI thread; see read_image below): elsewhere these
+// would be unused and clang warns about them.
 constexpr auto kClipboardTimeout = std::chrono::seconds(5);
 
 // Shared between the waiting transport thread and the UI task; the task may outlive the
@@ -44,6 +47,7 @@ void readOnUiThread(std::shared_ptr<ReadState> state) {
     }
     state->cv.notify_all();
 }
+#endif  // OS_LINUX
 
 mfbe::ClipboardImage toCore(ClipboardImageData data) {
     mfbe::ClipboardImage image;

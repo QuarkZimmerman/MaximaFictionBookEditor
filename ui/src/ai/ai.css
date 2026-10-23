@@ -1,0 +1,448 @@
+/* AI assistant (feature 005): the "Ask AI..." popup and the content of the right-hand panel
+   (the pane itself, `.mfbe-ai-panel`, and its divider are app/layout.css's). Colours and fonts
+   come from the variables in app/layout.css; model- and service-supplied texts are rendered as
+   plain text with `white-space: pre-wrap` (review C16). */
+
+/* ---- The panel (AiPanel.tsx; FR-040 to FR-042, FR-105) ---- */
+
+.mfbe-ai {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  background: var(--mfbe-color-bg);
+  color: var(--mfbe-color-fg);
+}
+
+.mfbe-ai-header {
+  flex: 0 0 auto;
+  padding: 4px 32px 6px 8px;
+  border-bottom: 1px solid var(--mfbe-color-border);
+  background: var(--mfbe-color-chrome-bg);
+}
+
+.mfbe-ai-title {
+  font-weight: 600;
+}
+
+.mfbe-ai-service-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.92em;
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+.mfbe-ai-service {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mfbe-ai-settings-link {
+  flex: 0 0 auto;
+}
+
+.mfbe-ai-service-note {
+  font-size: 0.88em;
+  font-style: italic;
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+/* The close button sits at the top right but comes last in the DOM: the Tab order of the panel
+   is field → Send/Stop → Clear → Undo → close (quickstart §3). */
+.mfbe-ai-close {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.mfbe-ai-close:hover {
+  background: var(--mfbe-color-button-hover, #e5f1fb);
+  border-color: var(--mfbe-color-accent, #0078d4);
+}
+
+/* The conversation: a scrolling column of messages, the newest kept in view. */
+.mfbe-ai-messages {
+  flex: 1 1 auto;
+  min-height: 80px;
+  overflow: auto;
+  padding: 6px 8px;
+}
+
+.mfbe-ai-empty {
+  margin: 4px 0;
+  color: var(--mfbe-color-fg-muted, #555);
+  font-style: italic;
+}
+
+.mfbe-ai-message {
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  border-radius: 4px;
+  background: var(--mfbe-color-input-bg, #fff);
+}
+
+.mfbe-ai-message-user {
+  background: var(--mfbe-color-chrome-bg-2, #f3f3f3);
+  margin-left: 24px;
+}
+
+.mfbe-ai-message-notice {
+  border-style: dashed;
+  font-style: italic;
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+.mfbe-ai-message-role {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+/* Plain text only: the model's words as they came, line breaks kept, no markup (C16). */
+.mfbe-ai-message-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-message-mark {
+  margin-top: 4px;
+  font-size: 0.88em;
+  font-style: italic;
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+.mfbe-ai-message-cutoff {
+  color: var(--status-bad, #c42b1c);
+}
+
+/* The result of a request under its final words (FR-106): where the changes went, or that a
+   change the words claim was never made - the latter in the warning colour, upright. */
+.mfbe-ai-message-result {
+  font-style: normal;
+}
+
+.mfbe-ai-message-result-claimedChange {
+  color: var(--status-bad, #c42b1c);
+  font-weight: 600;
+}
+
+/* The activity list (FR-042): every operation of the request as it happens, in a column of its
+   own under the conversation, the newest entry kept in view. */
+.mfbe-ai-activity-section {
+  flex: 0 1 30%;
+  display: flex;
+  flex-direction: column;
+  min-height: 56px;
+  border-top: 1px solid var(--mfbe-color-border);
+}
+
+.mfbe-ai-activity-caption {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 8px;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--mfbe-color-fg-muted, #555);
+  background: var(--mfbe-color-chrome-bg);
+}
+
+.mfbe-ai-activity-count {
+  font-weight: normal;
+}
+
+.mfbe-ai-activity {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 2px 8px;
+  overflow: auto;
+  list-style: none;
+  font-size: 0.88em;
+}
+
+.mfbe-ai-activity-entry {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-activity-time {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+.mfbe-ai-activity-entry[data-kind='tool.error'],
+.mfbe-ai-activity-entry[data-kind='change.rejected'],
+.mfbe-ai-activity-entry[data-kind='request.failed'],
+.mfbe-ai-activity-entry[data-kind='request.rejected'] {
+  color: var(--status-bad, #c42b1c);
+}
+
+.mfbe-ai-activity-entry[data-kind='change.accepted'],
+.mfbe-ai-activity-entry[data-kind='request.done'] {
+  color: var(--status-ok, #107c10);
+}
+
+/* The composer: the status line, the field and the buttons. */
+.mfbe-ai-composer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--mfbe-color-border);
+  background: var(--mfbe-color-chrome-bg);
+}
+
+.mfbe-ai-status {
+  min-height: 1.3em;
+  font-size: 0.92em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+.mfbe-ai-status[data-state='failed'] {
+  color: var(--status-bad, #c42b1c);
+}
+
+.mfbe-ai-wait {
+  font-weight: 600;
+}
+
+.mfbe-ai-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: var(--mfbe-font-ui, 13px system-ui, sans-serif);
+  color: var(--mfbe-color-fg, #000);
+  background: var(--mfbe-color-input-bg, #fff);
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  padding: 4px 6px;
+}
+
+.mfbe-ai-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mfbe-ai-buttons .mfbe-button {
+  min-width: 0;
+  padding: 3px 12px;
+}
+
+.mfbe-ai-undo-hint {
+  font-size: 0.88em;
+  font-style: italic;
+  color: var(--mfbe-color-fg-muted, #555);
+}
+
+/* Every stop of the keyboard path shows its focus ring (FR-105). */
+.mfbe-ai-input:focus-visible,
+.mfbe-ai-close:focus-visible,
+.mfbe-link-button:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: 1px;
+}
+
+/* ---- The popup (AskPopup.tsx) ---- */
+
+.mfbe-ai-ask {
+  width: 420px;
+  max-width: min(520px, calc(100vw - 32px));
+}
+
+.mfbe-ai-ask-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mfbe-ai-ask-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: var(--mfbe-font-ui, 13px system-ui, sans-serif);
+  color: var(--mfbe-color-fg, #000);
+  background: var(--mfbe-color-input-bg, #fff);
+  border: 1px solid var(--mfbe-color-border-strong, #707070);
+  padding: 4px 6px;
+}
+
+.mfbe-ai-ask-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--mfbe-color-fg-muted, #555);
+  font-size: 0.92em;
+}
+
+.mfbe-ai-ask-meta > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mfbe-ai-ask-status {
+  min-height: 1.3em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-ask-status[data-state='done'] {
+  color: var(--status-ok, #107c10);
+}
+
+.mfbe-ai-ask-status[data-state='failed'] {
+  color: var(--status-bad, #c42b1c);
+}
+
+.mfbe-ai-ask-answer {
+  max-height: 40vh;
+  overflow: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-input-bg, #fff);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-ask-cutoff {
+  margin-top: 6px;
+  color: var(--status-bad, #c42b1c);
+  font-style: italic;
+}
+
+.mfbe-ai-ask-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mfbe-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--mfbe-color-link, #0066cc);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* ------------------------------------------------------------------------ */
+/* The script proposal dialog (feature 005 US6, FR-082 / FR-084; proposal.tsx) */
+/* ------------------------------------------------------------------------ */
+
+/* Every model-supplied text of the assistant's surfaces is plain text (review C16). */
+.mfbe-ai-plain {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-proposal {
+  width: min(880px, 92vw);
+}
+
+.mfbe-ai-proposal .mfbe-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.mfbe-ai-proposal-path {
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-proposal-replaces {
+  color: var(--status-bad, #c42b1c);
+}
+
+.mfbe-ai-proposal-author {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfbe-ai-proposal-author input {
+  font: inherit;
+  padding: 4px 6px;
+}
+
+.mfbe-ai-proposal-files-title,
+.mfbe-ai-proposal-file-path,
+.mfbe-ai-proposal-warnings-title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.mfbe-ai-proposal-files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mfbe-ai-proposal-file {
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-input-bg, #fff);
+}
+
+.mfbe-ai-proposal-file-path {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--mfbe-color-border, #c8c8c8);
+  font-family: var(--mfbe-font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+}
+
+.mfbe-ai-proposal-file-content {
+  margin: 0;
+  padding: 6px 8px;
+  max-height: 32vh;
+  overflow: auto;
+  font-family: var(--mfbe-font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+  font-size: 0.92em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+.mfbe-ai-proposal-warnings {
+  border: 1px solid var(--status-bad, #c42b1c);
+  padding: 6px 8px;
+}
+
+.mfbe-ai-proposal-warnings-title {
+  color: var(--status-bad, #c42b1c);
+}
+
+.mfbe-ai-proposal-warnings ul {
+  margin: 4px 0 0;
+  padding-left: 1.4em;
+  font-family: var(--mfbe-font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+  font-size: 0.92em;
+}

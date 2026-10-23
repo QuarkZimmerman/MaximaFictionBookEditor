@@ -8,6 +8,13 @@
  * reorder, Reset restores the original layout. Every change applies at once and is kept for the
  * next start. Keyboard: Tab between the lists and the buttons, arrows in the lists, the buttons'
  * accelerators, Enter and Escape close.
+ *
+ * Hidden items (feature 005 US9, FR-096 - the AI assistant's button while the assistant is
+ * disabled): the decision is to **hide**, not to grey out - a greyed "AI Assistant" row would
+ * name the feature in the editor while nothing of it must exist but the settings page. Such
+ * an item is neither offered nor listed as current, yet every layout the dialog saves keeps it
+ * where the stored layout has it (`withHiddenItems`), so the button returns to its place when
+ * the assistant is enabled again (FR-097). Reset restores the original layout, which holds it.
  */
 
 import { useState } from 'react';
@@ -19,8 +26,10 @@ import { useAppServices } from '@/app/services';
 import {
   SEPARATOR,
   availableButtons,
+  isHiddenItem,
   saveLayout,
   shownLayout,
+  withHiddenItems,
   type CustomizableToolbar,
 } from '@/app/toolbarLayouts';
 import { useAppState } from '@/model/store';
@@ -44,10 +53,16 @@ export function CustomizeToolbarDialog({
   const { t } = useTranslation();
   const services = useAppServices();
   const settings = useAppState((s) => s.settings, ctx.store);
-  const current = shownLayout(settings, toolbar, scriptButtons);
+  const stored = shownLayout(settings, toolbar, scriptButtons);
+  // A hidden item (see the header) is neither listed as current nor offered; every layout saved
+  // from here keeps it where the stored layout has it.
+  const hidden = (item: string) => isHiddenItem(item, services.commands, ctx);
+  const current = stored.filter((item) => !hidden(item));
   const available = [
     SEPARATOR,
-    ...availableButtons(toolbar, scriptButtons).filter((item) => !current.includes(item)),
+    ...availableButtons(toolbar, scriptButtons).filter(
+      (item) => !stored.includes(item) && !hidden(item),
+    ),
   ];
   const [availableIndex, setAvailableIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -61,7 +76,8 @@ export function CustomizeToolbarDialog({
     const command = services.commands.get(item);
     return command ? commandTooltip(command, t) : item;
   };
-  const apply = (items: string[] | null) => void saveLayout(ctx, toolbar, items);
+  const apply = (items: string[] | null) =>
+    void saveLayout(ctx, toolbar, items && withHiddenItems(stored, items, hidden));
 
   const add = () => {
     const item = available[selectedAvailable];

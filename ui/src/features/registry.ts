@@ -1,3 +1,4 @@
+import { registerAiFeature } from '@/ai';
 import type { FeatureContext } from '@/app/services';
 
 import { registerDescriptionFeature } from './description';
@@ -14,8 +15,11 @@ import { registerWordsFeature } from './words';
 
 /**
  * Feature registrars, called once by createAppServices() in this order. Each feature lives in
- * its own directory under src/features/ and must only register commands, undo adapters, caret
- * providers or store subscriptions here - UI components are mounted by App.tsx.
+ * its own directory under src/features/ (the AI assistant under src/ai/, whose other modules
+ * form the lazy `ai-assistant` chunk) and must only register commands, undo adapters, caret
+ * providers or store subscriptions here - UI components are mounted by App.tsx. The AI
+ * assistant comes last: it registers nothing until the first settings snapshot and takes its
+ * stubs over from the registry the other features have finished with (feature 005 FR-096).
  */
 export const featureRegistrars: Array<(ctx: FeatureContext) => void> = [
   registerEditingFeature,
@@ -29,4 +33,5 @@ export const featureRegistrars: Array<(ctx: FeatureContext) => void> = [
   registerSettingsFeature,
   registerScriptsFeature,
   registerHelpFeature,
+  registerAiFeature,
 ];

@@ -23,6 +23,7 @@ each copyright file) and in the npm registry; they are not repeated here.
 | Component | Version | Licence | Full text | Notes |
 |---|---|---|---|---|
 | cli11 | 2.6.2 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/cli11/copyright` |  |
+| curl | 8.21.0 | BSD-3-Clause AND ISC AND curl | `build/vcpkg_installed/<triplet>/share/curl/copyright` |  |
 | fmt | 12.2.0 | MIT | `build/vcpkg_installed/<triplet>/share/fmt/copyright` | transitive dependency |
 | giflib | 6.1.3 | MIT | `build/vcpkg_installed/<triplet>/share/giflib/copyright` |  |
 | hunspell | 1.7.3 | LGPL-2.1-or-later | `build/vcpkg_installed/<triplet>/share/hunspell/copyright` | MPL-1.1/GPL-2.0-or-later/LGPL-2.1-or-later tri-licence (LGPL-2.1-or-later used; MPL-1.1 alone is not compatible with GPL-3.0) |
@@ -31,6 +32,7 @@ each copyright file) and in the npm registry; they are not repeated here.
 | libwebp | 1.6.0 | BSD-3-Clause | `build/vcpkg_installed/<triplet>/share/libwebp/copyright` |  |
 | libxml2 | 2.15.3 | MIT | `build/vcpkg_installed/<triplet>/share/libxml2/copyright` |  |
 | nlohmann-json | 3.12.0 | MIT | `build/vcpkg_installed/<triplet>/share/nlohmann-json/copyright` |  |
+| openssl | 3.6.3 | Apache-2.0 | `build/vcpkg_installed/<triplet>/share/openssl/copyright` | transitive dependency |
 | platform-folders | 4.3.0 | MIT | `build/vcpkg_installed/<triplet>/share/platform-folders/copyright` |  |
 | spdlog | 1.17.0 | MIT | `build/vcpkg_installed/<triplet>/share/spdlog/copyright` |  |
 | stb | 2024-07-29 | MIT | `build/vcpkg_installed/<triplet>/share/stb/copyright` | dual licence (MIT chosen; alternative: CC-PDDC) |
@@ -71,10 +73,20 @@ never linked.
 | @lezer/lr | 1.4.11 | MIT | `ui/node_modules/@lezer/lr/LICENSE` |
 | @lezer/xml | 1.0.6 | MIT | `ui/node_modules/@lezer/xml/LICENSE` |
 | @marijn/find-cluster-break | 1.0.4 | MIT | `ui/node_modules/@marijn/find-cluster-break/LICENSE` |
+| @modelcontextprotocol/client | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/client/LICENSE` |
+| @modelcontextprotocol/core | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/core/LICENSE` |
+| @modelcontextprotocol/server | 2.3.1 | Apache-2.0 | `ui/node_modules/@modelcontextprotocol/server/LICENSE` |
 | crelt | 1.0.7 | MIT | `ui/node_modules/crelt/LICENSE` |
+| cross-spawn | 7.0.6 | MIT | `ui/node_modules/cross-spawn/LICENSE` |
+| eventsource | 3.0.7 | MIT | `ui/node_modules/eventsource/LICENSE` |
+| eventsource-parser | 3.1.1 | MIT | `ui/node_modules/eventsource-parser/LICENSE` |
 | html-parse-stringify | 4.0.1 | MIT | `ui/node_modules/html-parse-stringify/LICENSE` |
 | i18next | 26.4.4 | MIT | `ui/node_modules/i18next/LICENSE` |
+| isexe | 2.0.0 | ISC | `ui/node_modules/isexe/LICENSE` |
+| jose | 6.2.13 | MIT | `ui/node_modules/jose/LICENSE.md` |
 | orderedmap | 2.1.1 | MIT | `ui/node_modules/orderedmap/LICENSE` |
+| path-key | 3.1.1 | MIT | `ui/node_modules/path-key/license` |
+| pkce-challenge | 5.0.1 | MIT | `ui/node_modules/pkce-challenge/LICENSE` |
 | prosemirror-commands | 1.7.2 | MIT | `ui/node_modules/prosemirror-commands/LICENSE` |
 | prosemirror-history | 1.5.1 | MIT | `ui/node_modules/prosemirror-history/LICENSE` |
 | prosemirror-inputrules | 1.5.1 | MIT | `ui/node_modules/prosemirror-inputrules/LICENSE` |
@@ -88,9 +100,13 @@ never linked.
 | react-i18next | 17.0.16 | MIT | `ui/node_modules/react-i18next/LICENSE` |
 | rope-sequence | 1.3.4 | MIT | `ui/node_modules/rope-sequence/LICENSE` |
 | scheduler | 0.28.0 | MIT | `ui/node_modules/scheduler/LICENSE` |
+| shebang-command | 2.0.0 | MIT | `ui/node_modules/shebang-command/license` |
+| shebang-regex | 3.0.0 | MIT | `ui/node_modules/shebang-regex/license` |
 | style-mod | 4.1.4 | MIT | `ui/node_modules/style-mod/LICENSE` |
 | use-sync-external-store | 1.7.0 | MIT | `ui/node_modules/use-sync-external-store/LICENSE` |
 | w3c-keyname | 2.2.8 | MIT | `ui/node_modules/w3c-keyname/LICENSE` |
+| which | 2.0.2 | ISC | `ui/node_modules/which/LICENSE` |
+| zod | 4.6.7 | MIT | `ui/node_modules/zod/LICENSE` |
 
 Development-only packages (bundler, test runners, linters, type definitions) are not
 distributed and are therefore not listed.
@@ -109,13 +125,15 @@ distributed and are therefore not listed.
 | Component | Version | Licence | Full text | Notes |
 |---|---|---|---|---|
 | Hunspell dictionary uk_UA (dict_uk) | dict_uk release v6.8.6 | MPL-1.1 | `resources/dictionaries/uk_UA.txt` | uk_UA.aff and uk_UA.dic are read at run time by Hunspell and not combined into the program (aggregate, GPLv3 section 5; decision D16); the upstream generator notice also names GPL-3.0-or-later and LGPL-2.1-or-later; notice installed as share/mfbe/resources/dictionaries/uk_UA.txt and shown in About |
+| Mozilla CA certificate bundle (cacert.pem, as published by the curl project) | Mozilla root store as of 2026-10-20; SHA-256 796f1389bfea | MPL-2.0 | `resources/certs/cacert.NOTICE.txt` | cacert.pem is read at run time by libcurl, on Linux only and only when neither the environment nor the distribution provides a CA bundle, and is not combined into the program (aggregate, GPLv3 section 5; decision D16); the Linux packages ship it with its notice as share/mfbe/resources/certs/, Windows and macOS use the system stores and carry nothing of it; the notice is shown in About on Linux; the MPL-2.0 text is resources/certs/MPL-2.0.txt, exported next to the notice |
 
 Data files the editor's libraries read at run time and that are never combined into the
 program: aggregates in the sense of GPLv3 section 5 (constitution principle VI, decision
 D16). Their licences need not be GPL-3.0-compatible; they must allow free redistribution
-with the notice that ships next to each file (MPL-1.1 qualifies; licences forbidding
-redistribution or commercial use do not). The notice is installed with the file and shown
-in Help > About like the other dictionaries' notices.
+with the notice that ships next to each file (MPL-1.1 and MPL-2.0 qualify; licences
+forbidding redistribution or commercial use do not). The notice is installed with the file
+and shown in Help > About like the other dictionaries' notices; the CA bundle and its notice
+ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-cacert.py).
 
 ## Build and test tooling (not distributed)
 
@@ -132,16 +150,19 @@ in Help > About like the other dictionaries' notices.
 
 | Licence | Components |
 |---|---|
-| MIT | 42 |
+| MIT | 51 |
+| Apache-2.0 | 5 |
 | BSD-3-Clause | 4 |
-| Apache-2.0 | 1 |
+| ISC | 2 |
 | Apache-2.0 AND MIT | 1 |
 | BSD-2-Clause | 1 |
 | BSD-3-Clause AND IJG | 1 |
+| BSD-3-Clause AND ISC AND curl | 1 |
 | BSD-style | 1 |
 | GPL-3.0-only | 1 |
 | LGPL-2.1-or-later | 1 |
 | MPL-1.1 | 1 |
+| MPL-2.0 | 1 |
 | SCOWL AND BSD-style AND public-domain | 1 |
 | Zlib | 1 |
 | libpng-2.0 | 1 |

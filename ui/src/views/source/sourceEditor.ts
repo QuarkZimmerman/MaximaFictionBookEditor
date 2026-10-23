@@ -19,7 +19,8 @@
  * the store's `insertMode` (INS/OVR). Tag completion (feature 003 US8, `completion.ts`) sits
  * before the editor keymaps so its Enter / Tab / Escape bindings win while a list is open.
  *
- * While a script runs (`store.scriptRunning`, the quiet lock of feature 003 FR-011) the editor
+ * While a script runs or an AI request is in progress (`store.runLock`, the quiet lock of
+ * feature 003 FR-011 and feature 005 FR-022) the editor
  * is read-only (`EditorState.readOnly` + `EditorView.editable(false)` in a compartment): typing,
  * pasting, cutting and deleting are refused, nothing is greyed, selecting and copying keep
  * working, and the clipboard commands and the context menu follow `state.readOnly`.
@@ -41,8 +42,8 @@ import {
   Compartment,
   EditorSelection,
   EditorState,
+  Transaction,
   type Extension,
-  type Transaction,
   type TransactionSpec,
 } from '@codemirror/state';
 import {
@@ -56,7 +57,7 @@ import {
 import type { CommandContext } from '@/app/commands';
 import { nbspMarker } from '@/editor/plugins/nbsp';
 import type { CaretProvider } from '@/model/caret';
-import { actions, type AppStore } from '@/model/store';
+import { actions, isRunLocked, type AppStore } from '@/model/store';
 import type { UndoCoordinator, ViewHistoryAdapter } from '@/model/undo';
 import type { Caret, Settings } from '@/rpc/types';
 
@@ -332,9 +333,9 @@ export class SourceEditorController {
     registerCompletionEditor(this.store, () => this.view);
     this.store.subscribe((state, previous) => {
       if (state.insertMode !== previous.insertMode) this.applyOvertype();
-      // The quiet lock of a script run applies mounted or not (the kept state is what the
-      // next mount shows).
-      if (state.scriptRunning !== previous.scriptRunning) this.applyLock();
+      // The quiet lock of a run applies mounted or not (the kept state is what the next mount
+      // shows).
+      if (isRunLocked(state) !== isRunLocked(previous)) this.applyLock();
     });
     onSourceSessionReset(this.store, () => this.reset());
     // The switch flow reads the selection on the way to the Body view (feature 004 US7).
@@ -539,9 +540,9 @@ export class SourceEditorController {
 
   /* ----------------------------------------------------------------- lock */
 
-  /** A script is running: the quiet lock is on (feature 003 FR-011). */
+  /** A script run or an AI request holds the document: the quiet lock is on (feature 003 FR-011). */
   private isLocked(): boolean {
-    return this.store.getState().scriptRunning;
+    return isRunLocked(this.store.getState());
   }
 
   private applyLock(): void {
@@ -575,6 +576,30 @@ export class SourceEditorController {
     }
     // The user is editing: the old error position is stale.
     if (this.store.getState().sourceParseError) actions.setSourceParseError(this.store, null);
+  }
+
+  /**
+   * Replaces the whole text as one change kept out of the editor's history and selects
+   * `selection` (offsets into the new text; the start of the text by default) - the AI
+   * assistant's commit in the Source view and the undo / redo of its one snapshot step (feature
+   * 005 US5): the step is the undo coordinator's snapshot entry, not a Source history event,
+   * and the editor's own earlier events are mapped through the change. The caller has set the
+   * Source session's baseline to `text` when the text is to count as clean. Works mounted and
+   * headless; the lock is bypassed (the editor's `readOnly` applies to the user's input).
+   */
+  replaceWholeText(text: string, selection?: { anchor: number; head: number }): void {
+    const length = this.state.doc.length;
+    const clamp = (offset: number) => Math.min(Math.max(Math.floor(offset) || 0, 0), text.length);
+    const range = selection
+      ? EditorSelection.single(clamp(selection.anchor), clamp(selection.head))
+      : EditorSelection.single(0);
+    this.target.dispatch({
+      changes: { from: 0, to: length, insert: text },
+      selection: range,
+      annotations: Transaction.addToHistory.of(false),
+      filter: false,
+    });
+    this.revealSelection();
   }
 
   /* ----------------------------------------------------------- navigation */

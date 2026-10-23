@@ -1,9 +1,13 @@
 // T018: settings store - defaults, persistence, validation, patches.
 #include "test_support.hpp"
 
+#include <mfbe/log.hpp>
 #include <mfbe/settings.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+#include <sstream>
+#include <string>
+#include <vector>
 
 using namespace mfbe;
 using nlohmann::json;
@@ -61,8 +65,20 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK(d["session"]["toolbarLayouts"] == json::object());
     CHECK(d["session"]["lastFileDialogFolder"] == "");
     CHECK_FALSE(d["session"].contains("lastVersionCheck"));  // feature 003: absent until a check
-    CHECK(d["session"].size() == 8);
-    CHECK(d.size() == 5);
+    CHECK(d["session"]["aiPanelWidth"] == 360);              // feature 005
+    CHECK(d["session"]["aiPanelVisible"] == true);           // feature 005: open at the first start
+    CHECK(d["session"].size() == 10);
+    // Feature 005 (resource-formats §B): the ai group - mode (Disabled by default, FR-001 as
+    // amended 2026-10-23), freeServiceId, the custom triple, the verification record and the
+    // agreements.
+    CHECK(d["ai"]["mode"] == "disabled");
+    CHECK(d["ai"]["freeServiceId"] == "ovhcloud");
+    CHECK(d["ai"]["custom"] ==
+          json{{"address", "https://api.openai.com/v1"}, {"key", ""}, {"model", ""}});
+    CHECK(d["ai"]["customVerified"] == json{{"fingerprint", ""}, {"model", ""}, {"at", ""}});
+    CHECK(d["ai"]["agreements"] == json::array());
+    CHECK(d["ai"].size() == 5);
+    CHECK(d.size() == 6);
 }
 
 TEST_CASE(
@@ -370,7 +386,7 @@ TEST_CASE("settings: feature 003 keys are validated with the field name", "[sett
               .settings["session"]["lastVersionCheck"] == "2028-02-29T00:00:00Z");
     store.apply_patch(json{{"session", {{"lastVersionCheck", nullptr}}}});
     // The window placement is {x, y, width, height, maximized?} or null, nothing else.
-    for (const json malformed :
+    for (const json& malformed :
          {json::object(), json{{"x", "10"}, {"y", 20}, {"width", 800}, {"height", 600}},
           json{{"x", 10}, {"y", 20}, {"width", 800}},
           json{{"x", 10}, {"y", 20}, {"width", 800}, {"height", 600}, {"maximized", "yes"}},
@@ -494,9 +510,12 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["other"]["keyboardLayoutId"] == "");
     CHECK(s["other"]["keyboardLayoutName"] == "");
     CHECK(s["session"]["treeWidth"] == 260);
+    CHECK(s["session"]["aiPanelWidth"] == 360);  // feature 005
+    CHECK(s["session"]["aiPanelVisible"] == true);
+    CHECK(s["ai"] == settings::defaults()["ai"]);
     CHECK(s["view"].size() == 18);
     CHECK(s["other"].size() == 16);
-    CHECK(s["session"].size() == 8);
+    CHECK(s["session"].size() == 10);
 
     // Saving the migrated file keeps the key absent; the shell's maximised flag is accepted.
     CHECK(store.save());
@@ -566,11 +585,366 @@ TEST_CASE(
     CHECK(s["other"]["keyboardLayoutName"] == "");
     CHECK(s["session"]["treeWidth"] == 260);
     CHECK(s["other"].size() == 16);
-    CHECK(s["session"].size() == 9);  // the eight of 0.0.3 (lastVersionCheck set) + treeWidth
+    // The eight of 0.0.3 (lastVersionCheck set) + treeWidth + aiPanelWidth and aiPanelVisible
+    // (feature 005).
+    CHECK(s["session"].size() == 11);
+    CHECK(s["session"]["aiPanelWidth"] == 360);
+    CHECK(s["session"]["aiPanelVisible"] == true);
+    CHECK(s["ai"] == settings::defaults()["ai"]);
 
     // The migrated file saves and reloads unchanged.
     CHECK(store.save());
     settings::SettingsStore reloaded(file);
     reloaded.load();
     CHECK(reloaded.get() == s);
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 005: the ai group and session.aiPanelWidth (rpc-api §3.7, resource-formats §B)    */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+// Node:
+// createHash('sha256').update('http://127.0.0.1:11434/v1\0sk-test\0standin-chat').digest('hex')
+constexpr const char* kStandinAddress = "http://127.0.0.1:11434/v1";
+constexpr const char* kStandinKey = "sk-test";
+constexpr const char* kStandinModel = "standin-chat";
+constexpr const char* kStandinFingerprint =
+    "02751bd2ea5ad77cd042f0ce910ec7e3976c39e9aca03c436e0c88adab401046";
+
+json record(const char* fingerprint, const char* model = "standin-chat",
+            const char* at = "2026-10-22T10:00:00Z") {
+    return json{{"fingerprint", fingerprint}, {"model", model}, {"at", at}};
+}
+
+json triple(const char* address, const char* key, const char* model) {
+    return json{{"address", address}, {"key", key}, {"model", model}};
+}
+
+}  // namespace
+
+TEST_CASE(
+    "settings: the ai group and session.aiPanelWidth are validated with the field name; "
+    "counts of section 6 updated",
+    "[settings][ai]") {
+    test::TempDir tmp;
+    settings::SettingsStore store(tmp / "settings.json");
+    store.load();
+    const json before = store.get();
+
+    auto expect_field = [&](const json& patch, const std::string& field) {
+        try {
+            store.apply_patch(patch);
+            FAIL("expected SettingsError for " << field);
+        } catch (const settings::SettingsError& e) {
+            CHECK(e.field == field);
+        }
+    };
+    // 1040 settings.invalid {field} for every broken rule - the field name, never the value.
+    expect_field(json{{"ai", {{"mode", "on"}}}}, "ai.mode");
+    expect_field(json{{"ai", {{"mode", 1}}}}, "ai.mode");
+    expect_field(json{{"ai", {{"freeServiceId", ""}}}}, "ai.freeServiceId");
+    expect_field(json{{"ai", {{"freeServiceId", 7}}}}, "ai.freeServiceId");
+    expect_field(
+        json{{"ai", {{"custom", {{"address", "https://" + std::string(3000, 'a') + "/v1"}}}}}},
+        "ai.custom.address");
+    for (const char* bad :
+         {"api.openai.com/v1", "ftp://files.example/v1", "https:///v1",
+          "https://user:pw@api.example/v1", "https://api.example/v1?x=1",
+          "https://api.example/v1#frag", "https://api.example/v 1", "https://api.example/v1\n",
+          "javascript:alert(1)", "https://api.example:99999/v1", "file:///etc/passwd"}) {
+        INFO(bad);
+        expect_field(json{{"ai", {{"custom", {{"address", bad}}}}}}, "ai.custom.address");
+    }
+    expect_field(json{{"ai", {{"custom", {{"key", "sk-\nabc"}}}}}}, "ai.custom.key");
+    expect_field(json{{"ai", {{"custom", {{"key", std::string(4097, 'k')}}}}}}, "ai.custom.key");
+    expect_field(json{{"ai", {{"custom", {{"key", 42}}}}}}, "ai.custom.key");
+    expect_field(json{{"ai", {{"custom", {{"model", std::string(257, 'm')}}}}}}, "ai.custom.model");
+    expect_field(json{{"ai", {{"custom", {{"model", "gpt\t4"}}}}}}, "ai.custom.model");
+    expect_field(json{{"ai", {{"custom", "not an object"}}}}, "ai.custom");
+    expect_field(json{{"ai", "not an object"}}, "ai");
+    // A malformed record or agreement list breaks a rule like any other key.
+    expect_field(json{{"ai", {{"customVerified", "x"}}}}, "ai.customVerified");
+    expect_field(
+        json{{"ai", {{"customVerified", json{{"fingerprint", "zz"}, {"model", ""}, {"at", ""}}}}}},
+        "ai.customVerified");
+    expect_field(json{{"ai", {{"customVerified", json{{"fingerprint", ""}, {"model", ""}}}}}},
+                 "ai.customVerified");
+    expect_field(
+        json{{"ai",
+              {{"customVerified", json{{"fingerprint", ""}, {"model", ""}, {"at", "yesterday"}}}}}},
+        "ai.customVerified");
+    expect_field(json{{"ai", {{"agreements", "ovhcloud"}}}}, "ai.agreements");
+    expect_field(json{{"ai", {{"agreements", {json{{"service", "ovhcloud"}}}}}}}, "ai.agreements");
+    expect_field(json{{"ai",
+                       {{"agreements",
+                         {json{{"service", ""}, {"host", "h"}, {"at", "2026-10-22T10:00:00Z"}}}}}}},
+                 "ai.agreements");
+    expect_field(
+        json{{"ai",
+              {{"agreements",
+                {json{{"service", "x"}, {"host", "a b"}, {"at", "2026-10-22T10:00:00Z"}}}}}}},
+        "ai.agreements");
+    expect_field(
+        json{{"ai",
+              {{"agreements", {json{{"service", "x"}, {"host", "h"}, {"at", "2026-10-22"}}}}}}},
+        "ai.agreements");
+    expect_field(json{{"session", {{"aiPanelWidth", 50}}}}, "session.aiPanelWidth");
+    expect_field(json{{"session", {{"aiPanelWidth", 10001}}}}, "session.aiPanelWidth");
+    expect_field(json{{"session", {{"aiPanelWidth", "wide"}}}}, "session.aiPanelWidth");
+    expect_field(json{{"session", {{"aiPanelWidth", 360.5}}}}, "session.aiPanelWidth");
+    expect_field(json{{"session", {{"aiPanelVisible", "yes"}}}}, "session.aiPanelVisible");
+    expect_field(json{{"session", {{"aiPanelVisible", 1}}}}, "session.aiPanelVisible");
+    CHECK(store.get() == before);  // nothing applied
+
+    // Every valid value is stored as given; no change asks for a restart.
+    for (const char* mode : {"free", "custom", "disabled"}) {
+        auto r = store.apply_patch(json{{"ai", {{"mode", mode}}}});
+        CHECK(r.settings["ai"]["mode"] == mode);
+        CHECK_FALSE(r.restartRequired);
+    }
+    for (const char* address :
+         {"", "http://127.0.0.1:11434/v1", "https://api.openai.com/v1/", "http://[::1]:8080/v1",
+          "http://ai.standin.test:8080/v1", "HTTPS://API.EXAMPLE/", "http://192.168.1.20:11434",
+          "https://api.example/путь/v1"}) {
+        INFO(address);
+        CHECK(store.apply_patch(json{{"ai", {{"custom", {{"address", address}}}}}})
+                  .settings["ai"]["custom"]["address"] == address);
+    }
+    const std::string long_key(4096, 'k');
+    CHECK(store.apply_patch(json{{"ai", {{"custom", {{"key", long_key}}}}}})
+              .settings["ai"]["custom"]["key"] == long_key);
+    CHECK(store.apply_patch(json{{"ai", {{"custom", {{"key", " sk-with spaces "}}}}}})
+              .settings["ai"]["custom"]["key"] == " sk-with spaces ");  // stored as given
+    CHECK(
+        store
+            .apply_patch(json{{"ai", {{"custom", {{"model", "minimax/minimax-m3.1-flash:free"}}}}}})
+            .settings["ai"]["custom"]["model"] == "minimax/minimax-m3.1-flash:free");
+    CHECK(store.apply_patch(json{{"ai", {{"freeServiceId", "my-local"}}}})
+              .settings["ai"]["freeServiceId"] == "my-local");
+    for (int width : {100, 280, 360, 9000, 10000}) {
+        CHECK(store.apply_patch(json{{"session", {{"aiPanelWidth", width}}}})
+                  .settings["session"]["aiPanelWidth"] == width);
+    }
+    // The panel's visibility is written like session.treeVisible (FR-040); null resets it.
+    for (bool shown : {false, true, false}) {
+        auto r = store.apply_patch(json{{"session", {{"aiPanelVisible", shown}}}});
+        CHECK(r.settings["session"]["aiPanelVisible"] == shown);
+        CHECK_FALSE(r.restartRequired);
+    }
+    CHECK(store.apply_patch(json{{"session", {{"aiPanelVisible", nullptr}}}})
+              .settings["session"]["aiPanelVisible"] == true);
+    store.apply_patch(json{{"session", {{"aiPanelVisible", false}}}});
+    // Agreements carry service, host and at and are replaced whole by a patch.
+    const json agreement{{"service", "ovhcloud"},
+                         {"host", "oai.endpoints.kepler.ai.cloud.ovh.net"},
+                         {"at", "2026-10-22T10:00:00Z"}};
+    const json custom_agreement{{"service", "custom:http://ai.standin.test:8080/v1"},
+                                {"host", "ai.standin.test:8080"},
+                                {"at", "2026-10-22T10:00:01.500Z"}};
+    CHECK(store.apply_patch(json{{"ai", {{"agreements", {agreement, custom_agreement}}}}})
+              .settings["ai"]["agreements"] == json::array({agreement, custom_agreement}));
+    CHECK(store.apply_patch(json{{"ai", {{"agreements", {custom_agreement}}}}})
+              .settings["ai"]["agreements"] == json::array({custom_agreement}));
+    CHECK(store.apply_patch(json{{"ai", {{"agreements", json::array()}}}})
+              .settings["ai"]["agreements"] == json::array());
+    // null resets a key to its default (Disabled, FR-001); unknown keys under ai are preserved.
+    auto reset = store.apply_patch(json{{"ai", {{"mode", nullptr}, {"future", {{"x", 1}}}}}});
+    CHECK(reset.settings["ai"]["mode"] == "disabled");
+    CHECK(reset.settings["ai"]["future"]["x"] == 1);
+
+    // Persisted and read back as written.
+    settings::SettingsStore reloaded(tmp / "settings.json");
+    reloaded.load();
+    CHECK(reloaded.get() == store.get());
+    CHECK(reloaded.get_int("session.aiPanelWidth") == 10000);
+    CHECK(reloaded.get_bool("session.aiPanelVisible") == false);
+    CHECK(reloaded.get_string("ai.custom.key") == " sk-with spaces ");
+
+    // Stored values the schema refuses are replaced by the default and reported by field name;
+    // a width is never clamped; malformed agreement elements are dropped and the rest kept.
+    for (const char* stored : {R"({"schemaVersion": 1, "session": {"aiPanelWidth": "wide"}})",
+                               R"({"schemaVersion": 1, "session": {"aiPanelWidth": 50}})",
+                               R"({"schemaVersion": 1, "session": {"aiPanelWidth": 12000}})"}) {
+        json loaded = json::parse(stored);
+        const auto invalid = settings::sanitize(loaded);
+        REQUIRE(invalid.size() == 1);
+        CHECK(invalid[0].field == "session.aiPanelWidth");
+        CHECK(loaded["session"]["aiPanelWidth"] == 360);
+    }
+    for (const char* stored : {R"({"schemaVersion": 1, "session": {"aiPanelWidth": 280}})",
+                               R"({"schemaVersion": 1, "session": {"aiPanelWidth": 9000}})"}) {
+        json loaded = json::parse(stored);
+        CHECK(settings::sanitize(loaded).empty());
+        CHECK(loaded["session"]["aiPanelWidth"] == json::parse(stored)["session"]["aiPanelWidth"]);
+    }
+    {
+        json loaded = json::parse(R"({"schemaVersion": 1, "session": {"aiPanelVisible": "no"}})");
+        const auto invalid = settings::sanitize(loaded);
+        REQUIRE(invalid.size() == 1);
+        CHECK(invalid[0].field == "session.aiPanelVisible");
+        CHECK(loaded["session"]["aiPanelVisible"] == true);
+        json hidden = json::parse(R"({"schemaVersion": 1, "session": {"aiPanelVisible": false}})");
+        CHECK(settings::sanitize(hidden).empty());
+        CHECK(hidden["session"]["aiPanelVisible"] == false);
+    }
+    json broken = json::parse(R"({"schemaVersion": 1, "ai": {
+        "mode": "always", "freeServiceId": "", "custom": {"address": "ftp://x", "key": 5, "model": "a\u0007b"},
+        "customVerified": {"fingerprint": "nope", "model": "", "at": ""},
+        "agreements": [{"service": "ovhcloud", "host": "h", "at": "2026-10-22T10:00:00Z"},
+                       {"service": "", "host": "h", "at": "2026-10-22T10:00:00Z"}, "x", 7]}})");
+    const auto invalid = settings::sanitize(broken);
+    std::vector<std::string> fields;
+    for (const auto& item : invalid) {
+        fields.push_back(item.field);
+    }
+    CHECK(fields == std::vector<std::string>{"ai.mode", "ai.freeServiceId", "ai.custom.address",
+                                             "ai.custom.key", "ai.custom.model",
+                                             "ai.customVerified", "ai.agreements"});
+    CHECK(broken["ai"]["mode"] == "disabled");
+    CHECK(broken["ai"]["freeServiceId"] == "ovhcloud");
+    CHECK(broken["ai"]["custom"] == settings::defaults()["ai"]["custom"]);
+    CHECK(broken["ai"]["customVerified"] == settings::defaults()["ai"]["customVerified"]);
+    CHECK(broken["ai"]["agreements"] ==
+          json::array(
+              {json{{"service", "ovhcloud"}, {"host", "h"}, {"at", "2026-10-22T10:00:00Z"}}}));
+}
+
+TEST_CASE(
+    "settings: ai.customVerified is kept only with the fingerprint of the patch's (or the "
+    "stored) triple, else the empty record without an error; reset when the stored triple "
+    "changes or a hand edit breaks the fingerprint",
+    "[settings][ai]") {
+    test::TempDir tmp;
+    const auto file = tmp / "settings.json";
+    const auto logs = tmp / "logs";
+    log::init(logs);
+    settings::SettingsStore store(file);
+    store.load();
+    const json empty_record = settings::defaults()["ai"]["customVerified"];
+
+    // A forged record (64 zeros, well-formed) written alone against the default triple: the
+    // empty record is stored - no error, nothing logged.
+    auto forged =
+        store.apply_patch(json{{"ai", {{"customVerified", record(std::string(64, '0').c_str())}}}});
+    CHECK(forged.settings["ai"]["customVerified"] == empty_record);
+    CHECK_FALSE(forged.restartRequired);
+
+    // The record written together with its triple in one patch is kept ...
+    auto verified =
+        store.apply_patch(json{{"ai",
+                                {{"custom", triple(kStandinAddress, kStandinKey, kStandinModel)},
+                                 {"customVerified", record(kStandinFingerprint)}}}});
+    CHECK(verified.settings["ai"]["customVerified"] == record(kStandinFingerprint));
+    // ... a record written alone against the matching stored triple too ...
+    auto again =
+        store.apply_patch(json{{"ai",
+                                {{"customVerified", record(kStandinFingerprint, "standin-chat",
+                                                           "2026-10-22T11:00:00Z")}}}});
+    CHECK(again.settings["ai"]["customVerified"]["at"] == "2026-10-22T11:00:00Z");
+    // ... and the record must match the triple of the same patch, not the stored one.
+    auto mismatch =
+        store.apply_patch(json{{"ai",
+                                {{"custom", triple(kStandinAddress, kStandinKey, "other-model")},
+                                 {"customVerified", record(kStandinFingerprint)}}}});
+    CHECK(mismatch.settings["ai"]["customVerified"] == empty_record);
+    CHECK(mismatch.settings["ai"]["custom"]["model"] == "other-model");
+    auto rematch =
+        store.apply_patch(json{{"ai",
+                                {{"custom", triple(kStandinAddress, kStandinKey, kStandinModel)},
+                                 {"customVerified", record(kStandinFingerprint)}}}});
+    REQUIRE(rematch.settings["ai"]["customVerified"] == record(kStandinFingerprint));
+
+    // A later patch changing one member of the triple resets the record (red the moment the
+    // user edits); the other members are untouched.
+    auto edited = store.apply_patch(json{{"ai", {{"custom", {{"model", "other-model"}}}}}});
+    CHECK(edited.settings["ai"]["customVerified"] == empty_record);
+    CHECK(edited.settings["ai"]["custom"]["address"] == kStandinAddress);
+    CHECK(edited.settings["ai"]["custom"]["key"] == kStandinKey);
+    // The old record no longer belongs to the stored triple (the model is other-model now).
+    const json other =
+        store.apply_patch(json{{"ai", {{"customVerified", record(kStandinFingerprint)}}}}).settings;
+    CHECK(other["ai"]["customVerified"] == empty_record);
+    auto key_change =
+        store.apply_patch(json{{"ai",
+                                {{"custom", triple(kStandinAddress, kStandinKey, kStandinModel)},
+                                 {"customVerified", record(kStandinFingerprint)}}}});
+    REQUIRE(key_change.settings["ai"]["customVerified"] == record(kStandinFingerprint));
+    CHECK(store.apply_patch(json{{"ai", {{"custom", {{"key", "sk-other"}}}}}})
+              .settings["ai"]["customVerified"] == empty_record);
+    CHECK(store
+              .apply_patch(json{{"ai",
+                                 {{"custom", triple(kStandinAddress, kStandinKey, kStandinModel)},
+                                  {"customVerified", record(kStandinFingerprint)}}}})
+              .settings["ai"]["customVerified"] == record(kStandinFingerprint));
+    CHECK(store.apply_patch(json{{"ai", {{"custom", {{"address", "http://127.0.0.1:11435/v1"}}}}}})
+              .settings["ai"]["customVerified"] == empty_record);
+
+    // A hand edit of settings.json breaking the equality resets the record on load - of the
+    // triple or of the record alike; the file's other values stay.
+    store.apply_patch(json{{"ai",
+                            {{"custom", triple(kStandinAddress, kStandinKey, kStandinModel)},
+                             {"customVerified", record(kStandinFingerprint)}}}});
+    json on_disk = json::parse(test::read_text(file));
+    REQUIRE(on_disk["ai"]["customVerified"]["fingerprint"] == kStandinFingerprint);
+    on_disk["ai"]["custom"]["key"] = "sk-edited-by-hand";
+    test::write_text(file, on_disk.dump(2));
+    store.load();
+    CHECK(store.get()["ai"]["customVerified"] == empty_record);
+    CHECK(store.get()["ai"]["custom"]["key"] == "sk-edited-by-hand");
+    on_disk["ai"]["custom"]["key"] = kStandinKey;
+    on_disk["ai"]["customVerified"]["fingerprint"] = std::string(64, 'f');
+    test::write_text(file, on_disk.dump(2));
+    store.load();
+    CHECK(store.get()["ai"]["customVerified"] == empty_record);
+    on_disk["ai"]["customVerified"]["fingerprint"] = kStandinFingerprint;
+    test::write_text(file, on_disk.dump(2));
+    store.load();
+    CHECK(store.get()["ai"]["customVerified"] == record(kStandinFingerprint));
+    // sanitize() alone applies the invariant (the loader's path), silently.
+    json hand = on_disk;
+    hand["ai"]["custom"]["model"] = "renamed";
+    CHECK(settings::sanitize(hand).empty());
+    CHECK(hand["ai"]["customVerified"] == empty_record);
+
+    // None of the resets wrote a log line; the key never reached the log either.
+    log::shutdown();
+    const auto log_file = logs / "mfbe-errors.log";
+    const std::string log_text =
+        std::filesystem::exists(log_file) ? test::read_text(log_file) : std::string();
+    CHECK(log_text.find("customVerified") == std::string::npos);
+    CHECK(log_text.find("sk-test") == std::string::npos);
+    CHECK(log_text.find("sk-edited-by-hand") == std::string::npos);
+}
+
+TEST_CASE(
+    "settings: settings.unreadable logs the exception class and position, never the file's "
+    "content",
+    "[settings][ai][log]") {
+    test::TempDir tmp;
+    const auto file = tmp / "settings.json";
+    const auto logs = tmp / "logs";
+    log::init(logs);
+    // A hand-edited file holding the key, broken after it.
+    test::write_text(file, R"({"ai": {"custom": {"key": "sk-secret-key-value-1234"}}, "view": {)");
+    settings::SettingsStore store(file);
+    store.load();
+    CHECK(store.get() == settings::defaults());
+    log::shutdown();
+    std::istringstream lines(test::read_text(logs / "mfbe-errors.log"));
+    std::vector<json> entries;
+    for (std::string line; std::getline(lines, line);) {
+        if (!line.empty()) {
+            entries.push_back(json::parse(line));
+        }
+    }
+    REQUIRE(entries.size() == 1);
+    CHECK(entries[0]["code"] == "settings.unreadable");
+    CHECK(entries[0]["context"]["exception"] == "parse_error");
+    CHECK(entries[0]["context"]["position"].is_string());
+    CHECK_FALSE(entries[0]["context"].contains("reason"));
+    const std::string text = test::read_text(logs / "mfbe-errors.log");
+    CHECK(text.find("sk-secret") == std::string::npos);
+    CHECK(text.find("last read") == std::string::npos);
 }

@@ -31,9 +31,12 @@ Sources (all relative to the repository root):
   are in ``CONTRIBUTORS.txt``).
 * Aggregated data (Constitution VI, decision D16): run-time data files the editor only reads
   and never combines into the program - an aggregate in the sense of GPLv3 section 5, today
-  the dict_uk Ukrainian dictionary ``resources/dictionaries/uk_UA.*`` (MPL-1.1). They are not
-  judged for GPL-3.0 compatibility; their licence must allow free redistribution with the
-  notice that ships next to them (``<tag>.txt``), and that notice file must exist.
+  the dict_uk Ukrainian dictionary ``resources/dictionaries/uk_UA.*`` (MPL-1.1) and the
+  Mozilla CA certificate bundle ``resources/certs/cacert.pem`` (MPL-2.0; Linux packages only,
+  refreshed by ``tools/refresh-cacert.py``, its notice ``cacert.NOTICE.txt`` and the licence
+  text ``MPL-2.0.txt`` next to it). They are not judged for GPL-3.0 compatibility; their
+  licence must allow free redistribution with the notice that ships next to them, and that
+  notice file must exist.
 
 Usage::
 
@@ -72,7 +75,8 @@ REPO = Path(__file__).resolve().parent.parent
 NOTICES = REPO / "THIRD-PARTY-NOTICES.md"
 
 # Licence identifiers that may be distributed as part of a GPL-3.0 work (Constitution VI).
-# Copyleft entries carry a note that is printed next to the component.
+# Copyleft entries, and permissive ones whose name alone does not say so, carry a note that is
+# printed next to the component.
 ALLOWED: dict[str, str] = {
     "MIT": "",
     "MIT-0": "",
@@ -81,6 +85,7 @@ ALLOWED: dict[str, str] = {
     "BSD-style": "",
     "0BSD": "",
     "ISC": "",
+    "curl": "curl licence - X11-derived, GPL-compatible",
     "Apache-2.0": "",
     "Zlib": "",
     "libpng-2.0": "",
@@ -567,11 +572,16 @@ def collect_cef(problems: list[str]) -> list[Component]:
 # Bundled data
 
 
-def read_commit(path: Path, pattern: str) -> str:
+def read_field(path: Path, pattern: str) -> str:
+    """The first group of `pattern` in the text file, "unknown" when absent."""
     if not path.is_file():
         return "unknown"
     match = re.search(pattern, path.read_text(encoding="utf-8", errors="replace"))
-    return match.group(1)[:12] if match else "unknown"
+    return match.group(1) if match else "unknown"
+
+
+def read_commit(path: Path, pattern: str) -> str:
+    return read_field(path, pattern)[:12]
 
 
 def collect_data(problems: list[str]) -> list[Component]:
@@ -654,12 +664,43 @@ def collect_data(problems: list[str]) -> list[Component]:
         fbe.text_paths.append(contributors)
     else:
         fbe.problems.append("CONTRIBUTORS.txt missing")
-    components = [schema, en_us, ru_ru, uk_ua, fbe]
 
-    # Every README row with a licence must be covered by one of the components above.
+    # The Mozilla CA bundle (feature 005): libcurl reads it on Linux as the last fallback of the
+    # TLS trust-anchor search; the notice written by tools/refresh-cacert.py records the date,
+    # size and digest of the shipped copy, the verbatim MPL-2.0 text sits next to it and both
+    # are exported with the licence texts.
+    certs = REPO / "resources" / "certs"
+    ca_notice = certs / "cacert.NOTICE.txt"
+    ca_date = read_field(ca_notice, r"Certificate data from Mozilla as of: [^\n(]*\((\d{4}-\d{2}-\d{2})\)")
+    ca_sha = read_commit(ca_notice, r"SHA-256:\s*([0-9a-f]{64})")
+    ca_bundle = component(
+        "Mozilla CA certificate bundle (cacert.pem, as published by the curl project)",
+        f"Mozilla root store as of {ca_date}; SHA-256 {ca_sha}",
+        "MPL-2.0",
+        ca_notice,
+        "cacert.pem is read at run time by libcurl, on Linux only and only when neither the "
+        "environment nor the distribution provides a CA bundle, and is not combined into the "
+        "program (aggregate, GPLv3 section 5; decision D16); the Linux packages ship it with its "
+        "notice as share/mfbe/resources/certs/, Windows and macOS use the system stores and carry "
+        "nothing of it; the notice is shown in About on Linux; the MPL-2.0 text is "
+        "resources/certs/MPL-2.0.txt, exported next to the notice",
+        group="aggregate",
+    )
+    if not (certs / "cacert.pem").is_file():
+        ca_bundle.problems.append("resources/certs/cacert.pem missing (run tools/refresh-cacert.py)")
+    mpl_text = certs / "MPL-2.0.txt"
+    if mpl_text.is_file():
+        ca_bundle.text_paths.append(mpl_text)
+    else:
+        ca_bundle.problems.append("resources/certs/MPL-2.0.txt (the licence text) missing")
+    components = [schema, en_us, ru_ru, uk_ua, fbe, ca_bundle]
+
+    # Every README row with a licence must be covered by one of the components above (substring
+    # match on the licence cell - keep the keys distinct: "MPL-2.0" is the CA bundle, "MPL-1.1"
+    # the uk_UA dictionary, neither contains the other).
     covered = {
-        "BSD 2-clause": schema, "SCOWL": en_us, "BSD-style": ru_ru, "MPL": uk_ua,
-        "GPL-3.0-only (original editor)": fbe, "project licence": fbe,
+        "BSD 2-clause": schema, "SCOWL": en_us, "BSD-style": ru_ru, "MPL-1.1": uk_ua,
+        "MPL-2.0": ca_bundle, "GPL-3.0-only (original editor)": fbe, "project licence": fbe,
     }
     for path_cell, licence_cell in rows:
         if licence_cell in ("-", ""):
@@ -755,9 +796,10 @@ def render(components: list[Component], vcpkg_available: bool) -> str:
     out.append("Data files the editor's libraries read at run time and that are never combined into the")
     out.append("program: aggregates in the sense of GPLv3 section 5 (constitution principle VI, decision")
     out.append("D16). Their licences need not be GPL-3.0-compatible; they must allow free redistribution")
-    out.append("with the notice that ships next to each file (MPL-1.1 qualifies; licences forbidding")
-    out.append("redistribution or commercial use do not). The notice is installed with the file and shown")
-    out.append("in Help > About like the other dictionaries' notices.")
+    out.append("with the notice that ships next to each file (MPL-1.1 and MPL-2.0 qualify; licences")
+    out.append("forbidding redistribution or commercial use do not). The notice is installed with the file")
+    out.append("and shown in Help > About like the other dictionaries' notices; the CA bundle and its notice")
+    out.append("ship with the Linux packages only (resources/certs/, refreshed by tools/refresh-cacert.py).")
     out.append("")
     out.append("## Build and test tooling (not distributed)")
     out.append("")

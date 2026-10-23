@@ -91,6 +91,12 @@ export interface CallOptions {
 
 export interface RunJobOptions extends CallOptions {
   onProgress?: (progress: JobProgress) => void;
+  /**
+   * Called with the job id as soon as the method answered `{jobId}` - so the caller can
+   * `job.cancel` it (the settings page cancels a running `ai.test` when the dialog closes,
+   * feature 005 review A4). Not called when the method answered its result at once.
+   */
+  onStart?: (jobId: string) => void;
 }
 
 /** `call()` argument tuple: no params object for `void` methods. */
@@ -360,6 +366,7 @@ export class RpcClient {
     const [params, options] = args;
     const first = await this.request(method, params, options);
     if (isJobStart(first)) {
+      options?.onStart?.(first.jobId);
       return (await this.waitForJob(first.jobId, options?.onProgress)) as Exclude<
         RpcResult<M>,
         JobStart

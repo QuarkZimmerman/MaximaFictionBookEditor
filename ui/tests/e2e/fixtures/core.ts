@@ -16,8 +16,15 @@
  * Optional: `MFBE_RESOURCES` (passed as `--resources`), `MFBE_CORE_LOG_LEVEL` (`--log-level`).
  * The option `coreEnv` (`test.use({ coreEnv: { LC_ALL: 'ru_RU.UTF-8' } })` in a describe group)
  * gives a test a core of its own started with those environment variables - the regional
- * settings of the date journeys (feature 003).
+ * settings of the date journeys (feature 003), `no_proxy` for the AI journeys (feature 005).
  * Fixture books live in `tests/fixtures/books/` at the repository root (`fixtureBook(name)`).
+ *
+ * The AI journeys (feature 005, FR-102) run against the stand-in service `ai-standin.mjs`:
+ * the worker fixture `standin` (or `startStandin()` for one of a test's own) spawns it on
+ * `127.0.0.1:0` and exposes its scenario queue and request record; `core.aiRequests()`,
+ * `resetAiRequests()`, `setAiResolve()` and `setAiTimeouts()` wrap the core's `test.ai*` hooks
+ * (rpc-api §5); `recordOutside(context)` aborts and records anything the page would send off
+ * host.
  */
 
 import { spawn } from 'node:child_process';
@@ -27,11 +34,18 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { test as base, expect, type Page } from '@playwright/test';
+import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
 
+import { standinClient, type StandinClient } from './ai-standin.mjs';
 import { UI_LANGS, uiText, type UiLang } from './i18n';
 
 export { expect };
+export type {
+  StandinClient,
+  StandinRequest,
+  StandinScenario,
+  StandinState,
+} from './ai-standin.mjs';
 
 const UI_DIR = fileURLToPath(new URL('../../..', import.meta.url));
 const REPO_ROOT = path.resolve(UI_DIR, '..');
@@ -86,6 +100,27 @@ export async function fileNew(page: Page): Promise<void> {
 
 export function fixtureBook(name: string): string {
   return path.join(REPO_ROOT, 'tests', 'fixtures', 'books', name);
+}
+
+/**
+ * The AI assistant on with its panel visible (feature 005, FR-040 as amended 2026-10-23): the
+ * panel is restored as the session left it - open at the first start and live when a service
+ * is chosen, or hidden when the previous journey closed it -, so the journeys that need the
+ * assistant wait for the restore or show the panel through View → AI Assistant. Reads the
+ * panel's visibility from the test hooks (installed with the first settings snapshot) rather
+ * than `on`, which the asynchronous chunk import flips a moment later.
+ */
+export async function ensureAssistantOn(page: Page): Promise<void> {
+  await expect
+    .poll(() => page.evaluate<boolean>('typeof window.__mfbeTest?.ai?.state === "function"'))
+    .toBe(true);
+  const visible = await page.evaluate<boolean>('window.__mfbeTest.ai.state().visible');
+  if (!visible) {
+    await page.getByTestId('menu-view').click();
+    await page.getByTestId('menu-view-toggle').click();
+  }
+  await expect(page.getByTestId('ai-panel')).toBeVisible();
+  await expect.poll(() => page.evaluate<boolean>('window.__mfbeTest.ai.on')).toBe(true);
 }
 
 export const PREVIEW_PORT = Number(process.env.MFBE_PREVIEW_PORT ?? 4173);
@@ -367,18 +402,22 @@ async function startCore(
 
 /**
  * Starts a second core with extra `serve` arguments (the worker fixture has no hook for them).
- * Returns its page URL, RPC-less; stopped by the returned function.
+ * Returns its page URL, RPC-less; stopped by the returned function. `env` adds environment
+ * variables to the process (`no_proxy: 'ai.standin.test'` for a journey that gives the AI
+ * stand-in a hosted name); a journey on the worker's core sets them through the `coreEnv`
+ * option instead.
  */
 export async function startCoreWith(
   binary: string,
   dataDir: string,
   extraArgs: string[],
+  { env }: { env?: Record<string, string> } = {},
 ): Promise<{ url: string; stop: () => Promise<void> }> {
   const uiDist = process.env.MFBE_UI_DIST ?? path.join(UI_DIR, 'dist');
   const child = spawn(
     binary,
     ['serve', '--test-hooks', '--data-dir', dataDir, '--ui', uiDist, ...extraArgs],
-    { stdio: ['ignore', 'pipe', 'pipe'] },
+    { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, MFBE_E2E: '1', ...env } },
   );
   const stderr: string[] = [];
   child.stderr.setEncoding('utf8');
@@ -428,6 +467,120 @@ function coreLessServer(): CoreServer {
 }
 
 /* ------------------------------------------------------------------------ */
+/* AI stand-in service (feature 005)                                        */
+/* ------------------------------------------------------------------------ */
+
+const STANDIN_SCRIPT = fileURLToPath(new URL('./ai-standin.mjs', import.meta.url));
+
+/** A running `ai-standin.mjs`: its address, the control helpers and `stop()`. */
+export interface StandinHandle extends StandinClient {
+  port: number;
+  stop(): Promise<void>;
+}
+
+/**
+ * Spawns the AI stand-in (`node ai-standin.mjs --port 0`, loopback only) and reads its ready
+ * line `{"port","url"}`. The worker fixture `standin` keeps one per worker; a test that needs
+ * one of its own (another lifetime, a second service) calls this and `stop()`s it. The
+ * editor is pointed at `${url}/v1` through the custom target or a user list file in
+ * `core.dataDir` (quickstart §0.3).
+ */
+export async function startStandin(): Promise<StandinHandle> {
+  const child = spawn(process.execPath, [STANDIN_SCRIPT, '--port', '0'], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const stderr: string[] = [];
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk: string) => stderr.push(chunk));
+  const ready = await new Promise<{ port: number; url: string }>((resolve, reject) => {
+    let buffer = '';
+    const timer = setTimeout(
+      () =>
+        reject(new Error(`ai-standin did not print its ready line in 30 s\n${stderr.join('')}`)),
+      30_000,
+    );
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      buffer += chunk;
+      const newline = buffer.indexOf('\n');
+      if (newline < 0) return;
+      try {
+        const parsed = JSON.parse(buffer.slice(0, newline)) as { port?: unknown; url?: unknown };
+        if (typeof parsed.port === 'number' && typeof parsed.url === 'string') {
+          clearTimeout(timer);
+          resolve({ port: parsed.port, url: parsed.url });
+          return;
+        }
+      } catch {
+        // not the ready line
+      }
+      clearTimeout(timer);
+      reject(new Error(`ai-standin printed an unexpected first line: ${buffer.slice(0, newline)}`));
+    });
+    child.once('exit', (code, signal) => {
+      clearTimeout(timer);
+      reject(
+        new Error(
+          `ai-standin exited before becoming ready (code ${code}, signal ${signal})\n${stderr.join('')}`,
+        ),
+      );
+    });
+    child.once('error', (error) => {
+      clearTimeout(timer);
+      reject(new Error(`cannot start ai-standin: ${error.message}`));
+    });
+  });
+  return {
+    ...standinClient(ready.url),
+    port: ready.port,
+    stop: async () => {
+      if (child.exitCode === null && !child.killed) {
+        const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
+        child.kill('SIGTERM');
+        await Promise.race([exited, new Promise<void>((r) => setTimeout(r, 5_000))]);
+        if (child.exitCode === null) child.kill('SIGKILL');
+      }
+    },
+  };
+}
+
+/**
+ * Aborts every request the page would send to a host other than the editor's own loopback
+ * address and records its URL - every AI journey asserts that this list stays empty (FR-102:
+ * nothing but the stand-in is ever contacted). The core's own requests do not pass through the
+ * browser; `core.aiRequests()` and the stand-in's record cover them.
+ */
+export async function recordOutside(context: BrowserContext): Promise<string[]> {
+  const outside: string[] = [];
+  await context.route(
+    (url) => url.hostname !== '127.0.0.1',
+    async (route) => {
+      outside.push(route.request().url());
+      await route.abort();
+    },
+  );
+  return outside;
+}
+
+/** One entry of `test.aiRequests()` (rpc-api §5): never a body, a key, a model or a path. */
+export interface AiRequestRecord {
+  /** ISO 8601 UTC. */
+  at: string;
+  method: 'ai.complete' | 'ai.models' | 'ai.test';
+  targetKind: 'free' | 'custom';
+  /** The free entry's id. */
+  serviceId?: string;
+  /** Absent when unresolved. */
+  host?: string;
+  outcome: 'ok' | 'offline' | 'timeout' | 'tls' | 'http' | 'format' | 'cancelled' | 'refused';
+  /** HTTP status. */
+  status?: number;
+  /** The 1200 reason of a `refused` outcome. */
+  reason?: string;
+  elapsedMs?: number;
+}
+
+/* ------------------------------------------------------------------------ */
 /* Fixtures                                                                 */
 /* ------------------------------------------------------------------------ */
 
@@ -447,6 +600,17 @@ export interface CoreHandle {
   enqueueDialog(method: string, result: unknown): Promise<void>;
   /** Navigates the page to the application and waits for the shell to render. */
   openApp(page: Page): Promise<void>;
+  /** `test.aiRequests`: every AI request the core made since start or the last reset. */
+  aiRequests(): Promise<AiRequestRecord[]>;
+  /** `test.resetAiRequests`. */
+  resetAiRequests(): Promise<void>;
+  /**
+   * `test.setAiResolve`: host-name overrides in libcurl's `host:port:address` form
+   * (`ai.standin.test:<port>:127.0.0.1` gives the stand-in a hosted name); `[]` clears them.
+   */
+  setAiResolve(entries: string[]): Promise<void>;
+  /** `test.setAiTimeouts`: the connect and total time-outs (ms) of every later exchange. */
+  setAiTimeouts(connectMs: number, totalMs: number): Promise<void>;
 }
 
 /** Options of the Playwright projects (playwright.config.ts) and of `test.use()` in a spec. */
@@ -471,7 +635,7 @@ export function withUiLang(url: string, lang: UiLang | undefined): string {
 
 export const test = base.extend<
   { core: CoreHandle; testCore: CoreServer } & CoreOptions,
-  { coreServer: CoreServer }
+  { coreServer: CoreServer; standin: StandinHandle }
 >({
   uiLang: [undefined, { option: true }],
   coreEnv: [undefined, { option: true }],
@@ -484,6 +648,19 @@ export const test = base.extend<
       const server = binary ? await startCore(binary, undefined) : coreLessServer();
       await use(server);
       await server.stop();
+    },
+    { scope: 'worker' },
+  ],
+
+  // The AI stand-in service: started on first use by a spec of the worker, one per worker,
+  // stopped with it (a spec that never asks for it starts none). Its queue and record are
+  // shared by the worker's tests - a journey calls `standin.reset()` first.
+  standin: [
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, use) => {
+      const handle = await startStandin();
+      await use(handle);
+      await handle.stop();
     },
     { scope: 'worker' },
   ],
@@ -527,6 +704,16 @@ export const test = base.extend<
       openApp: async (page) => {
         await page.goto(baseURL);
         await page.getByTestId('app-root').waitFor();
+      },
+      aiRequests: () => requireCore().call<AiRequestRecord[]>('test.aiRequests'),
+      resetAiRequests: async () => {
+        await requireCore().call('test.resetAiRequests');
+      },
+      setAiResolve: async (entries) => {
+        await requireCore().call('test.setAiResolve', { entries });
+      },
+      setAiTimeouts: async (connectMs, totalMs) => {
+        await requireCore().call('test.setAiTimeouts', { connectMs, totalMs });
       },
     };
     await use(handle);

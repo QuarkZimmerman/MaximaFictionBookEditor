@@ -8,6 +8,15 @@
  *    and the error's own message, not document content or the page URL (it holds the token);
  *  - one line per failure: errors the core already reported (an `RpcError` with a server code)
  *    are logged by the core, so callers only log client-side failures (`isClientSideError`).
+ *  - the AI assistant (feature 005; FR-100, research R10.4, review C17 and D5): a service
+ *    failure is rendered in the panel or the popup and never logged by the UI (the core writes
+ *    its one `ai.<kind>` line with the host and status alone); an unexpected exception of the
+ *    request loop is logged by `assistant.ts` as the fixed code `ai.internal` with `error.name`
+ *    as the message and **no stack** - the message and the stack may carry book text, an
+ *    instruction or a service's words; a nested script's failure as the script id plus the
+ *    error's name (`scripting/host.ts`); nothing of a tool call or a conversation ever. Every
+ *    step of the loop is wrapped, so no exception of it reaches `reportCommandError` or the
+ *    global handlers below.
  *
  * `installGlobalErrorLogging` catches what no handler caught: uncaught exceptions and
  * unhandled promise rejections (rate limited so a render loop cannot flood the log).

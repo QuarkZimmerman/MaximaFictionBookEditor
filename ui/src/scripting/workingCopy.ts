@@ -8,6 +8,12 @@
  * Nodes of a document that was handed out (the document the run started from, or one shown in
  * the editor) are never changed: the first write below such a node copies the nodes on the way
  * from the root, once until the next hand-out, and later writes change those copies in place.
+ *
+ * Feature 005 (data-model §6.2, research R4.1): an AI request takes a `checkpoint()` before
+ * every change tool and every nested script run and, when the change is rejected (FR-061),
+ * returns to it with `rollback(cp)` - the document, the node index and the `changed` /
+ * `pending` flags as they were. A checkpoint is a hand-out, so it costs O(1) and is never
+ * mutated by the writes that follow; an accepted change simply drops it.
  */
 
 import type { ModelNodeJson } from '@/editor/fromModel';
@@ -19,6 +25,14 @@ export interface NodePlace {
   parent: ModelNodeJson | null;
   siblings: readonly ModelNodeJson[];
   index: number;
+}
+
+/** The state of a working copy at a `checkpoint()`: what `rollback(cp)` restores. */
+export interface Checkpoint {
+  /** The document as it was - handed out, so no later write touches it. */
+  readonly document: Document;
+  readonly changed: boolean;
+  readonly pending: boolean;
 }
 
 interface Entry {
@@ -74,6 +88,30 @@ export class WorkingCopy {
     this.ids = null;
     this.owned = new WeakSet();
     this.touch();
+  }
+
+  /**
+   * Remembers the current state for `rollback()`: the document is handed out (every later
+   * write copies on the way from the root, so the checkpoint's document is never mutated) and
+   * the flags are kept with it. Not a `release()`: the checkpoint is no show of the document to
+   * the editor, so `pending` stays as it is. O(1).
+   */
+  checkpoint(): Checkpoint {
+    this.owned = new WeakSet();
+    return { document: this.doc, changed: this.changedValue, pending: this.pendingValue };
+  }
+
+  /**
+   * Returns to a checkpoint: the document, the node index (rebuilt from it on the next use)
+   * and the `changed` / `pending` flags as they were - a `reset()` that restores the flags.
+   * Writes made since are forgotten; the checkpoint stays valid for another rollback.
+   */
+  rollback(checkpoint: Checkpoint): void {
+    this.doc = checkpoint.document;
+    this.ids = null;
+    this.owned = new WeakSet();
+    this.changedValue = checkpoint.changed;
+    this.pendingValue = checkpoint.pending;
   }
 
   place(nodeId: string): NodePlace | undefined {

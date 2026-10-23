@@ -25,7 +25,7 @@ jobs:
     name: lint (formats, scripts, docs)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install tools
         run: |
           sudo apt-get update
@@ -68,7 +68,7 @@ jobs:
         # Every bundled script keeps the author, copyright and version notices of the original
         # script it was converted from (tests/scripts/notices.json).
         run: python3 tests/scripts/tools/check-notices.py
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
       - name: Parity matrix (SC-003, T157)
@@ -93,7 +93,7 @@ jobs:
             os: macos-15
             preset: macos-core-release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
@@ -106,15 +106,25 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
 
-      - name: Install Ninja (Windows/macOS)
+      - name: Ninja (Windows/macOS)
+        # The windows-2025 and macos-15 runner images ship Ninja; the install is only a fallback
+        # for an image without it. (seanmiddleditch/gha-setup-ninja, used before, is archived and
+        # stays on the Node 20 runtime.)
         if: runner.os != 'Linux'
-        uses: seanmiddleditch/gha-setup-ninja@v5
+        shell: bash
+        run: |
+          if ! command -v ninja >/dev/null 2>&1; then
+            if [ "$RUNNER_OS" = "macOS" ]; then brew install ninja; else choco install ninja --no-progress -y; fi
+          fi
+          ninja --version
 
       - name: Install macOS build dependencies
         if: runner.os == 'macOS'
         run: brew install autoconf automake autoconf-archive libtool pkg-config
 
       - name: Set up MSVC environment
+        # Still a Node 20 action (no release of it runs on Node 24; the runner forces Node 24 and
+        # it works): the deprecation notice of this step is known.
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -128,7 +138,7 @@ jobs:
           runVcpkgInstall: false
 
       - name: Cache vcpkg binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json') }}
@@ -169,7 +179,7 @@ jobs:
         run: tools/ci/annotate-failure.sh "$RUNNER_TEMP/ctest.log" "Unit tests"
 
       - name: Upload core artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mfbe-core-${{ matrix.name }}
           path: |
@@ -187,8 +197,8 @@ jobs:
       run:
         working-directory: ui
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -207,7 +217,7 @@ jobs:
           node ../tools/i18n-literals.mjs
       - name: Upload UI bundle
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mfbe-ui-dist
           path: ui/dist/
@@ -240,17 +250,17 @@ jobs:
             preset: macos-core-release
             core_bin: mfbe-core
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: ui/package-lock.json
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: mfbe-core-${{ matrix.core }}
           path: build/${{ matrix.preset }}/bin
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: mfbe-ui-dist
           path: ui/dist
@@ -326,7 +336,7 @@ jobs:
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
       - name: Upload script suite results
         if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: script-suite-results
           path: build/script-suite-results.json
@@ -342,14 +352,14 @@ jobs:
           MFBE_BENCH_WORKDIR: ${{ runner.temp }}/mfbe-bench
       - name: Upload benchmark results
         if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: bench-results
           path: tests/bench/results/
           if-no-files-found: ignore
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report-${{ matrix.name }}
           path: ui/playwright-report/
@@ -377,7 +387,7 @@ jobs:
             preset: macos-app-release
             cef: macosarm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
@@ -386,15 +396,31 @@ jobs:
           sudo apt-get install -y ninja-build pkg-config autoconf automake autoconf-archive libtool bison flex \
             libgtk-3-dev libnss3 libasound2 xvfb file rpm dpkg-dev patchelf openbox xdotool
 
-      - name: Install Ninja (Windows/macOS)
+      - name: Generate the regional locales the Russian-environment smoke runs under (feature 002)
+        # Before the step that sets LC_ALL=ru_RU.UTF-8: bash warns at start-up when the locale
+        # does not exist yet.
+        if: runner.os == 'Linux'
+        run: sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
+
+      - name: Ninja (Windows/macOS)
+        # The windows-2025 and macos-15 runner images ship Ninja; the install is only a fallback
+        # for an image without it. (seanmiddleditch/gha-setup-ninja, used before, is archived and
+        # stays on the Node 20 runtime.)
         if: runner.os != 'Linux'
-        uses: seanmiddleditch/gha-setup-ninja@v5
+        shell: bash
+        run: |
+          if ! command -v ninja >/dev/null 2>&1; then
+            if [ "$RUNNER_OS" = "macOS" ]; then brew install ninja; else choco install ninja --no-progress -y; fi
+          fi
+          ninja --version
 
       - name: Install macOS build dependencies
         if: runner.os == 'macOS'
         run: brew install autoconf automake autoconf-archive libtool pkg-config
 
       - name: Set up MSVC environment
+        # Still a Node 20 action (no release of it runs on Node 24; the runner forces Node 24 and
+        # it works): the deprecation notice of this step is known.
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -432,7 +458,7 @@ jobs:
         shell: pwsh
         run: tools/ci/annotate-failure.ps1 -Log "$env:RUNNER_TEMP/wix.log" -Title "WiX install"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -444,14 +470,14 @@ jobs:
           vcpkgJsonGlob: vcpkg.json
           runVcpkgInstall: false
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
           key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json') }}
           restore-keys: vcpkg-${{ matrix.name }}-
 
       - name: Cache CEF distribution
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: third_party/downloads
           key: cef-${{ hashFiles('cmake/CefVersion.cmake') }}-${{ matrix.cef }}
@@ -518,10 +544,9 @@ jobs:
       - name: Shell smoke in a Russian environment (feature 002)
         # ru_RU.UTF-8, the shell's home and temporary folders under a Cyrillic name (the smoke
         # keeps its home in TMPDIR) and a Cyrillic-named book in a Cyrillic folder as the
-        # start-up file.
+        # start-up file. The locales were generated right after the build dependencies.
         if: runner.os == 'Linux'
         run: |
-          sudo locale-gen ru_RU.UTF-8 uk_UA.UTF-8 en_US.UTF-8
           mkdir -p "$HOME_RU/tmp" "$HOME_RU/Книги"
           cp tests/fixtures/books/modern-utf8.fb2 "$HOME_RU/Книги/Новая книга.fb2"
           TMPDIR="$HOME_RU/tmp" MFBE_SMOKE_OPEN_FILE="$HOME_RU/Книги/Новая книга.fb2" \
@@ -709,12 +734,12 @@ jobs:
           $iconFile = ($link.IconLocation -split ',')[0]
           if (-not $iconFile -or -not (Test-Path -LiteralPath $iconFile)) { throw "the shortcut has no icon file ('$($link.IconLocation)')" }
           if ((Get-Choice) -ne '1') { throw "recorded choice '$(Get-Choice)', expected 1" }
-          $codes = Get-ProductCodes
+          $codes = @(Get-ProductCodes)  # @(): one code must stay an array, not a string
           if ($codes.Count -ne 1) { throw "expected one registered product, found $($codes.Count): $($codes -join ', ')" }
           tools/ci/windows-start-smoke.ps1 -Shortcut $lnk
           Write-Host "Upgrading with $msi2 without the property: the shortcut stays"
           Install-Msi $msi2 "$env:RUNNER_TEMP\install-shortcut-upgrade.log"
-          $codesAfter = Get-ProductCodes
+          $codesAfter = @(Get-ProductCodes)
           Write-Host "Registered products before the upgrade: $($codes -join ', '); after: $($codesAfter -join ', ')"
           if ($codesAfter.Count -ne 1 -or $codesAfter[0] -eq $codes[0]) {
             Write-Host "::warning::unexpected product registration after the upgrade (see the upgrade log below)"
@@ -810,7 +835,7 @@ jobs:
         run: tools/ci/macos-russian-start.sh "$(ls build/${{ matrix.preset }}/packages/*.dmg)"
 
       - name: Upload packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: packages-${{ matrix.name }}
           path: |
@@ -827,7 +852,7 @@ jobs:
 
       - name: Upload shell smoke screenshots
         if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: shell-smoke
           path: build/shell-smoke*.png

@@ -10,7 +10,7 @@
 import { createAppServices } from '@/app/services';
 import { actions, createAppStore } from '@/model/store';
 
-import { fakeDocument, fakeRpc, makeContext } from './testUtils';
+import { fakeDocument, fakeRpc, fakeRunLock, makeContext } from './testUtils';
 
 const ALLOWED = [
   'edit.find',
@@ -55,38 +55,43 @@ const BLOCKED = [
 ];
 
 describe('command policies during a script run (feature 003 FR-011)', () => {
-  it('allows exactly the reading commands, Help, About and Exit', async () => {
-    const store = createAppStore();
-    const rpc = fakeRpc({ 'doc.recent': [], 'settings.get': new Error('no settings') });
-    const services = createAppServices({ store, rpc: rpc.client, platform: 'linux' });
-    const ctx = { ...(await makeContext({ rpc: rpc.client })), store };
-    actions.setConnection(store, 'connected');
-    actions.setDocument(store, fakeDocument());
-    actions.setScriptRunning(store, true);
+  // The run lock of feature 005 (data-model §4.1, FR-022): an AI request holds the same lock
+  // as a script run, so the policies apply to both kinds alike.
+  it.each(['script', 'ai'] as const)(
+    'allows exactly the reading commands, Help, About and Exit (lock held by a %s run)',
+    async (kind) => {
+      const store = createAppStore();
+      const rpc = fakeRpc({ 'doc.recent': [], 'settings.get': new Error('no settings') });
+      const services = createAppServices({ store, rpc: rpc.client, platform: 'linux' });
+      const ctx = { ...(await makeContext({ rpc: rpc.client })), store };
+      actions.setConnection(store, 'connected');
+      actions.setDocument(store, fakeDocument());
+      actions.setRunLock(store, fakeRunLock(kind));
 
-    for (const id of ALLOWED) {
-      expect(services.commands.has(id), id).toBe(true);
-      expect(services.commands.get(id)?.duringScriptRun, id).toBe('allowed');
-    }
-    for (const id of BLOCKED) {
-      expect(services.commands.has(id), id).toBe(true);
-      expect(services.commands.get(id)?.duringScriptRun, id).not.toBe('allowed');
-      expect(services.commands.isEnabled(id, ctx), id).toBe(false);
-    }
-    // Allowed commands follow their own enable rule: Help and Exit need nothing more.
-    expect(services.commands.isEnabled('help.about', ctx)).toBe(true);
-    expect(services.commands.isEnabled('help.checkVersion', ctx)).toBe(true);
-    expect(services.commands.isEnabled('file.exit', ctx)).toBe(true);
-    // Find follows its own rule (a document with a search target): available during the run.
-    expect(services.commands.isEnabled('edit.find', ctx)).toBe(true);
-    expect(services.commands.isEnabled('edit.findNext', ctx)).toBe(true);
-    expect(services.commands.isEnabled('edit.replace', ctx)).toBe(false);
+      for (const id of ALLOWED) {
+        expect(services.commands.has(id), id).toBe(true);
+        expect(services.commands.get(id)?.duringScriptRun, id).toBe('allowed');
+      }
+      for (const id of BLOCKED) {
+        expect(services.commands.has(id), id).toBe(true);
+        expect(services.commands.get(id)?.duringScriptRun, id).not.toBe('allowed');
+        expect(services.commands.isEnabled(id, ctx), id).toBe(false);
+      }
+      // Allowed commands follow their own enable rule: Help and Exit need nothing more.
+      expect(services.commands.isEnabled('help.about', ctx)).toBe(true);
+      expect(services.commands.isEnabled('help.checkVersion', ctx)).toBe(true);
+      expect(services.commands.isEnabled('file.exit', ctx)).toBe(true);
+      // Find follows its own rule (a document with a search target): available during the run.
+      expect(services.commands.isEnabled('edit.find', ctx)).toBe(true);
+      expect(services.commands.isEnabled('edit.findNext', ctx)).toBe(true);
+      expect(services.commands.isEnabled('edit.replace', ctx)).toBe(false);
 
-    actions.setScriptRunning(store, false);
-    expect(services.commands.isEnabled('file.open', ctx)).toBe(true);
-    expect(services.commands.isEnabled('view.source', ctx)).toBe(true);
-    expect(services.commands.isEnabled('tools.settings', ctx)).toBe(true);
-  });
+      actions.setRunLock(store, null);
+      expect(services.commands.isEnabled('file.open', ctx)).toBe(true);
+      expect(services.commands.isEnabled('view.source', ctx)).toBe(true);
+      expect(services.commands.isEnabled('tools.settings', ctx)).toBe(true);
+    },
+  );
 
   it('every registered command is blocked by default unless it is on the allowed list', async () => {
     const store = createAppStore();

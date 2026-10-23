@@ -19,6 +19,7 @@ import {
   settingsPatch,
 } from '@/features/settings/apply';
 import { actions, createAppStore } from '@/model/store';
+import type { Settings } from '@/rpc/types';
 
 import { fakeRpc, rpcError } from '../features/testUtils';
 
@@ -70,6 +71,43 @@ describe('settingsPatch', () => {
       other: { jpegQuality: 50, keepEncoding: true },
     });
     expect(settingsPatch(before, defaultSettings())).toEqual({});
+  });
+
+  it('writes the ai section by value: changed leaves only, object leaves whole (feature 005)', () => {
+    const before = defaultSettings();
+    const same = defaultSettings(); // another object with the same values
+    expect(settingsPatch(before, same)).toEqual({});
+
+    const after = defaultSettings();
+    after.ai.mode = 'custom';
+    after.ai.custom = { address: 'http://127.0.0.1:11434/v1', key: 'k', model: 'llama3.1:8b' };
+    after.ai.customVerified = {
+      fingerprint: 'ab'.repeat(32),
+      model: 'llama3.1:8b',
+      at: '2026-10-22T10:00:00Z',
+    };
+    after.ai.agreements = [{ service: 'ovhcloud', host: 'a.example', at: '2026-10-22T10:00:00Z' }];
+    expect(settingsPatch(before, after)).toEqual({
+      ai: {
+        mode: 'custom',
+        custom: { address: 'http://127.0.0.1:11434/v1', key: 'k', model: 'llama3.1:8b' },
+        customVerified: {
+          fingerprint: 'ab'.repeat(32),
+          model: 'llama3.1:8b',
+          at: '2026-10-22T10:00:00Z',
+        },
+        agreements: [{ service: 'ovhcloud', host: 'a.example', at: '2026-10-22T10:00:00Z' }],
+      },
+    });
+    // One member of the triple changed: the triple travels whole, the rest stays out.
+    const oneLeaf = defaultSettings();
+    oneLeaf.ai.custom.model = 'gpt-4o-mini';
+    expect(settingsPatch(before, oneLeaf)).toEqual({
+      ai: { custom: { address: 'https://api.openai.com/v1', key: '', model: 'gpt-4o-mini' } },
+    });
+    // Settings of a core without the `ai` group (API minor 3): nothing to diff, no error.
+    const older = { ...defaultSettings(), ai: undefined } as unknown as Settings;
+    expect(settingsPatch(older, { ...older })).toEqual({});
   });
 });
 
@@ -150,6 +188,85 @@ describe('SettingsFeature session persistence', () => {
     actions.setTreeWidth(store, 372);
     await vi.advanceTimersByTimeAsync(300);
     expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(1);
+  });
+
+  it('writes the AI panel width when its divider drag ends, like the tree width (feature 005 FR-040)', async () => {
+    let current = defaultSettings();
+    const rpc = fakeRpc({
+      'hotkeys.get': rpcError(-32601, 'Method not found'),
+      'settings.set': (params: unknown) => {
+        current = mergeSettings(current, (params as { patch: unknown }).patch);
+        return { settings: current, restartRequired: false };
+      },
+    });
+    const store = createAppStore();
+    const feature = new SettingsFeature(
+      { store, hotkeys: new HotkeyMap('linux') },
+      { root: null, window: null, search: '' },
+    );
+    feature.install();
+    actions.setSettings(store, current);
+    await feature.attach(rpc.client);
+
+    actions.setAiPanelWidth(store, 480);
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(0); // debounced
+    await vi.advanceTimersByTimeAsync(300);
+    const calls = rpc.calls.filter((c) => c.method === 'settings.set');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.params).toEqual({ patch: { session: { aiPanelWidth: 480 } } });
+    expect(current.session.aiPanelWidth).toBe(480);
+    expect(store.getState().settings?.session.aiPanelWidth).toBe(480);
+
+    // The same width again: nothing to write; the live state is never written (only the
+    // panel's visibility is, below - FR-040 as amended).
+    actions.setAiPanelWidth(store, 480);
+    actions.updateAi(store, { on: true });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(1);
+
+    // Both widths in one delayed save; the flush before a quit sends a pending one at once.
+    actions.setTreeWidth(store, 300);
+    actions.setAiPanelWidth(store, 320);
+    await feature.flushSessionSave();
+    const second = rpc.calls.filter((c) => c.method === 'settings.set');
+    expect(second).toHaveLength(2);
+    expect(second[1]!.params).toEqual({
+      patch: { session: { treeWidth: 300, aiPanelWidth: 320 } },
+    });
+
+    // The panel hidden and shown: `session.aiPanelVisible` written like `treeVisible`.
+    actions.setAiPanelVisible(store, false);
+    await vi.advanceTimersByTimeAsync(300);
+    const third = rpc.calls.filter((c) => c.method === 'settings.set');
+    expect(third).toHaveLength(3);
+    expect(third[2]!.params).toEqual({ patch: { session: { aiPanelVisible: false } } });
+    expect(current.session.aiPanelVisible).toBe(false);
+    actions.setAiPanelVisible(store, true);
+    await feature.flushSessionSave();
+    expect(rpc.calls.filter((c) => c.method === 'settings.set')[3]!.params).toEqual({
+      patch: { session: { aiPanelVisible: true } },
+    });
+
+    // A core without the keys (before API minor 4) is not sent the width or the visibility.
+    const legacy = createAppStore();
+    const legacySettings = defaultSettings();
+    delete (legacySettings.session as Partial<typeof legacySettings.session>).aiPanelWidth;
+    delete (legacySettings.session as Partial<typeof legacySettings.session>).aiPanelVisible;
+    const legacyRpc = fakeRpc({
+      'hotkeys.get': rpcError(-32601, 'Method not found'),
+      'settings.set': () => ({ settings: legacySettings, restartRequired: false }),
+    });
+    const legacyFeature = new SettingsFeature(
+      { store: legacy, hotkeys: new HotkeyMap('linux') },
+      { root: null, window: null, search: '' },
+    );
+    legacyFeature.install();
+    actions.setSettings(legacy, legacySettings);
+    await legacyFeature.attach(legacyRpc.client);
+    actions.setAiPanelWidth(legacy, 500);
+    actions.setAiPanelVisible(legacy, false);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(legacyRpc.calls.filter((c) => c.method === 'settings.set')).toHaveLength(0);
   });
 
   it('flushSessionSave writes a pending save at once - the quit flow waits for it (FR-003)', async () => {
@@ -353,5 +470,30 @@ describe('FBE defaults table (app/defaultHotkeys.ts)', () => {
     expect(map.get('edit.removeOuter')).toBe('Ctrl+Alt+Space');
     expect(map.get('scripts.last')).toBe('Ctrl+`');
     expect(map.collisions()).toEqual([]);
+  });
+
+  it('lists the AI assistant rows as additions of this editor in both tables (feature 005)', () => {
+    // No original counterpart (`fbeName: ''`), in the View and Tools groups, the same chords as
+    // the engine table - so `diffDefaultTables` above stays at the two documented chords.
+    expect(FBE_DEFAULT_HOTKEYS).toContainEqual({
+      group: 'view',
+      fbeName: '',
+      commandId: 'ai.toggle',
+      keys: 'Mod+Shift+A',
+    });
+    expect(FBE_DEFAULT_HOTKEYS).toContainEqual({
+      group: 'tools',
+      fbeName: '',
+      commandId: 'ai.ask',
+      keys: 'Mod+K',
+    });
+    const stubs = createBuiltinCommands().filter((c) => c.id.startsWith('ai.'));
+    expect(stubs.map((c) => [c.id, c.group])).toEqual([
+      ['ai.toggle', 'view'],
+      ['ai.ask', 'tools'],
+    ]);
+    const map = new HotkeyMap('linux', { defaults: fbeBoundDefaults() });
+    expect(map.get('ai.toggle')).toBe('Ctrl+Shift+A');
+    expect(map.get('ai.ask')).toBe('Ctrl+K');
   });
 });

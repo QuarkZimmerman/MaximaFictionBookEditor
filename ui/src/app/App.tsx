@@ -8,9 +8,19 @@
  * is usable (feature 003 US5) and the global hotkey dispatcher.
  */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { getAiFeature, type AiFeatureStatus } from '@/ai';
+import { DisabledPanel } from '@/ai/DisabledPanel';
 import { DialogHost, ValidationPanel, createIssueNavigator } from '@/dialogs';
 import { changeLanguage, resolveUiLanguage } from '@/i18n';
 import { actions, documentFileName, useAppState } from '@/model/store';
@@ -30,7 +40,13 @@ import { installGlobalErrorLogging } from './diagnostics';
 import { createAppServices, useAppServices, useCommandContext, type AppServices } from './services';
 import { MenuBar } from './MenuBar';
 import type { DynamicMenuItems } from './menus';
-import { TREE_WIDTH_VARIABLE, attachSplitterDrag, clampTreeWidth } from './splitter';
+import {
+  AI_PANEL_WIDTH_VARIABLE,
+  TREE_WIDTH_VARIABLE,
+  attachSplitterDrag,
+  clampPanelWidth,
+  clampTreeWidth,
+} from './splitter';
 import { forcedLanguage, openPathAtStartup } from './startup';
 import { StatusBar } from './StatusBar';
 import { followTextFieldFocus, textFieldOf } from './textFields';
@@ -63,6 +79,21 @@ function isDialogKey(event: KeyboardEvent): boolean {
     event.key === 'Tab' ||
     (event.altKey && event.key.length === 1)
   );
+}
+
+/**
+ * Keys a text field of the AI assistant panel keeps for itself (feature 005 FR-105): Enter
+ * sends and Shift+Enter breaks the line there (`edit.split` is bound to Shift+Enter in the
+ * Body view), Escape changes nothing, Tab moves on. Alt+letter still opens the menus.
+ */
+function isPanelFieldKey(event: KeyboardEvent): boolean {
+  return event.key === 'Enter' || event.key === 'Escape' || event.key === 'Tab';
+}
+
+/** True when the key went to a text field of the AI assistant panel. */
+function inAiPanelField(event: KeyboardEvent): boolean {
+  const field = textFieldOf(event.target);
+  return field !== null && field.closest('.mfbe-ai-panel') !== null;
 }
 
 // Theme before the first paint (as far as the CSP allows: no inline script): the mirrored
@@ -101,6 +132,24 @@ function Shell({
   const activeView = useAppState((s) => s.activeView, store);
   const treeVisible = useAppState((s) => s.treeVisible, store);
   const treeWidth = useAppState((s) => s.treeWidth, store);
+  const aiVisible = useAppState((s) => s.ai.visible, store);
+  const aiOn = useAppState((s) => s.ai.on, store);
+  const aiWidth = useAppState((s) => s.ai.width, store);
+  // The feature's status (feature 005 FR-096 as amended): a visible panel is the live one while
+  // the assistant is on and the inert, static one while the mode is Disabled; before the first
+  // settings snapshot (`waiting`), with an older core or while the chunk still loads, no pane.
+  const aiFeature = getAiFeature(store);
+  const subscribeAiStatus = useCallback(
+    (listener: () => void) => aiFeature?.subscribe(listener) ?? NO_SUBSCRIPTION(),
+    [aiFeature],
+  );
+  const aiStatus = useSyncExternalStore<AiFeatureStatus>(
+    subscribeAiStatus,
+    () => aiFeature?.status ?? 'waiting',
+    () => 'waiting',
+  );
+  const aiInert = aiVisible && aiStatus === 'disabled';
+  const aiPane = aiVisible && (aiOn || aiInert);
   const path = useAppState((s) => s.path, store);
   const modified = useAppState((s) => s.modified, store);
   const hasDocument = useAppState((s) => s.document !== null, store);
@@ -208,15 +257,20 @@ function Shell({
   // Global hotkeys. Capture phase: as in the original (TranslateAccelerator before the message
   // reaches the view), an enabled command's chord wins over menu mnemonics and editor keymaps.
   // Not while a modal dialog is open; in a modeless dialog its own keys and the editing
-  // commands of its fields come first.
+  // commands of its fields come first, and so do the AI panel's instruction field's keys
+  // (Enter sends, Shift+Enter breaks the line) and its editing commands (feature 005 FR-105).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || dialogs.service.isModalOpen) return;
       const inModeless =
         event.target instanceof Element && event.target.closest('.mfbe-dialog-modeless') !== null;
       if (inModeless && isDialogKey(event)) return;
+      const inPanelField = !inModeless && inAiPanelField(event);
+      if (inPanelField && isPanelFieldKey(event)) return;
       hotkeys.handleKeyDown(event, (id) =>
-        inModeless && FIELD_EDIT_COMMANDS.has(id) ? false : commands.dispatch(id, ctx),
+        (inModeless || inPanelField) && FIELD_EDIT_COMMANDS.has(id)
+          ? false
+          : commands.dispatch(id, ctx),
       );
     };
     document.addEventListener('keydown', onKeyDown, { capture: true });
@@ -259,33 +313,78 @@ function Shell({
 
   // Document Tree pane width (feature 004 US1, FR-002): the stored width is applied to the
   // layout variable clamped to the main area - the pane never under its minimum, the view never
-  // under its own - and re-applied when the window changes size, so a width from a larger
-  // screen comes back when the window grows; the stored value itself is never rewritten. The
-  // drag (`attachSplitterDrag`) writes the same variable per frame and commits once to the
-  // store when the button is released.
+  // under its own, the AI panel (feature 005) keeping its applied width while it is shown - and
+  // re-applied when the window changes size, so a width from a larger screen comes back when
+  // the window grows; the stored value itself is never rewritten. The drag
+  // (`attachSplitterDrag`) writes the same variable per frame with the same clamp and commits
+  // once to the store when the button is released. The panel's clamp comes first: the tree
+  // pane's reserves the width the panel takes (see `app/splitter.ts` for the order).
   const mainRef = useRef<HTMLDivElement>(null);
   const splitterRef = useRef<HTMLDivElement>(null);
+  const aiSplitterRef = useRef<HTMLDivElement>(null);
+  const panelClamp = useCallback(
+    (width: number, mainWidth: number) =>
+      clampPanelWidth(
+        width,
+        mainWidth,
+        treeVisible ? clampTreeWidth(treeWidth, mainWidth, 0, false) : 0,
+        treeVisible,
+      ),
+    [treeWidth, treeVisible],
+  );
+  const treeClamp = useCallback(
+    (width: number, mainWidth: number) =>
+      clampTreeWidth(width, mainWidth, aiPane ? panelClamp(aiWidth, mainWidth) : 0, aiPane),
+    [aiPane, aiWidth, panelClamp],
+  );
   useLayoutEffect(() => {
     const main = mainRef.current;
     if (!main) return;
     const apply = () => {
-      main.style.setProperty(
-        TREE_WIDTH_VARIABLE,
-        `${clampTreeWidth(treeWidth, main.clientWidth)}px`,
-      );
+      main.style.setProperty(TREE_WIDTH_VARIABLE, `${treeClamp(treeWidth, main.clientWidth)}px`);
     };
     apply();
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(apply);
     observer.observe(main);
     return () => observer.disconnect();
-  }, [treeWidth]);
+  }, [treeWidth, treeClamp]);
   useEffect(() => {
     const divider = splitterRef.current;
     const main = mainRef.current;
     if (!divider || !main) return;
-    return attachSplitterDrag(divider, main, (width) => actions.setTreeWidth(store, width));
-  }, [store, treeVisible]);
+    return attachSplitterDrag(divider, main, (width) => actions.setTreeWidth(store, width), {
+      clamp: treeClamp,
+    });
+  }, [store, treeVisible, treeClamp]);
+
+  // The AI assistant panel on the right (feature 005 US3, FR-040; data-model §3.2): the same
+  // scheme mirrored - the stored `ai.width` applied clamped to 280-800 px and to what the main
+  // area leaves beside the tree pane and the view's minimum, re-applied on resize, never
+  // rewritten; its divider drags the pane after it and commits once to the store. The pane is
+  // the live panel's and the inert one's alike.
+  useLayoutEffect(() => {
+    const main = mainRef.current;
+    if (!main || !aiPane) return;
+    const apply = () => {
+      main.style.setProperty(AI_PANEL_WIDTH_VARIABLE, `${panelClamp(aiWidth, main.clientWidth)}px`);
+    };
+    apply();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(apply);
+    observer.observe(main);
+    return () => observer.disconnect();
+  }, [aiPane, aiWidth, panelClamp]);
+  useEffect(() => {
+    const divider = aiSplitterRef.current;
+    const main = mainRef.current;
+    if (!divider || !main || !aiPane) return;
+    return attachSplitterDrag(divider, main, (width) => actions.setAiPanelWidth(store, width), {
+      side: 'right',
+      variable: AI_PANEL_WIDTH_VARIABLE,
+      clamp: panelClamp,
+    });
+  }, [store, aiPane, panelClamp]);
 
   const recentFiles = useSyncExternalStore(
     files.recent.subscribe,
@@ -304,6 +403,11 @@ function Shell({
   );
 
   const navigateToIssue = useMemo(() => createIssueNavigator(ctx), [ctx]);
+
+  // The live panel's content comes with the lazy chunk the feature imports before it turns the
+  // assistant on (feature 005 US3, T052); without the feature (bare renders) the pane is empty.
+  // While Disabled the pane holds the static inert panel instead (FR-096; no chunk).
+  const AiPanel = aiOn ? (aiFeature?.panel ?? null) : null;
 
   // Busy pointer over the document pane while a script computes - not while it waits for the
   // user in one of its own dialogs (feature 003, FR-011).
@@ -361,6 +465,26 @@ function Shell({
             />
           ) : null}
         </section>
+        {aiPane ? (
+          <>
+            <div
+              ref={aiSplitterRef}
+              className="mfbe-splitter"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t('ai.panel.splitter')}
+              data-testid="ai-splitter"
+            />
+            <aside
+              className="mfbe-ai-panel"
+              data-testid="ai-panel"
+              data-ai-width={aiWidth}
+              data-ai-inert={aiInert ? 'true' : undefined}
+            >
+              {aiInert ? <DisabledPanel /> : AiPanel ? <AiPanel /> : null}
+            </aside>
+          </>
+        ) : null}
       </div>
       <StatusBar />
       <DialogHost service={dialogs.service} />

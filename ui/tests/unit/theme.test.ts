@@ -6,10 +6,15 @@
  * the CodeMirror theme of the Source editor.
  */
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 
 import {
+  STATUS_COLOR_VARIABLES,
   THEME_STORAGE_KEY,
   applyStoredTheme,
   applyTheme,
@@ -250,6 +255,49 @@ describe('settings runtime and theme', () => {
     expect(bodyCssVariables(settings)['--mfbe-body-bg']).toBeNull();
     expect(isDefaultBodyColor('#000000', '#000000')).toBe(true);
     expect(isDefaultBodyColor('#010101', '#000000')).toBe(false);
+  });
+});
+
+describe('status colours (feature 005, research R8.7)', () => {
+  /** The declarations of one `{ ... }` block of layout.css, found by its selector. */
+  function block(css: string, selector: string): string {
+    const start = css.indexOf(selector);
+    expect(start, selector).toBeGreaterThanOrEqual(0);
+    const open = css.indexOf('{', start);
+    const close = css.indexOf('}', open);
+    return css.slice(open + 1, close);
+  }
+
+  it('declares --status-ok and --status-bad in the light, dark and system-dark blocks', () => {
+    const css = readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src/app/layout.css'),
+      'utf8',
+    );
+    expect(STATUS_COLOR_VARIABLES).toEqual(['--status-ok', '--status-bad']);
+    const blocks = {
+      light: block(css, ':root {'),
+      dark: block(css, ":root[data-theme='dark'] {"),
+      systemDark: block(css, ':root:not([data-theme]) {'),
+    };
+    for (const [name, declarations] of Object.entries(blocks)) {
+      for (const variable of STATUS_COLOR_VARIABLES) {
+        const match = new RegExp(`${variable}:\\s*(#[0-9a-f]{6})\\s*;`).exec(declarations);
+        expect(match, `${variable} in the ${name} block`).not.toBeNull();
+      }
+    }
+    // The two colours differ from each other in every block (green vs red).
+    for (const declarations of Object.values(blocks)) {
+      const ok = /--status-ok:\s*(#[0-9a-f]{6})/.exec(declarations)![1];
+      const bad = /--status-bad:\s*(#[0-9a-f]{6})/.exec(declarations)![1];
+      expect(ok).not.toBe(bad);
+    }
+    // The dark blocks agree with each other and differ from the light palette.
+    expect(/--status-ok:\s*(#[0-9a-f]{6})/.exec(blocks.dark)![1]).toBe(
+      /--status-ok:\s*(#[0-9a-f]{6})/.exec(blocks.systemDark)![1],
+    );
+    expect(/--status-ok:\s*(#[0-9a-f]{6})/.exec(blocks.light)![1]).not.toBe(
+      /--status-ok:\s*(#[0-9a-f]{6})/.exec(blocks.dark)![1],
+    );
   });
 });
 

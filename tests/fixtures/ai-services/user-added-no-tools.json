@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "id": "my-local",
+      "name": "My local model",
+      "address": "http://127.0.0.1:11434/v1",
+      "model": "llama3.1:8b",
+      "keyRequired": false,
+      "tools": false,
+      "limits": "no limits: the model runs on this computer"
+    }
+  ]
+}

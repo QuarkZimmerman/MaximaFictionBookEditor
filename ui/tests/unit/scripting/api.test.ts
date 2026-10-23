@@ -4,7 +4,9 @@
  * the run's working copy (the document and the editor change only when the working copy is
  * shown: before dialogs and selection calls, and by the host at the end), search/replace,
  * selection, dialogs, status/progress, environment, the 64 MB snapshot guard and the
- * allow-list (unknown methods are rejected).
+ * allow-list (unknown methods are rejected). Feature 005 T027: the API starts from an explicit
+ * document and exposes the working copy the operations write (checkpoint / rollback of the AI
+ * request apply to it).
  */
 
 import { createInstance } from 'i18next';
@@ -128,6 +130,7 @@ async function harness(
   const uiActivity: boolean[] = [];
   const api = createScriptApi({
     store,
+    document: store.getState().document,
     controller: getBodyController(store),
     dialogs,
     rpc: rpc.client,
@@ -242,6 +245,106 @@ describe('doc.* reads', () => {
       notes: 1,
       binaryBytes: 1000,
     });
+  });
+});
+
+describe('the start document and the exposed working copy (feature 005 T027)', () => {
+  it("works on the explicit start document, not on the store's", async () => {
+    // The store shows the fixture book; the API starts from another document (an AI request's
+    // working copy, released) and never looks at the store's.
+    const h = await harness();
+    const other: Document = {
+      ...book(),
+      bodies: [
+        {
+          type: 'body',
+          attrs: { nodeId: 'b1' },
+          content: [
+            {
+              type: 'section',
+              attrs: { nodeId: 's1' },
+              content: [paragraph('p1', 'From the request')],
+            },
+          ] as BodyNode['content'],
+        },
+      ],
+    };
+    const api = createScriptApi({
+      store: h.store,
+      document: other,
+      controller: getBodyController(h.store),
+      dialogs: h.dialogs,
+      rpc: null,
+      t: h.ctx.t,
+      scriptName: 'Nested',
+      uiLanguage: 'en',
+      publish: false,
+    });
+    expect(await api.call('doc.textOf', ['p1'])).toBe('From the request');
+    await expect(api.call('doc.getNode', ['p2'])).rejects.toThrow('unknown nodeId');
+    expect(api.workingCopy!.document).toBe(other);
+    await api.call('doc.setText', ['p1', 'Edited']);
+    const result = api.result()!;
+    expect(result).not.toBe(other);
+    expect(result.bodies).toHaveLength(1);
+    expect(JSON.stringify(result)).toContain('Edited');
+    expect(JSON.stringify(other)).toContain('From the request');
+    // The store's document is untouched: a different book altogether.
+    expect(h.store.getState().document!.bodies).toHaveLength(2);
+    expect(shownText(h, 'p1')).toBe('Alpha beta gamma.');
+
+    // Without a document the copy is absent and every doc.* call fails cleanly.
+    const none = createScriptApi({
+      store: h.store,
+      document: null,
+      controller: null,
+      dialogs: h.dialogs,
+      rpc: null,
+      t: h.ctx.t,
+      scriptName: 'None',
+      uiLanguage: 'en',
+    });
+    expect(none.workingCopy).toBeNull();
+    await expect(none.call('doc.textOf', ['p1'])).rejects.toThrow('no document is open');
+    expect(none.result()).toBeNull();
+  });
+
+  it('exposes the working copy the operations write: checkpoints and rollbacks apply to them', async () => {
+    const h = await harness();
+    const copy = h.api.workingCopy!;
+    expect(copy.document).toBe(h.store.getState().document);
+    expect(copy.changed).toBe(false);
+
+    // A change tool of the request: checkpoint, write through the API, see it on the copy.
+    const cp = copy.checkpoint();
+    await call(h, 'doc.setText', 'p1', 'Changed by a tool');
+    expect(copy.changed).toBe(true);
+    expect(await textOfNode(h, 'p1')).toBe('Changed by a tool');
+    expect(JSON.stringify(copy.document)).toContain('Changed by a tool');
+    expect(JSON.stringify(cp.document)).not.toContain('Changed by a tool');
+
+    // The validity hook rejects it: the rollback is what the API reads from then on.
+    copy.rollback(cp);
+    expect(copy.changed).toBe(false);
+    expect(await textOfNode(h, 'p1')).toBe('Alpha beta gamma.');
+    expect(h.api.result()).toBeNull();
+
+    // An accepted change after a rejected one: the result carries exactly the accepted one.
+    const next = copy.checkpoint();
+    await call(h, 'doc.insertNode', 'append', 's1', {
+      type: 'p',
+      attrs: {},
+      content: [{ type: 'text', text: 'Accepted' }],
+    });
+    expect(await sectionTypes(h, 's1')).toEqual(['title', 'p', 'p', 'p', 'p']);
+    const result = h.api.result()!;
+    expect(JSON.stringify(result)).toContain('Accepted');
+    expect(JSON.stringify(result)).not.toContain('Changed by a tool');
+    expect(JSON.stringify(next.document)).not.toContain('Accepted');
+    // The copy taking a nested run's result over is the same object the API keeps writing.
+    copy.reset(result);
+    expect(await sectionTypes(h, 's1')).toEqual(['title', 'p', 'p', 'p', 'p']);
+    expect(h.api.workingCopy).toBe(copy);
   });
 });
 

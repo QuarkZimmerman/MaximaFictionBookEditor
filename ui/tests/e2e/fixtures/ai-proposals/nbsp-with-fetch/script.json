@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "id": "assistant/nbsp-with-fetch",
+  "name": {
+    "en": "Non-breaking space after prepositions",
+    "ru": "Неразрывный пробел после предлогов",
+    "uk": "Нерозривний пробіл після прийменників"
+  },
+  "description": {
+    "en": "Inserts a non-breaking space after one-letter prepositions and conjunctions in the selection",
+    "ru": "Вставляет неразрывный пробел после однобуквенных предлогов и союзов в выделенном тексте",
+    "uk": "Вставляє нерозривний пробіл після однолітерних прийменників і сполучників у виділеному тексті"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": true,
+  "undoLabel": {
+    "en": "Non-breaking space after prepositions",
+    "ru": "Неразрывный пробел после предлогов",
+    "uk": "Нерозривний пробіл після прийменників"
+  }
+}

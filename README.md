@@ -4,8 +4,8 @@ A cross-platform editor for FictionBook 2 (FB2) e-books — a modern
 re-implementation of the classic FictionBook Editor (FBE) with the same views,
 menus and dialogs: **Description** (metadata form), **Body** (structured
 text editor), **Source** (XML, with FB2 tag completion), Document Tree, spell checking
-(English, Russian and Ukrainian built in, more languages from a folder), the Words tool, and
-user scripts.
+(English, Russian and Ukrainian built in, more languages from a folder), the Words tool, user
+scripts, and an optional AI assistant that changes the book on request (release 0.0.5).
 
 - Platforms: Windows 10/11 (x64), Linux from Ubuntu 22.04 (X11 and Wayland),
   macOS (best effort).
@@ -45,17 +45,19 @@ dictionaries folder* opens, or choose a folder of your own, and apply the settin
 Open a book from the command line with `mfbe book.fb2`; a running instance receives the file
 instead of a second window starting.
 
-Release 0.0.4 (the third feedback batch) brings back two things the original had — the
-annotation and the history as editable blocks at the top of the Body view and in the Document
-Tree, and a draggable divider that makes the Document Tree pane narrower or wider — and adds
-the Maxima Library's other person roles (illustrator, editor, compiler, designer, commentator,
-about the author) to the Description view, *File > Import > Description from FictionBook
-file...* and *File > Export > Export as FBD...*, a proposed file name "Last name First name -
-Book title" for a never-saved document, the caret and selection carried between the Body and
-the Source view, "Restore position" that restores the position on every route, spell checking
-confined to the book's text, centred titles, and "Switch keyboard layout when a document is
-opened" (Windows and X11 Linux; greyed out under Wayland, where the system offers no switch) —
-see [`CHANGELOG.md`](CHANGELOG.md) and [`docs/releases/0.0.4.md`](docs/releases/0.0.4.md).
+Release 0.0.5 adds an optional AI assistant: tell it in plain words what to change in the open
+book - in the Body view or in the Source view - and it makes the change, which is checked
+against the FB2 2.1 schema before it reaches the document. Two free services that need no
+account and no key are bundled (OVHcloud AI Endpoints first), and your own service and key or
+a model server on your own computer work as well; *View > AI Assistant* turns it on and opens
+the panel, *Ask AI...* in the context menu takes one instruction for the selection, every
+request is one undo step, and *Disabled* in Settings removes the assistant from the editor
+altogether. Release 0.0.4 (the third feedback batch) brought back the annotation and history
+blocks and the Document Tree divider and added the other person roles, the description import
+and FBD export, the proposed file name, the caret carried between Body and Source, "Restore
+position" and the keyboard-layout switch on open — see [`CHANGELOG.md`](CHANGELOG.md),
+[`docs/releases/0.0.5.md`](docs/releases/0.0.5.md) and
+[`docs/releases/0.0.4.md`](docs/releases/0.0.4.md).
 
 ## Supported platforms
 
@@ -66,11 +68,26 @@ see [`CHANGELOG.md`](CHANGELOG.md) and [`docs/releases/0.0.4.md`](docs/releases/
 
 The interface is available in English, Russian and Ukrainian (Settings > View; a change takes
 effect after the restart the editor offers); the feature set is the same on every platform.
-The editor works offline and sends no telemetry. Its only network request is the check
-for a new version - Help > Check for new version, and the same single request at start-up on
-the schedule chosen in Settings > Other > Version check (once a month by default; "never"
-switches it off): it asks GitHub for the latest release of the editor and sends nothing else
-(no identifiers, settings or usage data).
+The editor works fully offline and sends no telemetry. Exactly two things ever use the
+network, both only on your action, never on the editor's own initiative:
+
+- **The check for a new version** - Help > Check for new version, and the same single request
+  at start-up on the schedule chosen in Settings > Other > Version check (once a month by
+  default; "never" switches it off): it asks GitHub for the latest release of the editor and
+  sends nothing else (no identifiers, settings or usage data).
+- **The AI assistant's requests** - to the AI service you chose in Settings > AI assistant (a
+  free hosted service, your own service and key, or a model server on your own computer), only
+  when you send an instruction with the assistant turned on or press *Test connection* or
+  *Fetch models* on its settings page, and for a hosted service only after you agreed on a
+  notice that names the service and says what leaves the computer (your instruction and the
+  parts of the book the assistant reads - never images, never the whole book on its own,
+  never identifiers or settings). The assistant is off at every start, and *Disabled* on the
+  same page switches it off completely - no entry, no panel, no request, no code path of the
+  feature. The requests honour the proxy of the environment variables (`https_proxy`,
+  `http_proxy`, `all_proxy`, `no_proxy`) and verify certificates through the system store on
+  Windows and macOS and, on Linux, through `SSL_CERT_FILE` / `CURL_CA_BUNDLE`, the
+  distribution's bundle or the Mozilla bundle the Linux packages ship
+  (`docs/releases/0.0.5.md`, "Known limitations").
 
 ## Build from source
 
@@ -96,7 +113,7 @@ cpack --preset linux-app-release          # AppImage, .deb, .rpm in build/linux-
 | `app/` | Desktop shell embedding the UI (Chromium Embedded Framework) |
 | `ui/` | TypeScript/React user interface |
 | `scripts/` | Bundled user scripts (installed with the editor) |
-| `resources/` | FB2 schema, genre lists, dictionaries, symbols, templates |
+| `resources/` | FB2 schema, genre lists, dictionaries, symbols, templates, the bundled AI service list, the CA bundle of the Linux packages |
 | `packaging/` | Installer and package definitions |
 | `tests/` | Core tests, fixtures, corpus tooling, benchmarks |
 | `tools/` | Developer tooling (never shipped) |
@@ -119,14 +136,15 @@ the original's licence, version 3 of the GNU GPL. The original's copyright notic
 contributor list are in [`CONTRIBUTORS.txt`](CONTRIBUTORS.txt) (also shown in Help > About),
 and every bundled script keeps its author's notices.
 
-Bundled third-party components (Chromium Embedded Framework, libxml2, Hunspell and the
-spelling dictionaries, image libraries, the FictionBook schema, ...) keep their own licences,
-all of which allow distribution as part of a GPL-3.0 work; they are listed in
-`THIRD-PARTY-NOTICES.md` (generated and checked by `tools/licence-check.py`), and their full
-licence texts are installed under `share/doc/mfbe/licenses/`. Run-time data files that the
-editor only reads and never combines into the program, such as spelling dictionaries, are
-aggregates listed in their own section of `THIRD-PARTY-NOTICES.md` and ship with their own
+Bundled third-party components (Chromium Embedded Framework, libxml2, libcurl with OpenSSL,
+Hunspell and the spelling dictionaries, image libraries, the FictionBook schema, the MCP SDK,
+...) keep their own licences, all of which allow distribution as part of a GPL-3.0 work; they
+are listed in `THIRD-PARTY-NOTICES.md` (generated and checked by `tools/licence-check.py`), and
+their full licence texts are installed under `share/doc/mfbe/licenses/`. Run-time data files
+that the editor only reads and never combines into the program, such as spelling dictionaries,
+are aggregates listed in their own section of `THIRD-PARTY-NOTICES.md` and ship with their own
 notice next to the file (the Ukrainian dictionary of dict_uk, Mozilla Public License 1.1,
-`resources/dictionaries/uk_UA.txt`). The complete source of every release is this repository
-at the release's tag; third-party sources are at the versions pinned in `vcpkg.json` and
-`cmake/CefVersion.cmake`.
+`resources/dictionaries/uk_UA.txt`; the Mozilla CA certificate bundle of the Linux packages,
+Mozilla Public License 2.0, `resources/certs/cacert.NOTICE.txt`). The complete source of every
+release is this repository at the release's tag; third-party sources are at the versions pinned
+in `vcpkg.json`, `ui/package-lock.json` and `cmake/CefVersion.cmake`.

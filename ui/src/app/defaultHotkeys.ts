@@ -135,6 +135,8 @@ export const FBE_DEFAULT_HOTKEYS: readonly FbeDefaultHotkey[] = [
   { group: 'view', fbeName: 'Source', commandId: 'view.source', keys: 'Alt+F3' },
   { group: 'view', fbeName: 'Fast mode', commandId: 'view.fastMode', keys: 'F5' },
   { group: 'view', fbeName: 'Toggle Tree View', commandId: 'view.tree', keys: 'Mod+F5' },
+  // The AI assistant panel (feature 005 US3; research R8.5): an addition of this editor.
+  { group: 'view', fbeName: '', commandId: 'ai.toggle', keys: 'Mod+Shift+A' },
 
   // ---- Scripts ---------------------------------------------------------
   { group: 'scripts', fbeName: 'LastScript', commandId: 'scripts.last', keys: 'Mod+`' },
@@ -148,6 +150,8 @@ export const FBE_DEFAULT_HOTKEYS: readonly FbeDefaultHotkey[] = [
     commandId: 'tools.spellHighlight',
     keys: 'Shift+F7',
   },
+  // "Ask AI..." on the selection (feature 005 US2): an addition of this editor.
+  { group: 'tools', fbeName: '', commandId: 'ai.ask', keys: 'Mod+K' },
 ];
 
 function collapseExpandDefaults(): FbeDefaultHotkey[] {

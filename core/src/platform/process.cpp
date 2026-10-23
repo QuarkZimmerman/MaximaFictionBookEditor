@@ -7,7 +7,9 @@
 #include <system_error>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN  // also a compile definition of mfbe::options (MSVC C4005 otherwise)
 #define WIN32_LEAN_AND_MEAN
+#endif
 // clang-format off: windows.h must come first, psapi.h/shellapi.h depend on its definitions
 #include <windows.h>
 

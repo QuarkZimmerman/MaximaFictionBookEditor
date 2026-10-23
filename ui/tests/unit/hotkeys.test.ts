@@ -211,6 +211,25 @@ describe('hotkeys: validation', () => {
       expect(map.collisions()).toEqual([]);
     }
   });
+
+  it('binds the AI assistant defaults: Mod+Shift+A toggles the panel, Mod+K asks (feature 005)', () => {
+    expect(DEFAULT_HOTKEYS).toContainEqual({ commandId: 'ai.toggle', keys: 'Mod+Shift+A' });
+    expect(DEFAULT_HOTKEYS).toContainEqual({ commandId: 'ai.ask', keys: 'Mod+K' });
+    const linux = new HotkeyMap('linux');
+    expect(linux.get('ai.toggle')).toBe('Ctrl+Shift+A');
+    expect(linux.get('ai.ask')).toBe('Ctrl+K');
+    const mac = new HotkeyMap('mac');
+    expect(mac.get('ai.toggle')).toBe('Shift+Meta+A');
+    expect(mac.display('ai.ask')).toBe('Cmd+K');
+    // Neither chord is reserved on any platform, and neither is a menu mnemonic (Alt+letter).
+    for (const platform of ['linux', 'windows', 'mac'] as const) {
+      for (const keys of ['Mod+Shift+A', 'Mod+K']) {
+        const chord = parseChord(keys, platform)!;
+        expect(chord.alt).toBe(false);
+        expect(isReservedChord(chord, platform)).toBe(false);
+      }
+    }
+  });
 });
 
 describe('HotkeyMap', () => {

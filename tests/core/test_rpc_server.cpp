@@ -179,8 +179,9 @@ TEST_CASE("server: app.info / settings round trip / notifications over WebSocket
     CHECK(r["version"] == version::kVersion);
     CHECK(r["build"] == version::kBuildId);
     CHECK(r["apiVersion"] == 1);
-    // Additive contract revision: feature 002 = 1, feature 003 = 2, feature 004 = 3.
-    CHECK(r["apiMinor"] == 3);
+    // Additive contract revision: feature 002 = 1, feature 003 = 2, feature 004 = 3,
+    // feature 005 = 4.
+    CHECK(r["apiMinor"] == 4);
     CHECK(r["apiMinor"] == version::kApiMinor);
     CHECK(r["platform"].is_string());
     CHECK(r["uiLanguage"] == "system");
@@ -834,4 +835,53 @@ TEST_CASE("server: in-process settings accessors read and write a setting by dot
     CHECK(f.server->setting("session.windowGeometry") == last);
     const json on_disk = json::parse(test::read_text(f.data.path() / "settings.json"));
     CHECK(on_disk["session"]["windowGeometry"] == last);
+}
+
+// Feature 005: the AI assistant's fragment feedback is normal operation - a model's XML that
+// is not well-formed (1001) or an element its parent cannot hold (1201) is fed back to the
+// model and never logged -, while the same 1001 from doc.open stays a logged failure.
+TEST_CASE(
+    "router: doc.fragmentFromXml 1001/1201 are expected outcomes; a parse error of "
+    "doc.open is still logged",
+    "[server][log]") {
+    ServerFixture f;
+    test::WsClient ws;
+    REQUIRE(ws.open(f.port(), f.ws_path()) == 101);
+    const std::filesystem::path log = f.data.path() / "logs" / "mfbe-errors.log";
+    const auto log_text = [&] {
+        return std::filesystem::exists(log) ? test::read_text(log) : std::string();
+    };
+    const std::string doc_id = ws.call("doc.new")["result"]["docId"];
+    const std::size_t before = log_text().size();
+
+    const json malformed = ws.call(
+        "doc.fragmentFromXml",
+        json{{"docId", doc_id}, {"xml", "<p>never closed"}, {"parent", {{"element", "section"}}}});
+    REQUIRE(malformed.contains("error"));
+    CHECK(malformed["error"]["code"] == 1001);
+    const json misplaced =
+        ws.call("doc.fragmentFromXml", json{{"docId", doc_id},
+                                            {"xml", "<section><p>x</p></section>"},
+                                            {"parent", {{"element", "p"}}}});
+    REQUIRE(misplaced.contains("error"));
+    CHECK(misplaced["error"]["code"] == 1201);
+    CHECK(misplaced["error"]["data"] == json{{"element", "section"}, {"parent", "p"}});
+    // Nothing of the two reached the log - neither the codes nor the element names.
+    std::string text = log_text();
+    CHECK(text.size() == before);
+    CHECK(text.find("fragmentNotAllowed") == std::string::npos);
+    CHECK(text.find("rpc.doc.parseError") == std::string::npos);
+    CHECK(text.find("\"element\"") == std::string::npos);
+    CHECK(text.find("\"parent\"") == std::string::npos);
+
+    // The same 1001 from doc.open is a failure of the editor's and is logged once.
+    const json opened = ws.call(
+        "doc.open", json{{"path", (test::fixtures_dir() / "books" / "malformed.fb2").string()}});
+    REQUIRE(opened.contains("error"));
+    CHECK(opened["error"]["code"] == 1001);
+    text = log_text();
+    CHECK(text.size() > before);
+    CHECK(text.find("\"code\":\"rpc.doc.parseError\"") != std::string::npos);
+    CHECK(text.find("\"method\":\"doc.open\"") != std::string::npos);
+    CHECK(text.find("doc.fragmentFromXml") == std::string::npos);
 }

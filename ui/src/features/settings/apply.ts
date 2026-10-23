@@ -21,11 +21,13 @@
  *    original "In order to process changes the program must be restarted. Restart now?"
  *    prompt (Yes restarts the editor through `app.restart` - the shell starts it again with
  *    the same document and window - or reloads the page in browser mode; feature 003 US3).
- *  - **Session**: toolbar visibility, the document tree flag and the tree pane width
- *    (`session.treeWidth`, feature 004 US1) are written back to `session.*` through
- *    `settings.set` (debounced; `flushSessionSave` writes a pending save at once - the quit
- *    flow waits for it before `app.quit`, so a width dragged just before the exit is stored,
- *    FR-003). They are the window's own state: the store adopts them from the start-up read
+ *  - **Session**: toolbar visibility, the document tree flag, the tree pane width
+ *    (`session.treeWidth`, feature 004 US1) and the AI panel's width and visibility
+ *    (`session.aiPanelWidth`, `session.aiPanelVisible`, feature 005 FR-040) are written back
+ *    to `session.*` through `settings.set` (debounced;
+ *    `flushSessionSave` writes a pending save at once - the quit flow waits for it before
+ *    `app.quit`, so a width dragged just before the exit is stored, FR-003). They are the
+ *    window's own state: the store adopts them from the start-up read
  *    only, and the snapshots the core reports later (`settings.changed` after any
  *    `settings.set`, the results of `settings.set`) leave them alone - such a snapshot may
  *    predate a change still waiting for its delayed save and would undo it
@@ -163,20 +165,30 @@ export function cloneSettings(settings: Settings): Settings {
   return JSON.parse(JSON.stringify(settings)) as Settings;
 }
 
-const PATCH_SECTIONS = ['view', 'other', 'words'] as const;
+/** The sections the Settings dialog edits; `ai` since feature 005 (rpc-api §3.7). */
+const PATCH_SECTIONS = ['view', 'other', 'words', 'ai'] as const;
+
+/** Leaves equal by value: primitives by `Object.is`, the object leaves of `ai` by their JSON. */
+function sameLeaf(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
 
 /**
  * The `settings.set` patch turning `before` into `after`: only the changed leaves of the
- * `view`, `other` and `words` sections (the dialog never edits `session`). Returns an empty
- * object when nothing changed.
+ * `view`, `other`, `words` and `ai` sections (the dialog never edits `session`). The object
+ * leaves of `ai` - `custom`, `customVerified`, `agreements` - are compared by value and written
+ * whole when they differ (`customVerified` always travels with its three members, the
+ * agreements array replaces the stored one). Returns an empty object when nothing changed.
  */
 export function settingsPatch(before: Settings, after: Settings): DeepPartial<Settings> {
   const patch: Record<string, Record<string, unknown>> = {};
   for (const section of PATCH_SECTIONS) {
-    const a = before[section] as unknown as Record<string, unknown>;
-    const b = after[section] as unknown as Record<string, unknown>;
+    const a = (before[section] ?? {}) as unknown as Record<string, unknown>;
+    const b = (after[section] ?? {}) as unknown as Record<string, unknown>;
     for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
-      if (!Object.is(a[key], b[key])) {
+      if (!sameLeaf(a[key], b[key])) {
         (patch[section] ??= {})[key] = b[key];
       }
     }
@@ -186,6 +198,11 @@ export function settingsPatch(before: Settings, after: Settings): DeepPartial<Se
 
 export function isEmptyPatch(patch: DeepPartial<Settings>): boolean {
   return Object.keys(patch).length === 0;
+}
+
+/** True when the patch touches a section other than `ai` (the dictionaries refresh trigger). */
+function touchesResources(patch: DeepPartial<Settings>): boolean {
+  return Object.keys(patch).some((section) => section !== 'ai');
 }
 
 /* ------------------------------------------------------------------------ */
@@ -311,12 +328,14 @@ export class SettingsFeature {
         // dialog's sections (the dictionaries folder may have changed, or dictionaries were
         // copied into a folder before Apply) the spell feature re-reads `spell.dictionaryReport`
         // - the core rescans its folders - so new dictionaries are used without a restart.
-        // Session-only changes (toolbar flags) and the initial load do not count.
+        // Session-only changes (toolbar flags), the AI assistant's keys (feature 005: an
+        // agreement recorded, a service chosen - no resource of the spell checker) and the
+        // initial load do not count.
         if (
           previous.settings &&
           state.settings &&
           this.rpcClient &&
-          !isEmptyPatch(settingsPatch(previous.settings, state.settings))
+          touchesResources(settingsPatch(previous.settings, state.settings))
         ) {
           void getSpellFeature(this.store).refreshDictionaries(this.rpcClient);
         }
@@ -325,7 +344,9 @@ export class SettingsFeature {
         state.settings &&
         (state.toolbars !== previous.toolbars ||
           state.treeVisible !== previous.treeVisible ||
-          state.treeWidth !== previous.treeWidth)
+          state.treeWidth !== previous.treeWidth ||
+          state.ai.width !== previous.ai.width ||
+          state.ai.visible !== previous.ai.visible)
       ) {
         this.scheduleSessionSave();
       }
@@ -403,7 +424,10 @@ export class SettingsFeature {
     await this.saveSession();
   }
 
-  /** Persists toolbar/tree visibility and the tree width when they differ from the stored session. */
+  /**
+   * Persists toolbar/tree visibility, the tree width and the AI panel's width and visibility
+   * when they differ from the stored session.
+   */
   async saveSession(): Promise<boolean> {
     const rpc = this.rpcClient;
     const state = this.store.getState();
@@ -418,6 +442,17 @@ export class SettingsFeature {
     // the whole patch.
     if (typeof session.treeWidth === 'number' && session.treeWidth !== state.treeWidth) {
       patch.treeWidth = state.treeWidth;
+    }
+    // The AI panel's width and visibility the same way (API minor 4, feature 005 FR-040; the
+    // visibility key since the 2026-10-23 amendment - a core without it keeps the panel open).
+    if (typeof session.aiPanelWidth === 'number' && session.aiPanelWidth !== state.ai.width) {
+      patch.aiPanelWidth = state.ai.width;
+    }
+    if (
+      typeof session.aiPanelVisible === 'boolean' &&
+      session.aiPanelVisible !== state.ai.visible
+    ) {
+      patch.aiPanelVisible = state.ai.visible;
     }
     if (Object.keys(patch).length === 0) return false;
     try {

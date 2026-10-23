@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "id": "bad-fields",
+      "name": "Entry with optional members of the wrong type",
+      "address": "http://127.0.0.1:8787/v1",
+      "model": "standin-chat",
+      "keyRequired": false,
+      "tools": "yes",
+      "termsUrl": 5,
+      "limits": {
+        "en": "one request per second",
+        "ru": 1
+      },
+      "contextLength": -1
+    }
+  ]
+}

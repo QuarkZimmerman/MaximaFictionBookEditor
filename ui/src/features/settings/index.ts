@@ -12,25 +12,65 @@ import { createElement } from 'react';
 import type { Command, CommandContext } from '@/app/commands';
 import type { FeatureContext } from '@/app/services';
 import { AboutDialog } from '@/dialogs/AboutDialog';
-import { SettingsDialog } from '@/dialogs/SettingsDialog';
+import {
+  SettingsDialog,
+  type BeforeApplyHook,
+  type SettingsPageId,
+} from '@/dialogs/SettingsDialog';
 
 import { cmdKeys } from '../editing/common';
 
 import { getSettingsFeature, registerSettingsRuntime, type SettingsFeature } from './apply';
 
 export { getSettingsFeature, registerSettingsRuntime, SettingsFeature } from './apply';
+export type { BeforeApplyHook, SettingsPageId } from '@/dialogs/SettingsDialog';
 
 const isConnected = (ctx: CommandContext): boolean =>
   ctx.rpc !== null && ctx.store.getState().connection === 'connected';
+
+export interface OpenSettingsOptions {
+  /** The page shown first (the AI panel's and the AI failure messages' link, feature 005). */
+  initialPage?: SettingsPageId;
+  /** Asked before OK / Apply write anything (feature 005 US9); absent: the registered hook. */
+  beforeApply?: BeforeApplyHook;
+}
+
+/**
+ * The pre-apply hooks features registered (`registerBeforeApply`): asked in order before OK /
+ * Apply write anything; the first `keepOpen` wins.
+ */
+const beforeApplyHooks = new Set<BeforeApplyHook>();
+
+/** Registers a pre-apply hook of the Settings dialog; the returned function removes it. */
+export function registerBeforeApply(hook: BeforeApplyHook): () => void {
+  beforeApplyHooks.add(hook);
+  return () => {
+    beforeApplyHooks.delete(hook);
+  };
+}
+
+const combinedBeforeApply: BeforeApplyHook = async (draft, original) => {
+  for (const hook of [...beforeApplyHooks]) {
+    if ((await hook(draft, original)) === 'keepOpen') return 'keepOpen';
+  }
+  return 'apply';
+};
 
 /** Opens the Settings dialog (modal); resolves when it closes. */
 export async function openSettingsDialog(
   ctx: CommandContext,
   feature: SettingsFeature,
+  options: OpenSettingsOptions = {},
 ): Promise<void> {
   await feature.attach(ctx.rpc);
   await ctx.dialogs.openCustom<void>((close) =>
-    createElement(SettingsDialog, { ctx, feature, onClose: () => close() }),
+    createElement(SettingsDialog, {
+      ctx,
+      feature,
+      onClose: () => close(),
+      initialPage: options.initialPage,
+      beforeApply: options.beforeApply ?? combinedBeforeApply,
+    }),
   );
 }
 

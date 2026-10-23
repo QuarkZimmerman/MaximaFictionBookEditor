@@ -35,7 +35,9 @@ FaultPoint fault_injection();
 // Replaces `path` with `bytes` atomically. Throws WriteError on failure.
 void write_atomic(const std::filesystem::path& path, std::string_view bytes);
 
-// Reads a whole file into a string. Throws WriteError (same shape) on failure.
+// Reads a whole file into a string. Throws WriteError (same shape) on failure - a missing file,
+// a permission problem, a failing read, and a folder in the file's place (refused before the
+// open: the platforms disagree on whether a folder opens as a stream).
 std::string read_file(const std::filesystem::path& path);
 
 }  // namespace mfbe::atomic_file

@@ -14,13 +14,16 @@ Upstream sources:
   `schema/SOURCE.txt`). Local reference checkout: `/root/maxfbeditor/reference/fb2`.
 * **LibreOffice dictionaries** - <https://github.com/LibreOffice/dictionaries>,
   commit `67032ee957631908098a72edf48dc81cac27e369`.
+* **curl CA extract** - <https://curl.se/docs/caextract.html>: Mozilla's root store
+  (`certdata.txt`) in PEM form, published by the curl project as
+  <https://curl.se/ca/cacert.pem> with its digest file `cacert.pem.sha256`.
 
 | Path | Source | Licence | Regeneration |
 |---|---|---|---|
 | `schema/FictionBook.xsd`, `FictionBookGenres.xsd`, `FictionBookLang.xsd`, `FictionBookLinks.xsd`, `FictionNotes.xsd` | fb2 repository, byte-exact copies (FictionNotes.xsd keeps its upstream CRLF endings) | BSD 2-clause (`schema/LICENSE.md`, also embedded in FictionBook.xsd) | `cp` from the fb2 checkout, see `schema/SOURCE.txt` (commit + sha256 list) |
 | `schema/LICENSE.md` | fb2 repository `LICENSE.md` | - | same |
 | `schema/SOURCE.txt` | written for this project | - | update commit hash and checksums when the schema is refreshed |
-| `ui/src/views/source/fb2Elements.json` (in the UI sources, bundled into `ui/dist`, not installed here) | derived from `schema/FictionBook.xsd` and its imports: every element name with the child elements its content model allows (flattened, 65 elements) - the Source view's tag completion table (feature 003) | project licence; derived from the BSD 2-clause schema (notice in `schema/LICENSE.md`) | `python3 tools/fb2-schema-elements.py` after refreshing the schema; CI runs it with `--check` |
+| `ui/src/views/source/fb2Elements.json` (in the UI sources, bundled into `ui/dist`, not installed here) | derived from `schema/FictionBook.xsd` and its imports: every element name with the child elements its content model allows (flattened, 65 elements) - the Source view's tag completion table (feature 003) - and, since feature 005, its attributes and whether it may hold text (the assistant's `get_schema` tool; the core builds the same children/text data for `doc.fragmentFromXml`) | project licence; derived from the BSD 2-clause schema (notice in `schema/LICENSE.md`) | `python3 tools/fb2-schema-elements.py` after refreshing the schema; CI runs it with `--check` |
 | `genres/names.en.txt` | FBE `genres.txt` (English genre names, 16 categories, 140 lines, 127 distinct codes) | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_genres.py` |
 | `genres/names.ru.txt` | FBE `genres.rus.txt` (Russian names; structure and membership taken from `genres.txt`) | GPL-3.0-only (original editor) | same |
 | `genres/names.uk.txt` | FBE `genres.ukr.txt` (Ukrainian names, 156 lines, UTF-8; structure and membership taken from `genres.txt`; `geo_guides`, which the Ukrainian list lacks, is named in the script's `UK_MISSING_NAMES` table) | GPL-3.0-only (original editor) | same |
@@ -30,12 +33,16 @@ Upstream sources:
 | `genres/missing-names.txt` | codes of `schema/FictionBookGenres.xsd` (186) that neither FBE list names (65) | - | same |
 | `symbols.ini` | FBE `symbols.ini` (windows-1251) converted to UTF-8, header added | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_symbols.py` |
 | `blank.fb2` | FBE `blank.fb2` (windows-1251) converted to UTF-8; only the XML declaration's encoding differs | GPL-3.0-only (original editor) | hand-maintained template; check with `python3 -c "import xml.dom.minidom,sys; xml.dom.minidom.parse(sys.argv[1])" resources/blank.fb2` |
+| `ai-services.json` | written for this project (feature 005, AI assistant): the bundled list of free AI services - id, name, address, model, terms or privacy link, limits note in three languages, context length - in the format of `specs/005-ai-assistant/contracts/resource-formats.md` §A; never modified by the editor (a user's copy in `<Data>` overrides it entry by entry) | project licence | hand-maintained; re-verified on release day by `tools/ai-services-check.mjs` |
+| `certs/cacert.pem` | curl CA extract: Mozilla's CA certificate data as extracted and published by the curl project, <https://curl.se/ca/cacert.pem>, byte-exact (the date, size, root count and SHA-256 of the shipped copy are recorded in `certs/cacert.NOTICE.txt`); the last fallback of the core's TLS verification on Linux, used only when neither the environment nor the distribution provides a CA bundle (feature 005, `resource-formats.md` §C); **installed with the Linux packages only** - Windows (Schannel) and macOS (SecTrust) use the system stores and `CMakeLists.txt` excludes `certs/` there | MPL-2.0 (aggregated data read at run time, never combined into the program; notice in `certs/cacert.NOTICE.txt`, full text in `certs/MPL-2.0.txt`) | `python3 tools/refresh-cacert.py` (downloads `cacert.pem` and `cacert.pem.sha256` from curl.se, verifies the digest, rewrites the bundle and the notice; then `python3 tools/licence-check.py`) |
+| `certs/cacert.NOTICE.txt` | written for this project, generated: what the file is, the licence statement, the provenance of the shipped copy (URL, Mozilla date, size, SHA-256), the Linux-only rule, the refresh recipe; shown in Help > About on Linux | - | `python3 tools/refresh-cacert.py` |
+| `certs/MPL-2.0.txt` | the Mozilla Public License, version 2.0, verbatim (<https://www.mozilla.org/MPL/2.0/>; SHA-256 `fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85`), the licence of the certificate data; exported with the third-party licence texts to `share/doc/mfbe/licenses/` | - | static copy, never changes |
 | `icons/` | FBE `res/*.bmp`, `res/*.ico` converted to PNG and split by the `TOOLBAR` button order of FBE `FBE.rc`; `.ico` originals copied | GPL-3.0-only (original editor) | `python3 tools/resources-import/import_icons.py` (ImageMagick 7); mapping in `icons/README.md` |
 | `dictionaries/en_US.aff`, `en_US.dic`, `en_US.txt` | LibreOffice `en/en_US.aff`, `en/en_US.dic`, `en/README_en_US.txt`, byte-exact | SCOWL permissive licence + Ispell BSD / WordNet / public-domain parts, see `en_US.txt` | `curl` of the pinned raw URLs in `dictionaries/SOURCES.txt` |
 | `dictionaries/ru_RU.aff`, `ru_RU.dic`, `ru_RU.txt` | LibreOffice `ru_RU/ru_RU.aff`, `ru_RU/ru_RU.dic`, `ru_RU/README_ru_RU.txt`, byte-exact | BSD-style, see `ru_RU.txt` | same |
 | `dictionaries/SOURCES.txt` | written for this project | - | update SHA, sizes and checksums on refresh |
 | `tools/import_genres.py`, `tools/import_symbols.py`, `tools/import_icons.py` | written for this project (Python 3, ImageMagick 7) | project licence | - |
-| `CMakeLists.txt` | project | project licence | installs this directory (`README.md` and `CMakeLists.txt` excluded) |
+| `CMakeLists.txt` | project | project licence | installs this directory (`README.md`, `CMakeLists.txt` and the provenance files excluded; `certs/` excluded on Windows and macOS) |
 
 ## Formats
 

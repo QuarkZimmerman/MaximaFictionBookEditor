@@ -11,6 +11,7 @@
       "@/*": ["./src/*"]
     },
     "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "useDefineForClassFields": true,

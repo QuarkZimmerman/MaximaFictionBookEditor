@@ -9,9 +9,13 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { createCommandRegistry, type CommandContext } from '@/app/commands';
+import { createCommandRegistry, type CommandContext, type CommandRegistry } from '@/app/commands';
 import { HotkeyMap } from '@/app/hotkeys';
-import { SettingsDialog, type SettingsPageId } from '@/dialogs/SettingsDialog';
+import {
+  SettingsDialog,
+  type BeforeApplyHook,
+  type SettingsPageId,
+} from '@/dialogs/SettingsDialog';
 import { installBodyEditor } from '@/features/editing';
 import { registerSettingsRuntime, type SettingsFeature } from '@/features/settings/apply';
 import { changeLanguage, initI18n } from '@/i18n';
@@ -34,6 +38,7 @@ interface Harness {
   ctx: CommandContext & { dialogs: FakeDialogs };
   rpc: FakeRpc;
   feature: SettingsFeature;
+  commands: CommandRegistry;
   root: HTMLElement;
   onClose: ReturnType<typeof vi.fn>;
   user: ReturnType<typeof userEvent.setup>;
@@ -48,6 +53,8 @@ async function setup(
     restartOnLanguage?: boolean;
     /** Extra RPC answers (`app.restart`, `doc.save`...). */
     responses?: Record<string, Responder>;
+    /** The pre-apply hook of feature 005 (US9). */
+    beforeApply?: BeforeApplyHook;
   } = {},
 ): Promise<Harness> {
   await initI18n({ language: 'en' });
@@ -66,6 +73,46 @@ async function setup(
     },
     'hotkeys.get': [],
     'hotkeys.set': { collisions: [] },
+    'ai.services': {
+      services: [
+        {
+          id: 'ovhcloud',
+          name: 'OVHcloud AI Endpoints',
+          address: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1',
+          model: 'gpt-oss-120b',
+          keyRequired: false,
+          hasKey: false,
+          tools: true,
+          termsUrl: 'https://www.ovhcloud.com/en/terms-and-conditions/',
+          limits: { en: 'two a minute', ru: 'два в минуту', uk: 'два на хвилину' },
+          source: 'bundled',
+          replaced: false,
+          local: false,
+          plainHttp: false,
+        },
+        {
+          id: 'pollinations',
+          name: 'Pollinations',
+          address: 'https://text.pollinations.ai/openai',
+          model: 'openai-fast',
+          keyRequired: false,
+          hasKey: false,
+          tools: true,
+          limits: { en: 'one per 30 s', ru: 'один в 30 с', uk: 'один на 30 с' },
+          source: 'bundled',
+          replaced: false,
+          local: false,
+          plainHttp: false,
+        },
+      ],
+      hidden: [],
+      files: {
+        bundled: '/res/ai-services.json',
+        user: '/data/ai-services.json',
+        userExists: false,
+      },
+      issues: [],
+    },
     'resources.genres': {
       effectiveSources: [
         { source: 'standard', path: '', entries: 186 },
@@ -104,11 +151,12 @@ async function setup(
       feature={feature}
       onClose={onClose}
       initialPage={options.page}
+      beforeApply={options.beforeApply}
       reloadPage={(url) => reloads.push(url)}
     />,
   );
   await screen.findByTestId('settings-page-view');
-  return { ctx, rpc, feature, root, onClose, user, current: () => current, reloads };
+  return { ctx, rpc, feature, root, onClose, user, current: () => current, reloads, commands };
 }
 
 function settingsSetCalls(rpc: FakeRpc): { patch: Record<string, unknown> }[] {
@@ -118,11 +166,16 @@ function settingsSetCalls(rpc: FakeRpc): { patch: Record<string, unknown> }[] {
 }
 
 describe('SettingsDialog - View / Other / Words mapping', () => {
-  it('shows the four pages and sends one patch with the changed leaves on OK', async () => {
+  it('shows the five pages and sends one patch with the changed leaves on OK', async () => {
     const { rpc, user, onClose, ctx, root } = await setup();
-    for (const page of ['view', 'other', 'hotkeys', 'words']) {
+    for (const page of ['view', 'other', 'hotkeys', 'words', 'ai']) {
       expect(screen.getByTestId(`settings-tab-${page}`)).toBeInTheDocument();
     }
+    // The AI assistant page (feature 005) under its catalogue label, last.
+    expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('data-testid'))).toEqual(
+      ['view', 'other', 'hotkeys', 'words', 'ai'].map((id) => `settings-tab-${id}`),
+    );
+    expect(screen.getByTestId('settings-tab-ai')).toHaveTextContent('AI assistant');
 
     // View page: body font / size / colour, a source option, spelling.
     await user.clear(screen.getByTestId('settings-view-body-font'));
@@ -462,6 +515,118 @@ describe('SettingsDialog - "Restart now?" restarts the editor', () => {
   });
 });
 
+describe('SettingsDialog - AI assistant page (feature 005)', () => {
+  it('opens on the AI page, writes the ai section at OK only and nothing before', async () => {
+    const { rpc, user, onClose, ctx } = await setup({ page: 'ai' });
+    expect(screen.getByTestId('settings-page-ai')).toBeVisible();
+    const select = await screen.findByTestId('settings-ai-service');
+    expect(select).toHaveValue('ovhcloud');
+    await user.selectOptions(select, 'pollinations');
+    expect(select).toHaveValue('pollinations');
+    await user.click(screen.getByTestId('settings-ai-mode-custom'));
+    await user.clear(screen.getByTestId('settings-ai-address'));
+    await user.type(screen.getByTestId('settings-ai-address'), 'http://127.0.0.1:11434/v1');
+    await user.type(screen.getByTestId('settings-ai-model'), 'llama3.1:8b');
+    await user.click(screen.getByTestId('settings-ai-mode-free'));
+    expect(settingsSetCalls(rpc)).toEqual([]); // nothing saved before OK
+
+    await user.click(screen.getByTestId('dialog-settings-button-ok'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const calls = settingsSetCalls(rpc);
+    expect(calls).toHaveLength(1);
+    // Only the changed leaves of `ai`: the mode is back to free, so the entry and the triple.
+    expect(calls[0]!.patch).toEqual({
+      ai: {
+        freeServiceId: 'pollinations',
+        custom: { address: 'http://127.0.0.1:11434/v1', key: '', model: 'llama3.1:8b' },
+      },
+    });
+    expect(ctx.store.getState().settings?.ai.freeServiceId).toBe('pollinations');
+  });
+
+  it('refuses an own-service address that is not an http(s) URL and an empty model', async () => {
+    const { rpc, user, onClose } = await setup({ page: 'ai' });
+    await screen.findByTestId('settings-ai-service');
+    await user.click(screen.getByTestId('settings-ai-mode-custom'));
+    await user.clear(screen.getByTestId('settings-ai-address'));
+    await user.type(screen.getByTestId('settings-ai-address'), 'ftp://example.org/v1');
+    await user.click(screen.getByTestId('dialog-settings-button-ok'));
+    const errors = await screen.findByTestId('settings-errors');
+    expect(errors.querySelector('[data-field="ai.custom.address"]')).not.toBeNull();
+    expect(errors.querySelector('[data-field="ai.custom.model"]')).not.toBeNull();
+    expect(settingsSetCalls(rpc)).toEqual([]);
+    expect(onClose).not.toHaveBeenCalled();
+    // A plain local address with a model is fine (the http warning is not an error, FR-003).
+    await user.clear(screen.getByTestId('settings-ai-address'));
+    await user.type(screen.getByTestId('settings-ai-address'), 'http://127.0.0.1:11434/v1');
+    await user.type(screen.getByTestId('settings-ai-model'), 'llama3.1:8b');
+    await user.click(screen.getByTestId('dialog-settings-button-ok'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(settingsSetCalls(rpc)[0]!.patch).toEqual({
+      ai: {
+        mode: 'custom',
+        custom: { address: 'http://127.0.0.1:11434/v1', key: '', model: 'llama3.1:8b' },
+      },
+    });
+  });
+
+  it('asks the pre-apply hook first and writes nothing while it keeps the dialog open', async () => {
+    const beforeApply = vi.fn(async (draft: Settings) =>
+      draft.ai.mode === 'disabled' ? ('keepOpen' as const) : ('apply' as const),
+    );
+    const { rpc, user, onClose } = await setup({ page: 'ai', beforeApply });
+    await screen.findByTestId('settings-ai-service');
+    await user.click(screen.getByTestId('settings-ai-mode-disabled'));
+    await user.click(screen.getByTestId('dialog-settings-button-ok'));
+    await waitFor(() => expect(beforeApply).toHaveBeenCalledTimes(1));
+    expect(beforeApply.mock.calls[0]![0].ai.mode).toBe('disabled');
+    expect(settingsSetCalls(rpc)).toEqual([]);
+    expect(onClose).not.toHaveBeenCalled();
+    await user.click(screen.getByTestId('settings-ai-mode-free'));
+    await user.click(screen.getByTestId('dialog-settings-button-ok'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(beforeApply).toHaveBeenCalledTimes(2);
+    expect(settingsSetCalls(rpc)).toEqual([]); // back to the original: nothing to write
+  });
+
+  it('cancels a running Test connection when the dialog closes', async () => {
+    let finish: ((value: unknown) => void) | null = null;
+    const { rpc, user, ctx } = await setup({
+      page: 'ai',
+      responses: {
+        'ai.test': () => ({ jobId: 'job-7' }),
+        'job.cancel': {},
+      },
+    });
+    // The bundled entry is hosted: the first-use notice comes first, answered Yes.
+    ctx.dialogs.customAnswers.push(true);
+    // The fake client's `runJob` answers the method's value; a `{jobId}` makes it wait as the
+    // real client does, with `onStart` told the id.
+    (rpc.client as unknown as { runJob: unknown }).runJob = (
+      method: string,
+      params: unknown,
+      options?: { onStart?: (jobId: string) => void },
+    ) => {
+      rpc.calls.push({ method, params });
+      options?.onStart?.('job-7');
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    };
+    await screen.findByTestId('settings-ai-service');
+    await user.click(screen.getByTestId('settings-ai-test'));
+    await waitFor(() => expect(finish).not.toBeNull());
+    expect(ctx.dialogs.custom.map((c) => c.name)).toEqual(['AiNoticeDialog']);
+    expect(screen.getByTestId('settings-ai-status')).toHaveTextContent(/Testing the connection/);
+    await user.click(screen.getByTestId('dialog-settings-button-cancel'));
+    await waitFor(() =>
+      expect(rpc.calls.find((c) => c.method === 'job.cancel')?.params).toEqual({
+        jobId: 'job-7',
+      }),
+    );
+  });
+});
+
 describe('SettingsDialog - Hotkeys page', () => {
   const keyY = { key: 'y', code: 'KeyY', ctrlKey: true };
 
@@ -476,7 +641,7 @@ describe('SettingsDialog - Hotkeys page', () => {
 
     // Ctrl+Y is Redo's: "Assigned to ...".
     const capture = screen.getByTestId('settings-hotkeys-capture');
-    capture.focus();
+    act(() => capture.focus()); // the field clears the capture on focus: a state update
     fireEvent.keyDown(capture, keyY);
     expect(capture).toHaveValue('Ctrl+Y');
     expect(screen.getByTestId('settings-hotkeys-collision')).toHaveTextContent(
@@ -555,6 +720,96 @@ describe('SettingsDialog - Hotkeys page', () => {
     const names = commands.map((c) => c.firstElementChild?.textContent ?? '');
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
     expect(names).toContain('Open');
+  });
+
+  it('has no row for an invisible command and gains it once the command is visible (feature 005)', async () => {
+    const { user, commands } = await setup({ page: 'hotkeys' });
+    // The AI assistant's `ai.toggle` is an invisible stub while the assistant is disabled: the
+    // View group lists no row for it although the default table binds Mod+Shift+A to it.
+    await user.click(screen.getByTestId('settings-hotkeys-group-view'));
+    expect(screen.queryByTestId('settings-hotkeys-command-ai.toggle')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('settings-hotkeys-group-tools'));
+    expect(screen.queryByTestId('settings-hotkeys-command-ai.ask')).not.toBeInTheDocument();
+
+    // The feature takes the stub over: the row appears with its default chord.
+    act(() => {
+      commands.replace({
+        id: 'ai.toggle',
+        group: 'view',
+        labelKey: 'menu.view.aiAssistant',
+        tooltipKey: 'cmd.ai.toggle.tooltip',
+        descriptionKey: 'cmd.ai.toggle.description',
+        run: () => {},
+      });
+    });
+    await user.click(screen.getByTestId('settings-hotkeys-group-view'));
+    const row = await screen.findByTestId('settings-hotkeys-command-ai.toggle');
+    expect(row).toHaveTextContent('AI Assistant');
+    expect(row).toHaveTextContent('Ctrl+Shift+A');
+    await user.click(row);
+    expect(screen.getByTestId('settings-hotkeys-description')).toHaveTextContent(
+      'Show or hide the AI assistant panel',
+    );
+  });
+
+  it('never names an invisible command: its chord counts as free and a default it holds is taken back without a prompt (feature 005 US9, FR-096)', async () => {
+    const { ctx, user, commands } = await setup({ page: 'hotkeys' });
+    const askLive = {
+      id: 'ai.ask',
+      group: 'tools' as const,
+      tooltipKey: 'cmd.ai.ask.tooltip',
+      descriptionKey: 'cmd.ai.ask.description',
+      run: () => {},
+    };
+    const askHidden = { ...askLive, stub: true, visible: () => false };
+    const capture = screen.getByTestId('settings-hotkeys-capture');
+    const keyK = { key: 'k', code: 'KeyK', ctrlKey: true };
+
+    // Ctrl+K is the default of `ai.ask`, an invisible stub while the assistant is disabled:
+    // the page does not say "Assigned to Tools \ Ask AI..." - the chord is free.
+    await user.click(screen.getByTestId('settings-hotkeys-group-edit'));
+    await user.click(screen.getByTestId('settings-hotkeys-command-edit.undo'));
+    act(() => capture.focus()); // the field clears the capture on focus: a state update
+    fireEvent.keyDown(capture, keyK);
+    expect(screen.getByTestId('settings-hotkeys-collision')).toHaveTextContent(
+      'Not assigned to other command',
+    );
+    expect(screen.getByTestId('settings-hotkeys-collision')).not.toHaveTextContent('AI');
+    // Assigning it displaces the invisible holder, as any assignment does.
+    await user.click(screen.getByTestId('settings-hotkeys-assign'));
+    expect(screen.getByTestId('settings-hotkeys-current')).toHaveTextContent('Ctrl+K');
+
+    // The same chord with the command visible (the assistant enabled) is reported.
+    act(() => commands.replace(askLive));
+    await user.click(screen.getByTestId('settings-hotkeys-command-edit.redo'));
+    fireEvent.keyDown(capture, keyK);
+    expect(screen.getByTestId('settings-hotkeys-collision')).toHaveTextContent(
+      'Assigned to "Edit \\ Undo"',
+    );
+    // Ask AI takes Redo's default chord while visible ...
+    await user.click(screen.getByTestId('settings-hotkeys-group-tools'));
+    await user.click(await screen.findByTestId('settings-hotkeys-command-ai.ask'));
+    fireEvent.keyDown(capture, { key: 'y', code: 'KeyY', ctrlKey: true });
+    expect(screen.getByTestId('settings-hotkeys-collision')).toHaveTextContent(
+      'Assigned to "Edit \\ Redo"',
+    );
+    await user.click(screen.getByTestId('settings-hotkeys-assign'));
+    expect(screen.getByTestId('settings-hotkeys-current')).toHaveTextContent('Ctrl+Y');
+    // ... and becomes invisible again: restoring Redo's default asks nothing and takes the
+    // chord back (the "Replace?" prompt would have named the feature).
+    act(() => commands.replace(askHidden));
+    await user.click(screen.getByTestId('settings-hotkeys-group-edit'));
+    await user.click(screen.getByTestId('settings-hotkeys-command-edit.redo'));
+    expect(screen.getByTestId('settings-hotkeys-current')).toHaveTextContent('None');
+    await user.click(screen.getByTestId('settings-hotkeys-default'));
+    await waitFor(() =>
+      expect(screen.getByTestId('settings-hotkeys-current')).toHaveTextContent('Ctrl+Y'),
+    );
+    expect(ctx.dialogs.shown).toEqual([]);
+    act(() => commands.replace(askLive));
+    await user.click(screen.getByTestId('settings-hotkeys-group-tools'));
+    const row = await screen.findByTestId('settings-hotkeys-command-ai.ask');
+    expect(row).not.toHaveTextContent('Ctrl+');
   });
 });
 

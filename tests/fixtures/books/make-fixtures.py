@@ -1188,6 +1188,149 @@ MAPPING_CORPUS = f"""<?xml version="1.0" encoding="utf-8"?>
 """
 
 
+# ----------------------------------------------------------------------------------------------
+# ai-selection.fb2 - the book of the AI assistant journeys (feature 005, User Stories 2-5, 7):
+# four sections whose titles are in CAPITALS (the title-case instruction of US3); section 1 with
+# two consecutive paragraphs holding <emphasis> and a footnote link to the notes body (US2
+# scenarios 1-3); section 2 with six consecutive plain paragraphs of more than 300 characters
+# each (the split of US2 scenario 6); section 3 with an epigraph and one <p> holding verse lines
+# separated by plain line breaks, no <empty-line/> (US5's poem case); a <stylesheet> and two
+# JPEG binaries - the ranges the Source view refuses to send and the tags that travel instead of
+# bytes (FR-055); and the unique marker sentence of the SC-007 log scan. Schema-valid.
+#
+# ai-preexisting.fb2 - the same book with one pre-existing schema error: a <title> after the
+# first <p> of section 3, so that an insertion before it moves the error without adding one
+# (US4 scenario 2, review C3).
+# ----------------------------------------------------------------------------------------------
+AI_MARKER_SENTENCE = "Фраза-маркер для журнала 005."
+AI_LONG_PARAGRAPHS = [
+    "Дорога от станции шла сначала вдоль насыпи, потом сворачивала в поле и терялась между "
+    "холмами; Анна шла медленно, часто останавливалась и перекладывала чемодан из руки в руку, "
+    "потому что ручка резала ладонь, а оставить вещи на станции она не решилась, хотя дежурный "
+    "и предлагал запереть их в своей каморке до вечера.",
+    "К полудню небо затянуло, и над холмами повис мелкий серый дождь, от которого не спасали ни "
+    "платок, ни тонкое пальто; дорога раскисла, чемодан отяжелел, и Анна всерьёз задумалась, не "
+    "вернуться ли на станцию, но позади уже не было видно ни водокачки, ни фонаря, а впереди, за "
+    "поворотом, вроде бы показалась крыша.",
+    "Крыша оказалась старым сараем без дверей, зато с целым навесом, под которым было сухо и "
+    "пахло прошлогодним сеном; Анна села на перевёрнутую бочку, достала из кармана хлеб, "
+    "завернула ноги в полу пальто и стала ждать, когда дождь кончится, слушая, как капли "
+    "барабанят по железу и как где-то далеко лает собака.",
+    "Дождь кончился так же внезапно, как начался; из-за туч выглянуло низкое солнце, лужи на "
+    "дороге вспыхнули, и всё вокруг — холмы, мокрая трава, покосившийся сарай — стало вдруг "
+    "ярким и чистым, будто кто-то протёр стекло; Анна подхватила чемодан и пошла дальше, "
+    "стараясь ступать по траве, где не так скользко.",
+    "За третьим холмом дорога разделилась: одна колея уходила вниз, к реке, другая поднималась "
+    "к лесу, и ни на одной не было ни указателя, ни следа колёс; Анна постояла, вспоминая слова "
+    "письма, в котором говорилось про мельницу и мост, выбрала колею к реке и уже через полчаса "
+    "услышала впереди шум воды и скрип старого колеса.",
+    "Мельница стояла на самом берегу, серая, с заколоченными окнами, и только колесо всё ещё "
+    "медленно поворачивалось под напором воды; у крыльца на лавке сидел старик в телогрейке и "
+    "чинил сеть, и когда Анна подошла ближе, он поднял голову, посмотрел на неё без всякого "
+    "удивления и сказал, что ждал её ещё вчера.",
+]
+AI_PREEXISTING_TITLE = "\t\t\t<title>\n\t\t\t\t<p>ЛИШНИЙ ЗАГОЛОВОК</p>\n\t\t\t</title>\n"
+
+
+def ai_selection(preexisting: bool = False) -> str:
+    assert all(len(p) > 300 for p in AI_LONG_PARAGRAPHS), [len(p) for p in AI_LONG_PARAGRAPHS]
+    long_paragraphs = "\n".join(f"\t\t\t<p>{p}</p>" for p in AI_LONG_PARAGRAPHS)
+    stray_title = AI_PREEXISTING_TITLE if preexisting else ""
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<stylesheet type="text/css">p {{ text-indent: 1.5em; }}</stylesheet>
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Анна</first-name>
+				<last-name>Дорожная</last-name>
+			</author>
+			<book-title>Книга для помощника</book-title>
+			<annotation>
+				<p>Четыре главы с заголовками в верхнем регистре, сносками, стихами и картинками.</p>
+			</annotation>
+			<coverpage>
+				<image l:href="#cover.jpg"/>
+			</coverpage>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture generator</program-used>
+			<date value="2026-10-22">2026-10-22</date>
+			<id>fixture-ai-selection</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга для помощника</p>
+		</title>
+		<section id="ch1">
+			<title>
+				<p>ГЛАВА ПЕРВАЯ. НОЧЬ НА СТАНЦИИ</p>
+			</title>
+			<p>Поезд пришёл на станцию <emphasis>далеко за полночь</emphasis>, и на перроне не было ни души, кроме сонного дежурного с фонарём<a l:href="#n1" type="note">[1]</a>.</p>
+			<p>Анна вышла из вагона, поставила чемодан на мокрые доски и <emphasis>долго</emphasis> смотрела вслед уходящим огням<a l:href="#n2" type="note">[2]</a>.</p>
+			<p>Дежурный подошёл, поднял фонарь и спросил, куда ей.</p>
+		</section>
+		<section id="ch2">
+			<title>
+				<p>ГЛАВА ВТОРАЯ. ДОРОГА</p>
+			</title>
+{long_paragraphs}
+		</section>
+		<section id="ch3">
+			<title>
+				<p>ГЛАВА ТРЕТЬЯ. ПЕСНЯ</p>
+			</title>
+			<epigraph>
+				<p>Дорога длинна, а песня коротка.</p>
+				<text-author>Поговорка</text-author>
+			</epigraph>
+			<p>Тихо в поле, тихо в роще,
+ветер стих, и дремлет сад;
+только месяц, бледный, тощий,
+смотрит в окна невпопад.</p>
+{stray_title}			<p>Эту песню Анна слышала в детстве от бабушки и теперь напевала её вполголоса, шагая по обочине.</p>
+		</section>
+		<section id="ch4">
+			<title>
+				<p>ГЛАВА ЧЕТВЁРТАЯ. УТРО</p>
+			</title>
+			<image l:href="#picture.jpg" alt="Утро у мельницы"/>
+			<p>К утру туман над рекой разошёлся, и мельничное колесо остановилось.</p>
+			<p>{AI_MARKER_SENTENCE}</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Дежурный по станции — работник, встречающий и отправляющий поезда.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Огни последнего вагона.</p>
+		</section>
+	</body>
+	<binary id="cover.jpg" content-type="image/jpeg">{b64("tiny.jpg")}
+</binary>
+	<binary id="picture.jpg" content-type="image/jpeg">{b64("tiny.jpg")}
+</binary>
+</FictionBook>
+"""
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -1220,6 +1363,9 @@ def main() -> None:
     write("empty-annotation-history.fb2", EMPTY_ANNOTATION_HISTORY)
     write("import-full.fbd", IMPORT_FULL)
     write("mapping-corpus.fb2", MAPPING_CORPUS)
+    # Feature 005.
+    write("ai-selection.fb2", ai_selection())
+    write("ai-preexisting.fb2", ai_selection(preexisting=True))
 
 
 if __name__ == "__main__":

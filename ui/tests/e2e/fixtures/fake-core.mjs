@@ -99,6 +99,16 @@ const defaultSettings = {
     replaceHistory: [],
     toolbarLayouts: {},
     lastFileDialogFolder: '',
+    aiPanelWidth: 360,
+    aiPanelVisible: true,
+  },
+  // Feature 005 (resource-formats §B): Disabled by default (FR-001), the panel open and inert.
+  ai: {
+    mode: 'disabled',
+    freeServiceId: 'ovhcloud',
+    custom: { address: 'https://api.openai.com/v1', key: '', model: '' },
+    customVerified: { fingerprint: '', model: '', at: '' },
+    agreements: [],
   },
 };
 
@@ -139,6 +149,78 @@ function readBlankTemplate() {
   }
 }
 
+/**
+ * Feature 005: the effective AI service list of the UI-only runs - the bundled entries of
+ * resources/ai-services.json as `ai.services()` returns them (rpc-api §3.12), never a key.
+ */
+function aiServicesResult() {
+  const bundledPath = path.join(resourcesDir, 'ai-services.json');
+  let entries;
+  try {
+    entries = JSON.parse(readFileSync(bundledPath, 'utf8')).services ?? [];
+  } catch {
+    entries = [];
+  }
+  const localHost = (address) => {
+    const host = address
+      .replace(/^https?:\/\//i, '')
+      .split('/')[0]
+      .replace(/:\d+$/, '')
+      .replace(/^\[(.*)\]$/, '$1')
+      .toLowerCase();
+    return host === 'localhost' || host === '::1' || /^127\.\d+\.\d+\.\d+$/.test(host);
+  };
+  return {
+    services: entries.map((entry) => {
+      const limits = typeof entry.limits === 'string' ? { en: entry.limits } : (entry.limits ?? {});
+      const view = {
+        id: entry.id,
+        name: entry.name,
+        address: entry.address,
+        model: entry.model,
+        keyRequired: entry.keyRequired ?? false,
+        hasKey: false,
+        tools: entry.tools ?? true,
+        limits: {
+          en: limits.en ?? '',
+          ru: limits.ru ?? limits.en ?? '',
+          uk: limits.uk ?? limits.en ?? '',
+        },
+        source: 'bundled',
+        replaced: false,
+        local: localHost(entry.address),
+        plainHttp: /^http:/i.test(entry.address),
+      };
+      if (entry.termsUrl) view.termsUrl = entry.termsUrl;
+      if (Number.isInteger(entry.contextLength)) view.contextLength = entry.contextLength;
+      return view;
+    }),
+    hidden: [],
+    files: {
+      bundled: bundledPath,
+      user: path.join(dataDir, 'ai-services.json'),
+      userExists: existsSync(path.join(dataDir, 'ai-services.json')),
+    },
+    issues: [],
+  };
+}
+
+const AI_CANNED_COMPLETION = {
+  id: 'chatcmpl-fake',
+  object: 'chat.completion',
+  model: 'standin-chat',
+  choices: [{ index: 0, message: { role: 'assistant', content: 'OK' }, finish_reason: 'stop' }],
+};
+let aiJobCounter = 0;
+function aiJob(result) {
+  const jobId = `ai${++aiJobCounter}`;
+  setTimeout(() => {
+    broadcast('job.progress', { jobId, phase: 'connecting', done: 0, total: 0 });
+    broadcast('job.done', { jobId, result });
+  }, 10);
+  return { jobId };
+}
+
 const docs = createDocService({
   dataDir,
   broadcast,
@@ -158,6 +240,7 @@ const methods = {
     logDir: path.join(dataDir, 'logs'),
     resourceLayers: [],
     apiVersion: 1,
+    apiMinor: 4,
   }),
   'app.quit': () => {
     setTimeout(() => process.exit(0), 50);
@@ -180,6 +263,33 @@ const methods = {
   'scripts.list': () => [],
   'spell.dictionaries': () => [],
   'log.error': () => ({}),
+  // Feature 005 (rpc-api §3.1, §3.12): the terms link opener and the service list family.
+  'app.openUrl': () => ({}),
+  'ai.services': () => aiServicesResult(),
+  'ai.reloadServices': () => {
+    const result = aiServicesResult();
+    broadcast('resources.changed', { what: 'aiServices' });
+    return result;
+  },
+  'ai.createUserServices': () => {
+    const result = { path: path.join(dataDir, 'ai-services.json'), created: false };
+    broadcast('resources.changed', { what: 'aiServices' });
+    return result;
+  },
+  // The three exchanges are jobs answering a canned `ok` outcome (the journeys that need a
+  // real exchange run the real core against the stand-in).
+  'ai.complete': () => aiJob({ ok: true, status: 200, body: AI_CANNED_COMPLETION, elapsedMs: 5 }),
+  'ai.models': () =>
+    aiJob({ ok: true, status: 200, models: [{ id: 'standin-chat' }], elapsedMs: 5 }),
+  'ai.test': () =>
+    aiJob({
+      ok: true,
+      status: 200,
+      body: AI_CANNED_COMPLETION,
+      verified: true,
+      model: 'standin-chat',
+      elapsedMs: 5,
+    }),
   'test.enqueueDialog': ({ method, result }) => {
     dialogQueue.push({ method, result });
     return {};

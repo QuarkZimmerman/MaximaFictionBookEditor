@@ -34,6 +34,13 @@ Conversion rules:
 | `app/mfbe-{16,32,48,64,128,256}.png` | `FBE.ico` | - | application icon; 16/32/48 are the native 32-bit frames (7, 6, 5), 64/128/256 are the 48x48 frame upscaled (Lanczos) |
 | `app/FBE.ico`, `app/FBE2.ico` | same | - | byte-exact copies of the original icon files (`IDI_OLDICON` and `IDR_MAINFRAME` respectively) |
 
+Not from FBE: the AI assistant's toolbar button `ui/public/icons/toolbar24/ai-assistant.png` /
+`toolbar16/ai-assistant.png` (feature 005, command `ai.toggle`) is the project's own artwork — a
+speech bubble with a spark, drawn in the style of the converted icons (8-bit RGBA, dark grey
+outline, white fill, one orange accent) by `tools/resources-import/draw_ai_icons.py` (Python 3,
+standard library), project licence (GPL-3.0-only). It lives in `ui/public/icons/` only and is
+not part of this directory's conversion; provenance row in `ui/public/icons/README.md`.
+
 Not converted (not UI icons): `Fb2-shema.bmp`, `FbE.bmp` (About-box banner),
 `Icon_02.bmp`..`Icon_25.bmp` (update-check animation frames), `center.bmp`,
 `orange.bmp`, `green.bmp`, `doc.bmp`, `xml.bmp`, `other.bmp`, `html.bmp`,

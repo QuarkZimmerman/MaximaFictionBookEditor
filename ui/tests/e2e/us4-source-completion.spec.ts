@@ -122,6 +122,11 @@ async function supportsDocuments(core: CoreHandle): Promise<boolean> {
 }
 
 async function openBook(core: CoreHandle, page: Page): Promise<void> {
+  // The AI panel (feature 005) is restored open at the first start (session.aiPanelVisible,
+  // FR-040 as amended 2026-10-23) and narrows the Source view, where the long lines this
+  // journey edits would then wrap - and End goes to the end of the visual line, not of the
+  // tag. The panel is hidden for the page load; afterEach restores the default.
+  await core.rpc('settings.set', { patch: { session: { aiPanelVisible: false } } });
   await core.openApp(page);
   await expect(page.getByTestId('status-message')).toHaveText('Ready');
   await core.enqueueDialog('dialog.openFile', { paths: [BOOK] });
@@ -184,7 +189,11 @@ test.describe('US8 (feature 003) - tag completion in the Source view', () => {
   });
 
   test.afterEach(async ({ core }) => {
-    if (core.hasCore) await core.rpc('settings.set', { patch: { view: null } }).catch(() => {});
+    if (core.hasCore) {
+      await core
+        .rpc('settings.set', { patch: { view: null, session: { aiPanelVisible: true } } })
+        .catch(() => {});
+    }
   });
 
   test('1. <sec in a section lists section within 300 ms; Enter completes the name only; Tab accepts too', async ({

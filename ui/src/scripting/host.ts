@@ -1,10 +1,11 @@
 /**
  * Script host (T102): the run lifecycle on the editor side. One worker per run, created by the
  * injected factory and bound to the host through a private MessageChannel. A run works on a
- * working copy of the document (api-impl.ts) while the document is locked for the user
- * (`scriptRunning`); at the end the document is replaced by the result, kept as one undo entry
- * holding the document before the run. Cancel terminates the worker, closes the script's open
- * dialogs and restores the document; a failure restores it too and is reported as
+ * working copy of the document (api-impl.ts) while the document is locked for the user - the
+ * run session (runSession.ts) holds `store.runLock` of kind `script` with the script's name;
+ * at the end the session replaces the document by the result, kept as one undo entry holding
+ * the document before the run. Cancel terminates the worker, closes the script's open dialogs
+ * and restores the document; a failure restores it too and is reported as
  * `Script error: <message> at line L, column C`, logged through `log.error`. A run whose
  * document is replaced (opened, reloaded or closed from outside) ends as cancelled and leaves
  * the new document alone. After 30 s without activity the run is marked silent (the run bar
@@ -15,6 +16,16 @@
  * busy cursor is shown only while it computes) and, at the end, the run's duration; a finished
  * run is announced as "finished in N s" - in the status bar and, for a run longer than 5 s, by
  * a transient notice in the work area.
+ *
+ * Feature 005 (FR-080, data-model §6.6, review C10): a run **nested** in an AI request
+ * (`run(script, options, {nested: {workingCopy, session}})`) starts from the request's working
+ * copy (released), takes no lock and shows no banner of its own (the request holds the lock),
+ * records no undo entry and no `scripts.lastRun`, publishes nothing (its dialogs and selection
+ * calls show no intermediate state), captions its dialogs "<script name> — run by the AI
+ * assistant", restores the `modified` flag at its end and hands its result document back in
+ * `RunResult.document`; a nested run cancelled from the banner cancels the whole request (the
+ * outer session's `cancel()`), a failed one returns the error to the caller and leaves the
+ * request running.
  */
 
 import type { TFunction } from 'i18next';
@@ -35,6 +46,7 @@ import {
   ScriptApiError,
   type ScriptApi,
 } from './api-impl';
+import { DEFAULT_TICK_MS, startRunSession, type RunSession } from './runSession';
 import type {
   HostMessage,
   InitMessage,
@@ -45,6 +57,9 @@ import type {
   ScriptSourceResult,
   WorkerMessage,
 } from './types';
+import type { WorkingCopy } from './workingCopy';
+
+export { DEFAULT_TICK_MS } from './runSession';
 
 export type RunStatus = 'running' | 'done' | 'cancelled' | 'failed';
 
@@ -62,13 +77,21 @@ export interface RunState {
   error?: ScriptErrorInfo;
   /** The running script has shown no activity for the watchdog delay (30 s). */
   silent?: boolean;
+  /** The run is nested in an AI request (no lock, banner or undo entry of its own). */
+  nested?: boolean;
 }
 
 export interface RunResult {
   status: RunStatus | 'busy' | 'unavailable';
   error?: ScriptErrorInfo;
-  /** The user-facing text of a failure (also shown in the error dialog). */
+  /** The user-facing text of a failure (also shown in the error dialog of a user-started run). */
   message?: string;
+  /**
+   * Nested run, `done`: the document the script produced - the caller's working copy takes it
+   * over (`reset`); null when the script changed nothing. Absent for user-started runs (the
+   * session published the result) and for the other ends.
+   */
+  document?: Document | null;
 }
 
 /** A minimal worker surface so tests can inject a fake. */
@@ -101,16 +124,24 @@ export interface RunOptions {
   treeNode?: NodeRef;
 }
 
-export const DEFAULT_WATCHDOG_MS = 30_000;
+/**
+ * A run inside an AI request (feature 005 FR-080): `workingCopy` is the request's copy the
+ * script starts from (released by the host), `session` the request's run session, which a
+ * cancelled nested run cancels.
+ */
+export interface NestedRun {
+  workingCopy: WorkingCopy;
+  session: RunSession;
+}
 
-/** The elapsed time shown by the banner is refreshed this often (FR-010: at least every second). */
-export const DEFAULT_TICK_MS = 1_000;
+export interface RunMode {
+  nested?: NestedRun;
+}
+
+export const DEFAULT_WATCHDOG_MS = 30_000;
 
 /** A finished run longer than this is also announced by a transient notice (FR-014). */
 export const NOTICE_THRESHOLD_MS = 5_000;
-
-/** Undo view of a script run: undoing it shows the Body view. */
-const SCRIPT_RUN_UNDO_VIEW = 'body';
 
 /** Whole seconds of a run's duration for "finished in N s": rounded, at least 1. */
 export function durationSeconds(durationMs: number): number {
@@ -175,20 +206,22 @@ interface ActiveRun {
   port: MessagePort;
   api: ScriptApi;
   entryUrl: string;
-  /** Label of the run's undo entry. */
-  label: string;
-  /** The document before the run (restored by Cancel and failures) and its state. */
+  /**
+   * The run's session - the lock, the banner, the ticker, the document-replaced watch, the
+   * commit as one undo entry and the restore on Cancel or failure; null for a nested run,
+   * whose request holds all of that.
+   */
+  session: RunSession | null;
+  nested: NestedRun | null;
+  /** The document the run started from (its `docId` tells a replaced document). */
   before: Document;
+  /** A nested run restores the flag at its end: it never publishes anything itself. */
   modifiedBefore: boolean;
   watchdog: ReturnType<typeof setTimeout> | null;
-  /** Refreshes `state.elapsedMs` once a second (stopped at the end). */
-  ticker: ReturnType<typeof setInterval> | null;
   lastActivity: number;
   dialogDepth: number;
   cancelRequested: boolean;
   finished: boolean;
-  /** Stops watching the store for a replaced document. */
-  unwatch: () => void;
   end: RunEnd & { finish(): void };
   resolve: (result: RunResult) => void;
 }
@@ -257,8 +290,12 @@ export class ScriptHost {
     for (const listener of [...this.listeners]) listener();
   }
 
-  /** Runs `script` to completion (resolves when the run is done, cancelled or failed). */
-  async run(script: ScriptInfo, options: RunOptions): Promise<RunResult> {
+  /**
+   * Runs `script` to completion (resolves when the run is done, cancelled or failed). A
+   * user-started run takes the run lock through its session; `mode.nested` runs the script
+   * inside an AI request on the request's working copy instead (see the module comment).
+   */
+  async run(script: ScriptInfo, options: RunOptions, mode: RunMode = {}): Promise<RunResult> {
     const { t, dialogs, rpc } = options;
     const { store } = this.deps;
     const name = scriptName(script, options.uiLanguage);
@@ -291,22 +328,62 @@ export class ScriptHost {
       });
       return { status: 'failed', message };
     }
-    const before = store.getState().document;
-    if (!before) return { status: 'unavailable', message: 'no document' };
     if (this.active) return { status: 'busy' };
+    const nested = mode.nested ?? null;
+    const label = script.undoLabel?.[options.uiLanguage] ?? script.undoLabel?.en ?? name;
+
+    // The start document and the session: a user-started run works on the store's document
+    // under the lock its session takes; a nested run on the request's working copy, with no
+    // session of its own (the request's holds the lock).
+    let run: ActiveRun | null = null;
+    let session: RunSession | null = null;
+    let before: Document;
+    if (nested) {
+      if (nested.session.ended) return { status: 'unavailable', message: 'the request has ended' };
+      before = nested.workingCopy.release();
+    } else {
+      if (!store.getState().document) return { status: 'unavailable', message: 'no document' };
+      session = startRunSession(
+        {
+          store,
+          undo: this.deps.undo,
+          getController: this.deps.getController,
+          tickMs: this.deps.tickMs ?? DEFAULT_TICK_MS,
+        },
+        {
+          kind: 'script',
+          label: name,
+          undoLabel: label,
+          onCancel: () => this.cancel(),
+          onDocumentReplaced: () => this.cancel(),
+          onTick: (elapsedMs) => {
+            if (run) this.tick(run, elapsedMs);
+          },
+        },
+      );
+      // Another run - an AI request - holds the lock.
+      if (!session) return { status: 'busy' };
+      before = session.before;
+    }
     const origin = this.deps.origin?.() ?? window.location.origin;
     const entryUrl = new URL(source.entryUrl, origin).toString();
 
-    const label = script.undoLabel?.[options.uiLanguage] ?? script.undoLabel?.en ?? name;
-    const worker = this.deps.createWorker();
+    let worker: WorkerLike;
     const channel = new MessageChannel();
-    const init: InitMessage = { type: 'init', port: channel.port2 };
-    worker.postMessage(init, [channel.port2]);
+    try {
+      worker = this.deps.createWorker();
+      const init: InitMessage = { type: 'init', port: channel.port2 };
+      worker.postMessage(init, [channel.port2]);
+    } catch (error) {
+      // No worker, no run: the lock just taken is released again.
+      session?.discard();
+      throw error;
+    }
 
     return new Promise<RunResult>((resolve) => {
       const end = createRunEnd();
-      const startedAt = Date.now();
-      const run: ActiveRun = {
+      const startedAt = session?.startedAt ?? Date.now();
+      const active: ActiveRun = {
         state: {
           scriptId: script.id,
           name,
@@ -314,48 +391,55 @@ export class ScriptHost {
           startedAt,
           elapsedMs: 0,
           waiting: false,
+          ...(nested ? { nested: true } : {}),
         },
         script,
         options,
         worker,
         port: channel.port1,
         entryUrl,
-        label,
+        session,
+        nested,
         before,
         modifiedBefore: store.getState().modified,
         watchdog: null,
-        ticker: null,
         lastActivity: startedAt,
         dialogDepth: 0,
         cancelRequested: false,
         finished: false,
-        unwatch: () => {},
         end,
         resolve,
         api: createScriptApi({
           store,
+          document: before,
           controller: this.deps.getController(),
           dialogs,
           rpc,
           t,
           scriptName: name,
           uiLanguage: options.uiLanguage,
-          onUiActivity: (active) => this.onUiActivity(run, active),
-          onProgress: () => this.onActivity(run),
-          isCancelRequested: () => run.cancelRequested,
+          ...(nested
+            ? {
+                publish: false,
+                dialogCaption: (caption: string) =>
+                  t('ai.script.nestedCaption', { name: caption }) as string,
+              }
+            : {}),
+          onUiActivity: (isActive) => this.onUiActivity(active, isActive),
+          onProgress: () => this.onActivity(active),
+          isCancelRequested: () => active.cancelRequested,
           runEnd: end,
         }),
       };
-      this.active = run;
-      run.unwatch = store.subscribe((state) => {
-        if (state.docId !== before.docId) queueMicrotask(() => this.cancel());
-      });
-      actions.setScriptRunning(store, true);
-      actions.setStatusMessage(store, t('scripting.status.running', { name }) as string);
+      run = active;
+      this.active = active;
+      if (!nested) {
+        actions.setStatusMessage(store, t('scripting.status.running', { name }) as string);
+      }
       this.emit();
 
       channel.port1.onmessage = (event: MessageEvent<WorkerMessage>) => {
-        void this.onWorkerMessage(run, event.data);
+        void this.onWorkerMessage(active, event.data);
       };
       worker.onerror = (event: ErrorEvent) => {
         event.preventDefault?.();
@@ -369,16 +453,16 @@ export class ScriptHost {
             if (file !== source.entry) error.file = file;
           }
         }
-        void this.finish(run, 'failed', error);
+        void this.finish(active, 'failed', error);
       };
-      this.armWatchdog(run, this.watchdogMs);
-      run.ticker = setInterval(() => this.tick(run), this.deps.tickMs ?? DEFAULT_TICK_MS);
+      this.armWatchdog(active, this.watchdogMs);
     });
   }
 
   /**
    * Cancels the running script: terminates the worker, closes its open dialogs and restores
-   * the document as it was before the run.
+   * the document as it was before the run (a nested run: the request's session is cancelled
+   * with it).
    */
   cancel(): void {
     const run = this.active;
@@ -468,10 +552,10 @@ export class ScriptHost {
     this.onActivity(run);
   }
 
-  /** One elapsed-time tick (the banner's clock). */
-  private tick(run: ActiveRun): void {
+  /** One elapsed-time tick of the session (the banner's clock). */
+  private tick(run: ActiveRun, elapsedMs: number): void {
     if (run.finished) return;
-    run.state = { ...run.state, elapsedMs: Date.now() - run.state.startedAt };
+    run.state = { ...run.state, elapsedMs };
     this.emit();
   }
 
@@ -499,25 +583,13 @@ export class ScriptHost {
     }, delay);
   }
 
-  /** Shows `document` in the editor (and the store). */
-  private show(document: Document): void {
-    const controller = this.deps.getController();
-    if (controller) controller.showModel(document);
-    else actions.updateDocument(this.deps.store, document);
-  }
-
   private async finish(run: ActiveRun, status: RunStatus, error?: ScriptErrorInfo): Promise<void> {
     if (run.finished) return;
     run.finished = true;
     const durationMs = Date.now() - run.state.startedAt;
-    run.unwatch();
     if (run.watchdog) {
       clearTimeout(run.watchdog);
       run.watchdog = null;
-    }
-    if (run.ticker) {
-      clearInterval(run.ticker);
-      run.ticker = null;
     }
     try {
       run.port.close();
@@ -526,30 +598,26 @@ export class ScriptHost {
     }
     run.worker.terminate();
     run.end.finish();
-    const { undo, store } = this.deps;
+    const { store } = this.deps;
     const { t, dialogs, rpc } = run.options;
 
     // The run's document may have been replaced meanwhile (opened, reloaded, closed): the run
-    // then leaves it alone.
-    const own = store.getState().docId === run.before.docId && store.getState().document !== null;
+    // then leaves it alone and a `done` counts as cancelled.
     let outcome = status;
-    if (status === 'done' && own) {
-      const after = run.api.result();
-      if (after) {
-        this.show(after);
-        const before = run.before;
-        undo.recordSnapshot(SCRIPT_RUN_UNDO_VIEW, run.label, {
-          undo: () => this.show(before),
-          redo: () => this.show(after),
-        });
+    let document: Document | null | undefined;
+    if (run.session) {
+      if (status === 'done') {
+        if (run.session.commit(run.api.result()) === 'lost') outcome = 'cancelled';
+      } else {
+        run.session.discard();
       }
-    } else if (status === 'done') {
-      outcome = 'cancelled';
-    } else if (own && store.getState().document !== run.before) {
-      this.show(run.before);
+    } else {
+      const own = store.getState().docId === run.before.docId && store.getState().document !== null;
+      if (status === 'done' && own) document = run.api.result();
+      else if (status === 'done') outcome = 'cancelled';
+      // Nothing of a nested run was published; the flag is restored all the same (data-model §6.6).
       actions.setModified(store, run.modifiedBefore);
     }
-    actions.setScriptRunning(store, false);
     run.api.finish();
 
     run.state = {
@@ -567,33 +635,41 @@ export class ScriptHost {
 
     let message: string | undefined;
     if (outcome === 'done') {
-      // "finished in N s" (FR-014): in the status bar - unless the script left a sticky status
-      // of its own - and, for a run longer than 5 s, as a notice in the work area, which the
-      // user sees whether or not the status bar is shown.
-      const finished = t('scripting.status.finishedIn', {
-        name: run.state.name,
-        seconds: durationSeconds(durationMs),
-      }) as string;
-      if (!run.api.stickyStatus) actions.setStatusMessage(store, finished);
-      if (durationMs > NOTICE_THRESHOLD_MS) showTransientNotice(store, { text: finished });
+      if (!run.nested) {
+        // "finished in N s" (FR-014): in the status bar - unless the script left a sticky status
+        // of its own - and, for a run longer than 5 s, as a notice in the work area, which the
+        // user sees whether or not the status bar is shown.
+        const finished = t('scripting.status.finishedIn', {
+          name: run.state.name,
+          seconds: durationSeconds(durationMs),
+        }) as string;
+        if (!run.api.stickyStatus) actions.setStatusMessage(store, finished);
+        if (durationMs > NOTICE_THRESHOLD_MS) showTransientNotice(store, { text: finished });
+      }
     } else if (outcome === 'cancelled') {
-      actions.setStatusMessage(
-        store,
-        t('scripting.status.cancelled', { name: run.state.name }) as string,
-      );
+      if (!run.nested) {
+        actions.setStatusMessage(
+          store,
+          t('scripting.status.cancelled', { name: run.state.name }) as string,
+        );
+      }
     } else {
       const info: ScriptErrorInfo = error ?? { name: 'Error', message: 'unknown error' };
       message = formatScriptError(t, info);
-      actions.setStatusMessage(
-        store,
-        t('scripting.status.failed', { name: run.state.name }) as string,
-      );
+      if (!run.nested) {
+        actions.setStatusMessage(
+          store,
+          t('scripting.status.failed', { name: run.state.name }) as string,
+        );
+      }
       try {
+        // A nested run's script may have been written by the model: its log line holds the
+        // script id and the error's name only (feature 005 review D5), never the message.
         await rpc?.call('log.error', {
           source: 'script',
           code: 'script.error',
-          message: `${run.script.id}: ${message}`,
-          stack: info.stack,
+          message: run.nested ? `${run.script.id}: ${info.name}` : `${run.script.id}: ${message}`,
+          stack: run.nested ? undefined : info.stack,
           context: {
             scriptId: run.script.id,
             line: info.line === undefined ? undefined : String(info.line),
@@ -603,6 +679,14 @@ export class ScriptHost {
       } catch {
         // the log is best effort
       }
+    }
+
+    if (run.nested) {
+      // The request owns the memory, the messages and the dialogs; its Cancel ended the nested
+      // run - or the nested run's Cancel ends the request (FR-080).
+      if (outcome === 'cancelled') run.nested.session.cancel();
+      run.resolve({ status: outcome, error, message, document });
+      return;
     }
 
     // Last script: every started run counts (also failed ones, as in the original editor).

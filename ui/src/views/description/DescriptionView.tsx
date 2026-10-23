@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '@/app/services';
 import { textFieldOf } from '@/app/textFields';
-import { useAppState } from '@/model/store';
+import { isRunLocked, useAppState } from '@/model/store';
 
 import { BinaryObjects } from './BinaryObjects';
 import { descriptionControllerFor } from './binding';
@@ -40,8 +40,9 @@ export function DescriptionView() {
   const sourceOnly = useAppState((s) => s.sourceOnly, store);
   const connection = useAppState((s) => s.connection, store);
   const language = useAppState((s) => s.uiLanguage, store);
-  // The quiet lock of a script run (feature 003 FR-011): the form is read-only, not disabled.
-  const readOnly = useAppState((s) => s.scriptRunning, store);
+  // The quiet lock of a run (feature 003 FR-011; a script or an AI request): the form is
+  // read-only, not disabled.
+  const readOnly = useAppState(isRunLocked, store);
   const { genres, languages, reloadGenres } = useResourceCatalogs(rpc, connection === 'connected');
   const [fieldMenu, setFieldMenu] = useState<{
     field: HTMLElement;

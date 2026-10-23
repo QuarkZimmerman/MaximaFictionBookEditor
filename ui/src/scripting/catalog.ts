@@ -86,7 +86,7 @@ export class ScriptsFeature {
         if (import.meta.env.DEV) console.log(`[script:${level}]`, ...args);
       },
     });
-    // The host keeps `store.scriptRunning` current itself (set before it notifies); when a run
+    // The host keeps `store.runLock` current itself (set before it notifies); when a run
     // starts or ends the registry re-evaluates the per-command `duringScriptRun` policies.
     let running = this.host.isRunning;
     this.host.subscribe(() => {

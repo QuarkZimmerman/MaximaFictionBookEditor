@@ -74,7 +74,12 @@ async function renderApp(responses: Record<string, unknown> = {}) {
   const services: AppServices = createAppServices({ store, rpc: rpc.client, platform: 'linux' });
   const user = userEvent.setup();
   render(<App services={services} startupSearch="" />);
-  actions.setConnection(store, 'connected');
+  // The connection starts the shell's asynchronous start-up work (settings.get, doc.recent, the
+  // start-up document); let it settle inside act so its state updates are accounted for.
+  await act(async () => {
+    actions.setConnection(store, 'connected');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   return { store, services, rpc, user };
 }
 
@@ -124,8 +129,12 @@ describe('Body view (T049)', () => {
     await screen.findByTestId('body-editor');
     expect(services.undo.hasView('body')).toBe(true);
     expect(services.carets.has('body')).toBe(true);
-    // section 45 is not mounted: the caret provider re-windows around it
-    expect(services.carets.set({ view: 'body', nodeId: 'b0p45', offset: 3 })).toBe(true);
+    // section 45 is not mounted: the caret provider re-windows around it (store updates)
+    let placed = false;
+    act(() => {
+      placed = services.carets.set({ view: 'body', nodeId: 'b0p45', offset: 3 });
+    });
+    expect(placed).toBe(true);
     await waitFor(() =>
       expect(screen.getByTestId('panel-body-document')).toHaveAttribute('data-section-start', '35'),
     );
@@ -239,7 +248,7 @@ describe('ValidationPanel (T053)', () => {
     );
     await user.dblClick(screen.getByTestId('validation-issue-1'));
     expect(onNavigate).toHaveBeenLastCalledWith(report.issues[1]);
-    first.focus();
+    act(() => first.focus()); // focus selects the row: a state update
     fireEvent.keyDown(first, { key: 'ArrowDown' });
     fireEvent.keyDown(first, { key: 'Enter' });
     expect(onNavigate).toHaveBeenLastCalledWith(report.issues[1]);

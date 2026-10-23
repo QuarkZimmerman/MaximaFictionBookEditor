@@ -23,12 +23,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import type { BrowserContext, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 import {
   NodeRpcClient,
   expect,
   fixtureBook,
+  recordOutside,
   startCoreWith,
   test,
   waitForBook,
@@ -64,19 +65,6 @@ interface LogEntry {
   level: string;
   source: string;
   code: string;
-}
-
-/** Aborts every request that leaves the editor's own address and records it. */
-async function recordOutside(context: BrowserContext): Promise<string[]> {
-  const outside: string[] = [];
-  await context.route(
-    (url) => url.hostname !== '127.0.0.1',
-    async (route) => {
-      outside.push(route.request().url());
-      await route.abort();
-    },
-  );
-  return outside;
 }
 
 async function openApp(core: CoreHandle, page: Page, lang?: string): Promise<void> {

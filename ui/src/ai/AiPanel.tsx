@@ -1,0 +1,855 @@
+/**
+ * The AI assistant panel (feature 005 T052; research R8.1; FR-040 to FR-045, FR-093, FR-105;
+ * quickstart §0.5, §3): the content of the right-hand pane App.tsx renders while the assistant
+ * is on. From top to bottom: the header with the service and model in use (`ai-service` -
+ * name · model, the fallback note when the saved free entry disappeared, "answers only" for a
+ * model without tools) and the link to the settings page (`ai-settings-link`); the conversation
+ * (`ai-message-<n>[data-role]` - the user's instructions, the assistant's final texts, the
+ * editor's notices - as plain text with `white-space: pre-wrap`, never HTML or Markdown, no
+ * links - review C16; interim words and a cut-off answer are marked); the activity list
+ * (`ai-activity`, `ai-activity-<n>[data-kind]`) with one localised line per entry of
+ * data-model §5.2, appended live; the status line (`ai-status`) with the phase and the elapsed
+ * time while a request runs and the limit countdown (`ai-wait`); the instruction field
+ * (`ai-input`: Enter sends, Shift+Enter inserts a newline), Send / Stop in the same place
+ * (`ai-send` / `ai-stop`), Clear (`ai-clear`) and Undo (`ai-undo` - the request's undo step
+ * while it is the latest entry of the undo coordinator, else disabled with the Edit > Undo
+ * hint); the close button (`ai-panel-close`) last in the Tab order, as quickstart §3 lists it.
+ *
+ * The panel owns no request state of its own: the conversation and the live request are the
+ * store's (`store.ai`), written by the request loop (assistant.ts, activity.ts); the popup and
+ * the panel share the one request slot (Send becomes Stop while either runs). Closing goes
+ * through the feature (`index.ts`), which asks first while a request runs (FR-093). Part of
+ * the lazy chunk.
+ */
+
+import i18next, { type TFunction } from 'i18next';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { getAiFeature } from '@/ai';
+import { useCommandContext } from '@/app/services';
+import { issueMessage } from '@/dialogs/validation';
+import { getSettingsFeature } from '@/features/settings/apply';
+import { openSettingsDialog } from '@/features/settings/index';
+import {
+  actions,
+  emptyConversation,
+  isRunLocked,
+  useAppState,
+  type AssistantActivityEntry,
+  type AssistantMessage,
+} from '@/model/store';
+import type { UndoEntry } from '@/model/undo';
+import type { RpcClient } from '@/rpc/client';
+import { formatElapsed } from '@/scripting/host';
+
+import { clearConversation } from './activity';
+import { displayKeyOf } from './address';
+import { cancelRequest, startRequest, type AiRequestView } from './assistant';
+import { failureText, maskKey, type Failure } from './protocol';
+import { resolveActiveTarget, type ActiveTarget } from './target';
+
+import './ai.css';
+
+/** The panel takes no props: everything comes from the services of the `AppProvider`. */
+export type AiPanelProps = Record<string, never>;
+
+/** The header's knowledge of the target: not asked yet, resolved, or nothing usable. */
+type TargetState = { kind: 'resolving' } | { kind: 'ok'; target: ActiveTarget } | { kind: 'none' };
+
+/* ------------------------------------------------------------------------ */
+/* Activity entries                                                          */
+/* ------------------------------------------------------------------------ */
+
+function asString(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+}
+
+function asNumber(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+/** `{nodeId?, path?, element?}` or a plain name → the shortest telling form. */
+function targetText(target: unknown): string {
+  if (typeof target === 'string') return target;
+  if (target && typeof target === 'object') {
+    const record = target as Record<string, unknown>;
+    return asString(record.path) || asString(record.element) || asString(record.nodeId);
+  }
+  return '';
+}
+
+/** The `tool.error` / `change.rejected` strike as "strike k of 3", or an empty string. */
+function strikeText(t: TFunction, strike: unknown): string {
+  if (!strike || typeof strike !== 'object') return '';
+  const record = strike as Record<string, unknown>;
+  return t('ai.activity.strike', { count: asNumber(record.count), of: asNumber(record.of) });
+}
+
+/** The issue codes whose `validation.<code>` text is the message itself (the libxml2 wording). */
+const MESSAGE_CODES: ReadonlySet<string> = new Set(['schema.invalid', 'xml.notWellFormed']);
+
+/**
+ * The issues of a `change.rejected` / `request.rejected` entry as the user reads them
+ * (data-model §7.6): each localised by its `code` through the validation panel's
+ * `validation.<code>` keys (the libxml2 message as the `message` parameter, the raw message
+ * as the fallback), prefixed by the element and the path when known; "; " between them.
+ */
+function issuesText(t: TFunction, issues: unknown): string {
+  if (!Array.isArray(issues)) return '';
+  return issues
+    .map((issue) => {
+      if (!issue || typeof issue !== 'object') return '';
+      const record = issue as Record<string, unknown>;
+      const code = asString(record.code) || 'schema.invalid';
+      const element = asString(record.element);
+      const path = asString(record.path);
+      const raw = asString(record.message);
+      if (!raw && !element && !path) return '';
+      // The two codes whose panel text takes the message itself; every other code (genre,
+      // description …) keeps the English message the model saw - its parameters are not here.
+      const message = MESSAGE_CODES.has(code)
+        ? issueMessage({ severity: 'error', code, params: { element, message: raw } }, t, i18next)
+        : raw || code;
+      const where =
+        element && path ? t('ai.activity.rejectedIssueAt', { element, path }) : element || path;
+      return where ? t('ai.activity.rejectedIssue', { where, message }) : message;
+    })
+    .filter((line) => line !== '')
+    .join('; ');
+}
+
+/** The description field a `set_description` change wrote, as the end line names it (`ai.activity.field.*`; a member not listed keeps its dotted name). */
+function fieldName(t: TFunction, field: string): string {
+  const key = `ai.activity.field.${field.replace(/\./g, '_')}`;
+  return i18next.exists(key) ? t(key) : field;
+}
+
+/**
+ * The count and the place of the changes of a committed request (FR-106): the `changes` of
+ * the `request.done` entry as `{total, body, description, fields}` - "1 change in the
+ * Description view (book title)", "3 changes in the body text", or both joined -; an older
+ * entry's plain number is counted without a place. An empty string when nothing is known.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- the formatter lives with the list it feeds, in the lazy chunk
+export function changesText(t: TFunction, changes: unknown): string {
+  if (typeof changes === 'number') return t('ai.count.changes', { count: changes });
+  if (!changes || typeof changes !== 'object') return '';
+  const record = changes as Record<string, unknown>;
+  const body = asNumber(record.body);
+  const description = asNumber(record.description);
+  const fields = Array.isArray(record.fields)
+    ? record.fields.filter((f): f is string => typeof f === 'string' && f !== '')
+    : [];
+  const parts: string[] = [];
+  if (body > 0) parts.push(t('ai.activity.changesBody', { count: body }));
+  if (description > 0) {
+    parts.push(
+      fields.length > 0
+        ? t('ai.activity.changesDescriptionFields', {
+            count: description,
+            fields: fields.map((field) => fieldName(t, field)).join(', '),
+          })
+        : t('ai.activity.changesDescription', { count: description }),
+    );
+  }
+  if (parts.length > 0) return parts.join(', ');
+  const total = asNumber(record.total);
+  return total > 0 ? t('ai.count.changes', { count: total }) : '';
+}
+
+/**
+ * The localised line of one activity entry (data-model §5.2). Every model- or service-supplied
+ * member (summaries, messages) is interpolated as data: i18next escapes nothing here because
+ * the result is rendered as a text node, never as markup; `key` - the configured key, when the
+ * UI holds one - is replaced by `•••` wherever a service's words are shown (US7 T081, C16).
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- the formatter lives with the list it feeds, in the lazy chunk
+export function activityText(t: TFunction, entry: AssistantActivityEntry, key?: string): string {
+  const p = entry.payload;
+  switch (entry.kind) {
+    case 'request.start': {
+      // The privacy record's first line (FR-042, US7): the service, then what the request sent
+      // with its first exchange - the outline by its sections, the selection by its size.
+      const base = t('ai.activity.requestStart', {
+        service: asString(p.service),
+        model: asString(p.model),
+      });
+      const sent: string[] = [];
+      const outline = p.outline;
+      if (outline && typeof outline === 'object') {
+        const count = asNumber((outline as Record<string, unknown>).sections);
+        sent.push(t('ai.activity.sentOutline', { count }));
+      }
+      const selection = p.selection;
+      if (selection && typeof selection === 'object') {
+        const record = selection as Record<string, unknown>;
+        sent.push(
+          t('ai.activity.sentSelection', {
+            characters: asNumber(record.characters),
+            count: asNumber(record.blocks),
+          }),
+        );
+      }
+      return sent.length === 0
+        ? base
+        : `${base} — ${t('ai.activity.sent', { items: sent.join(', ') })}`;
+    }
+    case 'validate.baseline':
+      return t('ai.activity.validateBaseline', { count: asNumber(p.errors) });
+    case 'exchange.sent':
+      return t('ai.activity.exchangeSent', {
+        n: asNumber(p.n),
+        messages: asNumber(p.messages),
+        tools: asNumber(p.tools),
+      });
+    case 'exchange.answered': {
+      const text = t('ai.activity.exchangeAnswered', {
+        n: asNumber(p.n),
+        elapsed: formatElapsed(asNumber(p.elapsedMs)),
+        count: asNumber(p.toolCalls),
+      });
+      const limit = p.rateLimit;
+      if (limit && typeof limit === 'object') {
+        const record = limit as Record<string, unknown>;
+        if (record.remaining !== undefined || record.limit !== undefined) {
+          return `${text}; ${t('ai.activity.rateLimit', {
+            limit: asString(record.limit) || '—',
+            remaining: asString(record.remaining) || '—',
+            reset: asString(record.resetSeconds) || '—',
+          })}`;
+        }
+      }
+      return text;
+    }
+    case 'limit.wait': {
+      const source = asString(p.source);
+      const known = source === 'header' || source === 'body' || source === 'message';
+      return t('ai.activity.limitWait', {
+        seconds: asNumber(p.seconds),
+        source: t(`ai.activity.limitSource.${known ? source : 'default'}`),
+      });
+    }
+    case 'history.trimmed':
+      return t('ai.activity.historyTrimmed', { count: asNumber(p.turns) });
+    case 'split': {
+      const what = asString(p.what);
+      const whatText =
+        what === 'toolResult'
+          ? t('ai.activity.splitWhat.toolResult', { tool: asString(p.tool) })
+          : what === 'outline'
+            ? t('ai.activity.splitWhat.outline')
+            : t('ai.activity.splitWhat.selection');
+      const base = `${t('ai.activity.split', { part: asNumber(p.part), parts: asNumber(p.parts) })} — ${whatText}`;
+      const message = asString(p.message);
+      return message ? `${base}: ${message}` : base;
+    }
+    case 'tool.call':
+      return t('ai.activity.toolCall', { summary: asString(p.summary) || asString(p.name) });
+    case 'tool.result':
+      return t('ai.activity.toolResult', {
+        name: asString(p.name),
+        summary: asString(p.summary) || asString(p.name),
+      });
+    case 'tool.error': {
+      // The envelope's code and message, then the valid form it named (FR-054): the hint and
+      // the expected shape - plain text, as everything model- or editor-generated here.
+      let text = t('ai.activity.toolError', {
+        name: asString(p.name),
+        code: asString(p.code),
+        message: asString(p.message),
+      });
+      const hint = asString(p.hint);
+      if (hint) text += ` ${t('ai.activity.toolErrorHint', { hint })}`;
+      if (p.expected !== undefined) {
+        const expected = typeof p.expected === 'string' ? p.expected : JSON.stringify(p.expected);
+        text += ` ${t('ai.activity.toolErrorExpected', { expected })}`;
+      }
+      const strike = strikeText(t, p.strike);
+      return strike ? `${text} (${strike})` : text;
+    }
+    case 'change.try':
+      return t('ai.activity.changeTry', { tool: asString(p.tool), target: targetText(p.target) });
+    case 'validate': {
+      const count = asNumber(p.new);
+      return count === 0 ? t('ai.activity.validateOk') : t('ai.activity.validateErrors', { count });
+    }
+    case 'change.accepted':
+      return t('ai.activity.changeAccepted', {
+        tool: asString(p.tool),
+        target: targetText(p.target),
+      });
+    case 'change.rejected': {
+      // "Correction requested" with the errors as the validation panel words them (US4 sc. 1).
+      const base = t('ai.activity.changeRejected', {
+        count: Array.isArray(p.issues) ? p.issues.length : 0,
+        strike: strikeText(t, p.strike),
+      });
+      const issues = issuesText(t, p.issues);
+      return issues ? `${base}: ${issues}` : base;
+    }
+    case 'script.dialog':
+      return t('ai.activity.scriptDialog', { name: asString(p.name) || asString(p.id) });
+    case 'script.proposed':
+      return t('ai.activity.scriptProposed', {
+        id: asString(p.id),
+        count: Array.isArray(p.files) ? p.files.length : 0,
+        outcome: p.written ? t('ai.activity.written') : t('ai.activity.declined'),
+      });
+    case 'request.done': {
+      // The end line names the count AND the place of the changes (FR-106): `changes` is the
+      // `{total, body, description, fields}` object of the loop; a plain number (an older
+      // entry) keeps the count-only line.
+      const exchanges = t('ai.activity.exchanges', { count: asNumber(p.exchanges) });
+      const elapsed = formatElapsed(asNumber(p.elapsedMs));
+      if (p.changes && typeof p.changes === 'object') {
+        return t('ai.activity.requestDonePlaces', {
+          changes: changesText(t, p.changes),
+          exchanges,
+          elapsed,
+        });
+      }
+      return t('ai.activity.requestDone', { count: asNumber(p.changes), exchanges, elapsed });
+    }
+    case 'request.answered':
+    case 'request.askedBack': {
+      // Words only (FR-106): never "Done"; a text that claims a change no tool made says so.
+      const base = t(
+        entry.kind === 'request.answered'
+          ? 'ai.activity.requestAnswered'
+          : 'ai.activity.requestAskedBack',
+      );
+      return p.claimedChange ? `${base} (${t('ai.activity.claimedChange')})` : base;
+    }
+    case 'request.cancelled':
+      return t('ai.activity.requestCancelled');
+    case 'request.failed': {
+      const failure: Failure = {
+        kind: (asString(p.kind) || 'internal') as Failure['kind'],
+        ...(typeof p.message === 'string' ? { message: p.message } : {}),
+      };
+      return t('ai.activity.requestFailed', { text: failureText(t, failure, key) });
+    }
+    case 'request.rejected': {
+      // The three rejections' issues (FR-063, US4 scenario 3).
+      const issues = issuesText(t, p.issues);
+      const base = t('ai.activity.requestRejected');
+      return issues ? `${base}: ${issues}` : base;
+    }
+    default:
+      return entry.kind;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* The panel                                                                 */
+/* ------------------------------------------------------------------------ */
+
+const NO_RPC: Pick<RpcClient, 'call'> = {
+  call: () => Promise.reject(new Error('no core')),
+} as Pick<RpcClient, 'call'>;
+
+/**
+ * The mark under the assistant's final message of a request (FR-106): `applied` with where the
+ * committed changes went, or `claimedChange` when the words claim a change no tool made.
+ */
+export interface ResultMark {
+  kind: 'applied' | 'claimedChange';
+  text: string;
+}
+
+/**
+ * The result marks by message id: for every request whose end entry is `request.done` with
+ * the places of its changes, or `request.answered` / `request.askedBack` with `claimedChange`,
+ * the last final (non-interim) assistant message of that request gets the mark.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- the formatter lives with the list it feeds, in the lazy chunk
+export function resultMarks(
+  t: TFunction,
+  messages: readonly AssistantMessage[],
+  activity: readonly AssistantActivityEntry[],
+): Map<string, ResultMark> {
+  const marks = new Map<string, ResultMark>();
+  const byRequest = new Map<string, ResultMark>();
+  for (const entry of activity) {
+    if (entry.kind === 'request.done') {
+      const changes = changesText(t, entry.payload.changes);
+      if (changes) {
+        byRequest.set(entry.requestId, {
+          kind: 'applied',
+          text: t('ai.result.applied', { changes }),
+        });
+      }
+    } else if (
+      (entry.kind === 'request.answered' || entry.kind === 'request.askedBack') &&
+      entry.payload.claimedChange
+    ) {
+      byRequest.set(entry.requestId, {
+        kind: 'claimedChange',
+        text: t('ai.result.claimedChange'),
+      });
+    }
+  }
+  if (byRequest.size === 0) return marks;
+  const finalMessage = new Map<string, string>();
+  for (const message of messages) {
+    if (message.role === 'assistant' && !message.interim) {
+      finalMessage.set(message.requestId, message.id);
+    }
+  }
+  for (const [requestId, mark] of byRequest) {
+    const id = finalMessage.get(requestId);
+    if (id) marks.set(id, mark);
+  }
+  return marks;
+}
+
+export function AiPanel() {
+  const { t } = useTranslation();
+  const ctx = useCommandContext();
+  const { store, rpc } = ctx;
+  const settings = useAppState((s) => s.settings, store);
+  const conversation = useAppState((s) => s.ai.conversation, store);
+  const live = useAppState((s) => s.ai.request as AiRequestView | null, store);
+  const panelFocus = useAppState((s) => s.ai.panelFocus, store);
+  const hasDocument = useAppState((s) => s.document !== null, store);
+  const locked = useAppState((s) => isRunLocked(s), store);
+  const lockKind = useAppState((s) => s.runLock?.kind ?? null, store);
+
+  const [instruction, setInstruction] = useState('');
+  const [target, setTarget] = useState<TargetState>({ kind: 'resolving' });
+  const [undoEntry, setUndoEntry] = useState<UndoEntry | null>(null);
+  /** A failure before the request got as far as the lock (nothing in the conversation says it). */
+  const [sendFailure, setSendFailure] = useState<string | null>(null);
+
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const activityRef = useRef<HTMLOListElement>(null);
+  const mountedRef = useRef(true);
+
+  const subscribeUndo = useCallback(
+    (listener: () => void) => ctx.undo.subscribe(listener),
+    [ctx.undo],
+  );
+  const latestUndo = useSyncExternalStore(
+    subscribeUndo,
+    () => ctx.undo.peekUndo(),
+    () => ctx.undo.peekUndo(),
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // The header: the target of the latest settings snapshot (FR-041; "settings OK, target
+  // changed" updates it - the previous one stays shown until the new one is known). The
+  // service list is the core's; nothing reaches a service here.
+  useEffect(() => {
+    let cancelled = false;
+    resolveActiveTarget(rpc ?? NO_RPC, settings, store.getState().ai.customModels)
+      .then((resolved) => {
+        if (cancelled) return;
+        setTarget(resolved.ok ? { kind: 'ok', target: resolved.target } : { kind: 'none' });
+      })
+      .catch(() => {
+        if (!cancelled) setTarget({ kind: 'none' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rpc, settings, store]);
+
+  // The popup's "Continue in panel" and the turn-on ask for the focus (`panelFocus`).
+  useEffect(() => {
+    if (!panelFocus) return;
+    inputRef.current?.focus();
+    actions.updateAi(store, { panelFocus: false });
+  }, [panelFocus, store]);
+
+  // A request ended: when it committed (`request.done`), the latest undo entry is its step -
+  // from the panel or the popup alike (US2 scenario 4's panel half).
+  useEffect(() => {
+    let previous = store.getState().ai.request;
+    return store.subscribe((state) => {
+      const current = state.ai.request;
+      if (previous && !current) {
+        const ended = previous;
+        const committed = state.ai.conversation.activity.some(
+          (entry) => entry.requestId === ended.id && entry.kind === 'request.done',
+        );
+        if (committed) setUndoEntry(ctx.undo.peekUndo() ?? null);
+      }
+      previous = current;
+    });
+  }, [store, ctx.undo]);
+
+  // The newest message and the newest entry stay in view while the request runs.
+  useEffect(() => {
+    const list = messagesRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [conversation.messages.length]);
+  useEffect(() => {
+    const list = activityRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [conversation.activity.length]);
+
+  const running = live !== null;
+  const sendable = hasDocument && !locked && target.kind === 'ok';
+  const trimmed = instruction.trim();
+  const empty = conversation.messages.length === 0;
+  // The configured key (the custom option's) is `•••` wherever the service's or the model's
+  // words are shown: the failure texts, the activity entries, the messages (C16, US7 T081).
+  const displayKey = displayKeyOf(settings);
+  // Clear, a document change and turn-off empty the conversation: its Undo button goes with it
+  // (Edit > Undo still reaches the step).
+  const conversationEmpty = empty && conversation.activity.length === 0;
+  const requestUndo = conversationEmpty ? null : undoEntry;
+  // The result marks under the final messages (FR-106): where the changes went, or that a
+  // claimed change was never made.
+  const marks = resultMarks(t, conversation.messages, conversation.activity);
+
+  const send = useCallback(async () => {
+    const text = instruction.trim();
+    if (!text || running || !sendable) return;
+    setInstruction('');
+    setSendFailure(null);
+    const before = store.getState().ai.conversation.messages.length;
+    const outcome = await startRequest(ctx, {
+      origin: 'panel',
+      instruction: text,
+      selection: null,
+    });
+    if (!mountedRef.current) return;
+    const after = store.getState().ai.conversation.messages.length;
+    if (after === before) {
+      // The request never got as far as the lock (no service, a script holding the lock, the
+      // notice answered No): the instruction comes back and the reason is shown here.
+      setInstruction(text);
+      if (outcome.kind === 'failed') {
+        setSendFailure(failureText(t, outcome.failure as Failure, displayKey));
+      }
+    }
+    inputRef.current?.focus();
+  }, [ctx, displayKey, instruction, running, sendable, store, t]);
+
+  const stop = useCallback(() => {
+    cancelRequest(store);
+  }, [store]);
+
+  const clear = useCallback(() => {
+    clearConversation(store);
+    setSendFailure(null);
+    setUndoEntry(null);
+  }, [store]);
+
+  const undoAvailable = requestUndo !== null && latestUndo === requestUndo;
+  const undo = useCallback(() => {
+    if (!requestUndo || ctx.undo.peekUndo() !== requestUndo) return;
+    ctx.undo.undo();
+    setUndoEntry(null);
+  }, [ctx.undo, requestUndo]);
+
+  const close = useCallback(() => {
+    const feature = getAiFeature(store);
+    if (feature) {
+      void feature.close(ctx);
+      return;
+    }
+    // Without the feature (a bare render): off and hidden at once, the conversation discarded
+    // (FR-045); the visibility is the session's (FR-040).
+    actions.updateAi(store, {
+      on: false,
+      request: null,
+      catalogue: null,
+      conversation: emptyConversation(),
+      panelFocus: false,
+    });
+    actions.setAiPanelVisible(store, false);
+  }, [ctx, store]);
+
+  const openSettings = useCallback(() => {
+    const feature = getSettingsFeature(store);
+    if (feature) void openSettingsDialog(ctx, feature, { initialPage: 'ai' });
+  }, [ctx, store]);
+
+  const onInputKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    // Enter sends; while a request runs it does nothing (Stop is the one action then).
+    event.preventDefault();
+    event.stopPropagation();
+    void send();
+  };
+
+  /* ------------------------------------------------------------ texts */
+
+  let serviceText: string;
+  let serviceNote: string | null = null;
+  if (target.kind === 'ok') {
+    serviceText = t('ai.banner.label', { service: target.target.name, model: target.target.model });
+    if (target.target.fallback) serviceNote = t('ai.panel.fallbackNote');
+    else if (!target.target.tools) serviceNote = t('dialog.settings.ai.toolsNote');
+  } else if (target.kind === 'resolving') {
+    serviceText = t('ai.panel.resolving');
+  } else {
+    serviceText = t('ai.panel.noService');
+  }
+
+  let statusText = '';
+  let statusState: 'idle' | 'running' | 'failed' = 'idle';
+  if (live) {
+    statusState = 'running';
+    const phase = live.phase || t('ai.phase.preparing');
+    statusText = t('ai.panel.status', { phase, elapsed: formatElapsed(live.elapsedMs ?? 0) });
+    if (live.part) {
+      statusText += ` — ${t('ai.panel.part', { index: live.part.index, count: live.part.count })}`;
+    }
+  } else if (sendFailure) {
+    statusState = 'failed';
+    statusText = sendFailure;
+  }
+
+  let sendTitle: string | undefined;
+  if (!hasDocument) sendTitle = t('ai.panel.noDocument');
+  else if (locked && lockKind === 'script') sendTitle = t('ai.failure.busy');
+  else if (target.kind === 'none') sendTitle = t('ai.failure.noService');
+
+  const undoTitle = undoAvailable
+    ? undefined
+    : requestUndo
+      ? t('ai.panel.undoHint')
+      : t('ai.panel.undoNone');
+
+  return (
+    <div className="mfbe-ai" data-testid="ai-panel-content">
+      <header className="mfbe-ai-header">
+        <div className="mfbe-ai-title">{t('ai.panel.title')}</div>
+        <div className="mfbe-ai-service-line">
+          <span className="mfbe-ai-service" data-testid="ai-service" title={serviceText}>
+            {serviceText}
+          </span>
+          <button
+            type="button"
+            className="mfbe-link-button mfbe-ai-settings-link"
+            data-testid="ai-settings-link"
+            onClick={openSettings}
+          >
+            {t('ai.panel.settingsLink')}
+          </button>
+        </div>
+        {serviceNote ? (
+          <div className="mfbe-ai-service-note" data-testid="ai-service-note">
+            {serviceNote}
+          </div>
+        ) : null}
+      </header>
+
+      {/* The two scrollers stay out of the Tab sequence (Chromium makes scrollable boxes
+          focusable), so that Tab goes from the settings link straight to the field. */}
+      <div
+        ref={messagesRef}
+        className="mfbe-ai-messages"
+        data-testid="ai-messages"
+        role="log"
+        aria-label={t('ai.panel.title')}
+        tabIndex={-1}
+      >
+        {empty ? (
+          <p className="mfbe-ai-empty" data-testid="ai-empty">
+            {t('ai.panel.empty')}
+          </p>
+        ) : null}
+        {conversation.messages.map((message, index) => (
+          <MessageRow
+            key={message.id}
+            message={message}
+            index={index}
+            t={t}
+            displayKey={displayKey}
+            mark={marks.get(message.id)}
+          />
+        ))}
+      </div>
+
+      <section className="mfbe-ai-activity-section" aria-label={t('ai.panel.activityTitle')}>
+        <div className="mfbe-ai-activity-caption">
+          <span>{t('ai.panel.activityTitle')}</span>
+          <span className="mfbe-ai-activity-count">
+            {t('ai.panel.activityCount', { count: conversation.activity.length })}
+          </span>
+        </div>
+        <ol ref={activityRef} className="mfbe-ai-activity" data-testid="ai-activity" tabIndex={-1}>
+          {conversation.activity.map((entry, index) => (
+            <li
+              key={`${entry.requestId}-${index}`}
+              className="mfbe-ai-activity-entry"
+              data-testid={`ai-activity-${index}`}
+              data-kind={entry.kind}
+              data-request={entry.requestId}
+            >
+              <span className="mfbe-ai-activity-time">{formatElapsed(entry.elapsedMs)}</span>
+              <span className="mfbe-ai-activity-text">{activityText(t, entry, displayKey)}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <div className="mfbe-ai-composer">
+        <div
+          className="mfbe-ai-status"
+          data-testid="ai-status"
+          data-state={statusState}
+          aria-live="polite"
+        >
+          {statusText}
+          {live?.countdown !== undefined ? (
+            <span className="mfbe-ai-wait" data-testid="ai-wait">
+              {' '}
+              {t('ai.panel.wait', { seconds: live.countdown })}
+            </span>
+          ) : null}
+        </div>
+        <textarea
+          ref={inputRef}
+          className="mfbe-ai-input"
+          data-testid="ai-input"
+          rows={3}
+          value={instruction}
+          placeholder={t('ai.panel.placeholder')}
+          aria-label={t('ai.panel.inputLabel')}
+          onChange={(event) => {
+            setInstruction(event.target.value);
+            if (sendFailure) setSendFailure(null);
+          }}
+          onKeyDown={onInputKeyDown}
+        />
+        <div className="mfbe-ai-buttons">
+          {running ? (
+            <button
+              type="button"
+              className="mfbe-button mfbe-button-default"
+              data-testid="ai-stop"
+              onClick={stop}
+            >
+              {t('ai.panel.stop')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="mfbe-button mfbe-button-default"
+              data-testid="ai-send"
+              disabled={!sendable || trimmed === ''}
+              title={sendTitle}
+              onClick={() => void send()}
+            >
+              {t('ai.panel.send')}
+            </button>
+          )}
+          <button
+            type="button"
+            className="mfbe-button"
+            data-testid="ai-clear"
+            disabled={empty && conversation.activity.length === 0}
+            onClick={clear}
+          >
+            {t('ai.panel.clear')}
+          </button>
+          <button
+            type="button"
+            className="mfbe-button"
+            data-testid="ai-undo"
+            disabled={!undoAvailable}
+            title={undoTitle}
+            onClick={undo}
+          >
+            {t('ai.panel.undo')}
+          </button>
+        </div>
+        {requestUndo && !undoAvailable ? (
+          <div className="mfbe-ai-undo-hint" data-testid="ai-undo-hint">
+            {t('ai.panel.undoHint')}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Last in the DOM - and in the Tab order of quickstart §3 - shown at the top right. */}
+      <button
+        type="button"
+        className="mfbe-ai-close"
+        data-testid="ai-panel-close"
+        aria-label={t('ai.panel.close')}
+        title={t('ai.panel.close')}
+        onClick={close}
+      >
+        {'\u00D7'}
+      </button>
+    </div>
+  );
+}
+
+function MessageRow({
+  message,
+  index,
+  t,
+  displayKey,
+  mark,
+}: {
+  message: AssistantMessage;
+  index: number;
+  t: TFunction;
+  /** The configured key, masked in the model's and the editor's texts (never in the user's own). */
+  displayKey: string | undefined;
+  /** The result mark of a request's final message (FR-106), when it has one. */
+  mark?: ResultMark | undefined;
+}) {
+  const role =
+    message.role === 'user'
+      ? t('ai.panel.roleUser')
+      : message.role === 'assistant'
+        ? t('ai.panel.roleAssistant')
+        : t('ai.panel.roleNotice');
+  // A text node, never markup (C16): the model's words, the key replaced by `•••` should a
+  // service have echoed it (ai-service-protocol §9).
+  const text = message.role === 'user' ? message.text : maskKey(message.text, displayKey);
+  return (
+    <div
+      className={`mfbe-ai-message mfbe-ai-message-${message.role}`}
+      data-testid={`ai-message-${index}`}
+      data-role={message.role}
+      data-request={message.requestId}
+      data-interim={message.interim ? 'true' : undefined}
+      data-cutoff={message.cutOff ? 'true' : undefined}
+      data-result={mark?.kind}
+    >
+      <div className="mfbe-ai-message-role">{role}</div>
+      <div className="mfbe-ai-message-text">{text}</div>
+      {message.interim ? <div className="mfbe-ai-message-mark">{t('ai.panel.interim')}</div> : null}
+      {message.cutOff ? (
+        <div className="mfbe-ai-message-mark mfbe-ai-message-cutoff">{t('ai.popup.cutOff')}</div>
+      ) : null}
+      {mark ? (
+        // The result of the request under its final words (FR-106): where the changes went,
+        // or that the change the words claim was never made.
+        <div
+          className={`mfbe-ai-message-mark mfbe-ai-message-result mfbe-ai-message-result-${mark.kind}`}
+          data-testid={`ai-result-${index}`}
+        >
+          {mark.text}
+        </div>
+      ) : null}
+    </div>
+  );
+}

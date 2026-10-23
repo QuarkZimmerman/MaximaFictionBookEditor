@@ -28,6 +28,10 @@
  *    bar, a transient notice after a run longer than 5 s that goes away by itself, no notice
  *    after a short run, a failure reported with the document as before the run.
  *
+ * Feature 005, FR-107 (T102) - the dialogs a script shows are movable: the form dialog of the
+ * fixture `tests/scripts/fixtures/02_Dialogs/01_Form` is dragged by its title bar and keeps
+ * the place while the user fills it in.
+ *
  * Needs the real core and `python3`; skipped otherwise.
  */
 
@@ -45,6 +49,7 @@ import { MOD, REPLACE } from './fixtures/keys';
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const FIXTURES = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures', '05_Runs');
 const FIXTURES_003 = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures', '06_Runs');
+const FIXTURES_DIALOGS = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures', '02_Dialogs');
 const GENERATOR = path.join(REPO_ROOT, 'tests', 'bench', 'gen-text-book.py');
 
 /** FR-051: Cancel restores the document within 2 seconds. */
@@ -81,6 +86,8 @@ test.beforeAll(async ({ coreServer }) => {
   if (!existsSync(target)) cpSync(FIXTURES, target, { recursive: true });
   const target003 = path.join(coreServer.dataDir, 'scripts', '06_Runs');
   if (!existsSync(target003)) cpSync(FIXTURES_003, target003, { recursive: true });
+  const targetDialogs = path.join(coreServer.dataDir, 'scripts', '02_Dialogs');
+  if (!existsSync(targetDialogs)) cpSync(FIXTURES_DIALOGS, targetDialogs, { recursive: true });
 });
 
 test.afterAll(() => {
@@ -105,13 +112,13 @@ async function openBook(page: Page, core: CoreHandle): Promise<void> {
   }
   await core.openApp(page);
   await expect(page.getByTestId('status-message')).toHaveText('Ready');
-  // Both fixture groups are listed (the catalogue follows the copied folders).
+  // All three fixture groups are listed (the catalogue follows the copied folders).
   await expect
     .poll(
       () =>
         page.evaluate(() => {
           const ids = new Set((window.__mfbeTest?.scripts?.list() ?? []).map((s) => s.id));
-          return ids.has('runs.busy') && ids.has('runs.longSilent');
+          return ids.has('runs.busy') && ids.has('runs.longSilent') && ids.has('test.dialogs.form');
         }),
       { timeout: 15_000 },
     )
@@ -919,5 +926,73 @@ test.describe('US2 (003) a running script is unmistakable and can be stopped', (
     await expect(saveChanges).toHaveCount(0);
     await expect(page).toHaveTitle(/^clean-1mb\.fb2\* - /);
     await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 005, FR-107: movable dialogs                                     */
+/* ------------------------------------------------------------------------ */
+
+test.describe('FR-107 (005) the dialogs of a running script are movable', () => {
+  test('the script form moves by its title bar by (200, 120) px, keeps the place and still works', async ({
+    page,
+    core,
+  }) => {
+    await openBook(page, core);
+    // Room for the move: the form is centred, so a taller window keeps it clear of the
+    // bottom edge (a dialog is never let out of the window).
+    const viewport = page.viewportSize()!;
+    await page.setViewportSize({ width: viewport.width, height: 960 });
+    try {
+      await start(page, 'test.dialogs.form');
+      const form = page.getByTestId('dialog-script-form');
+      await expect(form).toBeVisible();
+      const prefix = form.getByTestId('dialog-script-form-field-prefix');
+      await expect(prefix).toBeFocused();
+      const before = (await form.boundingBox())!;
+
+      const grip = (await form.getByTestId('dialog-script-form-title').boundingBox())!;
+      const from = { x: grip.x + 40, y: grip.y + grip.height / 2 };
+      await page.mouse.move(from.x, from.y);
+      await page.mouse.down();
+      await page.mouse.move(from.x + 200, from.y + 120, { steps: 10 });
+      await page.mouse.up();
+      const moved = (await form.boundingBox())!;
+      expect(
+        Math.abs(moved.x - before.x - 200),
+        `x moved by ${moved.x - before.x}`,
+      ).toBeLessThanOrEqual(2);
+      expect(
+        Math.abs(moved.y - before.y - 120),
+        `y moved by ${moved.y - before.y}`,
+      ).toBeLessThanOrEqual(2);
+      expect(moved.width).toBe(before.width);
+      expect(moved.height).toBe(before.height);
+
+      // The grab did not take the focus from the field; the form keeps its place while it is
+      // filled in, and the run uses the values.
+      await expect(prefix).toBeFocused();
+      await prefix.fill('moved_');
+      await form.getByTestId('dialog-script-form-field-bold').uncheck();
+      const filled = (await form.boundingBox())!;
+      expect(Math.abs(filled.x - moved.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(filled.y - moved.y)).toBeLessThanOrEqual(1);
+      await form.getByTestId('dialog-script-form-button-ok').click();
+      await expect(form).toHaveCount(0);
+      await expect.poll(() => status(page)).toBe('done');
+      expect(await toXml(page)).toContain('<p>form: moved_ 1 false notes square ru</p>');
+
+      // The next dialog opens at its default place again (the move is not remembered).
+      await start(page, 'test.dialogs.form');
+      await expect(form).toBeVisible();
+      const again = (await form.boundingBox())!;
+      expect(Math.abs(again.x - before.x)).toBeLessThanOrEqual(2);
+      expect(Math.abs(again.y - before.y)).toBeLessThanOrEqual(2);
+      await page.keyboard.press('Escape');
+      await expect(form).toHaveCount(0);
+      await expect.poll(() => status(page)).toBe('done');
+    } finally {
+      await page.setViewportSize(viewport);
+    }
   });
 });

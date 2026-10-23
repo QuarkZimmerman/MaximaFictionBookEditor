@@ -15,7 +15,7 @@ import { changeLanguage, initI18n } from '@/i18n';
 import type { Document } from '@/model/document';
 import { actions, createAppStore } from '@/model/store';
 
-import { fakeDocument, fakeRpc } from '../features/testUtils';
+import { fakeDocument, fakeRpc, fakeRunLock } from '../features/testUtils';
 
 beforeAll(() => {
   Object.defineProperty(Range.prototype, 'getClientRects', {
@@ -112,7 +112,7 @@ async function renderLocked() {
   });
   await screen.findByTestId('description-view');
   act(() => {
-    actions.setScriptRunning(store, true);
+    actions.setRunLock(store, fakeRunLock());
   });
   return { store, services, rpc, user };
 }
@@ -213,7 +213,7 @@ describe('Description view quiet lock (feature 003 FR-011)', () => {
   it('gives everything back when the run ends', async () => {
     const { store, user } = await renderLocked();
     act(() => {
-      actions.setScriptRunning(store, false);
+      actions.setRunLock(store, null);
     });
     await waitFor(() =>
       expect(screen.getByTestId('description-view')).toHaveAttribute('data-locked', 'false'),

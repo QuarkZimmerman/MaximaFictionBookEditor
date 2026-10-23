@@ -14,7 +14,7 @@ import type { Dialogs, MessageBoxOptions } from '@/dialogs/types';
 import { initI18n } from '@/i18n';
 import { CaretRegistry } from '@/model/caret';
 import type { Document } from '@/model/document';
-import { createAppStore } from '@/model/store';
+import { createAppStore, type RunKind, type RunLock } from '@/model/store';
 import { UndoCoordinator } from '@/model/undo';
 import { RpcClient, RpcError } from '@/rpc/client';
 import type { MessageButtonId, RpcNotificationName, RpcNotifications } from '@/rpc/types';
@@ -173,6 +173,16 @@ export function fakeDocument(overrides: Partial<Document> = {}): Document {
 }
 
 export const CLEAN_REPORT = { issues: [], errorCount: 0, warningCount: 0, durationMs: 1 };
+
+/** A run lock as a script run (default) or an AI request takes it (`actions.setRunLock`). */
+export function fakeRunLock(kind: RunKind = 'script', overrides: Partial<RunLock> = {}): RunLock {
+  return {
+    kind,
+    label: kind === 'script' ? 'Test script' : 'Test service · test-model',
+    startedAt: Date.now(),
+    ...overrides,
+  };
+}
 
 export async function makeContext(
   overrides: Partial<CommandContext> = {},

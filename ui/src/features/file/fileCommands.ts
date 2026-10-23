@@ -55,7 +55,7 @@ import { confirmSaveWithErrors } from '@/dialogs/validation';
 import { getScriptsFeature } from '@/features/scripts';
 import { flushSessionSave } from '@/features/settings/apply';
 import type { Document, ValidationReport } from '@/model/document';
-import { actions, kindFromPath, type AppStore, type FileKind } from '@/model/store';
+import { actions, isRunLocked, kindFromPath, type AppStore, type FileKind } from '@/model/store';
 import i18next from 'i18next';
 
 import { RpcError, type RpcClient } from '@/rpc/client';
@@ -67,6 +67,7 @@ import {
   type LoadReport,
   type Settings,
 } from '@/rpc/types';
+import { cancelActiveRun } from '@/scripting/runSession';
 import {
   commitPendingSource,
   isSourceTextDirty,
@@ -207,9 +208,9 @@ export function sourceOnlyDocument(docId: string, path: string, encoding: string
  */
 export const CANCEL_RUN_WAIT_MS = 5000;
 
-/** Resolves once no script runs any more (or after `timeoutMs`). */
+/** Resolves once the run lock is released (or after `timeoutMs`). */
 function waitForScriptRunEnd(store: AppStore, timeoutMs = CANCEL_RUN_WAIT_MS): Promise<void> {
-  if (!store.getState().scriptRunning) return Promise.resolve();
+  if (!isRunLocked(store.getState())) return Promise.resolve();
   return new Promise((resolve) => {
     let done = false;
     const finish = () => {
@@ -221,9 +222,9 @@ function waitForScriptRunEnd(store: AppStore, timeoutMs = CANCEL_RUN_WAIT_MS): P
     };
     const timer = setTimeout(finish, timeoutMs);
     const unsubscribe = store.subscribe((state) => {
-      if (!state.scriptRunning) finish();
+      if (!isRunLocked(state)) finish();
     });
-    if (!store.getState().scriptRunning) finish();
+    if (!isRunLocked(store.getState())) finish();
   });
 }
 
@@ -342,20 +343,24 @@ export class FileFeature {
 
   /**
    * Exit or window close while a script runs (feature 003 FR-013): "A script is running.
-   * Cancel it and exit?" - Yes cancels the run through the script host and waits until the
-   * document is restored (true), No keeps the run going (false). True at once when no script
-   * runs.
+   * Cancel it and exit?" - Yes cancels the run through its run session (the script host's, or
+   * the AI request's - whoever holds the lock; the question then names the AI request, feature
+   * 005 FR-093) and waits until the document is restored (true), No keeps the run going
+   * (false). True at once when no run holds the lock.
    */
   async confirmCancelRunningScript(ctx: CommandContext): Promise<boolean> {
-    if (!ctx.store.getState().scriptRunning) return true;
+    const lock = ctx.store.getState().runLock;
+    if (!lock) return true;
     const answer = await ctx.dialogs.showMessage({
-      text: ctx.t('msg.cancelRunningScript'),
-      caption: ctx.t('app.name'),
+      text:
+        lock.kind === 'ai' ? ctx.t('ai.stopConfirm.exitText') : ctx.t('msg.cancelRunningScript'),
+      caption: lock.kind === 'ai' ? ctx.t('ai.stopConfirm.title') : ctx.t('app.name'),
       buttons: 'yesNo',
       icon: 'question',
       testId: 'cancel-run-prompt',
     });
     if (answer !== 'yes') return false;
+    cancelActiveRun(ctx.store);
     const host = getScriptsFeature(ctx.store)?.host;
     if (host?.isRunning) host.cancel();
     await waitForScriptRunEnd(ctx.store);

@@ -3,6 +3,7 @@
 #include "server/services.hpp"
 
 #include <mfbe/core_server.hpp>
+#include <mfbe/http_client.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/validator.hpp>
 #include <mfbe/version.hpp>
@@ -153,7 +154,8 @@ Services::Services(CoreServerOptions opts, platform::Dirs dirs_, fs::path resour
       hotkeys(dirs.config / "hotkeys.json"),
       layers(resources::Roots{}),
       notifier(notifier_),
-      jobs(notifier_) {
+      jobs(notifier_),
+      ai(resources_dir, ai::UserLayer::of(dirs)) {
     settings.load();
     recent.load();
     positions.load();
@@ -202,6 +204,9 @@ std::shared_ptr<const genres::GenreCatalog> Services::genre_catalog() const {
 }
 
 void Services::refresh_scripts() {
+    // Leftovers of an interrupted scripts.write (feature 005) go first; they are never a
+    // scripts root.
+    scripts::remove_write_leftovers(dirs.data);
     auto catalog = std::make_shared<const scripts::Catalog>(scripts::load_catalog(layers));
     std::lock_guard<std::mutex> lock(scripts_mutex_);
     scripts_ = catalog;
@@ -378,6 +383,8 @@ struct CoreServer::Impl : rpc::Notifier {
         server::register_words_handlers(router, *services);
         server::register_scripts_handlers(router, *services);
         server::register_system_handlers(router, *services);
+        server::register_schema_handlers(router, *services);
+        server::register_ai_handlers(router, *services);
 #ifdef MFBE_TEST_HOOKS
         if (services->test_hooks) {
             server::register_test_handlers(router, *services);
@@ -398,6 +405,9 @@ CoreServer::~CoreServer() {
         impl_->services->watcher.reset();
         impl_->services->jobs.shutdown();
     }
+    // libcurl was initialised lazily by the first ai.* call, if ever (feature 005, FR-094):
+    // the matching cleanup runs only when it ran, after every job thread has been joined.
+    net::global_cleanup_if_ran();
 }
 
 std::unique_ptr<CoreServer> CoreServer::start(const CoreServerOptions& options) {

@@ -645,7 +645,8 @@
         "view": "View",
         "other": "Other",
         "hotkeys": "Hotkeys",
-        "words": "Words"
+        "words": "Words",
+        "ai": "AI assistant"
       },
       "apply": "Apply",
       "view": {

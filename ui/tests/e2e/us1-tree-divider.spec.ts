@@ -4,8 +4,9 @@
  * the mouse, lays both sides out again live; the pane stops at 160 px, the view at 320 px; a
  * stored width the window cannot show is clamped, never lost; View > Document Tree removes the
  * divider; the divider works while a script runs; the width is written with the session
- * settings - before a quit right after the drag - and is back at the next start. The `@perf`
- * part times every layout step of a synthetic drag on the generated 10 MB book.
+ * settings - before a quit right after the drag - and is back at the next start; with the AI
+ * assistant panel shown (feature 005) the drag stops where the panel keeps its width. The
+ * `@perf` part times every layout step of a synthetic drag on the generated 10 MB book.
  *
  * Every test runs a core of its own on its own data folder (the width is a stored session
  * setting that must not reach the other journeys of the worker). Runs in the English, Russian
@@ -14,7 +15,15 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,6 +51,9 @@ const VIEW_MIN = 320;
 const DIVIDER_W = 6;
 /** The width of release 0.0.3, the default of `session.treeWidth`. */
 const DEFAULT_WIDTH = 260;
+/** The AI assistant panel (feature 005 data-model §3.2): its minimum and its default width. */
+const PANEL_MIN = 280;
+const PANEL_DEFAULT_WIDTH = 360;
 /** FR-001: a layout step of the drag on the 10 MB book, on a 2020-era laptop. */
 const LAYOUT_STEP_BUDGET_MS = 100;
 /** Allowance for the hosted CI runners (docs/performance.md). */
@@ -67,7 +79,10 @@ interface OwnCore {
   stop(): Promise<void>;
 }
 
-async function ownCore(scriptGroups: readonly string[] = []): Promise<OwnCore> {
+async function ownCore(
+  scriptGroups: readonly string[] = [],
+  options: { aiPanelVisible?: boolean } = {},
+): Promise<OwnCore> {
   const binary = process.env.MFBE_CORE_BIN!;
   const dataDir = mkdtempSync(path.join(tmpdir(), 'mfbe-us1-divider-'));
   for (const group of scriptGroups) {
@@ -83,6 +98,19 @@ async function ownCore(scriptGroups: readonly string[] = []): Promise<OwnCore> {
     );
     return { ...started, rpc };
   };
+  // The AI panel (feature 005) is restored open at the first start (session.aiPanelVisible,
+  // FR-040 as amended 2026-10-23) and would take its width from the main area; this journey
+  // measures the tree pane against the view area alone, so the panel is hidden through a
+  // settings file seeded before the core starts (a settings.set would make the core write
+  // every default, and test 6 expects no stored width before the drag). The file is in the
+  // data folder and so survives the restart of test 6. Test 7 asks for the panel shown.
+  writeFileSync(
+    path.join(dataDir, 'settings.json'),
+    JSON.stringify({
+      schemaVersion: 1,
+      session: { aiPanelVisible: options.aiPanelVisible ?? false },
+    }),
+  );
   let current = await connect();
   const own: OwnCore = {
     url: current.url,
@@ -568,6 +596,41 @@ test.describe('US1 - the Document Tree pane has a divider', () => {
       restarted.main.width - (DEFAULT_WIDTH + 90) - DIVIDER_W,
       'view width after the restart',
     );
+  });
+
+  test('7. with the AI panel shown, a drag far to the right stops where the panel keeps its width and the view its minimum', async ({
+    page,
+    uiLang,
+  }) => {
+    // The panel of feature 005 beside the view (restored open by the session; inert, as the
+    // assistant is Disabled by default - the pane is the same): the tree clamp reserves the
+    // panel's applied width as the panel's clamp reserves the tree's, so the drag of one
+    // divider never squeezes the other pane under its minimum.
+    core = await ownCore([], { aiPanelVisible: true });
+    await openOwn(page, core, uiLang);
+    const panel = page.getByTestId('ai-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute('data-ai-width', String(PANEL_DEFAULT_WIDTH));
+    const start = await layout(page);
+    const panelBefore = (await panel.boundingBox())!;
+    expectNear(panelBefore.width, PANEL_DEFAULT_WIDTH, 'the panel at its default width');
+
+    await dragDividerTo(page, start.main.right - 2);
+    const after = await layout(page);
+    const panelAfter = (await panel.boundingBox())!;
+    expect(panelAfter.width, 'the panel is not squeezed under its minimum').toBeGreaterThanOrEqual(
+      PANEL_MIN - 0.5,
+    );
+    expectNear(panelAfter.width, panelBefore.width, 'the panel keeps its width');
+    expectNear(after.view.width, VIEW_MIN, 'view at its minimum');
+    expectNear(
+      after.pane!.width,
+      start.main.width - panelBefore.width - 2 * DIVIDER_W - VIEW_MIN,
+      'the pane takes what the panel and the view leave',
+    );
+    // The rendered width is the committed one: nothing overflowed and nothing was shrunk.
+    expectNear(after.pane!.width, Number(after.treeWidth), 'rendered pane width = data-tree-width');
+    expect(await outside(page)).toEqual([]);
   });
 });
 

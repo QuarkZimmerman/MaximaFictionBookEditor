@@ -1,4 +1,7 @@
 // Settings store (T018). See mfbe/settings.hpp.
+#include "util/sha256.hpp"
+
+#include <mfbe/ai_address.hpp>
 #include <mfbe/atomic_file.hpp>
 #include <mfbe/log.hpp>
 #include <mfbe/settings.hpp>
@@ -29,8 +32,13 @@ enum class Kind {
     nullable_object,
     window_geometry,  // {x, y, width, height: integers, maximized?: boolean} | null
     bool_map,
-    string_list_map,    // object whose values are arrays of strings (toolbar layouts)
-    optional_timestamp  // "YYYY-MM-DDTHH:MM:SS[.sss]Z" or absent: no default, null removes it
+    string_list_map,     // object whose values are arrays of strings (toolbar layouts)
+    optional_timestamp,  // "YYYY-MM-DDTHH:MM:SS[.sss]Z" or absent: no default, null removes it
+    // Feature 005 (rpc-api §3.7, resource-formats §B):
+    text,             // a string without control characters, min..max characters (max < 0: any)
+    address,          // "" or a service address (mfbe/ai_address.hpp: absolute http(s) URL ...)
+    verified_record,  // {fingerprint: "" | 64 lower-case hex, model <= 256 chars, at: "" | UTC}
+    agreement_list    // [{service, host, at}] - replaced whole; malformed elements dropped on load
 };
 
 struct Field {
@@ -50,6 +58,14 @@ Field integer(const char* path, int min, int max) {
 Field enumeration(const char* path, std::vector<std::string> values) {
     return Field{path, Kind::enumeration, 0, -1, std::move(values)};
 }
+// A string of min_chars..max_chars code points without control characters.
+Field text(const char* path, int min_chars, int max_chars) {
+    return Field{path, Kind::text, min_chars, max_chars, {}};
+}
+
+constexpr int kMaxKeyLength = 4096;
+constexpr int kMaxModelLength = 256;
+constexpr int kMaxAgreementServiceLength = 2100;  // "custom:" + an address of 2048 characters
 
 const std::vector<Field>& schema() {
     static const std::vector<Field> fields = {
@@ -112,6 +128,24 @@ const std::vector<Field>& schema() {
         field("session.lastFileDialogFolder", Kind::string),
         // When the last version check got an answer (feature 003); absent until one did.
         field("session.lastVersionCheck", Kind::optional_timestamp),
+        // Width of the AI panel in CSS pixels (feature 005, FR-040): as session.treeWidth,
+        // defaulted and never clamped.
+        integer("session.aiPanelWidth", 100, 10000),
+        // Whether the AI panel is shown (feature 005, FR-040 as amended 2026-10-23): written
+        // by the UI like session.treeVisible; open at the first start.
+        field("session.aiPanelVisible", Kind::boolean),
+        // The AI assistant (feature 005, rpc-api §3.7 / resource-formats §B): the mode
+        // ("disabled" by default - FR-001, requester 2026-10-23: the assistant works only after
+        // the user has chosen a service), the chosen free entry, the custom triple, the
+        // verification record the UI writes with the triple (kept only while its fingerprint
+        // matches, see apply_fingerprint_invariant) and the first-use agreements.
+        enumeration("ai.mode", {"free", "custom", "disabled"}),
+        text("ai.freeServiceId", 1, -1),
+        field("ai.custom.address", Kind::address),
+        text("ai.custom.key", 0, kMaxKeyLength),
+        text("ai.custom.model", 0, kMaxModelLength),
+        field("ai.customVerified", Kind::verified_record),
+        field("ai.agreements", Kind::agreement_list),
     };
     return fields;
 }
@@ -234,6 +268,76 @@ bool is_window_geometry(const json& v) {
     return maximized == v.end() || maximized->is_boolean();
 }
 
+// ---- feature 005 shapes (rpc-api §3.7) ----
+
+// A string without control characters of min_chars..max_chars code points (max < 0: no cap).
+std::string check_text(const json& value, int min_chars, int max_chars) {
+    if (!value.is_string()) {
+        return "expected a string";
+    }
+    const std::string s = value.get<std::string>();
+    if (!unicode::is_valid_utf8(s)) {
+        return "invalid UTF-8";
+    }
+    if (ai::has_control_characters(s)) {
+        return "control characters are not allowed";
+    }
+    const std::size_t length = unicode::length(s);
+    if (length < static_cast<std::size_t>(min_chars)) {
+        return min_chars == 1 ? "expected a non-empty string"
+                              : "expected at least " + std::to_string(min_chars) + " characters";
+    }
+    if (max_chars >= 0 && length > static_cast<std::size_t>(max_chars)) {
+        return "expected at most " + std::to_string(max_chars) + " characters";
+    }
+    return "";
+}
+
+bool is_fingerprint(const std::string& s) {
+    return s.empty() || (s.size() == 64 && std::all_of(s.begin(), s.end(), [](unsigned char c) {
+                             return std::isdigit(c) != 0 || (c >= 'a' && c <= 'f');
+                         }));
+}
+
+// The string member `key` of `object` (nullptr when absent or not a string).
+const json* string_member(const json& object, const char* key) {
+    auto it = object.find(key);
+    return it != object.end() && it->is_string() ? &*it : nullptr;
+}
+
+// {fingerprint: "" | 64 lower-case hex, model: <= 256 chars without control characters,
+// at: "" | ISO 8601 UTC} - exactly these three members.
+bool is_verified_record(const json& v) {
+    if (!v.is_object() || v.size() != 3) {
+        return false;
+    }
+    const json* fingerprint = string_member(v, "fingerprint");
+    const json* model = string_member(v, "model");
+    const json* at = string_member(v, "at");
+    return fingerprint != nullptr && is_fingerprint(fingerprint->get<std::string>()) &&
+           model != nullptr && check_text(*model, 0, kMaxModelLength).empty() && at != nullptr &&
+           (at->get<std::string>().empty() || is_utc_timestamp(at->get<std::string>()));
+}
+
+// {service: non-empty, <= 2100 chars, no control characters; host: <= 2048 chars, no
+// whitespace or control characters; at: ISO 8601 UTC} - exactly these three members.
+bool is_agreement(const json& v) {
+    if (!v.is_object() || v.size() != 3) {
+        return false;
+    }
+    const json* service = string_member(v, "service");
+    const json* host = string_member(v, "host");
+    const json* at = string_member(v, "at");
+    if (service == nullptr || host == nullptr || at == nullptr) {
+        return false;
+    }
+    const std::string host_text = host->get<std::string>();
+    return check_text(*service, 1, kMaxAgreementServiceLength).empty() &&
+           unicode::is_valid_utf8(host_text) && !ai::has_whitespace_or_control(host_text) &&
+           unicode::length(host_text) <= ai::kMaxAddressLength &&
+           is_utc_timestamp(at->get<std::string>());
+}
+
 // Returns an empty string when valid, otherwise the reason.
 std::string check_value(const Field& field, const json& value) {
     switch (field.kind) {
@@ -318,6 +422,31 @@ std::string check_value(const Field& field, const json& value) {
             return (value.is_string() && is_utc_timestamp(value.get<std::string>()))
                        ? ""
                        : "expected an ISO 8601 UTC timestamp like 2026-10-17T12:34:56Z";
+        case Kind::text:
+            return check_text(value, field.min, field.max);
+        case Kind::address: {
+            if (!value.is_string()) {
+                return "expected a string";
+            }
+            const std::string s = value.get<std::string>();
+            return (s.empty() || ai::parse_address(s).has_value())
+                       ? ""
+                       : "expected an empty string or an absolute http(s) URL with a host and "
+                         "without query, fragment or user information";
+        }
+        case Kind::verified_record:
+            return is_verified_record(value) ? "" : "expected {fingerprint, model, at}";
+        case Kind::agreement_list: {
+            if (!value.is_array()) {
+                return "expected an array of {service, host, at}";
+            }
+            for (const auto& item : value) {
+                if (!is_agreement(item)) {
+                    return "expected an array of {service, host, at}";
+                }
+            }
+            return "";
+        }
     }
     return "invalid";
 }
@@ -325,6 +454,46 @@ std::string check_value(const Field& field, const json& value) {
 void log_invalid(const Invalid& invalid) {
     log::warning("core", "settings.invalidValue", "invalid setting replaced by its default",
                  log::extras({{"field", invalid.field}, {"reason", invalid.reason}}));
+}
+
+std::string string_at(const json& settings, const char* dotted) {
+    const json* v = find_path(settings, dotted);
+    return (v != nullptr && v->is_string()) ? v->get<std::string>() : std::string();
+}
+
+// The invariant of rpc-api §3.7: `ai.customVerified.fingerprint` is "" or the SHA-256 of the
+// current stored triple. A non-empty fingerprint that differs resets the record to its default
+// - no error and no log line: this is the normal effect of an edit (FR-009 "red again the
+// moment the user edits"), of a hand edit of settings.json, or of a client-written record that
+// does not belong to the triple of its own patch (nobody can make the status green without the
+// service having answered). Runs on a sanitized document (the record has its three strings).
+void apply_fingerprint_invariant(json& settings) {
+    json* record = find_or_create_path(settings, "ai.customVerified");
+    const json* stored = string_member(*record, "fingerprint");
+    if (stored == nullptr || stored->get<std::string>().empty()) {
+        return;
+    }
+    const std::string expected = util::ai_fingerprint(string_at(settings, "ai.custom.address"),
+                                                      string_at(settings, "ai.custom.key"),
+                                                      string_at(settings, "ai.custom.model"));
+    if (stored->get<std::string>() != expected) {
+        *record = *find_path(defaults(), "ai.customVerified");
+    }
+}
+
+// The exception class of a parse failure for the log - never the text that failed to parse
+// (`e.what()` of nlohmann's parse_error quotes the last bytes read, which may be the key).
+std::string exception_class(const std::exception& e) {
+    if (dynamic_cast<const json::parse_error*>(&e) != nullptr) {
+        return "parse_error";
+    }
+    if (dynamic_cast<const json::exception*>(&e) != nullptr) {
+        return "json_exception";
+    }
+    if (dynamic_cast<const atomic_file::WriteError*>(&e) != nullptr) {
+        return "read_error";
+    }
+    return "exception";
 }
 
 }  // namespace
@@ -391,7 +560,15 @@ json defaults() {
           {"findHistory", json::array()},
           {"replaceHistory", json::array()},
           {"toolbarLayouts", json::object()},
-          {"lastFileDialogFolder", ""}}},
+          {"lastFileDialogFolder", ""},
+          {"aiPanelWidth", 360},
+          {"aiPanelVisible", true}}},
+        {"ai",
+         {{"mode", "disabled"},
+          {"freeServiceId", "ovhcloud"},
+          {"custom", {{"address", "https://api.openai.com/v1"}, {"key", ""}, {"model", ""}}},
+          {"customVerified", {{"fingerprint", ""}, {"model", ""}, {"at", ""}}},
+          {"agreements", json::array()}}},
     };
 }
 
@@ -425,6 +602,21 @@ std::vector<Invalid> sanitize(json& settings) {
             *value = *default_value;
             continue;
         }
+        if (field.kind == Kind::agreement_list && value->is_array()) {
+            // Malformed elements are dropped on load; the well-formed ones stay (reported once
+            // by the field name).
+            json kept = json::array();
+            for (const auto& item : *value) {
+                if (is_agreement(item)) {
+                    kept.push_back(item);
+                }
+            }
+            if (kept.size() != value->size()) {
+                invalid.push_back({field.path, "malformed agreements dropped"});
+                *value = std::move(kept);
+            }
+            continue;
+        }
         const std::string reason = check_value(field, *value);
         if (!reason.empty()) {
             invalid.push_back({field.path, reason});
@@ -444,6 +636,7 @@ std::vector<Invalid> sanitize(json& settings) {
         }
     }
     (*find_or_create_path(settings, "schemaVersion")) = kSchemaVersion;
+    apply_fingerprint_invariant(settings);
     return invalid;
 }
 
@@ -462,10 +655,25 @@ void validate_patch(const json& patch) {
         }
     }
     // Sections must stay objects.
-    for (const char* section : {"view", "other", "words", "session"}) {
+    for (const char* section : {"view", "other", "words", "session", "ai"}) {
         auto it = patch.find(section);
         if (it != patch.end() && !it->is_null() && !it->is_object()) {
             throw SettingsError(section, "expected an object");
+        }
+    }
+    // So must every nested group a known key lives in ("ai.custom").
+    for (const auto& field : schema()) {
+        const auto parts = split_path(field.path);
+        std::string prefix;
+        for (std::size_t i = 0; i + 1 < parts.size(); ++i) {
+            prefix += (i == 0 ? "" : ".") + parts[i];
+            const json* node = find_path(patch, prefix);
+            if (node == nullptr) {
+                break;
+            }
+            if (!node->is_null() && !node->is_object()) {
+                throw SettingsError(prefix, "expected an object");
+            }
         }
     }
 }
@@ -490,8 +698,10 @@ void merge_patch(json& target, const json& patch, const json& defaults_node) {
             }
             continue;
         }
+        // Objects merge member-wise except the two records that are always written whole: the
+        // window placement and the AI verification record.
         if (it->is_object() && (def == nullptr || def->is_object() || def->is_null()) &&
-            it.key() != "windowGeometry") {
+            it.key() != "windowGeometry" && it.key() != "customVerified") {
             json& child = target[it.key()];
             merge_patch(child, *it, def != nullptr ? *def : json());
         } else {
@@ -514,9 +724,18 @@ void SettingsStore::load() {
     json parsed;
     try {
         parsed = json::parse(atomic_file::read_file(file_), nullptr, true, true);
+    } catch (const json::parse_error& e) {
+        // The exception class and the byte position only - never the text around it (the file
+        // may hold the AI key; review D5, R10.2).
+        log::error("core", "settings.unreadable", "settings.json could not be read; defaults used",
+                   log::extras({{"path", platform::utf8_from_path(file_)},
+                                {"exception", exception_class(e)},
+                                {"position", std::to_string(e.byte)}}));
+        return;
     } catch (const std::exception& e) {
         log::error("core", "settings.unreadable", "settings.json could not be read; defaults used",
-                   log::extras({{"path", platform::utf8_from_path(file_)}, {"reason", e.what()}}));
+                   log::extras({{"path", platform::utf8_from_path(file_)},
+                                {"exception", exception_class(e)}}));
         return;
     }
     settings_ = std::move(parsed);

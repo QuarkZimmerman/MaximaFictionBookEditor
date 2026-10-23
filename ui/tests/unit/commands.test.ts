@@ -8,6 +8,7 @@ import {
   commandLabelRaw,
   commandTooltip,
   confirmDiscardChanges,
+  createAiStubCommands,
   createCommandRegistry,
   scriptCommandId,
   switchView,
@@ -17,10 +18,9 @@ import {
 } from '@/app/commands';
 import { DEFAULT_HOTKEYS, HotkeyMap } from '@/app/hotkeys';
 import type { Dialogs, MessageBoxOptions } from '@/dialogs/types';
-import { initI18n } from '@/i18n';
-import en from '@/i18n/en.json';
+import { initI18n, resources } from '@/i18n';
 import type { Document } from '@/model/document';
-import { actions, createAppStore } from '@/model/store';
+import { actions, createAppStore, isRunLocked } from '@/model/store';
 import { ArrayHistoryAdapter, UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
 import type { MessageButtonId } from '@/rpc/types';
@@ -117,6 +117,9 @@ async function makeContext(overrides: Partial<CommandContext> = {}): Promise<Com
   };
 }
 
+/** The merged English catalogue: the base `en.json` plus the feature catalogues (`ai.en.json`...). */
+const en: unknown = resources.en.translation;
+
 function hasKey(key: string): boolean {
   let node: unknown = en;
   for (const part of key.split('.')) {
@@ -209,7 +212,7 @@ describe('command registry', () => {
     for (const command of registry.all()) expect(COMMAND_GROUPS).toContain(command.group);
   });
 
-  it('every label/tooltip/description key exists in en.json and every default hotkey targets a command', () => {
+  it('every label/tooltip/description key exists in the English catalogue and every default hotkey targets a command', () => {
     const registry = createCommandRegistry();
     for (const command of registry.all()) {
       if (command.labelKey) expect(hasKey(command.labelKey), command.labelKey).toBe(true);
@@ -486,19 +489,25 @@ describe('command registry', () => {
     expect(registry.isEnabled('test.copy', ctx)).toBe(true);
     expect(registry.isEnabled('test.replace', ctx)).toBe(true);
 
-    actions.setScriptRunning(ctx.store, true);
-    expect(registry.isEnabled('view.source', ctx)).toBe(false); // default policy: blocked
-    expect(registry.isEnabled('test.replace', ctx)).toBe(false);
-    expect(registry.isEnabled('test.copy', ctx)).toBe(true);
-    selectionAvailable = false;
-    expect(registry.isEnabled('test.copy', ctx)).toBe(false); // its own predicate still counts
-    selectionAvailable = true;
-    expect(registry.isEnabled('test.later', ctx)).toBe(false); // a stub is never enabled
+    // The run lock of feature 005 (data-model §4.1): the policy applies whoever holds it - a
+    // script run or an AI request.
+    for (const kind of ['script', 'ai'] as const) {
+      actions.setRunLock(ctx.store, { kind, label: 'Holder', startedAt: Date.now() });
+      expect(isRunLocked(ctx.store.getState())).toBe(true);
+      expect(registry.isEnabled('view.source', ctx), kind).toBe(false); // default policy: blocked
+      expect(registry.isEnabled('test.replace', ctx), kind).toBe(false);
+      expect(registry.isEnabled('test.copy', ctx), kind).toBe(true);
+      selectionAvailable = false;
+      expect(registry.isEnabled('test.copy', ctx), kind).toBe(false); // its own predicate still counts
+      selectionAvailable = true;
+      expect(registry.isEnabled('test.later', ctx), kind).toBe(false); // a stub is never enabled
 
-    actions.setScriptRunning(ctx.store, false);
-    expect(registry.isEnabled('view.source', ctx)).toBe(true);
-    expect(registry.isEnabled('test.replace', ctx)).toBe(true);
-    expect(registry.isEnabled('test.later', ctx)).toBe(false);
+      actions.setRunLock(ctx.store, null);
+      expect(isRunLocked(ctx.store.getState())).toBe(false);
+      expect(registry.isEnabled('view.source', ctx), kind).toBe(true);
+      expect(registry.isEnabled('test.replace', ctx), kind).toBe(true);
+      expect(registry.isEnabled('test.later', ctx), kind).toBe(false);
+    }
   });
 
   it('execute() and dispatch() refuse a blocked command during a run and accept an allowed one', async () => {
@@ -506,7 +515,7 @@ describe('command registry', () => {
     const registry = createCommandRegistry();
     const run = vi.fn();
     registry.register({ id: 'test.copy', group: 'edit', duringScriptRun: 'allowed', run });
-    actions.setScriptRunning(ctx.store, true);
+    actions.setRunLock(ctx.store, { kind: 'script', label: 'Script', startedAt: Date.now() });
 
     expect(await registry.execute('view.source', ctx)).toBe(false);
     expect(registry.dispatch('view.source', ctx)).toBe(false);
@@ -518,9 +527,38 @@ describe('command registry', () => {
     await Promise.resolve();
     expect(run).toHaveBeenCalledTimes(2);
 
-    actions.setScriptRunning(ctx.store, false);
+    actions.setRunLock(ctx.store, null);
     expect(await registry.execute('view.source', ctx)).toBe(true);
     expect(ctx.store.getState().activeView).toBe('source');
+  });
+
+  it('registers the AI assistant commands as invisible, disabled stubs (feature 005 FR-096)', async () => {
+    const ctx = await makeContext();
+    const registry = createCommandRegistry();
+    for (const id of ['ai.toggle', 'ai.ask']) {
+      const command = registry.get(id)!;
+      expect(command.stub, id).toBe(true);
+      expect(registry.isVisible(id, ctx), id).toBe(false);
+      expect(registry.isEnabled(id, ctx), id).toBe(false);
+      expect(registry.dispatch(id, ctx), id).toBe(false); // the hotkeys are inert
+    }
+    expect(registry.get('ai.toggle')!.group).toBe('view');
+    expect(registry.get('ai.toggle')!.icon).toBe('ai-assistant');
+    expect(commandLabel(registry.get('ai.toggle')!, ctx.t)).toBe('AI Assistant');
+    expect(commandTooltip(registry.get('ai.ask')!, ctx.t)).toBe('Ask AI');
+    expect(registry.get('ai.ask')!.group).toBe('tools');
+    expect(registry.has('ai.cancel')).toBe(false); // only the two the hotkey tables name
+    expect(createAiStubCommands().map((c) => c.id)).toEqual(['ai.toggle', 'ai.ask']);
+
+    // `visible` defaults to true; an unregistered command is not visible either.
+    expect(registry.isVisible('view.tree', ctx)).toBe(true);
+    expect(registry.isVisible('no.such', ctx)).toBe(false);
+    let shown = false;
+    registry.replace({ id: 'ai.toggle', group: 'view', visible: () => shown, run: () => {} });
+    expect(registry.isVisible('ai.toggle', ctx)).toBe(false);
+    shown = true;
+    expect(registry.isVisible('ai.toggle', ctx)).toBe(true);
+    expect(registry.isEnabled('ai.toggle', ctx)).toBe(true);
   });
 
   it('refresh() notifies the subscribers so the run policies are re-evaluated', () => {

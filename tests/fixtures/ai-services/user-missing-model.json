@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "id": "no-model",
+      "name": "Entry without a model",
+      "address": "http://127.0.0.1:8787/v1",
+      "keyRequired": false,
+      "tools": true
+    }
+  ]
+}

@@ -13,16 +13,25 @@ repository (https://github.com/QuarkZimmerman/MaximaFictionBookEditor/releases),
 | Fedora / openSUSE family | `mfbe-<version>-1.x86_64.rpm` | package with menu entry and file associations |
 | macOS 13+ | `MaximaFictionBookEditor-<version>-macos-arm64.dmg` (Apple Silicon), `...-macos-x86_64.dmg` (Intel) | application bundle in a disk image |
 
-The editor works offline and sends nothing anywhere on its own. The one exception is the check
-for a new version: when you choose Help > Check for new version, the editor asks GitHub
+The editor works fully offline and sends nothing anywhere on its own. Exactly two things use
+the network, both on your action. The first is the check for a new version: when you choose
+Help > Check for new version, the editor asks GitHub
 (`api.github.com/repos/QuarkZimmerman/MaximaFictionBookEditor/releases/latest`) for the latest
 release and, if it is newer, offers to open its page in your web browser; the request carries
 nothing about you or your books. Nothing is downloaded or installed. The editor can also make
 this same single request by itself when it starts, as often as Settings > Other > Version check
 says - once a month unless you change it, or at every start, once a day or once a week; it then
 speaks up only when a newer version exists, and "never" switches the automatic check off (the
-manual command keeps working). All packages are built by the project's CI from the repository
-sources (`docs/building.md` explains how to build them yourself).
+manual command keeps working). The second is the AI assistant (release 0.0.5): when you have
+turned it on and send it an instruction, or press *Test connection* or *Fetch models* on its
+settings page, the editor sends your instruction and the parts of the book the assistant reads
+to the AI service you chose in *Settings > AI assistant* - for a hosted service only after you
+agreed on a notice that names it; a model server on your own computer stays on your computer.
+The assistant is off at every start, and *Disabled* on that page removes it from the editor
+altogether. Behind a proxy, set the usual environment variables (`https_proxy`, `http_proxy`,
+`no_proxy`); on Linux a company root certificate is given with `SSL_CERT_FILE` (see
+`docs/releases/0.0.5.md`, "Known limitations"). All packages are built by the project's CI from
+the repository sources (`docs/building.md` explains how to build them yourself).
 
 ## Supported platforms
 
@@ -213,7 +222,7 @@ own folder instead (see *Portable folder* below):
 | Purpose | Windows | Linux | macOS |
 |---------|---------|-------|-------|
 | Configuration: `settings.json`, `hotkeys.json`, `recent.json`, `positions.json` (the places "Restore position" remembers, the 100 most recently remembered files), `exclusions.txt` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_CONFIG_HOME/maxfbeditor/` (default `~/.config/maxfbeditor/`) | `~/Library/Application Support/Maxima Fiction Book Editor/` |
-| User content: custom dictionary `custom.dic`, your own template of new documents `blank.fb2`, user folders `genres/`, `scripts/`, `dictionaries/` | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_DATA_HOME/maxfbeditor/` (default `~/.local/share/maxfbeditor/`) | same as configuration |
+| User content: custom dictionary `custom.dic`, your own template of new documents `blank.fb2`, user folders `genres/`, `scripts/` (the scripts the AI assistant writes for you under `scripts/90_assistant/`), `dictionaries/`, your copy of the AI service list `ai-services.json` (created by *Settings > AI assistant > Edit list*; adds, replaces or hides entries of the bundled list) | `%APPDATA%\Maxima Fiction Book Editor\` (roaming profile) | `$XDG_DATA_HOME/maxfbeditor/` (default `~/.local/share/maxfbeditor/`) | same as configuration |
 | Machine-local state: errors-only log `logs/mfbe-errors.log` (5 x 1 MB, rotating), browser cache | `%LOCALAPPDATA%\Maxima Fiction Book Editor\` | `$XDG_STATE_HOME/maxfbeditor/` (default `~/.local/state/maxfbeditor/`) and `$XDG_DATA_HOME/maxfbeditor/cef/` | `~/Library/Logs/Maxima Fiction Book Editor/`, `~/Library/Application Support/Maxima Fiction Book Editor/cef/` |
 
 On Windows this follows the platform guidelines: the installation under `C:\Program Files` is
@@ -247,10 +256,13 @@ and *Open template folder* opens its folder.
 - macOS: a `user` folder next to `mfbe.app`.
 
 When the editor can write to that folder, it keeps all of its data there - everything the
-table above lists - and nothing in your profile; the Windows portable ZIP comes with it. A
-portable folder the editor cannot write to (one an administrator put next to an installed copy,
-or a read-only medium) only adds genres, scripts, dictionaries and a template, and the per-user
-folders of the table are used.
+table above lists, the AI assistant's settings (the chosen service, your own service's address,
+key and model, the agreements) and your `ai-services.json` included - and nothing in your
+profile, so a copy moved to another folder or computer takes the assistant's configuration
+along; the Windows portable ZIP comes with it. A portable folder the editor cannot write to
+(one an administrator put next to an installed copy, or a read-only medium) only adds genres,
+scripts, dictionaries, a template and an `ai-services.json` of its own (in effect while your
+data folder has none), and the per-user folders of the table are used.
 
 ## Spelling dictionaries
 

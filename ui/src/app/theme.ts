@@ -29,6 +29,14 @@ export const THEME_STORAGE_KEY = 'mfbeTheme';
 
 export const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 
+/**
+ * The status colours of `app/layout.css` (feature 005, research R8.7): `--status-ok` for a
+ * verified connection, `--status-bad` for a failed or untested one. Declared in the light
+ * palette, the dark palette and the pre-paint system-dark block alike; the settings page's
+ * verification text reads them through `data-status`.
+ */
+export const STATUS_COLOR_VARIABLES = ['--status-ok', '--status-bad'] as const;
+
 export function isThemeSetting(value: unknown): value is ThemeSetting {
   return typeof value === 'string' && (THEME_SETTINGS as readonly string[]).includes(value);
 }

@@ -20,7 +20,7 @@ import { toggleFastMode } from '@/editor/fastMode';
 import { proposedFileName } from '@/features/file/proposedName';
 import { parseAccelerator } from '@/i18n';
 import type { CaretRegistry } from '@/model/caret';
-import { actions, type AppStore, documentFileName } from '@/model/store';
+import { actions, type AppStore, documentFileName, isRunLocked } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import { RpcError, type RpcClient } from '@/rpc/client';
 import type { Document, ViewId } from '@/rpc/types';
@@ -78,13 +78,21 @@ export interface Command {
   run: (ctx: CommandContext) => void | Promise<void>;
   /** Defaults to always enabled. */
   enabled?: (ctx: CommandContext) => boolean;
+  /**
+   * Defaults to always visible. An invisible command leaves no menu entry (a separator beside
+   * it is not doubled), no toolbar button and no row on the Hotkeys page, while its id stays
+   * registered - the hotkey tables may name it and a feature may take it over with `replace`
+   * (the AI assistant's commands while the assistant is disabled, feature 005 FR-096).
+   */
+  visible?: (ctx: CommandContext) => boolean;
   /** Present for toggles; drives menu checkmarks and pressed toolbar buttons. */
   checked?: (ctx: CommandContext) => boolean;
   /**
-   * Policy while a script runs (`store.scriptRunning`, the quiet lock of feature 003 FR-011):
-   * `blocked` (the default) disables the command for the whole run; `allowed` leaves it to its
-   * own `enabled` predicate. Only commands that neither change the document nor switch the
-   * view are allowed (Find, copy, Help, About, Exit...).
+   * Policy while the run lock is held (`store.runLock` - a script run or an AI request, the
+   * quiet lock of feature 003 FR-011 and feature 005 FR-022): `blocked` (the default) disables
+   * the command for the whole run; `allowed` leaves it to its own `enabled` predicate. Only
+   * commands that neither change the document nor switch the view are allowed (Find, copy,
+   * Help, About, Exit...).
    */
   duringScriptRun?: 'blocked' | 'allowed';
   /** Registered for parity but not implemented yet; always disabled. */
@@ -131,13 +139,13 @@ export class CommandRegistry {
   }
 
   /**
-   * A stub is never enabled; while a script runs only a command whose `duringScriptRun`
-   * policy is `allowed` is, and then according to its own `enabled` predicate.
+   * A stub is never enabled; while the run lock is held only a command whose
+   * `duringScriptRun` policy is `allowed` is, and then according to its own `enabled` predicate.
    */
   isEnabled(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
     if (!command || command.stub) return false;
-    if (ctx.store.getState().scriptRunning && command.duringScriptRun !== 'allowed') return false;
+    if (isRunLocked(ctx.store.getState()) && command.duringScriptRun !== 'allowed') return false;
     return command.enabled ? command.enabled(ctx) : true;
   }
 
@@ -153,6 +161,16 @@ export class CommandRegistry {
   isChecked(id: string, ctx: CommandContext): boolean {
     const command = this.commands.get(id);
     return command?.checked ? command.checked(ctx) : false;
+  }
+
+  /**
+   * False for an unregistered command and for a registered one whose `visible` predicate says
+   * so; the menus, the toolbars and the Hotkeys page leave such a command out entirely.
+   */
+  isVisible(id: string, ctx: CommandContext): boolean {
+    const command = this.commands.get(id);
+    if (!command) return false;
+    return command.visible ? command.visible(ctx) : true;
   }
 
   /**
@@ -416,6 +434,31 @@ function cmdKeys(id: string, labelKey?: string): CommandKeys {
   return { labelKey, tooltipKey: `cmd.${id}.tooltip`, descriptionKey: `cmd.${id}.description` };
 }
 
+const NEVER_VISIBLE = (): boolean => false;
+
+/** Icon pair of the AI assistant's toolbar button (`public/icons/toolbar24|16/ai-assistant.png`). */
+export const AI_TOGGLE_ICON = 'ai-assistant';
+
+/**
+ * The inert stubs of the AI assistant's commands (feature 005, research R8.3, R8.5): registered
+ * from the start so that the hotkey tables may name them (`Mod+Shift+A`, `Mod+K`) and the View
+ * menu and the Commands toolbar may list `ai.toggle`, yet invisible and disabled, so nothing of
+ * the feature shows before the first settings snapshot or with a core too old for it.
+ * `ui/src/ai/index.ts` takes them over with `replace` once the first settings snapshot arrives:
+ * `ai.toggle` is live in every mode from then on (it shows and hides the panel - FR-040 and
+ * FR-096 as amended 2026-10-23), `ai.ask` only while a service is chosen, its stub coming back
+ * when the mode becomes `disabled`.
+ */
+export function createAiStubCommands(): Command[] {
+  return [
+    {
+      ...stub('ai.toggle', 'view', cmdKeys('ai.toggle', 'menu.view.aiAssistant'), AI_TOGGLE_ICON),
+      visible: NEVER_VISIBLE,
+    },
+    { ...stub('ai.ask', 'tools', cmdKeys('ai.ask')), visible: NEVER_VISIBLE },
+  ];
+}
+
 /* ------------------------------------------------------------------------ */
 /* Built-in commands                                                        */
 /* ------------------------------------------------------------------------ */
@@ -594,6 +637,9 @@ export function createBuiltinCommands(): Command[] {
       checked: (ctx) => ctx.store.getState().fastMode,
       run: (ctx) => toggleFastMode(ctx), // reduced-fidelity Body rendering, persisted (T154)
     },
+    // The AI assistant's `ai.toggle` (View) and `ai.ask` (Tools): inert and invisible until
+    // ui/src/ai/index.ts takes them over (feature 005).
+    ...createAiStubCommands(),
 
     // ---- Add (insert.*) -------------------------------------------------
     stub('insert.body', 'edit', cmdKeys('insert.body', 'menu.add.body'), 'id_edit_add_body'),
