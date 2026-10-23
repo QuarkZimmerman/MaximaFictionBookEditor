@@ -118,12 +118,13 @@ describe('the Source view gate through the catalogue (US5, ai-catalogue §8)', (
           (SOURCE_TEXT_MODE_TOOL_NAMES as readonly string[]).includes(tool.function.name),
         )
         .map((tool) => tool.function.name);
-      // `read_resource` joins the six once US6 registers it; the five of this release's catalogue so far.
+      // The six of §8.4, `read_resource` (US6) among them, in the catalogue's order.
       expect(offered).toEqual([
         'get_context',
         'get_selection',
         'validate',
         'get_schema',
+        'read_resource',
         'replace_selection',
       ]);
       expect(
@@ -139,6 +140,8 @@ describe('the Source view gate through the catalogue (US5, ai-catalogue §8)', (
         'get_outline',
         'read_part',
         'find',
+        'list_scripts',
+        'read_script',
         'set_selection',
         'replace_node',
         'insert_node',
@@ -146,9 +149,13 @@ describe('the Source view gate through the catalogue (US5, ai-catalogue §8)', (
         'set_text',
         'replace_all',
         'set_description',
+        'run_script',
+        'propose_script',
+        'reload_scripts',
       ]) {
         const out = await h.catalogue.call(name, {
           node: 'n13',
+          id: 'x',
           text: 'x',
           replacement: 'y',
           where: 'after',
@@ -203,13 +210,14 @@ describe('the Source view gate through the catalogue (US5, ai-catalogue §8)', (
       ]) {
         const out = await h.catalogue.call(name, {
           node: 'n13',
+          id: '18/remove-spaces',
           text: 'x',
           replacement: 'y',
           where: 'after',
           content: { xml: '<p>x</p>' },
         });
-        expect(out.error?.code, name).toBe(name === 'run_script' ? 'unknownTool' : 'unavailable');
-        if (name !== 'run_script') expect(out.error?.hint, name).toBe(TEXT_CHANGED_HINT);
+        expect(out.error?.code, name).toBe('unavailable');
+        expect(out.error?.hint, name).toBe(TEXT_CHANGED_HINT);
       }
       expect(h.hookCalls).toHaveLength(hookCallsBefore);
       for (const name of [

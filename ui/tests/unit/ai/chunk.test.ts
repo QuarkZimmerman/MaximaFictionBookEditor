@@ -102,14 +102,19 @@ describe('the production build', () => {
     expect(indexSource).not.toMatch(/from\s*["'`]\.\/ai-assistant-/);
     expect(indexSource).not.toMatch(/import\s*["'`]\.\/ai-assistant-/);
     // The chunk imports the shared code from the main bundle - no store, no React - and holds
-    // the request loop, the catalogue with the MCP SDK and zod, the popup and the notice:
-    // about 515 kB minified (T046/T047); the bound catches a second copy of the main bundle.
+    // the request loop, the catalogue with the MCP SDK and zod, the popup, the notice and, since
+    // US6, the script proposal and the `mfbe://` resource texts (the script API description,
+    // the manifest guide and the example script, ~37 kB): about 660 kB minified (T046/T047,
+    // T075-T077); the bound catches a second copy of the main bundle.
     expect(chunkSource).toMatch(
       new RegExp(`from\\s*["'\`]\\./${index[0]!.replace('.', '\\.')}["'\`]`),
     );
     expect(chunkSource).not.toContain('react.transitional.element');
     expect(chunkSource).not.toContain('setTreeWidth');
-    expect(chunkSource.length).toBeLessThan(600_000);
+    expect(chunkSource.length).toBeLessThan(800_000);
+    // The resource texts travel with the chunk, not the main bundle (vite.config.ts).
+    expect(chunkSource).toContain('declare namespace mfbe');
+    expect(indexSource).not.toContain('declare namespace mfbe');
     // The page loads the main bundle only: no script tag and no modulepreload for the chunk.
     const html = readFileSync(path.join(outDir, 'index.html'), 'utf8');
     expect(html).toContain(index[0]);

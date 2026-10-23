@@ -24,6 +24,10 @@ const core = process.env.MFBE_CORE ?? 'http://127.0.0.1:41237';
 // the opposite of lazy. `tests/unit/ai/chunk.test.ts` checks the built output.
 const aiFolder = fileURLToPath(new URL('./src/ai/', import.meta.url)).replace(/\\/g, '/');
 const aiStaticModules = new Set(['index.ts', 'address.ts', 'agreements.ts', 'testHooks.ts']);
+// The texts the catalogue bundles as `?raw` resources (US6: the script API description, the
+// scripting guide, the example script) - read by the chunk alone, so they travel with it.
+const repoRoot = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/g, '/');
+const aiRawFolders = [`${repoRoot}docs/scripting/`, `${repoRoot}scripts/`];
 const aiPackages = [
   '@modelcontextprotocol/',
   'zod/',
@@ -46,6 +50,7 @@ export function isAiAssistantModule(id: string): boolean {
   if (path.startsWith(aiFolder)) {
     return !aiStaticModules.has(path.slice(aiFolder.length));
   }
+  if (id.includes('?raw') && aiRawFolders.some((folder) => path.startsWith(folder))) return true;
   const marker = '/node_modules/';
   const index = path.lastIndexOf(marker);
   if (index >= 0) {

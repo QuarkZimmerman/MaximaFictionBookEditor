@@ -593,6 +593,10 @@ test.describe('US5 (005) - Ask AI... in the Source view', () => {
     const caretAt = indexOfOrFail(text, 'Поезд пришёл');
     await select(page, caretAt, caretAt);
     await standin.scenarios([
+      // US6 (review C8): scripts run in the Body view only - `run_script` answers
+      // `unavailable` without a view change, `list_scripts` marks every script `sourceView`.
+      toolCall('c-script', 'run_script', { id: '18/remove-spaces' }),
+      toolCall('c-list', 'list_scripts', {}),
       toolCall('c-replace', 'replace_node', {
         node: 'body[1]/section[4]/p[1]',
         content: { xml: '<p>К утру туман над рекой разошёлся.</p>' },
@@ -603,7 +607,17 @@ test.describe('US5 (005) - Ask AI... in the Source view', () => {
     expect(request.state).toBe('committed');
     expect(request.changes).toBe(1);
     const tools = await lastToolMessages(standin);
-    const replaced = parse<{ node: { path: string } }>(tools[0]!);
+    const script = parse<{ error: { code: string; hint?: string } }>(tools[0]!);
+    expect(script.error.code).toBe('unavailable');
+    expect(script.error.hint).toBe('scripts run in the Body view; ask the user to switch');
+    const listed = parse<{ scripts: { available: boolean; reason?: string }[] }>(tools[1]!);
+    expect(listed.scripts.length).toBeGreaterThan(0);
+    expect(listed.scripts.every((s) => s.available === false && s.reason === 'sourceView')).toBe(
+      true,
+    );
+    // The view did not change for the run (FR-051).
+    await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
+    const replaced = parse<{ node: { path: string } }>(tools[2]!);
     expect(replaced.node.path).toBe('body[1]/section[4]/p[1]');
     // The Source text is re-rendered from the committed model, the caret on the changed line.
     const textAfter = (await sourceText(page))!;

@@ -29,9 +29,18 @@
 
 import { Client } from '@modelcontextprotocol/client';
 import type { CallToolResult, Tool } from '@modelcontextprotocol/server';
-import { InMemoryTransport, McpServer } from '@modelcontextprotocol/server';
+import { InMemoryTransport, McpServer, ResourceTemplate } from '@modelcontextprotocol/server';
 import type { NodeType } from 'prosemirror-model';
 import { z } from 'zod';
+
+// The `mfbe://` resources of ai-catalogue §4 (US6 T075; FR-081), bundled as text: the product's
+// script API description (`docs/scripting/mfbe.d.ts` - the parity with the contract copy is a
+// workspace-side check), the scripting guide whose §1-§3 are the manifest contract, and the
+// bundled example script, whole, notice header included (review C1).
+import exampleScriptIndex from '../../../scripts/18_editing/04_empty-line-before-poem-or-cite/index.js?raw';
+import exampleScriptManifest from '../../../scripts/18_editing/04_empty-line-before-poem-or-cite/script.json?raw';
+import scriptingGuide from '../../../docs/scripting/en.md?raw';
+import scriptApiText from '../../../docs/scripting/mfbe.d.ts?raw';
 
 import { createReport, nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2NameFor, fb2Schema, nodeTypeFor } from '@/editor/schema';
@@ -44,11 +53,12 @@ import type {
   ValidationReport,
 } from '@/model/document';
 import { RpcError } from '@/rpc/client';
-import type {
-  AiFragmentNotAllowedData,
-  FragmentNode,
-  FragmentResultNode,
-  SchemaTextResult,
+import {
+  RpcErrorCode,
+  type AiFragmentNotAllowedData,
+  type FragmentNode,
+  type FragmentResultNode,
+  type SchemaTextResult,
 } from '@/rpc/types';
 import { contentFits } from '@/scripting/api-impl';
 import type { WorkingCopy } from '@/scripting/workingCopy';
@@ -100,6 +110,12 @@ import {
   type Entry,
   type OutlineEntry,
 } from './tools/model';
+import {
+  checkProposal,
+  RUN_NOT_CONFIRMED_HINT,
+  type ProposalArgs,
+  type ScriptProposal,
+} from './proposal';
 import { expansionFor, rewriteBlock } from './tools/replaceAll';
 import { inDescription, replaceEach, writeAt } from './tools/write';
 
@@ -143,16 +159,24 @@ export const US3_TOOL_NAMES = [
 /** The schema and validation read tools of US4 (T061), in the §3.1 order - after `find`. */
 export const US4_TOOL_NAMES = ['validate', 'get_schema'] as const;
 
+/** The script read tools of US6 (T075), in the §3.1 order - after `get_schema`. */
+export const US6_READ_TOOL_NAMES = ['list_scripts', 'read_script', 'read_resource'] as const;
+
+/** The script tools of US6 (T076, T077), in the §3.4 order - after the structural change tools. */
+export const US6_SCRIPT_TOOL_NAMES = ['run_script', 'propose_script', 'reload_scripts'] as const;
+
 /**
- * Every tool registered so far, in the `tools/list` order of §3: the read tools of §3.1 (US2's
- * six, then US4's two; US6 inserts its three after them), the selection tools of §3.2, the
- * structural change tools of §3.3 (US6 appends §3.4's).
+ * Every tool, in the `tools/list` order of §3: the read tools of §3.1 (US2's six, then US4's
+ * two, then US6's three), the selection tools of §3.2, the structural change tools of §3.3 and
+ * the script tools of §3.4 - 22 tools.
  */
 export const TOOL_NAMES = [
   ...US2_TOOL_NAMES.slice(0, 6),
   ...US4_TOOL_NAMES,
+  ...US6_READ_TOOL_NAMES,
   ...US2_TOOL_NAMES.slice(6),
   ...US3_TOOL_NAMES,
+  ...US6_SCRIPT_TOOL_NAMES,
 ] as const;
 
 /** The five schema files of `schema.text()` (rpc-api §3.13), in order - the resources of §4. */
@@ -167,8 +191,23 @@ export const SCHEMA_FILE_NAMES = [
 /** The URI of a schema file's MCP resource (ai-catalogue §4). */
 export const schemaResourceUri = (name: string) => `fb2://schema/${name}`;
 
-/** The resource URIs registered so far (ai-catalogue §4; US6 adds the `mfbe://` ones). */
-export const RESOURCE_URIS = SCHEMA_FILE_NAMES.map(schemaResourceUri);
+/** The `mfbe://` resources of §4 the `read_resource` tool serves (US6 T075), in the §4 order. */
+export const MFBE_RESOURCE_URIS = [
+  'mfbe://script-api.d.ts',
+  'mfbe://script-manifest.md',
+  'mfbe://example-script',
+] as const;
+
+export type MfbeResourceUri = (typeof MFBE_RESOURCE_URIS)[number];
+
+/** The resource template of a script's file (§4): `id` percent-encoded, `file` the path within the package. */
+export const SCRIPT_FILE_TEMPLATE = 'mfbe://scripts/{id}/{file}';
+
+/** The eight fixed resource URIs (ai-catalogue §4): the five schema files, then the `mfbe://` three. */
+export const RESOURCE_URIS = [...SCHEMA_FILE_NAMES.map(schemaResourceUri), ...MFBE_RESOURCE_URIS];
+
+/** The bundled script the `mfbe://example-script` resource carries whole (§4, FR-081). */
+export const EXAMPLE_SCRIPT_ID = '18/empty-line-before-poem-or-cite';
 
 /** What each schema file holds (the resource description, ai-catalogue §4). */
 const SCHEMA_FILE_ROLES: Record<(typeof SCHEMA_FILE_NAMES)[number], string> = {
@@ -183,8 +222,8 @@ const SCHEMA_FILE_ROLES: Record<(typeof SCHEMA_FILE_NAMES)[number], string> = {
 const SCHEMA_LICENCE_LINE =
   'Licence: BSD 2-clause, Copyright (c) 2004, Dmitry Gribov - the full notice is the notice member of get_schema.';
 
-/** The change tools of §3.5 registered so far (every call runs under the hook with a strike key). */
-export const CHANGE_TOOL_NAMES = ['replace_selection', ...US3_TOOL_NAMES] as const;
+/** The change tools of §3.5 (every call runs under the hook with a strike key). */
+export const CHANGE_TOOL_NAMES = ['replace_selection', ...US3_TOOL_NAMES, 'run_script'] as const;
 
 const UNKNOWN_NODE_HINT =
   'Use the ids returned by get_outline, read_part or find; paths shift after insertions.';
@@ -420,6 +459,74 @@ export interface CatalogueDeps {
    * `fb2://schema/*` resources, US4 T061). Without one the tool answers `unavailable`.
    */
   schemaText?: () => Promise<SchemaTextResult>;
+  /**
+   * The scripts of the editor (US6 T075-T077): the effective list, a package's files, the
+   * nested run, the proposal dialog and the write. Without one every script tool answers
+   * `unavailable` (the catalogue alone, in unit tests).
+   */
+  scripts?: ScriptsDeps;
+}
+
+/** A script of the effective layers as the catalogue lists it (`list_scripts`, ai-catalogue §3.1). */
+export interface CatalogueScript {
+  id: string;
+  /** The display name in the UI language (`en` fallback). */
+  name: string;
+  description?: string;
+  kind: 'menu' | 'tree';
+  needsSelection: boolean;
+  group: string;
+  /** The layer: `bundled` | `user` | `settings` | `portable`. */
+  source: string;
+  /** The package folder (absolute). */
+  folder: string;
+}
+
+/** One file of a package as `read_script` reads it: the text, or a binary's size alone. */
+export type ScriptFileContent = { content: string } | { binary: true; bytes?: number };
+
+/** The end of a nested script run as the host reports it (data-model §6.6). */
+export type NestedRunOutcome =
+  | { status: 'done'; document: Document | null; durationMs: number }
+  | { status: 'failed'; message: string; durationMs: number }
+  | { status: 'cancelled'; durationMs: number }
+  | { status: 'unavailable'; message: string };
+
+/** The user's decision on a proposal, as the tool reports it to the model (ai-catalogue §3.4). */
+export type ProposalDecision =
+  | { written: true; id: string; path: string; warnings: string[]; runRequested: boolean }
+  | { written: false; declined: true };
+
+/** The scripts surface the request loop binds (`CatalogueDeps.scripts`). */
+export interface ScriptsDeps {
+  /** The effective list, fresh (`scripts.list` through the scripts feature), with the loader's issues. */
+  list(): Promise<{ scripts: CatalogueScript[]; issues: string[] }>;
+  /** `scripts.source`: the package folder, its entry and every file's path within the package. */
+  files(id: string): Promise<{ folder: string; entry: string; files: string[] }>;
+  /** `GET /scripts/{id}/{file}` with the session token. */
+  readFile(id: string, file: string): Promise<ScriptFileContent>;
+  /** `scripts.reload` and the feature's refresh: the count and the issues afterwards. */
+  reload(): Promise<{ count: number; issues: string[] }>;
+  /** True while the Body view is active - scripts run there only (review C8). */
+  bodyView(): boolean;
+  /** `app.info().dataDir`: the root of the user scripts folder the dialog names in full. */
+  dataDir(): Promise<string>;
+  uiLanguage(): string;
+  /**
+   * The nested run (T076; data-model §6.6): `ScriptHost.run` on the request's working copy;
+   * the caller takes the result document over (`copy.reset`).
+   */
+  run(
+    script: CatalogueScript,
+    treeNode?: { nodeId: string; type: string },
+  ): Promise<NestedRunOutcome>;
+  /** The FR-084 gate (review C9): false for a script written in this conversation without the user's go. */
+  runAllowed(id: string): boolean;
+  /**
+   * The proposal dialog and, after *Write* / *Write and run*, `scripts.write` (T077, §7.3-§7.5);
+   * rejects with the core's `RpcError` when the write fails.
+   */
+  propose(proposal: ScriptProposal): Promise<ProposalDecision>;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -500,14 +607,12 @@ export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
   const context = new ToolContext(deps);
   registerReadTools(server, context);
   registerSchemaTools(server, context);
-  // T075 (US6): `list_scripts`, `read_script`, `read_resource` - here, before the selection
-  // tool, to keep the §3 order.
+  registerScriptReadTools(server, context);
   registerSelectionTools(server, context);
   registerChangeTools(server, context);
-  // T076 (US6): `run_script`, `propose_script`, `reload_scripts` - here, after the structural
-  // change tools, to keep the §3 order.
+  registerScriptTools(server, context);
   registerSchemaResources(server, context);
-  // T075 (US6): the `mfbe://` resources and the script template.
+  registerScriptResources(server, context);
   registerPrompts(server, () => context.deps);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -849,6 +954,31 @@ class ToolContext {
       if (this.schemaCache === loading) this.schemaCache = null;
     });
     return loading;
+  }
+
+  /** The scripts surface (US6); `unavailable` without one (the catalogue alone). */
+  requireScripts(): ScriptsDeps {
+    const scripts = this.deps.scripts;
+    if (!scripts) {
+      throw new ToolError('unavailable', 'The scripts are not available in this context.');
+    }
+    return scripts;
+  }
+
+  /** One script of the effective list by id; `invalidArguments` with the id list as the hint. */
+  async scriptById(
+    scripts: ScriptsDeps,
+    id: string,
+  ): Promise<{ script: CatalogueScript; all: CatalogueScript[] }> {
+    const { scripts: all } = await scripts.list();
+    const script = all.find((entry) => entry.id === id);
+    if (!script) {
+      throw new ToolError('invalidArguments', `No script with the id "${id}".`, {
+        hint: `The scripts are: ${all.map((entry) => entry.id).join(', ')}.`,
+        expected: { id: all.map((entry) => entry.id) },
+      });
+    }
+    return { script, all };
   }
 
   /**
@@ -1997,6 +2127,477 @@ function registerSchemaResources(server: McpServer, ctx: ToolContext): void {
       resource.update({ metadata: metadataOf(SCHEMA_FILE_NAMES[i]!, schema.notice) });
     });
   };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Scripts (US6 T075-T077; ai-catalogue §3.1, §3.4, §4, §7)                   */
+/* ------------------------------------------------------------------------ */
+
+/** The manifest contract: §1 "Where scripts live" to §3 "A script" of the scripting guide. */
+export function scriptManifestText(guide: string = scriptingGuide): string {
+  const start = guide.indexOf('\n## 1.');
+  const end = guide.indexOf('\n## 4.');
+  if (start < 0 || end < 0 || end <= start) return guide;
+  return `${guide.slice(start + 1, end).trimEnd()}\n`;
+}
+
+/** The `mfbe://example-script` package: the bundled script whole, notice header included (§4). */
+export function exampleScriptPackage(): { id: string; files: { path: string; content: string }[] } {
+  return {
+    id: EXAMPLE_SCRIPT_ID,
+    files: [
+      { path: 'script.json', content: exampleScriptManifest },
+      { path: 'index.js', content: exampleScriptIndex },
+    ],
+  };
+}
+
+const MFBE_RESOURCE_MIME: Record<MfbeResourceUri, string> = {
+  'mfbe://script-api.d.ts': 'text/typescript',
+  'mfbe://script-manifest.md': 'text/markdown',
+  'mfbe://example-script': 'application/json',
+};
+
+const MFBE_RESOURCE_META: Record<
+  MfbeResourceUri,
+  { name: string; title: string; description: string }
+> = {
+  'mfbe://script-api.d.ts': {
+    name: 'script-api',
+    title: 'Script API (mfbe.d.ts)',
+    description:
+      'The mfbe interface a script may use - the allow-list of the sandbox: mfbe.doc, mfbe.selection, mfbe.ui, mfbe.edit, mfbe.env, with every type. Nothing else exists inside a script.',
+  },
+  'mfbe://script-manifest.md': {
+    name: 'script-manifest',
+    title: 'Script package and manifest format',
+    description:
+      'Where scripts live, the script.json manifest (manifestVersion 1, id, name, description, kind, entry, needsSelection, undoLabel) and how the entry module is written.',
+  },
+  'mfbe://example-script': {
+    name: 'example-script',
+    title: 'Example script package',
+    description:
+      'One bundled script as a complete package: {id, files: [{path, content}]} - script.json and index.js, whole, with its notice header.',
+  },
+};
+
+/** The text of one `mfbe://` resource (`read_resource`, the resources). */
+export function mfbeResourceText(uri: MfbeResourceUri): string {
+  switch (uri) {
+    case 'mfbe://script-api.d.ts':
+      return scriptApiText;
+    case 'mfbe://script-manifest.md':
+      return scriptManifestText();
+    default:
+      return JSON.stringify(exampleScriptPackage(), null, 2);
+  }
+}
+
+/** The MIME type of a script file by its extension (the resource template of §4). */
+function scriptFileMime(path: string): string {
+  const dot = path.lastIndexOf('.');
+  const extension = dot >= 0 ? path.slice(dot + 1).toLowerCase() : '';
+  switch (extension) {
+    case 'js':
+    case 'mjs':
+    case 'cjs':
+      return 'text/javascript';
+    case 'json':
+      return 'application/json';
+    case 'ts':
+    case 'mts':
+      return 'text/typescript';
+    case 'md':
+      return 'text/markdown';
+    default:
+      return 'text/plain';
+  }
+}
+
+const scriptSchema = z.looseObject({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  kind: z.enum(['menu', 'tree']),
+  needsSelection: z.boolean(),
+  group: z.string(),
+  source: z.string(),
+  available: z.boolean(),
+  reason: z.enum(['needsSelection', 'treeOnly', 'sourceView']).optional(),
+});
+
+/** Why a script is not runnable right now (`list_scripts.reason`, ai-catalogue §3.1). */
+function scriptReason(
+  script: CatalogueScript,
+  bodyView: boolean,
+  hasSelection: boolean,
+): 'needsSelection' | 'treeOnly' | 'sourceView' | undefined {
+  if (!bodyView) return 'sourceView';
+  if (script.kind === 'tree') return 'treeOnly';
+  if (script.needsSelection && !hasSelection) return 'needsSelection';
+  return undefined;
+}
+
+function registerScriptReadTools(server: McpServer, ctx: ToolContext): void {
+  defineTool(
+    server,
+    'list_scripts',
+    {
+      title: 'List the scripts',
+      description:
+        'Lists the scripts of the editor (bundled and user ones) with id, name, description, kind ("menu" runs from the Scripts menu, "tree" acts on a Document Tree node) and whether a selection is needed. available says whether run_script may run it now: reason "needsSelection" (select text first with set_selection), "treeOnly" (pass treeNode), "sourceView" (scripts run in the Body view only; ask the user to switch). issues lists packages the loader could not read.',
+      inputSchema: z.object({}),
+      outputSchema: z.looseObject({ scripts: z.array(scriptSchema), issues: z.array(z.string()) }),
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      const scripts = ctx.requireScripts();
+      const listing = await scripts.list();
+      const bodyView = scripts.bodyView();
+      const hasSelection = ctx.deps.selection.get().kind !== 'none';
+      return {
+        scripts: listing.scripts.map((script) => {
+          const reason = scriptReason(script, bodyView, hasSelection);
+          return {
+            id: script.id,
+            name: script.name,
+            ...(script.description === undefined ? {} : { description: script.description }),
+            kind: script.kind,
+            needsSelection: script.needsSelection,
+            group: script.group,
+            source: script.source,
+            available: reason === undefined,
+            ...(reason === undefined ? {} : { reason }),
+          };
+        }),
+        issues: listing.issues,
+      };
+    },
+  );
+
+  defineTool(
+    server,
+    'read_script',
+    {
+      title: 'Read a script',
+      description:
+        "Returns a script's files: the manifest (script.json), the entry module and the other modules in full, with the package folder and the layer it comes from. Binary files (icons) are listed with binary: true and their size, without content. Read a script before proposing a change to it; a bundled script is never changed in place - propose the changed files under a new id.",
+      inputSchema: z.object({ id: z.string().min(1).describe('the script id from list_scripts') }),
+      outputSchema: z.looseObject({
+        id: z.string(),
+        folder: z.string(),
+        source: z.string(),
+        files: z.array(
+          z.looseObject({
+            path: z.string(),
+            content: z.string().optional(),
+            binary: z.boolean().optional(),
+            bytes: z.number().optional(),
+          }),
+        ),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async (args) => {
+      const scripts = ctx.requireScripts();
+      const { script } = await ctx.scriptById(scripts, args.id);
+      const source = await scripts.files(script.id);
+      const files = await Promise.all(
+        source.files.map(async (path) => {
+          const read = await scripts.readFile(script.id, path);
+          return 'content' in read
+            ? { path, content: read.content }
+            : { path, binary: true, ...(read.bytes === undefined ? {} : { bytes: read.bytes }) };
+        }),
+      );
+      return {
+        id: script.id,
+        folder: source.folder || script.folder,
+        source: script.source,
+        files,
+      };
+    },
+  );
+
+  defineTool(
+    server,
+    'read_resource',
+    {
+      title: 'Read a reference text',
+      description:
+        'Returns one of the references for writing scripts: "mfbe://script-api.d.ts" (the mfbe interface a script may use - everything else is unavailable inside the sandbox), "mfbe://script-manifest.md" (where scripts live, the script.json manifest and how the entry module is written), "mfbe://example-script" (one bundled script as a complete package with every file). Read them before propose_script.',
+      inputSchema: z.object({
+        uri: z.enum(MFBE_RESOURCE_URIS).describe('one of the three mfbe:// references'),
+      }),
+      outputSchema: z.looseObject({ uri: z.string(), mimeType: z.string(), text: z.string() }),
+      annotations: { readOnlyHint: true, idempotentHint: true },
+    },
+    (args) => ({
+      uri: args.uri,
+      mimeType: MFBE_RESOURCE_MIME[args.uri],
+      text: mfbeResourceText(args.uri),
+    }),
+  );
+}
+
+/** The core's `scripts.write` refusals as envelopes (ai-catalogue §3.4; rpc-api §3.8). */
+export function scriptWriteError(error: RpcError): ToolError {
+  const data = (error.data ?? {}) as {
+    errors?: unknown;
+    field?: string;
+    path?: string;
+    id?: string;
+  };
+  switch (error.code) {
+    case RpcErrorCode.scriptInvalidManifest:
+      return new ToolError('invalidArguments', 'The script loader refused the manifest.', {
+        hint: 'Correct script.json as the errors say and propose again.',
+        errors: Array.isArray(data.errors) ? data.errors : [error.message],
+      });
+    case RpcErrorCode.aiScriptIdBundled:
+      return new ToolError(
+        'scriptIdBundled',
+        `"${data.id ?? ''}" is a bundled script, which is never modified.`,
+        {
+          hint: 'Propose the changed script under a new id such as assistant/<name>.',
+        },
+      );
+    case RpcErrorCode.aiScriptExists:
+      return new ToolError(
+        'scriptExists',
+        `A user script with this id or folder exists: ${data.path ?? ''}`,
+        {
+          hint: 'Pass overwrite: true to replace it whole, or choose another id.',
+        },
+      );
+    case RpcErrorCode.invalidParams:
+      return new ToolError('invalidArguments', error.message, {
+        ...(data.field ? { field: data.field } : {}),
+      });
+    default:
+      return new ToolError('internal', `${error.code}: ${error.message}`, { rpcCode: error.code });
+  }
+}
+
+function registerScriptTools(server: McpServer, ctx: ToolContext): void {
+  defineTool(
+    server,
+    'run_script',
+    {
+      title: 'Run a script',
+      description:
+        'Runs a script of list_scripts inside this request, exactly as from the Scripts menu: its own dialogs appear to the user, its changes become part of this request (validated like every change; one undo step). Body view only. A script with needsSelection needs a non-empty selection (set_selection first); a "tree" script needs treeNode. A script written in this conversation runs only when the user asked for it (Write and run, or a later instruction). status "failed" means the script threw and its changes were rolled back; the request goes on.',
+      inputSchema: z.object({
+        id: z.string().min(1).describe('the script id from list_scripts'),
+        treeNode: z
+          .string()
+          .optional()
+          .describe('for a "tree" script: the node it acts on (a nodeId or a structural path)'),
+      }),
+      outputSchema: z.looseObject({
+        status: z.enum(['done']),
+        changed: z.boolean(),
+        message: z.string().optional(),
+        durationMs: z.number(),
+      }),
+      annotations: changeAnnotations,
+    },
+    async (args) => {
+      const scripts = ctx.requireScripts();
+      if (!scripts.bodyView()) {
+        throw new ToolError('unavailable', 'Scripts run in the Body view only.', {
+          hint: 'scripts run in the Body view; ask the user to switch',
+        });
+      }
+      return ctx.change(`run_script:${args.id}`, async () => {
+        const { script } = await ctx.scriptById(scripts, args.id);
+        let treeNode: { nodeId: string; type: string } | undefined;
+        if (script.kind === 'tree') {
+          if (!args.treeNode) {
+            throw new ToolError(
+              'invalidArguments',
+              `"${script.id}" is a Document Tree script: pass treeNode, the node it acts on.`,
+              { expected: { id: script.id, treeNode: 'a nodeId or a structural path' } },
+            );
+          }
+          const entry = ctx.resolve(args.treeNode);
+          treeNode = { nodeId: nodeIdOf(entry.node), type: entry.node.type };
+        }
+        if (script.needsSelection && ctx.deps.selection.get().kind === 'none') {
+          throw new ToolError(
+            'selectionRequired',
+            `"${script.id}" works on the selection and nothing is selected.`,
+            { hint: 'Call set_selection first, then run_script.' },
+          );
+        }
+        if (!scripts.runAllowed(script.id)) {
+          throw new ToolError(
+            'runNotConfirmed',
+            `"${script.id}" was written in this conversation and the user has not asked to run it.`,
+            { hint: RUN_NOT_CONFIRMED_HINT },
+          );
+        }
+        const outcome = await scripts.run(script, treeNode);
+        switch (outcome.status) {
+          case 'done':
+            if (outcome.document) ctx.deps.copy.reset(outcome.document);
+            return {
+              status: 'done',
+              changed: outcome.document !== null,
+              durationMs: outcome.durationMs,
+            };
+          case 'failed':
+            throw new ToolError('scriptFailed', outcome.message, {
+              hint: 'The script threw; its changes were rolled back. Continue without it or correct the script.',
+              durationMs: outcome.durationMs,
+            });
+          case 'cancelled':
+            throw new ToolError('cancelled', 'The user cancelled the run and the request.');
+          default:
+            throw new ToolError('unavailable', outcome.message);
+        }
+      });
+    },
+  );
+
+  defineTool(
+    server,
+    'propose_script',
+    {
+      title: 'Propose a script',
+      description:
+        'Proposes a complete user script package to the user, who sees every file in full and the target folder and decides: Write, Write and run, or Don\'t write - nothing is written before that. files must hold script.json (manifestVersion 1, the same id, name.en, kind, entry, needsSelection, undoLabel) and the entry module ("export default async function run(ctx) {…}" against the mfbe interface alone - read mfbe://script-api.d.ts, mfbe://script-manifest.md and mfbe://example-script first); further modules are imported by relative path. Ids are "assistant/<kebab-name>" (group 90_assistant). A bundled script is never modified: propose the changed files under a new id. To change an existing user script read_script it first and pass the full new set with overwrite: true. summary: what the script does, for the user (≤ 500 characters). written: false, declined: true means the user said no - do not propose again without a new instruction. runRequested: true means the user chose Write and run: call run_script now.',
+      inputSchema: z.object({
+        id: z.string().min(1).describe('the new script id, assistant/<kebab-name>'),
+        group: z
+          .string()
+          .optional()
+          .describe('the group folder under scripts/ (default 90_assistant)'),
+        folder: z
+          .string()
+          .optional()
+          .describe('the package folder name (default: the last id segment)'),
+        files: z
+          .array(
+            z.object({
+              path: z.string().describe('relative to the package folder, / separators'),
+              content: z.string().describe('the full text of the file'),
+            }),
+          )
+          .describe('every file of the package (1–64), script.json and the entry module included'),
+        overwrite: flag('replace the existing user script of this id whole'),
+        summary: z.string().describe('what the script does, shown to the user (≤ 500 characters)'),
+      }),
+      outputSchema: z.looseObject({
+        written: z.boolean(),
+        declined: z.boolean().optional(),
+        id: z.string().optional(),
+        path: z.string().optional(),
+        warnings: z.array(z.string()).optional(),
+        runRequested: z.boolean().optional(),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async (args) => {
+      const scripts = ctx.requireScripts();
+      const { scripts: all } = await scripts.list();
+      const existing = {
+        bundledIds: new Set(all.filter((s) => s.source === 'bundled').map((s) => s.id)),
+        userIds: new Set(all.filter((s) => s.source !== 'bundled').map((s) => s.id)),
+      };
+      const proposalArgs: ProposalArgs = {
+        id: args.id,
+        ...(args.group === undefined ? {} : { group: args.group }),
+        ...(args.folder === undefined ? {} : { folder: args.folder }),
+        files: args.files,
+        ...(args.overwrite === undefined ? {} : { overwrite: args.overwrite }),
+        summary: args.summary,
+      };
+      const check = checkProposal(proposalArgs, {
+        dataDir: await scripts.dataDir(),
+        uiLanguage: scripts.uiLanguage(),
+        existing,
+      });
+      if (!check.ok) {
+        const { refusal } = check;
+        throw new ToolError(refusal.code, refusal.message, {
+          ...(refusal.hint === undefined ? {} : { hint: refusal.hint }),
+          ...(refusal.field === undefined ? {} : { field: refusal.field }),
+        });
+      }
+      try {
+        return await scripts.propose(check.proposal);
+      } catch (error) {
+        if (error instanceof RpcError) throw scriptWriteError(error);
+        throw error;
+      }
+    },
+  );
+
+  defineTool(
+    server,
+    'reload_scripts',
+    {
+      title: 'Re-read the scripts',
+      description:
+        'Re-reads the script folders (a package copied in by hand appears) and returns the count of scripts and the issues of packages the loader could not read. propose_script re-reads on its own; call this only when the user says scripts were added outside the editor.',
+      inputSchema: z.object({}),
+      outputSchema: z.looseObject({ count: z.number(), issues: z.array(z.string()) }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    async () => {
+      const scripts = ctx.requireScripts();
+      return scripts.reload();
+    },
+  );
+}
+
+/**
+ * The `mfbe://` resources of §4 (US6 T075): the three fixed ones from the bundled texts and the
+ * template `mfbe://scripts/{id}/{file}` served from the core (`GET /scripts/{id}/{file}`); a
+ * binary file is not readable as a resource.
+ */
+function registerScriptResources(server: McpServer, ctx: ToolContext): void {
+  for (const uri of MFBE_RESOURCE_URIS) {
+    const meta = MFBE_RESOURCE_META[uri];
+    server.registerResource(
+      meta.name,
+      uri,
+      { title: meta.title, description: meta.description, mimeType: MFBE_RESOURCE_MIME[uri] },
+      (resourceUri) => ({
+        contents: [
+          { uri: resourceUri.href, mimeType: MFBE_RESOURCE_MIME[uri], text: mfbeResourceText(uri) },
+        ],
+      }),
+    );
+  }
+  server.registerResource(
+    'script-file',
+    new ResourceTemplate(SCRIPT_FILE_TEMPLATE, { list: undefined }),
+    {
+      title: 'A file of a script package',
+      description:
+        'One file of a script of list_scripts: id percent-encoded (18%2Fremove-spaces), file the path within the package. Binary files are not readable.',
+    },
+    async (resourceUri, variables) => {
+      const scripts = ctx.requireScripts();
+      const idValue = Array.isArray(variables.id) ? variables.id[0] : variables.id;
+      const fileValue = Array.isArray(variables.file) ? variables.file[0] : variables.file;
+      const id = decodeURIComponent(String(idValue ?? ''));
+      const file = decodeURIComponent(String(fileValue ?? ''));
+      const read = await scripts.readFile(id, file);
+      if (!('content' in read)) {
+        throw new ToolError(
+          'unavailable',
+          `"${file}" is a binary file; it is not readable as text.`,
+        );
+      }
+      return {
+        contents: [{ uri: resourceUri.href, mimeType: scriptFileMime(file), text: read.content }],
+      };
+    },
+  );
 }
 
 /** The `FindQuery` arguments `find` and `replace_all` share (ai-catalogue §3.1, §3.3). */

@@ -65,9 +65,12 @@ import {
   type AssistantMessage,
   type AssistantRequestView,
 } from '@/model/store';
-import { RpcError, type RpcClient } from '@/rpc/client';
+import { resolveToken, RpcError, type RpcClient } from '@/rpc/client';
 import { RpcErrorCode, type AiOutcome, type ChatRequest, type FragmentNode } from '@/rpc/types';
 import { plainText } from '@/scripting/api-impl';
+import { getScriptsFeature, type ScriptsFeature } from '@/scripting/catalog';
+import { scriptName, type ScriptHost } from '@/scripting/host';
+import type { ScriptInfo, ScriptSourceResult } from '@/scripting/types';
 import type { WorkingCopy } from '@/scripting/workingCopy';
 import {
   getBodyController,
@@ -91,9 +94,14 @@ import {
   ToolError,
   type Catalogue,
   type CatalogueDeps,
+  type CatalogueScript,
   type ChangeHook,
   type ChangeHookOptions,
   type ModelSelection,
+  type NestedRunOutcome,
+  type ProposalDecision,
+  type ScriptFileContent,
+  type ScriptsDeps,
   type SelectionHolder,
   type ToolCallOutcome,
   type ToolErrorEnvelope,
@@ -128,6 +136,14 @@ import {
   type SelectionReplacementResult,
 } from './hook';
 import { requireAgreement } from './notice';
+import {
+  defaultAuthorLine,
+  filesToWrite,
+  runAllowed,
+  type ScriptProposal,
+  type WrittenScript,
+} from './proposal';
+import { showProposal } from './proposal.tsx';
 import {
   failureText,
   pacingWait,
@@ -282,6 +298,7 @@ export function stopAssistant(store: AppStore): void {
   active?.cancel();
   closeCatalogue();
   failNextTool = null;
+  writtenScripts.clear();
   actions.updateAi(store, {
     on: false,
     request: null,
@@ -362,6 +379,21 @@ let active: RequestRun | null = null;
 let lastRequest: LastRequestInfo | null = null;
 /** Test hook (hooks builds): the next call of this tool throws inside the loop (review C17). */
 let failNextTool: { name: string; message: string } | null = null;
+
+/**
+ * The FR-084 gate's state (ai-catalogue §7.6; data-model §10.2; review C9): the scripts written
+ * in this conversation, by id, with the request that wrote them, the moment on the
+ * conversation's clock and whether the user chose *Write and run*. `conversationClock` orders
+ * the instructions and the writes; cleared at turn-off (the conversation ends with it).
+ */
+const writtenScripts = new Map<string, WrittenScript>();
+let conversationClock = 0;
+
+/** The next moment of the conversation's clock (an instruction sent, a script written). */
+function tick(): number {
+  conversationClock += 1;
+  return conversationClock;
+}
 
 /**
  * `__mfbeTest.ai.failNextTool(name, message)`: makes the next call of `name` throw a plain
@@ -451,6 +483,39 @@ export interface AssistantModule {
 
 function isCancelledError(error: unknown): boolean {
   return error instanceof RpcError && error.code === RpcErrorCode.cancelled;
+}
+
+/** File extensions `read_script` lists as binary (no content; the core serves them for `<img>`). */
+const BINARY_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'bmp', 'svgz']);
+
+/**
+ * One file of a script package through the core's `GET /scripts/{id}/{file}` with the session
+ * token (ai-catalogue §3.1 `read_script`, §4 template): the text of a text file; a binary
+ * file's size alone (a HEAD request), never its bytes.
+ */
+async function readScriptFile(id: string, file: string): Promise<ScriptFileContent> {
+  const base = import.meta.env.BASE_URL ?? '/';
+  const token = resolveToken();
+  const path = file.split('/').map(encodeURIComponent).join('/');
+  const url = `${base}scripts/${encodeURIComponent(id)}/${path}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  const dot = file.lastIndexOf('.');
+  const extension = dot >= 0 ? file.slice(dot + 1).toLowerCase() : '';
+  if (BINARY_EXTENSIONS.has(extension)) {
+    try {
+      const head = await fetch(url, { method: 'HEAD' });
+      const length = Number(head.headers.get('content-length'));
+      return Number.isFinite(length) && length > 0
+        ? { binary: true, bytes: length }
+        : { binary: true };
+    } catch {
+      return { binary: true };
+    }
+  }
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new ToolError('internal', `GET /scripts/${id}/${file} failed: ${response.status}`);
+  }
+  return { content: await response.text() };
 }
 
 /** The failure a thrown value stands for: 1200 → `noService`, everything else `internal`. */
@@ -627,7 +692,11 @@ function countEntries(entries: readonly OutlineEntry[]): number {
 class RequestRun {
   readonly id = nextRequestId();
   readonly startedAt = Date.now();
+  /** When the user's instruction was sent, on the conversation's clock (the FR-084 gate). */
+  readonly instructionAt = tick();
   private session: RequestSession | null = null;
+  /** The script host while a nested run is under way (US6 T076): its Cancel is ours. */
+  private nestedHost: ScriptHost | null = null;
   private catalogue: Catalogue | null = null;
   private holder: SelectionHolder | null = null;
   private controller: BodyEditorController | null = null;
@@ -761,6 +830,9 @@ class RequestRun {
     }
     this.waitAbort?.();
     this.session?.cancelValidation();
+    // A nested script run ends with the request (FR-080, review C10): the host closes the
+    // script's dialogs and resolves the run as cancelled.
+    this.nestedHost?.cancel();
   }
 
   /* ------------------------------------------------------------ the run */
@@ -836,6 +908,12 @@ class RequestRun {
       this.caret = null;
     } else if (selection === undefined) {
       selection = editorState ? await selectionSnapshot(editorState, window, toXml) : null;
+    } else if (selection === null && options.origin === 'panel' && editorState) {
+      // The panel's request in the Body view stays `general` (the instruction as typed, no fast
+      // path) while the tools see the Body selection - the context's `selection`,
+      // `get_selection`, a `needsSelection` script of `run_script` (ai-catalogue §2.1, §3.2,
+      // §3.4; US6) - as the Source view's panel request does with its text selection.
+      sourceSelection = await selectionSnapshot(editorState, window, toXml);
     }
     if (this.cancelled) return { kind: 'cancelled' };
     this.selection = selection ?? null;
@@ -944,7 +1022,7 @@ class RequestRun {
     const holder = selectionHolder(
       source
         ? sourceModelSelection(source, sourceSelection)
-        : modelSelectionOf(this.selection, this.caret),
+        : modelSelectionOf(this.selection ?? sourceSelection, this.caret),
     );
     this.holder = holder;
     const catalogue = await openCatalogue(store);
@@ -975,6 +1053,9 @@ class RequestRun {
           : session.validate(),
       baseline: () => session.baseline,
       schemaText: () => this.rpc.call('schema.text'),
+      // US6 (ai-catalogue §3.1, §3.4, §7): the scripts - the list, a package's files, the
+      // nested run on the request's copy, the FR-084 gate and the proposal dialog.
+      scripts: this.scriptsDeps(session),
       // US5 (ai-catalogue §8): the text path of `replace_selection` on a `source` selection and
       // the gate - the six tools of the text mode, the structured change tools after a text
       // change, `run_script` outside the Body view (C8).
@@ -1556,6 +1637,206 @@ class RequestRun {
     if (summary) updateActivity(store, entry, { summary });
     this.activity('tool.result', { name: call.name, summary: summary ?? call.name });
     return outcome;
+  }
+
+  /* ------------------------------------------------------- scripts (US6) */
+
+  /** The scripts feature of the store (installed by the registrar), attached; `unavailable` without one. */
+  private scriptsFeature(): ScriptsFeature {
+    const feature = getScriptsFeature(this.store);
+    if (!feature) throw new ToolError('unavailable', 'The scripts are not available.');
+    feature.ensureAttached(this.ctx);
+    return feature;
+  }
+
+  /** A script of the feature's list as the catalogue lists it (names in the UI language). */
+  private catalogueScript(script: ScriptInfo): CatalogueScript {
+    const language = this.store.getState().uiLanguage;
+    const description = script.description?.[language] ?? script.description?.en;
+    return {
+      id: script.id,
+      name: scriptName(script, language),
+      ...(description ? { description } : {}),
+      kind: script.kind,
+      needsSelection: script.needsSelection,
+      group: script.group,
+      source: script.source,
+      folder: script.dir,
+    };
+  }
+
+  /** The loader's issues as one line each (`list_scripts.issues`, `reload_scripts.issues`). */
+  private scriptIssues(feature: ScriptsFeature): string[] {
+    return feature.issues.map(
+      (issue) =>
+        `${issue.reason}: ${issue.message}${issue.id ? ` (${issue.id})` : ''}${issue.path ? ` - ${issue.path}` : ''}`,
+    );
+  }
+
+  /**
+   * The scripts surface of the catalogue (`CatalogueDeps.scripts`; ai-catalogue §3.1, §3.4,
+   * §7): the effective list and the files through the scripts feature and the core, the nested
+   * run on the request's working copy, the FR-084 gate and the proposal dialog with its write.
+   */
+  private scriptsDeps(session: RequestSession): ScriptsDeps {
+    const { store } = this;
+    let dataDir: Promise<string> | null = null;
+    return {
+      list: async () => {
+        const feature = this.scriptsFeature();
+        if (!feature.loaded) await feature.refresh();
+        return {
+          scripts: feature.all().map((script) => this.catalogueScript(script)),
+          issues: this.scriptIssues(feature),
+        };
+      },
+      files: async (id) => {
+        const source = (await this.rpc.call('scripts.source', {
+          scriptId: id,
+        })) as unknown as ScriptSourceResult;
+        return { folder: source.dir, entry: source.entry, files: source.files };
+      },
+      readFile: (id, file) => readScriptFile(id, file),
+      reload: async () => {
+        const feature = this.scriptsFeature();
+        await this.rpc.call('scripts.reload');
+        await feature.refresh();
+        return { count: feature.all().length, issues: this.scriptIssues(feature) };
+      },
+      // The Description view is not the Body view for a run (review C8): the script's dialogs
+      // and selection calls need the Body editor.
+      bodyView: () => store.getState().activeView === 'body' && !this.source,
+      dataDir: () => {
+        dataDir ??= this.rpc.call('app.info').then((info) => info.dataDir);
+        return dataDir;
+      },
+      uiLanguage: () => store.getState().uiLanguage,
+      run: (script, treeNode) => this.runNestedScript(session, script, treeNode),
+      runAllowed: (id) =>
+        runAllowed(writtenScripts.get(id), { id: this.id, instructionAt: this.instructionAt }),
+      propose: (proposal) => this.proposeScript(session, proposal),
+    };
+  }
+
+  /**
+   * `run_script` (T076; data-model §6.6; review C10): the script host runs the script nested in
+   * this request - from the working copy, with no lock, banner, undo entry or `scripts.lastRun`
+   * of its own, nothing published, its dialogs captioned as run by the assistant (the
+   * `script.dialog` entry when one opens); the banner says "running script <name>"; the
+   * banner's Cancel ends the run and the request together (`cancel()`).
+   */
+  private async runNestedScript(
+    session: RequestSession,
+    script: CatalogueScript,
+    treeNode?: { nodeId: string; type: string },
+  ): Promise<NestedRunOutcome> {
+    const { t, store, ctx } = this;
+    const feature = this.scriptsFeature();
+    const info = feature.find(script.id);
+    if (!info) return { status: 'unavailable', message: `unknown script "${script.id}"` };
+    if (feature.host.isRunning) {
+      return { status: 'unavailable', message: 'another script is running' };
+    }
+    const name = scriptName(info, store.getState().uiLanguage);
+    this.setPhase(t('ai.phase.runningScript', { name }));
+    // The `script.dialog` entry: written once per dialog the nested run opens (the host's
+    // `waiting` flag flips while a message, prompt or form is up).
+    let waiting = false;
+    const unsubscribe = feature.host.subscribe(() => {
+      const state = feature.host.current;
+      const now = !!state && state.status === 'running' && state.waiting;
+      if (now && !waiting) this.activity('script.dialog', { id: script.id, name });
+      waiting = now;
+    });
+    this.nestedHost = feature.host;
+    const started = Date.now();
+    try {
+      const result = await feature.host.run(
+        info,
+        {
+          rpc: this.rpc,
+          dialogs: ctx.dialogs,
+          t,
+          uiLanguage: store.getState().uiLanguage,
+          ...(treeNode ? { treeNode } : {}),
+        },
+        { nested: { workingCopy: session.copy, session: session.run } },
+      );
+      const durationMs = Date.now() - started;
+      switch (result.status) {
+        case 'done':
+          return { status: 'done', document: result.document ?? null, durationMs };
+        case 'failed':
+          return {
+            status: 'failed',
+            message: result.message ?? result.error?.message ?? 'the script failed',
+            durationMs,
+          };
+        case 'cancelled':
+          return { status: 'cancelled', durationMs };
+        default:
+          return { status: 'unavailable', message: result.message ?? result.status };
+      }
+    } finally {
+      unsubscribe();
+      this.nestedHost = null;
+    }
+  }
+
+  /**
+   * `propose_script` after the pre-checks (T077; ai-catalogue §7.3-§7.5; data-model §10.2):
+   * the dialog over the locked document; *Write* / *Write and run* → `scripts.write` with the
+   * author line in the entry module, the written script remembered for the FR-084 gate (with
+   * the permission of *Write and run* for this request), the feature's list refreshed (the
+   * core re-read the scripts and the menu follows `resources.changed`), the `script.proposed`
+   * entry; *Don't write* (the button, Escape, the banner's Cancel) → declined, nothing written.
+   * A write the core refuses rejects with its `RpcError` (the catalogue maps it).
+   */
+  private async proposeScript(
+    session: RequestSession,
+    proposal: ScriptProposal,
+  ): Promise<ProposalDecision> {
+    const { t, ctx } = this;
+    const files = proposal.files.map((file) => ({ path: file.path, bytes: file.bytes }));
+    const result = await showProposal(ctx, proposal, {
+      defaultAuthorLine: defaultAuthorLine(t),
+      run: session.run,
+    });
+    if (result.decision === 'decline' || this.cancelled) {
+      this.activity('script.proposed', { id: proposal.scriptId, files, written: false });
+      return { written: false, declined: true };
+    }
+    const written = await this.rpc.call('scripts.write', {
+      id: proposal.scriptId,
+      group: proposal.group,
+      folder: proposal.folder,
+      files: filesToWrite(proposal, result.authorLine),
+      ...(proposal.existing ? { overwrite: true } : {}),
+    });
+    const runRequested = result.decision === 'writeAndRun';
+    writtenScripts.set(proposal.scriptId, {
+      id: proposal.scriptId,
+      requestId: this.id,
+      writtenAt: tick(),
+      runRequested,
+    });
+    // The core rescanned and notified; the feature's list is refreshed here too so that the
+    // model's next list_scripts / run_script sees the script at once (SC-011).
+    await this.scriptsFeature().refresh();
+    this.activity('script.proposed', {
+      id: proposal.scriptId,
+      files,
+      written: true,
+      runRequested,
+      path: written.path,
+    });
+    return {
+      written: true,
+      id: written.id,
+      path: written.path,
+      warnings: written.warnings,
+      runRequested,
+    };
   }
 
   /**

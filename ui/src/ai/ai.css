@@ -341,3 +341,97 @@
   cursor: pointer;
   font: inherit;
 }
+
+/* ------------------------------------------------------------------------ */
+/* The script proposal dialog (feature 005 US6, FR-082 / FR-084; proposal.tsx) */
+/* ------------------------------------------------------------------------ */
+
+/* Every model-supplied text of the assistant's surfaces is plain text (review C16). */
+.mfbe-ai-plain {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-proposal {
+  width: min(880px, 92vw);
+}
+
+.mfbe-ai-proposal .mfbe-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.mfbe-ai-proposal-path {
+  overflow-wrap: anywhere;
+}
+
+.mfbe-ai-proposal-replaces {
+  color: var(--status-bad, #c42b1c);
+}
+
+.mfbe-ai-proposal-author {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfbe-ai-proposal-author input {
+  font: inherit;
+  padding: 4px 6px;
+}
+
+.mfbe-ai-proposal-files-title,
+.mfbe-ai-proposal-file-path,
+.mfbe-ai-proposal-warnings-title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.mfbe-ai-proposal-files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mfbe-ai-proposal-file {
+  border: 1px solid var(--mfbe-color-border, #c8c8c8);
+  background: var(--mfbe-color-input-bg, #fff);
+}
+
+.mfbe-ai-proposal-file-path {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--mfbe-color-border, #c8c8c8);
+  font-family: var(--mfbe-font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+}
+
+.mfbe-ai-proposal-file-content {
+  margin: 0;
+  padding: 6px 8px;
+  max-height: 32vh;
+  overflow: auto;
+  font-family: var(--mfbe-font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+  font-size: 0.92em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+.mfbe-ai-proposal-warnings {
+  border: 1px solid var(--status-bad, #c42b1c);
+  padding: 6px 8px;
+}
+
+.mfbe-ai-proposal-warnings-title {
+  color: var(--status-bad, #c42b1c);
+}
+
+.mfbe-ai-proposal-warnings ul {
+  margin: 4px 0 0;
+  padding-left: 1.4em;
+  font-family: var(--mfbe-font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+  font-size: 0.92em;
+}

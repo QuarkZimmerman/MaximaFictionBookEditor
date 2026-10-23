@@ -107,8 +107,12 @@ export interface DialogProps {
   title: string;
   children?: ReactNode;
   buttons: DialogButton[];
-  /** Button triggered by Enter (and focused initially unless `initialFocus` says otherwise). */
-  defaultButtonId?: string;
+  /**
+   * Button triggered by Enter (and focused initially unless `initialFocus` says otherwise);
+   * the first button when absent, **none** when `null` (Enter then does nothing - the AI
+   * script proposal with warnings, feature 005 FR-084).
+   */
+  defaultButtonId?: string | null;
   /** Button triggered by Escape and the close box; when absent Escape is ignored. */
   cancelButtonId?: string;
   /** CSS selector of the element to focus initially (e.g. the text input). */
@@ -181,7 +185,10 @@ export function Dialog({
   const titleId = useId();
   const previouslyFocused = useRef<Element | null>(null);
 
-  const defaultButton = buttons.find((b) => b.id === defaultButtonId) ?? buttons[0];
+  const defaultButton =
+    defaultButtonId === null
+      ? undefined
+      : (buttons.find((b) => b.id === defaultButtonId) ?? buttons[0]);
   const cancelButton = cancelButtonId ? buttons.find((b) => b.id === cancelButtonId) : undefined;
 
   // Initial focus (and place), focus guard while modal, focus restoration on close.

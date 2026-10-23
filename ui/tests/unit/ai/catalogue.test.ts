@@ -9,22 +9,34 @@
  * review C4), the `set_description` merge and the prompts. US4/US6 extend this file.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import {
   CATALOGUE_VERSION,
   CHANGE_TOOL_NAMES,
+  EXAMPLE_SCRIPT_ID,
   MAX_DESCRIPTION_LENGTH,
+  MFBE_RESOURCE_URIS,
   RESOURCE_URIS,
   SCHEMA_FILE_NAMES,
+  SCRIPT_FILE_TEMPLATE,
   TOOL_NAME_RULE,
   TOOL_NAMES,
   US2_TOOL_NAMES,
   US3_TOOL_NAMES,
   US4_TOOL_NAMES,
+  US6_READ_TOOL_NAMES,
+  US6_SCRIPT_TOOL_NAMES,
+  type CatalogueScript,
   type PromptText,
+  type ScriptsDeps,
 } from '@/ai/catalogue';
 import { multiset } from '@/ai/hook';
+import type { ScriptProposal } from '@/ai/proposal';
 import type { ModelNodeJson } from '@/editor/fromModel';
 import type { ValidationIssue, ValidationReport } from '@/model/document';
+import { RpcError } from '@/rpc/client';
 import type { SchemaTextResult } from '@/rpc/types';
 
 import { blocksSelection, harness, inlineSelection, type Harness } from './catalogueHarness';
@@ -50,11 +62,11 @@ function textOf(copy: Harness['copy'], nodeId: string): string {
 }
 
 describe('tools/list', () => {
-  it('lists the US2, US4 and US3 tools in the §3 order with the name rule, short descriptions and object schemas', () => {
+  it('lists the 22 tools in the §3 order, every one once, with the name rule, short descriptions and object schemas', () => {
     const tools = h.catalogue.listed();
     expect(tools.map((t) => t.name)).toEqual([...TOOL_NAMES]);
-    // §3 order: the read tools (US2's six, then US4's validate and get_schema), the selection
-    // tools, the structural change tools.
+    // §3 order: the read tools (US2's six, then US4's validate and get_schema, then US6's
+    // three), the selection tools, the structural change tools, the script tools.
     expect(TOOL_NAMES).toEqual([
       'get_context',
       'get_outline',
@@ -64,12 +76,24 @@ describe('tools/list', () => {
       'find',
       'validate',
       'get_schema',
+      'list_scripts',
+      'read_script',
+      'read_resource',
       'set_selection',
       'replace_selection',
       ...US3_TOOL_NAMES,
+      'run_script',
+      'propose_script',
+      'reload_scripts',
     ]);
+    expect(TOOL_NAMES).toHaveLength(22);
+    expect(new Set(TOOL_NAMES).size).toBe(22);
     expect(US4_TOOL_NAMES).toEqual(['validate', 'get_schema']);
-    expect(TOOL_NAMES).toHaveLength(US2_TOOL_NAMES.length + US4_TOOL_NAMES.length + 6);
+    expect(US6_READ_TOOL_NAMES).toEqual(['list_scripts', 'read_script', 'read_resource']);
+    expect(US6_SCRIPT_TOOL_NAMES).toEqual(['run_script', 'propose_script', 'reload_scripts']);
+    expect(TOOL_NAMES).toHaveLength(
+      US2_TOOL_NAMES.length + US4_TOOL_NAMES.length + US6_READ_TOOL_NAMES.length + 6 + 3,
+    );
     expect(US3_TOOL_NAMES).toEqual([
       'replace_node',
       'insert_node',
@@ -78,7 +102,7 @@ describe('tools/list', () => {
       'replace_all',
       'set_description',
     ]);
-    expect(CHANGE_TOOL_NAMES).toEqual(['replace_selection', ...US3_TOOL_NAMES]);
+    expect(CHANGE_TOOL_NAMES).toEqual(['replace_selection', ...US3_TOOL_NAMES, 'run_script']);
     for (const tool of tools) {
       expect(tool.name).toMatch(TOOL_NAME_RULE);
       expect(tool.title).toBeTruthy();
@@ -1045,8 +1069,11 @@ describe('the schema resources (ai-catalogue §4)', () => {
       'fb2://schema/FictionBookLang.xsd',
       'fb2://schema/FictionBookLinks.xsd',
       'fb2://schema/FictionNotes.xsd',
+      'mfbe://script-api.d.ts',
+      'mfbe://script-manifest.md',
+      'mfbe://example-script',
     ]);
-    for (const resource of resources) {
+    for (const resource of resources.slice(0, SCHEMA_FILE_NAMES.length)) {
       expect(resource.name).toMatch(TOOL_NAME_RULE);
       expect(resource.mimeType).toBe('application/xml');
       expect(resource.description).toContain('Dmitry Gribov');
@@ -1776,5 +1803,508 @@ describe('set_description', () => {
     expect(inline.error?.code).toBe('fragmentNotAllowed');
     expect(JSON.stringify(h.copy.document)).toBe(before);
     expect(h.hookCalls).toEqual(Array(cases.length + 3).fill('set_description:description'));
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US6 (T074 / T075-T077): the script tools, the mfbe:// resources            */
+/* ------------------------------------------------------------------------ */
+
+const REPO_ROOT = fileURLToPath(new URL('../../../..', import.meta.url));
+
+const SCRIPTS: CatalogueScript[] = [
+  {
+    id: '18/remove-spaces',
+    name: 'Remove spaces',
+    description: 'Removes spaces from the selection',
+    kind: 'menu',
+    needsSelection: true,
+    group: '18_editing',
+    source: 'bundled',
+    folder: '/app/scripts/18_editing/01_remove-spaces',
+  },
+  {
+    id: 'test.dialogs.form',
+    name: 'Form dialog',
+    kind: 'menu',
+    needsSelection: false,
+    group: '02_Dialogs',
+    source: 'user',
+    folder: '/data/scripts/02_Dialogs/01_Form',
+  },
+  {
+    id: 'test.tree.mark',
+    name: 'Mark',
+    kind: 'tree',
+    needsSelection: false,
+    group: 'tree',
+    source: 'user',
+    folder: '/data/scripts/tree/01_Mark',
+  },
+  {
+    id: 'assistant/written-here',
+    name: 'Written here',
+    kind: 'menu',
+    needsSelection: false,
+    group: '90_assistant',
+    source: 'user',
+    folder: '/data/scripts/90_assistant/written-here',
+  },
+];
+
+interface FakeScripts extends ScriptsDeps {
+  calls: string[];
+  runs: { id: string; treeNode?: { nodeId: string; type: string } }[];
+  proposals: ScriptProposal[];
+  body: boolean;
+  allowed: Set<string>;
+  nextRun: Awaited<ReturnType<ScriptsDeps['run']>>;
+  decision: Awaited<ReturnType<ScriptsDeps['propose']>> | Error;
+}
+
+function fakeScripts(): FakeScripts {
+  const fake: FakeScripts = {
+    calls: [],
+    runs: [],
+    proposals: [],
+    body: true,
+    allowed: new Set(SCRIPTS.map((s) => s.id)),
+    nextRun: { status: 'done', document: null, durationMs: 5 },
+    decision: { written: false, declined: true },
+    list: () => {
+      fake.calls.push('list');
+      return Promise.resolve({
+        scripts: SCRIPTS,
+        issues: ['invalidManifest: x (/data/scripts/bad)'],
+      });
+    },
+    files: (id) => {
+      fake.calls.push(`files:${id}`);
+      return Promise.resolve({
+        folder: `/data/${id}`,
+        entry: 'index.js',
+        files: ['script.json', 'index.js', 'icon.png'],
+      });
+    },
+    readFile: (id, file) => {
+      fake.calls.push(`read:${id}/${file}`);
+      if (file.endsWith('.png')) return Promise.resolve({ binary: true, bytes: 1060 });
+      return Promise.resolve({ content: `${file} of ${id}` });
+    },
+    reload: () => {
+      fake.calls.push('reload');
+      return Promise.resolve({ count: 4, issues: [] });
+    },
+    bodyView: () => fake.body,
+    dataDir: () => Promise.resolve('/data'),
+    uiLanguage: () => 'en',
+    run: (script, treeNode) => {
+      fake.runs.push({ id: script.id, ...(treeNode ? { treeNode } : {}) });
+      return Promise.resolve(fake.nextRun);
+    },
+    runAllowed: (id) => fake.allowed.has(id),
+    propose: (proposal) => {
+      fake.proposals.push(proposal);
+      return fake.decision instanceof Error
+        ? Promise.reject(fake.decision)
+        : Promise.resolve(fake.decision);
+    },
+  };
+  return fake;
+}
+
+const proposalFiles = (id = 'assistant/nbsp', extra: Record<string, string> = {}) => [
+  {
+    path: 'script.json',
+    content: JSON.stringify({
+      manifestVersion: 1,
+      id,
+      name: { en: 'NBSP' },
+      kind: 'menu',
+      entry: 'index.js',
+      needsSelection: true,
+    }),
+  },
+  {
+    path: 'index.js',
+    content: 'export default async function run() { await mfbe.ui.status("x"); }\n',
+  },
+  ...Object.entries(extra).map(([path, content]) => ({ path, content })),
+];
+
+describe('US6: list_scripts, read_script, read_resource (ai-catalogue §3.1)', () => {
+  let fake: FakeScripts;
+
+  beforeEach(async () => {
+    await h.catalogue.close();
+    fake = fakeScripts();
+    h = await harness({ scripts: fake });
+  });
+
+  it('answers unavailable for every script tool without the scripts surface', async () => {
+    await h.catalogue.close();
+    h = await harness();
+    for (const name of [...US6_READ_TOOL_NAMES, ...US6_SCRIPT_TOOL_NAMES]) {
+      if (name === 'read_resource') continue;
+      const out = await call(name, {
+        id: '18/remove-spaces',
+        files: proposalFiles(),
+        summary: 's',
+      });
+      expect(out.error?.code, name).toBe('unavailable');
+    }
+    expect(h.hookCalls).toEqual([]);
+  });
+
+  it('list_scripts: every script with id, name, description, kind, needsSelection, group, source and the availability reasons', async () => {
+    const out = await call('list_scripts', {});
+    expect(out.isError).toBe(false);
+    const result = out.result as { scripts: Record<string, unknown>[]; issues: string[] };
+    expect(result.issues).toEqual(['invalidManifest: x (/data/scripts/bad)']);
+    expect(result.scripts).toEqual([
+      {
+        id: '18/remove-spaces',
+        name: 'Remove spaces',
+        description: 'Removes spaces from the selection',
+        kind: 'menu',
+        needsSelection: true,
+        group: '18_editing',
+        source: 'bundled',
+        available: false,
+        reason: 'needsSelection',
+      },
+      {
+        id: 'test.dialogs.form',
+        name: 'Form dialog',
+        kind: 'menu',
+        needsSelection: false,
+        group: '02_Dialogs',
+        source: 'user',
+        available: true,
+      },
+      {
+        id: 'test.tree.mark',
+        name: 'Mark',
+        kind: 'tree',
+        needsSelection: false,
+        group: 'tree',
+        source: 'user',
+        available: false,
+        reason: 'treeOnly',
+      },
+      expect.objectContaining({ id: 'assistant/written-here', available: true }),
+    ]);
+    // With a selection the needsSelection script is available; outside the Body view none is.
+    h.setSelection(inlineSelection('n13', 0, 5));
+    const withSelection = (await call('list_scripts', {})).result as {
+      scripts: { available: boolean }[];
+    };
+    expect(withSelection.scripts[0]!.available).toBe(true);
+    fake.body = false;
+    const source = (await call('list_scripts', {})).result as { scripts: { reason?: string }[] };
+    expect(source.scripts.every((s) => s.reason === 'sourceView')).toBe(true);
+  });
+
+  it('read_script: the files with content, binaries listed with their size, an unknown id refused with the id list', async () => {
+    const out = await call('read_script', { id: 'test.dialogs.form' });
+    expect(out.isError).toBe(false);
+    expect(out.result).toEqual({
+      id: 'test.dialogs.form',
+      folder: '/data/test.dialogs.form',
+      source: 'user',
+      files: [
+        { path: 'script.json', content: 'script.json of test.dialogs.form' },
+        { path: 'index.js', content: 'index.js of test.dialogs.form' },
+        { path: 'icon.png', binary: true, bytes: 1060 },
+      ],
+    });
+    const unknown = await call('read_script', { id: 'nope' });
+    expect(unknown.error?.code).toBe('invalidArguments');
+    expect(unknown.error?.hint).toContain('18/remove-spaces');
+    expect(unknown.error?.hint).toContain('test.dialogs.form');
+  });
+
+  it('read_resource: the three mfbe:// texts - the script API byte-equal to docs/scripting/mfbe.d.ts, the manifest sections, the example package whole with its notice header', async () => {
+    const api = await call('read_resource', { uri: 'mfbe://script-api.d.ts' });
+    expect(api.isError).toBe(false);
+    expect(api.result.mimeType).toBe('text/typescript');
+    expect(api.result.text).toBe(readFileSync(`${REPO_ROOT}docs/scripting/mfbe.d.ts`, 'utf8'));
+    expect(api.result.text).toContain('declare namespace mfbe');
+
+    const manifest = await call('read_resource', { uri: 'mfbe://script-manifest.md' });
+    expect(manifest.result.mimeType).toBe('text/markdown');
+    const manifestText = manifest.result.text as string;
+    expect(manifestText.startsWith('## 1. Where scripts live')).toBe(true);
+    expect(manifestText).toContain('## 2. The manifest (`script.json`)');
+    expect(manifestText).toContain('## 3. A script');
+    expect(manifestText).not.toContain('## 4. The `mfbe` interface');
+    expect(manifestText).toContain('manifestVersion');
+
+    const example = await call('read_resource', { uri: 'mfbe://example-script' });
+    expect(example.result.mimeType).toBe('application/json');
+    const pkg = JSON.parse(example.result.text as string) as {
+      id: string;
+      files: { path: string; content: string }[];
+    };
+    expect(pkg.id).toBe(EXAMPLE_SCRIPT_ID);
+    expect(pkg.files.map((f) => f.path)).toEqual(['script.json', 'index.js']);
+    const folder = `${REPO_ROOT}scripts/18_editing/04_empty-line-before-poem-or-cite/`;
+    expect(pkg.files[0]!.content).toBe(readFileSync(`${folder}script.json`, 'utf8'));
+    expect(pkg.files[1]!.content).toBe(readFileSync(`${folder}index.js`, 'utf8'));
+    expect(pkg.files[1]!.content).toContain('Notice of the original script');
+    expect(pkg.files[1]!.content).toContain('Автор Sclex');
+    expect(JSON.parse(pkg.files[0]!.content)).toMatchObject({
+      manifestVersion: 1,
+      id: EXAMPLE_SCRIPT_ID,
+    });
+
+    const other = await call('read_resource', { uri: 'mfbe://other' });
+    expect(other.error?.code).toBe('invalidArguments');
+  });
+
+  it('registers the mfbe:// resources and the script file template, readable through the client', async () => {
+    const { resources } = await h.catalogue.client.listResources();
+    const mfbe = resources.filter((r) => r.uri.startsWith('mfbe://'));
+    expect(mfbe.map((r) => r.uri)).toEqual([...MFBE_RESOURCE_URIS]);
+    expect(mfbe.map((r) => r.mimeType)).toEqual([
+      'text/typescript',
+      'text/markdown',
+      'application/json',
+    ]);
+    for (const resource of mfbe) expect(resource.name).toMatch(TOOL_NAME_RULE);
+    const read = await h.catalogue.client.readResource({ uri: 'mfbe://example-script' });
+    const content = read.contents[0] as { text?: string };
+    expect(JSON.parse(content.text!)).toMatchObject({ id: EXAMPLE_SCRIPT_ID });
+    const { resourceTemplates } = await h.catalogue.client.listResourceTemplates();
+    expect(resourceTemplates.map((t) => t.uriTemplate)).toEqual([SCRIPT_FILE_TEMPLATE]);
+    const file = await h.catalogue.client.readResource({
+      uri: 'mfbe://scripts/18%2Fremove-spaces/index.js',
+    });
+    expect(file.contents[0]).toMatchObject({
+      mimeType: 'text/javascript',
+      text: 'index.js of 18/remove-spaces',
+    });
+    expect(fake.calls).toContain('read:18/remove-spaces/index.js');
+    await expect(
+      h.catalogue.client.readResource({ uri: 'mfbe://scripts/18%2Fremove-spaces/icon.png' }),
+    ).rejects.toThrow(/binary/);
+  });
+});
+
+describe('US6: run_script, propose_script, reload_scripts (ai-catalogue §3.4, §7)', () => {
+  let fake: FakeScripts;
+
+  beforeEach(async () => {
+    await h.catalogue.close();
+    fake = fakeScripts();
+    h = await harness({ scripts: fake });
+  });
+
+  it('run_script: the nested run through the hook with the key run_script:<id>; done takes the document over', async () => {
+    const after = structuredClone(h.copy.document);
+    (after.bodies[0] as unknown as ModelNodeJson).content!.push({
+      type: 'section',
+      attrs: { nodeId: 'n99' },
+      content: [
+        {
+          type: 'p',
+          attrs: { nodeId: 'n98' },
+          content: [{ type: 'text', text: 'Added by the script.' }],
+        },
+      ],
+    });
+    fake.nextRun = { status: 'done', document: after, durationMs: 42 };
+    const out = await call('run_script', { id: 'test.dialogs.form' });
+    expect(out.isError).toBe(false);
+    expect(out.result).toEqual({ status: 'done', changed: true, durationMs: 42 });
+    expect(h.hookCalls).toEqual(['run_script:test.dialogs.form']);
+    expect(fake.runs).toEqual([{ id: 'test.dialogs.form' }]);
+    expect(h.copy.place('n99')).toBeDefined();
+    // A run that changed nothing: changed false, the copy as it was.
+    fake.nextRun = { status: 'done', document: null, durationMs: 3 };
+    const unchanged = await call('run_script', { id: 'test.dialogs.form' });
+    expect(unchanged.result).toEqual({ status: 'done', changed: false, durationMs: 3 });
+  });
+
+  it('run_script: the pre-checks - unknown id, needsSelection without a selection, a tree script without treeNode, outside the Body view, the FR-084 gate', async () => {
+    const unknown = await call('run_script', { id: 'nope' });
+    expect(unknown.error?.code).toBe('invalidArguments');
+    expect(unknown.error?.hint).toContain('test.dialogs.form');
+    const noSelection = await call('run_script', { id: '18/remove-spaces' });
+    expect(noSelection.error?.code).toBe('selectionRequired');
+    expect(noSelection.error?.hint).toContain('set_selection');
+    const tree = await call('run_script', { id: 'test.tree.mark' });
+    expect(tree.error?.code).toBe('invalidArguments');
+    expect(tree.error?.message).toContain('treeNode');
+    // These are rejected attempts of the change (one hook call each, no run).
+    expect(h.hookCalls).toEqual([
+      'run_script:nope',
+      'run_script:18/remove-spaces',
+      'run_script:test.tree.mark',
+    ]);
+    expect(fake.runs).toEqual([]);
+    // With a selection the needsSelection script runs; a tree script with its node too.
+    h.setSelection(inlineSelection('n13', 0, 5));
+    expect((await call('run_script', { id: '18/remove-spaces' })).isError).toBe(false);
+    const marked = await call('run_script', {
+      id: 'test.tree.mark',
+      treeNode: 'body[1]/section[1]',
+    });
+    expect(marked.isError).toBe(false);
+    expect(fake.runs.at(-1)).toEqual({
+      id: 'test.tree.mark',
+      treeNode: { nodeId: 'n10', type: 'section' },
+    });
+    // The FR-084 gate: a script written in this conversation without the user's go.
+    fake.allowed.delete('assistant/written-here');
+    const gated = await call('run_script', { id: 'assistant/written-here' });
+    expect(gated.error?.code).toBe('runNotConfirmed');
+    expect(gated.error?.hint).toBe(
+      'the user has not asked to run this script; ask the user, who may run it from the Scripts menu or tell you to run it',
+    );
+    fake.allowed.add('assistant/written-here');
+    expect((await call('run_script', { id: 'assistant/written-here' })).isError).toBe(false);
+    // Outside the Body view: unavailable before the hook.
+    fake.body = false;
+    const hookCalls = h.hookCalls.length;
+    const source = await call('run_script', { id: 'test.dialogs.form' });
+    expect(source.error?.code).toBe('unavailable');
+    expect(source.error?.hint).toBe('scripts run in the Body view; ask the user to switch');
+    expect(h.hookCalls).toHaveLength(hookCalls);
+  });
+
+  it('run_script: a failed run answers scriptFailed with the message and the copy rolled back; a cancelled one answers cancelled', async () => {
+    const before = JSON.stringify(h.copy.document);
+    fake.nextRun = {
+      status: 'failed',
+      message: 'Script error: boom at line 4, column 9',
+      durationMs: 7,
+    };
+    const failed = await call('run_script', { id: 'test.dialogs.form' });
+    expect(failed.error?.code).toBe('scriptFailed');
+    expect(failed.error?.message).toBe('Script error: boom at line 4, column 9');
+    expect(JSON.stringify(h.copy.document)).toBe(before);
+    fake.nextRun = { status: 'cancelled', durationMs: 7 };
+    const cancelled = await call('run_script', { id: 'test.dialogs.form' });
+    expect(cancelled.error?.code).toBe('cancelled');
+    fake.nextRun = { status: 'unavailable', message: 'the request has ended' };
+    const unavailable = await call('run_script', { id: 'test.dialogs.form' });
+    expect(unavailable.error?.code).toBe('unavailable');
+  });
+
+  it('propose_script: the pre-checks answer before the dialog; the dialog decides; the write errors are mapped', async () => {
+    const summary = 'Inserts a non-breaking space after one-letter prepositions in the selection';
+    // Refused before the dialog: a bundled id, a bad path, a broken manifest, an existing id.
+    const bundled = await call('propose_script', {
+      id: '18/remove-spaces',
+      files: proposalFiles('18/remove-spaces'),
+      summary,
+    });
+    expect(bundled.error?.code).toBe('scriptIdBundled');
+    expect(bundled.error?.hint).toContain('new id');
+    const escape = await call('propose_script', {
+      id: 'assistant/nbsp',
+      files: proposalFiles('assistant/nbsp', { '../x.js': 'x' }),
+      summary,
+    });
+    expect(escape.error?.code).toBe('invalidArguments');
+    expect(escape.error?.message).toContain('../x.js');
+    const broken = await call('propose_script', {
+      id: 'assistant/nbsp',
+      files: [
+        {
+          path: 'script.json',
+          content: '{"manifestVersion":1,"id":"assistant/nbsp","name":{"ru":"x"}}',
+        },
+        { path: 'index.js', content: '' },
+      ],
+      summary,
+    });
+    expect(broken.error?.code).toBe('invalidArguments');
+    expect(broken.error?.message).toContain('name.en');
+    const exists = await call('propose_script', {
+      id: 'assistant/written-here',
+      files: proposalFiles('assistant/written-here'),
+      summary,
+    });
+    expect(exists.error?.code).toBe('scriptExists');
+    expect(fake.proposals).toEqual([]);
+    expect(h.hookCalls).toEqual([]);
+
+    // Declined: the result as it is, nothing else.
+    const declined = await call('propose_script', {
+      id: 'assistant/nbsp',
+      files: proposalFiles(),
+      summary,
+    });
+    expect(declined.isError).toBe(false);
+    expect(declined.result).toEqual({ written: false, declined: true });
+    expect(fake.proposals).toHaveLength(1);
+    expect(fake.proposals[0]).toMatchObject({
+      scriptId: 'assistant/nbsp',
+      name: 'NBSP',
+      summary,
+      group: '90_assistant',
+      folder: 'nbsp',
+      target: '/data/scripts/90_assistant/nbsp/',
+      existing: false,
+      warnings: [],
+    });
+    // Written (and run requested).
+    fake.decision = {
+      written: true,
+      id: 'assistant/nbsp',
+      path: '/data/scripts/90_assistant/nbsp',
+      warnings: [],
+      runRequested: true,
+    };
+    const written = await call('propose_script', {
+      id: 'assistant/nbsp',
+      files: proposalFiles('assistant/nbsp', { 'lib.js': 'fetch(1);' }),
+      summary,
+      overwrite: 'true',
+    });
+    expect(written.result).toEqual(fake.decision);
+    expect(fake.proposals[1]!.warnings).toEqual([
+      { path: 'lib.js', line: 1, name: 'fetch', text: 'fetch(1);' },
+    ]);
+    // The core's refusals as envelopes.
+    fake.decision = new RpcError(1031, 'invalid manifest', {
+      id: 'assistant/nbsp',
+      errors: ['entryMissing: index.js'],
+    });
+    const loader = await call('propose_script', {
+      id: 'assistant/nbsp',
+      files: proposalFiles(),
+      summary,
+    });
+    expect(loader.error?.code).toBe('invalidArguments');
+    expect(loader.error?.errors).toEqual(['entryMissing: index.js']);
+    fake.decision = new RpcError(1203, 'exists', {
+      id: 'assistant/nbsp',
+      path: '/data/scripts/90_assistant/nbsp',
+    });
+    expect(
+      (await call('propose_script', { id: 'assistant/nbsp', files: proposalFiles(), summary }))
+        .error?.code,
+    ).toBe('scriptExists');
+    fake.decision = new RpcError(1202, 'bundled', { id: 'assistant/nbsp' });
+    expect(
+      (await call('propose_script', { id: 'assistant/nbsp', files: proposalFiles(), summary }))
+        .error?.code,
+    ).toBe('scriptIdBundled');
+    fake.decision = new RpcError(1002, 'io', { path: '/x', reason: 'symlink' });
+    expect(
+      (await call('propose_script', { id: 'assistant/nbsp', files: proposalFiles(), summary }))
+        .error?.code,
+    ).toBe('internal');
+    // Never a hook call: a proposal is no document change.
+    expect(h.hookCalls).toEqual([]);
+  });
+
+  it('reload_scripts: scripts.reload with the count and the issues', async () => {
+    const out = await call('reload_scripts', {});
+    expect(out.result).toEqual({ count: 4, issues: [] });
+    expect(fake.calls).toContain('reload');
   });
 });

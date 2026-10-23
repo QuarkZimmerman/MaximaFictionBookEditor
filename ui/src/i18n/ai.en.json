@@ -44,6 +44,22 @@
       "$comment": "Dialogs of a script run by the assistant inside a request (feature 005 FR-080, review C10; scripting/api-impl.ts `dialogCaption`).",
       "nestedCaption": "{{name}} — run by the AI assistant"
     },
+    "proposal": {
+      "$comment": "The script proposal dialog (feature 005 FR-082, FR-084; ai/proposal.tsx): the model's summary, the target folder, the editable author line, every file in full, the warnings of the forbidden-API scan and the three buttons (review C9).",
+      "title": "Script proposal: {{name}}",
+      "folder": "Will be written into the folder",
+      "replaces": "Replaces the existing user script {{id}} — the whole old folder is replaced.",
+      "author": "Author line (the first comment line of the entry module; clear it to insert none)",
+      "authorDefault": "Written with the AI assistant of Maxima Fiction Book Editor, {{date}}",
+      "files_one": "{{count}} file to be written, in full:",
+      "files_other": "{{count}} files to be written, in full:",
+      "warningsTitle": "This script names things the sandbox forbids",
+      "warningsNote": "The file system, the network, other processes and storage are unreachable from a script: these lines will fail when the script runs. You may still write it as proposed.",
+      "warning": "{{path}}, line {{line}}: {{name}} — {{text}}",
+      "write": "&Write",
+      "writeAndRun": "Write and &run",
+      "dontWrite": "&Don't write"
+    },
     "ask": {
       "label": "Ask AI..."
     },
@@ -170,6 +186,13 @@
         "getSchema": "Read the schema",
         "getSchemaElement": "Read the schema ({{element}})",
         "getSchemaUnknown": "Read the schema ({{element}}: not an FB2 element)",
+        "listScripts": "Listed the scripts",
+        "readScript": "Read the script {{id}}",
+        "readResource": "Read the reference {{uri}}",
+        "runScript": "Ran the script {{id}}",
+        "proposeScript_one": "Proposed the script {{id}} ({{count}} file)",
+        "proposeScript_other": "Proposed the script {{id}} ({{count}} files)",
+        "reloadScripts": "Re-read the scripts",
         "where": {
           "before": "before",
           "after": "after",

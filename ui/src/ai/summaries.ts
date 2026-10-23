@@ -193,6 +193,21 @@ export function callSummary(t: TFunction, call: SummarisedCall, document: Docume
       return t('ai.activity.summary.replaceAll', { text: asString(args.text) });
     case 'set_description':
       return t('ai.activity.summary.setDescription');
+    // US6: the script tools name the script id or the resource URI - never a file's content.
+    case 'list_scripts':
+      return t('ai.activity.summary.listScripts');
+    case 'read_script':
+      return t('ai.activity.summary.readScript', { id: asString(args.id) });
+    case 'read_resource':
+      return t('ai.activity.summary.readResource', { uri: asString(args.uri) });
+    case 'run_script':
+      return t('ai.activity.summary.runScript', { id: asString(args.id) });
+    case 'propose_script': {
+      const files = Array.isArray(args.files) ? args.files.length : 0;
+      return t('ai.activity.summary.proposeScript', { id: asString(args.id), count: files });
+    }
+    case 'reload_scripts':
+      return t('ai.activity.summary.reloadScripts');
     default:
       return name;
   }
