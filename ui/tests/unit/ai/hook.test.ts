@@ -16,13 +16,18 @@ import { selectionSnapshot } from '@/ai/context';
 import {
   applyChange,
   ChangeRejection,
+  invalidXmlHint,
+  isStrikeCode,
   rejectedEnvelope,
+  rejectionFromEnvelope,
   selectionReplacement,
+  STRIKE_CODES,
   STRIKE_LIMIT,
   StrikeCounter,
+  strikeIssues,
   strikeKey,
+  type ChangeOutcome,
   type ChangeRejected,
-  type ChangeRejectionCode,
   type ErrorForModel,
   type SelectionReplacementResult,
 } from '@/ai/hook';
@@ -689,22 +694,12 @@ describe('selectionReplacement', () => {
 /* The catalogue's change tools behind the real hook (T051 / T054)           */
 /* ------------------------------------------------------------------------ */
 
-const REJECTION_CODES: ReadonlySet<string> = new Set<ChangeRejectionCode>([
-  'invalidArguments',
-  'unknownNode',
-  'invalidNode',
-  'notAllowed',
-  'textOnly',
-  'noSelection',
-  'selectionRequired',
-  'invalidXml',
-  'fragmentNotAllowed',
-]);
-
 /**
  * The adapter the request loop puts between the catalogue and `applyChange` (assistant.ts
- * `changeHook`): the strike key split into tool and target, a `ToolError` of the pre-check
- * turned into a `ChangeRejection` so that it counts, the hook's outcome as the envelope.
+ * `changeHook`): the strike key split into tool and target, a `ToolError` of the pre-check /
+ * parse / arguments turned into a `ChangeRejection` by `rejectionFromEnvelope` so that it
+ * counts (a gate or failure stays what it is: rolled back, no strike), the hook's outcome as
+ * the envelope.
  */
 function hookAdapter(session: RequestSession, keys: string[]) {
   return async <T extends object>(
@@ -716,30 +711,27 @@ function hookAdapter(session: RequestSession, keys: string[]) {
     const tool = key.slice(0, colon);
     const target = key.slice(colon + 1);
     let thrown: ToolError | null = null;
-    const outcome = await applyChange<T>(session, {
-      tool,
-      target,
-      apply: async () => {
-        try {
-          return await change();
-        } catch (error) {
-          if (error instanceof ToolError && REJECTION_CODES.has(error.body.code)) {
-            thrown = error;
-            throw new ChangeRejection(
-              error.body.code as Exclude<ChangeRejectionCode, 'rejected'>,
-              error.message,
-              {
-                ...(error.body.hint === undefined ? {} : { hint: error.body.hint }),
-                issues: Array.isArray(error.body.issues)
-                  ? (error.body.issues as ErrorForModel[])
-                  : [],
-              },
-            );
+    let outcome: ChangeOutcome<T>;
+    try {
+      outcome = await applyChange<T>(session, {
+        tool,
+        target,
+        apply: async () => {
+          try {
+            return await change();
+          } catch (error) {
+            if (error instanceof ToolError) {
+              thrown = error;
+              throw rejectionFromEnvelope(error.body) ?? error;
+            }
+            throw error;
           }
-          throw error;
-        }
-      },
-    });
+        },
+      });
+    } catch (error) {
+      if (thrown && error === thrown) return (thrown as ToolError).envelope();
+      throw error;
+    }
     if (outcome.accepted) return outcome.result;
     const refused = thrown as ToolError | null;
     if (refused) return { error: { ...refused.body, strike: outcome.strike } };
@@ -886,6 +878,289 @@ describe('the structural change tools under the hook (strike keys of §3.5)', ()
         'Fine.',
         'Second sentence.',
       ]);
+    } finally {
+      await close();
+      session.discard();
+    }
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US4 (T059 / T060): the stages, the mixed third strike, the pre-check form */
+/* ------------------------------------------------------------------------ */
+
+describe('the stages of a rejection (data-model §7.3; US4)', () => {
+  async function bound() {
+    const h = harness();
+    const session = await start(h);
+    const keys: string[] = [];
+    const c = await catalogueHarness({
+      copy: session.copy,
+      applyChange: hookAdapter(session, keys),
+      fragmentFromXml: (xml, parent) => {
+        try {
+          return Promise.resolve(fakeFromXml(xml, parent, session.copy.document));
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      },
+    });
+    return { h, session, keys, call: c.catalogue.call, close: () => c.catalogue.close() };
+  }
+
+  it('strike codes: every rejected attempt counts, gates and failures count nothing', () => {
+    for (const code of [
+      'rejected',
+      'invalidArguments',
+      'unknownNode',
+      'invalidNode',
+      'notAllowed',
+      'textOnly',
+      'noSelection',
+      'selectionRequired',
+      'invalidXml',
+      'fragmentNotAllowed',
+    ]) {
+      expect(isStrikeCode(code), code).toBe(true);
+    }
+    for (const code of [
+      'unavailable',
+      'runNotConfirmed',
+      'scriptFailed',
+      'cancelled',
+      'internal',
+      'tooLarge',
+      'unknownTool',
+      'scriptIdBundled',
+      'scriptExists',
+    ]) {
+      expect(isStrikeCode(code), code).toBe(false);
+      expect(rejectionFromEnvelope({ code, message: 'x' })).toBeNull();
+    }
+    expect(STRIKE_CODES.size).toBe(10);
+    // The hook's own `rejected` is never re-thrown as a pre-check rejection.
+    expect(rejectionFromEnvelope({ code: 'rejected', message: 'x' })).toBeNull();
+    const rejection = rejectionFromEnvelope({
+      code: 'notAllowed',
+      message: 'no',
+      hint: 'use get_schema',
+      issues: [
+        { code: 'schema.invalid', element: 'title', path: 'body[1]/section[1]', message: 'no' },
+      ],
+    })!;
+    expect(rejection).toBeInstanceOf(ChangeRejection);
+    expect(rejection).toMatchObject({
+      code: 'notAllowed',
+      stage: 'preCheck',
+      hint: 'use get_schema',
+    });
+    expect(rejection.issues).toHaveLength(1);
+    expect(rejectionFromEnvelope({ code: 'invalidXml', message: 'x' })!.stage).toBe('parse');
+    expect(rejectionFromEnvelope({ code: 'fragmentNotAllowed', message: 'x' })!.stage).toBe(
+      'parse',
+    );
+  });
+
+  it('invalidXml hints: U+00A0 for &nbsp;, no document wrapper for a declaration or FictionBook', () => {
+    expect(invalidXmlHint("Entity 'nbsp' not defined")).toContain('U+00A0');
+    expect(invalidXmlHint('XML declaration allowed only at the start of the document')).toContain(
+      'without a document wrapper',
+    );
+    expect(invalidXmlHint('Opening and ending tag mismatch: emphasis line 1 and p')).toContain(
+      'close every element',
+    );
+    const rejection = ChangeRejection.fromRpcError(
+      new RpcError(RpcErrorCode.docParseError, 'x', {
+        line: 1,
+        column: 11,
+        message: "Entity 'nbsp' not defined",
+      }),
+    ) as ChangeRejection;
+    expect(rejection.code).toBe('invalidXml');
+    expect(rejection.stage).toBe('parse');
+    expect(rejection.hint).toContain('U+00A0');
+    expect(rejection.issues).toEqual([
+      { code: 'xml.notWellFormed', element: '', line: 1, message: "Entity 'nbsp' not defined" },
+    ]);
+  });
+
+  it('a pre-check refusal carries the ErrorForModel form: element and path, no line', async () => {
+    const { session, call, close } = await bound();
+    try {
+      // notAllowed: a title appended after the paragraphs of section 1 (contentFits).
+      const late = await call('insert_node', {
+        where: 'append',
+        node: 'body[1]/section[1]',
+        content: { xml: '<title><p>Late</p></title>' },
+      });
+      expect(late.error).toMatchObject({ code: 'notAllowed', strike: { count: 1, of: 3 } });
+      const issues = late.error!.issues as ErrorForModel[];
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toMatchObject({
+        code: 'schema.invalid',
+        element: 'title',
+        path: 'body[1]/section[1]',
+      });
+      expect(issues[0]!.message).toContain('does not allow');
+      expect(issues[0]).not.toHaveProperty('line');
+      // invalidNode: a section whose JSON puts a title after a paragraph (createChecked).
+      const built = await call('insert_node', {
+        where: 'after',
+        node: 'body[1]/section[1]',
+        content: {
+          nodes: [
+            {
+              type: 'section',
+              content: [
+                { type: 'p', content: [{ type: 'text', text: 'x' }] },
+                { type: 'title', content: [{ type: 'p', content: [{ type: 'text', text: 'T' }] }] },
+              ],
+            },
+          ],
+        },
+      });
+      expect(built.error).toMatchObject({ code: 'invalidNode', strike: { count: 1, of: 3 } });
+      const problem = (built.error!.issues as ErrorForModel[])[0]!;
+      expect(problem.code).toBe('schema.invalid');
+      expect(problem.element).toBe('section');
+      expect(problem.path).toBe('body[1]/section');
+      expect(problem).not.toHaveProperty('line');
+      // The parse stage: a 1001 carries the parser's line, a 1201 the element and its parent.
+      const malformed = await call('replace_node', {
+        node: 'p1',
+        content: { xml: '<p>x&nbsp;y</p>' },
+      });
+      expect(malformed.error).toMatchObject({
+        code: 'invalidXml',
+        strike: { count: 1, of: 3 },
+        issues: [{ code: 'xml.notWellFormed', element: '', line: 1 }],
+      });
+      expect(malformed.error!.hint).toContain('U+00A0');
+      const unknown = await call('replace_node', {
+        node: 'p1',
+        content: { xml: '<chapter><p>x</p></chapter>' },
+      });
+      expect(unknown.error).toMatchObject({
+        code: 'fragmentNotAllowed',
+        element: 'chapter',
+        parent: 'section',
+        strike: { count: 2, of: 3 },
+        issues: [{ code: 'schema.invalid', element: 'chapter' }],
+      });
+      // Nothing of the four refusals reached the copy.
+      expect(session.copy.document).toBe(session.before);
+      expect(session.strikes.entries()).toEqual([
+        ['insert_node:append@s1', 1],
+        ['insert_node:after@s1', 1],
+        ['replace_node:p1', 2],
+      ]);
+    } finally {
+      await close();
+      session.discard();
+    }
+  });
+
+  it("a 1001, a 1201 and a hook rejection of one key end the request on the third; an accepted change of another key and a rejection of another key in between change nothing; the three rejections' issues are collected", async () => {
+    const { h, session, keys, call, close } = await bound();
+    try {
+      const key = 'replace_node:p1';
+      // A valid change of another key first (discarded with the request on the third strike).
+      const fine = await call('insert_node', {
+        where: 'after',
+        node: 'p2',
+        content: { xml: '<p>Fine.</p>' },
+      });
+      expect(fine.isError).toBe(false);
+      expect(session.changesInThisRequest).toBe(1);
+      // 1: the parse stage - malformed XML (1001).
+      const first = await call('replace_node', { node: 'p1', content: { xml: '<p>x&nbsp;y</p>' } });
+      expect(first.error).toMatchObject({ code: 'invalidXml', strike: { count: 1, of: 3 } });
+      // A rejection of another key in between: the counter of `key` stays at 1.
+      const other = await call('set_text', { node: 's1', text: 'x' });
+      expect(other.error).toMatchObject({ code: 'textOnly', strike: { count: 1, of: 3 } });
+      expect(session.strikes.count(key)).toBe(1);
+      // 2: the parse stage - a title under p (1201 in the fake parser: not inline content).
+      const second = await call('replace_node', {
+        node: 'p1',
+        content: { xml: '<title><p>T</p></title>' },
+      });
+      expect(second.error).toMatchObject({ strike: { count: 2, of: 3 } });
+      expect(['fragmentNotAllowed', 'notAllowed']).toContain(second.error!.code);
+      // 3: the hook - schema-invalid content the validator refuses.
+      const third = await call('replace_node', {
+        node: 'p1',
+        content: { xml: '<p>A BAD word.</p>' },
+      });
+      expect(third.error).toMatchObject({
+        code: 'rejected',
+        strike: { count: 3, of: 3 },
+        issues: [expect.objectContaining({ element: 'p', message: BAD_WORD_MESSAGE })],
+      });
+      expect(session.strikes.exhausted(key)).toBe(true);
+      expect(keys).toEqual(['insert_node:after@p2', key, 'set_text:s1', key, key]);
+      // The three rejections' issues, in order (what the panel shows at the end).
+      const collected = strikeIssues(session, key);
+      expect(collected.map((issue) => issue.code)).toEqual([
+        'xml.notWellFormed',
+        'schema.invalid',
+        'schema.invalid',
+      ]);
+      expect(collected[2]!.message).toBe(BAD_WORD_MESSAGE);
+      expect(strikeIssues(session, 'set_text:s1')).toHaveLength(1);
+      expect(strikeIssues(session, 'insert_node:after@p2')).toEqual([]);
+      // The request ends `rejected`: the whole copy is discarded - the accepted insertion too.
+      expect(sectionTexts(session.copy.document, 0)).toEqual([
+        'title:ONE',
+        'First paragraph.',
+        'Second paragraph.',
+        'Fine.',
+      ]);
+      session.discard();
+      expect(h.store.getState().document).toBe(session.before);
+      expect(sectionTexts(h.store.getState().document!, 0)).toEqual([
+        'title:ONE',
+        'First paragraph.',
+        'Second paragraph.',
+      ]);
+      expect(h.store.getState().modified).toBe(false);
+      expect(h.undo.canUndo).toBe(false);
+    } finally {
+      await close();
+      if (!session.ended) session.discard();
+    }
+  });
+
+  it('an accepted change of the key empties its collected issues; a gate inside a change rolls back without a strike', async () => {
+    const { session, call, close } = await bound();
+    try {
+      await call('replace_node', { node: 'p1', content: { xml: '<p>x&nbsp;y</p>' } });
+      expect(strikeIssues(session, 'replace_node:p1')).toHaveLength(1);
+      const ok = await call('replace_node', { node: 'p1', content: { xml: '<p>Fixed.</p>' } });
+      expect(ok.isError).toBe(false);
+      expect(strikeIssues(session, 'replace_node:p1')).toEqual([]);
+      expect(session.strikes.count('replace_node:p1')).toBe(0);
+
+      // A gate thrown inside the hook (what `unavailable` / `scriptFailed` do): rolled back,
+      // answered as it is, no strike, no change record outcome.
+      const before = session.copy.document;
+      const outcome = await (session.copy.checkpoint(),
+      applyChange(session, {
+        tool: 'run_script',
+        target: 'assistant/x',
+        apply: () => {
+          session.copy.insert('after', 'p2', node(paragraph('sc_9', 'half')));
+          const error = rejectionFromEnvelope({ code: 'scriptFailed', message: 'threw' });
+          expect(error).toBeNull();
+          throw new ToolError('scriptFailed', 'threw');
+        },
+      }).catch((error: unknown) => error));
+      expect(outcome).toBeInstanceOf(ToolError);
+      expect(session.copy.document).toBe(before);
+      expect(session.strikes.count('run_script:assistant/x')).toBe(0);
+      expect(session.changes.at(-1)).toMatchObject({
+        strikeKey: 'run_script:assistant/x',
+        status: 'rolledBack',
+      });
     } finally {
       await close();
       session.discard();

@@ -93,6 +93,7 @@ import {
   type ModelSelection,
   type SelectionHolder,
   type ToolCallOutcome,
+  type ToolErrorEnvelope,
 } from './catalogue';
 import {
   appliedLine,
@@ -112,12 +113,14 @@ import {
 } from './context';
 import {
   applyChange,
-  ChangeRejection,
   rejectedEnvelope,
+  rejectionFromEnvelope,
+  SELECTION_TARGET,
   selectionReplacement,
+  strikeIssues,
+  strikeKey,
   type ChangeOutcome,
   type ChangeRejected,
-  type ChangeRejectionCode,
   type ErrorForModel,
   type SelectionReplacementResult,
 } from './hook';
@@ -422,25 +425,6 @@ export interface AssistantModule {
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                   */
 /* ------------------------------------------------------------------------ */
-
-const CHANGE_REJECTION_CODES: ReadonlySet<string> = new Set([
-  'invalidArguments',
-  'unknownNode',
-  'invalidNode',
-  'notAllowed',
-  'textOnly',
-  'noSelection',
-  'selectionRequired',
-  'invalidXml',
-  'fragmentNotAllowed',
-]);
-
-function rejectionCode(code: string): Exclude<ChangeRejectionCode, 'rejected'> {
-  return (CHANGE_REJECTION_CODES.has(code) ? code : 'invalidArguments') as Exclude<
-    ChangeRejectionCode,
-    'rejected'
-  >;
-}
 
 function isCancelledError(error: unknown): boolean {
   return error instanceof RpcError && error.code === RpcErrorCode.cancelled;
@@ -891,6 +875,11 @@ class RequestRun {
       runRegex: createRegexRunner(createRegexWorker),
       applyChange: this.changeHook(session),
       resultBudget: () => this.resultBudget(),
+      // US4 (T061): the `validate` tool runs the session's validation against its baseline;
+      // `get_schema` and the schema resources read `schema.text()` once per catalogue instance.
+      validate: () => session.validate(),
+      baseline: () => session.baseline,
+      schemaText: () => this.rpc.call('schema.text'),
     });
     this.catalogue = catalogue;
 
@@ -1255,8 +1244,14 @@ class RequestRun {
         }
         rejected = applied;
       }
-      // Rejected: the third strike ends the request, else the model is told (§6.11).
-      if (rejected.ended) return { kind: 'rejected', issues: rejected.issues };
+      // Rejected: the third strike ends the request with the three rejections' issues (§6.10.7),
+      // else the model is told (§6.11).
+      if (rejected.ended) {
+        return {
+          kind: 'rejected',
+          issues: strikeIssues(session, strikeKey('replace_selection', SELECTION_TARGET)),
+        };
+      }
       own.push(message.echo, { role: 'user', content: rejectionMessage(rejected.issues) });
     }
   }
@@ -1414,7 +1409,13 @@ class RequestRun {
     return outcome;
   }
 
-  /** The validity hook behind every change tool of the catalogue (ai-catalogue §6.10). */
+  /**
+   * The validity hook behind every change tool of the catalogue (ai-catalogue §6.10): the
+   * tool's pre-check, parse and argument refusals (a `ToolError` with a strike code) become
+   * `ChangeRejection`s - rolled back and counted for the key like the hook's own rejection
+   * (review C4); a gate or failure (`unavailable`, `runNotConfirmed`, `scriptFailed`,
+   * `cancelled`, `internal`) is rolled back too but counts nothing and is answered as it is.
+   */
   private changeHook(session: RequestSession): ChangeHook {
     return async <T extends object>(key: string, change: () => Promise<T>) => {
       const colon = key.indexOf(':');
@@ -1423,32 +1424,34 @@ class RequestRun {
       this.hookCalls += 1;
       this.activity('change.try', { tool, target });
       const thrown: { error: ToolError | null } = { error: null };
-      const outcome = await applyChange<T>(session, {
-        tool,
-        target,
-        apply: async () => {
-          try {
-            return await change();
-          } catch (error) {
-            if (error instanceof ToolError) {
-              thrown.error = error;
-              const body = error.body;
-              throw new ChangeRejection(rejectionCode(body.code), error.message, {
-                ...(body.hint === undefined ? {} : { hint: body.hint }),
-                ...(body.expected === undefined ? {} : { expected: body.expected }),
-                issues: Array.isArray(body.issues) ? (body.issues as ErrorForModel[]) : [],
-              });
+      let outcome: ChangeOutcome<T>;
+      try {
+        outcome = await applyChange<T>(session, {
+          tool,
+          target,
+          apply: async () => {
+            try {
+              return await change();
+            } catch (error) {
+              if (error instanceof ToolError) {
+                thrown.error = error;
+                throw rejectionFromEnvelope(error.body) ?? error;
+              }
+              throw error;
             }
-            throw error;
-          }
-        },
-      });
+          },
+        });
+      } catch (error) {
+        // A gate or failure: the copy is back at the checkpoint, no strike, the envelope as is.
+        if (error === thrown.error && thrown.error) return thrown.error.envelope();
+        throw error;
+      }
       this.lastChangeOutcome = outcome as ChangeOutcome<Record<string, unknown>>;
       this.recordChange(outcome, tool, target);
       if (outcome.accepted) return outcome.result;
-      if (outcome.ended) this.rejectedIssues = outcome.issues;
+      if (outcome.ended) this.rejectedIssues = strikeIssues(session, key);
       if (thrown.error) return { error: { ...thrown.error.body, strike: outcome.strike } };
-      return rejectedEnvelope(outcome);
+      return rejectedEnvelope(outcome) as ToolErrorEnvelope;
     };
   }
 

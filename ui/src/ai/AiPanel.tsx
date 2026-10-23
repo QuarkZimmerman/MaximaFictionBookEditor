@@ -22,7 +22,7 @@
  * the lazy chunk.
  */
 
-import type { TFunction } from 'i18next';
+import i18next, { type TFunction } from 'i18next';
 import {
   useCallback,
   useEffect,
@@ -35,6 +35,7 @@ import { useTranslation } from 'react-i18next';
 
 import { getAiFeature } from '@/ai';
 import { useCommandContext } from '@/app/services';
+import { issueMessage } from '@/dialogs/validation';
 import { getSettingsFeature } from '@/features/settings/apply';
 import { openSettingsDialog } from '@/features/settings/index';
 import {
@@ -91,6 +92,39 @@ function strikeText(t: TFunction, strike: unknown): string {
   if (!strike || typeof strike !== 'object') return '';
   const record = strike as Record<string, unknown>;
   return t('ai.activity.strike', { count: asNumber(record.count), of: asNumber(record.of) });
+}
+
+/** The issue codes whose `validation.<code>` text is the message itself (the libxml2 wording). */
+const MESSAGE_CODES: ReadonlySet<string> = new Set(['schema.invalid', 'xml.notWellFormed']);
+
+/**
+ * The issues of a `change.rejected` / `request.rejected` entry as the user reads them
+ * (data-model §7.6): each localised by its `code` through the validation panel's
+ * `validation.<code>` keys (the libxml2 message as the `message` parameter, the raw message
+ * as the fallback), prefixed by the element and the path when known; "; " between them.
+ */
+function issuesText(t: TFunction, issues: unknown): string {
+  if (!Array.isArray(issues)) return '';
+  return issues
+    .map((issue) => {
+      if (!issue || typeof issue !== 'object') return '';
+      const record = issue as Record<string, unknown>;
+      const code = asString(record.code) || 'schema.invalid';
+      const element = asString(record.element);
+      const path = asString(record.path);
+      const raw = asString(record.message);
+      if (!raw && !element && !path) return '';
+      // The two codes whose panel text takes the message itself; every other code (genre,
+      // description …) keeps the English message the model saw - its parameters are not here.
+      const message = MESSAGE_CODES.has(code)
+        ? issueMessage({ severity: 'error', code, params: { element, message: raw } }, t, i18next)
+        : raw || code;
+      const where =
+        element && path ? t('ai.activity.rejectedIssueAt', { element, path }) : element || path;
+      return where ? t('ai.activity.rejectedIssue', { where, message }) : message;
+    })
+    .filter((line) => line !== '')
+    .join('; ');
 }
 
 /**
@@ -191,11 +225,15 @@ export function activityText(t: TFunction, entry: AssistantActivityEntry): strin
         tool: asString(p.tool),
         target: targetText(p.target),
       });
-    case 'change.rejected':
-      return t('ai.activity.changeRejected', {
+    case 'change.rejected': {
+      // "Correction requested" with the errors as the validation panel words them (US4 sc. 1).
+      const base = t('ai.activity.changeRejected', {
         count: Array.isArray(p.issues) ? p.issues.length : 0,
         strike: strikeText(t, p.strike),
       });
+      const issues = issuesText(t, p.issues);
+      return issues ? `${base}: ${issues}` : base;
+    }
     case 'script.dialog':
       return t('ai.activity.scriptDialog', { name: asString(p.name) || asString(p.id) });
     case 'script.proposed':
@@ -225,8 +263,12 @@ export function activityText(t: TFunction, entry: AssistantActivityEntry): strin
       };
       return t('ai.activity.requestFailed', { text: failureText(t, failure) });
     }
-    case 'request.rejected':
-      return t('ai.activity.requestRejected');
+    case 'request.rejected': {
+      // The three rejections' issues (FR-063, US4 scenario 3).
+      const issues = issuesText(t, p.issues);
+      const base = t('ai.activity.requestRejected');
+      return issues ? `${base}: ${issues}` : base;
+    }
     default:
       return entry.kind;
   }

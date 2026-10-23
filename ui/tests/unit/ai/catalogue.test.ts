@@ -13,13 +13,19 @@ import {
   CATALOGUE_VERSION,
   CHANGE_TOOL_NAMES,
   MAX_DESCRIPTION_LENGTH,
+  RESOURCE_URIS,
+  SCHEMA_FILE_NAMES,
   TOOL_NAME_RULE,
   TOOL_NAMES,
   US2_TOOL_NAMES,
   US3_TOOL_NAMES,
+  US4_TOOL_NAMES,
   type PromptText,
 } from '@/ai/catalogue';
+import { multiset } from '@/ai/hook';
 import type { ModelNodeJson } from '@/editor/fromModel';
+import type { ValidationIssue, ValidationReport } from '@/model/document';
+import type { SchemaTextResult } from '@/rpc/types';
 
 import { blocksSelection, harness, inlineSelection, type Harness } from './catalogueHarness';
 
@@ -44,10 +50,26 @@ function textOf(copy: Harness['copy'], nodeId: string): string {
 }
 
 describe('tools/list', () => {
-  it('lists the US2 and US3 tools in the §3 order with the name rule, short descriptions and object schemas', () => {
+  it('lists the US2, US4 and US3 tools in the §3 order with the name rule, short descriptions and object schemas', () => {
     const tools = h.catalogue.listed();
     expect(tools.map((t) => t.name)).toEqual([...TOOL_NAMES]);
-    expect(TOOL_NAMES).toEqual([...US2_TOOL_NAMES, ...US3_TOOL_NAMES]);
+    // §3 order: the read tools (US2's six, then US4's validate and get_schema), the selection
+    // tools, the structural change tools.
+    expect(TOOL_NAMES).toEqual([
+      'get_context',
+      'get_outline',
+      'read_part',
+      'get_selection',
+      'get_description',
+      'find',
+      'validate',
+      'get_schema',
+      'set_selection',
+      'replace_selection',
+      ...US3_TOOL_NAMES,
+    ]);
+    expect(US4_TOOL_NAMES).toEqual(['validate', 'get_schema']);
+    expect(TOOL_NAMES).toHaveLength(US2_TOOL_NAMES.length + US4_TOOL_NAMES.length + 6);
     expect(US3_TOOL_NAMES).toEqual([
       'replace_node',
       'insert_node',
@@ -779,9 +801,270 @@ describe('read tools and set_selection never reach the hook', () => {
     await call('get_selection', {});
     await call('get_description', {});
     await call('find', { text: 'beta' });
+    await call('validate', {});
+    await call('get_schema', { element: 'section' });
     await call('set_selection', { node: 'n13' });
     expect(h.hookCalls).toEqual([]);
     expect(h.copy.changed).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US4 (T059 / T061): validate, get_schema, the schema resources             */
+/* ------------------------------------------------------------------------ */
+
+const TITLE_UNEXPECTED = "Element 'title': This element is not expected.";
+
+function issue(
+  element: string,
+  message: string,
+  extra: Partial<ValidationIssue> = {},
+): ValidationIssue {
+  return {
+    severity: 'error',
+    code: 'schema.invalid',
+    params: { element, message },
+    ...extra,
+  } as ValidationIssue;
+}
+
+function report(issues: ValidationIssue[]): ValidationReport {
+  return {
+    issues,
+    errorCount: issues.filter((i) => i.severity === 'error').length,
+    warningCount: issues.filter((i) => i.severity === 'warning').length,
+    durationMs: 7,
+  };
+}
+
+const fakeSchema = (): SchemaTextResult => ({
+  files: SCHEMA_FILE_NAMES.map((name) => ({
+    name,
+    text:
+      name === 'FictionNotes.xsd'
+        ? `<?xml version="1.0"?>\r\n<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">\r\n  <!-- ${name} -->\r\n</xs:schema>\r\n`
+        : `<?xml version="1.0"?>\n<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">\n  <!-- ${name} -->\n  <xs:element name="x"/>\n</xs:schema>\n`,
+  })),
+  notice: 'Copyright (c) 2004, Dmitry Gribov\nAll rights reserved.\n',
+});
+
+describe('validate (US4)', () => {
+  it('splits the errors of the working copy into new and pre-existing by the multiset rule; ok = no new error', async () => {
+    await h.catalogue.close();
+    const FOO = "Element 'section', attribute 'foo': The attribute 'foo' is not allowed.";
+    const baseline = multiset([
+      issue('title', TITLE_UNEXPECTED, { line: 20, path: 'body[1]/section[2]/title[1]' }),
+      issue('section', FOO, { line: 40, path: 'body[1]/section[3]' }),
+    ]);
+    let reports = 0;
+    h = await harness({
+      baseline: () => baseline,
+      validate: () => {
+        reports += 1;
+        return Promise.resolve(
+          report([
+            // The pre-existing title error, moved by an insertion (another line and path) …
+            issue('title', TITLE_UNEXPECTED, { line: 31, path: 'body[1]/section[2]/title[2]' }),
+            // … and a second occurrence of its key: the key's count (2) exceeds the baseline's
+            // (1), so every issue of the key is reported as new (§6.10.5, all of them).
+            issue('title', TITLE_UNEXPECTED, { line: 44, path: 'body[1]/section[3]/title[2]' }),
+            // The pre-existing attribute error, moved: its count is within the baseline.
+            issue('section', FOO, { line: 52, path: 'body[1]/section[4]' }),
+            // Another kind: new.
+            issue(
+              'a',
+              "Element 'a': The attribute '{http://www.w3.org/1999/xlink}href' is required but missing.",
+              {
+                line: 60,
+                path: 'body[1]/section[4]/p[1]',
+              },
+            ),
+            {
+              severity: 'warning',
+              code: 'link.dangling',
+              params: { href: '#x' },
+            } as ValidationIssue,
+          ]),
+        );
+      },
+    });
+    const out = await call('validate', {});
+    expect(out.isError).toBe(false);
+    expect(reports).toBe(1);
+    expect(out.result).toMatchObject({ ok: false, warnings: 1, durationMs: 7 });
+    const fresh = out.result.newErrors as { element: string; path: string; line: number }[];
+    const old = out.result.preExistingErrors as { element: string; path: string }[];
+    expect(old).toEqual([
+      {
+        code: 'schema.invalid',
+        element: 'section',
+        path: 'body[1]/section[4]',
+        line: 52,
+        message: FOO,
+      },
+    ]);
+    expect(fresh.map((e) => [e.element, e.path, e.line])).toEqual([
+      ['title', 'body[1]/section[2]/title[2]', 31],
+      ['title', 'body[1]/section[3]/title[2]', 44],
+      ['a', 'body[1]/section[4]/p[1]', 60],
+    ]);
+    // No change record, no strike: a read tool.
+    expect(h.hookCalls).toEqual([]);
+  });
+
+  it('answers ok with empty lists for a clean copy, and unavailable without a validator', async () => {
+    await h.catalogue.close();
+    h = await harness({ baseline: () => new Map(), validate: () => Promise.resolve(report([])) });
+    const clean = await call('validate', {});
+    expect(clean.result).toEqual({
+      ok: true,
+      newErrors: [],
+      preExistingErrors: [],
+      warnings: 0,
+      durationMs: 7,
+    });
+    await h.catalogue.close();
+    h = await harness();
+    const none = await call('validate', {});
+    expect(none.error?.code).toBe('unavailable');
+  });
+});
+
+describe('get_schema (US4)', () => {
+  it('serves one element from the generated table: children, attributes, text (rpc-api §3.13); unknown → known false', async () => {
+    const section = await call('get_schema', { element: 'section' });
+    expect(section.isError).toBe(false);
+    expect(section.result.known).toBe(true);
+    expect(section.result.name).toBe('section');
+    const children = (section.result.children as { name: string }[]).map((c) => c.name);
+    for (const name of [
+      'title',
+      'epigraph',
+      'p',
+      'poem',
+      'subtitle',
+      'cite',
+      'empty-line',
+      'table',
+      'image',
+      'section',
+      'annotation',
+    ]) {
+      expect(children, name).toContain(name);
+    }
+    expect(children).not.toContain('v');
+    const attributes = section.result.attributes as { name: string; required: boolean }[];
+    expect(attributes.map((a) => a.name)).toEqual(['id', 'xml:lang']);
+    expect(attributes.every((a) => a.required === false)).toBe(true);
+    expect(section.result.text).toBe(false);
+
+    const p = await call('get_schema', { element: 'p' });
+    expect(p.result.text).toBe(true);
+    expect((p.result.children as { name: string }[]).map((c) => c.name)).toContain('emphasis');
+    const a = await call('get_schema', { element: 'a' });
+    expect(a.result.attributes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'xlink:href', required: true })]),
+    );
+    expect(a.result.note).toContain('l:href');
+
+    // A prefixed name is read by its local part; an unknown name is a result, not an error.
+    const prefixed = await call('get_schema', { element: 'fb:stanza' });
+    expect(prefixed.result.name).toBe('stanza');
+    const unknown = await call('get_schema', { element: 'chapter' });
+    expect(unknown.isError).toBe(false);
+    expect(unknown.result).toEqual({ known: false, name: 'chapter' });
+  });
+
+  it('serves the whole schema from schema.text() - fetched once and cached - and in parts of whole lines under a budget', async () => {
+    await h.catalogue.close();
+    let fetches = 0;
+    const budget: { value: number | undefined } = { value: undefined };
+    h = await harness({
+      schemaText: () => {
+        fetches += 1;
+        return Promise.resolve(fakeSchema());
+      },
+      resultBudget: () => budget.value,
+    });
+    const whole = await call('get_schema', {});
+    expect(whole.isError).toBe(false);
+    const files = whole.result.files as { name: string; text: string }[];
+    expect(files.map((f) => f.name)).toEqual([...SCHEMA_FILE_NAMES]);
+    expect(files[0]!.text).toContain('<xs:schema');
+    expect(files[4]!.text).toContain('\r\n'); // byte-exact: the CRLF of FictionNotes.xsd kept
+    expect(whole.result.notice).toContain('Dmitry Gribov');
+    expect(whole.result.more).toBeUndefined();
+    await call('get_schema', {});
+    expect(fetches).toBe(1);
+
+    // A budget: whole lines, a cursor `<file>:<line>` to the next part, every line delivered once.
+    budget.value = 400;
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let part = 0; part < 20; part += 1) {
+      const out = await call('get_schema', cursor ? { cursor } : {});
+      expect(out.isError).toBe(false);
+      for (const file of out.result.files as { name: string; text: string }[]) {
+        seen.push(...file.text.split('\n').map((line) => `${file.name}|${line}`));
+      }
+      const more = out.result.more as { cursor: string; remaining: { lines: number } } | undefined;
+      if (!more) break;
+      expect(more.cursor).toMatch(/^[A-Za-z.]+:\d+$/);
+      expect(more.remaining.lines).toBeGreaterThan(0);
+      cursor = more.cursor;
+    }
+    const all = fakeSchema().files.flatMap((f) =>
+      f.text.split('\n').map((line) => `${f.name}|${line}`),
+    );
+    expect(seen).toEqual(all);
+    expect(fetches).toBe(1);
+
+    // No RPC in this context: unavailable (a result envelope, the request goes on).
+    await h.catalogue.close();
+    h = await harness();
+    const none = await call('get_schema', {});
+    expect(none.error?.code).toBe('unavailable');
+  });
+});
+
+describe('the schema resources (ai-catalogue §4)', () => {
+  it('lists fb2://schema/<name> for the five files as application/xml with the notice, readable through the client', async () => {
+    await h.catalogue.close();
+    let fetches = 0;
+    h = await harness({
+      schemaText: () => {
+        fetches += 1;
+        return Promise.resolve(fakeSchema());
+      },
+    });
+    const { resources } = await h.catalogue.client.listResources();
+    expect(resources.map((r) => r.uri)).toEqual([...RESOURCE_URIS]);
+    expect(RESOURCE_URIS).toEqual([
+      'fb2://schema/FictionBook.xsd',
+      'fb2://schema/FictionBookGenres.xsd',
+      'fb2://schema/FictionBookLang.xsd',
+      'fb2://schema/FictionBookLinks.xsd',
+      'fb2://schema/FictionNotes.xsd',
+    ]);
+    for (const resource of resources) {
+      expect(resource.name).toMatch(TOOL_NAME_RULE);
+      expect(resource.mimeType).toBe('application/xml');
+      expect(resource.description).toContain('Dmitry Gribov');
+    }
+    // Read lazily: nothing fetched until a read; one fetch serves every file.
+    expect(fetches).toBe(0);
+    const read = await h.catalogue.client.readResource({ uri: 'fb2://schema/FictionNotes.xsd' });
+    const content = read.contents[0] as { uri: string; mimeType?: string; text?: string };
+    expect(content.uri).toBe('fb2://schema/FictionNotes.xsd');
+    expect(content.mimeType).toBe('application/xml');
+    expect(content.text).toContain('FictionNotes.xsd');
+    expect(content.text).toContain('\r\n');
+    const again = await h.catalogue.client.readResource({ uri: 'fb2://schema/FictionBook.xsd' });
+    expect((again.contents[0] as { text?: string }).text).toContain('FictionBook.xsd');
+    expect(fetches).toBe(1);
+    // Once the text is known the descriptions carry the notice itself.
+    const after = (await h.catalogue.client.listResources()).resources;
+    expect(after[0]!.description).toContain('All rights reserved.');
   });
 });
 

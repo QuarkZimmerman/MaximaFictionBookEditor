@@ -36,12 +36,33 @@ import { z } from 'zod';
 import { createReport, nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2NameFor, fb2Schema, nodeTypeFor } from '@/editor/schema';
 import { nodeToModel } from '@/editor/toModel';
-import type { Description, Document, InlineNode, RawXmlNode } from '@/model/document';
+import type {
+  Description,
+  Document,
+  InlineNode,
+  RawXmlNode,
+  ValidationReport,
+} from '@/model/document';
 import { RpcError } from '@/rpc/client';
-import type { AiFragmentNotAllowedData, FragmentNode, FragmentResultNode } from '@/rpc/types';
+import type {
+  AiFragmentNotAllowedData,
+  FragmentNode,
+  FragmentResultNode,
+  SchemaTextResult,
+} from '@/rpc/types';
 import { contentFits } from '@/scripting/api-impl';
 import type { WorkingCopy } from '@/scripting/workingCopy';
+import type { Fb2Elements } from '@/views/source/completion';
+import fb2ElementsJson from '@/views/source/fb2Elements.json';
 
+import {
+  errorForModel,
+  invalidXmlHint,
+  issueKey,
+  multiset,
+  type ErrorForModel,
+  type IssueMultiset,
+} from './hook';
 import type { RegexMatch, RegexRunner } from './regexRunner';
 import {
   decodeCursor,
@@ -119,8 +140,48 @@ export const US3_TOOL_NAMES = [
   'set_description',
 ] as const;
 
-/** Every tool registered so far, in the `tools/list` order (US4 and US6 insert theirs). */
-export const TOOL_NAMES = [...US2_TOOL_NAMES, ...US3_TOOL_NAMES] as const;
+/** The schema and validation read tools of US4 (T061), in the §3.1 order - after `find`. */
+export const US4_TOOL_NAMES = ['validate', 'get_schema'] as const;
+
+/**
+ * Every tool registered so far, in the `tools/list` order of §3: the read tools of §3.1 (US2's
+ * six, then US4's two; US6 inserts its three after them), the selection tools of §3.2, the
+ * structural change tools of §3.3 (US6 appends §3.4's).
+ */
+export const TOOL_NAMES = [
+  ...US2_TOOL_NAMES.slice(0, 6),
+  ...US4_TOOL_NAMES,
+  ...US2_TOOL_NAMES.slice(6),
+  ...US3_TOOL_NAMES,
+] as const;
+
+/** The five schema files of `schema.text()` (rpc-api §3.13), in order - the resources of §4. */
+export const SCHEMA_FILE_NAMES = [
+  'FictionBook.xsd',
+  'FictionBookGenres.xsd',
+  'FictionBookLang.xsd',
+  'FictionBookLinks.xsd',
+  'FictionNotes.xsd',
+] as const;
+
+/** The URI of a schema file's MCP resource (ai-catalogue §4). */
+export const schemaResourceUri = (name: string) => `fb2://schema/${name}`;
+
+/** The resource URIs registered so far (ai-catalogue §4; US6 adds the `mfbe://` ones). */
+export const RESOURCE_URIS = SCHEMA_FILE_NAMES.map(schemaResourceUri);
+
+/** What each schema file holds (the resource description, ai-catalogue §4). */
+const SCHEMA_FILE_ROLES: Record<(typeof SCHEMA_FILE_NAMES)[number], string> = {
+  'FictionBook.xsd': 'the FictionBook 2.1 schema as shipped - every element and its content model',
+  'FictionBookGenres.xsd': 'the genre enumeration (the values of <genre>)',
+  'FictionBookLang.xsd': 'the xs:language type used by <lang> and xml:lang',
+  'FictionBookLinks.xsd': 'the xlink attributes (l:href, l:type)',
+  'FictionNotes.xsd': 'the notes schema shipped alongside (not reached from FictionBook.xsd)',
+};
+
+/** The licence line every schema resource carries before the notice itself is fetched. */
+const SCHEMA_LICENCE_LINE =
+  'Licence: BSD 2-clause, Copyright (c) 2004, Dmitry Gribov - the full notice is the notice member of get_schema.';
 
 /** The change tools of §3.5 registered so far (every call runs under the hook with a strike key). */
 export const CHANGE_TOOL_NAMES = ['replace_selection', ...US3_TOOL_NAMES] as const;
@@ -318,6 +379,21 @@ export interface CatalogueDeps {
   ) => PromptText[] | Promise<PromptText[]>;
   /** The Source view's text path (US5 T070): `replace_selection` on a `source` selection. */
   replaceSourceText?: (xml: string) => Promise<{ from: number; to: number }>;
+  /**
+   * The validity check of the working copy as it stands (`RequestSession.validate`:
+   * `doc.validate({docId, document})`, recorded for the test hook; the Source text mode of US5
+   * validates its text instead) - the `validate` tool (US4 T061). Without one (the catalogue
+   * alone) the tool answers `unavailable`.
+   */
+  validate?: () => Promise<ValidationReport>;
+  /** The request's baseline (data-model §7.2): the error keys before the request with their counts. */
+  baseline?: () => IssueMultiset;
+  /**
+   * `schema.text()` of the core (rpc-api §3.13): the five XSD files and the licence notice.
+   * Fetched once per catalogue instance and cached (the `get_schema` tool and the
+   * `fb2://schema/*` resources, US4 T061). Without one the tool answers `unavailable`.
+   */
+  schemaText?: () => Promise<SchemaTextResult>;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -397,12 +473,15 @@ export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
   const server = new McpServer({ name: 'mfbe-ai-catalogue', version: String(CATALOGUE_VERSION) });
   const context = new ToolContext(deps);
   registerReadTools(server, context);
-  // T061 (US4): `validate`, `get_schema`; T075 (US6): `list_scripts`, `read_script`,
-  // `read_resource` - here, before the selection tool, to keep the §3 order.
+  registerSchemaTools(server, context);
+  // T075 (US6): `list_scripts`, `read_script`, `read_resource` - here, before the selection
+  // tool, to keep the §3 order.
   registerSelectionTools(server, context);
   registerChangeTools(server, context);
   // T076 (US6): `run_script`, `propose_script`, `reload_scripts` - here, after the structural
   // change tools, to keep the §3 order.
+  registerSchemaResources(server, context);
+  // T075 (US6): the `mfbe://` resources and the script template.
   registerPrompts(server, () => context.deps);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -598,29 +677,27 @@ export function fragmentError(error: RpcError): ToolError {
   };
   if (error.code === 1001) {
     const detail = data.message ?? error.message;
-    const hints: string[] = [];
-    if (/nbsp|entity/i.test(detail)) hints.push('write the character U+00A0 itself, never &nbsp;');
-    if (/xml|FictionBook|declaration/i.test(detail)) {
-      hints.push('return the elements that replace the selection, without a document wrapper');
-    }
+    // The parse stage (data-model §7.3): the refusal in the `ErrorForModel` form too, with
+    // the parser's line (the fragment's own) and no element.
+    const issue: ErrorForModel = { code: 'xml.notWellFormed', element: '', message: detail };
+    if (typeof data.line === 'number' && data.line > 0) issue.line = data.line;
     return new ToolError('invalidXml', `The XML is not well-formed: ${detail}`, {
       ...(data.line !== undefined ? { line: data.line } : {}),
       ...(data.column !== undefined ? { column: data.column } : {}),
-      hint:
-        hints.join('; ') ||
-        'Return well-formed FB2 XML: escape &, < and > in text; only the five predefined entities exist.',
+      hint: invalidXmlHint(detail),
+      issues: [issue],
     });
   }
   if (error.code === 1201) {
-    return new ToolError(
-      'fragmentNotAllowed',
-      `The element "${data.element ?? '?'}" is not allowed inside "${data.parent ?? '?'}".`,
-      {
-        element: data.element ?? '',
-        parent: data.parent ?? '',
-        hint: 'Use get_schema with the parent element to see what it may contain; return the elements that replace the selection, without a document wrapper.',
-      },
-    );
+    const element = data.element ?? '';
+    const parent = data.parent ?? '';
+    const message = `The element "${element || '?'}" is not allowed inside "${parent || '?'}".`;
+    return new ToolError('fragmentNotAllowed', message, {
+      element,
+      parent,
+      hint: 'Use get_schema with the parent element to see what it may contain; return the elements that replace the selection, without a document wrapper.',
+      issues: [{ code: 'schema.invalid', element, message }],
+    });
   }
   if (error.code === -32602) {
     return new ToolError('invalidArguments', error.message, {
@@ -684,9 +761,30 @@ function cursorOf<K extends Cursor['kind']>(text: string, kind: K): Extract<Curs
 /** The fixed cost of a part's envelope (its node infos and members) against the budget. */
 const PART_ENVELOPE_UNITS = 240;
 
+/** A pre-check refusal in the `ErrorForModel` form (data-model §7.3): element, path, no line. */
+function preCheckIssue(element: string, message: string, path?: string): ErrorForModel {
+  const issue: ErrorForModel = { code: 'schema.invalid', element, message };
+  if (path) issue.path = path;
+  return issue;
+}
+
+/** The generated element table (resource-formats §12; T023): children, attributes, text. */
+const FB2_ELEMENTS: Fb2Elements = fb2ElementsJson;
+
+/** One line of a schema file as the whole-schema answer is cut (ai-catalogue §3.1, §3.7). */
+interface SchemaLine {
+  file: string;
+  line: number;
+  text: string;
+}
+
 class ToolContext {
   /** The binding of the moment (`Catalogue.rebind` swaps it between requests). */
   deps: CatalogueDeps;
+  /** `schema.text()` once per instance (ai-catalogue §4: read lazily, cached while the assistant is on). */
+  private schemaCache: Promise<SchemaTextResult> | null = null;
+  /** Told once the schema text is known (the resources add the notice to their descriptions). */
+  onSchemaLoaded: ((schema: SchemaTextResult) => void) | null = null;
 
   constructor(deps: CatalogueDeps) {
     this.deps = deps;
@@ -694,6 +792,125 @@ class ToolContext {
 
   get document(): Document {
     return this.deps.copy.document;
+  }
+
+  /** The schema files and the notice, fetched on the first call and cached; `unavailable` without the RPC. */
+  schema(): Promise<SchemaTextResult> {
+    if (this.schemaCache) return this.schemaCache;
+    const fetch = this.deps.schemaText;
+    if (!fetch) {
+      return Promise.reject(
+        new ToolError('unavailable', 'The schema text is not available in this context.'),
+      );
+    }
+    const loading = fetch().then((schema) => {
+      this.onSchemaLoaded?.(schema);
+      return schema;
+    });
+    this.schemaCache = loading;
+    loading.catch(() => {
+      // A failed fetch is not cached: the next call tries again.
+      if (this.schemaCache === loading) this.schemaCache = null;
+    });
+    return loading;
+  }
+
+  /**
+   * The `validate` tool (ai-catalogue §3.1; FR-065): the working copy validated now and its
+   * errors split by the multiset rule of the hook into the ones this request introduced
+   * (`newErrors` - any makes `ok` false) and the ones the book already had (`preExistingErrors`).
+   */
+  async validateNow(): Promise<AnyObject> {
+    const validate = this.deps.validate;
+    if (!validate) {
+      throw new ToolError('unavailable', 'Validation is not available in this context.');
+    }
+    const report = await validate();
+    const baseline = this.deps.baseline?.() ?? new Map<string, number>();
+    const current = multiset(report.issues);
+    const excess = new Set<string>();
+    for (const [key, count] of current) {
+      if (count > (baseline.get(key) ?? 0)) excess.add(key);
+    }
+    const errors = report.issues.filter((issue) => issue.severity === 'error');
+    const fresh = errors.filter((issue) => excess.has(issueKey(issue))).map(errorForModel);
+    const preExisting = errors.filter((issue) => !excess.has(issueKey(issue))).map(errorForModel);
+    return {
+      ok: fresh.length === 0,
+      newErrors: fresh,
+      preExistingErrors: preExisting,
+      warnings: report.warningCount,
+      durationMs: report.durationMs,
+    };
+  }
+
+  /**
+   * The whole schema (ai-catalogue §3.1 `get_schema` without `element`): the five files and the
+   * notice, whole without a budget, else in parts of whole lines with a `<file>:<line>` cursor.
+   */
+  async wholeSchema(cursor?: string): Promise<AnyObject> {
+    const schema = await this.schema();
+    const limit = this.budget();
+    if (limit === undefined && !cursor) return { files: schema.files, notice: schema.notice };
+    let lines: SchemaLine[] = schema.files.flatMap((file) =>
+      file.text.split('\n').map((text, line) => ({ file: file.name, line, text })),
+    );
+    if (cursor) {
+      const at = cursorOf(cursor, 'line');
+      const index = lines.findIndex((l) => l.file === at.file && l.line === at.line);
+      if (index < 0) throw new ToolError('invalidArguments', `unknown cursor "${cursor}"`);
+      lines = lines.slice(index);
+    }
+    const { taken, rest } = partition(lines, {
+      sizeOf: (l) => l.text.length + 1,
+      limit,
+      fixed: schema.notice.length + 200,
+      strict: false,
+    });
+    const files: { name: string; text: string; partial?: true }[] = [];
+    for (const line of taken) {
+      const last = files[files.length - 1];
+      if (last && last.name === line.file) last.text += `\n${line.text}`;
+      else files.push({ name: line.file, text: line.text });
+    }
+    const totals = new Map(schema.files.map((f) => [f.name, f.text.split('\n').length]));
+    for (const file of files) {
+      if (file.text.split('\n').length !== totals.get(file.name)) file.partial = true;
+    }
+    const out: AnyObject = { files, notice: schema.notice };
+    const next = rest[0];
+    if (next) {
+      out.more = moreOf(
+        'get_schema',
+        { kind: 'line', file: next.file, line: next.line },
+        { lines: rest.length, files: new Set(rest.map((l) => l.file)).size },
+      );
+    }
+    return out;
+  }
+
+  /**
+   * One element's content model (ai-catalogue §3.1 `get_schema` with `element`; rpc-api §3.13
+   * `SchemaElementResult`) from the generated table alone - the core's reserved
+   * `schema.element` is never called in 0.0.5 (R6). An unknown name is a result, not an error.
+   */
+  elementSchema(element: string): AnyObject {
+    const name = element.trim().replace(/^.*:/, '');
+    const info = FB2_ELEMENTS.elements[name];
+    if (!info) return { known: false, name };
+    const attributes = (info.attributes ?? []).map((attribute) => ({ ...attribute }));
+    const out: AnyObject = {
+      known: true,
+      name,
+      children: info.children.map((child) => ({ name: child })),
+      attributes,
+      text: info.text ?? false,
+    };
+    if (attributes.some((attribute) => attribute.name.startsWith('xlink:'))) {
+      out.note =
+        'In FictionBook files the xlink attributes are written with the l: prefix (l:href, l:type).';
+    }
+    return out;
   }
 
   get index(): DocIndex {
@@ -732,8 +949,10 @@ class ToolContext {
   resolve(reference: string, what = 'node'): Entry {
     const entry = resolveReference(this.index, reference);
     if (!entry) {
-      throw new ToolError('unknownNode', `No node ${reference} in the document (${what}).`, {
+      const message = `No node ${reference} in the document (${what}).`;
+      throw new ToolError('unknownNode', message, {
         hint: UNKNOWN_NODE_HINT,
+        issues: [{ code: 'unknownNode', element: '', path: reference, message }],
       });
     }
     return entry;
@@ -888,18 +1107,37 @@ class ToolContext {
    * on every level, `invalidNode` with the offending path) - the node as the editor's
    * canonical JSON (`nodeToModel` of the checked ProseMirror node, ids kept).
    */
-  checkedNode(node: ModelNodeJson, what: string): ModelNodeJson {
+  checkedNode(node: ModelNodeJson, what: string, path?: string): ModelNodeJson {
     const report = createReport();
     const built = nodeFromModel(node, report);
-    if (!built) throw new ToolError('invalidNode', `${what}: cannot build a "${node.type}" node`);
+    if (!built) {
+      const message = `cannot build a "${node.type}" node`;
+      throw new ToolError('invalidNode', `${what}: ${message}`, {
+        issues: [preCheckIssue(node.type, message, path)],
+      });
+    }
     const problem = report.problems[0];
     if (problem) {
+      // The pre-check stage (data-model §7.3): every problem in the `ErrorForModel` form -
+      // `element` = the type at the problem's path, `path` = the target's structural path
+      // joined with the problem's path inside the node, no `line`.
+      const issues = report.problems.map((p) => {
+        const element =
+          p.path
+            .split('/')
+            .pop()
+            ?.replace(/\[\d+\]$/, '') || node.type;
+        return preCheckIssue(element, p.message, path ? `${path}/${p.path}` : p.path);
+      });
       const more = report.problems.length - 1;
       throw new ToolError(
         'invalidNode',
         `${what}: invalid node at "${problem.path}": ${problem.message}` +
           (more > 0 ? ` (and ${more} more problem${more === 1 ? '' : 's'})` : ''),
-        { hint: 'Use get_schema with the element to see its content model and attributes.' },
+        {
+          hint: 'Use get_schema with the element to see its content model and attributes.',
+          issues,
+        },
       );
     }
     return nodeToModel(built);
@@ -927,17 +1165,26 @@ class ToolContext {
     inserted: readonly ModelNodeJson[],
     what: string,
     place: string,
+    path?: string,
   ): void {
     const types = inserted.map((node) => nodeTypeFor(node.type, false) ?? fb2Schema.nodes.raw_xml!);
     if (contentFits(container.type, children, index, replaced, types)) return;
+    // A parent whose children already break its content expression (a pre-existing error of
+    // the book, FR-062) is not judged here: the schema pass of the hook decides by the key
+    // diff whether the change adds an error or merely moves the old one (review C3).
+    if (!contentFits(container.type, children, 0, 0, [])) return;
     const model = contentModelOf(container.type);
     const verb =
       inserted.length === 0
         ? `does not allow removing ${place}`
         : `does not allow ${describeTypes(inserted)} ${place}`;
-    throw new ToolError('notAllowed', `${what}: "${container.name}" ${verb}.`, {
+    const message = `"${container.name}" ${verb}.`;
+    throw new ToolError('notAllowed', `${what}: ${message}`, {
       hint: `The content model of "${container.name}" is: ${model || 'any content'}; the order and the number of children matter.`,
       contentModel: model,
+      // The pre-check stage (data-model §7.3): the refusal in the `ErrorForModel` form -
+      // the element that does not fit (the first one offered, or the container for a removal).
+      issues: [preCheckIssue(inserted[0]?.type ?? container.name, message, path)],
     });
   }
 
@@ -1612,6 +1859,109 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
   );
 }
 
+/* ------------------------------------------------------------------------ */
+/* The schema and validation tools and resources (ai-catalogue §3.1, §4; T061) */
+/* ------------------------------------------------------------------------ */
+
+const issueSchema = z.looseObject({
+  code: z.string(),
+  element: z.string(),
+  path: z.string().optional(),
+  line: z.number().optional(),
+  message: z.string(),
+});
+
+/**
+ * `validate` and `get_schema` (US4; FR-065): read tools - no change, no hook. `get_schema`
+ * without `element` hands on the schema files of `schema.text()` (whole, or in parts of whole
+ * lines under a result budget); with `element` it answers from the generated table alone -
+ * the core's reserved `schema.element` is never called in 0.0.5 (R6).
+ */
+function registerSchemaTools(server: McpServer, ctx: ToolContext): void {
+  defineTool(
+    server,
+    'validate',
+    {
+      title: 'Validate the book now',
+      description:
+        'Validates the book as it stands with the changes of this request against the FB2 2.1 schema. newErrors are the errors this request introduced (any of them makes ok false and must be corrected); preExistingErrors are the ones the book already had before the request (they do not block a change). Every change tool validates on its own; use this to check the whole state before answering.',
+      inputSchema: z.object({}),
+      outputSchema: z.looseObject({
+        ok: z.boolean(),
+        newErrors: z.array(issueSchema),
+        preExistingErrors: z.array(issueSchema),
+        warnings: z.number(),
+        durationMs: z.number(),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    () => ctx.validateNow(),
+  );
+
+  defineTool(
+    server,
+    'get_schema',
+    {
+      title: 'Get the FB2 schema',
+      description:
+        'Returns the FictionBook 2.1 schema. With element (an FB2 element name such as "section" or "title-info"): its content model - the child elements it may hold, its attributes (name, required, type) and whether it may hold text; an unknown name answers known: false. Without element: the text of the five XSD files with their licence notice (a large answer may come in parts: pass more.cursor back for the next part). Use it when a change was rejected and you need to know what an element may contain.',
+      inputSchema: z.object({
+        element: z
+          .string()
+          .optional()
+          .describe('an FB2 element name (section, p, title-info, …); omit for the whole schema'),
+        cursor: cursorArg,
+      }),
+      outputSchema: z.looseObject({
+        known: z.boolean().optional(),
+        name: z.string().optional(),
+        children: z.array(z.looseObject({ name: z.string() })).optional(),
+        files: z.array(z.looseObject({ name: z.string(), text: z.string() })).optional(),
+        notice: z.string().optional(),
+        more: moreSchema,
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true },
+    },
+    (args) => {
+      if (args.element !== undefined && args.element.trim() !== '') {
+        return ctx.elementSchema(args.element);
+      }
+      return ctx.wholeSchema(args.cursor);
+    },
+  );
+}
+
+/**
+ * The MCP resources `fb2://schema/<name>` (ai-catalogue §4): the five schema files, read lazily
+ * through the one cached `schema.text()` call, `application/xml`, with the licence notice in
+ * the description (the fixed licence line at once, the full notice once the text is known).
+ */
+function registerSchemaResources(server: McpServer, ctx: ToolContext): void {
+  const metadataOf = (name: (typeof SCHEMA_FILE_NAMES)[number], notice?: string) => ({
+    title: `FB2 2.1 schema: ${name}`,
+    description: `${SCHEMA_FILE_ROLES[name]}. ${notice ? `Notice:\n${notice}` : SCHEMA_LICENCE_LINE}`,
+    mimeType: 'application/xml',
+  });
+  const registered = SCHEMA_FILE_NAMES.map((name) =>
+    server.registerResource(
+      `schema-${name.replace(/\./g, '-')}`,
+      schemaResourceUri(name),
+      metadataOf(name),
+      async (uri) => {
+        const schema = await ctx.schema();
+        const file = schema.files.find((f) => f.name === name);
+        if (!file) throw new Error(`schema.text() returned no ${name}`);
+        return { contents: [{ uri: uri.href, mimeType: 'application/xml', text: file.text }] };
+      },
+    ),
+  );
+  ctx.onSchemaLoaded = (schema) => {
+    registered.forEach((resource, i) => {
+      resource.update({ metadata: metadataOf(SCHEMA_FILE_NAMES[i]!, schema.notice) });
+    });
+  };
+}
+
 /** The `FindQuery` arguments `find` and `replace_all` share (ai-catalogue §3.1, §3.3). */
 interface SearchArgs {
   text: string;
@@ -2245,13 +2595,13 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
         } else {
           node = ctx.jsonNode(args.content.node, 'replace_node', id);
         }
-        const checked = ctx.checkedNode(node, 'replace_node');
+        const checked = ctx.checkedNode(node, 'replace_node', pathOf(entry));
         if (!entry.parent && checked.type !== 'body') {
-          throw new ToolError(
-            'notAllowed',
-            `A body can only be replaced by a body, not by a "${checked.type}".`,
-            { hint: 'Replace or insert the sections inside the body instead.' },
-          );
+          const message = `A body can only be replaced by a body, not by a "${checked.type}".`;
+          throw new ToolError('notAllowed', message, {
+            hint: 'Replace or insert the sections inside the body instead.',
+            issues: [preCheckIssue(checked.type, message, pathOf(entry))],
+          });
         }
         const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
         ctx.requireFits(
@@ -2262,6 +2612,7 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
           [checked],
           'replace_node',
           `in place of this "${entry.node.type}"`,
+          pathOf(entry),
         );
         writeAt(ctx.deps.copy, entry, { kind: 'replace', node: checked });
         const after = ctx.entryOf(id);
@@ -2344,7 +2695,13 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
           }
           nodes = given.map((value, i) => ctx.jsonNode(value, `insert_node: nodes[${i}]`));
         }
-        const checked = nodes.map((node) => ctx.checkedNode(node, 'insert_node'));
+        // The path the pre-check names: the parent of the new nodes (the node for `append`).
+        const parentPath = append
+          ? pathOf(entry)
+          : entry.parent
+            ? pathOf(entry.parent)
+            : entry.root;
+        const checked = nodes.map((node) => ctx.checkedNode(node, 'insert_node', parentPath));
         if (append) {
           const children = childEntries(ctx.index, entry).map((child) => child.node);
           ctx.requireFits(
@@ -2355,6 +2712,7 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
             checked,
             'insert_node',
             'as its last child',
+            parentPath,
           );
         } else {
           const siblings = siblingsOf(ctx.index, entry).map((s) => s.node);
@@ -2367,6 +2725,7 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
             checked,
             'insert_node',
             `${args.where} this "${entry.node.type}"`,
+            parentPath,
           );
         }
         writeAt(ctx.deps.copy, entry, { kind: 'insert', where: args.where, nodes: checked });
@@ -2394,14 +2753,12 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
       ctx.change(`remove_node:${ctx.targetOf(args.node)}`, async () => {
         const entry = ctx.resolve(args.node);
         if (!entry.parent && entry.root === 'body[1]') {
-          throw new ToolError(
-            'notAllowed',
-            'The first body is the book itself and cannot be removed.',
-            {
-              hint: `A FictionBook needs its first body (content model of "body": ${contentModelOf(fb2Schema.nodes.body!)}); remove sections inside it instead.`,
-              contentModel: contentModelOf(fb2Schema.nodes.body!),
-            },
-          );
+          const message = 'The first body is the book itself and cannot be removed.';
+          throw new ToolError('notAllowed', message, {
+            hint: `A FictionBook needs its first body (content model of "body": ${contentModelOf(fb2Schema.nodes.body!)}); remove sections inside it instead.`,
+            contentModel: contentModelOf(fb2Schema.nodes.body!),
+            issues: [preCheckIssue('body', message, 'body[1]')],
+          });
         }
         const removed = nodeInfo(entry);
         const characters = characterCount(entry.node);
@@ -2415,6 +2772,7 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
             [],
             'remove_node',
             `this "${entry.node.type}"`,
+            pathOf(entry),
           );
         }
         writeAt(ctx.deps.copy, entry, { kind: 'remove' });
@@ -2439,19 +2797,17 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
       ctx.change(`set_text:${ctx.targetOf(args.node)}`, async () => {
         const entry = ctx.resolve(args.node);
         if (!TEXT_CONTAINERS.has(entry.node.type)) {
-          throw new ToolError(
-            'textOnly',
-            `"${entry.node.type}" is not a text container; set_text takes ${TEXT_CONTAINER_LIST}.`,
-            {
-              hint: 'Use replace_node with xml to keep formatting, or read_part to find the paragraphs inside it.',
-            },
-          );
+          const message = `"${entry.node.type}" is not a text container; set_text takes ${TEXT_CONTAINER_LIST}.`;
+          throw new ToolError('textOnly', message, {
+            hint: 'Use replace_node with xml to keep formatting, or read_part to find the paragraphs inside it.',
+            issues: [{ code: 'textOnly', element: entry.node.type, path: pathOf(entry), message }],
+          });
         }
         const next: ModelNodeJson = {
           ...entry.node,
           content: args.text ? [{ type: 'text', text: args.text }] : [],
         };
-        const checked = ctx.checkedNode(next, 'set_text');
+        const checked = ctx.checkedNode(next, 'set_text', pathOf(entry));
         const id = nodeIdOf(entry.node);
         writeAt(ctx.deps.copy, entry, { kind: 'replace', node: checked });
         const after = ctx.entryOf(id);
@@ -2504,7 +2860,7 @@ function registerChangeTools(server: McpServer, ctx: ToolContext): void {
           const entry = search.blocks[block]!;
           const rewritten = rewriteBlock(entry.node, matches, expand);
           if (rewritten === entry.node) continue;
-          rewrites.push({ entry, node: ctx.checkedNode(rewritten, 'replace_all') });
+          rewrites.push({ entry, node: ctx.checkedNode(rewritten, 'replace_all', pathOf(entry)) });
         }
         // Every rewrite is computed from the index before the first write, then all are
         // written at once (the description roots in one rewrite each).

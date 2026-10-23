@@ -163,6 +163,14 @@ export function callSummary(t: TFunction, call: SummarisedCall, document: Docume
       return t('ai.activity.summary.getDescription');
     case 'find':
       return t('ai.activity.summary.find', { text: asString(args.text) });
+    case 'validate':
+      return t('ai.activity.summary.validate');
+    case 'get_schema': {
+      const element = asString(args.element).trim();
+      return element
+        ? t('ai.activity.summary.getSchemaElement', { element })
+        : t('ai.activity.summary.getSchema');
+    }
     case 'set_selection':
       return t('ai.activity.summary.setSelection');
     case 'replace_selection':
@@ -255,6 +263,21 @@ export function resultSummary(
       return count === undefined
         ? null
         : t('ai.activity.summary.replaceAllCount', { text: asString(args.text), count });
+    }
+    case 'validate': {
+      const fresh = Array.isArray(result.newErrors) ? result.newErrors.length : undefined;
+      const preExisting = Array.isArray(result.preExistingErrors)
+        ? result.preExistingErrors.length
+        : undefined;
+      return fresh === undefined || preExisting === undefined
+        ? null
+        : t('ai.activity.summary.validateResult', { new: fresh, preExisting });
+    }
+    case 'get_schema': {
+      if (result.known === false) {
+        return t('ai.activity.summary.getSchemaUnknown', { element: asString(result.name) });
+      }
+      return null;
     }
     case 'insert_node': {
       const nodes = Array.isArray(result.nodes) ? result.nodes : [];

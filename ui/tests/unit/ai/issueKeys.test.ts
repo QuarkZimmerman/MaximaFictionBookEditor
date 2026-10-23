@@ -11,6 +11,7 @@ import type { ValidationIssue, ValidationReport } from '@/model/document';
 import {
   errorForModel,
   issueKey,
+  keyMessage,
   multiset,
   multisetSize,
   newErrors,
@@ -62,6 +63,30 @@ describe('issueKey', () => {
     ).toBe('xml.notWellFormed||Opening and ending tag mismatch');
     expect(issueKey({ code: 'genre.unknown', params: { code: 'sf_xyz' } })).toBe('genre.unknown||');
     expect(issueKey({ code: 'schema.unavailable', params: {} })).toBe('schema.unavailable||');
+  });
+
+  it("drops libxml2's position-dependent 'Expected is …' tail from the key, never from the message (US4 T060)", () => {
+    // The fixture ai-preexisting.fb2: the misplaced title after the first block carries the
+    // alternatives; once a paragraph is inserted before it the same error comes without them.
+    const withTail = `${TITLE_UNEXPECTED} Expected is one of ( p, image, poem, subtitle, cite, empty-line, table ).`;
+    expect(keyMessage(withTail)).toBe(TITLE_UNEXPECTED);
+    expect(keyMessage(`${TITLE_UNEXPECTED} Expected is ( p ).`)).toBe(TITLE_UNEXPECTED);
+    expect(keyMessage(TITLE_UNEXPECTED)).toBe(TITLE_UNEXPECTED);
+    expect(
+      keyMessage("Element 'section', attribute 'foo': The attribute 'foo' is not allowed."),
+    ).toBe("Element 'section', attribute 'foo': The attribute 'foo' is not allowed.");
+    const before = schemaError('title', withTail, {
+      line: 65,
+      path: 'body[1]/section[3]/title[2]',
+    });
+    const after = schemaError('title', TITLE_UNEXPECTED, {
+      line: 66,
+      path: 'body[1]/section[3]/title[2]',
+    });
+    expect(issueKey(before)).toBe(issueKey(after));
+    expect(newErrors(multiset([before]), report([after]))).toEqual([]);
+    // The message the model reads keeps the tail.
+    expect(errorForModel(before).message).toBe(withTail);
   });
 });
 

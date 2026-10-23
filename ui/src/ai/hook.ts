@@ -72,7 +72,56 @@ export type ChangeRejectionCode =
 /** Where an attempt was rejected (data-model §7.3 `stage`). */
 export type RejectionStage = 'preCheck' | 'parse' | 'hook';
 
+/**
+ * The envelope codes that count one strike for a change tool's key (ai-catalogue §1.4, review
+ * C4): every rejected *attempt* of a change. `unavailable`, `runNotConfirmed`, `scriptFailed`,
+ * `cancelled`, `internal` (and the non-change codes) are gates or failures and count nothing.
+ */
+export const STRIKE_CODES: ReadonlySet<string> = new Set<ChangeRejectionCode>([
+  'rejected',
+  'invalidArguments',
+  'unknownNode',
+  'invalidNode',
+  'notAllowed',
+  'textOnly',
+  'noSelection',
+  'selectionRequired',
+  'invalidXml',
+  'fragmentNotAllowed',
+]);
+
+/** True when an envelope of `code` is a rejected attempt of a change (one strike). */
+export function isStrikeCode(code: string): code is ChangeRejectionCode {
+  return STRIKE_CODES.has(code);
+}
+
 const FB2_NAMESPACE = '{http://www.gribuser.ru/xml/fictionbook/2.0}';
+
+/**
+ * The hints of an `invalidXml` envelope (ai-catalogue §3.8; T060): "write U+00A0" when the
+ * parser met `&nbsp;` (or any undefined entity), "return the elements that replace the
+ * selection, without a document wrapper" when it met an XML declaration or a document-level
+ * element; the general well-formedness advice otherwise.
+ */
+export function invalidXmlHint(detail: string): string {
+  const hints: string[] = [];
+  if (/nbsp|entity/i.test(detail)) {
+    hints.push(
+      'write the character U+00A0 itself, never &nbsp; (only the five predefined entities exist)',
+    );
+  }
+  if (/xml declaration|FictionBook|<body|document/i.test(detail)) {
+    hints.push(
+      'return the elements that replace the selection, without a document wrapper, an XML declaration or namespace declarations',
+    );
+  }
+  if (hints.length === 0) {
+    hints.push(
+      'return well-formed FB2 XML: close every element, escape &, < and > in text; only the five predefined entities exist',
+    );
+  }
+  return `${hints.join('; ')}; use get_schema for the content model.`;
+}
 
 /* ------------------------------------------------------------------------ */
 /* Issue keys                                                               */
@@ -83,11 +132,29 @@ function param(issue: ValidationIssue, name: string): string {
   return value === undefined || value === null ? '' : String(value);
 }
 
-/** The content key of an issue: code, element and message - never a position (review C3). */
+/**
+ * libxml2 appends the alternatives of the automaton state to some "not expected" messages
+ * (`… This element is not expected. Expected is one of ( p, image, … ).`) - a tail that depends
+ * on what *precedes* the element, so that the same misplaced element gets another message once
+ * a block is inserted before it. The key drops the tail; the message the model and the user
+ * read keeps it.
+ */
+const EXPECTED_TAIL = /\s*Expected is (one of )?\( .*\)\.?\s*$/;
+
+/** The message of an issue as the key reads it: libxml2's text without its position-dependent tail. */
+export function keyMessage(message: string): string {
+  return message.replace(EXPECTED_TAIL, '');
+}
+
+/**
+ * The content key of an issue: code, element and message - never a position (review C3), the
+ * message without libxml2's "Expected is …" tail (`keyMessage`), which would otherwise make a
+ * pre-existing error "new" when a block is inserted before it.
+ */
 export function issueKey(issue: Pick<ValidationIssue, 'code' | 'params'>): IssueKey {
   const params = issue.params ?? {};
   const element = params.element === undefined ? '' : String(params.element);
-  const message = params.message === undefined ? '' : String(params.message);
+  const message = params.message === undefined ? '' : keyMessage(String(params.message));
   return `${issue.code}|${element}|${message}`;
 }
 
@@ -265,7 +332,7 @@ export class ChangeRejection extends Error {
       return new ChangeRejection('invalidXml', `The fragment is not well-formed XML: ${message}`, {
         stage: 'parse',
         issues: [issue],
-        hint: FRAGMENT_HINT,
+        hint: invalidXmlHint(message),
       });
     }
     if (error.code === RpcErrorCode.aiFragmentNotAllowed) {
@@ -285,8 +352,50 @@ export class ChangeRejection extends Error {
 
 const FRAGMENT_HINT =
   'Return the elements that replace the selection, without a document wrapper, an XML ' +
-  'declaration or namespace declarations; only the five predefined entities exist (write the ' +
-  'character U+00A0 itself, never &nbsp;); use get_schema for the content model.';
+  'declaration or namespace declarations; use get_schema with the parent element for its ' +
+  'content model.';
+
+/**
+ * A change tool's thrown envelope body (the catalogue's `ToolError`) as a `ChangeRejection`
+ * when its code is a strike code - the pre-check, parse and argument refusals of ai-catalogue
+ * §6.10.2, with the `ErrorForModel` issues the tool put in the envelope -, or `null` for a
+ * gate or failure (`unavailable`, `runNotConfirmed`, `scriptFailed`, `cancelled`, `internal`,
+ * …), which the hook rolls back but counts nowhere (review C4).
+ */
+export function rejectionFromEnvelope(body: {
+  code: string;
+  message: string;
+  hint?: string;
+  expected?: unknown;
+  issues?: unknown[];
+}): ChangeRejection | null {
+  if (!isStrikeCode(body.code) || body.code === 'rejected') return null;
+  return new ChangeRejection(body.code, body.message, {
+    ...(body.hint === undefined ? {} : { hint: body.hint }),
+    ...(body.expected === undefined ? {} : { expected: body.expected }),
+    issues: Array.isArray(body.issues) ? (body.issues as ErrorForModel[]) : [],
+  });
+}
+
+/**
+ * The issues of the consecutive rejections of one strike key (data-model §7.4; US4 scenario 3):
+ * the rejected change records of `key` since its last accepted change, in order - what the
+ * panel shows when the third strike ends the request ("the three rejections' issues").
+ */
+export function strikeIssues(
+  session: Pick<RequestSession, 'changes'>,
+  key: string,
+): ErrorForModel[] {
+  const issues: ErrorForModel[] = [];
+  for (const record of session.changes) {
+    if (record.strikeKey !== key) continue;
+    if (record.status === 'accepted') issues.length = 0;
+    else if (record.status === 'rejected' && record.outcome && !record.outcome.accepted) {
+      issues.push(...record.outcome.issues);
+    }
+  }
+  return issues;
+}
 
 /* ------------------------------------------------------------------------ */
 /* applyChange                                                              */
