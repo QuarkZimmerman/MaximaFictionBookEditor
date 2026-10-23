@@ -1,6 +1,6 @@
 {
   "name": "mfbe-ui",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "description": "Maxima Fiction Book Editor - web user interface (served by mfbe-core)",
   "license": "GPL-3.0-only",
