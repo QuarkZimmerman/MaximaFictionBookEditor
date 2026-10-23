@@ -60,7 +60,13 @@ import {
 } from '../features/testUtils';
 import { defaultSettings } from '../settings/fixtures';
 
-/** Lets the feature's asynchronous settings handling (the `app.info` check) run to its end. */
+/**
+ * Lets the feature's asynchronous settings handling (the `app.info` check) run to its end. The
+ * turn-on a snapshot or a show may start is a matter of `feature.pendingTurnOn`: the import of
+ * the real chunk - the file's first takes a few hundred milliseconds on a fast machine, well
+ * over a second on a loaded CI runner - takes as long as it takes, so a test awaits it rather
+ * than a number of ticks or `vi.waitFor`'s second.
+ */
 async function settle(): Promise<void> {
   for (let i = 0; i < 4; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -84,15 +90,20 @@ interface Harness {
 }
 
 /** The harness of the running test: `stopLeftovers` turns a live assistant off after it. */
-let current: Harness | null = null;
+let current: Pick<Harness, 'store' | 'feature'> | null = null;
 
 /**
  * The catalogue instance of a turn-on lives in `assistant.ts`'s module state (one per page):
- * a test that leaves the assistant on would hand its instance to the next test's store.
+ * a test that leaves the assistant on would hand its instance to the next test's store. A
+ * turn-on still under way (a test that failed while the chunk was imported) lands first, so
+ * that it cannot turn the assistant on behind the next test's back.
  */
-function stopLeftovers(): void {
-  if (current?.store.getState().ai.on) current.feature.assistant?.stopAssistant(current.store);
+async function stopLeftovers(): Promise<void> {
+  const harness = current;
   current = null;
+  if (!harness) return;
+  await harness.feature.pendingTurnOn?.catch(() => {});
+  if (harness.store.getState().ai.on) harness.feature.assistant?.stopAssistant(harness.store);
 }
 
 function setup(
@@ -139,8 +150,9 @@ function setup(
     t: ((key: string) => key) as unknown as CommandContext['t'],
     version: '0.0.5-test',
   };
-  current = { store, commands, rpc, feature, ctx, dialogs, load };
-  return current;
+  const harness: Harness = { store, commands, rpc, feature, ctx, dialogs, load };
+  current = harness;
+  return harness;
 }
 
 /**
@@ -205,8 +217,8 @@ function ids(commands: CommandRegistry): string[] {
 }
 
 describe('AI assistant registration', () => {
-  afterEach(() => {
-    stopLeftovers();
+  afterEach(async () => {
+    await stopLeftovers();
     delete (window as { __mfbeTest?: unknown }).__mfbeTest;
   });
 
@@ -272,7 +284,9 @@ describe('AI assistant registration', () => {
     await settle();
     expect(feature.status).toBe('registered');
     expect(load).toHaveBeenCalledTimes(1);
-    await vi.waitFor(() => expect(store.getState().ai.on).toBe(true)); // the chunk's import
+    // The turn-on the snapshot started: the chunk's import (the file's first, the slow one)
+    // and `startAssistant`; null - and `on` still false below - had none been started.
+    await feature.pendingTurnOn;
     expect(store.getState().ai).toMatchObject({ visible: true, on: true, loaded: true });
     expect(store.getState().ai.panelFocus).toBe(false); // the restore does not steal the focus
     expect(commands.isChecked('ai.toggle', ctx)).toBe(true);
@@ -449,6 +463,7 @@ describe('AI assistant registration', () => {
     actions.setSettings(store, settingsWithMode('free'));
     actions.setDocument(store, fakeDocument());
     await settle();
+    await feature.pendingTurnOn;
     expect(store.getState().ai.on).toBe(true); // the visible panel restored live
 
     // Settings OK with Disabled: the panel stays visible but inert, the conversation is
@@ -484,6 +499,7 @@ describe('AI assistant registration', () => {
     // a second import.
     actions.setSettings(store, settingsWithMode('custom'));
     await settle();
+    await feature.pendingTurnOn;
     expect(feature.status).toBe('registered');
     expect(ids(commands)).toEqual(['ai.ask', 'ai.cancel', 'ai.toggle']);
     expect(commands.get('ai.toggle')!.stub).toBeUndefined();
@@ -539,6 +555,7 @@ describe('AI assistant registration', () => {
       store,
       hotkeys: new HotkeyMap('linux'),
     });
+    current = { store, feature }; // the visible panel is restored live: `stopLeftovers` turns it off
     await settle();
     expect(feature.status).toBe('registered');
     expect(commands.has('ai.cancel')).toBe(true);
@@ -546,8 +563,8 @@ describe('AI assistant registration', () => {
 });
 
 describe('AI assistant transitions (data-model §3.3)', () => {
-  afterEach(() => {
-    stopLeftovers();
+  afterEach(async () => {
+    await stopLeftovers();
     delete (window as { __mfbeTest?: unknown }).__mfbeTest;
   });
 
@@ -804,8 +821,8 @@ describe('AI assistant transitions (data-model §3.3)', () => {
 });
 
 describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR-098)', () => {
-  afterEach(() => {
-    stopLeftovers();
+  afterEach(async () => {
+    await stopLeftovers();
     delete (window as { __mfbeTest?: unknown }).__mfbeTest;
     delete contextMenuExtensions.ai;
   });
@@ -953,7 +970,7 @@ describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR
     actions.setSettings(store, settingsWithMode('free'));
     await settle();
     expect(commands.dispatch('ai.toggle', ctx)).toBe(true);
-    await settle();
+    await feature.pendingTurnOn; // the dispatch does not wait for the show it started
     expect(store.getState().ai).toMatchObject({ visible: true, on: true });
     expect(load).toHaveBeenCalledTimes(1);
   });
@@ -969,6 +986,7 @@ describe('AI assistant Disabled transitions (US9; data-model §3.3, FR-096 to FR
 
     actions.setSettings(store, settingsWithMode('custom'));
     await settle();
+    await feature.pendingTurnOn;
     expect(feature.status).toBe('registered');
     expect(feature.inert).toBe(false);
     expect(store.getState().ai).toMatchObject({ visible: true, on: true, panelFocus: false });

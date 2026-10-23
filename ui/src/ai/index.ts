@@ -149,6 +149,8 @@ export class AiFeature {
   private removeMenuSlot: (() => void) | null = null;
   /** The turn-off under way (its question open, its request ending): one at a time. */
   private closing: Promise<boolean> | null = null;
+  /** The turn-on under way (`activate`: the chunk's import, `startAssistant`); null while none is. */
+  private activating: Promise<void> | null = null;
 
   constructor(
     readonly store: AppStore,
@@ -200,6 +202,17 @@ export class AiFeature {
    */
   get inert(): boolean {
     return this.statusValue === 'disabled' && this.store.getState().ai.visible;
+  }
+
+  /**
+   * The turn-on under way - the one `import()` of the chunk and `startAssistant` - after a
+   * snapshot made a visible panel live (the start-up restore, the return from Disabled) or
+   * after a show; null while none is. `on` flips when it has ended: a test awaits it instead of
+   * polling the store (the import of the real chunk takes as long as the machine takes); the
+   * commands await their own turn-on. Rejects as the import did.
+   */
+  get pendingTurnOn(): Promise<void> | null {
+    return this.activating;
   }
 
   /** True while a request of the assistant runs (the popup's or the panel's - one slot). */
@@ -307,13 +320,22 @@ export class AiFeature {
    * import of the chunk, `startAssistant` (the catalogue instance built in memory), the
    * context-menu slot and - for the user's own show - the focus in the field. Nothing is sent,
    * gathered or locked (FR-091). A no-op while Disabled, hidden or already live; the mode may
-   * have changed and the panel may have been hidden again while the chunk loaded.
+   * have changed and the panel may have been hidden again while the chunk loaded. The latest
+   * turn-on under way is `pendingTurnOn` until it has ended.
    */
-  private async activate(
+  private activate(ctx: CommandContext | null, options: { focus?: boolean } = {}): Promise<void> {
+    if (!this.live() || this.store.getState().ai.on) return Promise.resolve();
+    const turnOn = this.activateNow(ctx, options).finally(() => {
+      if (this.activating === turnOn) this.activating = null;
+    });
+    this.activating = turnOn;
+    return turnOn;
+  }
+
+  private async activateNow(
     ctx: CommandContext | null,
-    options: { focus?: boolean } = {},
+    options: { focus?: boolean },
   ): Promise<void> {
-    if (!this.live() || this.store.getState().ai.on) return;
     const module = await this.load();
     if (!this.live() || this.store.getState().ai.on) return;
     module.startAssistant(this.store);
