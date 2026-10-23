@@ -448,7 +448,9 @@ TEST_CASE(
         }
         const std::string text = test::read_text(logs / "mfbe-errors.log");
         CHECK(text.find("one request per second") == std::string::npos);  // never a value
-        CHECK(text.find("8787") == std::string::npos);
+        // The address's host, not its bare port digits: the logged path holds the temporary
+        // folder's clock stamp, whose digits may contain any four-digit run.
+        CHECK(text.find("127.0.0.1:8787") == std::string::npos);
     }
 }
 
