@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Table copy source (feature 006, us9-table-clipboard)</title>
+<style>
+  body { font-family: sans-serif; margin: 16px; }
+  table { border-collapse: collapse; margin: 8px 0; }
+  th, td { border: 1px solid #888888; padding: 4px 8px; }
+</style>
+</head>
+<body>
+<p id="before">A paragraph before the table.</p>
+<table id="source-table" data-testid="web-source-table">
+<thead>
+<tr><th colspan="2">Fruit and colour</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td rowspan="2">Apple</td><td><b>Red</b></td><td><i>crisp</i></td></tr>
+<tr><td><a href="https://example.org/apples/green">Green</a></td><td>area x<sup>2</sup></td></tr>
+</tbody>
+</table>
+<p id="after">A paragraph after the table.</p>
+</body>
+</html>

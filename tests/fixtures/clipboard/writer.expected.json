@@ -1,0 +1,23 @@
+{
+  "blocks": [
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "td", "t": "Item", "al": "center", "va": "top", "m": ["strong"]},
+            {"k": "td", "t": "Details", "al": "center", "va": "top", "m": ["strong"]}
+          ],
+          [
+            {"k": "td", "t": "Alpha", "va": "top"},
+            {"k": "td", "t": "Nested: inner one inner two", "va": "top"}
+          ],
+          [
+            {"k": "td", "t": "Beta", "va": "top"},
+            {"k": "td", "t": "Plain text", "va": "top"}
+          ]
+        ]
+      }
+    }
+  ],
+  "tsv": "Item\tDetails\nAlpha\tNested: inner one inner two\nBeta\tPlain text"
+}

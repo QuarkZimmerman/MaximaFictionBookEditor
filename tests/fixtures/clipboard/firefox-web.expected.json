@@ -1,0 +1,33 @@
+{
+  "blocks": [
+    {"p": {"text": "Inner planets", "marks": ["emphasis"]}},
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "th", "t": "Planet", "cs": 2, "al": "center"},
+            {"k": "th", "t": "Moons"}
+          ],
+          [
+            {"k": "th", "t": "Mercury"},
+            {"k": "td", "t": "Rocky", "rs": 2},
+            {"k": "td", "t": "0", "al": "right"}
+          ],
+          [
+            {"k": "th", "t": "Venus"},
+            {"k": "td", "t": "0", "al": "right"}
+          ],
+          [
+            {"k": "th", "t": "Earth"},
+            {"k": "td", "t": "Rocky[1]", "m": ["link", "sup"]},
+            {"k": "td", "t": "1", "al": "right"}
+          ],
+          [
+            {"k": "td", "t": "Source: example data", "cs": 3, "m": ["emphasis", "strong"]}
+          ]
+        ]
+      }
+    }
+  ],
+  "tsv": "Inner planets\n\nPlanet\t\tMoons\nMercury\tRocky\t0\nVenus\t\t0\nEarth\tRocky[1]\t1\nSource: example data\t\t"
+}

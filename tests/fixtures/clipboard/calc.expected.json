@@ -1,0 +1,28 @@
+{
+  "blocks": [
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "td", "t": "Product", "al": "left", "m": ["strong"]},
+            {"k": "td", "t": "Q1", "al": "left", "m": ["strong"]},
+            {"k": "td", "t": "Q2", "al": "left", "m": ["strong"]}
+          ],
+          [
+            {"k": "td", "t": "Apples", "al": "left"},
+            {"k": "td", "t": "120", "al": "right", "va": "bottom"},
+            {"k": "td", "t": "135", "al": "right", "va": "bottom"}
+          ],
+          [
+            {"k": "td", "t": "Total for pears and plums", "cs": 2, "rs": 2, "al": "center", "va": "middle"},
+            {"k": "td", "t": "98", "al": "right", "va": "bottom"}
+          ],
+          [
+            {"k": "td", "t": "101", "al": "right", "va": "bottom"}
+          ]
+        ]
+      }
+    }
+  ],
+  "tsv": "Product\tQ1\tQ2\nApples\t120\t135\nTotal for pears and plums\t\t98\n\t\t101"
+}

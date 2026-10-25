@@ -1,0 +1,25 @@
+{
+  "blocks": [
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "td", "t": "Quarterly figures", "cs": 2, "al": "center", "va": "bottom", "m": ["strong"]},
+            {"k": "td", "t": "Notes", "al": "center", "va": "bottom", "m": ["strong"]}
+          ],
+          [
+            {"k": "td", "t": "East", "va": "bottom"},
+            {"k": "td", "t": "1250", "al": "right", "va": "bottom"},
+            {"k": "td", "t": "First line second line", "va": "bottom"}
+          ],
+          [
+            {"k": "td", "t": "West", "va": "bottom"},
+            {"k": "td", "t": "980", "al": "right", "va": "bottom"},
+            {"k": "td", "t": "", "va": "bottom"}
+          ]
+        ]
+      }
+    }
+  ],
+  "tsv": "Quarterly figures\t\tNotes\nEast\t1250\tFirst line second line\nWest\t980\t"
+}
