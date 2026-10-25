@@ -1821,6 +1821,96 @@ def tables_book() -> str:
 """
 
 
+def tables_invalid_book() -> str:
+    """tables-invalid.fb2 (data-model §16.2; research R8.18): well-formed and invalid on purpose,
+    with the census's invalid table shapes - an empty tr, spans that are no integer of the
+    reader's range, unknown attributes, empty and invalid cell languages, raw-XML children of a
+    table and a row, blocks inside cells, a table inside a paragraph, missing pictures - which must
+    open, survive and round trip without a crash or a loss (constitution IV)."""
+    vectors = "\n".join(vector_case(case, 3) for case in grid_vector_cases("tables-invalid.fb2"))
+    unknown = ' class="{0}" cellpadding="{1}" x:hint="{2}"'
+    attributes = fb2_table(
+        [
+            (
+                ' xml:lang="de"' + unknown.format("head", "1", "row"),
+                [
+                    ('th xml:lang=""' + unknown.format("corner", "2", "header"), "r1c1"),
+                    ('th xml:lang="de_DE"', "r1c2"),
+                ],
+            ),
+            [
+                ('td rowspan="99999999999"', "r2c1"),
+                ('td xml:lang="de_DE"' + unknown.format("cell", "3", "data"), "r2c2"),
+            ],
+        ],
+        3,
+        unknown.format("grid", "4", "table"),
+    )
+    blocks = fb2_table(
+        [["<p>A paragraph in a cell</p>", "Before an empty line<empty-line/>after it"]], 3
+    )
+    pictures = fb2_table(
+        [['<image l:href="#missing.png"/>', 'A clear image: <image l:href="#undefined"/>']], 3
+    )
+    nested = "<table><tr><td>r1c1</td><td>r1c2</td></tr></table>"
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}" xmlns:x="urn:mfbe:test">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Invalid tables</book-title>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-26">2026-10-26</date>
+			<id>fixture-tables-invalid</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Invalid tables</p>
+		</title>
+		<section>
+			<title>
+				<p>Vector tables</p>
+			</title>
+			<p>This book is invalid on purpose: it must open and round trip without a loss.</p>
+{vectors}
+		</section>
+		<section>
+			<title>
+				<p>Attributes</p>
+			</title>
+			<p>A span outside the reader's range, unknown attributes and cell languages.</p>
+{attributes}
+		</section>
+		<section>
+			<title>
+				<p>Blocks in cells and a table in a paragraph</p>
+			</title>
+{blocks}
+			<p>A paragraph that holds a table: {nested} and goes on after it.</p>
+		</section>
+		<section>
+			<title>
+				<p>Missing pictures in cells</p>
+			</title>
+{pictures}
+		</section>
+	</body>
+</FictionBook>
+"""
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -1860,6 +1950,7 @@ def main() -> None:
     tables = tables_book()
     check_tables_book("tables.fb2", tables)
     write("tables.fb2", tables)
+    write("tables-invalid.fb2", tables_invalid_book())
 
 
 if __name__ == "__main__":
