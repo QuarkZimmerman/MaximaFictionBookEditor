@@ -8,8 +8,11 @@ Images come from tests/fixtures/images/ (tiny 8x6 pictures, < 1 KB each).
 from __future__ import annotations
 
 import base64
+import json
 import pathlib
+import re
 import textwrap
+import xml.etree.ElementTree as ET
 
 HERE = pathlib.Path(__file__).resolve().parent
 IMAGES = HERE.parent / "images"
@@ -1331,6 +1334,493 @@ def ai_selection(preexisting: bool = False) -> str:
 """
 
 
+# ----------------------------------------------------------------------------------------------
+# Feature 006 (table editing) - the fixture books of data-model §16.2 and quickstart §0.2.
+#
+# The vector tables come from tests/fixtures/tables/grid-vectors.json, hand-written and reviewed
+# (contracts/document-model.md §4.14). This block only copies the cases whose `fixture` names a
+# book into that book, each after a paragraph "Case <name> (<spec>)"; it never computes an
+# expectation of a case. A cell holds its letter in reading order (a, b, c ...), a raw-xml row is
+# an unknown <caption> of the FB2 namespace and a raw-xml cell an unknown <col/>.
+#
+# tables.fb2 is valid FB2 2.1 in whole-book mode (asserted below) and writes every inline content
+# in the writer's canonical form - marks nested link > style > strong > emphasis > strikethrough
+# > sub > sup > code, formatting with a name or a language around a link it covers wholly, plain
+# formatting inside links, adjacent equal formatting joined, nested marks of one kind outer first
+# (document-model §2.4, §3.1, §3.2) - so it comes back exactly after a save. Every table that is
+# not an irregular vector case is regular (asserted below), so its marked tables are exactly the
+# vectors' irregular ones (SC-011).
+# ----------------------------------------------------------------------------------------------
+GRID_VECTORS = HERE.parent / "tables" / "grid-vectors.json"
+
+# The model attributes the vector writer writes, in the order the core's writer writes them
+# (`known_attrs`, core/src/xml/fb2_writer.cpp); unknownAttrs follow verbatim.
+VECTOR_TABLE_ATTRS = ("id", "style")
+VECTOR_CELL_ATTRS = ("id", "style", "colspan", "rowspan", "align", "valign", "lang")
+
+# The irregular cases of tables.fb2 that stand outside the "Vector tables" section, so that every
+# place of FR-058 holds an irregular table (SC-011); every other case of the book stands there.
+TABLES_CASE_PLACES = {
+    "overlap-from-two-rows-above": "annotation",  # title-info/annotation
+    "plural-forms": "src-annotation",  # src-title-info/annotation
+    "three-problems": "history",  # document-info/history
+    "short-rows-several": "cite",  # the second cite of "Places"
+    "short-row-hole": "section-annotation",  # the second section annotation of "Places"
+}
+
+# Inline formatting and links: marks of the model, not nodes (the whole-book weight below).
+FB2_MARK_ELEMENTS = {"strong", "emphasis", "style", "a", "strikethrough", "sub", "sup", "code"}
+
+
+def text_escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def grid_vector_cases(fixture: str) -> list[dict]:
+    """The cases of grid-vectors.json whose `fixture` is `fixture`, in the file's order."""
+    data = json.loads(GRID_VECTORS.read_text(encoding="utf-8"))
+    assert data["version"] == 1, data["version"]
+    return [case for case in data["cases"] if case.get("fixture") == fixture]
+
+
+def unknown_attr_name(key: str) -> str:
+    """An unknownAttrs key as an attribute name: `{namespace}local` of the XML or the xlink
+    namespace with its prefix, a plain name as it is."""
+    if key.startswith("{"):
+        uri, local = key[1:].split("}", 1)
+        prefix = {"http://www.w3.org/XML/1998/namespace": "xml", XLINK_NS: "l"}[uri]
+        return f"{prefix}:{local}"
+    return key
+
+
+def model_attrs(attrs: dict, known: tuple[str, ...]) -> str:
+    """A model node's attributes as XML: the known ones in the writer's order (`lang` as xml:lang,
+    spans as decimal integers), then unknownAttrs verbatim."""
+    unexpected = set(attrs) - set(known) - {"unknownAttrs"}
+    assert not unexpected, unexpected
+    out = []
+    for name in known:
+        if name not in attrs:
+            continue
+        value = attrs[name]
+        if name in ("colspan", "rowspan"):
+            assert isinstance(value, int) and not isinstance(value, bool), (name, value)
+            value = str(value)
+        out.append(f' {"xml:lang" if name == "lang" else name}="{xml_escape(value)}"')
+    for key, value in attrs.get("unknownAttrs", {}).items():
+        out.append(f' {unknown_attr_name(key)}="{xml_escape(value)}"')
+    return "".join(out)
+
+
+def vector_case(case: dict, depth: int) -> str:
+    """One vector case: the paragraph naming it, then its table, indented by `depth` tabs."""
+    tab = "\t" * depth
+    table = case["table"]
+    lines = [
+        f"{tab}<p>Case {case['name']} ({text_escape(case['spec'])})</p>",
+        f"{tab}<table{model_attrs(table.get('attrs', {}), VECTOR_TABLE_ATTRS)}>",
+    ]
+    letters = iter("abcdefghijklmnopqrstuvwxyz")
+    for row in table["rows"]:
+        if isinstance(row, dict):
+            assert row == {"type": "raw-xml"}, row
+            lines.append(f"{tab}\t<caption>A caption: a child that is no row</caption>")
+            continue
+        if not row:
+            lines.append(f"{tab}\t<tr/>")
+            continue
+        lines.append(f"{tab}\t<tr>")
+        for cell in row:
+            kind = cell.get("type", "td")
+            if kind == "raw-xml":
+                lines.append(f"{tab}\t\t<col/>")
+                continue
+            assert kind in ("td", "th"), kind
+            attrs = model_attrs(cell.get("attrs", {}), VECTOR_CELL_ATTRS)
+            lines.append(f"{tab}\t\t<{kind}{attrs}>{next(letters)}</{kind}>")
+        lines.append(f"{tab}\t</tr>")
+    lines.append(f"{tab}</table>")
+    return "\n".join(lines)
+
+
+def fb2_table(rows: list, depth: int, attrs: str = "") -> str:
+    """A table written by hand. A row is a list of cells or a pair (tr attributes, cells); a cell
+    is its inline XML (a `td`) or a pair (start tag without the brackets, inline XML), such as
+    ('th colspan="2"', "h2")."""
+    tab = "\t" * depth
+    lines = [f"{tab}<table{attrs}>"]
+    for row in rows:
+        tr_attrs, cells = row if isinstance(row, tuple) else ("", row)
+        lines.append(f"{tab}\t<tr{tr_attrs}>")
+        for cell in cells:
+            start, content = cell if isinstance(cell, tuple) else ("td", cell)
+            lines.append(f"{tab}\t\t<{start}>{content}</{start.split()[0]}>")
+        lines.append(f"{tab}\t</tr>")
+    lines.append(f"{tab}</table>")
+    return "\n".join(lines)
+
+
+def position_table(rows: int, columns: int, depth: int, attrs: str = "") -> str:
+    """A regular table of plain cells holding their positions, r1c1, r1c2 ... (quickstart §0.2)."""
+    return fb2_table(
+        [[f"r{r}c{c}" for c in range(1, columns + 1)] for r in range(1, rows + 1)], depth, attrs
+    )
+
+
+def span_value(text: str | None) -> int:
+    """A span attribute's text as the grid counts it (document-model §4.2): an integer from 1 to
+    10^9 as the core's reader parses it (trimmed, base 10), capped by the caller; otherwise 1."""
+    try:
+        value = int(text.strip()) if text is not None else 1
+    except ValueError:
+        return 1
+    return value if 1 <= value <= 1_000_000_000 else 1
+
+
+def fb2_table_grid(table: ET.Element) -> dict:
+    """The HTML table model's placement of a parsed FB2 table (document-model §4.3 to §4.6): this
+    script's check of the tables it writes by hand, never applied to a vector case. Cells: (row,
+    column, colspan, rowsIn, element), counted from 0."""
+    rows = [tr for tr in table if tr.tag == f"{{{FB_NS}}}tr"]
+    taken: set[tuple[int, int]] = set()
+    cells = []
+    overlaps = past_end = 0
+    for r, tr in enumerate(rows):
+        column = 0
+        for cell in tr:
+            if cell.tag not in (f"{{{FB_NS}}}td", f"{{{FB_NS}}}th"):
+                continue
+            colspan = min(span_value(cell.get("colspan")), 1000)
+            rowspan = min(span_value(cell.get("rowspan")), 65534)
+            while (r, column) in taken:
+                column += 1
+            rows_in = min(rowspan, len(rows) - r)
+            places = {
+                (rr, cc) for rr in range(r, r + rows_in) for cc in range(column, column + colspan)
+            }
+            overlaps += bool(places & taken)
+            past_end += rowspan > len(rows) - r
+            taken |= places
+            cells.append((r, column, colspan, rows_in, cell))
+            column += colspan
+    width = max((c[1] + c[2] for c in cells), default=0)
+    covered = [len({cc for rr, cc in taken if rr == r}) for r in range(len(rows))]
+    return {
+        "rows": len(rows),
+        "columns": width,
+        "cells": cells,
+        "regular": overlaps == 0 and past_end == 0 and all(n == width for n in covered),
+    }
+
+
+def check_tables_book(name: str, text: str, irregular: int = 0) -> None:
+    """Asserts what quickstart §0.2 promises of a table book: whole-book mode (at most 40
+    top-level sections over all bodies and at most 10,000 element nodes, marks being no nodes;
+    `isWholeBook`, ui/src/editor/virtualization.ts:281-286), and that every table is regular but
+    the vector cases (a table right after a paragraph "Case <name> ...") and exactly `irregular`
+    others; a cell whose text starts with a position r<row>c<column> stands there."""
+    root = ET.fromstring(text.encode("utf-8"))
+    bodies = root.findall(f"{{{FB_NS}}}body")
+    sections = sum(len(body.findall(f"{{{FB_NS}}}section")) for body in bodies)
+    nodes = sum(
+        1
+        for body in bodies
+        for element in body.iter()
+        if element.tag.split("}")[-1] not in FB2_MARK_ELEMENTS
+    )
+    assert sections <= 40 and nodes <= 10_000, (name, sections, nodes)
+    irregular_found = 0
+    for parent in root.iter():
+        children = list(parent)
+        for index, table in enumerate(children):
+            if table.tag != f"{{{FB_NS}}}table":
+                continue
+            before = children[index - 1] if index > 0 else None
+            if before is not None and (before.text or "").startswith("Case "):
+                continue  # a vector case: grid-vectors.json is its truth
+            grid = fb2_table_grid(table)
+            irregular_found += not grid["regular"]
+            for row, column, _, _, cell in grid["cells"]:
+                position = re.match(r"r(\d+)c(\d+)(?!\d)", "".join(cell.itertext()))
+                if position:
+                    assert (int(position[1]), int(position[2])) == (row + 1, column + 1), (
+                        name,
+                        table.get("id"),
+                        position[0],
+                    )
+    assert irregular_found == irregular, (name, irregular_found, irregular)
+    print(f"{name}: whole-book mode ({sections} sections, {nodes} element nodes)")
+
+
+def tables_book() -> str:
+    """tables.fb2 (data-model §16.2): the vector tables, tables at every allowed place, and the
+    cell and inline shapes of FR-020, FR-047, FR-064, FR-065 and FR-067 to FR-069."""
+    cases = grid_vector_cases("tables.fb2")
+    names = [case["name"] for case in cases]
+    assert set(TABLES_CASE_PLACES) <= set(names), set(TABLES_CASE_PLACES) - set(names)
+    by_place: dict[str, list[dict]] = {name: [] for name in TABLES_CASE_PLACES.values()}
+    by_place["vector-tables"] = []
+    for case in cases:
+        by_place[TABLES_CASE_PLACES.get(case["name"], "vector-tables")].append(case)
+
+    def place(name: str, depth: int) -> str:
+        return "\n".join(vector_case(case, depth) for case in by_place[name])
+
+    picture = '<image l:href="#cell.png"/>'
+    linked_picture = f'<a l:href="#t-linked">{picture}</a>'
+    bold_picture = f"<strong>{picture}</strong>"
+    latin = '<emphasis xml:lang="la">lingua Latina</emphasis>'
+    latin_link = '<emphasis xml:lang="la"><a l:href="#t-linked">nexus</a></emphasis>'
+    note_in_style = '<style name="2">Are you sure<a l:href="#n2" type="note">[2]</a>?</style>'
+    style_in_note = '<a l:href="#n3" type="note"><style>3</style></a>'
+    razmer = '<style name="razmer"><style name="razryadka">Chapter</style> I</style>'
+    shorttext = '<style name="shorttext"><style name="SpellE">Spelling</style></style>'
+    shorttext_link = (
+        '<style name="shorttext"><style name="SpellE"><a l:href="#t-linked">linked text</a>'
+        "</style></style>"
+    )
+    two_orders = (
+        '<style name="a"><style name="b">x</style></style> '
+        '<style name="b"><style name="a">y</style></style>'
+    )
+    two_languages = '<emphasis xml:lang="la">a <emphasis xml:lang="de">b</emphasis></emphasis>'
+    simple_link = '<a l:href="#t-linked" l:type="simple">a simple link</a>'
+    simple_picture = '<image l:href="#cell.png" l:type="simple"/>'
+    languages = fb2_table(
+        [
+            [('th xml:lang="de"', "Zelle"), ('th xml:lang="en-GB"', "Colour")],
+            [('td xml:lang="uk"', "Клітинка"), ('td xml:lang="la"', "Cella")],
+        ],
+        3,
+    )
+    spans = fb2_table(
+        [
+            (' align="left"', [('td colspan=" 2 "', "r1c1"), ('td colspan="1"', "r1c3")]),
+            [('td align="left" valign="top"', "r2c1"), ('td rowspan="1"', "r2c2"), "r2c3"],
+        ],
+        3,
+    )
+    headers = fb2_table(
+        [
+            [("th", "r1c1"), ("th", "r1c2"), ("th", "r1c3")],
+            [("th", "r2c1"), "r2c2", "r2c3"],
+            [("th", "r3c1"), "r3c2", "r3c3"],
+        ],
+        3,
+    )
+    links = fb2_table(
+        [
+            [("th", picture), ("th", "A named style, a link and a note link")],
+            [
+                picture,
+                '<style name="hd">named</style>, <a l:href="#t-linked">a link</a> and a note'
+                '<a l:href="#n1" type="note">[1]</a>',
+            ],
+        ],
+        3,
+    )
+    pictures = fb2_table([[linked_picture, bold_picture]], 3)
+    attributed = fb2_table([[latin, latin_link], [note_in_style, f"A note{style_in_note}"]], 3)
+    nested = fb2_table(
+        [
+            [razmer, shorttext],
+            [shorttext_link, two_orders],
+            [two_languages, f"{simple_link} {simple_picture}"],
+        ],
+        3,
+    )
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Tables</book-title>
+			<annotation>
+				<p>The book's annotation holds a regular table and an irregular one.</p>
+{position_table(2, 3, 4)}
+{place("annotation", 4)}
+			</annotation>
+			<lang>en</lang>
+		</title-info>
+		<src-title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Tables (the source book)</book-title>
+			<annotation>
+				<p>The source book's annotation holds a regular table and an irregular one.</p>
+{position_table(2, 3, 4)}
+{place("src-annotation", 4)}
+			</annotation>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-26">2026-10-26</date>
+			<id>fixture-tables</id>
+			<version>1.0</version>
+			<history>
+				<p>The history holds a regular table and an irregular one.</p>
+{position_table(2, 3, 4)}
+{place("history", 4)}
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Tables</p>
+			<empty-line/>
+			<p>The table fixture of feature 006</p>
+		</title>
+		<section>
+			<title>
+				<p>Vector tables</p>
+			</title>
+{place("vector-tables", 3)}
+		</section>
+		<section>
+			<title>
+				<p>Places</p>
+			</title>
+			<section>
+				<title>
+					<p>A table first after a title</p>
+				</title>
+{position_table(2, 2, 4)}
+				<p>The table above is the first content element after the title.</p>
+			</section>
+			<section>
+				<title>
+					<p>A table right after a poem</p>
+				</title>
+				<p>A poem, then a table.</p>
+				<poem>
+					<stanza>
+						<v>The first line of the poem,</v>
+						<v>the second line of the poem.</v>
+					</stanza>
+				</poem>
+{position_table(2, 3, 4)}
+				<p>A paragraph after the table.</p>
+			</section>
+			<section>
+				<title>
+					<p>A table in a cite</p>
+				</title>
+				<p>A cite whose table stands before its text-author line.</p>
+				<cite>
+					<p>The cite's paragraph.</p>
+{position_table(2, 2, 5)}
+					<text-author>The cite's author</text-author>
+				</cite>
+			</section>
+			<section>
+				<title>
+					<p>A table in the cite of an epigraph</p>
+				</title>
+				<epigraph>
+					<cite>
+						<p>The paragraph of the epigraph's cite.</p>
+{position_table(2, 2, 6)}
+						<text-author>The epigraph cite's author</text-author>
+					</cite>
+				</epigraph>
+				<p>The section's text after its epigraph.</p>
+			</section>
+			<section>
+				<title>
+					<p>A table alone in a section annotation</p>
+				</title>
+				<annotation>
+{position_table(2, 2, 5)}
+				</annotation>
+				<p>The section's text after its annotation.</p>
+			</section>
+			<section>
+				<title>
+					<p>An irregular table in a cite</p>
+				</title>
+				<p>A second cite, which holds an irregular table.</p>
+				<cite>
+{place("cite", 5)}
+					<text-author>The second cite's author</text-author>
+				</cite>
+			</section>
+			<section>
+				<title>
+					<p>An irregular table in a section annotation</p>
+				</title>
+				<annotation>
+{place("section-annotation", 5)}
+				</annotation>
+				<p>The section's text after its annotation.</p>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>Cells and formatting</p>
+			</title>
+			<p>Cell languages (US7 sc.5; FR-020).</p>
+{languages}
+			<p>Span values and explicit defaults (FR-047).</p>
+{spans}
+			<p>A header row and a header column.</p>
+{headers}
+			<p>A named style, a link, a note link and pictures in cells.</p>
+{links}
+			<p>A linked picture and a bold picture in cells (FR-067).</p>
+{pictures}
+			<p>A linked picture {linked_picture} and a bold picture {bold_picture} in a paragraph.</p>
+			<p>Formatting with a language, a style around a note link, a style inside a note link (FR-064, FR-068).</p>
+{attributed}
+			<p>In a paragraph: {latin}, {latin_link}, {note_in_style} and a note{style_in_note}.</p>
+			<subtitle>{razmer}</subtitle>
+			<p>Nested formatting of one kind (FR-069); a link and a picture with an xlink:type.</p>
+{nested}
+			<p>In a paragraph: {shorttext}, {shorttext_link}, {two_orders} and {two_languages}.</p>
+			<p>A carriage return&#13;in a paragraph (FR-065).</p>
+			<p>The table that the links of this section target:</p>
+{position_table(1, 2, 3, ' id="t-linked"')}
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Notes</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>The first note.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>The second note.</p>
+		</section>
+		<section id="n3">
+			<title>
+				<p>3</p>
+			</title>
+			<p>The third note.</p>
+		</section>
+	</body>
+	<binary id="cell.png" content-type="image/png">{b64("tiny.png")}
+</binary>
+</FictionBook>
+"""
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -1366,6 +1856,10 @@ def main() -> None:
     # Feature 005.
     write("ai-selection.fb2", ai_selection())
     write("ai-preexisting.fb2", ai_selection(preexisting=True))
+    # Feature 006.
+    tables = tables_book()
+    check_tables_book("tables.fb2", tables)
+    write("tables.fb2", tables)
 
 
 if __name__ == "__main__":

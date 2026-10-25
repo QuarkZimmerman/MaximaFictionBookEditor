@@ -1,0 +1,609 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Tables</book-title>
+			<annotation>
+				<p>The book's annotation holds a regular table and an irregular one.</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+				</table>
+				<p>Case overlap-from-two-rows-above (§4.14: an overlap with a rowspan from two rows above)</p>
+				<table>
+					<tr>
+						<td>a</td>
+						<td rowspan="3">b</td>
+					</tr>
+					<tr>
+						<td>c</td>
+					</tr>
+					<tr>
+						<td colspan="2">d</td>
+					</tr>
+				</table>
+			</annotation>
+			<lang>en</lang>
+		</title-info>
+		<src-title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Tables (the source book)</book-title>
+			<annotation>
+				<p>The source book's annotation holds a regular table and an irregular one.</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+				</table>
+				<p>Case plural-forms (data-model §3.2: plural forms)</p>
+				<table>
+					<tr>
+						<td>a</td>
+						<td rowspan="3">b</td>
+						<td>c</td>
+						<td rowspan="3">d</td>
+					</tr>
+					<tr>
+						<td colspan="2">e</td>
+						<td colspan="2">f</td>
+					</tr>
+				</table>
+			</annotation>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-26">2026-10-26</date>
+			<id>fixture-tables</id>
+			<version>1.0</version>
+			<history>
+				<p>The history holds a regular table and an irregular one.</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+				</table>
+				<p>Case three-problems (data-model §3.2: three kinds of problem)</p>
+				<table>
+					<tr>
+						<td>a</td>
+						<td rowspan="4">b</td>
+						<td>c</td>
+					</tr>
+					<tr>
+						<td colspan="2">d</td>
+					</tr>
+					<tr>
+						<td>e</td>
+						<td>f</td>
+						<td>g</td>
+					</tr>
+				</table>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Tables</p>
+			<empty-line/>
+			<p>The table fixture of feature 006</p>
+		</title>
+		<section>
+			<title>
+				<p>Vector tables</p>
+			</title>
+			<p>Case one-by-one (§4.14: regular, 1 × 1)</p>
+			<table>
+				<tr>
+					<td>a</td>
+				</tr>
+			</table>
+			<p>Case three-by-three-header-row (§4.14: regular, a header row of th)</p>
+			<table>
+				<tr>
+					<th>a</th>
+					<th>b</th>
+					<th>c</th>
+				</tr>
+				<tr>
+					<td>d</td>
+					<td>e</td>
+					<td>f</td>
+				</tr>
+				<tr>
+					<td>g</td>
+					<td>h</td>
+					<td>i</td>
+				</tr>
+			</table>
+			<p>Case header-over-every-column (§4.14: regular, a header cell over every column)</p>
+			<table>
+				<tr>
+					<th colspan="3">a</th>
+				</tr>
+				<tr>
+					<td>b</td>
+					<td>c</td>
+					<td>d</td>
+				</tr>
+			</table>
+			<p>Case rowspan-left (§4.13: regular, c starts at column 1)</p>
+			<table>
+				<tr>
+					<td rowspan="2">a</td>
+					<td>b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+				</tr>
+			</table>
+			<p>Case block-merge (§4.14: regular, a merged block)</p>
+			<table>
+				<tr>
+					<td colspan="2" rowspan="2">a</td>
+					<td>b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+				</tr>
+			</table>
+			<p>Case mixed-td-th (§4.14: regular, mixed td and th)</p>
+			<table>
+				<tr>
+					<th>a</th>
+					<td>b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+					<th>d</th>
+				</tr>
+			</table>
+			<p>Case short-row (US8 sc.1)</p>
+			<table id="t2">
+				<tr>
+					<td>a</td>
+					<td>b</td>
+					<td>c</td>
+				</tr>
+				<tr>
+					<td>d</td>
+					<td>e</td>
+				</tr>
+				<tr>
+					<td>f</td>
+					<td>g</td>
+					<td>h</td>
+				</tr>
+			</table>
+			<p>Case repair-shift (C1)</p>
+			<table>
+				<tr>
+					<td>a</td>
+					<td rowspan="2">b</td>
+				</tr>
+				<tr>
+					<td colspan="3">c</td>
+					<td>d</td>
+				</tr>
+			</table>
+			<p>Case rowspan-past-end (US8 sc.2)</p>
+			<table>
+				<tr>
+					<td>a</td>
+					<td rowspan="4">b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+				</tr>
+			</table>
+			<p>Case rowspan-past-end-left (quickstart §8)</p>
+			<table>
+				<tr>
+					<td rowspan="4">a</td>
+					<td>b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+				</tr>
+			</table>
+			<p>Case rowspan-huge (§4.2: rowspan 10⁹ counts 65534)</p>
+			<table>
+				<tr>
+					<td>a</td>
+					<td rowspan="1000000000">b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+				</tr>
+			</table>
+			<p>Case one-overlap (US8 sc.3)</p>
+			<table>
+				<tr>
+					<td>a</td>
+					<td rowspan="2">b</td>
+				</tr>
+				<tr>
+					<td colspan="2">c</td>
+				</tr>
+			</table>
+			<p>Case tooltip-example (US8 sc.9)</p>
+			<table>
+				<tr>
+					<td>a</td>
+					<td rowspan="2">b</td>
+					<td>c</td>
+				</tr>
+				<tr>
+					<td colspan="2">d</td>
+				</tr>
+				<tr>
+					<td>e</td>
+					<td>f</td>
+					<td>g</td>
+				</tr>
+			</table>
+			<p>Case repair-shift-cascade (C1, C16)</p>
+			<table>
+				<tr>
+					<td>a</td>
+					<td rowspan="2">b</td>
+					<td>c</td>
+					<td rowspan="2">d</td>
+				</tr>
+				<tr>
+					<td colspan="3">e</td>
+					<td colspan="2">f</td>
+				</tr>
+			</table>
+			<p>Case span-zero (§4.2: colspan 0 counts 1)</p>
+			<table>
+				<tr>
+					<td colspan="0">a</td>
+					<td>b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+					<td>d</td>
+				</tr>
+			</table>
+			<p>Case span-negative (§4.2: rowspan -1 counts 1)</p>
+			<table>
+				<tr>
+					<td rowspan="-1">a</td>
+					<td>b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+					<td>d</td>
+				</tr>
+			</table>
+			<p>Case rowspan-zero (§4.9 rule 9: rowspan 0 counts 1 and shows one row)</p>
+			<table>
+				<tr>
+					<td rowspan="0">a</td>
+					<td>b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+					<td>d</td>
+				</tr>
+			</table>
+		</section>
+		<section>
+			<title>
+				<p>Places</p>
+			</title>
+			<section>
+				<title>
+					<p>A table first after a title</p>
+				</title>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+					</tr>
+				</table>
+				<p>The table above is the first content element after the title.</p>
+			</section>
+			<section>
+				<title>
+					<p>A table right after a poem</p>
+				</title>
+				<p>A poem, then a table.</p>
+				<poem>
+					<stanza>
+						<v>The first line of the poem,</v>
+						<v>the second line of the poem.</v>
+					</stanza>
+				</poem>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+				</table>
+				<p>A paragraph after the table.</p>
+			</section>
+			<section>
+				<title>
+					<p>A table in a cite</p>
+				</title>
+				<p>A cite whose table stands before its text-author line.</p>
+				<cite>
+					<p>The cite's paragraph.</p>
+					<table>
+						<tr>
+							<td>r1c1</td>
+							<td>r1c2</td>
+						</tr>
+						<tr>
+							<td>r2c1</td>
+							<td>r2c2</td>
+						</tr>
+					</table>
+					<text-author>The cite's author</text-author>
+				</cite>
+			</section>
+			<section>
+				<title>
+					<p>A table in the cite of an epigraph</p>
+				</title>
+				<epigraph>
+					<cite>
+						<p>The paragraph of the epigraph's cite.</p>
+						<table>
+							<tr>
+								<td>r1c1</td>
+								<td>r1c2</td>
+							</tr>
+							<tr>
+								<td>r2c1</td>
+								<td>r2c2</td>
+							</tr>
+						</table>
+						<text-author>The epigraph cite's author</text-author>
+					</cite>
+				</epigraph>
+				<p>The section's text after its epigraph.</p>
+			</section>
+			<section>
+				<title>
+					<p>A table alone in a section annotation</p>
+				</title>
+				<annotation>
+					<table>
+						<tr>
+							<td>r1c1</td>
+							<td>r1c2</td>
+						</tr>
+						<tr>
+							<td>r2c1</td>
+							<td>r2c2</td>
+						</tr>
+					</table>
+				</annotation>
+				<p>The section's text after its annotation.</p>
+			</section>
+			<section>
+				<title>
+					<p>An irregular table in a cite</p>
+				</title>
+				<p>A second cite, which holds an irregular table.</p>
+				<cite>
+					<p>Case short-rows-several (§4.14: several short rows)</p>
+					<table>
+						<tr>
+							<td>a</td>
+							<td>b</td>
+							<td>c</td>
+						</tr>
+						<tr>
+							<td>d</td>
+						</tr>
+						<tr>
+							<td>e</td>
+							<td>f</td>
+						</tr>
+						<tr>
+							<td>g</td>
+							<td>h</td>
+							<td>i</td>
+						</tr>
+					</table>
+					<text-author>The second cite's author</text-author>
+				</cite>
+			</section>
+			<section>
+				<title>
+					<p>An irregular table in a section annotation</p>
+				</title>
+				<annotation>
+					<p>Case short-row-hole (§4.13: a hole between covered positions)</p>
+					<table>
+						<tr>
+							<td>a</td>
+							<td>b</td>
+							<td rowspan="2">c</td>
+						</tr>
+						<tr>
+							<td>d</td>
+						</tr>
+					</table>
+				</annotation>
+				<p>The section's text after its annotation.</p>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>Cells and formatting</p>
+			</title>
+			<p>Cell languages (US7 sc.5; FR-020).</p>
+			<table>
+				<tr>
+					<th xml:lang="de">Zelle</th>
+					<th xml:lang="en-GB">Colour</th>
+				</tr>
+				<tr>
+					<td xml:lang="uk">Клітинка</td>
+					<td xml:lang="la">Cella</td>
+				</tr>
+			</table>
+			<p>Span values and explicit defaults (FR-047).</p>
+			<table>
+				<tr align="left">
+					<td colspan=" 2 ">r1c1</td>
+					<td colspan="1">r1c3</td>
+				</tr>
+				<tr>
+					<td align="left" valign="top">r2c1</td>
+					<td rowspan="1">r2c2</td>
+					<td>r2c3</td>
+				</tr>
+			</table>
+			<p>A header row and a header column.</p>
+			<table>
+				<tr>
+					<th>r1c1</th>
+					<th>r1c2</th>
+					<th>r1c3</th>
+				</tr>
+				<tr>
+					<th>r2c1</th>
+					<td>r2c2</td>
+					<td>r2c3</td>
+				</tr>
+				<tr>
+					<th>r3c1</th>
+					<td>r3c2</td>
+					<td>r3c3</td>
+				</tr>
+			</table>
+			<p>A named style, a link, a note link and pictures in cells.</p>
+			<table>
+				<tr>
+					<th><image l:href="#cell.png"/></th>
+					<th>A named style, a link and a note link</th>
+				</tr>
+				<tr>
+					<td><image l:href="#cell.png"/></td>
+					<td><style name="hd">named</style>, <a l:href="#t-linked">a link</a> and a note<a l:href="#n1" type="note">[1]</a></td>
+				</tr>
+			</table>
+			<p>A linked picture and a bold picture in cells (FR-067).</p>
+			<table>
+				<tr>
+					<td><a l:href="#t-linked"><image l:href="#cell.png"/></a></td>
+					<td><strong><image l:href="#cell.png"/></strong></td>
+				</tr>
+			</table>
+			<p>A linked picture <a l:href="#t-linked"><image l:href="#cell.png"/></a> and a bold picture <strong><image l:href="#cell.png"/></strong> in a paragraph.</p>
+			<p>Formatting with a language, a style around a note link, a style inside a note link (FR-064, FR-068).</p>
+			<table>
+				<tr>
+					<td><emphasis xml:lang="la">lingua Latina</emphasis></td>
+					<td><emphasis xml:lang="la"><a l:href="#t-linked">nexus</a></emphasis></td>
+				</tr>
+				<tr>
+					<td><style name="2">Are you sure<a l:href="#n2" type="note">[2]</a>?</style></td>
+					<td>A note<a l:href="#n3" type="note"><style>3</style></a></td>
+				</tr>
+			</table>
+			<p>In a paragraph: <emphasis xml:lang="la">lingua Latina</emphasis>, <emphasis xml:lang="la"><a l:href="#t-linked">nexus</a></emphasis>, <style name="2">Are you sure<a l:href="#n2" type="note">[2]</a>?</style> and a note<a l:href="#n3" type="note"><style>3</style></a>.</p>
+			<subtitle><style name="razmer"><style name="razryadka">Chapter</style> I</style></subtitle>
+			<p>Nested formatting of one kind (FR-069); a link and a picture with an xlink:type.</p>
+			<table>
+				<tr>
+					<td><style name="razmer"><style name="razryadka">Chapter</style> I</style></td>
+					<td><style name="shorttext"><style name="SpellE">Spelling</style></style></td>
+				</tr>
+				<tr>
+					<td><style name="shorttext"><style name="SpellE"><a l:href="#t-linked">linked text</a></style></style></td>
+					<td><style name="a"><style name="b">x</style></style> <style name="b"><style name="a">y</style></style></td>
+				</tr>
+				<tr>
+					<td><emphasis xml:lang="la">a <emphasis xml:lang="de">b</emphasis></emphasis></td>
+					<td><a l:href="#t-linked" l:type="simple">a simple link</a> <image l:href="#cell.png" l:type="simple"/></td>
+				</tr>
+			</table>
+			<p>In a paragraph: <style name="shorttext"><style name="SpellE">Spelling</style></style>, <style name="shorttext"><style name="SpellE"><a l:href="#t-linked">linked text</a></style></style>, <style name="a"><style name="b">x</style></style> <style name="b"><style name="a">y</style></style> and <emphasis xml:lang="la">a <emphasis xml:lang="de">b</emphasis></emphasis>.</p>
+			<p>A carriage return&#13;in a paragraph (FR-065).</p>
+			<p>The table that the links of this section target:</p>
+			<table id="t-linked">
+				<tr>
+					<td>r1c1</td>
+					<td>r1c2</td>
+				</tr>
+			</table>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Notes</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>The first note.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>The second note.</p>
+		</section>
+		<section id="n3">
+			<title>
+				<p>3</p>
+			</title>
+			<p>The third note.</p>
+		</section>
+	</body>
+	<binary id="cell.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGAQMAAADEy024AAAABlBMVEVAYKD/0EA3Gm2JAAAADklE
+QVQI12NgYLCBQgYABawA8UkjcVEAAAAASUVORK5CYII=
+</binary>
+</FictionBook>
