@@ -24,22 +24,83 @@ import { cmdKeys } from '../editing/common';
 import { isDue, nextRecord } from './schedule';
 
 /**
- * Compares two versions by their dot-separated numbers; missing or non-numeric parts count as
- * 0, so a release rebuilt under the same number is not newer. Negative, 0 or positive.
+ * Compares two versions - SemVer 2.0.0's precedence on top of feature 002's lenient numbers
+ * (feature 002 FR-080, amended by feature 006 FR-055, decision 13). Everything from the first
+ * `+` is dropped, and the rest is split at its first `-` into the numbers and the pre-release.
+ * The numbers compare part by part, split at `.`, a missing or non-numeric part counting as 0.
+ * With equal numbers a version without a pre-release is newer (`0.0.6` > `0.0.6-rc`); two
+ * pre-releases compare their `.`-separated identifiers from left to right - numerically when
+ * both are digits only, otherwise by UTF-16 code units (plain `<`, never by locale), a
+ * digits-only identifier sorting before any other (`rc.2` < `rc.10`, `1` < `alpha`) - and when
+ * every compared identifier is equal, the shorter list is older (`rc` < `rc.0`). Otherwise the
+ * two are equal, so a release rebuilt under the same version (the same numbers and pre-release,
+ * any `+build`) is not newer. Negative when `a` is older than `b`, 0 when the two are equal,
+ * positive when `a` is newer.
  */
 export function compareVersions(a: string, b: string): number {
-  const parts = (version: string) =>
-    version.split('.').map((part) => {
+  const left = parseVersion(a);
+  const right = parseVersion(b);
+  for (let i = 0; i < Math.max(left.numbers.length, right.numbers.length); i++) {
+    const order = compareValues(left.numbers[i] ?? 0, right.numbers[i] ?? 0);
+    if (order !== 0) return order;
+  }
+  if (left.prerelease === null || right.prerelease === null) {
+    // Equal numbers: the version without a pre-release is newer; two without one are equal.
+    return (left.prerelease === null ? 1 : 0) - (right.prerelease === null ? 1 : 0);
+  }
+  for (let i = 0; i < Math.min(left.prerelease.length, right.prerelease.length); i++) {
+    const order = compareIdentifiers(left.prerelease[i], right.prerelease[i]);
+    if (order !== 0) return order;
+  }
+  return compareValues(left.prerelease.length, right.prerelease.length);
+}
+
+/** A version as `compareVersions` reads it. */
+interface VersionParts {
+  /** The dot-separated numbers; a non-numeric part is 0. */
+  numbers: number[];
+  /** The pre-release identifiers; null without a pre-release (an empty one counts as none). */
+  prerelease: string[] | null;
+}
+
+function parseVersion(version: string): VersionParts {
+  const build = version.indexOf('+');
+  const precedence = build < 0 ? version : version.slice(0, build);
+  const dash = precedence.indexOf('-');
+  const numbers = dash < 0 ? precedence : precedence.slice(0, dash);
+  const prerelease = dash < 0 ? '' : precedence.slice(dash + 1);
+  return {
+    numbers: numbers.split('.').map((part) => {
       const value = Number.parseInt(part, 10);
       return Number.isNaN(value) ? 0 : value;
-    });
-  const left = parts(a);
-  const right = parts(b);
-  for (let i = 0; i < Math.max(left.length, right.length); i++) {
-    const difference = (left[i] ?? 0) - (right[i] ?? 0);
-    if (difference !== 0) return difference;
+    }),
+    prerelease: prerelease === '' ? null : prerelease.split('.'),
+  };
+}
+
+const DIGITS_ONLY = /^[0-9]+$/;
+
+/**
+ * Two pre-release identifiers: digits-only ones by their value and before any other, the others
+ * by UTF-16 code units.
+ */
+function compareIdentifiers(a: string, b: string): number {
+  const aNumeric = DIGITS_ONLY.test(a);
+  const bNumeric = DIGITS_ONLY.test(b);
+  if (aNumeric && bNumeric) {
+    // By value without a conversion, so that no length loses precision: without leading zeros
+    // the longer one is the larger, and equal lengths compare digit by digit.
+    const x = a.replace(/^0+/, '');
+    const y = b.replace(/^0+/, '');
+    return x.length !== y.length ? compareValues(x.length, y.length) : compareValues(x, y);
   }
-  return 0;
+  if (aNumeric !== bNumeric) return aNumeric ? -1 : 1;
+  return compareValues(a, b);
+}
+
+/** -1, 0 or 1 by `<` - numbers by value, strings by UTF-16 code units. */
+function compareValues<T extends number | string>(a: T, b: T): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** What a check found: a newer release, the running version is the latest, or no answer. */

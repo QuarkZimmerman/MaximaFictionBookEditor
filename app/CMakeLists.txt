@@ -319,7 +319,9 @@ if(OS_MAC)
   # Variables referenced from Info.plist.in.
   set(EXECUTABLE_NAME "${MFBE_TARGET}")
   set(PRODUCT_NAME "${MFBE_PRODUCT_NAME}")
-  set(VERSION_SHORT "${MFBE_VERSION}")
+  # CFBundleVersion and CFBundleShortVersionString take three integers (Apple), so the numeric
+  # form, 0.0.6 for every build of the 0.0.6 line; the label shows in About and --version.
+  set(VERSION_SHORT "${MFBE_VERSION_NUMERIC}")
 
   set(MFBE_BUNDLE_RESOURCES mac/mfbe.icns)
 

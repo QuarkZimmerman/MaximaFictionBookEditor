@@ -863,7 +863,8 @@ def check_committed_native_rows(problems: list[str]) -> None:
 
 def check_project_licence(problems: list[str]) -> None:
     """LICENSE is the GPL-3.0 text, the original's notices ship next to it, and every licence
-    statement of the editor (package metadata, About dialog, documentation) names GPL-3.0."""
+    statement of the editor (package metadata, the shell's copyright strings, About dialog,
+    documentation) names GPL-3.0."""
     licence = REPO / "LICENSE"
     # Line ends aside: a Windows checkout gives the file CRLF.
     text = licence.read_bytes().replace(b"\r\n", b"\n") if licence.is_file() else b""
@@ -885,6 +886,17 @@ def check_project_licence(problems: list[str]) -> None:
     ):
         if needle not in (REPO / relative).read_text(encoding="utf-8"):
             problems.append(f"{relative}: the editor's licence is not given as {PROJECT_LICENCE}")
+    # The copyright strings of the Windows file properties and of the macOS bundle (feature 006,
+    # FR-066): both name the project's licence.
+    for relative, copyright_re in (
+        ("app/win/app.rc", r'VALUE\s+"LegalCopyright",\s*"([^"\n]*)"'),
+        ("app/mac/Info.plist.in", r"<key>NSHumanReadableCopyright</key>\s*<string>([^<]*)<"),
+    ):
+        path = REPO / relative
+        text = path.read_text(encoding="utf-8") if path.is_file() else ""
+        found = re.search(copyright_re, text)
+        if found is None or PROJECT_LICENCE not in found.group(1):
+            problems.append(f"{relative}: the copyright string does not name {PROJECT_LICENCE}")
     for lang in ("en", "ru"):
         about = json.loads((REPO / "ui" / "src" / "i18n" / f"about.{lang}.json").read_text(encoding="utf-8"))
         if PROJECT_LICENCE not in about.get("dialog", {}).get("about", {}).get("licence", ""):
@@ -894,6 +906,9 @@ def check_project_licence(problems: list[str]) -> None:
     statements += sorted((REPO / "docs").rglob("*.md"))
     statements += sorted(p for p in (REPO / "packaging").rglob("*") if p.is_file())
     statements += sorted((REPO / "ui" / "src" / "i18n").glob("*.json"))
+    # The shell's file properties and bundle metadata (feature 006, FR-066).
+    statements += [REPO / "app" / "win" / "app.rc"]
+    statements += sorted((REPO / "app" / "mac").glob("*.plist.in"))
     for path in statements:
         if not path.is_file():
             continue

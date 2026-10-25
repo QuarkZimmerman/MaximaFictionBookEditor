@@ -13,6 +13,9 @@ repository (https://github.com/QuarkZimmerman/MaximaFictionBookEditor/releases),
 | Fedora / openSUSE family | `mfbe-<version>-1.x86_64.rpm` | package with menu entry and file associations |
 | macOS 13+ | `MaximaFictionBookEditor-<version>-macos-arm64.dmg` (Apple Silicon), `...-macos-x86_64.dmg` (Intel) | application bundle in a disk image |
 
+Test builds of a coming version have a pre-release label as their `<version>`, such as
+`0.0.6-rc` (see [Pre-release builds](#pre-release-builds)).
+
 The editor works fully offline and sends nothing anywhere on its own. Exactly two things use
 the network, both on your action. The first is the check for a new version: when you choose
 Help > Check for new version, the editor asks GitHub
@@ -135,7 +138,8 @@ Notes:
   (`./MaximaFictionBookEditor-<version>-x86_64.AppImage --appimage-extract usr/share/applications/mfbe.desktop`),
   set its `Exec=` line to the AppImage path, and put it into `~/.local/share/applications/`.
 - **Updates.** The image embeds zsync update information; `AppImageUpdate` fetches only the
-  changed blocks of a new release.
+  changed blocks of a new release. The exception is an untagged test build, which embeds none
+  and never updates itself (see [Pre-release builds](#pre-release-builds)).
 - **Portable mode.** Create a folder named `MaximaFictionBookEditor-<version>-x86_64.AppImage.home`
   next to the file: settings and user data then live in that folder's `user/` sub-folder
   instead of your home directory (see [User folders](#user-folders)).
@@ -212,6 +216,51 @@ Change All...* to make it the default.
 ### Uninstall
 
 Drag `/Applications/mfbe.app` to the Trash. Your user folders are kept.
+
+## Pre-release builds
+
+An untagged build of the 0.0.6 development line - the packages of a CI run, for instance - is
+labelled `0.0.6-rc`, and a build from a release tag `v0.0.6-rc.N`, published as a pre-release
+on the Releases page, `0.0.6-rc.N`. The label is the `<version>` of the file names
+(`MaximaFictionBookEditor-0.0.6-rc-win64.msi`, `mfbe_0.0.6-rc.2_amd64.deb`, ...), and Help >
+About shows it with the build id (`0.0.6-rc+<commit>`), as `mfbe --version` does. A few fields
+that the operating system wants as plain numbers say `0.0.6` for every build of the line: the
+version under *Settings > Apps > Installed apps* (*Apps & features*), the file version in the
+program's *Properties* and the version in Finder's *Get Info*; About tells which build is
+installed.
+
+- **Windows.** The MSI of a 0.0.6 build replaces any installed 0.0.6 build in place, whatever
+  their labels - a newer or an older test build, an untagged build over a tagged one, a test
+  build over the final 0.0.6 -, since Windows Installer sees the same version `0.0.6` in all of
+  them; the installed apps list the editor with its label, as *MaximaFictionBookEditor
+  0.0.6-rc*. The MSI of 0.0.5 refuses to install over a 0.0.6 build: uninstall the test build
+  first to go back.
+- **deb and rpm.** The package version is the label with `~` in place of its first `-`
+  (`0.0.6~rc`, `0.0.6~rc.N`), which dpkg and rpm sort before `0.0.6`, so the final 0.0.6
+  upgrades every test build. All untagged builds have the same version `0.0.6~rc`, so a newer
+  one goes over an older one as a reinstall:
+
+  ```bash
+  sudo apt install --reinstall ./mfbe_0.0.6-rc_amd64.deb
+  sudo dnf reinstall ./mfbe-0.0.6-rc-1.x86_64.rpm
+  sudo zypper install --force ./mfbe-0.0.6-rc-1.x86_64.rpm         # openSUSE
+  ```
+
+  An untagged build after a tagged `0.0.6~rc.N` is a downgrade to the package manager:
+
+  ```bash
+  sudo apt install --allow-downgrades ./mfbe_0.0.6-rc_amd64.deb
+  sudo dnf downgrade ./mfbe-0.0.6-rc-1.x86_64.rpm
+  sudo zypper install --oldpackage ./mfbe-0.0.6-rc-1.x86_64.rpm    # openSUSE
+  ```
+
+- **AppImage.** An untagged AppImage embeds no update information and comes without a `.zsync`
+  file, so it never updates itself: download the next build instead. An AppImage built from a
+  tag `v0.0.6-rc.N` follows every release: `AppImageUpdate` offers it the newest one, test build
+  or final, so it moves on to the next test build and then to 0.0.6. The portable folder is
+  named after the file (`MaximaFictionBookEditor-0.0.6-rc.2-x86_64.AppImage.home`), so a build
+  with another label uses another folder unless you rename the file or the folder, as between
+  releases.
 
 ## User folders
 

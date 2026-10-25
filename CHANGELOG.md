@@ -3,6 +3,37 @@
 All notable changes to Maxima Fiction Book Editor. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.0.6 - unreleased
+
+### Changed
+
+- Builds of the 0.0.6 development line call themselves `0.0.6-rc` - in Help > About, in
+  `mfbe --version` and `mfbe-core --version`, in the build id (`0.0.6-rc+<hash>`) and in the
+  package file names (`MaximaFictionBookEditor-0.0.6-rc-win64.msi`, `mfbe_0.0.6-rc_amd64.deb`,
+  ...) - and `0.0.6-rc.N` when built from a tag `v0.0.6-rc.N`, so that a test build is never
+  taken for 0.0.5 or for the final 0.0.6. The deb and rpm packages have the version `0.0.6~rc`
+  (`0.0.6~rc.N` from a tag), which dpkg and rpm sort before `0.0.6`, so the final 0.0.6 sorts
+  after every test build. The fields that must be plain numbers carry `0.0.6`: the MSI's
+  version, the Windows file version, the application manifest and the macOS bundle versions,
+  which Apps & features and Finder's Get Info show. The MSI's product name carries the label
+  (`MaximaFictionBookEditor 0.0.6-rc` in Apps & features and in the setup dialogs). An
+  untagged AppImage embeds no update information and comes without a `.zsync` file, so it
+  never updates itself; an AppImage built from a tag `v0.0.6-rc.N` follows every release, the
+  next test build and the final alike.
+- Help > Check for new version orders a pre-release before its final: `0.0.5` < `0.0.6-rc` <
+  `0.0.6-rc.1` < ... < `0.0.6-rc.10` < `0.0.6`, with `rc.N` ordered by N as a number. A
+  `+build` part is ignored, and a rebuild of the same version is still not newer. A test build
+  therefore learns that its final is out, which 0.0.5's comparison of the numbers alone did not
+  tell it (it read `0.0.6-rc.1` as `0.0.6.1`, newer than `0.0.6`); a final release is never
+  offered a pre-release, since the check asks for the latest full release.
+
+### Fixed
+
+- The copyright strings of the Windows file properties (*Copyright* under *Properties >
+  Details*) and of the macOS application bundle name the project's licence - "Copyright (c)
+  2026 Quark Zimmerman. GNU General Public License version 3 (GPL-3.0-only)." -, as Help >
+  About does; both had kept the licence of 0.0.1.
+
 ## 0.0.5 - unreleased
 
 ### Added

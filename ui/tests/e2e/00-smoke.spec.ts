@@ -102,6 +102,13 @@ test.describe('smoke', () => {
     const about = page.getByTestId('dialog-about');
     await expect(about).toBeVisible();
     await expect(page.getByTestId('about-name')).toContainText('Maxima Fiction Book Editor');
+    if (core.hasCore) {
+      // Feature 006 (FR-055): the running core's version label and build id, e.g. "0.0.6-rc"
+      // and "0.0.6-rc+<hash>".
+      const info = await core.rpc<{ version: string; build: string }>('app.info');
+      await expect(page.getByTestId('about-version')).toContainText(info.version);
+      await expect(page.getByTestId('about-build')).toHaveText(info.build);
+    }
     await expect(page.getByTestId('dialog-about-button-close')).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(about).toBeHidden();
@@ -109,12 +116,19 @@ test.describe('smoke', () => {
 
   test('the core answers app.info over the test RPC helper', async ({ core }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
-    const info = await core.rpc<{ apiVersion: number; apiMinor: number; version: string }>(
-      'app.info',
-    );
+    const info = await core.rpc<{
+      apiVersion: number;
+      apiMinor: number;
+      version: string;
+      build: string;
+      gitHash: string;
+    }>('app.info');
     expect(info.apiVersion).toBe(1);
     expect(info.apiMinor).toBe(4);
-    expect(typeof info.version).toBe('string');
+    // Feature 006 (FR-055, decision 14): the version label - 0.0.6-rc untagged, 0.0.6-rc.N from a
+    // release tag - and the build id, the label, "+" and the commit hash.
+    expect(info.version).toMatch(/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/);
+    expect(info.build).toBe(`${info.version}+${info.gitHash}`);
   });
 
   test('File > New creates a document and File > Open consumes a queued native dialog', async ({

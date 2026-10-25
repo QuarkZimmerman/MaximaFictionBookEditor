@@ -12,7 +12,9 @@
 #   DragNDrop      .dmg with the ad-hoc signed bundle (T145; packaging/macos)
 
 set(_mfbe_source "${CPACK_MFBE_SOURCE_DIR}")
-set(_mfbe_version "${CPACK_PACKAGE_VERSION}")
+# Every file name carries the version label (0.0.6-rc, 0.0.6-rc.N from a tag); CPACK_PACKAGE_VERSION
+# is the numeric form the MSI's version needs (cmake/MfbePackaging.cmake).
+set(_mfbe_version "${CPACK_MFBE_VERSION_LABEL}")
 
 # --- Linux generators --------------------------------------------------------------------------
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM|External)$")
@@ -22,7 +24,16 @@ endif()
 
 if(CPACK_GENERATOR STREQUAL "DEB")
   set(CPACK_DEBIAN_PACKAGE_NAME "mfbe")
-  set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")                 # mfbe_<version>_amd64.deb
+  # Version: the package form (0.0.6~rc, 0.0.6~rc.N), which sorts every pre-release before its
+  # final; the file name: the label, mfbe_<label>_<deb arch>.deb (DEB-DEFAULT would take the
+  # package form).
+  set(CPACK_DEBIAN_PACKAGE_VERSION "${CPACK_MFBE_VERSION_PACKAGE}")
+  if(CPACK_MFBE_ARCH STREQUAL "aarch64")
+    set(_mfbe_deb_arch "arm64")
+  else()
+    set(_mfbe_deb_arch "amd64")
+  endif()
+  set(CPACK_DEBIAN_FILE_NAME "mfbe_${_mfbe_version}_${_mfbe_deb_arch}.deb")
   set(CPACK_DEBIAN_PACKAGE_SECTION "editors")
   set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
   set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "${CPACK_MFBE_URL}")
@@ -45,7 +56,10 @@ endif()
 
 if(CPACK_GENERATOR STREQUAL "RPM")
   set(CPACK_RPM_PACKAGE_NAME "mfbe")
-  set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")                    # mfbe-<version>-1.x86_64.rpm
+  # Version: the package form, as for DEB; the file name: the label, mfbe-<label>-1.<arch>.rpm
+  # (RPM-DEFAULT would take the package form).
+  set(CPACK_RPM_PACKAGE_VERSION "${CPACK_MFBE_VERSION_PACKAGE}")
+  set(CPACK_RPM_FILE_NAME "mfbe-${_mfbe_version}-1.${CPACK_MFBE_ARCH}.rpm")
   set(CPACK_RPM_PACKAGE_SUMMARY "${CPACK_PACKAGE_DESCRIPTION_SUMMARY}")
   set(CPACK_RPM_PACKAGE_DESCRIPTION "${CPACK_PACKAGE_DESCRIPTION}")
   set(CPACK_RPM_PACKAGE_LICENSE "GPL-3.0-only")
@@ -106,6 +120,14 @@ if(CPACK_GENERATOR STREQUAL "WIX")
   set(CPACK_MONOLITHIC_INSTALL ON)  # one feature, WixUI_InstallDir dialog set
   # CPack passes WixToolset.UI.wixext itself for the dialog set; the shell-integration
   # fragment needs no further extension (plain registry elements).
+  # While a pre-release part is set, the ProductName (Apps & features, the setup dialogs)
+  # carries the label: "MaximaFictionBookEditor 0.0.6-rc" (packaging/wix/mfbe.template.in
+  # defaults MfbeProductName to CPACK_PACKAGE_NAME). The install folder, the Start Menu folder
+  # and the registry keys come from other variables and keep their names.
+  if(NOT CPACK_MFBE_PRERELEASE STREQUAL "")
+    list(APPEND CPACK_WIX_BUILD_EXTRA_FLAGS
+      -d "MfbeProductName=${CPACK_PACKAGE_NAME} ${CPACK_MFBE_VERSION_LABEL}")
+  endif()
 endif()
 
 if(CPACK_GENERATOR STREQUAL "ZIP")

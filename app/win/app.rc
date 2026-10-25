@@ -43,7 +43,7 @@ BEGIN
             VALUE "FileDescription",  MFBE_PRODUCT_NAME
             VALUE "FileVersion",      MFBE_VERSION
             VALUE "InternalName",     "mfbe"
-            VALUE "LegalCopyright",   "Copyright (c) 2026 Quark Zimmerman. MIT License."
+            VALUE "LegalCopyright",   "Copyright (c) 2026 Quark Zimmerman. GNU General Public License version 3 (GPL-3.0-only)."
             VALUE "OriginalFilename", "mfbe.exe"
             VALUE "ProductName",      MFBE_PRODUCT_NAME
             VALUE "ProductVersion",   MFBE_VERSION

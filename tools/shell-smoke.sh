@@ -30,7 +30,15 @@
 #                               title must start with its name and the Body must show text
 #                               (MFBE_SMOKE_EXPECT_TEXT = text that must appear)
 #   MFBE_SMOKE_ABOUT            1 = open Help > About and check [data-testid="dialog-about"]
-#                               (skipped with a note when the UI has no About dialog yet)
+#                               (skipped with a note when the UI has no About dialog yet): it
+#                               must show the version label and the build id of the shell's
+#                               own `--version` (feature 006, FR-055), read from its first line
+#                               "Maxima Fiction Book Editor <label> (build <build id>, <date>)" -
+#                               an AppImage runs with APPIMAGE_EXTRACT_AND_RUN=1 for it
+#   MFBE_SMOKE_EXPECT_VERSION   the version label About must show (with MFBE_SMOKE_ABOUT=1;
+#                               default: from `"$MFBE_APP_BIN" --version`), e.g. 0.0.6-rc
+#   MFBE_SMOKE_EXPECT_BUILD     the build id About must show (with MFBE_SMOKE_ABOUT=1; default:
+#                               from `"$MFBE_APP_BIN" --version`), e.g. 0.0.6-rc+1a2b3c4d5e
 #   MFBE_SMOKE_CLIPBOARD        1 = clipboard image check (dev/test builds, Linux): a small GTK
 #                               program (python3-gi) puts a PNG on the X clipboard of the virtual
 #                               display, the shell reads it through the core's clipboard provider
@@ -136,6 +144,28 @@ if [[ "$MFBE_APP_BIN" != *.AppImage ]]; then
     head -n 20 <<<"$LEAKED" >&2
     exit 1
   fi
+fi
+
+# Help > About must show the shell's own version label and build id (feature 006, FR-055),
+# unless given: the first line of `--version` reads
+# "Maxima Fiction Book Editor <label> (build <build id>, <date>)".
+if [[ "${MFBE_SMOKE_ABOUT:-0}" == "1" ]] &&
+   [[ -z "${MFBE_SMOKE_EXPECT_VERSION:-}" || -z "${MFBE_SMOKE_EXPECT_BUILD:-}" ]]; then
+  if [[ "$MFBE_APP_BIN" == *.AppImage ]]; then
+    VERSION_OUTPUT=$(APPIMAGE_EXTRACT_AND_RUN=1 "$MFBE_APP_BIN" --version)
+  else
+    VERSION_OUTPUT=$("$MFBE_APP_BIN" --version)
+  fi
+  VERSION_LINE=${VERSION_OUTPUT%%$'\n'*}
+  VERSION_RE='^.+ ([^ ]+) \(build ([^ ,]+), [^)]*\)$'
+  if [[ ! "$VERSION_LINE" =~ $VERSION_RE ]]; then
+    echo "shell-smoke: no version label in the first line of '$MFBE_APP_BIN --version': $VERSION_LINE" >&2
+    exit 1
+  fi
+  : "${MFBE_SMOKE_EXPECT_VERSION:=${BASH_REMATCH[1]}}"
+  : "${MFBE_SMOKE_EXPECT_BUILD:=${BASH_REMATCH[2]}}"
+  export MFBE_SMOKE_EXPECT_VERSION MFBE_SMOKE_EXPECT_BUILD
+  echo "shell-smoke: About must show the version $MFBE_SMOKE_EXPECT_VERSION and the build $MFBE_SMOKE_EXPECT_BUILD"
 fi
 
 TMP=$(mktemp -d -t mfbe-smoke.XXXXXX)

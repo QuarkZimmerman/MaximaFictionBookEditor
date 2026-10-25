@@ -21,6 +21,12 @@
 //   MFBE_SMOKE_ABOUT            1 = open Help > About when the menu exists and check the
 //                               dialog ([data-testid="dialog-about"]); a UI without the
 //                               dialog is reported, not failed
+//   MFBE_SMOKE_EXPECT_VERSION   with MFBE_SMOKE_ABOUT: the version label About must show
+//                               (about-version contains it; <n>.<n>.<n>[-<pre-release>], e.g.
+//                               0.0.6-rc; feature 006, FR-055) - shell-smoke.sh reads it from
+//                               the shell's `--version`
+//   MFBE_SMOKE_EXPECT_BUILD     with MFBE_SMOKE_ABOUT: the build id About must show (about-build
+//                               equals it; <label>+<10-hex hash> or <label>+unknown)
 //   MFBE_SMOKE_SETTINGS_FILE    the settings.json of this run (real UI): View > Status Bar
 //                               hides the status bar and the file records it
 //                               (session.toolbars.status = false) within 10 s, although the
@@ -117,6 +123,8 @@ const expectSelector = process.env.MFBE_SMOKE_EXPECT_SELECTOR ?? '#menubar';
 const openFile = process.env.MFBE_SMOKE_OPEN_FILE ?? '';
 const expectText = process.env.MFBE_SMOKE_EXPECT_TEXT ?? '';
 const checkAbout = process.env.MFBE_SMOKE_ABOUT === '1';
+const expectVersion = process.env.MFBE_SMOKE_EXPECT_VERSION ?? '';
+const expectBuild = process.env.MFBE_SMOKE_EXPECT_BUILD ?? '';
 const settingsFile = process.env.MFBE_SMOKE_SETTINGS_FILE ?? '';
 // The hidden status bar is in the settings file within this time (the UI saves the toolbar
 // flags with a short delay; the Windows journey allows 30 s).
@@ -217,11 +225,47 @@ async function checkAboutDialog(page) {
   if (!text.includes(expectTitle)) {
     throw new Error(`About dialog does not mention "${expectTitle}": ${text.slice(0, 200)}`);
   }
+  if (expectVersion || expectBuild) {
+    await checkAboutVersion(page);
+  }
   const shotPath = screenshotPath.replace(/\.png$/, '-about.png');
   await page.screenshot({ path: shotPath });
   console.log(`about:         dialog shown (${text.slice(0, 80)}...) screenshot ${shotPath}`);
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+}
+
+// About shows the version label and the build id the shell's --version printed (feature 006,
+// FR-055): about-version contains the label, about-build equals the build id. Until the core's
+// app.info arrives the dialog shows the bundle's version and no build, so both are awaited.
+async function checkAboutVersion(page) {
+  if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/.test(expectVersion)) {
+    throw new Error(`"${expectVersion}" is not a version label (<n>.<n>.<n>[-<pre-release>])`);
+  }
+  const hash = expectBuild.startsWith(`${expectVersion}+`)
+    ? expectBuild.slice(expectVersion.length + 1)
+    : '';
+  if (!/^([0-9a-f]{10}|unknown)$/.test(hash)) {
+    throw new Error(`the build id "${expectBuild}" is not "${expectVersion}+<hash>"`);
+  }
+  const versionCell = page.locator('[data-testid="about-version"]');
+  const buildCell = page.locator('[data-testid="about-build"]');
+  const deadline = Date.now() + 10_000;
+  let shownVersion = '';
+  let shownBuild = '';
+  while (Date.now() < deadline) {
+    shownVersion = (await versionCell.innerText()).trim();
+    shownBuild = (await buildCell.innerText()).trim();
+    if (shownVersion.includes(expectVersion) && shownBuild === expectBuild) {
+      console.log(`about version: "${shownVersion}", build ${shownBuild}`);
+      return;
+    }
+    await sleep(250);
+  }
+  throw new Error(
+    `About shows "${shownVersion}" and the build "${shownBuild}"; expected the version ` +
+      `${expectVersion} and the build ${expectBuild}`,
+  );
 }
 
 /* ---------------------------------------------------------------------------------------- */

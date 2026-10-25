@@ -8,6 +8,12 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
   version: string;
 };
 
+// The bundle's version (`ctx.version`: About's fallback, the version check's running version):
+// the version label the CMake build passes as MFBE_UI_VERSION (ui/CMakeLists.txt; 0.0.6-rc, or
+// 0.0.6-rc.N from a release tag - feature 006), else the package's own version, as for a plain
+// `npm run build`.
+const uiVersion = process.env.MFBE_UI_VERSION || pkg.version;
+
 // A running core (`mfbe-core serve`) to proxy API traffic to while developing with `vite dev`.
 const core = process.env.MFBE_CORE ?? 'http://127.0.0.1:41237';
 
@@ -79,7 +85,7 @@ export default defineConfig({
   },
   define: {
     __MFBE_TOKEN__: JSON.stringify(process.env.MFBE_TOKEN ?? ''),
-    __MFBE_UI_VERSION__: JSON.stringify(pkg.version),
+    __MFBE_UI_VERSION__: JSON.stringify(uiVersion),
   },
   build: {
     outDir: 'dist',

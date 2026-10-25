@@ -7,10 +7,14 @@ if(MFBE_BUILD_TESTS)
 endif()
 
 project(MaximaFictionBookEditor
-  VERSION 0.0.5
+  VERSION 0.0.6
   DESCRIPTION "Maxima Fiction Book Editor - cross-platform FictionBook 2 editor"
   HOMEPAGE_URL "https://github.com/QuarkZimmerman/MaximaFictionBookEditor"
   LANGUAGES C CXX)
+# The pre-release part of the version label: 0.0.6-rc, and 0.0.6-rc.N from a release tag
+# v0.0.6-rc.N (cmake/MfbeVersion.cmake). It is emptied only for a final version, on the
+# requester's word (feature 006, FR-054).
+set(MFBE_VERSION_PRERELEASE "rc")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

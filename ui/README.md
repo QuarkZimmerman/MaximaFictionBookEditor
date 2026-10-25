@@ -42,6 +42,7 @@ Environment variables read by the tooling:
 | --------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `MFBE_CORE`           | `vite.config.ts`                 | Origin of the core the dev server proxies `/rpc` (WebSocket), `/binary`, `/scripts` and `/health` to. Default `http://127.0.0.1:41237` |
 | `MFBE_TOKEN`          | `vite.config.ts`                 | Core session token, compiled into the bundle as `__MFBE_TOKEN__` (empty when unset)                                                    |
+| `MFBE_UI_VERSION`     | `vite.config.ts`                 | Version compiled in as `__MFBE_UI_VERSION__`: the version label the CMake build passes (`ui/CMakeLists.txt`), else `package.json`'s    |
 | `VITE_MFBE_CORE`      | `src/rpc/client.ts`              | Dev override of the core origin for the in-page RPC client (otherwise the page's own origin is used)                                   |
 | `MFBE_CORE_BIN`       | `tests/e2e/fixtures/core.ts`     | Path to `mfbe-core`; when set every Playwright worker starts its own core (`serve --test-hooks --data-dir <tmp> --ui <dist>`)          |
 | `MFBE_UI_DIST`        | `tests/e2e/fixtures/core.ts`     | UI bundle directory passed to `mfbe-core --ui` (default `ui/dist`)                                                                     |
@@ -53,7 +54,8 @@ Environment variables read by the tooling:
 | `MFBE_PERF_RESULTS`   | `tests/e2e/perf-scripts.spec.ts` | File the script benchmark writes its measured times to (JSON)                                                                          |
 
 Compile-time constants (declared in `src/vite-env.d.ts`): `__MFBE_TOKEN__` and
-`__MFBE_UI_VERSION__` (the `version` from `package.json`).
+`__MFBE_UI_VERSION__` (`MFBE_UI_VERSION` when set and not empty, else the `version` from
+`package.json`; feature 006).
 
 The in-page RPC client (`src/rpc/client.ts`) connects to `ws(s)://<page host>/rpc?token=<token>`
 with the token taken from the page URL (`?token=`) first and `__MFBE_TOKEN__` second. It

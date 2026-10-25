@@ -41,3 +41,12 @@ if(MFBE_CORPUS_TEST_SOURCES)
   add_test(NAME corpus_roundtrip COMMAND mfbe_corpus_tests)
   set_tests_properties(corpus_roundtrip PROPERTIES LABELS "corpus" TIMEOUT 3600)
 endif()
+
+# The command line's --version names the version label and the build id (feature 006,
+# contracts/cli.md "Tests to write"): a cmake -P script around the mfbe-core executable, which
+# the Catch2 suites do not link (core/main.cpp is outside the library).
+add_test(NAME cli_version_label
+  COMMAND ${CMAKE_COMMAND} -DMFBE_CORE_BIN=$<TARGET_FILE:mfbe-core> -DMFBE_VERSION=${MFBE_VERSION}
+          -DMFBE_BUILD_ID=${MFBE_BUILD_ID}
+          -P ${CMAKE_SOURCE_DIR}/tests/cmake/cli_version_label.cmake)
+set_tests_properties(cli_version_label PROPERTIES LABELS version)
