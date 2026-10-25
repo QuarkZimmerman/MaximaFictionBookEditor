@@ -2146,6 +2146,181 @@ def tables_invalid_book() -> str:
 """
 
 
+def tables_placement_book() -> str:
+    """tables-placement.fb2 (data-model §16.2; quickstart §1; U18, C25, C26, C79): every container
+    and every kind of caret position of FR-004 for the SC-002 sweeps of the Body and the Source
+    view. Valid with 0 errors and 0 warnings (real binaries for the heading images, every link
+    resolved), and no comment, CDATA section or processing instruction."""
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Table placement</book-title>
+			<annotation>
+				<p>The first paragraph of the book's annotation.</p>
+				<p>The second paragraph of the book's annotation.</p>
+			</annotation>
+			<lang>en</lang>
+		</title-info>
+		<src-title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Table placement (the source book)</book-title>
+			<annotation>
+				<p>The first paragraph of the source book's annotation.</p>
+				<p>The second paragraph of the source book's annotation.</p>
+			</annotation>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-26">2026-10-26</date>
+			<id>fixture-tables-placement</id>
+			<version>1.0</version>
+			<history>
+				<p>The first paragraph of the history.</p>
+				<p>The second paragraph of the history.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Table placement</p>
+		</title>
+		<epigraph>
+			<p>A paragraph directly in the body's epigraph.</p>
+			<cite>
+				<p>A paragraph of the cite in the body's epigraph.</p>
+				<text-author>The author of the cite in the body's epigraph</text-author>
+			</cite>
+		</epigraph>
+		<section>
+			<title>
+				<p>Section 1</p>
+			</title>
+			<p>The paragraph at the start of section 1, with a note<a l:href="#n1" type="note">[1]</a>.</p>
+			<p id="p-split" style="lead" xml:lang="en">A paragraph with an id, a style and a language, which an insertion splits.</p>
+			<p></p>
+			<p>A non-empty paragraph after the empty one.</p>
+			<subtitle></subtitle>
+			<p>A paragraph in the middle of section 1.</p>
+			<poem>
+				<title>
+					<p>A poem</p>
+				</title>
+				<stanza>
+					<v>The first line of the poem,</v>
+					<v>the second line of the poem.</v>
+				</stanza>
+				<text-author>The poet</text-author>
+			</poem>
+			<cite>
+				<p>The first paragraph of a cite.</p>
+				<p>The second paragraph of the cite.</p>
+				<text-author>The cited author</text-author>
+			</cite>
+{position_table(2, 2, 3)}
+			<p>The paragraph at the end of section 1.</p>
+		</section>
+		<section>
+			<title>
+				<p>Section 2: a heading part and content</p>
+			</title>
+			<epigraph>
+				<p>The first epigraph of section 2.</p>
+			</epigraph>
+			<epigraph>
+				<cite>
+					<p>A paragraph of the cite in the second epigraph.</p>
+					<text-author>The author of the cite in the epigraph</text-author>
+				</cite>
+			</epigraph>
+			<image l:href="#heading.jpg"/>
+			<annotation>
+				<cite>
+					<p>A paragraph of the cite in the section annotation.</p>
+					<text-author>The author of the cite in the annotation</text-author>
+				</cite>
+			</annotation>
+			<p>The first paragraph of the text of section 2, with a note<a l:href="#n2" type="note">[2]</a>.</p>
+		</section>
+		<section>
+			<title>
+				<p>Section 3: a heading image without an annotation</p>
+			</title>
+			<image l:href="#heading.png"/>
+			<p>The text of section 3.</p>
+		</section>
+		<section>
+			<title>
+				<p>Section 4: a heading image and an annotation</p>
+			</title>
+			<image l:href="#heading.jpg"/>
+			<annotation>
+				<p>The annotation of section 4.</p>
+			</annotation>
+			<p>The text of section 4.</p>
+		</section>
+		<section>
+			<title>
+				<p>Section 5: a section that holds subsections</p>
+			</title>
+			<epigraph>
+				<cite>
+					<p>A paragraph of the cite in the epigraph of a section with subsections.</p>
+					<text-author>The author of the cite in that epigraph</text-author>
+				</cite>
+			</epigraph>
+			<section>
+				<title>
+					<p>Subsection 5.1</p>
+				</title>
+				<p>The text of subsection 5.1.</p>
+			</section>
+			<section>
+				<title>
+					<p>Subsection 5.2</p>
+				</title>
+				<p>The text of subsection 5.2.</p>
+			</section>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Notes</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>The first note.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>The second note.</p>
+		</section>
+	</body>
+	<binary id="heading.jpg" content-type="image/jpeg">{b64("tiny.jpg")}
+</binary>
+	<binary id="heading.png" content-type="image/png">{b64("tiny.png")}
+</binary>
+</FictionBook>
+"""
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -2186,6 +2361,10 @@ def main() -> None:
     check_tables_book("tables.fb2", tables)
     write("tables.fb2", tables)
     write("tables-invalid.fb2", tables_invalid_book())
+    placement = tables_placement_book()
+    assert not re.search(r"<!--|<!\[CDATA\[|<\?(?!xml )", placement), "comment, CDATA or PI"
+    check_tables_book("tables-placement.fb2", placement)
+    write("tables-placement.fb2", placement)
 
 
 if __name__ == "__main__":
