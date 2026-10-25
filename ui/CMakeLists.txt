@@ -1,7 +1,14 @@
 # Builds the web UI bundle with npm as part of the CMake build (MFBE_BUILD_UI=ON)
 # and installs it as data for the core/shell to serve.
 
-find_program(NPM_EXECUTABLE NAMES npm npm.cmd REQUIRED)
+# npm runs on the build host. On Windows npm.cmd comes first: the extensionless "npm" beside it
+# is a script for POSIX shells, which `cmake -E env` below cannot start ("inappropriate file type
+# or format"); cmd.exe used to find npm.cmd for it, but `cmake -E env` starts the file it is given.
+if(CMAKE_HOST_WIN32)
+  find_program(NPM_EXECUTABLE NAMES npm.cmd npm REQUIRED)
+else()
+  find_program(NPM_EXECUTABLE NAMES npm npm.cmd REQUIRED)
+endif()
 
 set(MFBE_UI_DIST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dist")
 set(MFBE_UI_STAMP "${CMAKE_CURRENT_BINARY_DIR}/ui-build.stamp")
