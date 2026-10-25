@@ -1552,9 +1552,231 @@ def check_tables_book(name: str, text: str, irregular: int = 0) -> None:
     print(f"{name}: whole-book mode ({sections} sections, {nodes} element nodes)")
 
 
+def positions(rows: int, columns: int, cells: dict | None = None, row_attrs: dict | None = None):
+    """The rows of a table whose cells hold their positions; `cells` replaces the cell at a
+    position (row, column), counted from 1, by its fb2_table form, `row_attrs` gives a row its tr
+    attributes."""
+    cells, row_attrs = cells or {}, row_attrs or {}
+    out = []
+    for r in range(1, rows + 1):
+        row = [cells.get((r, c), f"r{r}c{c}") for c in range(1, columns + 1)]
+        out.append((row_attrs[r], row) if r in row_attrs else row)
+    return out
+
+
+def scenario_section(title: str, items: list[tuple]) -> str:
+    """A subsection of "Scenario tables": each item is a paragraph naming the scenarios and the
+    table they use (rows for fb2_table, with the table's attributes), or a paragraph alone."""
+    lines = ["\t\t\t<section>", f"\t\t\t\t<title>\n\t\t\t\t\t<p>{title}</p>\n\t\t\t\t</title>"]
+    for paragraph, table in items:
+        lines.append(f"\t\t\t\t<p>{paragraph}</p>")
+        if table is not None:
+            rows, attrs = table
+            lines.append(fb2_table(rows, 4, attrs))
+    lines.append("\t\t\t</section>")
+    return "\n".join(lines)
+
+
+def scenario_tables() -> str:
+    """The "Scenario tables" section of tables.fb2 (quickstart §0.2 "Scenario tables"; the shapes
+    of the manual checks of §2 and §4 to §9): only subsections, one per story, so that its title
+    is a place where no table may stand (US4 sc.7). A cell named in the notation holds its name,
+    every other cell its position r<row>c<column>; every table is regular."""
+    us2 = scenario_section(
+        "US2",
+        [
+            (
+                "US2 sc.1, sc.8, sc.9, sc.11, manual step 12",
+                (
+                    positions(3, 3, {(2, 1): ('td id="us2-r2c1"', "r2c1")}, {2: ' align="center"'}),
+                    "",
+                ),
+            ),
+            ("US2 sc.2, sc.4", ([[('td rowspan="2"', "a"), "b"], ["c"]], "")),
+            (
+                "US2 sc.3 and its edge cases",
+                (
+                    [
+                        [("th", "h1"), ('th colspan="2"', "h2")],
+                        ["r2c1", "r2c2", ('td align="right"', "r2c3")],
+                        ["r3c1", "r3c2", ('td xml:lang="de"', "r3c3")],
+                    ],
+                    "",
+                ),
+            ),
+            ("US2 sc.5", ([["x", "y"], [('td rowspan="2"', "a"), "b"], ["c"]], "")),
+            (
+                "US2 sc.6",
+                (positions(5, 3, {(3, 2): 'r3c2<a l:href="#us2-note" type="note">[4]</a>'}), ""),
+            ),
+            ("US2 sc.7 (one row)", (positions(1, 3), "")),
+            ("US2 sc.7 (one column)", (positions(3, 1), "")),
+            (
+                "US2 sc.10",
+                (
+                    [
+                        ["r1c1", "r1c2"],
+                        ["r2c1", "r2c2"],
+                        [('td rowspan="2"', "m"), "r3c2"],
+                        ["r4c2"],
+                        ["r5c1", "r5c2"],
+                    ],
+                    "",
+                ),
+            ),
+        ],
+    )
+    us4 = scenario_section(
+        "US4",
+        [
+            (
+                "US4 sc.1, sc.3 to sc.6, sc.8",
+                (positions(4, 4, {(1, 1): ('td id="us4-r1c1"', "r1c1")}), ""),
+            ),
+            (
+                "US4 sc.2",
+                (
+                    [
+                        ["r1c1", "r1c2", "r1c3", "r1c4"],
+                        ["r2c1", "r2c2", ('td colspan="2" rowspan="2"', "m")],
+                        ["r3c1", "r3c2"],
+                        ["r4c1", "r4c2", "r4c3", "r4c4"],
+                    ],
+                    "",
+                ),
+            ),
+            ("US4 sc.6, sc.8 (the paste target)", (positions(3, 3), "")),
+            ("US4 sc.7 and manual step 9: the paragraph after the tables.", None),
+        ],
+    )
+    us5_th = 'th id="us5-r1c1" style="hd" align="right" xml:lang="de"'
+    us5_m = 'th id="us5-m" style="hd" colspan="3" rowspan="2" align="center" xml:lang="fr"'
+    us5 = scenario_section(
+        "US5",
+        [
+            (
+                "US5 sc.1, sc.3 and the block that holds a merged cell",
+                (positions(3, 4, {(1, 1): (us5_th, "r1c1"), (1, 2): ""}), ""),
+            ),
+            ("US5 sc.1 over the full width", (positions(3, 3), "")),
+            (
+                "US5 sc.2",
+                (
+                    [
+                        ["<strong>r1c1</strong>", '<a l:href="#t-linked">r1c2</a>'],
+                        [
+                            'r2c1<a l:href="#us5-note" type="note">[5]</a>',
+                            '<style name="mark">r2c2</style> <image l:href="#cell.png"/>',
+                        ],
+                    ],
+                    "",
+                ),
+            ),
+            ("US5 sc.4", (positions(2, 2, {(1, 2): ('td id="us5-target"', "r1c2")}), "")),
+            ('The cell <a l:href="#us5-target">r1c2</a> of the table above is linked.', None),
+            ("US5 sc.5", ([[(us5_m, "m"), "d"], ["e"]], "")),
+        ],
+    )
+    us6_s = 'td id="us6-s" style="wide" colspan="2" align="center" valign="middle" xml:lang="de"'
+    us6 = scenario_section(
+        "US6",
+        [
+            (
+                "US6 sc.1, sc.3",
+                (
+                    [
+                        [("th", "r1c1"), "r1c2", "r1c3"],
+                        [(us6_s, "s"), "r2c3"],
+                        ["r3c1", "r3c2", "r3c3"],
+                    ],
+                    "",
+                ),
+            ),
+            ("US6 sc.2", (positions(3, 3), "")),
+            (
+                "US6 sc.4",
+                (
+                    [
+                        [("th", "r1c1"), ('th align="left"', "r1c2"), ("th", "r1c3")],
+                        (' align="right"', [("th", "r2c1"), ("th", "r2c2"), ("th", "r2c3")]),
+                        ["r3c1", "r3c2", "r3c3"],
+                    ],
+                    "",
+                ),
+            ),
+        ],
+    )
+    long_sentence = (
+        "r2c3 holds a long sentence that wraps over several lines in a narrow window, so that "
+        "the cells beside it are taller than their text and show where their vertical alignment "
+        "puts it."
+    )
+    us7 = scenario_section(
+        "US7",
+        [
+            ("US7 sc.1 to sc.4, manual step 7", (positions(4, 3, {(2, 3): long_sentence}), "")),
+            (
+                "US7 manual step 7 (a header row)",
+                (positions(2, 3, {(1, c): ("th", f"r1c{c}") for c in range(1, 4)}), ""),
+            ),
+        ],
+    )
+    us8 = scenario_section(
+        "US8",
+        [
+            ("US8 sc.5, sc.6", (positions(3, 4, {(1, 2): ('td id="us8-r1c2"', "r1c2")}), "")),
+            ('The cell <a l:href="#us8-r1c2">r1c2</a> of the table above is linked.', None),
+        ],
+    )
+    us9 = f"""			<section>
+				<title>
+					<p>US9</p>
+				</title>
+				<section>
+					<title>
+						<p>US9 sc.1, sc.3, sc.4: a titled section whose only content is a table</p>
+					</title>
+{position_table(2, 2, 5)}
+				</section>
+				<section>
+{position_table(2, 2, 5)}
+				</section>
+				<section>
+					<title>
+						<p>US9 sc.3, sc.4: a table that ends its section</p>
+					</title>
+					<p>The table below ends the section.</p>
+{position_table(2, 2, 5)}
+				</section>
+				<section>
+					<title>
+						<p>US9 sc.3 to sc.5: a table that starts the section's text</p>
+					</title>
+{position_table(2, 2, 5)}
+					<p>A paragraph after the table.</p>
+				</section>
+				<section>
+					<title>
+						<p>US9 sc.2, sc.5: a paragraph, a table and a paragraph</p>
+					</title>
+					<p>A paragraph before the table.</p>
+{position_table(2, 2, 5)}
+					<p>A paragraph after the table.</p>
+				</section>
+			</section>"""
+    subsections = "\n".join([us2, us4, us5, us6, us7, us8, us9])
+    return f"""		<section>
+			<title>
+				<p>Scenario tables</p>
+			</title>
+{subsections}
+		</section>"""
+
+
 def tables_book() -> str:
-    """tables.fb2 (data-model §16.2): the vector tables, tables at every allowed place, and the
-    cell and inline shapes of FR-020, FR-047, FR-064, FR-065 and FR-067 to FR-069."""
+    """tables.fb2 (data-model §16.2): the vector tables, tables at every allowed place, the cell
+    and inline shapes of FR-020, FR-047, FR-064, FR-065 and FR-067 to FR-069, and the scenario
+    tables of user stories 2 and 4 to 9."""
     cases = grid_vector_cases("tables.fb2")
     names = [case["name"] for case in cases]
     assert set(TABLES_CASE_PLACES) <= set(names), set(TABLES_CASE_PLACES) - set(names)
@@ -1791,6 +2013,7 @@ def tables_book() -> str:
 			<p>The table that the links of this section target:</p>
 {position_table(1, 2, 3, ' id="t-linked"')}
 		</section>
+{scenario_tables()}
 	</body>
 	<body name="notes">
 		<title>
@@ -1813,6 +2036,18 @@ def tables_book() -> str:
 				<p>3</p>
 			</title>
 			<p>The third note.</p>
+		</section>
+		<section id="us2-note">
+			<title>
+				<p>4</p>
+			</title>
+			<p>The note of the US2 sc.6 table: it stays when its only reference goes.</p>
+		</section>
+		<section id="us5-note">
+			<title>
+				<p>5</p>
+			</title>
+			<p>The note of the US5 sc.2 table, whose cells are merged with their formatting.</p>
 		</section>
 	</body>
 	<binary id="cell.png" content-type="image/png">{b64("tiny.png")}

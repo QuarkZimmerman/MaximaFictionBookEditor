@@ -579,6 +579,504 @@
 				</tr>
 			</table>
 		</section>
+		<section>
+			<title>
+				<p>Scenario tables</p>
+			</title>
+			<section>
+				<title>
+					<p>US2</p>
+				</title>
+				<p>US2 sc.1, sc.8, sc.9, sc.11, manual step 12</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr align="center">
+						<td id="us2-r2c1">r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+					</tr>
+				</table>
+				<p>US2 sc.2, sc.4</p>
+				<table>
+					<tr>
+						<td rowspan="2">a</td>
+						<td>b</td>
+					</tr>
+					<tr>
+						<td>c</td>
+					</tr>
+				</table>
+				<p>US2 sc.3 and its edge cases</p>
+				<table>
+					<tr>
+						<th>h1</th>
+						<th colspan="2">h2</th>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td align="right">r2c3</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td xml:lang="de">r3c3</td>
+					</tr>
+				</table>
+				<p>US2 sc.5</p>
+				<table>
+					<tr>
+						<td>x</td>
+						<td>y</td>
+					</tr>
+					<tr>
+						<td rowspan="2">a</td>
+						<td>b</td>
+					</tr>
+					<tr>
+						<td>c</td>
+					</tr>
+				</table>
+				<p>US2 sc.6</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2<a l:href="#us2-note" type="note">[4]</a></td>
+						<td>r3c3</td>
+					</tr>
+					<tr>
+						<td>r4c1</td>
+						<td>r4c2</td>
+						<td>r4c3</td>
+					</tr>
+					<tr>
+						<td>r5c1</td>
+						<td>r5c2</td>
+						<td>r5c3</td>
+					</tr>
+				</table>
+				<p>US2 sc.7 (one row)</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+				</table>
+				<p>US2 sc.7 (one column)</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+					</tr>
+				</table>
+				<p>US2 sc.10</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+					</tr>
+					<tr>
+						<td rowspan="2">m</td>
+						<td>r3c2</td>
+					</tr>
+					<tr>
+						<td>r4c2</td>
+					</tr>
+					<tr>
+						<td>r5c1</td>
+						<td>r5c2</td>
+					</tr>
+				</table>
+			</section>
+			<section>
+				<title>
+					<p>US4</p>
+				</title>
+				<p>US4 sc.1, sc.3 to sc.6, sc.8</p>
+				<table>
+					<tr>
+						<td id="us4-r1c1">r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+						<td>r1c4</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+						<td>r2c4</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+						<td>r3c4</td>
+					</tr>
+					<tr>
+						<td>r4c1</td>
+						<td>r4c2</td>
+						<td>r4c3</td>
+						<td>r4c4</td>
+					</tr>
+				</table>
+				<p>US4 sc.2</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+						<td>r1c4</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td colspan="2" rowspan="2">m</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+					</tr>
+					<tr>
+						<td>r4c1</td>
+						<td>r4c2</td>
+						<td>r4c3</td>
+						<td>r4c4</td>
+					</tr>
+				</table>
+				<p>US4 sc.6, sc.8 (the paste target)</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+					</tr>
+				</table>
+				<p>US4 sc.7 and manual step 9: the paragraph after the tables.</p>
+			</section>
+			<section>
+				<title>
+					<p>US5</p>
+				</title>
+				<p>US5 sc.1, sc.3 and the block that holds a merged cell</p>
+				<table>
+					<tr>
+						<th id="us5-r1c1" style="hd" align="right" xml:lang="de">r1c1</th>
+						<td></td>
+						<td>r1c3</td>
+						<td>r1c4</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+						<td>r2c4</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+						<td>r3c4</td>
+					</tr>
+				</table>
+				<p>US5 sc.1 over the full width</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+					</tr>
+				</table>
+				<p>US5 sc.2</p>
+				<table>
+					<tr>
+						<td><strong>r1c1</strong></td>
+						<td><a l:href="#t-linked">r1c2</a></td>
+					</tr>
+					<tr>
+						<td>r2c1<a l:href="#us5-note" type="note">[5]</a></td>
+						<td><style name="mark">r2c2</style> <image l:href="#cell.png"/></td>
+					</tr>
+				</table>
+				<p>US5 sc.4</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td id="us5-target">r1c2</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+					</tr>
+				</table>
+				<p>The cell <a l:href="#us5-target">r1c2</a> of the table above is linked.</p>
+				<p>US5 sc.5</p>
+				<table>
+					<tr>
+						<th id="us5-m" style="hd" colspan="3" rowspan="2" align="center" xml:lang="fr">m</th>
+						<td>d</td>
+					</tr>
+					<tr>
+						<td>e</td>
+					</tr>
+				</table>
+			</section>
+			<section>
+				<title>
+					<p>US6</p>
+				</title>
+				<p>US6 sc.1, sc.3</p>
+				<table>
+					<tr>
+						<th>r1c1</th>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td id="us6-s" style="wide" colspan="2" align="center" valign="middle" xml:lang="de">s</td>
+						<td>r2c3</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+					</tr>
+				</table>
+				<p>US6 sc.2</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+					</tr>
+				</table>
+				<p>US6 sc.4</p>
+				<table>
+					<tr>
+						<th>r1c1</th>
+						<th align="left">r1c2</th>
+						<th>r1c3</th>
+					</tr>
+					<tr align="right">
+						<th>r2c1</th>
+						<th>r2c2</th>
+						<th>r2c3</th>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+					</tr>
+				</table>
+			</section>
+			<section>
+				<title>
+					<p>US7</p>
+				</title>
+				<p>US7 sc.1 to sc.4, manual step 7</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td>r1c2</td>
+						<td>r1c3</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3 holds a long sentence that wraps over several lines in a narrow window, so that the cells beside it are taller than their text and show where their vertical alignment puts it.</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+					</tr>
+					<tr>
+						<td>r4c1</td>
+						<td>r4c2</td>
+						<td>r4c3</td>
+					</tr>
+				</table>
+				<p>US7 manual step 7 (a header row)</p>
+				<table>
+					<tr>
+						<th>r1c1</th>
+						<th>r1c2</th>
+						<th>r1c3</th>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+					</tr>
+				</table>
+			</section>
+			<section>
+				<title>
+					<p>US8</p>
+				</title>
+				<p>US8 sc.5, sc.6</p>
+				<table>
+					<tr>
+						<td>r1c1</td>
+						<td id="us8-r1c2">r1c2</td>
+						<td>r1c3</td>
+						<td>r1c4</td>
+					</tr>
+					<tr>
+						<td>r2c1</td>
+						<td>r2c2</td>
+						<td>r2c3</td>
+						<td>r2c4</td>
+					</tr>
+					<tr>
+						<td>r3c1</td>
+						<td>r3c2</td>
+						<td>r3c3</td>
+						<td>r3c4</td>
+					</tr>
+				</table>
+				<p>The cell <a l:href="#us8-r1c2">r1c2</a> of the table above is linked.</p>
+			</section>
+			<section>
+				<title>
+					<p>US9</p>
+				</title>
+				<section>
+					<title>
+						<p>US9 sc.1, sc.3, sc.4: a titled section whose only content is a table</p>
+					</title>
+					<table>
+						<tr>
+							<td>r1c1</td>
+							<td>r1c2</td>
+						</tr>
+						<tr>
+							<td>r2c1</td>
+							<td>r2c2</td>
+						</tr>
+					</table>
+				</section>
+				<section>
+					<table>
+						<tr>
+							<td>r1c1</td>
+							<td>r1c2</td>
+						</tr>
+						<tr>
+							<td>r2c1</td>
+							<td>r2c2</td>
+						</tr>
+					</table>
+				</section>
+				<section>
+					<title>
+						<p>US9 sc.3, sc.4: a table that ends its section</p>
+					</title>
+					<p>The table below ends the section.</p>
+					<table>
+						<tr>
+							<td>r1c1</td>
+							<td>r1c2</td>
+						</tr>
+						<tr>
+							<td>r2c1</td>
+							<td>r2c2</td>
+						</tr>
+					</table>
+				</section>
+				<section>
+					<title>
+						<p>US9 sc.3 to sc.5: a table that starts the section's text</p>
+					</title>
+					<table>
+						<tr>
+							<td>r1c1</td>
+							<td>r1c2</td>
+						</tr>
+						<tr>
+							<td>r2c1</td>
+							<td>r2c2</td>
+						</tr>
+					</table>
+					<p>A paragraph after the table.</p>
+				</section>
+				<section>
+					<title>
+						<p>US9 sc.2, sc.5: a paragraph, a table and a paragraph</p>
+					</title>
+					<p>A paragraph before the table.</p>
+					<table>
+						<tr>
+							<td>r1c1</td>
+							<td>r1c2</td>
+						</tr>
+						<tr>
+							<td>r2c1</td>
+							<td>r2c2</td>
+						</tr>
+					</table>
+					<p>A paragraph after the table.</p>
+				</section>
+			</section>
+		</section>
 	</body>
 	<body name="notes">
 		<title>
@@ -601,6 +1099,18 @@
 				<p>3</p>
 			</title>
 			<p>The third note.</p>
+		</section>
+		<section id="us2-note">
+			<title>
+				<p>4</p>
+			</title>
+			<p>The note of the US2 sc.6 table: it stays when its only reference goes.</p>
+		</section>
+		<section id="us5-note">
+			<title>
+				<p>5</p>
+			</title>
+			<p>The note of the US5 sc.2 table, whose cells are merged with their formatting.</p>
 		</section>
 	</body>
 	<binary id="cell.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGAQMAAADEy024AAAABlBMVEVAYKD/0EA3Gm2JAAAADklE
