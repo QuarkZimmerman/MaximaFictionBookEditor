@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Generate large FB2 books for the performance journeys (T069, T150 / SC-002).
+"""Generate large FB2 books for the performance journeys (T069, T150 / SC-002; feature 006
+perf-tables / SC-005).
 
 Two shapes, both deterministic (seeded):
 
@@ -13,11 +14,26 @@ Two shapes, both deterministic (seeded):
   are incompressible, so the size per binary is predictable and the decoder has to do real
   work when the Body view asks for previews.
 
-Prints the path and the number of sections/paragraphs/binaries written.
+Tables (`--table RxC[@SECTION][:merges]`, repeatable, text-only books; an error with
+`--images`): a table of R rows x C columns right after the title of section SECTION (from 1,
+default 1, the first section, which the Body view mounts first), its first row header cells
+(`th`) and every other cell a `td`, each cell holding `r<row>c<column>`; `merges` (default 0)
+merged cells, each a 2 x 2 block in the body rows placed from the seed without touching
+another, so the table stays regular. The tables draw from a generator of their own, seeded from
+`--seed`, and do not count towards `--size-mb`, so the prose equals that of the same book
+without them; without `--table` the output is byte-identical to that of the generator before
+the option existed.
+
+Prints the path and the number of sections/paragraphs/binaries (and tables) written.
 
 Usage:
-  gen-large-book.py --out /tmp/large.fb2 [--size-mb 10] [--seed 1]
+  gen-large-book.py --out /tmp/large.fb2 [--size-mb 10] [--seed 1] [--table RxC[@SECTION][:merges] ...]
   gen-large-book.py --out /tmp/images.fb2 --size-mb 150 --images 300 [--image-mix 2:1]
+  gen-large-book.py --out /tmp/tables.fb2 --size-mb 10 --table 300x10@1:4 --table 1000x20@3:8 \\
+      --table 628x4@4:2 --table 298x14@5:4
+      (the SC-005 book of perf-tables: the 10 MB book with a 300 x 10 table in section 1, a
+      1000 x 20 table in section 3 and the census's largest real shapes, 628 x 4 in section 4
+      and 298 x 14 in section 5)
 """
 
 from __future__ import annotations
@@ -25,9 +41,12 @@ from __future__ import annotations
 import argparse
 import base64
 import random
+import re
 import struct
 import sys
 import zlib
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 WORDS_RU = (
@@ -288,14 +307,107 @@ def _dimensions(target_bytes: int, bytes_per_pixel: float) -> tuple[int, int]:
 
 
 # --------------------------------------------------------------------------------------------
+# Tables (--table, feature 006: the SC-005 book of perf-tables)
+# --------------------------------------------------------------------------------------------
+
+TABLE_OPTION = re.compile(r"(\d+)x(\d+)(?:@(\d+))?(?::(\d+))?")
+
+
+@dataclass(frozen=True)
+class TableSpec:
+    """One `--table RxC[@SECTION][:merges]`: R rows x C columns after the title of section
+    SECTION (from 1), with `merges` merged 2 x 2 blocks."""
+
+    rows: int
+    columns: int
+    section: int
+    merges: int
+    text: str
+
+
+def table_spec(value: str) -> TableSpec:
+    match = TABLE_OPTION.fullmatch(value.strip())
+    if not match:
+        raise argparse.ArgumentTypeError(f"expected RxC[@SECTION][:merges], got {value!r}")
+    rows, columns = int(match[1]), int(match[2])
+    section = int(match[3]) if match[3] is not None else 1
+    merges = int(match[4]) if match[4] is not None else 0
+    if rows < 1 or columns < 1 or section < 1:
+        raise argparse.ArgumentTypeError(f"rows, columns and section start at 1, got {value!r}")
+    return TableSpec(rows, columns, section, merges, value.strip())
+
+
+def place_merges(spec: TableSpec, rng: random.Random) -> list[tuple[int, int]]:
+    """The top-left positions (row, column; from 0) of the merged 2 x 2 blocks: drawn from the
+    seed among the body rows (the header row stays whole), no block touching another, not even
+    at a corner, so the table stays regular."""
+    if spec.merges == 0:
+        return []
+    candidates = [(r, c) for r in range(1, spec.rows - 1) for c in range(spec.columns - 1)]
+    rng.shuffle(candidates)
+    blocked: set[tuple[int, int]] = set()
+    placed: list[tuple[int, int]] = []
+    for r, c in candidates:
+        if (r, c) in blocked:
+            continue
+        placed.append((r, c))
+        if len(placed) == spec.merges:
+            return sorted(placed)
+        blocked.update((r + dr, c + dc) for dr in range(-2, 3) for dc in range(-2, 3))
+    raise ValueError(
+        f"--table {spec.text}: no room for {spec.merges} merged 2 x 2 blocks that touch no other"
+    )
+
+
+def table_xml(spec: TableSpec, rng: random.Random) -> str:
+    """The table: the first row header cells (th), every other cell a td, each holding
+    r<row>c<column> (from 1); a merged block's cell holds the text of its top-left position."""
+    starts = set(place_merges(spec, rng))
+    covered = {(r + dr, c + dc) for r, c in starts for dr in (0, 1) for dc in (0, 1)} - starts
+    lines = ["\t\t\t<table>\n"]
+    for r in range(spec.rows):
+        kind = "th" if r == 0 else "td"
+        cells = []
+        for c in range(spec.columns):
+            if (r, c) in covered:
+                continue
+            spans = ' colspan="2" rowspan="2"' if (r, c) in starts else ""
+            cells.append(f"<{kind}{spans}>r{r + 1}c{c + 1}</{kind}>")
+        lines.append(f"\t\t\t\t<tr>{''.join(cells)}</tr>\n")
+    lines.append("\t\t\t</table>\n")
+    return "".join(lines)
+
+
+def render_tables(tables: Sequence[TableSpec], seed: int) -> dict[int, str]:
+    """The XML of every table by section, in the order of the options. The tables draw from a
+    generator of their own, seeded from --seed, so they never disturb the prose generator."""
+    rng = random.Random(b"gen-large-book --table %d" % seed)
+    by_section: dict[int, str] = {}
+    for spec in tables:
+        by_section[spec.section] = by_section.get(spec.section, "") + table_xml(spec, rng)
+    return by_section
+
+
+# --------------------------------------------------------------------------------------------
 # Books
 # --------------------------------------------------------------------------------------------
 
 
-def write_text_book(out: Path, size_mb: float, paragraphs_per_section: int, seed: int) -> str:
+def write_text_book(
+    out: Path,
+    size_mb: float,
+    paragraphs_per_section: int,
+    seed: int,
+    tables: Sequence[TableSpec] = (),
+) -> str:
     rng = random.Random(seed)
+    # The tables come from a generator of their own (render_tables) and are not counted towards
+    # the size, so the prose - every section and paragraph - equals that of the same book
+    # without them, and without tables nothing below changes.
+    pending = render_tables(tables, seed)
     target = int(size_mb * 1024 * 1024)
     written = 0
+    table_bytes = 0
     sections = 0
     paragraphs = 0
     with out.open("w", encoding="utf-8", newline="\n") as fh:
@@ -312,10 +424,25 @@ def write_text_book(out: Path, size_mb: float, paragraphs_per_section: int, seed
                     chunk.append("\t\t\t<empty-line/>\n")
             chunk.append("\t\t</section>\n")
             text = "".join(chunk)
-            fh.write(text)
             written += len(text.encode("utf-8"))
+            placed = pending.pop(sections, "")
+            if placed:
+                chunk.insert(1, placed)  # right after the section's title
+                text = "".join(chunk)
+                table_bytes += len(placed.encode("utf-8"))
+            fh.write(text)
         fh.write(BODY_FOOTER + FOOTER)
-    return f"{out} {written / 1024 / 1024:.1f} MB, {sections} sections, {paragraphs} paragraphs"
+    if pending:
+        missing = ", ".join(str(section) for section in sorted(pending))
+        raise ValueError(f"--table: no section {missing}; the book has {sections} sections")
+    summary = f"{out} {written / 1024 / 1024:.1f} MB, {sections} sections, {paragraphs} paragraphs"
+    if tables:
+        cells = sum(spec.rows * spec.columns - 3 * spec.merges for spec in tables)
+        summary += (
+            f", {len(tables)} tables ({cells} cells, {table_bytes / 1024 / 1024:.1f} MB more):"
+            f" {' '.join(spec.text for spec in tables)}"
+        )
+    return summary
 
 
 def write_image_book(
@@ -387,7 +514,23 @@ def main() -> int:
     parser.add_argument(
         "--image-mix", default="2:1", help="PNG:JPEG ratio of the binaries (default 2:1)"
     )
+    parser.add_argument(
+        "--table",
+        type=table_spec,
+        action="append",
+        default=[],
+        metavar="RxC[@SECTION][:merges]",
+        help="a table of R rows x C columns after the title of section SECTION (default 1),"
+        " with merges merged 2 x 2 blocks (default 0); repeatable; text-only books",
+    )
     args = parser.parse_args()
+    if args.table and args.images > 0:
+        parser.error("--table cannot be combined with --images")
+    if args.table:
+        try:
+            render_tables(args.table, args.seed)  # refuses impossible merges before writing
+        except ValueError as error:
+            parser.error(str(error))
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -395,7 +538,11 @@ def main() -> int:
         paragraphs = args.paragraphs if args.paragraphs != 120 else 6
         print(write_image_book(out, args.size_mb, args.images, paragraphs, args.seed, args.image_mix))
     else:
-        print(write_text_book(out, args.size_mb, args.paragraphs, args.seed))
+        try:
+            print(write_text_book(out, args.size_mb, args.paragraphs, args.seed, args.table))
+        except ValueError as error:
+            out.unlink(missing_ok=True)
+            parser.error(str(error))
     return 0
 
 
