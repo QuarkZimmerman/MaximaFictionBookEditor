@@ -2848,6 +2848,81 @@ def tables_images_expected(text: str) -> str:
     return json.dumps(expected, ensure_ascii=False, indent=2) + "\n"
 
 
+def ai_tables_book() -> str:
+    """ai-tables.fb2 (research R7.12; contracts/ai-catalogue.md Δ§9.1; quickstart §11): tables 1
+    to 3 in sections 1 to 3 (body[1]/section[n]/table[1], the manual check's T1 to T3) and table
+    4 in the book's annotation. Table 1, 4 × 3: a header cell over two columns, a cell over two
+    rows, an inline image, a cell with xml:lang, a cell whose id the paragraph after the table
+    links to, and the plain block of rows 2-3 × columns 1-2 (US11 sc.6). Table 2, 300 × 10 with a
+    header row, every cell its position (SC-010). Table 3, irregular by a short row (repair).
+    Table 4, a regular 2 × 2 table (the Description view)."""
+    first = fb2_table(
+        [
+            [('th colspan="2"', "h1"), ("th", "h3")],
+            ["r2c1", "r2c2", ('td rowspan="2"', "m")],
+            ["r3c1", "r3c2"],
+            [img("picture.png"), ('td xml:lang="de"', "r4c2"), ('td id="ai-linked"', "r4c3")],
+        ],
+        3,
+    )
+    large = fb2_table(positions(300, 10, {(1, c): ("th", f"r1c{c}") for c in range(1, 11)}), 3)
+    ragged = fb2_table([["a", "b", "c"], ["d", "e"], ["f", "g", "h"]], 3)
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Tables for the assistant</book-title>
+			<annotation>
+				<p>The book's annotation holds table 4.</p>
+{position_table(2, 2, 4)}
+			</annotation>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-26">2026-10-26</date>
+			<id>fixture-ai-tables</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Tables for the assistant</p>
+		</title>
+		<section>
+			<title>
+				<p>Table 1</p>
+			</title>
+{first}
+			<p>This paragraph links to the cell <a l:href="#ai-linked">r4c3</a> of table 1.</p>
+		</section>
+		<section>
+			<title>
+				<p>Table 2</p>
+			</title>
+{large}
+		</section>
+		<section>
+			<title>
+				<p>Table 3</p>
+			</title>
+{ragged}
+		</section>
+	</body>
+	<binary id="picture.png" content-type="image/png">{b64("tiny.png")}
+</binary>
+</FictionBook>
+"""
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -2896,6 +2971,9 @@ def main() -> None:
     check_tables_book("tables-images.fb2", images)
     write("tables-images.fb2", images)
     write("tables-images.expected.json", tables_images_expected(images))
+    ai_tables = ai_tables_book()
+    check_tables_book("ai-tables.fb2", ai_tables, irregular=1)
+    write("ai-tables.fb2", ai_tables)
 
 
 if __name__ == "__main__":
