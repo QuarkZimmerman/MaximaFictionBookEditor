@@ -39,7 +39,13 @@ Not from FBE: the AI assistant's toolbar button `ui/public/icons/toolbar24/ai-as
 speech bubble with a spark, drawn in the style of the converted icons (8-bit RGBA, dark grey
 outline, white fill, one orange accent) by `tools/resources-import/draw_ai_icons.py` (Python 3,
 standard library), project licence (GPL-3.0-only). It lives in `ui/public/icons/` only and is
-not part of this directory's conversion; provenance row in `ui/public/icons/README.md`.
+not part of this directory's conversion; provenance row in `ui/public/icons/README.md`. The same
+holds for the toolbar icons of the table commands, `ui/public/icons/toolbar24/table-*.png` /
+`toolbar16/table-*.png` (feature 006, 25 pairs: `insert.table` and the 24 `table.*` commands): a
+flat family drawn after the original's table icon (`toolbar16/id_insert_table.png`, which stays a
+converted original) — the table, the part a command acts on in orange, a corner sign for the
+action — by `tools/resources-import/draw_table_icons.py` (Python 3, standard library), project
+licence (GPL-3.0-only); provenance row in `ui/public/icons/README.md`.
 
 Not converted (not UI icons): `Fb2-shema.bmp`, `FbE.bmp` (About-box banner),
 `Icon_02.bmp`..`Icon_25.bmp` (update-check animation frames), `center.bmp`,
