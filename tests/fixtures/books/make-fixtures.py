@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import pathlib
 import re
+import struct
 import textwrap
 import xml.etree.ElementTree as ET
+import zlib
 
 HERE = pathlib.Path(__file__).resolve().parent
 IMAGES = HERE.parent / "images"
@@ -1479,8 +1482,8 @@ def span_value(text: str | None) -> int:
 
 def fb2_table_grid(table: ET.Element) -> dict:
     """The HTML table model's placement of a parsed FB2 table (document-model §4.3 to §4.6): this
-    script's check of the tables it writes by hand, never applied to a vector case. Cells: (row,
-    column, colspan, rowsIn, element), counted from 0."""
+    script's check of the tables it writes by hand and the grid of tables-images.expected.json,
+    never applied to a vector case. Cells: (row, column, colspan, rowsIn, element), from 0."""
     rows = [tr for tr in table if tr.tag == f"{{{FB_NS}}}tr"]
     taken: set[tuple[int, int]] = set()
     cells = []
@@ -2321,6 +2324,530 @@ def tables_placement_book() -> str:
 """
 
 
+# tables-images.fb2 (research R9.5; data-model §16.2, §9.8; quickstart §0.2 "tables-images.fb2 in
+# detail" and §3; decisions 17 to 19; vR9 N1, N3, N5): pictures in cells, each table followed by
+# its control, the same table without its pictures, which the layout gates compare it with.
+TI_PNGS = [  # (binary id, width, height, transparent ground)
+    ("pic-16x16.png", 16, 16, False),
+    ("pic-48x48.png", 48, 48, False),
+    ("pic-120x90.png", 120, 90, False),
+    ("pic-400x300.png", 400, 300, False),
+    ("pic-800x600.png", 800, 600, False),
+    ("pic-1600x1200.png", 1600, 1200, False),
+    ("pic-4000x3000.png", 4000, 3000, False),
+    ("pic-2000x2000.png", 2000, 2000, False),
+    ("pic-300x3000.png", 300, 3000, False),
+    ("pic-64x512.png", 64, 512, False),
+    ("pic-3000x100.png", 3000, 100, False),
+    ("pic-200x200-alpha.png", 200, 200, True),
+]
+TI_JPEG = ("pic-8x6.jpg", 8, 6)  # tests/fixtures/images/tiny.jpg
+TI_SVG = "banner-3000x100.svg"  # the core does not decode it; the browser shows it (s02)
+TI_BROKEN = "not-a-picture.png"  # bytes that are no picture, under image/png (c23)
+TI_EXTERNAL = "http://example.org/pictures/external.png"
+TI_MISSING_LONG = "missing-" + "a-very-long-reference-to-a-picture-no-binary-of-the-book-holds-" * 2
+TI_CONTROL = "Control: the same table without its pictures"
+TI_LONG_TEXT = (
+    "A long text beside the picture: it runs over several lines in a narrow window, so the table "
+    "shares its width between the picture and the words; the picture shrinks with its "
+    "proportions while the words wrap, as the automatic table layout does for every table that "
+    "fills its text area."
+)
+TI_LONG_URL = "https://example.org/" + "averylongwebaddresswithoutanyplacewherealinecouldbreak" * 2
+TI_GERMAN = "Donaudampfschifffahrtselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft"
+
+
+def ti_png(width: int, height: int, transparent: bool = False) -> bytes:
+    """An 8-bit palette PNG (standard library only) with a frame, both diagonals and a circle on a
+    plain ground, so that any distortion of the shown picture is visible; with `transparent` the
+    ground is transparent (tRNS)."""
+    frame, diagonal, circle = 1, 2, 3  # palette indices; 0 is the ground
+    line = max(1, min(width, height) // 40)
+    radius = min(width, height) * 0.4
+    inner = max(0.0, radius - line)
+    raw = bytearray()
+
+    def paint(row: bytearray, start: float, end: float, colour: int) -> None:
+        a, b = max(0, math.floor(start)), min(width, math.ceil(end))
+        if b > a:
+            row[a:b] = bytes([colour]) * (b - a)
+
+    for y in range(height):
+        row = bytearray(width)
+        dy = y + 0.5 - height / 2
+        if abs(dy) < radius:
+            outer_x = math.sqrt(radius * radius - dy * dy)
+            inner_x = math.sqrt(inner * inner - dy * dy) if abs(dy) < inner else 0.0
+            paint(row, width / 2 - outer_x, width / 2 - inner_x, circle)
+            paint(row, width / 2 + inner_x, width / 2 + outer_x, circle)
+        x0, x1 = y * width / height, (y + 1) * width / height
+        paint(row, x0 - line / 2, x1 + line / 2, diagonal)
+        paint(row, width - x1 - line / 2, width - x0 + line / 2, diagonal)
+        if y < line or y >= height - line:
+            paint(row, 0, width, frame)
+        else:
+            paint(row, 0, line, frame)
+            paint(row, width - line, width, frame)
+        raw += b"\x00" + row  # filter type 0 for every row
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        crc = zlib.crc32(kind + data)
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", crc)
+
+    palette = bytes.fromhex("e8eef4" "1f3a5f" "c0392b" "27ae60")
+    return b"".join(
+        [
+            b"\x89PNG\r\n\x1a\n",
+            chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 3, 0, 0, 0)),
+            chunk(b"PLTE", palette),
+            chunk(b"tRNS", bytes([0])) if transparent else b"",
+            chunk(b"IDAT", zlib.compress(bytes(raw), 9)),
+            chunk(b"IEND", b""),
+        ]
+    )
+
+
+def ti_svg() -> bytes:
+    """The 3000 × 100 SVG banner of s02, drawn like the PNGs."""
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="100" viewBox="0 0 3000 100">'
+        '<rect x="1" y="1" width="2998" height="98" fill="#e8eef4" stroke="#1f3a5f" '
+        'stroke-width="2"/>'
+        '<path d="M0 0L3000 100M3000 0L0 100" stroke="#c0392b" stroke-width="2"/>'
+        '<circle cx="1500" cy="50" r="40" fill="none" stroke="#27ae60" stroke-width="2"/>'
+        "</svg>\n"
+    ).encode("ascii")
+
+
+def b64_bytes(data: bytes) -> str:
+    return "\n".join(textwrap.wrap(base64.b64encode(data).decode("ascii"), 76))
+
+
+def img(href: str) -> str:
+    """An inline image: `href` is a binary id, or an external address."""
+    return f'<image l:href="{href if "://" in href else "#" + href}"/>'
+
+
+def without_pictures(rows: list) -> list:
+    """The rows of a table's control: every picture removed, with one space beside it and the
+    formatting or link left empty by it; the attributes and the text stay."""
+
+    def strip(content: str) -> str:
+        content = re.sub(r" <image [^>]*/>|<image [^>]*/> ?", "", content)
+        empty = r"<(strong|emphasis|strikethrough|sub|sup|code|style|a)\b[^>]*></\1>"
+        previous = None
+        while previous != content:
+            previous, content = content, re.sub(empty, "", content)
+        return content.strip()
+
+    out = []
+    for row in rows:
+        tr_attrs, cells = row if isinstance(row, tuple) else ("", row)
+        cells = [(c[0], strip(c[1])) if isinstance(c, tuple) else strip(c) for c in cells]
+        out.append((tr_attrs, cells) if tr_attrs else cells)
+    return out
+
+
+def picture_case(table_id: str, rows: list, depth: int) -> str:
+    """A table with pictures, the control paragraph, and the control `<id>-ctl`."""
+    return "\n".join(
+        [
+            fb2_table(rows, depth, f' id="{table_id}"'),
+            "\t" * depth + f"<p>{TI_CONTROL}</p>",
+            fb2_table(without_pictures(rows), depth, f' id="{table_id}-ctl"'),
+        ]
+    )
+
+
+def ti_curated_cases() -> list[tuple[str, str, str, list]]:
+    """R9's curated cases c01 to c23 and vR9's cases: (table id, placement, title, rows)."""
+    p16, p48, p120 = img("pic-16x16.png"), img("pic-48x48.png"), img("pic-120x90.png")
+    p400, p800 = img("pic-400x300.png"), img("pic-800x600.png")
+    p1600, p4000 = img("pic-1600x1200.png"), img("pic-4000x3000.png")
+    p2000, tall, tall2 = img("pic-2000x2000.png"), img("pic-300x3000.png"), img("pic-64x512.png")
+    banner, alpha, jpeg = img("pic-3000x100.png"), img("pic-200x200-alpha.png"), img(TI_JPEG[0])
+    url_rows = [[p48, TI_LONG_URL], [p16, "A short line"]]
+    return [
+        ("c01", "section", "a picture-only 1 × 1 table", [[p400]]),
+        (
+            "c02",
+            "section",
+            "a photo in a 2 × 2 table",
+            [[p800, "A photo of 800 × 600 pixels"], ["The second row", "of a 2 × 2 table"]],
+        ),
+        ("c03", "section", "picture, text, text", [[p120, "Text beside the picture", "More text"]]),
+        (
+            "c04",
+            "section",
+            "a picture column in a catalogue",
+            [
+                [("th", "Picture"), ("th", "Item"), ("th", "Price")],
+                [p48, "A small item", "12.50"],
+                [p120, "A larger item", "99.00"],
+                [p16, "A tiny item", "0.99"],
+            ],
+        ),
+        (
+            "c05",
+            "section",
+            "ten columns of icons",
+            [[p16, p48] * 5, [str(n) for n in range(1, 11)]],
+        ),
+        (
+            "c06",
+            "section",
+            "pictures in header cells",
+            [[("th", alpha), ("th", p48), ("th", "A text header")], ["r2c1", "r2c2", "r2c3"]],
+        ),
+        (
+            "c07",
+            "section",
+            "a picture under colspan",
+            [[('td colspan="2"', p400), "r1c3"], ["r2c1", "r2c2", "r2c3"]],
+        ),
+        (
+            "c08",
+            "section",
+            "a picture under rowspan",
+            [[('td rowspan="2"', p120), "r1c2"], ["r2c2"]],
+        ),
+        (
+            "c09",
+            "section",
+            "text, a picture and text in one cell",
+            [[f"Text, {p48} and text in one cell", "Another cell"]],
+        ),
+        (
+            "c10",
+            "section",
+            "several pictures in one cell",
+            [[f"{p16} {p48} {p120}", "Several pictures in the cell beside"]],
+        ),
+        (
+            "c11",
+            "section",
+            "pictures in links",
+            [
+                [
+                    f'<a l:href="#c01">{p16}</a>',
+                    f'<a l:href="#c02">see {p16} here</a>',
+                    f'<a l:href="#c03">{p16} at the start</a>',
+                    f'<a l:href="#c04">at the end {p16}</a>',
+                ]
+            ],
+        ),
+        (
+            "c12",
+            "section",
+            "align and valign on picture cells",
+            [
+                [
+                    ('td align="center" valign="middle"', p48),
+                    ('td align="right" valign="bottom"', alpha),
+                    "Words that make the row taller than the pictures beside them.",
+                ]
+            ],
+        ),
+        ("c13", "section", "long text beside a photo", [[p4000, TI_LONG_TEXT]]),
+        ("c14", "section", "long text beside a banner", [[banner, TI_LONG_TEXT]]),
+        (
+            "c15",
+            "section",
+            "tall pictures",
+            [[tall, tall2, "Two tall pictures beside this text"]],
+        ),
+        (
+            "c16",
+            "section",
+            "a banner in a header cell over three columns",
+            [[('th colspan="3"', banner)], ["r2c1", "r2c2", "r2c3"]],
+        ),
+        (
+            "c17",
+            "section",
+            "a missing binary and a very long missing reference",
+            [[img("missing.png"), img(TI_MISSING_LONG + ".png"), "Two missing pictures"]],
+        ),
+        ("c18", "section", "the clear image", [[img("undefined"), "The clear image"]]),
+        ("c19", "cite", "a table in a cite", [[p120, "A table in a cite"]]),
+        ("c20", "epigraph-cite", "a table in the cite of an epigraph", [[p48, "A table there"]]),
+        (
+            "c21",
+            "annotation",
+            "a table in the book's annotation",
+            [[p400, "A table in the book's annotation"], ["r2c1", "r2c2"]],
+        ),
+        (
+            "c22",
+            "section",
+            "a 3 × 3 gallery",
+            [[p400, alpha, p2000], [p120, p4000, p48], [p800, jpeg, p1600]],
+        ),
+        (
+            "c23",
+            "section",
+            "an undecodable binary and an external reference",
+            [[img(TI_BROKEN), img(TI_EXTERNAL), "An undecodable and an external picture"]],
+        ),
+        ("v01", "section", "a picture-only column beside a long web address", url_rows),
+        (
+            "v05",
+            "section",
+            "long German and Russian words beside pictures",
+            [
+                [p48, TI_GERMAN],
+                [p16, "превысокомногорассмотрительствующий"],
+                [p48, "человеконенавистничество"],
+            ],
+        ),
+        (
+            "v20",
+            "section",
+            "picture-only columns on both sides of a web address",
+            [[p48, TI_LONG_URL, p48], [p16, "A short line", p16]],
+        ),
+        (
+            "v08",
+            "section",
+            "pictures inside formatting and a note link",
+            [
+                [
+                    f"strong <strong>{p16}</strong>",
+                    f"emphasis <emphasis>{p16}</emphasis>",
+                    f"strikethrough <strikethrough>{p16}</strikethrough>",
+                    f"code <code>{p16}</code>",
+                ],
+                [
+                    f"sup <sup>{p16}</sup>",
+                    f"sub <sub>{p16}</sub>",
+                    f'style <style name="picture">{p16}</style>',
+                    f'note <a l:href="#n1" type="note">{p16}</a>',
+                ],
+            ],
+        ),
+        ("d01", "annotation", "v01 in the book's annotation", url_rows),
+        (
+            "s02",
+            "section",
+            "an SVG banner beside text",
+            [[img(TI_SVG), "Text beside an SVG banner of 3000 × 100 that the core cannot decode"]],
+        ),
+    ]
+
+
+def ti_sc006_pictures() -> list[str]:
+    """The 13 pictures of the SC-006 family, by binary id."""
+    return [binary for binary, _, _, _ in TI_PNGS] + [TI_JPEG[0]]
+
+
+def ti_sc006_id(columns: int, binary: str) -> str:
+    return f"sw-{columns:02d}c-{binary.split('.')[0].removeprefix('pic-')}"
+
+
+def tables_images_book() -> str:
+    """tables-images.fb2: R9's curated cases c01 to c23, vR9's cases (v01, v05, v20, v08, d01,
+    s02) and the SC-006 family sw-NNc-<picture>: each of the 13 pictures alone in the first cell
+    of a 2-row table of NN columns (NN from 1 to 10), a short word in every other cell. Every table
+    is regular and followed by its control; 15 binaries."""
+    cases = {case[0]: case for case in ti_curated_cases()}
+
+    def section(case_id: str) -> str:
+        _, _, title, rows = cases[case_id]
+        return (
+            f"\t\t<section>\n\t\t\t<title>\n\t\t\t\t<p>{case_id}: {title}</p>\n\t\t\t</title>\n"
+            f"{picture_case(case_id, rows, 3)}\n\t\t</section>"
+        )
+
+    curated = [section(f"c{n:02d}") for n in range(1, 19)]
+    c19 = f"""		<section>
+			<title>
+				<p>c19: {cases["c19"][2]}</p>
+			</title>
+			<p>A cite that holds a table with a picture.</p>
+			<cite>
+{picture_case("c19", cases["c19"][3], 4)}
+				<text-author>The cite's author</text-author>
+			</cite>
+		</section>"""
+    c20 = f"""		<section>
+			<title>
+				<p>c20: {cases["c20"][2]}</p>
+			</title>
+			<epigraph>
+				<cite>
+{picture_case("c20", cases["c20"][3], 5)}
+					<text-author>The author of the epigraph's cite</text-author>
+				</cite>
+			</epigraph>
+			<p>The section's text after its epigraph.</p>
+		</section>"""
+    verification = ["\t\t<section>", "\t\t\t<title>\n\t\t\t\t<p>vR9's cases</p>\n\t\t\t</title>"]
+    for case_id in ("v01", "v05", "v20", "v08", "s02"):
+        verification.append(f"\t\t\t<p>{case_id}: {cases[case_id][2]}.</p>")
+        verification.append(picture_case(case_id, cases[case_id][3], 3))
+    verification.append("\t\t</section>")
+    sc006 = []
+    for binary in ti_sc006_pictures():
+        lines = [
+            "\t\t<section>",
+            f"\t\t\t<title>\n\t\t\t\t<p>SC-006: {binary} in tables of 1 to 10 columns</p>\n"
+            "\t\t\t</title>",
+        ]
+        for columns in range(1, 11):
+            rows = [[img(binary)] + ["word"] * (columns - 1), ["word"] * columns]
+            lines.append(picture_case(ti_sc006_id(columns, binary), rows, 3))
+        lines.append("\t\t</section>")
+        sc006.append("\n".join(lines))
+    body = "\n".join(
+        [*curated, c19, c20, section("c22"), section("c23"), "\n".join(verification), *sc006]
+    )
+    binaries = [(binary, "image/png", ti_png(w, h, alpha)) for binary, w, h, alpha in TI_PNGS]
+    binaries += [
+        (TI_JPEG[0], "image/jpeg", (IMAGES / "tiny.jpg").read_bytes()),
+        (TI_SVG, "image/svg+xml", ti_svg()),
+        (TI_BROKEN, "image/png", b"These bytes are no picture.\n"),
+    ]
+    binary_xml = "\n".join(
+        f'\t<binary id="{binary}" content-type="{kind}">{b64_bytes(data)}\n</binary>'
+        for binary, kind, data in binaries
+    )
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="{FB_NS}" xmlns:l="{XLINK_NS}">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Pictures in tables</book-title>
+			<annotation>
+				<p>c21: {cases["c21"][2]}.</p>
+{picture_case("c21", cases["c21"][3], 4)}
+				<p>d01: {cases["d01"][2]}.</p>
+{picture_case("d01", cases["d01"][3], 4)}
+			</annotation>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-26">2026-10-26</date>
+			<id>fixture-tables-images</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Pictures in tables</p>
+		</title>
+{body}
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>The note whose link holds a picture in v08.</p>
+		</section>
+	</body>
+{binary_xml}
+</FictionBook>
+"""
+
+
+def preview_size(width: int, height: int, max_width: int = 800) -> list[int]:
+    """The size `preview?w=800` serves (decision 19): as stored up to 800 px wide, else scaled as
+    `scale_to_fit` does (core/src/images/converter.cpp:156-171; std::lround, at least 1)."""
+    if width <= max_width:
+        return [width, height]
+    factor = max_width / width
+    return [max(1, math.floor(width * factor + 0.5)), max(1, math.floor(height * factor + 0.5))]
+
+
+def tables_images_expected(text: str) -> str:
+    """tables-images.expected.json: the pictures' natural and preview sizes, the placeholders,
+    each curated and vR9 table's placement, grid and picture cells (rows and columns from 0; a row
+    or column "without pictures" is one that no cell holding a picture covers), the SC-006 tables
+    and the expected validation warnings."""
+    sizes = {binary: (w, h) for binary, w, h, _ in TI_PNGS}
+    sizes[TI_JPEG[0]] = TI_JPEG[1:]
+    pictures = {
+        binary: {"natural": preview_size(w, h), "preview": preview_size(w, h), "decodable": True}
+        for binary, (w, h) in sizes.items()
+    }
+    pictures[TI_SVG] = {"natural": [3000, 100], "preview": None, "decodable": False}
+    root = ET.fromstring(text.encode("utf-8"))
+    tables = {table.get("id"): table for table in root.iter(f"{{{FB_NS}}}table")}
+    href_key = f"{{{XLINK_NS}}}href"
+    placeholders = []
+    described = {}
+    for case_id, placement, _, _ in ti_curated_cases():
+        grid = fb2_table_grid(tables[case_id])
+        picture_cells = []
+        rows_with, columns_with = set(), set()
+        for row, column, colspan, rows_in, cell in grid["cells"]:
+            hrefs = [image.get(href_key) for image in cell.iter(f"{{{FB_NS}}}image")]
+            if not hrefs:
+                continue
+            picture_cells.append({"row": row, "col": column, "hrefs": hrefs})
+            rows_with.update(range(row, row + rows_in))
+            columns_with.update(range(column, column + colspan))
+            for href in hrefs:
+                binary = href[1:] if href.startswith("#") else None
+                kind = (
+                    "external"
+                    if binary is None
+                    else "clear"
+                    if binary == "undefined"
+                    else "undecodable"
+                    if binary == TI_BROKEN
+                    else None
+                    if binary in pictures
+                    else "missing"
+                )
+                if kind:
+                    placeholders.append({"table": case_id, "href": href, "kind": kind})
+        described[case_id] = {
+            "placement": placement,
+            "rows": grid["rows"],
+            "cols": grid["columns"],
+            "rowsWithoutPictures": [r for r in range(grid["rows"]) if r not in rows_with],
+            "colsWithoutPictures": [c for c in range(grid["columns"]) if c not in columns_with],
+            "pictureCells": picture_cells,
+        }
+    sc006 = {
+        ti_sc006_id(columns, binary): {"columns": columns, "picture": binary}
+        for binary in ti_sc006_pictures()
+        for columns in range(1, 11)
+    }
+    assert all(table_id in tables and f"{table_id}-ctl" in tables for table_id in sc006)
+    warnings = {
+        "image.missingBinary": sum(p["kind"] in ("missing", "clear") for p in placeholders),
+        "image.externalHref": sum(p["kind"] == "external" for p in placeholders),
+        "binary.notImage": sum(p["kind"] == "undecodable" for p in placeholders) + 1,  # + the SVG
+    }
+    assert warnings == {"image.missingBinary": 3, "image.externalHref": 1, "binary.notImage": 2}
+    expected = {
+        "$comment": (
+            "Generated with tables-images.fb2 by make-fixtures.py (feature 006, research R9.5): "
+            "per picture its natural size - the size preview?w=800 serves for a picture the core "
+            "decodes, the SVG's own size for s02 - its preview size and whether the core decodes "
+            "it; the placeholders; per curated and vR9 table its placement, its grid and its "
+            "picture cells, rows and columns counted from 0; the SC-006 tables; and the warnings "
+            "mfbe-core validate gives. not-a-picture.png is no picture: only a placeholder."
+        ),
+        "pictures": pictures,
+        "placeholders": placeholders,
+        "tables": described,
+        "sc006": sc006,
+        "warnings": warnings,
+    }
+    return json.dumps(expected, ensure_ascii=False, indent=2) + "\n"
+
+
 def main() -> None:
     write("legacy-cp1251.fb2", LEGACY, "cp1251")
     write("modern-utf8.fb2", MODERN)
@@ -2365,6 +2892,10 @@ def main() -> None:
     assert not re.search(r"<!--|<!\[CDATA\[|<\?(?!xml )", placement), "comment, CDATA or PI"
     check_tables_book("tables-placement.fb2", placement)
     write("tables-placement.fb2", placement)
+    images = tables_images_book()
+    check_tables_book("tables-images.fb2", images)
+    write("tables-images.fb2", images)
+    write("tables-images.expected.json", tables_images_expected(images))
 
 
 if __name__ == "__main__":
