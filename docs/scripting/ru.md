@@ -121,8 +121,13 @@ export default async function run(ctx) {
 `image`, `inline-image`, `date`. Содержимое узлов — JSON модели документа редактора (см.
 `mfbe.d.ts` и типы `document-model`, на которые он ссылается): узел —
 `{ type, attrs, content }`, текст — `{ type: 'text', text, marks }`, где marks — `strong`,
-`emphasis`, `strikethrough`, `sub`, `sup`, `code`, `{ type: 'style', attrs: { name } }` и
-`{ type: 'link', attrs: { href, type: 'note' } }`.
+`emphasis`, `strikethrough`, `sub`, `sup` и `code`, у каждой из которых могут быть
+`attrs: { lang }` (`xml:lang` элемента), `{ type: 'style', attrs: { name, lang } }` и
+`{ type: 'link', attrs: { href, type: 'note', xlinkType } }` (`lang`, `type` и `xlinkType`
+необязательны; `xlinkType` — `xlink:type` ссылки). У текста может быть несколько пометок одного
+вида с разными атрибутами — несколько пометок `style` или пометки `emphasis` с разными
+языками; они перечисляются от внешней к внутренней. У `inline-image` тоже есть `marks`:
+оформление и ссылка вокруг картинки. Язык ячейки таблицы — её `attrs.lang`.
 
 ### 4.1 Документ — `mfbe.doc`
 

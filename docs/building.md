@@ -253,8 +253,9 @@ installed.
 ### 3.4 End-to-end tests (Linux, macOS)
 
 The Playwright journeys drive the real UI in a headless Chromium against `mfbe-core`, which
-the test harness starts itself. The script benchmark (tagged `@perf`) measures times, so it runs
-on its own after the journeys:
+the test harness starts itself. The timed journeys (tagged `@perf`) - among them the script
+benchmark and the table commands of `perf-tables.spec.ts` (feature 006) - measure times, so they
+run on their own after the journeys, with one worker:
 
 <!-- replay:linux -->
 ```bash

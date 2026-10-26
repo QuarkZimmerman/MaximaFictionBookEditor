@@ -27,6 +27,15 @@
  *    Description view's "Other persons" list are UI projections of this model
  *    (`description.customInfo` rows for the roles), never members of it — see
  *    specs/004-third-feedback-batch/contracts/document-model.md.
+ *  - Feature 006 (table editing) adds optional members and documented rules
+ *    only, so a model of release 0.0.5 stays valid and the version stays 1:
+ *    the cell's `lang`, the marks' `lang` and the link's `xlinkType`, `marks`
+ *    on inline images and inline raw XML, several formatting marks of one type
+ *    on one node, the documented `unknownAttrs` and the span values' rule —
+ *    each marked "feature 006" below; the reader's and writer's rules and the
+ *    rationale are in specs/006-table-editing/contracts/document-model.md.
+ *    Section 4 of specs/006-table-editing/contracts/document-model.md defines
+ *    the table grid (normative).
  */
 
 export const DOCUMENT_MODEL_VERSION = 1;

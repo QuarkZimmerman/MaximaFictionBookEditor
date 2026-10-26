@@ -451,7 +451,8 @@ export type SpanAxis = 'colspan' | 'rowspan';
  *    `removedIds` for the host's FR-015 question, rows left without a cell compacted;
  * 4. a smaller value splits off the positions the cell no longer keeps (`splitOff`): empty cells
  *    of its kind, `align`, `valign` and `lang`, without `id`, `style` or `extraAttrs`, placed
- *    with the hole fill, positions an earlier cell owns getting nothing;
+ *    with the hole fill, positions an earlier cell owns and positions a later overlapping cell
+ *    covers getting nothing, as in *Split cell*;
  * 5. the same value changes nothing (every row the same object).
  * Spans are written through `withSpans`: 1 is never written and a span kept in `unknownAttrs`
  * goes (C19). Focus: a caret in the head cell.

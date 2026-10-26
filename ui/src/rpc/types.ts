@@ -43,7 +43,7 @@ export const RPC_API_VERSION = 1;
  * marks on inline atoms, the writer's link rule, `session.tableDialog`); it accepts any core
  * answering minor >= 1 (rpc-api.md §6) - the client performs no minor check at connect time and
  * gates nothing on 5; the AI assistant (feature 005) reads `app.info().apiMinor` itself and
- * requires >= 4.
+ * requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4 before).
  */
 export const RPC_API_MINOR = 5;
 

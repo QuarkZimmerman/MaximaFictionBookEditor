@@ -107,6 +107,7 @@ rules (one entry per failure, context present, fixture text absent, token absent
 | `command.<commandId>` | error | commandId, docId | a menu/toolbar/hotkey command threw |
 | `file.openFailed`, `file.saveFailed` | error | path, docId | client-side open/save failure (timeout, lost connection) |
 | `images.upload` | error | docId | image upload from the clipboard / drag-and-drop failed |
+| `tables.dialogSaveFailed` | error | (version and platform only) | the values confirmed in the *Table* dialog of *Add > Table* could not be stored as `session.tableDialog` - a client-side failure such as a timeout or a lost connection (feature 006); the table is inserted all the same |
 | `ui.unhandledError`, `ui.unhandledRejection` | error | docId, view | uncaught interface exception / rejection |
 | `script.error` | error | scriptId, line, column | a user script threw (`Script error: … at line L, column C`) |
 | `ai.internal` | error | requestId, the exception's `name` | an unexpected exception inside the AI assistant's request loop (`source: ui`; the request ends as failed; never the message or the stack) |

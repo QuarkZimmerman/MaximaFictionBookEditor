@@ -7,18 +7,51 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### Added
 
-- The AI assistant edits tables reliably: the new tool `read_table` shows a table as a grid of
-  rows and columns with merged cells resolved - every cell with its kind, place, spans, attributes
-  and text, a large table in parts of whole rows - and `edit_table` changes a table with the
-  editor's own table commands addressed by grid position (rows and columns inserted, deleted,
-  moved and duplicated, cells merged and split, header cells, attributes, Repair table), so a
-  table the assistant changes is the table the menu command gives and every request stays one
-  undo step; a merge that would remove a cell a link points to is left to the user, whose command
-  asks first. A block of cells selected in the Body view reaches the assistant as a block (the
-  popup and the panel alike), a change that leaves a table irregular tells the assistant so it can
-  repair it, and Validate lists the irregular tables. The assistant needs a core of API minor 5;
-  a large table's change no longer sends its XML (the requests grow by at most 5% of the table).
-
+- *Add > Table* asks for the columns and for a header column besides the rows and a header
+  row, and proposes the values last confirmed, also after a restart. The new table is
+  rectangular, carries no attribute and takes the caret in its first cell, and the insertion is
+  one undo step.
+- A table can be inserted wherever FB2 allows one: at the caret, splitting the paragraph (its
+  `id` stays with the first half), in place of an empty paragraph, after an empty subtitle, at
+  the start of a section's text - after its title, epigraphs, heading picture and annotation -
+  or after the poem, the cite or the table the caret is in. Where no table may stand - the
+  title of a section that holds subsections, the body's title, a paragraph directly in the
+  body's epigraph - *Add > Table*, its toolbar button and the context menu's *Table...* are
+  unavailable with the reason "no table may stand here", and Alt+T does nothing.
+- *Table...* in the Body view's context menu, judged at the clicked point: available where a
+  table may stand there, it moves the caret there only when it runs.
+- In the Source view *Add > Table*, Alt+T, its toolbar button and a *Table...* entry of the
+  context menu insert the table's XML between two elements where the FB2 schema allows a
+  table, laid out like its neighbours, with the cursor between the first cell's tags, as one
+  undo step; inside text, inside a tag, where the schema allows no table or while the text is
+  not well-formed XML (with the line of the first problem) the command is unavailable and says
+  why.
+- Tables gain *Insert row above* and *below*, *Insert column to the left* and *to the right*,
+  *Delete row*, *Delete column*, *Move row up* and *down*, *Move column left* and *right*,
+  *Duplicate row* and *Duplicate column*, in *Add > Table structure*, in the table's context menu
+  (*Table structure*), as buttons offered in *Customize toolbar* and as commands a hotkey can be
+  assigned to. They act on the caret's cell or on every row or column of a selected block, keep
+  merged cells whole (a cell across an inserted line grows, one across a deleted line shrinks, a
+  merged cell whose top row is deleted moves down with its content, and a row left without
+  cells is removed), give new cells the kind, alignment and language of their neighbours, leave
+  the irregular parts of a table as they are, and are one undo step each; an unavailable command
+  says why, for example "Delete row: the table has only one row; use Delete table".
+- Pictures in table cells: *Add > Inline image*, pasting an image and dropping image files put
+  inline images into a cell (`td` or `th`) through the usual flow - the "Insert clear image?"
+  prompt, the file choice, the binary object -, several dropped files in their order, each one
+  undo step. *Add > Image* and *Add > Section image* say why they are unavailable in a cell
+  ("a cell takes inline images only").
+- A picture in a cell is shown at the size of its preview (at most 800 px wide; an SVG at its
+  own size), scaled down with its proportions to the space its column gets and to 10 lines of
+  Body text, never enlarged, and never narrower than the smallest of its own width, the height
+  of an inline picture and the width its 10-line height allows - so a table never gets wider
+  than the text area because of its pictures but by that much per column that holds pictures.
+  Rows and columns without pictures look as before while the table has room. Placeholders and
+  Fast Mode keep the same limits, and tables keep their height while the previews load.
+  Pictures outside tables look as before.
+- The Links bar's new *Alt text* field shows and edits the alternative text of a selected
+  picture, inline or block, in a table cell or anywhere else; an empty value removes it, and
+  each change is one undo step.
 - Blocks of cells: dragging from one cell to another, a Shift+click on another cell of the same
   table and Shift+arrow keys across a cell's edge select a rectangular block of cells, widened to
   whole merged cells and highlighted as one. Delete and Backspace empty the block's cells and keep
@@ -53,7 +86,6 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   to every selected cell and *Row align* to every row of the block, while *Cell ID*, *colspan*
   and *rowspan* apply to the cell where the selection ends; a field whose cells differ stays
   empty.
-
 - Irregular tables - a row covering fewer columns than the others, overlapping spans, a span
   reaching past the last row - carry a round warning mark at their top-right corner in the Body
   view, with a tooltip naming the problems; a click opens a small popover listing them with
@@ -65,53 +97,6 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   available only while the table is irregular. File > Validate lists each irregular table as a
   warning that names its problems and goes to the table on a double-click, and so do
   `mfbe-core validate` and `roundtrip`; the warning never blocks saving.
-- *Add > Table* asks for the columns and for a header column besides the rows and a header
-  row, and proposes the values last confirmed, also after a restart. The new table is
-  rectangular, carries no attribute and takes the caret in its first cell, and the insertion is
-  one undo step.
-- A table can be inserted wherever FB2 allows one: at the caret, splitting the paragraph (its
-  `id` stays with the first half), in place of an empty paragraph, after an empty subtitle, at
-  the start of a section's text - after its title, epigraphs, heading picture and annotation -
-  or after the poem, the cite or the table the caret is in. Where no table may stand - the
-  title of a section that holds subsections, the body's title, a paragraph directly in the
-  body's epigraph - *Add > Table*, its toolbar button and the context menu's *Table...* are
-  unavailable with the reason "no table may stand here", and Alt+T does nothing.
-- *Table...* in the Body view's context menu, judged at the clicked point: available where a
-  table may stand there, it moves the caret there only when it runs.
-- In the Source view *Add > Table*, Alt+T, its toolbar button and a *Table...* entry of the
-  context menu insert the table's XML between two elements where the FB2 schema allows a
-  table, laid out like its neighbours, with the cursor between the first cell's tags, as one
-  undo step; inside text, inside a tag, where the schema allows no table or while the text is
-  not well-formed XML (with the line of the first problem) the command is unavailable and says
-  why.
-- Pictures in table cells: *Add > Inline image*, pasting an image and dropping image files put
-  inline images into a cell (`td` or `th`) through the usual flow - the "Insert clear image?"
-  prompt, the file choice, the binary object -, several dropped files in their order, each one
-  undo step. *Add > Image* and *Add > Section image* say why they are unavailable in a cell
-  ("a cell takes inline images only").
-- A picture in a cell is shown at the size of its preview (at most 800 px wide; an SVG at its
-  own size), scaled down with its proportions to the space its column gets and to 10 lines of
-  Body text, never enlarged, and never narrower than the smallest of its own width, the height
-  of an inline picture and the width its 10-line height allows - so a table never gets wider
-  than the text area because of its pictures but by that much per column that holds pictures.
-  Rows and columns without pictures look as before while the table has room. Placeholders and
-  Fast Mode keep the same limits, and tables keep their height while the previews load.
-  Pictures outside tables look as before.
-- The Links bar's new *Alt text* field shows and edits the alternative text of a selected
-  picture, inline or block, in a table cell or anywhere else; an empty value removes it, and
-  each change is one undo step.
-
-- Tables gain *Insert row above* and *below*, *Insert column to the left* and *to the right*,
-  *Delete row*, *Delete column*, *Move row up* and *down*, *Move column left* and *right*,
-  *Duplicate row* and *Duplicate column*, in *Add > Table structure*, in the table's context menu
-  (*Table structure*), as buttons offered in *Customize toolbar* and as commands a hotkey can be
-  assigned to. They act on the caret's cell or on every row or column of a selected block, keep
-  merged cells whole (a cell across an inserted line grows, one across a deleted line shrinks, a
-  merged cell whose top row is deleted moves down with its content, and a row left without
-  cells is removed), give new cells the kind, alignment and language of their neighbours, leave
-  the irregular parts of a table as they are, and are one undo step each; an unavailable command
-  says why, for example "Delete row: the table has only one row; use Delete table".
-
 - Tables gain *Select table*, *Delete table*, *Paragraph before table* and *Paragraph after
   table*, in *Add > Table structure*, in the table's context menu, as buttons offered in
   *Customize toolbar* and as commands a hotkey can be assigned to. A selected table is copied,
@@ -131,23 +116,20 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   between cells, a block of cells is selected with the mouse or the keyboard, pictures are
   pasted or dropped into cells, irregular tables carry their warning mark, and hotkeys assigned
   to table commands work there.
+- The AI assistant edits tables reliably: the new tool `read_table` shows a table as a grid of
+  rows and columns with merged cells resolved - every cell with its kind, place, spans, attributes
+  and text, a large table in parts of whole rows - and `edit_table` changes a table with the
+  editor's own table commands addressed by grid position (rows and columns inserted, deleted,
+  moved and duplicated, cells merged and split, header cells, attributes, Repair table), so a
+  table the assistant changes is the table the menu command gives and every request stays one
+  undo step; a merge that would remove a cell a link points to is left to the user, whose command
+  asks first. A block of cells selected in the Body view reaches the assistant as a block (the
+  popup and the panel alike), a change that leaves a table irregular tells the assistant so it can
+  repair it, and Validate lists the irregular tables. The assistant needs a core of API minor 5;
+  a large table's change no longer sends its XML (the requests grow by at most 5% of the table).
 
 ### Changed
 
-- A paste first replaces the selected text, also when it pastes a table; a selected table or
-  picture is replaced by what is pasted. Text or paragraphs pasted into a table cell join that cell
-  as one line instead of splitting the table. HTML copied from another ProseMirror-based editor no
-  longer counts as the editor's own; only the editor's own clipboard data does.
-
-- With the caret at the start of a paragraph *Add > Table* puts the table before the
-  paragraph; release 0.0.5 put it after.
-- The row that Tab appends in a table's last cell copies the last row's cell kinds, alignments
-  and languages - a header cell gives a header cell, a cell spanning rows from above is copied
-  once - and is an undo step of its own; release 0.0.5 copied only the last row's own cells,
-  as plain cells.
-- A right-click leaves the caret where it is, in the Source view and in the Body view - there
-  except in a table cell that does not hold the selection, where it first puts the caret into
-  that cell; release 0.0.5 moved the caret to the pointer or not, depending on timing.
 - Builds of the 0.0.6 development line call themselves `0.0.6-rc` - in Help > About, in
   `mfbe --version` and `mfbe-core --version`, in the build id (`0.0.6-rc+<hash>`) and in the
   package file names (`MaximaFictionBookEditor-0.0.6-rc-win64.msi`, `mfbe_0.0.6-rc_amd64.deb`,
@@ -174,16 +156,37 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   was not a number - is written once, the known value winning; 0.0.5 wrote it twice, and the
   saved file was not well-formed. Span values below 1 are kept exactly as written unless they
   are in plain decimal form (`0`, `-1`), so `00` or `-01` no longer become `0` or `-1`.
+- With the caret at the start of a paragraph *Add > Table* puts the table before the
+  paragraph; release 0.0.5 put it after.
+- The row that Tab appends in a table's last cell copies the last row's cell kinds, alignments
+  and languages - a header cell gives a header cell, a cell spanning rows from above is copied
+  once - and is an undo step of its own; release 0.0.5 copied only the last row's own cells,
+  as plain cells.
+- The Body view's context menu is now the popup menu of the toolbars, the Source view and the
+  Description fields: it is kept inside the window by its measured size, where release 0.0.5
+  estimated it, its entries run by their underlined letters, and closing it without running an
+  entry gives the focus back to where it was. A right-click leaves the caret where it is, in
+  the Source view and in the Body view - there except in a table cell that does not hold the
+  selection, where it first puts the caret into that cell; release 0.0.5 moved the caret to
+  the pointer or not, depending on timing.
+- A disabled table command or *Add > Table* - and *Add > Image* or *Add > Section image* in a
+  table cell - names its reason in its tooltip, in the menus, the context menus and on its
+  toolbar button, and, for keyboard and screen-reader users, in its accessible description:
+  "Delete row: the table has only one row; use Delete table", or, while a script runs, "Merge
+  cells: a script is running; wait until it ends", and likewise during a request to the AI
+  assistant.
+- A paste first replaces the selected text, also when it pastes a table; a selected table or
+  picture is replaced by what is pasted. Text or paragraphs pasted into a table cell join that cell
+  as one line instead of splitting the table. HTML copied from another ProseMirror-based editor no
+  longer counts as the editor's own; only the editor's own clipboard data does.
 - The Table bar refuses an id that is not a valid FB2 identifier or that another element of the
   book uses, and a language that is not a language tag, with the reason in the status bar,
   where release 0.0.5 wrote any value. An empty field removes the attribute, and each change is
   one undo step; a value equal to the current one records none.
-
 - The Table bar's *colspan* and *rowspan* now merge cells and split them as *Merge cells* and
   *Split cell* would, asking first when a link would lose its target, and refuse a span past the
   table's last column or row, where they wrote the attribute alone and made rows irregular. Every
   table in the Body view keeps an 8 px right margin for the warning mark.
-
 - HTML tables from other programs are no longer flattened into paragraphs where a table may
   stand (feature 001's edge case on pasting rich text), and when the clipboard holds an HTML
   table with text beside a picture of it, the table is pasted. Cut, Delete and Backspace on a
@@ -193,6 +196,12 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   language, id or style. Each table command and each table paste in these fields is one undo
   step, and typing after it starts a new one; Shift+Tab in a table's first cell moves the focus
   out of the field; Copy and Cut of a block of cells work in these fields.
+- Settings file: `session.tableDialog` - the rows, columns, header row and header column last
+  confirmed in the *Table* dialog - is new, and the Commands toolbar's stored layout may hold
+  the 25 table buttons; a 0.0.5 settings file keeps every value and the new key takes its
+  defaults (2 rows, 2 columns, no header row or column). `hotkeys.json` accepts the 24 table
+  commands, none of which has a default chord. The core's API minor is 5; every change is
+  additive.
 
 ### Fixed
 
@@ -231,23 +240,41 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   or language stays inside the link, and a style without a name is written there as `<style>`.
   The text on screen shows an extension once the book is read again; `mfbe-core validate` and
   `roundtrip` no longer report `schema.invalid` for such books.
-- A field of the Links bar or the Table bar committed its value a second time when Enter
-  moved the focus out of it - a selected block picture's new *Href* took two undo steps - and
-  committed the typed value after Escape; Enter now commits once and Escape restores the field.
 - The bundled scripts that rewrite paragraphs through the original editor's HTML notation
   (*General clean-up*, *Broken sentences*, the five interactive clean-ups and *Drama: mark
   speaker names*) keep the language of formatting - nested formatting with two languages
   included -, a link's `xlink:type` and the link and formatting around pictures; *Remove style
   tags* also removes nested named styles and the styles around pictures.
+- A field of the Links bar or the Table bar committed its value a second time when Enter
+  moved the focus out of it - a selected block picture's new *Href* took two undo steps - and
+  committed the typed value after Escape; Enter now commits once and Escape restores the field.
+- The Body view shows cell alignment as written: `valign="middle"` and `"bottom"` on a cell, and
+  an `align` on a header cell or on its row, were hidden by the default rules, which put every
+  cell's text at the top and centred every header cell. Header cells stay centred unless the
+  cell or its row sets an alignment.
 - New elements that the AI assistant or a script creates no longer take the internal ids of
   elements that an earlier request or script run created - nor, within one request, those of
   the elements the assistant and the scripts it runs created before: every request and every
   script run counts on from the highest such id in the book. Release 0.0.5 counted each from
   `sc_1`, so a later assistant change could land on the wrong element.
-- The Body view shows cell alignment as written: `valign="middle"` and `"bottom"` on a cell, and
-  an `align` on a header cell or on its row, were hidden by the default rules, which put every
-  cell's text at the top and centred every header cell. Header cells stay centred unless the
-  cell or its row sets an alignment.
+- *Customize toolbar*, opened while the editor reloaded its scripts, offers the buttons of
+  the scripts the reload adds; before, it kept the list it had when it opened.
+- Cancel (or Escape) during a request to the AI assistant now always ends it without a
+  change: a cancel while the request's changes were being validated for the commit - in the
+  Body view, in the Source view or for an edit asked in the Ask AI popup - could still apply
+  them with an undo entry, and a cancel before the core had started the exchange did not stop
+  it; a cancel while the request is being prepared now ends it before anything is sent.
+- The Body view no longer loses a selection on a busy computer: keys typed right after a
+  click that put the focus into the text (Home, Shift+End) could be undone, a menu, a toolbar
+  button, a hotkey or a script could still see the selection from before the one just made,
+  and a click made just as the spelling marks of a newly opened book arrived could put the
+  caret at the start of the book.
+- A picture still selected when the Body view comes back from the Description or the Source
+  view is shown selected again - the commands acted on it while it did not look selected -
+  and the first click on it no longer puts the caret at the start of the book.
+- The right-click menu of the Commands toolbar (*Customize toolbar...*) no longer closes as
+  soon as it opens after a request to the AI assistant: opening it moved the panes below it
+  by a pixel, which scrolled the assistant's activity list, and a scroll closes a popup menu.
 
 ## 0.0.5 - unreleased
 
