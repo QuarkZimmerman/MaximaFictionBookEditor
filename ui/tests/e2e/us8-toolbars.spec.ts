@@ -625,18 +625,20 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     const clicks = (await page.evaluate(TAKE_RIGHT_CLICKS)) as RightClick[];
     expect(clicks.every((click) => click.cancelled)).toBe(true);
 
-    // Source: Undo, Redo, Cut, Copy, Paste, Delete, Select All.
+    // Source: Undo, Redo, Cut, Copy, Paste, Delete, Select All, then Table... (feature 006,
+    // FR-061: Add → Table in the Source view, judged at the clicked point).
     await page.getByTestId('view-source').click();
     const source = page.getByTestId('source-editor');
     await expect(source).toContainText('FictionBook');
     await source.click({ button: 'right' });
     const sourceMenu = page.getByTestId('source-context-menu');
     const sourceEntries = ['undo', 'redo', 'cut', 'copy', 'paste', 'delete', 'selectAll'];
-    await expect(sourceMenu.getByRole('menuitem')).toHaveText(
-      await Promise.all(
+    await expect(sourceMenu.getByRole('menuitem')).toHaveText([
+      ...(await Promise.all(
         sourceEntries.map((entry) => pageText(page, `source.contextMenu.${entry}`)),
-      ),
-    );
+      )),
+      await pageText(page, 'tables.contextMenu.table'),
+    ]);
     await page.getByTestId('source-context-menu-selectAll').click();
     await source.click({ button: 'right' });
     await expect(page.getByTestId('source-context-menu-copy')).not.toHaveAttribute(

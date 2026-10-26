@@ -5,7 +5,8 @@
  * `insert.table` (*Add → Table*, US1), installs the resolver of the table commands' hotkey
  * scope - the active table edit target's DOM, so a chord the user assigned runs a table command
  * only with the focus inside the Body editor (C6) -, the Body context menu's table section with
- * its right-click rule, and the test hooks when the page or the core asks for them.
+ * its right-click rule, and the test hooks when the page or the core asks for them: the tables'
+ * (`__mfbeTest.tables`) and the Source view's (`__mfbeTest.sourceTable`, `sourceTable.ts`).
  */
 
 import type { FeatureContext } from '@/app/services';
@@ -14,6 +15,7 @@ import { registerContextMenuExtension } from '@/views/body/contextMenuExtensions
 
 import { TABLE_COMMAND_ROWS, createInsertTableCommand, tableCommand } from './commands';
 import { prepareTableContextMenu, tableContextMenuItems } from './contextMenu';
+import { installSourceTableHooks } from './sourceTable';
 import { activeTableTarget } from './target';
 import { installTablesTestHooks } from './testHooks';
 
@@ -35,12 +37,26 @@ export {
 export { prepareTableContextMenu, tableContextMenuItems } from './contextMenu';
 export { reasonText, type ReasonCode } from './reasons';
 export {
+  installSourceTableHooks,
+  runSourceTable,
+  sourceTableActive,
+  sourceTableReason,
+  sourceTableVerdict,
+  type SourceSweepAnswer,
+  type SourceTableTestHooks,
+} from './sourceTable';
+export {
   activeTableTarget,
   bodyTableTarget,
   subscribeTableTargets,
   type TableEditTarget,
 } from './target';
 export { findModelTable, installTablesTestHooks, type TablesTestHooks } from './testHooks';
+
+function installTestHooks(ctx: FeatureContext): void {
+  installTablesTestHooks(ctx);
+  installSourceTableHooks(ctx);
+}
 
 export function registerTablesFeature(ctx: FeatureContext): void {
   for (const row of TABLE_COMMAND_ROWS) ctx.commands.replace(tableCommand(row));
@@ -53,7 +69,7 @@ export function registerTablesFeature(ctx: FeatureContext): void {
     tableContextMenuItems(ctx.commands, controller, click, commandCtx),
   );
   if (testHooksRequested()) {
-    installTablesTestHooks(ctx);
+    installTestHooks(ctx);
     return;
   }
   // A core started with test hooks says so in `app.info`, asked once the client has connected
@@ -68,7 +84,7 @@ export function registerTablesFeature(ctx: FeatureContext): void {
     void rpc
       .call('app.info')
       .then((info) => {
-        if ((info as { testHooks?: boolean }).testHooks) installTablesTestHooks(ctx);
+        if ((info as { testHooks?: boolean }).testHooks) installTestHooks(ctx);
       })
       .catch(() => {
         // No core: no hooks.

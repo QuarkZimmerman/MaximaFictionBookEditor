@@ -18,6 +18,7 @@ import type { Platform, ViewId } from '@/rpc/types';
 import { featureRegistrars } from '@/features/registry';
 import { subscribeTableTargets } from '@/features/tables/target';
 import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
+import { getSourceEditor } from '@/views/source/sourceEditor';
 import { registerViewCommands } from '@/views/source/sourceSession';
 
 import { CommandRegistry, createCommandRegistry, type CommandContext } from './commands';
@@ -115,6 +116,10 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
       // The active table edit target and its selection (feature 006, data-model §6.1): the
       // table commands' states and reasons follow them.
       unsubscribeSources.push(subscribeTableTargets(store, bump));
+      // The Source view's table verdict (feature 006, I23): `insert.table` follows the cursor
+      // there, notified when the verdict changes (the Source feature made the controller).
+      const source = getSourceEditor(store);
+      if (source) unsubscribeSources.push(source.subscribeContext(bump));
     }
     listeners.add(listener);
     return () => {

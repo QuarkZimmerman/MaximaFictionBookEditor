@@ -5,7 +5,7 @@
  * and `tableCommand(row)`, the registry entry built from it. `registerTablesFeature` replaces
  * the stub of every id that has a row; the table is empty in the foundation, so the 24 stubs
  * stay until the stories append their rows. US1 adds `insert.table`, *Add → Table*
- * (`createInsertTableCommand`; data-model §4.5).
+ * (`createInsertTableCommand`; data-model §4.5), with its Source view branch (`sourceTable.ts`).
  */
 
 import type { Command as PMCommand } from 'prosemirror-state';
@@ -16,9 +16,16 @@ import { availability, isAvailable, type TableCommandName } from '@/editor/table
 import type { PlanContext } from '@/editor/table/edit';
 import { createTable } from '@/editor/table/ops';
 import { collectBookIds } from '@/model/ids';
+import type { SourceVerdict } from '@/views/source/sourceEditor';
 
 import { openTableDialog, rememberTableDialog } from './dialog';
 import { reasonText } from './reasons';
+import {
+  runSourceTable,
+  sourceTableActive,
+  sourceTableReason,
+  sourceTableVerdict,
+} from './sourceTable';
 import { activeTableTarget, type TableEditTarget } from './target';
 
 export interface TableCommandRow {
@@ -89,29 +96,39 @@ export function tableCommand(row: TableCommandRow): Command {
 
 /** Whether *Add → Table* can insert at the active target's selection (data-model §9.6). */
 export type InsertTableAvailability =
-  { ok: true } | { refused: 'noTarget' } | { refused: 'noTablePlace' };
+  | { ok: true }
+  | { refused: 'noTarget' }
+  | { refused: 'noTablePlace' }
+  | { refused: 'source'; verdict: Exclude<SourceVerdict, { code: 'ok' }> };
 
 /**
- * `insert.table`'s availability: `noTarget` without an active, editable target (the Source
- * view's branch is US1's T068, the fields' US10), `noTablePlace` where FR-004 finds no point at
- * the end of the selection (FR-004 (c)). A cheap read of the selection's ancestors (C21).
+ * `insert.table`'s availability: in the Source view the verdict at the cursor (`ok`, or a
+ * refusal with its `source.<code>`; FR-061); elsewhere `noTarget` without an active, editable
+ * target (the fields' come with US10), `noTablePlace` where FR-004 finds no point at the end of
+ * the selection (FR-004 (c)). A cheap read - of the selection's ancestors (C21), or of the
+ * Source controller's memoised verdict.
  */
 export function insertTableAvailability(
   ctx: Pick<CommandContext, 'store'>,
 ): InsertTableAvailability {
+  if (sourceTableActive(ctx.store)) {
+    const verdict = sourceTableVerdict(ctx.store);
+    return verdict.code === 'ok' ? { ok: true } : { refused: 'source', verdict };
+  }
   const target = editableTarget(ctx);
   if (!target) return { refused: 'noTarget' };
   return findTablePointAt(target.state!) ? { ok: true } : { refused: 'noTablePlace' };
 }
 
 /**
- * *Add → Table* (FR-001 to FR-004, FR-040, FR-043, FR-045, FR-048): the literal id, the group
- * `edit`, the Add menu's label (C32) and the `table-insert` icon (C27); no hotkey scope, since
- * Alt+T also works in the Source view (C6; decision 15), and the default run policy `blocked`.
- * `run` opens the dialog with the values last confirmed, stores the confirmed ones (without
- * waiting for the answer), checks the place again - at the selection the command started with -
- * and inserts the table there as one undo step, the caret in its first cell; a non-empty
- * selection stays and its end decides (decision 4).
+ * *Add → Table* (FR-001 to FR-004, FR-040, FR-043, FR-045, FR-048, FR-061): the literal id, the
+ * group `edit`, the Add menu's label (C32) and the `table-insert` icon (C27); no hotkey scope,
+ * since Alt+T also works in the Source view (C6; decision 15), and the default run policy
+ * `blocked`. `run` opens the dialog with the values last confirmed, stores the confirmed ones
+ * (without waiting for the answer), checks the place again - at the selection the command
+ * started with - and inserts the table there as one undo step, the caret in its first cell; a
+ * non-empty selection stays and its end decides (decision 4). With the Source view active it
+ * runs the Source branch (`runSourceTable`): the table's XML at the cursor.
  */
 export function createInsertTableCommand(): Command {
   return {
@@ -125,11 +142,20 @@ export function createInsertTableCommand(): Command {
     unavailableReason: (ctx) => {
       const answer = insertTableAvailability(ctx);
       if ('ok' in answer) return null;
-      return answer.refused === 'noTarget'
-        ? reasonText('noTarget', { command: 'insert.table' }, ctx.t)
-        : reasonText('noTablePlace', undefined, ctx.t);
+      switch (answer.refused) {
+        case 'source':
+          return sourceTableReason(answer.verdict, ctx.t);
+        case 'noTarget':
+          return reasonText('noTarget', { command: 'insert.table' }, ctx.t);
+        default:
+          return reasonText('noTablePlace', undefined, ctx.t);
+      }
     },
     run: async (ctx) => {
+      if (sourceTableActive(ctx.store)) {
+        await runSourceTable(ctx);
+        return;
+      }
       const start = editableTarget(ctx);
       if (!start || !findTablePointAt(start.state!)) return;
       const before = start.state!;

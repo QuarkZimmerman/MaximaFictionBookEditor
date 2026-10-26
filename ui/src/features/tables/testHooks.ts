@@ -74,7 +74,8 @@ function insertTableReason(ctx: FeatureContext, commandCtx: CommandContext): str
     return `runLock.${state.runLock!.kind}`;
   }
   const answer = insertTableAvailability(commandCtx);
-  return 'ok' in answer ? 'noTarget' : answer.refused;
+  if ('ok' in answer) return 'noTarget';
+  return answer.refused === 'source' ? `source.${answer.verdict.code}` : answer.refused;
 }
 
 interface LooseNode {

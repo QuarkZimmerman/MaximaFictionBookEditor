@@ -36,6 +36,7 @@ import {
   StateField,
   type Extension,
   type Range,
+  type Text,
   type TransactionSpec,
 } from '@codemirror/state';
 import {
@@ -50,7 +51,7 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
-import type { SyntaxNode, Tree } from '@lezer/common';
+import type { NodeSet, SyntaxNode, Tree, TreeBuffer } from '@lezer/common';
 
 import { NBSP } from '@/editor/plugins/nbsp';
 
@@ -289,6 +290,329 @@ export function nextSyntaxError(state: EditorState, pos: number): number | null 
   const positions = syntaxErrorPositions(state);
   if (positions.length === 0) return null;
   return positions.find((p) => p > pos) ?? positions[0]!;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Well-formedness of the whole text (feature 006, C37)                     */
+/* ------------------------------------------------------------------------ */
+
+/** The entities XML predefines; any other reference needs a DTD the Source text never has. */
+const PREDEFINED_ENTITIES = new Set(['amp', 'lt', 'gt', 'quot', 'apos']);
+
+/**
+ * A character XML 1.0 does not allow (`Char`): a control character other than tab, line feed
+ * and carriage return, a lone surrogate, U+FFFE or U+FFFF.
+ */
+const ILLEGAL_CHARACTER = /[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/u;
+
+/** Whether a code point is an XML 1.0 `Char`. */
+function isXmlChar(code: number): boolean {
+  return (
+    code === 0x9 ||
+    code === 0xa ||
+    code === 0xd ||
+    (code >= 0x20 && code <= 0xd7ff) ||
+    (code >= 0xe000 && code <= 0xfffd) ||
+    (code >= 0x10000 && code <= 0x10ffff)
+  );
+}
+
+/** The code point of a character reference (`&#…;`, `&#x…;`), NaN when it has none. */
+export function characterReferenceValue(text: string): number {
+  const match = /^&#(x[0-9a-fA-F]+|[0-9]+);$/.exec(text);
+  if (!match) return Number.NaN;
+  const digits = match[1]!;
+  return digits[0] === 'x' ? parseInt(digits.slice(1), 16) : parseInt(digits, 10);
+}
+
+/** First problem relative to the subtree's start, -1 for none, per Lezer `Tree`/`TreeBuffer`. */
+const problemCache = new WeakMap<Tree | TreeBuffer, number>();
+/** The answer of `syntaxErrorState` per complete tree. */
+const stateCache = new WeakMap<Tree, { line: number } | null>();
+
+/** What the scan does with a node type (one table per Lezer node set). */
+const OTHER = 0;
+const ERROR = 1;
+const MISMATCHED = 2;
+const TAG = 3;
+const ELEMENT = 4;
+const ENTITY_REFERENCE = 5;
+const CHARACTER_REFERENCE = 6;
+const ATTRIBUTE_NAME = 7;
+const ATTRIBUTE_VALUE = 8;
+const SELF_CLOSING = 9;
+const CLOSE_TAG = 10;
+
+const KIND_OF_NAME: Readonly<Record<string, number>> = {
+  MismatchedCloseTag: MISMATCHED,
+  OpenTag: TAG,
+  CloseTag: CLOSE_TAG,
+  SelfClosingTag: SELF_CLOSING,
+  Element: ELEMENT,
+  EntityReference: ENTITY_REFERENCE,
+  CharacterReference: CHARACTER_REFERENCE,
+  AttributeName: ATTRIBUTE_NAME,
+  AttributeValue: ATTRIBUTE_VALUE,
+};
+
+const kindTables = new WeakMap<NodeSet, Uint8Array>();
+
+function kindsOf(set: NodeSet): Uint8Array {
+  let kinds = kindTables.get(set);
+  if (!kinds) {
+    const table = new Uint8Array(set.types.length);
+    set.types.forEach((type, id) => {
+      table[id] = type.isError ? ERROR : (KIND_OF_NAME[type.name] ?? OTHER);
+    });
+    kindTables.set(set, table);
+    kinds = table;
+  }
+  return kinds;
+}
+
+/** Whether a reference (`&name;`, `&#…;`) may stand in the text: the five entities, legal characters. */
+function referenceAllowed(kind: number, reference: string): boolean {
+  return kind === ENTITY_REFERENCE
+    ? PREDEFINED_ENTITIES.has(reference.slice(1, -1))
+    : isXmlChar(characterReferenceValue(reference));
+}
+
+/**
+ * Whether the buffer's tag at `index` is broken: an error node in it, an attribute name given
+ * twice, `<` in an attribute value, a reference in a value the text may not hold. `text` is the
+ * buffer's text (the buffer's offsets index it).
+ */
+function bufferTagBroken(
+  data: Uint16Array,
+  kinds: Uint8Array,
+  index: number,
+  text: string,
+): boolean {
+  const end = data[index + 3]!;
+  let names: string[] | null = null;
+  for (let i = index + 4; i < end; i += 4) {
+    switch (kinds[data[i]!]) {
+      case ERROR:
+        return true;
+      case ATTRIBUTE_NAME: {
+        const name = text.slice(data[i + 1]!, data[i + 2]!);
+        if (names?.includes(name)) return true;
+        (names ??= []).push(name);
+        break;
+      }
+      case ATTRIBUTE_VALUE:
+        if (text.slice(data[i + 1]!, data[i + 2]!).includes('<')) return true;
+        break;
+      case ENTITY_REFERENCE:
+      case CHARACTER_REFERENCE:
+        if (!referenceAllowed(kinds[data[i]!]!, text.slice(data[i + 1]!, data[i + 2]!))) {
+          return true;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  return false;
+}
+
+/** True when the buffer's `Element` at `index` ends in its closing tag or is self-closing. */
+function bufferElementClosed(data: Uint16Array, kinds: Uint8Array, index: number): boolean {
+  const end = data[index + 3]!;
+  const first = index + 4;
+  if (first >= end) return false;
+  if (kinds[data[first]!] === SELF_CLOSING) return true;
+  let last = first;
+  for (let i = first; i < end; i = data[i + 3]!) last = i;
+  return kinds[data[last]!] === CLOSE_TAG;
+}
+
+/**
+ * The first problem among the buffer's nodes, relative to the buffer's start (-1: none). One
+ * slice of the buffer's text: a character XML does not allow is a problem wherever it stands
+ * (it is one in text, in a tag, in a comment), and the nodes are read from it.
+ */
+function bufferProblem(buffer: TreeBuffer, base: number, doc: Text): number {
+  const cached = problemCache.get(buffer);
+  if (cached !== undefined) return cached;
+  const data = buffer.buffer;
+  const kinds = kindsOf(buffer.set);
+  const text = doc.sliceString(base, base + buffer.length);
+  const illegal = text.search(ILLEGAL_CHARACTER);
+  const limit = illegal < 0 ? Number.POSITIVE_INFINITY : illegal;
+  let found = illegal;
+  // Prefix order is document order: the first problem met is the first in the text.
+  scan: for (let i = 0; i < data.length;) {
+    const from = data[i + 1]!;
+    if (from >= limit) break;
+    switch (kinds[data[i]!]) {
+      case ERROR:
+      case MISMATCHED:
+        found = from;
+        break scan;
+      case TAG:
+      case CLOSE_TAG:
+      case SELF_CLOSING:
+        // A broken tag counts at its start, the line the user has to correct.
+        if (bufferTagBroken(data, kinds, i, text)) {
+          found = from;
+          break scan;
+        }
+        i = data[i + 3]!;
+        continue;
+      case ELEMENT:
+        // An unclosed element counts at its start tag (as `syntaxErrorPositions` reports it).
+        if (!bufferElementClosed(data, kinds, i)) {
+          found = from;
+          break scan;
+        }
+        break;
+      case ENTITY_REFERENCE:
+      case CHARACTER_REFERENCE:
+        if (!referenceAllowed(kinds[data[i]!]!, text.slice(from, data[i + 2]!))) {
+          found = from;
+          break scan;
+        }
+        break;
+      default:
+        break;
+    }
+    i += 4;
+  }
+  problemCache.set(buffer, found);
+  return found;
+}
+
+/** The descendants of a tree-allocated tag, as a buffer scan would see them. */
+function treeTagBroken(tree: Tree, base: number, doc: Text): boolean {
+  const names: string[] = [];
+  const cursor = tree.cursor();
+  if (!cursor.firstChild()) return false;
+  for (;;) {
+    const from = base + cursor.from;
+    const to = base + cursor.to;
+    if (cursor.type.isError) return true;
+    switch (cursor.name) {
+      case 'AttributeName': {
+        const name = doc.sliceString(from, to);
+        if (names.includes(name)) return true;
+        names.push(name);
+        break;
+      }
+      case 'AttributeValue':
+        if (doc.sliceString(from, to).includes('<')) return true;
+        break;
+      case 'EntityReference':
+      case 'CharacterReference':
+        if (!referenceAllowed(KIND_OF_NAME[cursor.name]!, doc.sliceString(from, to))) return true;
+        break;
+      default:
+        break;
+    }
+    if (cursor.firstChild()) continue;
+    while (!cursor.nextSibling()) {
+      if (!cursor.parent() || cursor.tree === tree) return false;
+    }
+  }
+}
+
+/** The first problem in a tree-allocated node, relative to its start (-1: none). */
+function treeProblem(tree: Tree, base: number, doc: Text): number {
+  const cached = problemCache.get(tree);
+  if (cached !== undefined) return cached;
+  let found = -1;
+  const type = tree.type;
+  const kind = type.isError ? ERROR : (KIND_OF_NAME[type.name] ?? OTHER);
+  if (kind === ERROR || kind === MISMATCHED) {
+    found = 0;
+  } else if (kind === TAG || kind === CLOSE_TAG || kind === SELF_CLOSING) {
+    const illegal = doc.sliceString(base, base + tree.length).search(ILLEGAL_CHARACTER);
+    found = treeTagBroken(tree, base, doc) ? 0 : illegal;
+  } else if (
+    kind === ELEMENT &&
+    tree.topNode.firstChild?.name !== 'SelfClosingTag' &&
+    tree.topNode.lastChild?.name !== 'CloseTag'
+  ) {
+    found = 0;
+  } else if (tree.children.length === 0) {
+    // A long leaf (text, a comment, a CDATA section) the parser did not put in a buffer.
+    const text = doc.sliceString(base, base + tree.length);
+    found =
+      kind === ENTITY_REFERENCE || kind === CHARACTER_REFERENCE
+        ? referenceAllowed(kind, text)
+          ? -1
+          : 0
+        : text.search(ILLEGAL_CHARACTER);
+  } else {
+    for (let i = 0; i < tree.children.length && found < 0; i += 1) {
+      const child = tree.children[i]!;
+      const at = tree.positions[i]!;
+      // A `TreeBuffer` holds its nodes in a flat array, a `Tree` its children.
+      const inner =
+        'buffer' in child
+          ? bufferProblem(child, base + at, doc)
+          : treeProblem(child, base + at, doc);
+      if (inner >= 0) found = at + inner;
+    }
+  }
+  problemCache.set(tree, found);
+  return found;
+}
+
+/**
+ * The first problem of the document level: a second root element, character data outside the
+ * root element, or no root element at all (absolute offset, -1 for none).
+ */
+function topLevelProblem(tree: Tree, doc: Text): number {
+  let elements = 0;
+  for (let child = tree.topNode.firstChild; child; child = child.nextSibling) {
+    switch (child.name) {
+      case 'Element':
+        elements += 1;
+        if (elements > 1) return child.from;
+        break;
+      case 'Text': {
+        const index = doc.sliceString(child.from, child.to).search(/[^ \t\r\n]/);
+        if (index >= 0) return child.from + index;
+        break;
+      }
+      case 'EntityReference':
+      case 'CharacterReference':
+      case 'Cdata':
+        return child.from;
+      default:
+        break;
+    }
+  }
+  return elements === 0 ? 0 : -1;
+}
+
+/**
+ * Whether the Source text is well-formed as far as the editor can tell (feature 006, FR-061
+ * "Unavailable"; C37; data-model §7.3), for a complete syntax tree (`tree`, by default the one
+ * the parser has completed, else the tree parsed so far): the line of the first problem - an
+ * error node (a broken tag at the tag's start), a `MismatchedCloseTag`, an unclosed element at
+ * its start tag (as `syntaxErrorPositions` reports it), or one of C37's cheap checks the parser
+ * does not make: several top-level elements or top-level text, an attribute name given twice in
+ * a tag, `<` inside an attribute value, a character XML does not allow, an entity reference
+ * other than the five predefined ones (character references stay allowed) - or null. One walk
+ * over the tree, its results cached per Lezer `Tree` and `TreeBuffer`: an edit rescans only
+ * the nodes the parser made anew. Ill-formed text the parser still accepts (an undeclared
+ * prefix, `--` in a comment) is the recorded deviation; the core reports it when the user
+ * leaves the view.
+ */
+export function syntaxErrorState(
+  state: EditorState,
+  tree: Tree = ensureSyntaxTree(state, state.doc.length, 0) ?? syntaxTree(state),
+): { line: number } | null {
+  if (stateCache.has(tree)) return stateCache.get(tree)!;
+  const doc = state.doc;
+  const inTree = treeProblem(tree, 0, doc);
+  const top = topLevelProblem(tree, doc);
+  const first = inTree < 0 ? top : top < 0 ? inTree : Math.min(inTree, top);
+  const answer = first < 0 ? null : { line: doc.lineAt(Math.min(first, doc.length)).number };
+  stateCache.set(tree, answer);
+  return answer;
 }
 
 /* ------------------------------------------------------------------------ */

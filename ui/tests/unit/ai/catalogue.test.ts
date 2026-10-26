@@ -981,6 +981,16 @@ describe('get_schema (US4)', () => {
     expect(attributes.map((a) => a.name)).toEqual(['id', 'xml:lang']);
     expect(attributes.every((a) => a.required === false)).toBe(true);
     expect(section.result.text).toBe(false);
+    // The generated table's content-model automaton (feature 006, resource-formats.md §12)
+    // stays the Source view's: the answer is the one of 0.0.5, member by member.
+    expect(Object.keys(section.result).sort()).toEqual([
+      'attributes',
+      'children',
+      'known',
+      'name',
+      'text',
+    ]);
+    expect(section.result).not.toHaveProperty('model');
 
     const p = await call('get_schema', { element: 'p' });
     expect(p.result.text).toBe(true);

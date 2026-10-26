@@ -2,7 +2,7 @@
  * The editor a table command acts on (feature 006; I10; data-model §6.1, §6.2): a
  * `TableEditTarget`. This phase has the Body adapter over the Body controller; the rich fields
  * of the Description view register theirs with the focus rule (US10), and the Source view has
- * none (its `insert.table` branch is US1's).
+ * none (its `insert.table` branch is `sourceTable.ts`, US1).
  */
 
 import type { Command as PMCommand, EditorState, Transaction } from 'prosemirror-state';

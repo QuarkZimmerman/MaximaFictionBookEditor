@@ -46,6 +46,7 @@ import {
   type RpcCallError,
 } from './fixtures/core';
 import { pageAnyPattern, pageText } from './fixtures/i18n';
+import { LINE_END, MOD } from './fixtures/keys';
 
 /* ------------------------------------------------------------------------ */
 /* The page's hooks and the model JSON                                      */
@@ -1497,5 +1498,274 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
     await page.keyboard.press('Enter');
     await page.waitForTimeout(200);
     expect(await toXml(page)).toBe(xml);
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* The Source view (T049)                                                 */
+  /* ---------------------------------------------------------------------- */
+
+  test('10. Add → Table in the Source view', async ({ core, page }) => {
+    test.setTimeout(240_000);
+    await core.rpc('settings.set', {
+      patch: { session: { toolbarLayouts: { commands: ['insert.table'] } } },
+    });
+    await openBook(core, page, PLACEMENT);
+    await page.getByTestId('view-source').click();
+    await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
+    const content = page.locator('.mfbe-source-editor .cm-content');
+    const addTableEntry = page.getByTestId('menu-add-table');
+    const button = page.getByTestId('toolbar-insert.table');
+    const command = await pageText(page, 'cmd.insert.table.tooltip');
+    const refusal = async (code: string, params: Record<string, string | number> = {}) =>
+      pageText(page, 'commands.unavailable.title', {
+        command,
+        reason: await pageText(page, `tables.reason.source.${code}`, params),
+      });
+    /** The verdict at `offset` once the background parse reached the end of the text. */
+    const settled = async (offset: number) => {
+      await expect
+        .poll(
+          () => page.evaluate((at) => window.__mfbeTest!.sourceTable!.sweep([at])[0]!.code, offset),
+          { timeout: 30_000 },
+        )
+        .not.toBe('analysing');
+    };
+    const cursorAt = async (offset: number) => {
+      expect(
+        await page.evaluate((at) => window.__mfbeTest!.sourceMapping!.select(at), offset),
+      ).toBe(true);
+      await settled(offset);
+    };
+    const sourceText = async () =>
+      (await page.evaluate(() => window.__mfbeTest!.sourceMapping!.sourceText())) ?? '';
+    const sourceSelection = () =>
+      page.evaluate(() => window.__mfbeTest!.sourceMapping!.sourceSelection());
+    const expectAddTable = async (title: string | null) => {
+      await page.getByTestId('menu-add').click();
+      if (title === null) {
+        await expect(addTableEntry).not.toHaveAttribute('aria-disabled');
+      } else {
+        await expect(addTableEntry).toHaveAttribute('aria-disabled', 'true');
+        await expect(addTableEntry).toHaveAttribute('title', title);
+      }
+      await page.keyboard.press('Escape');
+      await expect(addTableEntry).toBeHidden();
+    };
+    /** Right-clicks at the cursor's place on the screen; the menu stays open. */
+    const rightClickAtCursor = async () => {
+      await content.focus();
+      // CodeMirror draws the cursor where the selection is in its next measure cycle, an
+      // animation frame: its place is read after two frames, never the place it had before.
+      await page.evaluate(
+        'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
+      );
+      const cursor = page.locator('.mfbe-source-editor .cm-cursor-primary').first();
+      await expect(cursor).toBeAttached();
+      const box = (await cursor.boundingBox())!;
+      await page.mouse.click(box.x + 1, box.y + box.height / 2, { button: 'right' });
+      await expect(page.getByTestId('source-context-menu')).toBeVisible();
+    };
+
+    // The cursor between </p> and <p> inside a section: the paragraph's text found, then End.
+    const paragraphText = 'The paragraph at the start of section 1, with a note';
+    await content.click();
+    await page.keyboard.press(`${MOD}+Home`);
+    await page.keyboard.press(`${MOD}+f`);
+    await page.getByTestId('dialog-find-query').fill(paragraphText);
+    await page.getByTestId('dialog-find-button-findNext').click();
+    await page.getByTestId('dialog-find-button-cancel').click();
+    await expect(page.getByTestId('dialog-find')).toHaveCount(0);
+    await content.focus();
+    await page.keyboard.press(LINE_END);
+    const original = await sourceText();
+    const lines = original.split('\n');
+    const lineIndex = lines.findIndex((line) => line.includes(paragraphText));
+    const paragraphLine = lines[lineIndex]!;
+    expect(lines[lineIndex + 1]).toMatch(/^\s*<p id="p-split"/);
+    const between = lines.slice(0, lineIndex + 1).join('\n').length;
+    expect(await sourceSelection()).toEqual({ anchor: between, head: between });
+    await settled(between);
+
+    // Add → Table is the Source view's one Add command; Add → Binary Object… keeps its state.
+    await expectAddTable(null);
+    await page.getByTestId('menu-add').click();
+    for (const id of [
+      'title',
+      'epigraph',
+      'image',
+      'inlineImage',
+      'poem',
+      'cite',
+      'sectionImage',
+    ]) {
+      await expect(page.getByTestId(`menu-add-${id}`), id).toHaveAttribute('aria-disabled', 'true');
+    }
+    await expect(page.getByTestId('menu-add-binary')).not.toHaveAttribute('aria-disabled');
+    await page.keyboard.press('Escape');
+    await expect(button).toBeEnabled();
+
+    // 2 rows of 3 cells, laid out like the neighbours: a tab per level.
+    await page.getByTestId('menu-add').click();
+    await addTableEntry.click();
+    await confirmTableDialog(page, { rows: 2, columns: 3 });
+    await expect.poll(sourceText).not.toBe(original);
+    const inserted = await sourceText();
+    const indent = /^\s*/.exec(paragraphLine)![0];
+    const row = [
+      `${indent}\t<tr>`,
+      `${indent}\t\t<td></td>`,
+      `${indent}\t\t<td></td>`,
+      `${indent}\t\t<td></td>`,
+      `${indent}\t</tr>`,
+    ];
+    const block = [`${indent}<table>`, ...row, ...row, `${indent}</table>`];
+    const after = inserted.split('\n');
+    expect(after.slice(lineIndex, lineIndex + block.length + 2)).toEqual([
+      paragraphLine,
+      ...block,
+      lines[lineIndex + 1],
+    ]);
+    const firstCell = inserted.indexOf('<td>', between) + '<td>'.length;
+    expect(await sourceSelection()).toEqual({ anchor: firstCell, head: firstCell });
+    // Typing lands in the first cell; the insertion is one undo step of its own.
+    await page.keyboard.type('X');
+    await expect
+      .poll(sourceText)
+      .toBe(`${inserted.slice(0, firstCell)}X${inserted.slice(firstCell)}`);
+    await menu(page, 'edit', 'undo');
+    await expect.poll(sourceText).toBe(inserted);
+    await menu(page, 'edit', 'undo');
+    await expect.poll(sourceText).toBe(original);
+    await menu(page, 'edit', 'redo');
+    await expect.poll(sourceText).toBe(inserted);
+
+    // The Body view: the 2 × 3 table after that paragraph, the caret in its first cell.
+    await page.getByTestId('view-body').click();
+    await expect(page.getByTestId('body-editor')).toHaveAttribute('contenteditable', 'true');
+    const body = await documentOf(page);
+    const table = tableAfter(body, paragraphText);
+    expect(table.content!.map((tr) => tr.content!.map((cell) => cell.type))).toEqual([
+      ['td', 'td', 'td'],
+      ['td', 'td', 'td'],
+    ]);
+    const cell = { nodeId: table.content![0]!.content![0]!.attrs!.nodeId!, offset: 0 };
+    await expect.poll(() => bodySelection(page)).toEqual({ anchor: cell, head: cell });
+    expect(await liveErrors(core, page)).toBe(0);
+    // ... and back: the cursor between the first <td> and </td> (quickstart §12).
+    await page.getByTestId('view-source').click();
+    await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
+    await expect
+      .poll(async () => {
+        const text = await sourceText();
+        const at = text.indexOf('<td>', text.indexOf(paragraphText)) + '<td>'.length;
+        const selection = await sourceSelection();
+        return selection && selection.anchor === at && selection.head === at;
+      })
+      .toBe(true);
+
+    // The refusals, each with its reason (FR-061 "Unavailable").
+    const text = await sourceText();
+    const inText = text.indexOf(paragraphText) + 4;
+    await cursorAt(inText);
+    await expectAddTable(await refusal('inText'));
+    await expect(button).toBeDisabled();
+    await expect(button).toHaveAttribute('title', await refusal('inText'));
+    await cursorAt(text.indexOf('<p id="p-split"') + 4);
+    await expectAddTable(await refusal('inTag'));
+    const section2 = text.indexOf('Section 2: a heading part and content');
+    const afterTitle = text.indexOf('</title>', section2) + '</title>'.length;
+    expect(text.slice(afterTitle).trimStart().startsWith('<epigraph>')).toBe(true);
+    await cursorAt(afterTitle);
+    await expectAddTable(await refusal('notAllowed', { element: 'section' }));
+
+    // Alt+T at a refused point opens no dialog and is not consumed: Alt+T opens Tools in
+    // English, no menu in Russian and Ukrainian; between two paragraphs it opens the dialog.
+    await cursorAt(inText);
+    await content.focus();
+    await page.keyboard.press('Alt+t');
+    await page.waitForTimeout(300);
+    await expect(page.getByTestId('dialog-table')).toHaveCount(0);
+    if ((await page.locator('html').getAttribute('lang')) === 'en') {
+      await expect(page.getByTestId('menu-tools-popup')).toBeVisible();
+    }
+    await page.keyboard.press('Escape');
+    const gap = text.indexOf('<p id="p-split"');
+    const betweenNow = text.lastIndexOf('</p>', gap) + '</p>'.length;
+    await cursorAt(betweenNow);
+    await content.focus();
+    await page.keyboard.press('Alt+t');
+    await expect(page.getByTestId('dialog-table')).toBeVisible();
+    await page.getByTestId('dialog-table-button-cancel').click();
+    await expect(button).toBeEnabled();
+
+    // Table… in the Source context menu, judged at the clicked point; opening it moves nothing.
+    await cursorAt(betweenNow);
+    await rightClickAtCursor();
+    const sourceEntry = page.getByTestId('source-context-menu-insert.table');
+    await expect(sourceEntry).not.toHaveAttribute('aria-disabled');
+    const order = await page
+      .getByTestId('source-context-menu')
+      .locator('[role="menuitem"]')
+      .evaluateAll((items) =>
+        items.map((item) => (item as unknown as { dataset: { testid?: string } }).dataset.testid),
+      );
+    expect(order.indexOf('source-context-menu-insert.table')).toBe(
+      order.indexOf('source-context-menu-selectAll') + 1,
+    );
+    await page.keyboard.press('Escape');
+    await cursorAt(inText);
+    await rightClickAtCursor();
+    await expect(sourceEntry).toHaveAttribute('aria-disabled', 'true');
+    await expect(sourceEntry).toHaveAttribute('title', await refusal('inText'));
+    expect(await sourceSelection()).toEqual({ anchor: inText, head: inText });
+    await page.keyboard.press('Escape');
+
+    // A broken closing tag: notWellFormed with the line of the first problem; repaired, the
+    // command is available again (U5).
+    const notWellFormed = (line: number) => refusal('notWellFormed', { line });
+    const brokenAt = text.indexOf('</p>', text.indexOf('A paragraph in the middle of section 1.'));
+    const brokenLine = text.slice(0, brokenAt).split('\n').length;
+    await page.evaluate(
+      (at) => window.__mfbeTest!.sourceMapping!.select(at, at + 1),
+      brokenAt + '</p'.length,
+    );
+    await content.focus();
+    await page.keyboard.press('Delete');
+    await expect.poll(sourceText).not.toBe(text);
+    await cursorAt(betweenNow);
+    await page.getByTestId('menu-add').click();
+    await expect(addTableEntry).toHaveAttribute('aria-disabled', 'true');
+    // The broken tag's own line, although the parser notices the problem only at the next tag.
+    await expect(addTableEntry).toHaveAttribute('title', await notWellFormed(brokenLine));
+    await page.keyboard.press('Escape');
+    expect(
+      await page.evaluate(
+        (at) => window.__mfbeTest!.sourceMapping!.select(at),
+        brokenAt + '</p'.length,
+      ),
+    ).toBe(true);
+    await content.focus();
+    await page.keyboard.type('>');
+    await expect.poll(sourceText).toBe(text);
+    await cursorAt(betweenNow);
+    await expectAddTable(null);
+
+    // A malformed book opens in the Source view alone: unavailable before the first edit.
+    await core.enqueueDialog('dialog.openFile', { paths: [fixtureBook('malformed.fb2')] });
+    await menu(page, 'file', 'open');
+    const discard = page.getByTestId('dialog-save-changes-button-no');
+    const parseError = page.getByTestId('dialog-parse-error-button-ok');
+    await expect(discard.or(parseError)).toBeVisible();
+    if (await discard.isVisible()) await discard.click();
+    await parseError.click();
+    await waitForBook(page, fixtureBook('malformed.fb2'));
+    await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
+    const malformed = await sourceText();
+    await cursorAt(malformed.indexOf('<section>') + '<section>'.length);
+    const pattern = esc(await notWellFormed(987654)).replace('987654', '\\d+');
+    await page.getByTestId('menu-add').click();
+    await expect(addTableEntry).toHaveAttribute('aria-disabled', 'true');
+    await expect(addTableEntry).toHaveAttribute('title', new RegExp(`^${pattern}$`));
+    await page.keyboard.press('Escape');
   });
 });
