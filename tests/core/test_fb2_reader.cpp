@@ -773,3 +773,49 @@ TEST_CASE(
         }
     }
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: the attributes of marks (contracts/document-model.md §2.1, §2.2)              */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "reader: marks keep xml:lang and the link's xlink:type; their other attributes are dropped",
+    "[reader][marks]") {
+    const auto r = read_body(
+        "<section><p>"
+        "<emphasis xml:lang=\"la\" class=\"x\">a</emphasis>"
+        "<strong xml:lang=\"\">b</strong>"
+        "<strikethrough xml:lang=\"de\">c</strikethrough><sub xml:lang=\"de\">d</sub>"
+        "<sup xml:lang=\"de\">e</sup><code xml:lang=\"de\">f</code>"
+        "<style name=\"foreign\" xml:lang=\"la\" foo=\"bar\">g</style>"
+        "<style>h</style>"
+        "<a l:href=\"#n1\" l:type=\"simple\" type=\"note\" l:title=\"t\" class=\"y\">i</a>"
+        "<a l:href=\"#s2\" l:type=\"extended\">j</a>"
+        "<emphasis>k</emphasis><a l:href=\"#s3\">l</a>"
+        "</p></section>"
+        "<section id=\"s2\"><p>x</p></section><section id=\"s3\"><p>y</p></section>");
+    const model::Node& p = r.document.bodies.at(0).content.at(0).content.at(0);
+    REQUIRE(p.content.size() == 12);
+    const auto mark_of = [&](std::size_t i) -> const model::Mark& {
+        REQUIRE(p.content[i].marks.size() == 1);
+        return p.content[i].marks[0];
+    };
+    using nlohmann::json;
+    CHECK(mark_of(0) == model::Mark{"emphasis", json{{"lang", "la"}}});  // class dropped
+    CHECK(mark_of(1) == model::Mark{"strong", json{{"lang", ""}}});      // "" kept verbatim
+    CHECK(mark_of(2) == model::Mark{"strikethrough", json{{"lang", "de"}}});
+    CHECK(mark_of(3) == model::Mark{"sub", json{{"lang", "de"}}});
+    CHECK(mark_of(4) == model::Mark{"sup", json{{"lang", "de"}}});
+    CHECK(mark_of(5) == model::Mark{"code", json{{"lang", "de"}}});
+    CHECK(mark_of(6) == model::Mark{"style", json{{"name", "foreign"}, {"lang", "la"}}});
+    CHECK(mark_of(7) == model::Mark{"style", json{{"name", ""}}});
+    CHECK(mark_of(8) ==
+          model::Mark{"link", json{{"href", "#n1"}, {"type", "note"}, {"xlinkType", "simple"}}});
+    CHECK(mark_of(9) == model::Mark{"link", json{{"href", "#s2"}, {"xlinkType", "extended"}}});
+    // A mark without xml:lang has null attributes, as one decoded from JSON without attrs.
+    CHECK(mark_of(10) == model::Mark{"emphasis", nullptr});
+    CHECK(mark_of(10).attrs.is_null());
+    CHECK(mark_of(11) == model::Mark{"link", json{{"href", "#s3"}}});
+    // The model read from XML equals the one decoded from its JSON (Mark ==).
+    CHECK(model::node_from_json(model::to_json(p)) == p);
+}

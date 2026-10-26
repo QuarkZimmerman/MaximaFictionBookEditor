@@ -739,3 +739,57 @@ TEST_CASE(
     // The fragment writer shares the escaping.
     CHECK(fb2::write_fragment({text_node("a\rb")}) == "a&#13;b");
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: the attributes of marks (contracts/document-model.md §2.3)                    */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE("writer: a link is written with xlink:href, xlink:type and type", "[writer][marks]") {
+    using nlohmann::json;
+    const model::Mark note{"link",
+                           json{{"href", "#n1"}, {"type", "note"}, {"xlinkType", "simple"}}};
+    const model::Mark plain_link{"link", json{{"href", "#s2"}, {"xlinkType", "extended"}}};
+    const model::Mark la{"emphasis", json{{"lang", "la"}}};
+    const model::Mark foreign{"style", json{{"name", "foreign"}, {"lang", "la"}}};
+    const model::Mark nameless{"style", json{{"name", ""}}};
+    const model::Mark empty_lang{"strong", json{{"lang", ""}}};
+    const std::vector<model::Node> inline_nodes = {
+        text_node("1", {note}),     text_node(" ", {}),          text_node("2", {plain_link}),
+        text_node(" ", {}),         text_node("pre", {la}),      text_node(" ", {}),
+        text_node("st", {foreign}), text_node(" ", {}),          text_node("v", {nameless}),
+        text_node(" ", {}),         text_node("e", {empty_lang})};
+    model::Document doc;
+    doc.bodies.push_back(element("body", {element("section", {element("p", inline_nodes)})}));
+    const std::string expected =
+        "<p><a l:href=\"#n1\" l:type=\"simple\" type=\"note\">1</a> <a l:href=\"#s2\" "
+        "l:type=\"extended\">2</a> <emphasis xml:lang=\"la\">pre</emphasis> <style "
+        "name=\"foreign\" xml:lang=\"la\">st</style> <style name=\"\">v</style> <strong "
+        "xml:lang=\"\">e</strong></p>";
+    CHECK_THAT(fb2::write_document(doc, nullptr).text, ContainsSubstring(expected));
+
+    // The document's xlink prefix on both xlink attributes.
+    fb2::WriteOptions options;
+    options.xlink_prefix = "xlink";
+    const std::string prefixed = fb2::write_document(doc, nullptr, options).text;
+    CHECK_THAT(prefixed, ContainsSubstring("<a xlink:href=\"#n1\" xlink:type=\"simple\" "
+                                           "type=\"note\">1</a>"));
+    CHECK_THAT(prefixed, ContainsSubstring("<a xlink:href=\"#s2\" xlink:type=\"extended\">2</a>"));
+    CHECK_FALSE(fb2::check_well_formed(prefixed).has_value());
+
+    // The fragment writer (doc.fragmentToXml) writes the same tags.
+    CHECK(fb2::write_fragment({text_node("1", {note}), text_node(" "), text_node("pre", {la})}) ==
+          "<a l:href=\"#n1\" l:type=\"simple\" type=\"note\">1</a> <emphasis "
+          "xml:lang=\"la\">pre</emphasis>");
+
+    // Read back from a book, the marks come back with their attributes.
+    const std::string book = test::minimal_book(
+        "<section><p><a l:href=\"#s2\" l:type=\"simple\">x</a> <emphasis "
+        "xml:lang=\"la\">y</emphasis></p></section><section id=\"s2\"><p>z</p></section>");
+    auto r = read_text(book);
+    const std::string text = fb2::write_document(r->result.document, &r->store).text;
+    CHECK_THAT(text, ContainsSubstring("<p><a l:href=\"#s2\" l:type=\"simple\">x</a> <emphasis "
+                                       "xml:lang=\"la\">y</emphasis></p>"));
+    auto back = read_text(text);
+    CHECK(back->result.document.bodies.at(0).content.at(0).content.at(0).content ==
+          r->result.document.bodies.at(0).content.at(0).content.at(0).content);
+}

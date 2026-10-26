@@ -772,33 +772,43 @@ private:
         return sorted;
     }
 
+    // A string member of a mark's attributes (nullopt when absent or not a string).
+    static std::optional<std::string> mark_attr(const Mark& mark, const char* name) {
+        if (!mark.attrs.is_object()) {
+            return std::nullopt;
+        }
+        auto it = mark.attrs.find(name);
+        if (it == mark.attrs.end() || !it->is_string()) {
+            return std::nullopt;
+        }
+        return it->get<std::string>();
+    }
+
+    // A mark's start tag with its schema attributes (feature 006, FR-064): `xml:lang` on
+    // formatting, `name` then `xml:lang` on a style, and `xlink:href`, `xlink:type` (the
+    // document's xlink prefix on both) then `type` on a link.
     std::string mark_open(const Mark& mark) {
         if (mark.type == "link") {
-            std::string href;
-            std::optional<std::string> type;
-            if (mark.attrs.is_object()) {
-                if (mark.attrs.contains("href") && mark.attrs["href"].is_string()) {
-                    href = mark.attrs["href"].get<std::string>();
-                }
-                if (mark.attrs.contains("type") && mark.attrs["type"].is_string()) {
-                    type = mark.attrs["type"].get<std::string>();
-                }
+            const std::string prefix = options_.xlink_prefix;
+            std::string out =
+                "<a" + attr((prefix + ":href").c_str(), mark_attr(mark, "href").value_or(""));
+            if (auto xlink_type = mark_attr(mark, "xlinkType")) {
+                out += attr((prefix + ":type").c_str(), *xlink_type);
             }
-            std::string out = "<a" + attr((options_.xlink_prefix + ":href").c_str(), href);
-            if (type && !type->empty()) {
+            if (auto type = mark_attr(mark, "type"); type && !type->empty()) {
                 out += attr("type", *type);
             }
             return out + ">";
         }
+        std::string out = "<" + mark.type;
         if (mark.type == "style") {
-            std::string name;
-            if (mark.attrs.is_object() && mark.attrs.contains("name") &&
-                mark.attrs["name"].is_string()) {
-                name = mark.attrs["name"].get<std::string>();
-            }
-            return "<style" + attr("name", name) + ">";
+            // The schema requires `name` outside links; an empty one is written `name=""`.
+            out += attr("name", mark_attr(mark, "name").value_or(""));
         }
-        return "<" + mark.type + ">";
+        if (auto lang = mark_attr(mark, "lang")) {
+            out += attr("xml:lang", *lang);
+        }
+        return out + ">";
     }
 
     static std::string mark_close(const Mark& mark) {

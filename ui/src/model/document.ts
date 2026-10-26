@@ -299,15 +299,21 @@ export interface TextNode {
 
 export interface InlineImageNode extends BaseNode<'inline-image', { href: string; alt?: string }> {}
 
+/**
+ * An inline formatting element or a link (contracts/document-model.md §2.1, feature 006): the
+ * schema's attributes, kept verbatim - `lang` is the element's `xml:lang` (any value, `""`
+ * included), `xlinkType` a link's `xlink:type`; `attrs` is present only with a member. Every
+ * other attribute of a mark is dropped when a book is read.
+ */
 export type Mark =
-  | { type: 'strong' }
-  | { type: 'emphasis' }
-  | { type: 'strikethrough' }
-  | { type: 'sub' }
-  | { type: 'sup' }
-  | { type: 'code' }
-  | { type: 'style'; attrs: { name: string } }
-  | { type: 'link'; attrs: { href: string; type?: 'note' | string } };
+  | { type: 'strong'; attrs?: { lang?: string } }
+  | { type: 'emphasis'; attrs?: { lang?: string } }
+  | { type: 'strikethrough'; attrs?: { lang?: string } }
+  | { type: 'sub'; attrs?: { lang?: string } }
+  | { type: 'sup'; attrs?: { lang?: string } }
+  | { type: 'code'; attrs?: { lang?: string } }
+  | { type: 'style'; attrs: { name: string; lang?: string } }
+  | { type: 'link'; attrs: { href: string; type?: 'note' | string; xlinkType?: string } };
 
 /* ------------------------------------------------------------------------ */
 /* Binaries (metadata only — bytes stay in the core)                        */

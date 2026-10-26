@@ -43,6 +43,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - Carriage returns written in a book as `&#13;` (or `&#xD;`) no longer turn into line feeds
   when the book is saved: the text is written with `&#13;` again, in the body, the annotations
   and the other description fields alike, and reads back unchanged.
+- Inline formatting keeps its language (`xml:lang` on `strong`, `emphasis`, `strikethrough`,
+  `sub`, `sup`, `code` and named styles), and links keep their `xlink:type`, through opening,
+  editing and saving; release 0.0.5 dropped both when a book was opened. Scripts see them as
+  `attrs.lang` and `attrs.xlinkType` of the marks; changing a link's target or kind keeps its
+  `xlink:type`. Other attributes of these elements are still dropped.
 
 ## 0.0.5 - unreleased
 

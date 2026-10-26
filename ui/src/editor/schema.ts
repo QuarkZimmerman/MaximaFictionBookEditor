@@ -501,12 +501,36 @@ function parseRawXmlAttrs(dom: HTMLElement | string): Attrs | null {
 /* Marks (canonical order = rank order)                                     */
 /* ------------------------------------------------------------------------ */
 
+/** The DOM attribute of a mark's `lang` (its xml:lang): written only when set, `""` included. */
+function langAttr(mark: { attrs: Attrs }): Record<string, string> {
+  const lang = mark.attrs.lang as string | null | undefined;
+  return lang === null || lang === undefined ? {} : { lang: String(lang) };
+}
+
+/**
+ * A formatting mark (`strong` ... `code`) with its `lang`, the element's xml:lang (feature 006,
+ * FR-064; data-model §12.2). Only the editor's own markup (`<tag class=className>`, the first
+ * rule) carries a language: the generic rules after it give none, so foreign HTML never brings
+ * one onto a mark.
+ */
 function simpleMark(tag: string, className: string, parse: ParseRule[]): MarkSpec {
   return {
-    toDOM() {
-      return [tag, { class: className }, 0];
+    attrs: { lang: { default: null } },
+    toDOM(mark) {
+      return [tag, { class: className, ...langAttr(mark) }, 0];
     },
-    parseDOM: parse,
+    parseDOM: [
+      { tag: `${tag}.${className}`, getAttrs: (dom) => ({ lang: dom.getAttribute('lang') }) },
+      ...parse,
+    ],
+  };
+}
+
+/** `href` and `type` of a link element (the editor's own or foreign HTML). */
+function linkAttrsOf(dom: HTMLElement): Attrs {
+  return {
+    href: dom.getAttribute('href') ?? '',
+    type: dom.getAttribute('data-type') ?? (dom.classList.contains('fb-note') ? 'note' : null),
   };
 }
 
@@ -533,39 +557,51 @@ const marks: Record<string, MarkSpec> = {
   sub: simpleMark('sub', 'fb-sub', [{ tag: 'sub' }, { style: 'vertical-align=sub' }]),
   sup: simpleMark('sup', 'fb-sup', [{ tag: 'sup' }, { style: 'vertical-align=super' }]),
   code: simpleMark('code', 'fb-code', [{ tag: 'code' }, { tag: 'tt' }]),
+  // A named style with its `lang` (feature 006, FR-064), both on the editor's own span.
   style: {
-    attrs: { name: { default: '' } },
+    attrs: { name: { default: '' }, lang: { default: null } },
     toDOM(mark) {
-      return ['span', { class: 'fb-style', 'data-style': String(mark.attrs.name) }, 0];
+      return [
+        'span',
+        { class: 'fb-style', 'data-style': String(mark.attrs.name), ...langAttr(mark) },
+        0,
+      ];
     },
     parseDOM: [
       {
         tag: 'span.fb-style',
-        getAttrs: (dom) => ({ name: dom.getAttribute('data-style') ?? '' }),
+        getAttrs: (dom) => ({
+          name: dom.getAttribute('data-style') ?? '',
+          lang: dom.getAttribute('lang'),
+        }),
       },
     ],
   },
+  // `xlinkType` is the link's xlink:type (feature 006, FR-064): written as `data-xlink-type`
+  // and read back only from the editor's own `a.fb-link`; the generic rule gives none.
   link: {
-    attrs: { href: { default: '' }, type: { default: null } },
+    attrs: { href: { default: '' }, type: { default: null }, xlinkType: { default: null } },
     inclusive: false,
     toDOM(mark) {
       const type = mark.attrs.type as string | null;
+      const xlinkType = mark.attrs.xlinkType as string | null;
       const attrs: Record<string, string> = {
         class: type === 'note' ? 'fb-link fb-note' : 'fb-link',
         href: String(mark.attrs.href),
       };
       if (type) attrs['data-type'] = type;
+      if (xlinkType !== null && xlinkType !== undefined) attrs['data-xlink-type'] = xlinkType;
       return ['a', attrs, 0];
     },
     parseDOM: [
       {
-        tag: 'a[href]',
+        tag: 'a.fb-link[href]',
         getAttrs: (dom) => ({
-          href: dom.getAttribute('href') ?? '',
-          type:
-            dom.getAttribute('data-type') ?? (dom.classList.contains('fb-note') ? 'note' : null),
+          ...linkAttrsOf(dom),
+          xlinkType: dom.getAttribute('data-xlink-type'),
         }),
       },
+      { tag: 'a[href]', getAttrs: (dom) => linkAttrsOf(dom) },
     ],
   },
 };

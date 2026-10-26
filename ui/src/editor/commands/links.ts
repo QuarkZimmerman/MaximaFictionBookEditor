@@ -24,6 +24,8 @@ export interface LinkRange {
   to: number;
   href: string;
   type: string | null;
+  /** The link's xlink:type as read (feature 006, FR-064); `null` for a link without one. */
+  xlinkType: string | null;
 }
 
 export function linkRangeAt(state: EditorState): LinkRange | null {
@@ -40,6 +42,7 @@ export function linkRangeAt(state: EditorState): LinkRange | null {
     to: $from.start() + extent.to,
     href: String(mark.attrs.href ?? ''),
     type: (mark.attrs.type as string | null) ?? null,
+    xlinkType: (mark.attrs.xlinkType as string | null) ?? null,
   };
 }
 
@@ -51,19 +54,38 @@ export function canCreateLink(state: EditorState): boolean {
   return linkRangeAt(state) !== null;
 }
 
-/** Applies a link (or footnote link) to the selection / the link run at the caret. */
+/** The first link mark on an inline node of `from`..`to`, if any. */
+function firstLinkIn(doc: PMNode, from: number, to: number): Mark | null {
+  let found: Mark | null = null;
+  doc.nodesBetween(from, to, (node) => {
+    if (found) return false;
+    if (node.isInline) found = M.link!.isInSet(node.marks) ?? null;
+    return !found;
+  });
+  return found;
+}
+
+/**
+ * Applies a link (or footnote link) to the selection / the link run at the caret. A link that
+ * replaces an existing one keeps that link's `xlinkType` (feature 006, FR-064); a new link
+ * gets none.
+ */
 export function setLink(href: string, type: string | null = null): Command {
   return (state, dispatch) => {
     if (!canCreateLink(state)) return false;
     if (dispatch) {
       let { from, to } = state.selection;
+      let xlinkType: unknown;
       if (state.selection.empty) {
         const range = linkRangeAt(state)!;
         from = range.from;
         to = range.to;
+        xlinkType = range.xlinkType;
+      } else {
+        xlinkType = firstLinkIn(state.doc, from, to)?.attrs.xlinkType ?? null;
       }
       const tr = state.tr.removeMark(from, to, M.link!);
-      tr.addMark(from, to, M.link!.create({ href, type }));
+      tr.addMark(from, to, M.link!.create({ href, type, xlinkType }));
       dispatch(tr);
     }
     return true;

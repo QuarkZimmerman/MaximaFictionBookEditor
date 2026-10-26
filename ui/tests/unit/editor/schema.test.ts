@@ -156,7 +156,7 @@ describe('fb2Schema', () => {
       marks.strong!.create(),
     ]);
     expect(text.marks.map((m) => m.type.name)).toEqual(['strong', 'emphasis', 'link']);
-    expect(text.marks[2]!.attrs).toEqual({ href: '#n_1', type: 'note' });
+    expect(text.marks[2]!.attrs).toEqual({ href: '#n_1', type: 'note', xlinkType: null });
   });
 
   it('renders semantic DOM with fb-* classes', () => {
@@ -272,5 +272,52 @@ describe('feature 006: cells, marks and atoms in the schema and the conversions'
     const empty = viaEditor({ type: 'td', attrs: { nodeId: 'c2', lang: '' }, content: [] });
     expect(empty.node.attrs.lang).toBe('');
     expect(empty.back).toEqual({ type: 'td', attrs: { nodeId: 'c2', lang: '' }, content: [] });
+  });
+
+  it('marks declare lang and link declares xlinkType; both survive fromModel then toModel', () => {
+    for (const name of ['strong', 'emphasis', 'strikethrough', 'sub', 'sup', 'code', 'style']) {
+      expect(Object.keys(marks[name]!.spec.attrs ?? {}), name).toContain('lang');
+    }
+    expect(Object.keys(marks.link!.spec.attrs ?? {})).toEqual(['href', 'type', 'xlinkType']);
+    const paragraph: ModelNodeJson = {
+      type: 'p',
+      attrs: { nodeId: 'p1' },
+      content: [
+        { type: 'text', text: 'a', marks: [{ type: 'strong', attrs: { lang: 'la' } }] },
+        { type: 'text', text: 'b', marks: [{ type: 'code', attrs: { lang: '' } }] },
+        { type: 'text', text: 'c', marks: [{ type: 'style', attrs: { name: 'x', lang: 'la' } }] },
+        {
+          type: 'text',
+          text: 'd',
+          marks: [{ type: 'link', attrs: { href: '#n1', type: 'note', xlinkType: 'simple' } }],
+        },
+        { type: 'text', text: 'e', marks: [{ type: 'emphasis' }] },
+        { type: 'text', text: 'f', marks: [{ type: 'link', attrs: { href: '#s2' } }] },
+      ],
+    };
+    const { node, back, problems } = viaEditor(paragraph);
+    expect(problems).toEqual([]);
+    expect(node.child(0).marks[0]!.attrs).toEqual({ lang: 'la' });
+    expect(node.child(1).marks[0]!.attrs).toEqual({ lang: '' });
+    expect(node.child(2).marks[0]!.attrs).toEqual({ name: 'x', lang: 'la' });
+    expect(node.child(3).marks[0]!.attrs).toEqual({
+      href: '#n1',
+      type: 'note',
+      xlinkType: 'simple',
+    });
+    expect(node.child(4).marks[0]!.attrs).toEqual({ lang: null });
+    expect(back).toEqual(paragraph);
+    // The DOM form: lang on the element when set ("" included), data-xlink-type on a link.
+    const dom = (index: number) =>
+      node.child(index).marks[0]!.type.spec.toDOM!(node.child(index).marks[0]!, true);
+    expect(dom(0)).toEqual(['strong', { class: 'fb-strong', lang: 'la' }, 0]);
+    expect(dom(1)).toEqual(['code', { class: 'fb-code', lang: '' }, 0]);
+    expect(dom(2)).toEqual(['span', { class: 'fb-style', 'data-style': 'x', lang: 'la' }, 0]);
+    expect(dom(3)).toEqual([
+      'a',
+      { class: 'fb-link fb-note', href: '#n1', 'data-type': 'note', 'data-xlink-type': 'simple' },
+      0,
+    ]);
+    expect(dom(4)).toEqual(['em', { class: 'fb-emphasis' }, 0]);
   });
 });

@@ -337,7 +337,7 @@ describe('Style commands (T058)', () => {
     const from = posOf(simpleBook, 'Second');
     const state = stateAt(simpleBook, from, from + 6);
     const styled = run(state, setNamedStyle('note'))!;
-    expect(styled.doc.nodeAt(from)!.marks[0]!.attrs).toEqual({ name: 'note' });
+    expect(styled.doc.nodeAt(from)!.marks[0]!.attrs).toEqual({ name: 'note', lang: null });
     const cleared = run(styled, setNamedStyle(''))!;
     expect(cleared.doc.nodeAt(from)!.marks).toHaveLength(0);
     expect(setNamedStyle('x')(stateAt(simpleBook, from))).toBe(false); // needs a selection
@@ -507,7 +507,7 @@ describe('Links and footnotes (T061)', () => {
     const linked = run(stateAt(simpleBook, from, from + 5), setLink('#target'))!;
     const mark = linked.doc.nodeAt(from)!.marks[0]!;
     expect(mark.type.name).toBe('link');
-    expect(mark.attrs).toEqual({ href: '#target', type: null });
+    expect(mark.attrs).toEqual({ href: '#target', type: null, xlinkType: null });
     // Caret inside the link: editable / removable.
     const caret = stateAt(linked.doc, from + 2);
     expect(canCreateLink(caret)).toBe(true);
@@ -516,6 +516,35 @@ describe('Links and footnotes (T061)', () => {
     const removed = run(retargeted, removeLink)!;
     expect(removed.doc.nodeAt(from)!.marks).toHaveLength(0);
     expect(removeLink(removed)).toBe(false);
+  });
+
+  it("setLink keeps the link's xlinkType when it changes href or type", () => {
+    // Feature 006 (FR-064): a link read with xlink:type keeps it through an edit of its target
+    // or its kind; a new link gets none.
+    const read = M.link!.create({ href: '#s1', type: null, xlinkType: 'simple' });
+    const d = doc(
+      body([
+        section([N.p!.create(null, [fb2Schema.text('see '), fb2Schema.text('here', [read])])]),
+      ]),
+    );
+    const from = posOf(d, 'here');
+    const linkAt = (state: EditorState) =>
+      state.doc.nodeAt(from)!.marks.find((m) => m.type === M.link)!.attrs;
+    // The caret in the link: href changed, then the type.
+    const retargeted = run(stateAt(d, from + 2), setLink('#s2'))!;
+    expect(linkAt(retargeted)).toEqual({ href: '#s2', type: null, xlinkType: 'simple' });
+    const asNote = run(stateAt(retargeted.doc, from + 1), setLink('#n_1', 'note'))!;
+    expect(linkAt(asNote)).toEqual({ href: '#n_1', type: 'note', xlinkType: 'simple' });
+    // A selection over the link: the same.
+    const selected = run(stateAt(asNote.doc, from, from + 4), setLink('#s3'))!;
+    expect(linkAt(selected)).toEqual({ href: '#s3', type: null, xlinkType: 'simple' });
+    // A new link over plain text gets none.
+    const fresh = run(stateAt(d, posOf(d, 'see'), posOf(d, 'see') + 3), setLink('#s4'))!;
+    expect(fresh.doc.nodeAt(posOf(d, 'see'))!.marks[0]!.attrs).toEqual({
+      href: '#s4',
+      type: null,
+      xlinkType: null,
+    });
   });
 
   it('numbers footnotes n_<N> after the highest existing one and creates the notes body', () => {

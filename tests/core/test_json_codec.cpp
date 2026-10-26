@@ -220,3 +220,30 @@ TEST_CASE("json_codec: emission rules for nodes and marks", "[codec]") {
     CHECK(model::file_kind_from_extension("fbd") == model::FileKind::fbd);
     CHECK(model::file_kind_from_extension(".xml") == model::FileKind::xml);
 }
+
+TEST_CASE("json_codec: marks carry lang and xlinkType; a mark without attributes has no attrs",
+          "[codec][marks]") {
+    // Feature 006 (document-model §2.1): the codec carries a mark's attributes as they are;
+    // `attrs` is written only when it has a member.
+    const json marks = json::array({
+        {{"type", "strong"}},
+        {{"type", "emphasis"}, {"attrs", {{"lang", "la"}}}},
+        {{"type", "code"}, {"attrs", {{"lang", ""}}}},
+        {{"type", "style"}, {"attrs", {{"name", "foreign"}, {"lang", "la"}}}},
+        {{"type", "link"}, {"attrs", {{"href", "#n1"}, {"type", "note"}, {"xlinkType", "simple"}}}},
+    });
+    const json text{{"type", "text"}, {"text", "x"}, {"marks", marks}};
+    const model::Node node = model::node_from_json(text);
+    REQUIRE(node.marks.size() == 5);
+    CHECK(node.marks[0] == model::Mark{"strong", nullptr});
+    CHECK(node.marks[1] == model::Mark{"emphasis", json{{"lang", "la"}}});
+    CHECK(node.marks[2] == model::Mark{"code", json{{"lang", ""}}});
+    CHECK(node.marks[3] == model::Mark{"style", json{{"name", "foreign"}, {"lang", "la"}}});
+    CHECK(node.marks[4] ==
+          model::Mark{"link", json{{"href", "#n1"}, {"type", "note"}, {"xlinkType", "simple"}}});
+    CHECK(model::to_json(node) == text);
+    // A mark without attributes has no attrs member, also when it was given an empty object.
+    CHECK(model::to_json(model::Mark{"sub", nullptr}) == json{{"type", "sub"}});
+    CHECK(model::to_json(model::Mark{"sub", json::object()}) == json{{"type", "sub"}});
+    CHECK_FALSE(model::to_json(model::mark_from_json(json{{"type", "sup"}})).contains("attrs"));
+}

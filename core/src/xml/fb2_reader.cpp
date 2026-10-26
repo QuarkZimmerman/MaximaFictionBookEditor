@@ -364,16 +364,32 @@ void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vec
                     break;
                 }
                 const std::string name = str(c->name);
+                // Marks keep the attributes the schema gives them (feature 006, FR-064):
+                // xml:lang on formatting (any value, "" included), name and xml:lang on style,
+                // xlink:href, type and xlink:type on links. Every other attribute of a mark is
+                // dropped without a report (decision 10, a recorded exception); `attrs` is an
+                // object only with a member, so a mark read here equals one decoded from JSON.
                 std::optional<Mark> mark;
                 if (name == "strong" || name == "emphasis" || name == "strikethrough" ||
                     name == "sub" || name == "sup" || name == "code") {
-                    mark = Mark{name, nullptr};
+                    json attrs = nullptr;
+                    if (auto lang = xml_lang(c)) {
+                        attrs = json{{"lang", *lang}};
+                    }
+                    mark = Mark{name, attrs};
                 } else if (name == "style") {
-                    mark = Mark{"style", json{{"name", plain_attr(c, "name").value_or("")}}};
+                    json attrs{{"name", plain_attr(c, "name").value_or("")}};
+                    if (auto lang = xml_lang(c)) {
+                        attrs["lang"] = *lang;
+                    }
+                    mark = Mark{"style", attrs};
                 } else if (name == "a") {
                     json attrs{{"href", xlink_href(c).value_or("")}};
                     if (auto type = plain_attr(c, "type")) {
                         attrs["type"] = *type;
+                    }
+                    if (auto xlink_type = ns_attr(c, "type", kXlinkNamespace)) {
+                        attrs["xlinkType"] = *xlink_type;
                     }
                     mark = Mark{"link", attrs};
                 } else if (name == "image") {
