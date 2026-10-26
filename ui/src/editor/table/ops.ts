@@ -407,7 +407,12 @@ export interface MoveBands {
  * cell crosses line a or line b of the unit `[a, b)`; the band before it, `[a', a)` with a' the
  * largest line below a that no cell crosses, or after it, `[b, b')` with b' the smallest such
  * line above b; `no-neighbour` without one, and for rows `merged-crosses-border` when every
- * line in (b, R] is crossed (a span past the end crosses line R). Null without a target.
+ * line in (b, R] is crossed (a span past the end crosses line R). A column move that would move
+ * no row (`movingRows`) would change nothing, so it is refused too (FR-037, FR-043): the row of
+ * the cell that ends at column W reaches both bands, so it stays only because a merged cell of
+ * the bands joins it to a row that does not - the reason is that cell, `merged-crosses-border`
+ * for rows. Only a table with a short row can be so; a row move always changes places. Null
+ * without a target.
  */
 export function moveBands(
   address: TableAddress,
@@ -422,20 +427,33 @@ export function moveBands(
   const crossed = axis === 'row' ? crossedLines(grid).rows : crossedLines(grid).columns;
   const size = sizeOf(grid, axis);
   if (crossed[a] || crossed[b]) return { refused: 'merged-crosses-border', params: { axis } };
+  let band: [number, number];
   if (direction === 'up' || direction === 'left') {
     if (a === 0) return { refused: 'no-neighbour', params: { direction } };
     let start = a - 1;
     while (start > 0 && crossed[start]) start -= 1;
-    return { axis, unit: [a, b], band: [start, a] };
+    band = [start, a];
+  } else {
+    if (b >= size) return { refused: 'no-neighbour', params: { direction } };
+    let end = b + 1;
+    while (end <= size && crossed[end]) end += 1;
+    if (end > size) return { refused: 'merged-crosses-border', params: { axis: 'row' } };
+    band = [b, end];
   }
-  if (b >= size) return { refused: 'no-neighbour', params: { direction } };
-  let end = b + 1;
-  while (end <= size && crossed[end]) end += 1;
-  if (end > size) return { refused: 'merged-crosses-border', params: { axis: 'row' } };
-  return { axis, unit: [a, b], band: [b, end] };
+  // Without a short row every row reaches column W, so every row moves.
+  if (axis === 'column' && grid.summary.shortRows > 0) {
+    const moving = movingRows(grid, Math.min(a, band[0]), Math.max(b, band[1]));
+    if (!moving.includes(true)) {
+      return { refused: 'merged-crosses-border', params: { axis: 'row' } };
+    }
+  }
+  return { axis, unit: [a, b], band };
 }
 
-/** A move may act: `moveBands` without its geometry (C21: the cached grid and crossings). */
+/**
+ * A move may act: `moveBands` without its geometry (C21: the cached grid and crossings, and for
+ * a column move on a table with a short row the rows that move).
+ */
 export function checkMove(address: TableAddress, direction: MoveDirection): { ok: true } | Refusal {
   const bands = moveBands(address, direction);
   return bands && isRefusal(bands) ? bands : OK;
@@ -1050,7 +1068,9 @@ export function planMoveRows(
  * so moving one of the rows it spans and not another would push the cells of the other - and
  * through them cells outside the bands - out of their columns (FR-007). The rows so joined form
  * runs of consecutive rows; a run moves when each of its rows reaches `x2`. On a regular table
- * every row moves.
+ * every row moves; when no row would move, `moveBands` refuses the move (FR-037). A run that
+ * moves changes the table: its first row holds own cells in both bands, since a cell from above
+ * that covered it there would be a cell of the bands joining it to the row above.
  */
 function movingRows(grid: TableGrid, x0: number, x2: number): boolean[] {
   // joins[r] > 0 after the running sum: a cell of the bands covers row r and row r + 1.
@@ -1079,8 +1099,9 @@ function movingRows(grid: TableGrid, x0: number, x2: number): boolean[] {
  * bands, the run of own cells that start in the first band and the run that start in the second
  * change places (each cell with the non-cell children before it); the rows of an irregular
  * table that do not reach both bands are left as they are (FR-035; R1 open point 6), and so are
- * the rows a merged cell of the bands joins to them (`movingRows`; FR-007). The focus moves with
- * the columns when its row moves.
+ * the rows a merged cell of the bands joins to them (`movingRows`; FR-007). When that leaves no
+ * row to move, `moveBands` has refused the move (FR-037, FR-043). The focus moves with the
+ * columns when its row moves.
  */
 export function planMoveColumns(
   address: TableAddress,

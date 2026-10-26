@@ -755,13 +755,22 @@ function statesOf(node: PMNode): EditorState[] {
   return states;
 }
 
+/** The four moves: an available move always changes the table (FR-037, FR-043). */
+const US2_MOVES: ReadonlySet<TableCommandName> = new Set<TableCommandName>([
+  'moveRowUp',
+  'moveRowDown',
+  'moveColumnLeft',
+  'moveColumnRight',
+]);
+
 describe('US2: the twelve row and column commands', () => {
   it('availability agrees with every plan’s dry run: ok exactly when the plan acts, else the plan’s refusal', () => {
     let compared = 0;
     const refusedCodes = new Set<string>();
     for (const { name: table, node } of agreementTables()) {
       for (const state of statesOf(node)) {
-        const address = tableTarget(state)!.address;
+        const target = tableTarget(state)!;
+        const address = target.address;
         for (const name of US2_NAMES) {
           const plan = US2_PLANS[name](address, { nextId: () => `x${(compared += 1)}` });
           const answer = availability(state, name);
@@ -770,6 +779,14 @@ describe('US2: the twelve row and column commands', () => {
             expect(answer, `${table}: ${name}`).toEqual(plan);
           } else {
             expect(answer, `${table}: ${name}`).toEqual({ ok: true });
+            // A move that would change nothing is refused instead (`short-row-hole` from its
+            // merged cell to the left: no row would move).
+            if (US2_MOVES.has(name)) {
+              expect(
+                commitTableEdit(state.tr, target.tablePos, plan),
+                `${table}: ${name} acts`,
+              ).not.toBeNull();
+            }
           }
         }
       }
@@ -882,7 +899,10 @@ describe('US2: the twelve row and column commands', () => {
     }
   });
 
-  /** The harness's book with a table of one row (`t9`) and sc.10's table (`t7`) after `t1`. */
+  /**
+   * The harness's book with a table of one row (`t9`), sc.10's table (`t7`) and the irregular
+   * `[A, B rowspan 2, C] / [D]` (`t8`), whose second row stops short of C's column, after `t1`.
+   */
   function reasonsBook(): Document {
     const doc = tableDocument();
     const section = doc.bodies[0]!.content[0] as unknown as { content: unknown[] };
@@ -908,6 +928,14 @@ describe('US2: the twelve row and column commands', () => {
         tr('t7-r4', [m('t7-4-0', 'r5c1'), m('t7-4-1', 'r5c2')]),
       ],
     });
+    section.content.push({
+      type: 'table',
+      attrs: { nodeId: 't8' },
+      content: [
+        tr('t8-r0', [m('t8-0-0', 'A'), m('t8-0-1', 'B', { rowspan: 2 }), m('t8-0-2', 'C')]),
+        tr('t8-r1', [m('t8-1-0', 'D')]),
+      ],
+    });
     return doc;
   }
 
@@ -926,6 +954,13 @@ describe('US2: the twelve row and column commands', () => {
     expect(title('table.moveRowUp')).toBe(
       'Move row up: a merged cell crosses the border of the row',
     );
+    // A column move that would move no row: B joins its row to the row that stops short of C.
+    act(() => caretIn(harness, 't8-0-1', 1));
+    expect(services.commands.isEnabled('table.moveColumnRight', ctx)).toBe(false);
+    expect(title('table.moveColumnRight')).toBe(
+      'Move column right: a merged cell crosses the border of the row',
+    );
+    expect(services.commands.isEnabled('table.moveColumnLeft', ctx)).toBe(true);
     act(() => caretIn(harness, 't1-0-0', 1));
     expect(title('table.moveRowUp')).toBe('Move row up: there is no row above');
     expect(title('table.moveColumnLeft')).toBe('Move column left: there is no column to the left');

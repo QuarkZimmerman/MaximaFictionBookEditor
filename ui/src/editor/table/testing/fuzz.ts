@@ -2,10 +2,10 @@
  * The seeded fuzz of SC-003 (feature 006, US2 T073; C76; I27; U19; data-model §16.4; quickstart
  * §2, §13; research R1.12, R8.15): random table commands on random tables, each step checked by
  * an oracle - the schema, `assertTableValid`, `availability` against the plan, an available
- * insertion or duplication acting (`grows`), a regular table staying regular, the positions
- * outside the addressed lines keeping their owners' content (except those *Delete row* gives up
- * where it dissolves an overlap, `deletedRows`), no character lost or invented, Undo and Redo
- * giving back exact documents and, where the host can, the core's validation.
+ * insertion, duplication or move acting (`grows`, `moves`), a regular table staying regular, the
+ * positions outside the addressed lines keeping their owners' content (except those *Delete row*
+ * gives up where it dissolves an overlap, `deletedRows`), no character lost or invented, Undo and
+ * Redo giving back exact documents and, where the host can, the core's validation.
  *
  * Two hosts run it: `createStateHost` over an `EditorState` with history (vitest,
  * `tests/unit/editor/table/fuzz.test.ts`) and `createTargetHost` over a table edit target - the
@@ -354,6 +354,12 @@ export interface FuzzEntry {
    * compacted away (FR-046), never the whole step (FR-037; data-model §4.5).
    */
   grows?: boolean;
+  /**
+   * The step moves rows or columns: it acts whenever its plan answers an edit - a move that
+   * would change nothing, a column move that moves no row, is refused with a reason (FR-037,
+   * FR-043; data-model §4.5).
+   */
+  moves?: boolean;
   /** The step removes cells (their text leaves with them). */
   removes?: boolean;
   /** New cells may hold the text of the cells they copy. */
@@ -698,6 +704,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     weight: 1.5,
     plan: (address, ctx) => planMoveRows(address, { direction: 'up' }, ctx),
     lines: rowLines,
+    moves: true,
   },
   {
     name: 'moveRowDown',
@@ -705,6 +712,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     weight: 1.5,
     plan: (address, ctx) => planMoveRows(address, { direction: 'down' }, ctx),
     lines: rowLines,
+    moves: true,
   },
   {
     name: 'moveColumnLeft',
@@ -712,6 +720,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     weight: 1.5,
     plan: (address, ctx) => planMoveColumns(address, { direction: 'left' }, ctx),
     lines: movedColumns('left'),
+    moves: true,
   },
   {
     name: 'moveColumnRight',
@@ -719,6 +728,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     weight: 1.5,
     plan: (address, ctx) => planMoveColumns(address, { direction: 'right' }, ctx),
     lines: movedColumns('right'),
+    moves: true,
   },
   {
     name: 'duplicateRow',
@@ -1776,10 +1786,11 @@ function rowsHoldCells(table: PMNode): boolean {
  * run; a refused step (or a plan that changes nothing) changes nothing and adds no history
  * event - an attribute step's value refused exactly when it must be (US7) -, while an insertion
  * or duplication that is not refused always acts on a table whose every row holds a cell
- * (`grows`; FR-037, FR-046); a step that acts gives a valid document and table (`check()`,
- * `assertTableValid`), no FB2 id twice in the document, a regular table stays regular (FR-046),
- * the positions outside its lines keep their owners (FR-035) and no character is lost or
- * invented. Null when every check holds, else the reason.
+ * (`grows`; FR-037, FR-046), and a move that is not refused always acts (`moves`; FR-037,
+ * FR-043); a step that acts gives a valid document and table (`check()`, `assertTableValid`),
+ * no FB2 id twice in the document, a regular table stays regular (FR-046), the positions
+ * outside its lines keep their owners (FR-035) and no character is lost or invented. Null when
+ * every check holds, else the reason.
  */
 export function checkFuzzStep(record: FuzzStepRecord): string | null {
   const {
@@ -1811,7 +1822,7 @@ export function checkFuzzStep(record: FuzzStepRecord): string | null {
   let acts = !isRefusal(dryRun);
   if (acts) acts = commitTableEdit(before.tr, tablePos, dryRun as TableEdit) !== null;
   if (!acts) {
-    if (entry.grows && !isRefusal(dryRun) && rowsHoldCells(address.table)) {
+    if (!isRefusal(dryRun) && (entry.moves || (entry.grows && rowsHoldCells(address.table)))) {
       return 'the command is available but its plan changes nothing';
     }
     if (ran) return 'a step that does not act ran';

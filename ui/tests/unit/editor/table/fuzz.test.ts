@@ -66,10 +66,15 @@ function failureText(report: FuzzReport): string {
  * §4.5 `table.splitCell`; the cases below). 945 moved, with *Move column left*, a merged cell of
  * the bands out of a row that reaches them into a row that does not, which then pushed a cell
  * outside the bands (FR-007, FR-035; data-model §4.5 `table.moveColumnLeft`; the rows a cell of
- * the bands joins move or stay together, `ops.test.ts`).
+ * the bands joins move or stay together, `ops.test.ts`). 185 (*Move column right* from a caret),
+ * 291 (*Move column left* from a block) and 1940 (*Move column right* from a block whose top row
+ * no merged cell joins to another) found a column move available where it moved no row - each
+ * row that reaches both bands joined by a merged cell of the bands to a row that does not -, now
+ * refused with `merged-crosses-border` for rows (FR-037, FR-043; `[A, B rowspan 2, C] / [D]` in
+ * `ops.test.ts`).
  */
 const REGRESSION_SEEDS: readonly number[] = [
-  222, 302, 658, 50, 820, 358, 217, 352, 454, 615, 924, 3876, 945,
+  222, 302, 658, 50, 820, 358, 217, 352, 454, 615, 924, 3876, 945, 185, 291, 1940,
 ];
 
 const seeds = process.env.MFBE_FUZZ_SEED

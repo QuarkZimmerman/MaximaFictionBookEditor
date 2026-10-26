@@ -1025,6 +1025,42 @@ describe('US2 rows and columns', () => {
       expect(moved.edit.focus).toEqual(caretAt(3, 2));
     });
 
+    it('Move column left and right are refused, with merged-crosses-border for rows, where no row would move: each row that reaches both bands is joined by a merged cell of the bands to a row that does not (FR-037, FR-043)', () => {
+      const reason = { refused: 'merged-crosses-border', params: { axis: 'row' } };
+      // Rows and columns from 0: B joins row 0, which reaches column 3, to row 1, which stops at
+      // column 2 (a hole below C). From B to the right and from C to the left the bands are
+      // columns 1 and 2, from the block B-C to the left column 0 and columns 1-2: row 1 does
+      // not reach them, so neither row may move, and nothing else would change.
+      const small = placed([['A', { text: 'B', rowspan: 2 }, 'C'], ['D']], 'B');
+      expect(refusal(small, 'moveColumnRight')).toEqual(reason);
+      expect(availability(small.state, 'moveColumnRight')).toEqual(reason);
+      const fromTheRight: (string | [string, string])[] = ['C', ['B', 'C']];
+      for (const at of fromTheRight) {
+        const where = placed(small.table, at);
+        expect(refusal(where, 'moveColumnLeft'), String(at)).toEqual(reason);
+        expect(availability(where.state, 'moveColumnLeft'), String(at)).toEqual(reason);
+      }
+      // Columns 0 and 1, which both rows reach, change places in both rows.
+      const moved = acted(placed(small.table, 'A'), 'moveColumnRight');
+      expect(show(moved.after)).toBe('[B rowspan=2, A, C] / [D]');
+      expect(gridOfNode(moved.after).summary).toEqual(gridOfNode(small.table).summary);
+      expect(availability(placed(small.table, 'A').state, 'moveColumnRight')).toEqual({
+        ok: true,
+      });
+      // The case above without its last row: rows 0-2 stay, from a and from D alike, and no
+      // row is left to move.
+      const rows: MRow[] = [
+        ['a', { text: 'B', rowspan: 2 }, 'b', 'x'],
+        [{ text: 'D', rowspan: 2 }],
+        [{ text: 'E', colspan: 2 }, 'y'],
+      ];
+      for (const at of ['a', 'D']) {
+        const where = placed(rows, at);
+        expect(refusal(where, 'moveColumnRight'), at).toEqual(reason);
+        expect(availability(where.state, 'moveColumnRight'), at).toEqual(reason);
+      }
+    });
+
     it('Duplicate row fills the copy completely; Duplicate column leaves a row that does not reach the line (open point 7)', () => {
       const row = placed(
         [
