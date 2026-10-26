@@ -64,6 +64,18 @@ export function cancelJob(rpc: Pick<RpcClient, 'call'>, jobId: string): void {
   void Promise.resolve(rpc.call('job.cancel', { jobId })).catch(() => {});
 }
 
+/**
+ * The request's cancel as the steps before its session see it - the Source text check, the
+ * baseline (ai-catalogue §6.15): `jobStarted` hands the step's validation job to the owner,
+ * which cancels it on the cancel - at once when the cancel came while the call was on its way;
+ * `cancelled()` is checked when the step's call returns, since a plain request (2 MiB and
+ * less) cannot be stopped: a request cancelled meanwhile ends there, nothing sent.
+ */
+export interface RequestCancel {
+  cancelled(): boolean;
+  jobStarted(jobId: string): void;
+}
+
 export interface RequestSessionDeps {
   store: AppStore;
   rpc: SessionRpc;
@@ -93,6 +105,8 @@ export interface StartRequestSessionOptions {
   /** The Source view's presenter and undo view (US5; `RunSessionOptions`). */
   present?: RunSessionOptions['present'];
   undoView?: RunSessionOptions['undoView'];
+  /** The owner's cancel during the baseline (Escape, Stop, the document replaced). */
+  cancel?: RequestCancel;
 }
 
 /** Why a session could not start (ai-catalogue §6 steps 1 and 4). */
@@ -103,7 +117,10 @@ export type StartRequestSessionFailure =
   | 'busy'
   /** The baseline report says `schema.unavailable`: the hook cannot guarantee validity. */
   | 'validationUnavailable'
-  /** The owner ended the run during the baseline (Cancel, the document replaced or closed). */
+  /**
+   * The owner cancelled or ended the run during the baseline (Cancel, Escape, the document
+   * replaced or closed): the lock released, nothing sent.
+   */
   | 'cancelled';
 
 export type StartRequestSessionResult =
@@ -129,6 +146,12 @@ export type CommitResult =
   | { kind: 'unchanged' }
   /** The document was replaced meanwhile: nothing published. */
   | { kind: 'lost' }
+  /**
+   * The request was cancelled before the copy was published - during the last validation too,
+   * which a plain request (2 MiB and less) cannot stop: the copy discarded, nothing shown, no
+   * undo entry, `modified` untouched (ai-catalogue §6.15, SC-005).
+   */
+  | { kind: 'cancelled' }
   /** The last validation found a new error (FR-064's safety net): the copy was discarded. */
   | { kind: 'failed'; failure: { kind: 'invalidAtEnd'; errors: ErrorForModel[] } };
 
@@ -196,8 +219,11 @@ export class RequestSession {
   after: Document | null | undefined;
   private readonly deps: RequestSessionDeps;
   private validationJobId: string | null = null;
-  /** Set by `cancelValidation()`: the request is ending, a validation job is cancelled at once. */
-  private validationCancelled = false;
+  /**
+   * Set by `cancelValidation()`: the request is ending - a validation job is cancelled at once,
+   * nothing is published any more.
+   */
+  private cancelledValue = false;
   private changeCount = 0;
 
   /** @internal Use `startRequestSession`. */
@@ -230,6 +256,11 @@ export class RequestSession {
 
   get ended(): boolean {
     return this.run.ended;
+  }
+
+  /** The request was cancelled or has ended (`cancelValidation()`): nothing is published. */
+  get cancelled(): boolean {
+    return this.cancelledValue;
   }
 
   /** The current operation (the banner's text); the lock in the store follows. */
@@ -287,12 +318,14 @@ export class RequestSession {
   }
 
   /**
-   * Cancels a running validation job (Cancel during `validating`, the end of the request) - or,
-   * while `doc.validate` is on its way, as soon as its id arrives; the request is ending, so a
-   * validation job started later is cancelled too. 1090 and the like are swallowed.
+   * The request is cancelled (Cancel, Escape, the document replaced; the end of the request): a
+   * running validation job is cancelled - or, while `doc.validate` is on its way, as soon as its
+   * id arrives -, so is a validation job started later, and the commit publishes nothing, also
+   * when a validation that could not be stopped returns its report. 1090 and the like are
+   * swallowed.
    */
   cancelValidation(): void {
-    this.validationCancelled = true;
+    this.cancelledValue = true;
     const jobId = this.validationJobId;
     if (!jobId) return;
     this.validationJobId = null;
@@ -301,11 +334,10 @@ export class RequestSession {
 
   /**
    * A validation job's id has arrived. A cancel that came while `doc.validate` was on its way
-   * found no job to cancel: the job is cancelled now, or it would end with its report and the
-   * request go on with it - the commit publishing the copy the user cancelled.
+   * found no job to cancel: the job is cancelled now, or it would run to its end in the core.
    */
   private validationStarted(jobId: string): void {
-    if (this.validationCancelled) cancelJob(this.deps.rpc, jobId);
+    if (this.cancelledValue) cancelJob(this.deps.rpc, jobId);
     else this.validationJobId = jobId;
   }
 
@@ -376,16 +408,21 @@ export class RequestSession {
    * rule - an excess key (it cannot happen after per-change validation; guarded anyway) →
    * `failed (invalidAtEnd)` and the copy discarded; else `after = copy.changed ? copy.release()
    * : null`, shown and recorded by the run session as one undo entry labelled after the
-   * instruction (`undoLabel`), `modified` set only when something changed (FR-043).
+   * instruction (`undoLabel`), `modified` set only when something changed (FR-043). A request
+   * cancelled before or during the validation → `cancelled`, the copy discarded (§6.15).
    */
   async commit(): Promise<CommitResult> {
     if (this.run.ended) return { kind: 'lost' };
+    if (this.cancelledValue) return this.discardCancelled();
     if (!this.copy.changed) {
       this.after = null;
       this.run.commit(null);
       return { kind: 'unchanged' };
     }
     const report = await this.validate();
+    // A cancel while the validation ran: below 2 MiB `doc.validate` is a plain request that no
+    // `job.cancel` stops, and its report arrives all the same - the copy is not published.
+    if (this.cancelledValue) return this.discardCancelled();
     const errors = newErrors(this.baseline, report);
     if (errors.length > 0) {
       this.after = undefined;
@@ -398,10 +435,12 @@ export class RequestSession {
   /**
    * Publishes `after` as the request's result (the Source view's commit of US5 computes it
    * itself - the text path's `doc.fromXml`, the structured path's re-render - and hands it in
-   * here): shown and recorded by the run session as one undo entry.
+   * here): shown and recorded by the run session as one undo entry. Nothing is published once
+   * the request was cancelled (`cancelled`, the copy discarded).
    */
   publish(after: Document): CommitResult {
     if (this.run.ended) return { kind: 'lost' };
+    if (this.cancelledValue) return this.discardCancelled();
     this.after = after;
     const outcome = this.run.commit(after);
     if (outcome === 'committed') return { kind: 'committed', after };
@@ -418,6 +457,15 @@ export class RequestSession {
     this.cancelValidation();
     this.after = undefined;
     return this.run.discard();
+  }
+
+  /**
+   * The end of a commit the request's cancel overtook: the copy dropped, the document and
+   * `modified` as before the request, no undo entry, the lock released (SC-005).
+   */
+  discardCancelled(): CommitResult {
+    this.discard();
+    return { kind: 'cancelled' };
   }
 
   /* ------------------------------------------------------------ internals */
@@ -445,7 +493,8 @@ function summarise(report: ValidationReport): ValidationRecord {
  * `RunSession` of kind `ai` labelled `<service> · <model>` (busy when a script or another
  * request holds it, `noDocument` without a document), validates the live document for the
  * baseline and builds the working copy over it. `validationUnavailable` releases the lock
- * again: nothing has been sent.
+ * again: nothing has been sent; so does a cancel during the baseline (`cancelled`) - its
+ * validation job is handed to the owner's `cancel`, which stops it.
  */
 export async function startRequestSession(
   deps: RequestSessionDeps,
@@ -473,18 +522,24 @@ export async function startRequestSession(
     },
   );
   if (!run) return { ok: false, reason: 'busy' };
+  const { cancel } = options;
   let report: ValidationReport;
   try {
-    report = await deps.rpc.runJob('doc.validate', {
-      docId: run.before.docId,
-      document: run.before,
-    });
+    report = await deps.rpc.runJob(
+      'doc.validate',
+      { docId: run.before.docId, document: run.before },
+      { onStart: (jobId) => cancel?.jobStarted(jobId) },
+    );
   } catch (error) {
     run.discard();
     throw error;
   }
-  // The owner may have ended the run meanwhile (Cancel, the document replaced).
-  if (run.ended) return { ok: false, reason: 'cancelled' };
+  // The owner may have cancelled or ended the run meanwhile (Cancel, Escape, the document
+  // replaced): a plain request (2 MiB and less) returns its report all the same.
+  if (run.ended || run.cancelRequested || cancel?.cancelled()) {
+    run.discard();
+    return { ok: false, reason: 'cancelled' };
+  }
   if (schemaUnavailable(report)) {
     run.discard();
     return { ok: false, reason: 'validationUnavailable' };

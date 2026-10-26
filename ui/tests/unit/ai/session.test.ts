@@ -11,10 +11,11 @@
 import { ChangeRejection } from '@/ai/hook';
 import { startRequestSession, type RequestSession } from '@/ai/session';
 import type { ModelNodeJson } from '@/editor/fromModel';
+import type { Document } from '@/model/document';
 import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
-import { startRunSession } from '@/scripting/runSession';
+import { cancelActiveRun, startRunSession } from '@/scripting/runSession';
 
 import {
   book,
@@ -22,6 +23,7 @@ import {
   paragraph,
   sectionTexts,
   TITLE_UNEXPECTED,
+  validateDocument,
   type FragmentTable,
   type Harness,
 } from './sessionUtils';
@@ -42,13 +44,18 @@ async function start(
   return result.session;
 }
 
-/** A validation job of `holdJobs`: `start` delivers its id, `fail` ends it. */
+/**
+ * A validation of `holdJobs`: `start` delivers its job id (a book above 2 MiB), `fail` ends it
+ * with an error, `answer` with the report of the document it was sent (never started: the plain
+ * request of a smaller book, which no `job.cancel` stops).
+ */
 interface HeldJob {
   start(jobId: string): void;
   fail(error: RpcError): void;
+  answer(): void;
 }
 
-/** Makes every later `runJob` of the harness a job whose `{jobId}` waits for the test. */
+/** Makes every later `runJob` of the harness a validation that waits for the test. */
 function holdJobs(h: Harness): HeldJob[] {
   type RunJob = (
     method: string,
@@ -58,8 +65,12 @@ function holdJobs(h: Harness): HeldJob[] {
   const held: HeldJob[] = [];
   (h.rpc.client as unknown as { runJob: RunJob }).runJob = (method, params, options) => {
     h.rpc.calls.push({ method, params });
-    return new Promise((_resolve, reject) => {
-      held.push({ start: (jobId) => options?.onStart?.(jobId), fail: reject });
+    return new Promise((resolve, reject) => {
+      held.push({
+        start: (jobId) => options?.onStart?.(jobId),
+        fail: reject,
+        answer: () => resolve(validateDocument((params as { document: Document }).document)),
+      });
     });
   };
   return held;
@@ -163,6 +174,51 @@ describe('startRequestSession', () => {
         label: 'l',
       }),
     ).rejects.toThrow('disconnected');
+    expect(h.store.getState().runLock).toBeNull();
+  });
+
+  it('hands the baseline job to the owner, and ends cancelled when the owner cancelled while the baseline ran, the lock released (ai-catalogue §6.15)', async () => {
+    const h = harness();
+    const held = holdJobs(h);
+    const jobs: string[] = [];
+    let ownerCancelled = false;
+    const result = startRequestSession(h.deps, {
+      origin: 'popup',
+      kind: 'selection',
+      instruction: 'x',
+      label: 'l',
+      cancel: { cancelled: () => ownerCancelled, jobStarted: (jobId) => jobs.push(jobId) },
+    });
+    expect(h.store.getState().runLock).toMatchObject({ kind: 'ai' });
+    // A book above 2 MiB: the baseline's job goes to the owner, whose cancel stops it.
+    held[0]!.start('job-20');
+    expect(jobs).toEqual(['job-20']);
+    // The owner cancels before the report is back; a report no `job.cancel` stopped (the plain
+    // request of a smaller book, a job that finished first) arrives all the same - the request
+    // ends here, nothing sent.
+    ownerCancelled = true;
+    held[0]!.answer();
+    expect(await result).toEqual({ ok: false, reason: 'cancelled' });
+    expect(h.store.getState().runLock).toBeNull();
+    expect(h.undo.canUndo).toBe(false);
+    expect(h.store.getState().modified).toBe(false);
+  });
+
+  it('ends cancelled when the banner Cancel came while the baseline ran', async () => {
+    const h = harness();
+    const held = holdJobs(h);
+    const onCancel = vi.fn();
+    const result = startRequestSession(h.deps, {
+      origin: 'panel',
+      kind: 'general',
+      instruction: 'x',
+      label: 'l',
+      onCancel,
+    });
+    cancelActiveRun(h.store);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    held[0]!.answer();
+    expect(await result).toEqual({ ok: false, reason: 'cancelled' });
     expect(h.store.getState().runLock).toBeNull();
   });
 });
@@ -274,6 +330,51 @@ describe('RequestSession', () => {
     expect(h.undo.canUndo).toBe(false);
     expect(h.store.getState().runLock).toBeNull();
     expect(session.after).toBeUndefined();
+  });
+
+  it('commit() after a cancel that came while its validation was a plain request (2 MiB and less) publishes nothing: cancelled, the document, modified and the undo history as before (ai-catalogue §6.15, SC-005)', async () => {
+    const h = harness();
+    const before = h.store.getState().document!;
+    const session = await start(h);
+    session.copy.insert('after', 'p1', paragraph('sc_1', 'Inserted.') as unknown as ModelNodeJson);
+    const held = holdJobs(h);
+    const result = session.commit();
+    expect(held).toHaveLength(1);
+    // Escape while `doc.validate` runs: no job id, nothing a `job.cancel` could stop - the
+    // report arrives all the same.
+    session.cancelValidation();
+    held[0]!.answer();
+    expect(await result).toEqual({ kind: 'cancelled' });
+    expect(session.cancelled).toBe(true);
+    expect(h.store.getState().document).toBe(before);
+    expect(h.store.getState().modified).toBe(false);
+    expect(h.undo.canUndo).toBe(false);
+    expect(h.store.getState().runLock).toBeNull();
+    expect(session.ended).toBe(true);
+    expect(session.after).toBeUndefined();
+    expect(h.rpc.calls.filter((c) => c.method === 'job.cancel')).toEqual([]);
+  });
+
+  it('publish() and commit() after a cancel publish nothing: cancelled, the copy discarded', async () => {
+    const h = harness();
+    const before = h.store.getState().document!;
+    const published = await start(h);
+    published.copy.insert('after', 'p1', paragraph('sc_1', 'x') as unknown as ModelNodeJson);
+    published.cancelValidation();
+    // The Source view's commit hands its result in after its own steps.
+    expect(published.publish(published.copy.release())).toEqual({ kind: 'cancelled' });
+    expect(h.store.getState().document).toBe(before);
+    expect(h.store.getState().runLock).toBeNull();
+    const committed = await start(h);
+    committed.copy.insert('after', 'p1', paragraph('sc_1', 'x') as unknown as ModelNodeJson);
+    committed.cancelValidation();
+    expect(await committed.commit()).toEqual({ kind: 'cancelled' });
+    // No validation for a request that is over.
+    expect(h.validated).toHaveLength(2);
+    expect(h.store.getState().document).toBe(before);
+    expect(h.store.getState().modified).toBe(false);
+    expect(h.undo.canUndo).toBe(false);
+    expect(h.store.getState().runLock).toBeNull();
   });
 
   it('discard() drops the copy and restores the document before the request and its modified flag', async () => {

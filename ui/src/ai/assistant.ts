@@ -161,7 +161,13 @@ import {
 import { createRegexRunner } from './regexRunner';
 import { createRegexWorker } from './regexWorkerFactory';
 import { claimsChange, decideTextReply, isQuestion, undoLabel } from './reply';
-import { cancelJob, startRequestSession, type RequestSession, type SessionRpc } from './session';
+import {
+  cancelJob,
+  startRequestSession,
+  type RequestCancel,
+  type RequestSession,
+  type SessionRpc,
+} from './session';
 import {
   commitSource,
   firstChangedNodeId,
@@ -930,6 +936,33 @@ class RequestRun {
     this.nestedHost?.cancel();
   }
 
+  /**
+   * A job of the request has its id - the exchange, or a validation before the session (the
+   * Source text check, the baseline): remembered for `cancel()`. A cancel that came while the
+   * call was on its way found no job to cancel: the job is cancelled now, or it would run to
+   * its end in the core.
+   */
+  private jobStarted(jobId: string): void {
+    if (this.cancelled) cancelJob(this.rpc, jobId);
+    else this.jobId = jobId;
+  }
+
+  /**
+   * Runs a step before the session - the Source view's preparation, the session's start with
+   * its baseline - under the request's cancel (`RequestCancel`): the step's validation job is
+   * `cancel()`'s while it runs, and the step ends the request when it returns after a cancel.
+   */
+  private async beforeSession<T>(step: (cancel: RequestCancel) => Promise<T>): Promise<T> {
+    try {
+      return await step({
+        cancelled: () => this.cancelled,
+        jobStarted: (jobId) => this.jobStarted(jobId),
+      });
+    } finally {
+      this.jobId = null;
+    }
+  }
+
   /* ------------------------------------------------------------ the run */
 
   async execute(): Promise<RequestOutcome> {
@@ -981,18 +1014,23 @@ class RequestRun {
       // The Source view (US5, ai-catalogue §8.1, §8.4): the pending text committed only when
       // the request will use structured tools, the selection mapped and classified, or the
       // text path on the text as it stands; a refused range and a text-mode request without a
-      // selection end here, before the lock - nothing is sent.
-      const prepared = await prepareSource({
-        ctx: this.ctx,
-        rpc: sessionRpc,
-        editor: sourceEditor,
-        docId,
-        offersTools: target.tools,
-        origin: options.origin,
-        // The popup's captured range; the editor's selection for the panel and for a caret.
-        ...(selection?.range ? { range: selection.range } : {}),
-        toXml,
-      });
+      // selection end here, before the lock - nothing is sent; so does a cancel meanwhile.
+      const range = selection?.range;
+      const prepared = await this.beforeSession((cancel) =>
+        prepareSource({
+          ctx: this.ctx,
+          rpc: sessionRpc,
+          editor: sourceEditor,
+          docId,
+          offersTools: target.tools,
+          origin: options.origin,
+          // The popup's captured range; the editor's selection for the panel and for a caret.
+          ...(range ? { range } : {}),
+          toXml,
+          cancel,
+        }),
+      );
+      if (prepared.kind === 'cancelled' || this.cancelled) return { kind: 'cancelled' };
       if (prepared.kind === 'failed') {
         return { kind: 'failed', failure: { kind: prepared.failure } };
       }
@@ -1017,30 +1055,34 @@ class RequestRun {
     this.publish({ kind: this.kind });
 
     const label = t('ai.banner.label', { service: target.name, model: target.model });
-    const started = await startRequestSession(
-      {
-        store,
-        rpc: sessionRpc,
-        undo: this.ctx.undo,
-        getController: () => this.controller,
-        nextNodeId: this.nextNodeId,
-      },
-      {
-        origin: options.origin,
-        kind: this.kind,
-        instruction: options.instruction,
-        label,
-        phase: t('ai.phase.preparing'),
-        selection: this.selection,
-        onCancel: () => this.cancel(),
-        onDocumentReplaced: () => this.cancel(),
-        onTick: (elapsedMs) => this.publish({ elapsedMs }),
-        // The Source view: the step tagged with it (Edit → Undo there stays there, the Body
-        // view's Ctrl+Z activates it) and the text put back along with the model (§8.3).
-        ...(this.source
-          ? { present: sourcePresenter(store, this.source), undoView: 'source' as const }
-          : {}),
-      },
+    const started = await this.beforeSession((cancel) =>
+      startRequestSession(
+        {
+          store,
+          rpc: sessionRpc,
+          undo: this.ctx.undo,
+          getController: () => this.controller,
+          nextNodeId: this.nextNodeId,
+        },
+        {
+          origin: options.origin,
+          kind: this.kind,
+          instruction: options.instruction,
+          label,
+          phase: t('ai.phase.preparing'),
+          selection: this.selection,
+          onCancel: () => this.cancel(),
+          onDocumentReplaced: () => this.cancel(),
+          onTick: (elapsedMs) => this.publish({ elapsedMs }),
+          // The Source view: the step tagged with it (Edit → Undo there stays there, the Body
+          // view's Ctrl+Z activates it) and the text put back along with the model (§8.3).
+          ...(this.source
+            ? { present: sourcePresenter(store, this.source), undoView: 'source' as const }
+            : {}),
+          // A cancel during the baseline stops its job and ends the request, nothing sent.
+          cancel,
+        },
+      ),
     );
     if (!started.ok) {
       switch (started.reason) {
@@ -1358,14 +1400,7 @@ class RequestRun {
         outcome = await this.rpc.runJob(
           'ai.complete',
           { target: target.target, body },
-          {
-            onStart: (jobId) => {
-              // A cancel that came while `ai.complete` was on its way found no job to cancel:
-              // the job is cancelled now, or the exchange would run to its end in the core.
-              if (this.cancelled) cancelJob(this.rpc, jobId);
-              else this.jobId = jobId;
-            },
-          },
+          { onStart: (jobId) => this.jobStarted(jobId) },
         );
       } catch (error) {
         this.jobId = null;
@@ -1462,6 +1497,9 @@ class RequestRun {
         for (const call of message.toolCalls) {
           if (this.cancelled) return { kind: 'cancelled' };
           const tool = await this.callTool(catalogue, call);
+          // A cancel while the tool ran - a change's validation, a plain request below 2 MiB,
+          // cannot be stopped: the request ends here, whatever the tool answered.
+          if (this.cancelled) return { kind: 'cancelled' };
           const toolMessage: ChatMessage = {
             role: 'tool',
             tool_call_id: call.id,
@@ -1551,6 +1589,8 @@ class RequestRun {
         }
         rejected = applied;
       }
+      // A cancel while the replacement was validated ends the request here (§6.15).
+      if (this.cancelled) return { kind: 'cancelled' };
       // Rejected: the third strike ends the request with the three rejections' issues (§6.10.7),
       // else the model is told (§6.11).
       if (rejected.ended) {
@@ -2107,13 +2147,20 @@ class RequestRun {
     return { kind: 'answered', text: this.t('ai.popup.nothingToChange') };
   }
 
-  /** The commit (ai-catalogue §6.14): the last validation, one undo step, the replacement selected. */
+  /**
+   * The commit (ai-catalogue §6.14): the last validation, one undo step, the replacement
+   * selected. A request cancelled before it or while its validation ran commits nothing: the
+   * book and the undo history stay as they were (§6.15, SC-005).
+   */
   private async commit(
     text: string | undefined,
     cutOff: boolean,
     split: SplitState | null,
     replacement?: SelectionReplacementResult,
   ): Promise<RequestOutcome> {
+    // A cancel while the last change was validated: the change was accepted on the copy, which
+    // is never published.
+    if (this.cancelled) return { kind: 'cancelled' };
     const session = this.session!;
     this.setPhase(this.t('ai.phase.validating'));
     this.publish({ state: 'committing' });
@@ -2151,6 +2198,7 @@ class RequestRun {
         if (text === undefined) return this.nothingToChange();
         return this.wordsOnly(text, cutOff);
       case 'lost':
+      case 'cancelled':
         return { kind: 'cancelled' };
       default:
         return {
