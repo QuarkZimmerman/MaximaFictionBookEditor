@@ -1043,11 +1043,44 @@ export function planMoveRows(
 }
 
 /**
+ * The rows a column move acts on (data-model §4.5 `table.moveColumnLeft`,
+ * `table.moveColumnRight`): a row that does not reach `x2`, the right edge of both bands, is left
+ * as it is (FR-035), and so is every row a cell of the bands (`[x0, x2)`, which no cell crosses)
+ * joins to it by spanning both: such a cell moves with its top row and covers the rows below it,
+ * so moving one of the rows it spans and not another would push the cells of the other - and
+ * through them cells outside the bands - out of their columns (FR-007). The rows so joined form
+ * runs of consecutive rows; a run moves when each of its rows reaches `x2`. On a regular table
+ * every row moves.
+ */
+function movingRows(grid: TableGrid, x0: number, x2: number): boolean[] {
+  // joins[r] > 0 after the running sum: a cell of the bands covers row r and row r + 1.
+  const joins = new Int32Array(grid.height + 1);
+  for (const cell of grid.cells) {
+    if (cell.rowsIn < 2 || cell.left < x0 || cell.left >= x2) continue;
+    joins[cell.row]! += 1;
+    joins[cell.row + cell.rowsIn - 1]! -= 1;
+  }
+  const moving = new Array<boolean>(grid.height).fill(false);
+  let start = 0;
+  let running = 0;
+  for (let r = 0; r < grid.height; r += 1) {
+    running += joins[r]!;
+    if (running > 0 && r + 1 < grid.height) continue;
+    let reaches = true;
+    for (let row = start; row <= r && reaches; row += 1) reaches = grid.reach(row) >= x2;
+    moving.fill(reaches, start, r + 1);
+    start = r + 1;
+  }
+  return moving;
+}
+
+/**
  * *Move column left / right* (data-model §4.5): in every row that reaches the right edge of both
  * bands, the run of own cells that start in the first band and the run that start in the second
  * change places (each cell with the non-cell children before it); the rows of an irregular
- * table that do not reach both bands are left as they are (FR-035; R1 open point 6). The focus
- * moves with the columns.
+ * table that do not reach both bands are left as they are (FR-035; R1 open point 6), and so are
+ * the rows a merged cell of the bands joins to them (`movingRows`; FR-007). The focus moves with
+ * the columns when its row moves.
  */
 export function planMoveColumns(
   address: TableAddress,
@@ -1065,9 +1098,10 @@ export function planMoveColumns(
   const x0 = left ? p : a;
   const x1 = left ? a : b;
   const x2 = left ? b : q;
+  const moving = movingRows(grid, x0, x2);
   const builder = new TableBuilder(table, grid);
   for (let r = 0; r < grid.height; r += 1) {
-    if (grid.reach(r) < x2) continue;
+    if (!moving[r]) continue;
     const firstRun: number[] = [];
     const secondRun: number[] = [];
     for (let index = grid.rowStart[r]!; index < grid.rowStart[r + 1]!; index += 1) {
@@ -1095,8 +1129,7 @@ export function planMoveColumns(
   const delta = left ? -(a - p) : q - b;
   const { rect, caret } = address;
   const focusRow = rect ? rect.top : (caret?.row ?? 0);
-  const moves = grid.reach(focusRow) >= x2;
-  const shift = moves ? delta : 0;
+  const shift = moving[focusRow] ? delta : 0;
   const focus = rect
     ? blockOver({ ...rect, left: rect.left + shift, right: rect.right + shift })
     : caretAt(caret?.row ?? 0, (caret?.col ?? a) + shift);
@@ -1400,7 +1433,8 @@ function placeInRow(
  * them); each other position it owns gets `newCellLike(cell)` - empty, its kind, `align`,
  * `valign` and `lang`, a fresh `nodeId`, no `id`, `style`, spans or `extraAttrs` -, placed row by
  * row and left to right with the hole fill; positions of its rectangle an earlier cell owns get
- * nothing, and neither do those a later cell of the row overlaps (it covers them then). Returns
+ * nothing, and neither do those a later cell overlaps - an own cell of the row, or a cell of a
+ * row below the cell's top row whose rowspan reaches the row -, which covers them then. Returns
  * the new child list. Callers check `tooLarge` first.
  */
 export function splitToSingleCells(
@@ -1414,14 +1448,21 @@ export function splitToSingleCells(
   const topChild = grid.rowChild[cell.row]!;
   const keeper = out[topChild]!.child(cell.index);
   const kept = keeper.type.create(withSpans(keeper.attrs, 1, 1), keeper.content, keeper.marks);
+  // The other cells over the cell's rectangle. A position the cell owns that one of them also
+  // covers is an overlap of an irregular table: a later cell that starts left of the cell's
+  // columns, in a row below the cell's top row, runs into them with its colspan - in its own row
+  // and in every row its rowspan reaches. That cell stays where it is and covers the position
+  // once the cell is split, so the position gets no piece: a piece there would land right of
+  // that cell and push every cell after it in its row (FR-007, FR-035). A position an earlier
+  // cell covers is that cell's, never the split cell's.
+  const rect = cellRect(cell);
+  const others = grid.cells.filter((other, at) => at !== index && cellMeets(other, rect));
   for (let r = cell.row; r < cell.row + cell.rowsIn; r += 1) {
-    // A later cell of the row that overlaps the cell (an irregular table) covers its positions
-    // once the cell is gone: they get no piece, so no cell of the row moves (FR-035).
     const spans: [number, number][] = [];
-    for (let other = grid.rowStart[r]!; other < grid.rowStart[r + 1]!; other += 1) {
-      if (other === index) continue;
-      const own = grid.cells[other]!;
-      spans.push([own.left, own.left + own.colspan]);
+    for (const other of others) {
+      if (other.row <= r && r < other.row + other.rowsIn) {
+        spans.push([other.left, other.left + other.colspan]);
+      }
     }
     const placements: { col: number; node: PMNode }[] = [];
     for (let c = cell.left; c < cell.left + cell.colspan; c += 1) {

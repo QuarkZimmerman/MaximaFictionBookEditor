@@ -990,6 +990,33 @@ describe('US2 rows and columns', () => {
       expect(edit.focus).toEqual(caretAt(0, 2));
     });
 
+    it('Move column right leaves a row that reaches both bands as it is when a merged cell of the bands joins it to a row that does not (FR-007, FR-035; fuzz seed 945)', () => {
+      // Rows and columns from 0: the bands are column 0 and columns 1-2 (E crosses line 2).
+      // Row 1 stops at column 2 (a hole below b); B joins it to row 0, D to row 2. Moving row 0
+      // would move B and push D, then E and y of row 2 - y out of column 3. Rows 0-2 stay;
+      // row 3 moves.
+      const where = placed(
+        [
+          ['a', { text: 'B', rowspan: 2 }, 'b', 'x'],
+          [{ text: 'D', rowspan: 2 }],
+          [{ text: 'E', colspan: 2 }, 'y'],
+          ['p', 'q', 'r', 's'],
+        ],
+        'a',
+      );
+      const { edit, after } = acted(where, 'moveColumnRight');
+      expect(show(after)).toBe(
+        '[a, B rowspan=2, b, x] / [D rowspan=2] / [E colspan=2, y] / [q, r, p, s]',
+      );
+      for (const row of [0, 1, 2]) expect(after.child(row)).toBe(where.table.child(row));
+      expect(gridOfNode(after).summary).toEqual(gridOfNode(where.table).summary);
+      expect(edit.focus).toEqual(caretAt(0, 0));
+      // From p, row 4 alone moves, and the caret with it.
+      const moved = acted(placed(where.table, 'p'), 'moveColumnRight');
+      expect(show(moved.after)).toBe(show(after));
+      expect(moved.edit.focus).toEqual(caretAt(3, 2));
+    });
+
     it('Duplicate row fills the copy completely; Duplicate column leaves a row that does not reach the line (open point 7)', () => {
       const row = placed(
         [
@@ -1977,6 +2004,29 @@ describe('US5 merge and split', () => {
       expect(
         show(acted(placed([['a', 'b', { text: 'C', rowspan: 2 }], ['d']], 'C'), planSplit).after),
       ).toBe('[a, b, C] / [d, <td>, <td>]');
+    });
+
+    it('a later cell of a row below the top row that overlaps the cell, in that row and the rows it spans, takes those positions: no piece there, no cell moves (FR-007, FR-035; fuzz seeds 50, 820)', () => {
+      // Positions from 0: X at (1, 0), colspan 2, rowspan 2, runs into S's column at (1, 1)
+      // and (2, 1); d stands at (2, 2). A piece at (2, 1), which X covers once S is gone, would
+      // push d to (2, 3).
+      const where = placed(
+        [
+          ['a', { text: 'S', rowspan: 3 }, 'b'],
+          [{ text: 'X', colspan: 2, rowspan: 2 }, 'c'],
+          ['d'],
+        ],
+        'S',
+      );
+      expect(gridOfNode(where.table).summary).toMatchObject({ overlaps: 1, shortRows: 0 });
+      const { after } = acted(where, planSplit);
+      expect(show(after)).toBe('[a, S, b] / [X colspan=2 rowspan=2, c] / [d]');
+      expect(after.child(1)).toBe(where.table.child(1));
+      expect(after.child(2)).toBe(where.table.child(2));
+      const grid = gridOfNode(after);
+      expect(grid.regular).toBe(true);
+      expect(after.child(2).child(0).textContent).toBe('d');
+      expect(grid.cells[grid.owner(2, 2)]!.row).toBe(2);
     });
 
     it('U8: the kept content is the same fragment, rich inline content included', () => {

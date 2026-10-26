@@ -213,6 +213,20 @@ describe('pasteBlockPlan (data-model §8.4)', () => {
     );
   });
 
+  it('the split of a crossing cell leaves its positions that a later cell of a row below overlaps to that cell, in every row it spans: no other cell moves (FR-007, FR-035; fuzz seed 358)', () => {
+    // S at (0, 1), rowspan 3, crosses T's bottom edge; X at (1, 0), colspan 2, rowspan 2, runs
+    // into S's column at (1, 1) and (2, 1). A piece at (2, 1) would push d out of (2, 2).
+    const overlapped = build(
+      [['a', { text: 'S', rowspan: 3 }, 'b'], [{ text: 'X', colspan: 2, rowspan: 2 }, 'c'], ['d']],
+      't',
+    );
+    const { after, before } = pasteAt(overlapped, 't-0-1', build([['z']], 'b'));
+    expect(show(after)).toBe('[a, z, b] / [X colspan=2 rowspan=2, c] / [d]');
+    expect(after.child(1)).toBe(before.child(1));
+    expect(after.child(2)).toBe(before.child(2));
+    expect(gridOfNode(after).regular).toBe(true);
+  });
+
   it('an irregular target with a short row: the hole fill puts each pasted cell in its column (FR-035)', () => {
     const short = build([['r1c1', 'r1c2', 'r1c3'], ['r2c1'], ['r3c1', 'r3c2', 'r3c3']], 't');
     expect(show(pasteAt(short, 't-0-2', ABCD()).after)).toBe(

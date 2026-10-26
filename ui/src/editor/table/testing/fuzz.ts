@@ -65,7 +65,7 @@ import {
   type Refusal,
   type RefusalCode,
 } from '../edit';
-import { gridOfNode, type Rect } from '../grid';
+import { gridOfNode, type GridCell, type Rect } from '../grid';
 import {
   checkSplit,
   insertionLine,
@@ -1109,9 +1109,11 @@ export interface FuzzStepRecord {
  * id and kind and lose their content, every other position keeps its owner's content and kind;
  * after a paste, every position outside the target rectangle T keeps its owner's content and kind
  * - a cell that crossed T's edge left empty pieces of its kind, its content in its top-left
- * piece - and T's rows hold the pasted block's cells (content, kind) where the block starts them,
- * less the rows of T the paste compacts, which only rows where the block starts no cell can be
- * (data-model §8.4 step 5).
+ * piece, and its positions a later cell overlapped to that cell, with that cell's kind and
+ * content, or to an empty piece of that cell's kind when it crossed T too (the split, §4.5
+ * `table.splitCell`) - and T's rows hold the pasted block's cells (content, kind) where the
+ * block starts them, less the rows of T the paste compacts, which only rows where the block
+ * starts no cell can be (data-model §8.4 step 5).
  */
 function checkBlockLocality(
   before: PMNode,
@@ -1142,6 +1144,24 @@ function checkBlockLocality(
       cell.row <= r && r < cell.row + cell.rowsIn && cell.left <= c && c < cell.left + cell.colspan
     );
   };
+  const meetsT = (cell: GridCell) =>
+    cell.row < rect.bottom &&
+    cell.row + cell.rowsIn > rect.top &&
+    cell.left < rect.right &&
+    cell.left + cell.colspan > rect.left;
+  /** The kinds of the cells over (r, c) before that cross T: the paste splits each of them. */
+  const crossingKinds = (r: number, c: number) => {
+    const kinds = new Set<string>();
+    for (const cell of g0.cells) {
+      const over =
+        cell.row <= r &&
+        r < cell.row + cell.rowsIn &&
+        cell.left <= c &&
+        c < cell.left + cell.colspan;
+      if (over && meetsT(cell)) kinds.add(cell.kind);
+    }
+    return kinds;
+  };
   for (let r0 = 0; r0 < g0.height; r0 += 1) {
     const r1 = rowsAfter.get(before.child(g0.rowChild[r0]!).attrs.nodeId as string);
     if (r1 === undefined) continue;
@@ -1161,15 +1181,14 @@ function checkBlockLocality(
       }
       if (o1 < 0) return `position (${r0}, ${c}) of "${n0.textContent}" is a hole`;
       const n1 = gridCellNode(after, g1, o1);
-      const cell = g0.cells[o0]!;
-      const crossed =
-        pasted !== null &&
-        cell.row < rect.bottom &&
-        cell.row + cell.rowsIn > rect.top &&
-        cell.left < rect.right &&
-        cell.left + cell.colspan > rect.left;
+      const crossed = pasted !== null && meetsT(g0.cells[o0]!);
+      // The split of a crossing cell (data-model §8.4 step 2) leaves an empty piece of its kind
+      // at each of its other positions, but none where a later cell overlapped it: that cell
+      // covers the position then, with its own kind and content (§4.5 `table.splitCell`,
+      // FR-035) - or, when it crosses T too and is split in turn, an empty piece of its kind.
+      if (crossed && n1.attrs.nodeId !== n0.attrs.nodeId && coveredBefore(n1, r0, c)) continue;
+      if (crossed && n1.content.size === 0 && crossingKinds(r0, c).has(n1.type.name)) continue;
       if (n0.type !== n1.type) return `position (${r0}, ${c}) changed its kind`;
-      if (crossed && (n1.content.size === 0 || coveredBefore(n1, r0, c))) continue;
       if (!n0.content.eq(n1.content)) {
         return `position (${r0}, ${c}) of "${n0.textContent}" holds "${n1.textContent}"`;
       }
