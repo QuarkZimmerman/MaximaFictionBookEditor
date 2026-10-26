@@ -320,4 +320,72 @@ describe('feature 006: cells, marks and atoms in the schema and the conversions'
     ]);
     expect(dom(4)).toEqual(['em', { class: 'fb-emphasis' }, 0]);
   });
+
+  it("an inline image's and an inline raw-xml node's marks survive fromModel then toModel", () => {
+    // Feature 006 (FR-067; document-model §2.6): atoms keep the link and the formatting around
+    // them; a block raw-xml node never takes marks, an atom without marks has no member.
+    const paragraph: ModelNodeJson = {
+      type: 'p',
+      attrs: { nodeId: 'p1' },
+      content: [
+        { type: 'text', text: 'see ', marks: [{ type: 'link', attrs: { href: '#s1' } }] },
+        {
+          type: 'inline-image',
+          attrs: { nodeId: 'i1', href: '#pic.png' },
+          marks: [{ type: 'strong' }, { type: 'link', attrs: { href: '#s1', type: 'note' } }],
+        },
+        {
+          type: 'raw-xml',
+          attrs: { nodeId: 'r1', xml: '<!-- c -->', inline: true },
+          marks: [{ type: 'emphasis', attrs: { lang: 'la' } }],
+        },
+        { type: 'inline-image', attrs: { nodeId: 'i2', href: '#pic.png' } },
+      ],
+    };
+    const { node, back, problems } = viaEditor(paragraph);
+    expect(problems).toEqual([]);
+    expect(node.child(1).type.name).toBe('inline_image');
+    expect(node.child(1).marks.map((m) => m.type.name)).toEqual(['strong', 'link']);
+    expect(node.child(2).type.name).toBe('raw_xml_inline');
+    expect(node.child(2).marks[0]!.attrs).toEqual({ lang: 'la' });
+    expect(node.child(3).marks).toEqual([]);
+    expect(back).toEqual(paragraph);
+    // An inline raw node kept from its original JSON (a node the schema could not take) gives
+    // back its current marks in place of the stored ones.
+    const odd: ModelNodeJson = {
+      type: 'p',
+      attrs: { nodeId: 'p2' },
+      content: [
+        {
+          type: 'mystery',
+          attrs: { nodeId: 'm1' },
+          marks: [{ type: 'strong' }],
+        },
+      ],
+    };
+    const converted = viaEditor(odd);
+    const unknown = converted.node.child(0);
+    expect(unknown.type.name).toBe('raw_xml_inline');
+    expect(unknown.marks.map((m) => m.type.name)).toEqual(['strong']);
+    expect(converted.back).toEqual(odd);
+    const restyled = unknown.mark([fb2Schema.marks.code!.create()]);
+    expect(nodeToModel(restyled)).toEqual({
+      type: 'mystery',
+      attrs: { nodeId: 'm1' },
+      marks: [{ type: 'code' }],
+    });
+    expect(nodeToModel(unknown.mark([]))).toEqual({ type: 'mystery', attrs: { nodeId: 'm1' } });
+    // A block raw-xml node is created without marks.
+    const block = viaEditor({
+      type: 'raw-xml',
+      attrs: { nodeId: 'b1', xml: '<x/>', inline: false },
+      marks: [{ type: 'strong' }],
+    } as ModelNodeJson);
+    expect(block.node.type.name).toBe('raw_xml');
+    expect(block.node.marks).toEqual([]);
+    expect(block.back).toEqual({
+      type: 'raw-xml',
+      attrs: { nodeId: 'b1', xml: '<x/>', inline: false },
+    });
+  });
 });

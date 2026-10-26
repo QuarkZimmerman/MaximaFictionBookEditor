@@ -4,7 +4,8 @@
 //   - optional scalars are omitted when absent; arrays are always present (possibly empty);
 //   - a text node is {type:"text", text, marks?} (marks only when non-empty);
 //   - any other node is {type, attrs, content?} - `content` is omitted for leaf types
-//     (empty-line, image, inline-image, raw-xml) and present (possibly []) otherwise;
+//     (empty-line, image, inline-image, raw-xml) and present (possibly []) otherwise; an
+//     inline-image or raw-xml node also carries `marks` when it has any (feature 006, FR-067);
 //   - a mark is {type} or {type, attrs} when it has attributes.
 #pragma once
 

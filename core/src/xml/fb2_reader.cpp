@@ -341,6 +341,14 @@ bool has_mark(const std::vector<Mark>& marks, const std::string& type) {
     return std::any_of(marks.begin(), marks.end(), [&](const Mark& m) { return m.type == type; });
 }
 
+// An inline atom (an inline image or inline raw XML: an unknown or misplaced element, a
+// comment, a processing instruction) takes the marks open at its place, as text does
+// (feature 006, FR-067).
+void append_atom(std::vector<Node>& out, Node atom, const std::vector<Mark>& marks) {
+    atom.marks = marks;
+    out.push_back(std::move(atom));
+}
+
 void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vector<Mark>& marks,
                              Ctx& ctx) {
     for (xmlNodePtr c = parent->children; c != nullptr; c = c->next) {
@@ -354,12 +362,12 @@ void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vec
                 break;
             case XML_COMMENT_NODE:
             case XML_PI_NODE:
-                out.push_back(raw_of(c, true));
+                append_atom(out, raw_of(c, true), marks);
                 attach_position(out.back(), c, ctx);
                 break;
             case XML_ELEMENT_NODE: {
                 if (!is_fb2_element(c)) {
-                    out.push_back(raw_of(c, true));
+                    append_atom(out, raw_of(c, true), marks);
                     attach_position(out.back(), c, ctx);
                     break;
                 }
@@ -397,10 +405,11 @@ void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vec
                     img.type = "inline-image";
                     collect_attrs(c, img, "inline-image");
                     attach_position(img, c, ctx);
-                    out.push_back(std::move(img));
+                    append_atom(out, std::move(img), marks);
                     break;
                 } else {
-                    out.push_back(raw_of(c, true));  // block element or unknown inline element
+                    // A block element or an unknown inline element.
+                    append_atom(out, raw_of(c, true), marks);
                     attach_position(out.back(), c, ctx);
                     break;
                 }

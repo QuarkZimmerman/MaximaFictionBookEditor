@@ -330,7 +330,8 @@ TEST_CASE("writer: marks nest in the canonical order link > style > strong > emp
     CHECK(fb2::mark_rank("sub") < fb2::mark_rank("sup"));
     CHECK(fb2::mark_rank("sup") < fb2::mark_rank("code"));
 
-    // A mark-less inline image keeps enclosing marks open when the next text continues them.
+    // An inline image without marks is written outside the marks around it (feature 006,
+    // FR-067: an atom is written inside the elements of its own marks, as text is).
     model::Node img;
     img.type = "inline-image";
     img.attrs["href"] = "#i.png";
@@ -339,10 +340,9 @@ TEST_CASE("writer: marks nest in the canonical order link > style > strong > emp
         "body",
         {element("section", {element("p", {text_node("x", {strong}), img, text_node("y", {strong}),
                                            img, text_node("z", {})})})}));
-    CHECK_THAT(
-        fb2::write_document(doc2, nullptr).text,
-        ContainsSubstring(
-            "<p><strong>x<image l:href=\"#i.png\"/>y</strong><image l:href=\"#i.png\"/>z</p>"));
+    CHECK_THAT(fb2::write_document(doc2, nullptr).text,
+               ContainsSubstring("<p><strong>x</strong><image l:href=\"#i.png\"/><strong>y</"
+                                 "strong><image l:href=\"#i.png\"/>z</p>"));
 }
 
 TEST_CASE("writer: required elements are always written, optional empty ones omitted", "[writer]") {
@@ -792,4 +792,95 @@ TEST_CASE("writer: a link is written with xlink:href, xlink:type and type", "[wr
     auto back = read_text(text);
     CHECK(back->result.document.bodies.at(0).content.at(0).content.at(0).content ==
           r->result.document.bodies.at(0).content.at(0).content.at(0).content);
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: inline atoms keep their marks (contracts/document-model.md §2.6)              */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "reader and writer: an inline image or inline raw XML inside a link or formatting keeps it",
+    "[writer][reader][marks]") {
+    // The shapes as read and as written (equal): the probes of document-model §8 and the
+    // formatted and commented atoms, each in a paragraph and in a cell.
+    const std::vector<std::string> shapes = {
+        "<a l:href=\"#s1\"><image l:href=\"#pic\"/></a>",
+        "<a l:href=\"#s1\">t<image l:href=\"#pic\"/></a> after",
+        "<strong><image l:href=\"#pic\"/></strong>",
+        "<emphasis xml:lang=\"la\">x<!-- note -->y</emphasis>",
+        "<a l:href=\"#s1\">see <x:mark xmlns:x=\"urn:example:x\">here</x:mark></a>",
+        "<a l:href=\"#s1\"><?pi data?></a>",
+        // An atom without marks between two bold texts stands between two strong elements.
+        "<strong>a</strong><image l:href=\"#pic\"/><strong>b</strong>",
+    };
+    std::string body = "<section>";
+    std::string cells;
+    for (const auto& shape : shapes) {
+        body += "<p>" + shape + "</p>";
+        cells += "<tr><td>" + shape + "</td></tr>";
+    }
+    body += "<table>" + cells + "</table></section><section id=\"s1\"><p>target</p></section>";
+    auto r = read_text(test::minimal_book(body));
+    const model::Node& section = r->result.document.bodies.at(0).content.at(0);
+    // The model: the atoms carry the marks open around them.
+    const model::Mark link{"link", nlohmann::json{{"href", "#s1"}}};
+    const model::Mark strong{"strong", nullptr};
+    const model::Mark la{"emphasis", nlohmann::json{{"lang", "la"}}};
+    const auto& p1 = section.content.at(0).content;
+    REQUIRE(p1.size() == 1);
+    CHECK(p1[0].type == "inline-image");
+    CHECK(p1[0].marks == std::vector<model::Mark>{link});
+    const auto& p2 = section.content.at(1).content;
+    REQUIRE(p2.size() == 3);
+    CHECK(p2[1].type == "inline-image");
+    CHECK(p2[1].marks == std::vector<model::Mark>{link});
+    CHECK(p2[2].marks.empty());
+    CHECK(section.content.at(2).content.at(0).marks == std::vector<model::Mark>{strong});
+    const auto& p4 = section.content.at(3).content;
+    REQUIRE(p4.size() == 3);
+    CHECK(p4[1].type == "raw-xml");
+    CHECK(p4[1].marks == std::vector<model::Mark>{la});
+    const auto& p5 = section.content.at(4).content;
+    REQUIRE(p5.size() == 2);
+    CHECK(p5[1].type == "raw-xml");
+    CHECK(p5[1].marks == std::vector<model::Mark>{link});
+    CHECK(section.content.at(5).content.at(0).marks == std::vector<model::Mark>{link});
+    const auto& p7 = section.content.at(6).content;
+    REQUIRE(p7.size() == 3);
+    CHECK(p7[1].marks.empty());
+
+    // The text: every shape written as read, in the paragraphs and in the cells.
+    const std::string text = fb2::write_document(r->result.document, &r->store).text;
+    for (const auto& shape : shapes) {
+        INFO(shape);
+        CHECK_THAT(text, ContainsSubstring("<p>" + shape + "</p>"));
+        CHECK_THAT(text, ContainsSubstring("<td>" + shape + "</td>"));
+    }
+    CHECK_FALSE(fb2::check_well_formed(text).has_value());
+    // Read back, the model is the same (node ids apart).
+    auto back = read_text(text);
+    const model::Node& again = back->result.document.bodies.at(0).content.at(0);
+    REQUIRE(again.content.size() == section.content.size());
+    for (std::size_t i = 0; i < shapes.size(); ++i) {
+        INFO(shapes[i]);
+        const auto& a = section.content[i].content;
+        const auto& b = again.content[i].content;
+        REQUIRE(a.size() == b.size());
+        for (std::size_t k = 0; k < a.size(); ++k) {
+            CHECK(a[k].type == b[k].type);
+            CHECK(a[k].text == b[k].text);
+            CHECK(a[k].marks == b[k].marks);
+        }
+    }
+
+    // The fragment writer (doc.fragmentToXml) shares the rule.
+    model::Node img;
+    img.type = "inline-image";
+    img.attrs["href"] = "#pic";
+    img.marks = {link};
+    CHECK(fb2::write_fragment({text_node("t", {link}), img, text_node(" after")}) ==
+          "<a l:href=\"#s1\">t<image l:href=\"#pic\"/></a> after");
+    img.marks = {};
+    CHECK(fb2::write_fragment({text_node("a", {strong}), img, text_node("b", {strong})}) ==
+          "<strong>a</strong><image l:href=\"#pic\"/><strong>b</strong>");
 }

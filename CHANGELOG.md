@@ -48,6 +48,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   editing and saving; release 0.0.5 dropped both when a book was opened. Scripts see them as
   `attrs.lang` and `attrs.xlinkType` of the marks; changing a link's target or kind keeps its
   `xlink:type`. Other attributes of these elements are still dropped.
+- Pictures and other inline items (unknown inline elements, comments, processing instructions)
+  keep the link and the formatting around them through opening, editing and saving, in table
+  cells and everywhere else: a picture that is a link (`<a l:href="#s1"><image .../></a>`), or a
+  bold one, is written back as read, and bold or a link applied to a selected picture is saved.
+  Release 0.0.5 dropped them when a book was opened, and wrote a picture at the end of a link
+  outside it. File > Validate also reports a broken link on a picture alone, and
+  `mfbe-core roundtrip` counts a lost link or formatting around a picture as a difference.
 
 ## 0.0.5 - unreleased
 

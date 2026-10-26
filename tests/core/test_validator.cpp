@@ -307,3 +307,51 @@ TEST_CASE("validator: descriptor without body and legacy order are reported, not
     CHECK(param(r3.issues[0], "element") == "annotation");
     CHECK(r3.issues[0].nodeId == doc.description.titleInfo.annotation->node_id());
 }
+
+TEST_CASE(
+    "validator: a dangling link on an inline image or inline raw XML alone gives link.dangling",
+    "[validator][marks]") {
+    // Feature 006 (FR-067; rpc-api §3.2): the link marks of inline atoms are checked as those of
+    // text, one warning per node, with the container's nodeId and path.
+    model::Document doc;
+    model::Node section = element("section");
+    section.attrs["id"] = "s1";
+    model::Node picture;
+    picture.type = "inline-image";
+    picture.attrs["href"] = "#pic.png";
+    picture.marks = {model::Mark{"link", nlohmann::json{{"href", "#gone"}}}};
+    model::Node raw;
+    raw.type = "raw-xml";
+    raw.attrs["xml"] = "<x:mark xmlns:x=\"urn:example:x\">r</x:mark>";
+    raw.attrs["inline"] = true;
+    raw.marks = {model::Mark{"link", nlohmann::json{{"href", "#lost"}, {"type", "note"}}}};
+    model::Node linked_ok = picture;
+    linked_ok.marks = {model::Mark{"link", nlohmann::json{{"href", "#s1"}}}};
+    section.content.push_back(element("p", {picture}));
+    section.content.push_back(element("p", {text("x "), raw}));
+    section.content.push_back(element("p", {linked_ok}));
+    model::Node cell = element("td", {picture});
+    section.content.push_back(element("table", {element("tr", {cell})}));
+    doc.bodies.push_back(element("body", {section}));
+    model::NodeIdAllocator ids;
+    model::assign_node_ids(doc, ids);
+
+    model::ValidationReport report;
+    report.issues = validation::consistency_issues(doc, nullptr);
+    const auto dangling = with_code(report, "link.dangling");
+    REQUIRE(dangling.size() == 3);
+    const model::Node& s = doc.bodies[0].content[0];
+    CHECK(param(*dangling[0], "href") == "#gone");
+    CHECK(dangling[0]->nodeId == s.content[0].node_id());
+    CHECK(dangling[0]->path == "body[1]/section[1]/p[1]");
+    CHECK(param(*dangling[1], "href") == "#lost");
+    CHECK(dangling[1]->nodeId == s.content[1].node_id());
+    CHECK(dangling[1]->path == "body[1]/section[1]/p[2]");
+    CHECK(param(*dangling[2], "href") == "#gone");
+    CHECK(dangling[2]->nodeId == s.content[3].content[0].content[0].node_id());
+    CHECK(dangling[2]->path == "body[1]/section[1]/table[1]/tr[1]/td[1]");
+    // Both report forms run the check: the document form here, the text form through
+    // doc.validate {text} (validate_text_with_model) on the same reader.
+    const auto full = validation::validate_document(doc, nullptr);
+    CHECK(with_code(full, "link.dangling").size() == 3);
+}

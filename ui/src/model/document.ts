@@ -283,7 +283,14 @@ export interface ImageNode extends BaseNode<
 > {}
 
 /** Unknown element preserved verbatim; `inline` tells where it may appear. */
-export interface RawXmlNode extends BaseNode<'raw-xml', { xml: string; inline: boolean }> {}
+export interface RawXmlNode extends BaseNode<'raw-xml', { xml: string; inline: boolean }> {
+  /**
+   * The marks open around it: inline only; feature 006, FR-067 (contracts/document-model.md
+   * §2.6). Outer first; a formatting type may repeat with different attributes, a link may not
+   * (feature 006, FR-069). Absent when empty; a block raw-xml node has none.
+   */
+  marks?: Mark[];
+}
 
 /* ------------------------------------------------------------------------ */
 /* Inline content                                                            */
@@ -294,10 +301,20 @@ export type InlineNode = TextNode | InlineImageNode | RawXmlNode;
 export interface TextNode {
   type: 'text';
   text: string;
+  /**
+   * Outer first; a formatting type may repeat with different attributes, a link may not
+   * (feature 006, FR-069; contracts/document-model.md §2.1, §2.2). Absent when empty.
+   */
   marks?: Mark[];
 }
 
-export interface InlineImageNode extends BaseNode<'inline-image', { href: string; alt?: string }> {}
+export interface InlineImageNode extends BaseNode<'inline-image', { href: string; alt?: string }> {
+  /**
+   * The marks open around the picture: inline only; feature 006, FR-067 (as `TextNode.marks`;
+   * contracts/document-model.md §2.6). Absent when empty.
+   */
+  marks?: Mark[];
+}
 
 /**
  * An inline formatting element or a link (contracts/document-model.md §2.1, feature 006): the

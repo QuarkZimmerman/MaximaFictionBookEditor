@@ -525,10 +525,9 @@ std::vector<ValidationIssue> consistency_issues(const model::Document& document,
         if (node.type == "image" || node.type == "inline-image") {
             image_issue(node.attr_string("href").value_or(""), node.node_id(), path);
         }
+        // The link marks of every inline child: text, inline images and inline raw XML
+        // (feature 006, FR-067), one warning per such node.
         for (const model::Node& child : node.content) {
-            if (!child.is_text()) {
-                continue;
-            }
             for (const model::Mark& mark : child.marks) {
                 if (mark.type != "link" || !mark.attrs.is_object() ||
                     !mark.attrs.contains("href") || !mark.attrs["href"].is_string()) {

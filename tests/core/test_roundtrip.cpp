@@ -220,3 +220,33 @@ TEST_CASE("roundtrip: the document details filled in on load are written and not
     REQUIRE(c.differences.size() == 1);
     CHECK(c.differences[0].where == "description/documentInfo/srcOcr");
 }
+
+TEST_CASE("roundtrip: the comparison reports an inline atom whose marks differ", "[roundtrip]") {
+    // Feature 006 (FR-067): a lost link or formatting around a picture or inline raw XML is a
+    // structural difference (cli.md roundtrip, exit code 3).
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const std::string text = test::minimal_book(
+        "<section><p>see <a l:href=\"#s2\"><image l:href=\"#pic\"/></a></p>"
+        "<p><strong>x<x:mark xmlns:x=\"urn:example:x\">r</x:mark></strong></p></section>"
+        "<section id=\"s2\"><p>t</p></section>");
+    const auto a = fb2::read_bytes(text, store, ids_a);
+    auto b = fb2::read_bytes(text, store, ids_b);
+    CHECK(roundtrip::compare(a.document, store, b.document, store).identical());
+
+    model::Node& picture = b.document.bodies[0].content[0].content[0].content[1];
+    REQUIRE(picture.type == "inline-image");
+    REQUIRE(picture.marks.size() == 1);
+    picture.marks.clear();  // the link around the picture lost
+    model::Node& raw = b.document.bodies[0].content[0].content[1].content[1];
+    REQUIRE(raw.type == "raw-xml");
+    REQUIRE(raw.marks.size() == 1);
+    raw.marks.clear();  // the bold around the raw XML lost
+    const roundtrip::Comparison c = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(c.differences.size() == 2);
+    CHECK(c.differences[0].where == "body[1]/section[1]/p[1]/inline-image[1]");
+    CHECK(c.differences[0].what == "marks differ");
+    CHECK(c.differences[1].where == "body[1]/section[1]/p[2]/raw-xml[1]");
+    CHECK(c.differences[1].what == "marks differ");
+}

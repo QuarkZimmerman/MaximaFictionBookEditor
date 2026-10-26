@@ -198,6 +198,10 @@ void compare_nodes(const Node& a, const Node& b, const std::string& where, Compa
         }
         return;
     }
+    // The marks of an inline atom count as those of text (feature 006, FR-067).
+    if (sorted_marks(a.marks) != sorted_marks(b.marks)) {
+        out.differences.push_back({where, "marks differ"});
+    }
     const auto aa = attrs_without_node_id(a);
     const auto ba = attrs_without_node_id(b);
     if (aa != ba) {

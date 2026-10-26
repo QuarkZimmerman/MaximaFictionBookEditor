@@ -247,3 +247,39 @@ TEST_CASE("json_codec: marks carry lang and xlinkType; a mark without attributes
     CHECK(model::to_json(model::Mark{"sub", json::object()}) == json{{"type", "sub"}});
     CHECK_FALSE(model::to_json(model::mark_from_json(json{{"type", "sup"}})).contains("attrs"));
 }
+
+TEST_CASE("json_codec: inline atoms carry marks; an atom without marks has no marks member",
+          "[codec][marks]") {
+    // Feature 006 (FR-067; document-model §2.6): inline-image and raw-xml nodes carry `marks`
+    // as text does, written only when non-empty.
+    const json image{{"type", "inline-image"},
+                     {"attrs", {{"nodeId", "n1"}, {"href", "#pic.png"}}},
+                     {"marks", json::array({{{"type", "link"}, {"attrs", {{"href", "#s1"}}}},
+                                            {{"type", "strong"}}})}};
+    const model::Node img = model::node_from_json(image);
+    REQUIRE(img.marks.size() == 2);
+    CHECK(img.marks[0] == model::Mark{"link", json{{"href", "#s1"}}});
+    CHECK(img.marks[1] == model::Mark{"strong", nullptr});
+    CHECK(model::to_json(img) == image);
+    const json raw{{"type", "raw-xml"},
+                   {"attrs", {{"nodeId", "n2"}, {"xml", "<!-- c -->"}, {"inline", true}}},
+                   {"marks", json::array({{{"type", "emphasis"}, {"attrs", {{"lang", "la"}}}}})}};
+    const model::Node raw_node = model::node_from_json(raw);
+    REQUIRE(raw_node.marks.size() == 1);
+    CHECK(model::to_json(raw_node) == raw);
+    // Without marks: no member, as release 0.0.5 wrote them.
+    const json plain{{"type", "inline-image"}, {"attrs", {{"nodeId", "n3"}, {"href", "#p"}}}};
+    CHECK(model::to_json(model::node_from_json(plain)) == plain);
+    const json empty_marks{{"type", "inline-image"},
+                           {"attrs", {{"nodeId", "n4"}, {"href", "#p"}}},
+                           {"marks", json::array()}};
+    CHECK_FALSE(model::to_json(model::node_from_json(empty_marks)).contains("marks"));
+    // Other node types keep ignoring a marks member.
+    const json paragraph{{"type", "p"},
+                         {"attrs", {{"nodeId", "n5"}}},
+                         {"content", json::array()},
+                         {"marks", json::array({{{"type", "strong"}}})}};
+    const model::Node p = model::node_from_json(paragraph);
+    CHECK(p.marks.empty());
+    CHECK_FALSE(model::to_json(p).contains("marks"));
+}

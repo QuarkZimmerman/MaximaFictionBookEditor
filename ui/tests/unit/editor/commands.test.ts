@@ -50,6 +50,7 @@ import {
   setNodeAttr,
 } from '@/editor/commands/table';
 import { enterCommand } from '@/editor/keymap';
+import { nodeToModel } from '@/editor/toModel';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { fb2Schema, FIXED_BLOCK_IDS } from '@/editor/schema';
 
@@ -516,6 +517,34 @@ describe('Links and footnotes (T061)', () => {
     const removed = run(retargeted, removeLink)!;
     expect(removed.doc.nodeAt(from)!.marks).toHaveLength(0);
     expect(removeLink(removed)).toBe(false);
+  });
+
+  it('bold and a link applied to a selected inline image reach its model marks', () => {
+    // Feature 006 (FR-067; vR9 N3): ProseMirror puts formatting and links on a selected
+    // picture; the conversion now carries them to the model (and so to the file).
+    const picture = N.inline_image!.create({ nodeId: 'i1', href: '#pic.png' });
+    const d = doc(
+      body([section([N.p!.create({ nodeId: 'p1' }, [fb2Schema.text('see '), picture])])]),
+    );
+    const at = posOf(d, 'see') + 4;
+    expect(d.nodeAt(at)!.type).toBe(N.inline_image);
+    const selected = EditorState.create({ doc: d }).apply(
+      EditorState.create({ doc: d }).tr.setSelection(NodeSelection.create(d, at)),
+    );
+    const bold = run(selected, toggleInlineMark('strong'))!;
+    const linked = run(
+      bold.apply(bold.tr.setSelection(NodeSelection.create(bold.doc, at))),
+      setLink('#n_1', 'note'),
+    )!;
+    const image = linked.doc.nodeAt(at)!;
+    expect(image.marks.map((m) => m.type.name)).toEqual(['strong', 'link']);
+    expect(nodeToModel(image)).toEqual({
+      type: 'inline-image',
+      attrs: { nodeId: 'i1', href: '#pic.png' },
+      marks: [{ type: 'strong' }, { type: 'link', attrs: { href: '#n_1', type: 'note' } }],
+    });
+    // The paragraph's text is untouched.
+    expect(linked.doc.nodeAt(posOf(d, 'see'))!.marks).toEqual([]);
   });
 
   it("setLink keeps the link's xlinkType when it changes href or type", () => {

@@ -826,6 +826,19 @@ private:
         return n;
     }
 
+    // An image (written as an inline `<image/>`) or a raw XML node of inline content, with
+    // its position entry; the elements of its marks are open already.
+    void write_inline_atom(const Node& node) {
+        note_node(node);
+        const int entry = begin_entry(node, PositionKind::inlineAtom);
+        if (node.type == "raw-xml") {
+            emit(raw_xml_of(node));
+        } else {
+            emit("<image" + known_attrs(node, "inline-image") + "/>");
+        }
+        end_entry(entry, true);
+    }
+
     void write_inline_content(const std::vector<Node>& content) {
         std::vector<Mark> open;
         const auto close_to = [&](std::size_t keep) {
@@ -836,17 +849,25 @@ private:
         };
         for (std::size_t i = 0; i < content.size(); ++i) {
             const Node& node = content[i];
-            if (node.is_text()) {
+            // Text and inline atoms (an inline image, inline raw XML) are written inside the
+            // elements of their own marks: the open elements they do not continue are closed,
+            // the missing ones opened (feature 006, FR-067).
+            if (node.is_text() || is_inline_node(node)) {
                 const std::vector<Mark> marks = sorted_marks(node.marks);
                 close_to(common_prefix(open, marks));
                 for (std::size_t k = open.size(); k < marks.size(); ++k) {
                     emit(mark_open(marks[k]));
                     open.push_back(marks[k]);
                 }
-                emit(esc_text(node.text));
+                if (node.is_text()) {
+                    emit(esc_text(node.text));
+                } else {
+                    write_inline_atom(node);
+                }
                 continue;
             }
-            // Mark-less inline node: keep the marks that the next text node continues.
+            // An empty-line, a block image or another block node left in inline content: keep
+            // the marks that the next text node continues.
             std::vector<Mark> next;
             for (std::size_t j = i + 1; j < content.size(); ++j) {
                 if (content[j].is_text()) {
@@ -855,16 +876,8 @@ private:
                 }
             }
             close_to(common_prefix(open, next));
-            if (node.type == "inline-image" || node.type == "image") {
-                note_node(node);
-                const int entry = begin_entry(node, PositionKind::inlineAtom);
-                emit("<image" + known_attrs(node, "inline-image") + "/>");
-                end_entry(entry, true);
-            } else if (node.type == "raw-xml") {
-                note_node(node);
-                const int entry = begin_entry(node, PositionKind::inlineAtom);
-                emit(raw_xml_of(node));
-                end_entry(entry, true);
+            if (node.type == "image" || node.type == "raw-xml") {
+                write_inline_atom(node);
             } else if (node.type == "empty-line") {
                 const int entry = begin_entry(node, PositionKind::inlineAtom);
                 emit("<empty-line/>");

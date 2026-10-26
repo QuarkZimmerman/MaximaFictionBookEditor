@@ -198,6 +198,12 @@ ValidationReport parse_validation_report(const json& j, const std::string& path)
 Stylesheet parse_stylesheet(const json& j, const std::string& path);
 Document parse_document(const json& j, const std::string& path);
 
+// The nodes besides text whose `marks` the codec carries: the inline atoms, an inline image
+// and inline raw XML (feature 006, FR-067; a block raw-xml node never has any).
+bool carries_marks(const Node& node) {
+    return node.type == "inline-image" || node.type == "raw-xml";
+}
+
 Mark parse_mark(const json& j, const std::string& path) {
     Reader r(j, path);
     Mark mark;
@@ -234,6 +240,9 @@ Node parse_node(const json& j, const std::string& path) {
         }
     }
     node.content = r.array<Node>("content", parse_node);
+    if (carries_marks(node)) {
+        node.marks = r.array<Mark>("marks", parse_mark);  // inline atoms (feature 006, FR-067)
+    }
     return node;
 }
 
@@ -468,6 +477,9 @@ json to_json(const Node& node) {
     j["attrs"] = std::move(attrs);
     if (!node.content.empty() || !is_leaf_type(node.type)) {
         j["content"] = array_to_json(node.content);
+    }
+    if (carries_marks(node) && !node.marks.empty()) {
+        j["marks"] = array_to_json(node.marks);
     }
     return j;
 }
