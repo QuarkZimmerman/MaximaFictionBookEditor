@@ -470,6 +470,12 @@ test.describe('US8 - the interface in Russian (?lang=ru)', () => {
     const table = page.getByTestId('dialog-table');
     await expectRussianDialog(page, 'dialog-table', 'Table');
     await expect(table.getByTestId('dialog-table-title')).toContainText('Параметры таблицы');
+    // The four fields of feature 006 (FR-001) with their Russian labels.
+    for (const key of ['rowCount', 'columns', 'headerRow', 'headerColumn']) {
+      await expect(
+        table.getByText(uiText('ru', `dialog.table.${key}`), { exact: true }),
+      ).toBeVisible();
+    }
     await table.getByTestId('dialog-table-button-cancel').click();
     await expect(table).toBeHidden();
 

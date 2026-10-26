@@ -7,11 +7,12 @@
  * for its commands.
  */
 
+import { act } from '@testing-library/react';
 import { createInstance, type TFunction } from 'i18next';
 import { NodeType, type Node as PMNode } from 'prosemirror-model';
 import { EditorState, NodeSelection, TextSelection } from 'prosemirror-state';
 
-import { createCommandRegistry } from '@/app/commands';
+import { createCommandRegistry, unavailableTitle } from '@/app/commands';
 import {
   availability,
   planCommand,
@@ -26,13 +27,29 @@ import { gridOfNode } from '@/editor/table/grid';
 import { caretAt } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
 import { fb2Schema, findNodeById } from '@/editor/schema';
-import { tableCommand, tableIcon, type TableCommandRow } from '@/features/tables/commands';
+import {
+  createInsertTableCommand,
+  tableCommand,
+  tableIcon,
+  type TableCommandRow,
+} from '@/features/tables/commands';
 import { reasonText, type ReasonCode } from '@/features/tables/reasons';
 import { initI18n, resources } from '@/i18n';
+import type { Document } from '@/model/document';
 import { actions } from '@/model/store';
 
-import { fakeRunLock, makeContext } from './testUtils';
-import { caretIn, posOf, removeHarnessHosts, tablesHarness } from './tablesHarness';
+import { defaultSettings, mergeSettings } from '../settings/fixtures';
+
+import { fakeDialogs, fakeRunLock, makeContext } from './testUtils';
+import {
+  caretIn,
+  posOf,
+  removeHarnessHosts,
+  select,
+  tableDocument,
+  tablesHarness,
+  type TablesHarness,
+} from './tablesHarness';
 
 const N = fb2Schema.nodes;
 
@@ -347,5 +364,197 @@ describe('a command built from a row of the command table', () => {
     expect(services.undo.entries().at(-1)!.view).toBe('body');
     // The store's document follows the editor.
     expect(JSON.stringify(ctx.store.getState().document)).toContain('"X"');
+  });
+});
+
+describe('insert.table (US1)', () => {
+  /** The harness's book with a body title (`btp`), where no table may stand. */
+  function bookWithTitle(): Document {
+    const doc = tableDocument();
+    (doc.bodies[0]!.content as unknown[]).unshift({
+      type: 'title',
+      attrs: { nodeId: 'bt' },
+      content: [{ type: 'p', attrs: { nodeId: 'btp' }, content: [{ type: 'text', text: 'Book' }] }],
+    });
+    return doc;
+  }
+
+  const STORED = { rows: 4, columns: 3, headerRow: true, headerColumn: false };
+
+  /** Settings whose `session.tableDialog` is `STORED`; `settings.set` merges like the core. */
+  function withSettings(harness: TablesHarness): void {
+    const settings = defaultSettings();
+    settings.session.tableDialog = { ...STORED };
+    act(() => actions.setSettings(harness.store, settings));
+    harness.rpc.responses['settings.set'] = (params: unknown) => ({
+      settings: mergeSettings(
+        harness.store.getState().settings,
+        (params as { patch: unknown }).patch,
+      ),
+      restartRequired: false,
+    });
+  }
+
+  function sectionTypes(harness: TablesHarness): string[] {
+    const section = harness.store
+      .getState()
+      .document!.bodies[0]!.content.find((child) => child.type === 'section') as unknown as {
+      content: { type: string }[];
+    };
+    return section.content.map((child) => child.type);
+  }
+
+  it('is registered by the tables feature: the literal id, the group edit, menu.add.table, the icon table-insert, no hotkey scope', async () => {
+    const { services } = await tablesHarness();
+    const command = services.commands.get('insert.table')!;
+    expect(command).toMatchObject({
+      id: 'insert.table',
+      group: 'edit',
+      labelKey: 'menu.add.table',
+      tooltipKey: 'cmd.insert.table.tooltip',
+      descriptionKey: 'cmd.insert.table.description',
+      icon: 'table-insert',
+    });
+    expect(command.hotkeyScope).toBeUndefined();
+    expect(command.stub).toBeUndefined();
+    expect(command.duringScriptRun).toBeUndefined();
+    // The tables feature's own entry, not the stub or the editing feature's.
+    const own = createInsertTableCommand();
+    expect(Object.keys(command).sort()).toEqual(Object.keys(own).sort());
+  });
+
+  it('is enabled where FR-004 finds a point, unavailable with its reason elsewhere and under the run lock', async () => {
+    const harness = await tablesHarness(bookWithTitle());
+    const { services, ctx } = harness;
+    act(() => caretIn(harness, 'p1', 3));
+    expect(services.commands.isEnabled('insert.table', ctx)).toBe(true);
+    expect(services.commands.unavailableReason('insert.table', ctx)).toBeNull();
+    act(() => caretIn(harness, 'btp', 2));
+    expect(services.commands.isEnabled('insert.table', ctx)).toBe(false);
+    expect(services.commands.unavailableReason('insert.table', ctx)).toBe(
+      'no table may stand here',
+    );
+    expect(
+      unavailableTitle(
+        services.commands.get('insert.table')!,
+        services.commands.unavailableReason('insert.table', ctx)!,
+        ctx.t,
+      ),
+    ).toBe('Insert table: no table may stand here');
+    act(() => caretIn(harness, 't1-1-1', 1));
+    expect(services.commands.isEnabled('insert.table', ctx)).toBe(true);
+    act(() => actions.setRunLock(harness.store, fakeRunLock('script')));
+    expect(services.commands.unavailableReason('insert.table', ctx)).toBe(
+      'a script is running; wait until it ends',
+    );
+    act(() => actions.setRunLock(harness.store, fakeRunLock('ai')));
+    expect(services.commands.unavailableReason('insert.table', ctx)).toBe(
+      'a request to the AI assistant is running; wait until it ends',
+    );
+    act(() => actions.setRunLock(harness.store, null));
+    // No field target before US10: the Description view has none.
+    act(() => actions.setActiveView(harness.store, 'description'));
+    expect(services.commands.isEnabled('insert.table', ctx)).toBe(false);
+    expect(services.commands.unavailableReason('insert.table', ctx)).toBe(
+      'place the caret in the Body view, in an annotation or history field, or in the Source view',
+    );
+    // Without a document.
+    const empty = await makeContext();
+    const registry = createCommandRegistry();
+    registry.replace(createInsertTableCommand());
+    expect(registry.isEnabled('insert.table', empty)).toBe(false);
+    expect(registry.unavailableReason('insert.table', empty)).toBe(
+      'place the caret in the Body view, in an annotation or history field, or in the Source view',
+    );
+  });
+
+  it('opens the dialog with session.tableDialog; OK stores the four values and inserts as one undo step', async () => {
+    const harness = await tablesHarness();
+    withSettings(harness);
+    act(() => caretIn(harness, 'p1', 6));
+    const dialogs = fakeDialogs(
+      [],
+      [{ rows: 2, columns: 3, headerRow: false, headerColumn: true }],
+    );
+    const ctx = { ...harness.ctx, dialogs };
+    const entries = harness.services.undo.entries().length;
+    await act(async () => {
+      expect(await harness.services.commands.execute('insert.table', ctx)).toBe(true);
+    });
+    expect(dialogs.custom).toHaveLength(1);
+    expect(dialogs.custom[0]!.name).toBe('TablePropertiesDialog');
+    expect(dialogs.custom[0]!.props.initial).toEqual(STORED);
+    const sets = harness.rpc.calls.filter((call) => call.method === 'settings.set');
+    expect(sets).toEqual([
+      {
+        method: 'settings.set',
+        params: {
+          patch: {
+            session: { tableDialog: { rows: 2, columns: 3, headerRow: false, headerColumn: true } },
+          },
+        },
+      },
+    ]);
+    expect(harness.store.getState().settings!.session.tableDialog).toEqual({
+      rows: 2,
+      columns: 3,
+      headerRow: false,
+      headerColumn: true,
+    });
+    expect(sectionTypes(harness)).toEqual(['p', 'table', 'table', 'p']);
+    expect(harness.services.undo.entries().length).toBe(entries + 1);
+    const state = harness.controller.editorState!;
+    const cell = state.selection.$from.parent;
+    expect(cell.type.name).toBe('th');
+    expect(state.selection.$from.parentOffset).toBe(0);
+    expect(state.selection.$from.node(-2).childCount).toBe(2);
+    expect(state.selection.$from.node(-1).childCount).toBe(3);
+  });
+
+  it('changes and stores nothing on Cancel', async () => {
+    const harness = await tablesHarness();
+    withSettings(harness);
+    act(() => caretIn(harness, 'p1', 6));
+    const before = harness.store.getState().document;
+    const entries = harness.services.undo.entries().length;
+    const ctx = { ...harness.ctx, dialogs: fakeDialogs([], [null]) };
+    await act(async () => {
+      await harness.services.commands.execute('insert.table', ctx);
+    });
+    expect(harness.rpc.calls.filter((call) => call.method === 'settings.set')).toEqual([]);
+    expect(harness.store.getState().document).toBe(before);
+    expect(harness.services.undo.entries().length).toBe(entries);
+  });
+
+  it('logs a failing settings.set and inserts the table all the same', async () => {
+    const harness = await tablesHarness();
+    act(() => caretIn(harness, 'p1', 6));
+    harness.rpc.responses['settings.set'] = new Error('the settings file cannot be written');
+    const ctx = { ...harness.ctx, dialogs: fakeDialogs([], [{ ...STORED }]) };
+    await act(async () => {
+      await harness.services.commands.execute('insert.table', ctx);
+    });
+    const logged = harness.rpc.calls.filter((call) => call.method === 'log.error');
+    expect(logged).toHaveLength(1);
+    expect((logged[0]!.params as { code: string }).code).toBe('tables.dialogSaveFailed');
+    expect(sectionTypes(harness)).toEqual(['p', 'table', 'table', 'p']);
+  });
+
+  it('keeps a non-empty selection in the document and puts the table at its end (decision 4)', async () => {
+    const harness = await tablesHarness();
+    withSettings(harness);
+    const doc = harness.controller.editorState!.doc;
+    const start = posOf(harness, 'p1') + 1;
+    act(() => select(harness, TextSelection.create(doc, start + 1, start + 4)));
+    const ctx = { ...harness.ctx, dialogs: fakeDialogs([], [{ ...STORED }]) };
+    await act(async () => {
+      await harness.services.commands.execute('insert.table', ctx);
+    });
+    expect(sectionTypes(harness)).toEqual(['p', 'table', 'p', 'table', 'p']);
+    const section = harness.store.getState().document!.bodies[0]!.content[0] as unknown as {
+      content: { type: string; content?: { text?: string }[] }[];
+    };
+    expect(section.content[0]!.content![0]!.text).toBe('Befo');
+    expect(section.content[2]!.content![0]!.text).toBe('re');
   });
 });

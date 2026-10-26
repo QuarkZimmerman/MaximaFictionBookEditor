@@ -43,17 +43,13 @@ import {
   removeOuterContainer,
   splitContainer,
 } from '@/editor/commands/structure';
-import {
-  canInsertTable,
-  gotoNextCell,
-  gotoPreviousCell,
-  insertTable,
-  setNodeAttr,
-} from '@/editor/commands/table';
+import { gotoNextCell, gotoPreviousCell, setNodeAttr } from '@/editor/commands/table';
+import { findTablePointAt, insertTableCommand } from '@/editor/commands/tableInsertion';
+import { createTable } from '@/editor/table/ops';
 import { enterCommand } from '@/editor/keymap';
 import { nodeToModel } from '@/editor/toModel';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
-import { fb2Schema, FIXED_BLOCK_IDS } from '@/editor/schema';
+import { createNodeIdGenerator, fb2Schema, FIXED_BLOCK_IDS } from '@/editor/schema';
 
 const { nodes: N, marks: M } = fb2Schema;
 
@@ -265,31 +261,52 @@ describe('Add menu commands (T059)', () => {
     expect(insertCite(stateAt(next.doc, posOf(next.doc, 'S')))).toBe(false);
   });
 
-  it('insertTable inserts rows (+ header) after the paragraph; Tab navigates and appends rows', () => {
+  it('insertTableCommand inserts rows (+ header) before a paragraph at its start; Tab navigates and appends rows', () => {
+    const nextId = createNodeIdGenerator('t_');
     const state = stateAt(simpleBook, posOf(simpleBook, 'First'));
-    expect(canInsertTable(state)).toBe(true);
-    let next = run(state, insertTable(2, true))!;
+    expect(findTablePointAt(state)).not.toBeNull();
+    let next = run(state, insertTableCommand(createTable(2, 1, true, false, nextId), nextId))!;
     const sec = next.doc.child(0).child(1);
-    expect(names(sec)).toEqual(['title', 'p', 'table', 'p']);
-    const table = sec.child(2);
+    // Offset 0 of a non-empty paragraph: the table goes before it (feature 006, FR-004 (a)).
+    expect(names(sec)).toEqual(['title', 'table', 'p', 'p']);
+    const table = sec.child(1);
     expect(table.childCount).toBe(3);
     expect(table.child(0).child(0).type.name).toBe('th');
     expect(table.child(1).child(0).type.name).toBe('td');
     expect(next.selection.$from.parent.type.name).toBe('th');
-    next = run(next, gotoNextCell)!;
+    const tab = gotoNextCell({ nextId });
+    next = run(next, tab)!;
     expect(next.selection.$from.parent.type.name).toBe('td');
-    next = run(next, gotoNextCell)!;
-    next = run(next, gotoNextCell)!; // past the last cell: a new row
-    expect(next.doc.child(0).child(1).child(2).childCount).toBe(4);
+    next = run(next, tab)!;
+    next = run(next, tab)!; // past the last cell: the Tab row, a copy of the last row
+    const grown = next.doc.child(0).child(1).child(1);
+    expect(grown.childCount).toBe(4);
+    expect(grown.child(3).child(0).type.name).toBe('td');
+    expect(grown.child(3).child(0).attrs.nodeId).toMatch(/^t_\d+$/);
+    expect(next.selection.$from.parent).toBe(grown.child(3).child(0));
     next = run(next, gotoPreviousCell)!;
     expect(next.selection.$from.parent.type.name).toBe('td');
-    expect(canInsertTable(next)).toBe(false); // inside the table
-    expect(canInsertTable(stateAt(simpleBook, posOf(simpleBook, 'One')))).toBe(false);
+    // Inside the table a new one goes right after it; in the section title, at the first point
+    // after the title (where the rule of release 0.0.5 found none).
+    const tablePos = next.selection.$from.before(next.selection.$from.depth - 2);
+    expect(findTablePointAt(next)).toEqual({
+      kind: 'insert',
+      pos: tablePos + next.doc.nodeAt(tablePos)!.nodeSize,
+    });
+    const inTitle = stateAt(simpleBook, posOf(simpleBook, 'One'));
+    expect(findTablePointAt(inTitle)).toEqual({
+      kind: 'insert',
+      pos: inTitle.selection.$from.after(inTitle.selection.$from.depth - 1),
+    });
     expect(next.doc.check()).toBeUndefined();
   });
 
   it('setNodeAttr edits table / cell attributes (Table bar)', () => {
-    const state = run(stateAt(simpleBook, posOf(simpleBook, 'First')), insertTable(1, false))!;
+    const nextId = createNodeIdGenerator('t_');
+    const state = run(
+      stateAt(simpleBook, posOf(simpleBook, 'First')),
+      insertTableCommand(createTable(1, 1, false, false, nextId), nextId),
+    )!;
     const tablePos = state.selection.$from.before(state.selection.$from.depth - 2);
     const cellPos = state.selection.$from.before();
     let next = run(state, setNodeAttr(tablePos, 'id', 't1'))!;
@@ -775,7 +792,7 @@ describe('commands inside the annotation and history blocks (004 US2)', () => {
       expect(setParagraphStyle('subtitle')(state)).toBe(true);
       expect(insertPoem(state)).toBe(true);
       expect(insertCite(state)).toBe(true);
-      expect(canInsertTable(state)).toBe(true);
+      expect(findTablePointAt(state)).not.toBeNull();
       expect(insertInlineImage()(state)).toBe(true);
       expect(toggleInlineMark('strong')(state)).toBe(true);
     }
@@ -787,8 +804,13 @@ describe('commands inside the annotation and history blocks (004 US2)', () => {
     expect(poem.doc.check()).toBeUndefined();
     const cite = run(inHistory, insertCite)!;
     expect(names(cite.doc.child(1))).toEqual(['p', 'cite']);
-    const table = run(inHistory, insertTable(1, false))!;
-    expect(names(table.doc.child(1))).toEqual(['p', 'table']);
+    // The caret at the start of `History text`: the table before the paragraph.
+    const nextId = createNodeIdGenerator('t_');
+    const table = run(
+      inHistory,
+      insertTableCommand(createTable(1, 1, false, false, nextId), nextId),
+    )!;
+    expect(names(table.doc.child(1))).toEqual(['table', 'p']);
     expect(table.doc.check()).toBeUndefined();
   });
 

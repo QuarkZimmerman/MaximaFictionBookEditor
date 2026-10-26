@@ -12,7 +12,8 @@ import { LinksBar } from '@/app/LinksBar';
 import { TableBar } from '@/app/TableBar';
 import { AppProvider } from '@/app/AppContext';
 import { createAppServices, type AppServices } from '@/app/services';
-import { insertTable } from '@/editor/commands/table';
+import { insertTableCommand } from '@/editor/commands/tableInsertion';
+import { createTable } from '@/editor/table/ops';
 import { changeLanguage, initI18n } from '@/i18n';
 import type { Document, SectionNode } from '@/model/document';
 import { actions, createAppStore } from '@/model/store';
@@ -134,8 +135,17 @@ describe('Links bar and Table bar (T062)', () => {
   it('binds the Table bar to the table / row / cell at the caret', async () => {
     const { store } = await renderShell(bookWithLink());
     const controller = getBodyController(store);
-    act(() => void controller.setCaret({ view: 'body', nodeId: 'p1', offset: 2 }));
-    act(() => void controller.execute(insertTable(1, true)));
+    // The end of p1 ("See the site now.", 17 characters): the table follows the paragraph.
+    act(() => void controller.setCaret({ view: 'body', nodeId: 'p1', offset: 17 }));
+    act(
+      () =>
+        void controller.execute(
+          insertTableCommand(
+            createTable(1, 1, true, false, controller.nextNodeId),
+            controller.nextNodeId,
+          ),
+        ),
+    );
     await waitFor(() =>
       expect(screen.getByTestId('tablebar')).toHaveAttribute('data-in-table', 'true'),
     );

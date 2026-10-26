@@ -238,6 +238,8 @@ export interface EditorStateOptions {
 }
 
 export function createBodyEditorState(doc: PMNode, options: EditorStateOptions): EditorState {
+  // One generator for the keymap's Tab row and the node-id plugin (feature 006, §1.6).
+  const nextNodeId = options.nextNodeId ?? createNodeIdGenerator();
   return EditorState.create({
     doc,
     plugins: [
@@ -246,13 +248,13 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
       // Shift+Arrow handling comes first; it has no paste props - `clipboardPlugin` keeps
       // claiming every paste (C4).
       tableEditingPlugin(),
-      bodyKeymap({ toggleOvertype: options.toggleOvertype }),
+      bodyKeymap({ toggleOvertype: options.toggleOvertype, nextNodeId }),
       baseEditorKeymap(),
       overtypePlugin(options.isOvertype ?? (() => false)),
       clipboardPlugin(),
       blockBoundaryPlugin(),
       blockCaptionsPlugin(options.getTranslate ?? (() => (key) => key)),
-      nodeIdPlugin(options.nextNodeId ?? createNodeIdGenerator()),
+      nodeIdPlugin(nextNodeId),
       nbspMarkerPlugin(options.getNbspChar),
       searchMatchPlugin(),
       ...(options.plugins ?? []),

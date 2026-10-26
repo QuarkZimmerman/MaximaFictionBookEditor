@@ -150,14 +150,6 @@ export function emptyBody(name?: string): PMNode {
   return N.body!.create(name ? { name } : null, [emptyTitle(), emptySection(false)]);
 }
 
-/** `nrows` data rows of one `td` each, preceded by a header row (`th`) when `header` is set. */
-export function createTable(nrows: number, header: boolean): PMNode {
-  const rows: PMNode[] = [];
-  if (header) rows.push(N.tr!.create(null, N.th!.create()));
-  for (let i = 0; i < Math.max(1, nrows); i += 1) rows.push(N.tr!.create(null, N.td!.create()));
-  return N.table!.create(null, rows);
-}
-
 /* ------------------------------------------------------------------------ */
 /* Insertion                                                                */
 /* ------------------------------------------------------------------------ */

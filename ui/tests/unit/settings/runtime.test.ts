@@ -18,6 +18,7 @@ import {
   saveUserHotkeys,
   settingsPatch,
 } from '@/features/settings/apply';
+import { TABLE_DIALOG_DEFAULTS, tableDialogValues } from '@/features/tables/dialog';
 import { actions, createAppStore } from '@/model/store';
 import type { Settings } from '@/rpc/types';
 
@@ -495,5 +496,47 @@ describe('FBE defaults table (app/defaultHotkeys.ts)', () => {
     const map = new HotkeyMap('linux', { defaults: fbeBoundDefaults() });
     expect(map.get('ai.toggle')).toBe('Ctrl+Shift+A');
     expect(map.get('ai.ask')).toBe('Ctrl+K');
+  });
+});
+
+describe('the Table properties dialog values (feature 006, U26)', () => {
+  it('the table dialog falls back to 2, 2, false, false when the core sends no session.tableDialog', () => {
+    expect(TABLE_DIALOG_DEFAULTS).toEqual({
+      rows: 2,
+      columns: 2,
+      headerRow: false,
+      headerColumn: false,
+    });
+    // An older core or a fixture without the member; no settings at all.
+    const older = defaultSettings();
+    delete (older.session as Partial<Settings['session']>).tableDialog;
+    expect(tableDialogValues(older)).toEqual(TABLE_DIALOG_DEFAULTS);
+    expect(tableDialogValues(null)).toEqual(TABLE_DIALOG_DEFAULTS);
+    // Member by member: a value of the wrong type or out of range takes its default.
+    const stored = (tableDialog: unknown) => {
+      const settings = defaultSettings();
+      (settings.session as { tableDialog: unknown }).tableDialog = tableDialog;
+      return tableDialogValues(settings);
+    };
+    expect(stored({ rows: 0, columns: 3, headerRow: true, headerColumn: false })).toEqual({
+      rows: 2,
+      columns: 3,
+      headerRow: true,
+      headerColumn: false,
+    });
+    expect(stored({ rows: 1000, columns: 65, headerRow: 'yes', headerColumn: 1 })).toEqual(
+      TABLE_DIALOG_DEFAULTS,
+    );
+    expect(stored({ rows: 2.5, columns: '3', headerRow: false, headerColumn: true })).toEqual({
+      rows: 2,
+      columns: 2,
+      headerRow: false,
+      headerColumn: true,
+    });
+    expect(stored({ rows: 7 })).toEqual({ ...TABLE_DIALOG_DEFAULTS, rows: 7 });
+    expect(stored('4x3')).toEqual(TABLE_DIALOG_DEFAULTS);
+    // A complete stored member as it is.
+    const complete = { rows: 999, columns: 64, headerRow: true, headerColumn: true };
+    expect(stored(complete)).toEqual(complete);
   });
 });

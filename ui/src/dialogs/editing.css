@@ -70,6 +70,20 @@
   overflow-wrap: anywhere;
 }
 
-.mfbe-tabledialog .mfbe-field-row {
-  margin-top: 10px;
+/* The Table properties dialog (feature 006, R6.10): label, 72 px input and range hint for Rows
+   and Columns, the check boxes below, then the messages. */
+.mfbe-tabledialog-grid {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.mfbe-tabledialog-grid .mfbe-field-hint {
+  margin-top: 0;
+}
+
+.mfbe-tabledialog .mfbe-check-field + .mfbe-check-field {
+  margin-top: 4px;
 }

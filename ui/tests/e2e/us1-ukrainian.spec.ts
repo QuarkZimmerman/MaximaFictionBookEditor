@@ -847,6 +847,14 @@ test.describe('US1 (feature 003) - the interface in Ukrainian (?lang=uk)', () =>
     await caretIntoParagraph(page);
     await menu(page, 'add', 'table');
     await expectDialogIn(page, UK, 'dialog-table', 'Table');
+    // The four fields of feature 006 (FR-001) with their Ukrainian labels.
+    for (const key of ['rowCount', 'columns', 'headerRow', 'headerColumn']) {
+      await expect(
+        page
+          .getByTestId('dialog-table')
+          .getByText(uiText(UK, `dialog.table.${key}`), { exact: true }),
+      ).toBeVisible();
+    }
     await page.getByTestId('dialog-table-button-cancel').click();
     await expect(page.getByTestId('dialog-table')).toBeHidden();
 

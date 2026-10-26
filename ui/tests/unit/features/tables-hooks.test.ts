@@ -11,11 +11,18 @@ import { registerTablesFeature } from '@/features/tables';
 import { installTablesTestHooks, type TablesTestHooks } from '@/features/tables/testHooks';
 import { CaretRegistry } from '@/model/caret';
 import type { AnnotationNode, Document } from '@/model/document';
+import { FIXED_BLOCK_IDS } from '@/editor/schema';
 import { actions, createAppStore } from '@/model/store';
 import { UndoCoordinator } from '@/model/undo';
 
-import { fakeRpc } from './testUtils';
-import { modelTable, tableDocument } from './tablesHarness';
+import { fakeRpc, fakeRunLock } from './testUtils';
+import {
+  caretIn,
+  modelTable,
+  removeHarnessHosts,
+  tableDocument,
+  tablesHarness,
+} from './tablesHarness';
 
 function hooks(): TablesTestHooks | undefined {
   return window.__mfbeTest?.tables as TablesTestHooks | undefined;
@@ -158,5 +165,135 @@ describe('the tables test hooks', () => {
     window.__mfbeTest!.other = 1;
     installTablesTestHooks(ctx);
     expect(window.__mfbeTest!.other).toBe(1);
+  });
+});
+
+describe('placementSweep (US1, I27; C79)', () => {
+  /** A book with an annotation block, a body title, an empty paragraph and a table. */
+  function placementDocument(): Document {
+    const base = tableDocument();
+    const text = (value: string) => [{ type: 'text', text: value }];
+    base.bodies[0]!.content = [
+      {
+        type: 'title',
+        attrs: { nodeId: 'bt' },
+        content: [{ type: 'p', attrs: { nodeId: 'btp' }, content: text('Book') }],
+      },
+      {
+        type: 'section',
+        attrs: { nodeId: 's1' },
+        content: [
+          { type: 'p', attrs: { nodeId: 'p1' }, content: text('Before') },
+          { type: 'p', attrs: { nodeId: 'pe' }, content: [] },
+          modelTable('t1', 2, 2),
+          { type: 'p', attrs: { nodeId: 'p2' }, content: text('After') },
+        ],
+      },
+    ] as never;
+    return {
+      ...base,
+      description: {
+        ...base.description,
+        titleInfo: {
+          ...base.description.titleInfo,
+          annotation: {
+            type: 'annotation',
+            attrs: { nodeId: 'a1' },
+            content: [{ type: 'p', attrs: { nodeId: 'ap' }, content: text('Annotation') }],
+          } as AnnotationNode,
+        },
+      },
+    };
+  }
+
+  afterEach(() => {
+    removeHarnessHosts();
+  });
+
+  it('is not installed without ?test=1 or a core that asks for it', () => {
+    createAppServices({ store: createAppStore(), rpc: null, platform: 'linux' });
+    expect(window.__mfbeTest?.tables).toBeUndefined();
+  });
+
+  it('answers the registry’s state, the reason and the landing in model terms; restores the selection and changes nothing', async () => {
+    window.history.replaceState(null, '', '/?test=1');
+    const harness = await tablesHarness(placementDocument());
+    const sweep = hooks()!.placementSweep;
+    expect(typeof sweep).toBe('function');
+    caretIn(harness, 'p2', 2);
+    const selection = harness.controller.editorState!.selection;
+    const doc = harness.controller.editorState!.doc;
+    const model = harness.store.getState().document;
+    const positions = [
+      { nodeId: 'btp', offset: 2 },
+      { nodeId: 'p1', offset: 0 },
+      { nodeId: 'p1', offset: 3 },
+      { nodeId: 'p1', offset: 6 },
+      { nodeId: 'pe', offset: 0 },
+      { nodeId: 'ap', offset: 10 },
+      { nodeId: 't1-0-0', offset: 1 },
+    ];
+    const answers = sweep(positions);
+    expect(answers).toEqual([
+      { pos: positions[0], enabled: false, reason: 'noTablePlace', landing: null },
+      {
+        pos: positions[1],
+        enabled: true,
+        reason: null,
+        landing: { kind: 'insert', parent: 's1', after: null },
+      },
+      {
+        pos: positions[2],
+        enabled: true,
+        reason: null,
+        landing: { kind: 'split', node: 'p1', offset: 3 },
+      },
+      {
+        pos: positions[3],
+        enabled: true,
+        reason: null,
+        landing: { kind: 'insert', parent: 's1', after: 'p1' },
+      },
+      { pos: positions[4], enabled: true, reason: null, landing: { kind: 'replace', node: 'pe' } },
+      {
+        pos: positions[5],
+        enabled: true,
+        reason: null,
+        landing: { kind: 'insert', parent: FIXED_BLOCK_IDS.annotation, after: 'ap' },
+      },
+      {
+        pos: positions[6],
+        enabled: true,
+        reason: null,
+        landing: { kind: 'insert', parent: 's1', after: 't1' },
+      },
+    ]);
+    // `enabled` is the registry's state at each point.
+    caretIn(harness, 'btp', 2);
+    expect(harness.services.commands.isEnabled('insert.table', harness.ctx)).toBe(false);
+    caretIn(harness, 'pe', 0);
+    expect(harness.services.commands.isEnabled('insert.table', harness.ctx)).toBe(true);
+    // The selection it found is back; the document is unchanged.
+    caretIn(harness, 'p2', 2);
+    const again = harness.controller.editorState!.selection;
+    sweep(positions);
+    expect(harness.controller.editorState!.selection.eq(again)).toBe(true);
+    expect(again.eq(selection)).toBe(true);
+    expect(harness.controller.editorState!.doc).toBe(doc);
+    expect(harness.store.getState().document).toBe(model);
+    // Under the run lock: the lock's code.
+    actions.setRunLock(harness.store, fakeRunLock('script'));
+    expect(sweep([{ nodeId: 'p1', offset: 3 }])[0]).toMatchObject({
+      enabled: false,
+      reason: 'runLock.script',
+    });
+  });
+
+  it('throws for a point whose text block is not in the Body editor’s document', async () => {
+    window.history.replaceState(null, '', '/?test=1');
+    await tablesHarness(placementDocument());
+    const sweep = hooks()!.placementSweep;
+    expect(() => sweep([{ nodeId: 'nope', offset: 0 }])).toThrow();
+    expect(() => sweep([{ nodeId: 's1', offset: 0 }])).toThrow();
   });
 });

@@ -3,16 +3,78 @@
  * `window.__mfbeTest.tables`, installed only for a page that asks for test hooks (`?test=1`)
  * or a core started with them. `grid(tableRef)` gives the summary of the table whose `nodeId`
  * is `tableRef` - the `data-node-id` of its `body-table` -, looked up in the store's document:
- * the bodies, both annotations and the history. US1 adds `placementSweep`, US2 `fuzz`.
+ * the bodies, both annotations and the history. `placementSweep(positions)` (US1; C79; U18)
+ * gives the Body editor's placement at each model point with the registry's state of
+ * `insert.table` there; US2 adds `fuzz`.
  */
 
+import type { Node as PMNode } from 'prosemirror-model';
+
+import type { CommandContext } from '@/app/commands';
 import type { FeatureContext } from '@/app/services';
+import { findTablePointAt, type TablePoint } from '@/editor/commands/tableInsertion';
+import { findNodeById } from '@/editor/schema';
 import { gridOfModel, type TableSummary } from '@/editor/table/grid';
+import i18next from '@/i18n';
 import type { AnnotationNode, BodyNode, Document, TableNode } from '@/model/document';
+import { isRunLocked } from '@/model/store';
+import type { ModelPoint } from '@/rpc/types';
+import { getBodyController, hasBodyController, selectionFor } from '@/views/body/bodyEditor';
+
+import { insertTableAvailability } from './commands';
+
+/** A `TablePoint` in model terms (data-model §16.4): node ids instead of positions. */
+export type ModelLanding =
+  | { kind: 'insert'; parent: string; after: string | null }
+  | { kind: 'split'; node: string; offset: number }
+  | { kind: 'replace'; node: string };
+
+/** The placement at one model point (data-model §16.4). */
+export interface PlacementAnswer {
+  pos: ModelPoint;
+  /** The registry's state of `insert.table` with the caret there (C79). */
+  enabled: boolean;
+  /** The code behind the unavailable text: `noTablePlace`, `noTarget`, `runLock.<kind>`. */
+  reason: string | null;
+  landing: ModelLanding | null;
+}
 
 export interface TablesTestHooks {
   /** The grid summary of the table with that `nodeId`, null when no table has it. */
   grid(tableRef: string): TableSummary | null;
+  /**
+   * The Body editor's placement at each point, in input order: the caret put there (a
+   * selection only), the registry's state of `insert.table`, its reason and the point FR-004
+   * finds; the selection found is restored and no document changes. Throws for a point whose
+   * text block is not in the Body editor's document.
+   */
+  placementSweep(positions: readonly ModelPoint[]): PlacementAnswer[];
+}
+
+function nodeIdOf(node: PMNode | null | undefined): string | null {
+  const id = node?.attrs.nodeId;
+  return typeof id === 'string' && id !== '' ? id : null;
+}
+
+/** A point in the Body editor's document in model terms (the blocks by `FIXED_BLOCK_IDS`). */
+export function modelLanding(doc: PMNode, point: TablePoint): ModelLanding {
+  if (point.kind === 'replace') return { kind: 'replace', node: nodeIdOf(doc.nodeAt(point.from))! };
+  const $pos = doc.resolve(point.pos);
+  if (point.kind === 'split') {
+    return { kind: 'split', node: nodeIdOf($pos.parent)!, offset: $pos.parentOffset };
+  }
+  return { kind: 'insert', parent: nodeIdOf($pos.parent)!, after: nodeIdOf($pos.nodeBefore) };
+}
+
+/** The code behind `insert.table`'s unavailable text (data-model §9.6). */
+function insertTableReason(ctx: FeatureContext, commandCtx: CommandContext): string {
+  const state = ctx.store.getState();
+  const spec = ctx.commands.get('insert.table');
+  if (isRunLocked(state) && spec?.duringScriptRun !== 'allowed') {
+    return `runLock.${state.runLock!.kind}`;
+  }
+  const answer = insertTableAvailability(commandCtx);
+  return 'ok' in answer ? 'noTarget' : answer.refused;
 }
 
 interface LooseNode {
@@ -56,6 +118,50 @@ export function installTablesTestHooks(ctx: FeatureContext): void {
       if (!doc || typeof tableRef !== 'string') return null;
       const table = findModelTable(doc, tableRef);
       return table ? { ...gridOfModel(table).summary } : null;
+    },
+    placementSweep(positions) {
+      if (!hasBodyController(ctx.store)) throw new Error('placementSweep: no Body editor');
+      const controller = getBodyController(ctx.store);
+      const start = controller.editorState;
+      if (!start) throw new Error('placementSweep: the Body editor shows no document');
+      // A wrong list fails at once, before the selection moves.
+      for (const point of positions) {
+        if (!findNodeById(start.doc, point.nodeId)?.node.isTextblock) {
+          throw new Error(`placementSweep: no text block ${point.nodeId} in the Body editor`);
+        }
+      }
+      const commandCtx = {
+        store: ctx.store,
+        rpc: ctx.rpc ?? null,
+        undo: ctx.undo,
+        hotkeys: ctx.hotkeys,
+        carets: ctx.carets,
+        t: i18next.t,
+        version: '',
+      } as unknown as CommandContext;
+      try {
+        return positions.map((point) => {
+          const state = controller.editorState!;
+          controller.apply(
+            state.tr.setSelection(selectionFor(state.doc, point.nodeId, point.offset)!),
+          );
+          const enabled = ctx.commands.isEnabled('insert.table', commandCtx);
+          const reason = enabled ? null : insertTableReason(ctx, commandCtx);
+          const now = controller.editorState!;
+          const found = findTablePointAt(now);
+          return {
+            pos: { nodeId: point.nodeId, offset: point.offset },
+            enabled,
+            reason,
+            landing: found ? modelLanding(now.doc, found) : null,
+          };
+        });
+      } finally {
+        const state = controller.editorState;
+        if (state && state.doc === start.doc) {
+          controller.apply(state.tr.setSelection(start.selection));
+        }
+      }
     },
   };
   const existing = window.__mfbeTest ?? {};

@@ -303,8 +303,12 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.keyboard.press('Alt+t');
     const tableDialog = page.getByTestId('dialog-table');
     await expect(tableDialog).toBeVisible();
+    // All four fields (feature 006): the dialog proposes the values last confirmed, and the
+    // worker's core is shared.
     await page.getByTestId('dialog-table-header').check();
     await page.getByTestId('dialog-table-rows').fill('2');
+    await page.getByTestId('dialog-table-columns').fill('1');
+    await page.getByTestId('dialog-table-header-column').uncheck();
     await page.getByTestId('dialog-table-button-ok').click();
     const table = section.locator('> table.fb-table');
     await expect(table).toHaveCount(1);
@@ -882,6 +886,8 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.keyboard.press('Alt+t');
     await page.getByTestId('dialog-table-header').check();
     await page.getByTestId('dialog-table-rows').fill('1');
+    await page.getByTestId('dialog-table-columns').fill('1');
+    await page.getByTestId('dialog-table-header-column').uncheck();
     await page.getByTestId('dialog-table-button-ok').click();
     const table = editor.locator('table.fb-table');
     await expect(table).toHaveCount(1);

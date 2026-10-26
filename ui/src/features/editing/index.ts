@@ -4,10 +4,11 @@
  *  - creates the persistent Body controller (`views/body/bodyEditor.ts`) and keeps it fed with
  *    the store's document; registers its undo adapter (`body` view of the UndoCoordinator) and
  *    caret provider;
- *  - replaces the editing stubs of the command registry: Add menu (`insert.*`), Style menu
- *    (`style.*`), container operations (`edit.clone|split|merge|removeOuter`), links and
- *    footnotes, clipboard (`edit.cut|copy|paste`), Find / Replace / Find Next / incremental
- *    search, non-breaking space and symbols, the navigation focus commands.
+ *  - replaces the editing stubs of the command registry: Add menu (`insert.*`; *Table* is the
+ *    tables feature's, feature 006), Style menu (`style.*`), container operations
+ *    (`edit.clone|split|merge|removeOuter`), links and footnotes, clipboard
+ *    (`edit.cut|copy|paste`), Find / Replace / Find Next / incremental search, non-breaking
+ *    space and symbols, the navigation focus commands.
  */
 
 import type { Command } from '@/app/commands';

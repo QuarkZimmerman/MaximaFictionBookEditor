@@ -612,9 +612,7 @@
       "replaceAllCaption": "Заменить все"
     },
     "table": {
-      "caption": "Параметры таблицы",
-      "rows": "Число строк таблицы <tr><td></td></tr>:",
-      "addHeader": "Вставить строку заголовков <tr><th></th></tr>"
+      "caption": "Параметры таблицы"
     },
     "words": {
       "caption": "Слова",

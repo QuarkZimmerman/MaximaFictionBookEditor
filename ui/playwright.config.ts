@@ -46,7 +46,9 @@ export default defineConfig<CoreOptions>({
       // (feature 004 US1) proves the view's minimum width against each language's switcher,
       // the file-name journey (feature 004 US6) the interface language's "Untitled", the AI
       // settings journey (feature 005 US1) the limits notes and radio labels of each language,
-      // the privacy journey (feature 005 US7) the offline failure text of each language (SC-010).
+      // the privacy journey (feature 005 US7) the offline failure text of each language (SC-010),
+      // the table journey (feature 006 US1, C78) the Table properties dialog's labels and the
+      // unavailable titles of each language.
       name: 'chromium-ru',
       testMatch: [
         'us1-open-save.spec.ts',
@@ -59,6 +61,7 @@ export default defineConfig<CoreOptions>({
         'us12-scripts.spec.ts',
         'us1-ai-settings.spec.ts',
         'us7-ai-privacy.spec.ts',
+        'us1-table-create.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'ru-RU', uiLang: 'ru' },
     },
@@ -77,6 +80,7 @@ export default defineConfig<CoreOptions>({
         'us12-scripts.spec.ts',
         'us1-ai-settings.spec.ts',
         'us7-ai-privacy.spec.ts',
+        'us1-table-create.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'uk-UA', uiLang: 'uk' },
     },

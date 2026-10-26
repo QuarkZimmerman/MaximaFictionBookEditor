@@ -9,7 +9,8 @@
  *   `createSelectionBetween` gives that block meanwhile, so ProseMirror's text selection does
  *   not show across cells (a drag inside one cell, into another table or out of the table
  *   stays a text selection). Shift+click on another cell of the table makes the block from the
- *   caret's cell (or the block's anchor cell). Ctrl+click and Cmd+click are left to links.
+ *   caret's cell (or the block's anchor cell). Ctrl+click and Cmd+click are left to links. A
+ *   secondary-button press keeps the selection; the context menu's rules move it (C28).
  * - **Keys**: Shift+Arrow at the edge of the cell's content (`view.endOfTextblock`) makes a
  *   block towards the next grid cell; with a block, its head moves one grid step, holes
  *   skipped, and back on the anchor cell the block becomes a caret there; at the table's edge
@@ -238,7 +239,7 @@ function startDrag(view: EditorView, start: CellRef, downPos: number): void {
 }
 
 function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
-  if (event.button === 2) return keepBlockOnRightClick(view, event);
+  if (event.button === 2) return keepSelectionOnRightClick(view, event);
   if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey) return false;
   const clicked = cellAtCoords(view, event.clientX, event.clientY);
   if (!clicked) return false;
@@ -264,16 +265,17 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
 }
 
 /**
- * A right-click inside a block keeps the block (feature 006, C28; data-model §9.3): the
- * browser would otherwise move its caret to the pointer, which ProseMirror then reads as the
- * new selection before the context menu opens.
+ * A right-click keeps the selection - a block, a caret or a text selection (feature 006, C28;
+ * data-model §9.3): the browser would otherwise move its caret to the pointer, which
+ * ProseMirror reads as the new selection only when that reaches it before the context menu
+ * takes the focus, so opening the menu would move the caret or not by a race. The context
+ * menu decides instead: its right-click rule puts a caret into a clicked cell that does not
+ * hold the selection (`prepare`), and *Table…* moves the caret to the clicked point only when
+ * it runs. The editor still takes the focus that the press would give it.
  */
-function keepBlockOnRightClick(view: EditorView, event: MouseEvent): boolean {
-  const { selection } = view.state;
-  if (!(selection instanceof CellBlockSelection)) return false;
-  const clicked = cellAtCoords(view, event.clientX, event.clientY);
-  if (!clicked || !selection.cellPositions().includes(clicked.ref.cellPos)) return false;
+function keepSelectionOnRightClick(view: EditorView, event: MouseEvent): boolean {
   event.preventDefault();
+  if (!view.hasFocus()) view.focus();
   return true;
 }
 
