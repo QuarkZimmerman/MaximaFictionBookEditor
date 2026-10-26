@@ -586,6 +586,19 @@ jobs:
           MFBE_SMOKE_TABLE_LAYOUT: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-table-layout.png
 
+      - name: "Shell smoke: irregular-table marks in CEF (feature 006, FR-057)"
+        # The warning mark of every irregular table of tables.fb2 in the shipped engine: centred
+        # on the table's right edge, hiding no cell text, moving no table (C54). Linux only, as the
+        # shell smoke is; Windows and macOS stay the requester's manual check (quickstart §16).
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/tables.fb2
+          MFBE_SMOKE_TABLE_MARKS: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-table-marks.png
+
       - name: Shell smoke in a Russian environment (feature 002)
         # ru_RU.UTF-8, the shell's home and temporary folders under a Cyrillic name (the smoke
         # keeps its home in TMPDIR) and a Cyrillic-named book in a Cyrillic folder as the

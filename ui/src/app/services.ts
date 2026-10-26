@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 
 import { DialogService, createDialogs, type Dialogs } from '@/dialogs';
 import { FileFeature, registerFileCommands } from '@/features/file/fileCommands';
+import i18next from '@/i18n';
 import { CaretRegistry } from '@/model/caret';
 import { appStore, type AppStore } from '@/model/store';
 import { UndoCoordinator } from '@/model/undo';
@@ -33,6 +34,12 @@ export interface FeatureContext {
   carets: CaretRegistry;
   store: AppStore;
   hotkeys: HotkeyMap;
+  /**
+   * The command context of the services, for flows that start outside a command (feature 006
+   * US8: the irregular-table mark's click opens its popover). Optional, so feature tests may
+   * pass a context without it.
+   */
+  getCommandContext?(): CommandContext;
 }
 
 export interface AppServices {
@@ -81,6 +88,8 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   // Feature modules (editing, source tools, description, tree, spelling, images, words,
   // settings, scripts) register their commands/plugins through their own registrar file;
   // see src/features/registry.ts. Each registrar owns exactly one directory.
+  const version =
+    options.version ?? (typeof __MFBE_UI_VERSION__ === 'string' ? __MFBE_UI_VERSION__ : '');
   const featureContext: FeatureContext = {
     commands,
     rpc: options.rpc ?? null,
@@ -88,6 +97,16 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
     carets,
     store,
     hotkeys,
+    getCommandContext: () => ({
+      store,
+      rpc: options.rpc ?? null,
+      undo,
+      dialogs,
+      hotkeys,
+      carets,
+      t: i18next.t,
+      version,
+    }),
   };
   for (const register of featureRegistrars) register(featureContext);
 
@@ -148,8 +167,7 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
     carets,
     files,
     platform,
-    version:
-      options.version ?? (typeof __MFBE_UI_VERSION__ === 'string' ? __MFBE_UI_VERSION__ : ''),
+    version,
     subscribeAll,
     getRevision: () => revision,
   };

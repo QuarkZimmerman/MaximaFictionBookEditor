@@ -129,7 +129,8 @@ describe('the Body context menu', () => {
     // US2's twelve commands are live (T075): enabled in the first cell of the 3 × 3 table but
     // the moves up and to the left, which have no neighbour there; US5's Merge cells and Split
     // cell are live too (T105) and refuse a single unmerged cell with their reasons; US6's five
-    // header commands are live (T110) and take any cell; the others are still stubs.
+    // header commands are live (T110) and take any cell; US8's Repair table is live (T128) and
+    // refuses this regular table with its reason; the others are still stubs.
     const live = new Set([
       'insertRowAbove',
       'insertRowBelow',
@@ -163,6 +164,10 @@ describe('the Body context menu', () => {
     expect(screen.getByTestId('context-menu-tableStructure-splitCell')).toHaveAttribute(
       'title',
       'Split cell: the cell is not merged',
+    );
+    expect(screen.getByTestId('context-menu-tableStructure-repair')).toHaveAttribute(
+      'title',
+      'Repair table: the table has nothing to repair',
     );
     expect(screen.getByTestId('context-menu-tableStructure-insertRowBelow')).toHaveTextContent(
       'Insert row below',

@@ -332,12 +332,47 @@ a.fb-note {
 /* Tables                                                                 */
 /* ---------------------------------------------------------------------- */
 
+/*
+ * Every table keeps an 8 px gutter on its right for the warning mark of an irregular table
+ * (feature 006 US8, FR-057; C54), so showing or hiding the mark moves no table; only a table
+ * whose minimum width fills the gutter gains a scroll bar while the mark shows.
+ */
 .fb-editor table.fb-table {
   border-collapse: separate;
   border-spacing: 2px;
-  margin: 0.5em 0 0.5em 0.4em;
+  margin: 0.5em 8px 0.5em 0.4em;
   border-left: solid 1px var(--mfbe-fb-table-border);
   padding-left: 0.4em;
+}
+
+/*
+ * The mark (data-model §3.3; R6.2): a zero-height caption on top of the table, which leaves its
+ * layout as it is (R6 probe P8), holding the badge centred on the table's top-right corner, so
+ * it touches neither the top-right cell's text nor the block above. Never selected; the 1 px
+ * ring in the Body background sets it off from cell colours (U33). Fast Mode shows it too.
+ */
+.fb-editor table.fb-table > caption.fb-table-mark-host {
+  caption-side: top;
+  position: relative;
+  height: 0;
+  padding: 0;
+  border: 0;
+  line-height: 0;
+}
+
+.fb-editor .fb-table-mark {
+  position: absolute;
+  right: -7px;
+  top: max(-7px, -0.5em);
+  width: 14px;
+  height: 14px;
+  user-select: none;
+  cursor: pointer;
+}
+
+.fb-editor .fb-table-mark .mfbe-table-mark-badge {
+  display: block;
+  box-shadow: 0 0 0 1px var(--mfbe-body-bg);
 }
 
 .fb-editor .fb-table th,

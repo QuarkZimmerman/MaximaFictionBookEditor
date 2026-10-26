@@ -6,8 +6,9 @@
  * `availability` is cheap: it reads the selection and the cached grid and builds no node, since
  * toolbar buttons evaluate it on every application revision (`ui/src/app/Toolbars.tsx`); the
  * full plan runs only when the command runs. Each command's own check stands in this module's
- * check table (US2: the twelve row and column commands; US5: *Merge cells* and *Split cell*);
- * `registerAvailabilityCheck` adds or replaces one.
+ * check table (US2: the twelve row and column commands; US5: *Merge cells* and *Split cell*;
+ * US8: *Repair table*); `registerAvailabilityCheck` adds or replaces one. `planCommandAt` runs a
+ * plan on a table the selection need not be in (the mark's popover, US8).
  */
 
 import type { Command as PMCommand, EditorState } from 'prosemirror-state';
@@ -16,6 +17,7 @@ import {
   commitTableEdit,
   isRefusal,
   tableTarget,
+  tableTargetAt,
   type PlanContext,
   type Refusal,
   type TableAddress,
@@ -26,6 +28,7 @@ import {
   checkDelete,
   checkMerge,
   checkMove,
+  checkRepair,
   checkSpanRoom,
   checkSplit,
   insertionLine,
@@ -158,7 +161,8 @@ function duplicationCheck(axis: LineAxis): AvailabilityCheck {
  * `needs-block`) and *Split cell* (`checkSplit`: the caret's cell owning a second position, else
  * `not-merged` for the cell or the block). US6's five header commands register none: they take
  * any cell or block, and the two toggles, which read positions, answer `too-large` from
- * `POSITION_COMMANDS` (data-model §2.5, §4.5).
+ * `POSITION_COMMANDS` (data-model §2.5, §4.5). US8: *Repair table* (`checkRepair`: `regular` on a
+ * regular table; a selected whole table does not refuse it, `TABLE_SELECTION_COMMANDS`).
  */
 const checks = new Map<TableCommandName, AvailabilityCheck>([
   ['insertRowAbove', insertionCheck('row', 'above')],
@@ -175,6 +179,7 @@ const checks = new Map<TableCommandName, AvailabilityCheck>([
   ['moveColumnRight', ({ address }) => checkMove(address, 'right')],
   ['duplicateRow', duplicationCheck('row')],
   ['duplicateColumn', duplicationCheck('column')],
+  ['repair', ({ address }) => checkRepair(address) ?? OK],
 ]);
 
 /**
@@ -233,6 +238,27 @@ export function planCommand(plan: TablePlan, ctx: PlanContext): PMCommand {
   return (state, dispatch) => {
     const target = tableTarget(state);
     if (!target || target.selection === 'mixed' || target.selection === 'none') return false;
+    const edit = plan(target.address, ctx);
+    if (isRefusal(edit)) return false;
+    const tr = commitTableEdit(state.tr, target.tablePos, edit);
+    if (!tr) return false;
+    if (dispatch) dispatch(tr);
+    return true;
+  };
+}
+
+/**
+ * `planCommand`'s twin for the table at `tablePos` (I5; data-model §3.5): the plan runs on
+ * `tableTargetAt(state, tablePos)` - the selection's target when the selection addresses that
+ * table, otherwise the table alone - and `commitTableEdit` maps the selection when it is not in
+ * the table, so the caret stays where it was. The mark's popover repairs its own table with it,
+ * whatever table holds the caret. Nothing is dispatched for a refusal, a no-op or a position
+ * where no table stands.
+ */
+export function planCommandAt(tablePos: number, plan: TablePlan, ctx: PlanContext): PMCommand {
+  return (state, dispatch) => {
+    const target = tableTargetAt(state, tablePos);
+    if (!target) return false;
     const edit = plan(target.address, ctx);
     if (isRefusal(edit)) return false;
     const tr = commitTableEdit(state.tr, target.tablePos, edit);

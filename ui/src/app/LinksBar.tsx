@@ -41,8 +41,12 @@ export interface BarTextFieldProps {
   list?: string;
   /** The input's `title` (feature 006 US8 sets it on the disabled span fields). */
   title?: string;
-  /** Applies the value; `false` when nothing was applied, after which the field shows `value`. */
-  onCommit: (value: string) => boolean | void;
+  /**
+   * Applies the value; `false` when nothing was applied, after which the field shows `value`.
+   * A promise answers later (a question first, feature 006 US8's span fields): when it resolves
+   * `false` the field shows the current `value` again, unless it is being edited anew.
+   */
+  onCommit: (value: string) => boolean | void | Promise<boolean | void>;
 }
 
 /**
@@ -65,8 +69,11 @@ export function BarTextField({
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const editing = useRef(false);
+  // The value the field shows when an answered commit applied nothing.
+  const latest = useRef(value);
 
   useEffect(() => {
+    latest.current = value;
     if (!editing.current) setDraft(value);
   }, [value]);
 
@@ -89,7 +96,13 @@ export function BarTextField({
     if (!editing.current) return;
     editing.current = false;
     if (draft === value && !(enter && mixed)) return;
-    if (onCommit(draft) === false) setDraft(value);
+    const result = onCommit(draft);
+    if (result === false) setDraft(value);
+    else if (result instanceof Promise) {
+      void result.then((applied) => {
+        if (applied === false && !editing.current) setDraft(latest.current);
+      });
+    }
   };
 
   return (

@@ -17,7 +17,12 @@
  * its table is the one the field showed (nodes addressed by node id, not by positions taken at
  * render time). A refused id or language names its reason in the status bar and the field shows
  * the current value again (FR-022; no message box). Text fields apply on Enter / blur, the
- * alignment lists at once; colspan and rowspan keep their raw write until US8's span plans.
+ * alignment lists at once. colspan and rowspan (feature 006 US8, FR-036) run the span plan on the
+ * head cell: a larger value merges as *Merge cells* would - asking first when a linked cell would
+ * go (FR-015; `runWithLinkCheck`) -, a smaller one, 1 or an empty field splits as *Split cell*
+ * would; a span past the edge, a value that is no whole number of 1 or more and a growth a merged
+ * cell above or to the left reaches are refused with a status message and the field restored. On
+ * a table too large to edit both are disabled with the reason as their title (data-model §10.1).
  */
 
 import type { TFunction } from 'i18next';
@@ -26,15 +31,17 @@ import type { EditorState } from 'prosemirror-state';
 import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ALIGN_VALUES, VALIGN_VALUES, parseSpan, setNodeAttr } from '@/editor/commands/table';
+import { ALIGN_VALUES, VALIGN_VALUES } from '@/editor/commands/table';
 import {
   cellTargets,
   headCell,
   planCellAttrs,
   planRowAlign,
+  planSpan,
   planTableAttrs,
   rowTargets,
   type CellAttrValues,
+  type SpanAxis,
 } from '@/editor/table/attrs';
 import { planCommand, type TablePlan } from '@/editor/table/commands';
 import {
@@ -45,7 +52,7 @@ import {
   type Refusal,
   type TableTarget,
 } from '@/editor/table/edit';
-import { cellRefAround } from '@/editor/table/selection';
+import { runWithLinkCheck } from '@/features/tables/confirm';
 import { reasonText } from '@/features/tables/reasons';
 import {
   activeTableTarget,
@@ -57,7 +64,7 @@ import { actions, isRunLocked, useAppState, type AppStore } from '@/model/store'
 import { localName, useResourceCatalogs } from '@/views/description/resources';
 
 import { BarTextField } from './LinksBar';
-import { useAppServices } from './services';
+import { useAppServices, useCommandContext } from './services';
 
 interface BarSelectProps {
   id: string;
@@ -203,9 +210,20 @@ function refusalText(refusal: Refusal, t: TFunction): string {
       return t('tables.msg.idInUse', { id: refusal.params.id });
     case 'invalid-lang':
       return t('tables.msg.langInvalid', { value: refusal.params.value });
+    case 'span-past-edge':
+      return t('tables.msg.spanPastEnd');
     default:
       return reasonText(refusal, t);
   }
+}
+
+/** A span field's value (FR-036): `''` is 1, a whole number of 1 or more itself, else null. */
+function spanValue(input: string): number | null {
+  const text = input.trim();
+  if (text === '') return 1;
+  if (!/^\d+$/.test(text)) return null;
+  const value = Number(text);
+  return value >= 1 ? value : null;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -215,6 +233,7 @@ function refusalText(refusal: Refusal, t: TFunction): string {
 export function TableBar() {
   const { t, i18n } = useTranslation();
   const { store, rpc } = useAppServices();
+  const commandCtx = useCommandContext();
   const runLocked = useAppState(isRunLocked, store);
   const connected = useAppState((s) => s.connection === 'connected', store);
   const uiLanguage = useAppState((s) => s.uiLanguage, store);
@@ -273,20 +292,41 @@ export function TableBar() {
     return target.run(planCommand(plan, ctx));
   };
 
+  /**
+   * colspan / rowspan (FR-036; data-model §4.7, §10.1): the value checked by the field itself
+   * (`tables.msg.spanInvalid`), then a dry run of the span plan on the head cell - a refusal
+   * names its reason in the status bar (`tables.msg.spanPastEnd`, `merge-needs-block`'s words) -,
+   * then the plan through `runWithLinkCheck`, which asks the FR-015 question when cells with
+   * linked ids would go: No dispatches nothing and records no step, and the field shows the
+   * current value again once the answer is in.
+   */
+  const setSpan = (axis: SpanAxis, input: string): boolean | Promise<boolean> => {
+    const value = spanValue(input);
+    if (value === null) {
+      actions.setStatusMessage(store, i18n.t('tables.msg.spanInvalid'));
+      return false;
+    }
+    const found = current(textTable());
+    if (!found) return false;
+    const { target } = found;
+    const plan: TablePlan = (address, ctx) => planSpan(address, { axis, value }, ctx);
+    const document = store.getState().document;
+    const dryRun = plan(found.found.address, {
+      nextId: () => target.nextNodeId(),
+      bookIds: document ? collectBookIds(document) : undefined,
+    });
+    if (isRefusal(dryRun)) {
+      actions.setStatusMessage(store, refusalText(dryRun, i18n.t));
+      return false;
+    }
+    return runWithLinkCheck(commandCtx, target, plan);
+  };
+
   /** A text field's commit acts on the table it showed when it took the focus. */
   const textTable = () => focusedTable.current;
 
   const setCells = (values: CellAttrValues, table: string | null) =>
     runPlan((address, ctx) => planCellAttrs(address, values, ctx), table);
-
-  /** colspan / rowspan: today's raw write at the cell that holds `$head`, until US8. */
-  const setSpan = (name: 'colspan' | 'rowspan', value: string): boolean => {
-    const found = current(textTable());
-    if (!found) return false;
-    const cell = cellRefAround(found.state.selection.$head);
-    if (!cell) return false;
-    return found.target.run(setNodeAttr(cell.cellPos, name, parseSpan(value)));
-  };
 
   const head = context?.head ?? null;
   const cells = context?.cells ?? [];
@@ -299,6 +339,9 @@ export function TableBar() {
   const valign = shared(cells, 'valign');
   const rowAlign = shared(rows, 'align');
   const disabled = !inTable;
+  // The span plan reads positions: on a table too large to edit its fields say why (§10.1).
+  const tooLarge = !!context?.found.address.grid.tooLarge;
+  const spanTitle = tooLarge ? reasonText({ refused: 'too-large' }, t) : undefined;
 
   return (
     <div
@@ -366,7 +409,8 @@ export function TableBar() {
         id="table-bar-colspan"
         label={t('tableBar.colspan')}
         value={headAttr('colspan')}
-        disabled={disabled || !head}
+        disabled={disabled || !head || tooLarge}
+        title={spanTitle}
         width={40}
         onCommit={(value) => setSpan('colspan', value)}
       />
@@ -374,7 +418,8 @@ export function TableBar() {
         id="table-bar-rowspan"
         label={t('tableBar.rowspan')}
         value={headAttr('rowspan')}
-        disabled={disabled || !head}
+        disabled={disabled || !head || tooLarge}
+        title={spanTitle}
         width={40}
         onCommit={(value) => setSpan('rowspan', value)}
       />

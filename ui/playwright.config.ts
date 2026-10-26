@@ -49,7 +49,9 @@ export default defineConfig<CoreOptions>({
       // the privacy journey (feature 005 US7) the offline failure text of each language (SC-010),
       // the table journey (feature 006 US1, C78) the Table properties dialog's labels and the
       // unavailable titles of each language, the layout journey of pictures in cells (feature
-      // 006 US3, its test 8) the placeholders' text in each language.
+      // 006 US3, its test 8) the placeholders' text in each language, the irregular-table marks
+      // (feature 006 US8, C78) the marks' names and tooltips, the tree marks and the warnings of
+      // Validate in each language.
       name: 'chromium-ru',
       testMatch: [
         'us1-open-save.spec.ts',
@@ -64,6 +66,7 @@ export default defineConfig<CoreOptions>({
         'us7-ai-privacy.spec.ts',
         'us1-table-create.spec.ts',
         'us3-table-images-layout.spec.ts',
+        'us8-table-marks.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'ru-RU', uiLang: 'ru' },
     },
@@ -84,6 +87,7 @@ export default defineConfig<CoreOptions>({
         'us7-ai-privacy.spec.ts',
         'us1-table-create.spec.ts',
         'us3-table-images-layout.spec.ts',
+        'us8-table-marks.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'uk-UA', uiLang: 'uk' },
     },

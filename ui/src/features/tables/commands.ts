@@ -7,7 +7,7 @@
  * stories append them. US1 adds `insert.table`, *Add → Table* (`createInsertTableCommand`;
  * data-model §4.5), with its Source view branch (`sourceTable.ts`); US2 the twelve row and
  * column commands; US5 *Merge cells*, which asks the FR-015 question first (`confirm.ts`), and
- * *Split cell*; US6 the five header commands.
+ * *Split cell*; US6 the five header commands; US8 *Repair table*.
  */
 
 import type { Command as PMCommand } from 'prosemirror-state';
@@ -33,6 +33,7 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planRepair,
   planSetKind,
   planSplit,
   planToggleHeaderCell,
@@ -72,7 +73,9 @@ export interface TableCommandRow {
  * *Merge cells* (FR-013 to FR-015), which asks before link targets are lost, and *Split cell*
  * (FR-016), which never asks. US6: *Toggle header cell*, *Make header cells*, *Make normal
  * cells*, *Toggle header row* and *Toggle header column* (FR-017 to FR-019), which change only
- * the kind of cells; nothing is dispatched when there is nothing to convert (FR-045).
+ * the kind of cells; nothing is dispatched when there is nothing to convert (FR-045). US8:
+ * *Repair table* (FR-034), on the caret's table and only while it is irregular; it never asks,
+ * since it deletes nothing.
  */
 export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
   {
@@ -134,6 +137,10 @@ export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
     id: 'table.toggleHeaderColumn',
     command: (ctx) =>
       planCommand((address, c) => planToggleHeaderLines(address, { axis: 'column' }, c), ctx),
+  },
+  {
+    id: 'table.repair',
+    command: (ctx) => planCommand(planRepair, ctx),
   },
   {
     id: 'table.moveRowUp',

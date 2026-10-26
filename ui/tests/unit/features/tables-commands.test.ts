@@ -5,7 +5,9 @@
  * read, `reasonText` for every code and leaf in the three catalogues, and a command built from
  * a row of the command table. Each story adds "availability agrees with every plan's dry run"
  * for its commands: US2 (T072) its twelve row and column commands, US5 (T102) *Merge cells* and
- * *Split cell*, US6 (T109) the five header commands.
+ * *Split cell*, US6 (T109) the five header commands, US8 (T125) *Repair table* - available only
+ * on an irregular table, a selected whole table included, with "the table has nothing to repair"
+ * on a regular one.
  */
 
 /// <reference types="node" />
@@ -52,6 +54,7 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planRepair,
   planSetKind,
   planSplit,
   planToggleHeaderCell,
@@ -142,8 +145,14 @@ describe('availability', () => {
     for (const name of TABLE_COMMAND_NAMES) {
       expect(availability(inParagraph, name)).toEqual({ refused: 'notInTable' });
       expect(availability(mixed, name)).toEqual({ refused: 'mixedSelection' });
-      expect(availability(whole, name)).toEqual(
-        TABLE_SELECTION_COMMANDS.has(name) ? { ok: true } : { refused: 'tableSelected' },
+      // A whole table selected: the commands of TABLE_SELECTION_COMMANDS take it - *Repair
+      // table* then answers its own check, `regular` on this regular table (US8, T128).
+      expect(availability(whole, name), name).toEqual(
+        name === 'repair'
+          ? { refused: 'regular' }
+          : TABLE_SELECTION_COMMANDS.has(name)
+            ? { ok: true }
+            : { refused: 'tableSelected' },
       );
     }
     expect([...TABLE_SELECTION_COMMANDS].sort()).toEqual(
@@ -151,13 +160,14 @@ describe('availability', () => {
     );
     // In a cell: ok, but for the moves without a neighbour - US2's checks (T075) answer them -
     // and for Merge cells and Split cell, which a single cell refuses (US5's checks, T105); the
-    // five header commands (US6) take any cell.
+    // five header commands (US6) take any cell; Repair table (US8, T128) refuses a regular table.
     const inCell = stateWith(doc, (d) => TextSelection.create(d, pos(d, 'b') + 1));
     const refused: Partial<Record<string, Refusal>> = {
       moveRowUp: { refused: 'no-neighbour', params: { direction: 'up' } },
       moveColumnRight: { refused: 'no-neighbour', params: { direction: 'right' } },
       mergeCells: { refused: 'needs-block' },
       splitCell: { refused: 'not-merged', params: { selection: 'cell' } },
+      repair: { refused: 'regular' },
     };
     for (const name of TABLE_COMMAND_NAMES)
       expect(availability(inCell, name), name).toEqual(refused[name] ?? { ok: true });
@@ -1491,5 +1501,174 @@ describe('US6: the five header commands', () => {
     expect(services.undo.entries().length).toBe(entries + 5);
     expect(['t1-0-0', 't1-1-0', 't1-2-0'].map(kind)).toEqual(['th', 'th', 'th']);
     expect(controller.editorState!.selection).toBeInstanceOf(CellBlockSelection);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US8: Repair table (T125)                                                 */
+/* ------------------------------------------------------------------------ */
+
+/** The harness's book with `t2`, a short-row table, after `t1`: `[a, b, c] / [d, e] / [f, g, h]`. */
+function irregularBook(): Document {
+  const doc = tableDocument();
+  const section = doc.bodies[0]!.content[0] as unknown as { content: unknown[] };
+  const m = (id: string, text: string) => ({
+    type: 'td',
+    attrs: { nodeId: id },
+    content: [{ type: 'text', text }],
+  });
+  section.content.push({
+    type: 'table',
+    attrs: { nodeId: 't2' },
+    content: [
+      {
+        type: 'tr',
+        attrs: { nodeId: 't2-r0' },
+        content: [m('t2-a', 'a'), m('t2-b', 'b'), m('t2-c', 'c')],
+      },
+      { type: 'tr', attrs: { nodeId: 't2-r1' }, content: [m('t2-d', 'd'), m('t2-e', 'e')] },
+      {
+        type: 'tr',
+        attrs: { nodeId: 't2-r2' },
+        content: [m('t2-f', 'f'), m('t2-g', 'g'), m('t2-h', 'h')],
+      },
+    ],
+  });
+  return doc;
+}
+
+describe('US8: Repair table', () => {
+  beforeAll(() => {
+    Object.defineProperty(Range.prototype, 'getClientRects', {
+      configurable: true,
+      value: () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }),
+    });
+    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+    });
+  });
+
+  it('availability agrees with every plan’s dry run: ok exactly on an irregular table, else regular - a caret in every cell, blocks and the table selected as a whole', () => {
+    let compared = 0;
+    let ids = 0;
+    let acting = 0;
+    let refusing = 0;
+    let wholeTables = 0;
+    for (const { name: table, node } of agreementTables()) {
+      const doc = docWith(node);
+      const states = [
+        ...statesOf(node),
+        EditorState.create({
+          doc,
+          selection: NodeSelection.create(doc, pos(doc, node.attrs.nodeId as string)),
+        }),
+      ];
+      for (const state of states) {
+        const target = tableTarget(state)!;
+        if (target.selection === 'table') wholeTables += 1;
+        compared += 1;
+        const plan = planRepair(target.address, { nextId: () => `x${(ids += 1)}` });
+        const answer = availability(state, 'repair');
+        if (isRefusal(plan)) {
+          refusing += 1;
+          expect(answer, `${table}: repair`).toEqual(plan);
+        } else {
+          acting += 1;
+          expect(answer, `${table}: repair`).toEqual({ ok: true });
+          expect(commitTableEdit(state.tr, target.tablePos, plan), table).not.toBeNull();
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(300);
+    expect(acting).toBeGreaterThan(50);
+    expect(refusing).toBeGreaterThan(50);
+    expect(wholeTables).toBeGreaterThan(20);
+    // Above MAX_GRID_POSITIONS: too-large.
+    const large = stateWith(largeDoc(), (d) => TextSelection.create(d, pos(d, 'w1') + 1));
+    expect(availability(large, 'repair')).toEqual({ refused: 'too-large' });
+  });
+
+  it('availability builds no node for it, and reads the cached grid', () => {
+    const short = docWith(
+      N.table!.create({ nodeId: 't' }, [
+        N.tr!.create({ nodeId: 'r0' }, [cell('a'), cell('b')]),
+        N.tr!.create({ nodeId: 'r1' }, [cell('c')]),
+      ]),
+    );
+    const docs = [smallDoc(), short];
+    const states = docs.flatMap((doc) => [
+      stateWith(doc, (d) => TextSelection.create(d, pos(d, 'a') + 1)),
+      stateWith(doc, (d) => TextSelection.create(d, pos(d, 'c') + 1)),
+      stateWith(doc, (d) => NodeSelection.create(d, pos(d, 't'))),
+    ]);
+    const grids = docs.map((doc) => gridOfNode(doc.nodeAt(pos(doc, 't'))!));
+    const create = vi.spyOn(NodeType.prototype, 'create');
+    const createChecked = vi.spyOn(NodeType.prototype, 'createChecked');
+    try {
+      for (const state of states) availability(state, 'repair');
+      expect(create).not.toHaveBeenCalled();
+      expect(createChecked).not.toHaveBeenCalled();
+    } finally {
+      create.mockRestore();
+      createChecked.mockRestore();
+    }
+    docs.forEach((doc, index) => {
+      expect(gridOfNode(doc.nodeAt(pos(doc, 't'))!)).toBe(grids[index]);
+    });
+    expect(availability(states[0]!, 'repair')).toEqual({ refused: 'regular' });
+    expect(availability(states[3]!, 'repair')).toEqual({ ok: true });
+    expect(availability(states[5]!, 'repair')).toEqual({ ok: true });
+  });
+
+  it('has the command row table.repair with its literal id, live; on a regular table it is disabled with "the table has nothing to repair", on an irregular one it runs as one undo-coordinator entry and is then unavailable', async () => {
+    const ids = TABLE_COMMAND_ROWS.map((row) => row.id);
+    expect(ids).toContain('table.repair');
+    const row = TABLE_COMMAND_ROWS.find((one) => one.id === 'table.repair')!;
+    expect(row.confirm).toBeUndefined();
+    const source = readFileSync(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '../../../src/features/tables/commands.ts',
+      ),
+      'utf8',
+    );
+    expect(source).toContain(`id: 'table.repair'`);
+    const harness = await tablesHarness(irregularBook());
+    const { services, ctx, controller } = harness;
+    const command = services.commands.get('table.repair')!;
+    expect(command.stub).toBeUndefined();
+    expect(command.hotkeyScope).toBe('tableTarget');
+    const reason = () => services.commands.unavailableReason('table.repair', ctx);
+    // A regular table (US8 sc.4; FR-043).
+    act(() => caretIn(harness, 't1-1-1', 1));
+    expect(services.commands.isEnabled('table.repair', ctx)).toBe(false);
+    expect(reason()).toBe('the table has nothing to repair');
+    expect(unavailableTitle(command, reason()!, ctx.t)).toBe(
+      'Repair table: the table has nothing to repair',
+    );
+    // The irregular table: enabled; one entry; the caret kept in its cell.
+    act(() => caretIn(harness, 't2-e', 1));
+    expect(services.commands.isEnabled('table.repair', ctx)).toBe(true);
+    expect(reason()).toBeNull();
+    const entries = services.undo.entries().length;
+    await act(async () => {
+      expect(await services.commands.execute('table.repair', ctx)).toBe(true);
+    });
+    expect(services.undo.entries().length).toBe(entries + 1);
+    const table = controller.editorState!.doc.nodeAt(posOf(harness, 't2'))!;
+    expect(table.child(1).childCount).toBe(3);
+    expect(table.child(1).child(2).textContent).toBe('');
+    expect(controller.editorState!.selection.$head.parent.attrs.nodeId).toBe('t2-e');
+    expect(controller.editorState!.selection.$head.parentOffset).toBe(1);
+    // Repaired: nothing left to repair.
+    expect(services.commands.isEnabled('table.repair', ctx)).toBe(false);
+    expect(reason()).toBe('the table has nothing to repair');
+    for (const language of ['ru', 'uk'] as const) {
+      const reasons = (
+        resources[language].translation as { tables: { reason: Record<string, unknown> } }
+      ).tables.reason;
+      expect(typeof reasons.regular, language).toBe('string');
+    }
   });
 });

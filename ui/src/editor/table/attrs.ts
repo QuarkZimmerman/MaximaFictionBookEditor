@@ -9,7 +9,11 @@
  *   cell, and `id` on the head cell only (FR-021; C14);
  * - `planRowAlign` sets `align` on every row of a block, of the assistant's rows or the caret
  *   cell's row;
- * - `planTableAttrs` sets the table's `id` and `style`.
+ * - `planTableAttrs` sets the table's `id` and `style`;
+ * - `planSpan` (US8; FR-036) sets the head cell's colspan or rowspan as *Merge cells* and *Split
+ *   cell* would: a larger value merges the cells of the extended rectangle into it, a smaller one
+ *   splits off the freed positions, a span past the table's edge or a growth that a merged cell
+ *   above or to the left reaches is refused.
  *
  * Values are trimmed and an empty value removes the attribute. An id must be an NCName that no
  * other element of the book uses (`isNcName`; the book's ids arrive in `PlanContext.bookIds`,
@@ -29,12 +33,13 @@ import { ALIGN_VALUES, VALIGN_VALUES } from '../commands/table';
 
 import {
   gridCellNode,
+  withSpans,
   type PlanContext,
   type Refusal,
   type TableAddress,
   type TableEdit,
 } from './edit';
-import { cellAtTopLeft, keptFocus, lineOwners, linesOf } from './ops';
+import { caretAt, cellAtTopLeft, keptFocus, lineOwners, linesOf, planMerge, splitOff } from './ops';
 
 /* ------------------------------------------------------------------------ */
 /* The checks (I13; data-model §10.2)                                       */
@@ -419,4 +424,92 @@ export function planTableAttrs(
   if (attrs !== table.attrs) edit.tableAttrs = attrs;
   if (id && id !== table.attrs.id) edit.allowedIds = [id];
   return edit;
+}
+
+/* ------------------------------------------------------------------------ */
+/* The span plan (US8; FR-036; data-model §4.7)                             */
+/* ------------------------------------------------------------------------ */
+
+/** A span field's axis: the head cell's colspan or rowspan. */
+export type SpanAxis = 'colspan' | 'rowspan';
+
+/**
+ * *colspan* and *rowspan* of the Table bar, and the assistant's span attributes (data-model §4.7;
+ * FR-036, FR-035, FR-046; C13, C17, C19; analyze decisions 3 and 6): on the head cell
+ * (`address.head`, else the caret's cell) - `too-large` before anything else, then:
+ * 1. `value` must be a whole number of 1 or more (the field refuses anything else itself, an
+ *    empty field meaning 1; another value is a caller's error, a `RangeError`);
+ * 2. `left + value > W` (colspan) or `row + value > R` (rowspan) refuses with `span-past-edge`
+ *    `{axis: 'column' | 'row'}`;
+ * 3. a value above the cell's effective span merges as *Merge cells* would over the new
+ *    rectangle extended to whole cells (`planMerge`; the other span may grow too, R1.5) - unless
+ *    the extension reaches above the cell's top row or left of its first column, where a merged
+ *    cell that starts there would own the rectangle: then `merge-needs-block` and nothing
+ *    changes; when the extended rectangle holds no other cell, only holes of an irregular table,
+ *    the cell takes them (FR-035). The merged cell is always the edited one: its content first,
+ *    then the others' in reading order, joined with single spaces (C17), their ids in
+ *    `removedIds` for the host's FR-015 question, rows left without a cell compacted;
+ * 4. a smaller value splits off the positions the cell no longer keeps (`splitOff`): empty cells
+ *    of its kind, `align`, `valign` and `lang`, without `id`, `style` or `extraAttrs`, placed
+ *    with the hole fill, positions an earlier cell owns getting nothing;
+ * 5. the same value changes nothing (every row the same object).
+ * Spans are written through `withSpans`: 1 is never written and a span kept in `unknownAttrs`
+ * goes (C19). Focus: a caret in the head cell.
+ */
+export function planSpan(
+  address: TableAddress,
+  options: { axis: SpanAxis; value: number },
+  ctx: PlanContext,
+): TableEdit | Refusal {
+  const { table, grid } = address;
+  if (grid.tooLarge) return TOO_LARGE;
+  const { axis, value } = options;
+  if (!Number.isInteger(value) || value < 1) {
+    throw new RangeError(`${axis}: ${JSON.stringify(value)} is not a whole number of 1 or more`);
+  }
+  const unchanged = (): PMNode[] => {
+    const rows: PMNode[] = [];
+    table.forEach((child) => {
+      rows.push(child);
+    });
+    return rows;
+  };
+  const head = headCell(address);
+  if (!head) return { rows: unchanged(), focus: keptFocus(address), removedIds: [] };
+  const cell = grid.cells[head.index]!;
+  const focus = caretAt(cell.row, cell.left);
+  if (axis === 'colspan' ? cell.left + value > grid.width : cell.row + value > grid.height) {
+    return { refused: 'span-past-edge', params: { axis: axis === 'colspan' ? 'column' : 'row' } };
+  }
+  const current = axis === 'colspan' ? cell.colspan : cell.rowspan;
+  if (value === current) return { rows: unchanged(), focus, removedIds: [] };
+  if (value < current) {
+    const keep = axis === 'colspan' ? { colspan: value } : { rowspan: value };
+    return { rows: splitOff(unchanged(), grid, head.index, keep, ctx), focus, removedIds: [] };
+  }
+  const rect =
+    axis === 'colspan'
+      ? { top: cell.row, left: cell.left, bottom: cell.row + cell.rowsIn, right: cell.left + value }
+      : {
+          top: cell.row,
+          left: cell.left,
+          bottom: cell.row + value,
+          right: cell.left + cell.colspan,
+        };
+  const extended = grid.extend(rect);
+  if (extended.top < cell.row || extended.left < cell.left) return { refused: 'merge-needs-block' };
+  if (grid.cellsIn(extended).length < 2) {
+    // Only holes beside the cell (an irregular table): it covers them now (FR-035).
+    const attrs =
+      axis === 'colspan'
+        ? withSpans(head.node.attrs, extended.right - extended.left)
+        : withSpans(head.node.attrs, undefined, extended.bottom - extended.top);
+    const node = head.node.type.create(attrs, head.node.content, head.node.marks);
+    return {
+      rows: withCells(table, address, new Map([[head.index, node]])),
+      focus,
+      removedIds: [],
+    };
+  }
+  return planMerge({ ...address, rect: extended }, ctx);
 }

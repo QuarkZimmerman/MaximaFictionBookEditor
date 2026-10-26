@@ -85,6 +85,19 @@
 //                               broken-word scan C3 on the curated tables); any finding fails
 //                               the run with describeFailures and a -failed.png screenshot. The
 //                               status-bar check is skipped in this mode
+//   MFBE_SMOKE_TABLE_MARKS      1: the warning marks of irregular tables in the real CEF shell
+//                               (feature 006 US8, FR-057's "does not change the table's layout,
+//                               and it hides no cell text"; C54; MFBE_SMOKE_OPEN_FILE =
+//                               tests/fixtures/books/tables.fb2): once the book is open, the Body
+//                               view's DOM is read (the shell has no test hooks) - every
+//                               [data-testid=body-table][data-irregular=true] has one
+//                               body-table-mark whose centre lies within 1 px of the table's right
+//                               border edge, whose rect meets the content box of none of the
+//                               table's cells and whose top lies at or below the bottom of the
+//                               block above the table; the table's box is the same with its
+//                               caption set to display: none; no other table has a mark. Logs
+//                               "table marks: <n> tables, 0 findings", or fails with the findings
+//                               and a -failed.png screenshot. The status-bar check is skipped
 //   MFBE_SMOKE_LOG              the shell's log of this run (stdout and stderr; shell-smoke.sh):
 //                               the "shelltest: argv" lines of the restart check, and on every
 //                               run the engine's spell-check line (feature 004 US9, FR-081) -
@@ -147,6 +160,7 @@ const restartMustFail = process.env.MFBE_SMOKE_RESTART_FAIL === '1';
 // SC-005: the restarted editor is back with the document within 15 s of the user's Yes.
 const restartBudgetMs = 15_000;
 const tableLayoutWidth = process.env.MFBE_SMOKE_TABLE_LAYOUT ?? '';
+const checkTableMarks = process.env.MFBE_SMOKE_TABLE_MARKS === '1';
 const checkClose = process.env.MFBE_SMOKE_CLOSE === '1';
 const checkSaveAs = process.env.MFBE_SMOKE_SAVE_AS === '1';
 const saveAsFolder = process.env.MFBE_SMOKE_SAVE_AS_FOLDER ?? '';
@@ -996,6 +1010,76 @@ async function checkStatusBarSetting(page) {
 // Pictures in table cells in CEF (feature 006, research R9.5): the gates of the layout journey
 // (ui/tests/e2e/us3-table-images-layout.spec.ts) on every table of tables-images.fb2 and its
 // control, Fast Mode off and then on, in the window width shell-smoke.sh started the shell with.
+/**
+ * The irregular-table marks of the open book in CEF (feature 006 US8, FR-057; C54): read from the
+ * Body view's DOM in the page. Throws with every finding.
+ */
+async function checkTableMarksLayout(page) {
+  const deadline = Date.now() + timeoutMs;
+  let report = null;
+  while (Date.now() < deadline) {
+    report = await page.evaluate(() => {
+      const findings = [];
+      const tables = [...document.querySelectorAll('[data-testid="body-editor"] [data-testid="body-table"]')];
+      const marked = tables.filter((table) => table.getAttribute('data-irregular') === 'true');
+      for (const table of tables) {
+        const name = table.getAttribute('data-node-id') || '?';
+        const marks = table.querySelectorAll('[data-testid="body-table-mark"]');
+        if (table.getAttribute('data-irregular') !== 'true') {
+          if (marks.length > 0) findings.push(`${name}: a regular table has a mark`);
+          continue;
+        }
+        if (marks.length !== 1) {
+          findings.push(`${name}: ${marks.length} marks`);
+          continue;
+        }
+        const box = table.getBoundingClientRect();
+        const mark = marks[0].getBoundingClientRect();
+        const centre = (mark.left + mark.right) / 2;
+        if (Math.abs(centre - box.right) > 1) {
+          findings.push(`${name}: the mark's centre ${centre.toFixed(1)} is not on the right edge ${box.right.toFixed(1)}`);
+        }
+        for (const cell of table.querySelectorAll(':scope > tbody > tr > :is(td, th)')) {
+          const r = cell.getBoundingClientRect();
+          const style = getComputedStyle(cell);
+          const px = (name) => parseFloat(style.getPropertyValue(name)) || 0;
+          const content = {
+            left: r.left + px('border-left-width') + px('padding-left'),
+            right: r.right - px('border-right-width') - px('padding-right'),
+            top: r.top + px('border-top-width') + px('padding-top'),
+            bottom: r.bottom - px('border-bottom-width') - px('padding-bottom'),
+          };
+          if (mark.left < content.right && mark.right > content.left && mark.top < content.bottom && mark.bottom > content.top) {
+            findings.push(`${name}: the mark meets the content box of the cell ${cell.getAttribute('data-node-id') || '?'}`);
+          }
+        }
+        const above = table.previousElementSibling;
+        if (above && mark.top < above.getBoundingClientRect().bottom - 0.5) {
+          findings.push(`${name}: the mark covers the block above the table`);
+        }
+        const caption = table.querySelector(':scope > caption');
+        if (caption) {
+          caption.style.display = 'none';
+          const hidden = table.getBoundingClientRect();
+          caption.style.display = '';
+          const moved = ['x', 'y', 'width', 'height'].filter((key) => Math.abs(hidden[key] - box[key]) > 0.01);
+          if (moved.length > 0) findings.push(`${name}: the caption moves the table (${moved.join(', ')})`);
+        }
+      }
+      return { marked: marked.length, findings };
+    });
+    if (report.marked > 0) break;
+    await sleep(250);
+  }
+  if (!report || report.marked === 0) {
+    throw new Error('table marks: no marked table in the Body view');
+  }
+  if (report.findings.length > 0) {
+    throw new Error(`table marks: ${report.marked} tables, ${report.findings.length} findings:\n  ${report.findings.join('\n  ')}`);
+  }
+  console.log(`table marks: ${report.marked} tables, 0 findings`);
+}
+
 async function checkTableLayout(page) {
   const helper = path.join(root, 'ui', 'tests', 'e2e', 'fixtures', 'tableLayout.ts');
   const { MEASURE_TABLES, PICTURES_SETTLED, checkLayout, describeFailures } = await import(
@@ -1101,9 +1185,24 @@ try {
     await checkTableLayout(page);
   }
 
+  // The warning marks of irregular tables laid out by CEF (feature 006 US8, FR-057).
+  if (checkTableMarks) {
+    if (!openFile) {
+      throw new Error('MFBE_SMOKE_TABLE_MARKS needs MFBE_SMOKE_OPEN_FILE (tables.fb2)');
+    }
+    await checkTableMarksLayout(page);
+  }
+
   // View > Status Bar is recorded in the settings file (real UI; not in the restart, close,
   // Save As and table-layout scenarios, whose runs are about those alone).
-  if (settingsFile && !restartVariant && !checkClose && !checkSaveAs && !tableLayoutWidth) {
+  if (
+    settingsFile &&
+    !restartVariant &&
+    !checkClose &&
+    !checkSaveAs &&
+    !tableLayoutWidth &&
+    !checkTableMarks
+  ) {
     await checkStatusBarSetting(page);
   }
 

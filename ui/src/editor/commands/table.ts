@@ -100,11 +100,5 @@ export function setNodeAttr(pos: number, name: string, value: string | number | 
   };
 }
 
-/** Parses a colspan/rowspan field: positive integers only, anything else clears it. */
-export function parseSpan(value: string): number | null {
-  const n = Number.parseInt(value, 10);
-  return Number.isFinite(n) && n > 1 ? n : null;
-}
-
 export const ALIGN_VALUES = ['', 'left', 'center', 'right'] as const;
 export const VALIGN_VALUES = ['', 'top', 'middle', 'bottom'] as const;

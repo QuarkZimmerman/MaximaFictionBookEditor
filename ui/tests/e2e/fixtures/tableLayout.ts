@@ -550,9 +550,15 @@ export const PICTURES_SETTLED = `(args) => new Promise((resolve, reject) => {
 /* Gate helpers                                                             */
 /* ------------------------------------------------------------------------ */
 
-/** The table reaches its text area's right edge within 2 px. */
+/**
+ * The right margin every table keeps for the warning mark of an irregular table (feature 006 US8,
+ * FR-057; C54: `ui/src/editor/styles.css`).
+ */
+export const TABLE_GUTTER_PX = 8;
+
+/** The table reaches its text area's right edge, less the mark's gutter, within 2 px. */
 export function fillsArea(t: { over: number }): boolean {
-  return t.over >= -2;
+  return t.over >= -TABLE_GUTTER_PX - 2;
 }
 
 /** A table that does not pass its text area's right edge (the tolerance included). */

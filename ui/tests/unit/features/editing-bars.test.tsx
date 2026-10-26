@@ -3,7 +3,10 @@
  * selection and write attributes back; the Body view is editable, shows the context menu with
  * Cut / Copy / Paste / Select entries and publishes the selected text. Feature 006 (US3, T081,
  * FR-029): the Links bar's Alt text edits a selected picture's `alt`, inline or block, in a
- * cell or elsewhere.
+ * cell or elsewhere. Feature 006 (US8, T125; FR-036, FR-043, FR-045; C13; U17; data-model §4.7,
+ * §10.1): the Table bar's colspan and rowspan merge and split through the span plan, refuse a
+ * span past the edge, a value that is no whole number and a growth a merged cell above or to the
+ * left reaches, ask before a linked cell goes, and are disabled on a table too large to edit.
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -352,13 +355,15 @@ describe('Links bar and Table bar (T062)', () => {
   it('binds the Table bar to the table / row / cell at the caret', async () => {
     const { store } = await renderShell(bookWithLink());
     const controller = getBodyController(store);
-    // The end of p1 ("See the site now.", 17 characters): the table follows the paragraph.
+    // The end of p1 ("See the site now.", 17 characters): the table follows the paragraph. Three
+    // columns (feature 006 US8, FR-036): colspan 3 merges the header row, which a one-column
+    // table would refuse as past its last column.
     act(() => void controller.setCaret({ view: 'body', nodeId: 'p1', offset: 17 }));
     act(
       () =>
         void controller.execute(
           insertTableCommand(
-            createTable(1, 1, true, false, controller.nextNodeId),
+            createTable(1, 3, true, false, controller.nextNodeId),
             controller.nextNodeId,
           ),
         ),
@@ -388,16 +393,17 @@ describe('Links bar and Table bar (T062)', () => {
       expect(table.content[0]!.content[0]!.attrs).toMatchObject({ colspan: 3, align: 'center' });
     });
     expect(screen.getByTestId('table-bar-colspan')).toHaveValue('3');
-    // Clearing the span removes the attribute.
+    // Clearing the span removes the attribute and splits the header row again.
     fireEvent.focus(colspan);
     fireEvent.change(colspan, { target: { value: '' } });
     fireEvent.keyDown(colspan, { key: 'Enter' });
     await waitFor(() => {
       const section = store.getState().document!.bodies[0]!.content[0] as SectionNode;
       const table = section.content.find((c) => c.type === 'table') as {
-        content: { content: { attrs: Record<string, unknown> }[] }[];
+        content: { content: { type: string; attrs: Record<string, unknown> }[] }[];
       };
       expect(table.content[0]!.content[0]!.attrs.colspan).toBeUndefined();
+      expect(table.content[0]!.content.map((cell) => cell.type)).toEqual(['th', 'th', 'th']);
     });
   });
 
@@ -828,5 +834,223 @@ describe('Body view chrome (T057/T067)', () => {
     const unknown = screen.getByTestId('body-unknown');
     expect(unknown).toHaveTextContent('weird');
     expect(unknown).toHaveAttribute('contenteditable', 'false');
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006, US8 (T125): the span fields                                 */
+/* ------------------------------------------------------------------------ */
+
+/** The model node `nodeId` of any body, or null. */
+function nodeIn(document: Document, nodeId: string): { content?: unknown[] } | null {
+  let found: { content?: unknown[] } | null = null;
+  const visit = (node: { attrs?: Record<string, unknown>; content?: unknown[] }) => {
+    if (node.attrs?.nodeId === nodeId) found = node;
+    for (const child of node.content ?? []) visit(child as typeof node);
+  };
+  for (const body of document.bodies) visit(body as unknown as { content?: unknown[] });
+  return found;
+}
+
+/** The text of a model node. */
+function textIn(node: { content?: unknown[] } | null): string {
+  return (node?.content ?? [])
+    .map((child) => {
+      const one = child as { type: string; text?: string; content?: unknown[] };
+      return one.type === 'text' ? (one.text ?? '') : textIn(one);
+    })
+    .join('');
+}
+
+/** `bookWithTables` with `t3` - `[x1, y1 rowspan 2] / [x2]` - and a link to b2's id `c-b2`. */
+function bookWithSpans(): Document {
+  const book = bookWithTables();
+  const section = book.bodies[0]!.content[0] as unknown as { content: unknown[] };
+  section.content.push(
+    {
+      type: 'table',
+      attrs: { nodeId: 't3' },
+      content: [
+        {
+          type: 'tr',
+          attrs: { nodeId: 't3-r0' },
+          content: [modelCell('t3-0-0', 'x1'), modelCell('t3-0-1', 'y1', { rowspan: 2 })],
+        },
+        { type: 'tr', attrs: { nodeId: 't3-r1' }, content: [modelCell('t3-1-0', 'x2')] },
+      ],
+    },
+    {
+      type: 'p',
+      attrs: { nodeId: 'p5' },
+      content: [
+        { type: 'text', text: 'See ' },
+        { type: 'text', text: 'b2', marks: [{ type: 'link', attrs: { href: '#c-b2' } }] },
+      ],
+    },
+  );
+  return book;
+}
+
+/** A book whose table is one row of 4195 cells of colspan 1000: above MAX_GRID_POSITIONS. */
+function bookWithBigTable(): Document {
+  const base = fakeDocument();
+  const cells = Array.from({ length: 4195 }, (_, index) =>
+    modelCell(`big-0-${index}`, `w${index}`, { colspan: 1000 }),
+  );
+  const section = {
+    type: 'section',
+    attrs: { nodeId: 's1' },
+    content: [
+      p('p1', 'Before'),
+      {
+        type: 'table',
+        attrs: { nodeId: 'big' },
+        content: [{ type: 'tr', attrs: { nodeId: 'big-r0' }, content: cells }],
+      },
+      p('p2', 'After'),
+    ],
+  };
+  return {
+    ...base,
+    bodies: [{ type: 'body', attrs: { nodeId: 'b1' }, content: [section] }],
+  } as unknown as Document;
+}
+
+describe('Table bar: colspan and rowspan (feature 006, US8)', () => {
+  it('colspan and rowspan merge and split through the span plan: 3 merges the head cell’s row, 1 and an empty field split; each one undo step', async () => {
+    const { store, services } = await renderShell(bookWithTables());
+    const controller = getBodyController(store);
+    const doc = () => store.getState().document!;
+    act(() => void controller.setCaret({ view: 'body', nodeId: 't1-0-0', offset: 1 }));
+    await waitFor(() => expect(screen.getByTestId('table-bar-cell-id')).toHaveValue('c-a1'));
+    expect(screen.getByTestId('table-bar-colspan')).toHaveValue('');
+    const depth = services.undo.undoDepth;
+    enterValue('table-bar-colspan', '3');
+    await waitFor(() => expect(attrsOf(doc(), 't1-0-0')?.colspan).toBe(3));
+    expect(textIn(nodeIn(doc(), 't1-0-0'))).toBe('a1 b1 c1');
+    expect(nodeIn(doc(), 't1-0-1')).toBeNull();
+    expect(nodeIn(doc(), 't1-0-2')).toBeNull();
+    expect(services.undo.undoDepth).toBe(depth + 1);
+    await waitFor(() => expect(screen.getByTestId('table-bar-colspan')).toHaveValue('3'));
+    // 1 splits it: the cell keeps the joined text, two empty cells of its kind follow.
+    enterValue('table-bar-colspan', '1');
+    await waitFor(() => expect(attrsOf(doc(), 't1-0-0')?.colspan).toBeUndefined());
+    const firstRow = () => (nodeIn(doc(), 't1-r0')?.content ?? []) as { content?: unknown[] }[];
+    expect(firstRow().map((cell) => textIn(cell))).toEqual(['a1 b1 c1', '', '']);
+    expect(services.undo.undoDepth).toBe(depth + 2);
+    // After Undo, an emptied field splits the same way.
+    act(() => void services.undo.undo());
+    await waitFor(() => expect(attrsOf(doc(), 't1-0-0')?.colspan).toBe(3));
+    act(() => void controller.setCaret({ view: 'body', nodeId: 't1-0-0', offset: 1 }));
+    await waitFor(() => expect(screen.getByTestId('table-bar-colspan')).toHaveValue('3'));
+    enterValue('table-bar-colspan', '');
+    await waitFor(() => expect(attrsOf(doc(), 't1-0-0')?.colspan).toBeUndefined());
+    expect(firstRow().map((cell) => textIn(cell))).toEqual(['a1 b1 c1', '', '']);
+    // rowspan 2 in c2 merges c2 and c3.
+    act(() => void controller.setCaret({ view: 'body', nodeId: 't1-1-2', offset: 1 }));
+    await waitFor(() => expect(screen.getByTestId('table-bar-rowspan')).toHaveValue(''));
+    const before = services.undo.undoDepth;
+    enterValue('table-bar-rowspan', '2');
+    await waitFor(() => expect(attrsOf(doc(), 't1-1-2')?.rowspan).toBe(2));
+    expect(textIn(nodeIn(doc(), 't1-1-2'))).toBe('c2 c3');
+    expect(nodeIn(doc(), 't1-2-2')).toBeNull();
+    expect(services.undo.undoDepth).toBe(before + 1);
+  });
+
+  it('a span past the edge or not a whole number shows its message, restores the field and dispatches nothing', async () => {
+    const { store, services } = await renderShell(bookWithTables());
+    const controller = getBodyController(store);
+    const t = i18next.t;
+    const message = () => screen.getByTestId('status-message');
+    const docBefore = () => controller.editorState!.doc;
+    const cases: [string, string, string, string][] = [
+      ['t1-0-1', 'table-bar-colspan', '3', t('tables.msg.spanPastEnd')],
+      ['t1-0-1', 'table-bar-colspan', 'abc', t('tables.msg.spanInvalid')],
+      ['t1-0-1', 'table-bar-colspan', '0', t('tables.msg.spanInvalid')],
+      ['t1-0-1', 'table-bar-colspan', '2.5', t('tables.msg.spanInvalid')],
+      ['t1-1-0', 'table-bar-rowspan', '3', t('tables.msg.spanPastEnd')],
+      ['t1-1-0', 'table-bar-rowspan', '-1', t('tables.msg.spanInvalid')],
+    ];
+    for (const [cell, id, value, text] of cases) {
+      act(() => void controller.setCaret({ view: 'body', nodeId: cell, offset: 1 }));
+      await waitFor(() =>
+        expect(screen.getByTestId('tablebar')).toHaveAttribute('data-in-table', 'true'),
+      );
+      act(() => actions.setStatusMessage(store, null));
+      const doc = docBefore();
+      const depth = services.undo.undoDepth;
+      enterValue(id, value);
+      await waitFor(() => expect(message(), `${id} ${value}`).toHaveTextContent(text));
+      expect(screen.getByTestId(id), `${id} ${value}`).toHaveValue('');
+      expect(controller.editorState!.doc, `${id} ${value}`).toBe(doc);
+      expect(services.undo.undoDepth, `${id} ${value}`).toBe(depth);
+    }
+  });
+
+  it('a span growth refused with merge-needs-block shows its reason, restores the field and dispatches nothing', async () => {
+    const { store, services } = await renderShell(bookWithSpans());
+    const controller = getBodyController(store);
+    act(() => void controller.setCaret({ view: 'body', nodeId: 't3-1-0', offset: 1 }));
+    await waitFor(() =>
+      expect(screen.getByTestId('tablebar')).toHaveAttribute('data-in-table', 'true'),
+    );
+    const doc = controller.editorState!.doc;
+    const depth = services.undo.undoDepth;
+    enterValue('table-bar-colspan', '2');
+    await waitFor(() =>
+      expect(screen.getByTestId('status-message')).toHaveTextContent(
+        i18next.t('tables.reason.merge-needs-block'),
+      ),
+    );
+    expect(i18next.t('tables.reason.merge-needs-block')).toContain('Merge cells');
+    expect(screen.getByTestId('table-bar-colspan')).toHaveValue('');
+    expect(controller.editorState!.doc).toBe(doc);
+    expect(services.undo.undoDepth).toBe(depth);
+  });
+
+  it('a span growth over a linked id asks first: No commits nothing and records no undo entry, Yes merges as one entry', async () => {
+    const { store, services } = await renderShell(bookWithSpans());
+    const controller = getBodyController(store);
+    const doc = () => store.getState().document!;
+    act(() => void controller.setCaret({ view: 'body', nodeId: 't1-1-0', offset: 1 }));
+    await waitFor(() =>
+      expect(screen.getByTestId('tablebar')).toHaveAttribute('data-in-table', 'true'),
+    );
+    const before = controller.editorState!.doc;
+    const depth = services.undo.undoDepth;
+    enterValue('table-bar-colspan', '2');
+    const no = await screen.findByTestId('dialog-table-link-targets-button-no');
+    expect(screen.getByTestId('dialog-table-link-targets-text')).toHaveTextContent(
+      i18next.t('tables.msg.linkTargets', { count: 1 }),
+    );
+    fireEvent.click(no);
+    await waitFor(() => expect(screen.queryByTestId('dialog-table-link-targets')).toBeNull());
+    await waitFor(() => expect(screen.getByTestId('table-bar-colspan')).toHaveValue(''));
+    expect(controller.editorState!.doc).toBe(before);
+    expect(services.undo.undoDepth).toBe(depth);
+    // Yes: the merge, one entry; b2 and its id are gone.
+    act(() => void controller.setCaret({ view: 'body', nodeId: 't1-1-0', offset: 1 }));
+    enterValue('table-bar-colspan', '2');
+    fireEvent.click(await screen.findByTestId('dialog-table-link-targets-button-yes'));
+    await waitFor(() => expect(attrsOf(doc(), 't1-1-0')?.colspan).toBe(2));
+    expect(nodeIn(doc(), 't1-1-1')).toBeNull();
+    expect(services.undo.undoDepth).toBe(depth + 1);
+  });
+
+  it('on a table too large to edit the span fields are disabled with the reason as their title', async () => {
+    const { store } = await renderShell(bookWithBigTable());
+    const controller = getBodyController(store);
+    act(() => void controller.setCaret({ view: 'body', nodeId: 'big-0-1', offset: 1 }));
+    await waitFor(() =>
+      expect(screen.getByTestId('tablebar')).toHaveAttribute('data-in-table', 'true'),
+    );
+    const reason = i18next.t('tables.reason.too-large');
+    for (const id of ['table-bar-colspan', 'table-bar-rowspan']) {
+      expect(screen.getByTestId(id), id).toBeDisabled();
+      expect(screen.getByTestId(id), id).toHaveAttribute('title', reason);
+    }
+    // The attribute fields read no position: they stay available (data-model §2.5).
+    expect(screen.getByTestId('table-bar-style')).toBeEnabled();
+    expect(screen.getByTestId('table-bar-cell-id')).toBeEnabled();
   });
 });

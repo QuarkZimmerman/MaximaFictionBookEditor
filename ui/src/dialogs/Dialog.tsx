@@ -142,6 +142,8 @@ export interface DialogButton {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  /** The button's tooltip, e.g. why it is disabled (feature 006 US8, the mark's popover; I17). */
+  title?: string;
 }
 
 export interface DialogProps {
@@ -465,6 +467,7 @@ function AcceleratorButton({
       data-button-id={button.id}
       data-testid={testId}
       disabled={button.disabled}
+      title={button.title}
       onClick={button.onClick}
     >
       {index >= 0 ? (

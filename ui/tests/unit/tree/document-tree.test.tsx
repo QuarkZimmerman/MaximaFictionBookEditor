@@ -2,7 +2,9 @@
  * T084 - the Document Tree panel inside the application shell: rows and captions, selection
  * sync tree -> Body (window move + caret) and Body -> tree, toolbar enable states, Move Right /
  * Delete through the commands (one undo entry each, Undo restores), context menu entries and
- * the View > Document Tree toggle persisted through `settings.set`.
+ * the View > Document Tree toggle persisted through `settings.set`. Feature 006 (US8, T126;
+ * FR-058; decision 8; C61; U33): the row of an irregular table draws the Body mark's badge with
+ * its name and tooltip, an entry that contains irregular tables one line per table.
  */
 
 import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -238,5 +240,96 @@ describe('Document Tree panel', { timeout: 30_000 }, () => {
     // The selection state survives hiding the panel (the Body caret still has a row: the editor
     // starts in the annotation block above the first body - feature 004).
     expect(getTreeFeature(store).selectedId).toBe('desc:annotation');
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006, US8 (T126): the tree marks                                  */
+/* ------------------------------------------------------------------------ */
+
+describe('Document Tree marks (feature 006, US8)', { timeout: 30_000 }, () => {
+  const td = (nodeId: string, attrs: Record<string, unknown> = {}): ModelNodeJson => ({
+    type: 'td',
+    attrs: { nodeId, ...attrs },
+    content: [text(nodeId)],
+  });
+  const tr = (nodeId: string, cells: ModelNodeJson[]): ModelNodeJson => ({
+    type: 'tr',
+    attrs: { nodeId },
+    content: cells,
+  });
+  /** `[a, b] / [c]`. */
+  const shortRow = (id: string, attrs: Record<string, unknown> = {}): ModelNodeJson => ({
+    type: 'table',
+    attrs: { nodeId: id, ...attrs },
+    content: [tr(`${id}r0`, [td(`${id}a`), td(`${id}b`)]), tr(`${id}r1`, [td(`${id}c`)])],
+  });
+  /** `[a, b rowspan 2] / [c colspan 2]`. */
+  const overlap = (id: string): ModelNodeJson => ({
+    type: 'table',
+    attrs: { nodeId: id },
+    content: [
+      tr(`${id}r0`, [td(`${id}a`), td(`${id}b`, { rowspan: 2 })]),
+      tr(`${id}r1`, [td(`${id}c`, { colspan: 2 })]),
+    ],
+  });
+
+  function marksBook(): Document {
+    const body: ModelNodeJson = {
+      type: 'body',
+      attrs: { nodeId: 'body1' },
+      content: [
+        {
+          type: 'section',
+          attrs: { nodeId: 'S1' },
+          content: [
+            title('tS1', 'Tables'),
+            p('pS1', 'Text'),
+            shortRow('T1'),
+            {
+              type: 'table',
+              attrs: { nodeId: 'T2' },
+              content: [tr('T2r0', [td('T2a'), td('T2b')])],
+            },
+            {
+              type: 'cite',
+              attrs: { nodeId: 'C1' },
+              content: [p('pC1', 'Cited'), overlap('T3'), shortRow('T4', { id: 'named' })],
+            },
+          ],
+        },
+      ],
+    };
+    return fakeDocument({ bodies: [body as unknown as BodyNode] });
+  }
+
+  it('a table row with problems draws the Body mark’s badge, name and tooltip and carries data-irregular; a containing entry lists one line per table, the named variant included; other rows draw none', async () => {
+    await renderApp(marksBook());
+    const tableRow = await screen.findByTestId('tree-row-T1');
+    expect(tableRow).toHaveAttribute('data-irregular', 'true');
+    const mark = screen.getByTestId('tree-row-T1-mark');
+    expect(mark).toHaveAttribute('role', 'img');
+    expect(mark).toHaveClass('mfbe-table-mark-badge');
+    expect(mark).toHaveClass('mfbe-tree-mark');
+    expect(mark).toHaveTextContent('!');
+    expect(mark).toHaveAttribute('aria-label', 'Irregular table: row 2 covers 1 of 2 columns');
+    expect(mark).toHaveAttribute(
+      'title',
+      'Row 2 covers 1 of 2 columns. Repair table makes the table regular.',
+    );
+    // The cite contains two irregular tables: one line each, in document order.
+    const cite = screen.getByTestId('tree-row-C1');
+    expect(cite).toHaveAttribute('data-irregular', 'true');
+    const lines = [
+      'Contains an irregular table: 1 overlapping span',
+      'Contains an irregular table "named": row 2 covers 1 of 2 columns',
+    ].join('\n');
+    expect(screen.getByTestId('tree-row-C1-mark')).toHaveAttribute('title', lines);
+    expect(screen.getByTestId('tree-row-C1-mark')).toHaveAttribute('aria-label', lines);
+    // Every other row: no mark.
+    for (const id of ['T2', 'S1', 'body1', 'desc:annotation', 'desc:history']) {
+      expect(screen.getByTestId(`tree-row-${id}`), id).not.toHaveAttribute('data-irregular');
+      expect(screen.queryByTestId(`tree-row-${id}-mark`), id).toBeNull();
+    }
   });
 });

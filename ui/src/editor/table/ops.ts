@@ -1443,11 +1443,36 @@ export function splitToSingleCells(
   index: number,
   ctx: PlanContext,
 ): PMNode[] {
+  return splitOff(rows, grid, index, { colspan: 1, rowspan: 1 }, ctx);
+}
+
+/**
+ * The split of `splitToSingleCells` limited to the positions the cell `index` no longer keeps
+ * (US8's span fields, data-model §4.7 step 4): the cell keeps its first `keep.colspan` columns
+ * (else all of them) of its first `keep.rowspan` rows (else all its rows inside the table), its
+ * spans written through `withSpans` for the axes given; every other position of its rectangle
+ * that it owns, and that no later cell overlaps - an own cell of that row, or a cell of a row
+ * below the cell's top row whose rowspan reaches it -, gets `newCellLike(cell)`, placed with the
+ * hole fill. Callers check `tooLarge` first.
+ */
+export function splitOff(
+  rows: readonly PMNode[],
+  grid: TableGrid,
+  index: number,
+  keep: { colspan?: number; rowspan?: number },
+  ctx: PlanContext,
+): PMNode[] {
   const cell = grid.cells[index]!;
+  const keptColumns = keep.colspan ?? cell.colspan;
+  const keptRows = keep.rowspan ?? cell.rowsIn;
   const out = [...rows];
   const topChild = grid.rowChild[cell.row]!;
   const keeper = out[topChild]!.child(cell.index);
-  const kept = keeper.type.create(withSpans(keeper.attrs, 1, 1), keeper.content, keeper.marks);
+  const kept = keeper.type.create(
+    withSpans(keeper.attrs, keep.colspan, keep.rowspan),
+    keeper.content,
+    keeper.marks,
+  );
   // The other cells over the cell's rectangle. A position the cell owns that one of them also
   // covers is an overlap of an irregular table: a later cell that starts left of the cell's
   // columns, in a row below the cell's top row, runs into them with its colspan - in its own row
@@ -1466,7 +1491,7 @@ export function splitToSingleCells(
     }
     const placements: { col: number; node: PMNode }[] = [];
     for (let c = cell.left; c < cell.left + cell.colspan; c += 1) {
-      if (r === cell.row && c === cell.left) continue;
+      if (r < cell.row + keptRows && c < cell.left + keptColumns) continue;
       if (grid.owner(r, c) !== index) continue;
       if (spans.some(([from, to]) => c >= from && c < to)) continue;
       placements.push({ col: c, node: newCellLike(keeper, ctx) });
@@ -2052,4 +2077,132 @@ export function planToggleHeaderLines(
     focus: keptFocus(address),
     removedIds: [],
   };
+}
+
+/* ------------------------------------------------------------------------ */
+/* US8: Repair table (FR-034, FR-035; C1, C16; document-model §4.11)        */
+/* ------------------------------------------------------------------------ */
+
+const REGULAR: Refusal = { refused: 'regular' };
+
+/**
+ * *Repair table* may act (data-model §4.5 `table.repair`; C21): `too-large` on a grid too large
+ * for the owner map, `regular` on a regular table - a table just repaired included (FR-034) -,
+ * else null. Reads the cached grid only, so it builds no node; the plan runs it first.
+ */
+export function checkRepair(address: TableAddress): Refusal | null {
+  const { grid } = address;
+  if (grid.tooLarge) return TOO_LARGE;
+  return grid.regular ? REGULAR : null;
+}
+
+/**
+ * The child list of `table` made regular by the three steps of document-model §4.11 (C1, C16),
+ * no content deleted:
+ * 1. **overlaps** - one pass over the rows' own cells in reading order, each placed by rule 3
+ *    with the colspans reduced so far; a cell one of whose columns in its start row a cell from
+ *    above covers has its colspan reduced to end before the first such column (at least 1, its
+ *    first position being free), and the cells after it are placed with that reduction - so a
+ *    reduction that moves a later cell onto another span is handled at that cell's turn (the pass
+ *    equals the loop of C16: at most one reduction per cell, and cells only move left);
+ * 2. **past end** - every effective rowspan above `R − r` is cut to `R − r`;
+ * 3. **short rows** - W and `covered(r)` of the table after steps 1 and 2, and each short row
+ *    gets `W − covered(r)` empty `td`s without attributes, fresh node ids from `ctx.nextId()`,
+ *    appended at its end, where they fill its holes in order.
+ * Spans are written only through `withSpans` (a span of 1 is removed, its `unknownAttrs` twin
+ * goes; C19); every cell keeps its node id and content, unchanged cells and rows stay the same
+ * objects, non-row children and the non-cell children of rows stay where they were. Exported for
+ * US9's pasted foreign tables (`regularisePastedTable`; C42, data-model §8.6). Callers check
+ * `tooLarge` first (`checkRepair`).
+ */
+export function repairRows(table: PMNode, grid: TableGrid, ctx: PlanContext): PMNode[] {
+  const height = grid.height;
+  const width = grid.width;
+  const builder = new TableBuilder(table, grid);
+  // Per column, the row up to which (exclusive) a cell placed so far covers it.
+  const coveredUntil = new Int32Array(width + 1);
+  for (let r = 0; r < height; r += 1) {
+    let end = 0;
+    for (let index = grid.rowStart[r]!; index < grid.rowStart[r + 1]!; index += 1) {
+      const cell = grid.cells[index]!;
+      // Rule 3 with the reductions so far: cells only ever move left, so the columns stay
+      // inside [0, W).
+      let left = end;
+      while (left < width && coveredUntil[left]! > r) left += 1;
+      let colspan = cell.colspan;
+      for (let c = left + 1; c < left + cell.colspan && c < width; c += 1) {
+        if (coveredUntil[c]! > r) {
+          colspan = c - left;
+          break;
+        }
+      }
+      colspan = Math.max(1, Math.min(colspan, width - left));
+      const until = r + cell.rowsIn;
+      for (let c = left; c < left + colspan; c += 1) {
+        if (coveredUntil[c]! < until) coveredUntil[c] = until;
+      }
+      end = left + colspan;
+      const reduced = colspan !== cell.colspan;
+      const clipped = cell.pastEnd;
+      if (reduced || clipped) {
+        const node = gridCellNode(table, grid, index);
+        builder.setCell(
+          index,
+          withAttrs(
+            node,
+            withSpans(node.attrs, reduced ? colspan : undefined, clipped ? height - r : undefined),
+          ),
+        );
+      }
+    }
+  }
+  const middle = builder.build();
+  const settled = gridOfNode(table.type.create(table.attrs, Fragment.from(middle), table.marks));
+  const td = fb2Schema.nodes.td!;
+  for (let r = 0; r < settled.height; r += 1) {
+    const missing = settled.width - settled.covered(r);
+    if (missing <= 0) continue;
+    const rowChild = grid.rowChild[r]!;
+    const cells: PMNode[] = [];
+    for (let k = 0; k < missing; k += 1) cells.push(td.create({ nodeId: ctx.nextId() }));
+    builder.insertCells(rowChild, table.child(rowChild).childCount, cells);
+  }
+  return builder.build();
+}
+
+/**
+ * *Repair table* (data-model §4.5 `table.repair`; FR-034, FR-035, FR-046; C1, C16): after
+ * `checkRepair`, `repairRows` - the three steps of document-model §4.11 on this table alone,
+ * one undo step through the commit. The result is asserted regular in development and in the
+ * tests (a failure throws). Focus: a caret in the cell that held `$head` (`address.head`, else
+ * `address.caret`) at its new top-left position - a cell may move left, as C1's M does -, whose
+ * offset the commit keeps, its content being the same fragment; without one (the popover's repair
+ * of another table, a selected whole table) the commit maps the selection instead (data-model
+ * §4.3). `removedIds` empty: no cell goes.
+ */
+export function planRepair(address: TableAddress, ctx: PlanContext): TableEdit | Refusal {
+  const refusal = checkRepair(address);
+  if (refusal) return refusal;
+  const { table, grid } = address;
+  const rows = repairRows(table, grid, ctx);
+  const after = table.type.create(table.attrs, Fragment.from(rows), table.marks);
+  const next = gridOfNode(after);
+  if (import.meta.env.DEV && !next.regular) {
+    throw new Error('planRepair: the repaired table is not regular');
+  }
+  let focus = caretAt(0, 0);
+  const at = address.head ?? address.caret;
+  const head = at ? cellAtTopLeft(grid, table, at) : null;
+  if (head) {
+    const row = grid.cells[head.index]!.row;
+    const nodeId = head.node.attrs.nodeId;
+    for (let index = next.rowStart[row]!; index < next.rowStart[row + 1]!; index += 1) {
+      const node = gridCellNode(after, next, index);
+      if (node === head.node || (nodeId && node.attrs.nodeId === nodeId)) {
+        focus = caretAt(row, next.cells[index]!.left);
+        break;
+      }
+    }
+  }
+  return { rows, focus, removedIds: [] };
 }

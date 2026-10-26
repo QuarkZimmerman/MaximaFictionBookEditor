@@ -959,8 +959,11 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await settle(page);
     await page.keyboard.press('Alt+t');
     await page.getByTestId('dialog-table-header').check();
-    await page.getByTestId('dialog-table-rows').fill('1');
-    await page.getByTestId('dialog-table-columns').fill('1');
+    // Three rows of three columns under the header row (feature 006 US8, FR-036): colspan 2
+    // merges the first two header cells and rowspan 3 the empty block below them, where a
+    // one-column table would refuse both spans as past its edge.
+    await page.getByTestId('dialog-table-rows').fill('3');
+    await page.getByTestId('dialog-table-columns').fill('3');
     await page.getByTestId('dialog-table-header-column').uncheck();
     await page.getByTestId('dialog-table-button-ok').click();
     const table = editor.locator('table.fb-table');

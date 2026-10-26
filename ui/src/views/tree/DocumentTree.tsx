@@ -10,15 +10,24 @@
  * Enter / double-click / "View" switch to the Body view and focus it. When the Body caret moves,
  * the row of the innermost element shown in the tree is highlighted and scrolled into view. The
  * panel state (selection, collapsed rows) lives in the tree feature so the commands share it.
+ *
+ * Feature 006 (US8, FR-058; decision 8; C61; U33): the row of an irregular table draws the Body
+ * mark's badge at its right with the Body mark's name and tooltip, and an entry that contains
+ * irregular tables without rows of their own (a cite, an annotation, an epigraph, the Annotation
+ * and History blocks) one "Contains an irregular table: …" line per table. The mark is not
+ * interactive: a click selects the row and reveals the table, whose own mark offers the popover.
  */
 
+import type { TFunction } from 'i18next';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { commandDescription, commandTooltip } from '@/app/commands';
 import { useAppRevision, useAppServices, useCommandContext } from '@/app/services';
+import { tableProblemsText } from '@/editor/table/problems';
 import { bodyController } from '@/features/editing/common';
+import { describeTableMark } from '@/features/tables/marks';
 import { getTreeFeature, revealInBody, treeOpCommandId } from '@/features/tree';
 import { useAppState } from '@/model/store';
 
@@ -40,6 +49,35 @@ import './tree.css';
 
 const OVERSCAN = 8;
 const DEFAULT_VIEWPORT = 600;
+
+/** The texts of a row's mark: its accessible name and its tooltip. */
+interface RowMark {
+  label: string;
+  title: string;
+}
+
+/**
+ * The mark of a row (data-model §3.6): on a table's row the Body mark's name and tooltip; on a
+ * containing entry one line per table, named or not (decision 8), as both texts; none otherwise.
+ */
+function rowMark(row: TreeRow, t: TFunction): RowMark | null {
+  if (row.tableProblems) {
+    const texts = describeTableMark(row.tableProblems, t);
+    return { label: texts.name, title: texts.tooltip };
+  }
+  if (row.containedTables && row.containedTables.length > 0) {
+    const lines = row.containedTables
+      .map((summary) => {
+        const problems = tableProblemsText(summary, t);
+        return summary.id
+          ? t('tables.mark.containsNamed', { id: summary.id, problems })
+          : t('tables.mark.contains', { problems });
+      })
+      .join('\n');
+    return { label: lines, title: lines };
+  }
+  return null;
+}
 
 export function DocumentTree() {
   const { t } = useTranslation();
@@ -307,6 +345,7 @@ export function DocumentTree() {
             <TreeRowView
               key={row.id}
               row={row}
+              mark={rowMark(row, t)}
               top={(first + offset) * TREE_ROW_HEIGHT}
               selected={row.id === selectedId}
               expanded={row.childIds.length > 0 ? !collapsed.has(row.id) : undefined}
@@ -335,6 +374,8 @@ export function DocumentTree() {
 
 interface TreeRowViewProps {
   row: TreeRow;
+  /** The irregular-table mark of the row (feature 006 US8), or null. */
+  mark: RowMark | null;
   top: number;
   selected: boolean;
   /** undefined for leaf rows. */
@@ -349,6 +390,7 @@ interface TreeRowViewProps {
 
 function TreeRowView({
   row,
+  mark,
   top,
   selected,
   expanded,
@@ -373,6 +415,7 @@ function TreeRowView({
       data-row-kind={row.kind}
       data-depth={row.depth}
       data-selected={selected ? 'true' : undefined}
+      data-irregular={mark ? 'true' : undefined}
       onClick={() => onSelect(row.id)}
       onDoubleClick={(event) => {
         event.preventDefault();
@@ -412,6 +455,17 @@ function TreeRowView({
       <span className="mfbe-tree-row-caption" title={row.caption}>
         {row.caption}
       </span>
+      {mark ? (
+        <span
+          className="mfbe-table-mark-badge mfbe-tree-mark"
+          role="img"
+          aria-label={mark.label}
+          title={mark.title}
+          data-testid={`tree-row-${row.id}-mark`}
+        >
+          !
+        </span>
+      ) : null}
     </div>
   );
 }

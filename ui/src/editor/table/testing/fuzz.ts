@@ -30,6 +30,14 @@
  * own, a language tag or `de_DE` -, with an attribute oracle (`checkAttrStep`): the value that
  * must be refused is refused, positions keep their owners, cells their node id and content, only
  * the targets' attributes change; and after every step no FB2 id occurs twice in the document.
+ * US8 adds *Repair table* on a drawn caret (R8.15's "repair 5"; refused with `regular` on a
+ * regular table) with its oracle (`checkRepairStep`: the table regular, every cell kept with its
+ * node id, content and reading order, every new cell an empty `td`), and the span route of the
+ * Table bar - colspan and rowspan, the 2 of "attributes 10" US7 left - with each value drawn per
+ * step from 1 to past the edge, the current one and an empty field's 1 included, and its oracle
+ * (`checkSpanStep`: outside the head cell's old and new rectangles every cell keeps its content
+ * and kind, a growth joins the removed cells' content into the head cell as a merge does, a shrink
+ * adds empty cells only); a refusal changes nothing and adds no history event.
  */
 
 import { Fragment, Slice, type Node as PMNode, type Schema } from 'prosemirror-model';
@@ -45,7 +53,7 @@ import { closeHistory, redo, undo, undoDepth } from 'prosemirror-history';
 import { pasteTransaction, dedupeIds } from '../../clipboard/route';
 import { DISCRETE_STEP } from '../../commands/util';
 import { nodeToModel } from '../../toModel';
-import { planCellAttrs, planRowAlign, planTableAttrs } from '../attrs';
+import { headCell, planCellAttrs, planRowAlign, planSpan, planTableAttrs } from '../attrs';
 import {
   availability,
   isAvailable,
@@ -79,6 +87,7 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planRepair,
   planSetKind,
   planSplit,
   planTabRow,
@@ -364,6 +373,10 @@ export interface FuzzEntry {
   kinds?(address: TableAddress): KindTargets | null;
   /** US7: a Table-bar attribute change - its value drawn per step, the attribute oracle. */
   attr?: FuzzAttr;
+  /** US8: *Repair table* - its own oracle (`checkRepairStep`). */
+  repairs?: boolean;
+  /** US8: the Table bar's colspan or rowspan - its value drawn per step, the span oracle. */
+  span?: 'colspan' | 'rowspan';
 }
 
 /**
@@ -833,9 +846,37 @@ export const FUZZ_MIX: FuzzEntry[] = [
       }),
     },
   },
+  // US8 (SC-003; R8.15's "repair 5" and the span route's 2 of "attributes 10"): *Repair table*
+  // with a caret in a drawn cell, and the Table bar's colspan and rowspan on a drawn caret or
+  // block, each value drawn per step.
+  {
+    name: 'repair',
+    command: 'repair',
+    weight: 5,
+    plan: (address, ctx) => planRepair(address, ctx),
+    repairs: true,
+  },
+  { name: 'colspan', weight: 1, span: 'colspan' },
+  { name: 'rowspan', weight: 1, span: 'rowspan' },
   { name: 'undo', weight: 5 },
   { name: 'redo', weight: 5 },
 ];
+
+/**
+ * US8: a span field's value for the head cell of `address` - 1 (an empty field) and the current
+ * value in some draws, otherwise from 1 to one past the table's edge, which the plan refuses.
+ */
+function drawSpan(rng: () => number, address: TableAddress, axis: 'colspan' | 'rowspan'): number {
+  const head = headCell(address);
+  const { grid } = address;
+  if (!head || grid.tooLarge) return 1;
+  const cell = grid.cells[head.index]!;
+  const roll = rng();
+  if (roll < 0.15) return 1;
+  if (roll < 0.3) return axis === 'colspan' ? cell.colspan : cell.rowspan;
+  const limit = axis === 'colspan' ? grid.width - cell.left : grid.height - cell.row;
+  return 1 + Math.floor(rng() * (limit + 1));
+}
 
 /* ------------------------------------------------------------------------ */
 /* Hosts                                                                    */
@@ -1102,6 +1143,137 @@ export interface FuzzStepRecord {
   clipboard?: PMNode | null;
   /** US7: the value an attribute step drew, with the refusal it must answer. */
   attrValue?: FuzzAttrValue;
+  /** US8: the value a span step drew. */
+  spanValue?: number;
+}
+
+/** The cells of a table (its rows' `td` and `th` children), in reading order. */
+function tableCells(table: PMNode): PMNode[] {
+  const out: PMNode[] = [];
+  table.forEach((row) => {
+    if (row.type.name !== 'tr') return;
+    row.forEach((cell) => {
+      if (cell.type.name === 'td' || cell.type.name === 'th') out.push(cell);
+    });
+  });
+  return out;
+}
+
+/** True for a cell without content and without an attribute but its node id. */
+function plainEmpty(cell: PMNode): boolean {
+  return (
+    cell.content.size === 0 &&
+    Object.entries(cell.attrs).every(([key, value]) => key === 'nodeId' || value === null)
+  );
+}
+
+/**
+ * US8's repair oracle (FR-034; C16; document-model §4.11): the table is regular, every cell of
+ * the table before keeps its node id, its content, its kind and its place in reading order, and
+ * every new cell is an empty `td` without attributes.
+ */
+function checkRepairStep(before: PMNode, after: PMNode): string | null {
+  if (!gridOfNode(after).regular) return 'the repaired table is not regular';
+  const old = tableCells(before);
+  const ids = new Set(old.map((cell) => cell.attrs.nodeId));
+  const now = tableCells(after);
+  const kept = now.filter((cell) => ids.has(cell.attrs.nodeId));
+  if (kept.length !== old.length) return 'Repair table lost a cell';
+  for (let index = 0; index < old.length; index += 1) {
+    const was = old[index]!;
+    const is = kept[index]!;
+    if (is.attrs.nodeId !== was.attrs.nodeId) return 'Repair table changed the reading order';
+    if (is.content !== was.content) return `the cell ${String(was.attrs.nodeId)} lost its content`;
+    if (is.type !== was.type) return `the cell ${String(was.attrs.nodeId)} changed its kind`;
+  }
+  for (const cell of now) {
+    if (ids.has(cell.attrs.nodeId)) continue;
+    if (cell.type.name !== 'td' || !plainEmpty(cell)) {
+      return 'a cell Repair table added is not an empty td without attributes';
+    }
+  }
+  return null;
+}
+
+/**
+ * US8's span oracle (FR-036, FR-035; data-model §4.7): every cell outside the head cell's old
+ * rectangle and its new one extended to whole cells keeps its node id, content and kind; a growth
+ * keeps the head cell, its content first, and takes in the content of every cell it removes, as
+ * a merge does; a shrink keeps the head cell's content and adds empty cells only - of its kind, or
+ * the hole fill's plain `td`s.
+ */
+function checkSpanStep(
+  before: PMNode,
+  after: PMNode,
+  address: TableAddress,
+  axis: 'colspan' | 'rowspan',
+  value: number,
+): string | null {
+  const head = headCell(address);
+  if (!head) return 'a span step acted without a head cell';
+  const { grid } = address;
+  const cell = grid.cells[head.index]!;
+  const oldRect: Rect = {
+    top: cell.row,
+    left: cell.left,
+    bottom: cell.row + cell.rowsIn,
+    right: cell.left + cell.colspan,
+  };
+  const grows = value > (axis === 'colspan' ? cell.colspan : cell.rowspan);
+  const rect = grows
+    ? grid.extend(
+        axis === 'colspan'
+          ? { ...oldRect, right: cell.left + value }
+          : { ...oldRect, bottom: cell.row + value },
+      )
+    : oldRect;
+  const meets = (index: number, r: Rect) => {
+    const other = grid.cells[index]!;
+    return (
+      other.row < r.bottom &&
+      other.row + other.rowsIn > r.top &&
+      other.left < r.right &&
+      other.left + other.colspan > r.left
+    );
+  };
+  const now = new Map(tableCells(after).map((one) => [one.attrs.nodeId as string, one]));
+  const oldIds = new Set<string>();
+  const removed: string[] = [];
+  for (let index = 0; index < grid.cells.length; index += 1) {
+    const node = gridCellNode(before, grid, index);
+    const id = node.attrs.nodeId as string;
+    oldIds.add(id);
+    if (index === head.index) continue;
+    const kept = now.get(id);
+    if (meets(index, oldRect) || meets(index, rect)) {
+      if (!kept && node.textContent !== '') removed.push(node.textContent);
+      continue;
+    }
+    if (!kept) return `the cell ${id} outside the span's rectangles went`;
+    if (kept.content !== node.content)
+      return `the cell ${id} outside the span's rectangles changed`;
+    if (kept.type !== node.type)
+      return `the cell ${id} outside the span's rectangles changed its kind`;
+  }
+  const keeper = now.get(head.node.attrs.nodeId as string);
+  if (!keeper) return 'the head cell went';
+  if (grows) {
+    const text = keeper.textContent;
+    if (!text.startsWith(head.node.textContent)) return 'the head cell lost its own content';
+    for (const part of removed) {
+      if (!text.includes(part)) return `the content "${part}" of a merged cell was lost`;
+    }
+    return null;
+  }
+  if (keeper.content !== head.node.content) return 'the head cell changed its content';
+  for (const [id, one] of now) {
+    if (oldIds.has(id)) continue;
+    const ofKind = one.type === head.node.type && one.content.size === 0;
+    if (!ofKind && !(one.type.name === 'td' && plainEmpty(one))) {
+      return 'a cell the split added is not an empty cell of the head cell’s kind';
+    }
+  }
+  return null;
 }
 
 /**
@@ -1610,8 +1782,19 @@ function rowsHoldCells(table: PMNode): boolean {
  * invented. Null when every check holds, else the reason.
  */
 export function checkFuzzStep(record: FuzzStepRecord): string | null {
-  const { entry, before, after, tablePos, address, dryRun, answer, ran, clipboard, attrValue } =
-    record;
+  const {
+    entry,
+    before,
+    after,
+    tablePos,
+    address,
+    dryRun,
+    answer,
+    ran,
+    clipboard,
+    attrValue,
+    spanValue,
+  } = record;
   if (answer && !sameAvailability(answer, dryRun)) {
     return `availability ${JSON.stringify(answer)} disagrees with the plan's ${
       isRefusal(dryRun) ? JSON.stringify(dryRun) : 'edit'
@@ -1663,6 +1846,8 @@ export function checkFuzzStep(record: FuzzStepRecord): string | null {
   if (entry.attr && attrValue) {
     return checkAttrStep(table, next, entry.attr, attrValue.value, address);
   }
+  if (entry.repairs) return checkRepairStep(table, next);
+  if (entry.span) return checkSpanStep(table, next, address, entry.span, spanValue ?? 1);
   if (entry.merges) return checkMergeStep(table, next, address);
   if (entry.splits) {
     return checkSplitStep(table, next, address) ?? checkCharacters(table, next, entry);
@@ -1960,11 +2145,16 @@ export async function runFuzz(
                 },
               })
             : undefined;
+          // US8: the span step's value, drawn with the run's generator.
+          const span = entry.span;
+          const spanValue = span ? drawSpan(rng, target.address, span) : undefined;
           const plan: TablePlan = entry.pastes
             ? (address, c) => pasteBlockPlan(address, dedupeIds(pasted!, ctx.bookIds), c)
             : entry.attr
               ? attrPlan(entry.attr, attrValue!.value)
-              : entry.plan!;
+              : span
+                ? (address, c) => planSpan(address, { axis: span, value: spanValue! }, c)
+                : entry.plan!;
           const dryRun = plan(target.address, ctx);
           const answer = entry.command ? availability(before, entry.command) : null;
           const ran = host.run(
@@ -1993,8 +2183,10 @@ export async function runFuzz(
             ran,
             clipboard: pasted,
             attrValue,
+            spanValue,
           });
           if (reason && attrValue) reason += ` (the value ${JSON.stringify(attrValue.value)})`;
+          if (reason && spanValue !== undefined) reason += ` (the value ${spanValue})`;
           if (!reason && !after.doc.eq(before.doc)) {
             done.push({ before: before.doc, after: after.doc });
             undone = [];

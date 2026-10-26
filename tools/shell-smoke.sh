@@ -112,6 +112,15 @@
 #                               evidence for this layout; the screenshots are
 #                               <MFBE_SMOKE_SCREENSHOT>-<w>.png. Exclusive with the restart, close,
 #                               Save As and self-test scenarios
+#   MFBE_SMOKE_TABLE_MARKS      1 = the warning marks of irregular tables in the real CEF shell
+#                               (feature 006 US8, FR-057; real UI with MFBE_SMOKE_OPEN_FILE =
+#                               tests/fixtures/books/tables.fb2): shell-smoke.mjs reads the Body
+#                               view's DOM once the book is open - every marked table has one mark
+#                               centred on its right border edge (within 1 px), meeting the content
+#                               box of none of its cells and lying at or below the block above it;
+#                               the table's box is the same with the mark's caption hidden; no
+#                               regular table has a mark. Exclusive with the restart, close, Save
+#                               As, self-test and table-layout scenarios
 #   (every run)                 The browser engine's own spell checking is off (feature 004 US9,
 #                               FR-081): the shell sets browser.enable_spellchecking=false at
 #                               every start and a test-hook build prints "shelltest: spellcheck
@@ -400,6 +409,21 @@ if [[ "$TABLE_LAYOUT" == "1" ]]; then
   fi
 elif [[ "$TABLE_LAYOUT" != "0" ]]; then
   echo "shell-smoke: MFBE_SMOKE_TABLE_LAYOUT must be 1 (the widths are the script's own)" >&2
+  exit 1
+fi
+TABLE_MARKS="${MFBE_SMOKE_TABLE_MARKS:-0}"
+if [[ "$TABLE_MARKS" == "1" ]]; then
+  if [[ "${MFBE_SMOKE_REAL_UI:-0}" != "1" || -z "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_TABLE_MARKS needs MFBE_SMOKE_REAL_UI=1 and MFBE_SMOKE_OPEN_FILE (tables.fb2)" >&2
+    exit 1
+  fi
+  if [[ "$RESTART" == "1" || "$CLOSE" == "1" || "$SAVE_AS" == "1" || -n "$SELFTEST" ||
+        "${MFBE_SMOKE_CLIPBOARD:-0}" == "1" || "$TABLE_LAYOUT" == "1" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_TABLE_MARKS is exclusive with the restart, close, Save As, self-test and table-layout scenarios" >&2
+    exit 1
+  fi
+elif [[ "$TABLE_MARKS" != "0" ]]; then
+  echo "shell-smoke: MFBE_SMOKE_TABLE_MARKS must be 0 or 1" >&2
   exit 1
 fi
 # Clipboard check: a GTK clipboard owner must live on the same virtual display as the shell,

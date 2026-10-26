@@ -37,14 +37,14 @@ import {
   type Command,
   type Transaction,
 } from 'prosemirror-state';
-import { EditorView } from 'prosemirror-view';
+import { EditorView, type NodeViewConstructor } from 'prosemirror-view';
 
 import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { baseEditorKeymap, bodyKeymap } from '@/editor/keymap';
 import { binaryLookup, createImageNodeViews } from '@/editor/nodeviews/image';
 import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
-import { createTableNodeViews } from '@/editor/nodeviews/table';
+import { createTableNodeViews, type TableViewOptions } from '@/editor/nodeviews/table';
 import { blockBoundaryPlugin, markControllerTransaction } from '@/editor/plugins/blockBoundary';
 import { blockCaptionsKey, blockCaptionsPlugin } from '@/editor/plugins/blockCaptions';
 import { clipboardPlugin, type ClipboardOptions } from '@/editor/plugins/clipboard';
@@ -409,6 +409,13 @@ export class BodyEditorController {
    */
   private scrollOnMount = false;
   /**
+   * What the tables feature gives the table node views for the warning mark (feature 006 US8,
+   * data-model §3.3): its texts and the click on it; null until the feature sets them.
+   */
+  private tableViewOptions: Pick<TableViewOptions, 'describe' | 'onMarkActivate'> | null = null;
+  /** The table node views' language listeners, called by `setTranslate`. */
+  private readonly languageListeners = new Set<() => void>();
+  /**
    * The Body view was shown for the current document, or its caret was placed on purpose
    * (`setCaret`): only then is the caret worth remembering - a document whose Body view was
    * never looked at keeps its previous record (feature 004 FR-100, research R5.6).
@@ -570,16 +577,7 @@ export class BodyEditorController {
     this.view = new EditorView(this.container, {
       state: drawSelection ? kept.apply(kept.tr.setSelection(new AllSelection(kept.doc))) : kept,
       editable: () => this.isEditable,
-      nodeViews: {
-        ...createImageNodeViews({
-          getDocId: () => this.store.getState().docId,
-          getMissingText: () => this.translate('views.body.imageMissing'),
-          // The pictures' boxes are reserved from the binary list (feature 006, R9.2).
-          getBinary: binaryLookup(() => this.store.getState().document?.binaries),
-        }),
-        ...createRawXmlNodeViews(() => this.translate('editing.unknownElement')),
-        ...createTableNodeViews(),
-      },
+      nodeViews: this.nodeViews(),
       dispatchTransaction: (tr) => this.dispatch(tr),
       // `spellcheck="false"`: the browser engine's own checker stays off the editable root (the
       // editor's own plugin marks the misspellings - feature 004 US9, FR-081).
@@ -596,6 +594,47 @@ export class BodyEditorController {
       this.view.dispatch(this.view.state.tr.scrollIntoView());
     }
     this.publishSelection();
+  }
+
+  /**
+   * The node views of the editor: pictures, raw XML and tables - the tables with the warning mark
+   * of an irregular table once the tables feature has set its options (feature 006 US8), their
+   * texts rendered again through the language listeners `setTranslate` calls.
+   */
+  private nodeViews(): Record<string, NodeViewConstructor> {
+    const tableOptions = this.tableViewOptions;
+    return {
+      ...createImageNodeViews({
+        getDocId: () => this.store.getState().docId,
+        getMissingText: () => this.translate('views.body.imageMissing'),
+        // The pictures' boxes are reserved from the binary list (feature 006, R9.2).
+        getBinary: binaryLookup(() => this.store.getState().document?.binaries),
+      }),
+      ...createRawXmlNodeViews(() => this.translate('editing.unknownElement')),
+      ...createTableNodeViews(
+        tableOptions
+          ? {
+              ...tableOptions,
+              onLanguageChange: (listener) => {
+                this.languageListeners.add(listener);
+                return () => {
+                  this.languageListeners.delete(listener);
+                };
+              },
+            }
+          : undefined,
+      ),
+    };
+  }
+
+  /**
+   * The options of the table node views (feature 006 US8; I15; data-model §3.3): the mark's
+   * texts (`describe`) and the click on it (`onMarkActivate`); null draws no mark. Once the view
+   * exists its table node views are made again with them.
+   */
+  setTableViewOptions(options: Pick<TableViewOptions, 'describe' | 'onMarkActivate'> | null): void {
+    this.tableViewOptions = options;
+    this.view?.setProps({ nodeViews: this.nodeViews() });
   }
 
   /**
@@ -1043,6 +1082,8 @@ export class BodyEditorController {
     this.translate = translate;
     // The block captions are drawn from the catalogue: repaint them in the new language.
     this.repaint(blockCaptionsKey);
+    // So are the irregular tables' marks (feature 006 US8, data-model §3.3 "Language").
+    for (const listener of [...this.languageListeners]) listener();
   }
 
   /** Sets the NBSP display character (Settings > Other) and repaints the markers. */

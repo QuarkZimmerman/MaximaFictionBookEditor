@@ -1,6 +1,12 @@
 /**
  * The table plans of `ops.ts` (feature 006; data-model §4.4 to §4.6), one `describe` block per
- * user story in story order. US7 (T116; FR-020 to FR-022, FR-035, FR-045 to FR-047; C8, C14,
+ * user story in story order. US8 (T125; FR-034 to FR-036, FR-043, FR-046, FR-047; C1, C13, C16,
+ * C19, C21; data-model §4.5 `table.repair`, §4.7): `planRepair` gives every irregular vector case
+ * its `repaired` table - C1's shifts included -, keeps every cell and its content, appends plain
+ * `td`s, writes spans through `withSpans` and keeps the caret's cell; `checkRepair` refuses where
+ * the plan does; `planSpan` merges as *Merge cells* over the extended rectangle, refuses a growth
+ * that a merged cell above or to the left reaches (`merge-needs-block`) and a span past the edge,
+ * splits off the freed positions, and changes nothing outside its rectangles. US7 (T116; FR-020 to FR-022, FR-035, FR-045 to FR-047; C8, C14,
  * C19, C67; I13; data-model §1.5, §2.5, §4.4, §4.7): the attribute plans of `attrs.ts` -
  * `planCellAttrs` on a block's cells, a caret's cell or whole lines and its `id` on the head cell,
  * `planRowAlign`, `planTableAttrs` -, their checks and refusals, attributes only (the same rows
@@ -35,7 +41,7 @@ import { EditorState, TextSelection } from 'prosemirror-state';
 
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2Schema } from '@/editor/schema';
-import { planCellAttrs, planRowAlign, planTableAttrs } from '@/editor/table/attrs';
+import { planCellAttrs, planRowAlign, planSpan, planTableAttrs } from '@/editor/table/attrs';
 import { availability, isAvailable, planCommand } from '@/editor/table/commands';
 import {
   applyTableEdit,
@@ -55,6 +61,7 @@ import {
   blockOver,
   caretAt,
   cellAtTopLeft,
+  checkRepair,
   createTable,
   joinInlineParts,
   lineOwners,
@@ -68,6 +75,7 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planRepair,
   planSetKind,
   planSplit,
   planTabRow,
@@ -3245,5 +3253,450 @@ describe('US7 attribute plans', () => {
     expect(english.after.child(0).child(1).attrs.extraAttrs).toEqual({
       unknownAttrs: { class: 'k' },
     });
+  });
+});
+
+describe('US8 repair and spans', () => {
+  const ctx = (): PlanContext => ({ nextId: idGenerator('n') });
+
+  interface Vector {
+    name: string;
+    fixture?: string;
+    table: VectorCase['table'];
+    expect: { regular: boolean; repaired?: VectorCase['table'] };
+  }
+  const cases = (
+    JSON.parse(readFileSync(path.join(VECTORS, 'grid-vectors.json'), 'utf8')) as {
+      cases: Vector[];
+    }
+  ).cases;
+  const irregular = cases.filter((one) => !one.expect.regular);
+
+  /** A table as the vectors write it: types other than `td`, set attributes, no node ids. */
+  function shapeOf(node: PMNode): unknown {
+    const attrs = (n: PMNode) => {
+      const set = setAttrs(n);
+      if (set.extraAttrs) {
+        set.unknownAttrs = (set.extraAttrs as { unknownAttrs?: unknown }).unknownAttrs;
+        delete set.extraAttrs;
+      }
+      return Object.keys(set).length > 0 ? set : undefined;
+    };
+    return {
+      attrs: attrs(node),
+      rows: childrenOf(node).map((row) =>
+        row.type.name === 'tr'
+          ? childrenOf(row).map((cell) =>
+              cell.type.name === 'td' || cell.type.name === 'th'
+                ? { type: cell.type.name === 'th' ? 'th' : undefined, attrs: attrs(cell) }
+                : { type: 'raw-xml', attrs: undefined },
+            )
+          : { type: 'raw-xml' },
+      ),
+    };
+  }
+
+  function vectorShapeOf(table: VectorCase['table']): unknown {
+    const attrs = (a: Record<string, unknown> | undefined) =>
+      a && Object.keys(a).length > 0 ? a : undefined;
+    return {
+      attrs: attrs(table.attrs),
+      rows: table.rows.map((row) =>
+        Array.isArray(row)
+          ? row.map((cell) => ({
+              type: cell.type === 'th' || cell.type === 'raw-xml' ? cell.type : undefined,
+              attrs: cell.type === 'raw-xml' ? undefined : attrs(cell.attrs as never),
+            }))
+          : { type: 'raw-xml' },
+      ),
+    };
+  }
+
+  /** The address of a whole table, without a caret (the popover's repair of another table). */
+  function whole(node: PMNode): TableAddress {
+    return { table: node, grid: gridOfNode(node) };
+  }
+
+  function repaired(address: TableAddress, nextId = idGenerator('n')) {
+    const edit = planRepair(address, { nextId });
+    if (isRefusal(edit)) throw new Error(`refused: ${edit.refused}`);
+    const after = applyTableEdit(address.table, edit);
+    assertTableValid(address.table, after, edit.allowedIds, edit.pastedIrregular);
+    return { edit, after };
+  }
+
+  /** The cells of a table by node id. */
+  function cellsById(node: PMNode): Map<string, PMNode> {
+    const out = new Map<string, PMNode>();
+    for (const row of childrenOf(node)) {
+      if (row.type.name !== 'tr') continue;
+      for (const cell of childrenOf(row)) {
+        if (cell.type.name === 'td' || cell.type.name === 'th') {
+          out.set(cell.attrs.nodeId as string, cell);
+        }
+      }
+    }
+    return out;
+  }
+
+  it('planRepair gives every irregular vector case its repaired table, C1’s shift and cascade included; the result is regular and a second repair refuses', () => {
+    expect(irregular.length).toBeGreaterThan(10);
+    for (const one of irregular) {
+      const node = vectorTable(one.table);
+      const { after, edit } = repaired(whole(node));
+      expect(shapeOf(after), one.name).toEqual(vectorShapeOf(one.expect.repaired!));
+      expect(gridOfNode(after).regular, one.name).toBe(true);
+      expect(edit.removedIds, one.name).toEqual([]);
+      expect(planRepair(whole(after), ctx()), one.name).toEqual({ refused: 'regular' });
+    }
+    for (const one of cases.filter((c) => c.expect.regular)) {
+      const node = vectorTable(one.table);
+      const answer = planRepair(whole(node), ctx());
+      const grid = gridOfNode(node);
+      expect(answer, one.name).toEqual({ refused: grid.tooLarge ? 'too-large' : 'regular' });
+    }
+    // C1: `[X, E rowspan 2] / [L colspan 3, M]` - L reduced, M from column 3 to 2, W 4 to 3.
+    const shift = placed(
+      [
+        ['X', { text: 'E', rowspan: 2 }],
+        [{ text: 'L', colspan: 3 }, 'M'],
+      ],
+      'M',
+      { offset: 1 },
+    );
+    const shifted = repaired(shift.address);
+    expect(show(shifted.after)).toBe('[X, E rowspan=2, <td>] / [L, M]');
+    expect(gridOfNode(shifted.after).width).toBe(3);
+    // The focus: a caret in M, at its new top-left position, its offset kept.
+    expect(shifted.edit.focus).toEqual(caretAt(1, 2));
+    const tr = commitTableEdit(shift.state.tr, tableTarget(shift.state)!.tablePos, shifted.edit)!;
+    expect(tr.selection.$head.parent.textContent).toBe('M');
+    expect(tr.selection.$head.parentOffset).toBe(1);
+    // C16: M re-placed onto F and reduced; nothing padded.
+    const cascade = placed(
+      [
+        ['X', { text: 'E', rowspan: 2 }, 'Y', { text: 'F', rowspan: 2 }],
+        [
+          { text: 'L', colspan: 3 },
+          { text: 'M', colspan: 2 },
+        ],
+      ],
+      'X',
+    );
+    expect(show(repaired(cascade.address).after)).toBe('[X, E rowspan=2, Y, F rowspan=2] / [L, M]');
+  });
+
+  it('planRepair keeps every cell - its node id and content fragment -, untouched rows as they are, and appends plain tds with fresh node ids', () => {
+    for (const one of irregular) {
+      const node = vectorTable(one.table);
+      const before = cellsById(node);
+      const nextId = idGenerator('fresh');
+      const { after } = repaired(whole(node), nextId);
+      const now = cellsById(after);
+      for (const [id, cell] of before) {
+        expect(now.get(id), `${one.name}: ${id}`).toBeDefined();
+        expect(now.get(id)!.content, `${one.name}: ${id}`).toBe(cell.content);
+        expect(now.get(id)!.type, `${one.name}: ${id}`).toBe(cell.type);
+      }
+      for (const [id, cell] of now) {
+        if (before.has(id)) continue;
+        expect(id, one.name).toMatch(/^fresh\d+$/);
+        expect(cell.type.name, one.name).toBe('td');
+        expect(setAttrs(cell), one.name).toEqual({});
+        expect(cell.content.size, one.name).toBe(0);
+      }
+      node.forEach((row, _offset, index) => {
+        const next = after.child(index);
+        const same =
+          row.childCount === next.childCount &&
+          childrenOf(row).every((child, at) => child === next.child(at));
+        if (same) expect(next, `${one.name}: row ${index}`).toBe(row);
+      });
+    }
+    // Text content survives: the letters of a cascade, in reading order.
+    const where = placed([['a', { text: 'b', rowspan: 2 }], [{ text: 'c', colspan: 2 }]], 'a');
+    const { after } = repaired(where.address);
+    expect(show(after)).toBe('[a, b rowspan=2] / [c]');
+  });
+
+  it('C19: a span reduced or clipped to 1 is written as no attribute, and its unknownAttrs twin goes; other unknown attributes stay', () => {
+    const where = placed(
+      [
+        ['a', { text: 'b', rowspan: 2 }],
+        [{ text: 'c', colspan: 2, unknownAttrs: { colspan: 'x', class: 'k' } }],
+      ],
+      'a',
+    );
+    const reduced = repaired(where.address).after;
+    const c = reduced.child(1).child(0);
+    expect(c.attrs.colspan).toBeNull();
+    expect(c.attrs.extraAttrs).toEqual({ unknownAttrs: { class: 'k' } });
+    const clipped = repaired(
+      placed([['a', { text: 'b', rowspan: 3, unknownAttrs: { rowspan: 'y' } }]], 'a').address,
+    ).after;
+    const b = clipped.child(0).child(1);
+    expect(b.attrs.rowspan).toBeNull();
+    expect(b.attrs.extraAttrs).toBeNull();
+    const two = repaired(placed([['a', { text: 'b', rowspan: 4 }], ['c']], 'c').address).after;
+    expect(two.child(0).child(1).attrs.rowspan).toBe(2);
+  });
+
+  it('checkRepair refuses exactly where planRepair does - too-large first, then regular - and builds no node', () => {
+    const tables = [
+      ...cases.map((one) => vectorTable(one.table)),
+      nodeFromModel(modelTable(PLAIN))!,
+    ];
+    for (const node of tables) {
+      const address = whole(node);
+      const plan = planRepair(address, ctx());
+      expect(checkRepair(address)).toEqual(isRefusal(plan) ? plan : null);
+    }
+    // Above MAX_GRID_POSITIONS: too-large, for a regular and an irregular table alike.
+    const cells = Array.from({ length: 4195 }, (_, index) => ({
+      text: `w${index}`,
+      colspan: 1000,
+    }));
+    const big = nodeFromModel(modelTable([cells]))!;
+    const bigShort = nodeFromModel(modelTable([cells, ['x']]))!;
+    for (const node of [big, bigShort]) {
+      expect(gridOfNode(node).height * gridOfNode(node).width).toBeGreaterThan(MAX_GRID_POSITIONS);
+      expect(checkRepair(whole(node))).toEqual({ refused: 'too-large' });
+      expect(planRepair(whole(node), ctx())).toEqual({ refused: 'too-large' });
+    }
+    const node = vectorTable(irregular[0]!.table);
+    const address = whole(node);
+    const create = vi.spyOn(fb2Schema.nodes.td!, 'create');
+    try {
+      checkRepair(address);
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      create.mockRestore();
+    }
+  });
+
+  /** The plan of a span field on `where`. */
+  function span(where: Placed, axis: 'colspan' | 'rowspan', value: number) {
+    return planSpan(where.address, { axis, value }, ctx());
+  }
+
+  function spanned(where: Placed, axis: 'colspan' | 'rowspan', value: number) {
+    const edit = span(where, axis, value);
+    if (isRefusal(edit)) throw new Error(`refused: ${JSON.stringify(edit)}`);
+    const after = applyTableEdit(where.table, edit);
+    assertTableValid(where.table, after, edit.allowedIds, edit.pastedIrregular);
+    return { edit, after };
+  }
+
+  it('a larger colspan or rowspan merges as Merge cells would over the extended rectangle: the head cell keeps, contents joined, removed ids reported', () => {
+    const where = placed(T1, 'r1c1');
+    const wide = spanned(where, 'colspan', 3);
+    expect(show(wide.after)).toBe(
+      '[r1c1 r1c2 r1c3 colspan=3] / {center}[r2c1 id=us2-r2c1, r2c2, r2c3] / [r3c1, r3c2, r3c3]',
+    );
+    const merge = planMerge(
+      { ...where.address, rect: { top: 0, left: 0, bottom: 1, right: 3 } },
+      ctx(),
+    );
+    expect(isRefusal(merge) ? merge : show(applyTableEdit(where.table, merge))).toBe(
+      show(wide.after),
+    );
+    expect(wide.edit.focus).toEqual(caretAt(0, 0));
+    // A linked id among the removed cells is reported for the host's question (FR-015).
+    const down = spanned(placed(T1, 'r1c1'), 'rowspan', 2);
+    expect(down.edit.removedIds).toEqual(['us2-r2c1']);
+    expect(show(down.after)).toBe(
+      '[r1c1 r2c1 rowspan=2, r1c2, r1c3] / {center}[r2c2, r2c3] / [r3c1, r3c2, r3c3]',
+    );
+    // The other span grows when the extension reaches a merged cell (R1.5; analyze decision 3).
+    const grown = spanned(
+      placed(
+        [
+          ['a', { text: 'b', rowspan: 2 }, 'x'],
+          ['c', 'd'],
+        ],
+        'a',
+      ),
+      'colspan',
+      2,
+    );
+    expect(show(grown.after)).toBe('[a b c colspan=2 rowspan=2, x] / [d]');
+    const grid = gridOfNode(grown.after);
+    expect(grid.cells.map((cell) => cell.left)).toEqual([0, 2, 2]);
+    // A growth over a whole row compacts it (decision 1).
+    const compacted = spanned(placed([[{ text: 'a', colspan: 2 }], ['c', 'd']], 'a'), 'rowspan', 2);
+    expect(show(compacted.after)).toBe('[a c d colspan=2]');
+    // Over holes only (an irregular table): the head cell takes them (FR-035).
+    const holes = spanned(placed([['a', 'b', 'c'], ['d']], 'd'), 'colspan', 3);
+    expect(show(holes.after)).toBe('[a, b, c] / [d colspan=3]');
+  });
+
+  it('analyze decision 6: a growth that a merged cell starting above or to the left reaches is refused with merge-needs-block, nothing changed', () => {
+    expect(span(placed([['a', { text: 'b', rowspan: 2 }], ['c']], 'c'), 'colspan', 2)).toEqual({
+      refused: 'merge-needs-block',
+    });
+    expect(span(placed([['a', 'b'], [{ text: 'c', colspan: 2 }]], 'b'), 'rowspan', 2)).toEqual({
+      refused: 'merge-needs-block',
+    });
+  });
+
+  it('a smaller value, or 1, splits off the freed positions as empty cells of the head cell’s kind, align, valign and lang; positions an earlier cell owns get nothing', () => {
+    const where = placed(
+      [
+        [
+          {
+            type: 'th',
+            text: 'a',
+            colspan: 3,
+            rowspan: 2,
+            align: 'right',
+            valign: 'top',
+            lang: 'de',
+            id: 'keep',
+            style: 's',
+          },
+          'x',
+        ],
+        ['y'],
+      ],
+      'a',
+    );
+    const narrow = spanned(where, 'colspan', 1);
+    const fresh = '<th> align=right valign=top lang=de';
+    expect(show(narrow.after)).toBe(
+      `[<th>a rowspan=2 align=right valign=top lang=de id=keep style=s, ${fresh}, ${fresh}, x] / [${fresh}, ${fresh}, y]`,
+    );
+    expect(narrow.edit.removedIds).toEqual([]);
+    const two = spanned(where, 'colspan', 2);
+    expect(show(two.after)).toBe(
+      `[<th>a colspan=2 rowspan=2 align=right valign=top lang=de id=keep style=s, ${fresh}, x] / [${fresh}, y]`,
+    );
+    const short = spanned(where, 'rowspan', 1);
+    expect(show(short.after)).toBe(
+      `[<th>a colspan=3 align=right valign=top lang=de id=keep style=s, x] / [${fresh}, ${fresh}, ${fresh}, y]`,
+    );
+    // c overlaps b at (1, 1): b owns it, so it gets nothing.
+    const overlap = spanned(
+      placed([['a', { text: 'b', rowspan: 2 }], [{ text: 'c', colspan: 2 }]], 'c'),
+      'colspan',
+      1,
+    );
+    expect(show(overlap.after)).toBe('[a, b rowspan=2] / [c]');
+    // A rowspan past the last row cut to the table: the freed position inside it gets a cell.
+    const past = spanned(placed([[{ text: 'a', rowspan: 4 }, 'b'], ['c']], 'a'), 'rowspan', 1);
+    expect(show(past.after)).toBe('[a, b] / [<td>, c]');
+  });
+
+  it('span-past-edge for a column and a row, the same value commits nothing, too-large first, and an unknownAttrs colspan grows from 1 and goes', () => {
+    expect(span(placed(PLAIN, 'r1c2'), 'colspan', 3)).toEqual({
+      refused: 'span-past-edge',
+      params: { axis: 'column' },
+    });
+    expect(span(placed(PLAIN, 'r2c1'), 'rowspan', 3)).toEqual({
+      refused: 'span-past-edge',
+      params: { axis: 'row' },
+    });
+    const where = placed(PLAIN, 'r2c2');
+    for (const axis of ['colspan', 'rowspan'] as const) {
+      const same = span(where, axis, 1);
+      if (isRefusal(same)) throw new Error(`refused: ${same.refused}`);
+      same.rows.forEach((row, index) => expect(row).toBe(where.table.child(index)));
+      expect(commitTableEdit(where.state.tr, tableTarget(where.state)!.tablePos, same)).toBeNull();
+    }
+    const cells = Array.from({ length: 4195 }, (_, index) => ({
+      text: `w${index}`,
+      colspan: 1000,
+    }));
+    const big = placed([cells], 'w1');
+    expect(span(big, 'colspan', 1)).toEqual({ refused: 'too-large' });
+    expect(span(big, 'rowspan', 1)).toEqual({ refused: 'too-large' });
+    expect(planRepair(big.address, ctx())).toEqual({ refused: 'too-large' });
+    const odd = placed(
+      [
+        [{ text: 'a', unknownAttrs: { colspan: 'abc' } }, 'b'],
+        ['c', 'd'],
+      ],
+      'a',
+    );
+    expect(odd.table.child(0).child(0).attrs.extraAttrs).toEqual({
+      unknownAttrs: { colspan: 'abc' },
+    });
+    const grown = spanned(odd, 'colspan', 2).after.child(0).child(0);
+    expect(grown.attrs.colspan).toBe(2);
+    expect(grown.attrs.extraAttrs).toBeNull();
+    expect(grown.textContent).toBe('a b');
+  });
+
+  it('FR-035, FR-037: on every irregular vector case the span plans return without throwing and change no cell outside the old and new rectangles', () => {
+    let edits = 0;
+    for (const one of irregular) {
+      const node = vectorTable(one.table);
+      const grid = gridOfNode(node);
+      if (grid.tooLarge) continue;
+      const doc = docOf(p('before', 'p1'), node, p('after', 'p2'));
+      const tablePos = 1 + 1 + doc.child(0).child(0).child(0).nodeSize;
+      const cellPositions: number[] = [];
+      doc.nodeAt(tablePos)!.descendants((child, at) => {
+        if (child.type.name === 'td' || child.type.name === 'th')
+          cellPositions.push(tablePos + 1 + at);
+        return child.type.name === 'table' || child.type.name === 'tr';
+      });
+      for (const at of cellPositions) {
+        const state = EditorState.create({ doc, selection: TextSelection.create(doc, at + 1) });
+        const address = tableTarget(state)!.address;
+        const head = grid.cells[grid.owner(address.caret!.row, address.caret!.col)]!;
+        for (const axis of ['colspan', 'rowspan'] as const) {
+          const limit = axis === 'colspan' ? grid.width - head.left : grid.height - head.row;
+          for (let value = 1; value <= limit + 1; value += 1) {
+            const edit = planSpan(address, { axis, value }, ctx());
+            if (isRefusal(edit)) {
+              expect(
+                ['span-past-edge', 'merge-needs-block'],
+                `${one.name} ${axis} ${value}`,
+              ).toContain(edit.refused);
+              continue;
+            }
+            edits += 1;
+            const after = applyTableEdit(node, edit);
+            expect(
+              () => assertTableValid(node, after, edit.allowedIds),
+              `${one.name} ${axis} ${value}`,
+            ).not.toThrow();
+            const oldRect = {
+              top: head.row,
+              left: head.left,
+              bottom: head.row + head.rowsIn,
+              right: head.left + head.colspan,
+            };
+            const newRect =
+              axis === 'colspan'
+                ? { ...oldRect, right: head.left + value }
+                : { ...oldRect, bottom: head.row + value };
+            const rect = grid.extend(newRect);
+            const meets = (cell: (typeof grid.cells)[number], r: typeof rect) =>
+              cell.row < r.bottom &&
+              cell.row + cell.rowsIn > r.top &&
+              cell.left < r.right &&
+              cell.left + cell.colspan > r.left;
+            const now = cellsById(after);
+            const afterGrid = gridOfNode(after);
+            grid.cells.forEach((cell, index) => {
+              if (meets(cell, oldRect) || meets(cell, rect)) return;
+              const before = childrenOf(node.child(grid.rowChild[cell.row]!))[cell.index]!;
+              const kept = now.get(before.attrs.nodeId as string);
+              expect(kept, `${one.name} ${axis} ${value}: cell ${index}`).toBeDefined();
+              expect(kept!.content).toBe(before.content);
+              expect(kept!.type).toBe(before.type);
+              const placedCell = afterGrid.cells.find(
+                (c) => childrenOf(after.child(afterGrid.rowChild[c.row]!))[c.index] === kept,
+              );
+              expect(placedCell?.left, `${one.name} ${axis} ${value}: cell ${index} column`).toBe(
+                cell.left,
+              );
+            });
+          }
+        }
+      }
+    }
+    expect(edits).toBeGreaterThan(50);
   });
 });

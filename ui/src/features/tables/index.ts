@@ -7,14 +7,21 @@
  * only with the focus inside the Body editor (C6) -, the Body context menu's table section with
  * its right-click rule, and the test hooks when the page or the core asks for them: the tables'
  * (`__mfbeTest.tables`) and the Source view's (`__mfbeTest.sourceTable`, `sourceTable.ts`).
+ * US8 gives the Body editor's table node views the warning mark of an irregular table: its texts
+ * from `describeTableMark` in the interface language (`marks.ts`), its click the popover with
+ * *Repair table* (`MarkPopover.tsx`).
  */
 
 import type { FeatureContext } from '@/app/services';
+import i18next from '@/i18n';
 import { testHooksRequested } from '@/scripting/testHooks';
+import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 import { registerContextMenuExtension } from '@/views/body/contextMenuExtensions';
 
 import { TABLE_COMMAND_ROWS, createInsertTableCommand, tableCommand } from './commands';
 import { prepareTableContextMenu, tableContextMenuItems } from './contextMenu';
+import { describeTableMark } from './marks';
+import { openTableMarkPopover } from './MarkPopover';
 import { installSourceTableHooks } from './sourceTable';
 import { activeTableTarget } from './target';
 import { installTablesTestHooks } from './testHooks';
@@ -36,6 +43,8 @@ export {
   tableDialogValues,
 } from './dialog';
 export { prepareTableContextMenu, tableContextMenuItems } from './contextMenu';
+export { describeTableMark, type TableMarkDescription } from './marks';
+export { openTableMarkPopover, type MarkActivation } from './MarkPopover';
 export { reasonText, type ReasonCode } from './reasons';
 export {
   installSourceTableHooks,
@@ -69,6 +78,20 @@ export function registerTablesFeature(ctx: FeatureContext): void {
   registerContextMenuExtension('table', (controller, click, commandCtx) =>
     tableContextMenuItems(ctx.commands, controller, click, commandCtx),
   );
+  // The warning mark of an irregular table in the Body view (FR-057; data-model §3.3): the
+  // controller exists - the editing feature installed it first -, the texts follow the
+  // interface language through the controller's language listeners, and a click opens the
+  // mark's popover on the Body target (data-model §3.5; the rich fields pass their own, US10).
+  if (hasBodyController(ctx.store)) {
+    getBodyController(ctx.store).setTableViewOptions({
+      describe: (summary) => describeTableMark(summary, i18next.t),
+      onMarkActivate: (info) => {
+        const commandCtx = ctx.getCommandContext?.();
+        const target = activeTableTarget(ctx.store);
+        if (commandCtx && target) void openTableMarkPopover(commandCtx, target, info);
+      },
+    });
+  }
   if (testHooksRequested()) {
     installTestHooks(ctx);
     return;

@@ -3,7 +3,8 @@
  * rule; data-model §16.1): every case of `tests/fixtures/tables/grid-vectors.json` gives its
  * placement, width, coverage, problems and params through `gridOfModel` and through
  * `gridOfNode(nodeFromModel(table))`, which must agree; the TypeScript side also checks the
- * owners and the English problem text. The core's analysis is pinned by the same file (US8).
+ * owners, the English problem text and - since US8's repair (T125) - the `repaired` table that
+ * *Repair table* makes of each irregular case. The core's analysis is pinned by the same file.
  */
 
 /// <reference types="node" />
@@ -14,8 +15,11 @@ import { fileURLToPath } from 'node:url';
 import { createInstance, type TFunction } from 'i18next';
 
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
+import { applyTableEdit, isRefusal } from '@/editor/table/edit';
 import { gridOfModel, gridOfNode, type TableGrid } from '@/editor/table/grid';
+import { planRepair } from '@/editor/table/ops';
 import { tableProblemsText } from '@/editor/table/problems';
+import { nodeToModel } from '@/editor/toModel';
 import { initI18n } from '@/i18n';
 import type { TableNode } from '@/model/document';
 
@@ -124,6 +128,41 @@ function owners(grid: TableGrid): number[][] {
   return out;
 }
 
+/**
+ * A table as a vectors table: the table's attributes, each row's cells with their type (`td`
+ * omitted) and attributes, node ids, content and empty members dropped; a model table node and
+ * a vectors table both go through it.
+ */
+function vectorOf(table: unknown): unknown {
+  const attrs = (value: unknown) => {
+    const out = Object.fromEntries(
+      Object.entries((value ?? {}) as Record<string, unknown>).filter(
+        ([key, member]) => key !== 'nodeId' && member !== null && member !== undefined,
+      ),
+    );
+    return Object.keys(out).length > 0 ? out : undefined;
+  };
+  const source = table as {
+    attrs?: unknown;
+    rows?: unknown[];
+    content?: { type: string; attrs?: unknown; content?: { type?: string; attrs?: unknown }[] }[];
+  };
+  const rows = source.rows
+    ? (source.rows as unknown[])
+    : (source.content ?? []).map((row) => (row.type === 'tr' ? (row.content ?? []) : row));
+  return {
+    attrs: attrs(source.attrs),
+    rows: rows.map((row) =>
+      Array.isArray(row)
+        ? (row as { type?: string; attrs?: unknown }[]).map((cell) => ({
+            type: cell.type && cell.type !== 'td' ? cell.type : undefined,
+            attrs: cell.type === 'raw-xml' ? undefined : attrs(cell.attrs),
+          }))
+        : { type: 'raw-xml' },
+    ),
+  };
+}
+
 let t: TFunction;
 
 beforeAll(async () => {
@@ -174,8 +213,7 @@ describe('the shared grid vectors', () => {
   });
 
   it('every case: owners, text.en and the repaired table', () => {
-    // `repaired` is asserted from US8's repair task on; until then this test skips the member by
-    // name. Any other member a case gains must be checked here or listed.
+    // Every member a case has is checked here; one it gains must be checked or listed.
     const checked = new Set([
       'rows',
       'columns',
@@ -188,14 +226,13 @@ describe('the shared grid vectors', () => {
       'params',
       'owners',
       'text',
+      'repaired',
     ]);
-    const skipped = new Set(['repaired']);
     const failures: string[] = [];
+    let repairs = 0;
     for (const vector of vectors.cases) {
       for (const member of Object.keys(vector.expect)) {
-        if (!checked.has(member) && !skipped.has(member)) {
-          failures.push(`${vector.name}: unchecked member ${member}`);
-        }
+        if (!checked.has(member)) failures.push(`${vector.name}: unchecked member ${member}`);
       }
       const table = modelTable(vector.table);
       const grid = gridOfModel(table);
@@ -216,7 +253,28 @@ describe('the shared grid vectors', () => {
       } else if (vector.expect.regular && text !== '') {
         failures.push(`${vector.name}: a regular table gave the text "${text}"`);
       }
+      // *Repair table* (document-model §4.11): an irregular case gives its `repaired` table,
+      // compared as a vectors table - cell types and attributes, node ids ignored.
+      if (vector.expect.repaired || !vector.expect.regular) {
+        let next = 0;
+        const edit = planRepair(
+          { table: node, grid: gridOfNode(node) },
+          { nextId: () => `r${(next += 1)}` },
+        );
+        if (isRefusal(edit)) {
+          failures.push(`${vector.name}: Repair table refused with ${edit.refused}`);
+          continue;
+        }
+        repairs += 1;
+        const after = nodeToModel(applyTableEdit(node, edit)) as unknown as ModelNodeJson;
+        try {
+          expect(vectorOf(after)).toEqual(vectorOf(vector.expect.repaired!));
+        } catch (error) {
+          failures.push(`${vector.name} repaired: ${(error as Error).message}`);
+        }
+      }
     }
     expect(failures).toEqual([]);
+    expect(repairs).toBe(vectors.cases.filter((one) => !one.expect.regular).length);
   });
 });

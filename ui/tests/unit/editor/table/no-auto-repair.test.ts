@@ -30,7 +30,7 @@ import { TextSelection, type EditorState, type Transaction } from 'prosemirror-s
 import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2Schema, findNodeById } from '@/editor/schema';
-import { planCellAttrs, planRowAlign, planTableAttrs } from '@/editor/table/attrs';
+import { planCellAttrs, planRowAlign, planSpan, planTableAttrs } from '@/editor/table/attrs';
 import { planCommand, type TablePlan } from '@/editor/table/commands';
 import { pasteTransaction } from '@/editor/clipboard/route';
 import { gridOfNode } from '@/editor/table/grid';
@@ -46,6 +46,7 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planRepair,
   planSetKind,
   planSplit,
   planToggleHeaderCell,
@@ -104,6 +105,8 @@ const GUARDED_COMMANDS: {
   { name: 'cutBlock', plan: (a, c) => planClearBlock(a, c), block: true },
   { name: 'pasteBlock', plan: (a, c) => pasteBlockPlan(a, clipboardBlock(), c) },
   { name: 'mergeCells', plan: (a, c) => planMerge(a, c), block: true },
+  // US8 (T135): the span route of the Table bar - colspan 2 merges the caret's cell with the next.
+  { name: 'planSpan', plan: (a, c) => planSpan(a, { axis: 'colspan', value: 2 }, c) },
   { name: 'splitCell', plan: (a, c) => planSplit(a, c), merged: true },
   { name: 'toggleHeaderCell', plan: (a, c) => planToggleHeaderCell(a, c), kind: true },
   {
@@ -232,7 +235,7 @@ function runPlan(state: EditorState, plan: TablePlan): { state: EditorState; ran
 describe('no automatic repair (R1.7, FR-035)', () => {
   it('covers the irregular cases of the shared vectors', () => {
     expect(irregular.length).toBeGreaterThan(10);
-    expect(GUARDED_COMMANDS).toHaveLength(25);
+    expect(GUARDED_COMMANDS).toHaveLength(26);
   });
 
   for (const one of irregular) {
@@ -379,4 +382,40 @@ describe('no automatic repair (R1.7, FR-035)', () => {
       }
     });
   }
+
+  it('Repair table on one irregular table leaves every other table of the document the same node (US8 sc.4)', () => {
+    const tables = irregular.map((one, index) => vectorTable(one.table, `r${index}-`));
+    const doc = N.doc!.create(
+      null,
+      N.body!.create(
+        { nodeId: 'b' },
+        N.section!.create({ nodeId: 's' }, [regularTable(), ...tables]),
+      ),
+    );
+    for (let index = 0; index < tables.length; index += 1) {
+      const id = `r${index}-table`;
+      const at = findNodeById(doc, id)!.pos;
+      let first = -1;
+      doc.nodeAt(at)!.descendants((node, offset) => {
+        if (first < 0 && (node.type.name === 'td' || node.type.name === 'th'))
+          first = at + 1 + offset;
+        return first < 0;
+      });
+      const start = createBodyEditorState(doc, { getNbspChar: () => '\u00b7' });
+      const state = start.apply(start.tr.setSelection(TextSelection.create(doc, first + 1)));
+      const result = runPlan(state, planRepair);
+      expect(result.ran, irregular[index]!.name).toBe(true);
+      const repaired = result.state.doc.nodeAt(findNodeById(result.state.doc, id)!.pos)!;
+      expect(gridOfNode(repaired).regular, irregular[index]!.name).toBe(true);
+      result.state.doc.descendants((node) => {
+        if (node.type.name !== 'table') return true;
+        if (node.attrs.nodeId !== id) {
+          expect(node, `${irregular[index]!.name}: ${String(node.attrs.nodeId)}`).toBe(
+            doc.nodeAt(findNodeById(doc, node.attrs.nodeId as string)!.pos),
+          );
+        }
+        return false;
+      });
+    }
+  });
 });

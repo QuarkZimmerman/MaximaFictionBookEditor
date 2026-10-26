@@ -925,3 +925,23 @@ textarea {
   text-align: center;
   border-right: 0;
 }
+
+/*
+ * The warning badge of an irregular table (feature 006 US8, FR-057; C52, C59): its own class with
+ * exactly the values of the Validation panel's warning icon (`dialogs/validation.css`) - the
+ * theme's warning colour, the "!" in the on-accent colour (white in the light theme, #161616 in
+ * the dark one) -, used by the Body view's mark and the Document Tree's (FR-058).
+ */
+.mfbe-table-mark-badge {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--mfbe-color-warning);
+  color: var(--mfbe-color-on-accent);
+  font-family: var(--mfbe-font-family);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
