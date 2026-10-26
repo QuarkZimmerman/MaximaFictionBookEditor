@@ -112,7 +112,7 @@ describe('the Body context menu', () => {
     expect(screen.queryByTestId('context-menu-tableStructure')).toBeNull();
   });
 
-  it('lists the 24 table commands in FR-039’s order with seven separators, without letters, disabled as stubs', async () => {
+  it('lists the 24 table commands in FR-039’s order with seven separators, without letters; live ones by their availability, stubs disabled', async () => {
     const harness = await tablesHarness();
     const user = userEvent.setup();
     const click = clickAt(harness, 't1-0-0');
@@ -126,7 +126,29 @@ describe('the Body context menu', () => {
     );
     expect(within(popup).getAllByRole('separator')).toHaveLength(7);
     expect(popup.querySelector('u')).toBeNull();
-    for (const entry of entries) expect(entry).toHaveAttribute('aria-disabled', 'true');
+    // US2's twelve commands are live (T075): enabled in the first cell of the 3 × 3 table but
+    // the moves up and to the left, which have no neighbour there; the others are still stubs.
+    const live = new Set([
+      'insertRowAbove',
+      'insertRowBelow',
+      'deleteRow',
+      'insertColumnLeft',
+      'insertColumnRight',
+      'deleteColumn',
+      'moveRowDown',
+      'moveColumnRight',
+      'duplicateRow',
+      'duplicateColumn',
+    ]);
+    entries.forEach((entry, index) => {
+      const name = TABLE_COMMAND_NAMES[index]!;
+      if (live.has(name)) expect(entry, name).not.toHaveAttribute('aria-disabled');
+      else expect(entry, name).toHaveAttribute('aria-disabled', 'true');
+    });
+    expect(screen.getByTestId('context-menu-tableStructure-moveRowUp')).toHaveAttribute(
+      'title',
+      'Move row up: there is no row above',
+    );
     expect(screen.getByTestId('context-menu-tableStructure-insertRowBelow')).toHaveTextContent(
       'Insert row below',
     );

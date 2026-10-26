@@ -2,7 +2,14 @@
  * The tables feature's test hooks (feature 006, T041; I27; data-model §16.4): none without
  * `?test=1` or a core that asks for them; `__mfbeTest.tables.grid(tableRef)` gives the summary
  * of a table in a body, in both annotations and in the history, null for an unknown reference.
+ * US2 (T073; C76): no fuzz without the hooks, and the fuzz generator reached only through one
+ * dynamic import.
  */
+
+/// <reference types="node" />
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { createAppServices, type FeatureContext } from '@/app/services';
 import { createCommandRegistry } from '@/app/commands';
@@ -295,5 +302,47 @@ describe('placementSweep (US1, I27; C79)', () => {
     const sweep = hooks()!.placementSweep;
     expect(() => sweep([{ nodeId: 'nope', offset: 0 }])).toThrow();
     expect(() => sweep([{ nodeId: 's1', offset: 0 }])).toThrow();
+  });
+});
+
+describe('the fuzz hook (US2, T073; C76)', () => {
+  const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../src');
+
+  function sources(dir: string): string[] {
+    return readdirSync(dir).flatMap((entry) => {
+      const full = path.join(dir, entry);
+      if (statSync(full).isDirectory()) return sources(full);
+      return /\.(ts|tsx)$/.test(entry) ? [full] : [];
+    });
+  }
+
+  it('no fuzz without ?test=1 or a core that asks for it', () => {
+    createAppServices({ store: createAppStore(), rpc: null, platform: 'linux' });
+    expect(window.__mfbeTest?.tables).toBeUndefined();
+    window.history.replaceState(null, '', '/?test=1');
+    registerTablesFeature(featureContext());
+    expect(typeof hooks()?.fuzz).toBe('function');
+  });
+
+  it('no module of ui/src imports the fuzz generator statically; testHooks.ts reaches it through one import()', () => {
+    const testing = path.join(SRC, 'editor', 'table', 'testing');
+    const hooksFile = path.join(SRC, 'features', 'tables', 'testHooks.ts');
+    const staticImport = /(?:^|\n)\s*(?:import|export)\b[^;]*?from\s*['"][^'"]*table\/testing\//;
+    // A module path in quotes on one line (comments name the module in backticks).
+    const any = /['"][^'"\n]*(?:editor\/table\/testing|\.\/testing)\/[^'"\n]*['"]/g;
+    let dynamic = 0;
+    for (const file of sources(SRC)) {
+      if (file.startsWith(testing + path.sep)) continue;
+      const text = readFileSync(file, 'utf8');
+      expect(staticImport.test(text), path.relative(SRC, file)).toBe(false);
+      const mentions = text.match(any) ?? [];
+      if (file === hooksFile) {
+        dynamic = (text.match(/import\(\s*'@\/editor\/table\/testing\/fuzz'\s*\)/g) ?? []).length;
+        expect(mentions).toHaveLength(1);
+      } else {
+        expect(mentions, path.relative(SRC, file)).toEqual([]);
+      }
+    }
+    expect(dynamic).toBe(1);
   });
 });

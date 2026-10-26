@@ -3,18 +3,34 @@
  * row per `table.*` command a user story implements - a literal `id: 'table.<name>'`, so the
  * definition scan of `tools/parity-check.mjs` finds it, and the ProseMirror command it runs -
  * and `tableCommand(row)`, the registry entry built from it. `registerTablesFeature` replaces
- * the stub of every id that has a row; the table is empty in the foundation, so the 24 stubs
- * stay until the stories append their rows. US1 adds `insert.table`, *Add → Table*
- * (`createInsertTableCommand`; data-model §4.5), with its Source view branch (`sourceTable.ts`).
+ * the stub of every id that has a row; the stubs of the commands without one stay until their
+ * stories append them. US1 adds `insert.table`, *Add → Table* (`createInsertTableCommand`;
+ * data-model §4.5), with its Source view branch (`sourceTable.ts`); US2 the twelve row and
+ * column commands.
  */
 
 import type { Command as PMCommand } from 'prosemirror-state';
 
 import type { Command, CommandContext } from '@/app/commands';
 import { findTablePointAt, insertTableCommand } from '@/editor/commands/tableInsertion';
-import { availability, isAvailable, type TableCommandName } from '@/editor/table/commands';
+import {
+  availability,
+  isAvailable,
+  planCommand,
+  type TableCommandName,
+} from '@/editor/table/commands';
 import type { PlanContext } from '@/editor/table/edit';
-import { createTable } from '@/editor/table/ops';
+import {
+  createTable,
+  planDeleteColumns,
+  planDeleteRows,
+  planDuplicateColumns,
+  planDuplicateRows,
+  planInsertColumns,
+  planInsertRows,
+  planMoveColumns,
+  planMoveRows,
+} from '@/editor/table/ops';
 import { collectBookIds } from '@/model/ids';
 import type { SourceVerdict } from '@/views/source/sourceEditor';
 
@@ -34,8 +50,69 @@ export interface TableCommandRow {
   command(ctx: PlanContext): PMCommand;
 }
 
-/** The rows the user stories append (FR-039's order is the registry's, not this table's). */
-export const TABLE_COMMAND_ROWS: TableCommandRow[] = [];
+/**
+ * The rows the user stories append (FR-039's order is the registry's, not this table's). US2:
+ * the twelve row and column commands (FR-006, FR-038; data-model §4.5), each its plan through
+ * `planCommand` - one undo step, nothing dispatched for a refusal, no question asked (C13).
+ */
+export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
+  {
+    id: 'table.insertRowAbove',
+    command: (ctx) =>
+      planCommand((address, c) => planInsertRows(address, { side: 'above' }, c), ctx),
+  },
+  {
+    id: 'table.insertRowBelow',
+    command: (ctx) =>
+      planCommand((address, c) => planInsertRows(address, { side: 'below' }, c), ctx),
+  },
+  {
+    id: 'table.deleteRow',
+    command: (ctx) => planCommand((address, c) => planDeleteRows(address, c), ctx),
+  },
+  {
+    id: 'table.insertColumnLeft',
+    command: (ctx) =>
+      planCommand((address, c) => planInsertColumns(address, { side: 'left' }, c), ctx),
+  },
+  {
+    id: 'table.insertColumnRight',
+    command: (ctx) =>
+      planCommand((address, c) => planInsertColumns(address, { side: 'right' }, c), ctx),
+  },
+  {
+    id: 'table.deleteColumn',
+    command: (ctx) => planCommand((address, c) => planDeleteColumns(address, c), ctx),
+  },
+  {
+    id: 'table.moveRowUp',
+    command: (ctx) =>
+      planCommand((address, c) => planMoveRows(address, { direction: 'up' }, c), ctx),
+  },
+  {
+    id: 'table.moveRowDown',
+    command: (ctx) =>
+      planCommand((address, c) => planMoveRows(address, { direction: 'down' }, c), ctx),
+  },
+  {
+    id: 'table.moveColumnLeft',
+    command: (ctx) =>
+      planCommand((address, c) => planMoveColumns(address, { direction: 'left' }, c), ctx),
+  },
+  {
+    id: 'table.moveColumnRight',
+    command: (ctx) =>
+      planCommand((address, c) => planMoveColumns(address, { direction: 'right' }, c), ctx),
+  },
+  {
+    id: 'table.duplicateRow',
+    command: (ctx) => planCommand((address, c) => planDuplicateRows(address, c), ctx),
+  },
+  {
+    id: 'table.duplicateColumn',
+    command: (ctx) => planCommand((address, c) => planDuplicateColumns(address, c), ctx),
+  },
+];
 
 /** `insertRowAbove` → `table-insert-row-above`, the icon base name (resource-formats §19). */
 export function tableIcon(name: string): string {

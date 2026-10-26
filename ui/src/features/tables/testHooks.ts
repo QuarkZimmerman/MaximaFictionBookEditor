@@ -5,7 +5,9 @@
  * is `tableRef` - the `data-node-id` of its `body-table` -, looked up in the store's document:
  * the bodies, both annotations and the history. `placementSweep(positions)` (US1; C79; U18)
  * gives the Body editor's placement at each model point with the registry's state of
- * `insert.table` there; US2 adds `fuzz`.
+ * `insert.table` there. `fuzz(seed, steps)` (US2; SC-003; C76) runs the seeded fuzz on the Body
+ * editor, every step validated by the core: its generator (`@/editor/table/testing/fuzz`) is
+ * loaded by a dynamic import only when the hook is called, so no bundle imports it statically.
  */
 
 import type { Node as PMNode } from 'prosemirror-model';
@@ -22,6 +24,7 @@ import type { ModelPoint } from '@/rpc/types';
 import { getBodyController, hasBodyController, selectionFor } from '@/views/body/bodyEditor';
 
 import { insertTableAvailability } from './commands';
+import { activeTableTarget } from './target';
 
 /** A `TablePoint` in model terms (data-model §16.4): node ids instead of positions. */
 export type ModelLanding =
@@ -39,9 +42,26 @@ export interface PlacementAnswer {
   landing: ModelLanding | null;
 }
 
+/** The report of the fuzz run (`FuzzReport` of `@/editor/table/testing/fuzz`). */
+export interface FuzzRunReport {
+  seed: number;
+  steps: number;
+  /** The steps the core validated. */
+  validations: number;
+  /** The first failure: seed, step, command, selection, reason, the table before and after. */
+  failures: unknown[];
+  commands: string[];
+}
+
 export interface TablesTestHooks {
   /** The grid summary of the table with that `nodeId`, null when no table has it. */
   grid(tableRef: string): TableSummary | null;
+  /**
+   * The seeded fuzz of SC-003 on the Body editor (US2): `steps` commands drawn with `seed`, the
+   * start tables at the end of the book's first section, Undo and Redo through the undo
+   * coordinator, every step validated by the core (`doc.validate`).
+   */
+  fuzz(seed: number, steps: number): Promise<FuzzRunReport>;
   /**
    * The Body editor's placement at each point, in input order: the caret put there (a
    * selection only), the registry's state of `insert.table`, its reason and the point FR-004
@@ -163,6 +183,26 @@ export function installTablesTestHooks(ctx: FeatureContext): void {
           controller.apply(state.tr.setSelection(start.selection));
         }
       }
+    },
+    async fuzz(seed, steps) {
+      const { createTargetHost, runFuzz } = await import('@/editor/table/testing/fuzz');
+      const target = activeTableTarget(ctx.store);
+      if (!target || !target.editable) throw new Error('fuzz: no editable Body view');
+      const rpc = ctx.rpc ?? null;
+      const validate = rpc
+        ? async () => {
+            const document = ctx.store.getState().document;
+            if (!document) throw new Error('fuzz: no document');
+            const report = await rpc.runJob('doc.validate', { docId: document.docId, document });
+            return report.errorCount;
+          }
+        : undefined;
+      const host = createTargetHost(target, {
+        undo: () => ctx.undo.undo(),
+        redo: () => ctx.undo.redo(),
+        validate,
+      });
+      return runFuzz(host, { seed, steps });
     },
   };
   const existing = window.__mfbeTest ?? {};

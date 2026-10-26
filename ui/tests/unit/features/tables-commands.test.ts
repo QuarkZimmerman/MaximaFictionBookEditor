@@ -4,8 +4,13 @@
  * refusal and only for the commands that read positions, no node built and the cached grid
  * read, `reasonText` for every code and leaf in the three catalogues, and a command built from
  * a row of the command table. Each story adds "availability agrees with every plan's dry run"
- * for its commands.
+ * for its commands: US2 (T072) its twelve row and column commands.
  */
+
+/// <reference types="node" />
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { act } from '@testing-library/react';
 import { createInstance, type TFunction } from 'i18next';
@@ -13,6 +18,7 @@ import { NodeType, type Node as PMNode } from 'prosemirror-model';
 import { EditorState, NodeSelection, TextSelection } from 'prosemirror-state';
 
 import { createCommandRegistry, unavailableTitle } from '@/app/commands';
+import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import {
   availability,
   planCommand,
@@ -20,14 +26,33 @@ import {
   registerAvailabilityCheck,
   TABLE_COMMAND_NAMES,
   TABLE_SELECTION_COMMANDS,
+  type TableCommandName,
   type TablePlan,
 } from '@/editor/table/commands';
-import { REFUSAL_CODES, gridCellNode, type Refusal } from '@/editor/table/edit';
+import {
+  REFUSAL_CODES,
+  gridCellNode,
+  isRefusal,
+  tableTarget,
+  type Refusal,
+} from '@/editor/table/edit';
 import { gridOfNode } from '@/editor/table/grid';
-import { caretAt } from '@/editor/table/ops';
+import {
+  caretAt,
+  crossedLines,
+  planDeleteColumns,
+  planDeleteRows,
+  planDuplicateColumns,
+  planDuplicateRows,
+  planInsertColumns,
+  planInsertRows,
+  planMoveColumns,
+  planMoveRows,
+} from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
 import { fb2Schema, findNodeById } from '@/editor/schema';
 import {
+  TABLE_COMMAND_ROWS,
   createInsertTableCommand,
   tableCommand,
   tableIcon,
@@ -43,6 +68,7 @@ import { defaultSettings, mergeSettings } from '../settings/fixtures';
 import { fakeDialogs, fakeRunLock, makeContext } from './testUtils';
 import {
   caretIn,
+  modelTable,
   posOf,
   removeHarnessHosts,
   select,
@@ -115,9 +141,14 @@ describe('availability', () => {
     expect([...TABLE_SELECTION_COMMANDS].sort()).toEqual(
       ['delete', 'paragraphAfter', 'paragraphBefore', 'repair', 'select'].sort(),
     );
+    // In a cell: ok, but for the moves without a neighbour - US2's checks (T075) answer them.
     const inCell = stateWith(doc, (d) => TextSelection.create(d, pos(d, 'b') + 1));
+    const refused: Partial<Record<string, Refusal>> = {
+      moveRowUp: { refused: 'no-neighbour', params: { direction: 'up' } },
+      moveColumnRight: { refused: 'no-neighbour', params: { direction: 'right' } },
+    };
     for (const name of TABLE_COMMAND_NAMES)
-      expect(availability(inCell, name)).toEqual({ ok: true });
+      expect(availability(inCell, name), name).toEqual(refused[name] ?? { ok: true });
   });
 
   it('answers too-large before any other refusal for the commands that read positions, and only for them', () => {
@@ -556,5 +587,379 @@ describe('insert.table (US1)', () => {
     };
     expect(section.content[0]!.content![0]!.text).toBe('Befo');
     expect(section.content[2]!.content![0]!.text).toBe('re');
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US2: the twelve row and column commands (T072)                           */
+/* ------------------------------------------------------------------------ */
+
+/** The twelve commands of user story 2, in FR-039's order. */
+const US2_NAMES = [
+  'insertRowAbove',
+  'insertRowBelow',
+  'deleteRow',
+  'insertColumnLeft',
+  'insertColumnRight',
+  'deleteColumn',
+  'moveRowUp',
+  'moveRowDown',
+  'moveColumnLeft',
+  'moveColumnRight',
+  'duplicateRow',
+  'duplicateColumn',
+] as const satisfies readonly TableCommandName[];
+
+/** Their plans, as the command rows run them. */
+const US2_PLANS: Record<(typeof US2_NAMES)[number], TablePlan> = {
+  insertRowAbove: (a, c) => planInsertRows(a, { side: 'above' }, c),
+  insertRowBelow: (a, c) => planInsertRows(a, { side: 'below' }, c),
+  deleteRow: (a, c) => planDeleteRows(a, c),
+  insertColumnLeft: (a, c) => planInsertColumns(a, { side: 'left' }, c),
+  insertColumnRight: (a, c) => planInsertColumns(a, { side: 'right' }, c),
+  deleteColumn: (a, c) => planDeleteColumns(a, c),
+  moveRowUp: (a, c) => planMoveRows(a, { direction: 'up' }, c),
+  moveRowDown: (a, c) => planMoveRows(a, { direction: 'down' }, c),
+  moveColumnLeft: (a, c) => planMoveColumns(a, { direction: 'left' }, c),
+  moveColumnRight: (a, c) => planMoveColumns(a, { direction: 'right' }, c),
+  duplicateRow: (a, c) => planDuplicateRows(a, c),
+  duplicateColumn: (a, c) => planDuplicateColumns(a, c),
+};
+
+const VECTORS_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../../tests/fixtures/tables',
+);
+
+type VectorRow = { type?: string; attrs?: Record<string, unknown> }[] | { type: string };
+
+/** A model table from rows of model cells (node ids `v1`, `v2`, …; a raw child where asked). */
+function vectorModel(rows: VectorRow[], texts = false): ModelNodeJson {
+  let next = 0;
+  const nodeId = () => `v${(next += 1)}`;
+  const raw = () => ({ type: 'raw-xml', attrs: { nodeId: nodeId(), xml: '<x/>', inline: false } });
+  return {
+    type: 'table',
+    attrs: { nodeId: nodeId() },
+    content: rows.map((row) =>
+      Array.isArray(row)
+        ? {
+            type: 'tr',
+            attrs: { nodeId: nodeId() },
+            content: row.map((cell) => {
+              if (cell.type === 'raw-xml') return raw();
+              const id = nodeId();
+              return {
+                type: cell.type ?? 'td',
+                attrs: { nodeId: id, ...(cell.attrs ?? {}) },
+                content: texts ? [{ type: 'text', text: id }] : [],
+              };
+            }),
+          }
+        : raw(),
+    ),
+  } as unknown as ModelNodeJson;
+}
+
+/** US2's scenario shapes of `tables.fb2` (T014), as rows of model cells. */
+const span = (attrs: Record<string, unknown>) => ({ attrs });
+const US2_SHAPES: VectorRow[][] = [
+  [
+    [{}, {}, {}],
+    [{ attrs: { id: 'us2-r2c1' } }, {}, {}],
+    [{}, {}, {}],
+  ],
+  [[span({ rowspan: 2 }), {}], [{}]],
+  [
+    [{ type: 'th' }, { type: 'th', attrs: { colspan: 2 } }],
+    [{}, {}, span({ align: 'right' })],
+    [{}, {}, span({ lang: 'de' })],
+  ],
+  [[{}, {}], [span({ rowspan: 2 }), {}], [{}]],
+  Array.from({ length: 5 }, () => [{}, {}, {}]),
+  [[{}, {}, {}]],
+  [[{}], [{}], [{}]],
+  [[{}, {}], [{}, {}], [span({ rowspan: 2 }), {}], [{}], [{}, {}]],
+];
+
+/** The tables the agreement runs over: the small vector cases and US2's shapes. */
+function agreementTables(): { name: string; node: PMNode }[] {
+  const vectors = JSON.parse(readFileSync(path.join(VECTORS_DIR, 'grid-vectors.json'), 'utf8')) as {
+    cases: { name: string; table: { rows: VectorRow[] } }[];
+  };
+  const tables = vectors.cases.map((one) => ({
+    name: one.name,
+    node: nodeFromModel(vectorModel(one.table.rows))!,
+  }));
+  const small = tables.filter(({ node }) => {
+    const grid = gridOfNode(node);
+    return grid.cells.length > 0 && grid.height * grid.width <= 64;
+  });
+  return [
+    ...small,
+    ...US2_SHAPES.map((rows, index) => ({
+      name: `US2 table ${index + 1}`,
+      node: nodeFromModel(vectorModel(rows, true))!,
+    })),
+  ];
+}
+
+/** The states of a table: the caret in every cell, and blocks from the first cell to each other. */
+function statesOf(node: PMNode): EditorState[] {
+  const doc = docWith(node);
+  const tablePos = pos(doc, node.attrs.nodeId as string);
+  const cells: number[] = [];
+  doc.nodeAt(tablePos)!.descendants((child, at) => {
+    if (child.type.name === 'td' || child.type.name === 'th') cells.push(tablePos + 1 + at);
+    return child.type.name === 'table' || child.type.name === 'tr';
+  });
+  const states = cells.map((at) =>
+    EditorState.create({ doc, selection: TextSelection.create(doc, at + 1) }),
+  );
+  for (const head of cells.slice(1)) {
+    states.push(
+      EditorState.create({ doc, selection: CellBlockSelection.create(doc, cells[0]!, head) }),
+    );
+  }
+  // Blocks between neighbours in reading order, a sample of the other shapes.
+  for (let index = 1; index + 1 < cells.length; index += 2) {
+    states.push(
+      EditorState.create({
+        doc,
+        selection: CellBlockSelection.create(doc, cells[index]!, cells[index + 1]!),
+      }),
+    );
+  }
+  return states;
+}
+
+describe('US2: the twelve row and column commands', () => {
+  it('availability agrees with every plan’s dry run: ok exactly when the plan acts, else the plan’s refusal', () => {
+    let compared = 0;
+    const refusedCodes = new Set<string>();
+    for (const { name: table, node } of agreementTables()) {
+      for (const state of statesOf(node)) {
+        const address = tableTarget(state)!.address;
+        for (const name of US2_NAMES) {
+          const plan = US2_PLANS[name](address, { nextId: () => `x${(compared += 1)}` });
+          const answer = availability(state, name);
+          if (isRefusal(plan)) {
+            refusedCodes.add(plan.refused);
+            expect(answer, `${table}: ${name}`).toEqual(plan);
+          } else {
+            expect(answer, `${table}: ${name}`).toEqual({ ok: true });
+          }
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(1000);
+    // The cases reach every refusal the twelve plans have below the too-large bound.
+    expect([...refusedCodes].sort()).toEqual(
+      [
+        'all-columns',
+        'all-rows',
+        'merged-crosses-border',
+        'no-neighbour',
+        'only-column',
+        'only-row',
+        'too-large',
+      ].sort(),
+    );
+  });
+
+  it('availability builds no node for them, and reads the cached grid and line crossings', () => {
+    const doc = smallDoc();
+    const table = doc.nodeAt(pos(doc, 't'))!;
+    const grid = gridOfNode(table);
+    const crossings = crossedLines(grid);
+    const states = [
+      stateWith(doc, (d) => TextSelection.create(d, pos(d, 'a') + 1)),
+      stateWith(doc, (d) => TextSelection.create(d, pos(d, 'd') + 1)),
+      EditorState.create({
+        doc,
+        selection: CellBlockSelection.create(doc, pos(doc, 'a'), pos(doc, 'd')),
+      }),
+    ];
+    const create = vi.spyOn(NodeType.prototype, 'create');
+    const createChecked = vi.spyOn(NodeType.prototype, 'createChecked');
+    try {
+      for (const state of states) for (const name of US2_NAMES) availability(state, name);
+      expect(create).not.toHaveBeenCalled();
+      expect(createChecked).not.toHaveBeenCalled();
+    } finally {
+      create.mockRestore();
+      createChecked.mockRestore();
+    }
+    expect(gridOfNode(table)).toBe(grid);
+    expect(crossedLines(grid)).toBe(crossings);
+    expect(crossings.rows).toBeInstanceOf(Uint8Array);
+    expect(crossings.rows).toHaveLength(grid.height + 1);
+    expect(crossings.columns).toHaveLength(grid.width + 1);
+  });
+
+  it('answers the host codes first, then too-large, then the plan’s code', () => {
+    // A table of one row: deleteRow's own code is only-row.
+    const oneRow = docWith(
+      N.table!.create({ nodeId: 't' }, [N.tr!.create({ nodeId: 'r0' }, [cell('a'), cell('b')])]),
+    );
+    expect(
+      availability(
+        stateWith(oneRow, (d) => TextSelection.create(d, pos(d, 'a') + 1)),
+        'deleteRow',
+      ),
+    ).toEqual({
+      refused: 'only-row',
+    });
+    expect(
+      availability(
+        stateWith(oneRow, (d) => NodeSelection.create(d, pos(d, 't'))),
+        'deleteRow',
+      ),
+    ).toEqual({
+      refused: 'tableSelected',
+    });
+    expect(
+      availability(
+        stateWith(oneRow, (d) => TextSelection.create(d, pos(d, 'p1') + 1, pos(d, 'a') + 1)),
+        'deleteRow',
+      ),
+    ).toEqual({ refused: 'mixedSelection' });
+    expect(
+      availability(
+        stateWith(oneRow, (d) => TextSelection.create(d, pos(d, 'p1') + 1)),
+        'deleteRow',
+      ),
+    ).toEqual({
+      refused: 'notInTable',
+    });
+    // One row above MAX_GRID_POSITIONS: too-large before only-row.
+    const large = largeDoc();
+    const state = stateWith(large, (d) => TextSelection.create(d, pos(d, 'w1') + 1));
+    for (const name of US2_NAMES)
+      expect(availability(state, name), name).toEqual({ refused: 'too-large' });
+  });
+
+  it('has twelve command rows with literal ids, registered live by the tables feature', async () => {
+    const ids = TABLE_COMMAND_ROWS.map((row) => row.id);
+    expect(ids.filter((id) => (US2_NAMES as readonly string[]).includes(id.slice(6)))).toEqual(
+      US2_NAMES.map((name) => `table.${name}`),
+    );
+    const source = readFileSync(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '../../../src/features/tables/commands.ts',
+      ),
+      'utf8',
+    );
+    for (const name of US2_NAMES) expect(source, name).toContain(`id: 'table.${name}'`);
+    const { services } = await tablesHarness();
+    for (const name of US2_NAMES) {
+      const command = services.commands.get(`table.${name}`)!;
+      expect(command.stub, name).toBeUndefined();
+      expect(command.hotkeyScope, name).toBe('tableTarget');
+    }
+  });
+
+  /** The harness's book with a table of one row (`t9`) and sc.10's table (`t7`) after `t1`. */
+  function reasonsBook(): Document {
+    const doc = tableDocument();
+    const section = doc.bodies[0]!.content[0] as unknown as { content: unknown[] };
+    section.content.push(modelTable('t9', 1, 3));
+    const m = (id: string, text: string, attrs: Record<string, unknown> = {}) => ({
+      type: 'td',
+      attrs: { nodeId: id, ...attrs },
+      content: [{ type: 'text', text }],
+    });
+    const tr = (id: string, cells: unknown[]) => ({
+      type: 'tr',
+      attrs: { nodeId: id },
+      content: cells,
+    });
+    section.content.push({
+      type: 'table',
+      attrs: { nodeId: 't7' },
+      content: [
+        tr('t7-r0', [m('t7-0-0', 'r1c1'), m('t7-0-1', 'r1c2')]),
+        tr('t7-r1', [m('t7-1-0', 'r2c1'), m('t7-1-1', 'r2c2')]),
+        tr('t7-r2', [m('t7-2-0', 'm', { rowspan: 2 }), m('t7-2-1', 'r3c2')]),
+        tr('t7-r3', [m('t7-3-1', 'r4c2')]),
+        tr('t7-r4', [m('t7-4-0', 'r5c1'), m('t7-4-1', 'r5c2')]),
+      ],
+    });
+    return doc;
+  }
+
+  it('a row with a refusing target is disabled with the refusal’s words as its reason and title (FR-043)', async () => {
+    const harness = await tablesHarness(reasonsBook());
+    const { services, ctx } = harness;
+    const reason = (id: string) => services.commands.unavailableReason(id, ctx);
+    const title = (id: string) => unavailableTitle(services.commands.get(id)!, reason(id)!, ctx.t);
+    act(() => caretIn(harness, 't9-0-1', 1));
+    expect(services.commands.isEnabled('table.deleteRow', ctx)).toBe(false);
+    expect(reason('table.deleteRow')).toBe('the table has only one row; use Delete table');
+    expect(title('table.deleteRow')).toBe(
+      'Delete row: the table has only one row; use Delete table',
+    );
+    act(() => caretIn(harness, 't7-2-1', 1));
+    expect(title('table.moveRowUp')).toBe(
+      'Move row up: a merged cell crosses the border of the row',
+    );
+    act(() => caretIn(harness, 't1-0-0', 1));
+    expect(title('table.moveRowUp')).toBe('Move row up: there is no row above');
+    expect(title('table.moveColumnLeft')).toBe('Move column left: there is no column to the left');
+    act(() => caretIn(harness, 't1-2-2', 1));
+    expect(title('table.moveRowDown')).toBe('Move row down: there is no row below');
+    expect(title('table.moveColumnRight')).toBe(
+      'Move column right: there is no column to the right',
+    );
+    // Enabled where the target allows the command.
+    expect(services.commands.isEnabled('table.moveRowUp', ctx)).toBe(true);
+    expect(reason('table.moveRowUp')).toBeNull();
+    // The keys of these reasons exist in the Russian and Ukrainian catalogues too.
+    for (const language of ['ru', 'uk'] as const) {
+      const reasons = (
+        resources[language].translation as { tables: { reason: Record<string, unknown> } }
+      ).tables.reason;
+      expect(typeof reasons['only-row'], language).toBe('string');
+      expect(
+        (reasons['merged-crosses-border'] as Record<string, string>).row,
+        language,
+      ).toBeTruthy();
+      for (const direction of ['up', 'down', 'left', 'right']) {
+        expect(
+          (reasons['no-neighbour'] as Record<string, string>)[direction],
+          `${language} ${direction}`,
+        ).toBeTruthy();
+      }
+    }
+  });
+
+  it('an enabled row runs through the target as one undo-coordinator entry; a refusal dispatches nothing', async () => {
+    const harness = await tablesHarness();
+    const { services, ctx, controller } = harness;
+    act(() => caretIn(harness, 't1-1-1', 1));
+    const entries = services.undo.entries().length;
+    await act(async () => {
+      expect(await services.commands.execute('table.insertRowBelow', ctx)).toBe(true);
+    });
+    expect(services.undo.entries().length).toBe(entries + 1);
+    const table = (
+      harness.store.getState().document!.bodies[0]!.content[0] as unknown as {
+        content: { type: string; content?: unknown[] }[];
+      }
+    ).content.find((node) => node.type === 'table')!;
+    expect(table.content).toHaveLength(4);
+    // The caret in the first cell of the new row (data-model §4.5).
+    expect(controller.editorState!.selection.$from.parent.textContent).toBe('');
+    // A refusal: no dispatch, no undo entry.
+    act(() => caretIn(harness, 't1-0-0', 1));
+    const row = TABLE_COMMAND_ROWS.find((one) => one.id === 'table.moveRowUp')!;
+    const dispatch = vi.fn();
+    expect(row.command({ nextId: () => 'unused' })(controller.editorState!, dispatch)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+    await act(async () => {
+      expect(await services.commands.execute('table.moveRowUp', ctx)).toBe(false);
+    });
+    expect(services.undo.entries().length).toBe(entries + 1);
   });
 });
