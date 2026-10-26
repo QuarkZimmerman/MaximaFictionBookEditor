@@ -15,8 +15,11 @@ name: Release
 # update information and without a .zsync - and publishes nothing.
 #
 # Gates that cannot run here (Constitution IV/VI, documented in the release notes):
-#   * the corpus round-trip/validation gate (tests/corpus/run.sh) needs the local book
-#     collection (/book_disk/books) and is run on the development host before tagging;
+#   * the corpus round-trip/validation gate needs the local book collection (/book_disk/books)
+#     and is run on the development host before tagging: tests/corpus/run.sh over the gate's
+#     sample (sample-1-50.txt), the table stratum (sample-tables-6-300.txt) and the inline
+#     stratum (sample-inline-marks.txt; feature 006, SC-004), and ctest -L corpus over every
+#     local list (tests/corpus/README.md has the recipes);
 #   * the performance budgets (tests/bench/, T150) run when that directory exists.
 
 on:
@@ -289,7 +292,7 @@ jobs:
       - name: Corpus gate (local only)
         if: runner.os == 'Linux'
         run: |
-          echo "::notice::The corpus round-trip/validation gate (tests/corpus/run.sh) needs the local book collection and is run on the development host before tagging."
+          echo "::notice::The corpus round-trip/validation gate needs the local book collection and is run on the development host before tagging: tests/corpus/run.sh over sample-1-50.txt, the table stratum sample-tables-6-300.txt and the inline stratum sample-inline-marks.txt, and ctest -L corpus."
 
       - name: Performance budgets (10 MB journeys)
         if: runner.os == 'Linux'
@@ -723,7 +726,7 @@ jobs:
             echo
             echo "Installation and uninstallation steps for every platform, the sandbox notes for Linux and the per-user folder locations: [docs/installing.md](https://github.com/${{ github.repository }}/blob/${tag}/docs/installing.md). \`SHA256SUMS\` lists the checksums of all files."
             echo
-            echo "Release gates: unit tests, UI checks, end-to-end journeys and the shell smoke test ran in this workflow; the corpus round-trip/validation gate runs on the development host before tagging."
+            echo "Release gates: unit tests, UI checks, end-to-end journeys and the shell smoke test ran in this workflow; the corpus round-trip/validation gate, with its table and inline strata, runs on the development host before tagging."
           } > release-notes.md
           cat release-notes.md
 

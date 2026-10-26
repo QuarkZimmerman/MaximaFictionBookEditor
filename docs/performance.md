@@ -44,11 +44,23 @@ Chromium 1280 x 800; fixtures from `tests/fixtures/gen-large-book.py` — `large
 | 150 MB: peak RSS of `mfbe-core serve` (VmHWM) | — | 517–518 MB | 1 536 MB |
 | 150 MB: File > Save | — | 3 079–3 197 ms | — |
 | 150 MB: core-only `roundtrip` open / write / peak RSS | — | 1 946–2 131 / 2 880–2 953 ms / 528 MB | 1 536 MB |
+| 150 MB: open -> editable (feature 006, **Release** core, T188) | — | 501–534 ms | 15 000 ms |
+| 150 MB: peak RSS of `mfbe-core serve` (VmHWM; feature 006, **Release** core, T188) | — | 518 MB | 1 536 MB |
 
 "Before" is the state at the start of T150 (commit `90572e7`); "after" spans three runs on
 2026-10-13 (`tests/bench/run.sh --json` writes `tests/bench/results/bench-<timestamp>.json`,
 git-ignored; the numbers are copied here). All budgets hold with a Debug core; the only metric
 that was over budget was tree navigation in the 10 MB book.
+
+The two feature 006 rows (T188, the release gate before an rc tag; no workflow runs the 150 MB
+part) come from two runs of
+`tests/bench/run.sh --json --core build/linux-core-release/bin/mfbe-core` on 2026-10-26, on the
+same host (4 vCPU shared VM, 11.4 GiB RAM since, Linux 6.12) with the **Release** core at the
+head of the table-editing work, after the Body view began to reserve every picture's box before
+the picture loads (T083, `ui/src/editor/nodeviews/image.ts`): the 150 MB book was editable after
+501–534 ms with its 20 mounted previews loaded 14–16 ms later, and the core's peak resident
+memory stayed at 518 MB; the same runs saved it in 998 ms and opened the 10 MB book in 455–458 ms
+(keystroke median 15 ms, tree click 34–35 ms).
 
 **Source view tag completion** (feature 003 User Story 8, measured 2026-10-17 by the second
 journey of `ui/tests/e2e/perf-large-book.spec.ts` on the same host and Debug core, cursor in the

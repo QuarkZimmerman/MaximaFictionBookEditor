@@ -33,9 +33,21 @@ void drop_empty_persons(std::vector<model::Person>& list) {
     list.erase(std::remove_if(list.begin(), list.end(), person_empty), list.end());
 }
 
+// The writer's placeholder for a required genre: a title-info without one is written with an
+// empty <genre/> (the schema requires the element; the writer writes every required element),
+// which reads back as a genre without a code - as a required <author/> reads back as an empty
+// person (drop_empty_persons). A source title-info without a genre is therefore not a
+// difference (feature 006, the corpus gate's table stratum).
+void drop_empty_genres(std::vector<model::GenreRef>& list) {
+    list.erase(std::remove_if(list.begin(), list.end(),
+                              [](const model::GenreRef& g) { return g.code.empty() && !g.match; }),
+               list.end());
+}
+
 // No normalisation of the annotation and the history: since feature 004 the writer keeps a
 // present-but-empty element as read (<annotation/>), so "absent" and "present and empty" are two
-// forms the comparison must tell apart - a writer that dropped one again would be caught here.
+// forms the comparison must tell apart - a writer that dropped one again would be caught here
+// (compare_rich_field).
 
 void normalise_title_info(model::TitleInfo& info) {
     drop_empty_persons(info.authors);
@@ -45,6 +57,7 @@ void normalise_title_info(model::TitleInfo& info) {
             g.match.reset();
         }
     }
+    drop_empty_genres(info.genres);
     if (info.keywords && info.keywords->empty()) {
         info.keywords.reset();
     }
@@ -291,6 +304,25 @@ void compare_nodes(const Node& a, const Node& b, const std::string& where, Compa
     }
 }
 
+// A rich field of the description - the book's annotation, the source book's annotation, the
+// history - holds inline content that the writer brings into its form as it does in the bodies:
+// the fixed nesting order of formatting, the joining and FR-068's link rule (plan.md,
+// Complexity Tracking, exceptions 2 and 3). It is compared as a body node is (compare_nodes),
+// not as JSON, where the order of marks across kinds would count; absent and present-but-empty
+// stay two forms. The field is then cleared on both sides, so the JSON comparison of the rest of
+// the description skips it (feature 006, the corpus gate's table stratum).
+void compare_rich_field(std::optional<Node>& a, std::optional<Node>& b, const std::string& where,
+                        Comparison& out, std::size_t max) {
+    if (a.has_value() != b.has_value()) {
+        out.differences.push_back(
+            {where, a.has_value() ? "missing after round trip" : "appeared after round trip"});
+    } else if (a.has_value()) {
+        compare_nodes(*a, *b, where, out, max);
+    }
+    a.reset();
+    b.reset();
+}
+
 std::map<std::string, std::vector<std::string>> extras_by_slot(const model::Document& d) {
     std::map<std::string, std::vector<std::string>> out;
     for (const Node& n : d.extras) {
@@ -324,6 +356,14 @@ Comparison compare(const model::Document& a, const BinaryStore& store_a, const m
         info->date.text.clear();
         info->date.value.reset();
     }
+    compare_rich_field(da.titleInfo.annotation, db.titleInfo.annotation,
+                       "description/titleInfo/annotation", out, max);
+    if (da.srcTitleInfo && db.srcTitleInfo) {
+        compare_rich_field(da.srcTitleInfo->annotation, db.srcTitleInfo->annotation,
+                           "description/srcTitleInfo/annotation", out, max);
+    }
+    compare_rich_field(da.documentInfo.history, db.documentInfo.history,
+                       "description/documentInfo/history", out, max);
     json ja = model::to_json(da);
     json jb = model::to_json(db);
     strip_node_ids(ja);

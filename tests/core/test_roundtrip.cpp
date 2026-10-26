@@ -412,3 +412,108 @@ TEST_CASE("roundtrip: tables are written back attribute for attribute", "[roundt
     REQUIRE(where.has_value());
     CHECK(where->rfind("/FictionBook/body[1]/section[1]/table[1]/tr[1]/td[2]", 0) == 0);
 }
+
+TEST_CASE("roundtrip: the description's annotations and history compare as the bodies do",
+          "[roundtrip]") {
+    // Feature 006 (the corpus gate's table stratum, books 248640 and 248642; plan.md, Complexity
+    // Tracking, exception 2): the writer writes formatting in its fixed nesting order in the rich
+    // fields of the description too, so the order of marks across kinds does not count there;
+    // the order of marks of one kind, the text and the presence of a field still do.
+    test::TempDir out{"mfbe-roundtrip-rich-fields"};
+    const std::string text =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+        "xmlns:l=\"http://www.w3.org/1999/xlink\"><description><title-info>"
+        "<genre>prose_classic</genre><author><nickname>Ann</nickname></author>"
+        "<book-title>Rich fields</book-title><annotation><p>Read <emphasis><strong>this</strong>"
+        "</emphasis>.</p><poem><stanza><v><emphasis>\n <sub><strong>Pictures</strong>: by Ann"
+        "</sub>\n</emphasis></v></stanza></poem></annotation><lang>en</lang></title-info>"
+        "<src-title-info><genre>prose_classic</genre><author><nickname>Ann</nickname></author>"
+        "<book-title>Source</book-title><annotation><p><code><sup>x</sup></code></p></annotation>"
+        "<lang>de</lang></src-title-info><document-info><author><nickname>fixture</nickname>"
+        "</author><date>2026</date><id>rich-fields</id><version>1.0</version><history><p>"
+        "<style name=\"a\"><style name=\"b\"><strikethrough><emphasis>old</emphasis>"
+        "</strikethrough></style></style></p></history></document-info></description><body>"
+        "<section><p>Text.</p></section></body></FictionBook>\n";
+    test::write_text(out / "in" / "rich.fb2", text);
+    const roundtrip::Report report = roundtrip::run(out / "in" / "rich.fb2", out / "out");
+    for (const auto& d : report.comparison.differences) {
+        FAIL_CHECK(d.where << ": " << d.what);
+    }
+    CHECK(report.identical);
+    CHECK(report.valid);
+    // The writer's form: the fixed nesting order in all three fields.
+    const std::string written = test::read_text(out / "out" / "rich.fb2");
+    CHECK(written.find("<strong><emphasis>this</emphasis></strong>") != std::string::npos);
+    CHECK(written.find("<strong><emphasis><sub>Pictures</sub></emphasis></strong>") !=
+          std::string::npos);
+    CHECK(written.find("<sup><code>x</code></sup>") != std::string::npos);
+    CHECK(written.find("<style name=\"a\"><style name=\"b\"><emphasis><strikethrough>old") !=
+          std::string::npos);
+
+    // Real differences in the rich fields are still reported, with the body's paths.
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const auto a = fb2::read_bytes(text, store, ids_a);
+    auto b = fb2::read_bytes(text, store, ids_b);
+    REQUIRE(roundtrip::compare(a.document, store, b.document, store).identical());
+    model::Node& annotation = *b.document.description.titleInfo.annotation;
+    annotation.content[0].content[0].text = "Skip ";  // a changed text
+    model::Node& old = b.document.description.documentInfo.history->content[0].content[0];
+    REQUIRE(old.marks.size() == 4);
+    std::swap(old.marks[0], old.marks[1]);                    // the two styles in the other order
+    b.document.description.srcTitleInfo->annotation.reset();  // the field lost
+    const roundtrip::Comparison c = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(c.differences.size() == 3);
+    CHECK(c.differences[0].where == "description/titleInfo/annotation/p[1]/text()[1]");
+    CHECK(c.differences[0].what == "text \"Read \" became \"Skip \"");
+    CHECK(c.differences[1].where == "description/srcTitleInfo/annotation");
+    CHECK(c.differences[1].what == "missing after round trip");
+    CHECK(c.differences[2].where == "description/documentInfo/history/p[1]/text()[1]");
+    CHECK(c.differences[2].what == "marks differ");
+}
+
+TEST_CASE("roundtrip: a title-info without a genre compares equal to the writer's empty genre",
+          "[roundtrip]") {
+    // Feature 006 (the corpus gate's table stratum, book 573073): the writer writes every
+    // required element, a missing genre as <genre/>, which reads back as a genre without a code
+    // - as a missing author comes back as an empty <author/>. Any genre with a code still counts.
+    test::TempDir out{"mfbe-roundtrip-genre"};
+    const std::string text =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+        "xmlns:l=\"http://www.w3.org/1999/xlink\"><description><title-info>"
+        "<genre>prose_classic</genre><author><nickname>Ann</nickname></author>"
+        "<book-title>Genres</book-title><lang>no</lang></title-info><src-title-info>"
+        "<author><first-name>Tom</first-name><last-name>Writer</last-name></author>"
+        "<book-title>Source</book-title><lang>ru</lang></src-title-info><document-info>"
+        "<author><nickname>fixture</nickname></author><date>2026</date><id>genres</id>"
+        "<version>1.0</version></document-info></description><body><section><p>Text.</p>"
+        "</section></body></FictionBook>\n";
+    test::write_text(out / "in" / "genres.fb2", text);
+    const roundtrip::Report report = roundtrip::run(out / "in" / "genres.fb2", out / "out");
+    for (const auto& d : report.comparison.differences) {
+        FAIL_CHECK(d.where << ": " << d.what);
+    }
+    CHECK(report.identical);
+    const std::string written = test::read_text(out / "out" / "genres.fb2");
+    CHECK(written.find("<src-title-info>\n\t\t\t<genre/>\n") != std::string::npos);
+
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const auto a = fb2::read_bytes(text, store, ids_a);
+    auto b = fb2::read_bytes(text, store, ids_b);
+    REQUIRE(a.document.description.srcTitleInfo.has_value());
+    CHECK(a.document.description.srcTitleInfo->genres.empty());
+    b.document.description.srcTitleInfo->genres.push_back({"", std::nullopt});
+    CHECK(roundtrip::compare(a.document, store, b.document, store).identical());
+    b.document.description.srcTitleInfo->genres.back().code = "sf";  // a genre with a code
+    b.document.description.titleInfo.genres[0].match = 50;           // another match
+    const roundtrip::Comparison c = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(c.differences.size() == 2);
+    CHECK(c.differences[0].where == "description/srcTitleInfo/genres");
+    CHECK(c.differences[0].what == "count differs: 0 vs 1");
+    CHECK(c.differences[1].where == "description/titleInfo/genres[1]/match");
+}
