@@ -8,6 +8,8 @@
 import type { Node as PMNode } from 'prosemirror-model';
 import type { NodeView, NodeViewConstructor, ViewMutationRecord } from 'prosemirror-view';
 
+import { effectiveColspan, effectiveRowspan } from '../table/grid';
+
 export class TableView implements NodeView {
   readonly dom: HTMLTableElement;
   readonly contentDOM: HTMLTableSectionElement;
@@ -66,10 +68,19 @@ export class CellView implements NodeView {
     set('data-node-id', attrs.nodeId as string | null);
     set('data-id', attrs.id as string | null);
     set('data-style', attrs.style as string | null);
-    set('colspan', attrs.colspan);
-    set('rowspan', attrs.rowspan);
+    // The effective spans, and only above 1 (feature 006, rule 9 of the grid, C20): the
+    // browser then lays the cells out as the grid places them - it clips a rowspan at the
+    // table's last row as rule 3 does - so `rowspan="0"` is one row, not the rest of the table.
+    const colspan = effectiveColspan(attrs.colspan);
+    const rowspan = effectiveRowspan(attrs.rowspan);
+    set('colspan', colspan > 1 ? colspan : null);
+    set('rowspan', rowspan > 1 ? rowspan : null);
     set('align', attrs.align as string | null);
     set('valign', attrs.valign as string | null);
+    // The cell's xml:lang (FR-020), as written: `""` included, absent when null.
+    const lang = attrs.lang;
+    if (lang === null || lang === undefined) this.dom.removeAttribute('lang');
+    else this.dom.setAttribute('lang', String(lang));
   }
 
   update(node: PMNode): boolean {
