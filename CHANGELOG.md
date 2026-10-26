@@ -26,6 +26,16 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   (*Table structure*), as buttons offered in *Customize toolbar* and as commands a hotkey can be
   assigned to; each is one undo step, and an unavailable one says why, for example "Split cell:
   the cell is not merged".
+- Header cells: *Toggle header cell* switches the caret's cell between a header cell and a normal
+  cell (with a block selected, the cell the selection ends in); *Make header cells* and *Make
+  normal cells* convert every cell of a selected block, or the caret's cell; *Toggle header row*
+  and *Toggle header column* make every cell of the caret's row or column a header cell - or,
+  when all of them already are, a normal cell -, act on every row or column of a selected block
+  and on the top row or left column of a merged cell, and count a merged cell once. They are in
+  the same menus as the other table commands - *Add > Table structure* and the table's context
+  menu (*Table structure*) -, among the buttons offered in *Customize toolbar* and in the hotkey
+  list; they change only the kind of a cell and keep its content and every attribute, and each
+  is one undo step (a command with nothing to convert records none).
 
 - *Add > Table* asks for the columns and for a header column besides the rows and a header
   row, and proposes the values last confirmed, also after a restart. The new table is
@@ -167,6 +177,10 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   the elements the assistant and the scripts it runs created before: every request and every
   script run counts on from the highest such id in the book. Release 0.0.5 counted each from
   `sc_1`, so a later assistant change could land on the wrong element.
+- The Body view shows cell alignment as written: `valign="middle"` and `"bottom"` on a cell, and
+  an `align` on a header cell or on its row, were hidden by the default rules, which put every
+  cell's text at the top and centred every header cell. Header cells stay centred unless the
+  cell or its row sets an alignment.
 
 ## 0.0.5 - unreleased
 
