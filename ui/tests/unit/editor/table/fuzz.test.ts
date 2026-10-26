@@ -1,11 +1,11 @@
 /**
  * The seeded fuzz of SC-003, the oracle layer (feature 006, US2 T073; FR-035, FR-045, FR-046;
  * C76; data-model §16.4; quickstart §2, §13; research R1.12, R8.15): 1,000 random commands per
- * seed of `FUZZ_SEEDS` - or the seed `MFBE_FUZZ_SEED` alone (`MFBE_FUZZ_SEED=<n> npx vitest run
- * tests/unit/editor/table/fuzz.test.ts`) - through an `EditorState` made by
- * `createBodyEditorState`, with every Body plugin, the table plugin included, and history; every
- * step checked by the generator's oracle. A failure prints its seed, step, command, selection
- * and the table before and after it as model JSON.
+ * seed of `FUZZ_SEEDS` and of `REGRESSION_SEEDS` - or the seed `MFBE_FUZZ_SEED` alone
+ * (`MFBE_FUZZ_SEED=<n> npx vitest run tests/unit/editor/table/fuzz.test.ts`) - through an
+ * `EditorState` made by `createBodyEditorState`, with every Body plugin, the table plugin
+ * included, and history; every step checked by the generator's oracle. A failure prints its
+ * seed, step, command, selection and the table before and after it as model JSON.
  */
 
 /// <reference types="node" />
@@ -33,7 +33,17 @@ function failureText(report: FuzzReport): string {
   return JSON.stringify(report.failures[0] ?? null, null, 1);
 }
 
-const seeds = process.env.MFBE_FUZZ_SEED ? [Number(process.env.MFBE_FUZZ_SEED)] : FUZZ_SEEDS;
+/**
+ * Exploratory seeds that once failed, kept as fixed cases: 222 and 302 broke the locality of
+ * *Delete row* where it moves the earlier cell of an overlap into a row whose later cell spans
+ * more rows than the moved one - the cells right of the positions that cell gave up moved left
+ * (data-model §4.5, FR-007, FR-035).
+ */
+const REGRESSION_SEEDS: readonly number[] = [222, 302];
+
+const seeds = process.env.MFBE_FUZZ_SEED
+  ? [Number(process.env.MFBE_FUZZ_SEED)]
+  : [...FUZZ_SEEDS, ...REGRESSION_SEEDS];
 
 describe('the seeded fuzz of SC-003 (oracle layer)', () => {
   for (const seed of seeds) {

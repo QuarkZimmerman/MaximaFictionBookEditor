@@ -971,6 +971,51 @@ describe('US2 rows and columns', () => {
       expect(copied.after.child(1)).toBe(column.table.child(1));
     });
 
+    it('Delete row that moves the earlier cell of an overlap into row b: the later cell gives up its columns from there, empty cells take its positions below, no other cell moves', () => {
+      // c (colspan 2, rows 2-3) runs into b (rows 1-2) at column 2 and spans one row more than
+      // b keeps; d stands right of c in row 3 (the shape of exploratory seeds 222 and 302).
+      const spanning = acted(
+        placed(
+          [['a', { text: 'b', rowspan: 2 }], [{ text: 'c', colspan: 2, rowspan: 2 }], ['d']],
+          'a',
+        ),
+        'deleteRow',
+      );
+      expect(show(spanning.after)).toBe('[c rowspan=2, b] / [<td>, d]');
+      expect(gridOfNode(spanning.after).owner(1, 2)).toBe(3);
+      // c reaches past b's columns: it gives up those too, in row b.
+      const past = acted(
+        placed([['a', { text: 'b', rowspan: 2 }, 'x'], [{ text: 'c', colspan: 3 }]], 'a'),
+        'deleteRow',
+      );
+      expect(show(past.after)).toBe('[c, b, <td>]');
+      // Both cells of the overlap move into row b (the assistant's whole lines 1 and 2).
+      const both = acted(
+        placed(
+          [['a', { text: 'b', rowspan: 3 }], [{ text: 'c', colspan: 2, rowspan: 2 }], ['d']],
+          'a',
+          { lines: { axis: 'row', from: 0, to: 2 } },
+        ),
+        'deleteRow',
+      );
+      expect(show(both.after)).toBe('[c, b, d]');
+      // A later cell of a row below that covers a given-up position becomes its owner: no cell
+      // is put there.
+      const later = acted(
+        placed(
+          [
+            ['a', 'x', { text: 'b', rowspan: 2 }],
+            ['y', { text: 'c', colspan: 2, rowspan: 2 }],
+            [{ text: 'q', colspan: 3 }],
+          ],
+          'a',
+        ),
+        'deleteRow',
+      );
+      expect(show(later.after)).toBe('[y, c rowspan=2, b] / [q colspan=3]');
+      expect(gridOfNode(later.after).width).toBe(3);
+    });
+
     it('every plan on every irregular case of grid-vectors.json returns without throwing, a valid edit or a refusal', () => {
       const vectors = JSON.parse(readFileSync(path.join(VECTORS, 'grid-vectors.json'), 'utf8')) as {
         cases: VectorCase[];

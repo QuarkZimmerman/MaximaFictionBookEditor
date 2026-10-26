@@ -2,7 +2,8 @@
  * The seeded fuzz of SC-003 (feature 006, US2 T073; C76; I27; U19; data-model §16.4; quickstart
  * §2, §13; research R1.12, R8.15): random table commands on random tables, each step checked by
  * an oracle - the schema, `assertTableValid`, `availability` against the plan, a regular table
- * staying regular, the positions outside the addressed lines keeping their owners' content, no
+ * staying regular, the positions outside the addressed lines keeping their owners' content
+ * (except those *Delete row* gives up where it dissolves an overlap, `deletedRows`), no
  * character lost or invented, Undo and Redo giving back exact documents and, where the host
  * can, the core's validation.
  *
@@ -286,11 +287,13 @@ export function makeStartTable(
 
 /**
  * What a step addresses, for the locality check: rows map by their `tr`'s `nodeId`; columns by
- * `column`, the columns of `skipColumns` (`[from, to)`, the lines a column command acts on) not
- * compared.
+ * `column`, the columns of `skipColumns` (`[from, to)`, the lines a column command acts on) and
+ * the positions of `given` (those *Delete row* gives up, `deletedRows`) not compared.
  */
 export interface FuzzLines {
   skipColumns?: readonly [number, number];
+  /** A position (row, column) of the grid before that the step gives up. */
+  given?(row: number, col: number): boolean;
   column(c: number): number;
 }
 
@@ -314,6 +317,45 @@ export interface FuzzEntry {
 
 const SAME_COLUMNS: FuzzLines = { column: (c) => c };
 const rowLines = (): FuzzLines => SAME_COLUMNS;
+
+/**
+ * *Delete row* (data-model §4.5): rows map by node id, and the positions the step gives up are
+ * not compared. The cells that stand in row b after the move - the cells that start in D and
+ * cover rows below it, and the own cells of row b - cannot overlap there (document-model §4.3),
+ * so of an overlap between two of them, the later cell running into the earlier one's columns
+ * (§4.6), the later cell gives up its columns from the first column of the earlier one on, as
+ * Repair reduces it (§4.11): the positions it owned there, in its rows from b on, lose that
+ * owner under any plan (an empty position then, FR-035). Every other position keeps its owner.
+ */
+function deletedRows(address: TableAddress): FuzzLines | null {
+  const { grid } = address;
+  const unit = unitLines(address, 'row');
+  if (!unit || grid.tooLarge) return SAME_COLUMNS;
+  const [a, b] = unit;
+  const together: number[] = [];
+  grid.cells.forEach((cell, index) => {
+    if (cell.row === b || (cell.row >= a && cell.row < b && cell.row + cell.rowsIn > b)) {
+      together.push(index);
+    }
+  });
+  const given = new Set<number>();
+  for (const later of together) {
+    const cell = grid.cells[later]!;
+    const right = cell.left + cell.colspan;
+    let from = right;
+    for (const earlier of together) {
+      const left = grid.cells[earlier]!.left;
+      if (earlier < later && left > cell.left && left < from) from = left;
+    }
+    for (let r = b; r < cell.row + cell.rowsIn; r += 1) {
+      for (let c = from; c < right; c += 1) {
+        if (grid.owner(r, c) === later) given.add(r * grid.width + c);
+      }
+    }
+  }
+  if (given.size === 0) return SAME_COLUMNS;
+  return { given: (r, c) => given.has(r * grid.width + c), column: (c) => c };
+}
 
 function insertedColumns(side: 'left' | 'right') {
   return (address: TableAddress): FuzzLines | null => {
@@ -387,7 +429,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     command: 'deleteRow',
     weight: 8,
     plan: (address, ctx) => planDeleteRows(address, ctx),
-    lines: rowLines,
+    lines: deletedRows,
     removes: true,
   },
   {
@@ -604,7 +646,7 @@ function cellsById(table: PMNode): Map<string, PMNode> {
 /**
  * FR-035: every position outside the step's addressed lines keeps its owner's content and kind
  * at its mapped position; rows map by their `tr`'s node id, removed rows are skipped, holes are
- * not compared (a command may fill them).
+ * not compared (a command may fill them), nor are the positions the step gives up (`given`).
  */
 function checkLocality(before: PMNode, after: PMNode, lines: FuzzLines): string | null {
   const g0 = gridOfNode(before);
@@ -620,6 +662,7 @@ function checkLocality(before: PMNode, after: PMNode, lines: FuzzLines): string 
     for (let c0 = 0; c0 < g0.width; c0 += 1) {
       const skip = lines.skipColumns;
       if (skip && c0 >= skip[0] && c0 < skip[1]) continue;
+      if (lines.given?.(r0, c0)) continue;
       const o0 = g0.owner(r0, c0);
       if (o0 < 0) continue;
       const c1 = lines.column(c0);

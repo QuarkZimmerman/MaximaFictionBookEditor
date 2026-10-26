@@ -771,14 +771,77 @@ export function planInsertColumns(
   return { rows: builder.build(), focus, removedIds: [] };
 }
 
+/** A cell that stands in row b after *Delete row*: a moved cell or an own cell of row b. */
+interface RowAfterDelete {
+  /** Its index in `grid.cells`: the moved cells, which start above b, come first. */
+  index: number;
+  left: number;
+  right: number;
+  /** One past the last row it covers, in the rows of the grid before. */
+  end: number;
+  /** A moved cell's rowspan in row b; undefined for an own cell of row b. */
+  rowspan?: number;
+}
+
+/**
+ * The positions of the grid before that the cells of row b after *Delete row* give up, by row:
+ * the own cells of one row never overlap (document-model §4.3), so when the move puts the two
+ * cells of an overlap of an irregular table into row b - the later cell running into the
+ * columns of the earlier one (§4.6) - the later cell's colspan is reduced to end before the
+ * first such column, as Repair reduces it (§4.11). The columns it gives up are the positions
+ * it owned there, in every row it covers from b on, that no later cell of the rows below b
+ * covers (that cell becomes their owner). `cut` holds each reduced cell's new right edge.
+ */
+function deleteOverlaps(
+  grid: TableGrid,
+  b: number,
+  cells: readonly RowAfterDelete[],
+): { cut: Map<number, number>; given: Map<number, number[]> } {
+  const cut = new Map<number, number>();
+  const given = new Map<number, number[]>();
+  for (const cell of cells) {
+    let right = cell.right;
+    // Only a moved cell can be the earlier one: the own cells of row b never overlap.
+    for (const earlier of cells) {
+      if (earlier.index >= cell.index || earlier.rowspan === undefined) break;
+      if (cell.left < earlier.left && earlier.left < right) right = earlier.left;
+    }
+    if (right === cell.right) continue;
+    cut.set(cell.index, right);
+    // The later cells of the rows below b that cover a position of the given-up columns.
+    const covered = new Set<number>();
+    const end = Math.min(cell.end, grid.height);
+    const below = grid.rowStart[Math.min(b + 1, end)]!;
+    for (let index = below; index < grid.rowStart[end]!; index += 1) {
+      const other = grid.cells[index]!;
+      const from = Math.max(other.left, right);
+      const to = Math.min(other.left + other.colspan, cell.right);
+      for (let r = other.row; r < Math.min(other.row + other.rowsIn, end); r += 1) {
+        for (let c = from; c < to; c += 1) covered.add(r * grid.width + c);
+      }
+    }
+    for (let r = b; r < end; r += 1) {
+      for (let c = right; c < cell.right; c += 1) {
+        if (grid.owner(r, c) !== cell.index || covered.has(r * grid.width + c)) continue;
+        const list = given.get(r) ?? [];
+        list.push(c);
+        given.set(r, list);
+      }
+    }
+  }
+  return { cut, given };
+}
+
 /**
  * *Delete row* (data-model §4.5): the rows D = `[a, b)` go with their non-cell children. A cell
  * wholly in D goes (its `id` into `removedIds`); a cell that starts in D and covers rows below b
  * moves into row b at its column (with the hole fill), its rowspan less its rows in D and its
  * content and attributes kept (FR-007 rule 3); a cell from above loses its rows in D, a span
- * past the last row the same way; a cell of row b running into a moved cell's first column has
- * its colspan reduced to end there (the overlap of an irregular table). No confirmation (C13).
- * Focus: row a (a − 1 when D ended the table) at the caret cell's column.
+ * past the last row the same way. When the move puts both cells of an overlap of an irregular
+ * table into row b, the later cell's colspan is reduced to end at the earlier cell's first
+ * column (`deleteOverlaps`), and every position it gives up gets an empty `td` placed by its
+ * column (with the hole fill), so that no other cell of its rows moves (FR-007, FR-035). No
+ * confirmation (C13). Focus: row a (a − 1 when D ended the table) at the caret cell's column.
  */
 export function planDeleteRows(address: TableAddress, ctx: PlanContext): TableEdit | Refusal {
   const { table, grid } = address;
@@ -789,21 +852,22 @@ export function planDeleteRows(address: TableAddress, ctx: PlanContext): TableEd
   const [a, b] = unit;
   const builder = new TableBuilder(table, grid);
   const removedIds: string[] = [];
-  const moved: { col: number; node: PMNode }[] = [];
+  // Row b after the move, in reading order: the moved cells, then the own cells of row b.
+  const rowB: RowAfterDelete[] = [];
   grid.cells.forEach((cell, index) => {
     const node = gridCellNode(table, grid, index);
+    const right = cell.left + cell.colspan;
     if (cell.row >= a && cell.row < b) {
       if (cell.row + cell.rowsIn <= b) {
         if (typeof node.attrs.id === 'string' && node.attrs.id !== '')
           removedIds.push(node.attrs.id);
       } else {
         const rowspan = cell.rowspan - (b - cell.row);
-        moved.push({
-          col: cell.left,
-          node: withAttrs(node, withSpans(node.attrs, undefined, rowspan)),
-        });
+        rowB.push({ index, left: cell.left, right, end: cell.row + cell.rowsIn, rowspan });
       }
       builder.setCell(index, null);
+    } else if (cell.row === b) {
+      rowB.push({ index, left: cell.left, right, end: b + cell.rowsIn });
     } else if (cell.row < a && cell.row + cell.rowspan > a) {
       const lost = Math.min(cell.row + cell.rowspan, b) - a;
       builder.setCell(
@@ -812,22 +876,28 @@ export function planDeleteRows(address: TableAddress, ctx: PlanContext): TableEd
       );
     }
   });
-  // An own cell of row b that runs into a moved cell's first column (an overlap of an irregular
-  // table) is the later cell of that overlap: its colspan is reduced to end there, as Repair
-  // reduces it (document-model §4.11), so the moved cell lands at its column and no other cell
-  // of the row moves (FR-035). Only where the overlap lies within the moved cell's columns.
-  for (const { col, node } of moved) {
-    const end = col + effectiveColspan(node.attrs.colspan);
-    for (let index = grid.rowStart[b]!; index < grid.rowStart[b + 1]!; index += 1) {
-      const cell = grid.cells[index]!;
-      const right = cell.left + cell.colspan;
-      if (cell.left < col && col < right && right <= end) {
-        const own = gridCellNode(table, grid, index);
-        builder.setCell(index, withAttrs(own, withSpans(own.attrs, col - cell.left)));
-      }
+  const { cut, given } = deleteOverlaps(grid, b, rowB);
+  const placements = new Map<number, { col: number; node: PMNode }[]>();
+  const place = (r: number, col: number, node: PMNode) => {
+    const list = placements.get(r) ?? [];
+    list.push({ col, node });
+    placements.set(r, list);
+  };
+  for (const cell of rowB) {
+    const right = cut.get(cell.index);
+    const colspan = right === undefined ? undefined : right - cell.left;
+    const node = gridCellNode(table, grid, cell.index);
+    if (cell.rowspan !== undefined) {
+      place(b, cell.left, withAttrs(node, withSpans(node.attrs, colspan, cell.rowspan)));
+    } else if (colspan !== undefined) {
+      builder.setCell(cell.index, withAttrs(node, withSpans(node.attrs, colspan)));
     }
   }
-  if (moved.length > 0) placeCells(builder, b, moved, ctx);
+  const td = fb2Schema.nodes.td!;
+  for (const [r, columns] of given) {
+    for (const c of columns) place(r, c, td.create({ nodeId: ctx.nextId() }));
+  }
+  for (const [r, list] of placements) placeCells(builder, r, list, ctx);
   for (let r = a; r < b; r += 1) builder.removeRow(grid.rowChild[r]!);
   const col = address.rect ? address.rect.left : (address.caret?.col ?? 0);
   return {
