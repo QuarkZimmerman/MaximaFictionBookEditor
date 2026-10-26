@@ -22,7 +22,7 @@ import { CustomizeToolbarDialog } from '@/dialogs/CustomizeToolbarDialog';
 import { isRunLocked, useAppState } from '@/model/store';
 
 import { useAppServices, useCommandContext, useAppRevision } from './services';
-import { commandDescription, commandTooltip } from './commands';
+import { commandDescription, commandTooltip, unavailableTitle } from './commands';
 import { LinksBar } from './LinksBar';
 import { PopupMenu } from './PopupMenu';
 import { TableBar } from './TableBar';
@@ -55,7 +55,12 @@ export interface ToolbarButtonProps {
   size?: 16 | 24;
 }
 
-/** A command button with icon, tooltip (short name + hotkey), pressed and disabled states. */
+/**
+ * A command button with icon, tooltip (short name + hotkey), pressed and disabled states. A
+ * disabled button whose command tells why (feature 006, FR-043; data-model §9.6) shows
+ * "Command: reason" as its tooltip and adds it to its description, re-evaluated on every
+ * revision as the states are.
+ */
 export function ToolbarButton({ commandId, size = 24 }: ToolbarButtonProps) {
   const { t } = useTranslation();
   const services = useAppServices();
@@ -69,7 +74,10 @@ export function ToolbarButton({ commandId, size = 24 }: ToolbarButtonProps) {
   const checked = services.commands.isChecked(commandId, ctx);
   const tooltip = commandTooltip(command, t);
   const hotkey = services.hotkeys.display(commandId);
-  const title = hotkey ? `${tooltip} (${hotkey})` : tooltip;
+  const reason = enabled ? null : services.commands.unavailableReason(commandId, ctx);
+  const unavailable = reason ? unavailableTitle(command, reason, t) : null;
+  const title = unavailable ?? (hotkey ? `${tooltip} (${hotkey})` : tooltip);
+  const description = commandDescription(command, t);
   return (
     <button
       type="button"
@@ -78,7 +86,7 @@ export function ToolbarButton({ commandId, size = 24 }: ToolbarButtonProps) {
       data-command={commandId}
       title={title}
       aria-label={tooltip}
-      aria-description={commandDescription(command, t)}
+      aria-description={unavailable ? `${description}. ${unavailable}` : description}
       aria-pressed={command.checked ? checked : undefined}
       disabled={!enabled}
       onClick={() => void services.commands.execute(commandId, ctx)}

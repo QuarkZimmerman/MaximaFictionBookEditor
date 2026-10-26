@@ -1,3 +1,5 @@
+import { createCommandRegistry, type CommandContext } from '@/app/commands';
+import { FBE_DEFAULT_HOTKEYS } from '@/app/defaultHotkeys';
 import {
   DEFAULT_HOTKEYS,
   defaultKeysFor,
@@ -15,6 +17,8 @@ import {
   validateChord,
   type Chord,
 } from '@/app/hotkeys';
+import { createAppStore } from '@/model/store';
+import { UndoCoordinator } from '@/model/undo';
 
 function key(
   overrides: Partial<KeyboardEvent> & { key: string },
@@ -372,5 +376,107 @@ describe('captureHotkey (shortcut capture control)', () => {
     const mac = captureHotkey(key({ key: 'q', code: 'KeyQ', metaKey: true }), 'mac');
     expect(mac.text).toBe('Cmd+Q');
     expect(mac.validation).toEqual({ ok: false, problem: 'reserved' });
+  });
+});
+
+describe('the table commands (feature 006: decision 15, C6; resource-formats.md §7)', () => {
+  const TABLE_IDS = createCommandRegistry()
+    .byGroup('table')
+    .map((command) => command.id);
+
+  it('no table.* id has a default chord, on any platform', () => {
+    expect(TABLE_IDS).toHaveLength(24);
+    expect(DEFAULT_HOTKEYS.filter((entry) => entry.commandId.startsWith('table.'))).toEqual([]);
+    expect(FBE_DEFAULT_HOTKEYS.filter((entry) => entry.commandId.startsWith('table.'))).toEqual([]);
+    for (const platform of ['windows', 'linux', 'mac'] as const) {
+      const map = new HotkeyMap(platform);
+      for (const id of TABLE_IDS) {
+        expect(map.get(id), `${platform} ${id}`).toBeUndefined();
+        expect(map.defaultFor(id), `${platform} ${id}`).toBeUndefined();
+      }
+    }
+    // Table... keeps its original Alt+T.
+    expect(new HotkeyMap('linux').get('insert.table')).toBe('Alt+T');
+  });
+
+  it('each of the 24 accepts a chord of the user, and Reset removes it (no default to restore)', () => {
+    const map = new HotkeyMap('linux');
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWX';
+    TABLE_IDS.forEach((id, index) => {
+      const keys = `Ctrl+Alt+Shift+${letters[index]}`;
+      expect(map.assign(id, keys), id).toEqual({ ok: true, keys, displaced: [] });
+      expect(map.get(id), id).toBe(keys);
+      expect(map.lookup(keys), id).toEqual([id]);
+    });
+    expect(map.userBindings()).toHaveLength(24);
+    for (const id of TABLE_IDS) {
+      expect(map.resetToDefault(id), id).toEqual({ ok: true });
+      expect(map.get(id), id).toBeUndefined();
+    }
+    expect(map.userBindings()).toEqual([]);
+    // The usual rules hold: a reserved or a typing chord is refused.
+    expect(map.assign('table.mergeCells', 'Alt+F4')).toEqual({ ok: false, problem: 'reserved' });
+    expect(map.assign('table.mergeCells', 'M')).toEqual({ ok: false, problem: 'typing' });
+  });
+
+  it('with allowsHotkey as the dispatch filter, a chord of a scoped table command is consumed only for a target inside the scope element', () => {
+    const registry = createCommandRegistry();
+    const run = vi.fn();
+    registry.replace({ id: 'table.mergeCells', group: 'table', hotkeyScope: 'tableTarget', run });
+    const undo = vi.fn();
+    registry.replace({ id: 'edit.undo', group: 'edit', run: undo });
+    const map = new HotkeyMap('linux');
+    expect(map.assign('table.mergeCells', 'Ctrl+Alt+M').ok).toBe(true);
+    const ctx = {
+      store: createAppStore(),
+      rpc: null,
+      undo: new UndoCoordinator(),
+      dialogs: {} as CommandContext['dialogs'],
+      hotkeys: map,
+      t: ((text: string) => text) as unknown as CommandContext['t'],
+      version: 'test',
+    } satisfies CommandContext;
+    const scope = document.createElement('div');
+    const inside = document.createElement('p');
+    scope.appendChild(inside);
+    const outside = document.createElement('input');
+    document.body.append(scope, outside);
+    // As App.tsx dispatches: the scope filter first, then the registry.
+    const press = (overrides: Partial<KeyboardEvent> & { key: string }, target: EventTarget) => {
+      const event = {
+        ...key(overrides),
+        target,
+        preventDefault: vi.fn(),
+        stopPropagation: vi.fn(),
+      };
+      const consumed = map.handleKeyDown(
+        event,
+        (id) => registry.allowsHotkey(id, event.target) && registry.dispatch(id, ctx),
+      );
+      return { consumed, prevented: event.preventDefault.mock.calls.length > 0 };
+    };
+    const chord = { key: 'm', code: 'KeyM', ctrlKey: true, altKey: true };
+    try {
+      // No resolver yet: never consumed.
+      expect(press(chord, inside)).toEqual({ consumed: false, prevented: false });
+      const off = registry.setHotkeyScope('tableTarget', () => scope);
+      expect(press(chord, inside)).toEqual({ consumed: true, prevented: true });
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(press(chord, scope)).toEqual({ consumed: true, prevented: true });
+      expect(press(chord, outside)).toEqual({ consumed: false, prevented: false });
+      expect(press(chord, document.body)).toEqual({ consumed: false, prevented: false });
+      expect(run).toHaveBeenCalledTimes(2);
+      // An unscoped command keeps its chord everywhere.
+      expect(press({ key: 'z', code: 'KeyZ', ctrlKey: true }, outside)).toEqual({
+        consumed: true,
+        prevented: true,
+      });
+      expect(undo).toHaveBeenCalledTimes(1);
+      off();
+      expect(press(chord, inside)).toEqual({ consumed: false, prevented: false });
+    } finally {
+      scope.remove();
+      outside.remove();
+    }
   });
 });

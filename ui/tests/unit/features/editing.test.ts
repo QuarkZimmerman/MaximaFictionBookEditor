@@ -166,7 +166,7 @@ describe('editing feature registration', () => {
     }
     // `insert.binary` belongs to US7 and stays a stub.
     expect(services.commands.get('insert.binary')?.stub).toBeUndefined();
-    expect(services.commands.get('insert.table')?.icon).toBe('id_insert_table');
+    expect(services.commands.get('insert.table')?.icon).toBe('table-insert'); // feature 006, C27
     expect(services.undo.hasView('body')).toBe(true);
     expect(services.carets.has('body')).toBe(true);
     expect(services.hotkeys.get('edit.insertNbsp')).toBe('Ctrl+Shift+Space');

@@ -282,7 +282,8 @@ export function registerBodyCommands(
       id: 'insert.table',
       group: 'edit',
       ...cmdKeys('insert.table', 'menu.add.table'),
-      icon: 'id_insert_table',
+      // The project's own pair (feature 006, C27): the original's exists at 16 px only.
+      icon: 'table-insert',
       enabled: (ctx) =>
         bodyEditable(ctx) && canInsertTable(bodyController(ctx.store)!.editorState!),
       async run(ctx) {
