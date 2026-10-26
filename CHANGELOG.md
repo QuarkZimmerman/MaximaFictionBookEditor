@@ -7,6 +7,15 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### Added
 
+- Blocks of cells: dragging from one cell to another, a Shift+click on another cell of the same
+  table and Shift+arrow keys across a cell's edge select a rectangular block of cells, widened to
+  whole merged cells and highlighted as one. Delete and Backspace empty the block's cells and keep
+  them; typing, also through an input method or a dead key, empties them and types into the
+  block's top-left cell; Copy copies the block, and Cut copies and empties it. A copied block or
+  table pasted into a cell overwrites the cells from there and adds the rows and columns it needs;
+  pasted outside a table it becomes a new table where a table may stand, while the status bar says
+  so where none may. Pasted cells lose an id the book already uses. Each step is one undo step.
+
 - *Add > Table* asks for the columns and for a header column besides the rows and a header
   row, and proposes the values last confirmed, also after a restart. The new table is
   rectangular, carries no attribute and takes the caret in its first cell, and the insertion is
@@ -55,6 +64,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   says why, for example "Delete row: the table has only one row; use Delete table".
 
 ### Changed
+
+- A paste first replaces the selected text, also when it pastes a table; a selected table or
+  picture is replaced by what is pasted. Text or paragraphs pasted into a table cell join that cell
+  as one line instead of splitting the table. HTML copied from another ProseMirror-based editor no
+  longer counts as the editor's own; only the editor's own clipboard data does.
 
 - With the caret at the start of a paragraph *Add > Table* puts the table before the
   paragraph; release 0.0.5 put it after.

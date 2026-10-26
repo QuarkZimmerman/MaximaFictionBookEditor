@@ -51,9 +51,9 @@ mouse and the keyboard.
 |---|---|---|---|---|---|---|
 | `ID_EDIT_UNDO` | Undo | `edit.undo` (`model/undo.ts` coordinator) | `menu-edit-undo`, `toolbar-edit.undo` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | multi-level across views, dialogs and scripts (FR-034) |
 | `ID_EDIT_REDO` | Redo | `edit.redo` | `menu-edit-redo`, `toolbar-edit.redo` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | |
-| `ID_EDIT_CUT` | Cut | `edit.cut` (`features/clipboard.ts`) | `menu-edit-cut` | `us2-body-editing.spec.ts`, `us8-toolbars.spec.ts` | implemented | structure-preserving clipboard (scenario 6); also the Source editor and the Description fields, as the original's (feature 002) |
-| `ID_EDIT_COPY` | Copy | `edit.copy` | `Control+c`, `menu-edit-copy` | `us2-body-editing.spec.ts`, `us8-toolbars.spec.ts` | implemented | Body, Source editor and Description fields |
-| `ID_EDIT_PASTE` | Paste | `edit.paste` | `menu-edit-paste` | `us2-body-editing.spec.ts`, `us7-images.spec.ts`, `us8-toolbars.spec.ts` | implemented | pasted images go through `POST /binary` (us7 scenario 2); Body, Source editor and Description fields; the shell grants the clipboard to the editor's page (`app/src/permission_policy.cpp`); feature 006 US3: an image pasted into a table cell becomes an inline image there (FR-025) |
+| `ID_EDIT_CUT` | Cut | `edit.cut` (`features/clipboard.ts`) | `menu-edit-cut` | `us2-body-editing.spec.ts`, `us8-toolbars.spec.ts`, `us4-table-blocks.spec.ts` | implemented | structure-preserving clipboard (scenario 6); also the Source editor and the Description fields, as the original's (feature 002); blocks of cells and tables pasted by position (feature 006 US4) |
+| `ID_EDIT_COPY` | Copy | `edit.copy` | `Control+c`, `menu-edit-copy` | `us2-body-editing.spec.ts`, `us8-toolbars.spec.ts`, `us4-table-blocks.spec.ts` | implemented | Body, Source editor and Description fields; blocks of cells and tables pasted by position (feature 006 US4) |
+| `ID_EDIT_PASTE` | Paste | `edit.paste` | `menu-edit-paste` | `us2-body-editing.spec.ts`, `us7-images.spec.ts`, `us8-toolbars.spec.ts`, `us4-table-blocks.spec.ts` | implemented | pasted images go through `POST /binary` (us7 scenario 2); Body, Source editor and Description fields; the shell grants the clipboard to the editor's page (`app/src/permission_policy.cpp`); feature 006 US3: an image pasted into a table cell becomes an inline image there (FR-025); blocks of cells and tables pasted by position (feature 006 US4) |
 | `ID_EDIT_FIND` | Find... | `edit.find` (`features/search/search.ts`, `dialogs/FindDialog.tsx`) | `dialog-find`, `Control+f` | `us2-body-editing.spec.ts`, `us8-language.spec.ts` | implemented | see `IDD_FIND` |
 | `ID_EDIT_FINDNEXT` | Find Next | `edit.findNext` | `F3`, `dialog-find-button-findNext` | `us2-body-editing.spec.ts` | implemented | repeats the last search |
 | `ID_EDIT_REPLACE` | Replace... | `edit.replace` (`dialogs/ReplaceDialog.tsx`) | `dialog-replace`, `menu-edit-replace` | `us2-body-editing.spec.ts`, `us3-description.spec.ts` | implemented | see `IDD_REPLACE`; also works in Description text fields |
@@ -173,9 +173,9 @@ toolbar itself is checked for presence (`00-smoke.spec.ts`) and tooltips (`us8-l
 | `ID_EDIT_INS_INLINEIMAGE` | Insert inline image | `insert.inlineImage` | `toolbar-insert.inlineImage`, `menu-add-inlineImage` | `us7-images.spec.ts`, `us3-table-images.spec.ts` | implemented | (menu); also in table cells, `td` and `th`, by the menu, paste and drop (feature 006 US3, FR-024, FR-025) |
 | `ID_EDIT_FIND` | Find | `edit.find` | `toolbar-edit.find`, `Control+f` | `us2-body-editing.spec.ts` | implemented | (hotkey) |
 | `ID_EDIT_FINDNEXT` | Find next | `edit.findNext` | `toolbar-edit.findNext`, `F3` | `us2-body-editing.spec.ts` | implemented | (hotkey) |
-| `ID_EDIT_CUT` | Cut | `edit.cut` | `toolbar-edit.cut`, `menu-edit-cut` | `us2-body-editing.spec.ts` | implemented | (menu) |
-| `ID_EDIT_COPY` | Copy | `edit.copy` | `toolbar-edit.copy`, `Control+c` | `us2-body-editing.spec.ts` | implemented | (hotkey) |
-| `ID_EDIT_PASTE` | Paste | `edit.paste` | `toolbar-edit.paste`, `menu-edit-paste` | `us2-body-editing.spec.ts` | implemented | (menu) |
+| `ID_EDIT_CUT` | Cut | `edit.cut` | `toolbar-edit.cut`, `menu-edit-cut` | `us2-body-editing.spec.ts`, `us4-table-blocks.spec.ts` | implemented | (menu); blocks of cells and tables pasted by position (feature 006 US4) |
+| `ID_EDIT_COPY` | Copy | `edit.copy` | `toolbar-edit.copy`, `Control+c` | `us2-body-editing.spec.ts`, `us4-table-blocks.spec.ts` | implemented | (hotkey); blocks of cells and tables pasted by position (feature 006 US4) |
+| `ID_EDIT_PASTE` | Paste | `edit.paste` | `toolbar-edit.paste`, `menu-edit-paste` | `us2-body-editing.spec.ts`, `us4-table-blocks.spec.ts` | implemented | (menu); blocks of cells and tables pasted by position (feature 006 US4) |
 | `ID_EDIT_UNDO` | Undo | `edit.undo` | `toolbar-edit.undo` | `us2-body-editing.spec.ts`, `us12-scripts.spec.ts` | implemented | |
 | `ID_EDIT_REDO` | Redo | `edit.redo` | `toolbar-edit.redo` | `us2-body-editing.spec.ts` | implemented | |
 | `ID_EDIT_BOLD` | Strong (toggle) | `style.strong` | `toolbar-style.strong` | `us2-body-editing.spec.ts` | implemented | toolbar-only in the original too; hotkey Ctrl+B |
@@ -431,6 +431,7 @@ with the same checks.
 | `TABLE_MOVE_COLUMN_RIGHT*` | Move column right | `table.moveColumnRight` (`features/tables/commands.ts`, its plan in `editor/table/ops.ts`) | `menu-add-tableStructure-moveColumnRight`, `context-menu-tableStructure-moveColumnRight` | `us2-table-rows-columns.spec.ts`, `us2-table-fuzz.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US2 |
 | `TABLE_DUPLICATE_ROW*` | Duplicate row | `table.duplicateRow` (`features/tables/commands.ts`, its plan in `editor/table/ops.ts`) | `menu-add-tableStructure-duplicateRow`, `context-menu-tableStructure-duplicateRow` | `us2-table-rows-columns.spec.ts`, `us2-table-fuzz.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US2 |
 | `TABLE_DUPLICATE_COLUMN*` | Duplicate column | `table.duplicateColumn` (`features/tables/commands.ts`, its plan in `editor/table/ops.ts`) | `menu-add-tableStructure-duplicateColumn`, `context-menu-tableStructure-duplicateColumn` | `us2-table-rows-columns.spec.ts`, `us2-table-fuzz.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US2 |
+| `TABLE_CELL_BLOCK*` | Blocks of cells: selected by dragging, Shift+click or Shift+arrow keys, widened to whole merged cells and highlighted; cleared by Delete and Backspace, replaced by typing; copied, cut and pasted as a block by position (addition: the original had no block selection; feature 006 US4) | `editor/table/selection.ts` (`CellBlockSelection`), `editor/table/plugin.ts`, `editor/table/ops.ts` (`planClearBlock`, `pasteBlockPlan`), `editor/clipboard/route.ts` (`routePaste`), `edit.cut`, `edit.copy`, `edit.paste` | `menu-edit-cut`, `menu-edit-paste`, `status-message` | `us4-table-blocks.spec.ts` | implemented | addition: the original had no block selection; feature 006 US4 |
 
 Hotkey-only commands of the original (`Settings.cpp`, no menu or toolbar entry) are listed by
 the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the original table:
@@ -449,9 +450,9 @@ the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the orig
 
 Counts are recomputed by `node tools/parity-check.mjs` (printed as
 "rows - implemented N, implemented-differently N, dropped N"). At the time of writing:
-253 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
+254 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
 their controls) plus the original UI created in the sources and the additions of later
-features: 246 implemented, 3 implemented-differently, 4 dropped.
+features: 247 implemented, 3 implemented-differently, 4 dropped.
 
 Dropped items and their references:
 
