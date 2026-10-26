@@ -1,11 +1,12 @@
 /**
  * The table node views (feature 006): the cell view writes the effective spans, and only above
- * 1, and the cell language (T034; rule 9 of the grid, C20; FR-020).
+ * 1, and the cell language (T034; rule 9 of the grid, C20; FR-020); the table view shows a
+ * table selected as a whole with an outline (T037; data-model §1.4, §5.6).
  */
 
 import type { Node as PMNode } from 'prosemirror-model';
 
-import { CellView } from '@/editor/nodeviews/table';
+import { CellView, TableView } from '@/editor/nodeviews/table';
 import { fb2Schema } from '@/editor/schema';
 
 const N = fb2Schema.nodes;
@@ -47,5 +48,22 @@ describe('CellView', () => {
     expect(view.dom.getAttribute('lang')).toBe('');
     // A cell of another kind is not updated in place.
     expect(view.update(cell({ lang: 'de' }, 'th'))).toBe(false);
+  });
+});
+
+describe('TableView', () => {
+  it('TableView.selectNode and deselectNode toggle fb-selected', () => {
+    const table = N.table!.create({ nodeId: 't1' }, N.tr!.create(null, cell({})));
+    const view = new TableView(table);
+    expect(view.dom.classList.contains('fb-selected')).toBe(false);
+    view.selectNode();
+    expect(view.dom.classList.contains('fb-selected')).toBe(true);
+    expect(view.dom.classList.contains('fb-table')).toBe(true);
+    // The class change is the view's own, never a mutation to read back.
+    expect(
+      view.ignoreMutation({ type: 'attributes', target: view.dom } as unknown as MutationRecord),
+    ).toBe(true);
+    view.deselectNode();
+    expect(view.dom.classList.contains('fb-selected')).toBe(false);
   });
 });

@@ -358,6 +358,41 @@ a.fb-note {
   color: var(--mfbe-fb-td-fg);
 }
 
+/*
+ * A selected block of cells (feature 006, data-model §5.6, C51): the tint over the cell's own
+ * background, so header and data cells stay apart (Fast Mode included), and an accent line
+ * that carries the visibility. Text selected inside a cell takes a colour that keeps 4.5:1.
+ */
+.fb-editor .fb-table .mfbe-cell-selected {
+  background-image: linear-gradient(var(--mfbe-cell-selected-tint), var(--mfbe-cell-selected-tint));
+  box-shadow: inset 0 0 0 1px var(--mfbe-color-accent);
+}
+
+.fb-editor .fb-table :is(td, th)::selection,
+.fb-editor .fb-table :is(td, th) *::selection {
+  background: var(--mfbe-cell-text-selection);
+}
+
+/*
+ * For a selection that is not visible (a block) ProseMirror still puts the DOM selection from
+ * anchor to head and only adds this class: hidden inside tables, caret included, so the cell
+ * colour does not paint cells outside the block. Scoped to tables: a selected image keeps its
+ * tint.
+ */
+.fb-editor.ProseMirror-hideselection .fb-table ::selection {
+  background: transparent;
+}
+
+.fb-editor.ProseMirror-hideselection .fb-table {
+  caret-color: transparent;
+}
+
+/* A table selected as a whole (Select table): the outline the hidden selection no longer gives. */
+.fb-editor table.fb-table.fb-selected {
+  outline: 2px solid var(--mfbe-color-accent);
+  outline-offset: 1px;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Images                                                                 */
 /* ---------------------------------------------------------------------- */

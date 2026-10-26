@@ -10,6 +10,9 @@
  *     `localStorage` for the first paint).
  *  4. Explicit Body colours (anything but black on white) override the theme palette; the
  *     defaults follow the theme again.
+ *  5. A block of table cells (feature 006, data-model §5.6, research R6.8): the tint shows on
+ *     exactly the block's cells, and selected text keeps 4.5:1 in data and header cells, under
+ *     the tint and under the in-cell text-selection colour, in the light and the dark theme.
  *  Screenshots of both themes go to `test-results/theme/` (not asserted).
  */
 
@@ -19,7 +22,15 @@ import { fileURLToPath } from 'node:url';
 
 import type { Page } from '@playwright/test';
 
-import { expect, fileNew, test, type CoreHandle, type RpcCallError } from './fixtures/core';
+import {
+  expect,
+  fileNew,
+  fixtureBook,
+  test,
+  waitForBook,
+  type CoreHandle,
+  type RpcCallError,
+} from './fixtures/core';
 
 const UI_DIR = fileURLToPath(new URL('../..', import.meta.url));
 const SHOTS = path.join(UI_DIR, 'test-results', 'theme');
@@ -127,6 +138,91 @@ async function screenshot(page: Page, name: string): Promise<void> {
 }
 
 const SHELL = ['body', '[data-testid="menubar"]', '[data-testid="statusbar"]', '.mfbe-tree-panel'];
+
+/* A block of cells (test 5) ---------------------------------------------- */
+
+type Rgba = [number, number, number, number];
+
+/**
+ * `rgb()`, `rgba()` or a hex colour (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` - the production
+ * build's minifier writes an `rgba()` token as `#rrggbbaa`) as channels with alpha; null for
+ * anything else.
+ */
+function parseColor(css: string): Rgba | null {
+  const rgb = /rgba?\(\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\s*\)/.exec(css);
+  if (rgb) {
+    const alpha = rgb[4] === undefined ? 1 : Number(rgb[4]);
+    return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3]), alpha];
+  }
+  const hex = /#([0-9a-f]{3,8})\b/i.exec(css)?.[1];
+  if (!hex || hex.length === 5 || hex.length === 7) return null;
+  const digits = hex.length <= 4 ? [...hex].map((d) => d + d) : hex.match(/../g)!;
+  const [r, g, b, a] = digits.map((pair) => Number.parseInt(pair, 16));
+  return [r!, g!, b!, a === undefined ? 1 : a / 255];
+}
+
+/** `top` painted over the opaque `base`. */
+function over(top: Rgba, base: Rgba): Rgba {
+  const a = top[3];
+  return [0, 1, 2].map((i) => top[i]! * a + base[i]! * (1 - a)).concat(1) as Rgba;
+}
+
+/** The WCAG contrast ratio of two opaque colours, with the luminance helper above. */
+function contrast(a: Rgba, b: Rgba): number {
+  const lum = (c: Rgba) =>
+    luminance(`rgb(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])})`)!;
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** The node ids of the vectors' header-row table, row by row ([a b c] of th over two td rows). */
+const HEADER_TABLE_CELLS = `(() => {
+  const doc = window.__mfbeTest.scripts.document();
+  const textOf = (n) => (n.type === 'text' ? n.text : (n.content ?? []).map(textOf).join(''));
+  let found = null;
+  const visit = (node) => {
+    if (found || !node || typeof node !== 'object') return;
+    if (node.type === 'table') {
+      const rows = (node.content ?? []).filter((row) => row.type === 'tr');
+      const first = rows.length > 0 ? rows[0].content ?? [] : [];
+      if (rows.length === 3 && first.length === 3 && first.every((cell) => cell.type === 'th') &&
+          first.map(textOf).join('') === 'abc') {
+        found = rows.flatMap((row) => row.content.map((cell) => cell.attrs.nodeId));
+      }
+      return;
+    }
+    for (const child of node.content ?? []) visit(child);
+  };
+  for (const body of doc.bodies) visit(body);
+  return found;
+})()`;
+
+interface CellProbe {
+  id: string | null;
+  tag: string;
+  selected: boolean;
+  background: string;
+  image: string;
+  color: string;
+}
+
+/** Every cell of the Body editor: its block class and its computed colours. */
+const CELL_PROBE = `(() => [...document.querySelectorAll(
+  '[data-testid="body-editor"] .fb-table td, [data-testid="body-editor"] .fb-table th')]
+  .map((cell) => {
+    const style = getComputedStyle(cell);
+    return {
+      id: cell.getAttribute('data-node-id'),
+      tag: cell.tagName.toLowerCase(),
+      selected: cell.classList.contains('mfbe-cell-selected'),
+      background: style.backgroundColor,
+      image: style.backgroundImage,
+      color: style.color,
+    };
+  }))()`;
+
+const CELL_TEXT_SELECTION = `getComputedStyle(document.documentElement)
+  .getPropertyValue('--mfbe-cell-text-selection').trim()`;
 
 /* ------------------------------------------------------------------------ */
 /* Journeys                                                                 */
@@ -349,5 +445,77 @@ test.describe('interface theme', () => {
       )
       .toBeLessThan(0.3);
     expectDark((await colorsOf(page, ['.mfbe-body-view']))['.mfbe-body-view'], 'Body view');
+  });
+
+  test('5. a block of cells keeps selected text at 4.5:1 in data and header cells, light and dark', async ({
+    core,
+    page,
+  }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+    test.skip(!(await supportsSettings(core)), 'the core does not implement settings.* yet');
+    await resetView(core);
+    await page.emulateMedia({ colorScheme: 'light' });
+    await core.openApp(page);
+    await expect(page.getByTestId('status-message')).toHaveText('Ready');
+    const book = fixtureBook('tables.fb2');
+    await core.enqueueDialog('dialog.openFile', { paths: [book] });
+    await page.getByTestId('menu-file').click();
+    await page.getByTestId('menu-file-open').click();
+    await waitForBook(page, book);
+    await expect(page.getByTestId('body-editor')).toBeVisible();
+
+    // The block from header cell a to data cell e: two th over two td. Two points in cells of
+    // one table, made a block by the table plugin's normalisation (U10) in a real page.
+    const ids = await page.evaluate<string[] | null>(HEADER_TABLE_CELLS);
+    expect(ids, 'the header-row table of tables.fb2').not.toBeNull();
+    const [a, , , , e] = ids!;
+    const placed = await page.evaluate<boolean>(
+      `window.__mfbeTest.scripts.selectRange(${JSON.stringify({ nodeId: a, offset: 0 })}, ${JSON.stringify({ nodeId: e, offset: 1 })})`,
+    );
+    expect(placed).toBe(true);
+    const block = [ids![0], ids![1], ids![3], ids![4]];
+    await expect
+      .poll(async () =>
+        (await page.evaluate<CellProbe[]>(CELL_PROBE)).filter((c) => c.selected).map((c) => c.id),
+      )
+      .toEqual(block);
+
+    for (const theme of ['light', 'dark'] as const) {
+      if (theme === 'dark') {
+        await core.rpc('settings.set', { patch: { view: { theme: 'dark' } } });
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+      } else {
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+      }
+      const cells = await page.evaluate<CellProbe[]>(CELL_PROBE);
+      // Exactly the block's cells carry the class and the tint; no other cell is tinted.
+      expect(cells.filter((c) => c.selected).map((c) => c.id)).toEqual(block);
+      for (const cell of cells.filter((c) => !c.selected)) {
+        expect(cell.image, `${theme}: cell ${cell.id} outside the block`).toBe('none');
+      }
+      const textSelection = parseColor(await page.evaluate<string>(CELL_TEXT_SELECTION));
+      expect(textSelection, `${theme}: --mfbe-cell-text-selection`).not.toBeNull();
+      const kinds = new Set<string>();
+      for (const cell of cells.filter((c) => c.selected)) {
+        kinds.add(cell.tag);
+        const base = parseColor(cell.background);
+        const tint = parseColor(cell.image);
+        const text = parseColor(cell.color);
+        expect(base && base[3], `${theme}: ${cell.tag} background ${cell.background}`).toBe(1);
+        expect(tint, `${theme}: ${cell.tag} tint ${cell.image}`).not.toBeNull();
+        expect(tint![3], `${theme}: the tint is translucent`).toBeLessThan(1);
+        const underTint = contrast(text!, over(tint!, base!));
+        const underSelection = contrast(text!, over(textSelection!, base!));
+        expect(underTint, `${theme}: ${cell.tag} text under the block tint`).toBeGreaterThanOrEqual(
+          4.5,
+        );
+        expect(
+          underSelection,
+          `${theme}: ${cell.tag} text under the in-cell selection colour`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+      expect([...kinds].sort()).toEqual(['td', 'th']);
+      await screenshot(page, `${theme}-cell-block`);
+    }
   });
 });

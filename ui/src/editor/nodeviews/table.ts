@@ -39,6 +39,19 @@ export class TableView implements NodeView {
     return true;
   }
 
+  /**
+   * A table selected as a whole (*Select table*) keeps a visible outline, as a selected image
+   * does: the hidden native selection inside tables no longer shows it (feature 006,
+   * data-model §1.4, §5.6).
+   */
+  selectNode(): void {
+    this.dom.classList.add('fb-selected');
+  }
+
+  deselectNode(): void {
+    this.dom.classList.remove('fb-selected');
+  }
+
   ignoreMutation(mutation: ViewMutationRecord): boolean {
     // Attribute changes on the wrapper never come from the user.
     return mutation.type === 'attributes' && mutation.target === this.dom;
