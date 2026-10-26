@@ -21,7 +21,10 @@
 //   original filled in on load (feature 002 FR-005); its JSON lists them in `filledIn`.
 //   doc.formatDate({value}) -> {text}   the regional long date of a YYYY-MM-DD value (feature
 //       003 FR-050, the Today button); invalidParams unless a calendar date
-//   doc.validate({docId, document?, text?}) -> ValidationReport | {jobId}
+//   doc.validate({docId, document?, text?}) -> ValidationReport | {jobId}   (feature 006: the
+//       warning table.irregular per irregular table - in the document form at the line of its
+//       `<table` in the writer's text, in the text form at its line and UTF-16 column in the
+//       given text; doc.save {text} validates the XML only and gives none)
 //   doc.recent() -> RecentFile[] (+ exists; no caret since feature 004), doc.clearRecent() -> {}
 //       (recent.json only - the positions record is independent of the menu list, D4)
 //   doc.position({docId, position?}) -> {position?}   (feature 004 US8, FR-100/FR-101): the
@@ -759,17 +762,23 @@ model::ValidationReport validate_text_with_model(const std::string& text,
     model::ValidationReport report = validation::validate_xml_text(text);
     if (report.errorCount == 0 || report.issues.empty() ||
         report.issues[0].code != "xml.notWellFormed") {
-        // Well-formed: add the model-level consistency checks on a scratch parse.
+        // Well-formed: add the model-level consistency checks on a scratch parse, which records
+        // the tags' positions for the line and UTF-16 column of table.irregular (feature 006,
+        // rpc-api.md §3.2; its path is the document form's, its nodeId the scratch read's).
         BinaryStore scratch(BinaryStore::kNoSpill);
         model::NodeIdAllocator ids;
         fb2::ReadOptions options;
         options.force_encoding = "utf-8";
         options.compute_schema_hint = false;
         options.placeholder_source = store.get();
+        options.record_positions = true;
         try {
             const fb2::ReadResult read = fb2::read_bytes(text, scratch, ids, options);
             (void)xlink_prefix;
             auto extra = validation::consistency_issues(read.document, &scratch);
+            if (read.positions) {
+                validation::attach_table_positions(extra, *read.positions, text);
+            }
             report.issues.insert(report.issues.end(), extra.begin(), extra.end());
             for (const auto& w : read.warnings) {
                 report.issues.push_back(w);

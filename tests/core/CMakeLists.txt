@@ -54,3 +54,13 @@ add_test(NAME cli_version_label
           -DMFBE_BUILD_ID=${MFBE_BUILD_ID}
           -P ${CMAKE_SOURCE_DIR}/tests/cmake/cli_version_label.cmake)
 set_tests_properties(cli_version_label PROPERTIES LABELS version)
+
+# validate and roundtrip list each irregular table of the fixture books as the warning
+# table.irregular with the shared vectors' params, and the warning changes no exit code (feature
+# 006, contracts/cli.md "Tests to write"): registered by name as corpus_roundtrip is, but without
+# the corpus label, so CI's `ctest -LE corpus` runs it on the three core legs.
+add_test(NAME cli_validate_tables
+  COMMAND ${CMAKE_COMMAND} -DMFBE_CORE_BIN=$<TARGET_FILE:mfbe-core>
+          -DMFBE_FIXTURES_DIR=${CMAKE_SOURCE_DIR}/tests/fixtures
+          -DMFBE_WORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli_validate_tables
+          -P ${CMAKE_SOURCE_DIR}/tests/cmake/cli_validate_tables.cmake)
