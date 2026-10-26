@@ -4,11 +4,20 @@
  * JSON-RPC); a missing binary, an external `href` or the clear-image placeholder (`#undefined`)
  * shows a dashed placeholder with the reference. The node is an atom: clicking selects it
  * (selection outline), the title/alt/href appear as tooltip, the caption shows the title.
+ *
+ * The reserved box (feature 006, US3; research R9.2; data-model §9.8): with the document's
+ * binary list (`getBinary`), a picture's `img` carries its natural size as `--mfbe-nw` and
+ * `--mfbe-nh` - the size the preview will have (`previewSize`) until it has loaded, the loaded
+ * picture's afterwards - and the class `fb-sized` until it has loaded, so the display rules of
+ * pictures in table cells (`styles.css`) reserve its box and apply the floor of FR-031. Every
+ * picture is still requested as before; an undecodable binary, an id the list lacks or a view
+ * without a list reserves nothing.
  */
 
 import type { Node as PMNode } from 'prosemirror-model';
 import type { NodeView, NodeViewConstructor } from 'prosemirror-view';
 
+import type { BinaryMeta } from '@/model/document';
 import { resolveToken } from '@/rpc/client';
 
 export interface ImageViewOptions {
@@ -18,6 +27,45 @@ export interface ImageViewOptions {
   previewWidth?: number;
   /** Text shown for images whose binary cannot be loaded (localised by the caller). */
   getMissingText: () => string;
+  /** The document's binary for an id (Document.binaries), or null when there is none. */
+  getBinary?: (id: string) => BinaryMeta | null;
+}
+
+/** The width the node views request a preview at when the host passes none. */
+const DEFAULT_PREVIEW_WIDTH = 800;
+
+/**
+ * The size `preview?w=` serves (contracts/rpc-api.md §2 "The preview's size"): the binary's own
+ * size up to `width`; a wider picture `width` wide, its height scaled, rounded half away from
+ * zero and at least 1 px, as the core's `scale_to_fit` does (`core/src/images/converter.cpp`).
+ * Null for a binary the core does not decode and for one without both dimensions.
+ */
+export function previewSize(
+  meta: BinaryMeta,
+  width = DEFAULT_PREVIEW_WIDTH,
+): [number, number] | null {
+  if (!meta.decodable || !meta.width || !meta.height) return null;
+  if (meta.width <= width) return [meta.width, meta.height];
+  return [width, Math.max(1, Math.round(meta.height * (width / meta.width)))];
+}
+
+/**
+ * Binaries by id over a list that the store replaces on every change: the map is rebuilt only
+ * when `list()` returns another array (the node views render on every update of their node).
+ */
+export function binaryLookup(
+  list: () => readonly BinaryMeta[] | undefined,
+): (id: string) => BinaryMeta | null {
+  let source: readonly BinaryMeta[] | undefined;
+  let byId = new Map<string, BinaryMeta>();
+  return (id) => {
+    const current = list();
+    if (current !== source) {
+      source = current;
+      byId = new Map((current ?? []).map((meta) => [meta.id, meta]));
+    }
+    return byId.get(id) ?? null;
+  };
 }
 
 /** `#id` -> preview URL on the core; null for external, empty or placeholder references. */
@@ -47,7 +95,15 @@ export class ImageView implements NodeView {
     this.img = document.createElement('img');
     this.img.draggable = false;
     this.img.addEventListener('error', () => this.dom.classList.add('fb-image-missing'));
-    this.img.addEventListener('load', () => this.dom.classList.remove('fb-image-missing'));
+    this.img.addEventListener('load', () => {
+      this.dom.classList.remove('fb-image-missing');
+      // The loaded picture lays itself out: its own natural size from now on (an SVG without a
+      // listed size gets the floor, an EXIF-rotated JPEG its real proportions).
+      this.img.classList.remove('fb-sized');
+      if (this.img.naturalWidth > 0 && this.img.naturalHeight > 0) {
+        this.setNaturalSize(this.img.naturalWidth, this.img.naturalHeight);
+      }
+    });
     this.dom.appendChild(this.img);
     this.missing = document.createElement('span');
     this.missing.className = 'fb-image-placeholder';
@@ -74,6 +130,7 @@ export class ImageView implements NodeView {
     this.img.alt = alt;
     this.missing.textContent = `${this.options.getMissingText()} ${href}`.trim();
     const url = binaryPreviewUrl(this.options.getDocId(), href, this.options.previewWidth);
+    this.reserveBox(url, href);
     if (url) {
       if (this.img.getAttribute('src') !== url) this.img.setAttribute('src', url);
       this.dom.classList.remove('fb-image-external');
@@ -86,6 +143,35 @@ export class ImageView implements NodeView {
       this.caption.textContent = title;
       this.caption.hidden = !title;
     }
+  }
+
+  /**
+   * The reserved box, decided before the `src` changes: `fb-sized` while a listed binary's
+   * preview has not loaded, and `--mfbe-nw` / `--mfbe-nh` from the loaded picture, else from the
+   * size the preview will have, else none.
+   */
+  private reserveBox(url: string | null, href: string): void {
+    const meta = url && this.options.getBinary ? this.options.getBinary(href.slice(1)) : null;
+    const size = meta
+      ? previewSize(meta, this.options.previewWidth ?? DEFAULT_PREVIEW_WIDTH)
+      : null;
+    const loaded =
+      !!url &&
+      this.img.getAttribute('src') === url &&
+      this.img.complete &&
+      this.img.naturalWidth > 0;
+    this.img.classList.toggle('fb-sized', !!size && !loaded);
+    if (loaded) this.setNaturalSize(this.img.naturalWidth, this.img.naturalHeight);
+    else if (size) this.setNaturalSize(size[0], size[1]);
+    else {
+      this.img.style.removeProperty('--mfbe-nw');
+      this.img.style.removeProperty('--mfbe-nh');
+    }
+  }
+
+  private setNaturalSize(width: number, height: number): void {
+    this.img.style.setProperty('--mfbe-nw', String(width));
+    this.img.style.setProperty('--mfbe-nh', String(height));
   }
 
   update(node: PMNode): boolean {

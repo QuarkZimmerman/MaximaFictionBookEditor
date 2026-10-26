@@ -48,7 +48,8 @@ export default defineConfig<CoreOptions>({
       // settings journey (feature 005 US1) the limits notes and radio labels of each language,
       // the privacy journey (feature 005 US7) the offline failure text of each language (SC-010),
       // the table journey (feature 006 US1, C78) the Table properties dialog's labels and the
-      // unavailable titles of each language.
+      // unavailable titles of each language, the layout journey of pictures in cells (feature
+      // 006 US3, its test 8) the placeholders' text in each language.
       name: 'chromium-ru',
       testMatch: [
         'us1-open-save.spec.ts',
@@ -62,6 +63,7 @@ export default defineConfig<CoreOptions>({
         'us1-ai-settings.spec.ts',
         'us7-ai-privacy.spec.ts',
         'us1-table-create.spec.ts',
+        'us3-table-images-layout.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'ru-RU', uiLang: 'ru' },
     },
@@ -81,6 +83,7 @@ export default defineConfig<CoreOptions>({
         'us1-ai-settings.spec.ts',
         'us7-ai-privacy.spec.ts',
         'us1-table-create.spec.ts',
+        'us3-table-images-layout.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'], locale: 'uk-UA', uiLang: 'uk' },
     },

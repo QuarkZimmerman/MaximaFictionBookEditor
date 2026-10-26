@@ -13,6 +13,12 @@
  *    `editor/commands/insert.ts`;
  *  - Add > Binary Object... embeds one or more files without inserting a node (they appear in
  *    the Description's Binary Objects list).
+ *
+ * Feature 006 (US3, FR-024 to FR-026; I10; data-model §9.6, §9.7): the commands, paste and drop
+ * act on the active editing target (`activeTableTarget`, the Body adapter today; the
+ * description fields' adapters with US10), so a picture goes into a table cell as an inline
+ * image; a target with `imagesOnlyInCells` (the fields) takes inline images in cells only; and
+ * *Image* and *Section image* say why a cell refuses them ("a cell takes inline images only").
  */
 
 import type { Command as PMCommand } from 'prosemirror-state';
@@ -21,21 +27,32 @@ import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
 import { BINARY_SELECTED_TYPE, binaryFileTypes, imageFileTypes } from '@/dialogs/fileTypes';
 import {
   addSectionImage,
+  caretInCell,
   CLEAR_IMAGE_HREF,
   insertImage,
   insertInlineImage,
   type ImageAttrs,
 } from '@/editor/commands/insert';
-import { bodyController, bodyEditable, cmdKeys } from '@/features/editing/common';
+import { cmdKeys } from '@/features/editing/common';
+import { reasonText } from '@/features/tables/reasons';
+import { activeTableTarget, type TableEditTarget } from '@/features/tables/target';
 import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
-import type { BodyEditorController } from '@/views/body/bodyEditor';
 
 import { addBinariesFromFiles, addBinaryToModel, fileName } from './binaries';
 import { rememberCommandContext } from './context';
 
 export type ImageKind = 'block' | 'inline' | 'section';
+
+/**
+ * The editor a picture is inserted into: the part of a `TableEditTarget` the image flows use,
+ * which the Body adapter satisfies and the description fields' adapters will (US10).
+ */
+export type ImageTarget = Pick<
+  TableEditTarget,
+  'state' | 'view' | 'dom' | 'editable' | 'imagesOnlyInCells' | 'canRun' | 'run' | 'setSelection'
+>;
 
 const FACTORIES: Record<ImageKind, (attrs?: ImageAttrs) => PMCommand> = {
   block: insertImage,
@@ -117,28 +134,44 @@ export async function chooseImage(ctx: CommandContext): Promise<ImageAttrs | nul
 /* Node insertion                                                           */
 /* ------------------------------------------------------------------------ */
 
-/** Inserts an image node of `kind` at the caret; false when the schema forbids it there. */
-export function insertImageNode(
-  controller: BodyEditorController,
+/**
+ * The ProseMirror command inserting an image of `kind` on `target`, or null when the target
+ * cannot take that kind at all: a target with `imagesOnlyInCells` takes inline images in cells
+ * only (the description fields; spec Assumptions).
+ */
+export function imageCommandFor(
+  target: Pick<ImageTarget, 'state' | 'imagesOnlyInCells'>,
   kind: ImageKind,
-  attrs: ImageAttrs,
-): boolean {
-  const command = FACTORIES[kind](attrs);
-  if (!controller.canExecute(command)) return false;
-  return controller.execute(command);
+  attrs?: ImageAttrs,
+): PMCommand | null {
+  if (
+    target.imagesOnlyInCells &&
+    (kind !== 'inline' || !target.state || !caretInCell(target.state))
+  ) {
+    return null;
+  }
+  return FACTORIES[kind](attrs);
 }
 
 /**
- * Pasted / dropped image: inline at the caret when the paragraph takes inline images (the
- * original pasted bitmaps as inline images), otherwise a block image after the paragraph,
- * otherwise the header image of the section. Returns the kind used, or null.
+ * Inserts an image node of `kind` at the caret of `target`, as one undo step; false when the
+ * schema forbids it there.
  */
-export function insertImageAtCaret(
-  controller: BodyEditorController,
-  attrs: ImageAttrs,
-): ImageKind | null {
+export function insertImageNode(target: ImageTarget, kind: ImageKind, attrs: ImageAttrs): boolean {
+  const command = imageCommandFor(target, kind, attrs);
+  if (!command || !target.canRun(command)) return false;
+  return target.run(command);
+}
+
+/**
+ * Pasted / dropped image: inline at the caret when the text block takes inline images (the
+ * original pasted bitmaps as inline images; a table cell included), otherwise a block image
+ * after the paragraph, otherwise the header image of the section - inline only on a target with
+ * `imagesOnlyInCells`. Returns the kind used, or null.
+ */
+export function insertImageAtCaret(target: ImageTarget, attrs: ImageAttrs): ImageKind | null {
   for (const kind of ['inline', 'block', 'section'] as const) {
-    if (insertImageNode(controller, kind, attrs)) return kind;
+    if (insertImageNode(target, kind, attrs)) return kind;
   }
   return null;
 }
@@ -147,8 +180,19 @@ export function insertImageAtCaret(
 /* Commands                                                                 */
 /* ------------------------------------------------------------------------ */
 
+/** The editable active target whose caret allows an image of `kind`, or null. */
+function imageTargetOf(ctx: CommandContext, kind: ImageKind): ImageTarget | null {
+  const target = activeTableTarget(ctx.store);
+  if (!target?.editable) return null;
+  const command = imageCommandFor(target, kind);
+  return command && target.canRun(command) ? target : null;
+}
+
+/**
+ * Add > Image (`block`), Inline image (`inline`) and Section image (`section`) on the active
+ * editing target. The block forms tell why a cell refuses them (FR-026; `cellInlineOnly`).
+ */
 function imageCommand(id: string, labelKey: string, icon: string, kind: ImageKind): Command {
-  const factory = FACTORIES[kind];
   return {
     id,
     group: 'edit',
@@ -156,15 +200,26 @@ function imageCommand(id: string, labelKey: string, icon: string, kind: ImageKin
     icon,
     enabled: (ctx) => {
       rememberCommandContext(ctx);
-      return bodyEditable(ctx) && bodyController(ctx.store)!.canExecute(factory());
+      return imageTargetOf(ctx, kind) !== null;
     },
+    unavailableReason:
+      kind === 'inline'
+        ? undefined
+        : (ctx) => {
+            const target = activeTableTarget(ctx.store);
+            return target?.editable && target.state && caretInCell(target.state)
+              ? reasonText('cellInlineOnly', undefined, ctx.t)
+              : null;
+          },
     async run(ctx) {
       rememberCommandContext(ctx);
-      const controller = bodyController(ctx.store);
-      if (!controller || !controller.canExecute(factory())) return;
+      if (!imageTargetOf(ctx, kind)) return;
       const attrs = await chooseImage(ctx);
       if (!attrs) return;
-      controller.execute(factory(attrs));
+      // The prompt and the file dialog took their time: the target and its caret as they are now.
+      const target = imageTargetOf(ctx, kind);
+      const command = target && imageCommandFor(target, kind, attrs);
+      if (target && command) target.run(command);
     },
   };
 }

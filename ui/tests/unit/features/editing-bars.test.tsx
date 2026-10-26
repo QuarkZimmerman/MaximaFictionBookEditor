@@ -1,11 +1,15 @@
 /**
  * Links bar / Table bar (T062) and Body view chrome (T057/T067): the bars follow the Body
  * selection and write attributes back; the Body view is editable, shows the context menu with
- * Cut / Copy / Paste / Select entries and publishes the selected text.
+ * Cut / Copy / Paste / Select entries and publishes the selected text. Feature 006 (US3, T081,
+ * FR-029): the Links bar's Alt text edits a selected picture's `alt`, inline or block, in a
+ * cell or elsewhere.
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { undoDepth } from 'prosemirror-history';
+import { NodeSelection } from 'prosemirror-state';
 
 import { App } from '@/app/App';
 import { LinksBar } from '@/app/LinksBar';
@@ -56,6 +60,61 @@ function bookWithLink(): Document {
     ] as SectionNode['content'],
   };
   return { ...base, bodies: [{ type: 'body', attrs: { nodeId: 'b1' }, content: [section] }] };
+}
+
+/** A paragraph with an inline picture, a block picture and a table with a picture in a cell. */
+function bookWithPictures(): Document {
+  const base = fakeDocument();
+  const section = {
+    type: 'section',
+    attrs: { nodeId: 's1' },
+    content: [
+      {
+        type: 'p',
+        attrs: { nodeId: 'p1' },
+        content: [
+          { type: 'text', text: 'A picture ' },
+          { type: 'inline-image', attrs: { nodeId: 'inline1', href: '#pic.jpg' } },
+        ],
+      },
+      { type: 'image', attrs: { nodeId: 'block1', href: '#pic.jpg', alt: 'A block picture' } },
+      {
+        type: 'table',
+        attrs: { nodeId: 't1' },
+        content: [
+          {
+            type: 'tr',
+            attrs: { nodeId: 'r1' },
+            content: [
+              {
+                type: 'td',
+                attrs: { nodeId: 'c1' },
+                content: [
+                  { type: 'text', text: 'In a cell ' },
+                  {
+                    type: 'inline-image',
+                    attrs: { nodeId: 'cell1', href: '#pic.jpg', alt: 'A cell picture' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as SectionNode;
+  return { ...base, bodies: [{ type: 'body', attrs: { nodeId: 'b1' }, content: [section] }] };
+}
+
+/** The model's attributes of the node `nodeId` of the first section. */
+function modelAttrs(document: Document, nodeId: string): Record<string, unknown> | null {
+  let found: Record<string, unknown> | null = null;
+  const visit = (node: { attrs?: Record<string, unknown>; content?: unknown[] }) => {
+    if (node.attrs?.nodeId === nodeId) found = node.attrs;
+    for (const child of node.content ?? []) visit(child as typeof node);
+  };
+  visit(document.bodies[0]! as unknown as { content?: unknown[] });
+  return found;
 }
 
 async function renderShell(document: Document) {
@@ -182,6 +241,67 @@ describe('Links bar and Table bar (T062)', () => {
       };
       expect(table.content[0]!.content[0]!.attrs.colspan).toBeUndefined();
     });
+  });
+});
+
+describe('Links bar: Alt text (feature 006, US3, FR-029)', () => {
+  it('Alt text shows and edits the alt of a selected inline image in a cell, of an inline image in a paragraph and of a block image; an empty value removes it; it is disabled without a selected picture and outside the Body view; each commit is one undo step', async () => {
+    const { store } = await renderShell(bookWithPictures());
+    const controller = getBodyController(store);
+    const alt = () => screen.getByTestId('links-bar-alt') as HTMLInputElement;
+    const select = (nodeId: string) => {
+      const state = controller.editorState!;
+      let pos = -1;
+      state.doc.descendants((node, p) => {
+        if (pos < 0 && node.attrs.nodeId === nodeId) pos = p;
+        return pos < 0;
+      });
+      act(() => controller.apply(state.tr.setSelection(NodeSelection.create(state.doc, pos))));
+    };
+    const commit = (value: string) => {
+      fireEvent.focus(alt());
+      fireEvent.change(alt(), { target: { value } });
+      fireEvent.keyDown(alt(), { key: 'Enter' });
+    };
+
+    // Without a selected picture: disabled.
+    act(() => void controller.setCaret({ view: 'body', nodeId: 'p1', offset: 2 }));
+    await waitFor(() => expect(alt()).toBeDisabled());
+
+    for (const [nodeId, shown] of [
+      ['cell1', 'A cell picture'],
+      ['inline1', ''],
+      ['block1', 'A block picture'],
+    ] as const) {
+      select(nodeId);
+      await waitFor(() => expect(alt()).toBeEnabled());
+      expect(alt()).toHaveValue(shown);
+      const depth = undoDepth(controller.editorState!);
+      commit('New text');
+      await waitFor(() =>
+        expect(modelAttrs(store.getState().document!, nodeId)?.alt).toBe('New text'),
+      );
+      expect(undoDepth(controller.editorState!)).toBe(depth + 1);
+      // An empty value removes it, again one undo step.
+      select(nodeId);
+      await waitFor(() => expect(alt()).toHaveValue('New text'));
+      commit('');
+      await waitFor(() =>
+        expect(modelAttrs(store.getState().document!, nodeId)?.alt).toBeUndefined(),
+      );
+      expect(undoDepth(controller.editorState!)).toBe(depth + 2);
+      // Undo brings the previous value back.
+      act(() => void controller.undoStep());
+      await waitFor(() =>
+        expect(modelAttrs(store.getState().document!, nodeId)?.alt).toBe('New text'),
+      );
+    }
+
+    // Outside the Body view the bar is not active.
+    select('cell1');
+    await waitFor(() => expect(alt()).toBeEnabled());
+    act(() => actions.setActiveView(store, 'description'));
+    await waitFor(() => expect(alt()).toBeDisabled());
   });
 });
 

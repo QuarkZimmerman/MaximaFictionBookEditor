@@ -32,6 +32,7 @@ import { getSourceEditor } from '@/views/source/sourceEditor';
 
 import { bodyActive, bodyController, bodyEditable, cmdKeys } from './editing/common';
 import { pasteImageFile, reportImageFailure } from './images/paste';
+import { activeTableTarget } from './tables/target';
 
 export {
   flattenToParagraphs,
@@ -239,8 +240,12 @@ export function registerClipboardCommands(registry: CommandRegistry): void {
         const controller = bodyController(ctx.store)!;
         return pasteIntoEditor(controller, {
           onImage: async (image) => {
+            // The image goes to the active editing target: a table cell takes it as an inline
+            // image (feature 006, FR-025).
+            const target = activeTableTarget(ctx.store);
+            if (!target?.editable) return false;
             try {
-              await pasteImageFile(ctx.store, controller, image);
+              await pasteImageFile(ctx.store, target, image);
               return true;
             } catch (error) {
               reportImageFailure(ctx.store, error);

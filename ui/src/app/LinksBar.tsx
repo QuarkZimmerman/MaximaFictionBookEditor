@@ -1,12 +1,15 @@
 /**
- * Links bar (T062, FR-023): ID / Href / Section ID / Image title of the current element, bound
- * two-way to the Body selection as in the original editor's links toolbar:
+ * Links bar (T062, FR-023): ID / Href / Section ID / Image title / Alt text of the current
+ * element, bound two-way to the Body selection as in the original editor's links toolbar:
  *  - ID edits the innermost element that can carry an `id` (paragraph, section, poem, cite...);
  *  - Href edits the link at the caret or the selected image's reference (a target without `#`
  *    or a scheme gets `http://`);
- *  - Section ID edits the enclosing section; Image title the selected block image.
- * Fields are disabled when the selection offers no such element and while a script runs.
- * Changes apply on Enter / blur.
+ *  - Section ID edits the enclosing section; Image title the selected block image;
+ *  - Alt text edits the `alt` of the selected picture, inline or block, in a table cell or
+ *    anywhere else; an empty value removes it (feature 006, FR-029; an addition beyond the
+ *    original's bar).
+ * Fields are disabled when the selection offers no such element and while a script runs; the
+ * bar works in the Body view only. Changes apply on Enter / blur, each one undo step.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -61,6 +64,10 @@ export function BarTextField({
   }, [focusKey]);
 
   const commit = () => {
+    // Enter commits and then blurs the field, Escape restores it and blurs it: the blur that
+    // follows must not commit (again) - a second commit of a picture's Href was a second undo
+    // step (feature 006, FR-029: each change is one undo step).
+    if (!editing.current) return;
     editing.current = false;
     if (draft !== value) onCommit(draft);
   };
@@ -156,6 +163,14 @@ export function LinksBar() {
         disabled={!bodyActive || !context?.image || context.image.node.type.name !== 'image'}
         width={200}
         onCommit={(value) => setAttr(context?.image?.pos, 'title', value)}
+      />
+      <BarTextField
+        id="links-bar-alt"
+        label={t('linksBar.alt')}
+        value={attr(context?.image?.node, 'alt')}
+        disabled={!bodyActive || !context?.image}
+        width={200}
+        onCommit={(value) => setAttr(context?.image?.pos, 'alt', value)}
       />
     </div>
   );

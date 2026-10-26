@@ -102,6 +102,16 @@
 #                               accepts it and the file must exist under exactly that name in
 #                               the remembered folder; a second Save As with Ctrl+A, "Новая
 #                               книга.fb2" typed with xdotool and Return must write that file
+#   MFBE_SMOKE_TABLE_LAYOUT     1 = pictures in table cells in the real CEF shell (feature 006,
+#                               research R9.5; real UI with MFBE_SMOKE_OPEN_FILE =
+#                               tests/fixtures/books/tables-images.fb2): the shell is started once
+#                               per window width, 1280 and then 640 px (--window-geometry
+#                               0,0,<w>,800 on the 1280 x 800 screen), and shell-smoke.mjs runs the
+#                               layout gates of ui/tests/e2e/fixtures/tableLayout.ts on every table
+#                               of the book and its control, Fast Mode off and on - CI's only CEF
+#                               evidence for this layout; the screenshots are
+#                               <MFBE_SMOKE_SCREENSHOT>-<w>.png. Exclusive with the restart, close,
+#                               Save As and self-test scenarios
 #   (every run)                 The browser engine's own spell checking is off (feature 004 US9,
 #                               FR-081): the shell sets browser.enable_spellchecking=false at
 #                               every start and a test-hook build prints "shelltest: spellcheck
@@ -377,6 +387,21 @@ if [[ "$SAVE_AS" == "1" ]]; then
     fi
   done
 fi
+TABLE_LAYOUT="${MFBE_SMOKE_TABLE_LAYOUT:-0}"
+if [[ "$TABLE_LAYOUT" == "1" ]]; then
+  if [[ "${MFBE_SMOKE_REAL_UI:-0}" != "1" || -z "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_TABLE_LAYOUT needs MFBE_SMOKE_REAL_UI=1 and MFBE_SMOKE_OPEN_FILE (tables-images.fb2)" >&2
+    exit 1
+  fi
+  if [[ "$RESTART" == "1" || "$CLOSE" == "1" || "$SAVE_AS" == "1" || -n "$SELFTEST" ||
+        "${MFBE_SMOKE_CLIPBOARD:-0}" == "1" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_TABLE_LAYOUT is exclusive with the restart, close, Save As and self-test scenarios" >&2
+    exit 1
+  fi
+elif [[ "$TABLE_LAYOUT" != "0" ]]; then
+  echo "shell-smoke: MFBE_SMOKE_TABLE_LAYOUT must be 1 (the widths are the script's own)" >&2
+  exit 1
+fi
 # Clipboard check: a GTK clipboard owner must live on the same virtual display as the shell,
 # so both are started by one wrapper script under xvfb-run.
 LAUNCHER="$MFBE_APP_BIN"
@@ -581,6 +606,21 @@ if [[ "$RESTART" == "1" ]]; then
   elif grep -q "mfbe: Chromium sandbox unavailable" "$TMP/mfbe.log"; then
     echo "shell-smoke: sandbox: off - $(grep -o "Chromium sandbox unavailable ([^;]*;[^;]*;[^)]*)" "$TMP/mfbe.log" | head -n1)"
   fi
+  exit 0
+fi
+
+if [[ "$TABLE_LAYOUT" == "1" ]]; then
+  # --- pictures in table cells in CEF (feature 006, research R9.5) ------------------------------
+  # Once per window width, as the restart scenario starts once per variant; the shell clamps the
+  # placement to its work area (the 1280 x 800 screen) and keeps its 640 px minimum.
+  for width in 1280 640; do
+    echo "shell-smoke: table layout at $width px (--window-geometry 0,0,$width,800)"
+    start_shell --window-geometry "0,0,$width,800"
+    MFBE_SMOKE_TABLE_LAYOUT="$width" MFBE_SMOKE_SCREENSHOT="${MFBE_SMOKE_SCREENSHOT%.png}-$width.png" \
+      node "$ROOT/tools/shell-smoke.mjs" "$CDP_PORT"
+    check_spellcheck_engine
+    stop_shell
+  done
   exit 0
 fi
 

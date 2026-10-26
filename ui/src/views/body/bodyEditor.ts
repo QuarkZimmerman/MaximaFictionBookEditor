@@ -40,7 +40,7 @@ import { EditorView } from 'prosemirror-view';
 import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { baseEditorKeymap, bodyKeymap } from '@/editor/keymap';
-import { createImageNodeViews } from '@/editor/nodeviews/image';
+import { binaryLookup, createImageNodeViews } from '@/editor/nodeviews/image';
 import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
 import { blockBoundaryPlugin, markControllerTransaction } from '@/editor/plugins/blockBoundary';
@@ -541,6 +541,8 @@ export class BodyEditorController {
         ...createImageNodeViews({
           getDocId: () => this.store.getState().docId,
           getMissingText: () => this.translate('views.body.imageMissing'),
+          // The pictures' boxes are reserved from the binary list (feature 006, R9.2).
+          getBinary: binaryLookup(() => this.store.getState().document?.binaries),
         }),
         ...createRawXmlNodeViews(() => this.translate('editing.unknownElement')),
         ...createTableNodeViews(),

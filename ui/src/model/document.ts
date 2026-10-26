@@ -340,8 +340,15 @@ export interface BinaryMeta {
   id: string;
   contentType: string; // as loaded
   size: number; // decoded bytes
+  /** The stored image's pixel size as the core probes it; absent when unknown. */
   width?: number;
+  /** The stored image's pixel size as the core probes it; absent when unknown. */
   height?: number;
+  /**
+   * Whether the core decodes the image; false after a failed conversion (contracts/document-
+   * model.md §6). The editor's preview of a decodable binary is `preview?w=800`'s size (feature
+   * 006, the reserved box of pictures in cells).
+   */
   decodable: boolean;
   willConvert: boolean; // true => re-encoded to JPEG/PNG on save
   referenceCount: number;

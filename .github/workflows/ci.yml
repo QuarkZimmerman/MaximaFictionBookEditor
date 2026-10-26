@@ -291,6 +291,9 @@ jobs:
         env:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
+          # Test 7 of the layout journey of pictures in table cells attaches its four contact
+          # sheets to the report (feature 006, research R9.6; evidence, never compared).
+          MFBE_E2E_TABLE_SHOTS: "1"
       - name: Platform journeys (feature 004, SC-006 / SC-009; Windows and macOS)
         # Only the journeys tagged `@platform`; `--pass-with-no-tests` keeps the leg green on
         # a branch that has not written one yet. The hooks core of this system comes from the
@@ -569,6 +572,19 @@ jobs:
           MFBE_SMOKE_REAL_UI: "1"
           MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
           MFBE_SMOKE_ABOUT: "1"
+
+      - name: "Shell smoke: pictures in table cells in CEF (feature 006, R9.5)"
+        # The layout gates of the pictures in table cells in the real CEF shell, at 1280 and
+        # 640 px, Fast Mode off and on - CI's only CEF evidence for this layout, since the shell
+        # smoke runs on Linux only. Reuses the step above's ui/node_modules.
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/tables-images.fb2
+          MFBE_SMOKE_TABLE_LAYOUT: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-table-layout.png
 
       - name: Shell smoke in a Russian environment (feature 002)
         # ru_RU.UTF-8, the shell's home and temporary folders under a Cyrillic name (the smoke

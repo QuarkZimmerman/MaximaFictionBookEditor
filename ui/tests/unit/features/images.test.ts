@@ -3,11 +3,13 @@
  * with Don't ask again, file dialog + binary.add, Add Binary Object...), clipboard image paste
  * and drag-and-drop upload bytes with `POST /binary/{docId}` (never JSON) and insert an image
  * node at the caret, "Save image as..." exports through dialog.saveFile + binary.export, and
- * the binary bookkeeping helpers (reference counts, dangling refs, model updates).
+ * the binary bookkeeping helpers (reference counts, dangling refs, model updates). Feature 006
+ * (US3, T081): the same flows put inline images into table cells through the active editing
+ * target, and the block forms say why a cell refuses them (FR-024 to FR-026; I10).
  */
 
 import { Fragment, Slice } from 'prosemirror-model';
-import { TextSelection } from 'prosemirror-state';
+import { TextSelection, type EditorState } from 'prosemirror-state';
 
 import { createAppServices } from '@/app/services';
 import { fb2Schema } from '@/editor/schema';
@@ -22,9 +24,11 @@ import {
   uploadBinary,
 } from '@/features/images/binaries';
 import { handleImageDrop, installImageDragDrop } from '@/features/images/dragdrop';
+import { insertImageAtCaret, type ImageTarget } from '@/features/images/insert';
 import {
   handleImagePaste,
   imageFileFromDataTransfer,
+  imageTargetFor,
   pasteImageFile,
 } from '@/features/images/paste';
 import {
@@ -33,13 +37,28 @@ import {
   handleContextMenuTarget,
   suggestedFileName,
 } from '@/features/images/saveAs';
+import { activeTableTarget } from '@/features/tables/target';
 import { initI18n } from '@/i18n';
-import type { BinaryMeta, Document, SectionNode } from '@/model/document';
+import type {
+  AnnotationNode,
+  BinaryMeta,
+  Document,
+  SectionNode,
+  TableNode,
+} from '@/model/document';
 import { actions, createAppStore } from '@/model/store';
 import { getBodyController } from '@/views/body/bodyEditor';
 import { contextMenuExtensions } from '@/views/body/contextMenuExtensions';
+import { createRichFieldState } from '@/views/description/richFieldState';
 
-import { fakeDocument, fakeRpc, makeContext, type FakeRpc, flowCalls } from './testUtils';
+import {
+  fakeDocument,
+  fakeRpc,
+  fakeRunLock,
+  makeContext,
+  type FakeRpc,
+  flowCalls,
+} from './testUtils';
 
 beforeAll(() => {
   Object.defineProperty(Range.prototype, 'getClientRects', {
@@ -77,7 +96,7 @@ const SETTINGS = {
   session: { findHistory: [], replaceHistory: [] } as never,
 };
 
-async function harness(responses: Record<string, unknown> = {}) {
+async function harness(responses: Record<string, unknown> = {}, book: Document = fakeDocument()) {
   await initI18n({ language: 'en' });
   const store = createAppStore();
   const rpc: FakeRpc = fakeRpc({
@@ -95,7 +114,7 @@ async function harness(responses: Record<string, unknown> = {}) {
   const services = createAppServices({ store, rpc: rpc.client, platform: 'linux' });
   const ctx = await makeContext({ store, rpc: rpc.client, undo: services.undo });
   store.setState({ settings: SETTINGS as never, connection: 'connected' });
-  actions.setDocument(store, fakeDocument());
+  actions.setDocument(store, book);
   const controller = getBodyController(store);
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -415,7 +434,7 @@ describe('paste and drag-and-drop (T093)', () => {
       );
       const kind = await pasteImageFile(
         store,
-        controller,
+        activeTableTarget(store)!,
         new Blob([new Uint8Array([1])], { type: 'image/png' }),
       );
       expect(kind === null || kind === 'section').toBe(true);
@@ -481,5 +500,278 @@ describe('Save image as... (T093)', () => {
     handleContextMenuTarget(store, null);
     expect(imageHrefForSaving(store, controller)).toBeNull();
     expect(services.commands.isEnabled('image.saveAs', ctx)).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Pictures in table cells (feature 006, US3)                               */
+/* ------------------------------------------------------------------------ */
+
+/** A 2 × 2 table with a header row after the first paragraph of the first section. */
+function tableBook(): Document {
+  const cell = (type: 'td' | 'th', nodeId: string, text: string) => ({
+    type,
+    attrs: { nodeId },
+    content: [{ type: 'text' as const, text }],
+  });
+  const table: TableNode = {
+    type: 'table',
+    attrs: { nodeId: 't1' },
+    content: [
+      {
+        type: 'tr',
+        attrs: { nodeId: 'r1' },
+        content: [cell('th', 'c1', 'Head A'), cell('th', 'c2', 'Head B')],
+      },
+      {
+        type: 'tr',
+        attrs: { nodeId: 'r2' },
+        content: [cell('td', 'c3', 'Cell one'), cell('td', 'c4', 'Cell two')],
+      },
+    ],
+  } as TableNode;
+  const book = fakeDocument();
+  (book.bodies[0]!.content[0] as SectionNode).content.push(table);
+  return book;
+}
+
+/** The model's table of `tableBook()`: its cells as `kind:text[#href...]` in reading order. */
+function cellsOf(store: ReturnType<typeof createAppStore>): string[] {
+  const table = section(store).content.find((c) => c.type === 'table') as TableNode;
+  return table.content.flatMap((row) =>
+    row.content.map(
+      (cell) =>
+        `${cell.type}:` +
+        (cell.content ?? [])
+          .map((c) =>
+            c.type === 'text' ? c.text : c.type === 'inline-image' ? `[${c.attrs.href}]` : '?',
+          )
+          .join(''),
+    ),
+  );
+}
+
+/** Puts the caret at the end of the text block whose text starts with `text`. */
+function caretAtEndOf(controller: ReturnType<typeof getBodyController>, text: string): void {
+  const view = controller.editorView!;
+  let pos = -1;
+  view.state.doc.descendants((node, p) => {
+    if (pos >= 0) return false;
+    if (node.isTextblock && node.textContent.startsWith(text)) {
+      pos = p + 1 + node.content.size;
+      return false;
+    }
+    return true;
+  });
+  if (pos < 0) throw new Error(`no text block "${text}"`);
+  controller.apply(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)));
+}
+
+/** A fetch that answers an upload with a binary named after its suggested id. */
+function namingFetch() {
+  const calls: string[] = [];
+  const fetchImpl = async (_url: string | URL | Request, init?: RequestInit) => {
+    const id = (init?.headers as Record<string, string>)['X-MFBE-Suggested-Id'] ?? 'x.png';
+    calls.push(id);
+    return new Response(JSON.stringify({ ...META, id }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+  return { calls, fetchImpl: fetchImpl as unknown as typeof fetch };
+}
+
+describe('pictures in table cells (feature 006, US3, T081)', () => {
+  it('insertImageAtCaret in a td or a th gives inline on the Body target', async () => {
+    const { store, controller } = await harness({}, tableBook());
+    const target = activeTableTarget(store)!;
+    caretAtEndOf(controller, 'Cell one');
+    expect(insertImageAtCaret(target, { href: '#tiny.png' })).toBe('inline');
+    caretAtEndOf(controller, 'Head B');
+    expect(insertImageAtCaret(target, { href: '#tiny.png' })).toBe('inline');
+    expect(cellsOf(store)).toEqual([
+      'th:Head A',
+      'th:Head B[#tiny.png]',
+      'td:Cell one[#tiny.png]',
+      'td:Cell two',
+    ]);
+  });
+
+  it('a target with imagesOnlyInCells inserts nothing in a paragraph and an inline image in a cell', () => {
+    const annotation = {
+      type: 'annotation',
+      attrs: { nodeId: 'a1' },
+      content: [
+        { type: 'p', attrs: { nodeId: 'a2' }, content: [{ type: 'text', text: 'A paragraph' }] },
+        {
+          type: 'table',
+          attrs: { nodeId: 'a3' },
+          content: [
+            {
+              type: 'tr',
+              attrs: { nodeId: 'a4' },
+              content: [
+                {
+                  type: 'td',
+                  attrs: { nodeId: 'a5' },
+                  content: [{ type: 'text', text: 'A cell' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as AnnotationNode;
+    let ids = 0;
+    let state: EditorState = createRichFieldState(annotation, () => `f${(ids += 1)}`);
+    const target: ImageTarget = {
+      get state() {
+        return state;
+      },
+      view: null,
+      dom: null,
+      editable: true,
+      imagesOnlyInCells: true,
+      canRun: (cmd) => cmd(state),
+      run: (cmd) =>
+        cmd(state, (tr) => {
+          state = state.apply(tr);
+        }),
+      setSelection: (tr) => {
+        state = state.apply(tr);
+      },
+    };
+    const endOf = (text: string) => {
+      let pos = -1;
+      state.doc.descendants((node, p) => {
+        if (pos < 0 && node.isTextblock && node.textContent === text)
+          pos = p + 1 + node.content.size;
+        return pos < 0;
+      });
+      state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, pos)));
+    };
+    endOf('A paragraph');
+    const before = state.doc;
+    expect(insertImageAtCaret(target, { href: '#a.png' })).toBeNull();
+    expect(state.doc.eq(before)).toBe(true);
+    endOf('A cell');
+    expect(insertImageAtCaret(target, { href: '#a.png' })).toBe('inline');
+    const cell = state.doc.child(1).child(0).child(0);
+    expect(cell.type.name).toBe('td');
+    expect(cell.lastChild?.type.name).toBe('inline_image');
+    expect(state.doc.child(0).childCount).toBe(1); // the paragraph is unchanged
+  });
+
+  it("insert.image and insert.sectionImage are disabled in a cell with the reason 'a cell takes inline images only'; insert.inlineImage is enabled there", async () => {
+    const { services, ctx, controller } = await harness({}, tableBook());
+    for (const text of ['Cell one', 'Head A']) {
+      caretAtEndOf(controller, text);
+      expect(services.commands.isEnabled('insert.image', ctx)).toBe(false);
+      expect(services.commands.isEnabled('insert.sectionImage', ctx)).toBe(false);
+      expect(services.commands.isEnabled('insert.inlineImage', ctx)).toBe(true);
+      expect(services.commands.unavailableReason('insert.image', ctx)).toBe(
+        'a cell takes inline images only',
+      );
+      expect(services.commands.unavailableReason('insert.sectionImage', ctx)).toBe(
+        'a cell takes inline images only',
+      );
+    }
+    // In a paragraph directly in the section: available, no reason.
+    caretAtEndOf(controller, 'Hello');
+    expect(services.commands.isEnabled('insert.image', ctx)).toBe(true);
+    expect(services.commands.unavailableReason('insert.image', ctx)).toBeNull();
+    expect(services.commands.unavailableReason('insert.sectionImage', ctx)).toBeNull();
+  });
+
+  it('insert.inlineImage in a cell asks Insert clear image? and inserts the chosen binary in that cell', async () => {
+    const { store, rpc, services, ctx, controller } = await harness({}, tableBook());
+    caretAtEndOf(controller, 'Cell two');
+    ctx.dialogs.messageAnswers.push('no');
+    await services.commands.execute('insert.inlineImage', ctx);
+    expect(ctx.dialogs.shown.at(-1)).toMatchObject({
+      text: 'Insert clear image?',
+      dontAskAgain: true,
+      testId: 'dialog-insert-clear-image',
+    });
+    expect(flowCalls(rpc).map((c) => c.method)).toEqual(['dialog.openFile', 'binary.add']);
+    expect(cellsOf(store)).toEqual([
+      'th:Head A',
+      'th:Head B',
+      'td:Cell one',
+      'td:Cell two[#tiny.png]',
+    ]);
+    expect(store.getState().document!.binaries).toEqual([META]);
+    expect(store.getState().modified).toBe(true);
+  });
+
+  it("a pasted image file goes into the caret's cell", async () => {
+    const { store, controller, view } = await harness({}, tableBook());
+    const { calls, fetchImpl } = okFetch();
+    const original = globalThis.fetch;
+    globalThis.fetch = fetchImpl;
+    try {
+      caretAtEndOf(controller, 'Cell one');
+      const cell = view.dom.querySelectorAll('td')[0]!;
+      const file = new File([new Uint8Array([137, 80, 78, 71])], 'shot.png', { type: 'image/png' });
+      const event = syntheticEvent<ClipboardEvent>('paste', cell, {
+        clipboardData: fakeTransfer([file]),
+      });
+      expect(handleImagePaste(store, event)).toBe(true);
+      await vi.waitFor(() => expect(calls).toHaveLength(1));
+      await vi.waitFor(() =>
+        expect(cellsOf(store)).toEqual([
+          'th:Head A',
+          'th:Head B',
+          'td:Cell one[#tiny.png]',
+          'td:Cell two',
+        ]),
+      );
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it('three dropped files go into the cell in their order', async () => {
+    const { store, controller, view } = await harness({}, tableBook());
+    const { calls, fetchImpl } = namingFetch();
+    const original = globalThis.fetch;
+    globalThis.fetch = fetchImpl;
+    try {
+      // jsdom has no layout for posAtCoords: the caret is put into the cell first.
+      caretAtEndOf(controller, 'Cell two');
+      const cell = view.dom.querySelectorAll('td')[1]!;
+      const files = ['a.png', 'b.png', 'c.png'].map(
+        (name) => new File([new Uint8Array([137, 80, 78, 71])], name, { type: 'image/png' }),
+      );
+      const drop = syntheticEvent<DragEvent>('drop', cell, {
+        dataTransfer: fakeTransfer(files),
+        clientX: 5,
+        clientY: 5,
+      });
+      expect(await handleImageDrop(store, drop)).toBe(3);
+      expect(calls).toEqual(['a.png', 'b.png', 'c.png']);
+      expect(cellsOf(store)).toEqual([
+        'th:Head A',
+        'th:Head B',
+        'td:Cell one',
+        'td:Cell two[#a.png][#b.png][#c.png]',
+      ]);
+      // Each file is one insertion, one undo step.
+      expect(controller.undoStep()).toBe(true);
+      expect(cellsOf(store).at(-1)).toBe('td:Cell two[#a.png][#b.png]');
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it('imageTargetFor gives the Body target for an event inside the Body editor, and null outside it and under the run lock', async () => {
+    const { store, view } = await harness({}, tableBook());
+    const inside = view.dom.querySelector('td')!;
+    expect(imageTargetFor(store, inside)).toBe(activeTableTarget(store));
+    expect(imageTargetFor(store, view.dom.querySelector('p'))).toBe(activeTableTarget(store));
+    expect(imageTargetFor(store, document.body)).toBeNull();
+    expect(imageTargetFor(store, null)).toBeNull();
+    actions.setRunLock(store, fakeRunLock());
+    expect(imageTargetFor(store, inside)).toBeNull();
   });
 });

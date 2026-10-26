@@ -72,6 +72,19 @@
 //                               exactly that name, the window title start with it; a second
 //                               Save As with Ctrl+A, "Новая книга.fb2" typed through xdotool
 //                               (Cyrillic keysyms under Xvfb) and Return must write that file
+//   MFBE_SMOKE_TABLE_LAYOUT     <width>: pictures in table cells in the real CEF shell (feature
+//                               006, research R9.5; shell-smoke.sh sets the window width it
+//                               started the shell with, 1280 or 640, with MFBE_SMOKE_OPEN_FILE =
+//                               tests/fixtures/books/tables-images.fb2): for Fast Mode off and
+//                               then on - switched through the in-process core's settings.set
+//                               (the shell has no test hooks) - once the pictures have settled,
+//                               every table of tables-images.expected.json and its control is
+//                               measured under the Body editor (MEASURE_TABLES of
+//                               ui/tests/e2e/fixtures/tableLayout.ts, imported under Node's type
+//                               stripping) and checked with the layout gates (checkLayout; the
+//                               broken-word scan C3 on the curated tables); any finding fails
+//                               the run with describeFailures and a -failed.png screenshot. The
+//                               status-bar check is skipped in this mode
 //   MFBE_SMOKE_LOG              the shell's log of this run (stdout and stderr; shell-smoke.sh):
 //                               the "shelltest: argv" lines of the restart check, and on every
 //                               run the engine's spell-check line (feature 004 US9, FR-081) -
@@ -88,7 +101,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -133,6 +146,7 @@ const restartVariant = process.env.MFBE_SMOKE_RESTART ?? '';
 const restartMustFail = process.env.MFBE_SMOKE_RESTART_FAIL === '1';
 // SC-005: the restarted editor is back with the document within 15 s of the user's Yes.
 const restartBudgetMs = 15_000;
+const tableLayoutWidth = process.env.MFBE_SMOKE_TABLE_LAYOUT ?? '';
 const checkClose = process.env.MFBE_SMOKE_CLOSE === '1';
 const checkSaveAs = process.env.MFBE_SMOKE_SAVE_AS === '1';
 const saveAsFolder = process.env.MFBE_SMOKE_SAVE_AS_FOLDER ?? '';
@@ -979,6 +993,53 @@ async function checkStatusBarSetting(page) {
   console.log('status bar:    shown again and recorded');
 }
 
+// Pictures in table cells in CEF (feature 006, research R9.5): the gates of the layout journey
+// (ui/tests/e2e/us3-table-images-layout.spec.ts) on every table of tables-images.fb2 and its
+// control, Fast Mode off and then on, in the window width shell-smoke.sh started the shell with.
+async function checkTableLayout(page) {
+  const helper = path.join(root, 'ui', 'tests', 'e2e', 'fixtures', 'tableLayout.ts');
+  const { MEASURE_TABLES, PICTURES_SETTLED, checkLayout, describeFailures } = await import(
+    pathToFileURL(helper).href
+  );
+  const expected = JSON.parse(
+    fs.readFileSync(path.join(root, 'tests', 'fixtures', 'books', 'tables-images.expected.json'), 'utf8'),
+  );
+  const scope = '[data-testid="body-editor"]';
+  const curated = Object.keys(expected.tables);
+  const sc006 = Object.keys(expected.sc006);
+  const view = page.locator('[data-testid="body-view"]');
+  for (const fastMode of [false, true]) {
+    await coreRpc(page.url(), 'settings.set', { patch: { view: { fastMode } } });
+    await waitUntil(
+      `Fast Mode ${fastMode ? 'on' : 'off'} in the Body view`,
+      async () => /\bmfbe-body-view--fast\b/.test((await view.getAttribute('class')) ?? '') === fastMode,
+      timeoutMs,
+    );
+    await page.evaluate(`(${PICTURES_SETTLED})(${JSON.stringify({ scope, timeoutMs })})`);
+    const where = `${tableLayoutWidth} px, Fast Mode ${fastMode ? 'on' : 'off'}`;
+    const failures = [];
+    let vanished = 0;
+    for (const [ids, words] of [
+      [curated, true],
+      [sc006, false],
+    ]) {
+      const measurement = await page.evaluate(
+        `(${MEASURE_TABLES})(${JSON.stringify({ scope, ids, words })})`,
+      );
+      const result = checkLayout(measurement, expected, ids, { words });
+      failures.push(...result.failures);
+      vanished += result.metrics.vanishedPictures.count;
+    }
+    if (failures.length) {
+      throw new Error(describeFailures(`table layout: ${where}`, failures));
+    }
+    console.log(
+      `table layout:  ${where}: ${curated.length + sc006.length} tables, 0 findings, ${vanished} vanished pictures`,
+    );
+  }
+  await coreRpc(page.url(), 'settings.set', { patch: { view: { fastMode: null } } });
+}
+
 let browser;
 try {
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: timeoutMs });
@@ -1032,9 +1093,17 @@ try {
     await checkAboutDialog(page);
   }
 
-  // View > Status Bar is recorded in the settings file (real UI; not in the restart, close and
-  // Save As scenarios, whose runs are about those alone).
-  if (settingsFile && !restartVariant && !checkClose && !checkSaveAs) {
+  // Pictures in table cells laid out by CEF (feature 006): the layout gates on the opened book.
+  if (tableLayoutWidth) {
+    if (!openFile) {
+      throw new Error('MFBE_SMOKE_TABLE_LAYOUT needs MFBE_SMOKE_OPEN_FILE (tables-images.fb2)');
+    }
+    await checkTableLayout(page);
+  }
+
+  // View > Status Bar is recorded in the settings file (real UI; not in the restart, close,
+  // Save As and table-layout scenarios, whose runs are about those alone).
+  if (settingsFile && !restartVariant && !checkClose && !checkSaveAs && !tableLayoutWidth) {
     await checkStatusBarSetting(page);
   }
 

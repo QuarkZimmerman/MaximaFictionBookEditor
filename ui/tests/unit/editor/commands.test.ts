@@ -46,6 +46,7 @@ import {
 import { gotoNextCell, gotoPreviousCell, setNodeAttr } from '@/editor/commands/table';
 import { findTablePointAt, insertTableCommand } from '@/editor/commands/tableInsertion';
 import { createTable } from '@/editor/table/ops';
+import { CellBlockSelection } from '@/editor/table/selection';
 import { enterCommand } from '@/editor/keymap';
 import { nodeToModel } from '@/editor/toModel';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
@@ -831,5 +832,87 @@ describe('commands inside the annotation and history blocks (004 US2)', () => {
     expect(names(next.doc.child(0))).toEqual(['p', 'empty_line', 'p']);
     expect(names(next.doc.child(1))).toEqual(['p']);
     expect(next.doc.check()).toBeUndefined();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Pictures in table cells (feature 006, US3)                               */
+/* ------------------------------------------------------------------------ */
+
+describe('pictures in table cells (feature 006, US3, FR-024, FR-026)', () => {
+  function cellBook() {
+    const cell = (kind: 'td' | 'th', text: string) => N[kind]!.create(null, fb2Schema.text(text));
+    return doc(
+      body([
+        section([
+          p('Before the table'),
+          N.table!.create(null, [
+            N.tr!.create(null, [cell('th', 'Head A'), cell('th', 'Head B')]),
+            N.tr!.create(null, [cell('td', 'Cell one'), cell('td', 'Cell two')]),
+          ]),
+          p('After the table'),
+        ]),
+      ]),
+    );
+  }
+
+  /** The cells of the book's table in reading order, as text with `[img]` for a picture. */
+  function cellTexts(state: EditorState): string[] {
+    const out: string[] = [];
+    state.doc.descendants((node) => {
+      if (node.type !== N.td && node.type !== N.th) return true;
+      let text = '';
+      node.forEach((child) => {
+        text += child.isText ? child.text : child.type === N.inline_image ? '[img]' : '?';
+      });
+      out.push(`${node.type.name}:${text}`);
+      return false;
+    });
+    return out;
+  }
+
+  it('insertInlineImage succeeds in a td and in a th, and the result passes doc.check()', () => {
+    const d = cellBook();
+    const image = { href: '#cell.png' };
+    // A caret in a td and in a th.
+    const inTd = run(stateAt(d, posOf(d, 'one') + 3), insertInlineImage(image))!;
+    expect(cellTexts(inTd)).toEqual(['th:Head A', 'th:Head B', 'td:Cell one[img]', 'td:Cell two']);
+    expect(inTd.doc.check()).toBeUndefined();
+    const inTh = run(stateAt(d, posOf(d, 'Head B')), insertInlineImage(image))!;
+    expect(cellTexts(inTh)).toEqual(['th:Head A', 'th:[img]Head B', 'td:Cell one', 'td:Cell two']);
+    expect(inTh.doc.check()).toBeUndefined();
+    // Text selected in a cell: the picture replaces it.
+    const from = posOf(d, 'two');
+    const replaced = run(stateAt(d, from, from + 3), insertInlineImage(image))!;
+    expect(cellTexts(replaced)).toEqual(['th:Head A', 'th:Head B', 'td:Cell one', 'td:Cell [img]']);
+    expect(replaced.doc.check()).toBeUndefined();
+    // A block of cells: the picture lands in the block's top-left cell, the others are cleared
+    // (data-model §8.3's rule for content that is no table).
+    const cells: number[] = [];
+    d.descendants((node, pos) => {
+      if (node.type === N.td || node.type === N.th) cells.push(pos);
+      return true;
+    });
+    const base = EditorState.create({ doc: d });
+    const block = base.apply(
+      base.tr.setSelection(CellBlockSelection.create(d, cells[0]!, cells[3]!)),
+    );
+    expect(block.selection).toBeInstanceOf(CellBlockSelection);
+    const inBlock = run(block, insertInlineImage(image))!;
+    expect(cellTexts(inBlock)).toEqual(['th:[img]', 'th:', 'td:', 'td:']);
+    expect(inBlock.doc.check()).toBeUndefined();
+  });
+
+  it('insertImage and addSectionImage still refuse with the caret in a cell', () => {
+    const d = cellBook();
+    for (const text of ['Head A', 'Cell two']) {
+      const state = stateAt(d, posOf(d, text) + 2);
+      expect(insertImage({ href: '#cell.png' })(state)).toBe(false);
+      expect(addSectionImage({ href: '#cell.png' })(state)).toBe(false);
+      expect(insertInlineImage({ href: '#cell.png' })(state)).toBe(true);
+    }
+    // Outside the table, in a paragraph directly in its section, both work as before.
+    const outside = stateAt(d, posOf(d, 'After'));
+    expect(insertImage({ href: '#cell.png' })(outside)).toBe(true);
   });
 });

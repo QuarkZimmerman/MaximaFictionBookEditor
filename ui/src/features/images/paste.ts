@@ -7,18 +7,21 @@
  * `CF_BITMAP`. The core applies the "paste images as" setting (JPEG with the configured quality
  * or PNG; PNG when the source has transparency) on save. The handler listens on the document in
  * the capture phase so it runs before ProseMirror's own paste handling.
+ *
+ * Feature 006 (US3, FR-025; data-model §9.7): the paste goes to the active editing target whose
+ * DOM holds the event (`imageTargetFor`), so an image pasted into a table cell becomes an inline
+ * image in that cell.
  */
 
 import i18next from 'i18next';
 
 import { MFBE_CLIPBOARD_MIME } from '@/editor/plugins/clipboard';
-import { bodyController } from '@/features/editing/common';
+import { activeTableTarget } from '@/features/tables/target';
 import { actions, type AppStore } from '@/model/store';
-import type { BodyEditorController } from '@/views/body/bodyEditor';
 
 import { addBinaryToModel, imageMimeType, isImageType, uploadBinary } from './binaries';
 import { latestCommandContext } from './context';
-import { insertImageAtCaret, type ImageKind } from './insert';
+import { insertImageAtCaret, type ImageKind, type ImageTarget } from './insert';
 
 /** The first image file of a clipboard / drag payload, or null. */
 export function imageFileFromDataTransfer(data: DataTransfer | null | undefined): File | null {
@@ -47,12 +50,12 @@ export function imageFilesFromDataTransfer(data: DataTransfer | null | undefined
 
 /**
  * Uploads `file` as a binary of the current document and inserts an image referencing it at
- * the caret. Resolves with the node kind inserted (null when no node fits; the binary is kept
- * and listed in Binary Objects).
+ * the caret of `target`. Resolves with the node kind inserted (null when no node fits; the
+ * binary is kept and listed in Binary Objects).
  */
 export async function pasteImageFile(
   store: AppStore,
-  controller: BodyEditorController,
+  target: ImageTarget,
   file: File | Blob,
   options: { suggestedId?: string } = {},
 ): Promise<ImageKind | null> {
@@ -65,7 +68,7 @@ export async function pasteImageFile(
     suggestedId: name || undefined,
   });
   addBinaryToModel(store, meta);
-  const kind = insertImageAtCaret(controller, { href: `#${meta.id}`, alt: null, title: null });
+  const kind = insertImageAtCaret(target, { href: `#${meta.id}`, alt: null, title: null });
   if (!kind) {
     actions.setModified(store, true);
     actions.setStatusMessage(store, i18next.t('images.msg.pastedNoPlace', { id: meta.id }));
@@ -83,25 +86,29 @@ export function reportImageFailure(store: AppStore, error: unknown): void {
     .catch(() => undefined);
 }
 
-/** True when the event targets the mounted, editable Body editor. */
-export function targetsBodyEditor(
+/**
+ * The editing target an image event goes to: the active target when it is editable and its DOM
+ * holds the event's target - today the Body adapter for an event inside the Body editor; the
+ * description fields' adapters, for an event in a field whose caret or drop point is in a cell,
+ * come with US10. Null otherwise (outside the editor, under the run lock).
+ */
+export function imageTargetFor(
   store: AppStore,
-  target: EventTarget | null,
-): BodyEditorController | null {
-  const controller = bodyController(store);
-  const view = controller?.editorView;
-  if (!controller || !view || !controller.isEditable) return null;
-  if (!(target instanceof Node) || !view.dom.contains(target)) return null;
-  return controller;
+  eventTarget: EventTarget | null,
+): ImageTarget | null {
+  const target = activeTableTarget(store);
+  if (!target?.editable || !target.dom) return null;
+  if (!(eventTarget instanceof Node) || !target.dom.contains(eventTarget)) return null;
+  return target;
 }
 
 /**
  * Document-level `paste` handler (capture phase). Returns true when the event was an image
- * paste into the Body editor and has been taken over.
+ * paste into the editing target and has been taken over.
  */
 export function handleImagePaste(store: AppStore, event: ClipboardEvent): boolean {
-  const controller = targetsBodyEditor(store, event.target);
-  if (!controller) return false;
+  const target = imageTargetFor(store, event.target);
+  if (!target) return false;
   const data = event.clipboardData;
   if (!data) return false;
   // The editor's own structured flavour (copy inside MFBE) always wins.
@@ -110,9 +117,7 @@ export function handleImagePaste(store: AppStore, event: ClipboardEvent): boolea
   if (!file) return false;
   event.preventDefault();
   event.stopPropagation();
-  pasteImageFile(store, controller, file).catch((error: unknown) =>
-    reportImageFailure(store, error),
-  );
+  pasteImageFile(store, target, file).catch((error: unknown) => reportImageFailure(store, error));
   return true;
 }
 
