@@ -710,3 +710,41 @@ export function commitTableEdit(
   }
   return tr.setMeta(DISCRETE_STEP, true).scrollIntoView();
 }
+
+/* ------------------------------------------------------------------------ */
+/* The Delete table transform (data-model §4.5 `table.delete`; C24)         */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Removes the table at `tablePos` in `tr` (data-model §4.5 `table.delete` steps 1 and 2): when
+ * its container's content model then needs a block there - a section's only content, the only
+ * content of the Body view's annotation or history block (feature 004) - or a description
+ * field's document would be left without content (an empty field always holds a paragraph,
+ * `createRichFieldState`), an empty `p` with a fresh node id from `nextId()` takes its place; a
+ * section annotation and a cite need none. It asks nothing about link targets (C13). ProseMirror's
+ * generic `deleteSelection` throws when the table is a section's only content (vR2 X3), so the
+ * paste router, and US9's *Delete table*, Cut, Delete and Backspace on a selected table, use this
+ * transform. The selection is left to the caller.
+ */
+export function removeTable(tr: Transaction, tablePos: number, nextId: () => string): Transaction {
+  const table = tr.doc.nodeAt(tablePos);
+  if (!table || table.type.name !== 'table') {
+    throw new RangeError(`removeTable: no table at ${tablePos}`);
+  }
+  const $pos = tr.doc.resolve(tablePos);
+  const parent = $pos.parent;
+  const index = $pos.index();
+  const rest: PMNode[] = [];
+  parent.forEach((child, _offset, childIndex) => {
+    if (childIndex !== index) rest.push(child);
+  });
+  const needsBlock =
+    !parent.type.validContent(Fragment.from(rest)) || ($pos.depth === 0 && rest.length === 0);
+  const end = tablePos + table.nodeSize;
+  if (needsBlock) {
+    tr.replaceWith(tablePos, end, table.type.schema.nodes.p!.create({ nodeId: nextId() }));
+  } else {
+    tr.delete(tablePos, end);
+  }
+  return tr;
+}

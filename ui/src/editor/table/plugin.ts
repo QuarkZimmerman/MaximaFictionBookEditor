@@ -14,8 +14,17 @@
  * - **Keys**: Shift+Arrow at the edge of the cell's content (`view.endOfTextblock`) makes a
  *   block towards the next grid cell; with a block, its head moves one grid step, holes
  *   skipped, and back on the anchor cell the block becomes a caret there; at the table's edge
- *   the key is left to ProseMirror. Plain Up and Down, Tab and Enter are not intercepted
- *   (FR-005: Up and Down leave the table into the adjacent text).
+ *   the key is left to ProseMirror. Delete and Backspace with a block (with or without Ctrl,
+ *   Alt or Mod; Shift+Delete stays the platform's Cut) clear it with the clear-block plan (US4,
+ *   data-model §4.6). Plain Up and Down, Tab and Enter are not intercepted (FR-005: Up and Down
+ *   leave the table into the adjacent text; Enter stays `enterInCell`'s no-op).
+ * - **Type-over** (US4, FR-011): text input with a block is one transaction - the clear, the
+ *   text at the start of the block's top-left cell, the caret after it, `DISCRETE_STEP` - so the
+ *   clear and the first character are one undo step and the following characters group as
+ *   typing; `compositionstart` with a block selects the content of its top-left cell, which the
+ *   composition (an input method, a dead key) replaces, and the block's other cells are cleared
+ *   in a `DISCRETE_STEP` transaction when the composition ends (U39). Every other selection is left alone at once, so typing elsewhere
+ *   costs nothing more.
  * - **Normalisation** (U10), an appended transaction that sets a selection and never adds a
  *   step (no automatic repair, R1.7): a text selection whose ends lie in two cells of one table
  *   becomes the block between them; a selected `td` or `th` node becomes a text selection over
@@ -36,9 +45,14 @@ import {
 } from 'prosemirror-state';
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 
-import { gridOfNode, type TableGrid } from './grid';
+import { DISCRETE_STEP } from '../commands/util';
+
+import { commitTableEdit, isRefusal } from './edit';
+import { gridOfNode, type Rect, type TableGrid } from './grid';
+import { planClearBlock } from './ops';
 import {
   CellBlockSelection,
+  blockTopLeftCellPos,
   cellBlockOrNull,
   cellRefAround,
   cellRefAt,
@@ -283,7 +297,17 @@ function keepSelectionOnRightClick(view: EditorView, event: MouseEvent): boolean
 /* Keys                                                                     */
 /* ------------------------------------------------------------------------ */
 
+/** Delete and Backspace with a block: the clear-block commit (data-model §4.6). */
+function clearOnDelete(view: EditorView, event: KeyboardEvent): boolean {
+  if (event.key !== 'Delete' && event.key !== 'Backspace') return false;
+  if (event.key === 'Delete' && event.shiftKey) return false;
+  const tr = view.state.tr.deleteSelection();
+  if (tr.docChanged) view.dispatch(tr);
+  return true;
+}
+
 function handleKeyDown(view: EditorView, event: KeyboardEvent): boolean {
+  if (view.state.selection instanceof CellBlockSelection && clearOnDelete(view, event)) return true;
   if (!event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false;
   const direction = ARROW_DIRECTIONS[event.key];
   if (!direction) return false;
@@ -323,6 +347,115 @@ function handleKeyDown(view: EditorView, event: KeyboardEvent): boolean {
 }
 
 /* ------------------------------------------------------------------------ */
+/* Typing over a block (data-model §4.6 "Type over a block")                */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Text typed with a block: the clear, the text at the start of the top-left cell, the caret
+ * after it - `insertText` reaches the block's `replaceWith` - in one `DISCRETE_STEP` transaction,
+ * also when no cell had content.
+ */
+function typeOver(view: EditorView, text: string): boolean {
+  if (!(view.state.selection instanceof CellBlockSelection)) return false;
+  view.dispatch(view.state.tr.insertText(text).setMeta(DISCRETE_STEP, true).scrollIntoView());
+  return true;
+}
+
+/** A block whose other cells are cleared when the composition over it ends (U39). */
+interface PendingClear {
+  tableNodeId: unknown;
+  tablePos: number;
+  rect: Rect;
+  /** The grid index of the top-left cell, which the composition replaced. */
+  keep: number;
+}
+
+const pendingClears = new WeakMap<EditorView, PendingClear>();
+
+/**
+ * The start of a composition with a block (U39): the content of the block's top-left cell is
+ * selected - no document change, so the browser composes undisturbed: a transaction that
+ * changes the document under a starting composition makes Chromium keep its first text (US4
+ * journey) - and the composition (an input method's text, a dead key's character) replaces it
+ * there; false, so ProseMirror's composition handling goes on. The block's other cells are
+ * cleared when the composition ends (`composeEnd`).
+ */
+function composeOver(view: EditorView): boolean {
+  const { selection } = view.state;
+  if (!(selection instanceof CellBlockSelection)) return false;
+  const doc = view.state.doc;
+  const cellPos = blockTopLeftCellPos(doc, selection.tablePos, selection.rect);
+  if (cellPos === null) return false;
+  const table = doc.nodeAt(selection.tablePos)!;
+  pendingClears.set(view, {
+    tableNodeId: table.attrs.nodeId,
+    tablePos: selection.tablePos,
+    rect: { ...selection.rect },
+    keep: cellIndexOfPos(gridOfNode(table), doc, cellPos) ?? -1,
+  });
+  const size = doc.nodeAt(cellPos)!.content.size;
+  view.dispatch(
+    view.state.tr.setSelection(TextSelection.create(doc, cellPos + 1, cellPos + 1 + size)),
+  );
+  return false;
+}
+
+/**
+ * The end of a composition that began over a block: once ProseMirror has read the composed text
+ * (a macrotask later), the block's other cells are cleared - the clear-block plan with the
+ * top-left cell kept, one `DISCRETE_STEP` transaction, so it is an undo step of its own - and
+ * the caret stays after the composed text.
+ */
+function composeEnd(view: EditorView): boolean {
+  const pending = pendingClears.get(view);
+  if (!pending) return false;
+  pendingClears.delete(view);
+  setTimeout(() => clearAfterComposition(view, pending), 0);
+  return false;
+}
+
+function clearAfterComposition(view: EditorView, pending: PendingClear): void {
+  if (view.isDestroyed) return;
+  const state = view.state;
+  const table = state.doc.nodeAt(pending.tablePos);
+  if (!table || table.type.name !== 'table' || table.attrs.nodeId !== pending.tableNodeId) return;
+  const grid = gridOfNode(table);
+  if (grid.tooLarge) return;
+  const edit = planClearBlock(
+    { table, grid, rect: pending.rect },
+    { nextId: noNewNodes },
+    { keep: pending.keep },
+  );
+  if (isRefusal(edit)) return;
+  const old = state.selection;
+  const kept = cellRefAround(old.$head);
+  const tr = commitTableEdit(state.tr, pending.tablePos, edit);
+  if (!tr) return;
+  const cellPos = blockTopLeftCellPos(tr.doc, pending.tablePos, pending.rect);
+  const cell = cellPos === null ? null : tr.doc.nodeAt(cellPos);
+  if (cellPos !== null && cell && kept && kept.cell.attrs.nodeId === cell.attrs.nodeId) {
+    const offset = Math.min(old.$head.parentOffset, cell.content.size);
+    tr.setSelection(TextSelection.create(tr.doc, cellPos + 1 + offset));
+  } else {
+    tr.setSelection(old.map(tr.doc, tr.mapping));
+  }
+  view.dispatch(tr);
+}
+
+/** The grid index of the cell that stands right after `cellPos`, when it is one of `grid`'s. */
+function cellIndexOfPos(grid: TableGrid, doc: EditorState['doc'], cellPos: number): number | null {
+  const ref = cellRefAt(doc, cellPos);
+  if (!ref) return null;
+  const index = gridIndexOf(grid, ref);
+  return index < 0 ? null : index;
+}
+
+/** The clear-block plan creates no node. */
+function noNewNodes(): string {
+  throw new Error('the clear-block plan creates no node');
+}
+
+/* ------------------------------------------------------------------------ */
 /* The plugin                                                               */
 /* ------------------------------------------------------------------------ */
 
@@ -343,8 +476,11 @@ export function tableEditingPlugin(): Plugin {
       decorations: blockDecorations,
       handleDOMEvents: {
         mousedown: handleMouseDown,
+        compositionstart: (view) => composeOver(view),
+        compositionend: (view) => composeEnd(view),
       },
       handleKeyDown,
+      handleTextInput: (view, _from, _to, text) => typeOver(view, text),
       createSelectionBetween(view, $anchor, $head) {
         const drag = drags.get(view);
         if (drag) {

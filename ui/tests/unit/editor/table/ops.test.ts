@@ -1,6 +1,9 @@
 /**
  * The table plans of `ops.ts` (feature 006; data-model §4.4 to §4.6), one `describe` block per
- * user story in story order. US1 (T052; FR-003, FR-005; C15, C33; I8): `createTable` - the
+ * user story in story order. US4 (T091; FR-011, FR-013's joining rule, FR-016's split as the
+ * paste uses it; C17, C47; data-model §4.4, §4.6 "Clear block"): `planClearBlock`,
+ * `joinInlineParts` and `splitToSingleCells`; the paste-block plan has its own file,
+ * `pasteBlock.test.ts`. US1 (T052; FR-003, FR-005; C15, C33; I8): `createTable` - the
  * dialog's table, rectangular and without attributes, its node ids from the host - and
  * `planTabRow`, the row Tab appends in the last cell. US2 (T071; FR-006 to FR-009, FR-030,
  * FR-035, FR-037, FR-038, FR-046, FR-047; C12 to C15, C67; decision 1; data-model §4.4, §4.5):
@@ -12,13 +15,15 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { Node as PMNode } from 'prosemirror-model';
+import { Fragment, type Node as PMNode } from 'prosemirror-model';
 import { EditorState, TextSelection } from 'prosemirror-state';
 
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
+import { fb2Schema } from '@/editor/schema';
 import {
   applyTableEdit,
   assertTableValid,
+  commitTableEdit,
   isRefusal,
   tableTarget,
   type PlanContext,
@@ -33,6 +38,8 @@ import {
   blockOver,
   caretAt,
   createTable,
+  joinInlineParts,
+  planClearBlock,
   planDeleteColumns,
   planDeleteRows,
   planDuplicateColumns,
@@ -42,6 +49,7 @@ import {
   planMoveColumns,
   planMoveRows,
   planTabRow,
+  splitToSingleCells,
 } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
 import { nodeToModel } from '@/editor/toModel';
@@ -1305,6 +1313,184 @@ describe('US2 rows and columns', () => {
       expect(isRefusal(refusal(wide, 'insertColumnLeft'))).toBe(false);
       const tall = placed([['a', { text: 'b', rowspan: 1e9 }], ['c']], 'c');
       expect(refusal(tall, 'insertRowAbove')).toEqual({ refused: 'too-large' });
+    });
+  });
+});
+
+describe('US4 blocks', () => {
+  const ctx = () => ({ nextId: idGenerator('k') });
+
+  describe('planClearBlock (data-model §4.6 "Clear block")', () => {
+    const rows: MRow[] = [
+      [
+        {
+          text: 'r1c1',
+          id: 'cid',
+          style: 'st',
+          lang: 'de',
+          colspan: 2,
+          unknownAttrs: { foo: 'bar' },
+        },
+        'r1c3',
+      ],
+      ['r2c1', 'r2c2', { text: '', align: 'right' }],
+      ['r3c1', 'r3c2', 'r3c3'],
+    ];
+
+    it('empties every cell of the block and keeps its attributes; other cells and rows are reused', () => {
+      const where = placed(rows, ['r1c1', 'r2c2']);
+      const { edit, after } = acted(where, planClearBlock);
+      expect(show(after)).toBe(
+        `[<td> colspan=2 lang=de id=cid style=st extra=${JSON.stringify({ unknownAttrs: { foo: 'bar' } })}, r1c3] / ` +
+          '[<td>, <td>, <td> align=right] / [r3c1, r3c2, r3c3]',
+      );
+      const before = childrenOf(where.table);
+      const next = childrenOf(after);
+      // Row 3 holds no cell of the block: the same object; r1c3 lies outside the block.
+      expect(next[2]).toBe(before[2]);
+      expect(next[0]!.child(1)).toBe(before[0]!.child(1));
+      expect(next[0]!.child(0).attrs).toEqual(before[0]!.child(0).attrs);
+      expect(next[0]!.child(0).attrs.nodeId).toBe(before[0]!.child(0).attrs.nodeId);
+      // An empty cell of the block (r2c3 lies outside it) and the cells' node ids stay.
+      expect(next[1]!.child(2)).toBe(before[1]!.child(2));
+      expect(edit.removedIds).toEqual([]);
+      expect(edit.focus).toEqual(blockOver(where.address.rect!));
+    });
+
+    it('a block of empty cells commits nothing; too-large on a too-large table', () => {
+      const empty = placed(
+        [
+          [{ text: '' }, { text: '' }],
+          ['x', 'y'],
+        ],
+        ['x', 'y'],
+      );
+      // The block of the first row's empty cells, by node ids of the model.
+      const doc = empty.state.doc;
+      const cells: number[] = [];
+      doc.descendants((node, at) => {
+        if (node.type.name === 'td' && node.textContent === '') cells.push(at);
+        return true;
+      });
+      const state = EditorState.create({
+        doc,
+        selection: CellBlockSelection.create(doc, cells[0]!, cells[1]!),
+      });
+      const target = tableTarget(state)!;
+      const edit = planClearBlock(target.address, planContext()) as TableEdit;
+      expect(childrenOf(applyTableEdit(target.address.table, edit))).toEqual(
+        childrenOf(target.address.table),
+      );
+      childrenOf(target.address.table).forEach((row, index) => {
+        expect(edit.rows[index]).toBe(row);
+      });
+      expect(commitTableEdit(state.tr, target.tablePos, edit)).toBeNull();
+      const cellsWide = Array.from({ length: 4195 }, (_, index) => ({
+        text: `w${index}`,
+        colspan: 1000,
+      }));
+      const big = placed([cellsWide], 'w1');
+      expect(
+        planClearBlock(
+          { ...big.address, rect: { top: 0, left: 0, bottom: 1, right: 2 } },
+          planContext(),
+        ),
+      ).toEqual({
+        refused: 'too-large',
+      });
+    });
+  });
+
+  describe('joinInlineParts (C17)', () => {
+    const text = (value: string, marks = false) =>
+      fb2Schema.text(value, marks ? [fb2Schema.marks.strong!.create()] : undefined);
+    const parts = (...values: (string | PMNode)[]) =>
+      values.map((value) =>
+        typeof value === 'string'
+          ? value === ''
+            ? Fragment.empty
+            : Fragment.from(text(value))
+          : Fragment.from(value),
+      );
+    const nodes = (fragment: Fragment) => {
+      const out: string[] = [];
+      fragment.forEach((node) =>
+        out.push(`${node.marks.map((mark) => mark.type.name).join('+')}:${node.text}`),
+      );
+      return out;
+    };
+
+    it('one unmarked space only between two non-empty parts; empty parts add nothing', () => {
+      expect(nodes(joinInlineParts(parts('a', 'b'), fb2Schema))).toEqual([':a b']);
+      expect(nodes(joinInlineParts(parts('', 'a', '', 'b', ''), fb2Schema))).toEqual([':a b']);
+      expect(joinInlineParts(parts('', ''), fb2Schema).size).toBe(0);
+    });
+
+    it('white space at a part’s ends is kept; text of equal marks is joined into one node', () => {
+      expect(nodes(joinInlineParts(parts(' a ', 'b '), fb2Schema))).toEqual([': a  b ']);
+      expect(nodes(joinInlineParts(parts(text('a', true), text('b', true)), fb2Schema))).toEqual([
+        'strong:a',
+        ': ',
+        'strong:b',
+      ]);
+    });
+  });
+
+  describe('splitToSingleCells (FR-016 as the paste uses it)', () => {
+    /** Splits the cell `text` of `rows` and gives the table it leaves. */
+    function split(rows: MRow[], text: string): PMNode {
+      const node = nodeFromModel(modelTable(rows))!;
+      const grid = gridOfNode(node);
+      const index = grid.cells.findIndex(
+        (cell) => node.child(grid.rowChild[cell.row]!).child(cell.index).textContent === text,
+      );
+      const after = node.type.create(
+        node.attrs,
+        splitToSingleCells(childrenOf(node), grid, index, ctx()),
+      );
+      after.check();
+      return after;
+    }
+
+    it('the cell keeps its content and every attribute but its spans, a rowspan past the last row included; its other positions get empty cells like it', () => {
+      const after = split(
+        [
+          [
+            {
+              type: 'th',
+              text: 'H',
+              colspan: 2,
+              rowspan: 3,
+              id: 'h',
+              style: 'st',
+              lang: 'de',
+              align: 'right',
+              valign: 'top',
+              unknownAttrs: { foo: 'bar' },
+            },
+            'x',
+          ],
+          ['y'],
+        ],
+        'H',
+      );
+      expect(show(after)).toBe(
+        `[<th>H align=right valign=top lang=de id=h style=st extra=${JSON.stringify({ unknownAttrs: { foo: 'bar' } })}, ` +
+          '<th> align=right valign=top lang=de, x] / ' +
+          '[<th> align=right valign=top lang=de, <th> align=right valign=top lang=de, y]',
+      );
+      expect(gridOfNode(after).regular).toBe(true);
+    });
+
+    it('pieces behind a hole come with the hole fill; positions an earlier cell owns get nothing', () => {
+      // [a, b, C rowspan 2] / [d]: below b a hole, then C's second position.
+      expect(show(split([['a', 'b', { text: 'C', rowspan: 2 }], ['d']], 'C'))).toBe(
+        '[a, b, C] / [d, <td>, <td>]',
+      );
+      // [a, X rowspan 2] / [Y colspan 2]: Y's second position is X's.
+      expect(
+        show(split([['a', { text: 'X', rowspan: 2 }], [{ text: 'Y', colspan: 2 }]], 'Y')),
+      ).toBe('[a, X rowspan=2] / [Y]');
     });
   });
 });

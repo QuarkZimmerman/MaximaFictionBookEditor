@@ -3,10 +3,13 @@
  * §1.5, §4.1-§4.4): `withSpans`, `applyTableEdit`, the refusal codes, placing a cell behind
  * holes, a new cell's neighbour, `tableTarget` and `tableTargetAt`, and `assertTableValid` on
  * each crafted violation. The commit is `commit.test.ts`, row compaction `compaction.test.ts`.
+ * US4 (T096; U30; C24; data-model §4.5 `table.delete` steps 1 and 2): `removeTable`, the
+ * *Delete table* transform the paste router uses on a selected table.
  */
 
 import { EditorState, NodeSelection, TextSelection } from 'prosemirror-state';
 
+import { fb2Schema } from '@/editor/schema';
 import {
   applyTableEdit,
   assertTableValid,
@@ -14,6 +17,7 @@ import {
   isRefusal,
   placeCell,
   REFUSAL_CODES,
+  removeTable,
   tableTarget,
   tableTargetAt,
   withSpans,
@@ -23,6 +27,8 @@ import {
 import { gridOfNode } from '@/editor/table/grid';
 import { blockOver, caretAt, neighbourAt, newCellLike, newRowLike } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
+import { annotationToModel } from '@/editor/toModel';
+import { createRichFieldState } from '@/views/description/richFieldState';
 
 import {
   N,
@@ -382,5 +388,52 @@ describe('assertTableValid', () => {
     expect(() => assertTableValid(invalid, make([children[0]!, children[1]!, emptied]))).toThrow(
       /holds no cell/,
     );
+  });
+});
+
+describe('removeTable (the Delete table transform; U30, C24)', () => {
+  /** The children of the node at `nodeId` (or of the document) after removing table `t`. */
+  function removed(doc: ReturnType<typeof docOf>, container?: string): string[] {
+    const state = EditorState.create({ doc });
+    const tr = removeTable(state.tr, pos(doc, 't'), idGenerator('e'));
+    tr.doc.check();
+    const node = container ? nodeOf(tr.doc, container) : tr.doc;
+    return childrenOf(node).map((child) => `${child.type.name}:${String(child.attrs.nodeId)}`);
+  }
+
+  it('a section’s only table leaves an empty p; a table between two paragraphs leaves nothing', () => {
+    expect(removed(docOf(table('t', plainRows(2, 2))), 's')).toEqual(['p:e1']);
+    expect(removed(docOf(p('a', 'p1'), table('t', plainRows(2, 2)), p('b', 'p2')), 's')).toEqual([
+      'p:p1',
+      'p:p2',
+    ]);
+  });
+
+  it('the only table of the annotation block or the history block leaves an empty p; a section annotation’s none', () => {
+    for (const kind of ['annotation_block', 'history_block'] as const) {
+      const doc = N.doc!.create(null, [
+        N[kind]!.create({ nodeId: 'blk' }, [table('t', plainRows(1, 2))]),
+        N.body!.create({ nodeId: 'b' }, [N.section!.create({ nodeId: 's' }, [p('x', 'p1')])]),
+      ]);
+      expect(removed(doc, 'blk'), kind).toEqual(['p:e1']);
+    }
+    const annotated = docOf(
+      N.annotation!.create({ nodeId: 'an' }, [table('t', plainRows(1, 2))]),
+      p('x', 'p1'),
+    );
+    expect(removed(annotated, 'an')).toEqual([]);
+  });
+
+  it('a description field’s only table leaves an empty p', () => {
+    const field = N.annotation!.create(null, [table('t', plainRows(1, 2))]);
+    const state = createRichFieldState(annotationToModel(field), idGenerator('f'));
+    expect(state.doc.childCount).toBe(1);
+    const tablePos = 0;
+    expect(state.doc.nodeAt(tablePos)!.type.name).toBe('table');
+    const tr = removeTable(state.tr, tablePos, idGenerator('e'));
+    tr.doc.check();
+    expect(childrenOf(tr.doc).map((child) => child.type.name)).toEqual(['p']);
+    expect(tr.doc.child(0).attrs.nodeId).toBe('e1');
+    expect(fb2Schema.nodes.annotation).toBe(tr.doc.type);
   });
 });

@@ -5,7 +5,10 @@
  * a block made as Shift+Arrow makes it, Undo and Redo of those edits and every command of
  * `GUARDED_COMMANDS` on the regular table, in a state with every Body plugin; no transaction a
  * plugin appends carries a step, and after a command on the irregular table itself an empty
- * transaction appends nothing. Later stories append their commands to `GUARDED_COMMANDS`.
+ * transaction appends nothing. Later stories append their commands to `GUARDED_COMMANDS`: US4
+ * (T098) the block clear, the cut and the paste of a block - run on a block of the regular
+ * table -, and the guard's edits gain Delete, Backspace, type-over and the clear a composition
+ * makes on a block of the regular table.
  */
 
 /// <reference types="node" />
@@ -15,13 +18,17 @@ import { fileURLToPath } from 'node:url';
 
 import type { Node as PMNode } from 'prosemirror-model';
 import { redo, undo } from 'prosemirror-history';
+import { Fragment, Slice } from 'prosemirror-model';
 import { TextSelection, type EditorState, type Transaction } from 'prosemirror-state';
 
 import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2Schema, findNodeById } from '@/editor/schema';
 import { planCommand, type TablePlan } from '@/editor/table/commands';
+import { pasteTransaction } from '@/editor/clipboard/route';
 import {
+  pasteBlockPlan,
+  planClearBlock,
   planDeleteColumns,
   planDeleteRows,
   planDuplicateColumns,
@@ -36,8 +43,25 @@ import { createBodyEditorState } from '@/views/body/bodyEditor';
 
 const N = fb2Schema.nodes;
 
-/** The commands the guard runs on the regular table: US2's twelve; later stories append. */
-const GUARDED_COMMANDS: { name: string; plan: TablePlan }[] = [
+/** A 2 × 2 block as the clipboard holds it (US4). */
+function clipboardBlock() {
+  return N.table!.create(null, [
+    N.tr!.create(null, [
+      N.td!.create(null, fb2Schema.text('a')),
+      N.td!.create(null, fb2Schema.text('b')),
+    ]),
+    N.tr!.create(null, [
+      N.td!.create(null, fb2Schema.text('c')),
+      N.td!.create(null, fb2Schema.text('d')),
+    ]),
+  ]);
+}
+
+/**
+ * The commands the guard runs on the regular table: US2's twelve; later stories append (US4:
+ * the block clear and the cut on a block, `block`; the paste of a block, through the router).
+ */
+const GUARDED_COMMANDS: { name: string; plan: TablePlan; block?: boolean }[] = [
   { name: 'insertRowAbove', plan: (a, c) => planInsertRows(a, { side: 'above' }, c) },
   { name: 'insertRowBelow', plan: (a, c) => planInsertRows(a, { side: 'below' }, c) },
   { name: 'deleteRow', plan: (a, c) => planDeleteRows(a, c) },
@@ -50,6 +74,9 @@ const GUARDED_COMMANDS: { name: string; plan: TablePlan }[] = [
   { name: 'moveColumnRight', plan: (a, c) => planMoveColumns(a, { direction: 'right' }, c) },
   { name: 'duplicateRow', plan: (a, c) => planDuplicateRows(a, c) },
   { name: 'duplicateColumn', plan: (a, c) => planDuplicateColumns(a, c) },
+  { name: 'clearBlock', plan: (a, c) => planClearBlock(a, c), block: true },
+  { name: 'cutBlock', plan: (a, c) => planClearBlock(a, c), block: true },
+  { name: 'pasteBlock', plan: (a, c) => pasteBlockPlan(a, clipboardBlock(), c) },
 ];
 
 const VECTORS = path.resolve(
@@ -140,7 +167,7 @@ function runPlan(state: EditorState, plan: TablePlan): { state: EditorState; ran
 describe('no automatic repair (R1.7, FR-035)', () => {
   it('covers the irregular cases of the shared vectors', () => {
     expect(irregular.length).toBeGreaterThan(10);
-    expect(GUARDED_COMMANDS).toHaveLength(12);
+    expect(GUARDED_COMMANDS).toHaveLength(15);
   });
 
   for (const one of irregular) {
@@ -191,10 +218,43 @@ describe('no automatic repair (R1.7, FR-035)', () => {
       expect(redo(state, (tr) => (state = apply(state, tr)))).toBe(true);
       same();
       // Every guarded command on the regular table, from its middle cell.
-      for (const { name, plan } of GUARDED_COMMANDS) {
+      // Delete and Backspace (both `deleteSelection`), type-over and the clear a composition
+      // makes, on a block of the regular table.
+      for (const edit of [
+        (tr: Transaction) => tr.deleteSelection(),
+        (tr: Transaction) => tr.insertText('x'),
+        (tr: Transaction) =>
+          tr.replaceSelection(new Slice(Fragment.from(fb2Schema.text('y')), 0, 0)),
+      ]) {
+        const onBlock = apply(
+          state,
+          state.tr.setSelection(
+            CellBlockSelection.create(state.doc, posOf(state, 'g-0-0'), posOf(state, 'g-1-1')),
+          ),
+        );
+        const edited = apply(onBlock, edit(onBlock.tr));
+        expect(tableOf(edited)).toBe(original);
+      }
+      // The paste of a block through the router, with the caret in the regular table.
+      const caretIn = apply(
+        state,
+        state.tr.setSelection(TextSelection.create(state.doc, posOf(state, 'g-1-1') + 1)),
+      );
+      let counter = 0;
+      const pasteTr = pasteTransaction(
+        caretIn,
+        { kind: 'own', slice: new Slice(Fragment.from(clipboardBlock()), 0, 0) },
+        { bookIds: () => new Set(), nextNodeId: () => `q${(counter += 1)}`, message: () => {} },
+      )!;
+      expect(tableOf(apply(caretIn, pasteTr))).toBe(original);
+      for (const { name, plan, block } of GUARDED_COMMANDS) {
         const at = apply(
           state,
-          state.tr.setSelection(TextSelection.create(state.doc, posOf(state, 'g-1-1') + 1)),
+          state.tr.setSelection(
+            block
+              ? CellBlockSelection.create(state.doc, posOf(state, 'g-0-0'), posOf(state, 'g-1-1'))
+              : TextSelection.create(state.doc, posOf(state, 'g-1-1') + 1),
+          ),
         );
         const result = runPlan(at, plan);
         expect(result.ran, name).toBe(true);

@@ -15,10 +15,12 @@
  * statically.
  *
  * The mix (`FUZZ_MIX`) is R8.15's weights for US2's commands, the Tab row, Undo and Redo; later
- * stories append their entries.
+ * stories append their entries. US4 adds the block clear, the cut and the paste of a block
+ * (SC-003; U19): the generator keeps its own clipboard - a cut block, or a copy of a drawn block
+ * or of the whole current table - and pastes it through the router's `pasteTransaction`.
  */
 
-import type { Node as PMNode, Schema } from 'prosemirror-model';
+import { Fragment, Slice, type Node as PMNode, type Schema } from 'prosemirror-model';
 import {
   TextSelection,
   type Command,
@@ -28,6 +30,7 @@ import {
 } from 'prosemirror-state';
 import { closeHistory, redo, undo, undoDepth } from 'prosemirror-history';
 
+import { pasteTransaction, dedupeIds } from '../../clipboard/route';
 import { DISCRETE_STEP } from '../../commands/util';
 import { nodeToModel } from '../../toModel';
 import {
@@ -48,7 +51,7 @@ import {
   type TableEdit,
   type Refusal,
 } from '../edit';
-import { gridOfNode } from '../grid';
+import { gridOfNode, type Rect } from '../grid';
 import {
   insertionLine,
   moveBands,
@@ -61,6 +64,9 @@ import {
   planMoveColumns,
   planMoveRows,
   planTabRow,
+  pasteBlockPlan,
+  planClearBlock,
+  normalisePastedBlock,
   unitLines,
 } from '../ops';
 import { CellBlockSelection, gridCellPos } from '../selection';
@@ -305,14 +311,26 @@ export interface FuzzEntry {
   weight: number;
   /** The plan the step runs through `planCommand`. */
   plan?: TablePlan;
-  /** Where the caret goes: a random cell or block, or the table's last cell (the Tab row). */
-  caret?: 'last';
+  /**
+   * Where the caret goes: a random cell or block, the table's last cell (the Tab row), or always a
+   * random block (the block commands).
+   */
+  caret?: 'last' | 'block';
   /** The lines the step addresses and its column map; null when it addresses none. */
   lines?(address: TableAddress): FuzzLines | null;
   /** The step removes cells (their text leaves with them). */
   removes?: boolean;
   /** New cells may hold the text of the cells they copy. */
   copies?: boolean;
+  /** US4: the block's cells lose their text (clear, cut); `cut` puts the block on the clipboard. */
+  clears?: 'clear' | 'cut';
+  /** US4: the step pastes the generator's clipboard through the router. */
+  pastes?: boolean;
+}
+
+/** The generator's clipboard (US4): the table a cut or a copy left, as `content()` gives it. */
+export interface FuzzClipboard {
+  table: PMNode | null;
 }
 
 const SAME_COLUMNS: FuzzLines = { column: (c) => c };
@@ -491,6 +509,22 @@ export const FUZZ_MIX: FuzzEntry[] = [
     caret: 'last',
     lines: rowLines,
   },
+  // US4 (SC-003; U19): the block clear (Delete on a drawn block), the cut and the paste.
+  {
+    name: 'clearBlock',
+    weight: 3,
+    plan: (address, ctx) => planClearBlock(address, ctx),
+    caret: 'block',
+    clears: 'clear',
+  },
+  {
+    name: 'cutBlock',
+    weight: 2,
+    plan: (address, ctx) => planClearBlock(address, ctx),
+    caret: 'block',
+    clears: 'cut',
+  },
+  { name: 'pasteBlock', weight: 5, pastes: true, removes: true, copies: true },
   { name: 'undo', weight: 5 },
   { name: 'redo', weight: 5 },
 ];
@@ -507,6 +541,8 @@ export interface FuzzHost {
   undo(): boolean;
   redo(): boolean;
   nextId(): string;
+  /** The book's ids, for the pasted ids (US4; C47). */
+  bookIds(): ReadonlySet<string>;
   /** Puts a start table at the end of the book's first section, replacing the previous one. */
   putTable(table: PMNode): void;
   /** The core's error count of the document, when the host can ask. */
@@ -564,6 +600,14 @@ export function createStateHost(
     undo: () => undo(state, plain),
     redo: () => redo(state, plain),
     nextId: ids,
+    bookIds: () => {
+      const found = new Set<string>();
+      state.doc.descendants((node) => {
+        if (typeof node.attrs.id === 'string' && node.attrs.id !== '') found.add(node.attrs.id);
+        return true;
+      });
+      return found;
+    },
     putTable(table) {
       apply(putTableTransaction(state, table, previous).setMeta(DISCRETE_STEP, true));
       previous = table.attrs.nodeId as string;
@@ -586,7 +630,12 @@ export interface FuzzTarget {
  */
 export function createTargetHost(
   target: FuzzTarget,
-  hooks: { undo(): boolean; redo(): boolean; validate?: () => Promise<number> },
+  hooks: {
+    undo(): boolean;
+    redo(): boolean;
+    validate?: () => Promise<number>;
+    bookIds?: () => ReadonlySet<string>;
+  },
 ): FuzzHost {
   let previous: string | null = null;
   const state = () => {
@@ -601,6 +650,7 @@ export function createTargetHost(
     undo: () => hooks.undo(),
     redo: () => hooks.redo(),
     nextId: () => target.nextNodeId(),
+    bookIds: () => hooks.bookIds?.() ?? new Set<string>(),
     putTable(table) {
       target.run((current, dispatch) => {
         dispatch?.(putTableTransaction(current, table, previous).setMeta(DISCRETE_STEP, true));
@@ -684,10 +734,21 @@ function checkLocality(before: PMNode, after: PMNode, lines: FuzzLines): string 
  * text; text leaves only with the cells a step removes; new cells are empty except the copies
  * of a duplicate, each holding the text of a cell it copies.
  */
-function checkCharacters(before: PMNode, after: PMNode, entry: FuzzEntry): string | null {
+function checkCharacters(
+  before: PMNode,
+  after: PMNode,
+  entry: FuzzEntry,
+  extra: PMNode | null = null,
+): string | null {
   const old = cellsById(before);
   const next = cellsById(after);
   const texts = new Map<string, number>();
+  // A pasted block brings its cells' texts (US4).
+  if (extra) {
+    for (const cell of cellsById(extra).values()) {
+      texts.set(cell.textContent, (texts.get(cell.textContent) ?? 0) + 1);
+    }
+  }
   for (const [id, cell] of old) {
     texts.set(cell.textContent, (texts.get(cell.textContent) ?? 0) + 1);
     const kept = next.get(id);
@@ -695,7 +756,7 @@ function checkCharacters(before: PMNode, after: PMNode, entry: FuzzEntry): strin
       if (!entry.removes) return `the cell "${cell.textContent}" (${id}) was removed`;
       continue;
     }
-    if (kept.textContent !== cell.textContent) {
+    if (kept.textContent !== cell.textContent && !(entry.clears && kept.textContent === '')) {
       return `the cell ${id} holds "${kept.textContent}" instead of "${cell.textContent}"`;
     }
   }
@@ -729,6 +790,101 @@ export interface FuzzStepRecord {
   answer: Availability | null;
   /** The command's answer when run. */
   ran: boolean;
+  /** US4: the block a paste step pasted, as the plan read it. */
+  clipboard?: PMNode | null;
+}
+
+/**
+ * US4's locality (FR-035): after a clear or a cut, the block's positions keep their owner's node
+ * id and kind and lose their content, every other position keeps its owner's content and kind;
+ * after a paste, every position outside the target rectangle T keeps its owner's content and kind
+ * - a cell that crossed T's edge left empty pieces of its kind, its content in its top-left
+ * piece - and T's positions hold the pasted block's cells (content, kind) where the block covers
+ * them.
+ */
+function checkBlockLocality(
+  before: PMNode,
+  after: PMNode,
+  rect: Rect,
+  pasted: PMNode | null,
+): string | null {
+  const g0 = gridOfNode(before);
+  const g1 = gridOfNode(after);
+  if (g0.tooLarge || g1.tooLarge) return null;
+  const rowsAfter = new Map<string, number>();
+  for (let r = 0; r < g1.height; r += 1) {
+    rowsAfter.set(after.child(g1.rowChild[r]!).attrs.nodeId as string, r);
+  }
+  const inside = (r: number, c: number) =>
+    r >= rect.top && r < rect.bottom && c >= rect.left && c < rect.right;
+  // Where each cell stood before: a split crossing cell's position may go to a later cell that
+  // overlapped it there (an irregular table's overlap resolved).
+  const before0 = new Map<unknown, number>();
+  g0.cells.forEach((_cell, index) => {
+    before0.set(gridCellNode(before, g0, index).attrs.nodeId, index);
+  });
+  const coveredBefore = (node: PMNode, r: number, c: number) => {
+    const index = before0.get(node.attrs.nodeId);
+    if (index === undefined) return false;
+    const cell = g0.cells[index]!;
+    return (
+      cell.row <= r && r < cell.row + cell.rowsIn && cell.left <= c && c < cell.left + cell.colspan
+    );
+  };
+  for (let r0 = 0; r0 < g0.height; r0 += 1) {
+    const r1 = rowsAfter.get(before.child(g0.rowChild[r0]!).attrs.nodeId as string);
+    if (r1 === undefined) continue;
+    for (let c = 0; c < g0.width; c += 1) {
+      const o0 = g0.owner(r0, c);
+      if (o0 < 0) continue;
+      const n0 = gridCellNode(before, g0, o0);
+      const o1 = g1.owner(r1, c);
+      if (inside(r0, c)) {
+        if (pasted) continue;
+        if (o1 < 0) return `the block's position (${r0}, ${c}) is a hole`;
+        const n1 = gridCellNode(after, g1, o1);
+        if (n1.attrs.nodeId !== n0.attrs.nodeId || n1.type !== n0.type || n1.content.size > 0) {
+          return `the block's position (${r0}, ${c}) is not its cleared cell`;
+        }
+        continue;
+      }
+      if (o1 < 0) return `position (${r0}, ${c}) of "${n0.textContent}" is a hole`;
+      const n1 = gridCellNode(after, g1, o1);
+      const cell = g0.cells[o0]!;
+      const crossed =
+        pasted !== null &&
+        cell.row < rect.bottom &&
+        cell.row + cell.rowsIn > rect.top &&
+        cell.left < rect.right &&
+        cell.left + cell.colspan > rect.left;
+      if (n0.type !== n1.type) return `position (${r0}, ${c}) changed its kind`;
+      if (crossed && (n1.content.size === 0 || coveredBefore(n1, r0, c))) continue;
+      if (!n0.content.eq(n1.content)) {
+        return `position (${r0}, ${c}) of "${n0.textContent}" holds "${n1.textContent}"`;
+      }
+    }
+  }
+  if (pasted) {
+    const gB = gridOfNode(pasted);
+    for (let i = 0; i < gB.height; i += 1) {
+      for (let j = 0; j < gB.width; j += 1) {
+        const ob = gB.owner(i, j);
+        if (ob < 0) continue;
+        const cell = gB.cells[ob]!;
+        if (cell.row !== i || cell.left !== j) continue;
+        const r = rect.top + i;
+        if (r >= g1.height) continue;
+        const o1 = g1.owner(r, rect.left + j);
+        if (o1 < 0) return `the pasted cell (${i}, ${j}) is missing`;
+        const nb = gridCellNode(pasted, gB, ob);
+        const n1 = gridCellNode(after, g1, o1);
+        if (nb.type !== n1.type || !nb.content.eq(n1.content)) {
+          return `T's position (${r}, ${rect.left + j}) does not hold the pasted "${nb.textContent}"`;
+        }
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -739,7 +895,7 @@ export interface FuzzStepRecord {
  * (FR-035) and no character is lost or invented. Null when every check holds, else the reason.
  */
 export function checkFuzzStep(record: FuzzStepRecord): string | null {
-  const { entry, before, after, tablePos, address, dryRun, answer, ran } = record;
+  const { entry, before, after, tablePos, address, dryRun, answer, ran, clipboard } = record;
   if (answer && !sameAvailability(answer, dryRun)) {
     return `availability ${JSON.stringify(answer)} disagrees with the plan's ${
       isRefusal(dryRun) ? JSON.stringify(dryRun) : 'edit'
@@ -765,13 +921,36 @@ export function checkFuzzStep(record: FuzzStepRecord): string | null {
   if (!next || next.type.name !== 'table' || next.attrs.nodeId !== table.attrs.nodeId) {
     return 'the table is no longer where it was';
   }
+  const edit = dryRun as TableEdit;
   try {
-    assertTableValid(table, next);
+    assertTableValid(table, next, edit.allowedIds, edit.pastedIrregular);
   } catch (error) {
     return String(error instanceof Error ? error.message : error);
   }
-  if (gridOfNode(table).regular && !gridOfNode(next).regular) {
+  // A paste of a block copied from an irregular table brings its irregularity (decision 4).
+  if (gridOfNode(table).regular && !gridOfNode(next).regular && !edit.pastedIrregular) {
     return 'a regular table became irregular';
+  }
+  if (entry.clears || entry.pastes) {
+    let rect = address.rect;
+    if (entry.pastes && clipboard) {
+      const gB = gridOfNode(
+        normalisePastedBlock(clipboard, { keepRows: true }, { nextId: () => '' }),
+      );
+      const top = address.rect?.top ?? address.caret?.row ?? 0;
+      const left = address.rect?.left ?? address.caret?.col ?? 0;
+      rect = { top, left, bottom: top + gB.height, right: left + gB.width };
+    }
+    if (rect) {
+      const locality = checkBlockLocality(
+        table,
+        next,
+        rect,
+        entry.pastes ? (clipboard ?? null) : null,
+      );
+      if (locality) return locality;
+    }
+    return checkCharacters(table, next, entry, clipboard ?? null);
   }
   const lines = entry.lines?.(address) ?? null;
   if (lines) {
@@ -859,6 +1038,22 @@ function randomSelection(rng: () => number, doc: PMNode, tablePos: number): Sele
   return TextSelection.create(doc, cellPos + 1 + below(rng, size + 1));
 }
 
+/** A random block of two different cells of the table, or null for a table of one cell. */
+function randomBlock(rng: () => number, doc: PMNode, tablePos: number): CellBlockSelection | null {
+  const table = doc.nodeAt(tablePos)!;
+  const grid = gridOfNode(table);
+  const count = grid.cells.length;
+  if (count < 2 || grid.tooLarge) return null;
+  const anchor = below(rng, count);
+  let head = below(rng, count - 1);
+  if (head >= anchor) head += 1;
+  return CellBlockSelection.create(
+    doc,
+    gridCellPos(table, tablePos, grid, anchor),
+    gridCellPos(table, tablePos, grid, head),
+  );
+}
+
 /** A caret at the end of the table's last cell in document order (the Tab row). */
 function lastCellCaret(doc: PMNode, tablePos: number): Selection {
   const table = doc.nodeAt(tablePos)!;
@@ -902,6 +1097,7 @@ export async function runFuzz(
   let age = 0;
   let done: Done[] = [];
   let undone: Done[] = [];
+  const clipboard: FuzzClipboard = { table: null };
   const fail = (
     step: number,
     command: string,
@@ -959,7 +1155,10 @@ export async function runFuzz(
         host.select(
           entry.caret === 'last'
             ? lastCellCaret(start.doc, current.pos)
-            : randomSelection(rng, start.doc, current.pos),
+            : entry.caret === 'block'
+              ? (randomBlock(rng, start.doc, current.pos) ??
+                randomSelection(rng, start.doc, current.pos))
+              : randomSelection(rng, start.doc, current.pos),
         );
         const before = host.state();
         selection = describeSelection(before.selection);
@@ -967,10 +1166,36 @@ export async function runFuzz(
         if (!target || target.tablePos !== current.pos) {
           reason = 'the selection does not address the table';
         } else {
-          const ctx = { nextId: () => host.nextId() };
-          const dryRun = entry.plan!(target.address, ctx);
+          const ctx = { nextId: () => host.nextId(), bookIds: host.bookIds() };
+          if (entry.clears === 'cut' && before.selection instanceof CellBlockSelection) {
+            clipboard.table = before.selection.content().content.firstChild;
+          }
+          if (entry.pastes && (!clipboard.table || rng() < 0.5)) {
+            // A copy of a drawn block, or of the whole current table.
+            const block = randomBlock(rng, before.doc, current.pos);
+            clipboard.table =
+              block && rng() < 0.7 ? block.content().content.firstChild : current.node;
+          }
+          const pasted = entry.pastes ? clipboard.table : null;
+          const plan: TablePlan = entry.pastes
+            ? (address, c) => pasteBlockPlan(address, dedupeIds(pasted!, ctx.bookIds), c)
+            : entry.plan!;
+          const dryRun = plan(target.address, ctx);
           const answer = entry.command ? availability(before, entry.command) : null;
-          const ran = host.run(planCommand(entry.plan!, ctx));
+          const ran = host.run(
+            entry.pastes
+              ? (state, dispatch) => {
+                  const tr = pasteTransaction(
+                    state,
+                    { kind: 'own', slice: new Slice(Fragment.from(pasted!), 0, 0) },
+                    { bookIds: () => ctx.bookIds, nextNodeId: ctx.nextId, message: () => {} },
+                  );
+                  if (!tr || !tr.docChanged) return false;
+                  dispatch?.(tr);
+                  return true;
+                }
+              : planCommand(plan, ctx),
+          );
           const after = host.state();
           reason = checkFuzzStep({
             entry,
@@ -981,6 +1206,7 @@ export async function runFuzz(
             dryRun,
             answer,
             ran,
+            clipboard: pasted,
           });
           if (!reason && !after.doc.eq(before.doc)) {
             done.push({ before: before.doc, after: after.doc });

@@ -19,6 +19,7 @@ import { findNodeById } from '@/editor/schema';
 import { gridOfModel, type TableSummary } from '@/editor/table/grid';
 import i18next from '@/i18n';
 import type { AnnotationNode, BodyNode, Document, TableNode } from '@/model/document';
+import { collectBookIds } from '@/model/ids';
 import { isRunLocked } from '@/model/store';
 import type { ModelPoint } from '@/rpc/types';
 import { getBodyController, hasBodyController, selectionFor } from '@/views/body/bodyEditor';
@@ -201,6 +202,11 @@ export function installTablesTestHooks(ctx: FeatureContext): void {
         undo: () => ctx.undo.undo(),
         redo: () => ctx.undo.redo(),
         validate,
+        // The pasted ids are checked against the whole book (US4; C47).
+        bookIds: () => {
+          const document = ctx.store.getState().document;
+          return document ? collectBookIds(document) : new Set<string>();
+        },
       });
       return runFuzz(host, { seed, steps });
     },

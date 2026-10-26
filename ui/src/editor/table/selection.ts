@@ -13,16 +13,29 @@
  *   Body-to-Source mapping and the script API's `selection.get`.
  * - `empty` is always false (Copy and Cut work on a block of empty cells, R5.12) and `visible`
  *   false (the highlight is the plugin's decorations, data-model §5.6).
- * - `replace` and `replaceWith` keep ProseMirror's default: each range cleared, content into
- *   the first; cells are isolating, so a cell is never removed (US4 overrides them with its
- *   clear-block plan).
+ * - `replace` and `replaceWith` clear the block with the clear-block plan (US4, data-model
+ *   §4.6, §5.3: one step over the changed rows, `DISCRETE_STEP`, the block kept selected) and put
+ *   inline content at the start of the block's top-left cell, the caret after it - so the generic
+ *   paths (`deleteSelection`, `replaceSelection`, `replaceSelectionWith`, `insertText`) never
+ *   change a row. This module reaches `ops.ts` and `edit.ts` at call time only: `edit.ts` uses
+ *   the class only inside functions, so the module cycle evaluates no import at load.
  */
 
 import { Fragment, Slice, type Node as PMNode, type ResolvedPos } from 'prosemirror-model';
-import { Selection, SelectionRange, type SelectionBookmark } from 'prosemirror-state';
+import {
+  Selection,
+  SelectionRange,
+  TextSelection,
+  type SelectionBookmark,
+  type Transaction,
+} from 'prosemirror-state';
 import type { Mappable } from 'prosemirror-transform';
 
+import { flattenToParagraphs, isInlineSlice } from '../plugins/clipboard';
+
+import { commitTableEdit, isRefusal, type TableAddress } from './edit';
 import { cellIndexAt, cellRect, gridOfNode, type Rect, type TableGrid } from './grid';
+import { joinInlineParts, planClearBlock } from './ops';
 
 /* ------------------------------------------------------------------------ */
 /* Cells and their positions                                                */
@@ -124,6 +137,39 @@ export function gridCellPos(
   return childPosition(table.child(rowChild), rowPos, cell.index);
 }
 
+/**
+ * The position just before a block's top-left cell in `doc`: the owner of `(rect.top,
+ * rect.left)`, else - that position a hole - the first cell of `rect` in reading order; null
+ * when no table stands at `tablePos`, it is too large, or the rectangle holds no cell.
+ */
+export function blockTopLeftCellPos(doc: PMNode, tablePos: number, rect: Rect): number | null {
+  const table = doc.nodeAt(tablePos);
+  if (!table || table.type.name !== 'table') return null;
+  const grid = gridOfNode(table);
+  if (grid.tooLarge) return null;
+  let index = grid.owner(rect.top, rect.left);
+  if (index < 0) index = grid.cellsIn(rect)[0] ?? -1;
+  return index < 0 ? null : gridCellPos(table, tablePos, grid, index);
+}
+
+/**
+ * Content as the one inline run a cell takes (data-model §4.6, §8.3): inline content as it is,
+ * other content as `joinInlineParts` of the inline content of its text blocks.
+ */
+function inlineRun(content: Slice): Fragment {
+  if (isInlineSlice(content)) return content.content;
+  return joinInlineParts(
+    flattenToParagraphs(content.content).map((node) =>
+      node.isTextblock ? node.content : Fragment.empty,
+    ),
+  );
+}
+
+/** The clear-block plan creates no node: a node-id generator it must never call. */
+function noNewNodes(): string {
+  throw new Error('the clear-block plan creates no node');
+}
+
 function unionRect(a: Rect, b: Rect): Rect {
   return {
     top: Math.min(a.top, b.top),
@@ -221,6 +267,60 @@ export class CellBlockSelection extends Selection {
   /** The positions just before the block's cells, in the order of `ranges`. */
   cellPositions(): number[] {
     return this.ranges.map((range) => range.$from.pos - 1);
+  }
+
+  /**
+   * Clears the block in `tr` (data-model §4.6 "Clear block"): the clear-block plan committed by
+   * `commitTableEdit` - one step over the changed rows, `DISCRETE_STEP`, the block kept
+   * selected; nothing when every cell is empty. Gives the position before the block's top-left
+   * cell afterwards, null when the table is not there or too large for a block.
+   */
+  private clear(tr: Transaction): number | null {
+    const table = tr.doc.nodeAt(this.tablePos);
+    if (!table || table.type.name !== 'table') return null;
+    const grid = gridOfNode(table);
+    if (grid.tooLarge) return null;
+    const head = cellRefAt(tr.doc, this.$headCell.pos);
+    const index = head ? gridIndexOf(grid, head) : -1;
+    const at =
+      index >= 0 ? { row: grid.cells[index]!.row, col: grid.cells[index]!.left } : undefined;
+    const address: TableAddress = { table, grid, rect: { ...this.rect }, caret: at, head: at };
+    const edit = planClearBlock(address, { nextId: noNewNodes });
+    if (!isRefusal(edit)) commitTableEdit(tr, this.tablePos, edit);
+    return blockTopLeftCellPos(tr.doc, this.tablePos, this.rect);
+  }
+
+  /**
+   * The block cleared, then non-empty `content` at the start of its top-left cell as one inline
+   * run - inline content as it is, other content joined (`joinInlineParts`) - with the caret
+   * after it (data-model §5.3); the rows never change.
+   */
+  override replace(tr: Transaction, content: Slice = Slice.empty): void {
+    const cellPos = this.clear(tr);
+    if (cellPos === null) {
+      super.replace(tr, content);
+      return;
+    }
+    if (content.size === 0) return;
+    const run = inlineRun(content);
+    if (run.size === 0) return;
+    tr.insert(cellPos + 1, run);
+    tr.setSelection(TextSelection.create(tr.doc, cellPos + 1 + run.size));
+  }
+
+  /**
+   * The block cleared, then an inline `node` at the start of its top-left cell with the caret
+   * after it; a block node goes nowhere (a cell holds one inline run).
+   */
+  override replaceWith(tr: Transaction, node: PMNode): void {
+    const cellPos = this.clear(tr);
+    if (cellPos === null) {
+      super.replaceWith(tr, node);
+      return;
+    }
+    if (!node.isInline) return;
+    tr.insert(cellPos + 1, node);
+    tr.setSelection(TextSelection.create(tr.doc, cellPos + 1 + node.nodeSize));
   }
 
   /**

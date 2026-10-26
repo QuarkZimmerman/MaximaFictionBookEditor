@@ -3,10 +3,14 @@
  * §5): `CellBlockSelection` - its rectangle, ranges, head, content, JSON, mapping and
  * bookmark - and `tableEditingPlugin` - `createSelectionBetween`, Shift+click, Shift+Arrow,
  * Enter with a block, the normalisation of §5.2, the decorations and the absence of paste
- * props. US4's journeys drive the same in a real page.
+ * props. US4's journeys drive the same in a real page. US4 (T092; FR-011; US4 sc.4, sc.5,
+ * sc.8; U39; data-model §4.6, §5.3, §5.4, §5.7): the generic replacement paths over a block -
+ * `deleteSelection`, `replaceSelectionWith`, `insertText`, `replaceSelection`, `replaceWith` -
+ * clear it with the clear-block plan and never change a row; Delete, Backspace, type-over and
+ * the start of a composition through the plugin.
  */
 
-import type { Node as PMNode } from 'prosemirror-model';
+import { Fragment, Slice, type Node as PMNode } from 'prosemirror-model';
 import { history, undo } from 'prosemirror-history';
 import {
   EditorState,
@@ -14,14 +18,16 @@ import {
   Selection,
   TextSelection,
   type Plugin,
+  type Transaction,
 } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 
+import { DISCRETE_STEP } from '@/editor/commands/util';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
 import { fb2Schema, findNodeById } from '@/editor/schema';
 import { gridOfNode } from '@/editor/table/grid';
 import { tableEditingKey, tableEditingPlugin } from '@/editor/table/plugin';
-import { CellBlockSelection, cellBlockOrNull } from '@/editor/table/selection';
+import { CellBlockSelection, blockTopLeftCellPos, cellBlockOrNull } from '@/editor/table/selection';
 import { createBodyEditorState } from '@/views/body/bodyEditor';
 
 const N = fb2Schema.nodes;
@@ -535,5 +541,262 @@ describe('tableEditingPlugin', () => {
     expect(plugin.props.transformPasted).toBeUndefined();
     expect(plugin.props.clipboardTextParser).toBeUndefined();
     expect(plugin.props.handleDOMEvents?.paste).toBeUndefined();
+  });
+});
+
+describe('US4: clearing and typing over a block (data-model §4.6, §5.3, §5.4)', () => {
+  /** The 4 × 4 table `t` (one id on r0c0) between two paragraphs, a block from `a` to `h`. */
+  function blockState(anchor = 't-0-0', head = 't-1-1', plugins?: Plugin[]): EditorState {
+    const rows = grid4();
+    (rows[0] as CellSpec[])[0] = { id: 'tid' };
+    const doc = docOf(p('before', 'p1'), table('t', rows), p('after', 'p2'));
+    const state = plugins
+      ? stateOf(doc, plugins)
+      : createBodyEditorState(doc, { getNbspChar: () => '\u00b0' });
+    return select(state, CellBlockSelection.create(doc, pos(doc, anchor), pos(doc, head)));
+  }
+
+  /** The texts of table `t`, row by row. */
+  function texts(doc: PMNode): string[][] {
+    const tableNode = doc.nodeAt(pos(doc, 't'))!;
+    const out: string[][] = [];
+    tableNode.forEach((row) => {
+      const cells: string[] = [];
+      row.forEach((cell) => cells.push(cell.textContent));
+      out.push(cells);
+    });
+    return out;
+  }
+
+  /** The node ids and FB2 ids of every row and cell of table `t`. */
+  function skeleton(doc: PMNode): string[] {
+    const tableNode = doc.nodeAt(pos(doc, 't'))!;
+    const out: string[] = [];
+    tableNode.forEach((row) => {
+      out.push(String(row.attrs.nodeId));
+      row.forEach((cell) => out.push(`${String(cell.attrs.nodeId)}#${String(cell.attrs.id)}`));
+    });
+    return out;
+  }
+
+  const CLEARED = [
+    ['', '', 'r0c2', 'r0c3'],
+    ['', '', 'r1c2', 'r1c3'],
+    ['r2c0', 'r2c1', 'r2c2', 'r2c3'],
+    ['r3c0', 'r3c1', 'r3c2', 'r3c3'],
+  ];
+
+  it('tr.deleteSelection() clears the cells through the clear-block plan, keeps every row and cell and the block, with DISCRETE_STEP', () => {
+    const state = blockState();
+    const tr = state.tr.deleteSelection();
+    expect(tr.getMeta(DISCRETE_STEP)).toBe(true);
+    expect(texts(tr.doc)).toEqual(CLEARED);
+    expect(skeleton(tr.doc)).toEqual(skeleton(state.doc));
+    const after = state.apply(tr);
+    expect(after.selection).toBeInstanceOf(CellBlockSelection);
+    // The same anchor and head cells (the commit's focus keeps them by node id).
+    const cells = (selection: CellBlockSelection) => [
+      selection.$anchorCell.nodeAfter!.attrs.nodeId,
+      selection.$headCell.nodeAfter!.attrs.nodeId,
+    ];
+    expect(cells(after.selection as CellBlockSelection)).toEqual(
+      cells(state.selection as CellBlockSelection),
+    );
+    expect((after.selection as CellBlockSelection).rect).toEqual({
+      top: 0,
+      left: 0,
+      bottom: 2,
+      right: 2,
+    });
+  });
+
+  it('replaceSelectionWith(text) and insertText clear the block and put the text at the start of its top-left cell, the caret after it', () => {
+    for (const run of [
+      (tr: Transaction) => tr.replaceSelectionWith(fb2Schema.text('x')),
+      (tr: Transaction) => tr.insertText('x'),
+    ]) {
+      // The head in the top-left corner's opposite: the text still goes to the top-left cell.
+      const state = blockState('t-1-1', 't-0-0');
+      const tr = run(state.tr);
+      const expected = CLEARED.map((row) => [...row]);
+      expected[0]![0] = 'x';
+      expect(texts(tr.doc)).toEqual(expected);
+      expect(skeleton(tr.doc)).toEqual(skeleton(state.doc));
+      expect(tr.selection.empty).toBe(true);
+      expect(tr.selection.head).toBe(pos(tr.doc, 't-0-0') + 2);
+    }
+  });
+
+  it('the top-left cell is the owner of the rectangle’s top-left position, else the first cell of the block in reading order', () => {
+    // [a] / [b, c]: (0, 1) is a hole; the rectangle rows 1-2 × column 2 holds c only.
+    const doc = docOf(table('t', [[{}], [{}, {}]]));
+    const tablePos = pos(doc, 't');
+    expect(blockTopLeftCellPos(doc, tablePos, { top: 0, left: 1, bottom: 2, right: 2 })).toBe(
+      pos(doc, 't-1-1'),
+    );
+    expect(blockTopLeftCellPos(doc, tablePos, { top: 0, left: 0, bottom: 2, right: 2 })).toBe(
+      pos(doc, 't-0-0'),
+    );
+  });
+
+  it('replaceSelection of a two-paragraph slice puts it into the top-left cell as one inline run; no row changes', () => {
+    const state = blockState();
+    const slice = new Slice(Fragment.from([p('one', 'x1'), p('two', 'x2')]), 1, 1);
+    const tr = state.tr.replaceSelection(slice);
+    const expected = CLEARED.map((row) => [...row]);
+    expected[0]![0] = 'one two';
+    expect(texts(tr.doc)).toEqual(expected);
+    expect(skeleton(tr.doc)).toEqual(skeleton(state.doc));
+    expect(tr.selection.head).toBe(pos(tr.doc, 't-0-0') + 1 + 'one two'.length);
+  });
+
+  it('replaceWith of a block node only clears the block', () => {
+    const state = blockState();
+    const tr = state.tr.replaceSelectionWith(N.p!.create(null, fb2Schema.text('para')));
+    expect(texts(tr.doc)).toEqual(CLEARED);
+    expect(tr.doc.child(0).child(0).childCount).toBe(3);
+    expect(tr.selection).toBeInstanceOf(CellBlockSelection);
+  });
+
+  it('Delete and Backspace (also with Ctrl) clear the block through the plugin and return true; a caret is left to the keymap', () => {
+    for (const init of [
+      { key: 'Delete' },
+      { key: 'Backspace' },
+      { key: 'Delete', ctrlKey: true },
+      { key: 'Backspace', ctrlKey: true },
+    ]) {
+      const view = viewOf(blockState());
+      const plugin = pluginOf(view.state);
+      expect(
+        plugin.props.handleKeyDown!.call(plugin, view, new KeyboardEvent('keydown', init)),
+        JSON.stringify(init),
+      ).toBe(true);
+      expect(texts(view.state.doc)).toEqual(CLEARED);
+      expect(view.state.selection).toBeInstanceOf(CellBlockSelection);
+    }
+    const base = blockState();
+    const view = viewOf(select(base, caret(base.doc, 't-0-0', 2)));
+    const plugin = pluginOf(view.state);
+    expect(
+      plugin.props.handleKeyDown!.call(
+        plugin,
+        view,
+        new KeyboardEvent('keydown', { key: 'Delete' }),
+      ),
+    ).toBe(false);
+  });
+
+  it('Delete on a block of empty cells dispatches nothing', () => {
+    const doc = docOf(
+      table('t', [
+        [{ text: '' }, { text: '' }],
+        [{}, {}],
+      ]),
+    );
+    const state = select(
+      createBodyEditorState(doc, { getNbspChar: () => '\u00b0' }),
+      CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 't-0-1')),
+    );
+    const seen: unknown[] = [];
+    const view = viewOf(state);
+    view.setProps({
+      dispatchTransaction: (tr) => {
+        seen.push(tr);
+        view.updateState(view.state.apply(tr));
+      },
+    });
+    const plugin = pluginOf(view.state);
+    expect(
+      plugin.props.handleKeyDown!.call(
+        plugin,
+        view,
+        new KeyboardEvent('keydown', { key: 'Delete' }),
+      ),
+    ).toBe(true);
+    expect(seen).toEqual([]);
+  });
+
+  it('handleTextInput with a block dispatches one transaction - the clear, the text, a caret after it, DISCRETE_STEP - before the overtype plugin', () => {
+    const doc = docOf(p('before', 'p1'), table('t', grid4()), p('after', 'p2'));
+    const state = select(
+      createBodyEditorState(doc, { getNbspChar: () => '\u00b0', isOvertype: () => true }),
+      CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 't-1-1')),
+    );
+    const seen: Transaction[] = [];
+    const view = viewOf(state);
+    view.setProps({
+      dispatchTransaction: (tr) => {
+        seen.push(tr);
+        view.updateState(view.state.apply(tr));
+      },
+    });
+    const { from, to } = view.state.selection;
+    const handled = view.someProp('handleTextInput', (f) =>
+      f(view, from, to, 'x', () => view.state.tr),
+    );
+    expect(handled).toBe(true);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.getMeta(DISCRETE_STEP)).toBe(true);
+    expect(texts(view.state.doc)[0]![0]).toBe('x');
+    expect(texts(view.state.doc)[1]![1]).toBe('');
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.head).toBe(pos(view.state.doc, 't-0-0') + 2);
+    // Without a block the plugin leaves the text to the others.
+    const plugin = pluginOf(view.state);
+    expect(
+      plugin.props.handleTextInput!.call(plugin, view, from, from, 'y', () => view.state.tr),
+    ).toBe(false);
+  });
+
+  it('compositionstart with a block selects its top-left cell’s content and returns false; compositionend clears the other cells as a discrete step; nothing for a caret', async () => {
+    const seen: Transaction[] = [];
+    const view = viewOf(blockState('t-1-1', 't-0-0'));
+    view.setProps({
+      dispatchTransaction: (tr) => {
+        seen.push(tr);
+        view.updateState(view.state.apply(tr));
+      },
+    });
+    const before = view.state.doc;
+    view.dom.dispatchEvent(new Event('compositionstart', { bubbles: true }));
+    expect(seen).toHaveLength(1);
+    // No document change under a starting composition; the top-left cell's content selected
+    // for the composition to replace.
+    expect(view.state.doc).toBe(before);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    const corner = pos(view.state.doc, 't-0-0');
+    expect([view.state.selection.from, view.state.selection.to]).toEqual([corner + 1, corner + 5]);
+    // The composition replaces it; when it ends, the block's other cells are cleared.
+    view.dispatch(view.state.tr.insertText('é'));
+    view.dom.dispatchEvent(new Event('compositionend', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(seen).toHaveLength(3);
+    expect(seen[2]!.getMeta(DISCRETE_STEP)).toBe(true);
+    const expected = CLEARED.map((row) => [...row]);
+    expected[0]![0] = 'é';
+    expect(texts(view.state.doc)).toEqual(expected);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.head).toBe(pos(view.state.doc, 't-0-0') + 2);
+    // The handlers do nothing for a caret.
+    const plugin = pluginOf(view.state);
+    const start = plugin.props.handleDOMEvents!.compositionstart!;
+    expect(start.call(plugin, view, new Event('compositionstart') as CompositionEvent)).toBe(false);
+    expect(seen).toHaveLength(3);
+  });
+
+  it('an Undo through history() after a clear gives back the contents and the block', () => {
+    let state = blockState('t-0-0', 't-1-1', [history(), tableEditingPlugin()]);
+    const block = state.selection;
+    state = state.apply(state.tr.deleteSelection());
+    expect(texts(state.doc)).toEqual(CLEARED);
+    let undone: EditorState | null = null;
+    expect(
+      undo(state, (tr) => {
+        undone = state.apply(tr);
+      }),
+    ).toBe(true);
+    expect(texts(undone!.doc)[0]).toEqual(['r0c0', 'r0c1', 'r0c2', 'r0c3']);
+    expect(undone!.selection).toBeInstanceOf(CellBlockSelection);
+    expect(undone!.selection.eq(block)).toBe(true);
   });
 });

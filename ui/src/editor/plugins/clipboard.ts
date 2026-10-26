@@ -7,18 +7,27 @@
  *
  * Paste prefers the structured flavour; the slice is inserted with its structure where the
  * schema accepts it at the caret and flattened to plain paragraphs otherwise (FR-030, spec US2
- * scenario 6). HTML from other applications (no structured flavour, no ProseMirror marker) is
- * always flattened to paragraphs keeping only the supported inline styles; plain text becomes
- * one paragraph per line. Images in pasted content are handled by US7 (`features/images`).
+ * scenario 6). HTML from other applications (no structured flavour, no `fb-` class on its slice
+ * root) is always flattened to paragraphs keeping only the supported inline styles; plain text
+ * becomes one paragraph per line. Images in pasted content are handled by US7
+ * (`features/images`).
+ *
+ * Feature 006 (C4, I14; data-model §8.1): `clipboardPlugin(opts)` routes every paste of its host
+ * through the one router of `ui/src/editor/clipboard/route.ts` - a real paste event read before
+ * ProseMirror parses anything (`handleDOMEvents.paste`), `view.pasteHTML()` (`handlePaste`) and
+ * Edit → Paste (`pasteData`, with the options the plugin carries) - so tables paste by position
+ * and by FR-004, and no paste splits a table.
  */
 
 import { DOMParser as PMDOMParser, Fragment, Node as PMNode, Slice } from 'prosemirror-model';
 import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 
-import { fb2Schema } from '../schema';
+import { isOwnHtml, routePaste, type ClipboardOptions } from '../clipboard/route';
+import { createNodeIdGenerator, fb2Schema } from '../schema';
 import { N, PARAGRAPH_TYPES } from '../commands/util';
-import { currentNbspMarker, markersToNbsp } from './nbsp';
+
+export type { ClipboardOptions, PasteInput } from '../clipboard/route';
 
 export const MFBE_CLIPBOARD_MIME = 'application/x-mfbe-fb2+json';
 /** Chromium exposes custom formats written with the async clipboard API under this prefix. */
@@ -215,7 +224,8 @@ export function payloadFromSlice(slice: Slice): ClipboardPayload {
 export function sliceFromPayload(json: string): Slice | null {
   try {
     const payload = JSON.parse(json) as Partial<ClipboardPayload>;
-    if (payload.format !== 'mfbe-fb2' || !payload.slice) return null;
+    // Own content is format "mfbe-fb2", version 1 (resource-formats.md §20).
+    if (payload.format !== 'mfbe-fb2' || payload.version !== 1 || !payload.slice) return null;
     return Slice.fromJSON(fb2Schema, payload.slice);
   } catch {
     return null;
@@ -228,28 +238,34 @@ export interface PasteData {
   text?: string | null;
 }
 
-/** Applies pasted data (structured JSON, HTML or plain text) to the view. */
+/** The options of the router when a view has no clipboard plugin: no book ids, no messages. */
+const FALLBACK_OPTIONS: ClipboardOptions = {
+  bookIds: () => new Set(),
+  nextNodeId: createNodeIdGenerator('ui_paste_'),
+  message: () => {},
+};
+
+/** The options the clipboard plugin of `state` carries. */
+function optionsOf(state: EditorState): ClipboardOptions {
+  const spec = clipboardPluginKey.get(state)?.spec as { clipboardOptions?: ClipboardOptions };
+  return spec?.clipboardOptions ?? FALLBACK_OPTIONS;
+}
+
+/**
+ * Applies pasted data (Edit → Paste: structured JSON, HTML or plain text) through the router,
+ * with the options the view's clipboard plugin carries: the own flavour; own HTML through
+ * `view.pasteHTML`, so ProseMirror's clipboard parser reads its `data-pm-slice` context and the
+ * slice comes back through `handlePaste`; foreign HTML; text.
+ */
 export function pasteData(view: EditorView, data: PasteData): boolean {
+  const opts = optionsOf(view.state);
   const structured = data.json ? sliceFromPayload(data.json) : null;
-  if (structured) {
-    view.dispatch(insertSlice(view.state, structured).scrollIntoView());
-    return true;
-  }
-  // Marker characters of pasted text become non-breaking spaces (the structured flavour and
-  // ProseMirror's own HTML go through the marker plugin's transformPasted).
-  const marker = currentNbspMarker(view.state);
+  if (structured) return routePaste(view, { kind: 'own', slice: structured }, opts);
   if (data.html) {
-    // ProseMirror's own HTML (another MFBE window) keeps its structure where legal.
-    if (/data-pm-slice=/.test(data.html)) return view.pasteHTML(data.html);
-    const slice = markersToNbsp(sliceFromExternalHtml(data.html), marker);
-    view.dispatch(insertSlice(view.state, slice).scrollIntoView());
-    return true;
+    if (isOwnHtml(data.html)) return view.pasteHTML(data.html);
+    return routePaste(view, { kind: 'foreign', html: data.html }, opts);
   }
-  if (data.text) {
-    const slice = markersToNbsp(sliceFromPlainText(data.text), marker);
-    view.dispatch(insertSlice(view.state, slice).scrollIntoView());
-    return true;
-  }
+  if (data.text) return routePaste(view, { kind: 'text', text: data.text }, opts);
   return false;
 }
 
@@ -257,45 +273,46 @@ export function pasteData(view: EditorView, data: PasteData): boolean {
 /* Plugin                                                                   */
 /* ------------------------------------------------------------------------ */
 
-export function clipboardPlugin(): Plugin {
+/**
+ * A real paste event, read before ProseMirror parses anything (data-model §8.1): the own
+ * flavour, else HTML (own HTML through `view.pasteHTML`, foreign HTML as it is), else text; then
+ * `preventDefault`. False without a text flavour (the images feature's capture-phase handler
+ * has taken image pastes before), while the view is not editable and while it is composing.
+ */
+function pasteEvent(view: EditorView, event: ClipboardEvent, opts: ClipboardOptions): boolean {
+  if (!view.editable || view.composing) return false;
+  const data = event.clipboardData;
+  if (!data) return false;
+  const json = data.getData(MFBE_CLIPBOARD_MIME);
+  const structured = json ? sliceFromPayload(json) : null;
+  const html = data.getData('text/html');
+  const text = data.getData('text/plain');
+  if (!structured && !html && !text) return false;
+  event.preventDefault();
+  if (structured) routePaste(view, { kind: 'own', slice: structured }, opts);
+  else if (html) {
+    if (isOwnHtml(html)) view.pasteHTML(html, event);
+    else routePaste(view, { kind: 'foreign', html }, opts);
+  } else routePaste(view, { kind: 'text', text }, opts);
+  return true;
+}
+
+/** The clipboard plugin of a host, with the router's options (kept on its spec for `pasteData`). */
+export function clipboardPlugin(opts: ClipboardOptions): Plugin {
   return new Plugin({
     key: clipboardPluginKey,
+    clipboardOptions: opts,
     props: {
       transformPasted: (slice) => stripNodeIds(slice),
       handleDOMEvents: {
         copy: (view, event) => writeClipboard(view, event, false),
         cut: (view, event) => writeClipboard(view, event, true),
+        paste: (view, event) => pasteEvent(view, event, opts),
       },
-      handlePaste(view, event, slice) {
-        const data = event.clipboardData;
-        if (!data) return false;
-        const json = data.getData(MFBE_CLIPBOARD_MIME);
-        if (json) {
-          const structured = sliceFromPayload(json);
-          if (structured) {
-            view.dispatch(insertSlice(view.state, structured).scrollIntoView());
-            return true;
-          }
-        }
-        const marker = currentNbspMarker(view.state);
-        const html = data.getData('text/html');
-        if (html && !/data-pm-slice=/.test(html)) {
-          const external = markersToNbsp(sliceFromExternalHtml(html), marker);
-          view.dispatch(insertSlice(view.state, external).scrollIntoView());
-          return true;
-        }
-        if (!html) {
-          const text = data.getData('text/plain');
-          if (text) {
-            const plain = markersToNbsp(sliceFromPlainText(text), marker);
-            view.dispatch(insertSlice(view.state, plain).scrollIntoView());
-            return true;
-          }
-          return false;
-        }
-        // ProseMirror HTML from another editor window: fit or flatten.
-        view.dispatch(insertSlice(view.state, slice).scrollIntoView());
-        return true;
+      /** Reached through `view.pasteHTML()` only: the slice ProseMirror parsed from own HTML. */
+      handlePaste(view, _event, slice) {
+        if (slice.size === 0) return false;
+        return routePaste(view, { kind: 'own', slice }, opts);
       },
     },
   });

@@ -12,11 +12,12 @@
  * - **Focus**: a caret in the cell at a grid position, or a block over a rectangle (§4.3).
  */
 
-import { Fragment, type Attrs, type Node as PMNode } from 'prosemirror-model';
+import { Fragment, type Attrs, type Node as PMNode, type Schema } from 'prosemirror-model';
 
 import { fb2Schema } from '../schema';
 
 import {
+  applyTableEdit,
   compactRows,
   gridCellNode,
   indexByLeft,
@@ -34,6 +35,8 @@ import {
   MAX_ROWSPAN,
   cellRect,
   effectiveColspan,
+  gridOfNode,
+  type GridCell,
   type Rect,
   type TableGrid,
 } from './grid';
@@ -1271,5 +1274,426 @@ export function planDuplicateColumns(address: TableAddress, ctx: PlanContext): T
     rows: builder.build(),
     focus: rect ? blockOver(rect) : caretAt(caret?.row ?? 0, caret?.col ?? a),
     removedIds: [],
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* US4: blocks of cells (FR-011, FR-012; data-model §4.4, §4.6, §8.4)       */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * *Clear block* (data-model §4.6; FR-011): every cell of the block - `cellsIn(rect)` - loses
+ * its content and keeps its node, kind and attributes (`nodeId`, `id`, `style`, `lang`, spans,
+ * `extraAttrs`), so the cells stay with their ids (C47); a cell already empty and every row
+ * without a changed cell are reused, so a block of empty cells commits nothing. `too-large` on
+ * a grid too large for the owner map. Without a block nothing changes. Focus: the same block.
+ * `keep` names a grid cell left as it is (the start of a composition keeps the top-left cell's
+ * text for the composition to replace, U39).
+ */
+export function planClearBlock(
+  address: TableAddress,
+  ctx: PlanContext,
+  options: { keep?: number } = {},
+): TableEdit | Refusal {
+  void ctx;
+  const { table, grid, rect } = address;
+  if (grid.tooLarge) return TOO_LARGE;
+  if (!rect) return unchanged(table);
+  const builder = new TableBuilder(table, grid);
+  for (const index of grid.cellsIn(rect)) {
+    if (index === options.keep) continue;
+    const node = gridCellNode(table, grid, index);
+    if (node.content.size === 0) continue;
+    // A span the commands count as 1 (0, −1) is written as counted, as every plan writes spans.
+    const attrs = writtenSpans(node.attrs)
+      ? node.attrs
+      : withSpans(node.attrs, grid.cells[index]!.colspan, grid.cells[index]!.rowspan);
+    builder.setCell(index, node.type.create(attrs, Fragment.empty, node.marks));
+  }
+  return { rows: builder.build(), focus: blockOver(rect), removedIds: [] };
+}
+
+/** True when a cell's spans are written as plans write them: none, or 2 up to the limits. */
+function writtenSpans(attrs: Attrs): boolean {
+  const ok = (value: unknown, limit: number) =>
+    value === null ||
+    value === undefined ||
+    (typeof value === 'number' && Number.isInteger(value) && value >= 2 && value <= limit);
+  return ok(attrs.colspan, MAX_COLSPAN) && ok(attrs.rowspan, MAX_ROWSPAN);
+}
+
+/**
+ * The parts' inline content as one run (FR-013's and decision 5's joining rule; C17): in order,
+ * one text node `' '` without marks only between two non-empty parts - an empty part adds
+ * nothing, so an empty first part gives no leading space -, white space at a part's ends kept;
+ * `Fragment.append` joins adjacent text of equal marks into one node.
+ */
+export function joinInlineParts(parts: readonly Fragment[], schema: Schema = fb2Schema): Fragment {
+  let out = Fragment.empty;
+  for (const part of parts) {
+    if (part.size === 0) continue;
+    if (out.size > 0) out = out.append(Fragment.from(schema.text(' ')));
+    out = out.append(part);
+  }
+  return out;
+}
+
+/**
+ * Row `row` (row r of `grid`) with `placements` placed by their columns (data-model §4.4): a cell
+ * at a column below `reach(r)` before the row's first own cell whose left column is the cell's
+ * or more; behind the row's holes at its end, after one empty `td` for each hole up to the
+ * cell's column (the hole fill).
+ */
+function placeInRow(
+  row: PMNode,
+  grid: TableGrid,
+  r: number,
+  placements: readonly { col: number; node: PMNode }[],
+  ctx: PlanContext,
+): PMNode {
+  const reach = grid.reach(r);
+  const td = fb2Schema.nodes.td!;
+  const before = new Map<number, PMNode[]>();
+  const add = (index: number, nodes: PMNode[]) => {
+    before.set(index, [...(before.get(index) ?? []), ...nodes]);
+  };
+  let fillFrom = reach;
+  for (const { col, node } of [...placements].sort((x, y) => x.col - y.col)) {
+    if (col < reach) {
+      add(indexByLeft(row, grid, r, col), [node]);
+      continue;
+    }
+    const nodes: PMNode[] = [];
+    for (let c = fillFrom; c < col; c += 1) {
+      if (grid.owner(r, c) < 0) nodes.push(td.create({ nodeId: ctx.nextId() }));
+    }
+    nodes.push(node);
+    add(row.childCount, nodes);
+    fillFrom = Math.max(fillFrom, col + effectiveColspan(node.attrs.colspan));
+  }
+  const out: PMNode[] = [];
+  for (let index = 0; index <= row.childCount; index += 1) {
+    out.push(...(before.get(index) ?? []));
+    if (index < row.childCount) out.push(row.child(index));
+  }
+  return row.type.create(row.attrs, Fragment.from(out), row.marks);
+}
+
+/**
+ * FR-016's split of one cell (data-model §4.5 `table.splitCell` steps 1 to 3), on the child list
+ * `rows` of the table whose grid is `grid`: the cell `index` keeps its content and every
+ * attribute but its spans (`withSpans(attrs, 1, 1)`; a rowspan past the last row goes with
+ * them); each other position it owns gets `newCellLike(cell)` - empty, its kind, `align`,
+ * `valign` and `lang`, a fresh `nodeId`, no `id`, `style`, spans or `extraAttrs` -, placed row by
+ * row and left to right with the hole fill; positions of its rectangle an earlier cell owns get
+ * nothing, and neither do those a later cell of the row overlaps (it covers them then). Returns
+ * the new child list. Callers check `tooLarge` first.
+ */
+export function splitToSingleCells(
+  rows: readonly PMNode[],
+  grid: TableGrid,
+  index: number,
+  ctx: PlanContext,
+): PMNode[] {
+  const cell = grid.cells[index]!;
+  const out = [...rows];
+  const topChild = grid.rowChild[cell.row]!;
+  const keeper = out[topChild]!.child(cell.index);
+  const kept = keeper.type.create(withSpans(keeper.attrs, 1, 1), keeper.content, keeper.marks);
+  for (let r = cell.row; r < cell.row + cell.rowsIn; r += 1) {
+    // A later cell of the row that overlaps the cell (an irregular table) covers its positions
+    // once the cell is gone: they get no piece, so no cell of the row moves (FR-035).
+    const spans: [number, number][] = [];
+    for (let other = grid.rowStart[r]!; other < grid.rowStart[r + 1]!; other += 1) {
+      if (other === index) continue;
+      const own = grid.cells[other]!;
+      spans.push([own.left, own.left + own.colspan]);
+    }
+    const placements: { col: number; node: PMNode }[] = [];
+    for (let c = cell.left; c < cell.left + cell.colspan; c += 1) {
+      if (r === cell.row && c === cell.left) continue;
+      if (grid.owner(r, c) !== index) continue;
+      if (spans.some(([from, to]) => c >= from && c < to)) continue;
+      placements.push({ col: c, node: newCellLike(keeper, ctx) });
+    }
+    const rowChild = grid.rowChild[r]!;
+    let row = out[rowChild]!;
+    if (r === cell.row) {
+      const children = childNodes(row);
+      children[cell.index] = kept;
+      row = row.type.create(row.attrs, Fragment.from(children), row.marks);
+    }
+    if (placements.length > 0) row = placeInRow(row, grid, r, placements, ctx);
+    out[rowChild] = row;
+  }
+  return out;
+}
+
+/** The cell's rectangle lies wholly inside `rect`. */
+function cellInside(cell: GridCell, rect: Rect): boolean {
+  return (
+    cell.row >= rect.top &&
+    cell.row + cell.rowsIn <= rect.bottom &&
+    cell.left >= rect.left &&
+    cell.left + cell.colspan <= rect.right
+  );
+}
+
+/** The cell's rectangle shares a position with `rect`. */
+function cellMeets(cell: GridCell, rect: Rect): boolean {
+  return (
+    cell.row < rect.bottom &&
+    cell.row + cell.rowsIn > rect.top &&
+    cell.left < rect.right &&
+    cell.left + cell.colspan > rect.left
+  );
+}
+
+/** The FB2 ids of a table and its cells. */
+function tableIds(table: PMNode): Set<string> {
+  const ids = new Set<string>();
+  const add = (node: PMNode) => {
+    const id = node.attrs.id;
+    if (typeof id === 'string' && id !== '') ids.add(id);
+  };
+  add(table);
+  table.forEach((row) => {
+    if (row.type.name === 'tr') row.forEach(add);
+  });
+  return ids;
+}
+
+/**
+ * The editor's own copied block or table as it is pasted (analyze decision 4; data-model §8.4,
+ * §8.6): it keeps its grid - its kinds, attributes and spans, its overlaps and holes - until
+ * *Repair table*. With `keepRows` (the paste-block plan, whose step 4 decides about a rowspan past
+ * the block's last row) nothing changes. Without it (a new table) the rows in which no cell
+ * starts - `content()` makes them under a cell that spans the block's rows, and FB2 forbids them
+ * in a document - are removed and every span that crossed one shrinks by a row; nothing else
+ * changes, so a block of a regular table comes back as it is.
+ */
+export function normalisePastedBlock(
+  table: PMNode,
+  { keepRows }: { keepRows: boolean },
+  ctx: PlanContext,
+): PMNode {
+  void ctx;
+  if (keepRows) return table;
+  const grid = gridOfNode(table);
+  const empty: number[] = [];
+  for (let r = 0; r < grid.height; r += 1) {
+    if (grid.rowStart[r] === grid.rowStart[r + 1]) empty.push(r);
+  }
+  if (empty.length === 0) return table;
+  const children = childNodes(table);
+  for (let r = 0; r < grid.height; r += 1) {
+    const rowChild = grid.rowChild[r]!;
+    let cells: PMNode[] | null = null;
+    for (let index = grid.rowStart[r]!; index < grid.rowStart[r + 1]!; index += 1) {
+      const cell = grid.cells[index]!;
+      const lost = empty.filter((rr) => rr > cell.row && rr < cell.row + cell.rowsIn).length;
+      if (lost === 0) continue;
+      cells ??= childNodes(children[rowChild]!);
+      const node = cells[cell.index]!;
+      cells[cell.index] = withAttrs(node, withSpans(node.attrs, undefined, cell.rowspan - lost));
+    }
+    if (cells) {
+      const row = children[rowChild]!;
+      children[rowChild] = row.type.create(row.attrs, Fragment.from(cells), row.marks);
+    }
+  }
+  const drop = new Set(empty.map((r) => grid.rowChild[r]!));
+  return table.type.create(
+    table.attrs,
+    Fragment.from(children.filter((_child, index) => !drop.has(index))),
+    table.marks,
+  );
+}
+
+/**
+ * The paste-block plan (FR-012; data-model §8.4; R5.7): the copied block B (h × w), as
+ * `normalisePastedBlock` keeps it, overwrites the target T = `[r0, r0 + h) × [c0, c0 + w)` from
+ * the anchor - the top-left position of the selected block, else of the caret's cell (a larger
+ * block is not tiled):
+ * 1. **grow**: the missing rows as *Insert row below* on the last row appends them, then the
+ *    missing columns as *Insert column to the right* on the last column (FR-008; C15);
+ * 2. **split** every target cell that crosses T's edge (`splitToSingleCells`), its content
+ *    staying in its top-left piece, so every cell lies wholly inside or outside T;
+ * 3. **remove** the target cells inside T, a removed cell's `id` passing to the B cell that
+ *    starts at its position when that one has none (U31);
+ * 4. **place** B's cells row by row at their columns, with their kind, spans (as counted),
+ *    attributes and content, fresh node ids on them and their inline atoms, their own `id` only
+ *    when the book does not use it (C47); holes before T get the hole fill, a hole of B stays a
+ *    hole unless a target cell follows it in its row (then an empty `td`, so that cell keeps its
+ *    column; analyze decision 4); a rowspan of B past its last row is written as the rows it
+ *    covers in B when the table has rows below T (FR-035) and keeps its value otherwise;
+ * 5. **compact** the rows of T left without own cells (decision 1).
+ *
+ * `too-large` is the only refusal. Focus: a block over T, or a caret when T is one position.
+ * `removedIds`: the removed cells' ids not handed over; `allowedIds`: the ids pasted cells keep;
+ * `pastedIrregular` when B is irregular (the target may then become irregular; FR-046).
+ */
+export function pasteBlockPlan(
+  address: TableAddress,
+  block: PMNode,
+  ctx: PlanContext,
+): TableEdit | Refusal {
+  const { table, grid } = address;
+  if (grid.tooLarge) return TOO_LARGE;
+  const anchor = address.rect
+    ? { row: address.rect.top, col: address.rect.left }
+    : (address.caret ?? null);
+  if (!anchor || grid.height === 0) return unchanged(table);
+  const pasted = normalisePastedBlock(block, { keepRows: true }, ctx);
+  const gB = gridOfNode(pasted);
+  if (gB.tooLarge) return TOO_LARGE;
+  const h = gB.height;
+  const w = gB.width;
+  if (h === 0 || w === 0) return unchanged(table);
+  const r0 = anchor.row;
+  const c0 = anchor.col;
+
+  // (1) Grow.
+  let current = table;
+  let g = grid;
+  if (r0 + h > g.height) {
+    const grown = planInsertRows(
+      { table: current, grid: g, lines: { axis: 'row', from: g.height - 1, to: g.height } },
+      { side: 'below', count: r0 + h - g.height },
+      ctx,
+    );
+    if (isRefusal(grown)) return grown;
+    current = applyTableEdit(current, grown);
+    g = gridOfNode(current);
+    if (g.tooLarge) return TOO_LARGE;
+  }
+  if (c0 + w > g.width) {
+    const grown = planInsertColumns(
+      { table: current, grid: g, lines: { axis: 'column', from: g.width - 1, to: g.width } },
+      { side: 'right', count: c0 + w - g.width },
+      ctx,
+    );
+    if (isRefusal(grown)) return grown;
+    current = applyTableEdit(current, grown);
+    g = gridOfNode(current);
+    if (g.tooLarge) return TOO_LARGE;
+  }
+  const target: Rect = { top: r0, left: c0, bottom: r0 + h, right: c0 + w };
+
+  // (2) Split the cells that cross T's edge, one at a time on the grid each split leaves.
+  let rows = childNodes(current);
+  for (let guard = g.cells.length; guard >= 0; guard -= 1) {
+    const crossing = g.cells.findIndex(
+      (cell) => cellMeets(cell, target) && !cellInside(cell, target),
+    );
+    if (crossing < 0) break;
+    rows = splitToSingleCells(rows, g, crossing, ctx);
+    current = current.type.create(current.attrs, Fragment.from(rows), current.marks);
+    g = gridOfNode(current);
+    if (g.tooLarge) return TOO_LARGE;
+  }
+
+  // (3) The target cells inside T go; their ids wait for the B cells that start where they did.
+  const removed = new Set<number>();
+  const handOver = new Map<string, string>();
+  const ids = new Map<number, string>();
+  g.cells.forEach((cell, index) => {
+    if (!cellMeets(cell, target)) return;
+    removed.add(index);
+    const id = gridCellNode(current, g, index).attrs.id;
+    if (typeof id === 'string' && id !== '') {
+      ids.set(index, id);
+      handOver.set(`${cell.row - r0}:${cell.left - c0}`, id);
+    }
+  });
+
+  // (4) B's cells, by row of B.
+  const used = ctx.bookIds ?? tableIds(current);
+  const below = r0 + h < g.height;
+  const kept: string[] = [];
+  const handed = new Set<string>();
+  const placed: PMNode[][] = Array.from({ length: h }, () => []);
+  gB.cells.forEach((cell, index) => {
+    const source = gridCellNode(pasted, gB, index);
+    const copy = copyNode(source, ctx);
+    const own = source.attrs.id;
+    let id: string | null = typeof own === 'string' && own !== '' && !used.has(own) ? own : null;
+    if (id === null) {
+      const from = handOver.get(`${cell.row}:${cell.left}`);
+      if (from !== undefined) {
+        id = from;
+        handed.add(from);
+      }
+    }
+    if (id !== null) kept.push(id);
+    const rowspan = below && cell.row + cell.rowspan > h ? cell.rowsIn : cell.rowspan;
+    placed[cell.row]!.push(
+      withAttrs(copy, withSpans({ ...copy.attrs, id }, cell.colspan, rowspan)),
+    );
+  });
+  const td = fb2Schema.nodes.td!;
+  const next = [...rows];
+  for (let i = 0; i < h; i += 1) {
+    const r = r0 + i;
+    const rowChild = g.rowChild[r]!;
+    const row = current.child(rowChild);
+    const own = new Map<number, number>();
+    let follows = false;
+    for (let index = g.rowStart[r]!; index < g.rowStart[r + 1]!; index += 1) {
+      const cell = g.cells[index]!;
+      own.set(cell.index, index);
+      if (cell.left >= c0 + w) follows = true;
+    }
+    const middle = (): PMNode[] => {
+      const nodes: PMNode[] = [];
+      // The hole fill before T, so B's first cell lands in its column.
+      for (let c = g.reach(r); c < c0; c += 1) {
+        if (g.owner(r, c) < 0) nodes.push(td.create({ nodeId: ctx.nextId() }));
+      }
+      nodes.push(...placed[i]!);
+      // B's holes in this row: empty cells only where a target cell follows them.
+      if (follows) {
+        for (let j = gB.reach(i); j < w; j += 1) {
+          if (gB.owner(i, j) < 0) nodes.push(td.create({ nodeId: ctx.nextId() }));
+        }
+      }
+      return nodes;
+    };
+    const out: PMNode[] = [];
+    let inserted = false;
+    row.forEach((child, _offset, childIndex) => {
+      const index = own.get(childIndex);
+      if (index !== undefined) {
+        if (!inserted && g.cells[index]!.left >= c0) {
+          out.push(...middle());
+          inserted = true;
+        }
+        if (removed.has(index)) return;
+      }
+      out.push(child);
+    });
+    if (!inserted) out.push(...middle());
+    next[rowChild] = row.type.create(row.attrs, Fragment.from(out), row.marks);
+  }
+
+  // (5) Row compaction over the rows of T.
+  const compacted = compactRows(current, next);
+  const keptRows = new Set(compacted.map((child) => child.attrs.nodeId));
+  let lost = 0;
+  for (let i = 0; i < h; i += 1) {
+    if (!keptRows.has(current.child(g.rowChild[r0 + i]!).attrs.nodeId)) lost += 1;
+  }
+  const height = h - lost;
+  const removedIds: string[] = [];
+  for (const id of ids.values()) if (!handed.has(id)) removedIds.push(id);
+  return {
+    rows: compacted,
+    focus:
+      height === 1 && w === 1
+        ? caretAt(r0, c0)
+        : blockOver({ top: r0, left: c0, bottom: r0 + height, right: c0 + w }),
+    removedIds,
+    allowedIds: kept,
+    ...(gB.regular ? {} : { pastedIrregular: true as const }),
   };
 }

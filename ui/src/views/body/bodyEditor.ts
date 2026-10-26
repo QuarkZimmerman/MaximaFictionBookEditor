@@ -45,7 +45,7 @@ import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
 import { blockBoundaryPlugin, markControllerTransaction } from '@/editor/plugins/blockBoundary';
 import { blockCaptionsKey, blockCaptionsPlugin } from '@/editor/plugins/blockCaptions';
-import { clipboardPlugin } from '@/editor/plugins/clipboard';
+import { clipboardPlugin, type ClipboardOptions } from '@/editor/plugins/clipboard';
 import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { overtypePlugin } from '@/editor/plugins/overtype';
@@ -73,6 +73,7 @@ import {
 } from '@/editor/virtualization';
 import { pathOfCaret, type StructuralPosition } from '@/editor/structuralPath';
 import type { Document } from '@/model/document';
+import { collectBookIds } from '@/model/ids';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import type { Caret, ModelPoint } from '@/rpc/types';
@@ -235,6 +236,11 @@ export interface EditorStateOptions {
   nextNodeId?: () => string;
   /** The localised texts the block captions use (read on every repaint). */
   getTranslate?: () => (key: string) => string;
+  /**
+   * The paste router's options (feature 006, I14): the book's ids, the node-id generator and the
+   * status bar. Without them: no book ids, the state's generator, no messages (the unit tests).
+   */
+  clipboard?: ClipboardOptions;
 }
 
 export function createBodyEditorState(doc: PMNode, options: EditorStateOptions): EditorState {
@@ -251,7 +257,10 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
       bodyKeymap({ toggleOvertype: options.toggleOvertype, nextNodeId }),
       baseEditorKeymap(),
       overtypePlugin(options.isOvertype ?? (() => false)),
-      clipboardPlugin(),
+      // Before the feature plugins, so it claims every paste (C4).
+      clipboardPlugin(
+        options.clipboard ?? { bookIds: () => new Set(), nextNodeId, message: () => {} },
+      ),
       blockBoundaryPlugin(),
       blockCaptionsPlugin(options.getTranslate ?? (() => (key) => key)),
       nodeIdPlugin(nextNodeId),
@@ -521,6 +530,16 @@ export class BodyEditorController {
       nextNodeId: this.nextNodeId,
       getTranslate: () => this.translate,
       plugins: this.extraPlugins,
+      // The paste router (feature 006, I14): the whole book's ids from the store's document, the
+      // generator the plans share, refusals in the status bar.
+      clipboard: {
+        bookIds: () => {
+          const document = this.store.getState().document;
+          return document ? collectBookIds(document) : new Set<string>();
+        },
+        nextNodeId: this.nextNodeId,
+        message: (key) => actions.setStatusMessage(this.store, this.translate(key)),
+      },
     });
   }
 
