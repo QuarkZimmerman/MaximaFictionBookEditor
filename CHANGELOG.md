@@ -42,6 +42,17 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   and *rowspan* apply to the cell where the selection ends; a field whose cells differ stays
   empty.
 
+- Irregular tables - a row covering fewer columns than the others, overlapping spans, a span
+  reaching past the last row - carry a round warning mark at their top-right corner in the Body
+  view, with a tooltip naming the problems; a click opens a small popover listing them with
+  *Repair table*, which is unavailable while a script or an assistant request runs. The Document
+  Tree marks their entries, or the entry that contains them (a cite, a section annotation, the
+  Annotation and History blocks). *Repair table* - in *Add > Table structure*, the table's context
+  menu, the toolbar buttons offered in *Customize toolbar* and as a command a hotkey can be
+  assigned to - makes the table regular without deleting any content, in one undo step, and is
+  available only while the table is irregular. File > Validate lists each irregular table as a
+  warning that names its problems and goes to the table on a double-click, and so do
+  `mfbe-core validate` and `roundtrip`; the warning never blocks saving.
 - *Add > Table* asks for the columns and for a header column besides the rows and a header
   row, and proposes the values last confirmed, also after a restart. The new table is
   rectangular, carries no attribute and takes the caret in its first cell, and the insertion is
@@ -135,6 +146,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   book uses, and a language that is not a language tag, with the reason in the status bar,
   where release 0.0.5 wrote any value. An empty field removes the attribute, and each change is
   one undo step; a value equal to the current one records none.
+
+- The Table bar's *colspan* and *rowspan* now merge cells and split them as *Merge cells* and
+  *Split cell* would, asking first when a link would lose its target, and refuse a span past the
+  table's last column or row, where they wrote the attribute alone and made rows irregular. Every
+  table in the Body view keeps an 8 px right margin for the warning mark.
 
 ### Fixed
 
