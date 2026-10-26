@@ -481,7 +481,11 @@ textarea {
   padding: 2px 6px;
 }
 
-.mfbe-toolbar + .mfbe-toolbar {
+/* Every toolbar after the first: also while a toolbar's right-click menu, rendered right after
+   it, stands between two toolbars - an adjacent-sibling rule dropped the line then, and the
+   pixel it took moved everything below, which closed that menu again when a pane under it was
+   scrolled to its end (a scroll closes a popup menu, U13). */
+.mfbe-toolbar ~ .mfbe-toolbar {
   border-top: 1px solid var(--mfbe-color-border);
 }
 
