@@ -250,21 +250,16 @@ async function undoRedo(page: Page, command: () => Promise<void>, steps = 1): Pr
 }
 
 /**
- * Selects a picture by a click, once a changed reference has loaded (or failed) and the picture
- * or its placeholder stops moving. A click on a picture that is selected already selects its
- * parent (ProseMirror's rule for a selected node), so a selected one is left as it is - after a
- * command, after Undo and Redo, or after the way back from the Source view. Right after that
- * way back the first click on a block picture whose selection was restored there can land the
- * caret elsewhere (the restored selection is not shown as the picture's yet): the click is
- * repeated until the picture shows the selection.
+ * Selects a picture by one click, once a changed reference has loaded (or failed) and the
+ * picture or its placeholder stops moving. A plain click on a picture that is selected already
+ * keeps it selected - after a command, after Undo and Redo, and after the way back from the
+ * Source view, whether that way back restored the selection or kept it.
  */
 async function selectPicture(page: Page, target: Locator): Promise<void> {
   await settle(page);
-  await expect(async () => {
-    await target.scrollIntoViewIfNeeded();
-    if (!/\bfb-selected\b/.test((await target.getAttribute('class')) ?? '')) await target.click();
-    await expect(target).toHaveClass(/fb-selected/, { timeout: 1_000 });
-  }).toPass({ timeout: 15_000 });
+  await target.scrollIntoViewIfNeeded();
+  await target.click();
+  await expect(target).toHaveClass(/fb-selected/);
 }
 
 /** Add → Inline image (or Image) with the prompt answered No and the file chosen. */

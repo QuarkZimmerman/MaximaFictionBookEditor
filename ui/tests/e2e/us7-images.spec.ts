@@ -16,6 +16,8 @@
  *  4. an image whose binary is missing shows a placeholder; validation reports it
  *  5. Add > Binary Object... appends binaries that appear in the Description's list
  *  6. "Save image as..." exports the binary's bytes to a file
+ *  7. a picture selected before a view switch is shown selected when the Body view returns,
+ *     and a click on it keeps it selected (not a caret at the document start)
  *  + drag-and-drop of an image file onto the body
  */
 
@@ -422,5 +424,45 @@ test.describe('US7 - images and binary objects', () => {
     await entry.click();
     await expect(page.getByTestId('status-message')).toContainText(out);
     expect(readFileSync(out).equals(readFileSync(image('tiny.jpg')))).toBe(true);
+  });
+
+  test('7. a picture selected before a view switch is shown selected on the way back; a click keeps it selected', async ({
+    core,
+    page,
+  }) => {
+    // The Body view comes back without taking the focus when no position is carried: from the
+    // Description view, and from the Source view when the mapping is off (as for a stale serial
+    // or an older core). The kept selection of a block picture must be shown, and the first click
+    // on the picture must not put the caret at the document start.
+    await openViaDialog(core, page, fixtureBook('modern-utf8.fb2'));
+    const editor = page.getByTestId('body-editor');
+    const figure = editor.locator('figure[data-testid="body-image"][data-id="img1"]');
+    const statusPath = page.getByTestId('status-path');
+    const PICTURE = 'body[1]/section[1]/image[1]';
+    await figure.scrollIntoViewIfNeeded();
+    await figure.click();
+    await expect(figure).toHaveClass(/fb-selected/);
+    await expect(statusPath).toHaveText(PICTURE);
+    for (const away of ['description', 'source'] as const) {
+      if (away === 'description') {
+        await page.getByTestId('view-description').click();
+        await expect(page.getByTestId('description-view')).toBeVisible();
+      } else {
+        await page.evaluate('window.__mfbeTest.sourceMapping.enabled = false');
+        await page.getByTestId('view-source').click();
+        await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
+      }
+      await page.getByTestId('view-body').click();
+      await expect(editor).toBeVisible();
+      await expect(figure, `back from ${away}`).toHaveClass(/fb-selected/);
+      await expect(statusPath).toHaveText(PICTURE);
+      await figure.scrollIntoViewIfNeeded();
+      await figure.click();
+      // A short wait lets a wrong caret show (the editor reads the browser's after the click).
+      await page.waitForTimeout(300);
+      await expect(figure, `clicked after the way back from ${away}`).toHaveClass(/fb-selected/);
+      await expect(statusPath).toHaveText(PICTURE);
+    }
+    await page.evaluate('window.__mfbeTest.sourceMapping.enabled = true');
   });
 });

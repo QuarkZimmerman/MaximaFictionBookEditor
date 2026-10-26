@@ -27,6 +27,7 @@
 import { Slice, type Node as PMNode } from 'prosemirror-model';
 import { closeHistory, history, redo, redoDepth, undo, undoDepth } from 'prosemirror-history';
 import {
+  AllSelection,
   EditorState,
   NodeSelection,
   type Plugin,
@@ -558,8 +559,15 @@ export class BodyEditorController {
       if (this.view.state !== this.state) this.view.updateState(this.state!);
       return;
     }
+    const kept = this.state!;
+    // ProseMirror draws a selection only when an update changes it or the view takes the focus,
+    // so a new view would not show a node selection kept while the view was unmounted (a picture
+    // selected before another view was visited) although the commands act on it. The view
+    // starts with the selection widened to the whole document and then shows the kept state,
+    // which draws it without taking the focus.
+    const drawSelection = kept.selection instanceof NodeSelection;
     this.view = new EditorView(this.container, {
-      state: this.state!,
+      state: drawSelection ? kept.apply(kept.tr.setSelection(new AllSelection(kept.doc))) : kept,
       editable: () => this.isEditable,
       nodeViews: {
         ...createImageNodeViews({
@@ -576,6 +584,7 @@ export class BodyEditorController {
       // editor's own plugin marks the misspellings - feature 004 US9, FR-081).
       attributes: { class: 'fb-editor', 'data-testid': 'body-editor', spellcheck: 'false' },
     });
+    if (drawSelection) this.view.updateState(kept);
     if (this.scrollOnMount) {
       // The selection was placed while the view was unmounted (a mapped Source selection, a
       // restored position): bring it into view now that there is a DOM to scroll. The focus
