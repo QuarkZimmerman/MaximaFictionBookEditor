@@ -246,6 +246,23 @@ TEST_CASE("json_codec: marks carry lang and xlinkType; a mark without attributes
     CHECK(model::to_json(model::Mark{"sub", nullptr}) == json{{"type", "sub"}});
     CHECK(model::to_json(model::Mark{"sub", json::object()}) == json{{"type", "sub"}});
     CHECK_FALSE(model::to_json(model::mark_from_json(json{{"type", "sup"}})).contains("attrs"));
+    // Several marks of one kind (FR-069) are read and written in their order, outer first.
+    for (const json& nested : {
+             json::array({{{"type", "style"}, {"attrs", {{"name", "a"}}}},
+                          {{"type", "style"}, {"attrs", {{"name", "b"}}}}}),
+             json::array({{{"type", "style"}, {"attrs", {{"name", "b"}}}},
+                          {{"type", "style"}, {"attrs", {{"name", "a"}}}}}),
+             json::array({{{"type", "emphasis"}, {"attrs", {{"lang", "la"}}}},
+                          {{"type", "emphasis"}, {"attrs", {{"lang", "de"}}}}}),
+         }) {
+        INFO(nested.dump());
+        const json nested_text{{"type", "text"}, {"text", "y"}, {"marks", nested}};
+        const model::Node read = model::node_from_json(nested_text);
+        REQUIRE(read.marks.size() == 2);
+        CHECK(read.marks[0] == model::mark_from_json(nested[0]));
+        CHECK(read.marks[1] == model::mark_from_json(nested[1]));
+        CHECK(model::to_json(read) == nested_text);
+    }
 }
 
 TEST_CASE("json_codec: inline atoms carry marks; an atom without marks has no marks member",

@@ -250,3 +250,35 @@ TEST_CASE("roundtrip: the comparison reports an inline atom whose marks differ",
     CHECK(c.differences[1].where == "body[1]/section[1]/p[2]/raw-xml[1]");
     CHECK(c.differences[1].what == "marks differ");
 }
+
+TEST_CASE("roundtrip: the order of marks of one kind counts; the order across kinds does not",
+          "[roundtrip]") {
+    // Feature 006 (FR-069; document-model §3.3): nested formatting of one kind is kept in its
+    // order, so [style a, style b] against [style b, style a] is a difference.
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const std::string text = test::minimal_book(
+        "<section><p><style name=\"a\"><style name=\"b\">x</style></style></p>"
+        "<p><emphasis xml:lang=\"la\"><emphasis xml:lang=\"de\">y</emphasis></emphasis></p>"
+        "<p><strong><emphasis>z</emphasis></strong></p></section>");
+    const auto a = fb2::read_bytes(text, store, ids_a);
+    auto b = fb2::read_bytes(text, store, ids_b);
+    CHECK(roundtrip::compare(a.document, store, b.document, store).identical());
+    auto& paragraphs = b.document.bodies[0].content[0].content;
+    REQUIRE(paragraphs[0].content.at(0).marks.size() == 2);
+    REQUIRE(paragraphs[1].content.at(0).marks.size() == 2);
+    REQUIRE(paragraphs[2].content.at(0).marks.size() == 2);
+    // Across kinds: [strong, emphasis] and [emphasis, strong] are one set.
+    std::reverse(paragraphs[2].content[0].marks.begin(), paragraphs[2].content[0].marks.end());
+    CHECK(roundtrip::compare(a.document, store, b.document, store).identical());
+    // Within a kind: the reversed styles, and the reversed languages, are differences.
+    std::reverse(paragraphs[0].content[0].marks.begin(), paragraphs[0].content[0].marks.end());
+    std::reverse(paragraphs[1].content[0].marks.begin(), paragraphs[1].content[0].marks.end());
+    const roundtrip::Comparison c = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(c.differences.size() == 2);
+    CHECK(c.differences[0].where == "body[1]/section[1]/p[1]/text()[1]");
+    CHECK(c.differences[0].what == "marks differ");
+    CHECK(c.differences[1].where == "body[1]/section[1]/p[2]/text()[1]");
+    CHECK(c.differences[1].what == "marks differ");
+}

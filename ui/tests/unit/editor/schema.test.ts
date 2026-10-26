@@ -1,4 +1,5 @@
-import { Fragment } from 'prosemirror-model';
+import { DOMParser, DOMSerializer, Fragment } from 'prosemirror-model';
+import { EditorState, TextSelection } from 'prosemirror-state';
 
 import { createReport, nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import {
@@ -387,5 +388,125 @@ describe('feature 006: cells, marks and atoms in the schema and the conversions'
       type: 'raw-xml',
       attrs: { nodeId: 'b1', xml: '<x/>', inline: false },
     });
+  });
+
+  it('the formatting marks exclude nothing: two styles, or two marks of each of strong to code with different languages, sit on one node in the order added, an equal one is not added twice, and Node.check accepts either order', () => {
+    // Feature 006 (FR-069; decision 23 as widened at /speckit-analyze): nested formatting of
+    // one kind with other attributes is kept.
+    const a = marks.style!.create({ name: 'a' });
+    const b = marks.style!.create({ name: 'b' });
+    const ab = b.addToSet(a.addToSet([]));
+    expect(ab.map((m) => m.attrs.name)).toEqual(['a', 'b']);
+    expect(a.addToSet(ab)).toBe(ab); // an equal one is not added twice
+    expect(a.addToSet(b.addToSet([])).map((m) => m.attrs.name)).toEqual(['b', 'a']);
+    for (const name of ['strong', 'emphasis', 'strikethrough', 'sub', 'sup', 'code']) {
+      const type = marks[name]!;
+      expect(type.spec.excludes, name).toBe('');
+      const la = type.create({ lang: 'la' });
+      const de = type.create({ lang: 'de' });
+      const plain = type.create();
+      const set = plain.addToSet(de.addToSet(la.addToSet([])));
+      expect(
+        set.map((m) => m.attrs.lang),
+        name,
+      ).toEqual(['la', 'de', null]);
+      expect(type.create({ lang: 'de' }).addToSet(set), name).toBe(set);
+      for (const order of [
+        [la, de],
+        [de, la],
+      ]) {
+        const text = fb2Schema.text('x', order);
+        expect(text.marks, name).toEqual(order);
+        const paragraph = nodes.p!.create(null, text);
+        expect(() => paragraph.check(), name).not.toThrow();
+      }
+    }
+    // Across kinds the schema's rank order holds.
+    const mixed = marks
+      .strong!.create()
+      .addToSet(b.addToSet(marks.emphasis!.create().addToSet([])));
+    expect(mixed.map((m) => m.type.name)).toEqual(['strong', 'emphasis', 'style']);
+  });
+
+  it('link still excludes itself', () => {
+    expect(marks.link!.spec.excludes).toBeUndefined();
+    const first = marks.link!.create({ href: '#a' });
+    const second = marks.link!.create({ href: '#b' });
+    expect(second.addToSet(first.addToSet([])).map((m) => m.attrs.href)).toEqual(['#b']);
+    expect(() => nodes.p!.create(null, fb2Schema.text('x', [first, second])).check()).toThrow();
+  });
+
+  it('nested span.fb-style elements, and nested em.fb-emphasis elements with different lang, parse as two marks, outer first, and serialise back nested', () => {
+    const html =
+      '<p class="fb-p"><span class="fb-style" data-style="a">x<span class="fb-style" data-style="b">y</span></span>' +
+      '<em class="fb-emphasis" lang="la">u<em class="fb-emphasis" lang="de">v</em></em></p>';
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    const slice = DOMParser.fromSchema(fb2Schema).parseSlice(container);
+    const paragraph = slice.content.firstChild!;
+    const runs: [string, unknown[]][] = [];
+    paragraph.forEach((child) =>
+      runs.push([
+        child.text ?? '',
+        child.marks.map((m) => (m.type.name === 'style' ? m.attrs.name : m.attrs.lang)),
+      ]),
+    );
+    expect(runs).toEqual([
+      ['x', ['a']],
+      ['y', ['a', 'b']],
+      ['u', ['la']],
+      ['v', ['la', 'de']],
+    ]);
+    const out = document.createElement('div');
+    out.appendChild(DOMSerializer.fromSchema(fb2Schema).serializeFragment(paragraph.content));
+    expect(out.innerHTML).toBe(
+      '<span class="fb-style" data-style="a">x<span class="fb-style" data-style="b">y</span></span>' +
+        '<em class="fb-emphasis" lang="la">u<em class="fb-emphasis" lang="de">v</em></em>',
+    );
+  });
+
+  it('text typed inside [emphasis la, emphasis de] carries both', () => {
+    const la = marks.emphasis!.create({ lang: 'la' });
+    const de = marks.emphasis!.create({ lang: 'de' });
+    const doc = nodes.doc!.create(null, [
+      nodes.body!.create(null, [
+        nodes.section!.create(null, [nodes.p!.create(null, fb2Schema.text('ab', [la, de]))]),
+      ]),
+    ]);
+    const start = 3; // doc > body > section > p
+    let state = EditorState.create({ doc });
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, start + 2)));
+    // What ProseMirror's input handling does: insert with the marks at the caret.
+    state = state.apply(state.tr.insertText('c'));
+    const text = state.doc.nodeAt(start)!;
+    expect(text.text).toBe('abc');
+    expect(text.marks).toEqual([la, de]);
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, start + 1)));
+    state = state.apply(state.tr.insertText('-'));
+    expect(state.doc.nodeAt(start)!.text).toBe('a-bc');
+    expect(state.doc.nodeAt(start)!.marks).toEqual([la, de]);
+  });
+
+  it('fromModel then toModel keep [style a, style b], [style b, style a] and [emphasis la, emphasis de] in their order', () => {
+    const style = (name: string) => ({ type: 'style' as const, attrs: { name } });
+    const emphasis = (lang: string) => ({ type: 'emphasis' as const, attrs: { lang } });
+    const paragraph: ModelNodeJson = {
+      type: 'p',
+      attrs: { nodeId: 'p1' },
+      content: [
+        { type: 'text', text: 'ab', marks: [style('a'), style('b')] },
+        { type: 'text', text: 'ba', marks: [style('b'), style('a')] },
+        { type: 'text', text: 'lade', marks: [emphasis('la'), emphasis('de')] },
+        {
+          type: 'text',
+          text: 'mixed',
+          marks: [{ type: 'strong' }, emphasis('la'), emphasis('de'), style('a'), style('b')],
+        },
+      ],
+    };
+    const { node, back, problems } = viaEditor(paragraph);
+    expect(problems).toEqual([]);
+    expect(node.childCount).toBe(4);
+    expect(back).toEqual(paragraph);
   });
 });

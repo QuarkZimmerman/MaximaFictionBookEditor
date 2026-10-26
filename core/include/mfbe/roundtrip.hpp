@@ -3,9 +3,11 @@
 // and the corpus gate.
 //
 // "Structurally identical" means: same text, same body structure and order, same attributes
-// (nodeIds excluded, marks compared as sets), same stylesheets, same preserved unknown XML,
-// byte-identical binaries, and an equal description after the writer's normalisation (2.1
-// order; empty optional elements omitted; empty persons/annotations dropped).
+// (nodeIds excluded; marks of text and of inline atoms compared by type - the order across
+// types does not count, the order of the marks of one type does, feature 006 FR-067, FR-069),
+// same stylesheets, same preserved unknown XML, byte-identical binaries, and an equal
+// description after the writer's normalisation (2.1 order; empty optional elements omitted;
+// empty persons/annotations dropped).
 #pragma once
 
 #include <mfbe/binary_store.hpp>

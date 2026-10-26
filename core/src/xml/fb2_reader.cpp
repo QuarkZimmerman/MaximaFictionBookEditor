@@ -413,8 +413,13 @@ void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vec
                     attach_position(out.back(), c, ctx);
                     break;
                 }
-                // ProseMirror allows one mark of a type: an inner duplicate keeps the outer.
-                const bool duplicate = has_mark(marks, mark->type);
+                // Nested formatting of one kind with other attributes is a mark of its own,
+                // outer first (feature 006, FR-069; every formatting type): only an equal open
+                // mark - same type, name and language - collapses. Links keep the outer one:
+                // the schema holds no `a` inside `a`.
+                const bool duplicate = mark->type == "link" ? has_mark(marks, "link")
+                                                            : std::find(marks.begin(), marks.end(),
+                                                                        *mark) != marks.end();
                 if (!duplicate) {
                     marks.push_back(*mark);
                 }

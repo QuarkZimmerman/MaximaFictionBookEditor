@@ -343,6 +343,67 @@ describe('Style commands (T058)', () => {
     const cleared = run(styled, setNamedStyle(''))!;
     expect(cleared.doc.nodeAt(from)!.marks).toHaveLength(0);
     expect(setNamedStyle('x')(stateAt(simpleBook, from))).toBe(false); // needs a selection
+    // Feature 006 (FR-069): over text carrying two nested styles, setNamedStyle still replaces
+    // them all, and the empty name removes them all.
+    const twoStyles = [M.style!.create({ name: 'a' }), M.style!.create({ name: 'b' })];
+    const nested = doc(
+      body([
+        section([N.p!.create(null, [fb2Schema.text('pre '), fb2Schema.text('both', twoStyles)])]),
+      ]),
+    );
+    const at = posOf(nested, 'both');
+    expect(nested.nodeAt(at)!.marks).toHaveLength(2);
+    const replaced = run(stateAt(nested, at, at + 4), setNamedStyle('c'))!;
+    expect(replaced.doc.nodeAt(at)!.marks.map((m) => m.attrs)).toEqual([{ name: 'c', lang: null }]);
+    const none = run(stateAt(nested, at, at + 4), setNamedStyle(''))!;
+    expect(none.doc.nodeAt(at)!.marks).toEqual([]);
+  });
+
+  it('the formatting toggles act by type on nested marks of one kind', () => {
+    // Feature 006 (FR-069): toggleMark removes every mark of the type when any part of the
+    // range has one, adds one plain mark only when no part has it, and toggles a caret's stored
+    // marks by type.
+    const la = M.emphasis!.create({ lang: 'la' });
+    const de = M.emphasis!.create({ lang: 'de' });
+    const d = doc(
+      body([
+        section([
+          N.p!.create(null, [
+            fb2Schema.text('both', [la, de]),
+            fb2Schema.text(' partly', [la]),
+            fb2Schema.text(' plain'),
+          ]),
+        ]),
+      ]),
+    );
+    const both = posOf(d, 'both');
+    const emphasisOf = (state: EditorState, pos: number) =>
+      state.doc
+        .nodeAt(pos)!
+        .marks.filter((m) => m.type === M.emphasis)
+        .map((m) => m.attrs.lang);
+    // Over [emphasis la, emphasis de]: both removed.
+    const removedBoth = run(stateAt(d, both, both + 4), toggleInlineMark('emphasis'))!;
+    expect(emphasisOf(removedBoth, both)).toEqual([]);
+    // Over text partly carrying emphasis la: removed from the part that has it.
+    const partly = posOf(d, ' partly');
+    const plain = posOf(d, ' plain');
+    const removedPart = run(stateAt(d, partly, plain + 6), toggleInlineMark('emphasis'))!;
+    expect(emphasisOf(removedPart, partly)).toEqual([]);
+    expect(emphasisOf(removedPart, plain)).toEqual([]);
+    // Over text without emphasis: one plain mark added (toggleMark leaves the leading space).
+    const added = run(stateAt(d, plain, plain + 6), toggleInlineMark('emphasis'))!;
+    expect(emphasisOf(added, plain + 1)).toEqual([null]);
+    // A caret inside both marks: the stored marks are toggled by type.
+    const caret = stateAt(d, both + 2);
+    expect(markActive(caret, M.emphasis!)).toBe(true);
+    const off = run(caret, toggleInlineMark('emphasis'))!;
+    expect((off.storedMarks ?? []).filter((m) => m.type === M.emphasis)).toEqual([]);
+    expect(markActive(off, M.emphasis!)).toBe(false);
+    const on = run(off, toggleInlineMark('emphasis'))!;
+    expect(
+      (on.storedMarks ?? []).filter((m) => m.type === M.emphasis).map((m) => m.attrs.lang),
+    ).toEqual([null]);
   });
 
   it('converts paragraphs between Normal / Subtitle / Text author where the schema allows', () => {

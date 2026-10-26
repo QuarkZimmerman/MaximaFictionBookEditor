@@ -819,3 +819,110 @@ TEST_CASE(
     // The model read from XML equals the one decoded from its JSON (Mark ==).
     CHECK(model::node_from_json(model::to_json(p)) == p);
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: nested formatting of one kind (contracts/document-model.md §2.2; FR-069)      */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+model::Mark style_mark(const std::string& name, std::optional<std::string> lang = std::nullopt) {
+    nlohmann::json attrs{{"name", name}};
+    if (lang) {
+        attrs["lang"] = *lang;
+    }
+    return model::Mark{"style", attrs};
+}
+
+model::Mark lang_mark(const std::string& type, std::optional<std::string> lang = std::nullopt) {
+    return model::Mark{type, lang ? nlohmann::json{{"lang", *lang}} : nlohmann::json()};
+}
+
+// The (text, marks) runs of the first text container of `type` in the first body.
+std::vector<std::pair<std::string, std::vector<model::Mark>>> runs_of(const fb2::ReadResult& r,
+                                                                      const std::string& type) {
+    const model::Node* container = find_type(r.document.bodies.at(0), type);
+    REQUIRE(container != nullptr);
+    std::vector<std::pair<std::string, std::vector<model::Mark>>> out;
+    for (const auto& child : container->content) {
+        out.emplace_back(child.is_text() ? child.text : "<" + child.type + ">", child.marks);
+    }
+    return out;
+}
+
+using Runs = std::vector<std::pair<std::string, std::vector<model::Mark>>>;
+
+}  // namespace
+
+TEST_CASE(
+    "reader: a nested style with another name or language is a mark of its own, outer first; an "
+    "equal one collapses",
+    "[reader][marks]") {
+    const auto a = style_mark("a");
+    const auto b = style_mark("b");
+    CHECK(runs_of(read_body("<section><p><style name=\"a\">x<style name=\"b\">y</style>z</style>"
+                            "</p></section>"),
+                  "p") == Runs{{"x", {a}}, {"y", {a, b}}, {"z", {a}}});
+    // An equal nested style collapses (decision 11, probe p12).
+    const auto x = style_mark("x");
+    CHECK(runs_of(read_body("<section><p><style name=\"x\">a<style name=\"x\">b</style>c</style>"
+                            "</p></section>"),
+                  "p") == Runs{{"abc", {x}}});
+    // Same name, another language: two marks.
+    CHECK(runs_of(read_body("<section><p><style name=\"a\" xml:lang=\"la\">u<style "
+                            "name=\"a\">v</style></style></p></section>"),
+                  "p") == Runs{{"u", {style_mark("a", "la")}}, {"v", {style_mark("a", "la"), a}}});
+    // The census shapes: razmer > razryadka in a subtitle, shorttext > SpellE.
+    CHECK(runs_of(read_body("<section><subtitle><style name=\"razmer\"><style "
+                            "name=\"razryadka\">Chapter</style> I</style></subtitle><p>x</p>"
+                            "</section>"),
+                  "subtitle") == Runs{{"Chapter", {style_mark("razmer"), style_mark("razryadka")}},
+                                      {" I", {style_mark("razmer")}}});
+    CHECK(runs_of(read_body("<section><p><style name=\"shorttext\"><style "
+                            "name=\"SpellE\">Word</style></style></p></section>"),
+                  "p") == Runs{{"Word", {style_mark("shorttext"), style_mark("SpellE")}}});
+    // A style without a name inside a named one is a mark of its own, with the name "".
+    CHECK(runs_of(read_body("<section><p><style name=\"a\">k<style>l</style></style></p>"
+                            "</section>"),
+                  "p") == Runs{{"k", {a}}, {"l", {a, style_mark("")}}});
+}
+
+TEST_CASE(
+    "reader: nested formatting of one kind with other attributes is a mark of its own for every "
+    "formatting type; an equal one collapses; nested links keep the outer one",
+    "[reader][marks]") {
+    for (const std::string type : {"strong", "emphasis", "strikethrough", "sub", "sup", "code"}) {
+        INFO(type);
+        const std::string open_la = "<" + type + " xml:lang=\"la\">";
+        const std::string open_de = "<" + type + " xml:lang=\"de\">";
+        const std::string open = "<" + type + ">";
+        const std::string close = "</" + type + ">";
+        // Two languages: "b" carries both, outer first.
+        CHECK(runs_of(read_body("<section><p>" + open_la + "a " + open_de + "b" + close + close +
+                                "</p></section>"),
+                      "p") == Runs{{"a ", {lang_mark(type, "la")}},
+                                   {"b", {lang_mark(type, "la"), lang_mark(type, "de")}}});
+        // A plain one around one with a language: both.
+        CHECK(runs_of(read_body("<section><p>" + open + "a " + open_de + "b" + close + close +
+                                "</p></section>"),
+                      "p") ==
+              Runs{{"a ", {lang_mark(type)}}, {"b", {lang_mark(type), lang_mark(type, "de")}}});
+        // A plain one inside one with a language: a mark of its own as well.
+        CHECK(runs_of(read_body("<section><p>" + open_la + "a " + open + "b" + close + close +
+                                "</p></section>"),
+                      "p") == Runs{{"a ", {lang_mark(type, "la")}},
+                                   {"b", {lang_mark(type, "la"), lang_mark(type)}}});
+        // An equal nested one collapses into one mark over the whole text.
+        CHECK(runs_of(read_body("<section><p>" + open + "a" + open + "b" + close + close +
+                                "</p></section>"),
+                      "p") == Runs{{"ab", {lang_mark(type)}}});
+        CHECK(runs_of(read_body("<section><p>" + open_la + "a" + open_la + "b" + close + close +
+                                "</p></section>"),
+                      "p") == Runs{{"ab", {lang_mark(type, "la")}}});
+    }
+    // Of two nested links the outer one wins (no `a` inside `a` in the schema).
+    const model::Mark outer{"link", nlohmann::json{{"href", "#s2"}}};
+    CHECK(runs_of(read_body("<section><p><a l:href=\"#s2\">x<a l:href=\"#s3\">y</a></a></p>"
+                            "</section><section id=\"s2\"><p>t</p></section>"),
+                  "p") == Runs{{"xy", {outer}}});
+}

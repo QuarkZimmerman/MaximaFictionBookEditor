@@ -166,14 +166,12 @@ std::map<std::string, json> attrs_without_node_id(const Node& n) {
     return attrs;
 }
 
+// Marks by type with the marks of one type in their order (feature 006, FR-069): the order
+// across types does not count, the order of nested formatting of one kind does.
 std::vector<model::Mark> sorted_marks(const std::vector<model::Mark>& marks) {
     std::vector<model::Mark> sorted = marks;
-    std::sort(sorted.begin(), sorted.end(), [](const model::Mark& a, const model::Mark& b) {
-        if (a.type != b.type) {
-            return a.type < b.type;
-        }
-        return a.attrs.dump() < b.attrs.dump();
-    });
+    std::stable_sort(sorted.begin(), sorted.end(),
+                     [](const model::Mark& a, const model::Mark& b) { return a.type < b.type; });
     return sorted;
 }
 

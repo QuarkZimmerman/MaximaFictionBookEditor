@@ -511,11 +511,14 @@ function langAttr(mark: { attrs: Attrs }): Record<string, string> {
  * A formatting mark (`strong` ... `code`) with its `lang`, the element's xml:lang (feature 006,
  * FR-064; data-model §12.2). Only the editor's own markup (`<tag class=className>`, the first
  * rule) carries a language: the generic rules after it give none, so foreign HTML never brings
- * one onto a mark.
+ * one onto a mark. `excludes: ''`: a node may carry several marks of the kind with different
+ * languages, nested formatting kept as read (FR-069); an equal one is never added twice, and a
+ * new one goes after the node's others of its kind.
  */
 function simpleMark(tag: string, className: string, parse: ParseRule[]): MarkSpec {
   return {
     attrs: { lang: { default: null } },
+    excludes: '',
     toDOM(mark) {
       return [tag, { class: className, ...langAttr(mark) }, 0];
     },
@@ -557,9 +560,11 @@ const marks: Record<string, MarkSpec> = {
   sub: simpleMark('sub', 'fb-sub', [{ tag: 'sub' }, { style: 'vertical-align=sub' }]),
   sup: simpleMark('sup', 'fb-sup', [{ tag: 'sup' }, { style: 'vertical-align=super' }]),
   code: simpleMark('code', 'fb-code', [{ tag: 'code' }, { tag: 'tt' }]),
-  // A named style with its `lang` (feature 006, FR-064), both on the editor's own span.
+  // A named style with its `lang` (feature 006, FR-064), both on the editor's own span; nested
+  // styles are all kept, outer first (`excludes: ''`, FR-069).
   style: {
     attrs: { name: { default: '' }, lang: { default: null } },
+    excludes: '',
     toDOM(mark) {
       return [
         'span',
@@ -578,7 +583,8 @@ const marks: Record<string, MarkSpec> = {
     ],
   },
   // `xlinkType` is the link's xlink:type (feature 006, FR-064): written as `data-xlink-type`
-  // and read back only from the editor's own `a.fb-link`; the generic rule gives none.
+  // and read back only from the editor's own `a.fb-link`; the generic rule gives none. A link
+  // keeps excluding itself: a node carries at most one (the schema holds no `a` inside `a`).
   link: {
     attrs: { href: { default: '' }, type: { default: null }, xlinkType: { default: null } },
     inclusive: false,

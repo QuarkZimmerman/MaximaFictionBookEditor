@@ -10,7 +10,8 @@
 //   - structural elements one per line, indented with one tab per level, "\n" line endings;
 //     inline content (p, subtitle, v, text-author, td/th, date) is written untouched;
 //   - marks nest in the canonical order link > style > strong > emphasis > strikethrough >
-//     sub > sup > code (outermost first);
+//     sub > sup > code (outermost first); marks of one type keep the model's order, outer
+//     first, so nested formatting of one kind is written back as read (feature 006, FR-069);
 //   - raw-xml nodes are emitted verbatim (block ones on their own line);
 //   - binaries come from the BinaryStore in document order: base64 wrapped at 76 columns, or
 //     the `…N bytes…` placeholder in elide mode; invalid base64 kept verbatim is written back.

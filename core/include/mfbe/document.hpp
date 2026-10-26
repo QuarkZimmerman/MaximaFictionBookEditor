@@ -36,7 +36,8 @@ struct Node {
     std::map<std::string, nlohmann::json> attrs;  // includes "nodeId" for structural nodes
     std::vector<Node> content;                    // child nodes (empty for leaves/text)
     std::string text;                             // only for type == "text"
-    // Text, inline-image and inline raw-xml (feature 006, FR-067).
+    // Text, inline-image and inline raw-xml (feature 006, FR-067); outer first; a formatting
+    // type may repeat with different attributes (FR-069), a link may not.
     std::vector<Mark> marks;
 
     bool is_text() const { return type == "text"; }

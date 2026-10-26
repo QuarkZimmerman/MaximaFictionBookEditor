@@ -884,3 +884,37 @@ TEST_CASE(
     CHECK(fb2::write_fragment({text_node("a", {strong}), img, text_node("b", {strong})}) ==
           "<strong>a</strong><image l:href=\"#pic\"/><strong>b</strong>");
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: nested formatting of one kind (contracts/document-model.md §3.1, §3.2)        */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE("writer: nested marks of one kind are written outer first, as read", "[writer][marks]") {
+    // FR-069: the model's [style a, style b] gives <style name="a"><style name="b">...; the
+    // writer's stable sort and its joining (common_prefix) write nested formatting as read.
+    for (const std::string& paragraph : {
+             std::string("<p><style name=\"a\">x<style name=\"b\">y</style>z</style></p>"),
+             std::string("<p><style name=\"a\"><style name=\"b\">x</style></style><style "
+                         "name=\"b\"><style name=\"a\">y</style></style></p>"),
+             std::string("<p><emphasis xml:lang=\"la\">a <emphasis "
+                         "xml:lang=\"de\">b</emphasis></emphasis></p>"),
+             std::string("<p><strong>a <strong xml:lang=\"de\">b</strong> c</strong></p>"),
+             std::string("<p><style name=\"razmer\"><style name=\"razryadka\">Chapter</style> "
+                         "I</style></p>"),
+         }) {
+        INFO(paragraph);
+        auto r = read_text(test::minimal_book("<section>" + paragraph + "</section>"));
+        const std::string text = fb2::write_document(r->result.document, &r->store).text;
+        CHECK_THAT(text, ContainsSubstring(paragraph));
+        // Written again from the text read back: the same.
+        auto back = read_text(text);
+        CHECK_THAT(fb2::write_document(back->result.document, &back->store).text,
+                   ContainsSubstring(paragraph));
+    }
+    // The fragment writer shares the order.
+    const model::Mark a{"style", nlohmann::json{{"name", "a"}}};
+    const model::Mark b{"style", nlohmann::json{{"name", "b"}}};
+    CHECK(fb2::write_fragment({text_node("x", {b, a}), text_node("y", {a, b})}) ==
+          "<style name=\"b\"><style name=\"a\">x</style></style><style name=\"a\"><style "
+          "name=\"b\">y</style></style>");
+}

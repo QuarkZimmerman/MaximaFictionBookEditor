@@ -806,6 +806,46 @@ describe('selection.*', () => {
       'unknown nodeId',
     );
     expect(h.store.getState().selectionNodeId).toBe('p3');
+
+    // Feature 006 (FR-069; document-model §2.5, open point 9): a node may carry several marks
+    // of one kind now, yet {style} keeps release 0.0.5's replacement; another formatting name
+    // stands beside a mark of its kind with a language, and unwrap removes every mark of a kind.
+    type Para = { content: { text: string; marks?: unknown[] }[] };
+    const beta = async (marks: unknown[]) => {
+      await call(h, 'doc.replaceNode', 'p2', {
+        type: 'p',
+        attrs: {},
+        content: [
+          { type: 'text', text: 'Beta ' },
+          { type: 'text', text: 'again', marks },
+          { type: 'text', text: '.' },
+        ],
+      });
+      await call(h, 'selection.set', { nodeId: 'p2', offset: 5 }, { nodeId: 'p2', offset: 10 });
+      expect(((await call(h, 'selection.get')) as SelectionInfo).text).toBe('again');
+    };
+    const marksOfAgain = async () =>
+      ((await call(h, 'doc.getNode', 'p2')) as Para).content.find((c) => c.text === 'again')?.marks;
+    const style = (name: string) => ({ type: 'style', attrs: { name } });
+    await beta([style('spaced')]);
+    await call(h, 'selection.wrap', { style: 'b' });
+    expect(await marksOfAgain()).toEqual([style('b')]);
+    await beta([style('a'), style('x')]);
+    expect(await marksOfAgain()).toEqual([style('a'), style('x')]);
+    await call(h, 'selection.wrap', { style: 'b' });
+    expect(await marksOfAgain()).toEqual([style('b')]);
+    await beta([style('a'), style('x')]);
+    await call(h, 'selection.unwrap', 'style');
+    expect(await marksOfAgain()).toBeUndefined();
+    const latin = { type: 'emphasis', attrs: { lang: 'la' } };
+    await beta([latin]);
+    await call(h, 'selection.wrap', 'emphasis');
+    expect(await marksOfAgain()).toEqual([latin, { type: 'emphasis' }]);
+    await call(h, 'selection.unwrap', 'emphasis');
+    expect(await marksOfAgain()).toBeUndefined();
+    await beta([{ type: 'emphasis' }]);
+    await call(h, 'selection.wrap', 'emphasis');
+    expect(await marksOfAgain()).toEqual([{ type: 'emphasis' }]);
   });
 
   it('selectNode moves the window onto an unmounted section', async () => {

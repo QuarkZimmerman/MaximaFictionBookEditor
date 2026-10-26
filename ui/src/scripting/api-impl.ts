@@ -665,7 +665,12 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       const { from, to, empty } = state.selection;
       if (empty) throw new ScriptApiError('selection.wrap: nothing is selected');
       const type = markFor(mark, 'selection.wrap');
-      applySelectionEdit(ctrl, state.tr.addMark(from, to, type));
+      const tr = state.tr;
+      // A named style replaces the selection's styles, as in release 0.0.5: since a node may
+      // carry several styles (feature 006, FR-069), a plain addMark would nest it instead
+      // (document-model §2.5, open point 9).
+      if (type.type === fb2Schema.marks.style) tr.removeMark(from, to, fb2Schema.marks.style);
+      applySelectionEdit(ctrl, tr.addMark(from, to, type));
     },
 
     unwrap: async (mark: unknown): Promise<void> => {

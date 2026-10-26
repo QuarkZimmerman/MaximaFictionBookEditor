@@ -57,6 +57,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   `mfbe-core roundtrip` counts a lost link or formatting around a picture as a difference.
 - Edit > Go to footnote or reference also finds a note reference made of a picture alone, in
   the part of the book on screen and in the rest of a long book.
+- Nested formatting of one kind with another name or language is all kept - named styles (a
+  `<style name="razryadka">` inside a `<style name="razmer">`), and `strong`, `emphasis`,
+  `strikethrough`, `sub`, `sup` and `code` with another `xml:lang` - through opening, editing
+  and saving, and written back nested as read; before, the inner one was dropped when a book
+  was opened. Nested formatting that is equal to the outer one is still written once.
 
 ## 0.0.5 - unreleased
 
