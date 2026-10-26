@@ -11,7 +11,7 @@
  */
 
 import { Fragment, Slice, type Node as PMNode } from 'prosemirror-model';
-import { history, undo } from 'prosemirror-history';
+import { history, undo, undoDepth } from 'prosemirror-history';
 import {
   EditorState,
   NodeSelection,
@@ -26,7 +26,7 @@ import { DISCRETE_STEP } from '@/editor/commands/util';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
 import { fb2Schema, findNodeById } from '@/editor/schema';
 import { gridOfNode } from '@/editor/table/grid';
-import { tableEditingKey, tableEditingPlugin } from '@/editor/table/plugin';
+import { ComposeOverSelection, tableEditingKey, tableEditingPlugin } from '@/editor/table/plugin';
 import { CellBlockSelection, blockTopLeftCellPos, cellBlockOrNull } from '@/editor/table/selection';
 import { createBodyEditorState } from '@/views/body/bodyEditor';
 
@@ -748,40 +748,184 @@ describe('US4: clearing and typing over a block (data-model §4.6, §5.3, §5.4)
     ).toBe(false);
   });
 
-  it('compositionstart with a block selects its top-left cell’s content and returns false; compositionend clears the other cells as a discrete step; nothing for a caret', async () => {
-    const seen: Transaction[] = [];
-    const view = viewOf(blockState('t-1-1', 't-0-0'));
-    view.setProps({
-      dispatchTransaction: (tr) => {
-        seen.push(tr);
-        view.updateState(view.state.apply(tr));
-      },
+  describe('a composition over a block (U39): one undo step, the block given back', () => {
+    // Its changes scroll to the caret, which then stands in the editor: layout APIs jsdom
+    // lacks.
+    beforeAll(() => {
+      Object.defineProperty(Range.prototype, 'getClientRects', {
+        configurable: true,
+        value: () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }),
+      });
+      Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+      });
     });
-    const before = view.state.doc;
-    view.dom.dispatchEvent(new Event('compositionstart', { bubbles: true }));
-    expect(seen).toHaveLength(1);
-    // No document change under a starting composition; the top-left cell's content selected
-    // for the composition to replace.
-    expect(view.state.doc).toBe(before);
-    expect(view.state.selection).toBeInstanceOf(TextSelection);
-    const corner = pos(view.state.doc, 't-0-0');
-    expect([view.state.selection.from, view.state.selection.to]).toEqual([corner + 1, corner + 5]);
-    // The composition replaces it; when it ends, the block's other cells are cleared.
-    view.dispatch(view.state.tr.insertText('é'));
-    view.dom.dispatchEvent(new Event('compositionend', { bubbles: true }));
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(seen).toHaveLength(3);
-    expect(seen[2]!.getMeta(DISCRETE_STEP)).toBe(true);
-    const expected = CLEARED.map((row) => [...row]);
-    expected[0]![0] = 'é';
-    expect(texts(view.state.doc)).toEqual(expected);
-    expect(view.state.selection.empty).toBe(true);
-    expect(view.state.selection.head).toBe(pos(view.state.doc, 't-0-0') + 2);
-    // The handlers do nothing for a caret.
-    const plugin = pluginOf(view.state);
-    const start = plugin.props.handleDOMEvents!.compositionstart!;
-    expect(start.call(plugin, view, new Event('compositionstart') as CompositionEvent)).toBe(false);
-    expect(seen).toHaveLength(3);
+    afterAll(() => {
+      delete (Range.prototype as Partial<Range>).getClientRects;
+      delete (Range.prototype as Partial<Range>).getBoundingClientRect;
+      document.getSelection()?.removeAllRanges();
+    });
+
+    /** A view of a block from t-0-0 to t-1-1 in a state with every Body plugin. */
+    function composeView(): EditorView {
+      return viewOf(blockState());
+    }
+
+    /** `compositionstart` and `compositionend` as the browser fires them on the editor. */
+    function fire(view: EditorView, type: 'compositionstart' | 'compositionend'): void {
+      view.dom.dispatchEvent(new Event(type, { bubbles: true }));
+    }
+
+    /**
+     * A change of the composition read as text, as ProseMirror's DOM reader passes it on: to
+     * `handleTextInput`, with its own transaction (marked with the composition id) as `deflt`,
+     * which it dispatches when no plugin handles the text.
+     */
+    function typed(view: EditorView, from: number, to: number, text: string): void {
+      const deflt = () => view.state.tr.insertText(text, from, to).setMeta('composition', 7);
+      const handled = view.someProp('handleTextInput', (f) => f(view, from, to, text, deflt));
+      if (!handled) view.dispatch(deflt());
+    }
+
+    const corner = (view: EditorView) => pos(view.state.doc, 't-0-0');
+    const endStep = () => new Promise((resolve) => setTimeout(resolve, 30));
+
+    it('compositionstart selects the top-left cell’s content, its bookmark the block, and returns false; nothing for a caret', () => {
+      const view = composeView();
+      const block = view.state.selection;
+      const before = view.state.doc;
+      const seen: Transaction[] = [];
+      view.setProps({
+        dispatchTransaction: (tr) => {
+          seen.push(tr);
+          view.updateState(view.state.apply(tr));
+        },
+      });
+      fire(view, 'compositionstart');
+      expect(seen).toHaveLength(1);
+      // No document change under a starting composition.
+      expect(view.state.doc).toBe(before);
+      const selection = view.state.selection;
+      expect(selection).toBeInstanceOf(ComposeOverSelection);
+      expect(selection).toBeInstanceOf(TextSelection);
+      expect([selection.from, selection.to]).toEqual([corner(view) + 1, corner(view) + 5]);
+      expect(selection.getBookmark().resolve(view.state.doc).eq(block)).toBe(true);
+      expect(view.composing).toBe(true);
+      // The handler does nothing for a caret.
+      const base = blockState();
+      const caretView = viewOf(select(base, caret(base.doc, 't-0-0', 2)));
+      const plugin = pluginOf(caretView.state);
+      const start = plugin.props.handleDOMEvents!.compositionstart!;
+      const state = caretView.state;
+      expect(start.call(plugin, caretView, new Event('compositionstart') as CompositionEvent)).toBe(
+        false,
+      );
+      expect(caretView.state).toBe(state);
+    });
+
+    it('its first change read as text clears the other cells in the same transaction; later changes join that undo step, the end step closes it; one Undo gives back the contents and the block', async () => {
+      const view = composeView();
+      const at = corner(view) + 1;
+      // A change typed into the top-left cell a moment before: the composition does not join
+      // its undo step (compositionstart closes the group).
+      view.dispatch(view.state.tr.insert(at + 4, fb2Schema.text('Z')));
+      expect(undoDepth(view.state)).toBe(1);
+      const block = view.state.selection;
+      expect(block).toBeInstanceOf(CellBlockSelection);
+      const original = texts(view.state.doc);
+      fire(view, 'compositionstart');
+      const seen: Transaction[] = [];
+      view.setProps({
+        dispatchTransaction: (tr) => {
+          seen.push(tr);
+          view.updateState(view.state.apply(tr));
+        },
+      });
+      typed(view, at, at + 5, 'に');
+      // One transaction: the composition's change and the clear, with the composition id and
+      // without DISCRETE_STEP; no appended transaction changes the table (data-model §4.4).
+      expect(seen).toHaveLength(1);
+      expect(seen[0]!.getMeta('composition')).toBe(7);
+      expect(seen[0]!.getMeta(DISCRETE_STEP)).toBe(false);
+      const expected = CLEARED.map((row) => [...row]);
+      expected[0]![0] = 'に';
+      expect(texts(view.state.doc)).toEqual(expected);
+      expect(view.state.selection.head).toBe(at + 1);
+      expect(undoDepth(view.state)).toBe(2);
+      // Later changes of the composition join its undo step.
+      typed(view, at, at + 1, '日本');
+      expected[0]![0] = '日本';
+      expect(texts(view.state.doc)).toEqual(expected);
+      expect(undoDepth(view.state)).toBe(2);
+      // The end step closes it: the next character is a step of its own.
+      fire(view, 'compositionend');
+      await endStep();
+      view.dispatch(view.state.tr.insertText('x', at + 2));
+      expect(undoDepth(view.state)).toBe(3);
+      let state = view.state;
+      expect(undo(state, (tr) => (state = state.apply(tr)))).toBe(true);
+      expect(texts(state.doc)).toEqual(expected);
+      expect(undo(state, (tr) => (state = state.apply(tr)))).toBe(true);
+      expect(texts(state.doc)).toEqual(original);
+      expect(state.selection).toBeInstanceOf(CellBlockSelection);
+      expect(state.selection.eq(block)).toBe(true);
+    });
+
+    it('a composition whose changes are read otherwise is cleared by the end step, in its undo step; a composition that changed nothing gives the block back', async () => {
+      const view = composeView();
+      const block = view.state.selection;
+      const original = texts(view.state.doc);
+      fire(view, 'compositionstart');
+      const at = corner(view) + 1;
+      // Not read as text (a first text that repeats the cell's start reads as a deletion).
+      view.dispatch(view.state.tr.delete(at + 1, at + 4).setMeta('composition', 7));
+      expect(texts(view.state.doc)[0]).toEqual(['r', 'r0c1', 'r0c2', 'r0c3']);
+      fire(view, 'compositionend');
+      await endStep();
+      const expected = CLEARED.map((row) => [...row]);
+      expected[0]![0] = 'r';
+      expect(texts(view.state.doc)).toEqual(expected);
+      expect(undoDepth(view.state)).toBe(1);
+      let state = view.state;
+      expect(undo(state, (tr) => (state = state.apply(tr)))).toBe(true);
+      expect(texts(state.doc)).toEqual(original);
+      expect(state.selection.eq(block)).toBe(true);
+
+      // Nothing composed: the block again, no step.
+      const idle = composeView();
+      const idleBlock = idle.state.selection;
+      fire(idle, 'compositionstart');
+      expect(idle.state.selection).toBeInstanceOf(ComposeOverSelection);
+      fire(idle, 'compositionend');
+      await endStep();
+      expect(idle.state.selection.eq(idleBlock)).toBe(true);
+      expect(undoDepth(idle.state)).toBe(0);
+    });
+
+    it('a key after the composition, before its end step ran, runs it first', () => {
+      const view = composeView();
+      fire(view, 'compositionstart');
+      const at = corner(view) + 1;
+      typed(view, at, at + 4, 'é');
+      fire(view, 'compositionend');
+      const plugin = pluginOf(view.state);
+      plugin.props.handleKeyDown!.call(plugin, view, new KeyboardEvent('keydown', { key: 'x' }));
+      // The step closed: the next change is an undo step of its own.
+      view.dispatch(view.state.tr.insertText('x', at + 1));
+      expect(undoDepth(view.state)).toBe(2);
+    });
+
+    it('its first change puts the DOM caret back at the top-left cell’s text, which Chromium leaves in the head cell', () => {
+      const view = composeView();
+      fire(view, 'compositionstart');
+      const headText = view.nodeDOM(pos(view.state.doc, 't-1-1'))!.firstChild!;
+      document.getSelection()!.collapse(headText, 2);
+      const at = corner(view) + 1;
+      typed(view, at, at + 4, 'é');
+      const focus = document.getSelection()!.focusNode;
+      expect(view.nodeDOM(corner(view))!.contains(focus)).toBe(true);
+    });
   });
 
   it('an Undo through history() after a clear gives back the contents and the block', () => {

@@ -621,16 +621,11 @@ function landingOf(doc: PMNode, point: TablePoint) {
  * container - not wrapped, and the container not split or closed by ProseMirror's fitting of
  * an insertion that does not fit there - and the document is valid.
  */
-function passes(doc: PMNode, point: TablePoint): boolean {
+function passes(state: EditorState, point: TablePoint): boolean {
   const nextId = counter('c_');
-  const landing = landingOf(doc, point);
+  const landing = landingOf(state.doc, point);
   try {
-    const tr = applyTablePoint(
-      EditorState.create({ doc }).tr,
-      point,
-      createTable(1, 1, false, false, nextId),
-      nextId,
-    );
+    const tr = applyTablePoint(state.tr, point, createTable(1, 1, false, false, nextId), nextId);
     const $at = tr.doc.resolve(landing.at);
     if ($at.depth !== landing.depth) return false;
     if ($at.parent.childCount !== landing.count + landing.gain) return false;
@@ -662,8 +657,21 @@ describe('SC-002: the unit oracle (C26)', () => {
     const failures: string[] = [];
     for (let round = 0; round < 300; round += 1) {
       const doc = chance(0.8) ? bodyDoc() : fieldDoc();
+      // The carets of one text block share all their outward candidates, and a candidate's
+      // verdict depends on the document only: each is tried once per document.
+      const state = EditorState.create({ doc });
+      const verdicts = new Map<string, boolean>();
+      const passesOnce = (point: TablePoint) => {
+        const key = JSON.stringify(point);
+        let verdict = verdicts.get(key);
+        if (verdict === undefined) {
+          verdict = passes(state, point);
+          verdicts.set(key, verdict);
+        }
+        return verdict;
+      };
       for (const pos of caretPositions(doc)) {
-        const expected = oracleCandidates(doc, pos).find((point) => passes(doc, point)) ?? null;
+        const expected = oracleCandidates(doc, pos).find(passesOnce) ?? null;
         const actual = findTablePoint(doc, pos);
         checked += 1;
         if (!expected) none += 1;

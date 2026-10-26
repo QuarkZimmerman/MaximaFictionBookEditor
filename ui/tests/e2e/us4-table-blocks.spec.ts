@@ -621,13 +621,21 @@ test.describe('US4 (feature 006) - blocks of cells', () => {
     await undoTo(page, typed);
   });
 
-  test('U39: an input method and a dead key over a block compose in its top-left cell and clear the block; the clear is a step of its own', async ({
+  test('U39: an input method and a dead key over a block compose in its top-left cell and clear the block; the clear and the composition are one undo step', async ({
     core,
     page,
   }) => {
     await openTables(core, page);
     const t1 = await scenario(page, T1);
-    const cases = [
+    const cases: {
+      from: string;
+      to: string;
+      block: string[];
+      steps: string[];
+      commit: string;
+      /** A character typed right after the composition. */
+      then?: string;
+    }[] = [
       // An input method spells にほん and commits 日本; nothing lands in the head cell r4c4.
       {
         from: 'r3c3',
@@ -644,41 +652,72 @@ test.describe('US4 (feature 006) - blocks of cells', () => {
         steps: ['´'],
         commit: 'é',
       },
+      // An input method over a block of one row, so the hidden caret stands in the top-left
+      // cell's row: r1c1 takes 漢 and keeps its id.
+      {
+        from: 'r1c1',
+        to: 'r1c2',
+        block: ['r1c1', 'r1c2'],
+        steps: ['か', 'かん'],
+        commit: '漢',
+      },
+      // An input method whose first text, a Latin r, repeats the start of the top-left cell's
+      // text, which ProseMirror then reads as a deletion: the next step clears the block.
+      {
+        from: 'r1c3',
+        to: 'r1c4',
+        block: ['r1c3', 'r1c4'],
+        steps: ['r', 'ri'],
+        commit: 'り',
+      },
+      // A dead key over a block of one row whose top-left cell is empty (r3c2, emptied above)
+      // and whose other cell holds 日本; an x typed right after the composition is a step of
+      // its own.
+      { from: 'r3c2', to: 'r3c3', block: ['r3c2', 'r3c3'], steps: ['¨'], commit: 'ü', then: 'x' },
     ];
     // What the earlier cases left in table (1).
     const emptied: string[] = [];
     const typed: Record<string, string> = {};
-    for (const { from, to, block, steps, commit } of cases) {
+    for (const { from, to, block, steps, commit, then } of cases) {
       const before = await toXml(page);
-      const earlier = { emptied: [...emptied], typed: { ...typed } };
+      const cells = t1.cells(...block);
       await shiftBlock(page, t1, from, to);
-      await expect.poll(() => highlighted(page)).toEqual(t1.cells(...block));
+      await expect.poll(() => highlighted(page)).toEqual(cells);
       await page.getByTestId('body-editor').focus();
       await compose(page, steps, commit);
+      if (then) await page.keyboard.type(then);
       emptied.push(...block);
+      for (const name of block) delete typed[name];
       typed[from] = commit;
-      // The composition replaces the top-left cell's text; when it ends, the other cells of the
-      // block are cleared.
+      // The composition replaces the top-left cell's text, and the other cells of the block are
+      // cleared.
+      const composed = t1Xml(emptied, typed);
+      const shown = then ? t1Xml(emptied, { ...typed, [from]: commit + then }) : composed;
       await expect
         .poll(async () => tableXml(await toXml(page), T1), { message: commit })
-        .toBe(t1Xml(emptied, typed));
-      const composed = await toXml(page);
+        .toBe(shown);
       for (const name of block) {
-        await expect(cell(t1, name)).toHaveText(name === from ? commit : '');
+        await expect(cell(t1, name)).toHaveText(name === from ? commit + (then ?? '') : '');
       }
-      // The clear of the other cells is a step of its own: the first Undo gives back their
-      // contents, the second the top-left cell's text the composition replaced; two Redos apply
-      // both again.
+      let after = await toXml(page);
+      if (then) {
+        // The character typed after the composition is an undo step of its own.
+        await menu(page, 'edit', 'undo');
+        const composedXml = await changedFrom(page, after);
+        expect(tableXml(composedXml, T1), `${commit}: without ${then}`).toBe(composed);
+        await menu(page, 'edit', 'redo');
+        await expect.poll(() => toXml(page)).toBe(after);
+        await menu(page, 'edit', 'undo');
+        await expect.poll(() => toXml(page)).toBe(composedXml);
+        after = composedXml;
+      }
+      // One Undo gives back the whole document and the block itself; one Redo the composition
+      // and the clear (SC-007, data-model §4.6, §5.7).
       await menu(page, 'edit', 'undo');
-      const clearedOnly = await changedFrom(page, composed);
-      expect(tableXml(clearedOnly, T1), `${commit}: the composition alone`).toBe(
-        t1Xml(earlier.emptied, { ...earlier.typed, [from]: commit }),
-      );
-      await undoTo(page, before);
+      await expect.poll(() => toXml(page), { message: `${commit}: one Undo` }).toBe(before);
+      await expect.poll(() => highlighted(page)).toEqual(cells);
       await menu(page, 'edit', 'redo');
-      await expect.poll(() => toXml(page)).toBe(clearedOnly);
-      await menu(page, 'edit', 'redo');
-      await expect.poll(() => toXml(page)).toBe(composed);
+      await expect.poll(() => toXml(page), { message: `${commit}: one Redo` }).toBe(after);
       await regular(page, t1.ref);
     }
   });
@@ -850,9 +889,13 @@ test.describe('US4 (feature 006) - blocks of cells', () => {
     const fixture = await toXml(page);
     await shiftBlock(page, t1, 'r1c1', 'r2c2');
     await page.keyboard.press(`${MOD}+c`);
-    // Table (3) selected through the context menu's "Select table", from a caret in its cell.
-    await clickEnd(page, t3, 'r2c2');
+    // Table (3) selected through the context menu's "Select table". The right-click, with the
+    // block of table (1) still selected, first puts the caret into the clicked cell (C28), which
+    // the document tree follows by scrolling to its row: the menu opens after that scroll and
+    // stays open (it closes on any scroll, U13).
     await rightClick(page, cell(t3, 'r2c2'));
+    expect(await highlighted(page)).toEqual([]);
+    await expect(page.getByTestId('status-path')).toHaveText(/\/tr\[2\]\/td\[2\]$/);
     const contextMenu = page.getByTestId('context-menu');
     await contextMenu
       .getByText(await pageText(page, 'editing.contextMenu.select', { element: 'table' }), {

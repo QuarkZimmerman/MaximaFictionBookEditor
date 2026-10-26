@@ -21,10 +21,11 @@
  * - **Type-over** (US4, FR-011): text input with a block is one transaction - the clear, the
  *   text at the start of the block's top-left cell, the caret after it, `DISCRETE_STEP` - so the
  *   clear and the first character are one undo step and the following characters group as
- *   typing; `compositionstart` with a block selects the content of its top-left cell, which the
- *   composition (an input method, a dead key) replaces, and the block's other cells are cleared
- *   in a `DISCRETE_STEP` transaction when the composition ends (U39). Every other selection is left alone at once, so typing elsewhere
- *   costs nothing more.
+ *   typing. A composition over a block (an input method, a dead key; U39) is one undo step as
+ *   well: `compositionstart` selects the content of the block's top-left cell, which the
+ *   composition replaces; the transaction of the composition's first change also clears the
+ *   block's other cells, and the composition's end closes the undo step; Undo gives the block
+ *   back. Every other selection is left alone at once, so typing elsewhere costs nothing more.
  * - **Normalisation** (U10), an appended transaction that sets a selection and never adds a
  *   step (no automatic repair, R1.7): a text selection whose ends lie in two cells of one table
  *   becomes the block between them; a selected `td` or `th` node becomes a text selection over
@@ -33,6 +34,7 @@
  * - **No paste props** at all: the clipboard plugin's router owns every paste (C4).
  */
 
+import { closeHistory } from 'prosemirror-history';
 import type { ResolvedPos } from 'prosemirror-model';
 import {
   NodeSelection,
@@ -41,6 +43,7 @@ import {
   Selection,
   TextSelection,
   type EditorState,
+  type SelectionBookmark,
   type Transaction,
 } from 'prosemirror-state';
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
@@ -62,7 +65,7 @@ import {
   type CellRef,
 } from './selection';
 
-export const tableEditingKey = new PluginKey('mfbe-table-editing');
+export const tableEditingKey = new PluginKey<ComposeOver | null>('mfbe-table-editing');
 
 /** The class a block's cells carry. */
 export const CELL_SELECTED_CLASS = 'mfbe-cell-selected';
@@ -307,6 +310,11 @@ function clearOnDelete(view: EditorView, event: KeyboardEvent): boolean {
 }
 
 function handleKeyDown(view: EditorView, event: KeyboardEvent): boolean {
+  // A key after a composition over a block, before its end step ran (the browser may take input
+  // before timers): that step first, so the key's change is not part of the composition's undo
+  // step.
+  const compose = composeOf(view.state);
+  if (compose && !view.composing) finishCompose(view, compose.serial);
   if (view.state.selection instanceof CellBlockSelection && clearOnDelete(view, event)) return true;
   if (!event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false;
   const direction = ARROW_DIRECTIONS[event.key];
@@ -361,85 +369,243 @@ function typeOver(view: EditorView, text: string): boolean {
   return true;
 }
 
-/** A block whose other cells are cleared when the composition over it ends (U39). */
-interface PendingClear {
+/**
+ * A composition over a block (U39; data-model §4.6 "IME and dead keys"), the table plugin's state
+ * from `compositionstart` to the composition's end step.
+ */
+export interface ComposeOver {
+  /** Which composition: the end step of an earlier one leaves a later one alone. */
+  serial: number;
+  /** The table's `nodeId`: a table replaced meanwhile is never cleared. */
   tableNodeId: unknown;
+  /** The position just before the table, mapped through every change. */
   tablePos: number;
   rect: Rect;
-  /** The grid index of the top-left cell, which the composition replaced. */
+  /** The grid index of the block's top-left cell, whose content the composition replaces. */
   keep: number;
+  /** The top-left cell's `nodeId`: only a composition that types there clears the block. */
+  keepNodeId: unknown;
+  /** The composition changed the document. */
+  changed: boolean;
+  /** The block's other cells are cleared. */
+  cleared: boolean;
+  /** The `composition` meta of the composition's changes (ProseMirror's composition id). */
+  composition: unknown;
 }
 
-const pendingClears = new WeakMap<EditorView, PendingClear>();
+/** The meta of a transaction that sets or drops the plugin's `ComposeOver`. */
+interface ComposeMeta {
+  compose: ComposeOver | null;
+}
 
 /**
- * The start of a composition with a block (U39): the content of the block's top-left cell is
- * selected - no document change, so the browser composes undisturbed: a transaction that
- * changes the document under a starting composition makes Chromium keep its first text (US4
- * journey) - and the composition (an input method's text, a dead key's character) replaces it
- * there; false, so ProseMirror's composition handling goes on. The block's other cells are
- * cleared when the composition ends (`composeEnd`).
+ * The content of a block's top-left cell, selected at the start of a composition over the block:
+ * a text selection whose bookmark is the block's, so that the undo step the composition starts
+ * gives the block back, as the undo step of typing over a block does (data-model §5.7).
  */
-function composeOver(view: EditorView): boolean {
-  const { selection } = view.state;
-  if (!(selection instanceof CellBlockSelection)) return false;
-  const doc = view.state.doc;
+export class ComposeOverSelection extends TextSelection {
+  constructor(
+    $anchor: ResolvedPos,
+    $head: ResolvedPos,
+    /** The block's bookmark. */
+    readonly block: SelectionBookmark,
+  ) {
+    super($anchor, $head);
+  }
+
+  /**
+   * The block's bookmark, typed as `TextSelection`'s: its reader, the history, takes any
+   * `SelectionBookmark`.
+   */
+  override getBookmark(): ReturnType<TextSelection['getBookmark']> {
+    return this.block as ReturnType<TextSelection['getBookmark']>;
+  }
+}
+
+function composeOf(state: EditorState): ComposeOver | null {
+  return tableEditingKey.getState(state) ?? null;
+}
+
+let composeSerial = 0;
+
+/**
+ * The transaction `compositionstart` dispatches with a block (U39; data-model §4.6), else null:
+ * the content of the block's top-left cell selected as a `ComposeOverSelection` - the composition
+ * (an input method's text, a dead key's character) replaces it there -, the undo group before
+ * it closed, and the block kept in the plugin's state. The document does not change yet:
+ * Chromium places a starting composition by the text offsets its selection had when it began
+ * (the block's head cell, where the hidden caret stands), so a change before the composition's
+ * first text lands - a clear at `compositionstart` - makes it lose the composition and keep that
+ * first text (`に日本` for `日本`, `´é` for `é`; the US4 journey). The composition's first change
+ * clears the block's other cells (`composeInto`); from its first text on, the composition is a
+ * DOM range that changes elsewhere leave alone, and every other cell of a block follows its
+ * top-left cell in the document.
+ */
+export function composeOverTransaction(state: EditorState): Transaction | null {
+  const { selection, doc } = state;
+  if (!(selection instanceof CellBlockSelection)) return null;
+  const table = doc.nodeAt(selection.tablePos);
   const cellPos = blockTopLeftCellPos(doc, selection.tablePos, selection.rect);
-  if (cellPos === null) return false;
-  const table = doc.nodeAt(selection.tablePos)!;
-  pendingClears.set(view, {
+  if (!table || cellPos === null) return null;
+  const keep = cellIndexOfPos(gridOfNode(table), doc, cellPos);
+  if (keep === null) return null;
+  const cell = doc.nodeAt(cellPos)!;
+  const compose: ComposeOver = {
+    serial: (composeSerial += 1),
     tableNodeId: table.attrs.nodeId,
     tablePos: selection.tablePos,
     rect: { ...selection.rect },
-    keep: cellIndexOfPos(gridOfNode(table), doc, cellPos) ?? -1,
-  });
-  const size = doc.nodeAt(cellPos)!.content.size;
-  view.dispatch(
-    view.state.tr.setSelection(TextSelection.create(doc, cellPos + 1, cellPos + 1 + size)),
+    keep,
+    keepNodeId: cell.attrs.nodeId,
+    changed: false,
+    cleared: false,
+    composition: undefined,
+  };
+  const content = new ComposeOverSelection(
+    doc.resolve(cellPos + 1),
+    doc.resolve(cellPos + 1 + cell.content.size),
+    selection.getBookmark(),
   );
+  const meta: ComposeMeta = { compose };
+  return closeHistory(state.tr.setSelection(content).setMeta(tableEditingKey, meta));
+}
+
+/**
+ * `compositionstart`: the end step of an earlier composition over a block first, when it has
+ * not run yet (an input method may start the next composition at once); then
+ * `composeOverTransaction`, and false - ProseMirror's handling goes on.
+ */
+function composeOver(view: EditorView): boolean {
+  const earlier = composeOf(view.state);
+  if (earlier && !view.composing) finishCompose(view, earlier.serial);
+  const tr = composeOverTransaction(view.state);
+  if (tr) view.dispatch(tr);
   return false;
 }
 
 /**
- * The end of a composition that began over a block: once ProseMirror has read the composed text
- * (a macrotask later), the block's other cells are cleared - the clear-block plan with the
- * top-left cell kept, one `DISCRETE_STEP` transaction, so it is an undo step of its own - and
- * the caret stays after the composed text.
+ * The block's other cells cleared in `tr` - the clear-block plan with the top-left cell kept -,
+ * the selection where it was in the top-left cell, no `DISCRETE_STEP`: the clear is part of the
+ * composition's undo step, which that meta would close before the composition's later changes.
+ * False, `tr` unchanged, when the table was replaced or the selection is not in the top-left
+ * cell.
+ */
+function clearOthers(tr: Transaction, compose: ComposeOver): boolean {
+  const tablePos = compose.tablePos;
+  const table = tr.doc.nodeAt(tablePos);
+  if (!table || table.type.name !== 'table' || table.attrs.nodeId !== compose.tableNodeId) {
+    return false;
+  }
+  const { $anchor, $head } = tr.selection;
+  const inKept = ($pos: ResolvedPos) => {
+    const ref = cellRefAround($pos);
+    return !!ref && ref.tablePos === tablePos && ref.cell.attrs.nodeId === compose.keepNodeId;
+  };
+  const grid = gridOfNode(table);
+  if (grid.tooLarge || !inKept($anchor) || !inKept($head)) return false;
+  const edit = planClearBlock(
+    { table, grid, rect: compose.rect },
+    { nextId: noNewNodes },
+    { keep: compose.keep },
+  );
+  if (isRefusal(edit)) return false;
+  if (!commitTableEdit(tr, tablePos, edit)) return true;
+  // The kept cell stands where it stood: the cells and rows before it are unchanged.
+  const cellPos = blockTopLeftCellPos(tr.doc, tablePos, compose.rect)!;
+  const at = (offset: number) => cellPos + 1 + offset;
+  tr.setSelection(TextSelection.create(tr.doc, at($anchor.parentOffset), at($head.parentOffset)));
+  tr.setMeta(DISCRETE_STEP, false);
+  return true;
+}
+
+/**
+ * The DOM caret back at the composition's text, as ProseMirror reads the first change of a
+ * composition over a block: Chromium ends a composition step by putting the caret at the text
+ * offset its selection had when the composition began - in the block's head cell, where the
+ * hidden caret stood - plus the composition's length, and ProseMirror takes the text node at the
+ * DOM caret for the composition's when it redraws. With the caret elsewhere it redraws the
+ * composition's cell from the document - the text the browser typed into an empty top-left cell
+ * as a new text node, a cell of a one-row block in the DOM of the head cell -, which drops the
+ * browser's text node and so the composition: Chromium keeps its first text (`¨ü` for `ü`; the
+ * US4 journey). The composition replaced all of the cell's content, so its text is the cell's
+ * first text node.
+ */
+function caretToComposition(view: EditorView, cellPos: number): void {
+  const cell = view.nodeDOM(cellPos);
+  const selection = view.dom.ownerDocument.getSelection();
+  if (!cell || !selection || (selection.focusNode && cell.contains(selection.focusNode))) return;
+  const text = view.dom.ownerDocument.createTreeWalker(cell, NodeFilter.SHOW_TEXT).nextNode();
+  if (text) selection.collapse(text, text.nodeValue?.length ?? 0);
+}
+
+/**
+ * A change of a composition over a block that ProseMirror reads as text typed between `from`
+ * and `to` (`handleTextInput`), before the block's other cells are cleared: when it lies in the
+ * block's top-left cell, the DOM caret back at the composition (`caretToComposition`), then one
+ * transaction - ProseMirror's own for the change (`deflt`, which carries its composition id)
+ * with the block's other cells cleared (`clearOthers`) -, true. So the clear and the composed
+ * text are one undo step (SC-007), whose bookmark is the block, and no appended transaction
+ * changes a table (data-model §4.4). False otherwise: ProseMirror applies the change, and the
+ * end step clears.
+ */
+function composeInto(
+  view: EditorView,
+  from: number,
+  to: number,
+  deflt: (() => Transaction) | undefined,
+): boolean {
+  const compose = composeOf(view.state);
+  if (!compose || compose.cleared || !view.composing || !deflt) return false;
+  const cellPos = blockTopLeftCellPos(view.state.doc, compose.tablePos, compose.rect);
+  const cell = cellPos === null ? null : view.state.doc.nodeAt(cellPos);
+  if (cellPos === null || !cell || cell.attrs.nodeId !== compose.keepNodeId) return false;
+  if (from < cellPos + 1 || to > cellPos + 1 + cell.content.size) return false;
+  caretToComposition(view, cellPos);
+  const tr = deflt();
+  const mapped = { ...compose, tablePos: tr.mapping.map(compose.tablePos) };
+  if (!clearOthers(tr, mapped)) return false;
+  const composition: unknown = tr.getMeta('composition');
+  const meta: ComposeMeta = { compose: { ...mapped, changed: true, cleared: true, composition } };
+  view.dispatch(tr.setMeta(tableEditingKey, meta));
+  return true;
+}
+
+/**
+ * `compositionend` after a composition over a block: its end step a macrotask later, once
+ * ProseMirror has read the composition's last change (it flushes pending DOM changes in a
+ * microtask).
  */
 function composeEnd(view: EditorView): boolean {
-  const pending = pendingClears.get(view);
-  if (!pending) return false;
-  pendingClears.delete(view);
-  setTimeout(() => clearAfterComposition(view, pending), 0);
+  const compose = composeOf(view.state);
+  if (compose) setTimeout(() => finishCompose(view, compose.serial), 0);
   return false;
 }
 
-function clearAfterComposition(view: EditorView, pending: PendingClear): void {
+/**
+ * The end step of a composition over a block: the block's other cells cleared if no change of
+ * the composition did it - with the composition's id, so in its undo step -; then one
+ * transaction drops the block from the plugin's state and closes the undo step, so the
+ * characters typed next group as typing - the rule `DISCRETE_STEP` gives typing over a block
+ * (§4.6); a composition that changed nothing gives the block back.
+ */
+function finishCompose(view: EditorView, serial: number): void {
   if (view.isDestroyed) return;
-  const state = view.state;
-  const table = state.doc.nodeAt(pending.tablePos);
-  if (!table || table.type.name !== 'table' || table.attrs.nodeId !== pending.tableNodeId) return;
-  const grid = gridOfNode(table);
-  if (grid.tooLarge) return;
-  const edit = planClearBlock(
-    { table, grid, rect: pending.rect },
-    { nextId: noNewNodes },
-    { keep: pending.keep },
-  );
-  if (isRefusal(edit)) return;
-  const old = state.selection;
-  const kept = cellRefAround(old.$head);
-  const tr = commitTableEdit(state.tr, pending.tablePos, edit);
-  if (!tr) return;
-  const cellPos = blockTopLeftCellPos(tr.doc, pending.tablePos, pending.rect);
-  const cell = cellPos === null ? null : tr.doc.nodeAt(cellPos);
-  if (cellPos !== null && cell && kept && kept.cell.attrs.nodeId === cell.attrs.nodeId) {
-    const offset = Math.min(old.$head.parentOffset, cell.content.size);
-    tr.setSelection(TextSelection.create(tr.doc, cellPos + 1 + offset));
-  } else {
-    tr.setSelection(old.map(tr.doc, tr.mapping));
+  const compose = composeOf(view.state);
+  if (!compose || compose.serial !== serial) return;
+  if (compose.changed && !compose.cleared) {
+    const tr = view.state.tr;
+    if (clearOthers(tr, compose) && tr.docChanged) {
+      if (compose.composition) tr.setMeta('composition', compose.composition);
+      view.dispatch(tr);
+    }
   }
-  view.dispatch(tr);
+  const { state } = view;
+  const meta: ComposeMeta = { compose: null };
+  const tr = state.tr.setMeta(tableEditingKey, meta);
+  if (!compose.changed && state.selection instanceof ComposeOverSelection) {
+    tr.setSelection(state.selection.block.resolve(state.doc));
+  }
+  view.dispatch(closeHistory(tr));
 }
 
 /** The grid index of the cell that stands right after `cellPos`, when it is one of `grid`'s. */
@@ -469,9 +635,23 @@ function blockDecorations(state: EditorState): DecorationSet | null {
   return DecorationSet.create(state.doc, decorations);
 }
 
-export function tableEditingPlugin(): Plugin {
-  return new Plugin({
+export function tableEditingPlugin(): Plugin<ComposeOver | null> {
+  return new Plugin<ComposeOver | null>({
     key: tableEditingKey,
+    state: {
+      init: () => null,
+      apply(tr, compose) {
+        const meta = tr.getMeta(tableEditingKey) as ComposeMeta | undefined;
+        if (meta) return meta.compose;
+        if (!compose || !tr.docChanged) return compose;
+        return {
+          ...compose,
+          tablePos: tr.mapping.map(compose.tablePos),
+          changed: true,
+          composition: compose.composition ?? tr.getMeta('composition'),
+        };
+      },
+    },
     props: {
       decorations: blockDecorations,
       handleDOMEvents: {
@@ -480,7 +660,8 @@ export function tableEditingPlugin(): Plugin {
         compositionend: (view) => composeEnd(view),
       },
       handleKeyDown,
-      handleTextInput: (view, _from, _to, text) => typeOver(view, text),
+      handleTextInput: (view, from, to, text, deflt) =>
+        composeInto(view, from, to, deflt) || typeOver(view, text),
       createSelectionBetween(view, $anchor, $head) {
         const drag = drags.get(view);
         if (drag) {

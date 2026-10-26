@@ -120,8 +120,17 @@ export function BodyView({ editable = true }: BodyViewProps) {
           event.preventDefault();
           // The right-click rule of the tables feature first (C28), then the menu at the click.
           const click = contextMenuClick(controller, event.clientX, event.clientY);
+          const before = controller.editorState?.selection;
           contextMenuExtensions.prepare?.(controller, click);
-          setMenu(click);
+          if (controller.editorState?.selection === before) {
+            setMenu(click);
+            return;
+          }
+          // The rule moved the caret (a cell of another table, say), and the panes that follow
+          // the caret scroll to it - the document tree to its row. The menu closes on any
+          // scroll (U13), and the browser delivers a scroll's event in the next frame: the menu
+          // opens the frame after, once those scrolls are delivered.
+          requestAnimationFrame(() => requestAnimationFrame(() => setMenu(click)));
         }}
       >
         {sourceOnly ? (

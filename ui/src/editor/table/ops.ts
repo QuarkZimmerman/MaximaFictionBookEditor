@@ -1287,8 +1287,8 @@ export function planDuplicateColumns(address: TableAddress, ctx: PlanContext): T
  * `extraAttrs`), so the cells stay with their ids (C47); a cell already empty and every row
  * without a changed cell are reused, so a block of empty cells commits nothing. `too-large` on
  * a grid too large for the owner map. Without a block nothing changes. Focus: the same block.
- * `keep` names a grid cell left as it is (the start of a composition keeps the top-left cell's
- * text for the composition to replace, U39).
+ * `keep` names a grid cell left as it is (a composition over a block keeps the top-left cell,
+ * whose content it replaces, U39).
  */
 export function planClearBlock(
   address: TableAddress,

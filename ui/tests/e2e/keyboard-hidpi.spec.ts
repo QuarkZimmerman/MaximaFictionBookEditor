@@ -630,13 +630,18 @@ test.describe('dialogs from the keyboard', () => {
     await expect(body).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowRight');
     await expect(page.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
-    // The view takes the focus (the editor is ready for typing); the tab stays operable.
+    // The view takes the focus once its text has loaded (the editor is ready for typing), which
+    // is later than the tab's selection - an RPC later on the first visit -, so the journey
+    // waits for that before it focuses the tab again: a key pressed in between would go to the
+    // editor. The tab stays operable.
+    await expect(page.getByTestId('source-editor')).toBeFocused();
     await page.getByTestId('view-source').focus();
     await page.keyboard.press('Home');
     await expect(page.getByTestId('view-description')).toHaveAttribute('aria-selected', 'true');
     await page.getByTestId('view-description').focus();
     await page.keyboard.press('End');
     await expect(page.getByTestId('view-source')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('source-editor')).toBeFocused();
     await page.getByTestId('view-source').focus();
     await page.keyboard.press('ArrowLeft');
     await expect(body).toHaveAttribute('aria-selected', 'true');
