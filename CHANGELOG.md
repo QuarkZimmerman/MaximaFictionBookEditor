@@ -36,6 +36,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   menu (*Table structure*) -, among the buttons offered in *Customize toolbar* and in the hotkey
   list; they change only the kind of a cell and keep its content and every attribute, and each
   is one undo step (a command with nothing to convert records none).
+- The Table bar's *Cell language* field, with the editor's languages as suggestions. With a
+  block of cells selected, *Cell style*, *Cell align*, *Cell valign* and *Cell language* apply
+  to every selected cell and *Row align* to every row of the block, while *Cell ID*, *colspan*
+  and *rowspan* apply to the cell where the selection ends; a field whose cells differ stays
+  empty.
 
 - *Add > Table* asks for the columns and for a header column besides the rows and a header
   row, and proposes the values last confirmed, also after a restart. The new table is
@@ -126,6 +131,10 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   was not a number - is written once, the known value winning; 0.0.5 wrote it twice, and the
   saved file was not well-formed. Span values below 1 are kept exactly as written unless they
   are in plain decimal form (`0`, `-1`), so `00` or `-01` no longer become `0` or `-1`.
+- The Table bar refuses an id that is not a valid FB2 identifier or that another element of the
+  book uses, and a language that is not a language tag, with the reason in the status bar,
+  where release 0.0.5 wrote any value. An empty field removes the attribute, and each change is
+  one undo step; a value equal to the current one records none.
 
 ### Fixed
 
