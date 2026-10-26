@@ -24,7 +24,12 @@
  *    saved as a copy, the copy reopened and validated (manual step 11);
  *  - sc.1 to sc.9 of US1, "Table… in the context menu follows FR-004" and the edge cases (T048);
  *  - "10. Add → Table in the Source view" (T049);
- *  - the "SC-001" test of T184 joins them.
+ *  - "SC-001" (T184; U1; quickstart §1 manual step 12): in a new book, a table of 3 columns and
+ *    4 rows with a header row at the start of the chapter's text, filled, a picture in one cell,
+ *    a column added, two header cells merged and a whole column centred - only through the
+ *    menus, the dialog, the Table bar and a queued file dialog, each step's result read from
+ *    the XML, and after every command one Undo and one Redo (SC-007); the book valid at the
+ *    end, and only then the Source view, which shows the same table.
  */
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -123,6 +128,8 @@ declare const window: {
 };
 
 const PLACEMENT = fixtureBook('tables-placement.fb2');
+/** The picture SC-001 puts into a cell (`tests/fixtures/images/`). */
+const TINY_PNG = path.resolve(path.dirname(fixtureBook('x')), '..', 'images', 'tiny.png');
 
 /** The model of the open document. */
 function documentOf(page: Page): Promise<DocJson> {
@@ -534,6 +541,35 @@ async function liveErrors(core: CoreHandle, page: Page): Promise<number> {
 /** A pattern of `text` in the XML: regular-expression characters escaped. */
 function esc(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** The `<binary>` elements of the XML (their content elided by `toXml`). */
+const BINARY = /\s*<binary\b[^>]*>[\s\S]*?<\/binary>/g;
+
+/**
+ * The XML without its `<binary>` elements: a picture's binary belongs to the core's binary
+ * store, not to the undo history - after Undo it stays listed, as for pictures outside cells
+ * (feature 001, US7) -, so the comparison after Undo leaves the binaries out and checks them on
+ * their own (as `us3-table-images.spec.ts` does).
+ */
+function withoutBinaries(xml: string): string {
+  return xml.replace(BINARY, '');
+}
+
+function binaryElements(xml: string): string[] {
+  return [...xml.matchAll(BINARY)].map((match) => match[0].trim());
+}
+
+/** The XML with the white space between tags removed and an empty cell written as `<td/>`. */
+function flat(xml: string): string {
+  return xml.replace(/>\s+</g, '><').replace(/<(t[dhr])((?:\s[^>]*)?)><\/\1>/g, '<$1$2/>');
+}
+
+/** The one `<table>` of a flattened XML (SC-001's book holds no other). */
+function onlyTable(xml: string): string {
+  const tables = flat(xml).match(/<table>.*?<\/table>/g) ?? [];
+  expect(tables, 'one table in the book').toHaveLength(1);
+  return tables[0]!;
 }
 
 /** The pattern of a new table, its rows' cell kinds given, every cell empty, no attribute. */
@@ -1784,5 +1820,273 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
     await expect(addTableEntry).toHaveAttribute('aria-disabled', 'true');
     await expect(addTableEntry).toHaveAttribute('title', new RegExp(`^${pattern}$`));
     await page.keyboard.press('Escape');
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* SC-001 end to end (T184)                                               */
+  /* ---------------------------------------------------------------------- */
+
+  test('SC-001: a table made, filled, illustrated, widened, merged and centred without the Source view', async ({
+    core,
+    page,
+  }) => {
+    // Step 4 needs the "Insert clear image?" prompt, which other journeys leave off in the
+    // worker's shared core: on before the page loads, given back as it was afterwards.
+    const { other } = await core.rpc<{
+      other: { askOnNonClearImage: boolean; insertClearImages: boolean };
+    }>('settings.get');
+    await core.rpc('settings.set', {
+      patch: { other: { askOnNonClearImage: true, insertClearImages: false } },
+    });
+    try {
+      await core.openApp(page);
+      await expect(page.getByTestId('status-message')).toHaveText(
+        await pageText(page, 'status.ready'),
+      );
+      const editor = page.getByTestId('body-editor');
+      const status = page.getByTestId('status-path');
+      /** The cell element with the node id `nodeId`. */
+      const cell = (nodeId: string) =>
+        editor.locator(`[data-testid="body-table"] :is(td, th)[data-node-id="${nodeId}"]`);
+      /** The node id of the cell of the book's one table whose text is `text`. */
+      const cellId = async (text: string) => {
+        const [table] = allNodes(await documentOf(page)).filter((node) => node.type === 'table');
+        const found = (table?.content ?? [])
+          .flatMap((row) => row.content ?? [])
+          .find((one) => textOf(one) === text);
+        if (!found) throw new Error(`no cell "${text}"`);
+        return found.attrs!.nodeId!;
+      };
+      /** One Edit → Undo gives back `before`, one Edit → Redo `after` (SC-007, U22). */
+      const undoRedo = async (before: string, after: string) => {
+        await menu(page, 'edit', 'undo');
+        await expect.poll(() => toXml(page), { message: 'one Undo restores the XML' }).toBe(before);
+        await menu(page, 'edit', 'redo');
+        await expect.poll(() => toXml(page), { message: 'one Redo applies it again' }).toBe(after);
+      };
+      /** The XML once the step changed it from `before`. */
+      const changed = async (before: string) => {
+        await expect
+          .poll(() => toXml(page), { message: 'the step changed the book' })
+          .not.toBe(before);
+        return toXml(page);
+      };
+      /** A block from the cell `from` to the cell `to`: a click, then a Shift+click (FR-010). */
+      const block = async (from: string, to: string, cells: number) => {
+        await cell(await cellId(from)).click();
+        await cell(await cellId(to)).click({ modifiers: ['Shift'] });
+        await expect(editor.locator('.mfbe-cell-selected')).toHaveCount(cells);
+      };
+
+      // (1) File → New gives the template book: a section with a paragraph and an empty line.
+      // Add → Title with the caret in that paragraph; the chapter's title typed.
+      await fileNew(page);
+      await expect(editor).toHaveAttribute('contenteditable', 'true');
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              typeof window.__mfbeTest?.scripts?.document === 'function' &&
+              typeof window.__mfbeTest?.tables?.grid === 'function',
+          ),
+        )
+        .toBe(true);
+      const templateXml = await toXml(page);
+      const templateParagraph = /<section>\s*(<p>[^<]+<\/p>)\s*<empty-line\/>\s*<\/section>/.exec(
+        templateXml,
+      )?.[1];
+      expect(templateParagraph, "the template's section").toBeTruthy();
+      const docId = (await documentOf(page)).docId;
+      // The template's own errors: its description leaves the genre for the author to choose
+      // (`<genre match="100"/>`, `resources/blank.fb2`), which Validate reports as an error.
+      const errorsOf = async (text: string) => {
+        const report = await core.rpcJob<{ issues: { severity: string }[] }>('doc.validate', {
+          docId,
+          text,
+        });
+        return report.issues.filter((issue) => issue.severity === 'error');
+      };
+      const templateErrors = await errorsOf(templateXml);
+      expect(templateErrors.map((issue) => (issue as { code?: string }).code)).toEqual([
+        'genre.unknown',
+      ]);
+      await editor
+        .locator('.fb-body > .fb-section > p.fb-p')
+        .first()
+        .click({
+          position: { x: 8, y: 8 },
+        });
+      await expect(status).toHaveText(/\/section\[1\]\/p\[1\]$/);
+      await menu(page, 'add', 'title');
+      await page.keyboard.type('Chapter 1');
+      const titled = new RegExp(
+        `<section>\\s*<title>\\s*<p>Chapter 1</p>\\s*</title>\\s*${esc(templateParagraph!)}`,
+      );
+      await expect.poll(() => toXml(page)).toMatch(titled);
+      await expect(status).toHaveText(/\/section\[1\]\/title\[1\]\/p\[1\]$/);
+
+      // (2) Add → Table with the caret in that title: 4 rows of 3 cells under a header row, the
+      // first element of the chapter's text (US1 sc.4; FR-004 (b)), no attribute (FR-003), the
+      // caret in its first cell.
+      const values = { rows: 4, columns: 3, headerRow: true };
+      const before2 = await toXml(page);
+      const tables = tableIds(await documentOf(page));
+      await addTable(page, values);
+      const after2 = await changed(before2);
+      expect(after2).toMatch(
+        new RegExp(
+          `<section>\\s*<title>\\s*<p>Chapter 1</p>\\s*</title>\\s*${tablePattern(kindsOf(values))}\\s*${esc(templateParagraph!)}\\s*<empty-line/>\\s*</section>`,
+        ),
+      );
+      const table = newTableIn(await documentOf(page), tables);
+      expect(table.content!.map((row) => row.content!.map((one) => one.type))).toEqual([
+        ['th', 'th', 'th'],
+        ['td', 'td', 'td'],
+        ['td', 'td', 'td'],
+        ['td', 'td', 'td'],
+        ['td', 'td', 'td'],
+      ]);
+      await expectCaretInFirstCell(page, table);
+      await undoRedo(before2, after2);
+
+      // (3) Filled by typing, Tab between the cells and none after the last: no row appended.
+      const first = table.content![0]!.content![0]!.attrs!.nodeId!;
+      await cell(first).click();
+      await expect(status).toHaveText(/\/tr\[1\]\/th\[1\]$/);
+      const texts = ['h1', 'h2', 'h3'];
+      for (let row = 1; row <= 4; row += 1) {
+        for (let column = 1; column <= 3; column += 1) texts.push(`r${row}c${column}`);
+      }
+      for (const [index, text] of texts.entries()) {
+        await page.keyboard.type(text);
+        if (index < texts.length - 1) await page.keyboard.press('Tab');
+      }
+      const filled =
+        '<table><tr><th>h1</th><th>h2</th><th>h3</th></tr>' +
+        [1, 2, 3, 4]
+          .map((row) => `<tr>${[1, 2, 3].map((c) => `<td>r${row}c${c}</td>`).join('')}</tr>`)
+          .join('') +
+        '</table>';
+      await expect.poll(async () => onlyTable(await toXml(page))).toBe(filled);
+      await expect(status).toHaveText(/\/tr\[5\]\/td\[3\]$/);
+
+      // (4) Add → Inline image with the caret after the text of r2c2: the prompt answered No,
+      // the queued file dialog gives tiny.png; the picture after the text, its binary listed
+      // (US3 sc.1; FR-024).
+      await caretAt(page, { nodeId: await cellId('r2c2'), offset: 'r2c2'.length });
+      const before4 = await toXml(page);
+      await core.enqueueDialog('dialog.openFile', { paths: [TINY_PNG] });
+      await menu(page, 'add', 'inlineImage');
+      await expect(page.getByTestId('dialog-insert-clear-image')).toBeVisible();
+      await page.getByTestId('dialog-insert-clear-image-button-no').click();
+      const after4 = await changed(before4);
+      expect(flat(withoutBinaries(after4))).toBe(
+        flat(withoutBinaries(before4)).replace(
+          '<td>r2c2</td>',
+          '<td>r2c2<image l:href="#tiny.png"/></td>',
+        ),
+      );
+      const binaries = await core.rpc<{ id: string }[]>('binary.list', { docId });
+      expect(binaries.map((binary) => binary.id)).toContain('tiny.png');
+      await menu(page, 'edit', 'undo');
+      await expect
+        .poll(async () => withoutBinaries(await toXml(page)), {
+          message: 'one Undo restores the XML (the binary store aside)',
+        })
+        .toBe(withoutBinaries(before4));
+      expect(binaryElements(await toXml(page))).toEqual(binaryElements(after4));
+      await menu(page, 'edit', 'redo');
+      await expect.poll(() => toXml(page), { message: 'one Redo applies it again' }).toBe(after4);
+
+      // (5) Add → Table structure → Insert column to the right from r1c3: every row holds four
+      // cells, the new one empty and of its neighbour's kind (FR-006, FR-008).
+      await caretAt(page, { nodeId: await cellId('r1c3'), offset: 'r1c3'.length });
+      const before5 = await toXml(page);
+      await page.getByTestId('menu-add').click();
+      await page.getByTestId('menu-add-tableStructure').click();
+      const insertColumn = page.getByTestId('menu-add-tableStructure-insertColumnRight');
+      await expect(insertColumn).not.toHaveAttribute('aria-disabled');
+      await insertColumn.click();
+      const after5 = await changed(before5);
+      const widened =
+        '<table><tr><th>h1</th><th>h2</th><th>h3</th><th/></tr>' +
+        [1, 2, 3, 4]
+          .map(
+            (row) =>
+              `<tr>${[1, 2, 3]
+                .map((c) =>
+                  row === 2 && c === 2
+                    ? '<td>r2c2<image l:href="#tiny.png"/></td>'
+                    : `<td>r${row}c${c}</td>`,
+                )
+                .join('')}<td/></tr>`,
+          )
+          .join('') +
+        '</table>';
+      expect(onlyTable(after5)).toBe(widened);
+      await undoRedo(before5, after5);
+
+      // (6) A click in h1 and a Shift+click in h2, then Merge cells: one header cell over two
+      // columns, the texts joined, nothing else changed (FR-013, FR-014; US5 sc.1).
+      await block('h1', 'h2', 2);
+      const before6 = await toXml(page);
+      await page.getByTestId('menu-add').click();
+      await page.getByTestId('menu-add-tableStructure').click();
+      const merge = page.getByTestId('menu-add-tableStructure-mergeCells');
+      await expect(merge).not.toHaveAttribute('aria-disabled');
+      await merge.click();
+      const after6 = await changed(before6);
+      expect(flat(after6)).toBe(
+        flat(before6).replace('<th>h1</th><th>h2</th>', '<th colspan="2">h1 h2</th>'),
+      );
+      await undoRedo(before6, after6);
+
+      // (7) A click in h3 and a Shift+click in r4c3 - the whole third column, which no merged
+      // cell crosses -, then Cell align "center" in the Table bar: those five cells centred, no
+      // other cell or row changed (FR-021; US7 sc.1).
+      await block('h3', 'r4c3', 5);
+      const before7 = await toXml(page);
+      await page.getByTestId('table-bar-td-align').selectOption('center');
+      const after7 = await changed(before7);
+      let centred = flat(before7).replace('<th>h3</th>', '<th align="center">h3</th>');
+      for (let row = 1; row <= 4; row += 1) {
+        centred = centred.replace(`<td>r${row}c3</td>`, `<td align="center">r${row}c3</td>`);
+      }
+      expect(flat(after7)).toBe(centred);
+      await undoRedo(before7, after7);
+
+      // The table adds no error (FR-046): Validate reports the template's own error alone ...
+      const final = await toXml(page);
+      expect(await errorsOf(final)).toEqual(templateErrors);
+      const result = onlyTable(final);
+      expect(result).toBe(
+        '<table><tr><th colspan="2">h1 h2</th><th align="center">h3</th><th/></tr>' +
+          [1, 2, 3, 4]
+            .map(
+              (row) =>
+                `<tr>${row === 2 ? '<td>r2c1</td><td>r2c2<image l:href="#tiny.png"/></td>' : `<td>r${row}c1</td><td>r${row}c2</td>`}<td align="center">r${row}c3</td><td/></tr>`,
+            )
+            .join('') +
+          '</table>',
+      );
+
+      // ... and only now the Source view, which shows the same table: the merged header cell,
+      // the picture in r2c2, four columns and the centred column (manual step 12).
+      await page.getByTestId('view-source').click();
+      await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
+      const source = await page.evaluate(() => window.__mfbeTest!.sourceMapping!.sourceText());
+      expect(onlyTable(source ?? '')).toBe(result);
+    } finally {
+      await core
+        .rpc('settings.set', {
+          patch: {
+            other: {
+              askOnNonClearImage: other.askOnNonClearImage,
+              insertClearImages: other.insertClearImages,
+            },
+          },
+        })
+        .catch(() => {});
+    }
   });
 });
