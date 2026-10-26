@@ -276,7 +276,7 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   soon as it opens after a request to the AI assistant: opening it moved the panes below it
   by a pixel, which scrolled the assistant's activity list, and a scroll closes a popup menu.
 
-## 0.0.5 - unreleased
+## 0.0.5 - 2026-10-23
 
 ### Added
 
