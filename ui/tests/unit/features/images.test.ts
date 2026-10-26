@@ -8,6 +8,11 @@
  * target, and the block forms say why a cell refuses them (FR-024 to FR-026; I10).
  */
 
+/// <reference types="node" />
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { Fragment, Slice } from 'prosemirror-model';
 import { TextSelection, type EditorState } from 'prosemirror-state';
 
@@ -59,6 +64,12 @@ import {
   type FakeRpc,
   flowCalls,
 } from './testUtils';
+
+/** The clipboard fixtures of feature 006 (T018). */
+const CLIPBOARD_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../../tests/fixtures/clipboard',
+);
 
 beforeAll(() => {
   Object.defineProperty(Range.prototype, 'getClientRects', {
@@ -440,6 +451,34 @@ describe('paste and drag-and-drop (T093)', () => {
       expect(kind === null || kind === 'section').toBe(true);
       expect(store.getState().document!.binaries).toEqual([META]);
       expect(store.getState().modified).toBe(true);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+  it('an HTML table with text beside a picture is left to the clipboard router and nothing is uploaded; a picture alone in a Word table still pastes as a picture (feature 006, R5.9; data-model §8.9)', async () => {
+    const { store, view } = await harness();
+    const { calls, fetchImpl } = okFetch();
+    const original = globalThis.fetch;
+    globalThis.fetch = fetchImpl;
+    try {
+      const file = new File([new Uint8Array([137, 80, 78, 71])], 'tiny.png', { type: 'image/png' });
+      const excel = readFileSync(path.join(CLIPBOARD_DIR, 'excel-win.html'), 'utf8');
+      const withTable = syntheticEvent<ClipboardEvent>('paste', view.dom.querySelector('p')!, {
+        clipboardData: fakeTransfer([file], { 'text/html': excel, 'text/plain': 'Region\t\tQ1' }),
+      });
+      expect(handleImagePaste(store, withTable)).toBe(false);
+      expect(withTable.defaultPrevented).toBe(false);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(calls).toEqual([]);
+      // A Word table whose only cell holds a picture and no text: the picture, as today.
+      const pictureOnly =
+        '<table class=MsoTableGrid><tr><td><p class=MsoNormal><img width=16 height=16 src="file:///C:/clip_image001.png"></p></td></tr></table>';
+      const lone = syntheticEvent<ClipboardEvent>('paste', view.dom.querySelector('p')!, {
+        clipboardData: fakeTransfer([file], { 'text/html': pictureOnly }),
+      });
+      expect(handleImagePaste(store, lone)).toBe(true);
+      await vi.waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]!.url).toContain('/binary/doc-1');
     } finally {
       globalThis.fetch = original;
     }

@@ -18,9 +18,12 @@ import {
   findTablePointAt,
   headingEnd,
   insertTableCommand,
+  paragraphNextToTable,
   type TablePoint,
 } from '@/editor/commands/tableInsertion';
+import { DISCRETE_STEP } from '@/editor/commands/util';
 import { fb2Schema, FIXED_BLOCK_IDS, findNodeById } from '@/editor/schema';
+import { deleteTableTransform } from '@/editor/table/edit';
 import { createTable } from '@/editor/table/ops';
 
 const N = fb2Schema.nodes;
@@ -689,5 +692,145 @@ describe('SC-002: the unit oracle (C26)', () => {
     // Both outcomes occur: the documents exercise (a), (b) and (c).
     expect(none).toBeGreaterThan(0);
     expect(splits).toBeGreaterThan(0);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US9: the paragraph commands and Delete table (research R2.17)            */
+/* ------------------------------------------------------------------------ */
+
+describe('US9: the paragraph commands and Delete table on every container (FR-032, FR-033; C24; data-model §4.5)', () => {
+  /** A 1 × 2 table `id` with the cells `<id>a` and `<id>b`. */
+  const small = (id: string) => table(id, [td(`${id}a`, 'a'), td(`${id}b`, 'b')]);
+
+  /**
+   * A book with a table at every place of a container: the only content of a titled section
+   * (`t1`) and of an untitled one (`t2`), the last (`t3`) and the first (`t4`) element of a
+   * section's text, a table between two paragraphs (`t5`), a section annotation's only table
+   * (`t6`), a cite's table before its text-author line (`t7`) and the only table of the Body
+   * view's annotation (`ab`) and history (`hb`) blocks.
+   */
+  function wholeTablesBook(): PMNode {
+    const doc = N.doc!.createChecked(null, [
+      N.annotation_block!.create({ nodeId: FIXED_BLOCK_IDS.annotation }, [small('ab')]),
+      N.history_block!.create({ nodeId: FIXED_BLOCK_IDS.history }, [small('hb')]),
+      N.body!.create({ nodeId: 'b' }, [
+        section('s1', title('s1t', p('s1tp', 'Titled')), small('t1')),
+        section('s2', small('t2')),
+        section('s3', title('s3t', p('s3tp', 'Last')), p('s3p', 'Before the table'), small('t3')),
+        section('s4', title('s4t', p('s4tp', 'First')), small('t4'), p('s4p', 'After the table')),
+        section('s5', p('s5a', 'Above'), small('t5'), p('s5b', 'Below')),
+        section(
+          's6',
+          title('s6t', p('s6tp', 'Annotated')),
+          annotation('s6a', small('t6')),
+          p('s6p', 'Text'),
+        ),
+        section('s7', cite('s7c', p('s7cp', 'Quote'), small('t7'), ta('s7ca', 'Cited'))),
+      ]),
+    ]);
+    doc.check();
+    return doc;
+  }
+
+  const TABLES = ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 'ab', 'hb'];
+
+  it('paragraphNextToTable puts an empty p with a fresh node id at the table’s position or right after it, the caret in it; DISCRETE_STEP; valid in every container', () => {
+    for (const id of TABLES) {
+      for (const side of ['before', 'after'] as const) {
+        const doc = wholeTablesBook();
+        const at = before(doc, id);
+        const size = findNodeById(doc, id)!.node.nodeSize;
+        const tr = paragraphNextToTable(EditorState.create({ doc }).tr, at, side, counter('np'));
+        tr.doc.check();
+        const paragraphPos = side === 'before' ? at : at + size;
+        const paragraph = tr.doc.nodeAt(paragraphPos)!;
+        expect(paragraph.type.name, `${id} ${side}`).toBe('p');
+        expect(paragraph.content.size, `${id} ${side}`).toBe(0);
+        expect(paragraph.attrs.nodeId, `${id} ${side}`).toBe('np1');
+        // The table is untouched, directly after (before) the paragraph.
+        const tablePos = side === 'before' ? at + paragraph.nodeSize : at;
+        expect(tr.doc.nodeAt(tablePos), `${id} ${side}`).toBe(findNodeById(doc, id)!.node);
+        expect(tr.selection.empty).toBe(true);
+        expect(tr.selection.head, `${id} ${side}`).toBe(paragraphPos + 1);
+        expect(tr.getMeta(DISCRETE_STEP)).toBe(true);
+        expect(tr.scrolledIntoView).toBe(true);
+      }
+    }
+  });
+
+  it('deleteTableTransform leaves an empty p only where the container needs a block and puts the caret into it, else at the start of the element that followed, else at the end of the one before, else at the nearest text position (analyze decision 5)', () => {
+    const cases: {
+      id: string;
+      container: string;
+      rest: string[];
+      caret: (doc: PMNode) => number;
+    }[] = [
+      // A section's only table, titled and untitled: an empty p in its place, the caret in it -
+      // not at the end of the title before it.
+      { id: 't1', container: 's1', rest: ['title', 'p'], caret: (doc) => before(doc, 'np1') + 1 },
+      { id: 't2', container: 's2', rest: ['p'], caret: (doc) => before(doc, 'np1') + 1 },
+      // The only table of the Body view's blocks (`(…)+`).
+      {
+        id: 'ab',
+        container: FIXED_BLOCK_IDS.annotation,
+        rest: ['p'],
+        caret: (doc) => before(doc, 'np1') + 1,
+      },
+      {
+        id: 'hb',
+        container: FIXED_BLOCK_IDS.history,
+        rest: ['p'],
+        caret: (doc) => before(doc, 'np1') + 1,
+      },
+      // A section annotation's only table: no p; the nearest text position after it.
+      { id: 't6', container: 's6a', rest: [], caret: (doc) => inside(doc, 's6p', 0) },
+      // A cite's table before its text-author line: the start of that line.
+      {
+        id: 't7',
+        container: 's7c',
+        rest: ['p', 'text_author'],
+        caret: (doc) => inside(doc, 's7ca', 0),
+      },
+      // Between two paragraphs: nothing in its place; the start of the paragraph after it.
+      { id: 't5', container: 's5', rest: ['p', 'p'], caret: (doc) => inside(doc, 's5b', 0) },
+      { id: 't4', container: 's4', rest: ['title', 'p'], caret: (doc) => inside(doc, 's4p', 0) },
+      // The last element: the end of the element before it.
+      { id: 't3', container: 's3', rest: ['title', 'p'], caret: (doc) => endIn(doc, 's3p') },
+    ];
+    for (const { id, container, rest, caret } of cases) {
+      const doc = wholeTablesBook();
+      const tr = deleteTableTransform(
+        EditorState.create({ doc }).tr,
+        before(doc, id),
+        counter('np'),
+      );
+      tr.doc.check();
+      expect(findNodeById(tr.doc, id), id).toBeNull();
+      expect(names(findNodeById(tr.doc, container)!.node), id).toEqual(rest);
+      if (rest.includes('p') && (id === 't1' || id === 't2' || id === 'ab' || id === 'hb')) {
+        expect(findNodeById(tr.doc, 'np1')!.node.content.size, id).toBe(0);
+      } else {
+        expect(findNodeById(tr.doc, 'np1'), id).toBeNull();
+      }
+      expect(tr.selection.empty, id).toBe(true);
+      expect(tr.selection.head, id).toBe(caret(tr.doc));
+      expect(tr.getMeta(DISCRETE_STEP), id).toBe(true);
+      expect(tr.scrolledIntoView, id).toBe(true);
+    }
+  });
+
+  it('deleteTableTransform keeps a selected block image after the table reachable: a following sibling without a text position gets the selection near it', () => {
+    const doc = N.doc!.createChecked(null, [
+      N.body!.create({ nodeId: 'b' }, [section('s', p('sp', 'Lead'), small('t'), image('img'))]),
+    ]);
+    const tr = deleteTableTransform(
+      EditorState.create({ doc }).tr,
+      before(doc, 't'),
+      counter('np'),
+    );
+    tr.doc.check();
+    expect(tr.selection).toBeInstanceOf(NodeSelection);
+    expect((tr.selection as NodeSelection).node.attrs.nodeId).toBe('img');
   });
 });

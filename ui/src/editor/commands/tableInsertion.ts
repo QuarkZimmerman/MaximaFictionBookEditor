@@ -20,7 +20,7 @@
  * The checks build no node (C21: toolbar buttons evaluate them on every revision): they walk
  * the content expression once per level. The module imports only `ui/src/editor/` and the
  * ProseMirror packages (C8). Its consumers: `insert.table` and *Table…*, the placement sweep
- * hook and the paste router (US4, US9).
+ * hook and the paste router (US4, US9); US9 adds the paragraph commands' transform.
  */
 
 import {
@@ -34,7 +34,7 @@ import { TextSelection, type Command, type EditorState, type Transaction } from 
 
 import { fb2Schema } from '../schema';
 
-import { selectInside } from './util';
+import { DISCRETE_STEP, selectInside } from './util';
 
 /** Where a table goes: at a gap, splitting a block, or in place of an empty paragraph. */
 export type TablePoint =
@@ -230,4 +230,27 @@ export function insertTableCommand(table: PMNode | Fragment, nextId?: () => stri
     if (dispatch) dispatch(applyTablePoint(state.tr, point, table, nextId));
     return true;
   };
+}
+
+/**
+ * *Paragraph before table* and *Paragraph after table* (data-model §4.5
+ * `table.paragraphBefore` / `table.paragraphAfter`; FR-033; research R2.11): an empty `p` with
+ * `{nodeId: nextId()}` in the table's container at the table's position (`before`) or right
+ * after it (`after`) - every container that may hold a table takes a paragraph next to it -,
+ * a caret in it, `DISCRETE_STEP` and `scrollIntoView`; the table itself is untouched.
+ */
+export function paragraphNextToTable(
+  tr: Transaction,
+  tablePos: number,
+  side: 'before' | 'after',
+  nextId: () => string,
+): Transaction {
+  const table = tr.doc.nodeAt(tablePos);
+  if (!table || table.type.name !== 'table') {
+    throw new RangeError(`paragraphNextToTable: no table at ${tablePos}`);
+  }
+  const at = side === 'before' ? tablePos : tablePos + table.nodeSize;
+  tr.insert(at, fb2Schema.nodes.p!.create({ nodeId: nextId() }));
+  tr.setSelection(TextSelection.create(tr.doc, at + 1));
+  return tr.setMeta(DISCRETE_STEP, true).scrollIntoView();
 }

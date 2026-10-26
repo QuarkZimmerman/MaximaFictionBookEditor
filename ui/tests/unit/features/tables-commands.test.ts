@@ -24,9 +24,12 @@ import { createCommandRegistry, unavailableTitle } from '@/app/commands';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import {
   availability,
+  deleteTableCommand,
+  paragraphCommand,
   planCommand,
   POSITION_COMMANDS,
   registerAvailabilityCheck,
+  selectTableCommand,
   TABLE_COMMAND_NAMES,
   TABLE_SELECTION_COMMANDS,
   type TableCommandName,
@@ -1705,5 +1708,172 @@ describe('US8: Repair table', () => {
       ).tables.reason;
       expect(typeof reasons.regular, language).toBe('string');
     }
+  });
+});
+
+describe('US9: Select table, Delete table and the paragraph commands', () => {
+  beforeAll(() => {
+    Object.defineProperty(Range.prototype, 'getClientRects', {
+      configurable: true,
+      value: () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }),
+    });
+    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+    });
+  });
+
+  const US9_NAMES = ['select', 'delete', 'paragraphBefore', 'paragraphAfter'] as const;
+  type Us9Name = (typeof US9_NAMES)[number];
+
+  /** The ProseMirror command of a name, with a plan context. */
+  function commandOf(name: Us9Name) {
+    let ids = 0;
+    const ctx = { nextId: () => `u${(ids += 1)}` };
+    switch (name) {
+      case 'select':
+        return selectTableCommand;
+      case 'delete':
+        return deleteTableCommand(ctx);
+      case 'paragraphBefore':
+        return paragraphCommand('before', ctx);
+      default:
+        return paragraphCommand('after', ctx);
+    }
+  }
+
+  it('availability agrees with every command’s dry run: ok for a caret, a block and a selected table, notInTable outside tables, mixedSelection across the edge, never too-large', () => {
+    let compared = 0;
+    let wholeTables = 0;
+    for (const { name: table, node } of agreementTables()) {
+      const doc = docWith(node);
+      const states = [
+        ...statesOf(node),
+        EditorState.create({
+          doc,
+          selection: NodeSelection.create(doc, pos(doc, node.attrs.nodeId as string)),
+        }),
+      ];
+      for (const state of states) {
+        if (tableTarget(state)!.selection === 'table') wholeTables += 1;
+        for (const name of US9_NAMES) {
+          compared += 1;
+          expect(availability(state, name), `${table}: ${name}`).toEqual({ ok: true });
+          expect(commandOf(name)(state), `${table}: ${name}`).toBe(true);
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(1000);
+    expect(wholeTables).toBeGreaterThan(20);
+    const doc = smallDoc();
+    const outside = stateWith(doc, (d) => TextSelection.create(d, pos(d, 'p1') + 2));
+    const mixed = stateWith(doc, (d) => TextSelection.create(d, pos(d, 'p1') + 2, pos(d, 'a') + 1));
+    const large = stateWith(largeDoc(), (d) => TextSelection.create(d, pos(d, 'w1') + 1));
+    for (const name of US9_NAMES) {
+      expect(availability(outside, name)).toEqual({ refused: 'notInTable' });
+      expect(commandOf(name)(outside), name).toBe(false);
+      expect(availability(mixed, name)).toEqual({ refused: 'mixedSelection' });
+      expect(commandOf(name)(mixed), name).toBe(false);
+      // They read no position (data-model §2.5).
+      expect(POSITION_COMMANDS.has(name)).toBe(false);
+      expect(availability(large, name)).toEqual({ ok: true });
+      expect(commandOf(name)(large), name).toBe(true);
+    }
+  });
+
+  it('the nineteen other commands answer tableSelected for a selected table, and reasonText gives its text', async () => {
+    await initI18n({ language: 'en' });
+    const doc = smallDoc();
+    const whole = stateWith(doc, (d) => NodeSelection.create(d, pos(d, 't')));
+    const others = TABLE_COMMAND_NAMES.filter((name) => !TABLE_SELECTION_COMMANDS.has(name));
+    expect(others).toHaveLength(19);
+    for (const name of others) {
+      const answer = availability(whole, name);
+      expect(answer, name).toEqual({ refused: 'tableSelected' });
+    }
+    const harness = await tablesHarness();
+    expect(reasonText({ refused: 'tableSelected' }, harness.ctx.t)).toBe(
+      'the whole table is selected; place the caret in a cell',
+    );
+  });
+
+  it('has the four command rows with literal ids, live, with their icons; Select table selects the whole table and records no undo entry; Delete table and the paragraph commands each run as one undo-coordinator entry', async () => {
+    const source = readFileSync(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '../../../src/features/tables/commands.ts',
+      ),
+      'utf8',
+    );
+    for (const name of US9_NAMES) {
+      expect(TABLE_COMMAND_ROWS.map((row) => row.id)).toContain(`table.${name}`);
+      expect(source).toContain(`id: 'table.${name}'`);
+    }
+    const harness = await tablesHarness();
+    const { services, ctx, controller } = harness;
+    for (const name of US9_NAMES) {
+      const command = services.commands.get(`table.${name}`)!;
+      expect(command.stub, name).toBeUndefined();
+      expect(command.icon, name).toBe(tableIcon(name));
+      expect(command.hotkeyScope, name).toBe('tableTarget');
+    }
+    expect([
+      'table-select',
+      'table-delete',
+      'table-paragraph-before',
+      'table-paragraph-after',
+    ]).toEqual(US9_NAMES.map(tableIcon));
+
+    // Select table: the table selected as a node, the document and the undo entries unchanged.
+    act(() => caretIn(harness, 't1-1-1', 1));
+    const doc = controller.editorState!.doc;
+    const entries = services.undo.entries().length;
+    await act(async () => {
+      expect(await services.commands.execute('table.select', ctx)).toBe(true);
+    });
+    const selection = controller.editorState!.selection;
+    expect(selection).toBeInstanceOf(NodeSelection);
+    expect((selection as NodeSelection).node.attrs.nodeId).toBe('t1');
+    expect(controller.editorState!.doc).toBe(doc);
+    expect(services.undo.entries().length).toBe(entries);
+    // The row commands now say why they are unavailable; the whole-table commands do not.
+    expect(services.commands.isEnabled('table.insertRowBelow', ctx)).toBe(false);
+    expect(services.commands.unavailableReason('table.insertRowBelow', ctx)).toBe(
+      'the whole table is selected; place the caret in a cell',
+    );
+    for (const name of US9_NAMES)
+      expect(services.commands.isEnabled(`table.${name}`, ctx)).toBe(true);
+
+    // Paragraph after table, then Paragraph before table, from the selected table and a cell.
+    await act(async () => {
+      expect(await services.commands.execute('table.paragraphAfter', ctx)).toBe(true);
+    });
+    expect(services.undo.entries().length).toBe(entries + 1);
+    const sectionNode = () => findNodeById(controller.editorState!.doc, 's1')!.node;
+    let section = sectionNode();
+    expect(section.child(2).type.name).toBe('p');
+    expect(section.child(2).content.size).toBe(0);
+    expect(controller.editorState!.selection.$head.parent).toBe(section.child(2));
+    act(() => caretIn(harness, 't1-0-0', 0));
+    await act(async () => {
+      expect(await services.commands.execute('table.paragraphBefore', ctx)).toBe(true);
+    });
+    expect(services.undo.entries().length).toBe(entries + 2);
+    section = sectionNode();
+    expect(section.child(1).type.name).toBe('p');
+    expect(section.child(1).content.size).toBe(0);
+    expect(section.child(2).attrs.nodeId).toBe('t1');
+
+    // Delete table: one entry, the table gone, the caret at the start of what followed it.
+    act(() => caretIn(harness, 't1-2-2', 1));
+    await act(async () => {
+      expect(await services.commands.execute('table.delete', ctx)).toBe(true);
+    });
+    expect(services.undo.entries().length).toBe(entries + 3);
+    section = sectionNode();
+    expect(section.childCount).toBe(4);
+    expect(findNodeById(controller.editorState!.doc, 't1')).toBeNull();
+    expect(controller.editorState!.selection.$head.parent).toBe(section.child(2));
+    expect(controller.editorState!.selection.$head.parentOffset).toBe(0);
   });
 });

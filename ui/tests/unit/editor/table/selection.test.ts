@@ -944,3 +944,165 @@ describe('US4: clearing and typing over a block (data-model §4.6, §5.3, §5.4)
     expect(undone!.selection.eq(block)).toBe(true);
   });
 });
+
+describe('US9 selected table (data-model §4.5 table.select, table.delete; C24; vR2 X3)', () => {
+  /** A body whose first section holds only the 2 × 2 table `t`, and a second section. */
+  function onlyTableDoc(): PMNode {
+    return N.doc!.create(
+      null,
+      N.body!.create({ nodeId: 'b' }, [
+        N.section!.create({ nodeId: 's1' }, [
+          table('t', [
+            [{}, {}],
+            [{}, {}],
+          ]),
+        ]),
+        N.section!.create({ nodeId: 's2' }, [p('after', 'p2')]),
+      ]),
+    );
+  }
+
+  /** A view of `onlyTableDoc` with every Body plugin, `selection` set, and its transactions. */
+  function bodyView(selection: (doc: PMNode) => Selection): {
+    view: EditorView;
+    seen: Transaction[];
+  } {
+    const doc = onlyTableDoc();
+    const state = select(
+      createBodyEditorState(doc, { getNbspChar: () => '\u00b0' }),
+      selection(doc),
+    );
+    const view = viewOf(state);
+    const seen: Transaction[] = [];
+    view.setProps({
+      dispatchTransaction: (tr) => {
+        seen.push(tr);
+        view.updateState(view.state.apply(tr));
+      },
+    });
+    return { view, seen };
+  }
+
+  const wholeTable = (doc: PMNode) => NodeSelection.create(doc, pos(doc, 't'));
+
+  /** The first section after the step: its one empty paragraph, holding the caret. */
+  function expectEmptyParagraph(view: EditorView, text = ''): void {
+    const section = view.state.doc.child(0).child(0);
+    expect(section.childCount).toBe(1);
+    const paragraph = section.child(0);
+    expect(paragraph.type.name).toBe('p');
+    expect(paragraph.textContent).toBe(text);
+    expect(typeof paragraph.attrs.nodeId).toBe('string');
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$head.parent).toBe(paragraph);
+    expect(view.state.selection.$head.parentOffset).toBe(text.length);
+  }
+
+  it('ProseMirror’s own deleteSelection never leaves the empty paragraph a section’s only table needs: it throws or takes the whole section (vR2 X3)', () => {
+    const titled = N.doc!.create(
+      null,
+      N.body!.create({ nodeId: 'b' }, [
+        N.section!.create({ nodeId: 's1' }, [
+          N.title!.create({ nodeId: 'h' }, [p('Head', 'h1')]),
+          table('t', [[{}, {}]]),
+        ]),
+        N.section!.create({ nodeId: 's2' }, [p('after', 'p2')]),
+      ]),
+    );
+    for (const doc of [onlyTableDoc(), titled]) {
+      const attempt = (): PMNode | null => {
+        try {
+          return EditorState.create({ doc, selection: wholeTable(doc) }).tr.deleteSelection().doc;
+        } catch {
+          return null;
+        }
+      };
+      const result = attempt();
+      if (result) expect(findNodeById(result, 's1')).toBeNull();
+    }
+  });
+
+  it('Delete and Backspace, also with Mod, run the Delete table transform through the table plugin and return true; Shift+Delete stays the platform’s Cut', () => {
+    for (const init of [
+      { key: 'Delete' },
+      { key: 'Backspace' },
+      { key: 'Delete', ctrlKey: true },
+      { key: 'Backspace', metaKey: true },
+    ]) {
+      const { view, seen } = bodyView(wholeTable);
+      const plugin = pluginOf(view.state);
+      expect(
+        plugin.props.handleKeyDown!.call(plugin, view, new KeyboardEvent('keydown', init)),
+        JSON.stringify(init),
+      ).toBe(true);
+      expect(seen).toHaveLength(1);
+      expect(seen[0]!.getMeta(DISCRETE_STEP)).toBe(true);
+      expectEmptyParagraph(view);
+    }
+    const { view, seen } = bodyView(wholeTable);
+    const plugin = pluginOf(view.state);
+    expect(
+      plugin.props.handleKeyDown!.call(
+        plugin,
+        view,
+        new KeyboardEvent('keydown', { key: 'Delete', shiftKey: true }),
+      ),
+    ).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
+  it('text input replaces the table with a paragraph holding the text, the caret after it, in one DISCRETE_STEP transaction', () => {
+    const { view, seen } = bodyView(wholeTable);
+    const { from, to } = view.state.selection;
+    const handled = view.someProp('handleTextInput', (f) =>
+      f(view, from, to, 'x', () => view.state.tr.insertText('x')),
+    );
+    expect(handled).toBe(true);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.getMeta(DISCRETE_STEP)).toBe(true);
+    expectEmptyParagraph(view, 'x');
+  });
+
+  it('compositionstart replaces the table with an empty paragraph holding the caret, with DISCRETE_STEP, and returns false', () => {
+    const { view, seen } = bodyView(wholeTable);
+    const plugin = pluginOf(view.state);
+    const result = plugin.props.handleDOMEvents!.compositionstart!.call(
+      plugin,
+      view,
+      new Event('compositionstart') as CompositionEvent,
+    );
+    expect(result).toBe(false);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.getMeta(DISCRETE_STEP)).toBe(true);
+    expectEmptyParagraph(view);
+  });
+
+  it('every other selection makes these handlers return false at once', () => {
+    const others: ((doc: PMNode) => Selection)[] = [
+      (doc) => caret(doc, 't-0-0', 1),
+      (doc) => caret(doc, 'p2', 2),
+      (doc) => TextSelection.create(doc, pos(doc, 'p2') + 1, pos(doc, 'p2') + 3),
+    ];
+    for (const selection of others) {
+      const { view, seen } = bodyView(selection);
+      const plugin = pluginOf(view.state);
+      for (const key of ['Delete', 'Backspace']) {
+        expect(
+          plugin.props.handleKeyDown!.call(plugin, view, new KeyboardEvent('keydown', { key })),
+        ).toBe(false);
+      }
+      const { from, to } = view.state.selection;
+      expect(
+        plugin.props.handleTextInput!.call(plugin, view, from, to, 'x', () => view.state.tr),
+      ).toBe(false);
+      expect(
+        plugin.props.handleDOMEvents!.compositionstart!.call(
+          plugin,
+          view,
+          new Event('compositionstart') as CompositionEvent,
+        ),
+      ).toBe(false);
+      expect(seen).toEqual([]);
+    }
+  });
+});

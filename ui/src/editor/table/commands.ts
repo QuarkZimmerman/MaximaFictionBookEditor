@@ -11,10 +11,13 @@
  * plan on a table the selection need not be in (the mark's popover, US8).
  */
 
-import type { Command as PMCommand, EditorState } from 'prosemirror-state';
+import { NodeSelection, type Command as PMCommand, type EditorState } from 'prosemirror-state';
+
+import { paragraphNextToTable } from '../commands/tableInsertion';
 
 import {
   commitTableEdit,
+  deleteTableTransform,
   isRefusal,
   tableTarget,
   tableTargetAt,
@@ -264,6 +267,50 @@ export function planCommandAt(tablePos: number, plan: TablePlan, ctx: PlanContex
     const tr = commitTableEdit(state.tr, target.tablePos, edit);
     if (!tr) return false;
     if (dispatch) dispatch(tr);
+    return true;
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* US9: the whole-table commands (FR-032, FR-033; data-model §4.5)          */
+/* ------------------------------------------------------------------------ */
+
+/** The table a whole-table command acts on: a caret's, a block's or the selected table. */
+function wholeTableTarget(state: EditorState): TableTarget | null {
+  const target = tableTarget(state);
+  return target && target.selection !== 'mixed' && target.selection !== 'none' ? target : null;
+}
+
+/**
+ * *Select table* (data-model §4.5 `table.select`): a `NodeSelection` of the selection's table -
+ * the table view puts `fb-selected` on it (T037) -; no document change, no undo step. False
+ * without a table.
+ */
+export const selectTableCommand: PMCommand = (state, dispatch) => {
+  const target = wholeTableTarget(state);
+  if (!target) return false;
+  if (dispatch) dispatch(state.tr.setSelection(NodeSelection.create(state.doc, target.tablePos)));
+  return true;
+};
+
+/** *Delete table* (data-model §4.5 `table.delete`): `deleteTableTransform`, one undo step. */
+export function deleteTableCommand(ctx: PlanContext): PMCommand {
+  return (state, dispatch) => {
+    const target = wholeTableTarget(state);
+    if (!target) return false;
+    if (dispatch) dispatch(deleteTableTransform(state.tr, target.tablePos, () => ctx.nextId()));
+    return true;
+  };
+}
+
+/** *Paragraph before / after table* (FR-033): `paragraphNextToTable`, one undo step. */
+export function paragraphCommand(side: 'before' | 'after', ctx: PlanContext): PMCommand {
+  return (state, dispatch) => {
+    const target = wholeTableTarget(state);
+    if (!target) return false;
+    if (dispatch) {
+      dispatch(paragraphNextToTable(state.tr, target.tablePos, side, () => ctx.nextId()));
+    }
     return true;
   };
 }

@@ -130,7 +130,8 @@ describe('the Body context menu', () => {
     // the moves up and to the left, which have no neighbour there; US5's Merge cells and Split
     // cell are live too (T105) and refuse a single unmerged cell with their reasons; US6's five
     // header commands are live (T110) and take any cell; US8's Repair table is live (T128) and
-    // refuses this regular table with its reason; the others are still stubs.
+    // refuses this regular table with its reason; US9's Select table, Delete table and the two
+    // paragraph commands are live (T149) and take the caret's table.
     const live = new Set([
       'insertRowAbove',
       'insertRowBelow',
@@ -147,6 +148,10 @@ describe('the Body context menu', () => {
       'moveColumnRight',
       'duplicateRow',
       'duplicateColumn',
+      'select',
+      'delete',
+      'paragraphBefore',
+      'paragraphAfter',
     ]);
     entries.forEach((entry, index) => {
       const name = TABLE_COMMAND_NAMES[index]!;

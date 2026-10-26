@@ -250,8 +250,9 @@ describe('classification of the editor’s own content (C43)', () => {
     const html = (slice: Slice) => view.serializeForClipboard(slice).dom.innerHTML;
     // A block's content: the closed table carries data-pm-slice and its fb-table class.
     expect(isOwnHtml(html(blockSlice(BLOCK)))).toBe(true);
-    // A word inside one cell: ProseMirror wraps the cell in a bare table (`-3` wrappers); the
-    // slice root under them is the editor's cell.
+    // A word inside one cell is copied as text (US9, T150; data-model §8.8): its HTML is the
+    // text alone - no table around it, so not the editor's own HTML -, while the JSON flavour
+    // carries the editor's own slice.
     const doc = view.state.doc;
     const word = view.state.apply(
       view.state.tr.setSelection(
@@ -259,7 +260,8 @@ describe('classification of the editor’s own content (C43)', () => {
       ),
     ).selection;
     expect(word).toBeInstanceOf(TextSelection);
-    expect(isOwnHtml(html(word.content()))).toBe(true);
+    expect(html(word.content())).toBe('r0');
+    expect(isOwnHtml(html(word.content()))).toBe(false);
     // Another ProseMirror editor: data-pm-slice without the editor's classes.
     expect(isOwnHtml('<p data-pm-slice="1 1 []">foreign</p>')).toBe(false);
     expect(isOwnHtml('<table data-pm-slice="0 0 []"><tr><td>x</td></tr></table>')).toBe(false);
@@ -901,5 +903,269 @@ describe('copy and cut of a block', () => {
         expect(seen).toHaveLength(0);
       }
     }
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US9: foreign tables and mixed content (T142; data-model §8.2, §8.3)      */
+/* ------------------------------------------------------------------------ */
+
+describe('US9: foreign tables and mixed content (data-model §8.3)', () => {
+  /** A foreign table of two rows, with a caption and no-break-space paragraphs around it. */
+  const FOREIGN =
+    '<p>&nbsp;</p><table><caption>Cap <i>it</i></caption>' +
+    '<tr><th>h1</th><th style="text-align:center">h2</th></tr>' +
+    '<tr><td><b>x</b></td><td valign="top">y</td></tr></table><p><o:p>&nbsp;</o:p></p>';
+
+  /** The marks of the text in a node, as `text:mark,mark` runs. */
+  function runs(node: PMNode): string[] {
+    const out: string[] = [];
+    node.forEach((child) => {
+      if (child.isText)
+        out.push(`${child.text}:${child.marks.map((mark) => mark.type.name).join(',')}`);
+    });
+    return out;
+  }
+
+  it('a foreign single table with the caret in a cell: the paste-block plan from the caret’s cell (U30), its caption a paragraph directly before the target table (C44), its no-break-space paragraphs dropped (C45); one discrete step', () => {
+    const { opts } = options();
+    const state = withSelection(stateOf(target(), opts), caret('t-1-1', 2));
+    const { tr, state: next, appended } = paste(state, { kind: 'foreign', html: FOREIGN }, opts);
+    expect(tr.getMeta(DISCRETE_STEP)).toBe(true);
+    expect(appended).toEqual([]);
+    expect(shape(sectionOf(next.doc))).toEqual(['p:before', 'p:Cap it', 'table:3x3', 'p:after']);
+    const table = sectionOf(next.doc).child(2);
+    expect(cellTexts(table)).toEqual([
+      ['r0c0', 'r0c1', 'r0c2'],
+      ['r1c0', 'h1', 'h2'],
+      ['r2c0', 'x', 'y'],
+    ]);
+    expect(table.child(1).child(1).type.name).toBe('th');
+    expect(table.child(1).child(2).attrs.align).toBe('center');
+    expect(table.child(2).child(2).attrs.valign).toBe('top');
+    expect(runs(table.child(2).child(1))).toEqual(['x:strong']);
+    expect(runs(sectionOf(next.doc).child(1))).toEqual(['Cap :', 'it:emphasis']);
+    expect(next.selection).toBeInstanceOf(CellBlockSelection);
+    expect(gridOfNode(table).regular).toBe(true);
+    // The caption takes a fresh node id; nothing of the clipboard keeps one.
+    expect(typeof sectionOf(next.doc).child(1).attrs.nodeId).toBe('string');
+  });
+
+  it('over a block: anchored at the block’s top-left position (U30); a foreign table with irregular rows is made regular for the plan, its rows kept', () => {
+    const { opts } = options();
+    const state = withSelection(stateOf(target(), opts), block('t-2-2', 't-1-1'));
+    const html = '<table><tr><td>a</td><td>b</td></tr><tr><td>c</td></tr></table>';
+    const { state: next } = paste(state, { kind: 'foreign', html }, opts);
+    expect(cellTexts(tableIn(next.doc, 't'))).toEqual([
+      ['r0c0', 'r0c1', 'r0c2'],
+      ['r1c0', 'a', 'b'],
+      ['r2c0', 'c', ''],
+    ]);
+    expect(gridOfNode(tableIn(next.doc, 't')).regular).toBe(true);
+  });
+
+  it('elsewhere: at the FR-004 point, the caption directly before the table and the no-break-space paragraphs kept in their order (C45); the caret in its first cell; one discrete step', () => {
+    const { opts, messages } = options();
+    const state = withSelection(
+      stateOf(docOf(p('before', 'a1'), p('after', 'a2')), opts),
+      caret('a1', 6),
+    );
+    const { tr, state: next, appended } = paste(state, { kind: 'foreign', html: FOREIGN }, opts);
+    expect(tr.getMeta(DISCRETE_STEP)).toBe(true);
+    expect(appended).toEqual([]);
+    expect(messages).toEqual([]);
+    expect(shape(sectionOf(next.doc))).toEqual([
+      'p:before',
+      `p:${NBSP}`,
+      'p:Cap it',
+      'table:2x2',
+      `p:${NBSP}`,
+      'p:after',
+    ]);
+    expect(next.selection.$head.parent.textContent).toBe('h1');
+    // No FB2 id comes from foreign HTML (C47).
+    sectionOf(next.doc)
+      .child(3)
+      .descendants((node) => {
+        if (!node.isText) expect(node.attrs.id ?? null).toBeNull();
+        return true;
+      });
+  });
+
+  it('without a point (the main body’s title): flattened into one paragraph per non-empty cell, the caption first, as today', () => {
+    const doc = N.doc!.create(
+      null,
+      N.body!.create({ nodeId: 'b' }, [
+        N.title!.create({ nodeId: 'bt' }, [p('Book', 'bt1')]),
+        N.section!.create({ nodeId: 's' }, [p('one', 'a1')]),
+      ]),
+    );
+    const { opts, messages } = options();
+    const state = withSelection(stateOf(doc, opts), caret('bt1', 4));
+    const html = '<table><caption>Cap</caption><tr><td>x</td><td></td><td>y</td></tr></table>';
+    const { state: next } = paste(state, { kind: 'foreign', html }, opts);
+    expect(messages).toEqual([]);
+    const title = next.doc.child(0).child(0);
+    expect(title.type.name).toBe('title');
+    expect(shape(title)).toEqual(['p:BookCap', 'p:x', 'p:y']);
+    expect(shape(next.doc.child(0).child(1))).toEqual(['p:one']);
+  });
+
+  it('over a selected table, which removeTable takes away, the foreign table stands at its place (U30)', () => {
+    const { opts } = options();
+    const state = withSelection(stateOf(target(), opts), (doc) =>
+      NodeSelection.create(doc, pos(doc, 't')),
+    );
+    const html = '<table><tr><td>a</td><td>b</td></tr></table>';
+    const { tr, state: next } = paste(state, { kind: 'foreign', html }, opts);
+    expect(tr.getMeta(DISCRETE_STEP)).toBe(true);
+    expect(shape(sectionOf(next.doc))).toEqual(['p:before', 'table:1x2', 'p:after']);
+    // On a section's only table: in the empty paragraph's place.
+    const only = withSelection(stateOf(docOf(table('old', plainRows(2, 2))), opts), (doc) =>
+      NodeSelection.create(doc, pos(doc, 'old')),
+    );
+    expect(shape(sectionOf(paste(only, { kind: 'foreign', html }, opts).state.doc))).toEqual([
+      'table:1x2',
+    ]);
+  });
+
+  it('foreign mixed content in a cell: one inline run - the parts joined by single unmarked spaces, the tables’ cells in reading order with their marks; empty parts and no-break-space paragraphs add nothing (decision 5; C40)', () => {
+    const { opts } = options();
+    const state = withSelection(stateOf(target(), opts), caret('t-1-1', 4));
+    const html =
+      '<p>lead <b>b</b></p><p>&nbsp;</p><table><tr><td><i>x</i></td><td></td><td>y</td></tr></table><p></p><p>tail</p>';
+    const { tr, state: next } = paste(state, { kind: 'foreign', html }, opts);
+    expect(tr.getMeta(DISCRETE_STEP)).toBe(true);
+    const cell = nodeOf(next.doc, 't-1-1');
+    expect(cell.textContent).toBe('r1c1lead b x y tail');
+    expect(runs(cell)).toEqual(['r1c1lead :', 'b:strong', ' :', 'x:emphasis', ' y tail:']);
+    expect(shape(sectionOf(next.doc))).toEqual(['p:before', 'table:3x3', 'p:after']);
+    // Over a block: cleared first, the run in its top-left cell.
+    const overBlock = withSelection(stateOf(target(), opts), block('t-0-1', 't-1-2'));
+    const joined = paste(overBlock, { kind: 'foreign', html }, opts).state;
+    expect(cellTexts(tableIn(joined.doc, 't'))).toEqual([
+      ['r0c0', 'lead b x y tail', ''],
+      ['r1c0', '', ''],
+      ['r2c0', 'r2c1', 'r2c2'],
+    ]);
+  });
+
+  it('foreign mixed content elsewhere: paragraphs as today and each table, made regular, at its place; one discrete step', () => {
+    const { opts } = options();
+    const state = withSelection(
+      stateOf(docOf(p('before', 'a1'), p('after', 'a2')), opts),
+      caret('a1', 6),
+    );
+    const html =
+      '<p>one</p><table><tr><td>x</td></tr><tr><td>y</td><td>z</td></tr></table><p>two</p>';
+    const { tr, state: next } = paste(state, { kind: 'foreign', html }, opts);
+    expect(tr.getMeta(DISCRETE_STEP)).toBe(true);
+    expect(shape(sectionOf(next.doc))).toEqual(['p:beforeone', 'table:2x2', 'p:two', 'p:after']);
+    const table = sectionOf(next.doc).child(1);
+    expect(gridOfNode(table).regular).toBe(true);
+    expect(cellTexts(table)).toEqual([
+      ['x', ''],
+      ['y', 'z'],
+    ]);
+    // A table first and last: closed at its edges, each at its place.
+    const edges = paste(
+      state,
+      {
+        kind: 'foreign',
+        html: '<table><tr><td>t1</td></tr></table><p>mid</p><table><tr><td>t2</td></tr></table>',
+      },
+      opts,
+    );
+    expect(shape(sectionOf(edges.state.doc))).toEqual([
+      'p:before',
+      'table:1x1',
+      'p:mid',
+      'table:1x1',
+      'p:after',
+    ]);
+  });
+
+  it('foreign mixed content in a title or a verse line: flattened into lines in its order (C41)', () => {
+    const html = '<p>one</p><table><tr><td>x</td><td>y</td></tr></table><p>two</p>';
+    const titled = docOf(N.title!.create({ nodeId: 'h' }, [p('Head', 'h1')]), p('text', 'a1'));
+    const { opts } = options();
+    const inTitle = paste(
+      withSelection(stateOf(titled, opts), caret('h1', 4)),
+      { kind: 'foreign', html },
+      opts,
+    );
+    expect(shape(sectionOf(inTitle.state.doc).child(0))).toEqual([
+      'p:Headone',
+      'p:x',
+      'p:y',
+      'p:two',
+    ]);
+    expect(shape(sectionOf(inTitle.state.doc))).toEqual(['title:Headonexytwo', 'p:text']);
+    const poem = docOf(
+      p('lead', 'a1'),
+      N.poem!.create({ nodeId: 'po' }, [
+        N.stanza!.create({ nodeId: 'st' }, [
+          N.v!.create({ nodeId: 'v1' }, fb2Schema.text('verse')),
+        ]),
+      ]),
+    );
+    const inVerse = paste(
+      withSelection(stateOf(poem, opts), caret('v1', 5)),
+      { kind: 'foreign', html },
+      opts,
+    );
+    const stanza = sectionOf(inVerse.state.doc).child(1).child(0);
+    expect(shape(stanza)).toEqual(['v:verseone', 'v:x', 'v:y', 'v:two']);
+  });
+
+  it('own mixed content elsewhere: its table pasted as copied - an irregular part stays irregular (analyze decision 4; data-model §8.2)', () => {
+    const source = docOf(
+      p('lead', 'c1'),
+      table('m', [
+        [{ text: 'a' }, { text: 'b' }, { text: 'c' }],
+        [{ text: 'd' }],
+        [{ text: 'e' }, { text: 'f' }, { text: 'g' }],
+      ]),
+    );
+    const slice = TextSelection.create(
+      source,
+      pos(source, 'c1') + 1,
+      pos(source, 'm-2-1') + 1,
+    ).content();
+    const { opts } = options();
+    const state = withSelection(
+      stateOf(docOf(p('before', 'a1'), p('after', 'a2')), opts),
+      caret('a1', 6),
+    );
+    const { state: next } = paste(state, { kind: 'own', slice }, opts);
+    const pasted = sectionOf(next.doc).child(1);
+    expect(pasted.type.name).toBe('table');
+    expect(gridOfNode(pasted).summary.shortRows).toBeGreaterThan(0);
+    expect(cellTexts(pasted)[1]).toEqual(['d']);
+  });
+
+  it('a foreign table too large to make regular is refused with tables.reason.too-large and no transaction', () => {
+    const rows = '<tr><td colspan="1000">r</td></tr>'.repeat(4200);
+    const html = `<table><tr><td colspan="1000">wide</td><td>x</td></tr>${rows}</table>`;
+    const { opts, messages } = options();
+    const state = withSelection(
+      stateOf(docOf(p('before', 'a1'), p('after', 'a2')), opts),
+      caret('a1', 6),
+    );
+    expect(pasteTransaction(state, { kind: 'foreign', html }, opts)).toBeNull();
+    expect(messages).toEqual(['tables.reason.too-large']);
+  });
+
+  it('tab-separated plain text stays text; HTML without a table keeps today’s result', () => {
+    const { opts } = options();
+    const state = withSelection(
+      stateOf(docOf(p('before', 'a1'), p('after', 'a2')), opts),
+      caret('a1', 6),
+    );
+    const text = paste(state, { kind: 'text', text: 'a\tb\nc\td' }, opts);
+    expect(shape(sectionOf(text.state.doc))).toEqual(['p:beforea\tb', 'p:c\td', 'p:after']);
+    const foreign = paste(state, { kind: 'foreign', html: '<p>one</p><p>two</p>' }, opts);
+    expect(shape(sectionOf(foreign.state.doc))).toEqual(['p:beforeone', 'p:two', 'p:after']);
+    expect(foreign.tr.getMeta(DISCRETE_STEP)).toBeUndefined();
   });
 });

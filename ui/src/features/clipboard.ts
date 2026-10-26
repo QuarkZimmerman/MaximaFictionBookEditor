@@ -19,9 +19,11 @@ import {
   lastFocusedTextField,
   pasteIntoField,
 } from '@/app/textFields';
+import { htmlHasTextTable } from '@/editor/clipboard/foreignHtml';
 import {
   MFBE_CLIPBOARD_MIME,
   MFBE_CLIPBOARD_WEB_MIME,
+  cutTransaction,
   pasteData,
   payloadFromSlice,
   type PasteData,
@@ -167,7 +169,8 @@ export async function copySelection(controller: BodyEditorController, cut: boole
   const ok = document.execCommand(cut ? 'cut' : 'copy');
   if (!ok) {
     const written = await writeClipboard(controller);
-    if (written && cut) view.dispatch(view.state.tr.deleteSelection().scrollIntoView());
+    // A selected table goes through the Delete table transform, as in the cut event (C24).
+    if (written && cut) view.dispatch(cutTransaction(view.state, controller.nextNodeId));
   }
 }
 
@@ -188,8 +191,17 @@ export async function pasteIntoEditor(
   view.focus();
   const data = await readClipboard();
   if (data) {
-    // An image wins over the text flavours unless the clipboard holds the editor's own slice.
-    if (data.image && !data.json && options.onImage && (await options.onImage(data.image))) {
+    // An image wins over the text flavours unless the clipboard holds the editor's own slice or
+    // an HTML table with text, which the picture a spreadsheet adds beside it does not beat
+    // (feature 006, R5.9; data-model §8.9).
+    const tableWins = !!data.html && htmlHasTextTable(data.html);
+    if (
+      data.image &&
+      !data.json &&
+      !tableWins &&
+      options.onImage &&
+      (await options.onImage(data.image))
+    ) {
       return;
     }
     if (data.json || data.html || data.text) {

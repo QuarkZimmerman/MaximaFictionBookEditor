@@ -254,9 +254,9 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
     plugins: [
       history(),
       // The block of cells (feature 006, data-model §5.4): before the keymaps, so its
-      // Shift+Arrow handling comes first; it has no paste props - `clipboardPlugin` keeps
-      // claiming every paste (C4).
-      tableEditingPlugin(),
+      // Shift+Arrow handling and a selected table's Delete, Backspace and typing (US9) come
+      // first; it has no paste props - `clipboardPlugin` keeps claiming every paste (C4).
+      tableEditingPlugin({ nextNodeId }),
       // The browser selection read before a press elsewhere or a key is handled, and the focus
       // that a press into the editor gives it (after the table plugin's press handling, which
       // leaves a plain press to the plugins after it).

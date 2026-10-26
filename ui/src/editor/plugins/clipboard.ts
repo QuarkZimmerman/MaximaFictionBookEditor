@@ -16,14 +16,25 @@
  * through the one router of `ui/src/editor/clipboard/route.ts` - a real paste event read before
  * ProseMirror parses anything (`handleDOMEvents.paste`), `view.pasteHTML()` (`handlePaste`) and
  * Edit → Paste (`pasteData`, with the options the plugin carries) - so tables paste by position
- * and by FR-004, and no paste splits a table.
+ * and by FR-004, and no paste splits a table. US9 (FR-060; data-model §8.8): a copied table or
+ * block reaches other programs as an HTML table and as tab-separated text (`copyOut.ts`, as the
+ * plugin's `clipboardSerializer`, `clipboardTextSerializer` and `transformCopied`), and the cut
+ * of a selected table removes it through the *Delete table* transform (C24).
  */
 
 import { DOMParser as PMDOMParser, Fragment, Node as PMNode, Slice } from 'prosemirror-model';
-import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirror-state';
+import {
+  NodeSelection,
+  Plugin,
+  PluginKey,
+  type EditorState,
+  type Transaction,
+} from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 
+import { clipboardText, tableClipboardSerializer, transformCopied } from '../clipboard/copyOut';
 import { isOwnHtml, routePaste, type ClipboardOptions } from '../clipboard/route';
+import { deleteTableTransform } from '../table/edit';
 import { createNodeIdGenerator, fb2Schema } from '../schema';
 import { N, PARAGRAPH_TYPES } from '../commands/util';
 
@@ -304,9 +315,14 @@ export function clipboardPlugin(opts: ClipboardOptions): Plugin {
     clipboardOptions: opts,
     props: {
       transformPasted: (slice) => stripNodeIds(slice),
+      // Copy out (FR-060): ProseMirror runs every plugin's `transformCopied` in plugin order, so
+      // the NBSP marker plugin's still runs after this one.
+      transformCopied: (slice) => transformCopied(slice),
+      clipboardSerializer: tableClipboardSerializer,
+      clipboardTextSerializer: (slice) => clipboardText(slice),
       handleDOMEvents: {
-        copy: (view, event) => writeClipboard(view, event, false),
-        cut: (view, event) => writeClipboard(view, event, true),
+        copy: (view, event) => writeClipboard(view, event, false, opts),
+        cut: (view, event) => writeClipboard(view, event, true, opts),
         paste: (view, event) => pasteEvent(view, event, opts),
       },
       /** Reached through `view.pasteHTML()` only: the slice ProseMirror parsed from own HTML. */
@@ -318,7 +334,18 @@ export function clipboardPlugin(opts: ClipboardOptions): Plugin {
   });
 }
 
-function writeClipboard(view: EditorView, event: ClipboardEvent, cut: boolean): boolean {
+/**
+ * The copy or cut of the selection: the own flavour of the selection's own slice, the HTML and
+ * the text of `serializeForClipboard` (the table serializer, `clipboardText`); a cut then removes
+ * the selection - a table selected as a whole through the *Delete table* transform (C24), which
+ * leaves an empty paragraph where its container needs a block, a block of cells by its clear.
+ */
+function writeClipboard(
+  view: EditorView,
+  event: ClipboardEvent,
+  cut: boolean,
+  opts: ClipboardOptions,
+): boolean {
   const data = event.clipboardData;
   const { selection } = view.state;
   if (!data || selection.empty) return false;
@@ -329,8 +356,20 @@ function writeClipboard(view: EditorView, event: ClipboardEvent, cut: boolean): 
   data.setData('text/html', dom.innerHTML);
   data.setData('text/plain', text);
   event.preventDefault();
-  if (cut && view.editable) {
-    view.dispatch(view.state.tr.deleteSelection().scrollIntoView());
-  }
+  if (cut && view.editable) view.dispatch(cutTransaction(view.state, opts.nextNodeId));
   return true;
+}
+
+/**
+ * The transaction that removes a cut selection: a table selected as a whole through the
+ * *Delete table* transform (C24; ProseMirror's `deleteSelection` throws on a section's only
+ * table, vR2 X3), every other selection through `deleteSelection` - a block of cells by its
+ * clear-block plan (US4).
+ */
+export function cutTransaction(state: EditorState, nextNodeId: () => string): Transaction {
+  const { selection } = state;
+  if (selection instanceof NodeSelection && selection.node.type.name === 'table') {
+    return deleteTableTransform(state.tr, selection.from, nextNodeId).scrollIntoView();
+  }
+  return state.tr.deleteSelection().scrollIntoView();
 }

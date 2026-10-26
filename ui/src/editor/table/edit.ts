@@ -20,9 +20,9 @@
 import { Fragment, Slice, type Attrs, type Node as PMNode } from 'prosemirror-model';
 import {
   NodeSelection,
+  Selection,
   TextSelection,
   type EditorState,
-  type Selection,
   type Transaction,
 } from 'prosemirror-state';
 import { ReplaceStep } from 'prosemirror-transform';
@@ -759,4 +759,50 @@ export function removeTable(tr: Transaction, tablePos: number, nextId: () => str
     tr.delete(tablePos, end);
   }
   return tr;
+}
+
+/**
+ * *Delete table* (data-model §4.5 `table.delete`; FR-032; C24; analyze decision 5): the table at
+ * `tablePos` removed through `removeTable` - an empty `p` with `nextId()` in its place where the
+ * container's content model then needs a block -, then the focus: a caret in that empty `p`;
+ * otherwise at the start of the element that followed the table in its container; otherwise at
+ * the end of the element before it (`Selection.findFrom` inside that sibling, `Selection.near`
+ * for a sibling without a text position); otherwise at the nearest text position from the
+ * table's former place (a section annotation's only table: the first text after it). One
+ * `DISCRETE_STEP` transaction, scrolled into view; no question over link targets (C13). Cut,
+ * Delete, Backspace and typing over a selected table use it in both hosts, where ProseMirror's
+ * generic `deleteSelection` throws on a section's only table (vR2 X3).
+ */
+export function deleteTableTransform(
+  tr: Transaction,
+  tablePos: number,
+  nextId: () => string,
+): Transaction {
+  const index = tr.doc.resolve(tablePos).index();
+  let filled = false;
+  removeTable(tr, tablePos, () => {
+    filled = true;
+    return nextId();
+  });
+  const doc = tr.doc;
+  const $gap = doc.resolve(tablePos);
+  const parent = $gap.parent;
+  let selection: Selection;
+  if (filled) {
+    selection = TextSelection.create(doc, tablePos + 1);
+  } else if (index < parent.childCount) {
+    const end = tablePos + parent.child(index).nodeSize;
+    const found = Selection.findFrom($gap, 1, true);
+    selection = found && found.from < end ? found : Selection.near($gap, 1);
+  } else if (index > 0) {
+    const start = tablePos - parent.child(index - 1).nodeSize;
+    const found = Selection.findFrom($gap, -1, true);
+    selection = found && found.from >= start ? found : Selection.near($gap, -1);
+  } else {
+    selection =
+      Selection.findFrom($gap, 1, true) ??
+      Selection.findFrom($gap, -1, true) ??
+      Selection.near($gap);
+  }
+  return tr.setSelection(selection).setMeta(DISCRETE_STEP, true).scrollIntoView();
 }

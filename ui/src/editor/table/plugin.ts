@@ -31,6 +31,13 @@
  *   becomes the block between them; a selected `td` or `th` node becomes a text selection over
  *   its content, a selected `tr` the block over its cells - so no `NodeSelection` of a cell or a
  *   row outlives the transaction that made it (data-model §5.8).
+ * - **A table selected as a whole** (US9; data-model §4.5 `table.select`, `table.delete`; C24):
+ *   Delete and Backspace, with or without Mod (Shift+Delete stays the platform's Cut), run the
+ *   *Delete table* transform; typing replaces the table with a paragraph holding the text, the
+ *   caret after it, in one `DISCRETE_STEP` transaction (a paragraph may stand wherever a table
+ *   may), and a composition starts in an empty paragraph that takes the table's place. New
+ *   paragraphs take their node ids from the host's generator (`options.nextNodeId`). Every other
+ *   selection is left alone at once.
  * - **No paste props** at all: the clipboard plugin's router owns every paste (C4).
  */
 
@@ -49,8 +56,9 @@ import {
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 
 import { DISCRETE_STEP } from '../commands/util';
+import { createNodeIdGenerator } from '../schema';
 
-import { commitTableEdit, isRefusal } from './edit';
+import { commitTableEdit, deleteTableTransform, isRefusal } from './edit';
 import { gridOfNode, type Rect, type TableGrid } from './grid';
 import { planClearBlock } from './ops';
 import {
@@ -306,6 +314,54 @@ function clearOnDelete(view: EditorView, event: KeyboardEvent): boolean {
   if (event.key === 'Delete' && event.shiftKey) return false;
   const tr = view.state.tr.deleteSelection();
   if (tr.docChanged) view.dispatch(tr);
+  return true;
+}
+
+/** The table selected as a whole (a `NodeSelection` of a table), or null. */
+function selectedTable(state: EditorState): { pos: number; node: EditorState['doc'] } | null {
+  const { selection } = state;
+  if (!(selection instanceof NodeSelection) || selection.node.type.name !== 'table') return null;
+  return { pos: selection.from, node: selection.node };
+}
+
+/**
+ * Delete and Backspace on a table selected as a whole (with or without Ctrl, Alt or Mod;
+ * Shift+Delete stays the platform's Cut): the *Delete table* transform (C24), true.
+ */
+function deleteSelectedTable(
+  view: EditorView,
+  event: KeyboardEvent,
+  nextId: () => string,
+): boolean {
+  if (event.key !== 'Delete' && event.key !== 'Backspace') return false;
+  if (event.key === 'Delete' && event.shiftKey) return false;
+  const selected = selectedTable(view.state);
+  if (!selected) return false;
+  view.dispatch(deleteTableTransform(view.state.tr, selected.pos, nextId));
+  return true;
+}
+
+/**
+ * Text typed over a table selected as a whole (data-model §4.5 `table.select`): the table
+ * replaced by a paragraph holding `text`, the caret after it, one `DISCRETE_STEP` transaction, so
+ * the characters typed next group as typing; with `text` empty (a starting composition) an empty
+ * paragraph holding the caret. False for every other selection.
+ */
+function replaceSelectedTable(view: EditorView, text: string, nextId: () => string): boolean {
+  const selected = selectedTable(view.state);
+  if (!selected) return false;
+  const { schema } = view.state;
+  const paragraph = schema.nodes.p!.create(
+    { nodeId: nextId() },
+    text ? schema.text(text) : undefined,
+  );
+  const tr = view.state.tr.replaceWith(
+    selected.pos,
+    selected.pos + selected.node.nodeSize,
+    paragraph,
+  );
+  tr.setSelection(TextSelection.create(tr.doc, selected.pos + 1 + text.length));
+  view.dispatch(tr.setMeta(DISCRETE_STEP, true).scrollIntoView());
   return true;
 }
 
@@ -635,7 +691,15 @@ function blockDecorations(state: EditorState): DecorationSet | null {
   return DecorationSet.create(state.doc, decorations);
 }
 
-export function tableEditingPlugin(): Plugin<ComposeOver | null> {
+/**
+ * The table plugin of a host. `options.nextNodeId` is the host's node-id generator (the Body
+ * view shares it with its keymap and `nodeIdPlugin`, data-model §1.6), for the paragraph that
+ * takes a selected table's place.
+ */
+export function tableEditingPlugin(
+  options: { nextNodeId?: () => string } = {},
+): Plugin<ComposeOver | null> {
+  const nextId = options.nextNodeId ?? createNodeIdGenerator('ui_table_');
   return new Plugin<ComposeOver | null>({
     key: tableEditingKey,
     state: {
@@ -656,12 +720,17 @@ export function tableEditingPlugin(): Plugin<ComposeOver | null> {
       decorations: blockDecorations,
       handleDOMEvents: {
         mousedown: handleMouseDown,
-        compositionstart: (view) => composeOver(view),
+        // Over a selected table the composition goes on in the paragraph that takes its place.
+        compositionstart: (view) =>
+          replaceSelectedTable(view, '', nextId) ? false : composeOver(view),
         compositionend: (view) => composeEnd(view),
       },
-      handleKeyDown,
+      handleKeyDown: (view, event) =>
+        deleteSelectedTable(view, event, nextId) || handleKeyDown(view, event),
       handleTextInput: (view, from, to, text, deflt) =>
-        composeInto(view, from, to, deflt) || typeOver(view, text),
+        replaceSelectedTable(view, text, nextId) ||
+        composeInto(view, from, to, deflt) ||
+        typeOver(view, text),
       createSelectionBetween(view, $anchor, $head) {
         const drag = drags.get(view);
         if (drag) {

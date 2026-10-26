@@ -42,6 +42,7 @@
 
 import { Fragment, Slice, type Node as PMNode, type Schema } from 'prosemirror-model';
 import {
+  NodeSelection,
   TextSelection,
   type Command,
   type EditorState,
@@ -56,7 +57,12 @@ import { nodeToModel } from '../../toModel';
 import { headCell, planCellAttrs, planRowAlign, planSpan, planTableAttrs } from '../attrs';
 import {
   availability,
+  deleteTableCommand,
   isAvailable,
+  paragraphCommand,
+  selectTableCommand,
+  TABLE_COMMAND_NAMES,
+  TABLE_SELECTION_COMMANDS,
   planCommand,
   type Availability,
   type TableCommandName,
@@ -383,7 +389,15 @@ export interface FuzzEntry {
   repairs?: boolean;
   /** US8: the Table bar's colspan or rowspan - its value drawn per step, the span oracle. */
   span?: 'colspan' | 'rowspan';
+  /**
+   * US9: a whole-table command run as a ProseMirror command instead of a plan, with its own
+   * oracle (`runWholeStep`).
+   */
+  whole?: WholeTableCommand;
 }
+
+/** US9's whole-table commands in the fuzz. */
+export type WholeTableCommand = 'select' | 'delete' | 'paragraphBefore' | 'paragraphAfter';
 
 /**
  * US7: what an attribute step sets - `name` on the target cells (`cells`: every cell of the
@@ -893,6 +907,138 @@ function drawSpan(rng: () => number, address: TableAddress, axis: 'colspan' | 'r
 /* ------------------------------------------------------------------------ */
 
 /** Where the fuzz runs: an editor state it selects in, runs commands on and undoes. */
+/**
+ * US9's entries (SC-003; weights chosen here, R8.15 gives none): *Select table* (2), whose next
+ * draw acts on the selected table - *Delete table*, or one of the commands outside
+ * `TABLE_SELECTION_COMMANDS`, which must refuse with `tableSelected` -, *Delete table* (1), after
+ * which a new start table comes, and the two paragraph commands (1 each).
+ */
+const WHOLE_TABLE_MIX: FuzzEntry[] = [
+  { name: 'select', command: 'select', weight: 2, whole: 'select' },
+  { name: 'delete', command: 'delete', weight: 1, whole: 'delete' },
+  { name: 'paragraphBefore', command: 'paragraphBefore', weight: 1, whole: 'paragraphBefore' },
+  { name: 'paragraphAfter', command: 'paragraphAfter', weight: 1, whole: 'paragraphAfter' },
+];
+FUZZ_MIX.push(...WHOLE_TABLE_MIX);
+
+/** True for an empty `p` whose node id is a string the document `before` does not hold. */
+function freshEmptyParagraph(node: PMNode | null | undefined, before: PMNode): boolean {
+  if (!node || node.type.name !== 'p' || node.content.size > 0) return false;
+  const id = node.attrs.nodeId;
+  if (typeof id !== 'string' || id === '') return false;
+  let used = false;
+  before.descendants((child) => {
+    if (child.attrs.nodeId === id) used = true;
+    return !used;
+  });
+  return !used;
+}
+
+/**
+ * The oracle of *Delete table* (data-model §4.5 `table.delete`; C24): the table gone, an empty
+ * `p` with a fresh node id in its place exactly where the container's content model then needs
+ * a block, and every other part of the document identical - the characters of the table's cells
+ * the only ones removed (vR1 corr 16).
+ */
+function checkDeleteStep(before: EditorState, after: EditorState, tablePos: number): string | null {
+  const table = before.doc.nodeAt(tablePos)!;
+  const $table = before.doc.resolve(tablePos);
+  const rest: PMNode[] = [];
+  $table.parent.forEach((child, _offset, index) => {
+    if (index !== $table.index()) rest.push(child);
+  });
+  const needs =
+    !$table.parent.type.validContent(Fragment.from(rest)) ||
+    ($table.depth === 0 && rest.length === 0);
+  const end = tablePos + table.nodeSize;
+  const filled = needs ? 2 : 0;
+  if (!before.doc.slice(0, tablePos).eq(after.doc.slice(0, tablePos))) {
+    return 'delete changed the document before the table';
+  }
+  if (!before.doc.slice(end).eq(after.doc.slice(tablePos + filled))) {
+    return 'delete changed the document after the table';
+  }
+  if (needs && !freshEmptyParagraph(after.doc.nodeAt(tablePos), before.doc)) {
+    return 'delete left no empty paragraph where the container needs a block';
+  }
+  if (!needs && after.doc.content.size !== before.doc.content.size - table.nodeSize) {
+    return 'delete put something in the place of a table its container does without';
+  }
+  return null;
+}
+
+/**
+ * The oracle of *Paragraph before / after table* (FR-033): the table the same node and one empty
+ * `p` with a fresh node id directly before (after) it, the rest of the document identical.
+ */
+function checkParagraphStep(
+  before: EditorState,
+  after: EditorState,
+  tablePos: number,
+  side: 'before' | 'after',
+): string | null {
+  const table = before.doc.nodeAt(tablePos)!;
+  const at = side === 'before' ? tablePos : tablePos + table.nodeSize;
+  if (!freshEmptyParagraph(after.doc.nodeAt(at), before.doc)) {
+    return `no empty paragraph with a fresh node id ${side} the table`;
+  }
+  const tableAfter = after.doc.nodeAt(side === 'before' ? tablePos + 2 : tablePos);
+  if (tableAfter !== table) return `the table is not the same node after the paragraph ${side} it`;
+  if (!before.doc.slice(0, at).eq(after.doc.slice(0, at))) return 'the document before it changed';
+  if (!before.doc.slice(at).eq(after.doc.slice(at + 2))) return 'the document after it changed';
+  return null;
+}
+
+/**
+ * One step of a whole-table command (US9): availability ok for the caret or block on the table,
+ * the command run through the host, and its oracle; *Select table* changes nothing but the
+ * selection - a `NodeSelection` of the table -, and then either *Delete table* or a command
+ * outside `TABLE_SELECTION_COMMANDS`, which refuses with `tableSelected`, acts on it. `deleted`
+ * when the table went (the run then puts a new start table).
+ */
+function runWholeStep(
+  host: FuzzHost,
+  rng: () => number,
+  kind: WholeTableCommand,
+  before: EditorState,
+  tablePos: number,
+  ctx: { nextId(): string },
+): { reason: string | null; deleted: boolean } {
+  const answer = availability(before, kind);
+  if (!isAvailable(answer)) {
+    return { reason: `${kind} is unavailable: ${JSON.stringify(answer)}`, deleted: false };
+  }
+  const deleteStep = (state: EditorState) => {
+    if (!host.run(deleteTableCommand(ctx))) return { reason: 'delete did not run', deleted: false };
+    return { reason: checkDeleteStep(state, host.state(), tablePos), deleted: true };
+  };
+  if (kind === 'paragraphBefore' || kind === 'paragraphAfter') {
+    const side = kind === 'paragraphBefore' ? 'before' : 'after';
+    if (!host.run(paragraphCommand(side, ctx)))
+      return { reason: `${kind} did not run`, deleted: false };
+    return { reason: checkParagraphStep(before, host.state(), tablePos, side), deleted: false };
+  }
+  if (kind === 'delete') return deleteStep(before);
+  if (!host.run(selectTableCommand)) return { reason: 'select did not run', deleted: false };
+  const selected = host.state();
+  if (!selected.doc.eq(before.doc))
+    return { reason: 'select changed the document', deleted: false };
+  if (!(selected.selection instanceof NodeSelection) || selected.selection.from !== tablePos) {
+    return { reason: 'select did not select the table as a node', deleted: false };
+  }
+  if (rng() < 0.5) return deleteStep(selected);
+  const others = TABLE_COMMAND_NAMES.filter((name) => !TABLE_SELECTION_COMMANDS.has(name));
+  const name = pick(rng, others);
+  const refusal = availability(selected, name);
+  if (!('refused' in refusal) || refusal.refused !== 'tableSelected') {
+    return {
+      reason: `${name} on a selected table answered ${JSON.stringify(refusal)}`,
+      deleted: false,
+    };
+  }
+  return { reason: null, deleted: false };
+}
+
 export interface FuzzHost {
   state(): EditorState;
   select(selection: Selection): void;
@@ -2131,76 +2277,88 @@ export async function runFuzz(
           reason = 'the selection does not address the table';
         } else {
           const ctx = { nextId: () => host.nextId(), bookIds: host.bookIds() };
-          if (entry.clears === 'cut' && before.selection instanceof CellBlockSelection) {
-            clipboard.table = before.selection.content().content.firstChild;
-          }
-          if (entry.pastes && (!clipboard.table || rng() < 0.5)) {
-            // A copy of a drawn block, or of the whole current table.
-            const block = randomBlock(rng, before.doc, current.pos);
-            clipboard.table =
-              block && rng() < 0.7 ? block.content().content.firstChild : current.node;
-          }
-          const pasted = entry.pastes ? clipboard.table : null;
-          // US7: the attribute step's value, drawn with the run's generator.
-          const attrValue = entry.attr
-            ? entry.attr.draw(rng, {
-                address: target.address,
-                bookIds: ctx.bookIds,
-                fresh: () => {
-                  let id: string;
-                  do {
-                    freshIds += 1;
-                    id = `fz${freshIds}`;
-                  } while (ctx.bookIds.has(id));
-                  return id;
-                },
-              })
-            : undefined;
-          // US8: the span step's value, drawn with the run's generator.
-          const span = entry.span;
-          const spanValue = span ? drawSpan(rng, target.address, span) : undefined;
-          const plan: TablePlan = entry.pastes
-            ? (address, c) => pasteBlockPlan(address, dedupeIds(pasted!, ctx.bookIds), c)
-            : entry.attr
-              ? attrPlan(entry.attr, attrValue!.value)
-              : span
-                ? (address, c) => planSpan(address, { axis: span, value: spanValue! }, c)
-                : entry.plan!;
-          const dryRun = plan(target.address, ctx);
-          const answer = entry.command ? availability(before, entry.command) : null;
-          const ran = host.run(
-            entry.pastes
-              ? (state, dispatch) => {
-                  const tr = pasteTransaction(
-                    state,
-                    { kind: 'own', slice: new Slice(Fragment.from(pasted!), 0, 0) },
-                    { bookIds: () => ctx.bookIds, nextNodeId: ctx.nextId, message: () => {} },
-                  );
-                  if (!tr || !tr.docChanged) return false;
-                  dispatch?.(tr);
-                  return true;
-                }
-              : planCommand(plan, ctx),
-          );
-          const after = host.state();
-          reason = checkFuzzStep({
-            entry,
-            before,
-            after,
-            tablePos: current.pos,
-            address: target.address,
-            dryRun,
-            answer,
-            ran,
-            clipboard: pasted,
-            attrValue,
-            spanValue,
-          });
-          if (reason && attrValue) reason += ` (the value ${JSON.stringify(attrValue.value)})`;
-          if (reason && spanValue !== undefined) reason += ` (the value ${spanValue})`;
-          if (!reason && !after.doc.eq(before.doc)) {
-            done.push({ before: before.doc, after: after.doc });
-            undone = [];
+          if (entry.whole) {
+            const whole = runWholeStep(host, rng, entry.whole, before, current.pos, ctx);
+            reason = whole.reason;
+            const after = host.state();
+            if (!reason && !after.doc.eq(before.doc)) {
+              done.push({ before: before.doc, after: after.doc });
+              undone = [];
+            }
+            // A deleted table: a new start table comes with the next step.
+            if (!reason && whole.deleted) tableId = null;
+          } else {
+            if (entry.clears === 'cut' && before.selection instanceof CellBlockSelection) {
+              clipboard.table = before.selection.content().content.firstChild;
+            }
+            if (entry.pastes && (!clipboard.table || rng() < 0.5)) {
+              // A copy of a drawn block, or of the whole current table.
+              const block = randomBlock(rng, before.doc, current.pos);
+              clipboard.table =
+                block && rng() < 0.7 ? block.content().content.firstChild : current.node;
+            }
+            const pasted = entry.pastes ? clipboard.table : null;
+            // US7: the attribute step's value, drawn with the run's generator.
+            const attrValue = entry.attr
+              ? entry.attr.draw(rng, {
+                  address: target.address,
+                  bookIds: ctx.bookIds,
+                  fresh: () => {
+                    let id: string;
+                    do {
+                      freshIds += 1;
+                      id = `fz${freshIds}`;
+                    } while (ctx.bookIds.has(id));
+                    return id;
+                  },
+                })
+              : undefined;
+            // US8: the span step's value, drawn with the run's generator.
+            const span = entry.span;
+            const spanValue = span ? drawSpan(rng, target.address, span) : undefined;
+            const plan: TablePlan = entry.pastes
+              ? (address, c) => pasteBlockPlan(address, dedupeIds(pasted!, ctx.bookIds), c)
+              : entry.attr
+                ? attrPlan(entry.attr, attrValue!.value)
+                : span
+                  ? (address, c) => planSpan(address, { axis: span, value: spanValue! }, c)
+                  : entry.plan!;
+            const dryRun = plan(target.address, ctx);
+            const answer = entry.command ? availability(before, entry.command) : null;
+            const ran = host.run(
+              entry.pastes
+                ? (state, dispatch) => {
+                    const tr = pasteTransaction(
+                      state,
+                      { kind: 'own', slice: new Slice(Fragment.from(pasted!), 0, 0) },
+                      { bookIds: () => ctx.bookIds, nextNodeId: ctx.nextId, message: () => {} },
+                    );
+                    if (!tr || !tr.docChanged) return false;
+                    dispatch?.(tr);
+                    return true;
+                  }
+                : planCommand(plan, ctx),
+            );
+            const after = host.state();
+            reason = checkFuzzStep({
+              entry,
+              before,
+              after,
+              tablePos: current.pos,
+              address: target.address,
+              dryRun,
+              answer,
+              ran,
+              clipboard: pasted,
+              attrValue,
+              spanValue,
+            });
+            if (reason && attrValue) reason += ` (the value ${JSON.stringify(attrValue.value)})`;
+            if (reason && spanValue !== undefined) reason += ` (the value ${spanValue})`;
+            if (!reason && !after.doc.eq(before.doc)) {
+              done.push({ before: before.doc, after: after.doc });
+              undone = [];
+            }
           }
         }
       }

@@ -2227,3 +2227,138 @@ export function planRepair(address: TableAddress, ctx: PlanContext): TableEdit |
   }
   return { rows, focus, removedIds: [] };
 }
+
+/* ------------------------------------------------------------------------ */
+/* US9: a pasted table made ready (FR-059, FR-046; C42; data-model §8.6)    */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The columns each cell of `grid` loses to the phantom columns (C42; data-model §8.6 step 2,
+ * open point 12), by grid index; null when no column is phantom. For a cell X that does not
+ * cover every row, `others(X)` is the largest extent (last covered column + 1) among the rows X
+ * does not cover, and X runs past every other row in the columns `[max(others(X), X.left + 1),
+ * X.left + X.colspan)`; a column in which no cell starts and every cell covering it runs past
+ * every other row there is phantom. One sweep over the columns where a count changes - no array
+ * of W positions, so a table too large for the owner map is read as well.
+ */
+function phantomLoss(grid: TableGrid): Map<number, number> | null {
+  const { cells, height } = grid;
+  if (height === 0 || cells.length === 0) return null;
+  // The extent of each row: the cells by their right edge, widest first, each row taken once.
+  const extent = new Int32Array(height);
+  const nextFree = new Int32Array(height + 1);
+  for (let r = 0; r <= height; r += 1) nextFree[r] = r;
+  const free = (start: number): number => {
+    let r = start;
+    while (nextFree[r] !== r) {
+      nextFree[r] = nextFree[nextFree[r]!]!;
+      r = nextFree[r]!;
+    }
+    return r;
+  };
+  const byRight = cells.map((_cell, index) => index);
+  byRight.sort((a, b) => cells[b]!.left + cells[b]!.colspan - (cells[a]!.left + cells[a]!.colspan));
+  for (const index of byRight) {
+    const cell = cells[index]!;
+    const right = cell.left + cell.colspan;
+    for (let r = free(cell.row); r < cell.row + cell.rowsIn; r = free(r + 1)) {
+      extent[r] = right;
+      nextFree[r] = r + 1;
+    }
+  }
+  const above = new Int32Array(height + 1);
+  const below = new Int32Array(height + 1);
+  for (let r = 0; r < height; r += 1) above[r + 1] = Math.max(above[r]!, extent[r]!);
+  for (let r = height - 1; r >= 0; r -= 1) below[r] = Math.max(below[r + 1]!, extent[r]!);
+  const covering = new Map<number, number>();
+  const runningPast = new Map<number, number>();
+  const starts = new Set<number>();
+  const add = (map: Map<number, number>, at: number, delta: number) => {
+    map.set(at, (map.get(at) ?? 0) + delta);
+  };
+  for (const cell of cells) {
+    const right = cell.left + cell.colspan;
+    add(covering, cell.left, 1);
+    add(covering, right, -1);
+    starts.add(cell.left);
+    if (cell.row === 0 && cell.rowsIn >= height) continue;
+    const others = Math.max(above[cell.row]!, below[cell.row + cell.rowsIn]!);
+    const from = Math.max(others, cell.left + 1);
+    if (from < right) {
+      add(runningPast, from, 1);
+      add(runningPast, right, -1);
+    }
+  }
+  const points = [...new Set([...covering.keys(), ...runningPast.keys()])].sort((a, b) => a - b);
+  const phantomBefore = new Map<number, number>();
+  let cover = 0;
+  let past = 0;
+  let phantoms = 0;
+  points.forEach((point, at) => {
+    phantomBefore.set(point, phantoms);
+    cover += covering.get(point) ?? 0;
+    past += runningPast.get(point) ?? 0;
+    const end = points[at + 1] ?? point;
+    // No cell starts inside a stretch between two points; one may start at its first column.
+    if (cover > 0 && cover === past && end > point) {
+      phantoms += end - point - (starts.has(point) ? 1 : 0);
+    }
+  });
+  if (phantoms === 0) return null;
+  const loss = new Map<number, number>();
+  cells.forEach((cell, index) => {
+    const lost = phantomBefore.get(cell.left + cell.colspan)! - phantomBefore.get(cell.left)!;
+    if (lost > 0) loss.set(index, lost);
+  });
+  return loss;
+}
+
+/**
+ * A pasted table made ready for the document (FR-059 "Regular result", FR-046; the spec's edge
+ * cases on pasted foreign tables and on pasted copies; C42; data-model §8.6):
+ * 1. unless `keepRows`, every row in which no cell starts is removed and every span that crossed
+ *    it shrinks by one row (`normalisePastedBlock`) - FB2 needs a cell in every row;
+ * 2. only with `foreign`, the phantom columns are removed: each cell covering them loses that
+ *    many columns of colspan (`withSpans`), so a banner `colspan="99"` over rows of four cells
+ *    keeps four columns; regular tables are never collapsed;
+ * 3. only with `foreign`, *Repair table*'s plan (`planRepair`, T128) on the result - C16's
+ *    overlap loop, rowspans past the end cut, short rows padded at their end with cells taking
+ *    fresh node ids from `ctx.nextId` -; a `too-large` refusal is returned to the caller (a
+ *    hostile paste, U29) and the result is asserted regular in development builds.
+ * The editor's own tables and blocks (`foreign: false`) keep their grid - holes, overlaps and
+ * spans past the end - and so their mark, until *Repair table* (analyze decision 4). A table
+ * with nothing to change comes back as the same node. Steps 1 and 2 go beyond *Repair table*,
+ * as the plan records (C42). Uses (data-model §8.6): a foreign table that becomes a new table
+ * takes steps 1 to 3, a foreign table for the paste-block plan `keepRows` with steps 2 and 3.
+ */
+export function regularisePastedTable(
+  table: PMNode,
+  { foreign, keepRows }: { foreign: boolean; keepRows: boolean },
+  ctx: PlanContext,
+): PMNode | Refusal {
+  let current = keepRows ? table : normalisePastedBlock(table, { keepRows: false }, ctx);
+  if (!foreign) return current;
+  let grid = gridOfNode(current);
+  if (grid.regular) return current;
+  const loss = phantomLoss(grid);
+  if (loss) {
+    const builder = new TableBuilder(current, grid);
+    for (const [index, lost] of loss) {
+      const node = gridCellNode(current, grid, index);
+      builder.setCell(
+        index,
+        withAttrs(node, withSpans(node.attrs, grid.cells[index]!.colspan - lost)),
+      );
+    }
+    current = current.type.create(current.attrs, Fragment.from(builder.build()), current.marks);
+    grid = gridOfNode(current);
+    if (grid.regular) return current;
+  }
+  const edit = planRepair({ table: current, grid }, ctx);
+  if (isRefusal(edit)) return edit.refused === 'regular' ? current : edit;
+  const repaired = applyTableEdit(current, edit);
+  if (import.meta.env.DEV && !gridOfNode(repaired).regular) {
+    throw new Error('regularisePastedTable: the pasted foreign table is not regular');
+  }
+  return repaired;
+}

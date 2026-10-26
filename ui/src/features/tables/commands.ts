@@ -7,7 +7,7 @@
  * stories append them. US1 adds `insert.table`, *Add → Table* (`createInsertTableCommand`;
  * data-model §4.5), with its Source view branch (`sourceTable.ts`); US2 the twelve row and
  * column commands; US5 *Merge cells*, which asks the FR-015 question first (`confirm.ts`), and
- * *Split cell*; US6 the five header commands; US8 *Repair table*.
+ * *Split cell*; US6 the five header commands; US8 *Repair table*; US9 the whole-table commands.
  */
 
 import type { Command as PMCommand } from 'prosemirror-state';
@@ -16,8 +16,11 @@ import type { Command, CommandContext } from '@/app/commands';
 import { findTablePointAt, insertTableCommand } from '@/editor/commands/tableInsertion';
 import {
   availability,
+  deleteTableCommand,
   isAvailable,
+  paragraphCommand,
   planCommand,
+  selectTableCommand,
   type TableCommandName,
   type TablePlan,
 } from '@/editor/table/commands';
@@ -75,7 +78,10 @@ export interface TableCommandRow {
  * cells*, *Toggle header row* and *Toggle header column* (FR-017 to FR-019), which change only
  * the kind of cells; nothing is dispatched when there is nothing to convert (FR-045). US8:
  * *Repair table* (FR-034), on the caret's table and only while it is irregular; it never asks,
- * since it deletes nothing.
+ * since it deletes nothing. US9: *Select table*, which changes nothing and records no undo step,
+ * *Delete table* (FR-032; the *Delete table* transform, no question over link targets, C13) and
+ * *Paragraph before table* / *Paragraph after table* (FR-033); with a table selected as a whole
+ * the other commands say why they are unavailable (`tableSelected`, data-model §9.6).
  */
 export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
   {
@@ -143,6 +149,14 @@ export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
     command: (ctx) => planCommand(planRepair, ctx),
   },
   {
+    id: 'table.select',
+    command: () => selectTableCommand,
+  },
+  {
+    id: 'table.delete',
+    command: (ctx) => deleteTableCommand(ctx),
+  },
+  {
     id: 'table.moveRowUp',
     command: (ctx) =>
       planCommand((address, c) => planMoveRows(address, { direction: 'up' }, c), ctx),
@@ -169,6 +183,14 @@ export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
   {
     id: 'table.duplicateColumn',
     command: (ctx) => planCommand((address, c) => planDuplicateColumns(address, c), ctx),
+  },
+  {
+    id: 'table.paragraphBefore',
+    command: (ctx) => paragraphCommand('before', ctx),
+  },
+  {
+    id: 'table.paragraphAfter',
+    command: (ctx) => paragraphCommand('after', ctx),
   },
 ];
 

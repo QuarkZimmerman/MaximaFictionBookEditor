@@ -10,11 +10,13 @@
  *
  * Feature 006 (US3, FR-025; data-model §9.7): the paste goes to the active editing target whose
  * DOM holds the event (`imageTargetFor`), so an image pasted into a table cell becomes an inline
- * image in that cell.
+ * image in that cell. US9 (R5.9; data-model §8.9): an HTML table with text on the clipboard wins
+ * over a picture beside it - the paste is left to the clipboard plugin's router.
  */
 
 import i18next from 'i18next';
 
+import { htmlHasTextTable } from '@/editor/clipboard/foreignHtml';
 import { MFBE_CLIPBOARD_MIME } from '@/editor/plugins/clipboard';
 import { activeTableTarget } from '@/features/tables/target';
 import { actions, type AppStore } from '@/model/store';
@@ -113,6 +115,11 @@ export function handleImagePaste(store: AppStore, event: ClipboardEvent): boolea
   if (!data) return false;
   // The editor's own structured flavour (copy inside MFBE) always wins.
   if (data.getData(MFBE_CLIPBOARD_MIME)) return false;
+  // An HTML table with text wins over the picture of it a spreadsheet may add (feature 006,
+  // R5.9; data-model §8.9): the clipboard plugin's router converts the table, nothing is
+  // uploaded. A lone picture inside a table without text still pastes as a picture.
+  const html = data.getData('text/html');
+  if (html && htmlHasTextTable(html)) return false;
   const file = imageFileFromDataTransfer(data);
   if (!file) return false;
   event.preventDefault();

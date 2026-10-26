@@ -25,13 +25,24 @@ import { fileURLToPath } from 'node:url';
 import type { Node as PMNode } from 'prosemirror-model';
 import { redo, undo } from 'prosemirror-history';
 import { Fragment, Slice } from 'prosemirror-model';
-import { TextSelection, type EditorState, type Transaction } from 'prosemirror-state';
+import {
+  TextSelection,
+  type EditorState,
+  type Selection,
+  type Transaction,
+} from 'prosemirror-state';
 
 import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2Schema, findNodeById } from '@/editor/schema';
 import { planCellAttrs, planRowAlign, planSpan, planTableAttrs } from '@/editor/table/attrs';
-import { planCommand, type TablePlan } from '@/editor/table/commands';
+import {
+  deleteTableCommand,
+  paragraphCommand,
+  planCommand,
+  selectTableCommand,
+  type TablePlan,
+} from '@/editor/table/commands';
 import { pasteTransaction } from '@/editor/clipboard/route';
 import { gridOfNode } from '@/editor/table/grid';
 import {
@@ -147,6 +158,12 @@ const GUARDED_COMMANDS: {
   },
 ];
 
+/** The clipboard fixtures of T018 (the guard's foreign paste, US9). */
+const CLIPBOARD = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../../../tests/fixtures/clipboard',
+);
+
 const VECTORS = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../../../../../tests/fixtures/tables',
@@ -205,6 +222,22 @@ const vectors = JSON.parse(readFileSync(path.join(VECTORS, 'grid-vectors.json'),
 const irregular = vectors.cases.filter((one) => !one.expect.regular);
 
 /** Applies `tr`, expecting every appended transaction to change the selection only. */
+/** The position just before `node` in the state's document. */
+function positionOf(state: EditorState, node: PMNode): number {
+  let found = -1;
+  state.doc.descendants((child, pos) => {
+    if (child === node) found = pos;
+    return found < 0;
+  });
+  if (found < 0) throw new Error('the node is not in the document');
+  return found;
+}
+
+/** `state` with `selection` set. */
+function withSelection(state: EditorState, selection: Selection): EditorState {
+  return apply(state, state.tr.setSelection(selection));
+}
+
 function apply(state: EditorState, tr: Transaction): EditorState {
   const { state: next, transactions } = state.applyTransaction(tr);
   for (const appended of transactions.slice(1)) expect(appended.steps).toHaveLength(0);
@@ -315,6 +348,45 @@ describe('no automatic repair (R1.7, FR-035)', () => {
         { bookIds: () => new Set(), nextNodeId: () => `q${(counter += 1)}`, message: () => {} },
       )!;
       expect(tableOf(apply(caretIn, pasteTr))).toBe(original);
+      // US9 (T152): the whole-table commands on the regular table, a foreign paste of
+      // irregular-web.html after a paragraph, and Paragraph after table on the irregular table
+      // itself: the irregular table stays the same node; no appended transaction carries a step.
+      let wholeIds = 0;
+      const wholeCtx = { nextId: () => `w${(wholeIds += 1)}` };
+      for (const command of [
+        selectTableCommand,
+        paragraphCommand('before', wholeCtx),
+        paragraphCommand('after', wholeCtx),
+        deleteTableCommand(wholeCtx),
+      ]) {
+        let next: EditorState | null = null;
+        expect(command(caretIn, (tr) => (next = apply(caretIn, tr)))).toBe(true);
+        expect(tableOf(next!)).toBe(original);
+      }
+      const foreign = withSelection(
+        caretIn,
+        TextSelection.create(caretIn.doc, posOf(caretIn, 'p1') + 1 + 'before'.length),
+      );
+      const foreignTr = pasteTransaction(
+        foreign,
+        { kind: 'foreign', html: readFileSync(path.join(CLIPBOARD, 'irregular-web.html'), 'utf8') },
+        { bookIds: () => new Set(), nextNodeId: () => `f${(counter += 1)}`, message: () => {} },
+      )!;
+      const { state: pastedState, transactions } = foreign.applyTransaction(foreignTr);
+      expect(tableOf(pastedState)).toBe(original);
+      for (const appended of transactions.slice(1)) expect(appended.steps).toHaveLength(0);
+      const onIrregular = withSelection(
+        caretIn,
+        TextSelection.near(caretIn.doc.resolve(positionOf(caretIn, original) + 3)),
+      );
+      const paragraphTr = (() => {
+        let captured: Transaction | null = null;
+        paragraphCommand('after', wholeCtx)(onIrregular, (tr) => (captured = tr));
+        return captured!;
+      })();
+      const applied = onIrregular.applyTransaction(paragraphTr);
+      expect(tableOf(applied.state)).toBe(original);
+      for (const appended of applied.transactions.slice(1)) expect(appended.steps).toHaveLength(0);
       for (const { name, plan, block, merged, headers } of GUARDED_COMMANDS) {
         let start = state;
         if (merged || headers) {
