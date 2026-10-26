@@ -27,6 +27,17 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   not well-formed XML (with the line of the first problem) the command is unavailable and says
   why.
 
+- Tables gain *Insert row above* and *below*, *Insert column to the left* and *to the right*,
+  *Delete row*, *Delete column*, *Move row up* and *down*, *Move column left* and *right*,
+  *Duplicate row* and *Duplicate column*, in *Add > Table structure*, in the table's context menu
+  (*Table structure*), as buttons offered in *Customize toolbar* and as commands a hotkey can be
+  assigned to. They act on the caret's cell or on every row or column of a selected block, keep
+  merged cells whole (a cell across an inserted line grows, one across a deleted line shrinks, a
+  merged cell whose top row is deleted moves down with its content, and a row left without
+  cells is removed), give new cells the kind, alignment and language of their neighbours, leave
+  the irregular parts of a table as they are, and are one undo step each; an unavailable command
+  says why, for example "Delete row: the table has only one row; use Delete table".
+
 ### Changed
 
 - With the caret at the start of a paragraph *Add > Table* puts the table before the
