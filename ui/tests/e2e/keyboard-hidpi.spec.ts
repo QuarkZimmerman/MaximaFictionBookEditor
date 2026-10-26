@@ -296,6 +296,20 @@ async function expectClosed(dialog: Locator): Promise<void> {
   await expect(dialog).toHaveCount(0);
 }
 
+/**
+ * Settings > Other asks the core for the system's keyboard layouts when it opens
+ * (`system.keyboardLayouts`, answered asynchronously): until the answer arrives "Switch keyboard
+ * layout" and its list are disabled - out of the Tab order a cycle marks -, then they are enabled,
+ * or the note says that the system offers no switch.
+ */
+async function layoutsRead(page: Page): Promise<void> {
+  await expect(
+    page.locator(
+      '[data-testid="settings-other-layout"]:enabled, [data-testid="settings-other-layout-note"]',
+    ),
+  ).not.toHaveCount(0);
+}
+
 /* ------------------------------------------------------------------------ */
 /* Layout at 1x / 2x / 3x (core-less capable)                              */
 /* ------------------------------------------------------------------------ */
@@ -585,6 +599,7 @@ test.describe('dialogs from the keyboard', () => {
       const tab = page.getByTestId(`settings-tab-${id}`);
       await expect(tab).toHaveAttribute('aria-selected', 'true');
       await expect(tab).toBeFocused();
+      if (id === 'other') await layoutsRead(page);
       assertCycle(await tabCycle(page, 'dialog-settings'), `Settings/${id}`);
       // Back on the tab button, ArrowRight selects the next page.
       await tab.focus();

@@ -275,6 +275,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 - The right-click menu of the Commands toolbar (*Customize toolbar...*) no longer closes as
   soon as it opens after a request to the AI assistant: opening it moved the panes below it
   by a pixel, which scrolled the assistant's activity list, and a scroll closes a popup menu.
+- A menu of the menu bar taller than the room below the bar - the *Scripts* menu with many
+  script groups - ends inside the window: its padding and border reached a few pixels below
+  the window's bottom, so opening the menu scrolled the whole window up by those pixels.
 
 ## 0.0.5 - 2026-10-23
 

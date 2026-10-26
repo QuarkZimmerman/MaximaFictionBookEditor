@@ -1049,10 +1049,15 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
       'aria-disabled',
       'true',
     );
+    // Escape closes the group, then the menu - not a click on the paragraph, which the open menu
+    // may cover (it does on macOS, where the Scripts entry stands further left).
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('menu-scripts-18_editing-popup')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('menu-scripts-popup')).toHaveCount(0);
 
     // Shift+End and at once F10, which gives the menu bar the focus.
     await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
-    await expect(page.getByTestId('menu-scripts-popup')).toHaveCount(0);
     await page.keyboard.press(LINE_START);
     await settle(page);
     await expect.poll(() => selectedText(page)).toBe('');

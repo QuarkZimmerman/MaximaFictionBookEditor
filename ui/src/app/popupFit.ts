@@ -3,8 +3,10 @@
  * submenus past the right edge, tall menus past the bottom). Called through a ref on every
  * render of an open popup: the inline overrides are cleared first, so the measurement is of the
  * natural position; a submenu that does not fit to the right opens to the left of its item, a
- * popup that does not fit below moves up and, when the window is too small, scrolls. Shared by
- * the menu bar and the popup menus' submenus (feature 006, `PopupMenu.tsx`).
+ * popup that does not fit below moves up and, when the window is too small, scrolls - its
+ * padding and border inside the window too: a popup that ended below the window's bottom made
+ * the page scrollable, and focusing it scrolled the whole window. Shared by the menu bar and the
+ * popup menus' submenus (feature 006, `PopupMenu.tsx`).
  */
 export function fitPopupInViewport(popup: HTMLElement | null): void {
   if (!popup) return;
@@ -40,8 +42,21 @@ export function fitPopupInViewport(popup: HTMLElement | null): void {
       rect = popup.getBoundingClientRect();
     }
     if (rect.bottom > viewportHeight - margin) {
-      popup.style.maxHeight = `${Math.floor(viewportHeight - rect.top - margin)}px`;
+      const height = viewportHeight - rect.top - margin - verticalChrome(popup);
+      popup.style.maxHeight = `${Math.max(0, Math.floor(height))}px`;
       popup.style.overflowY = 'auto';
     }
   }
+}
+
+/**
+ * The padding and border above and below the content box of `element`, which `max-height`
+ * does not include (nothing for `box-sizing: border-box`).
+ */
+function verticalChrome(element: HTMLElement): number {
+  const style = window.getComputedStyle(element);
+  if (style.boxSizing === 'border-box') return 0;
+  return ['padding-top', 'padding-bottom', 'border-top-width', 'border-bottom-width']
+    .map((property) => parseFloat(style.getPropertyValue(property)) || 0)
+    .reduce((sum, value) => sum + value, 0);
 }

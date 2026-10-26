@@ -28,7 +28,14 @@ import path from 'node:path';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import {
+  expect,
+  fixtureBook,
+  shownDocId,
+  test,
+  waitForBook,
+  type CoreHandle,
+} from './fixtures/core';
 import { pageAnyPattern, pageLang, uiText } from './fixtures/i18n';
 
 /* ------------------------------------------------------------------------ */
@@ -216,10 +223,22 @@ async function hooksReady(page: Page): Promise<void> {
     .toBe(true);
 }
 
-/** `file` through File → Open and the queued native dialog. */
+/**
+ * `file` through File → Open and the queued native dialog, once the Body view shows it: the open
+ * closes the document shown before and loads the file as a new one. sc.5 reopens the copy it has
+ * just saved, whose name the title already shows in an editable Body view - only the new
+ * document id tells that the copy read back is the one shown.
+ */
 async function openFile(core: CoreHandle, page: Page, file: string): Promise<void> {
+  const before = await shownDocId(page);
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await menu(page, 'file', 'open');
+  await expect
+    .poll(async () => {
+      const shown = await shownDocId(page);
+      return shown !== null && shown !== before;
+    })
+    .toBe(true);
   await waitForBook(page, file);
   await hooksReady(page);
 }

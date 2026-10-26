@@ -77,7 +77,7 @@ export async function waitForBook(page: Page, file: string, timeout?: number): P
 }
 
 /** Id of the document the Body view shows (null without one). */
-function shownDocId(page: Page): Promise<string | null> {
+export function shownDocId(page: Page): Promise<string | null> {
   return page.evaluate<string | null>(
     `document.querySelector('[data-testid="body-view"]')?.getAttribute('data-doc-id') ?? null`,
   );

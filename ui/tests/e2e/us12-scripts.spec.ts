@@ -202,11 +202,26 @@ async function waitIdle(page: Page): Promise<RunResult['status']> {
   return page.evaluate(() => window.__mfbeTest!.scripts!.state()?.status ?? 'none');
 }
 
+/**
+ * Closes the open Scripts menu from the keyboard: Escape closes an open group first, the next
+ * one the menu. A group can open without being asked to: a menu taller than the room below the
+ * menu bar moves up over its own entry, so the pointer that opened it rests on a group, which
+ * opens on hover - the worker's earlier journeys add script groups of their own (FR-141's user
+ * layer of the worker's core), and with them the menu grows past the window.
+ */
+async function closeScriptsMenu(page: Page): Promise<void> {
+  const popup = page.getByTestId('menu-scripts-popup');
+  for (let presses = 0; presses < 2 && (await popup.count()) > 0; presses += 1) {
+    await page.keyboard.press('Escape');
+  }
+  await expect(popup).toHaveCount(0);
+}
+
 /** True when App.tsx mounts the Scripts menu items (`useScriptsMenu()`). */
 async function scriptsMenuMounted(page: Page): Promise<boolean> {
   await page.getByTestId('menu-scripts').click();
   const mounted = (await page.getByTestId('menu-scripts-01_Case').count()) > 0;
-  await page.keyboard.press('Escape');
+  await closeScriptsMenu(page);
   return mounted;
 }
 
@@ -304,7 +319,11 @@ test.describe('US12 scripts', () => {
       await expect(page.getByTestId('menu-scripts-01_Case-test.case.upper')).toContainText(
         label('Ctrl+Alt+U'),
       );
+      // Escape closes the group, then the menu: the right-click below on the disabled "Last
+      // script" (a disabled button gets no mousedown) would leave it open.
       await page.keyboard.press('Escape');
+      await expect(page.getByTestId('menu-scripts-01_Case-popup')).toHaveCount(0);
+      await closeScriptsMenu(page);
       // The Scripts toolbar starts with "Last script" alone; its Customize dialog offers the
       // scripts with an icon and not those without one (feature 002).
       await expect(page.getByTestId('toolbar-scripts').getByRole('button')).toHaveCount(1);
