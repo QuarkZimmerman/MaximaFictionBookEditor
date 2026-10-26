@@ -6,6 +6,16 @@
  * `us2-ai-popup` journey against the stand-in.
  */
 
+/**
+ * The field target of the Description view (US10's `activeTableTarget`, T161), stood in for
+ * by a mock: a field whose state holds a block of cells (feature 006 T173).
+ */
+const fieldTarget = vi.hoisted(() => ({ current: null as unknown }));
+vi.mock('@/features/tables/target', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/tables/target')>();
+  return { ...actual, activeTableTarget: () => fieldTarget.current };
+});
+
 import {
   appendActivity,
   appendMessage,
@@ -13,13 +23,27 @@ import {
   nextRequestId,
   updateActivity,
 } from '@/ai/activity';
-import { historyTurns, rejectionMessage } from '@/ai/assistant';
+import {
+  historyTurns,
+  rejectionMessage,
+  startAssistant,
+  startRequest,
+  stopAssistant,
+} from '@/ai/assistant';
+import type { SelectionSnapshot } from '@/ai/context';
 import { fetchedModelInfo, resolveActiveTarget } from '@/ai/target';
-import { createAppStore, type AssistantMessage } from '@/model/store';
-import type { AiServiceEntry, AiServicesResult } from '@/rpc/types';
+import { findNodeById } from '@/editor/schema';
+import { CellBlockSelection } from '@/editor/table/selection';
+import type { Document } from '@/model/document';
+import { actions, createAppStore, type AssistantMessage } from '@/model/store';
+import type { AiOutcome, AiServiceEntry, AiServicesResult, ChatRequest } from '@/rpc/types';
+import { createRichFieldState } from '@/views/description/richFieldState';
 
-import { fakeRpc } from '../features/testUtils';
+import { fakeDialogs, fakeRpc, makeContext } from '../features/testUtils';
 import { defaultSettings } from '../settings/fixtures';
+
+import { tablesBook } from './catalogueHarness';
+import { validateDocument } from './sessionUtils';
 
 function entry(overrides: Partial<AiServiceEntry> = {}): AiServiceEntry {
   return {
@@ -317,5 +341,151 @@ describe('historyTurns (ai-catalogue §5.2 item 2, data-model §5.3)', () => {
       'Answer one\n[No change]',
     ]);
     expect(historyTurns([], 'r1')).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006 (US11, T173): a block of cells gives a general request        */
+/* ------------------------------------------------------------------------ */
+
+describe('feature 006: a cells selection gives a general request (FR-063; T173)', () => {
+  async function loop(outcomes: AiOutcome[], document: Document) {
+    const bodies: ChatRequest[] = [];
+    const queue = [...outcomes];
+    const rpc = fakeRpc({
+      'doc.validate': (params: unknown) =>
+        validateDocument((params as { document: Document }).document),
+      'ai.complete': (params: unknown) => {
+        bodies.push((params as { body: ChatRequest }).body);
+        const next = queue.shift();
+        if (!next) throw new Error('no scripted outcome left');
+        return next;
+      },
+      'log.error': {},
+      'job.cancel': {},
+      'schema.text': { text: '' },
+    });
+    const ctx = await makeContext({ rpc: rpc.client, dialogs: fakeDialogs() });
+    const settings = defaultSettings();
+    settings.ai.mode = 'custom';
+    settings.ai.custom = { address: 'http://127.0.0.1:8787/v1', key: '', model: 'm1' };
+    actions.setSettings(ctx.store, settings);
+    actions.setConnection(ctx.store, 'connected');
+    actions.setDocument(ctx.store, document);
+    startAssistant(ctx.store);
+    return { ctx, bodies };
+  }
+
+  const text = (content: string): AiOutcome => ({
+    ok: true,
+    status: 200,
+    elapsedMs: 2,
+    body: { choices: [{ finish_reason: 'stop', message: { role: 'assistant', content } }] },
+  });
+
+  /** The working context of a request body's system message. */
+  const contextOf = (body: ChatRequest) => {
+    const system = String((body.messages[0] as { content: unknown }).content);
+    const start = system.indexOf('{', system.indexOf('Working context (the open book right now):'));
+    return JSON.parse(system.slice(start, system.indexOf("\n\nThe book's text"))) as {
+      selection: Record<string, unknown>;
+      request: Record<string, unknown>;
+    };
+  };
+
+  afterEach(() => {
+    fieldTarget.current = null;
+  });
+
+  it('from the popup: a general request whose first user message is the instruction alone; a text reply is a message', async () => {
+    const book = tablesBook();
+    const snapshot = {
+      form: 'cells',
+      anchor: { nodeId: 'tBr2c1', offset: 0 },
+      head: { nodeId: 'tBr3c2', offset: 0 },
+      range: null,
+      openStart: false,
+      openEnd: false,
+      nodeIds: ['tBr2c1', 'tBr2c2', 'tBr3c1', 'tBr3c2'],
+      parent: null,
+      xml: '',
+      text: '',
+      characters: 4,
+      paragraphs: 4,
+      blocks: 4,
+      hasInlineElements: false,
+      from: null,
+      to: null,
+      pm: null,
+      cells: {
+        table: { id: 'tB', path: 'body[1]/section[1]/table[2]', type: 'table' },
+        row: 2,
+        column: 1,
+        rows: 2,
+        columns: 2,
+      },
+    } as unknown as SelectionSnapshot;
+    const { ctx, bodies } = await loop([text('Four cells of a table.')], book);
+    const outcome = await startRequest(ctx, {
+      origin: 'popup',
+      instruction: 'what is this?',
+      selection: snapshot,
+    });
+    expect(outcome.kind).toBe('answered');
+    expect(bodies).toHaveLength(1);
+    const user = bodies[0]!.messages.filter((m) => (m as { role: string }).role === 'user');
+    expect((user.at(-1) as { content: string }).content).toBe('what is this?');
+    const context = contextOf(bodies[0]!);
+    expect(context.request).toMatchObject({ kind: 'general', source: 'popup' });
+    expect(context.selection).toMatchObject({
+      kind: 'cells',
+      row: 2,
+      column: 1,
+      rows: 2,
+      columns: 2,
+    });
+    expect(ctx.store.getState().document).toBe(book);
+    stopAssistant(ctx.store);
+  });
+
+  it('from the panel with the Description view active: the block of the active field with its source; without one nothing of a field is reported', async () => {
+    const book = tablesBook();
+    const annotation = book.description.titleInfo.annotation!;
+    const state = (() => {
+      const base = createRichFieldState(annotation, () => 'ui_f');
+      const at = (id: string) => findNodeById(base.doc, id)!.pos;
+      return base.apply(
+        base.tr.setSelection(CellBlockSelection.create(base.doc, at('tAnnr1c1'), at('tAnnr1c2'))),
+      );
+    })();
+    fieldTarget.current = { kind: 'description', key: 'titleInfo.annotation', state };
+    const { ctx, bodies } = await loop([text('A block of the annotation.')], book);
+    actions.setActiveView(ctx.store, 'description');
+    const outcome = await startRequest(ctx, {
+      origin: 'panel',
+      instruction: 'merge these cells',
+      selection: null,
+    });
+    expect(outcome.kind).toBe('answered');
+    const context = contextOf(bodies[0]!);
+    expect(context.request).toMatchObject({ kind: 'general', source: 'panel' });
+    expect(context.selection).toMatchObject({
+      kind: 'cells',
+      table: { id: 'tAnn', path: 'title-info/annotation[1]/table[1]' },
+      row: 1,
+      column: 1,
+      rows: 1,
+      columns: 2,
+      source: { view: 'description', field: 'annotation' },
+    });
+    const user = bodies[0]!.messages.filter((m) => (m as { role: string }).role === 'user');
+    expect((user.at(-1) as { content: string }).content).toBe('merge these cells');
+    fieldTarget.current = null;
+    const second = await loop([text('Nothing selected.')], tablesBook());
+    actions.setActiveView(second.ctx.store, 'description');
+    await startRequest(second.ctx, { origin: 'panel', instruction: 'hello', selection: null });
+    expect(contextOf(second.bodies[0]!).selection).toMatchObject({ kind: 'none' });
+    stopAssistant(ctx.store);
+    stopAssistant(second.ctx.store);
   });
 });

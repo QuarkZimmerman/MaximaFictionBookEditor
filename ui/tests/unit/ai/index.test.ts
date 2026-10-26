@@ -121,7 +121,7 @@ function setup(
     'app.info':
       options.apiMinor instanceof Error
         ? options.apiMinor
-        : { version: '0.0.5', apiVersion: 1, apiMinor: options.apiMinor ?? 4, testHooks: false },
+        : { version: '0.0.5', apiVersion: 1, apiMinor: options.apiMinor ?? 5, testHooks: false },
   });
   const load = vi.fn(async (): Promise<AiChunkModule> => {
     const real = await import('@/ai/chunk');
@@ -342,8 +342,8 @@ describe('AI assistant registration', () => {
     expect(store.getState().ai.on).toBe(false);
   });
 
-  it('registers nothing with a core before API minor 4 and says so', async () => {
-    const { store, commands, feature } = setup({ apiMinor: 3 });
+  it('registers nothing with a core before API minor 5 and says so', async () => {
+    const { store, commands, feature } = setup({ apiMinor: 4 });
     actions.setSettings(store, settingsWithMode('free'));
     await settle();
     expect(feature.status).toBe('coreTooOld');
@@ -359,6 +359,11 @@ describe('AI assistant registration', () => {
     await settle();
     expect(older.feature.status).toBe('coreTooOld');
     expect(older.feature.coreTooOld).toBe(true);
+    // A core of minor 5 (feature 006: tableWarning, irregularTables, the cell language) registers.
+    const current = setup({ apiMinor: 5 });
+    actions.setSettings(current.store, settingsWithMode('free'));
+    await settle();
+    expect(current.feature.status).toBe('registered');
   });
 
   it('asks app.info again with the next snapshot when the first call failed', async () => {
@@ -367,7 +372,7 @@ describe('AI assistant registration', () => {
     await settle();
     expect(feature.status).toBe('waiting');
     expect(feature.coreTooOld).toBe(false);
-    rpc.responses['app.info'] = { apiMinor: 4 };
+    rpc.responses['app.info'] = { apiMinor: 5 };
     actions.setSettings(store, settingsWithMode('free'));
     await settle();
     expect(feature.status).toBe('registered');
@@ -546,7 +551,7 @@ describe('AI assistant registration', () => {
     const store = createAppStore();
     actions.setSettings(store, settingsWithMode('free'));
     const commands = createCommandRegistry();
-    const rpc = fakeRpc({ 'app.info': { apiMinor: 4 } });
+    const rpc = fakeRpc({ 'app.info': { apiMinor: 5 } });
     const feature = registerAiFeature({
       commands,
       rpc: rpc.client,

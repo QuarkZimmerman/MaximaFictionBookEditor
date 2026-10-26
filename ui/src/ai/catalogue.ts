@@ -43,6 +43,7 @@ import scriptingGuide from '../../../docs/scripting/en.md?raw';
 import scriptApiText from '../../../docs/scripting/mfbe.d.ts?raw';
 
 import { createReport, nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
+import { gridOfModel } from '@/editor/table/grid';
 import { fb2NameFor, fb2Schema, nodeTypeFor } from '@/editor/schema';
 import { nodeToModel } from '@/editor/toModel';
 import type {
@@ -50,6 +51,7 @@ import type {
   Document,
   InlineNode,
   RawXmlNode,
+  TableNode,
   ValidationReport,
 } from '@/model/document';
 import { RpcError } from '@/rpc/client';
@@ -82,6 +84,7 @@ import {
   type Cursor,
   type TreePartOutcome,
 } from './split';
+import { irregularTablesOf } from './tables';
 import { DESCRIPTION_SHAPE, mergeDescription } from './tools/description';
 import {
   blockOf,
@@ -117,6 +120,7 @@ import {
   type ScriptProposal,
 } from './proposal';
 import { expansionFor, rewriteBlock } from './tools/replaceAll';
+import { registerTableChangeTools, registerTableReadTools } from './tools/table';
 import { inDescription, replaceEach, writeAt } from './tools/write';
 
 export type { Block, NodeInfo, OutlineEntry } from './tools/model';
@@ -126,7 +130,7 @@ export type { Block, NodeInfo, OutlineEntry } from './tools/model';
 /* ------------------------------------------------------------------------ */
 
 /** Catalogue version reported by `get_context` (ai-catalogue §1). */
-export const CATALOGUE_VERSION = 1;
+export const CATALOGUE_VERSION = 2; // feature 006 (US11): read_table, edit_table, `cells`
 
 /** The name rule every tool, resource and prompt obeys (OpenAI's, the stricter one). */
 export const TOOL_NAME_RULE = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -162,20 +166,29 @@ export const US4_TOOL_NAMES = ['validate', 'get_schema'] as const;
 /** The script read tools of US6 (T075), in the §3.1 order - after `get_schema`. */
 export const US6_READ_TOOL_NAMES = ['list_scripts', 'read_script', 'read_resource'] as const;
 
+/** The table read tool of feature 006 (US11; ai-catalogue Δ§1.2) - after `read_resource`. */
+export const TABLE_READ_TOOL_NAMES = ['read_table'] as const;
+
+/** The table change tool of feature 006 (US11; ai-catalogue Δ§1.2) - after `set_description`. */
+export const TABLE_CHANGE_TOOL_NAMES = ['edit_table'] as const;
+
 /** The script tools of US6 (T076, T077), in the §3.4 order - after the structural change tools. */
 export const US6_SCRIPT_TOOL_NAMES = ['run_script', 'propose_script', 'reload_scripts'] as const;
 
 /**
  * Every tool, in the `tools/list` order of §3: the read tools of §3.1 (US2's six, then US4's
- * two, then US6's three), the selection tools of §3.2, the structural change tools of §3.3 and
- * the script tools of §3.4 - 22 tools.
+ * two, then US6's three, then feature 006's `read_table`), the selection tools of §3.2, the
+ * structural change tools of §3.3 with feature 006's `edit_table`, and the script tools of §3.4 -
+ * 24 tools (ai-catalogue Δ§1.2).
  */
 export const TOOL_NAMES = [
   ...US2_TOOL_NAMES.slice(0, 6),
   ...US4_TOOL_NAMES,
   ...US6_READ_TOOL_NAMES,
+  ...TABLE_READ_TOOL_NAMES,
   ...US2_TOOL_NAMES.slice(6),
   ...US3_TOOL_NAMES,
+  ...TABLE_CHANGE_TOOL_NAMES,
   ...US6_SCRIPT_TOOL_NAMES,
 ] as const;
 
@@ -223,7 +236,12 @@ const SCHEMA_LICENCE_LINE =
   'Licence: BSD 2-clause, Copyright (c) 2004, Dmitry Gribov - the full notice is the notice member of get_schema.';
 
 /** The change tools of §3.5 (every call runs under the hook with a strike key). */
-export const CHANGE_TOOL_NAMES = ['replace_selection', ...US3_TOOL_NAMES, 'run_script'] as const;
+export const CHANGE_TOOL_NAMES = [
+  'replace_selection',
+  ...US3_TOOL_NAMES,
+  'edit_table',
+  'run_script',
+] as const;
 
 const UNKNOWN_NODE_HINT =
   'Use the ids returned by get_outline, read_part or find; paths shift after insertions.';
@@ -253,6 +271,8 @@ export type ToolErrorCode =
   | 'tooLarge'
   | 'unavailable'
   | 'runNotConfirmed'
+  /** Feature 006 (FR-052): a gate - the user's command would ask before removing link targets. */
+  | 'confirmationRequired'
   | 'scriptIdBundled'
   | 'scriptExists'
   | 'scriptFailed'
@@ -331,7 +351,26 @@ export type ModelSelection =
       openStart: boolean;
       openEnd: boolean;
     }
-  | { kind: 'source'; from: number; to: number; text: string };
+  | { kind: 'source'; from: number; to: number; text: string }
+  /**
+   * A block of cells (feature 006, FR-063; Δ§3.2): its table's node id and its rectangle from 1;
+   * `source` for a block of a description field.
+   */
+  | {
+      kind: 'cells';
+      anchor: ModelPoint;
+      head: ModelPoint;
+      table: string;
+      row: number;
+      column: number;
+      rows: number;
+      columns: number;
+      source?: { view: 'description'; field: 'annotation' | 'sti-annotation' | 'history' };
+    };
+
+/** The hint of `get_selection` on a block of cells (ai-catalogue Δ§3.1), verbatim. */
+export const CELLS_SELECTION_HINT =
+  'read_table with fromRow = row and toRow = row + rows - 1 shows these cells; edit_table takes the same row, column, rows and columns.';
 
 /** Holds the request's selection; `set_selection` and `replace_selection` write it. */
 export interface SelectionHolder {
@@ -451,6 +490,11 @@ export interface CatalogueDeps {
    * alone) the tool answers `unavailable`.
    */
   validate?: () => Promise<ValidationReport>;
+  /**
+   * How `validate` names its tables (feature 006, Δ§3.1): `text` while it validates the Source
+   * text (paths and lines), `document` otherwise (the default).
+   */
+  validateForm?: () => 'document' | 'text';
   /** The request's baseline (data-model §7.2): the error keys before the request with their counts. */
   baseline?: () => IssueMultiset;
   /**
@@ -608,8 +652,10 @@ export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
   registerReadTools(server, context);
   registerSchemaTools(server, context);
   registerScriptReadTools(server, context);
+  registerTableReadTools(server, context);
   registerSelectionTools(server, context);
   registerChangeTools(server, context);
+  registerTableChangeTools(server, context);
   registerScriptTools(server, context);
   registerSchemaResources(server, context);
   registerScriptResources(server, context);
@@ -746,7 +792,7 @@ function failure(error: ToolError): ToolCallOutcome {
 /* Registration helpers                                                     */
 /* ------------------------------------------------------------------------ */
 
-type AnyObject = Record<string, unknown>;
+export type AnyObject = Record<string, unknown>;
 
 /** An MCP result for a structured value; an envelope sets `isError`. */
 function toolResult(value: AnyObject): CallToolResult {
@@ -767,7 +813,7 @@ interface ToolSpec<I extends z.ZodObject> {
 }
 
 /** Registers one tool: the handler returns the result object or throws a `ToolError`. */
-function defineTool<I extends z.ZodObject>(
+export function defineTool<I extends z.ZodObject>(
   server: McpServer,
   name: string,
   spec: ToolSpec<I>,
@@ -859,14 +905,14 @@ const nodeReference = (what: string) =>
     .describe(
       `${what}: a nodeId (such as n42) or a structural path (such as body[1]/section[2]/p[3])`,
     );
-const cursorArg = z.string().optional().describe('more.cursor of the previous part');
-const formatArg = z
+export const cursorArg = z.string().optional().describe('more.cursor of the previous part');
+export const formatArg = z
   .enum(['text', 'fb2xml'])
   .default('text')
   .describe('"text" (default) or "fb2xml"');
 const flag = (what: string) => z.union([z.stringbool(), z.boolean()]).optional().describe(what);
 
-const nodeInfoSchema = z.looseObject({
+export const nodeInfoSchema = z.looseObject({
   id: z.string(),
   path: z.string(),
   type: z.string(),
@@ -919,7 +965,7 @@ interface SchemaLine {
   text: string;
 }
 
-class ToolContext {
+export class ToolContext {
   /** The binding of the moment (`Catalogue.rebind` swaps it between requests). */
   deps: CatalogueDeps;
   /** `schema.text()` once per instance (ai-catalogue §4: read lazily, cached while the assistant is on). */
@@ -1007,6 +1053,12 @@ class ToolContext {
       preExistingErrors: preExisting,
       warnings: report.warningCount,
       durationMs: report.durationMs,
+      // Feature 006 (FR-062; Δ§3.1): every table.irregular warning, in the report's form.
+      irregularTables: irregularTablesOf(
+        report,
+        this.deps.validateForm?.() ?? 'document',
+        this.index,
+      ),
     };
   }
 
@@ -1402,6 +1454,7 @@ class ToolContext {
         head: { offset: selection.to },
       };
     }
+    if (selection.kind === 'cells') return this.cellsSummary(selection);
     const anchorEntry = this.pointEntry(selection.anchor, 'anchor');
     const headEntry = this.pointEntry(selection.head, 'head');
     const anchor = { node: nodeInfo(anchorEntry), offset: selection.anchor.offset };
@@ -1482,6 +1535,50 @@ class ToolContext {
       );
     }
     return out;
+  }
+
+  /**
+   * `get_selection` on a block of cells (feature 006, Δ§3.1): the table, the rectangle, the
+   * sizes over its cells, anchor and head at offset 0 and the hint - no text or XML (`format` and
+   * `cursor` are ignored); a block of a description field with its `source`.
+   */
+  cellsSummary(selection: Extract<ModelSelection, { kind: 'cells' }>): AnyObject {
+    const tableEntry = this.entryOf(selection.table);
+    if (!tableEntry) {
+      throw new ToolError('unknownNode', `No node ${selection.table} in the document (table).`, {
+        hint: UNKNOWN_NODE_HINT,
+      });
+    }
+    const grid = gridOfModel(tableEntry.node as unknown as TableNode);
+    const top = selection.row - 1;
+    const left = selection.column - 1;
+    const cells = grid.tooLarge
+      ? []
+      : grid.cellsIn({ top, left, bottom: top + selection.rows, right: left + selection.columns });
+    let characters = 0;
+    let inline = false;
+    for (const index of cells) {
+      const cell = grid.cells[index]!;
+      const node = tableEntry.node.content?.[grid.rowChild[cell.row]!]?.content?.[cell.index];
+      if (!node) continue;
+      characters += characterCount(node);
+      if (hasInlineElements((node.content ?? []) as InlineNode[])) inline = true;
+    }
+    return {
+      kind: 'cells',
+      table: nodeInfo(tableEntry),
+      row: selection.row,
+      column: selection.column,
+      rows: selection.rows,
+      columns: selection.columns,
+      ...(selection.source ? { source: selection.source } : {}),
+      characters,
+      paragraphs: cells.length,
+      hasInlineElements: inline,
+      anchor: { node: nodeInfo(this.pointEntry(selection.anchor, 'anchor')), offset: 0 },
+      head: { node: nodeInfo(this.pointEntry(selection.head, 'head')), offset: 0 },
+      hint: CELLS_SELECTION_HINT,
+    };
   }
 
   /** The inline content an `inline` selection covers. */
@@ -1937,10 +2034,10 @@ function registerReadTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Get the selection',
       description:
-        'Returns the current selection or caret: kind "none" (a caret), "inline" (inside one paragraph), "blocks" (whole blocks, or several blocks with a partly selected first or last block - openStart / openEnd) or "source" (XML text in the Source view), with its text (format "text") or FictionBook form (format "fb2xml"), its size, anchor and head, and the first and last block touched.',
+        'Returns the current selection or caret: kind "none" (a caret), "inline" (inside one paragraph), "blocks" (whole blocks, or several blocks with a partly selected first or last block - openStart / openEnd), "cells" (a block of table cells: its table, row, column, rows and columns, numbered as edit_table takes them; read the cells with read_table) or "source" (XML text in the Source view), with its text (format "text") or FictionBook form (format "fb2xml"), its size, anchor and head, and the first and last block touched.',
       inputSchema: z.object({ format: formatArg, cursor: cursorArg }),
       outputSchema: z.looseObject({
-        kind: z.enum(['none', 'inline', 'blocks', 'source']),
+        kind: z.enum(['none', 'inline', 'blocks', 'cells', 'source']),
         characters: z.number(),
         paragraphs: z.number(),
         hasInlineElements: z.boolean(),
@@ -2051,7 +2148,7 @@ function registerSchemaTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Validate the book now',
       description:
-        'Validates the book as it stands with the changes of this request against the FB2 2.1 schema. newErrors are the errors this request introduced (any of them makes ok false and must be corrected); preExistingErrors are the ones the book already had before the request (they do not block a change). Every change tool validates on its own; use this to check the whole state before answering.',
+        'Validates the book as it stands with the changes of this request against the FB2 2.1 schema. newErrors are the errors this request introduced (any of them makes ok false and must be corrected); preExistingErrors are the ones the book already had before the request (they do not block a change). irregularTables lists the tables whose rows differ in width, whose cells overlap or whose spans reach past the last row: valid FB2, but readers lay them out unpredictably; edit_table with op repair makes one regular. Every change tool validates on its own; use this to check the whole state before answering.',
       inputSchema: z.object({}),
       outputSchema: z.looseObject({
         ok: z.boolean(),
@@ -2059,6 +2156,7 @@ function registerSchemaTools(server: McpServer, ctx: ToolContext): void {
         preExistingErrors: z.array(issueSchema),
         warnings: z.number(),
         durationMs: z.number(),
+        irregularTables: z.array(z.looseObject({ problems: z.string() })),
       }),
       annotations: { readOnlyHint: true },
     },
@@ -2773,7 +2871,7 @@ function registerSelectionTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Replace the selection',
       description:
-        'Replaces the selected content: content {text} (plain text; inside a paragraph it takes the formatting at the selection start; over blocks every non-empty line becomes a paragraph) or content {xml} (FictionBook XML: inline content for a selection inside one paragraph, one or several block elements such as <p>, <subtitle>, <poem>, <empty-line/> for a block selection). A partly selected first or last block keeps its unselected text. Exactly one of text / xml. The change is checked against the FB2 schema; an "error" answer means nothing was applied. Afterwards the replacement is selected. Fails with noSelection for a caret.',
+        'Replaces the selected content: content {text} (plain text; inside a paragraph it takes the formatting at the selection start; over blocks every non-empty line becomes a paragraph) or content {xml} (FictionBook XML: inline content for a selection inside one paragraph, one or several block elements such as <p>, <subtitle>, <poem>, <empty-line/> for a block selection). A partly selected first or last block keeps its unselected text. Exactly one of text / xml. The change is checked against the FB2 schema; an "error" answer means nothing was applied. Afterwards the replacement is selected. Fails with noSelection for a caret, and with notAllowed for a block of table cells (use edit_table).',
       inputSchema: z.object({
         content: z.object({
           text: z.string().optional().describe('plain text'),
@@ -2799,6 +2897,17 @@ function registerSelectionTools(server: McpServer, ctx: ToolContext): void {
         throw new ToolError('noSelection', 'Nothing is selected: the selection is a caret.', {
           hint: 'Use set_selection first, or insert_node to add content at a node.',
         });
+      }
+      if (selection.kind === 'cells') {
+        // A block of cells (feature 006, Δ§3.2): never replaced as one piece - one strike.
+        const refusal = new ToolError(
+          'notAllowed',
+          'A block of table cells cannot be replaced as one piece.',
+          {
+            hint: "Use edit_table for the block's structure and attributes (the same row, column, rows and columns), or set_text / replace_node on each cell; read_table gives their ids.",
+          },
+        );
+        return ctx.change('replace_selection:selection', () => Promise.reject(refusal));
       }
       if (selection.kind === 'source') {
         if (xml === undefined) {

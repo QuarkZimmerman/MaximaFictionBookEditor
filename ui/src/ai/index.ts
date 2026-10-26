@@ -94,8 +94,13 @@ import type { AiPanelProps } from './AiPanel';
 import type { AssistantModule } from './assistant';
 import { installAiTestHooks } from './testHooks';
 
-/** The contract revision the assistant needs (rpc-api §6; `RPC_API_MINOR`). */
-export const AI_REQUIRED_API_MINOR = 4;
+/**
+ * The contract revision the assistant needs (rpc-api §6; `RPC_API_MINOR`): 5 since feature 006
+ * (US11; ai-catalogue Δ§2.1, C10) - `tableWarning`, `irregularTables` and the cell language come
+ * from the core of minor 5; with an older core the assistant registers nothing and the settings
+ * page says the core is too old, as in feature 005.
+ */
+export const AI_REQUIRED_API_MINOR = 5;
 
 /** The ids of the feature's commands; `ai.cancel` exists only while the feature is registered. */
 export const AI_COMMAND_IDS = ['ai.toggle', 'ai.ask', 'ai.cancel'] as const;

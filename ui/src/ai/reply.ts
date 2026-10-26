@@ -233,5 +233,6 @@ export function decideTextReply(
   }
   // e-g: block elements (or Source XML text) go to the hook; a reply without any `<` is prose.
   if (!stripped.includes('<')) return message('prose', raw.trim());
-  return { kind: 'replacement', form: snapshot.form, xml: stripped };
+  // A block of cells never reaches the fast path (feature 006, Δ§5.1).
+  return { kind: 'replacement', form: snapshot.form as 'xml' | 'blocks', xml: stripped };
 }

@@ -15,8 +15,9 @@ import { fileURLToPath } from 'node:url';
 import { createInstance, type TFunction } from 'i18next';
 
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
+import { englishTableProblems } from '@/ai/tables';
 import { applyTableEdit, isRefusal } from '@/editor/table/edit';
-import { gridOfModel, gridOfNode, type TableGrid } from '@/editor/table/grid';
+import { gridOfModel, gridOfNode, type TableGrid, type TableSummary } from '@/editor/table/grid';
 import { planRepair } from '@/editor/table/ops';
 import { tableProblemsText } from '@/editor/table/problems';
 import { nodeToModel } from '@/editor/toModel';
@@ -212,6 +213,28 @@ describe('the shared grid vectors', () => {
     expect(failures).toEqual([]);
   });
 
+  it('englishTableProblems equals tableProblemsText with the English catalogue on a sweep of summaries (US11)', () => {
+    for (let shortRows = 0; shortRows <= 3; shortRows += 1) {
+      for (let columns = 1; columns <= 4; columns += 1) {
+        for (let overlaps = 0; overlaps <= 2; overlaps += 1) {
+          for (let pastEnd = 0; pastEnd <= 2; pastEnd += 1) {
+            const summary: TableSummary = {
+              rows: 5,
+              columns,
+              shortRows,
+              ...(shortRows >= 1 ? { row: shortRows + 1, covered: columns - 1 } : {}),
+              overlaps,
+              pastEnd,
+            };
+            expect(englishTableProblems(summary), JSON.stringify(summary)).toBe(
+              tableProblemsText(summary, t),
+            );
+          }
+        }
+      }
+    }
+  });
+
   it('every case: owners, text.en and the repaired table', () => {
     // Every member a case has is checked here; one it gains must be checked or listed.
     const checked = new Set([
@@ -252,6 +275,16 @@ describe('the shared grid vectors', () => {
         }
       } else if (vector.expect.regular && text !== '') {
         failures.push(`${vector.name}: a regular table gave the text "${text}"`);
+      }
+      // The assistant's English text (`englishTableProblems`, US11, I3) from the case's params:
+      // the same words as the UI's, so the two cannot drift.
+      if (vector.expect.text && !vector.expect.regular) {
+        const english = englishTableProblems(vector.expect.params as unknown as TableSummary);
+        if (english !== vector.expect.text.en) {
+          failures.push(
+            `${vector.name} englishTableProblems: "${english}" instead of "${vector.expect.text.en}"`,
+          );
+        }
       }
       // *Repair table* (document-model §4.11): an irregular case gives its `repaired` table,
       // compared as a vectors table - cell types and attributes, node ids ignored.

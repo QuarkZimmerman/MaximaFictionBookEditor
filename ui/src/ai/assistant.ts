@@ -54,6 +54,7 @@ import type { CommandContext } from '@/app/commands';
 import { logUiError } from '@/app/diagnostics';
 import type { ModelNodeJson } from '@/editor/fromModel';
 import { seededScriptIds, type ScriptNodeIds } from '@/editor/schema';
+import { CellBlockSelection } from '@/editor/table/selection';
 import { nodeToModel } from '@/editor/toModel';
 import type { Document, ValidationReport } from '@/model/document';
 import {
@@ -77,6 +78,7 @@ import {
   hasBodyController,
   type BodyEditorController,
 } from '@/views/body/bodyEditor';
+import { activeTableTarget } from '@/features/tables/target';
 import { getSourceEditor } from '@/views/source/sourceEditor';
 
 import {
@@ -113,11 +115,13 @@ import {
   buildWorkingContext,
   caretBlock,
   caretContextMessage,
+  FIELD_ROOTS,
   outlineOf,
   selectionEditMessage,
   selectionSnapshot,
   systemPrompt,
   type CaretBlock,
+  type CellsField,
   type OutlineEntry,
   type SelectionPart,
   type SelectionSnapshot,
@@ -188,6 +192,7 @@ import {
   resultSummary,
   type SummarisedCall,
 } from './summaries';
+import { withTableWarning } from './tables';
 import { resolveActiveTarget, type ActiveTarget } from './target';
 import { containerSize, indexDocument, resolveReference, TEXT_CONTAINERS } from './tools/model';
 import { inDescription } from './tools/write';
@@ -642,6 +647,21 @@ function modelSelectionOf(
   snapshot: SelectionSnapshot | null,
   caret: CaretBlock | null,
 ): ModelSelection {
+  if (snapshot?.form === 'cells' && snapshot.cells && snapshot.anchor && snapshot.head) {
+    // A block of cells (feature 006, FR-063; Δ§3.2): the table and the rectangle from 1.
+    const { table, row, column, rows, columns, source } = snapshot.cells;
+    return {
+      kind: 'cells',
+      anchor: snapshot.anchor,
+      head: snapshot.head,
+      table: table.id,
+      row,
+      column,
+      rows,
+      columns,
+      ...(source ? { source } : {}),
+    };
+  }
   if (!snapshot || snapshot.form === 'xml' || !snapshot.anchor || !snapshot.head) {
     const point = { nodeId: caret?.id ?? snapshot?.anchor?.nodeId ?? '', offset: 0 };
     return { kind: 'none', anchor: point, head: point };
@@ -656,6 +676,36 @@ function modelSelectionOf(
     nodeIds: snapshot.nodeIds,
     openStart: snapshot.openStart,
     openEnd: snapshot.openEnd,
+  };
+}
+
+/** The field of each rich field key of the Description view (ai-catalogue Δ§2.1 `source`). */
+const FIELD_OF_KEY: Record<string, CellsField> = {
+  'titleInfo.annotation': 'annotation',
+  'srcTitleInfo.annotation': 'sti-annotation',
+  'documentInfo.history': 'history',
+};
+
+/**
+ * The block of cells of the active description field (feature 006, FR-063; data-model §15.4):
+ * when `activeTableTarget` (user story 10's field targets, T161) is a `description` target whose
+ * state holds a `CellBlockSelection`, its snapshot with the field's `source` and its head cell as
+ * the caret, both with paths under the field's root; null otherwise.
+ */
+async function fieldBlock(
+  store: AppStore,
+  toXml: (nodes: ModelNodeJson[]) => Promise<string>,
+): Promise<{ snapshot: SelectionSnapshot; caret: CaretBlock | null } | null> {
+  const target = activeTableTarget(store);
+  const fieldState = target?.kind === 'description' ? target.state : null;
+  const field = target ? FIELD_OF_KEY[target.key] : undefined;
+  if (!fieldState || !field || !(fieldState.selection instanceof CellBlockSelection)) return null;
+  const snapshot = await selectionSnapshot(fieldState, null, toXml, { field });
+  if (!snapshot) return null;
+  const head = caretBlock(fieldState, null);
+  return {
+    snapshot,
+    caret: head ? { ...head, path: `${FIELD_ROOTS[field]}/${head.path}` } : null,
   };
 }
 
@@ -760,6 +810,7 @@ const READ_TOOL_NAMES: ReadonlySet<string> = new Set([
   'get_selection',
   'get_description',
   'find',
+  'read_table',
 ]);
 
 /** Below this size a tool result is not what overflows an exchange: step 2 is skipped. */
@@ -1053,8 +1104,29 @@ class RequestRun {
       sourceSelection = await selectionSnapshot(editorState, window, toXml);
     }
     if (this.cancelled) return { kind: 'cancelled' };
+    let fieldCaret: CaretBlock | null = null;
+    if (!sourceEditor && state.activeView === 'description') {
+      // Feature 006 (FR-063; analyze decision 7): with the Description view active, a block of
+      // cells in the active field is the request's selection, its head cell the caret; without
+      // one the Body editor's selection is reported as in feature 005.
+      const field = await fieldBlock(store, toXml);
+      if (field) {
+        sourceSelection = field.snapshot;
+        fieldCaret = field.caret;
+        if (options.origin === 'panel') selection = null;
+      }
+    }
+    // A block of cells is never the fast path's selection (Δ§5): the tools see it, the request
+    // is general and its first user message the instruction as typed.
+    if (selection?.form === 'cells') {
+      sourceSelection = selection;
+      selection = null;
+    }
+    const blockSelected = sourceSelection?.form === 'cells';
     this.selection = selection ?? null;
-    if (!sourceEditor) this.caret = editorState ? caretBlock(editorState, window) : null;
+    if (!sourceEditor) {
+      this.caret = fieldCaret ?? (editorState ? caretBlock(editorState, window) : null);
+    }
     this.kind = this.selection ? 'selection' : 'general';
     this.publish({ kind: this.kind });
 
@@ -1202,6 +1274,11 @@ class RequestRun {
         session.source && (session.source.changed || !session.source.wellFormed)
           ? session.validateText(session.source.text)
           : session.validate(),
+      // Feature 006 (Δ§3.1): the Source text's report names its tables by path and line.
+      validateForm: () =>
+        session.source && (session.source.changed || !session.source.wellFormed)
+          ? 'text'
+          : 'document',
       baseline: () => session.baseline,
       schemaText: () => this.rpc.call('schema.text'),
       // US6 (ai-catalogue §3.1, §3.4, §7): the scripts - the list, a package's files, the
@@ -1227,7 +1304,7 @@ class RequestRun {
     let user: string;
     if (this.selection) {
       user = selectionEditMessage(options.instruction, this.selection);
-    } else if (this.caret && options.origin === 'popup') {
+    } else if (this.caret && options.origin === 'popup' && !blockSelected) {
       user = caretContextMessage(options.instruction, {
         id: this.caret.id,
         path: this.caret.path,
@@ -1628,11 +1705,17 @@ class RequestRun {
   ): Promise<{ parts: number } | null> {
     const before = String(record.message.content ?? '');
     this.partBudget = budget;
+    // The pre-emptive bound counts the exchange without the result under way (§3.7): the result
+    // being shrunk is no fixed cost - else a result larger than the context itself (a whole
+    // 300-row read_table, feature 006) leaves no budget and comes back whole.
+    const fixed = this.fixedUnits;
+    this.fixedUnits = Math.max(0, fixed - before.length);
     let outcome: ToolCallOutcome;
     try {
       outcome = await catalogue.call(record.call.name, record.call.args);
     } finally {
       this.partBudget = undefined;
+      this.fixedUnits = fixed;
     }
     if (outcome.text.length >= before.length) return null;
     record.message.content = outcome.text;
@@ -2044,7 +2127,16 @@ class RequestRun {
       }
       this.lastChangeOutcome = outcome as ChangeOutcome<Record<string, unknown>>;
       this.recordChange(outcome, tool, target, place);
-      if (outcome.accepted) return outcome.result;
+      // Feature 006 (FR-053; Δ§6.10): the tables the change made irregular, in the form of the
+      // report that accepted it - every change tool, edit_table, a nested run, the text path.
+      if (outcome.accepted) {
+        return withTableWarning(
+          outcome.result,
+          outcome.madeIrregular,
+          indexDocument(session.copy.document),
+          options?.textPath ? 'text' : 'document',
+        );
+      }
       if (outcome.ended) this.rejectedIssues = strikeIssues(session, key);
       if (thrown.error) return { error: { ...thrown.error.body, strike: outcome.strike } };
       return rejectedEnvelope(outcome) as ToolErrorEnvelope;
@@ -2071,9 +2163,14 @@ class RequestRun {
       case 'replace_node':
       case 'remove_node':
       case 'set_text':
-      case 'insert_node': {
+      case 'insert_node':
+      case 'edit_table': {
+        // `insert_node:<where>@<nodeId>` and `edit_table:<op>@<table>` (Δ§6.14): the node after `@`.
         const at = target.indexOf('@');
-        const reference = tool === 'insert_node' && at >= 0 ? target.slice(at + 1) : target;
+        const reference =
+          (tool === 'insert_node' || tool === 'edit_table') && at >= 0
+            ? target.slice(at + 1)
+            : target;
         if (!reference) return 'unknown';
         let entry: ReturnType<typeof resolveReference>;
         try {

@@ -604,6 +604,7 @@ describe('sourceToolGate', () => {
       'set_text',
       'replace_all',
       'set_description',
+      'edit_table',
       'run_script',
     ]);
     for (const name of STRUCTURED_CHANGE_TOOL_NAMES) {
@@ -1042,5 +1043,52 @@ describe('sourceModelSelection', () => {
       anchor: point('n13', 2),
       head: point('n13', 2),
     });
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006 (US11, T173): the table tools in the Source view (Δ§8)         */
+/* ------------------------------------------------------------------------ */
+
+describe('feature 006: the table tools in the Source view (Δ§8)', () => {
+  it('text mode offers neither read_table nor edit_table: the gate answers both unavailable with the text-mode hint', () => {
+    expect(SOURCE_TEXT_MODE_TOOL_NAMES).not.toContain('read_table');
+    expect(SOURCE_TEXT_MODE_TOOL_NAMES).not.toContain('edit_table');
+    const gate = sourceToolGate(() => ({ wellFormed: false, structuredAllowed: true }));
+    const caret: ModelSelection = {
+      kind: 'none',
+      anchor: { nodeId: 'p1', offset: 0 },
+      head: { nodeId: 'p1', offset: 0 },
+    };
+    for (const name of ['read_table', 'edit_table']) {
+      expect(gate(name, caret)).toEqual({
+        message: `${name} is unavailable in this request.`,
+        hint: TEXT_MODE_HINT,
+      });
+    }
+    // On a well-formed text read_table stays available, after a text-path change too.
+    const changed = sourceToolGate(() => ({ wellFormed: true, structuredAllowed: false }));
+    expect(changed('read_table', caret)).toBeNull();
+  });
+
+  it('firstChangedNodeId picks the focus cell of an edit_table result, after the existing candidates, then the table', () => {
+    const changes = [
+      {
+        status: 'accepted',
+        outcome: {
+          accepted: true,
+          result: {
+            table: { id: 'n40' },
+            op: 'insertRows',
+            focus: { row: 3, column: 1, id: 'sc_7' },
+          },
+        },
+      },
+    ] as unknown as RequestSession['changes'];
+    expect(firstChangedNodeId({ changes })).toBe('sc_7');
+    const tableOnly = [
+      { status: 'accepted', outcome: { accepted: true, result: { table: { id: 'n40' } } } },
+    ] as unknown as RequestSession['changes'];
+    expect(firstChangedNodeId({ changes: tableOnly })).toBe('n40');
   });
 });

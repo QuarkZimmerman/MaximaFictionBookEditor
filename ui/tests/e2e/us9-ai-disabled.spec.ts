@@ -41,6 +41,11 @@
  *  - FR-096 (requester, 2026-10-22): with Disabled saved the settings page offers Test
  *    connection only while the page's radio is a service; the test then goes to the selected
  *    model, exactly once; Cancel leaves settings.json byte-identical and sends nothing more.
+ *  US11 sc.5 (feature 006): a book with tables and a block of cells, and none of the
+ *    assistant's table additions - the editing session runs a table command on a block of
+ *    two cells with Undo and Redo, the table's context menu offers no Ask entry, no chunk asset
+ *    loads (so no code of read_table, edit_table, the passage, tableWarning or cells exists in
+ *    the page) and, Disabled, `__mfbeTest.ai.state().catalogue` is false (U24)
  */
 
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -451,6 +456,44 @@ async function editingSession(page: Page, core: CoreHandle, dir: string): Promis
   await expect(spelling).toHaveCount(0);
   await expect(complete).toHaveCount(0);
 
+  // A table step (feature 006, US11 sc.5): the book holds tables - a block of two cells of
+  // table t1 (a click and a Shift+click), Add → Table structure → Insert row below on it (two
+  // rows), Undo, Redo and Undo again (SC-007, U22); a right-click in a cell shows the table
+  // section and no Ask entry. Nothing of the assistant's table additions loads.
+  const t1 = editor.locator('[data-testid="body-table"][data-id="t1"]');
+  const cellOne = t1.locator('td.fb-td').filter({ hasText: /^1$/ });
+  const cellThree = t1.locator('td.fb-td').filter({ hasText: /^3$/ });
+  await cellOne.scrollIntoViewIfNeeded();
+  await cellOne.click();
+  await cellThree.click({ modifiers: ['Shift'] });
+  await expect(t1.locator('.mfbe-cell-selected')).toHaveCount(2);
+  const tableBefore = await documentXml(page);
+  await page.getByTestId('menu-add').click();
+  await page.getByTestId('menu-add-tableStructure').click();
+  const insertBelow = page.getByTestId('menu-add-tableStructure-insertRowBelow');
+  await expect(insertBelow).not.toHaveAttribute('aria-disabled');
+  await insertBelow.click();
+  await expect(t1.locator('tr')).toHaveCount(5);
+  const tableAfter = await documentXml(page);
+  for (const [item, expected] of [
+    ['undo', tableBefore],
+    ['redo', tableAfter],
+    ['undo', tableBefore],
+  ] as const) {
+    await page.getByTestId('menu-edit').click();
+    await page.getByTestId(`menu-edit-${item}`).click();
+    await expect.poll(() => documentXml(page)).toBe(expected);
+  }
+  await expect(t1.locator('tr')).toHaveCount(3);
+  await cellOne.click();
+  await page.waitForTimeout(100);
+  await cellOne.click({ button: 'right' });
+  await expect(page.getByTestId('context-menu')).toBeVisible();
+  await expect(page.getByTestId('context-menu-tableStructure')).toBeVisible();
+  await expect(page.getByTestId('context-menu-ai.ask')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('context-menu')).toHaveCount(0);
+
   // Source and back.
   await page.getByTestId('view-source').click();
   await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');
@@ -710,6 +753,7 @@ test.describe('US9 (005) - switch the assistant off completely', () => {
     await editingSession(page, core, dir);
 
     await expectDisabledState(page, 'Последний');
+    expect(await page.evaluate<boolean>('window.__mfbeTest.ai.state().catalogue')).toBe(false);
     expect(await standin.requests()).toEqual([]);
     expect(await core.aiRequests()).toEqual([]);
     expectMainBundleOnly(assets);

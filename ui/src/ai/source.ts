@@ -87,7 +87,11 @@ export const SOURCE_TEXT_MODE_TOOL_NAMES = [
 const TEXT_MODE_TOOLS: ReadonlySet<string> = new Set(SOURCE_TEXT_MODE_TOOL_NAMES);
 
 /** The structured change tools unavailable after a text-path change (§8.1; `run_script` is C8's). */
-export const STRUCTURED_CHANGE_TOOL_NAMES = [...US3_TOOL_NAMES, 'run_script'] as const;
+export const STRUCTURED_CHANGE_TOOL_NAMES = [
+  ...US3_TOOL_NAMES,
+  'edit_table',
+  'run_script',
+] as const;
 
 const STRUCTURED_TOOLS: ReadonlySet<string> = new Set(STRUCTURED_CHANGE_TOOL_NAMES);
 
@@ -897,8 +901,11 @@ export function textPathSpec(
 ): {
   validate: () => Promise<ValidationReport>;
   settle: (accepted: boolean) => void;
+  form: 'text';
 } {
   return {
+    // The text's report names its tables by path and line (feature 006, Δ§6.10, C66).
+    form: 'text',
     validate: async () => {
       const source = session.source;
       if (!source?.pending) throw new Error('no pending Source text to validate');
@@ -1171,7 +1178,9 @@ export function firstChangedNodeId(session: Pick<RequestSession, 'changes'>): st
 
 function firstIdIn(result: Record<string, unknown> | undefined): string | null {
   if (!result) return null;
-  const candidates = ['node', 'nodes', 'inserted', 'blocks', 'changed', 'parent'];
+  // `focus` and then `table` (feature 006, Δ§8.3): after an `edit_table` the caret lands in the
+  // focus cell.
+  const candidates = ['node', 'nodes', 'inserted', 'blocks', 'changed', 'parent', 'focus', 'table'];
   for (const key of candidates) {
     const value = result[key];
     const entry = Array.isArray(value) ? value[0] : value;

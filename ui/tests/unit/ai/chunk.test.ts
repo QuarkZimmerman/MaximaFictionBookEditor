@@ -37,6 +37,8 @@ describe('the ai-assistant chunk rule', () => {
       'AiPanel.tsx',
       'notice.tsx',
       'tools/find.ts',
+      'tools/table.ts', // feature 006: read_table and edit_table
+      'tables.ts', // feature 006: the irregular-table helpers
     ]) {
       expect(isAiAssistantModule(path.join(AI, file)), file).toBe(true);
     }
@@ -121,6 +123,11 @@ describe('the production build', () => {
     // The resource texts travel with the chunk, not the main bundle (vite.config.ts).
     expect(chunkSource).toContain('declare namespace mfbe');
     expect(indexSource).not.toContain('declare namespace mfbe');
+    // Feature 006 (US11, Δ§1.1): the table tools and the passage exist in the chunk alone.
+    for (const marker of ['read_table', 'edit_table', 'Tables: a table cell']) {
+      expect(chunkSource, marker).toContain(marker);
+      expect(indexSource, marker).not.toContain(marker);
+    }
     // The page loads the main bundle only: no script tag and no modulepreload for the chunk.
     const html = readFileSync(path.join(outDir, 'index.html'), 'utf8');
     expect(html).toContain(index[0]);

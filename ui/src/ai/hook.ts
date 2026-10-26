@@ -34,6 +34,7 @@ import type { BodyEditorController } from '@/views/body/bodyEditor';
 
 import type { SelectionSnapshot } from './context';
 import type { RequestSession } from './session';
+import { irregularEntries, madeIrregular, type IrregularEntry, type ReportForm } from './tables';
 
 /** The content key of a validation issue (data-model §0). */
 export type IssueKey = string;
@@ -422,6 +423,11 @@ export interface ChangeSpec<T = unknown> {
   validate?: () => Promise<ValidationReport>;
   /** The text path: told the decision - the accepted text is kept, a rejected one dropped. */
   settle?: (accepted: boolean) => void;
+  /**
+   * How the validation names its tables (feature 006, Δ§6.10): `document` (the copy's report,
+   * node ids) by default, `text` on the Source text path (paths and lines, scratch ids).
+   */
+  form?: ReportForm;
 }
 
 export interface ChangeAccepted<T> {
@@ -433,6 +439,11 @@ export interface ChangeAccepted<T> {
   preExistingErrors: number;
   /** The report's warnings (never blocking). */
   warnings: number;
+  /**
+   * The tables this change made irregular (feature 006, FR-053; Δ§6.10): the report's
+   * `table.irregular` warnings whose table the session's set of the last accepted state lacks.
+   */
+  madeIrregular: IrregularEntry[];
 }
 
 export interface ChangeRejected {
@@ -561,12 +572,25 @@ export async function applyChange<T>(
   }
   session.strikes.reset(key);
   change.settle?.(true);
+  // The tables made irregular (Δ§6.10): warnings never count in the key diff above; the set of
+  // the last accepted state is replaced, a rejection leaves it as it was. A set taken from a text
+  // report (`setBaseline`) is compared by path and params, as a text-form change is (C66).
+  const current = irregularEntries(report.issues);
+  const form = change.form ?? 'document';
+  const made = madeIrregular(
+    session.irregularTables,
+    current,
+    form === 'text' || session.irregularForm === 'text' ? 'text' : 'document',
+  );
+  session.irregularTables = current;
+  session.irregularForm = form;
   const accepted: ChangeAccepted<T> = {
     accepted: true,
     result,
     report: summary,
     preExistingErrors: session.preExistingErrors,
     warnings: report.warningCount,
+    madeIrregular: made,
   };
   session.endChange(record, accepted);
   return accepted;

@@ -15,7 +15,8 @@
 
 import type { TFunction } from 'i18next';
 
-import type { Document } from '@/model/document';
+import { gridOfModel } from '@/editor/table/grid';
+import type { Document, TableNode } from '@/model/document';
 
 import { indexDocument, pathOf, resolveReference, titleText, type Entry } from './tools/model';
 
@@ -126,6 +127,72 @@ export function referenceLabel(t: TFunction, document: Document, reference: stri
   return entry ? entryLabel(t, entry) : reference;
 }
 
+/**
+ * The table a reference of the table tools names (feature 006, Δ§6.16): its structural path - a
+ * row or a cell climbed to its table - and its row count; the reference as given when it
+ * resolves to no table.
+ */
+function tableOf(document: Document | null, reference: string): { path: string; rows?: number } {
+  if (!document || !reference) return { path: reference };
+  let entry: Entry | null;
+  try {
+    entry = resolveReference(indexDocument(document), reference);
+  } catch {
+    entry = null;
+  }
+  if (entry && (entry.node.type === 'td' || entry.node.type === 'th')) entry = entry.parent;
+  if (entry && entry.node.type === 'tr') entry = entry.parent;
+  if (!entry || entry.node.type !== 'table') return { path: reference };
+  return { path: pathOf(entry), rows: gridOfModel(entry.node as unknown as TableNode).height };
+}
+
+/** The operation of an `edit_table` call in words (one key per op; attribute names only). */
+function tableOperation(t: TFunction, args: Record<string, unknown>): string {
+  const op = asString(args.op);
+  const amount = (value: unknown) => asNumber(value) ?? 1;
+  switch (op) {
+    case 'insertRows':
+    case 'insertColumns':
+      return t(`ai.activity.summary.tableOp.${op}`, { count: amount(args.count) });
+    case 'deleteRows':
+    case 'moveRows':
+    case 'duplicateRows':
+      return t(`ai.activity.summary.tableOp.${op}`, { count: amount(args.rows) });
+    case 'deleteColumns':
+    case 'moveColumns':
+    case 'duplicateColumns':
+      return t(`ai.activity.summary.tableOp.${op}`, { count: amount(args.columns) });
+    case 'merge':
+    case 'split':
+    case 'repair':
+      return t(`ai.activity.summary.tableOp.${op}`);
+    case 'setKind':
+      return t('ai.activity.summary.tableOp.setKind', { kind: asString(args.kind) });
+    case 'setAttributes': {
+      const of = asString(args.of);
+      const attrs =
+        args.attrs && typeof args.attrs === 'object' ? Object.keys(args.attrs as object) : [];
+      return t(
+        `ai.activity.summary.tableOp.setAttributes.${of === 'rows' || of === 'table' ? of : 'cells'}`,
+        { names: attrs.join(', ') },
+      );
+    }
+    default:
+      return op;
+  }
+}
+
+/** The table read's window, when the call names one. */
+function windowOf(
+  args: Record<string, unknown>,
+  rows: number | undefined,
+): { from: number; to: number } | null {
+  if (args.fromRow === undefined && args.toRow === undefined) return null;
+  const from = Number(args.fromRow ?? 1);
+  const to = Number(args.toRow ?? rows ?? from);
+  return { from, to: rows === undefined ? to : Math.min(to, rows) };
+}
+
 /** `NodeInfo` of a result (`{id, path, type, characters?}`) as a label; the id when it is all there is. */
 function infoLabel(t: TFunction, info: unknown, document: Document | null): string {
   if (!info || typeof info !== 'object') return '';
@@ -208,6 +275,19 @@ export function callSummary(t: TFunction, call: SummarisedCall, document: Docume
     }
     case 'reload_scripts':
       return t('ai.activity.summary.reloadScripts');
+    // Feature 006 (US11): the table by its path, the rows of a window, the operation.
+    case 'read_table': {
+      const table = tableOf(document, asString(args.table));
+      const window = windowOf(args, table.rows);
+      return window
+        ? t('ai.activity.summary.readTableRows', { ...window, target: table.path })
+        : t('ai.activity.summary.readTable', { target: table.path });
+    }
+    case 'edit_table':
+      return t('ai.activity.summary.editTable', {
+        target: tableOf(document, asString(args.table)).path,
+        operation: tableOperation(t, args),
+      });
     default:
       return name;
   }
@@ -222,8 +302,9 @@ export interface ResultSummaryOptions {
 /**
  * The summary completed from the result: the characters read and the part of a `read_part`,
  * the match counts of `find` / `replace_all`, the number of elements inserted, the dotted
- * fields `set_description` wrote. `null` when the result adds nothing to the call summary (an
- * error envelope, a tool without sizes).
+ * fields `set_description` wrote, the size and the part of a `read_table`; a change whose result
+ * carries `tableWarning` adds the tables it left irregular (feature 006). `null` when the result
+ * adds nothing to the call summary (an error envelope, a tool without sizes).
  */
 export function resultSummary(
   t: TFunction,
@@ -232,9 +313,52 @@ export function resultSummary(
   document: Document | null,
   options: ResultSummaryOptions = {},
 ): string | null {
-  const { name, args } = call;
   if ('error' in result) return null;
+  const own = ownResultSummary(t, call, result, document, options);
+  // Feature 006 (FR-053; Δ§6.16): a change that left tables irregular says so, around the
+  // result's summary or, without one, the call's.
+  const warning = result.tableWarning as { tables?: unknown } | undefined;
+  const count = Array.isArray(warning?.tables) ? warning.tables.length : 0;
+  if (count === 0) return own;
+  const summary = own ?? (document ? callSummary(t, call, document) : call.name);
+  return t('ai.activity.summary.tablesLeftIrregular', { summary, count });
+}
+
+function ownResultSummary(
+  t: TFunction,
+  call: SummarisedCall,
+  result: Record<string, unknown>,
+  document: Document | null,
+  options: ResultSummaryOptions,
+): string | null {
+  const { name, args } = call;
   switch (name) {
+    case 'read_table': {
+      const target = tableOf(document, asString(args.table)).path;
+      const rows = asNumber(result.rowCount);
+      const columns = asNumber(result.columnCount);
+      if (rows === undefined || columns === undefined) return null;
+      const window = windowOf(args, rows);
+      const part = options.part ?? 1;
+      const more = result.more as { remaining?: { rows?: unknown } } | undefined;
+      const delivered = Array.isArray(result.rows) ? result.rows.length : 0;
+      const left = asNumber(more?.remaining?.rows);
+      const parts =
+        more && left !== undefined
+          ? part + Math.max(1, Math.ceil(left / Math.max(1, delivered)))
+          : part > 1
+            ? part
+            : 0;
+      const sized = { target, rows, columns };
+      if (parts > 0) {
+        return window
+          ? t('ai.activity.summary.readTableRowsPart', { ...sized, ...window, part, parts })
+          : t('ai.activity.summary.readTablePart', { ...sized, part, parts });
+      }
+      return window
+        ? t('ai.activity.summary.readTableRowsSized', { ...sized, ...window })
+        : t('ai.activity.summary.readTableSized', sized);
+    }
     case 'read_part': {
       const target = document
         ? referenceLabel(t, document, asString(args.node))

@@ -34,7 +34,8 @@ function markToModel(mark: Mark): ModelMark {
   return out as ModelMark;
 }
 
-function attrsToModel(node: PMNode): Record<string, unknown> {
+/** A node's attributes as the model writes them (feature 006: the assistant's changed tables too). */
+export function attrsToModel(node: PMNode): Record<string, unknown> {
   const attrs: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node.attrs)) {
     if (PM_ONLY_ATTRS.has(key)) continue;

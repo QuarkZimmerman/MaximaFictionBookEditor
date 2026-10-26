@@ -32,6 +32,9 @@ import { NodeSelection, type EditorState } from 'prosemirror-state';
 import type { ModelNodeJson } from '@/editor/fromModel';
 import { blockKindOf, fb2NameFor } from '@/editor/schema';
 import { pathOfNode } from '@/editor/structuralPath';
+import { gridCellNode } from '@/editor/table/edit';
+import { gridOfNode } from '@/editor/table/grid';
+import { CellBlockSelection } from '@/editor/table/selection';
 import { nodeToModel } from '@/editor/toModel';
 import type { SectionWindow } from '@/editor/virtualization';
 import type { Document } from '@/model/document';
@@ -39,7 +42,7 @@ import type { ChatRequest, ModelPoint, ViewId } from '@/rpc/types';
 import { documentStats, plainText } from '@/scripting/api-impl';
 
 /** This contract's version (ai-catalogue §2.1 `catalogueVersion`). */
-export const CATALOGUE_VERSION = 1;
+export const CATALOGUE_VERSION = 2; // feature 006 (US11): the table tools, `cells`, the passage
 
 /** The editor's name as the model reads it. */
 export const EDITOR_NAME = 'Maxima Fiction Book Editor';
@@ -133,7 +136,41 @@ export interface OutlineEntry {
   children: OutlineEntry[];
 }
 
-export type SelectionKind = 'none' | 'inline' | 'blocks' | 'source';
+export type SelectionKind = 'none' | 'inline' | 'blocks' | 'cells' | 'source';
+
+/** The description fields a block of cells may lie in (feature 006, FR-063; analyze decision 7). */
+export type CellsField = 'annotation' | 'sti-annotation' | 'history';
+
+/** Where a block of a description field comes from (ai-catalogue Δ§2.1 `source`). */
+export interface CellsSource {
+  view: 'description';
+  field: CellsField;
+}
+
+/** The structural root of each field's document (feature 005's description roots). */
+export const FIELD_ROOTS: Record<CellsField, string> = {
+  annotation: 'title-info/annotation[1]',
+  'sti-annotation': 'src-title-info/annotation[1]',
+  history: 'document-info/history[1]',
+};
+
+/** A table as the context names it (a `NodeInfo`). */
+export interface TableRef {
+  id: string;
+  path: string;
+  type: 'table';
+  characters?: number;
+}
+
+/** A block of cells (feature 006, FR-063): its table and its extended rectangle from 1. */
+export interface CellsBlock {
+  table: TableRef;
+  row: number;
+  column: number;
+  rows: number;
+  columns: number;
+  source?: CellsSource;
+}
 
 /** A block of the context: its id and structural path. */
 export interface BlockRef {
@@ -150,6 +187,14 @@ export interface ContextSelection {
   to?: BlockRef;
   openStart?: boolean;
   openEnd?: boolean;
+  /** Kind `cells` (feature 006, FR-063): the table and the block's rectangle. */
+  table?: TableRef;
+  row?: number;
+  column?: number;
+  rows?: number;
+  columns?: number;
+  /** A block of a description field only (analyze decision 7). */
+  source?: CellsSource;
 }
 
 export interface ContextCaret extends BlockRef {
@@ -203,7 +248,7 @@ export interface WorkingContext {
  * is partly selected - `openStart` / `openEnd`), `xml` (the Source text path, review C11).
  */
 export interface SelectionSnapshot {
-  form: 'inline' | 'blocks' | 'xml';
+  form: 'inline' | 'blocks' | 'xml' | 'cells';
   /** Body view: the two ends as model points (null on the text path). */
   anchor: ModelPoint | null;
   head: ModelPoint | null;
@@ -234,6 +279,8 @@ export interface SelectionSnapshot {
    * editor document the snapshot was taken from, and the depth of the blocks' parent (`blocks`).
    */
   pm: { from: number; to: number; depth: number } | null;
+  /** `cells` (feature 006, FR-063): the block - never the fast path's selection (Δ§5). */
+  cells?: CellsBlock;
 }
 
 /** The caret's block (ai-catalogue §2.1 `caret`): its id, path, model node and plain text. */
@@ -385,8 +432,24 @@ export interface WorkingContextInput {
 /** The `selection` member of the context for a snapshot (null → `kind: 'none'`). */
 export function contextSelection(snapshot: SelectionSnapshot | null): ContextSelection {
   if (!snapshot) return { kind: 'none', characters: 0, paragraphs: 0, hasInlineElements: false };
+  if (snapshot.form === 'cells' && snapshot.cells) {
+    // A block of cells (feature 006, Δ§2.1): its table and rectangle, no from, to or open ends.
+    const { table, row, column, rows, columns, source } = snapshot.cells;
+    return {
+      kind: 'cells',
+      characters: snapshot.characters,
+      paragraphs: snapshot.paragraphs,
+      hasInlineElements: snapshot.hasInlineElements,
+      table,
+      row,
+      column,
+      rows,
+      columns,
+      ...(source ? { source } : {}),
+    };
+  }
   const out: ContextSelection = {
-    kind: snapshot.form === 'xml' ? 'source' : snapshot.form,
+    kind: snapshot.form === 'xml' ? 'source' : (snapshot.form as 'inline' | 'blocks'),
     characters: snapshot.characters,
     paragraphs: snapshot.paragraphs,
     hasInlineElements: snapshot.hasInlineElements,
@@ -456,7 +519,7 @@ const SELECTION_NOTE =
   'applied to the selection — see the user message';
 
 /**
- * The continuation of rule 1 (FR-106; the rc.1 smoke test: a title translation reported done
+ * The continuation of rule 1 (feature 006, US11: the list ends with edit_table, Δ§2.3; FR-106; the rc.1 smoke test: a title translation reported done
  * while the book was unchanged, then - requester, 2026-10-23 - the metadata title changed while
  * the user looked at the body's heading): which tools change what; that the active view decides
  * what an ambiguous reference ("the title", "this chapter", "the annotation") means - in the
@@ -469,21 +532,21 @@ const SELECTION_NOTE =
 export const CHANGE_TOOLS_RULE =
   '   The change tools are set_description (the description fields — the metadata the Description\n' +
   '   view shows, titleInfo.bookTitle among them), set_text, replace_node, insert_node,\n' +
-  '   remove_node, replace_all and replace_selection (the text of the bodies). The working\n' +
-  '   context\'s activeView tells where the user is working; an ambiguous reference such as "the\n' +
-  '   title", "this chapter" or "the annotation" means what that view shows. In the Body view "the\n' +
-  "   book's title\" is the body's own heading, the <title> at body[1]/title[1] (the outline's body\n" +
-  '   entry names it): change it with replace_node on that <title> or set_text on its <p>\n' +
-  '   (body[1]/title[1]/p[1]), not with set_description. In the Description view "the book\'s\n' +
-  '   title" is the metadata title titleInfo.bookTitle: set_description with\n' +
-  '   {"description": {"titleInfo": {"bookTitle": "…"}}}. Change only the place the active view\n' +
-  '   implies. When the same text also exists in the other place (the metadata title while in the\n' +
-  '   Body view, the body heading while in the Description view), do NOT change it unasked — say\n' +
-  '   in one sentence that it exists there too and can be changed as well. In the Source view both\n' +
-  '   exist as XML text: follow the selection or the caret. A chapter title is the <title> element\n' +
-  '   inside its section. Never say that you changed, translated, renamed or corrected something\n' +
-  '   unless the change tool that did it answered without an "error" object; when you called no\n' +
-  '   change tool, say that nothing was changed.\n';
+  '   remove_node, replace_all, replace_selection (the text of the bodies) and edit_table (the\n' +
+  "   structure of a table). The working context's activeView tells where the user is working; an\n" +
+  '   ambiguous reference such as "the title", "this chapter" or "the annotation" means what that\n' +
+  '   view shows. In the Body view "the book\'s title" is the body\'s own heading, the <title> at\n' +
+  "   body[1]/title[1] (the outline's body entry names it): change it with replace_node on that\n" +
+  '   <title> or set_text on its <p> (body[1]/title[1]/p[1]), not with set_description. In the\n' +
+  '   Description view "the book\'s title" is the metadata title titleInfo.bookTitle:\n' +
+  '   set_description with {"description": {"titleInfo": {"bookTitle": "…"}}}. Change only the\n' +
+  '   place the active view implies. When the same text also exists in the other place (the\n' +
+  '   metadata title while in the Body view, the body heading while in the Description view), do\n' +
+  '   NOT change it unasked — say in one sentence that it exists there too and can be changed as\n' +
+  '   well. In the Source view both exist as XML text: follow the selection or the caret. A\n' +
+  '   chapter title is the <title> element inside its section. Never say that you changed,\n' +
+  '   translated, renamed or corrected something unless the change tool that did it answered\n' +
+  '   without an "error" object; when you called no change tool, say that nothing was changed.\n';
 
 const SOURCE_VIEW_RULES =
   '8. Source view: the user is looking at the XML text of the book. A selection you receive is XML\n' +
@@ -542,6 +605,13 @@ export function systemPrompt(context: WorkingContext): string {
     'inserted or removed, so prefer the ids the tools return. A large result arrives in consecutive\n' +
     'parts: a result with "more" names the cursor to pass to the same tool for the next part. Finish\n' +
     'your work on a part before you fetch the next one.\n' +
+    '\n' +
+    'Tables: a table cell (<td>, or <th> for a header cell) holds inline content only — text, inline\n' +
+    'formatting, links and inline images (<image l:href="#id"/>), never paragraphs or other blocks —\n' +
+    'and a table never contains another table. read_table shows a table as a grid of rows and columns\n' +
+    'with merged cells resolved. To change the structure of an existing table (rows, columns, merged\n' +
+    'cells, header cells, attributes, repair) use edit_table rather than rewriting its XML; a new\n' +
+    'table is written as FB2 XML with insert_node.\n' +
     '\n' +
     'Rules for changes:\n' +
     `1. Change the book only through the tools. Text in your reply never changes the book${selectionNote}.\n` +
@@ -602,6 +672,8 @@ export function kindText(snapshot: SelectionSnapshot): string {
     }
     case 'xml':
       return 'XML text of the Source view';
+    case 'cells':
+      return 'a block of table cells';
   }
 }
 
@@ -619,6 +691,8 @@ export function replyForm(snapshot: SelectionSnapshot): string {
       );
     case 'xml':
       return 'as XML text that fits exactly in the place of the selected text';
+    case 'cells':
+      return 'with edit_table';
   }
 }
 
@@ -758,9 +832,14 @@ export async function selectionSnapshot(
   state: EditorState,
   window: SectionWindow | null,
   toXml: FragmentToXml,
+  options: { field?: CellsField } = {},
 ): Promise<SelectionSnapshot | null> {
   const { selection, doc } = state;
   if (selection.empty) return null;
+  // A block of cells (feature 006, FR-063; Δ§2.1): before `from` and `to`, which see its
+  // top-left cell only (vR7:94), and before the node selection branch.
+  if (selection instanceof CellBlockSelection)
+    return cellsSnapshot(state, selection, window, options);
   const { from, to, $from, $to } = selection;
   const text = doc.textBetween(from, to, '\n', '\uFFFC');
   // UTF-16 code units of text content: atoms (images, unknown elements) count nothing.
@@ -907,4 +986,72 @@ export function caretBlock(state: EditorState, window: SectionWindow | null): Ca
     };
   }
   return null;
+}
+
+/**
+ * The snapshot of a block of cells (feature 006, FR-063; ai-catalogue Δ§2.1; data-model §15.4):
+ * kind `cells` with the table's `NodeInfo` - its path under the field's root for a block of a
+ * description field, which also carries its `source` -, the extended rectangle from 1, the
+ * characters of its cells (UTF-16 units of text; pictures count nothing), one paragraph per cell
+ * and whether a mark or an inline image lies in one; no XML, text or positions.
+ */
+function cellsSnapshot(
+  state: EditorState,
+  selection: CellBlockSelection,
+  window: SectionWindow | null,
+  options: { field?: CellsField },
+): SelectionSnapshot {
+  const table = selection.table;
+  const grid = gridOfNode(table);
+  const rect = selection.rect;
+  const cells = grid.tooLarge ? [] : grid.cellsIn(rect);
+  let characters = 0;
+  let inline = false;
+  const nodeIds: string[] = [];
+  for (const index of cells) {
+    const cell = gridCellNode(table, grid, index);
+    nodeIds.push(idOf(cell));
+    characters += cell.textContent.length;
+    cell.descendants((node) => {
+      if (node.isInline && (!node.isText || node.marks.length > 0)) inline = true;
+      return !inline;
+    });
+  }
+  const path = pathOfNode(state, selection.tablePos, options.field ? null : window);
+  const point = (cell: PMNode | null | undefined) => ({
+    nodeId: cell ? idOf(cell) : '',
+    offset: 0,
+  });
+  return {
+    form: 'cells',
+    anchor: point(selection.$anchorCell.nodeAfter),
+    head: point(selection.$headCell.nodeAfter),
+    range: null,
+    openStart: false,
+    openEnd: false,
+    nodeIds,
+    parent: null,
+    xml: '',
+    text: '',
+    characters,
+    paragraphs: cells.length,
+    blocks: cells.length,
+    hasInlineElements: inline,
+    from: null,
+    to: null,
+    pm: null,
+    cells: {
+      table: {
+        id: idOf(table),
+        path: options.field ? `${FIELD_ROOTS[options.field]}/${path}` : path,
+        type: 'table',
+        characters: table.textContent.length,
+      },
+      row: rect.top + 1,
+      column: rect.left + 1,
+      rows: rect.bottom - rect.top,
+      columns: rect.right - rect.left,
+      ...(options.field ? { source: { view: 'description' as const, field: options.field } } : {}),
+    },
+  };
 }

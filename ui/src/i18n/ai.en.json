@@ -197,7 +197,43 @@
           "before": "before",
           "after": "after",
           "append": "at the end of"
-        }
+        },
+        "readTable": "Read the table {{target}}",
+        "readTableRows": "Read rows {{from}}–{{to}} of the table {{target}}",
+        "readTableSized": "Read the table {{target}} ({{rows}} × {{columns}})",
+        "readTableRowsSized": "Read rows {{from}}–{{to}} of the table {{target}} ({{rows}} × {{columns}})",
+        "readTablePart": "Read the table {{target}} ({{rows}} × {{columns}}, part {{part}} of {{parts}})",
+        "readTableRowsPart": "Read rows {{from}}–{{to}} of the table {{target}} ({{rows}} × {{columns}}, part {{part}} of {{parts}})",
+        "editTable": "Changed the table {{target}}: {{operation}}",
+        "tableOp": {
+          "insertRows_one": "inserted {{count}} row",
+          "insertRows_other": "inserted {{count}} rows",
+          "insertColumns_one": "inserted {{count}} column",
+          "insertColumns_other": "inserted {{count}} columns",
+          "deleteRows_one": "deleted {{count}} row",
+          "deleteRows_other": "deleted {{count}} rows",
+          "deleteColumns_one": "deleted {{count}} column",
+          "deleteColumns_other": "deleted {{count}} columns",
+          "moveRows_one": "moved {{count}} row",
+          "moveRows_other": "moved {{count}} rows",
+          "moveColumns_one": "moved {{count}} column",
+          "moveColumns_other": "moved {{count}} columns",
+          "duplicateRows_one": "duplicated {{count}} row",
+          "duplicateRows_other": "duplicated {{count}} rows",
+          "duplicateColumns_one": "duplicated {{count}} column",
+          "duplicateColumns_other": "duplicated {{count}} columns",
+          "merge": "merged cells",
+          "split": "split a merged cell",
+          "setKind": "set the cell kind to {{kind}}",
+          "setAttributes": {
+            "cells": "set cell attributes ({{names}})",
+            "rows": "set row attributes ({{names}})",
+            "table": "set table attributes ({{names}})"
+          },
+          "repair": "repaired the table"
+        },
+        "tablesLeftIrregular_one": "{{summary}} — {{count}} table left irregular",
+        "tablesLeftIrregular_other": "{{summary}} — {{count}} tables left irregular"
       },
       "element": {
         "$comment": "Element names as the summaries say them; an element not listed keeps its FB2 name.",

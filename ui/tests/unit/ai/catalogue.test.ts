@@ -21,6 +21,8 @@ import {
   RESOURCE_URIS,
   SCHEMA_FILE_NAMES,
   SCRIPT_FILE_TEMPLATE,
+  TABLE_CHANGE_TOOL_NAMES,
+  TABLE_READ_TOOL_NAMES,
   TOOL_NAME_RULE,
   TOOL_NAMES,
   US2_TOOL_NAMES,
@@ -39,7 +41,13 @@ import type { ValidationIssue, ValidationReport } from '@/model/document';
 import { RpcError } from '@/rpc/client';
 import type { SchemaTextResult } from '@/rpc/types';
 
-import { blocksSelection, harness, inlineSelection, type Harness } from './catalogueHarness';
+import {
+  blocksSelection,
+  harness,
+  inlineSelection,
+  tablesBook,
+  type Harness,
+} from './catalogueHarness';
 
 let h: Harness;
 
@@ -62,11 +70,12 @@ function textOf(copy: Harness['copy'], nodeId: string): string {
 }
 
 describe('tools/list', () => {
-  it('lists the 22 tools in the §3 order, every one once, with the name rule, short descriptions and object schemas', () => {
+  it('lists the 24 tools in the §3 order, every one once, with the name rule, short descriptions and object schemas', () => {
     const tools = h.catalogue.listed();
     expect(tools.map((t) => t.name)).toEqual([...TOOL_NAMES]);
     // §3 order: the read tools (US2's six, then US4's validate and get_schema, then US6's
-    // three), the selection tools, the structural change tools, the script tools.
+    // three, then feature 006's read_table), the selection tools, the structural change tools
+    // with feature 006's edit_table after set_description, the script tools (Δ§1.2).
     expect(TOOL_NAMES).toEqual([
       'get_context',
       'get_outline',
@@ -79,20 +88,30 @@ describe('tools/list', () => {
       'list_scripts',
       'read_script',
       'read_resource',
+      'read_table',
       'set_selection',
       'replace_selection',
       ...US3_TOOL_NAMES,
+      'edit_table',
       'run_script',
       'propose_script',
       'reload_scripts',
     ]);
-    expect(TOOL_NAMES).toHaveLength(22);
-    expect(new Set(TOOL_NAMES).size).toBe(22);
+    expect(TOOL_NAMES).toHaveLength(24);
+    expect(new Set(TOOL_NAMES).size).toBe(24);
+    expect(TABLE_READ_TOOL_NAMES).toEqual(['read_table']);
+    expect(TABLE_CHANGE_TOOL_NAMES).toEqual(['edit_table']);
     expect(US4_TOOL_NAMES).toEqual(['validate', 'get_schema']);
     expect(US6_READ_TOOL_NAMES).toEqual(['list_scripts', 'read_script', 'read_resource']);
     expect(US6_SCRIPT_TOOL_NAMES).toEqual(['run_script', 'propose_script', 'reload_scripts']);
     expect(TOOL_NAMES).toHaveLength(
-      US2_TOOL_NAMES.length + US4_TOOL_NAMES.length + US6_READ_TOOL_NAMES.length + 6 + 3,
+      US2_TOOL_NAMES.length +
+        US4_TOOL_NAMES.length +
+        US6_READ_TOOL_NAMES.length +
+        TABLE_READ_TOOL_NAMES.length +
+        6 +
+        TABLE_CHANGE_TOOL_NAMES.length +
+        3,
     );
     expect(US3_TOOL_NAMES).toEqual([
       'replace_node',
@@ -102,7 +121,12 @@ describe('tools/list', () => {
       'replace_all',
       'set_description',
     ]);
-    expect(CHANGE_TOOL_NAMES).toEqual(['replace_selection', ...US3_TOOL_NAMES, 'run_script']);
+    expect(CHANGE_TOOL_NAMES).toEqual([
+      'replace_selection',
+      ...US3_TOOL_NAMES,
+      'edit_table',
+      'run_script',
+    ]);
     for (const tool of tools) {
       expect(tool.name).toMatch(TOOL_NAME_RULE);
       expect(tool.title).toBeTruthy();
@@ -946,6 +970,7 @@ describe('validate (US4)', () => {
       preExistingErrors: [],
       warnings: 0,
       durationMs: 7,
+      irregularTables: [], // feature 006 (FR-062): always present
     });
     await h.catalogue.close();
     h = await harness();
@@ -2316,5 +2341,118 @@ describe('US6: run_script, propose_script, reload_scripts (ai-catalogue §3.4, �
     const out = await call('reload_scripts', {});
     expect(out.result).toEqual({ count: 4, issues: [] });
     expect(fake.calls).toContain('reload');
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006 (US11, T173): the table tools' descriptions, the cells kind   */
+/* ------------------------------------------------------------------------ */
+
+describe('feature 006: the table tools and the cells selection (T173)', () => {
+  const HINT =
+    'read_table with fromRow = row and toRow = row + rows - 1 shows these cells; edit_table takes the same row, column, rows and columns.';
+
+  it('the new and changed descriptions, verbatim: read_table 994, edit_table 991, get_selection 523, validate 603, replace_selection 692 characters', () => {
+    const tools = h.catalogue.listed();
+    const description = (name: string) => tools.find((t) => t.name === name)!.description!;
+    expect(
+      ['read_table', 'edit_table', 'get_selection', 'validate', 'replace_selection'].map(
+        (name) => description(name).length,
+      ),
+    ).toEqual([994, 991, 523, 603, 692]);
+    expect(description('replace_selection')).toMatch(
+      /Fails with noSelection for a caret, and with notAllowed for a block of table cells \(use edit_table\)\.$/,
+    );
+    expect(description('get_selection')).toContain('"cells" (a block of table cells');
+    const read = tools.find((t) => t.name === 'read_table')!;
+    expect(read.annotations?.readOnlyHint).toBe(true);
+    const edit = tools.find((t) => t.name === 'edit_table')!;
+    expect(edit.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+    });
+    expect(edit.inputSchema.required).toEqual(['table', 'op']);
+  });
+
+  it('get_selection on a cells selection: the block and its sizes, anchor and head at offset 0, the hint, no text or xml; a field block carries its source', async () => {
+    await h.catalogue.close();
+    h = await harness({ document: tablesBook() });
+    h.setSelection({
+      kind: 'cells',
+      anchor: { nodeId: 'tBr2c1', offset: 0 },
+      head: { nodeId: 'tBr3c2', offset: 0 },
+      table: 'tB',
+      row: 2,
+      column: 1,
+      rows: 2,
+      columns: 2,
+    });
+    const out = await call('get_selection', { format: 'fb2xml', cursor: 'after:x' });
+    expect(out.isError).toBe(false);
+    expect(out.result).toMatchObject({
+      kind: 'cells',
+      table: { id: 'tB', path: 'body[1]/section[1]/table[2]', type: 'table' },
+      row: 2,
+      column: 1,
+      rows: 2,
+      columns: 2,
+      characters: 4,
+      paragraphs: 4,
+      hasInlineElements: false,
+      anchor: { node: { id: 'tBr2c1' }, offset: 0 },
+      head: { node: { id: 'tBr3c2' }, offset: 0 },
+      hint: HINT,
+    });
+    for (const member of ['text', 'xml', 'source']) expect(out.result).not.toHaveProperty(member);
+    h.setSelection({
+      kind: 'cells',
+      anchor: { nodeId: 'tAnnr1c1', offset: 0 },
+      head: { nodeId: 'tAnnr1c2', offset: 0 },
+      table: 'tAnn',
+      row: 1,
+      column: 1,
+      rows: 1,
+      columns: 2,
+      source: { view: 'description', field: 'annotation' },
+    });
+    const field = await call('get_selection', {});
+    expect(field.result).toMatchObject({
+      kind: 'cells',
+      table: { id: 'tAnn', path: 'title-info/annotation[1]/table[1]' },
+      characters: 8,
+      paragraphs: 2,
+      source: { view: 'description', field: 'annotation' },
+    });
+  });
+
+  it('replace_selection on cells is notAllowed with its hint, a strike of replace_selection:selection; set_selection from cell to cell gives a feature 005 kind', async () => {
+    await h.catalogue.close();
+    h = await harness({ document: tablesBook() });
+    h.setSelection({
+      kind: 'cells',
+      anchor: { nodeId: 'tAr1c1', offset: 0 },
+      head: { nodeId: 'tAr2c2', offset: 0 },
+      table: 'tA',
+      row: 1,
+      column: 1,
+      rows: 2,
+      columns: 2,
+    });
+    const before = h.copy.document;
+    const out = await call('replace_selection', { content: { text: 'x' } });
+    expect(out.error).toMatchObject({
+      code: 'notAllowed',
+      message: 'A block of table cells cannot be replaced as one piece.',
+      hint: "Use edit_table for the block's structure and attributes (the same row, column, rows and columns), or set_text / replace_node on each cell; read_table gives their ids.",
+    });
+    expect(h.hookCalls).toEqual(['replace_selection:selection']);
+    expect(h.copy.document).toBe(before);
+    const moved = await call('set_selection', {
+      anchor: { node: 'tBr2c1', offset: 0 },
+      head: { node: 'tBr3c2', offset: 1 },
+    });
+    expect(moved.result.kind).not.toBe('cells');
+    expect(h.selection().kind).toBe('blocks');
   });
 });

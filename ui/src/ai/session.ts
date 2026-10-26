@@ -52,6 +52,7 @@ import {
   type IssueMultiset,
 } from './hook';
 import { stripFence, undoLabel } from './reply';
+import { irregularEntries, type IrregularEntry, type ReportForm } from './tables';
 
 /** The RPC surface the session uses (the real client, or a fake in tests). */
 export type SessionRpc = Pick<RpcClient, 'call' | 'runJob'>;
@@ -202,6 +203,13 @@ export class RequestSession {
    * Source text path of a well-formed text replaces it by the text's own report (`setBaseline`).
    */
   baseline: IssueMultiset;
+  /**
+   * The irregular tables of the last accepted state (feature 006, FR-053; Δ§6.4, Δ§6.10): from
+   * the baseline report, replaced by `setBaseline` and by every accepted change.
+   */
+  irregularTables: IrregularEntry[];
+  /** How the set's report named its tables (a text report by `setBaseline`). */
+  irregularForm: ReportForm = 'document';
   readonly baselineReport: ValidationRecord;
   /** The `sc_<N>` allocator every node created in this request draws from (review C12). */
   readonly newNodeIds: () => string;
@@ -243,6 +251,7 @@ export class RequestSession {
     this.modifiedBefore = run.modifiedBefore;
     this.copy = new WorkingCopy(run.before);
     this.baseline = multiset(baselineReport.issues);
+    this.irregularTables = irregularEntries(baselineReport.issues);
     this.baselineReport = summarise(baselineReport);
     this.validations.push(this.baselineReport);
     this.newNodeIds = deps.nextNodeId ?? seededScriptIds(run.before);
@@ -318,6 +327,8 @@ export class RequestSession {
    */
   setBaseline(report: Pick<ValidationReport, 'issues'>): void {
     this.baseline = multiset(report.issues);
+    this.irregularTables = irregularEntries(report.issues);
+    this.irregularForm = 'text';
   }
 
   /**
