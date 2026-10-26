@@ -9,7 +9,9 @@
  * (T098) the block clear, the cut and the paste of a block - run on a block of the regular
  * table -, and the guard's edits gain Delete, Backspace, type-over and the clear a composition
  * makes on a block of the regular table; US5 (T106) *Merge cells* on a block of the regular table
- * and *Split cell* on the cell that merge made.
+ * and *Split cell* on the cell that merge made; US6 (T112) the five header commands - *Make
+ * normal cells* on a block of the regular table made header cells first -, which on the irregular
+ * table itself leave its problems as they were, since a kind change moves no position.
  */
 
 /// <reference types="node" />
@@ -27,6 +29,7 @@ import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2Schema, findNodeById } from '@/editor/schema';
 import { planCommand, type TablePlan } from '@/editor/table/commands';
 import { pasteTransaction } from '@/editor/clipboard/route';
+import { gridOfNode } from '@/editor/table/grid';
 import {
   pasteBlockPlan,
   planClearBlock,
@@ -39,7 +42,10 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planSetKind,
   planSplit,
+  planToggleHeaderCell,
+  planToggleHeaderLines,
 } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
 import { createBodyEditorState } from '@/views/body/bodyEditor';
@@ -64,9 +70,18 @@ function clipboardBlock() {
  * The commands the guard runs on the regular table: US2's twelve; later stories append (US4:
  * the block clear and the cut on a block, `block`; the paste of a block, through the router;
  * US5: *Merge cells* on a block, and *Split cell* with the caret in a merged cell, `merged` -
- * the block from `g-0-0` to `g-1-1` merged first).
+ * the block from `g-0-0` to `g-1-1` merged first; US6: the five header commands, `kind` - their
+ * irregular table keeps its problems -, *Make header cells* and *Make normal cells* on a block,
+ * the latter on the block made header cells first, `headers`).
  */
-const GUARDED_COMMANDS: { name: string; plan: TablePlan; block?: boolean; merged?: boolean }[] = [
+const GUARDED_COMMANDS: {
+  name: string;
+  plan: TablePlan;
+  block?: boolean;
+  merged?: boolean;
+  headers?: boolean;
+  kind?: boolean;
+}[] = [
   { name: 'insertRowAbove', plan: (a, c) => planInsertRows(a, { side: 'above' }, c) },
   { name: 'insertRowBelow', plan: (a, c) => planInsertRows(a, { side: 'below' }, c) },
   { name: 'deleteRow', plan: (a, c) => planDeleteRows(a, c) },
@@ -84,6 +99,30 @@ const GUARDED_COMMANDS: { name: string; plan: TablePlan; block?: boolean; merged
   { name: 'pasteBlock', plan: (a, c) => pasteBlockPlan(a, clipboardBlock(), c) },
   { name: 'mergeCells', plan: (a, c) => planMerge(a, c), block: true },
   { name: 'splitCell', plan: (a, c) => planSplit(a, c), merged: true },
+  { name: 'toggleHeaderCell', plan: (a, c) => planToggleHeaderCell(a, c), kind: true },
+  {
+    name: 'makeHeaderCells',
+    plan: (a, c) => planSetKind(a, { kind: 'th' }, c),
+    block: true,
+    kind: true,
+  },
+  {
+    name: 'makeNormalCells',
+    plan: (a, c) => planSetKind(a, { kind: 'td' }, c),
+    block: true,
+    headers: true,
+    kind: true,
+  },
+  {
+    name: 'toggleHeaderRow',
+    plan: (a, c) => planToggleHeaderLines(a, { axis: 'row' }, c),
+    kind: true,
+  },
+  {
+    name: 'toggleHeaderColumn',
+    plan: (a, c) => planToggleHeaderLines(a, { axis: 'column' }, c),
+    kind: true,
+  },
 ];
 
 const VECTORS = path.resolve(
@@ -174,7 +213,7 @@ function runPlan(state: EditorState, plan: TablePlan): { state: EditorState; ran
 describe('no automatic repair (R1.7, FR-035)', () => {
   it('covers the irregular cases of the shared vectors', () => {
     expect(irregular.length).toBeGreaterThan(10);
-    expect(GUARDED_COMMANDS).toHaveLength(17);
+    expect(GUARDED_COMMANDS).toHaveLength(22);
   });
 
   for (const one of irregular) {
@@ -254,20 +293,24 @@ describe('no automatic repair (R1.7, FR-035)', () => {
         { bookIds: () => new Set(), nextNodeId: () => `q${(counter += 1)}`, message: () => {} },
       )!;
       expect(tableOf(apply(caretIn, pasteTr))).toBe(original);
-      for (const { name, plan, block, merged } of GUARDED_COMMANDS) {
+      for (const { name, plan, block, merged, headers } of GUARDED_COMMANDS) {
         let start = state;
-        if (merged) {
-          // The block from g-0-0 to g-1-1 merged first, so the caret stands in a merged cell.
+        if (merged || headers) {
+          // The block from g-0-0 to g-1-1 merged first, so the caret stands in a merged cell, or
+          // made header cells first, so that Make normal cells has cells to convert.
           const onBlock = apply(
             state,
             state.tr.setSelection(
               CellBlockSelection.create(state.doc, posOf(state, 'g-0-0'), posOf(state, 'g-1-1')),
             ),
           );
-          const merge = runPlan(onBlock, planMerge);
-          expect(merge.ran, name).toBe(true);
-          expect(tableOf(merge.state), name).toBe(original);
-          start = merge.state;
+          const first = runPlan(
+            onBlock,
+            merged ? planMerge : (a, c) => planSetKind(a, { kind: 'th' }, c),
+          );
+          expect(first.ran, name).toBe(true);
+          expect(tableOf(first.state), name).toBe(original);
+          start = first.state;
         }
         const at = apply(
           start,
@@ -283,7 +326,8 @@ describe('no automatic repair (R1.7, FR-035)', () => {
         const back = apply(result.state, result.state.tr);
         expect(tableOf(back), name).toBe(original);
       }
-      // A command on the irregular table itself: afterwards an empty transaction appends nothing.
+      // A command on the irregular table itself: afterwards an empty transaction appends nothing;
+      // a header command leaves its problems as they were (a kind change moves no position).
       const firstCell = original.firstChild?.firstChild;
       if (firstCell && (firstCell.type.name === 'td' || firstCell.type.name === 'th')) {
         const inside = apply(
@@ -292,11 +336,20 @@ describe('no automatic repair (R1.7, FR-035)', () => {
             TextSelection.create(state.doc, posOf(state, firstCell.attrs.nodeId as string) + 1),
           ),
         );
-        for (const { plan } of GUARDED_COMMANDS) {
+        const grid = gridOfNode(original);
+        let converted = 0;
+        for (const { name, plan, kind } of GUARDED_COMMANDS) {
           const result = runPlan(inside, plan);
           const { transactions } = result.state.applyTransaction(result.state.tr);
           expect(transactions).toHaveLength(1);
+          if (!kind) continue;
+          const after = gridOfNode(tableOf(result.state));
+          expect(after.summary, name).toEqual(grid.summary);
+          expect(after.problems, name).toEqual(grid.problems);
+          if (result.ran) converted += 1;
         }
+        // Toggle header cell, Make header cells or Make normal cells, and the two toggles act.
+        expect(converted).toBeGreaterThanOrEqual(4);
       }
     });
   }

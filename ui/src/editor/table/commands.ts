@@ -156,7 +156,9 @@ function duplicationCheck(axis: LineAxis): AvailabilityCheck {
  * duplications (`checkSpanRoom`), the deletes' `only-row` … `all-columns` (`checkDelete`) and the
  * moves' crossings and bands (`checkMove`). US5: *Merge cells* (`checkMerge`: a block, else
  * `needs-block`) and *Split cell* (`checkSplit`: the caret's cell owning a second position, else
- * `not-merged` for the cell or the block).
+ * `not-merged` for the cell or the block). US6's five header commands register none: they take
+ * any cell or block, and the two toggles, which read positions, answer `too-large` from
+ * `POSITION_COMMANDS` (data-model §2.5, §4.5).
  */
 const checks = new Map<TableCommandName, AvailabilityCheck>([
   ['insertRowAbove', insertionCheck('row', 'above')],

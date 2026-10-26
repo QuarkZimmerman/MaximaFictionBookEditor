@@ -5,7 +5,7 @@
  * read, `reasonText` for every code and leaf in the three catalogues, and a command built from
  * a row of the command table. Each story adds "availability agrees with every plan's dry run"
  * for its commands: US2 (T072) its twelve row and column commands, US5 (T102) *Merge cells* and
- * *Split cell*.
+ * *Split cell*, US6 (T109) the five header commands.
  */
 
 /// <reference types="node" />
@@ -32,10 +32,12 @@ import {
 } from '@/editor/table/commands';
 import {
   REFUSAL_CODES,
+  commitTableEdit,
   gridCellNode,
   isRefusal,
   tableTarget,
   type Refusal,
+  type TableEdit,
 } from '@/editor/table/edit';
 import { gridOfNode } from '@/editor/table/grid';
 import {
@@ -50,7 +52,10 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planSetKind,
   planSplit,
+  planToggleHeaderCell,
+  planToggleHeaderLines,
 } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
 import { fb2Schema, findNodeById } from '@/editor/schema';
@@ -145,7 +150,8 @@ describe('availability', () => {
       ['delete', 'paragraphAfter', 'paragraphBefore', 'repair', 'select'].sort(),
     );
     // In a cell: ok, but for the moves without a neighbour - US2's checks (T075) answer them -
-    // and for Merge cells and Split cell, which a single cell refuses (US5's checks, T105).
+    // and for Merge cells and Split cell, which a single cell refuses (US5's checks, T105); the
+    // five header commands (US6) take any cell.
     const inCell = stateWith(doc, (d) => TextSelection.create(d, pos(d, 'b') + 1));
     const refused: Partial<Record<string, Refusal>> = {
       moveRowUp: { refused: 'no-neighbour', params: { direction: 'up' } },
@@ -1221,5 +1227,269 @@ describe('US5: Merge cells and Split cell', () => {
         ).toBeTruthy();
       }
     }
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US6: the five header commands (T109)                                     */
+/* ------------------------------------------------------------------------ */
+
+/** The five commands of user story 6, in FR-039's order, and their plans as the rows run them. */
+const US6_NAMES = [
+  'toggleHeaderCell',
+  'makeHeaderCells',
+  'makeNormalCells',
+  'toggleHeaderRow',
+  'toggleHeaderColumn',
+] as const satisfies readonly TableCommandName[];
+const US6_PLANS: Record<(typeof US6_NAMES)[number], TablePlan> = {
+  toggleHeaderCell: (a, c) => planToggleHeaderCell(a, c),
+  makeHeaderCells: (a, c) => planSetKind(a, { kind: 'th' }, c),
+  makeNormalCells: (a, c) => planSetKind(a, { kind: 'td' }, c),
+  toggleHeaderRow: (a, c) => planToggleHeaderLines(a, { axis: 'row' }, c),
+  toggleHeaderColumn: (a, c) => planToggleHeaderLines(a, { axis: 'column' }, c),
+};
+/** The two of them that read positions (`POSITION_COMMANDS`; data-model §2.5). */
+const US6_TOGGLES: ReadonlySet<string> = new Set(['toggleHeaderRow', 'toggleHeaderColumn']);
+
+/** US6's scenario shapes of `tables.fb2` (T014), as rows of model cells. */
+const US6_SHAPES: VectorRow[][] = [
+  [
+    [{ type: 'th' }, {}, {}],
+    [
+      span({
+        colspan: 2,
+        id: 'us6-s',
+        style: 'wide',
+        align: 'center',
+        valign: 'middle',
+        lang: 'de',
+      }),
+      {},
+    ],
+    [{}, {}, {}],
+  ],
+  Array.from({ length: 3 }, () => [{}, {}, {}]),
+  [
+    [{ type: 'th' }, { type: 'th', attrs: { align: 'left' } }, { type: 'th' }],
+    [{ type: 'th' }, { type: 'th' }, { type: 'th' }],
+    [{}, {}, {}],
+  ],
+];
+
+describe('US6: the five header commands', () => {
+  beforeAll(() => {
+    // jsdom measures no range: a commit's scroll into view after a command focused the Body
+    // editor reads these (as the US5 block above stubs them).
+    Object.defineProperty(Range.prototype, 'getClientRects', {
+      configurable: true,
+      value: () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }),
+    });
+    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+    });
+  });
+
+  it('availability agrees with every plan’s dry run: ok for any cell or block, where the plan acts or commits nothing; too-large only for the two toggles', () => {
+    let compared = 0;
+    let ids = 0;
+    let idle = 0;
+    const acting: Record<string, number> = Object.fromEntries(US6_NAMES.map((name) => [name, 0]));
+    const tables = [
+      ...agreementTables(),
+      ...US6_SHAPES.map((rows, index) => ({
+        name: `US6 table ${index + 1}`,
+        node: nodeFromModel(vectorModel(rows, true))!,
+      })),
+    ];
+    for (const { name: table, node } of tables) {
+      for (const state of statesOf(node)) {
+        const target = tableTarget(state)!;
+        for (const name of US6_NAMES) {
+          compared += 1;
+          const plan = US6_PLANS[name](target.address, { nextId: () => `x${(ids += 1)}` });
+          expect(availability(state, name), `${table}: ${name}`).toEqual({ ok: true });
+          expect(isRefusal(plan), `${table}: ${name}`).toBe(false);
+          // The commit acts, or the plan changes nothing and nothing is committed (FR-045).
+          if (commitTableEdit(state.tr, target.tablePos, plan as TableEdit)) acting[name]! += 1;
+          else idle += 1;
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(1000);
+    for (const name of US6_NAMES) expect(acting[name], name).toBeGreaterThan(20);
+    expect(idle).toBeGreaterThan(20);
+    // A table above MAX_GRID_POSITIONS: the toggles read positions and refuse, from the plan and
+    // from availability alike; the three cell commands act on the caret's cell.
+    const large = stateWith(largeDoc(), (d) => TextSelection.create(d, pos(d, 'w1') + 1));
+    const target = tableTarget(large)!;
+    for (const name of US6_NAMES) {
+      const plan = US6_PLANS[name](target.address, { nextId: () => `x${(ids += 1)}` });
+      if (US6_TOGGLES.has(name)) {
+        expect(plan, name).toEqual({ refused: 'too-large' });
+        expect(availability(large, name), name).toEqual({ refused: 'too-large' });
+      } else {
+        expect(isRefusal(plan), name).toBe(false);
+        expect(availability(large, name), name).toEqual({ ok: true });
+      }
+    }
+  });
+
+  it('availability builds no node for them, and reads the cached grid', () => {
+    const small = smallDoc();
+    const merged = mergedDoc();
+    const large = largeDoc();
+    const caret = (doc: PMNode, id: string) =>
+      stateWith(doc, (d) => TextSelection.create(d, pos(d, id) + 1));
+    const block = (doc: PMNode, from: string, to: string) =>
+      EditorState.create({
+        doc,
+        selection: CellBlockSelection.create(doc, pos(doc, from), pos(doc, to)),
+      });
+    const states = [
+      ...['a', 'b', 'c', 'd'].map((id) => caret(small, id)),
+      block(small, 'a', 'd'),
+      ...['m', 'c', 'd'].map((id) => caret(merged, id)),
+      block(merged, 'm', 'd'),
+      caret(large, 'w1'),
+    ];
+    const tables: [PMNode, string][] = [
+      [small, 't'],
+      [merged, 't'],
+      [large, 'big'],
+    ];
+    const grids = tables.map(([doc, id]) => gridOfNode(doc.nodeAt(pos(doc, id))!));
+    const create = vi.spyOn(NodeType.prototype, 'create');
+    const createChecked = vi.spyOn(NodeType.prototype, 'createChecked');
+    try {
+      for (const state of states) for (const name of US6_NAMES) availability(state, name);
+      expect(create).not.toHaveBeenCalled();
+      expect(createChecked).not.toHaveBeenCalled();
+    } finally {
+      create.mockRestore();
+      createChecked.mockRestore();
+    }
+    tables.forEach(([doc, id], index) => {
+      expect(gridOfNode(doc.nodeAt(pos(doc, id))!)).toBe(grids[index]);
+    });
+  });
+
+  it('answers the host codes first, then too-large for the two toggles alone', () => {
+    const doc = smallDoc();
+    const large = largeDoc();
+    for (const name of US6_NAMES) {
+      expect(
+        availability(
+          stateWith(doc, (d) => TextSelection.create(d, pos(d, 'p1') + 1)),
+          name,
+        ),
+      ).toEqual({ refused: 'notInTable' });
+      expect(
+        availability(
+          stateWith(doc, (d) => TextSelection.create(d, pos(d, 'p1') + 1, pos(d, 'a') + 1)),
+          name,
+        ),
+      ).toEqual({ refused: 'mixedSelection' });
+      expect(
+        availability(
+          stateWith(doc, (d) => NodeSelection.create(d, pos(d, 't'))),
+          name,
+        ),
+      ).toEqual({ refused: 'tableSelected' });
+      expect(
+        availability(
+          stateWith(large, (d) => TextSelection.create(d, pos(d, 'w1') + 1)),
+          name,
+        ),
+        name,
+      ).toEqual(US6_TOGGLES.has(name) ? { refused: 'too-large' } : { ok: true });
+      expect(
+        availability(
+          EditorState.create({
+            doc,
+            selection: CellBlockSelection.create(doc, pos(doc, 'a'), pos(doc, 'd')),
+          }),
+          name,
+        ),
+      ).toEqual({ ok: true });
+    }
+  });
+
+  it('has five command rows with literal ids after Split cell, none asking first, registered live by the tables feature', async () => {
+    const ids = TABLE_COMMAND_ROWS.map((row) => row.id);
+    const at = ids.indexOf('table.splitCell');
+    expect(ids.slice(at + 1, at + 1 + US6_NAMES.length)).toEqual(
+      US6_NAMES.map((name) => `table.${name}`),
+    );
+    for (const name of US6_NAMES) {
+      const row = TABLE_COMMAND_ROWS.find((one) => one.id === `table.${name}`)!;
+      expect(row.confirm, name).toBeUndefined();
+    }
+    const source = readFileSync(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '../../../src/features/tables/commands.ts',
+      ),
+      'utf8',
+    );
+    for (const name of US6_NAMES) expect(source, name).toContain(`id: 'table.${name}'`);
+    const { services } = await tablesHarness();
+    for (const name of US6_NAMES) {
+      const command = services.commands.get(`table.${name}`)!;
+      expect(command.stub, name).toBeUndefined();
+      expect(command.hotkeyScope, name).toBe('tableTarget');
+      expect(command.icon, name).toBe(tableIcon(name));
+    }
+  });
+
+  it('runs each through the target as one undo-coordinator entry that keeps the caret; one with nothing to convert records none', async () => {
+    const harness = await tablesHarness();
+    const { services, ctx, controller } = harness;
+    const kind = (id: string) => controller.editorState!.doc.nodeAt(posOf(harness, id))!.type.name;
+    const run = async (id: string) => {
+      await act(async () => {
+        expect(await services.commands.execute(id, ctx), id).toBe(true);
+      });
+    };
+    const entries = services.undo.entries().length;
+    // The caret after the second character of r1c1 (t1-1-1): a header cell, the caret kept.
+    act(() => caretIn(harness, 't1-1-1', 2));
+    for (const name of US6_NAMES) {
+      expect(services.commands.isEnabled(`table.${name}`, ctx), name).toBe(true);
+    }
+    await run('table.toggleHeaderCell');
+    expect(services.undo.entries().length).toBe(entries + 1);
+    expect(kind('t1-1-1')).toBe('th');
+    expect(controller.editorState!.selection.$head.parent.attrs.nodeId).toBe('t1-1-1');
+    expect(controller.editorState!.selection.$head.parentOffset).toBe(2);
+    // Make header cells on it: nothing to convert - nothing dispatched, no entry.
+    await run('table.makeHeaderCells');
+    expect(services.undo.entries().length).toBe(entries + 1);
+    expect(kind('t1-1-1')).toBe('th');
+    // Make normal cells: a normal cell again.
+    await run('table.makeNormalCells');
+    expect(services.undo.entries().length).toBe(entries + 2);
+    expect(kind('t1-1-1')).toBe('td');
+    // Toggle header row: row 2; Toggle header column: column 2, which mixes kinds now.
+    await run('table.toggleHeaderRow');
+    expect(services.undo.entries().length).toBe(entries + 3);
+    expect(['t1-1-0', 't1-1-1', 't1-1-2'].map(kind)).toEqual(['th', 'th', 'th']);
+    await run('table.toggleHeaderColumn');
+    expect(services.undo.entries().length).toBe(entries + 4);
+    expect(['t1-0-1', 't1-1-1', 't1-2-1'].map(kind)).toEqual(['th', 'th', 'th']);
+    expect(['t1-0-0', 't1-2-0', 't1-0-2', 't1-2-2'].map(kind)).toEqual(['td', 'td', 'td', 'td']);
+    // A block of column 1: Make header cells converts its normal cells; the block stays.
+    const doc = () => controller.editorState!.doc;
+    act(() =>
+      select(
+        harness,
+        CellBlockSelection.create(doc(), posOf(harness, 't1-0-0'), posOf(harness, 't1-2-0')),
+      ),
+    );
+    await run('table.makeHeaderCells');
+    expect(services.undo.entries().length).toBe(entries + 5);
+    expect(['t1-0-0', 't1-1-0', 't1-2-0'].map(kind)).toEqual(['th', 'th', 'th']);
+    expect(controller.editorState!.selection).toBeInstanceOf(CellBlockSelection);
   });
 });

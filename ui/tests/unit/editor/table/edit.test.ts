@@ -370,6 +370,38 @@ describe('assertTableValid', () => {
     expect(() => assertTableValid(before, replaceRow(1, short), [], true)).not.toThrow();
   });
 
+  it('checks the spans a plan writes, not those a changed cell keeps as read: a kind change keeps an odd span (US6; FR-019, FR-047)', () => {
+    // [a colspan 0, b] / [c rowspan 1000000000, d]: values the commands count as 1 and 65534.
+    const odd = table('o', [
+      [{ colspan: 0 }, {}],
+      [{ rowspan: 1_000_000_000 }, {}],
+    ]);
+    const oddRows = childrenOf(odd);
+    const make = (row: number, cell: number, node: (typeof oddRows)[number]) =>
+      odd.type.create(
+        odd.attrs,
+        oddRows.map((r, i) => (i === row ? withChild(r, cell, node) : r)),
+      );
+    const a = oddRows[0]!.child(0);
+    const c = oddRows[1]!.child(0);
+    const asHeader = (cell: typeof a) => N.th!.create(cell.attrs, cell.content, cell.marks);
+    expect(() => assertTableValid(odd, make(0, 0, asHeader(a)))).not.toThrow();
+    expect(() => assertTableValid(odd, make(1, 0, asHeader(c)))).not.toThrow();
+    // A span the plan writes on the other axis is checked; the odd one it keeps is not.
+    const grown = a.type.create(withSpans(a.attrs, undefined, 2), a.content, a.marks);
+    expect(() =>
+      assertTableValid(
+        odd,
+        odd.type.create(odd.attrs, [withChild(oddRows[0]!, 0, grown), oddRows[1]!]),
+      ),
+    ).not.toThrow();
+    // An odd value the plan writes, on a changed cell or a new one, fails.
+    const written = a.type.create({ ...a.attrs, colspan: -1 }, a.content, a.marks);
+    expect(() => assertTableValid(odd, make(0, 0, written))).toThrow(/span/);
+    const copy = N.td!.create({ ...a.attrs, nodeId: 'o-new' }, a.content, a.marks);
+    expect(() => assertTableValid(odd, make(0, 0, copy))).toThrow(/span/);
+  });
+
   it('keeps the non-row children of an invalid table and the non-cell children of its kept rows', () => {
     // [a, b] / raw / [c, raw, d]: unchecked, as nodeFromModel keeps it.
     const invalid = table('v', [[{}, {}], 'raw', [{}, 'raw', {}]]);

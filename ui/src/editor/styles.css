@@ -360,6 +360,33 @@ a.fb-note {
 }
 
 /*
+ * Cell alignment shown as written (feature 006, US6 sc.4; research R6.7; C60): an author rule
+ * outranks an attribute's presentational hint, so the defaults above would hide every `valign`
+ * and the `align` of a header cell. Header cells stay centred unless the cell or its row sets an
+ * alignment; `td` cells already follow their own `align` (`CellView` writes `align` and
+ * `valign`, the `tr` its `align`).
+ */
+.fb-editor .fb-table :is(th, td)[valign='middle'] {
+  vertical-align: middle;
+}
+
+.fb-editor .fb-table :is(th, td)[valign='bottom'] {
+  vertical-align: bottom;
+}
+
+.fb-editor .fb-table th[align='left'] {
+  text-align: left;
+}
+
+.fb-editor .fb-table th[align='right'] {
+  text-align: right;
+}
+
+.fb-editor .fb-table tr[align] > th:not([align]) {
+  text-align: inherit;
+}
+
+/*
  * A selected block of cells (feature 006, data-model §5.6, C51): the tint over the cell's own
  * background, so header and data cells stay apart (Fast Mode included), and an accent line
  * that carries the visibility. Text selected inside a cell takes a colour that keeps 4.5:1.

@@ -7,7 +7,7 @@
  * stories append them. US1 adds `insert.table`, *Add → Table* (`createInsertTableCommand`;
  * data-model §4.5), with its Source view branch (`sourceTable.ts`); US2 the twelve row and
  * column commands; US5 *Merge cells*, which asks the FR-015 question first (`confirm.ts`), and
- * *Split cell*.
+ * *Split cell*; US6 the five header commands.
  */
 
 import type { Command as PMCommand } from 'prosemirror-state';
@@ -33,7 +33,10 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planSetKind,
   planSplit,
+  planToggleHeaderCell,
+  planToggleHeaderLines,
 } from '@/editor/table/ops';
 import { collectBookIds } from '@/model/ids';
 import type { SourceVerdict } from '@/views/source/sourceEditor';
@@ -67,7 +70,9 @@ export interface TableCommandRow {
  * the twelve row and column commands (FR-006, FR-038; data-model §4.5), each its plan through
  * `planCommand` - one undo step, nothing dispatched for a refusal, no question asked (C13). US5:
  * *Merge cells* (FR-013 to FR-015), which asks before link targets are lost, and *Split cell*
- * (FR-016), which never asks.
+ * (FR-016), which never asks. US6: *Toggle header cell*, *Make header cells*, *Make normal
+ * cells*, *Toggle header row* and *Toggle header column* (FR-017 to FR-019), which change only
+ * the kind of cells; nothing is dispatched when there is nothing to convert (FR-045).
  */
 export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
   {
@@ -107,6 +112,28 @@ export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
   {
     id: 'table.splitCell',
     command: (ctx) => planCommand(planSplit, ctx),
+  },
+  {
+    id: 'table.toggleHeaderCell',
+    command: (ctx) => planCommand((address, c) => planToggleHeaderCell(address, c), ctx),
+  },
+  {
+    id: 'table.makeHeaderCells',
+    command: (ctx) => planCommand((address, c) => planSetKind(address, { kind: 'th' }, c), ctx),
+  },
+  {
+    id: 'table.makeNormalCells',
+    command: (ctx) => planCommand((address, c) => planSetKind(address, { kind: 'td' }, c), ctx),
+  },
+  {
+    id: 'table.toggleHeaderRow',
+    command: (ctx) =>
+      planCommand((address, c) => planToggleHeaderLines(address, { axis: 'row' }, c), ctx),
+  },
+  {
+    id: 'table.toggleHeaderColumn',
+    command: (ctx) =>
+      planCommand((address, c) => planToggleHeaderLines(address, { axis: 'column' }, c), ctx),
   },
   {
     id: 'table.moveRowUp',

@@ -363,8 +363,11 @@ function validSpan(value: unknown, limit: number): boolean {
  * §4.4 against `before`: a valid table gives a valid one whose every row holds a cell; an
  * invalid one keeps its non-row children and the non-cell children of its kept rows, and every
  * row the plan created or changed holds a cell; new cells write spans of 2 up to the limits or
- * none; no node id twice; no FB2 id `before` lacks beyond `allowed`; a regular table stays
- * regular unless the edit pasted an irregular editor copy.
+ * none, and so does every span a plan writes on a changed cell - a span value a changed cell
+ * keeps exactly as the cell of `before` with its `nodeId` had it is not written by the plan
+ * (a kind change keeps every attribute, FR-019; a value as read stays as written, FR-047); no
+ * node id twice; no FB2 id `before` lacks beyond `allowed`; a regular table stays regular
+ * unless the edit pasted an irregular editor copy.
  */
 export function assertTableValid(
   before: PMNode,
@@ -410,11 +413,20 @@ export function assertTableValid(
     }
   }
   const oldCells = new Set(cellsOf(before));
+  const attrsBefore = new Map<string, Attrs>();
+  for (const cell of oldCells) {
+    const id = cell.attrs.nodeId;
+    if (typeof id === 'string') attrsBefore.set(id, cell.attrs);
+  }
   for (const cell of cellsOf(after)) {
     if (oldCells.has(cell)) continue;
+    const id = cell.attrs.nodeId;
+    const was = typeof id === 'string' ? attrsBefore.get(id) : undefined;
+    // A span the cell keeps as it was is not written by the plan.
+    const writes = (name: 'colspan' | 'rowspan') => !was || was[name] !== cell.attrs[name];
     if (
-      !validSpan(cell.attrs.colspan, MAX_COLSPAN) ||
-      !validSpan(cell.attrs.rowspan, MAX_ROWSPAN)
+      (writes('colspan') && !validSpan(cell.attrs.colspan, MAX_COLSPAN)) ||
+      (writes('rowspan') && !validSpan(cell.attrs.rowspan, MAX_ROWSPAN))
     ) {
       fail('a new or changed cell writes a span that is not a whole number from 2 to the limit');
     }

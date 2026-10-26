@@ -20,7 +20,10 @@
  * or of the whole current table - and pastes it through the router's `pasteTransaction`. US5
  * adds *Merge cells* on a drawn block and *Split cell* on a drawn caret, in a merged cell in half
  * of the draws (R8.15's "merge 10, split 10"), both through `planCommand`, which asks nothing
- * (the FR-015 question is the host's, C13).
+ * (the FR-015 question is the host's, C13). US6 adds the five header commands on a drawn caret
+ * or block (R8.15's "header commands 10", 2 each) with a kind-only oracle (`checkKindStep`):
+ * positions keep their owners, the target cells keep their content, node id and every attribute
+ * and change only their kind, every other cell keeps its kind (FR-019).
  */
 
 import { Fragment, Slice, type Node as PMNode, type Schema } from 'prosemirror-model';
@@ -68,8 +71,11 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planSetKind,
   planSplit,
   planTabRow,
+  planToggleHeaderCell,
+  planToggleHeaderLines,
   pasteBlockPlan,
   planClearBlock,
   normalisePastedBlock,
@@ -337,6 +343,21 @@ export interface FuzzEntry {
   merges?: boolean;
   /** US5: *Split cell* - its own locality oracle (`checkSplitStep`). */
   splits?: boolean;
+  /**
+   * US6: a header command - the kind-only oracle (`checkKindStep`) with the cells the step may
+   * change, read from the address before it; null when it addresses none.
+   */
+  kinds?(address: TableAddress): KindTargets | null;
+}
+
+/**
+ * The cells a header command may change (indices in the grid before it) and the kind they have
+ * afterwards: `'flip'` - *Toggle header cell*'s one cell takes the other kind -, `'toggle'` - all
+ * of them `td` when all were `th`, otherwise all `th` (FR-018) -, or the kind itself.
+ */
+export interface KindTargets {
+  cells: ReadonlySet<number>;
+  kind: 'td' | 'th' | 'flip' | 'toggle';
 }
 
 /** The generator's clipboard (US4): the table a cut or a copy left, as `content()` gives it. */
@@ -419,10 +440,60 @@ function duplicatedColumns(address: TableAddress): FuzzLines | null {
   return { column: (c) => (c < b ? c : c + (b - a)) };
 }
 
+/** The grid cell whose top-left position is `at` (US6), found among the cells' own places. */
+function cellStartingAt(address: TableAddress, at: { row: number; col: number } | undefined) {
+  if (!at) return -1;
+  return address.grid.cells.findIndex((cell) => cell.row === at.row && cell.left === at.col);
+}
+
+/** *Toggle header cell* (US6): the head cell of a block, else the caret's cell, flips. */
+function headCellTarget(address: TableAddress): KindTargets | null {
+  const index = cellStartingAt(address, address.rect ? address.head : address.caret);
+  return index < 0 ? null : { cells: new Set([index]), kind: 'flip' };
+}
+
+/** *Make header cells* and *Make normal cells* (US6): every cell of a block, else the caret's. */
+function blockTargets(kind: 'td' | 'th') {
+  return (address: TableAddress): KindTargets | null => {
+    const { grid, rect } = address;
+    if (rect) return grid.tooLarge ? null : { cells: new Set(grid.cellsIn(rect)), kind };
+    const index = cellStartingAt(address, address.caret);
+    return index < 0 ? null : { cells: new Set([index]), kind };
+  };
+}
+
+/**
+ * *Toggle header row* and *Toggle header column* (US6): the owners of every position of the
+ * block's rows (columns), else of the caret cell's top row (left column), toggled together.
+ */
+function lineTargets(axis: 'row' | 'column') {
+  return (address: TableAddress): KindTargets | null => {
+    const { grid, rect, caret } = address;
+    if (grid.tooLarge) return null;
+    let from: number;
+    let to: number;
+    if (rect) [from, to] = axis === 'row' ? [rect.top, rect.bottom] : [rect.left, rect.right];
+    else if (caret)
+      [from, to] = axis === 'row' ? [caret.row, caret.row + 1] : [caret.col, caret.col + 1];
+    else return null;
+    const cells = new Set<number>();
+    for (let r = 0; r < grid.height; r += 1) {
+      for (let c = 0; c < grid.width; c += 1) {
+        const at = axis === 'row' ? r : c;
+        if (at < from || at >= to) continue;
+        const owner = grid.owner(r, c);
+        if (owner >= 0) cells.add(owner);
+      }
+    }
+    return { cells, kind: 'toggle' };
+  };
+}
+
 /**
  * The commands of the mix with R8.15's weights: the four inserts 5 each, *Delete row* 8 and
  * *Delete column* 7, the four moves 1.5 and the two duplicates 2 each; the Tab row 5 (a weight
- * chosen here); Undo 5 and Redo 5.
+ * chosen here); the block clear 3, the cut 2 and the paste 5 (US4); *Merge cells* 10 and *Split
+ * cell* 10 (US5); the five header commands 2 each (US6); Undo 5 and Redo 5.
  */
 export const FUZZ_MIX: FuzzEntry[] = [
   {
@@ -553,6 +624,43 @@ export const FUZZ_MIX: FuzzEntry[] = [
     plan: (address, ctx) => planSplit(address, ctx),
     caret: 'merged',
     splits: true,
+  },
+  // US6 (SC-003; R8.15's "header commands 10"): the five header commands on a drawn caret or
+  // block, each checked by the kind-only oracle, so the fuzz also proves FR-019 at random.
+  {
+    name: 'toggleHeaderCell',
+    command: 'toggleHeaderCell',
+    weight: 2,
+    plan: (address, ctx) => planToggleHeaderCell(address, ctx),
+    kinds: headCellTarget,
+  },
+  {
+    name: 'makeHeaderCells',
+    command: 'makeHeaderCells',
+    weight: 2,
+    plan: (address, ctx) => planSetKind(address, { kind: 'th' }, ctx),
+    kinds: blockTargets('th'),
+  },
+  {
+    name: 'makeNormalCells',
+    command: 'makeNormalCells',
+    weight: 2,
+    plan: (address, ctx) => planSetKind(address, { kind: 'td' }, ctx),
+    kinds: blockTargets('td'),
+  },
+  {
+    name: 'toggleHeaderRow',
+    command: 'toggleHeaderRow',
+    weight: 2,
+    plan: (address, ctx) => planToggleHeaderLines(address, { axis: 'row' }, ctx),
+    kinds: lineTargets('row'),
+  },
+  {
+    name: 'toggleHeaderColumn',
+    command: 'toggleHeaderColumn',
+    weight: 2,
+    plan: (address, ctx) => planToggleHeaderLines(address, { axis: 'column' }, ctx),
+    kinds: lineTargets('column'),
   },
   { name: 'undo', weight: 5 },
   { name: 'redo', weight: 5 },
@@ -1104,6 +1212,74 @@ function checkSplitStep(before: PMNode, after: PMNode, address: TableAddress): s
 }
 
 /**
+ * US6's kind-only oracle (FR-019, FR-035): the table keeps every child in its place - each row
+ * with its attributes and its children, every non-row and non-cell child unchanged - and every
+ * cell its node id and every attribute and its content, so every position keeps its owner (no
+ * shift); the cells outside `targets` keep their kind, and the targets have the kind the
+ * command gives them.
+ */
+function checkKindStep(before: PMNode, after: PMNode, targets: KindTargets): string | null {
+  if (after.childCount !== before.childCount) return 'a header command added or removed a child';
+  const isCell = (node: PMNode) => node.type.name === 'td' || node.type.name === 'th';
+  const sameAttrs = (a: PMNode, b: PMNode) => JSON.stringify(a.attrs) === JSON.stringify(b.attrs);
+  for (let index = 0; index < before.childCount; index += 1) {
+    const was = before.child(index);
+    const is = after.child(index);
+    if (was.type.name !== 'tr') {
+      if (!is.eq(was)) return `the table's child ${index}, not a row, changed`;
+      continue;
+    }
+    if (is.type !== was.type || !sameAttrs(is, was) || is.childCount !== was.childCount) {
+      return `the row ${String(was.attrs.nodeId)} changed beyond the kinds of its cells`;
+    }
+    for (let at = 0; at < was.childCount; at += 1) {
+      const cell = was.child(at);
+      const now = is.child(at);
+      const id = String(cell.attrs.nodeId);
+      if (!isCell(cell)) {
+        if (!now.eq(cell)) return `a child of the row ${String(was.attrs.nodeId)} changed`;
+        continue;
+      }
+      if (!isCell(now)) return `the cell ${id} is no longer a cell`;
+      if (!sameAttrs(now, cell)) return `the cell ${id} changed an attribute`;
+      if (!now.content.eq(cell.content))
+        return `the cell "${cell.textContent}" changed its content`;
+    }
+  }
+  const g0 = gridOfNode(before);
+  const g1 = gridOfNode(after);
+  if (JSON.stringify(g1.summary) !== JSON.stringify(g0.summary)) return 'the grid summary changed';
+  if (!g0.tooLarge && !g1.tooLarge) {
+    for (let r = 0; r < g0.height; r += 1) {
+      for (let c = 0; c < g0.width; c += 1) {
+        const o0 = g0.owner(r, c);
+        const o1 = g1.owner(r, c);
+        const id0 = o0 < 0 ? null : gridCellNode(before, g0, o0).attrs.nodeId;
+        const id1 = o1 < 0 ? null : gridCellNode(after, g1, o1).attrs.nodeId;
+        if (id0 !== id1) return `position (${r}, ${c}) changed its owner`;
+      }
+    }
+  }
+  const allHeaders = [...targets.cells].every((index) => g0.cells[index]!.kind === 'th');
+  const wantedFor = (was: 'td' | 'th'): 'td' | 'th' => {
+    if (targets.kind === 'flip') return was === 'th' ? 'td' : 'th';
+    if (targets.kind === 'toggle') return allHeaders ? 'td' : 'th';
+    return targets.kind;
+  };
+  for (let index = 0; index < g0.cells.length; index += 1) {
+    const was = g0.cells[index]!.kind;
+    const is = g1.cells[index]!.kind;
+    const id = String(gridCellNode(before, g0, index).attrs.nodeId);
+    if (!targets.cells.has(index)) {
+      if (is !== was) return `the cell ${id}, not one of the command's, changed its kind`;
+      continue;
+    }
+    if (is !== wantedFor(was)) return `the cell ${id} is a ${is}, not a ${wantedFor(was)}`;
+  }
+  return null;
+}
+
+/**
  * The oracle of one command step (data-model §16.4): the availability agrees with the dry
  * run; a refused step (or a plan that changes nothing) changes nothing and adds no history
  * event; a step that acts gives a valid document and table (`check()`, `assertTableValid`), a
@@ -1150,6 +1326,11 @@ export function checkFuzzStep(record: FuzzStepRecord): string | null {
   if (entry.merges) return checkMergeStep(table, next, address);
   if (entry.splits) {
     return checkSplitStep(table, next, address) ?? checkCharacters(table, next, entry);
+  }
+  if (entry.kinds) {
+    const targets = entry.kinds(address);
+    if (!targets) return 'a header command acted without a cell to act on';
+    return checkKindStep(table, next, targets);
   }
   if (entry.clears || entry.pastes) {
     let rect = address.rect;

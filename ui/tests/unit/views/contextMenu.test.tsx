@@ -128,8 +128,8 @@ describe('the Body context menu', () => {
     expect(popup.querySelector('u')).toBeNull();
     // US2's twelve commands are live (T075): enabled in the first cell of the 3 × 3 table but
     // the moves up and to the left, which have no neighbour there; US5's Merge cells and Split
-    // cell are live too (T105) and refuse a single unmerged cell with their reasons; the others
-    // are still stubs.
+    // cell are live too (T105) and refuse a single unmerged cell with their reasons; US6's five
+    // header commands are live (T110) and take any cell; the others are still stubs.
     const live = new Set([
       'insertRowAbove',
       'insertRowBelow',
@@ -137,6 +137,11 @@ describe('the Body context menu', () => {
       'insertColumnLeft',
       'insertColumnRight',
       'deleteColumn',
+      'toggleHeaderCell',
+      'makeHeaderCells',
+      'makeNormalCells',
+      'toggleHeaderRow',
+      'toggleHeaderColumn',
       'moveRowDown',
       'moveColumnRight',
       'duplicateRow',

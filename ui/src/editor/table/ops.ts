@@ -1827,3 +1827,171 @@ export function planSplit(address: TableAddress, ctx: PlanContext): TableEdit | 
     removedIds: [],
   };
 }
+
+/* ------------------------------------------------------------------------ */
+/* US6: header cells (FR-017 to FR-019; data-model §4.5)                    */
+/* ------------------------------------------------------------------------ */
+
+/** The kind of a cell: a normal cell or a header cell. */
+export type CellKind = 'td' | 'th';
+
+/**
+ * `cell` as a `kind` cell (FR-019): `cell.type.schema.nodes[kind].create(cell.attrs,
+ * cell.content, cell.marks)` - every attribute as it was (`nodeId`, `id`, `style`, `lang`,
+ * spans, `align`, `valign`, `extraAttrs`) and the same content `Fragment`, so a caret in it keeps
+ * its offset (data-model §4.3).
+ */
+export function withKind(cell: PMNode, kind: CellKind): PMNode {
+  return cell.type.schema.nodes[kind]!.create(cell.attrs, cell.content, cell.marks);
+}
+
+/**
+ * The grid cell whose top-left position is `at`, and its node: found through `rowStart`, `left`,
+ * `rowChild` and `index`, never through `owner`, so it works on a table too large for the owner
+ * map (data-model §2.5). Null when no cell starts there: a position a cell from the left or from
+ * above covers, a hole, or a position outside the grid.
+ */
+export function cellAtTopLeft(
+  grid: TableGrid,
+  table: PMNode,
+  at: GridPos,
+): { index: number; node: PMNode } | null {
+  if (!Number.isInteger(at.row) || at.row < 0 || at.row >= grid.height) return null;
+  // The own cells of a row stand left to right: each starts at or after the previous one's end.
+  let lo = grid.rowStart[at.row]!;
+  let hi = grid.rowStart[at.row + 1]! - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const left = grid.cells[mid]!.left;
+    if (left === at.col) return { index: mid, node: gridCellNode(table, grid, mid) };
+    if (left < at.col) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return null;
+}
+
+/**
+ * The owners of every position of the rows (`row`) or columns (`column`) `[from, to)`, as their
+ * indices in `grid.cells`: holes skipped, each cell once - "a merged cell counting once"
+ * (FR-018) -, in reading order, the cells of other rows that reach into those rows included
+ * (data-model §4.5 `table.toggleHeaderRow`); the lines are never extended (C67). Callers check
+ * `tooLarge` first.
+ */
+export function lineOwners(grid: TableGrid, axis: LineAxis, from: number, to: number): number[] {
+  return grid.cellsIn(
+    axis === 'row'
+      ? { top: from, left: 0, bottom: to, right: grid.width }
+      : { top: 0, left: from, bottom: grid.height, right: to },
+  );
+}
+
+/** The focus a header plan keeps: the block over the same rectangle, or the caret. */
+function keptFocus(address: TableAddress): TableFocus {
+  if (address.rect) return blockOver(address.rect);
+  const at = address.caret ?? address.head;
+  return at ? caretAt(at.row, at.col) : caretAt(0, 0);
+}
+
+/**
+ * The table's new child list with every cell of `cells` (indices in `grid.cells`) that is not of
+ * the kind `kind` made of that kind (`withKind`); `'flip'` turns each cell to the other kind.
+ * Every other cell, and every row without a changed cell, stays the same object; a changed row
+ * keeps its `nodeId` and attributes (data-model §4.4). Reads no position.
+ */
+function convertKinds(
+  table: PMNode,
+  grid: TableGrid,
+  cells: readonly number[],
+  kind: CellKind | 'flip',
+): PMNode[] {
+  const builder = new TableBuilder(table, grid);
+  for (const index of cells) {
+    const node = gridCellNode(table, grid, index);
+    const wanted: CellKind = kind !== 'flip' ? kind : node.type.name === 'th' ? 'td' : 'th';
+    if (node.type.name !== wanted) builder.setCell(index, withKind(node, wanted));
+  }
+  return builder.build();
+}
+
+/**
+ * *Toggle header cell* (data-model §4.5 `table.toggleHeaderCell`; FR-017, FR-019): the head cell
+ * (`address.head`, the cell that holds `$head`) when a block is selected, the caret's cell
+ * otherwise, becomes `th` when it is `td` and `td` when it is `th` (`withKind`): its content,
+ * `nodeId` and every attribute stay. The cell is found through `cellAtTopLeft`, so the plan reads
+ * no position and a too-large table is no obstacle (§2.5). Focus kept: the caret, at its offset,
+ * or the block.
+ */
+export function planToggleHeaderCell(address: TableAddress, ctx: PlanContext): TableEdit | Refusal {
+  void ctx;
+  const { table, grid } = address;
+  const at = address.rect ? address.head : address.caret;
+  const found = at ? cellAtTopLeft(grid, table, at) : null;
+  return {
+    rows: convertKinds(table, grid, found ? [found.index] : [], 'flip'),
+    focus: keptFocus(address),
+    removedIds: [],
+  };
+}
+
+/**
+ * *Make header cells* (`kind: 'th'`) and *Make normal cells* (`kind: 'td'`) (data-model §4.5;
+ * FR-017, FR-019), and US11's `setKind`: the target is the owners of the assistant's whole
+ * `lines` (`lineOwners`, never extended; C67), else the cells of the rectangle (`cellsIn`; a
+ * block's rectangle is extended already), else the caret's cell (`cellAtTopLeft`); every target
+ * cell of the other kind changes kind (`withKind`), the others stay. When nothing changes every
+ * row is the same object, which `commitTableEdit` answers with null: nothing is dispatched and no
+ * undo step recorded (FR-045). `too-large` for `lines` or a rectangle on a table too large for
+ * the owner map; with a caret the plan reads no position (§2.5). Focus kept.
+ */
+export function planSetKind(
+  address: TableAddress,
+  options: { kind: CellKind },
+  ctx: PlanContext,
+): TableEdit | Refusal {
+  void ctx;
+  const { table, grid } = address;
+  let cells: number[];
+  if (address.lines) {
+    if (grid.tooLarge) return TOO_LARGE;
+    const lines = linesOf(address, address.lines.axis);
+    cells = lines ? lineOwners(grid, address.lines.axis, lines[0], lines[1]) : [];
+  } else if (address.rect) {
+    if (grid.tooLarge) return TOO_LARGE;
+    cells = grid.cellsIn(address.rect);
+  } else {
+    const found = address.caret ? cellAtTopLeft(grid, table, address.caret) : null;
+    cells = found ? [found.index] : [];
+  }
+  return {
+    rows: convertKinds(table, grid, cells, options.kind),
+    focus: keptFocus(address),
+    removedIds: [],
+  };
+}
+
+/**
+ * *Toggle header row* (`axis: 'row'`) and *Toggle header column* (`axis: 'column'`) (data-model
+ * §4.5; FR-018, FR-019): `too-large` first; the cells are the owners (`lineOwners`) of the caret
+ * cell's top row or left column - a merged cell's top row and left column (C14; FR-018 as
+ * confirmed by analyze decision 3) -, of the block's rows or columns, or of the assistant's
+ * `lines` (`unitLines`): holes skipped, each cell once, the cells of other rows that reach in
+ * included. When all of them are `th` they all become `td`, otherwise all `th`. Focus kept.
+ */
+export function planToggleHeaderLines(
+  address: TableAddress,
+  options: { axis: LineAxis },
+  ctx: PlanContext,
+): TableEdit | Refusal {
+  void ctx;
+  const { table, grid } = address;
+  if (grid.tooLarge) return TOO_LARGE;
+  const unit = unitLines(address, options.axis);
+  const cells = unit ? lineOwners(grid, options.axis, unit[0], unit[1]) : [];
+  const allHeaders =
+    cells.length > 0 && cells.every((index) => gridCellNode(table, grid, index).type.name === 'th');
+  return {
+    rows: convertKinds(table, grid, cells, allHeaders ? 'td' : 'th'),
+    focus: keptFocus(address),
+    removedIds: [],
+  };
+}

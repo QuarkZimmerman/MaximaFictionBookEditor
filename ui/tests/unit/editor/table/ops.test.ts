@@ -1,16 +1,21 @@
 /**
  * The table plans of `ops.ts` (feature 006; data-model §4.4 to §4.6), one `describe` block per
- * user story in story order. US5 (T102; FR-013 to FR-016, FR-030, FR-035, FR-046, FR-047; C12,
- * C14, C17, C19, C67; decision 1; U8; data-model §4.5 `table.mergeCells` and `table.splitCell`,
- * open point 4): `planMerge` and `planSplit` on regular, merged and irregular tables. US4 (T091;
- * FR-011, FR-013's joining rule, FR-016's split as the paste uses it; C17, C47; data-model §4.4,
- * §4.6 "Clear block"): `planClearBlock`, `joinInlineParts` and `splitToSingleCells`; the
- * paste-block plan has its own file, `pasteBlock.test.ts`. US1 (T052; FR-003, FR-005; C15,
- * C33; I8): `createTable` - the dialog's table, rectangular and without attributes, its node
- * ids from the host - and `planTabRow`, the row Tab appends in the last cell. US2 (T071; FR-006
- * to FR-009, FR-030, FR-035, FR-037, FR-038, FR-046, FR-047; C12 to C15, C67; decision 1;
- * data-model §4.4, §4.5): the twelve row and column plans on regular, merged and irregular
- * tables.
+ * user story in story order. US6 (T109; FR-017 to FR-019, FR-035; C14, C21, C67; data-model
+ * §2.5, §4.5 `table.toggleHeaderCell`, `table.makeHeaderCells` / `table.makeNormalCells` and
+ * `table.toggleHeaderRow` / `table.toggleHeaderColumn`): the header plans change only the kind
+ * of the cells they target - the same attributes and the same content fragment -, a block's
+ * head cell, the owners of whole rows or columns, a merged cell once, nothing committed when
+ * nothing changes, and on a too-large table the caret's cell without the owner map. US5 (T102;
+ * FR-013 to FR-016, FR-030, FR-035, FR-046, FR-047; C12, C14, C17, C19, C67; decision 1; U8;
+ * data-model §4.5 `table.mergeCells` and `table.splitCell`, open point 4): `planMerge` and
+ * `planSplit` on regular, merged and irregular tables. US4 (T091; FR-011, FR-013's joining
+ * rule, FR-016's split as the paste uses it; C17, C47; data-model §4.4, §4.6 "Clear block"):
+ * `planClearBlock`, `joinInlineParts` and `splitToSingleCells`; the paste-block plan has its
+ * own file, `pasteBlock.test.ts`. US1 (T052; FR-003, FR-005; C15, C33; I8): `createTable` -
+ * the dialog's table, rectangular and without attributes, its node ids from the host - and
+ * `planTabRow`, the row Tab appends in the last cell. US2 (T071; FR-006 to FR-009, FR-030,
+ * FR-035, FR-037, FR-038, FR-046, FR-047; C12 to C15, C67; decision 1; data-model §4.4, §4.5):
+ * the twelve row and column plans on regular, merged and irregular tables.
  */
 
 /// <reference types="node" />
@@ -18,11 +23,13 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { history, undoDepth } from 'prosemirror-history';
 import { Fragment, type Node as PMNode } from 'prosemirror-model';
 import { EditorState, TextSelection } from 'prosemirror-state';
 
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2Schema } from '@/editor/schema';
+import { planCommand } from '@/editor/table/commands';
 import {
   applyTableEdit,
   assertTableValid,
@@ -34,14 +41,16 @@ import {
   type TableAddress,
   type TableEdit,
 } from '@/editor/table/edit';
-import { gridOfNode } from '@/editor/table/grid';
+import { MAX_GRID_POSITIONS, gridOfNode } from '@/editor/table/grid';
 import {
   MAX_TABLE_COLUMNS,
   MAX_TABLE_ROWS,
   blockOver,
   caretAt,
+  cellAtTopLeft,
   createTable,
   joinInlineParts,
+  lineOwners,
   planClearBlock,
   planDeleteColumns,
   planDeleteRows,
@@ -52,9 +61,13 @@ import {
   planMerge,
   planMoveColumns,
   planMoveRows,
+  planSetKind,
   planSplit,
   planTabRow,
+  planToggleHeaderCell,
+  planToggleHeaderLines,
   splitToSingleCells,
+  withKind,
 } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
 import { nodeToModel } from '@/editor/toModel';
@@ -1921,5 +1934,557 @@ describe('US5 merge and split', () => {
       }
     }
     expect(edits).toBeGreaterThan(10);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US6: header cells (T109)                                                 */
+/* ------------------------------------------------------------------------ */
+
+describe('US6 header cells', () => {
+  const ctx = () => ({ nextId: idGenerator('h') });
+
+  /** The five plans, as their command rows run them. */
+  const HEADER_PLANS = {
+    toggleHeaderCell: (a, c) => planToggleHeaderCell(a, c),
+    makeHeaderCells: (a, c) => planSetKind(a, { kind: 'th' }, c),
+    makeNormalCells: (a, c) => planSetKind(a, { kind: 'td' }, c),
+    toggleHeaderRow: (a, c) => planToggleHeaderLines(a, { axis: 'row' }, c),
+    toggleHeaderColumn: (a, c) => planToggleHeaderLines(a, { axis: 'column' }, c),
+  } satisfies Record<string, Plan>;
+
+  /** US6 sc.1's table of `tables.fb2` (T014); `s` also keeps an unknown attribute as read. */
+  const SC1: MRow[] = [
+    [{ type: 'th', text: 'r1c1' }, 'r1c2', 'r1c3'],
+    [
+      {
+        text: 's',
+        colspan: 2,
+        id: 'us6-s',
+        style: 'wide',
+        lang: 'de',
+        align: 'center',
+        valign: 'middle',
+        unknownAttrs: { class: 'k' },
+      },
+      'r2c3',
+    ],
+    ['r3c1', 'r3c2', 'r3c3'],
+  ];
+  const S_SHOWN = `s colspan=2 align=center valign=middle lang=de id=us6-s style=wide extra=${JSON.stringify({ unknownAttrs: { class: 'k' } })}`;
+  /** A cell `m` over rows 2 and 3 (C14). */
+  const TALL: MRow[] = [
+    ['r1c1', 'r1c2', 'r1c3'],
+    [{ text: 'm', rowspan: 2 }, 'r2c2', 'r2c3'],
+    ['r3c2', 'r3c3'],
+  ];
+  /** A cell `w` over columns 1 and 2 (C14). */
+  const WIDE: MRow[] = [
+    [{ text: 'w', colspan: 2 }, 'x'],
+    ['y', 'z', 'q'],
+  ];
+
+  /** The node ids of the cells of `node` whose texts are `texts`, in that order. */
+  function ids(node: PMNode, ...texts: string[]): string[] {
+    const byText = new Map<string, string>();
+    node.forEach((row) => {
+      if (row.type.name !== 'tr') return;
+      row.forEach((cell) => {
+        if (cell.type.name === 'td' || cell.type.name === 'th') {
+          byText.set(cell.textContent, cell.attrs.nodeId as string);
+        }
+      });
+    });
+    return texts.map((text) => {
+      const id = byText.get(text);
+      if (!id) throw new Error(`no cell "${text}"`);
+      return id;
+    });
+  }
+
+  /**
+   * Checks that `after` differs from `before` in the kinds of cells only - every child in its
+   * place; every cell with equal attributes, the same content fragment (`===`) and its marks;
+   * every cell of the same kind and every row without a changed cell reused (`===`); a changed
+   * row with its attributes - and returns the node ids of the cells whose kind changed, in
+   * reading order.
+   */
+  function kindChanges(before: PMNode, after: PMNode): string[] {
+    expect(after.childCount).toBe(before.childCount);
+    const changed: string[] = [];
+    before.forEach((child, _offset, index) => {
+      const next = after.child(index);
+      if (child.type.name !== 'tr') {
+        expect(next).toBe(child);
+        return;
+      }
+      expect(next.type).toBe(child.type);
+      expect(next.attrs).toEqual(child.attrs);
+      expect(next.childCount).toBe(child.childCount);
+      let rowChanged = false;
+      child.forEach((cell, _at, cellIndex) => {
+        const now = next.child(cellIndex);
+        if (cell.type.name !== 'td' && cell.type.name !== 'th') {
+          expect(now).toBe(cell);
+          return;
+        }
+        expect(now.attrs).toEqual(cell.attrs);
+        expect(now.content).toBe(cell.content);
+        expect(now.marks).toEqual(cell.marks);
+        if (now.type === cell.type) {
+          expect(now).toBe(cell);
+          return;
+        }
+        rowChanged = true;
+        changed.push(cell.attrs.nodeId as string);
+      });
+      if (!rowChanged) expect(next).toBe(child);
+    });
+    return changed;
+  }
+
+  /** The selection a commit of `edit` leaves on `where`'s state. */
+  function committed(where: Placed, edit: TableEdit) {
+    const tr = commitTableEdit(where.state.tr, tableTarget(where.state)!.tablePos, edit);
+    expect(tr).not.toBeNull();
+    return tr!.selection;
+  }
+
+  /** One row of 4195 cells of colspan 1000 - above MAX_GRID_POSITIONS -, the caret in `w1`. */
+  function big(offset = 0): Placed {
+    const cells = Array.from({ length: 4195 }, (_, index) => ({
+      text: `w${index}`,
+      colspan: 1000,
+    }));
+    return placed([cells], 'w1', { offset });
+  }
+
+  function gridOfRows(rows: MRow[]) {
+    return gridOfNode(nodeFromModel(modelTable(rows))!);
+  }
+
+  it('withKind: the other node type over equal attributes, the same content fragment and marks (FR-019 by construction)', () => {
+    const where = placed(SC1, 's');
+    const source = where.table.child(1).child(0);
+    const header = withKind(source, 'th');
+    expect(header.type).toBe(fb2Schema.nodes.th);
+    expect(header.attrs).toEqual(source.attrs);
+    expect(header.attrs.extraAttrs).toBe(source.attrs.extraAttrs);
+    expect(header.content).toBe(source.content);
+    const normal = withKind(header, 'td');
+    expect(normal.type).toBe(fb2Schema.nodes.td);
+    expect(normal.eq(source)).toBe(true);
+    expect(normal.content).toBe(source.content);
+  });
+
+  it('cellAtTopLeft: the cell whose top-left position that is - none for a covered position or a hole -, found without the owner map, also on a too-large table (data-model §2.5)', () => {
+    const wide = nodeFromModel(modelTable(WIDE))!;
+    const grid = gridOfNode(wide);
+    const at = (row: number, col: number) => cellAtTopLeft(grid, wide, { row, col });
+    expect(at(0, 0)?.index).toBe(0);
+    expect(at(0, 0)?.node).toBe(wide.child(0).child(0));
+    expect(at(0, 1)).toBeNull();
+    expect(at(0, 2)?.node).toBe(wide.child(0).child(1));
+    expect(at(1, 1)?.index).toBe(3);
+    expect(at(1, 1)?.node).toBe(wide.child(1).child(1));
+    expect(at(2, 0)).toBeNull();
+    // (2, 0) of TALL is m's, which starts in row 2.
+    const tall = nodeFromModel(modelTable(TALL))!;
+    expect(cellAtTopLeft(gridOfNode(tall), tall, { row: 2, col: 0 })).toBeNull();
+    expect(cellAtTopLeft(gridOfNode(tall), tall, { row: 2, col: 1 })?.node.textContent).toBe(
+      'r3c2',
+    );
+    const large = big();
+    const owner = vi.spyOn(large.address.grid, 'owner');
+    try {
+      const last = cellAtTopLeft(large.address.grid, large.table, { row: 0, col: 4194 * 1000 });
+      expect(last?.node.textContent).toBe('w4194');
+      expect(cellAtTopLeft(large.address.grid, large.table, { row: 0, col: 1500 })).toBeNull();
+      expect(owner).not.toHaveBeenCalled();
+    } finally {
+      owner.mockRestore();
+    }
+  });
+
+  it('lineOwners: the owners of every position of rows or columns [from, to), holes skipped, each cell once, in reading order, the cells of other rows that reach in included', () => {
+    const wide = gridOfRows(WIDE);
+    // w over columns 1 and 2 counts once for either column, and once for both.
+    expect(lineOwners(wide, 'column', 0, 1)).toEqual([0, 2]);
+    expect(lineOwners(wide, 'column', 1, 2)).toEqual([0, 3]);
+    expect(lineOwners(wide, 'column', 0, 2)).toEqual([0, 2, 3]);
+    expect(lineOwners(wide, 'row', 0, 1)).toEqual([0, 1]);
+    // [a rowspan 2, b] / [c]: row 2 holds a, which reaches in from row 1, and c.
+    const tall = gridOfRows([[{ text: 'a', rowspan: 2 }, 'b'], ['c']]);
+    expect(lineOwners(tall, 'row', 1, 2)).toEqual([0, 2]);
+    expect(lineOwners(tall, 'row', 0, 2)).toEqual([0, 1, 2]);
+    // A short row's holes are skipped.
+    const short = gridOfRows([['a', 'b', 'c'], ['d']]);
+    expect(lineOwners(short, 'row', 1, 2)).toEqual([3]);
+    expect(lineOwners(short, 'column', 1, 3)).toEqual([1, 2]);
+    // An overlap: c runs into b's position (2, 2), which is b's, the earlier cell.
+    const overlap = gridOfRows([['a', { text: 'b', rowspan: 2 }], [{ text: 'c', colspan: 2 }]]);
+    expect(lineOwners(overlap, 'column', 1, 2)).toEqual([1]);
+    expect(lineOwners(overlap, 'row', 1, 2)).toEqual([1, 2]);
+  });
+
+  describe('Toggle header cell (data-model §4.5 `table.toggleHeaderCell`)', () => {
+    it('sc.1: the caret’s cell becomes a th with equal attributes and the same content fragment; its row keeps its node id, every other row and cell is reused; the caret keeps its offset; again, a td equal to the original', () => {
+      const where = placed(SC1, 's', { offset: 1 });
+      const before = where.table;
+      const source = before.child(1).child(0);
+      const { edit, after } = acted(where, HEADER_PLANS.toggleHeaderCell);
+      expect(kindChanges(before, after)).toEqual(ids(before, 's'));
+      expect(show(after)).toBe(
+        `[<th>r1c1, r1c2, r1c3] / [<th>${S_SHOWN}, r2c3] / [r3c1, r3c2, r3c3]`,
+      );
+      const header = after.child(1).child(0);
+      expect(header.type.name).toBe('th');
+      expect(header.attrs).toEqual(source.attrs);
+      expect(header.attrs.extraAttrs).toBe(source.attrs.extraAttrs);
+      expect(header.content).toBe(source.content);
+      expect(after.child(1).attrs.nodeId).toBe(before.child(1).attrs.nodeId);
+      expect(edit.removedIds).toEqual([]);
+      expect(gridOfNode(after).summary).toEqual(gridOfNode(before).summary);
+      expect(edit.focus).toEqual(caretAt(1, 0));
+      const selection = committed(where, edit);
+      expect(selection.empty).toBe(true);
+      expect(selection.$head.parent.attrs.nodeId).toBe(source.attrs.nodeId);
+      expect(selection.$head.parentOffset).toBe(1);
+      // Again: a td equal to the original.
+      const again = acted(placed(after, 's', { offset: 1 }), HEADER_PLANS.toggleHeaderCell).after;
+      expect(again.child(1).child(0).eq(source)).toBe(true);
+      expect(nodeToModel(again)).toEqual(nodeToModel(before));
+    });
+
+    it('sc.1: with a block, the head cell only - the cell that holds $head -, and the block stays', () => {
+      const down = placed(SC1, ['r2c3', 'r3c3']);
+      const flipped = acted(down, HEADER_PLANS.toggleHeaderCell);
+      expect(kindChanges(down.table, flipped.after)).toEqual(ids(down.table, 'r3c3'));
+      expect(flipped.edit.focus).toEqual(blockOver(down.address.rect!));
+      const selection = committed(down, flipped.edit);
+      expect(selection).toBeInstanceOf(CellBlockSelection);
+      const block = selection as CellBlockSelection;
+      expect(block.$anchorCell.nodeAfter!.attrs.nodeId).toBe(ids(down.table, 'r2c3')[0]);
+      expect(block.$headCell.nodeAfter!.attrs.nodeId).toBe(ids(down.table, 'r3c3')[0]);
+      const up = placed(SC1, ['r3c3', 'r2c3']);
+      expect(kindChanges(up.table, acted(up, HEADER_PLANS.toggleHeaderCell).after)).toEqual(
+        ids(up.table, 'r2c3'),
+      );
+      // A header head cell becomes a normal cell.
+      const toNormal = placed(SC1, ['r1c2', 'r1c1']);
+      const normal = acted(toNormal, HEADER_PLANS.toggleHeaderCell).after;
+      expect(kindChanges(toNormal.table, normal)).toEqual(ids(toNormal.table, 'r1c1'));
+      expect(normal.child(0).child(0).type.name).toBe('td');
+    });
+  });
+
+  describe('Make header cells and Make normal cells (data-model §4.5)', () => {
+    /** [<th>a, b, c] / [d, <th>e, f] / [g, h, i]. */
+    const MIXED: MRow[] = [
+      [{ type: 'th', text: 'a' }, 'b', 'c'],
+      ['d', { type: 'th', text: 'e' }, 'f'],
+      ['g', 'h', 'i'],
+    ];
+
+    it('sc.2: Make header cells converts the block’s normal cells and keeps its header cells as they are; Make normal cells the reverse; the block stays', () => {
+      const where = placed(MIXED, ['a', 'e']);
+      const made = acted(where, HEADER_PLANS.makeHeaderCells);
+      expect(kindChanges(where.table, made.after)).toEqual(ids(where.table, 'b', 'd'));
+      expect(show(made.after)).toBe('[<th>a, <th>b, c] / [<th>d, <th>e, f] / [g, h, i]');
+      expect(made.edit.focus).toEqual(blockOver(where.address.rect!));
+      expect(made.edit.removedIds).toEqual([]);
+      const normal = acted(placed(made.after, ['a', 'e']), HEADER_PLANS.makeNormalCells);
+      expect(kindChanges(made.after, normal.after)).toEqual(ids(where.table, 'a', 'b', 'd', 'e'));
+      expect(show(normal.after)).toBe('[a, b, c] / [d, e, f] / [g, h, i]');
+    });
+
+    it('a block that holds a merged cell converts it once; with a caret, the caret’s cell only, which keeps the caret’s offset', () => {
+      const block = placed(WIDE, ['w', 'z']);
+      expect(kindChanges(block.table, acted(block, HEADER_PLANS.makeHeaderCells).after)).toEqual(
+        ids(block.table, 'w', 'y', 'z'),
+      );
+      const caret = placed(MIXED, 'f', { offset: 1 });
+      const { edit, after } = acted(caret, HEADER_PLANS.makeHeaderCells);
+      expect(kindChanges(caret.table, after)).toEqual(ids(caret.table, 'f'));
+      expect(edit.focus).toEqual(caretAt(1, 2));
+      expect(committed(caret, edit).$head.parentOffset).toBe(1);
+      const inE = placed(MIXED, 'e');
+      const normal = acted(inE, HEADER_PLANS.makeNormalCells);
+      expect(kindChanges(inE.table, normal.after)).toEqual(ids(inE.table, 'e'));
+    });
+
+    it('FR-045: with nothing to convert they commit nothing - every row ===, commitTableEdit null, no undo step', () => {
+      const HEAD_ROW: MRow[] = [
+        [
+          { type: 'th', text: 'a' },
+          { type: 'th', text: 'b' },
+        ],
+        ['c', 'd'],
+      ];
+      const cases: [string | [string, string], Plan][] = [
+        [['a', 'b'], HEADER_PLANS.makeHeaderCells],
+        ['a', HEADER_PLANS.makeHeaderCells],
+        [['c', 'd'], HEADER_PLANS.makeNormalCells],
+        ['d', HEADER_PLANS.makeNormalCells],
+      ];
+      for (const [at, plan] of cases) {
+        const where = placed(HEAD_ROW, at);
+        const edit = plan(where.address, ctx());
+        if (isRefusal(edit)) throw new Error(`refused: ${edit.refused}`);
+        expect(edit.rows).toHaveLength(where.table.childCount);
+        edit.rows.forEach((row, index) => expect(row).toBe(where.table.child(index)));
+        expect(edit.tableAttrs).toBeUndefined();
+        expect(
+          commitTableEdit(where.state.tr, tableTarget(where.state)!.tablePos, edit),
+        ).toBeNull();
+        // As the command runs it, in a state with history: false, nothing dispatched.
+        const state = EditorState.create({
+          doc: where.state.doc,
+          selection: where.state.selection,
+          plugins: [history()],
+        });
+        const dispatch = vi.fn();
+        expect(planCommand(plan, ctx())(state, dispatch)).toBe(false);
+        expect(dispatch).not.toHaveBeenCalled();
+      }
+      // The command with something to convert records one undo step.
+      const where = placed(HEAD_ROW, ['a', 'b']);
+      let state = EditorState.create({
+        doc: where.state.doc,
+        selection: where.state.selection,
+        plugins: [history()],
+      });
+      expect(undoDepth(state)).toBe(0);
+      const ran = planCommand(HEADER_PLANS.makeNormalCells, ctx())(state, (tr) => {
+        state = state.apply(tr);
+      });
+      expect(ran).toBe(true);
+      expect(undoDepth(state)).toBe(1);
+    });
+  });
+
+  describe('Toggle header row and Toggle header column (data-model §4.5)', () => {
+    it('sc.3: a row that mixes kinds becomes header cells, then all normal cells; the owners of the row’s positions, a cell of another row that reaches in included (FR-018)', () => {
+      const where = placed(SC1, 'r1c2');
+      const headers = acted(where, HEADER_PLANS.toggleHeaderRow);
+      expect(kindChanges(where.table, headers.after)).toEqual(ids(where.table, 'r1c2', 'r1c3'));
+      expect(headers.edit.focus).toEqual(caretAt(0, 1));
+      const normal = acted(placed(headers.after, 'r1c2'), HEADER_PLANS.toggleHeaderRow);
+      expect(kindChanges(headers.after, normal.after)).toEqual(
+        ids(where.table, 'r1c1', 'r1c2', 'r1c3'),
+      );
+      // [a rowspan 2, b] / [c], the caret in c: row 2 converts a and c.
+      const tall = placed([[{ text: 'a', rowspan: 2 }, 'b'], ['c']], 'c');
+      const rowed = acted(tall, HEADER_PLANS.toggleHeaderRow);
+      expect(kindChanges(tall.table, rowed.after)).toEqual(ids(tall.table, 'a', 'c'));
+      expect(show(rowed.after)).toBe('[<th>a rowspan=2, b] / [<th>c]');
+      // When all of them were header cells, all become normal cells.
+      const back = acted(placed(rowed.after, 'c'), HEADER_PLANS.toggleHeaderRow);
+      expect(show(back.after)).toBe('[a rowspan=2, b] / [c]');
+    });
+
+    it('sc.3: Toggle header column converts a merged cell once, for either of its columns, and skips holes', () => {
+      for (const at of ['y', 'z']) {
+        const where = placed(WIDE, at);
+        const { after } = acted(where, HEADER_PLANS.toggleHeaderColumn);
+        expect(kindChanges(where.table, after), at).toEqual(ids(where.table, 'w', at));
+      }
+      // US6 sc.3, the caret in r1c1: column 1 is r1c1 (a th), s and r3c1 - s, over columns 1
+      // and 2, converted once.
+      const where = placed(SC1, 'r1c1');
+      const { after } = acted(where, HEADER_PLANS.toggleHeaderColumn);
+      expect(kindChanges(where.table, after)).toEqual(ids(where.table, 's', 'r3c1'));
+      expect(show(after)).toBe(
+        `[<th>r1c1, r1c2, r1c3] / [<th>${S_SHOWN}, r2c3] / [<th>r3c1, r3c2, r3c3]`,
+      );
+      // A short row: column 3 of [a, b, c] / [d] is c alone.
+      const short = placed([['a', 'b', 'c'], ['d']], 'c');
+      expect(kindChanges(short.table, acted(short, HEADER_PLANS.toggleHeaderColumn).after)).toEqual(
+        ids(short.table, 'c'),
+      );
+    });
+
+    it('C14 (FR-018 as confirmed by analyze decision 3): with the caret in a merged cell, its top row and its left column; with a block, every row or column of it, all of whose cells change together', () => {
+      const inM = placed(TALL, 'm');
+      expect(kindChanges(inM.table, acted(inM, HEADER_PLANS.toggleHeaderRow).after)).toEqual(
+        ids(inM.table, 'm', 'r2c2', 'r2c3'),
+      );
+      const inW = placed(WIDE, 'w');
+      expect(kindChanges(inW.table, acted(inW, HEADER_PLANS.toggleHeaderColumn).after)).toEqual(
+        ids(inW.table, 'w', 'y'),
+      );
+      // A block over rows 2-3 and columns 2-3.
+      const block = placed(TALL, ['r2c2', 'r3c3']);
+      const rows = acted(block, HEADER_PLANS.toggleHeaderRow);
+      expect(kindChanges(block.table, rows.after)).toEqual(
+        ids(block.table, 'm', 'r2c2', 'r2c3', 'r3c2', 'r3c3'),
+      );
+      expect(rows.edit.focus).toEqual(blockOver(block.address.rect!));
+      expect(kindChanges(block.table, acted(block, HEADER_PLANS.toggleHeaderColumn).after)).toEqual(
+        ids(block.table, 'r1c2', 'r1c3', 'r2c2', 'r2c3', 'r3c2', 'r3c3'),
+      );
+      // All of the block's rows header cells: all become normal cells.
+      const all = placed(rows.after, ['r2c2', 'r3c3']);
+      expect(kindChanges(all.table, acted(all, HEADER_PLANS.toggleHeaderRow).after)).toEqual(
+        ids(all.table, 'm', 'r2c2', 'r2c3', 'r3c2', 'r3c3'),
+      );
+      // One header cell among them is not all: the others become header cells.
+      const mixed = placed(
+        [
+          ['r1c1', 'r1c2', 'r1c3'],
+          [{ text: 'm', rowspan: 2 }, { type: 'th', text: 'r2c2' }, 'r2c3'],
+          ['r3c2', 'r3c3'],
+        ],
+        ['r2c2', 'r3c3'],
+      );
+      expect(kindChanges(mixed.table, acted(mixed, HEADER_PLANS.toggleHeaderRow).after)).toEqual(
+        ids(mixed.table, 'm', 'r2c3', 'r3c2', 'r3c3'),
+      );
+    });
+  });
+
+  it('C67: planSetKind with the assistant’s lines - whole rows or columns, never extended, each cell once - and with a rectangle, as US11’s setKind calls it', () => {
+    const run = (
+      node: PMNode,
+      address: Omit<TableAddress, 'table' | 'grid'>,
+      kind: 'td' | 'th',
+    ) => {
+      const edit = planSetKind(
+        { table: node, grid: gridOfNode(node), ...address },
+        { kind },
+        ctx(),
+      );
+      if (isRefusal(edit)) throw new Error(`refused: ${edit.refused}`);
+      const after = applyTableEdit(node, edit);
+      assertTableValid(node, after);
+      return after;
+    };
+    const wide = nodeFromModel(modelTable(WIDE))!;
+    // Column 2: w, which also covers column 1 - the lines are not extended to it, so y stays -,
+    // and z.
+    const column = run(wide, { lines: { axis: 'column', from: 1, to: 2 } }, 'th');
+    expect(kindChanges(wide, column)).toEqual(ids(wide, 'w', 'z'));
+    expect(kindChanges(wide, run(wide, { lines: { axis: 'row', from: 1, to: 2 } }, 'th'))).toEqual(
+      ids(wide, 'y', 'z', 'q'),
+    );
+    expect(
+      kindChanges(wide, run(wide, { lines: { axis: 'column', from: 0, to: 3 } }, 'th')),
+    ).toEqual(ids(wide, 'w', 'x', 'y', 'z', 'q'));
+    // Back: the header cells of column 2 become normal cells.
+    expect(
+      kindChanges(column, run(column, { lines: { axis: 'column', from: 1, to: 2 } }, 'td')),
+    ).toEqual(ids(wide, 'w', 'z'));
+    // Row 3 of TALL holds m, which starts in row 2.
+    const tall = nodeFromModel(modelTable(TALL))!;
+    expect(kindChanges(tall, run(tall, { lines: { axis: 'row', from: 2, to: 3 } }, 'th'))).toEqual(
+      ids(tall, 'm', 'r3c2', 'r3c3'),
+    );
+    // A rectangle: the owners of its positions, as given.
+    expect(
+      kindChanges(wide, run(wide, { rect: { top: 0, left: 1, bottom: 2, right: 2 } }, 'th')),
+    ).toEqual(ids(wide, 'w', 'z'));
+    // Lines that are no range of the grid address nothing.
+    const outside = planSetKind(
+      { table: wide, grid: gridOfNode(wide), lines: { axis: 'row', from: 1, to: 5 } },
+      { kind: 'th' },
+      ctx(),
+    );
+    if (isRefusal(outside)) throw new Error(`refused: ${outside.refused}`);
+    outside.rows.forEach((row, index) => expect(row).toBe(wide.child(index)));
+  });
+
+  it('FR-035: on every irregular case of grid-vectors.json - a caret in every cell and a block - only kinds change and the summary stays deep-equal', () => {
+    const vectors = JSON.parse(readFileSync(path.join(VECTORS, 'grid-vectors.json'), 'utf8')) as {
+      cases: VectorCase[];
+    };
+    const irregular = vectors.cases.filter((one) => !one.expect.regular);
+    expect(irregular.length).toBeGreaterThan(10);
+    let edits = 0;
+    let changed = 0;
+    for (const one of irregular) {
+      const node = vectorTable(one.table);
+      const doc = docOf(p('before', 'p1'), node, p('after', 'p2'));
+      const tablePos = 1 + 1 + doc.child(0).child(0).child(0).nodeSize;
+      const cellPositions: number[] = [];
+      doc.nodeAt(tablePos)!.descendants((child, at) => {
+        if (child.type.name === 'td' || child.type.name === 'th')
+          cellPositions.push(tablePos + 1 + at);
+        return child.type.name === 'table' || child.type.name === 'tr';
+      });
+      const selections = [
+        ...cellPositions.map((at) => TextSelection.create(doc, at + 1)),
+        ...(cellPositions.length > 1
+          ? [CellBlockSelection.create(doc, cellPositions[0]!, cellPositions.at(-1)!)]
+          : []),
+      ];
+      for (const selection of selections) {
+        const address = tableTarget(EditorState.create({ doc, selection }))!.address;
+        const summary = gridOfNode(address.table).summary;
+        for (const [name, plan] of Object.entries(HEADER_PLANS)) {
+          const edit = plan(address, ctx());
+          if (isRefusal(edit)) throw new Error(`${one.name}: ${name} refused ${edit.refused}`);
+          edits += 1;
+          const after = applyTableEdit(address.table, edit);
+          expect(
+            () => assertTableValid(address.table, after, edit.allowedIds),
+            `${one.name}: ${name}`,
+          ).not.toThrow();
+          expect(gridOfNode(after).summary, `${one.name}: ${name}`).toEqual(summary);
+          changed += kindChanges(address.table, after).length;
+        }
+      }
+    }
+    expect(edits).toBeGreaterThan(100);
+    expect(changed).toBeGreaterThan(100);
+  });
+
+  it('data-model §2.5: above MAX_GRID_POSITIONS the three cell commands act on the caret’s cell without the owner map; the two toggles, and lines or a rectangle, refuse with too-large', () => {
+    const where = big(1);
+    const { grid } = where.address;
+    expect(grid.tooLarge).toBe(true);
+    expect(grid.height * grid.width).toBeGreaterThan(MAX_GRID_POSITIONS);
+    const owner = vi.spyOn(grid, 'owner');
+    const cellsIn = vi.spyOn(grid, 'cellsIn');
+    const extend = vi.spyOn(grid, 'extend');
+    try {
+      const toggled = acted(where, HEADER_PLANS.toggleHeaderCell);
+      expect(kindChanges(where.table, toggled.after)).toEqual(ids(where.table, 'w1'));
+      expect(toggled.edit.focus).toEqual(caretAt(0, 1000));
+      const made = acted(where, HEADER_PLANS.makeHeaderCells);
+      expect(kindChanges(where.table, made.after)).toEqual(ids(where.table, 'w1'));
+      const normal = HEADER_PLANS.makeNormalCells(where.address, ctx());
+      if (isRefusal(normal)) throw new Error(`refused: ${normal.refused}`);
+      normal.rows.forEach((row, index) => expect(row).toBe(where.table.child(index)));
+      expect(owner).not.toHaveBeenCalled();
+      expect(cellsIn).not.toHaveBeenCalled();
+      expect(extend).not.toHaveBeenCalled();
+      // The commit puts the caret back into w1, at its offset.
+      const selection = committed(where, toggled.edit);
+      expect(selection.$head.parent.attrs.nodeId).toBe(ids(where.table, 'w1')[0]);
+      expect(selection.$head.parentOffset).toBe(1);
+    } finally {
+      owner.mockRestore();
+      cellsIn.mockRestore();
+      extend.mockRestore();
+    }
+    for (const axis of ['row', 'column'] as const) {
+      expect(planToggleHeaderLines(where.address, { axis }, ctx())).toEqual({
+        refused: 'too-large',
+      });
+    }
+    expect(
+      planSetKind(
+        { table: where.table, grid, lines: { axis: 'row', from: 0, to: 1 } },
+        { kind: 'th' },
+        ctx(),
+      ),
+    ).toEqual({ refused: 'too-large' });
+    expect(
+      planSetKind(
+        { table: where.table, grid, rect: { top: 0, left: 0, bottom: 1, right: 2000 } },
+        { kind: 'th' },
+        ctx(),
+      ),
+    ).toEqual({ refused: 'too-large' });
   });
 });
