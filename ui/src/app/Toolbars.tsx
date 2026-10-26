@@ -12,13 +12,17 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { CustomizeToolbarDialog } from '@/dialogs/CustomizeToolbarDialog';
+import {
+  CustomizeToolbarDialog,
+  type CustomizeToolbarDialogProps,
+} from '@/dialogs/CustomizeToolbarDialog';
 import { isRunLocked, useAppState } from '@/model/store';
 
 import { useAppServices, useCommandContext, useAppRevision } from './services';
@@ -214,6 +218,56 @@ function useButtonDrag(
   return { dragging, onPointerDown, onClickCapture };
 }
 
+/** The newest value of a component's prop, readable outside the component's own render. */
+interface LatestValue<T> {
+  get: () => T;
+  subscribe: (listener: () => void) => () => void;
+}
+
+/**
+ * Hands `value` to a dialog the component opens: the dialog host renders a dialog from the
+ * closure given when it opened, which keeps the props of that moment; the dialog reads this
+ * instead and follows every later value.
+ */
+function useLatestValue<T>(value: T): LatestValue<T> {
+  const [latest] = useState(() => {
+    let current = value;
+    const listeners = new Set<() => void>();
+    return {
+      get: () => current,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      set: (next: T) => {
+        if (Object.is(next, current)) return;
+        current = next;
+        for (const listener of [...listeners]) listener();
+      },
+    };
+  });
+  useEffect(() => latest.set(value), [latest, value]);
+  return latest;
+}
+
+/**
+ * The Customize dialog on the script buttons the toolbar offers now, not on those of the
+ * moment it opened (FR-063: a script added later becomes available in the dialog). The page
+ * learns of a reload from the core's `resources.changed` and fetches the list afterwards, so
+ * the new catalogue can arrive while the dialog is already open.
+ */
+function LiveCustomizeToolbarDialog({
+  scriptButtons,
+  ...props
+}: Omit<CustomizeToolbarDialogProps, 'scriptButtons'> & {
+  scriptButtons: LatestValue<readonly string[]>;
+}) {
+  const current = useSyncExternalStore(scriptButtons.subscribe, scriptButtons.get);
+  return <CustomizeToolbarDialog {...props} scriptButtons={current} />;
+}
+
 interface CustomizableToolbarViewProps {
   toolbar: CustomizableToolbar;
   /** Command ids of the scripts the Scripts toolbar can show. */
@@ -245,14 +299,15 @@ function CustomizableToolbarView({
     (next) => void saveLayout(ctx, toolbar, withHiddenItems(stored, next, hidden)),
     runLocked,
   );
+  const latestScriptButtons = useLatestValue(scriptButtons);
 
   const customize = () => {
     if (runLocked) return;
     void services.dialogs.openCustom((close) => (
-      <CustomizeToolbarDialog
+      <LiveCustomizeToolbarDialog
         ctx={ctx}
         toolbar={toolbar}
-        scriptButtons={scriptButtons}
+        scriptButtons={latestScriptButtons}
         onClose={() => close(undefined)}
       />
     ));
