@@ -241,12 +241,14 @@ export async function gotoFootnoteOrReference(
       const doc = controller.editorState!.doc;
       const target = findById(doc, targetId) ?? findNodeById(doc, nodeId);
       if (target) {
+        // The focus first: ProseMirror scrolls to the selection only while it owns the DOM
+        // selection (as `BodyEditorController.setCaret` does).
+        controller.focus();
         controller.apply(
           controller
             .editorState!.tr.setSelection(selectionIntoTarget(doc, target))
             .scrollIntoView(),
         );
-        controller.focus();
         return true;
       }
     }

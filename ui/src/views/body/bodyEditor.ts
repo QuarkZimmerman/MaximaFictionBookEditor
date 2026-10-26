@@ -1195,9 +1195,11 @@ export class BodyEditorController {
         );
       }
     }
+    // Mounted: the focus first (ProseMirror scrolls only while it owns the DOM selection), as
+    // `setCaret` does; unmounted: scrolled into view on mount.
+    this.focus();
     this.dispatch(state.tr.setSelection(selection).scrollIntoView());
     if (!this.view) this.scrollOnMount = true;
-    this.focus();
     return true;
   }
 
@@ -1256,10 +1258,13 @@ export class BodyEditorController {
     const size = found.node.content.size;
     const start = base + Math.min(Math.max(from, 0), size);
     const end = base + Math.min(Math.max(to, from), size);
+    // The focus first, as `setCaret` does: ProseMirror scrolls to the selection only while it
+    // owns the DOM selection, and a focus taken afterwards does not scroll (the Find dialog,
+    // a text field or a menu had it).
+    this.focus();
     this.dispatch(
       state.tr.setSelection(TextSelection.create(state.doc, start, end)).scrollIntoView(),
     );
-    this.focus();
     return true;
   }
 }
