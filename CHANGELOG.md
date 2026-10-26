@@ -15,6 +15,17 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   table pasted into a cell overwrites the cells from there and adds the rows and columns it needs;
   pasted outside a table it becomes a new table where a table may stand, while the status bar says
   so where none may. Pasted cells lose an id the book already uses. Each step is one undo step.
+- *Merge cells* and *Split cell*. *Merge cells* makes the selected block one cell, which keeps the
+  top-left cell's kind (header or normal), id, style, language and alignment and takes the other
+  cells' contents in reading order, separated by single spaces, with their formatting, links,
+  note links and pictures; a merge over the whole width removes the rows it empties. When a link
+  of the book points to a cell that the merge removes, the editor first asks, naming the number
+  of such links, and *No* changes nothing. *Split cell* turns a merged cell into single cells, the
+  top-left one keeping the content and the attributes and the others empty with the same kind,
+  alignment and language. Both are in *Add > Table structure*, in the table's context menu
+  (*Table structure*), as buttons offered in *Customize toolbar* and as commands a hotkey can be
+  assigned to; each is one undo step, and an unavailable one says why, for example "Split cell:
+  the cell is not merged".
 
 - *Add > Table* asks for the columns and for a header column besides the rows and a header
   row, and proposes the values last confirmed, also after a restart. The new table is

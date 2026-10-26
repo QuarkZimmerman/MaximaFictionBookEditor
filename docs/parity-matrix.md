@@ -425,6 +425,8 @@ with the same checks.
 | `TABLE_INSERT_COLUMN_LEFT*` | Insert column to the left | `table.insertColumnLeft` (`features/tables/commands.ts`, its plan in `editor/table/ops.ts`) | `menu-add-tableStructure-insertColumnLeft`, `context-menu-tableStructure-insertColumnLeft` | `us2-table-rows-columns.spec.ts`, `us2-table-fuzz.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US2 |
 | `TABLE_INSERT_COLUMN_RIGHT*` | Insert column to the right | `table.insertColumnRight` (`features/tables/commands.ts`, its plan in `editor/table/ops.ts`) | `menu-add-tableStructure-insertColumnRight`, `context-menu-tableStructure-insertColumnRight` | `us2-table-rows-columns.spec.ts`, `us2-table-fuzz.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US2 |
 | `TABLE_DELETE_COLUMN*` | Delete column | `table.deleteColumn` (`features/tables/commands.ts`, its plan in `editor/table/ops.ts`) | `menu-add-tableStructure-deleteColumn`, `context-menu-tableStructure-deleteColumn` | `us2-table-rows-columns.spec.ts`, `us2-table-fuzz.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US2 |
+| `TABLE_MERGE_CELLS*` | Merge cells | `table.mergeCells` (`features/tables/commands.ts`; its plan `planMerge` in `editor/table/ops.ts`; the question in `features/tables/confirm.ts`) | `menu-add-tableStructure-mergeCells`, `context-menu-tableStructure-mergeCells`, `dialog-table-link-targets` | `us5-table-merge-split.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US5 |
+| `TABLE_SPLIT_CELL*` | Split cell | `table.splitCell` (`features/tables/commands.ts`; its plan `planSplit` in `editor/table/ops.ts`) | `menu-add-tableStructure-splitCell`, `context-menu-tableStructure-splitCell` | `us5-table-merge-split.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US5 |
 | `TABLE_MOVE_ROW_UP*` | Move row up | `table.moveRowUp` (`features/tables/commands.ts`, its plan in `editor/table/ops.ts`) | `menu-add-tableStructure-moveRowUp`, `context-menu-tableStructure-moveRowUp` | `us2-table-rows-columns.spec.ts`, `us2-table-fuzz.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US2 |
 | `TABLE_MOVE_ROW_DOWN*` | Move row down | `table.moveRowDown` (`features/tables/commands.ts`, its plan in `editor/table/ops.ts`) | `menu-add-tableStructure-moveRowDown`, `context-menu-tableStructure-moveRowDown` | `us2-table-rows-columns.spec.ts`, `us2-table-fuzz.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US2 |
 | `TABLE_MOVE_COLUMN_LEFT*` | Move column left | `table.moveColumnLeft` (`features/tables/commands.ts`, its plan in `editor/table/ops.ts`) | `menu-add-tableStructure-moveColumnLeft`, `context-menu-tableStructure-moveColumnLeft` | `us2-table-rows-columns.spec.ts`, `us2-table-fuzz.spec.ts` | implemented | addition: the original had no table structure commands; feature 006 US2 |
@@ -450,9 +452,9 @@ the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the orig
 
 Counts are recomputed by `node tools/parity-check.mjs` (printed as
 "rows - implemented N, implemented-differently N, dropped N"). At the time of writing:
-254 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
+256 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
 their controls) plus the original UI created in the sources and the additions of later
-features: 247 implemented, 3 implemented-differently, 4 dropped.
+features: 249 implemented, 3 implemented-differently, 4 dropped.
 
 Dropped items and their references:
 
