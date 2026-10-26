@@ -302,7 +302,9 @@ jobs:
       - name: Script benchmark (SC-008, times recorded)
         # As in CI (12 x ratio, 1 MB budget x MFBE_PERF_FACTOR); the measured times go to the job
         # summary and the script-benchmark artifact. The 5 s budget itself is confirmed on the
-        # reference laptop in the release smoke test (docs/performance.md).
+        # reference laptop in the release smoke test (docs/performance.md). The same run holds
+        # every @perf journey, perf-tables among them (feature 006, SC-005): its medians follow
+        # in a second table of the summary, read from tests/bench/results/table-commands.json.
         if: runner.os == 'Linux'
         working-directory: ui
         shell: bash
@@ -315,10 +317,26 @@ jobs:
             console.log("| Script | 1 MB (ms) | 10 MB (ms) |\n| --- | ---: | ---: |");
             for (const r of results) console.log(`| ${r.script} | ${r["1mb"]} | ${r["10mb"]} |`);
           ' "$MFBE_PERF_RESULTS" >> "$GITHUB_STEP_SUMMARY"
+          node -e '
+            const r = require(process.argv[1]);
+            const keys = ["table300", "table628", "table298", "table1000"];
+            const cell = (value) => (value === undefined ? "-" : String(value));
+            console.log(`\n### Table commands (MFBE_PERF_FACTOR ${r.perfFactor})\n`);
+            console.log("| Command | 300 × 10 median (ms) | 628 × 4 median (ms) | 298 × 14 median (ms) | 1000 × 20 (ms) |");
+            console.log("| --- | ---: | ---: | ---: | ---: |");
+            const names = [...new Set(keys.flatMap((key) => Object.keys(r[key] ?? {})))];
+            for (const name of names) {
+              console.log(`| ${name} | ${keys.map((key) => cell(r[key]?.[name])).join(" | ")} |`);
+            }
+            for (const paste of ["block", "table"]) {
+              console.log(`| paste (${paste}) | ${keys.map((key) => cell(r.pastes?.[key]?.[paste])).join(" | ")} |`);
+            }
+          ' "$MFBE_TABLE_RESULTS" >> "$GITHUB_STEP_SUMMARY"
         env:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
           MFBE_PERF_RESULTS: ${{ github.workspace }}/tests/bench/results/script-benchmark.json
+          MFBE_TABLE_RESULTS: ${{ github.workspace }}/tests/bench/results/table-commands.json
       - name: Script benchmark failure details
         if: failure() && runner.os == 'Linux'
         shell: bash
@@ -328,7 +346,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: script-benchmark
-          path: tests/bench/results/script-benchmark.json
+          path: |
+            tests/bench/results/script-benchmark.json
+            tests/bench/results/table-commands.json
           if-no-files-found: ignore
 
       - name: Licence check (blocking, Constitution VI)

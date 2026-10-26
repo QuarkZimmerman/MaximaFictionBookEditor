@@ -326,11 +326,15 @@ jobs:
           PLAYWRIGHT_BROWSERS_PATH: /home/runner/.cache/ms-playwright
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
-      - name: Script benchmark (SC-008)
+      - name: "Timed journeys (@perf: script benchmark SC-008, table commands SC-005)"
         if: runner.os == 'Linux'
-        # Bundled clean-up scripts on the generated 1 MB and 10 MB books, alone on one worker:
-        # each 10 MB time at most 12 x its 1 MB time, each 1 MB time under 5 s x
-        # MFBE_PERF_FACTOR (default 2, docs/performance.md).
+        # Every @perf journey alone on one worker (MFBE_PERF_FACTOR, default 2,
+        # docs/performance.md): the bundled clean-up scripts on the generated 1 MB and 10 MB
+        # books (perf-scripts: each 10 MB time at most 12 x its 1 MB time, each 1 MB time under
+        # 5 s x the factor), the table commands in the 10 MB book (perf-tables, feature 006: the
+        # medians on 300 x 10, 628 x 4 and 298 x 14 under 100 ms x the factor, every run on
+        # 1000 x 20 under 1 s; its figures in tests/bench/results/table-commands.json, which the
+        # bench-results artifact carries) and the timed steps of the 10 MB journeys.
         run: npx playwright test --grep @perf --workers=1 --reporter=list
         working-directory: ui
         env:

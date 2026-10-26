@@ -889,6 +889,11 @@ test.describe('US8 (feature 006) - irregular tables are marked, in the Body view
       button.click();
     }))(${JSON.stringify(ref)})`);
     expect(elapsed, 'the mark went').toBeGreaterThanOrEqual(0);
+    // Recorded for docs/performance.md (feature 006, T186: quickstart §14, "Timed elsewhere").
+    test.info().annotations.push({
+      type: 'perf',
+      description: `Repair table from the popover: the mark gone after ${elapsed.toFixed(1)} ms`,
+    });
     expect(elapsed).toBeLessThanOrEqual(MARK_BUDGET_MS * PERF_FACTOR);
     await expect(popover).toHaveCount(0);
     const after = await toXml(page);
