@@ -26,6 +26,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   therefore learns that its final is out, which 0.0.5's comparison of the numbers alone did not
   tell it (it read `0.0.6-rc.1` as `0.0.6.1`, newer than `0.0.6`); a final release is never
   offered a pre-release, since the check asks for the latest full release.
+- A table cell's language (`xml:lang`) is kept and written as a known attribute of the cell:
+  scripts see it as `attrs.lang`, where release 0.0.5 kept it in `unknownAttrs` under the key
+  `{http://www.w3.org/XML/1998/namespace}lang`. An attribute given both ways - a known value
+  and the same name in `unknownAttrs`, such as a span set by a script on a cell whose span text
+  was not a number - is written once, the known value winning; 0.0.5 wrote it twice, and the
+  saved file was not well-formed. Span values below 1 are kept exactly as written unless they
+  are in plain decimal form (`0`, `-1`), so `00` or `-01` no longer become `0` or `-1`.
 
 ### Fixed
 

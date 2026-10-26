@@ -156,7 +156,19 @@ export interface ImageRef {
 
 export interface BaseNode<T extends string, A extends object = {}> {
   type: T;
-  attrs: A & { nodeId: string };
+  attrs: A & {
+    nodeId: string;
+    /**
+     * The element's attributes that have no member of their own (feature 006 documents it,
+     * contracts/document-model.md §1.3): on every node the reader builds from an element (the
+     * structural and block nodes of the bodies, the annotations and the history, and
+     * `inline-image`; marks have none); absent when empty. Keys: the local name of an attribute
+     * without a namespace, `{namespaceURI}localName` otherwise; values: the text, verbatim.
+     * Written after the known attributes; a name a known attribute already wrote is skipped -
+     * the known value wins.
+     */
+    unknownAttrs?: Record<string, string>;
+  };
 }
 
 export type StructAttrs = { id?: string; lang?: string };
@@ -241,10 +253,17 @@ export interface CellNode extends BaseNode<
   {
     id?: string;
     style?: string;
+    /**
+     * The integer value as read; written in canonical decimal; other text, and a value below 1
+     * not in canonical form, in `unknownAttrs` (feature 006, contracts/document-model.md §1.2).
+     */
     colspan?: number;
+    /** As `colspan`. */
     rowspan?: number;
     align?: Align;
     valign?: VAlign;
+    /** xml:lang, read and written verbatim (feature 006, FR-020). */
+    lang?: string;
   }
 > {
   content: InlineNode[];

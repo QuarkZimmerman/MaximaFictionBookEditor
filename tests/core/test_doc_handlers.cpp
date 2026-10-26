@@ -2032,3 +2032,52 @@ TEST_CASE("doc.exportDescription: a store at Save's threshold runs as a job with
     CHECK_THAT(written, ContainsSubstring("\t<body>\n\t\t<section/>\n\t</body>\n"));
     CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"].size() == 3);
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: the writer's rules in the doc.* texts (contracts/rpc-api.md §3.2)            */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "doc handlers: doc.toXml and doc.validate - a cell with colspan and unknownAttrs.colspan is "
+    "well-formed",
+    "[server][doc][tables]") {
+    ServerFixture f;
+    const std::string doc_id = f.ws.call("doc.new")["result"]["docId"];
+    // A cell whose colspan text is not a number, read through doc.fromXml...
+    const json read = f.ws.call(
+        "doc.fromXml",
+        json{{"docId", doc_id},
+             {"text", test::minimal_book("<section><table><tr><td colspan=\"abc\" "
+                                         "xml:lang=\"de\">x</td></tr></table></section>")}});
+    REQUIRE(read.contains("result"));
+    json document = read["result"]["document"];
+    json& cell = document["bodies"][0]["content"][0]["content"][0]["content"][0]["content"][0];
+    REQUIRE(cell["type"] == "td");
+    CHECK(cell["attrs"]["unknownAttrs"] == json{{"colspan", "abc"}});
+    CHECK(cell["attrs"]["lang"] == "de");
+    // ...then given a span by a client that left the unknown text in place (a script, the
+    // assistant): the known value wins, written once.
+    cell["attrs"]["colspan"] = 3;
+    const json xml = f.ws.call("doc.toXml", json{{"docId", doc_id}, {"document", document}});
+    REQUIRE(xml.contains("result"));
+    const std::string text = xml["result"]["text"];
+    CHECK_THAT(text, ContainsSubstring("<td colspan=\"3\" xml:lang=\"de\">x</td>"));
+    CHECK(text.find("abc") == std::string::npos);
+    CHECK_FALSE(fb2::check_well_formed(text).has_value());
+    const json report = f.run_job("doc.validate", json{{"docId", doc_id}, {"document", document}});
+    REQUIRE(report.contains("result"));
+    for (const auto& issue : report["result"]["issues"]) {
+        INFO(issue.dump());
+        CHECK(issue["code"] != "xml.notWellFormed");
+        CHECK(issue["severity"] != "error");
+    }
+    CHECK(report["result"]["errorCount"] == 0);
+    // Read back, the cell holds the known value alone.
+    const json back = f.ws.call("doc.fromXml", json{{"docId", doc_id}, {"text", text}});
+    REQUIRE(back.contains("result"));
+    const json& back_cell = back["result"]["document"]["bodies"][0]["content"][0]["content"][0]
+                                ["content"][0]["content"][0];
+    CHECK(back_cell["attrs"]["colspan"] == 3);
+    CHECK(back_cell["attrs"]["lang"] == "de");
+    CHECK_FALSE(back_cell["attrs"].contains("unknownAttrs"));
+}

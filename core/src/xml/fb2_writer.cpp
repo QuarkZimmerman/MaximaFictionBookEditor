@@ -321,7 +321,12 @@ private:
         }
     }
 
-    std::string unknown_attrs(const Node& node) {
+    // The unknown attributes after the known ones. `written` holds the XML names already in the
+    // start tag: an entry whose name, after the namespace mapping, is among them is skipped, so
+    // an attribute name is never written twice and the known value wins (feature 006, C19:
+    // `colspan: 3` beside `unknownAttrs.colspan "abc"` gives `colspan="3"`). No log line: the
+    // clash is the expected state after a user edit.
+    std::string unknown_attrs(const Node& node, std::set<std::string>& written) {
         auto it = node.attrs.find("unknownAttrs");
         if (it == node.attrs.end() || !it->second.is_object()) {
             return "";
@@ -348,7 +353,7 @@ private:
                     name = ns->second + ":" + local;
                 }
             }
-            if (name.empty()) {
+            if (name.empty() || !written.insert(name).second) {
                 continue;
             }
             out += attr(name.c_str(), json_string(value));
@@ -629,9 +634,12 @@ private:
     // ---- body tree -------------------------------------------------------------------------
     std::string known_attrs(const Node& node, const std::string& type) {
         std::string out;
+        std::set<std::string> written;  // the XML names in the start tag, for unknown_attrs
         const auto add = [&](const char* model_name, const char* xml_name) {
             if (auto v = attr_of(node, model_name)) {
-                out += attr(xml_name, *v);
+                if (written.insert(xml_name).second) {
+                    out += attr(xml_name, *v);
+                }
             }
         };
         const std::string href_name = options_.xlink_prefix + ":href";
@@ -657,6 +665,7 @@ private:
             add("rowspan", "rowspan");
             add("align", "align");
             add("valign", "valign");
+            add("lang", "xml:lang");  // feature 006 (FR-020): last, as on paragraphs
         } else if (type == "p" || type == "subtitle" || type == "text-author" || type == "v") {
             add("id", "id");
             add("style", "style");
@@ -675,12 +684,13 @@ private:
         } else {
             // Unknown node type (should not happen): write string attributes generically.
             for (const auto& [k, v] : node.attrs) {
-                if (k != "nodeId" && k != "unknownAttrs" && v.is_string()) {
+                if (k != "nodeId" && k != "unknownAttrs" && v.is_string() &&
+                    written.insert(k).second) {
                     out += attr(k.c_str(), v.get<std::string>());
                 }
             }
         }
-        out += unknown_attrs(node);
+        out += unknown_attrs(node, written);
         return out;
     }
 

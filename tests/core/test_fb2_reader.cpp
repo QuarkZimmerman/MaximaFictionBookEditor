@@ -650,3 +650,126 @@ TEST_CASE("reader: files that are not FictionBook at all are refused while malfo
     } catch (const fb2::ParseFailure&) {
     }
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: cells, spans and unknown attributes (contracts/document-model.md §1)          */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+// Reads a minimal valid book around `body` (test_support.hpp) without the schema hint.
+fb2::ReadResult read_body(const std::string& body) {
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids;
+    return fb2::read_bytes(test::minimal_book(body), store, ids, no_hint());
+}
+
+// The cells of the first table of the first body, in reading order.
+std::vector<const model::Node*> cells_of(const fb2::ReadResult& r) {
+    REQUIRE_FALSE(r.document.bodies.empty());
+    const model::Node* table = find_type(r.document.bodies[0], "table");
+    REQUIRE(table != nullptr);
+    std::vector<const model::Node*> cells;
+    for (const auto& row : table->content) {
+        for (const auto& cell : row.content) {
+            if (cell.type == "td" || cell.type == "th") {
+                cells.push_back(&cell);
+            }
+        }
+    }
+    return cells;
+}
+
+const char* const kXmlLangKey = "{http://www.w3.org/XML/1998/namespace}lang";
+
+}  // namespace
+
+TEST_CASE("reader: a cell's xml:lang is its lang attribute; on table and tr it stays unknown",
+          "[reader][tables]") {
+    const auto r = read_body(
+        "<section><table xml:lang=\"fr\"><tr xml:lang=\"de\"><td xml:lang=\"de\">a</td>"
+        "<th xml:lang=\"en-GB\">b</th><td xml:lang=\"\">c</td><td xml:lang=\"de_DE\">d</td>"
+        "<td>e</td></tr></table></section>");
+    const auto cells = cells_of(r);
+    REQUIRE(cells.size() == 5);
+    const std::vector<std::optional<std::string>> langs = {"de", "en-GB", "", "de_DE",
+                                                           std::nullopt};
+    for (std::size_t i = 0; i < cells.size(); ++i) {
+        INFO("cell " << i);
+        CHECK(cells[i]->attr_string("lang") == langs[i]);
+        // No cell keeps the namespaced key: the language is a known attribute now.
+        CHECK_FALSE(cells[i]->attrs.count("unknownAttrs"));
+    }
+    const model::Node* table = find_type(r.document.bodies[0], "table");
+    REQUIRE(table != nullptr);
+    CHECK_FALSE(table->attrs.count("lang"));
+    REQUIRE(table->attrs.count("unknownAttrs"));
+    CHECK(table->attrs.at("unknownAttrs") == nlohmann::json{{kXmlLangKey, "fr"}});
+    const model::Node& row = table->content.at(0);
+    CHECK_FALSE(row.attrs.count("lang"));
+    REQUIRE(row.attrs.count("unknownAttrs"));
+    CHECK(row.attrs.at("unknownAttrs") == nlohmann::json{{kXmlLangKey, "de"}});
+
+    // The fragment reader (doc.fragmentFromXml) shares the attribute table.
+    const auto fragment =
+        fb2::read_fragment("<table><tr><td xml:lang=\"uk\">x</td></tr></table>", "section");
+    REQUIRE(fragment.nodes.size() == 1);
+    const model::Node& cell = fragment.nodes[0].content.at(0).content.at(0);
+    CHECK(cell.attr_string("lang") == "uk");
+    CHECK_FALSE(cell.attrs.count("unknownAttrs"));
+}
+
+TEST_CASE(
+    "reader: spans keep their integer value, 0 and negatives included; other text goes verbatim "
+    "to unknownAttrs",
+    "[reader][tables]") {
+    struct Case {
+        const char* text;
+        std::optional<int> value;  // the integer kept, or nullopt: the text in unknownAttrs
+    };
+    const std::vector<Case> cases = {
+        {"1", 1},
+        {"2", 2},
+        {" 2 ", 2},
+        {"+2", 2},
+        {"02", 2},
+        {"03", 3},
+        {"1000", 1000},
+        {"0", 0},
+        {"-1", -1},
+        {"-5", -5},
+        {"00", std::nullopt},
+        {"+0", std::nullopt},
+        {" 0 ", std::nullopt},
+        {"-01", std::nullopt},
+        {"-0", std::nullopt},
+        {"abc", std::nullopt},
+        {"2.5", std::nullopt},
+        {"99999999999", std::nullopt},
+        {"", std::nullopt},
+    };
+    for (const char* attribute : {"colspan", "rowspan"}) {
+        std::string row;
+        for (const Case& c : cases) {
+            row += std::string("<td ") + attribute + "=\"" + c.text + "\">x</td>";
+        }
+        const auto r = read_body("<section><table><tr>" + row + "</tr></table></section>");
+        const auto cells = cells_of(r);
+        REQUIRE(cells.size() == cases.size());
+        for (std::size_t i = 0; i < cases.size(); ++i) {
+            INFO(attribute << "=\"" << cases[i].text << "\"");
+            const model::Node& cell = *cells[i];
+            if (cases[i].value) {
+                REQUIRE(cell.attrs.count(attribute));
+                CHECK(cell.attrs.at(attribute).is_number_integer());
+                CHECK(cell.attrs.at(attribute) == *cases[i].value);
+                CHECK_FALSE(cell.attrs.count("unknownAttrs"));
+            } else {
+                CHECK_FALSE(cell.attrs.count(attribute));
+                REQUIRE(cell.attrs.count("unknownAttrs"));
+                CHECK(cell.attrs.at("unknownAttrs") ==
+                      nlohmann::json{{attribute, std::string(cases[i].text)}});
+            }
+        }
+    }
+}

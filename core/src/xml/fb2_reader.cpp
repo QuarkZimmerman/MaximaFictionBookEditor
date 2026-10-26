@@ -241,8 +241,10 @@ const AttrSpec& attr_spec(const std::string& type) {
         {"cite", {{"id"}, true, false}},
         {"table", {{"id", "style"}, false, false}},
         {"tr", {{"align"}, false, false}},
-        {"td", {{"id", "style", "colspan", "rowspan", "align", "valign"}, false, false}},
-        {"th", {{"id", "style", "colspan", "rowspan", "align", "valign"}, false, false}},
+        // A cell's xml:lang is its `lang` (feature 006, FR-020; tdType extends styleType); the
+        // schema gives table and tr none, so theirs stays an unknown attribute.
+        {"td", {{"id", "style", "colspan", "rowspan", "align", "valign"}, true, false}},
+        {"th", {{"id", "style", "colspan", "rowspan", "align", "valign"}, true, false}},
         {"p", {{"id", "style"}, true, false}},
         {"subtitle", {{"id", "style"}, true, false}},
         {"text-author", {{"id", "style"}, true, false}},
@@ -270,7 +272,14 @@ void collect_attrs(xmlNodePtr el, Node& node, const std::string& type) {
                              [&](const char* p) { return name == p; }) != spec.plain.end();
             if (known) {
                 if (name == "colspan" || name == "rowspan") {
-                    if (auto n = parse_int(value)) {
+                    // The integer value as read (feature 006, FR-047): a value of 1 or more in
+                    // any spelling (the writer respells " 2 ", "+2" and "02" as "2", a recorded
+                    // normalisation), and a smaller one only in its canonical decimal form
+                    // ("0", "-1"); any other text ("00", "+0", "-01", "abc", "2.5", a number
+                    // out of range) travels verbatim in unknownAttrs and is written back
+                    // exactly.
+                    const auto n = parse_int(value);
+                    if (n && (*n >= 1 || std::to_string(*n) == value)) {
                         node.attrs[name] = *n;
                     } else {
                         unknown[name] = value;

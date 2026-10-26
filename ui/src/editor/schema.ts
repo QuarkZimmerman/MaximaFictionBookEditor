@@ -438,7 +438,9 @@ const nodes: Record<string, NodeSpec> = {
 function cellSpec(tag: 'td' | 'th'): NodeSpec {
   return {
     content: INLINE,
-    attrs: optional('id', 'style', 'colspan', 'rowspan', 'align', 'valign'),
+    // `lang` is the cell's xml:lang (feature 006, FR-020; document-model §1.1): declared, so a
+    // model cell's `lang` lands in `node.attrs.lang`, not in `extraAttrs`.
+    attrs: optional('id', 'style', 'colspan', 'rowspan', 'align', 'valign', 'lang'),
     isolating: true,
     toDOM(node) {
       const attrs = domAttrs(node, `fb-${tag}`, {

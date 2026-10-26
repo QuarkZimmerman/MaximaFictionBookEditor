@@ -35,6 +35,46 @@ inline void write_text(const std::filesystem::path& path, const std::string& tex
     out << text;
 }
 
+// The parts of a minimal valid FB2 2.1 book (feature 006's reader, writer and round-trip
+// cases): `body` is the content of its one <body> (normally a <section>), `after_body` follows
+// that body (a notes body, binaries), `annotation` is the content of the title-info's
+// <annotation> (none when empty) and `book_title` the text of <book-title> (escaped XML).
+struct BookParts {
+    std::string body;
+    std::string after_body;
+    std::string annotation;
+    std::string book_title = "Book";
+};
+
+// The book's text: the FB2 and xlink namespaces (prefix `l`) and the required description
+// elements, so that it validates against the bundled schema whenever its parts do.
+inline std::string book_text(const BookParts& parts) {
+    std::string text =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+        "xmlns:l=\"http://www.w3.org/1999/xlink\">"
+        "<description><title-info><genre>prose_classic</genre><author><first-name>Ann</first-name>"
+        "<last-name>Writer</last-name></author><book-title>" +
+        parts.book_title + "</book-title>";
+    if (!parts.annotation.empty()) {
+        text += "<annotation>" + parts.annotation + "</annotation>";
+    }
+    text +=
+        "<lang>en</lang></title-info><document-info><author><nickname>fixture</nickname>"
+        "</author><date>2026</date><id>feature-006-test</id><version>1.0</version>"
+        "</document-info></description><body>" +
+        parts.body + "</body>" + parts.after_body + "</FictionBook>\n";
+    return text;
+}
+
+// `book_text` with a body only.
+inline std::string minimal_book(const std::string& body, const std::string& after_body = "") {
+    BookParts parts;
+    parts.body = body;
+    parts.after_body = after_body;
+    return book_text(parts);
+}
+
 // The build tree (CMAKE_BINARY_DIR): where the tests keep generated inputs that are worth
 // reusing between runs (the 10 MB book of the memory checks, as the @perf journeys do).
 inline std::filesystem::path build_dir() {

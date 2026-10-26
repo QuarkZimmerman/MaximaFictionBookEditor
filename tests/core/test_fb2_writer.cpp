@@ -525,3 +525,164 @@ TEST_CASE("writer: line map points validation lines at nodeIds", "[writer]") {
         CHECK(w.lines.entries[i - 1].first <= w.lines.entries[i].first);
     }
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: cells, spans and unknown attributes (contracts/document-model.md §1)          */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+const char* const kXmlLangKey = "{http://www.w3.org/XML/1998/namespace}lang";
+
+struct ReadBook {
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids;
+    fb2::ReadResult result;
+};
+
+// Reads a book text (test_support.hpp builds the minimal valid ones) without the schema hint.
+std::unique_ptr<ReadBook> read_text(const std::string& text) {
+    auto r = std::make_unique<ReadBook>();
+    fb2::ReadOptions options;
+    options.compute_schema_hint = false;
+    r->result = fb2::read_bytes(text, r->store, r->ids, options);
+    return r;
+}
+
+// The first node of `type` in a subtree (pre-order), or null.
+model::Node* first_of(model::Node& node, const std::string& type) {
+    if (node.type == type) {
+        return &node;
+    }
+    for (auto& child : node.content) {
+        if (auto* found = first_of(child, type)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+// A one-cell table written back: `attrs` replace the cell's attributes (nodeId kept).
+std::string written_cell_book(const std::map<std::string, nlohmann::json>& attrs,
+                              const std::string& cell_type = "td") {
+    auto r = read_text(test::minimal_book("<section><table><tr><" + cell_type + ">x</" + cell_type +
+                                          "></tr></table></section>"));
+    model::Node* cell = first_of(r->result.document.bodies.at(0), cell_type);
+    REQUIRE(cell != nullptr);
+    const nlohmann::json id = cell->attrs.at("nodeId");
+    cell->attrs = attrs;
+    cell->attrs["nodeId"] = id;
+    return fb2::write_document(r->result.document, &r->store).text;
+}
+
+}  // namespace
+
+TEST_CASE("writer: a cell's lang is written as xml:lang after the other known attributes",
+          "[writer][tables]") {
+    CHECK_THAT(
+        written_cell_book({{"id", "h"}, {"colspan", 2}, {"align", "center"}, {"lang", "de"}}, "th"),
+        ContainsSubstring("<th id=\"h\" colspan=\"2\" align=\"center\" xml:lang=\"de\">x</th>"));
+    CHECK_THAT(written_cell_book({{"lang", "uk"},
+                                  {"valign", "bottom"},
+                                  {"align", "right"},
+                                  {"rowspan", 3},
+                                  {"colspan", 2},
+                                  {"style", "s"},
+                                  {"id", "c"}}),
+               ContainsSubstring("<td id=\"c\" style=\"s\" colspan=\"2\" rowspan=\"3\" "
+                                 "align=\"right\" valign=\"bottom\" xml:lang=\"uk\">x</td>"));
+    // Values are written verbatim, an empty or invalid one included (File > Validate reports
+    // them), and read back as the cell's lang.
+    for (const char* lang : {"", "de_DE", "en-GB"}) {
+        INFO("lang \"" << lang << "\"");
+        const std::string text = written_cell_book({{"lang", lang}});
+        CHECK_THAT(text, ContainsSubstring(std::string("<td xml:lang=\"") + lang + "\">x</td>"));
+        auto back = read_text(text);
+        const model::Node* cell = first_of(back->result.document.bodies.at(0), "td");
+        REQUIRE(cell != nullptr);
+        CHECK(cell->attr_string("lang") == lang);
+        CHECK_FALSE(cell->attrs.count("unknownAttrs"));
+    }
+    // The fragment writer (doc.fragmentToXml) shares known_attrs.
+    model::Node cell = element("td", {text_node("y")});
+    cell.attrs["lang"] = "fr";
+    cell.attrs["colspan"] = 2;
+    model::Node row = element("tr", {cell});
+    CHECK(fb2::write_fragment({element("table", {row})}) ==
+          "<table>\n\t<tr>\n\t\t<td colspan=\"2\" xml:lang=\"fr\">y</td>\n\t</tr>\n</table>");
+}
+
+TEST_CASE("writer: an attribute name is never written twice in a start tag; the known value wins",
+          "[writer][tables]") {
+    // C19: today `<td colspan="3" colspan="abc">`, which is not well-formed.
+    const std::string spans = written_cell_book(
+        {{"colspan", 3}, {"rowspan", 2}, {"unknownAttrs", {{"colspan", "abc"}, {"rowspan", "x"}}}});
+    CHECK_THAT(spans, ContainsSubstring("<td colspan=\"3\" rowspan=\"2\">x</td>"));
+    CHECK(spans.find("abc") == std::string::npos);
+    CHECK_FALSE(fb2::check_well_formed(spans).has_value());
+    // A known language beside the namespaced key of release 0.0.5: xml:lang="fr" only.
+    const std::string lang = written_cell_book(
+        {{"lang", "fr"}, {"unknownAttrs", {{kXmlLangKey, "de"}, {"data-x", "1"}}}});
+    CHECK_THAT(lang, ContainsSubstring("<td xml:lang=\"fr\" data-x=\"1\">x</td>"));
+    CHECK(lang.find("\"de\"") == std::string::npos);
+    CHECK_FALSE(fb2::check_well_formed(lang).has_value());
+    // Without the known value the unknown one is written as before.
+    CHECK_THAT(written_cell_book({{"unknownAttrs", {{"colspan", "abc"}, {kXmlLangKey, "de"}}}}),
+               ContainsSubstring("<td colspan=\"abc\" xml:lang=\"de\">x</td>"));
+    // Every node type: a paragraph's language and an inline image's xlink:href.
+    auto r = read_text(test::minimal_book(
+        "<section><p xml:lang=\"en\">t<image l:href=\"#a.png\"/></p></section>"));
+    model::Node* p = first_of(r->result.document.bodies.at(0), "p");
+    REQUIRE(p != nullptr);
+    p->attrs["unknownAttrs"] = nlohmann::json{{kXmlLangKey, "de"}, {"id", "dup"}};
+    p->attrs["id"] = "p1";
+    model::Node* img = first_of(*p, "inline-image");
+    REQUIRE(img != nullptr);
+    img->attrs["unknownAttrs"] =
+        nlohmann::json{{"{http://www.w3.org/1999/xlink}href", "#b.png"}, {"alt", "dup"}};
+    img->attrs["alt"] = "picture";
+    const std::string text = fb2::write_document(r->result.document, &r->store).text;
+    CHECK_THAT(text, ContainsSubstring("<p id=\"p1\" xml:lang=\"en\">t<image l:href=\"#a.png\" "
+                                       "alt=\"picture\"/></p>"));
+    CHECK_FALSE(fb2::check_well_formed(text).has_value());
+    // And in fragments.
+    model::Node cell = element("td", {text_node("y")});
+    cell.attrs["colspan"] = 2;
+    cell.attrs["unknownAttrs"] = nlohmann::json{{"colspan", "abc"}};
+    CHECK(fb2::write_fragment({element("table", {element("tr", {cell})})}) ==
+          "<table>\n\t<tr>\n\t\t<td colspan=\"2\">y</td>\n\t</tr>\n</table>");
+}
+
+TEST_CASE("writer: integer spans are written in canonical decimal form; unknownAttrs spans exactly",
+          "[writer][tables]") {
+    struct Case {
+        const char* read;
+        const char* written;
+    };
+    const std::vector<Case> cases = {
+        {" 2 ", "2"},   {"+2", "2"},    {"02", "2"},    {"2", "2"},
+        {"0", "0"},     {"-1", "-1"},   {"00", "00"},   {"+0", "+0"},
+        {" 0 ", " 0 "}, {"-01", "-01"}, {"abc", "abc"}, {"99999999999", "99999999999"},
+        {"2.5", "2.5"},
+    };
+    for (const char* attribute : {"colspan", "rowspan"}) {
+        std::string row;
+        for (const Case& c : cases) {
+            row += std::string("<td ") + attribute + "=\"" + c.read + "\">x</td>";
+        }
+        auto r =
+            read_text(test::minimal_book("<section><table><tr>" + row + "</tr></table></section>"));
+        const std::string text = fb2::write_document(r->result.document, &r->store).text;
+        // The cells one per line, in order.
+        std::size_t from = 0;
+        for (const Case& c : cases) {
+            const std::string expected =
+                std::string("\t<td ") + attribute + "=\"" + c.written + "\">x</td>\n";
+            INFO(attribute << "=\"" << c.read << "\" written as " << expected);
+            const std::size_t at = text.find(expected, from);
+            REQUIRE(at != std::string::npos);
+            from = at + expected.size();
+        }
+        CHECK_FALSE(fb2::check_well_formed(text).has_value());
+    }
+}

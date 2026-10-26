@@ -1,5 +1,6 @@
 import { Fragment } from 'prosemirror-model';
 
+import { createReport, nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import {
   MARK_ORDER,
   assignNodeIds,
@@ -12,6 +13,7 @@ import {
   nodeTypeFor,
   rawXmlElementName,
 } from '@/editor/schema';
+import { nodeToModel } from '@/editor/toModel';
 
 const { nodes, marks } = fb2Schema;
 
@@ -222,5 +224,53 @@ describe('fb2Schema', () => {
     expect(findNodeById(withIds, 'p1')?.node.textContent).toBe('a');
     expect(findNodeById(withIds, 'nope')).toBeNull();
     expect(Fragment.from(withIds.content).childCount).toBe(1);
+  });
+});
+
+/** Model JSON -> ProseMirror -> model JSON, with the conversion's problems. */
+function viaEditor(json: ModelNodeJson) {
+  const report = createReport();
+  const node = nodeFromModel(json, report);
+  return {
+    node: node!,
+    back: nodeToModel(node!),
+    problems: report.problems.map((problem) => problem.message),
+  };
+}
+
+describe('feature 006: cells, marks and atoms in the schema and the conversions', () => {
+  it("td and th declare lang; a model cell's lang lands in node.attrs.lang, not in extraAttrs", () => {
+    for (const type of ['td', 'th'] as const) {
+      expect(Object.keys(nodes[type]!.spec.attrs ?? {})).toContain('lang');
+      const cell: ModelNodeJson = {
+        type,
+        attrs: {
+          nodeId: 'c1',
+          colspan: 2,
+          lang: 'de',
+          unknownAttrs: { rowspan: '00', '{http://www.w3.org/1999/xlink}title': 't' },
+        },
+        content: [{ type: 'text', text: 'x' }],
+      };
+      const { node, back, problems } = viaEditor(cell);
+      expect(problems).toEqual([]);
+      expect(node.attrs.lang).toBe('de');
+      expect(node.attrs.colspan).toBe(2);
+      // Only the undeclared rest waits in extraAttrs: unknownAttrs, as it came.
+      expect(node.attrs.extraAttrs).toEqual({
+        unknownAttrs: { rowspan: '00', '{http://www.w3.org/1999/xlink}title': 't' },
+      });
+      expect(back).toEqual(cell);
+      // The cell's DOM form carries the language for the editor's own HTML.
+      expect(node.type.spec.toDOM!(node)).toEqual([
+        type,
+        { class: `fb-${type}`, 'data-node-id': 'c1', lang: 'de', colspan: '2' },
+        0,
+      ]);
+    }
+    // An empty language is kept as written (File > Validate reports it).
+    const empty = viaEditor({ type: 'td', attrs: { nodeId: 'c2', lang: '' }, content: [] });
+    expect(empty.node.attrs.lang).toBe('');
+    expect(empty.back).toEqual({ type: 'td', attrs: { nodeId: 'c2', lang: '' }, content: [] });
   });
 });
