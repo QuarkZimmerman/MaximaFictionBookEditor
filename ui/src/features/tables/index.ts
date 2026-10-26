@@ -3,18 +3,22 @@
  * Called once by `createAppServices()` right after the images feature: it replaces the stub of
  * every `table.*` command that has a row in the command table (`commands.ts`), installs the
  * resolver of the table commands' hotkey scope - the active table edit target's DOM, so a chord
- * the user assigned runs a table command only with the focus inside the Body editor (C6) -, and
- * the test hooks when the page or the core asks for them.
+ * the user assigned runs a table command only with the focus inside the Body editor (C6) -, the
+ * Body context menu's table section with its right-click rule, and the test hooks when the page
+ * or the core asks for them.
  */
 
 import type { FeatureContext } from '@/app/services';
 import { testHooksRequested } from '@/scripting/testHooks';
+import { registerContextMenuExtension } from '@/views/body/contextMenuExtensions';
 
 import { TABLE_COMMAND_ROWS, tableCommand } from './commands';
+import { prepareTableContextMenu, tableContextMenuItems } from './contextMenu';
 import { activeTableTarget } from './target';
 import { installTablesTestHooks } from './testHooks';
 
 export { TABLE_COMMAND_ROWS, tableCommand, tableIcon, type TableCommandRow } from './commands';
+export { prepareTableContextMenu, tableContextMenuItems } from './contextMenu';
 export { reasonText, type ReasonCode } from './reasons';
 export {
   activeTableTarget,
@@ -27,6 +31,11 @@ export { findModelTable, installTablesTestHooks, type TablesTestHooks } from './
 export function registerTablesFeature(ctx: FeatureContext): void {
   for (const row of TABLE_COMMAND_ROWS) ctx.commands.replace(tableCommand(row));
   ctx.commands.setHotkeyScope('tableTarget', () => activeTableTarget(ctx.store)?.dom ?? null);
+  // The Body context menu's table section and its right-click rule (C28; data-model §9.3).
+  registerContextMenuExtension('prepare', prepareTableContextMenu);
+  registerContextMenuExtension('table', (controller, click, commandCtx) =>
+    tableContextMenuItems(ctx.commands, controller, click, commandCtx),
+  );
   if (testHooksRequested()) {
     installTablesTestHooks(ctx);
     return;

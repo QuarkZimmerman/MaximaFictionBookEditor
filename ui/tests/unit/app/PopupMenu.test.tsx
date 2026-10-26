@@ -359,4 +359,37 @@ describe('PopupMenu submenus (feature 006)', () => {
     expect(menu.style.left).toBe(`${window.innerWidth}px`);
     expect(menu.style.top).toBe(`${window.innerHeight}px`);
   });
+
+  it('is fitted again when its entries change while it is open (feature 006, T045)', () => {
+    // 30 px per entry: a menu that grows (the Body context menu's spelling suggestions arrive
+    // after it opened) moves up so that its last entry stays inside the window.
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const height = this.getAttribute('data-testid') === 'pm' ? this.children.length * 30 : 0;
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 100,
+        height,
+        right: 100,
+        bottom: height,
+      } as DOMRect;
+    };
+    try {
+      const entry = (id: string): PopupMenuItem => ({ id, label: id, run: () => {} });
+      const position = { x: 10, y: window.innerHeight - 100 };
+      const { rerender } = render(
+        <PopupMenu items={[entry('a')]} position={position} testId="pm" onClose={() => {}} />,
+      );
+      const menu = screen.getByTestId('pm');
+      expect(menu.style.top).toBe(`${window.innerHeight - 100}px`);
+      const grown = ['a', 'b', 'c', 'd', 'e', 'f'].map(entry);
+      rerender(<PopupMenu items={grown} position={position} testId="pm" onClose={() => {}} />);
+      expect(menu.style.top).toBe(`${window.innerHeight - 6 * 30}px`);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = original;
+    }
+  });
 });

@@ -115,8 +115,10 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
     entry.run();
   };
 
-  // Kept inside the window, measured once rendered; a menu taller than the window scrolls (its
-  // submenus are fitted to their entries by `fitPopupInViewport`).
+  // Kept inside the window, measured once rendered - again whenever the entries change, since a
+  // menu may grow while it is open (the Body context menu's spelling suggestions arrive after
+  // it opened); a menu taller than the window scrolls (its submenus are fitted to their entries
+  // by `fitPopupInViewport`).
   useLayoutEffect(() => {
     const menu = ref.current;
     if (!menu) return;
@@ -136,7 +138,7 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
     }
     menu.style.left = `${Math.max(0, Math.min(position.x, window.innerWidth - width))}px`;
     menu.style.top = `${Math.max(0, Math.min(position.y, window.innerHeight - shown))}px`;
-  }, [position]);
+  }, [position, items]);
 
   useEffect(() => {
     const menu = ref.current;

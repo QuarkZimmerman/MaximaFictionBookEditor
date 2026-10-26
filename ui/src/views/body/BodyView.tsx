@@ -18,6 +18,11 @@ import { useAppState } from '@/model/store';
 
 import { getBodyController } from './bodyEditor';
 import { ContextMenu } from './ContextMenu';
+import {
+  contextMenuClick,
+  contextMenuExtensions,
+  type ContextMenuClick,
+} from './contextMenuExtensions';
 
 import '@/editor/styles.css';
 
@@ -42,7 +47,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
   const [controller] = useState(() => getBodyController(store, undo, { editable }));
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const selection = useSyncExternalStore(controller.subscribeContext, controller.getContext);
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [menu, setMenu] = useState<ContextMenuClick | null>(null);
 
   useEffect(() => {
     controller.setNbspChar(nbspChar);
@@ -113,7 +118,10 @@ export function BodyView({ editable = true }: BodyViewProps) {
         onContextMenu={(event) => {
           if (!controller.isEditable) return;
           event.preventDefault();
-          setMenu({ x: event.clientX, y: event.clientY });
+          // The right-click rule of the tables feature first (C28), then the menu at the click.
+          const click = contextMenuClick(controller, event.clientX, event.clientY);
+          contextMenuExtensions.prepare?.(controller, click);
+          setMenu(click);
         }}
       >
         {sourceOnly ? (
@@ -176,7 +184,7 @@ export function BodyView({ editable = true }: BodyViewProps) {
           </div>
         ) : null}
       </div>
-      {menu ? <ContextMenu controller={controller} position={menu} onClose={closeMenu} /> : null}
+      {menu ? <ContextMenu controller={controller} click={menu} onClose={closeMenu} /> : null}
     </div>
   );
 }

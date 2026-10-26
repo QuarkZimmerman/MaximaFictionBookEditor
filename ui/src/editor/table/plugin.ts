@@ -238,6 +238,7 @@ function startDrag(view: EditorView, start: CellRef, downPos: number): void {
 }
 
 function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
+  if (event.button === 2) return keepBlockOnRightClick(view, event);
   if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey) return false;
   const clicked = cellAtCoords(view, event.clientX, event.clientY);
   if (!clicked) return false;
@@ -260,6 +261,20 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
   }
   startDrag(view, clicked.ref, clicked.pos);
   return false;
+}
+
+/**
+ * A right-click inside a block keeps the block (feature 006, C28; data-model §9.3): the
+ * browser would otherwise move its caret to the pointer, which ProseMirror then reads as the
+ * new selection before the context menu opens.
+ */
+function keepBlockOnRightClick(view: EditorView, event: MouseEvent): boolean {
+  const { selection } = view.state;
+  if (!(selection instanceof CellBlockSelection)) return false;
+  const clicked = cellAtCoords(view, event.clientX, event.clientY);
+  if (!clicked || !selection.cellPositions().includes(clicked.ref.cellPos)) return false;
+  event.preventDefault();
+  return true;
 }
 
 /* ------------------------------------------------------------------------ */
