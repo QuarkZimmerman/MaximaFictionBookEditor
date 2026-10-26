@@ -5,8 +5,39 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.6 - unreleased
 
+### Added
+
+- *Add > Table* asks for the columns and for a header column besides the rows and a header
+  row, and proposes the values last confirmed, also after a restart. The new table is
+  rectangular, carries no attribute and takes the caret in its first cell, and the insertion is
+  one undo step.
+- A table can be inserted wherever FB2 allows one: at the caret, splitting the paragraph (its
+  `id` stays with the first half), in place of an empty paragraph, after an empty subtitle, at
+  the start of a section's text - after its title, epigraphs, heading picture and annotation -
+  or after the poem, the cite or the table the caret is in. Where no table may stand - the
+  title of a section that holds subsections, the body's title, a paragraph directly in the
+  body's epigraph - *Add > Table*, its toolbar button and the context menu's *Table...* are
+  unavailable with the reason "no table may stand here", and Alt+T does nothing.
+- *Table...* in the Body view's context menu, judged at the clicked point: available where a
+  table may stand there, it moves the caret there only when it runs.
+- In the Source view *Add > Table*, Alt+T, its toolbar button and a *Table...* entry of the
+  context menu insert the table's XML between two elements where the FB2 schema allows a
+  table, laid out like its neighbours, with the cursor between the first cell's tags, as one
+  undo step; inside text, inside a tag, where the schema allows no table or while the text is
+  not well-formed XML (with the line of the first problem) the command is unavailable and says
+  why.
+
 ### Changed
 
+- With the caret at the start of a paragraph *Add > Table* puts the table before the
+  paragraph; release 0.0.5 put it after.
+- The row that Tab appends in a table's last cell copies the last row's cell kinds, alignments
+  and languages - a header cell gives a header cell, a cell spanning rows from above is copied
+  once - and is an undo step of its own; release 0.0.5 copied only the last row's own cells,
+  as plain cells.
+- A right-click leaves the caret where it is, in the Source view and in the Body view - there
+  except in a table cell that does not hold the selection, where it first puts the caret into
+  that cell; release 0.0.5 moved the caret to the pointer or not, depending on timing.
 - Builds of the 0.0.6 development line call themselves `0.0.6-rc` - in Help > About, in
   `mfbe --version` and `mfbe-core --version`, in the build id (`0.0.6-rc+<hash>`) and in the
   package file names (`MaximaFictionBookEditor-0.0.6-rc-win64.msi`, `mfbe_0.0.6-rc_amd64.deb`,

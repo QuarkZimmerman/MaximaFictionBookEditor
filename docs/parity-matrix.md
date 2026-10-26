@@ -93,7 +93,7 @@ mouse and the keyboard.
 | `ID_EDIT_INS_INLINEIMAGE` | Inline image | `insert.inlineImage` | `menu-add-inlineImage`, `body-inline-image` | `us2-body-editing.spec.ts`, `us7-images.spec.ts` | implemented | |
 | `ID_EDIT_INS_POEM` | Poem | `insert.poem` | `menu-add-poem` | `us2-body-editing.spec.ts` | implemented | |
 | `ID_EDIT_INS_CITE` | Cite | `insert.cite` | `menu-add-cite` | `us2-body-editing.spec.ts` | implemented | |
-| `ID_INSERT_TABLE` | Table | `insert.table` (`dialogs/TablePropertiesDialog.tsx`) | `dialog-table`, `Alt+t` | `us2-body-editing.spec.ts`, `us8-language.spec.ts` | implemented | see `IDD_TABLE` |
+| `ID_INSERT_TABLE` | Table | `insert.table` (`features/tables/commands.ts`, the dialog `dialogs/TablePropertiesDialog.tsx`) | `menu-add-table`, `dialog-table`, `dialog-table-columns`, `Alt+t` | `us1-table-create.spec.ts`, `us2-body-editing.spec.ts`, `us8-language.spec.ts` | implemented | see `IDD_TABLE`; feature 006 US1: the dialog asks for the rows, the columns, a header row and a header column (FR-001) and proposes the values last confirmed, also after a restart (`session.tableDialog`, FR-002); the table goes wherever FB2 allows one - at the caret, splitting the paragraph, at the start of a section's text, after a poem, a cite or the caret's table - and the command is unavailable with the reason "no table may stand here" where none may (FR-004, FR-043); in the Source view it inserts the table's XML between elements where the schema allows one and says why it is unavailable anywhere else (FR-061) |
 | `ID_EDIT_ADD_IMAGE` | Section image | `insert.sectionImage` | `menu-add-sectionImage` | `us2-body-editing.spec.ts`, `us7-images.spec.ts` | implemented | |
 | `ID_EDIT_ADDBINARY` | Add Binary Object... | `insert.binary` | `menu-add-binary`, `binary-objects` | `us7-images.spec.ts` | implemented | appended binaries appear in the Description list (scenario 5) |
 
@@ -238,9 +238,11 @@ toolbar itself is checked for presence (`00-smoke.spec.ts`) and tooltips (`us8-l
 
 | Original | Label | MFBE | Evidence | e2e spec | Status | Notes |
 |---|---|---|---|---|---|---|
-| `IDD_TABLE` | Table properties | `insert.table`, `TablePropertiesDialog` | `dialog-table`, `dialog-table-title` | `us2-body-editing.spec.ts`, `us8-language.spec.ts` | implemented | |
-| `IDC_CHECK_TABLE_TITLE` | Add table header | `dialog-table-header` | `dialog-table-header` | `us2-body-editing.spec.ts` | implemented | |
-| `IDC_EDIT_TABLE_ROWS`, `IDC_SPIN_TABLE_ROWS` | Number of table cells + spinner | `dialog-table-rows` (number input with spinner) | `dialog-table-rows` | `us2-body-editing.spec.ts` | implemented | |
+| `IDD_TABLE` | Table properties | `insert.table`, `TablePropertiesDialog` | `dialog-table`, `dialog-table-title` | `us1-table-create.spec.ts`, `us2-body-editing.spec.ts`, `us8-language.spec.ts` | implemented | |
+| `IDC_CHECK_TABLE_TITLE` | Header row (the original's "Add table header") | `dialog-table-header` | `dialog-table-header` | `us1-table-create.spec.ts`, `us2-body-editing.spec.ts` | implemented | a first row of header cells (`th`) above the rows (FR-001) |
+| `IDC_EDIT_TABLE_ROWS`, `IDC_SPIN_TABLE_ROWS` | Rows (the original's "Number of table cells") + spinner | `dialog-table-rows` (number input with spinner) | `dialog-table-rows` | `us1-table-create.spec.ts`, `us2-body-editing.spec.ts` | implemented | the normal rows, a whole number from 1 to 999, the header row coming on top; another value shows its message and makes OK unavailable (FR-001) |
+| `TABLE_DIALOG_COLUMNS*` | Columns + spinner (addition: the original made tables of one column) | `dialog-table-columns` (number input with spinner) | `dialog-table-columns` | `us1-table-create.spec.ts` | implemented | feature 006 US1 (FR-001), without an original counterpart: a whole number from 1 to 64 |
+| `TABLE_DIALOG_HEADER_COLUMN*` | Header column (addition) | `dialog-table-header-column` | `dialog-table-header-column` | `us1-table-create.spec.ts` | implemented | feature 006 US1 (FR-001), without an original counterpart: the first cell of every row a header cell (`th`) |
 | `IDOK`, `IDCANCEL` | OK / Cancel | `dialog-table-button-ok`, `dialog-table-button-cancel` | `dialog-table-button-ok`, `dialog-table-button-cancel` | `us2-body-editing.spec.ts`, `us8-language.spec.ts` | implemented | |
 
 ### `IDD_WORDS` - Words (`dialogs/WordsDialog.tsx`, `dialog-words`)
@@ -382,9 +384,9 @@ with the same checks.
 
 | Original | Label | MFBE | Evidence | e2e spec | Status | Notes |
 |---|---|---|---|---|---|---|
-| `BODY_CONTEXT_MENU*` | Body view context menu: Undo, Cut, Copy, Paste | `views/body/ContextMenu.tsx` running `edit.undo`, `edit.cut`, `edit.copy`, `edit.paste` | `context-menu` | `us2-body-editing.spec.ts` | implemented | |
+| `BODY_CONTEXT_MENU*` | Body view context menu: Undo, Cut, Copy, Paste | `views/body/ContextMenu.tsx` running `edit.undo`, `edit.cut`, `edit.copy`, `edit.paste` | `context-menu`, `context-menu-insert.table` | `us2-body-editing.spec.ts`, `us1-table-create.spec.ts` | implemented | feature 006 US1: the table section's *Table...* (`insert.table`) after today's entries, judged at the clicked point - enabled where FR-004 finds a point there, otherwise unavailable with its reason - and moving the caret there only when it runs; a right-click keeps the caret where it is (FR-040, C28) |
 | `DESCRIPTION_CONTEXT_MENU*` | Description view text fields: the Body view's menu (Undo, Cut, Copy, Paste; one browser view held both) | `views/description/FieldContextMenu.tsx` running `edit.undo` and the field's own Cut, Copy, Paste | `context-menu`, `description-book-title` | `us8-toolbars.spec.ts` | implemented | feature 002; nothing elsewhere in the view |
-| `SOURCE_CONTEXT_MENU*` | Source view (Scintilla) menu: Undo, Redo, Cut, Copy, Paste, Delete, Select All | `views/source/SourceContextMenu.tsx` | `source-context-menu` | `us8-toolbars.spec.ts` | implemented | feature 002 |
+| `SOURCE_CONTEXT_MENU*` | Source view (Scintilla) menu: Undo, Redo, Cut, Copy, Paste, Delete, Select All | `views/source/SourceContextMenu.tsx` | `source-context-menu`, `source-context-menu-insert.table` | `us8-toolbars.spec.ts`, `us1-table-create.spec.ts` | implemented | feature 002; feature 006 US1 adds *Table...* after *Select All* (`insert.table`): judged at the clicked point, it inserts the table's XML there where the schema allows one and is otherwise unavailable with its reason; a right-click keeps the cursor where it is (FR-061, C28) |
 | `EDIT_CONTEXT_MENU*` | text boxes of dialogs and of the Links and Table bars: the Windows edit menu (Undo, Cut, Copy, Paste, Delete, Select All) | shell `app/src/context_menu.h` (CEF `OnBeforeContextMenu`); the page cancels the browser's menu everywhere else (`app/App.tsx`) | `links-bar-id` | `us8-toolbars.spec.ts` | implemented | feature 002; the menu's items are checked by `tests/shell/test_context_menu.cpp` |
 | `ID_SEL_BASE*` | "Select <element>" entries for every ancestor | `select-<depth>` entries (`contextMenuExtensions.ts`) | `context-menu` | `us2-body-editing.spec.ts` | implemented | scenario 6 selects a poem through the entry |
 | `IDC_SPELL_ADD2DICT*` | spelling suggestions and "Add to dictionary" in the context menu | `features/spell/index.ts` (`context-menu-spelling-<n>`, `context-menu-spelling-add`, `context-menu-spelling-ignore-all`) | `context-menu-spelling-add` | `us6-spelling.spec.ts` | implemented | |
@@ -435,9 +437,9 @@ the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the orig
 
 Counts are recomputed by `node tools/parity-check.mjs` (printed as
 "rows - implemented N, implemented-differently N, dropped N"). At the time of writing:
-239 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
+241 rows covering the 191 distinct `FBE.rc` ids (menu items, toolbar buttons, dialogs and
 their controls) plus the original UI created in the sources and the additions of later
-features: 232 implemented, 3 implemented-differently, 4 dropped.
+features: 234 implemented, 3 implemented-differently, 4 dropped.
 
 Dropped items and their references:
 
