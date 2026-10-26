@@ -62,6 +62,15 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   `strikethrough`, `sub`, `sup` and `code` with another `xml:lang` - through opening, editing
   and saving, and written back nested as read; before, the inner one was dropped when a book
   was opened. Nested formatting that is equal to the outer one is still written once.
+- Formatting with a name or a language - a named style, or `strong` ... `code` with an
+  `xml:lang` - is written around the link it covers (`<style name="2"><a l:href="#n_5"
+  type="note">[5]</a></style>`), where release 0.0.5 moved it inside the link and so saved
+  valid books as invalid FB2 (the schema allows formatting inside a link only without
+  attributes). Such formatting over part of a link is extended over the whole link, and of two
+  names or two languages over parts of one link the first one wins; formatting without a name
+  or language stays inside the link, and a style without a name is written there as `<style>`.
+  The text on screen shows an extension once the book is read again; `mfbe-core validate` and
+  `roundtrip` no longer report `schema.invalid` for such books.
 
 ## 0.0.5 - unreleased
 

@@ -175,6 +175,46 @@ std::vector<model::Mark> sorted_marks(const std::vector<model::Mark>& marks) {
     return sorted;
 }
 
+// Whether an inline content list differs from its writer's form: it holds a link (FR-068's
+// rule may change its formatting) or two adjacent text nodes the writer joins.
+bool needs_writer_form(const std::vector<Node>& content) {
+    for (std::size_t i = 0; i < content.size(); ++i) {
+        const Node& node = content[i];
+        if (!node.is_text() && !fb2::is_inline_node(node)) {
+            continue;
+        }
+        for (const model::Mark& mark : node.marks) {
+            if (mark.type == "link") {
+                return true;
+            }
+        }
+        if (i > 0 && node.is_text() && content[i - 1].is_text() &&
+            sorted_marks(node.marks) == sorted_marks(content[i - 1].marks)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The writer's form of a node's children (feature 006, document-model §3.3): FR-068's link
+// rule (fb2::normalise_link_formatting), then adjacent text nodes whose marks are equal as
+// compared joined (decision 11's joining, probe p14). The comparison allows nothing else.
+std::vector<Node> writer_form(const std::vector<Node>& content) {
+    std::vector<Node> normalised = content;
+    fb2::normalise_link_formatting(normalised);
+    std::vector<Node> joined;
+    joined.reserve(normalised.size());
+    for (Node& node : normalised) {
+        if (node.is_text() && !joined.empty() && joined.back().is_text() &&
+            sorted_marks(joined.back().marks) == sorted_marks(node.marks)) {
+            joined.back().text += node.text;
+            continue;
+        }
+        joined.push_back(std::move(node));
+    }
+    return joined;
+}
+
 void compare_nodes(const Node& a, const Node& b, const std::string& where, Comparison& out,
                    std::size_t max) {
     if (out.differences.size() >= max) {
@@ -219,14 +259,27 @@ void compare_nodes(const Node& a, const Node& b, const std::string& where, Compa
         }
         out.differences.push_back({where, "attributes differ:" + detail});
     }
-    if (a.content.size() != b.content.size()) {
-        out.differences.push_back({where, "child count " + std::to_string(a.content.size()) +
-                                              " became " + std::to_string(b.content.size())});
+    // Both sides' children in the writer's form (copied only when it differs).
+    std::vector<Node> a_form;
+    std::vector<Node> b_form;
+    const std::vector<Node>* a_children = &a.content;
+    const std::vector<Node>* b_children = &b.content;
+    if (needs_writer_form(a.content)) {
+        a_form = writer_form(a.content);
+        a_children = &a_form;
+    }
+    if (needs_writer_form(b.content)) {
+        b_form = writer_form(b.content);
+        b_children = &b_form;
+    }
+    if (a_children->size() != b_children->size()) {
+        out.differences.push_back({where, "child count " + std::to_string(a_children->size()) +
+                                              " became " + std::to_string(b_children->size())});
         return;
     }
     std::map<std::string, std::size_t> counters;
-    for (std::size_t i = 0; i < a.content.size(); ++i) {
-        const Node& child = a.content[i];
+    for (std::size_t i = 0; i < a_children->size(); ++i) {
+        const Node& child = (*a_children)[i];
         std::string child_where;
         if (child.is_text()) {
             child_where = where + "/text()[" + std::to_string(i + 1) + "]";
@@ -234,7 +287,7 @@ void compare_nodes(const Node& a, const Node& b, const std::string& where, Compa
             const std::size_t index = ++counters[child.type];
             child_where = where + "/" + child.type + "[" + std::to_string(index) + "]";
         }
-        compare_nodes(child, b.content[i], child_where, out, max);
+        compare_nodes(child, (*b_children)[i], child_where, out, max);
     }
 }
 

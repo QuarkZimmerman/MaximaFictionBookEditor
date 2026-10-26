@@ -282,3 +282,53 @@ TEST_CASE("roundtrip: the order of marks of one kind counts; the order across ki
     CHECK(c.differences[1].where == "body[1]/section[1]/p[2]/text()[1]");
     CHECK(c.differences[1].what == "marks differ");
 }
+
+TEST_CASE(
+    "roundtrip: the comparison allows the writer's joining and the link rule, and nothing else",
+    "[roundtrip]") {
+    // Feature 006 (document-model §3.3): both sides' children are brought into the writer's
+    // form - FR-068's link rule, then adjacent text with equal marks joined - before they are
+    // compared.
+    test::TempDir out{"mfbe-roundtrip-links"};
+    const std::string text = test::minimal_book(
+        // p14: equal mark sets in two nesting orders side by side, written as one run.
+        "<section><p><strong><emphasis>a</emphasis></strong><emphasis><strong>b</strong>"
+        "</emphasis></p>"
+        // p04 as read: a style over part of a link, extended over the whole link.
+        "<p><a l:href=\"#n_1\"><style name=\"city\">Moscow</style> today</a></p></section>",
+        "<body name=\"notes\"><section id=\"n_1\"><p>1</p></section></body>");
+    test::write_text(out / "in" / "links.fb2", text);
+    const roundtrip::Report report = roundtrip::run(out / "in" / "links.fb2", out / "out");
+    for (const auto& d : report.comparison.differences) {
+        FAIL_CHECK(d.where << ": " << d.what);
+    }
+    CHECK(report.identical);
+    CHECK(report.valid);  // the input's style inside a link is written around it
+    CHECK(report.exit_code() == 0);
+
+    // Anything else is still a difference: a style dropped outside a link, a changed text.
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const std::string other = test::minimal_book(
+        "<section><p><style name=\"a\">x</style> <a l:href=\"#s2\">y</a></p></section>"
+        "<section id=\"s2\"><p>t</p></section>");
+    const auto a = fb2::read_bytes(other, store, ids_a);
+    auto b = fb2::read_bytes(other, store, ids_b);
+    REQUIRE(roundtrip::compare(a.document, store, b.document, store).identical());
+    auto changed_text = b;
+    model::Node& p = b.document.bodies[0].content[0].content[0];
+    REQUIRE(p.content.size() == 3);
+    p.content[0].marks.clear();  // the style outside the link lost
+    const roundtrip::Comparison dropped = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(dropped.differences.size() == 1);
+    CHECK(dropped.differences[0].where == "body[1]/section[1]/p[1]");
+    CHECK(dropped.differences[0].what == "child count 3 became 2");  // "x" now joins " "
+    model::Node& q = changed_text.document.bodies[0].content[0].content[0];
+    q.content[2].text = "z";  // the link's text changed
+    const roundtrip::Comparison text_change =
+        roundtrip::compare(a.document, store, changed_text.document, store);
+    REQUIRE(text_change.differences.size() == 1);
+    CHECK(text_change.differences[0].where == "body[1]/section[1]/p[1]/text()[3]");
+    CHECK(text_change.differences[0].what == "text \"y\" became \"z\"");
+}

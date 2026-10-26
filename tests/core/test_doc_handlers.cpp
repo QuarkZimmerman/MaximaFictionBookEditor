@@ -2081,3 +2081,47 @@ TEST_CASE(
     CHECK(back_cell["attrs"]["lang"] == "de");
     CHECK_FALSE(back_cell["attrs"].contains("unknownAttrs"));
 }
+
+TEST_CASE(
+    "doc handlers: doc.toXml writes a style over part of a link around the whole link, and "
+    "doc.fromXml of that text gives the extended model",
+    "[server][doc][marks]") {
+    // Feature 006 (FR-068; rpc-api §3.2): the writer's rule changes the text, never the model.
+    ServerFixture f;
+    const std::string doc_id = f.ws.call("doc.new")["result"]["docId"];
+    const json read = f.ws.call(
+        "doc.fromXml",
+        json{{"docId", doc_id},
+             {"text", test::minimal_book("<section><p><a l:href=\"#n_1\"><style "
+                                         "name=\"city\">Moscow</style> today</a></p></section>",
+                                         "<body name=\"notes\"><section id=\"n_1\"><p>1</p>"
+                                         "</section></body>")}});
+    REQUIRE(read.contains("result"));
+    const json document = read["result"]["document"];
+    const json& p = document["bodies"][0]["content"][0]["content"][0];
+    REQUIRE(p["content"].size() == 2);  // "Moscow" {link, style city}, " today" {link}
+    const json xml = f.ws.call("doc.toXml", json{{"docId", doc_id}, {"document", document}});
+    REQUIRE(xml.contains("result"));
+    const std::string text = xml["result"]["text"];
+    CHECK_THAT(text, ContainsSubstring("<p><style name=\"city\"><a l:href=\"#n_1\">Moscow today</a>"
+                                       "</style></p>"));
+    // The model the core holds is the one sent: a second call writes the same text.
+    CHECK(f.ws.call("doc.toXml",
+                    json{{"docId", doc_id}, {"document", document}})["result"]["text"] == text);
+    // doc.validate of the same model: no schema.invalid (the style is outside the link).
+    const json report = f.run_job("doc.validate", json{{"docId", doc_id}, {"document", document}});
+    REQUIRE(report.contains("result"));
+    for (const auto& issue : report["result"]["issues"]) {
+        INFO(issue.dump());
+        CHECK(issue["code"] != "schema.invalid");
+    }
+    // Read again, the text gives the extended model: one text node with both marks.
+    const json back = f.ws.call("doc.fromXml", json{{"docId", doc_id}, {"text", text}});
+    REQUIRE(back.contains("result"));
+    const json& again = back["result"]["document"]["bodies"][0]["content"][0]["content"][0];
+    REQUIRE(again["content"].size() == 1);
+    CHECK(again["content"][0]["text"] == "Moscow today");
+    CHECK(again["content"][0]["marks"] ==
+          json::array({json{{"type", "style"}, {"attrs", {{"name", "city"}}}},
+                       json{{"type", "link"}, {"attrs", {{"href", "#n_1"}}}}}));
+}

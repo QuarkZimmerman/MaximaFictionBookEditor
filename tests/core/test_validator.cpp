@@ -355,3 +355,23 @@ TEST_CASE(
     const auto full = validation::validate_document(doc, nullptr);
     CHECK(with_code(full, "link.dangling").size() == 3);
 }
+
+TEST_CASE("validator: a valid book with formatting with a name around a link validates",
+          "[validator][marks]") {
+    // Feature 006 (FR-068, decision 21; probe p01): the document form validates the writer's
+    // text, which kept a named style around a link inside the link before - two
+    // schema.invalid errors for a valid file.
+    const std::string text = test::minimal_book(
+        "<section><p><style name=\"2\">Are you sure<a l:href=\"#n_5\" type=\"note\">[5]</a>?"
+        "</style></p><p><style name=\"x\"><a l:href=\"#s1\">t</a></style></p></section>",
+        "<body name=\"notes\"><section id=\"n_5\"><p>5</p></section>"
+        "<section id=\"s1\"><p>s</p></section></body>");
+    // The input file is valid.
+    REQUIRE(validation::validate_xml_text(text).errorCount == 0);
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids;
+    const auto read = fb2::read_bytes(text, store, ids);
+    const auto report = validation::validate_document(read.document, &store);
+    CHECK(with_code(report, "schema.invalid").empty());
+    CHECK(report.errorCount == 0);
+}

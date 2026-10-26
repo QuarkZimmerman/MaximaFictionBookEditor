@@ -9,6 +9,7 @@
 #include <mfbe/fb2_reader.hpp>
 #include <mfbe/fb2_writer.hpp>
 #include <mfbe/node_ids.hpp>
+#include <mfbe/validator.hpp>
 
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
@@ -318,10 +319,12 @@ TEST_CASE("writer: marks nest in the canonical order link > style > strong > emp
                                 text_node(" c", {strong}), text_node("d", {link, style}),
                                 text_node("e", {strong, link}), text_node(".", {})})})}));
     const std::string t = fb2::write_document(doc, nullptr).text;
-    CHECK_THAT(t,
-               ContainsSubstring(
-                   "<p>a <strong><emphasis><code>b</code></emphasis> c</strong><a l:href=\"#n_1\" "
-                   "type=\"note\"><style name=\"x\">d</style><strong>e</strong></a>.</p>"));
+    // Feature 006 (FR-068): "d" {link, style x} and "e" {strong, link} are one link run; the
+    // named style covers part of it and is extended over the whole run, around the link, while
+    // the plain strong stays inside.
+    CHECK_THAT(t, ContainsSubstring("<p>a <strong><emphasis><code>b</code></emphasis> "
+                                    "c</strong><style name=\"x\"><a l:href=\"#n_1\" "
+                                    "type=\"note\">d<strong>e</strong></a></style>.</p>"));
     CHECK(fb2::mark_rank("link") < fb2::mark_rank("style"));
     CHECK(fb2::mark_rank("style") < fb2::mark_rank("strong"));
     CHECK(fb2::mark_rank("strong") < fb2::mark_rank("emphasis"));
@@ -917,4 +920,303 @@ TEST_CASE("writer: nested marks of one kind are written outer first, as read", "
     CHECK(fb2::write_fragment({text_node("x", {b, a}), text_node("y", {a, b})}) ==
           "<style name=\"b\"><style name=\"a\">x</style></style><style name=\"a\"><style "
           "name=\"b\">y</style></style>");
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: formatting with a name or a language and links (document-model §2.4; FR-068)  */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+struct LinkRow {
+    const char* name;
+    const char* input;    // a paragraph as read (valid or invalid input)
+    const char* written;  // the paragraph as written
+};
+
+// The 21 rows of document-model §2.4's table and its "one order" example (rule_check.py's
+// data, with the three rows changed at /speckit-analyze).
+const std::vector<LinkRow>& link_rows() {
+    static const std::vector<LinkRow> rows = {
+        {"a style around a note link (p01)",
+         "<p><style name=\"2\">Are you sure<a l:href=\"#n_5\" type=\"note\">[5]</a>?</style></p>",
+         "<p><style name=\"2\">Are you sure<a l:href=\"#n_5\" type=\"note\">[5]</a>?</style></p>"},
+        {"a language around a link",
+         "<p><emphasis xml:lang=\"la\">pre <a l:href=\"#n1\">link</a> post</emphasis></p>",
+         "<p><emphasis xml:lang=\"la\">pre <a l:href=\"#n1\">link</a> post</emphasis></p>"},
+        {"a style inside a link (p02)",
+         "<p><a l:href=\"#n_1\"><style name=\"MsoFootnoteReference\"><style "
+         "name=\"MsoFootnoteReference\">[1]</style></style></a></p>",
+         "<p><style name=\"MsoFootnoteReference\"><a l:href=\"#n_1\">[1]</a></style></p>"},
+        {"the requester's example (p04)",
+         "<p><a l:href=\"#n_1\"><style name=\"city\">Moscow</style> today</a></p>",
+         "<p><style name=\"city\"><a l:href=\"#n_1\">Moscow today</a></style></p>"},
+        {"a note link, part",
+         "<p><a l:href=\"#n_5\" type=\"note\"><style name=\"ref\">[</style>5]</a></p>",
+         "<p><style name=\"ref\"><a l:href=\"#n_5\" type=\"note\">[5]</a></style></p>"},
+        {"a picture in the run",
+         "<p><a l:href=\"#n1\"><style name=\"x\">t</style><image l:href=\"#p\"/></a></p>",
+         "<p><style name=\"x\"><a l:href=\"#n1\">t<image l:href=\"#p\"/></a></style></p>"},
+        {"two names over two parts (p05)",
+         "<p><a l:href=\"#n_1\"><style name=\"a\">Moscow</style> <style "
+         "name=\"b\">today</style></a></p>",
+         "<p><style name=\"a\"><a l:href=\"#n_1\">Moscow today</a></style></p>"},
+        {"a language and none, the language first (p06)",
+         "<p><a l:href=\"#n_1\"><emphasis xml:lang=\"la\">x</emphasis><emphasis>y</emphasis></a>"
+         "</p>",
+         "<p><emphasis xml:lang=\"la\"><a l:href=\"#n_1\">x<emphasis>y</emphasis></a></emphasis>"
+         "</p>"},
+        {"a language and none, none first",
+         "<p><a l:href=\"#n_1\"><emphasis>x</emphasis><emphasis xml:lang=\"la\">y</emphasis></a>"
+         "</p>",
+         "<p><emphasis xml:lang=\"la\"><a l:href=\"#n_1\"><emphasis>x</emphasis>y</a></emphasis>"
+         "</p>"},
+        {"joined adjacent links (p07)",
+         "<p><emphasis xml:lang=\"la\"><a l:href=\"#n_1\">x</a></emphasis><a "
+         "l:href=\"#n_1\">y</a></p>",
+         "<p><emphasis xml:lang=\"la\"><a l:href=\"#n_1\">xy</a></emphasis></p>"},
+        {"joined, one name (p07)",
+         "<p><style name=\"a\"><a l:href=\"#n_1\">x</a></style><a l:href=\"#n_1\">y</a></p>",
+         "<p><style name=\"a\"><a l:href=\"#n_1\">xy</a></style></p>"},
+        {"joined, two names (p07)",
+         "<p><style name=\"a\"><a l:href=\"#n_1\">x</a></style><style name=\"b\"><a "
+         "l:href=\"#n_1\">y</a></style></p>",
+         "<p><style name=\"a\"><a l:href=\"#n_1\">xy</a></style></p>"},
+        {"links kept apart (p07)",
+         "<p><style name=\"a\"><a l:href=\"#n_1\">x</a></style> <a l:href=\"#n_1\">y</a></p>",
+         "<p><style name=\"a\"><a l:href=\"#n_1\">x</a></style> <a l:href=\"#n_1\">y</a></p>"},
+        {"nested styles around a link (p10)",
+         "<p><style name=\"a\"><style name=\"b\"><a l:href=\"#n_1\">link</a></style></style></p>",
+         "<p><style name=\"a\"><style name=\"b\"><a l:href=\"#n_1\">link</a></style></style></p>"},
+        {"nested styles over part",
+         "<p><a l:href=\"#n1\">see <style name=\"a\"><style name=\"b\">here</style></style></a>"
+         "</p>",
+         "<p><style name=\"a\"><a l:href=\"#n1\">see here</a></style></p>"},
+        {"one whole, one part",
+         "<p><style name=\"a\"><a l:href=\"#n1\">see <style name=\"b\">here</style></a></style>"
+         "</p>",
+         "<p><style name=\"a\"><style name=\"b\"><a l:href=\"#n1\">see here</a></style></style>"
+         "</p>"},
+        {"a style without a name (p03)", "<p><a l:href=\"#n_1\"><style>u</style></a></p>",
+         "<p><a l:href=\"#n_1\"><style>u</style></a></p>"},
+        {"a plain and a named style over parts",
+         "<p><a l:href=\"#n1\"><style>x</style><style name=\"b\">y</style></a></p>",
+         "<p><style name=\"b\"><a l:href=\"#n1\"><style>x</style>y</a></style></p>"},
+        {"the winner is outer on a later node",
+         "<p><a l:href=\"#n1\"><style name=\"A\">x</style><style name=\"W\"><style "
+         "name=\"A\">y</style></style></a></p>",
+         "<p><style name=\"A\"><style name=\"W\"><a l:href=\"#n1\">xy</a></style></style></p>"},
+        {"a plain mark and a language over parts, a node without the kind between",
+         "<p><a l:href=\"#n1\"><emphasis>x</emphasis>m<emphasis xml:lang=\"la\">y</emphasis></a>"
+         "</p>",
+         "<p><emphasis xml:lang=\"la\"><a l:href=\"#n1\"><emphasis>x</emphasis>my</a></emphasis>"
+         "</p>"},
+        {"a dropped style after the link",
+         "<p><a l:href=\"#n1\"><style name=\"a\">x</style></a><style name=\"b\"><a "
+         "l:href=\"#n1\">y</a> z</style></p>",
+         "<p><style name=\"a\"><a l:href=\"#n1\">xy</a></style><style name=\"b\"> z</style></p>"},
+        {"one order",
+         "<p><style name=\"a\"><style name=\"b\"><a l:href=\"#n1\">x</a></style></style><style "
+         "name=\"b\"><style name=\"a\"><a l:href=\"#n1\">y</a></style></style></p>",
+         "<p><style name=\"a\"><style name=\"b\"><a l:href=\"#n1\">xy</a></style></style></p>"},
+    };
+    return rows;
+}
+
+const LinkRow& link_row(const std::string& name) {
+    for (const LinkRow& row : link_rows()) {
+        if (row.name == name) {
+            return row;
+        }
+    }
+    FAIL("no row " << name);
+    return link_rows().front();
+}
+
+// The first paragraph of the first body in a written book text.
+std::string body_paragraph(const std::string& text) {
+    const std::size_t begin = text.find("<p", text.find("<body"));
+    REQUIRE(begin != std::string::npos);
+    const std::size_t end = text.find("</p>", begin);
+    REQUIRE(end != std::string::npos);
+    return text.substr(begin, end + 4 - begin);
+}
+
+// A paragraph read in a minimal book and written back (document and fragment writer alike).
+std::string written_paragraph(const std::string& paragraph) {
+    auto r = read_text(test::minimal_book("<section>" + paragraph + "</section>"));
+    const model::Node& p = r->result.document.bodies.at(0).content.at(0).content.at(0);
+    const std::string written =
+        body_paragraph(fb2::write_document(r->result.document, &r->store).text);
+    // The fragment writer (doc.fragmentToXml) shares the rule.
+    CHECK("<p>" + fb2::write_fragment(p.content) + "</p>" == written);
+    return written;
+}
+
+void check_rows(const std::vector<std::string>& names) {
+    for (const std::string& name : names) {
+        const LinkRow& row = link_row(name);
+        INFO(row.name << ": " << row.input);
+        CHECK(written_paragraph(row.input) == row.written);
+    }
+}
+
+}  // namespace
+
+TEST_CASE(
+    "writer: formatting with a name or a language that covers a whole link run is written around "
+    "the link",
+    "[writer][marks]") {
+    check_rows({"a style around a note link (p01)", "a language around a link",
+                "a style inside a link (p02)", "nested styles around a link (p10)"});
+    // p01's other paragraph, a run with a picture, and two adjacent runs with different targets
+    // under one style, which stays open across both.
+    for (const char* paragraph : {
+             "<p><style name=\"x\"><a l:href=\"#s1\">t</a></style></p>",
+             "<p><style name=\"x\"><a l:href=\"#n1\">t<image l:href=\"#p\"/></a></style></p>",
+             "<p><style name=\"s\"><a l:href=\"#n1\">x</a><a l:href=\"#n2\">y</a></style></p>",
+             "<p><emphasis xml:lang=\"la\"><a l:href=\"#n1\">x</a></emphasis></p>",
+         }) {
+        INFO(paragraph);
+        CHECK(written_paragraph(paragraph) == paragraph);
+    }
+}
+
+TEST_CASE(
+    "writer: formatting with a name or a language over part of a link run is extended over the "
+    "whole run",
+    "[writer][marks]") {
+    check_rows({"the requester's example (p04)", "a note link, part", "a picture in the run",
+                "one whole, one part"});
+    // A style over the picture of a run only.
+    CHECK(written_paragraph(
+              "<p><a l:href=\"#n1\">t<style name=\"x\"><image l:href=\"#p\"/></style></a></p>") ==
+          "<p><style name=\"x\"><a l:href=\"#n1\">t<image l:href=\"#p\"/></a></style></p>");
+    // The extended style comes after the first node's other attributed styles.
+    CHECK(written_paragraph("<p><style name=\"a\"><a l:href=\"#n1\">x<style "
+                            "name=\"b\">y</style></a></style></p>") ==
+          "<p><style name=\"a\"><style name=\"b\"><a l:href=\"#n1\">xy</a></style></style></p>");
+    // A node that lists a plain style before an attributed one: the attributed one goes around
+    // the link, the plain one stays inside, and the text reads back in that order.
+    using nlohmann::json;
+    const model::Mark link{"link", json{{"href", "#n1"}}};
+    const model::Mark plain{"style", json{{"name", ""}}};
+    const model::Mark named{"style", json{{"name", "b"}}};
+    model::Document doc;
+    doc.bodies.push_back(
+        element("body", {element("section", {element("p", {text_node("x", {link, plain, named}),
+                                                           text_node("y", {link})})})}));
+    const model::Document before = doc;
+    const std::string text = fb2::write_document(doc, nullptr).text;
+    CHECK(body_paragraph(text) ==
+          "<p><style name=\"b\"><a l:href=\"#n1\"><style>x</style>y</a></style></p>");
+    // The model handed to the writer is unchanged.
+    CHECK(doc == before);
+    auto back = read_text(text);
+    const model::Node& p = back->result.document.bodies.at(0).content.at(0).content.at(0);
+    REQUIRE(p.content.size() == 2);
+    CHECK(p.content[0].marks == std::vector<model::Mark>{named, link, plain});
+    CHECK(p.content[1].marks == std::vector<model::Mark>{named, link});
+}
+
+TEST_CASE(
+    "writer: conflicting formatting of one kind in a link run: the first one is extended, the "
+    "others are dropped inside the link",
+    "[writer][marks]") {
+    check_rows({"two names over two parts (p05)", "nested styles over part", "one whole, one part",
+                "a dropped style after the link", "the winner is outer on a later node"});
+    // Two languages.
+    CHECK(written_paragraph("<p><a l:href=\"#n1\"><emphasis xml:lang=\"la\">x</emphasis> "
+                            "<emphasis xml:lang=\"de\">y</emphasis></a></p>") ==
+          "<p><emphasis xml:lang=\"la\"><a l:href=\"#n1\">x y</a></emphasis></p>");
+}
+
+TEST_CASE(
+    "writer: plain formatting beside formatting of its kind with a language in a link run stays "
+    "inside the link, and both are kept",
+    "[writer][marks]") {
+    check_rows({"a language and none, the language first (p06)", "a language and none, none first",
+                "a plain mark and a language over parts, a node without the kind between"});
+}
+
+TEST_CASE(
+    "writer: a style without a name stays inside a link and is written without name; elsewhere "
+    "it keeps name=\"\"",
+    "[writer][marks]") {
+    check_rows({"a style without a name (p03)", "a plain and a named style over parts"});
+    // p13: outside links the schema requires the name.
+    CHECK(written_paragraph("<p><style name=\"\">u</style> and <style>v</style></p>") ==
+          "<p><style name=\"\">u</style> and <style name=\"\">v</style></p>");
+}
+
+TEST_CASE("writer: two adjacent links with equal attributes are one run; a space keeps them apart",
+          "[writer][marks]") {
+    check_rows({"joined adjacent links (p07)", "joined, one name (p07)", "joined, two names (p07)",
+                "links kept apart (p07)", "one order"});
+    // Two joined links inside the styles a and b in the other order: the first node's order.
+    CHECK(written_paragraph("<p><style name=\"b\"><style name=\"a\"><a l:href=\"#n1\">x</a>"
+                            "</style></style><style name=\"a\"><style name=\"b\"><a "
+                            "l:href=\"#n1\">y</a></style></style></p>") ==
+          "<p><style name=\"b\"><style name=\"a\"><a l:href=\"#n1\">xy</a></style></style></p>");
+    // Links with another type or xlink:type are other runs.
+    CHECK(written_paragraph("<p><style name=\"a\"><a l:href=\"#n1\">x</a></style><a "
+                            "l:href=\"#n1\" type=\"note\">y</a></p>") ==
+          "<p><style name=\"a\"><a l:href=\"#n1\">x</a></style><a l:href=\"#n1\" "
+          "type=\"note\">y</a></p>");
+}
+
+TEST_CASE("writer: every output of the FR-068 cases validates against the bundled schema",
+          "[writer][marks]") {
+    REQUIRE(validation::schema_ready());
+    std::string paragraphs;
+    for (const LinkRow& row : link_rows()) {
+        paragraphs += row.input;
+    }
+    paragraphs += "<p><a l:href=\"#n1\">t<style name=\"x\"><image l:href=\"#p\"/></style></a></p>";
+    paragraphs += "<p><style name=\"\">u</style> and <style>v</style></p>";
+    paragraphs +=
+        "<p><a l:href=\"#n1\"><emphasis xml:lang=\"la\">x</emphasis> <emphasis "
+        "xml:lang=\"de\">y</emphasis></a></p>";
+    auto r = read_text(test::minimal_book("<section>" + paragraphs + "</section>"));
+    const std::string text = fb2::write_document(r->result.document, &r->store).text;
+    CHECK_FALSE(fb2::check_well_formed(text).has_value());
+    const model::ValidationReport report = validation::validate_xml_text(text);
+    for (const auto& issue : report.issues) {
+        INFO(issue.code << " " << nlohmann::json(issue.params).dump());
+        CHECK(issue.code != "schema.invalid");
+    }
+}
+
+TEST_CASE(
+    "writer: normalise_link_formatting is idempotent and touches only the formatting of link "
+    "runs",
+    "[writer][marks]") {
+    for (const LinkRow& row : link_rows()) {
+        INFO(row.name);
+        auto r = read_text(test::minimal_book("<section><p>before <strong>b</strong> " +
+                                              std::string(row.input).substr(3) + "</section>"));
+        const std::vector<model::Node> original =
+            r->result.document.bodies.at(0).content.at(0).content.at(0).content;
+        std::vector<model::Node> once = original;
+        fb2::normalise_link_formatting(once);
+        std::vector<model::Node> twice = once;
+        fb2::normalise_link_formatting(twice);
+        CHECK(twice == once);
+        REQUIRE(once.size() == original.size());
+        for (std::size_t i = 0; i < original.size(); ++i) {
+            // Text, atoms and their attributes never change; marks only on link-run nodes.
+            CHECK(once[i].type == original[i].type);
+            CHECK(once[i].text == original[i].text);
+            CHECK(once[i].attrs == original[i].attrs);
+            const bool in_run = std::any_of(original[i].marks.begin(), original[i].marks.end(),
+                                            [](const model::Mark& m) { return m.type == "link"; });
+            if (!in_run) {
+                CHECK(once[i].marks == original[i].marks);
+            } else {
+                // The link itself is kept.
+                CHECK(std::count_if(once[i].marks.begin(), once[i].marks.end(),
+                                    [](const model::Mark& m) { return m.type == "link"; }) == 1);
+            }
+        }
+    }
 }
