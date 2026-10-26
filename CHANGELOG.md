@@ -7,6 +7,18 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### Added
 
+- The AI assistant edits tables reliably: the new tool `read_table` shows a table as a grid of
+  rows and columns with merged cells resolved - every cell with its kind, place, spans, attributes
+  and text, a large table in parts of whole rows - and `edit_table` changes a table with the
+  editor's own table commands addressed by grid position (rows and columns inserted, deleted,
+  moved and duplicated, cells merged and split, header cells, attributes, Repair table), so a
+  table the assistant changes is the table the menu command gives and every request stays one
+  undo step; a merge that would remove a cell a link points to is left to the user, whose command
+  asks first. A block of cells selected in the Body view reaches the assistant as a block (the
+  popup and the panel alike), a change that leaves a table irregular tells the assistant so it can
+  repair it, and Validate lists the irregular tables. The assistant needs a core of API minor 5;
+  a large table's change no longer sends its XML (the requests grow by at most 5% of the table).
+
 - Blocks of cells: dragging from one cell to another, a Shift+click on another cell of the same
   table and Shift+arrow keys across a cell's edge select a rectangular block of cells, widened to
   whole merged cells and highlighted as one. Delete and Backspace empty the block's cells and keep
