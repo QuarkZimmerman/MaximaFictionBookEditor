@@ -52,8 +52,9 @@ reads every `sample-*.txt` in this folder, this list included.
 ### The inline stratum
 
 `sample-inline-marks.txt`: the census's example books for the inline content
-of feature 006 (FR-067 to FR-069), by id, plus five books with pictures in
-links and five with pictures in formatting, drawn with seed 6:
+of feature 006 (FR-067 to FR-069) and for carriage returns (FR-065), by id,
+plus five books with pictures in links and five with pictures in formatting,
+drawn with seed 6:
 
 ```bash
 python3 tests/corpus/sample.py --out /tmp/inline-ids.txt --ids \
@@ -63,7 +64,8 @@ python3 tests/corpus/sample.py --out /tmp/inline-ids.txt --ids \
     423778 \
     37354 \
     16659 26022 36254 42983 47019 61602 66863 230365 233217 239142 239423 259784 320758 \
-    325075 364200 377000 378174 383978 437714 446498 457051 474228 478936 496284 571202 608549
+    325075 364200 377000 378174 383978 437714 446498 457051 474228 478936 496284 571202 608549 \
+    22657 29089 29716 37538 51264 52004 96703 99319 212492
 python3 tests/corpus/sample.py --matching '<a\b[^>]*>\s*<image\b|<image\b[^>]*/>\s*</a>' \
     --count 5 --seed 6 --out /tmp/inline-image-in-link.txt
 python3 tests/corpus/sample.py --matching '<(strong|emphasis|strikethrough|sub|sup|code|style)\b[^>]*>\s*<image\b' \
@@ -79,4 +81,7 @@ write, the corpus gate), each listed once: style inside a link 584109, 585763,
 12218; nested styles 492007, 332731, 504320 (and 306806, 542288); a language on
 formatting 423778; a name over part of a link 412140, 37354; the 30 valid files
 that the 0.0.5 writer saves as invalid, 16659 to 608549 above and 12218, 15506,
-254742, 306806.
+254742, 306806. From `specs/006-table-editing/research.md` (R8.13): carriage
+returns written as `&#13;` (FR-065), 22657 to 212492 above, the census's nine
+table books whose `title-info` annotations release 0.0.5 changed on save and
+which the table stratum, drawn in another order, does not hold.
