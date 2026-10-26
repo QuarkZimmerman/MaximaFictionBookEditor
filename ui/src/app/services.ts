@@ -16,6 +16,7 @@ import { UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
 import type { Platform, ViewId } from '@/rpc/types';
 import { featureRegistrars } from '@/features/registry';
+import { subscribeTableTargets } from '@/features/tables/target';
 import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 import { registerViewCommands } from '@/views/source/sourceSession';
 
@@ -111,6 +112,9 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
       if (hasBodyController(store)) {
         unsubscribeSources.push(getBodyController(store).subscribeContext(bump));
       }
+      // The active table edit target and its selection (feature 006, data-model §6.1): the
+      // table commands' states and reasons follow them.
+      unsubscribeSources.push(subscribeTableTargets(store, bump));
     }
     listeners.add(listener);
     return () => {

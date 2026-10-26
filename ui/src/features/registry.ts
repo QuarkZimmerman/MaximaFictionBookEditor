@@ -9,6 +9,7 @@ import { registerScriptsFeature } from './scripts';
 import { registerSettingsFeature } from './settings';
 import { registerSourceFeature } from './source';
 import { registerSpellFeature } from './spell';
+import { registerTablesFeature } from './tables';
 import { registerTransferFeature } from './transfer';
 import { registerTreeFeature } from './tree';
 import { registerWordsFeature } from './words';
@@ -28,6 +29,8 @@ export const featureRegistrars: Array<(ctx: FeatureContext) => void> = [
   registerTreeFeature,
   registerSpellFeature,
   registerImagesFeature,
+  // Feature 006 (data-model §9.1): takes over the table commands' stubs after the images feature.
+  registerTablesFeature,
   registerWordsFeature,
   registerTransferFeature,
   registerSettingsFeature,
