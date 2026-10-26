@@ -8,6 +8,11 @@
  *    three flavours through the asynchronous fallback and removes the table through the *Delete
  *    table* transform - an empty paragraph takes its place (C24) -, one undo step;
  *  - Edit → Copy of a selected table stays available while a script holds the run lock.
+ * US10 (T159; FR-044, FR-011, FR-025; decision 6; C49; U9; data-model §5.5, §9.7): in a rich field
+ * of the Description view, Copy and Cut follow the field's own ProseMirror selection - a block
+ * is never empty, a caret has nothing -, Cut also its lock; Paste reads the asynchronous
+ * clipboard and routes it through the field's router; a picture goes into a cell through the
+ * field's adapter and is left alone in a field paragraph; a plain field keeps its text paste.
  */
 
 /// <reference types="node" />
@@ -18,19 +23,27 @@ import { fileURLToPath } from 'node:url';
 import { act } from '@testing-library/react';
 import { NodeSelection } from 'prosemirror-state';
 
+import { followTextFieldFocus } from '@/app/textFields';
+import { DISCRETE_STEP } from '@/editor/commands/util';
 import { MFBE_CLIPBOARD_WEB_MIME } from '@/editor/plugins/clipboard';
 import { findNodeById } from '@/editor/schema';
+import { CellBlockSelection } from '@/editor/table/selection';
 import type { BinaryMeta, Document } from '@/model/document';
 import { actions } from '@/model/store';
 
 import {
   caretIn,
+  fieldCaret,
+  fieldHost,
+  fieldPos,
   modelTable,
+  polyfillContentEditable,
   posOf,
   removeHarnessHosts,
   select,
   tableDocument,
   tablesHarness,
+  type FieldHost,
   type TablesHarness,
 } from './tablesHarness';
 import { fakeRunLock } from './testUtils';
@@ -236,5 +249,148 @@ describe('Edit → Cut and Edit → Copy of a selected table (C24; data-model §
     actions.setRunLock(store, fakeRunLock('script'));
     expect(services.commands.isEnabled('edit.copy', ctx)).toBe(true);
     expect(services.commands.isEnabled('edit.cut', ctx)).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US10 (T159): the clipboard commands in a rich field                       */
+/* ------------------------------------------------------------------------ */
+
+describe('Edit → Copy, Cut and Paste in a rich field of the Description view (US10)', () => {
+  const ID = 'documentInfo-history';
+  let stopFollowing: () => void = () => {};
+
+  beforeAll(() => polyfillContentEditable());
+
+  beforeEach(() => {
+    // The Edit menu acts on the text field the focus left for it (App installs this).
+    stopFollowing = followTextFieldFocus();
+  });
+
+  afterEach(() => stopFollowing());
+
+  /** The Description view with the history field's editor focused. */
+  async function setup(): Promise<{ harness: TablesHarness; field: FieldHost }> {
+    const harness = await tablesHarness();
+    actions.setActiveView(harness.store, 'description');
+    const field = fieldHost('documentInfo.history');
+    field.view.dom.focus();
+    return { harness, field };
+  }
+
+  function selectBlock(field: FieldHost, from: string, to: string): void {
+    const { view } = field;
+    view.dispatch(
+      view.state.tr.setSelection(
+        CellBlockSelection.create(view.state.doc, fieldPos(field, from), fieldPos(field, to)),
+      ),
+    );
+  }
+
+  it('edit.copy and edit.cut follow the field’s ProseMirror selection: a block enables both, a caret neither; Cut also needs the field editable (C49)', async () => {
+    const { harness, field } = await setup();
+    const { services, ctx } = harness;
+    fieldCaret(field, `${ID}-p`, 2);
+    expect(services.commands.isEnabled('edit.copy', ctx)).toBe(false);
+    expect(services.commands.isEnabled('edit.cut', ctx)).toBe(false);
+    selectBlock(field, `${ID}-t-0-0`, `${ID}-t-1-1`);
+    expect(window.getSelection()?.isCollapsed ?? true).toBe(true);
+    expect(services.commands.isEnabled('edit.copy', ctx)).toBe(true);
+    expect(services.commands.isEnabled('edit.cut', ctx)).toBe(true);
+    field.lock.readOnly = true;
+    expect(services.commands.isEnabled('edit.copy', ctx)).toBe(true);
+    expect(services.commands.isEnabled('edit.cut', ctx)).toBe(false);
+  });
+
+  it('Edit → Copy of a block writes the three flavours through the asynchronous fallback; Edit → Cut clears the block, one discrete step', async () => {
+    const { harness, field } = await setup();
+    const { services, ctx } = harness;
+    const clipboard = mockClipboard();
+    document.execCommand = vi.fn(() => false);
+    selectBlock(field, `${ID}-t-0-0`, `${ID}-t-1-1`);
+    await act(async () => {
+      await services.commands.execute('edit.copy', ctx);
+    });
+    expect(clipboard.written).toHaveLength(1);
+    expect(await clipboard.written[0]!['text/plain']!.text()).toBe('r0c0\tr0c1\nr1c0\tr1c1');
+    expect(Object.keys(clipboard.written[0]!)).toContain(MFBE_CLIPBOARD_WEB_MIME);
+    const seen: boolean[] = [];
+    const original = field.view.props.dispatchTransaction!;
+    field.view.setProps({
+      dispatchTransaction: (tr) => {
+        if (tr.docChanged) seen.push(tr.getMeta(DISCRETE_STEP) === true);
+        original.call(field.view, tr);
+      },
+    });
+    await act(async () => {
+      await services.commands.execute('edit.cut', ctx);
+    });
+    expect(clipboard.written).toHaveLength(2);
+    const table = field.view.state.doc.nodeAt(fieldPos(field, `${ID}-t`))!;
+    expect(table.childCount).toBe(2);
+    expect(table.textContent).toBe('');
+    expect(seen).toEqual([true]);
+  });
+
+  it('edit.paste reads the asynchronous clipboard and routes it through the field’s view; a picture goes into the caret’s cell and is left alone in a paragraph', async () => {
+    const { harness, field } = await setup();
+    const { services, ctx, store } = harness;
+    const clipboard = mockClipboard();
+    const calls = mockFetch();
+    document.execCommand = vi.fn(() => false);
+    expect(services.commands.isEnabled('edit.paste', ctx)).toBe(true);
+    // Text with tabs from another program, at the end of the paragraph: today's paste.
+    clipboard.setItems([{ 'text/plain': new Blob([' more'], { type: 'text/plain' }) }]);
+    fieldCaret(field, `${ID}-p`, 4);
+    await act(async () => {
+      await services.commands.execute('edit.paste', ctx);
+    });
+    expect(field.view.state.doc.child(0).textContent).toBe('Text more');
+    // A picture with the caret in a cell: uploaded and inserted in that cell.
+    clipboard.setItems([{ 'image/png': new Blob([PNG], { type: 'image/png' }) }]);
+    fieldCaret(field, `${ID}-t-1-0`, 4);
+    await act(async () => {
+      await services.commands.execute('edit.paste', ctx);
+    });
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    await vi.waitFor(() => {
+      const cell = field.view.state.doc.nodeAt(fieldPos(field, `${ID}-t-1-0`))!;
+      expect(cell.lastChild?.type.name).toBe('inline_image');
+    });
+    expect(store.getState().document!.binaries.map((binary) => binary.id)).toEqual(['tiny.png']);
+    // With the caret in the field's paragraph the picture is left alone: nothing uploaded.
+    fieldCaret(field, `${ID}-p`, 2);
+    const doc = field.view.state.doc;
+    await act(async () => {
+      await services.commands.execute('edit.paste', ctx);
+    });
+    expect(calls).toHaveLength(1);
+    expect(field.view.state.doc).toBe(doc);
+  });
+
+  it('a plain field of the Description view keeps its text paste', async () => {
+    const { harness } = await setup();
+    const { services, ctx } = harness;
+    const input = document.createElement('input');
+    input.setAttribute('data-testid', 'description-book-title');
+    const view = document.createElement('div');
+    view.setAttribute('data-testid', 'description-view');
+    view.appendChild(input);
+    document.body.appendChild(view);
+    try {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { readText: async () => 'Plain' },
+      });
+      const exec = vi.fn(() => true);
+      document.execCommand = exec;
+      input.focus();
+      await act(async () => {
+        await services.commands.execute('edit.paste', ctx);
+      });
+      expect(exec).toHaveBeenCalledWith('insertText', false, 'Plain');
+    } finally {
+      view.remove();
+    }
   });
 });

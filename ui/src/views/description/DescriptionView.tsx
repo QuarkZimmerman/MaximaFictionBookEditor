@@ -6,6 +6,11 @@
  * unknown description-level elements are reported as a read-only note. Every control has a
  * stable `data-testid` (`description-book-title`, `description-author-0-first`,
  * `description-id-new`, `binary-objects-row-<id>`...).
+ *
+ * Feature 006, US10 (FR-044; C28; data-model §9.3): a right-click in a rich field (the book
+ * annotation, the source book's annotation, the history) makes that field the active table edit
+ * target and applies the right-click rule at the clicked position before the field's menu opens,
+ * which then offers the table section; a plain field's menu stays as it was.
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
@@ -13,7 +18,10 @@ import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '@/app/services';
 import { textFieldOf } from '@/app/textFields';
+import { prepareTableClick } from '@/features/tables/contextMenu';
+import { activateFieldTarget, fieldTargetFor } from '@/features/tables/target';
 import { isRunLocked, useAppState } from '@/model/store';
+import type { ContextMenuClick } from '@/views/body/contextMenuExtensions';
 
 import { BinaryObjects } from './BinaryObjects';
 import { descriptionControllerFor } from './binding';
@@ -31,6 +39,19 @@ import './description.css';
 
 const EMPTY_BINARIES: never[] = [];
 
+/** The click of a right-click at (x, y) on a rich field's editor: the position under it, or null. */
+function fieldClick(
+  view: { posAtCoords(coords: { left: number; top: number }): { pos: number } | null },
+  x: number,
+  y: number,
+): ContextMenuClick {
+  try {
+    return { x, y, pos: view.posAtCoords({ left: x, top: y })?.pos ?? null };
+  } catch {
+    return { x, y, pos: null }; // a view that measures nothing
+  }
+}
+
 export function DescriptionView() {
   const { t } = useTranslation();
   const { store, undo, rpc } = useAppServices();
@@ -47,6 +68,8 @@ export function DescriptionView() {
   const [fieldMenu, setFieldMenu] = useState<{
     field: HTMLElement;
     position: { x: number; y: number };
+    /** A rich field's click (US10): where its table section is judged. */
+    click?: ContextMenuClick;
   } | null>(null);
 
   useEffect(() => {
@@ -122,7 +145,18 @@ export function DescriptionView() {
             const field = textFieldOf(event.target);
             if (!field) return;
             event.preventDefault();
-            setFieldMenu({ field, position: { x: event.clientX, y: event.clientY } });
+            const position = { x: event.clientX, y: event.clientY };
+            // A rich field (US10): the active target, the caret into a clicked cell (C28).
+            const target = fieldTargetFor(field);
+            const view = target?.view;
+            if (target && view) {
+              const click = fieldClick(view, event.clientX, event.clientY);
+              activateFieldTarget(target.key);
+              prepareTableClick(target, click);
+              setFieldMenu({ field, position, click });
+              return;
+            }
+            setFieldMenu({ field, position });
           }}
         >
           {sourceOnly ? (
@@ -213,6 +247,7 @@ export function DescriptionView() {
         <FieldContextMenu
           field={fieldMenu.field}
           position={fieldMenu.position}
+          click={fieldMenu.click}
           onClose={() => setFieldMenu(null)}
         />
       ) : null}

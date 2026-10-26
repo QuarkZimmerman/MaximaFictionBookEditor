@@ -5,7 +5,9 @@
  * node at the caret, "Save image as..." exports through dialog.saveFile + binary.export, and
  * the binary bookkeeping helpers (reference counts, dangling refs, model updates). Feature 006
  * (US3, T081): the same flows put inline images into table cells through the active editing
- * target, and the block forms say why a cell refuses them (FR-024 to FR-026; I10).
+ * target, and the block forms say why a cell refuses them (FR-024 to FR-026; I10). US10 (T159):
+ * a description field's adapter takes a pasted picture with its caret in a cell and a dropped
+ * one on a cell - also of a field that is not the active one -, never in a field paragraph.
  */
 
 /// <reference types="node" />
@@ -17,6 +19,7 @@ import { Fragment, Slice } from 'prosemirror-model';
 import { TextSelection, type EditorState } from 'prosemirror-state';
 
 import { createAppServices } from '@/app/services';
+import { DISCRETE_STEP } from '@/editor/commands/util';
 import { fb2Schema } from '@/editor/schema';
 import {
   addBinaryToModel,
@@ -55,6 +58,14 @@ import { actions, createAppStore } from '@/model/store';
 import { getBodyController } from '@/views/body/bodyEditor';
 import { contextMenuExtensions } from '@/views/body/contextMenuExtensions';
 import { createRichFieldState } from '@/views/description/richFieldState';
+
+import {
+  fieldCaret,
+  fieldHost,
+  fieldPos,
+  removeHarnessHosts,
+  tablesHarness,
+} from './tablesHarness';
 
 import {
   fakeDocument,
@@ -812,5 +823,88 @@ describe('pictures in table cells (feature 006, US3, T081)', () => {
     expect(imageTargetFor(store, null)).toBeNull();
     actions.setRunLock(store, fakeRunLock());
     expect(imageTargetFor(store, inside)).toBeNull();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US10 (T159): pictures in the cells of a description field                 */
+/* ------------------------------------------------------------------------ */
+
+describe('pictures in the cells of a description field (feature 006, US10)', () => {
+  afterEach(() => {
+    removeHarnessHosts();
+    vi.unstubAllGlobals();
+  });
+
+  it('imageTargetFor gives the field adapter for a paste with the field caret in a cell and for a drop on a cell of a field that is not the active one; null for a field paragraph and under the field’s lock', async () => {
+    const harness = await tablesHarness();
+    actions.setActiveView(harness.store, 'description');
+    const active = fieldHost('titleInfo.annotation');
+    const other = fieldHost('documentInfo.history');
+    active.view.dom.focus();
+    fieldCaret(active, 'titleInfo-annotation-t-0-0', 2);
+    const cell = active.view.dom.querySelector('td')!;
+    expect(imageTargetFor(harness.store, cell)).toBe(active.target);
+    fieldCaret(active, 'titleInfo-annotation-p', 2);
+    expect(imageTargetFor(harness.store, active.view.dom.querySelector('p'))).toBeNull();
+    expect(imageTargetFor(harness.store, cell)).toBeNull();
+    // A drop on the other field: its adapter while the drop point lies in a cell.
+    const inCell = fieldPos(other, 'documentInfo-history-t-1-1') + 2;
+    other.view.posAtCoords = () => ({ pos: inCell, inside: -1 });
+    const otherCell = other.view.dom.querySelector('td')!;
+    expect(imageTargetFor(harness.store, otherCell, { x: 5, y: 5 })).toBe(other.target);
+    const inParagraph = fieldPos(other, 'documentInfo-history-p') + 2;
+    other.view.posAtCoords = () => ({ pos: inParagraph, inside: -1 });
+    expect(
+      imageTargetFor(harness.store, other.view.dom.querySelector('p'), { x: 5, y: 5 }),
+    ).toBeNull();
+    other.view.posAtCoords = () => ({ pos: inCell, inside: -1 });
+    other.lock.readOnly = true;
+    expect(imageTargetFor(harness.store, otherCell, { x: 5, y: 5 })).toBeNull();
+  });
+
+  it('two files dropped on a cell of a field that is not the active one go into that cell in their order, each one discrete step', async () => {
+    const harness = await tablesHarness();
+    actions.setActiveView(harness.store, 'description');
+    const active = fieldHost('titleInfo.annotation');
+    const other = fieldHost('documentInfo.history');
+    active.view.dom.focus();
+    let next = 0;
+    vi.stubGlobal('fetch', async () => {
+      next += 1;
+      return new Response(JSON.stringify({ ...META, id: `drop-${next}.png` }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    const at = fieldPos(other, 'documentInfo-history-t-0-1') + 5;
+    other.view.posAtCoords = () => ({ pos: at, inside: -1 });
+    const discrete: boolean[] = [];
+    const original = other.view.props.dispatchTransaction!;
+    other.view.setProps({
+      dispatchTransaction: (tr) => {
+        if (tr.docChanged) discrete.push(tr.getMeta(DISCRETE_STEP) === true);
+        original.call(other.view, tr);
+      },
+    });
+    const data = fakeTransfer([
+      new File([new Uint8Array([137, 80, 78, 71])], 'one.png', { type: 'image/png' }),
+      new File([new Uint8Array([137, 80, 78, 71])], 'two.png', { type: 'image/png' }),
+    ]);
+    const event = new Event('drop', { bubbles: true, cancelable: true }) as DragEvent;
+    Object.defineProperty(event, 'dataTransfer', { value: data });
+    Object.defineProperty(event, 'clientX', { value: 5 });
+    Object.defineProperty(event, 'clientY', { value: 5 });
+    Object.defineProperty(event, 'target', { value: other.view.dom.querySelector('td') });
+    const done = handleImageDrop(harness.store, event);
+    expect(done).not.toBeNull();
+    expect(await done).toBe(2);
+    const cell = other.view.state.doc.nodeAt(fieldPos(other, 'documentInfo-history-t-0-1'))!;
+    const hrefs: string[] = [];
+    cell.forEach((child) => {
+      if (child.type.name === 'inline_image') hrefs.push(String(child.attrs.href));
+    });
+    expect(hrefs).toEqual(['#drop-1.png', '#drop-2.png']);
+    expect(discrete).toEqual([true, true]);
   });
 });

@@ -26,6 +26,12 @@
  * of them but `plural-forms`, which stands in the source book's annotation (US10 marks it in
  * its Description field). The scripts of `tests/scripts/fixtures/06_Runs` and `07_Tables` are
  * copied into the worker's data folder, and the assistant talks to the loopback stand-in.
+ *
+ * User story 10 (T155; quickstart §10: "also in `us8-table-marks`") adds the marks of the
+ * Description view's fields, in the same three languages: the book annotation's
+ * `overlap-from-two-rows-above` with its popover - *Repair table* and Undo, Escape and an outside
+ * mousedown, the field's caret kept, and *Repair table* disabled during a waiting script - and
+ * `plural-forms` in the source book's annotation, its only place.
  */
 
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -94,7 +100,7 @@ declare const window: {
       select(anchor: number, head?: number): boolean;
       sourceText(): string | null;
     };
-    tables?: { grid(tableRef: string): unknown };
+    tables?: { grid(tableRef: string): unknown; target(): { selection: unknown } | null };
     ai?: { lastRequest(): LastRequest | null };
   };
 };
@@ -1209,5 +1215,160 @@ test.describe('US8 (feature 006) - irregular tables are marked, in the Body view
     await expect
       .poll(() => page.evaluate(() => window.__mfbeTest!.sourceMapping!.sourceSelection()?.head))
       .toBe(lineStart(dirty, line) + column - 1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* User story 10: the marks in the Description view's fields                */
+/* ------------------------------------------------------------------------ */
+
+test.describe('US10 (feature 006) - irregular tables are marked in the Description view’s fields', () => {
+  test.beforeAll(({ coreServer }) => {
+    if (!coreServer.hasCore || !coreServer.dataDir) return;
+    const target = path.join(coreServer.dataDir, 'scripts', '06_Runs');
+    if (!existsSync(target)) cpSync(RUNS_FIXTURES, target, { recursive: true });
+  });
+
+  test.beforeEach(async ({ core }) => {
+    test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
+    await core.rpc('settings.set', {
+      patch: { session: { aiPanelVisible: false }, other: { restorePosition: false } },
+    });
+  });
+
+  test.afterEach(async ({ core }) => {
+    if (!core.hasCore) return;
+    await core
+      .rpc('settings.set', {
+        patch: { session: { aiPanelVisible: null }, other: { restorePosition: null } },
+      })
+      .catch(() => {});
+  });
+
+  test('the book annotation’s mark names its problems; its popover repairs the table in one Description undo step, closes on Escape and on an outside mousedown with the caret kept, and offers no repair during a script; plural-forms is marked in the source book’s annotation', async ({
+    core,
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    await openBook(core, page, TABLES);
+    const lang = await pageLang(page);
+    const doc = await documentOf(page);
+    await page.getByTestId('view-description').click();
+    const field = page.getByTestId('description-annotation');
+    await expect(field).toHaveAttribute('contenteditable', 'true');
+    const selection = () =>
+      page.evaluate(() => window.__mfbeTest!.tables!.target()?.selection ?? null);
+
+    // plural-forms, in the source book's annotation only (C58).
+    const plural = params(SOURCE_BOOK_CASE);
+    const pluralRef = caseTable(doc, SOURCE_BOOK_CASE).attrs!.nodeId!;
+    const pluralMark = page
+      .getByTestId('description-sti-annotation')
+      .locator(`[data-testid="body-table"][data-node-id="${pluralRef}"]`)
+      .getByTestId('body-table-mark');
+    await expect(pluralMark).toHaveCount(1);
+    await expect(pluralMark).toHaveAttribute('aria-label', markName(lang, plural));
+    await expect(pluralMark).toHaveAttribute('title', markTooltip(lang, plural));
+
+    // The book annotation's irregular table: its mark's name and tooltip.
+    const name = 'overlap-from-two-rows-above';
+    const p = params(name);
+    const model = caseTable(doc, name);
+    const ref = model.attrs!.nodeId!;
+    const element = field.locator(`[data-testid="body-table"][data-node-id="${ref}"]`);
+    const mark = element.getByTestId('body-table-mark');
+    await expect(element).toHaveAttribute('data-irregular', 'true');
+    await expect(mark).toHaveAttribute('aria-label', markName(lang, p));
+    await expect(mark).toHaveAttribute('title', markTooltip(lang, p));
+
+    // The caret in the field's first cell of that table; the popover lists the problems.
+    const first = field.locator(`td[data-node-id="${firstCell(model).attrs!.nodeId!}"]`);
+    await first.scrollIntoViewIfNeeded();
+    await first.click();
+    await expect
+      .poll(async () => JSON.stringify(await selection()))
+      .toContain(firstCell(model).attrs!.nodeId!);
+    const caret = await selection();
+    await page.evaluate(
+      `document.querySelector('[data-testid="description-annotation"] [data-node-id="${ref}"]').scrollIntoView({ block: 'center' })`,
+    );
+    await painted(page);
+    await mark.click();
+    const popover = page.getByTestId('dialog-table-mark');
+    await expect(popover).toBeVisible();
+    expect(await selection()).toEqual(caret);
+    await expect(page.getByTestId('dialog-table-mark-title')).toContainText(
+      uiText(lang, 'dialog.tableMark.title'),
+    );
+    await expect(page.getByTestId('dialog-table-mark-problems').locator('li')).toHaveText(
+      problemParts(lang, p),
+    );
+
+    // Repair table: the mark goes, the table is regular; one Undo brings both back.
+    const before = await toXml(page);
+    await page.getByTestId('dialog-table-mark-button-repair').click();
+    await expect(popover).toHaveCount(0);
+    await expect(mark).toHaveCount(0);
+    await expect(element).not.toHaveAttribute('data-irregular');
+    await expect
+      .poll(() => page.evaluate((id) => window.__mfbeTest!.tables!.grid(id), ref))
+      .toMatchObject({ shortRows: 0, overlaps: 0, pastEnd: 0 });
+    await menu(page, 'edit', 'undo');
+    await expect.poll(() => toXml(page)).toBe(before);
+    await expect(element).toHaveAttribute('data-irregular', 'true');
+    await expect(mark).toHaveCount(1);
+
+    // A reopened popover closes on Escape and on a mousedown outside it, the caret kept.
+    await first.scrollIntoViewIfNeeded();
+    await first.click();
+    await expect
+      .poll(async () => JSON.stringify(await selection()))
+      .toContain(firstCell(model).attrs!.nodeId!);
+    const kept = await selection();
+    await mark.scrollIntoViewIfNeeded();
+    await mark.click();
+    await expect(popover).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(popover).toHaveCount(0);
+    expect(await selection()).toEqual(kept);
+    await mark.click();
+    await expect(popover).toBeVisible();
+    const status = (await page.getByTestId('statusbar').boundingBox())!;
+    await page.mouse.move(status.x + status.width / 2, status.y + status.height / 2);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(popover).toHaveCount(0);
+    expect(await selection()).toEqual(kept);
+
+    // During a waiting script, started with the Description view shown: the mark opens the
+    // popover, whose Repair table is disabled with the run lock's reason, the focus on Close.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            (window.__mfbeTest?.scripts?.list() ?? []).some((one) => one.id === 'runs.longSilent'),
+          ),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+    await page.evaluate(() => {
+      void window.__mfbeTest!.scripts!.run('runs.longSilent');
+    });
+    await expect(page.getByTestId('script-run-banner')).toBeVisible();
+    await expect(mark).toBeVisible();
+    await mark.click();
+    await expect(popover).toBeVisible();
+    const repair = page.getByTestId('dialog-table-mark-button-repair');
+    await expect(repair).toBeDisabled();
+    await expect(repair).toHaveAttribute(
+      'title',
+      uiText(lang, 'commands.unavailable.runLock.script'),
+    );
+    await expect(page.getByTestId('dialog-table-mark-button-close')).toBeFocused();
+    await page.getByTestId('dialog-table-mark-button-close').click();
+    await expect(popover).toHaveCount(0);
+    await page.getByTestId('script-run-cancel').click();
+    await expect(page.getByTestId('script-run-banner')).toHaveCount(0, { timeout: 15_000 });
+    expect(await toXml(page)).toBe(before);
   });
 });

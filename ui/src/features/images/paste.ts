@@ -11,14 +11,19 @@
  * Feature 006 (US3, FR-025; data-model §9.7): the paste goes to the active editing target whose
  * DOM holds the event (`imageTargetFor`), so an image pasted into a table cell becomes an inline
  * image in that cell. US9 (R5.9; data-model §8.9): an HTML table with text on the clipboard wins
- * over a picture beside it - the paste is left to the clipboard plugin's router.
+ * over a picture beside it - the paste is left to the clipboard plugin's router. US10 (FR-024,
+ * FR-025, FR-044): an event inside a description field goes to that field's adapter - found by
+ * its editor, active or not -, but only into a cell: with its caret in a cell for a paste, with
+ * the drop point in a cell for a drop; a field paragraph takes no picture and uploads nothing.
  */
 
 import i18next from 'i18next';
 
 import { htmlHasTextTable } from '@/editor/clipboard/foreignHtml';
+import { caretInCell } from '@/editor/commands/insert';
 import { MFBE_CLIPBOARD_MIME } from '@/editor/plugins/clipboard';
-import { activeTableTarget } from '@/features/tables/target';
+import { cellRefAround } from '@/editor/table/selection';
+import { activeTableTarget, fieldTargetFor, type TableEditTarget } from '@/features/tables/target';
 import { actions, type AppStore } from '@/model/store';
 
 import { addBinaryToModel, imageMimeType, isImageType, uploadBinary } from './binaries';
@@ -88,16 +93,42 @@ export function reportImageFailure(store: AppStore, error: unknown): void {
     .catch(() => undefined);
 }
 
+/** True when the document position at the viewport point `point` lies in a cell of `target`. */
+function pointInCell(target: TableEditTarget, point: { x: number; y: number }): boolean {
+  const view = target.view;
+  const state = target.state;
+  if (!view || !state) return false;
+  let found: { pos: number } | null;
+  try {
+    found = view.posAtCoords({ left: point.x, top: point.y });
+  } catch {
+    return false; // a view that measures nothing (detached)
+  }
+  if (!found) return false;
+  const pos = Math.max(0, Math.min(found.pos, state.doc.content.size));
+  return cellRefAround(state.doc.resolve(pos)) !== null;
+}
+
 /**
- * The editing target an image event goes to: the active target when it is editable and its DOM
- * holds the event's target - today the Body adapter for an event inside the Body editor; the
- * description fields' adapters, for an event in a field whose caret or drop point is in a cell,
- * come with US10. Null otherwise (outside the editor, under the run lock).
+ * The editing target an image event goes to. An event inside a description field (US10): that
+ * field's adapter, active or not, when it is editable and the picture lands in a cell - its
+ * caret in a cell for a paste, the drop point `point` in a cell for a drop -, else none. Any
+ * other event: the active target when it is editable and its DOM holds the event's target (the
+ * Body adapter for an event inside the Body editor). Null otherwise (outside the editors, under
+ * the run lock).
  */
 export function imageTargetFor(
   store: AppStore,
   eventTarget: EventTarget | null,
+  point?: { x: number; y: number },
 ): ImageTarget | null {
+  const field = fieldTargetFor(eventTarget);
+  if (field) {
+    const state = field.state;
+    if (!field.editable || !state) return null;
+    if (point) return pointInCell(field, point) ? field : null;
+    return caretInCell(state) ? field : null;
+  }
   const target = activeTableTarget(store);
   if (!target?.editable || !target.dom) return null;
   if (!(eventTarget instanceof Node) || !target.dom.contains(eventTarget)) return null;

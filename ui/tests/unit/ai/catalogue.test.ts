@@ -2455,4 +2455,35 @@ describe('feature 006: the table tools and the cells selection (T173)', () => {
     expect(moved.result.kind).not.toBe('cells');
     expect(h.selection().kind).toBe('blocks');
   });
+
+  it('run_script of a needsSelection script is not refused selectionRequired on a cells selection', async () => {
+    await h.catalogue.close();
+    const fake = fakeScripts();
+    h = await harness({ document: tablesBook(), scripts: fake });
+    h.setSelection({
+      kind: 'cells',
+      anchor: { nodeId: 'tAr1c1', offset: 0 },
+      head: { nodeId: 'tAr2c2', offset: 0 },
+      table: 'tA',
+      row: 1,
+      column: 1,
+      rows: 2,
+      columns: 2,
+    });
+    const out = await call('run_script', { id: '18/remove-spaces' });
+    expect(out.isError).toBe(false);
+    expect(out.error).toBeUndefined();
+    expect(out.result).toEqual({ status: 'done', changed: false, durationMs: 5 });
+    expect(fake.runs).toEqual([{ id: '18/remove-spaces' }]);
+    expect(h.hookCalls).toEqual(['run_script:18/remove-spaces']);
+    // Without a selection the same script is refused, as in feature 005.
+    h.setSelection({
+      kind: 'none',
+      anchor: { nodeId: 'tAr1c1', offset: 0 },
+      head: { nodeId: 'tAr1c1', offset: 0 },
+    });
+    const refused = await call('run_script', { id: '18/remove-spaces' });
+    expect(refused.error?.code).toBe('selectionRequired');
+    expect(fake.runs).toHaveLength(1);
+  });
 });

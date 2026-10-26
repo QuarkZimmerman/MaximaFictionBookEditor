@@ -1,6 +1,8 @@
 /**
- * The table section of the Body context menu (feature 006, FR-040, FR-043; decision 2; C28,
- * C29; U12; data-model §9.3): the `prepare` and `table` slots of `contextMenuExtensions`.
+ * The table section of the Body context menu and of the Description fields' menu (feature 006,
+ * FR-040, FR-043, FR-044; decision 2; C28, C29; U12; data-model §9.3): the right-click rule and
+ * the section's items on a `TableEditTarget` - the Body adapter in the `prepare` and `table`
+ * slots of `contextMenuExtensions`, a rich field's adapter in `FieldContextMenu` (US10).
  *
  * - `prepare` applies the right-click rule (C28) before the menu renders: a click in a cell
  *   that does not hold the selection - not a cell of the block, not the cell of the caret or
@@ -30,7 +32,6 @@ import { TABLE_STRUCTURE_ITEMS, type MenuItemSpec } from '@/app/menus';
 import { findTablePoint } from '@/editor/commands/tableInsertion';
 import { CellBlockSelection, cellRefAround } from '@/editor/table/selection';
 import { isRunLocked } from '@/model/store';
-import type { BodyEditorController } from '@/views/body/bodyEditor';
 import type {
   ContextMenuClick,
   ContextMenuEntry,
@@ -38,14 +39,15 @@ import type {
 } from '@/views/body/contextMenuExtensions';
 
 import { reasonText } from './reasons';
-import { activeTableTarget } from './target';
+import type { TableEditTarget } from './target';
 
-/** The right-click rule (C28): a caret in a clicked cell that does not hold the selection. */
-export function prepareTableContextMenu(
-  controller: BodyEditorController,
-  click: ContextMenuClick,
-): void {
-  const state = controller.editorState;
+/**
+ * The right-click rule (C28) on `target`: a click in a cell that does not hold the selection puts
+ * a caret at the clicked position (a selection change through `target.setSelection`, no undo
+ * step); a click inside the block keeps it; a click elsewhere moves nothing.
+ */
+export function prepareTableClick(target: TableEditTarget, click: ContextMenuClick): void {
+  const state = target.state;
   if (!state || click.pos === null || click.pos < 0 || click.pos > state.doc.content.size) return;
   const $click = state.doc.resolve(click.pos);
   const clicked = cellRefAround($click);
@@ -57,12 +59,11 @@ export function prepareTableContextMenu(
     const holders = [cellRefAround(selection.$anchor), cellRefAround(selection.$head)];
     if (holders.some((cell) => cell?.cellPos === clicked.cellPos)) return;
   }
-  controller.apply(state.tr.setSelection(TextSelection.create(state.doc, click.pos)));
+  target.setSelection(state.tr.setSelection(TextSelection.create(state.doc, click.pos)));
 }
 
 /** True when the clicked position lies in a table. */
-function inTable(controller: BodyEditorController, click: ContextMenuClick): boolean {
-  const state = controller.editorState;
+function inTable(state: EditorState | null, click: ContextMenuClick): boolean {
   if (!state || click.pos === null || click.pos < 0 || click.pos > state.doc.content.size) {
     return false;
   }
@@ -133,20 +134,19 @@ function tableClickPoint(
  */
 function insertTableEntry(
   registry: CommandRegistry,
-  controller: BodyEditorController,
+  target: TableEditTarget,
   click: ContextMenuClick,
   ctx: CommandContext,
 ): ContextMenuEntry {
   const spec = registry.get('insert.table');
-  const state = controller.editorState;
-  const target = activeTableTarget(ctx.store);
+  const state = target.state;
   let enabled = false;
   let reason: string | null = null;
   let moveTo: number | null = null;
   if (spec && !spec.stub) {
     if (isRunLocked(ctx.store.getState()) && spec.duringScriptRun !== 'allowed') {
       reason = registry.unavailableReason('insert.table', ctx);
-    } else if (!target || !target.editable || !state) {
+    } else if (!target.editable || !state) {
       reason = reasonText('noTarget', { command: 'insert.table' }, ctx.t);
     } else {
       const point = tableClickPoint(state, click);
@@ -161,8 +161,8 @@ function insertTableEntry(
     enabled,
     title: spec && reason ? unavailableTitle(spec, reason, ctx.t) : undefined,
     run: () => {
-      const current = target?.state;
-      if (target && current && moveTo !== null && moveTo <= current.doc.content.size) {
+      const current = target.state;
+      if (current && moveTo !== null && moveTo <= current.doc.content.size) {
         target.setSelection(
           current.tr.setSelection(TextSelection.near(current.doc.resolve(moveTo))),
         );
@@ -172,15 +172,18 @@ function insertTableEntry(
   };
 }
 
-/** The table section: *Table…* always, *Table structure ▸* for a click in a table. */
-export function tableContextMenuItems(
+/**
+ * The table section on `target`: *Table…* always, *Table structure ▸* for a click in a table;
+ * the entries run their commands on the active target, which the menu's opener made `target`.
+ */
+export function tableSectionItems(
   registry: CommandRegistry,
-  controller: BodyEditorController,
+  target: TableEditTarget,
   click: ContextMenuClick,
   ctx: CommandContext,
 ): ContextMenuItem[] {
-  const items: ContextMenuItem[] = [insertTableEntry(registry, controller, click, ctx)];
-  if (inTable(controller, click)) {
+  const items: ContextMenuItem[] = [insertTableEntry(registry, target, click, ctx)];
+  if (inTable(target.state, click)) {
     items.push({
       id: 'tableStructure',
       label: ctx.t('tables.contextMenu.structure'),

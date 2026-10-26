@@ -22,6 +22,7 @@ import {
 } from '@/views/body/bodyEditor';
 
 import { registerClipboardCommands } from '../clipboard';
+import { activeTableTarget } from '../tables/target';
 import { registerFootnoteCommands } from '../footnotes';
 import { BodySearchTarget } from '../search/bodyTarget';
 import { IncrementalSearch, registerIncrementalSearch } from '../search/incremental';
@@ -89,12 +90,19 @@ export function installBodyEditor(ctx: FeatureContext): BodyEditorController {
   return controller;
 }
 
+/**
+ * A Links / Table bar focus hotkey: available in the Body view while the bar's field is mounted;
+ * *Table ID* (`nav.selectTableId`) also while a description field is the active table edit
+ * target, since the Table bar follows the focused field (feature 006, US10; data-model §10.1).
+ */
 function navCommand(id: string, field: BarField): Command {
+  const inField = (ctx: Parameters<NonNullable<Command['enabled']>>[0]) =>
+    field === 'tableId' && activeTableTarget(ctx.store)?.kind === 'description';
   return {
     id,
     group: 'navigation',
     ...cmdKeys(id),
-    enabled: (ctx) => bodyActive(ctx) && canFocusBarField(field),
+    enabled: (ctx) => (bodyActive(ctx) || inField(ctx)) && canFocusBarField(field),
     run: () => {
       focusBarField(field);
     },

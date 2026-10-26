@@ -14,7 +14,10 @@
  * table itself leave its problems as they were, since a kind change moves no position; US7
  * (T120) the attribute plans `planCellAttrs` (on a block of the regular table), `planRowAlign`
  * and `planTableAttrs`, which on the irregular table itself leave its problems as they were too:
- * attributes move no position (quickstart §8).
+ * attributes move no position (quickstart §8). US10 (T157) adds a field host: each irregular case
+ * beside the regular table in a description field's state (`createRichFieldState`, with the
+ * table plugin) stays the same node through typing, a selection across two cells and every
+ * guarded command on the regular table, and no appended transaction carries a step there either.
  */
 
 /// <reference types="node" />
@@ -34,7 +37,7 @@ import {
 
 import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
-import { fb2Schema, findNodeById } from '@/editor/schema';
+import { createNodeIdGenerator, fb2Schema, findNodeById } from '@/editor/schema';
 import { planCellAttrs, planRowAlign, planSpan, planTableAttrs } from '@/editor/table/attrs';
 import {
   deleteTableCommand,
@@ -64,7 +67,9 @@ import {
   planToggleHeaderLines,
 } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
+import { annotationToModel } from '@/editor/toModel';
 import { createBodyEditorState } from '@/views/body/bodyEditor';
+import { createRichFieldState } from '@/views/description/richFieldState';
 
 const N = fb2Schema.nodes;
 
@@ -490,4 +495,66 @@ describe('no automatic repair (R1.7, FR-035)', () => {
       });
     }
   });
+});
+
+describe('no automatic repair in a description field (US10, T157)', () => {
+  for (const one of irregular) {
+    it(`${one.name}: in a field's state, typing, a selection across two cells and every guarded command beside it leave it the same node`, () => {
+      const annotation = N.annotation!.create({ nodeId: 'a' }, [
+        N.p!.create({ nodeId: 'p1' }, fb2Schema.text('before')),
+        regularTable(),
+        vectorTable(one.table, 'x'),
+        N.p!.create({ nodeId: 'p2' }, fb2Schema.text('after')),
+      ]);
+      let state = createRichFieldState(
+        annotationToModel(annotation),
+        createNodeIdGenerator('ui_field_'),
+      );
+      const original = tableOf(state);
+      expect(gridOfNode(original).regular).toBe(false);
+      const same = () => expect(tableOf(state)).toBe(original);
+      // Typing in a cell of the regular table.
+      state = apply(state, state.tr.insertText('typed', posOf(state, 'g-1-1') + 1));
+      same();
+      // A text selection across two cells becomes a block (the field's table plugin).
+      state = apply(
+        state,
+        state.tr.setSelection(
+          TextSelection.create(state.doc, posOf(state, 'g-0-0') + 1, posOf(state, 'g-1-2') + 2),
+        ),
+      );
+      expect(state.selection).toBeInstanceOf(CellBlockSelection);
+      same();
+      // Every guarded command on the regular table.
+      for (const { name, plan, block, merged, headers } of GUARDED_COMMANDS) {
+        let start = state;
+        if (merged || headers) {
+          const onBlock = apply(
+            state,
+            state.tr.setSelection(
+              CellBlockSelection.create(state.doc, posOf(state, 'g-0-0'), posOf(state, 'g-1-1')),
+            ),
+          );
+          const first = runPlan(
+            onBlock,
+            merged ? planMerge : (a, c) => planSetKind(a, { kind: 'th' }, c),
+          );
+          expect(first.ran, name).toBe(true);
+          start = first.state;
+        }
+        const at = apply(
+          start,
+          start.tr.setSelection(
+            block
+              ? CellBlockSelection.create(start.doc, posOf(start, 'g-0-0'), posOf(start, 'g-1-1'))
+              : TextSelection.create(start.doc, posOf(start, merged ? 'g-0-0' : 'g-1-1') + 1),
+          ),
+        );
+        const result = runPlan(at, plan);
+        expect(result.ran, name).toBe(true);
+        expect(tableOf(result.state), name).toBe(original);
+        expect(tableOf(apply(result.state, result.state.tr)), name).toBe(original);
+      }
+    });
+  }
 });

@@ -7,10 +7,13 @@
  * the `mfbe-drop-target` class is set on it for visual feedback. Feature 006 (US3, FR-025): the
  * handlers act on the active editing target (`imageTargetFor`), so files dropped on a table
  * cell become inline images at the drop point in that cell, in their order, each one undo step.
+ * US10 (FR-025, FR-044): a drop on a description field - also one that is not the active one -
+ * goes to that field's adapter when the drop point lies in a cell, the caret moved there first.
  */
 
 import { TextSelection } from 'prosemirror-state';
 
+import { fieldTargetFor } from '@/features/tables/target';
 import type { AppStore } from '@/model/store';
 
 import type { ImageTarget } from './insert';
@@ -41,7 +44,7 @@ export function moveCaretToPoint(target: ImageTarget, point: { x: number; y: num
 
 /** `dragover`: accept file drags over the editor. Returns true when handled. */
 export function handleImageDragOver(store: AppStore, event: DragEvent): boolean {
-  const target = imageTargetFor(store, event.target);
+  const target = imageTargetFor(store, event.target, { x: event.clientX, y: event.clientY });
   if (!target || !hasFiles(event.dataTransfer)) return false;
   event.preventDefault();
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
@@ -50,7 +53,7 @@ export function handleImageDragOver(store: AppStore, event: DragEvent): boolean 
 }
 
 export function handleImageDragLeave(store: AppStore, event: DragEvent): void {
-  const dom = imageTargetFor(store, event.target)?.dom;
+  const dom = (fieldTargetFor(event.target) ?? imageTargetFor(store, event.target))?.dom;
   if (!dom) return;
   const related = event.relatedTarget;
   if (related instanceof Node && dom.contains(related)) return;
@@ -62,14 +65,15 @@ export function handleImageDragLeave(store: AppStore, event: DragEvent): void {
  * promise of the insertion (null when the event was not an image drop into the editor).
  */
 export function handleImageDrop(store: AppStore, event: DragEvent): Promise<number> | null {
-  const target = imageTargetFor(store, event.target);
+  const point = { x: event.clientX, y: event.clientY };
+  const target = imageTargetFor(store, event.target, point);
   if (!target) return null;
   const files = imageFilesFromDataTransfer(event.dataTransfer);
   target.dom?.classList.remove(DROP_TARGET_CLASS);
   if (files.length === 0) return null;
   event.preventDefault();
   event.stopPropagation();
-  moveCaretToPoint(target, { x: event.clientX, y: event.clientY });
+  moveCaretToPoint(target, point);
   return (async () => {
     let inserted = 0;
     // One after another, in the dropped order: each file is one insertion and one undo step.

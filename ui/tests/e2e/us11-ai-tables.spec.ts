@@ -41,8 +41,8 @@
  *  Source view: a structured edit_table leaves the caret in the focus cell; after a text-path
  *        change edit_table answers `unavailable`; text mode offers neither table tool
  *  Description view: edit_table on table 4; the end line names the Description view
- *  FR-063 a block in the book annotation's field carries `source` (needs user story 10's field
- *        table plugin and targets, T160 and T161: `test.fixme` until they exist)
+ *  FR-063 a block in the book annotation's field carries `source` (user story 10's field table
+ *        plugin and field targets, T160 and T161)
  *  C7    two table requests and two script runs: every node id of the book unique
  *  activity: the summaries name the table, the rows and the operations, never a cell text or
  *        an attribute value; a ragged replacement notes the table left irregular
@@ -1263,12 +1263,9 @@ test.describe('US11 (006) - the AI assistant edits tables reliably', () => {
     page,
     standin,
   }) => {
-    // The field's table plugin and its table target are user story 10's (T160, T161); the
-    // request reads a field's block through `activeTableTarget` once they exist.
-    test.fixme(
-      true,
-      'needs the field table plugin and field targets of user story 10 (T160, T161)',
-    );
+    // The field's table plugin and its table target are user story 10's (T160, T161): the
+    // request reads the field's block through `activeTableTarget`, which keeps the field while
+    // the focus is in the assistant's panel.
     await openBook(core, page, standin);
     await turnOn(page);
     const t4 = await tableModel(page, T4);

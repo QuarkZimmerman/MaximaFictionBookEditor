@@ -6,7 +6,9 @@
  * with `ClipboardOptions` holding a fixed `bookIds()` set, a counting `nextNodeId()` (`p1`,
  * `p2`, …) and a recording `message(key)`; the routing through `pasteTransaction(state, input,
  * opts)`; the entry points - `handleDOMEvents.paste`, `handlePaste`, `pasteData` - and the copy
- * and cut handlers on a jsdom `EditorView`.
+ * and cut handlers on a jsdom `EditorView`. US10 (T158; decision 6; C48; quickstart §13 "the
+ * same routing in a field"): states from `createRichFieldState` with the field's
+ * `ClipboardOptions` route the same way inside the `annotation` document node.
  */
 
 import { Fragment, Slice, type Node as PMNode } from 'prosemirror-model';
@@ -33,6 +35,7 @@ import { DISCRETE_STEP } from '@/editor/commands/util';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
 import {
   MFBE_CLIPBOARD_MIME,
+  clipboardPlugin,
   clipboardPluginKey,
   insertSlice,
   pasteData,
@@ -43,7 +46,9 @@ import { NBSP } from '@/editor/plugins/nbsp';
 import { fb2Schema } from '@/editor/schema';
 import { gridOfNode } from '@/editor/table/grid';
 import { CellBlockSelection } from '@/editor/table/selection';
+import { annotationToModel } from '@/editor/toModel';
 import { createBodyEditorState } from '@/views/body/bodyEditor';
+import { createRichFieldState } from '@/views/description/richFieldState';
 
 import { docOf, nodeOf, p, plainRows, pos, table, type CellSpec } from '../table/helpers';
 
@@ -1167,5 +1172,139 @@ describe('US9: foreign tables and mixed content (data-model §8.3)', () => {
     const foreign = paste(state, { kind: 'foreign', html: '<p>one</p><p>two</p>' }, opts);
     expect(shape(sectionOf(foreign.state.doc))).toEqual(['p:beforeone', 'p:two', 'p:after']);
     expect(foreign.tr.getMeta(DISCRETE_STEP)).toBeUndefined();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US10 (T158): the same routing in a description field                      */
+/* ------------------------------------------------------------------------ */
+
+describe('US10: the same routing in a description field (data-model §8.1)', () => {
+  /** A field's state: the annotation of `children`, the field's clipboard plugin with `opts`. */
+  function fieldState(children: PMNode[], opts: ClipboardOptions): EditorState {
+    const annotation = N.annotation!.create({ nodeId: 'fa' }, children);
+    return createRichFieldState(annotationToModel(annotation), opts.nextNodeId, [
+      clipboardPlugin(opts),
+    ]);
+  }
+
+  it('an own single table at the end of a paragraph lands after it and in an empty paragraph replaces it, inside the annotation node, one discrete step', () => {
+    const { opts } = options();
+    const state = fieldState([p('Text', 'fp1'), p('', 'fp2'), p('End', 'fp3')], opts);
+    expect(clipboardPluginKey.get(state)).toBeDefined();
+    const own = { kind: 'own', slice: closed(table('src', plainRows(2, 2))) } as const;
+    const after = paste(withSelection(state, caret('fp1', 4)), own, opts);
+    expect(after.state.doc.type.name).toBe('annotation');
+    expect(shape(after.state.doc)).toEqual(['p:Text', 'table:2x2', 'p:', 'p:End']);
+    expect(after.tr.getMeta(DISCRETE_STEP)).toBe(true);
+    for (const appended of after.appended) expect(appended.steps).toHaveLength(0);
+    const replaced = paste(withSelection(state, caret('fp2')), own, opts);
+    expect(shape(replaced.state.doc)).toEqual(['p:Text', 'table:2x2', 'p:End']);
+    expect(replaced.tr.getMeta(DISCRETE_STEP)).toBe(true);
+    // Every pasted node took an id of the field's generator.
+    const pasted = replaced.state.doc.child(1);
+    pasted.descendants((node) => {
+      if (!node.isText) expect(String(node.attrs.nodeId)).toMatch(/^p\d+$/);
+      return true;
+    });
+  });
+
+  it('a foreign table, a copied block into a field table by position, several lines of text joined into a field cell', () => {
+    const { opts } = options();
+    const state = fieldState([p('Text', 'fp1'), table('ft', plainRows(2, 3))], opts);
+    const foreign = paste(
+      withSelection(state, caret('fp1', 4)),
+      { kind: 'foreign', html: '<table><tr><td>x</td><td>y</td></tr><tr><td>z</td></tr></table>' },
+      opts,
+    );
+    expect(shape(foreign.state.doc)).toEqual(['p:Text', 'table:2x2', 'table:2x3']);
+    expect(gridOfNode(foreign.state.doc.child(1)).regular).toBe(true);
+    expect(foreign.tr.getMeta(DISCRETE_STEP)).toBe(true);
+    const block = paste(
+      withSelection(state, caret('ft-0-1', 2)),
+      { kind: 'own', slice: blockSlice(plainRows(2, 2) as CellSpec[][]) },
+      opts,
+    );
+    expect(cellTexts(tableIn(block.state.doc, 'ft'))).toEqual([
+      ['r0c0', 'r0c0', 'r0c1'],
+      ['r1c0', 'r1c0', 'r1c1'],
+    ]);
+    expect(block.tr.getMeta(DISCRETE_STEP)).toBe(true);
+    const lines = paste(
+      withSelection(state, caret('ft-1-2', 4)),
+      { kind: 'text', text: 'one\ntwo\n\nthree' },
+      opts,
+    );
+    expect(nodeOf(lines.state.doc, 'ft-1-2').textContent).toBe('r1c2one two three');
+    expect(cellTexts(tableIn(lines.state.doc, 'ft'))).toHaveLength(2);
+    expect(lines.tr.getMeta(DISCRETE_STEP)).toBe(true);
+  });
+
+  it('a pasted paragraph with lang, data-id and data-style brings its text without any of them (C48)', () => {
+    const { opts } = options();
+    const state = withSelection(fieldState([p('Text', 'fp1')], opts), caret('fp1', 4));
+    const pasted = paste(
+      state,
+      { kind: 'foreign', html: '<p lang="de" data-id="u10-pasted" data-style="lead">Pasted</p>' },
+      opts,
+    );
+    expect(shape(pasted.state.doc)).toEqual(['p:TextPasted']);
+    pasted.state.doc.descendants((node) => {
+      expect(node.attrs.lang ?? null, node.type.name).toBeNull();
+      expect(node.attrs.id ?? null, node.type.name).toBeNull();
+      expect(node.attrs.style ?? null, node.type.name).toBeNull();
+      for (const mark of node.marks) expect(mark.attrs.lang ?? null).toBeNull();
+      return true;
+    });
+    // Two such paragraphs: plain paragraphs, still without the three.
+    const two = paste(
+      state,
+      {
+        kind: 'foreign',
+        html: '<p lang="de" data-id="u10-a" data-style="lead">One</p><p lang="fr" data-id="u10-b">Two</p>',
+      },
+      opts,
+    );
+    expect(shape(two.state.doc)).toEqual(['p:TextOne', 'p:Two']);
+    two.state.doc.forEach((child) => {
+      expect(child.attrs.lang ?? null).toBeNull();
+      expect(child.attrs.id ?? null).toBeNull();
+      expect(child.attrs.style ?? null).toBeNull();
+    });
+  });
+
+  it('the DISCRETE_STEP rules of the Body host: one line of text and own inline content go in without it, a table paste and a join into a cell with it', () => {
+    const { opts } = options();
+    const state = fieldState([p('Text', 'fp1'), table('ft', plainRows(2, 2))], opts);
+    const line = paste(
+      withSelection(state, caret('fp1', 4)),
+      { kind: 'text', text: ' more' },
+      opts,
+    );
+    expect(line.tr.getMeta(DISCRETE_STEP)).toBeUndefined();
+    expect(shape(line.state.doc)).toEqual(['p:Text more', 'table:2x2']);
+    const inCell = paste(
+      withSelection(state, caret('ft-0-0', 4)),
+      { kind: 'text', text: '!' },
+      opts,
+    );
+    expect(inCell.tr.getMeta(DISCRETE_STEP)).toBeUndefined();
+    expect(nodeOf(inCell.state.doc, 'ft-0-0').textContent).toBe('r0c0!');
+    const join = paste(
+      withSelection(state, caret('ft-1-1', 4)),
+      { kind: 'text', text: 'a\nb' },
+      opts,
+    );
+    expect(join.tr.getMeta(DISCRETE_STEP)).toBe(true);
+    const overBlock = paste(
+      withSelection(state, block('ft-0-0', 'ft-1-1')),
+      { kind: 'text', text: 'x' },
+      opts,
+    );
+    expect(overBlock.tr.getMeta(DISCRETE_STEP)).toBe(true);
+    expect(cellTexts(tableIn(overBlock.state.doc, 'ft'))).toEqual([
+      ['x', ''],
+      ['', ''],
+    ]);
   });
 });

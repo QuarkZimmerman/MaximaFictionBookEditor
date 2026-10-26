@@ -3,15 +3,19 @@
  * field is read-only (not disabled - the text stays selectable, nothing is greyed), the
  * drop-downs refuse a change, the add / remove / choose / today buttons and the binary and cover
  * controls are unavailable, the rich fields refuse edits; everything returns when the run ends,
- * and the lock marks the form (`data-locked`) for styling hooks and tests.
+ * and the lock marks the form (`data-locked`) for styling hooks and tests. Feature 006, US10
+ * (T157; FR-048; data-model §6.5): under the lock a right-click in a rich field opens no menu,
+ * and a table command names the run lock as its reason with a field focused.
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { App } from '@/app/App';
+import type { CommandContext } from '@/app/commands';
 import { createAppServices, type AppServices } from '@/app/services';
-import { changeLanguage, initI18n } from '@/i18n';
+import { activeTableTarget } from '@/features/tables/target';
+import i18next, { changeLanguage, initI18n } from '@/i18n';
 import type { Document } from '@/model/document';
 import { actions, createAppStore } from '@/model/store';
 
@@ -225,5 +229,40 @@ describe('Description view quiet lock (feature 003 FR-011)', () => {
     expect(screen.getByTestId('description-annotation')).toHaveAttribute('contenteditable', 'true');
     await user.type(title, '!');
     expect(description(store).titleInfo.bookTitle).toBe('Alpha!');
+  });
+
+  it('opens no menu on a right-click in a rich field, and names the run lock as the reason of a table command with a field focused (feature 006, US10)', async () => {
+    const { store, services } = await renderLocked();
+    const annotation = screen.getByTestId('description-annotation');
+    fireEvent.contextMenu(annotation.querySelector('p')!);
+    expect(screen.queryByTestId('context-menu')).toBeNull();
+    // The field focused before the run starts: it is the active table edit target.
+    act(() => {
+      actions.setRunLock(store, null);
+    });
+    await waitFor(() => expect(annotation).toHaveAttribute('contenteditable', 'true'));
+    act(() => annotation.focus());
+    expect(activeTableTarget(store)?.key).toBe('titleInfo.annotation');
+    act(() => {
+      actions.setRunLock(store, fakeRunLock('script'));
+    });
+    await waitFor(() => expect(annotation).toHaveAttribute('contenteditable', 'false'));
+    fireEvent.contextMenu(annotation.querySelector('p')!);
+    expect(screen.queryByTestId('context-menu')).toBeNull();
+    const ctx: CommandContext = {
+      store,
+      rpc: services.rpc,
+      undo: services.undo,
+      dialogs: services.dialogs,
+      hotkeys: services.hotkeys,
+      carets: services.carets,
+      t: i18next.t,
+      version: 'test',
+    };
+    expect(activeTableTarget(store)?.editable).toBe(false);
+    expect(services.commands.isEnabled('table.insertRowBelow', ctx)).toBe(false);
+    expect(services.commands.unavailableReason('table.insertRowBelow', ctx)).toBe(
+      i18next.t('commands.unavailable.runLock.script'),
+    );
   });
 });

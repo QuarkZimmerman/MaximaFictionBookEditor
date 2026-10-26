@@ -2,9 +2,11 @@
  * Table bar (T062/T063, FR-023; feature 006 US7, FR-020 to FR-022): every attribute the schema
  * gives tables, rows and cells - Table ID, Table Style, the cell's ID, style and language,
  * colspan, rowspan, tr align, th/td align and valign - on the table of the active table edit
- * target (`activeTableTarget`: the Body view; the description fields' come with US10), not the
- * Body controller's caret. It follows the target's selection: a caret in a cell, or a block of
- * cells, whose block-wide fields - style, language, align and valign of every cell of the block,
+ * target (`activeTableTarget`: the Body view, or the focused annotation or history field of the
+ * Description view, US10 - the focus rule keeps the field bound while the bar's own inputs have
+ * the focus, and each commit is one Description undo entry), not the Body controller's caret.
+ * It follows the target's selection: a caret in a cell, or a block of cells, whose block-wide
+ * fields - style, language, align and valign of every cell of the block,
  * tr align of every row it covers - show the value all targets share, or stay empty with
  * `data-mixed="true"`, while Cell ID, colspan and rowspan show and edit the head cell, the cell
  * where the selection ends (FR-021). *Cell language* offers the editor's languages

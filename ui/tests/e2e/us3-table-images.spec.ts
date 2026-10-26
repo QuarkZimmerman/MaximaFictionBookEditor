@@ -29,8 +29,11 @@
  *     reopened, the raised picture inside its cell;
  *  7. sc.8, SC-004, FR-047, FR-067: Save As without edits keeps every table, c11's linked and
  *     v08's formatted pictures included; the copy validates; tables.fb2's linked and bold
- *     pictures in a paragraph and in cells come back too.
- * Step 8 of quickstart §3 (US10 sc.3, the Description field's c21) joins this file with US10.
+ *     pictures in a paragraph and in cells come back too;
+ *  8. quickstart §3 step 8, US10 sc.3 (T156; FR-024, FR-025): in the Description view's book
+ *     annotation field, c21 takes a pasted picture in its first cell, two dropped ones in their
+ *     order in its second and *Inline image…* from the field's context menu in its third - each
+ *     one Description undo step -, nothing goes into the field's paragraphs.
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -57,6 +60,8 @@ import {
 
 const BOOK = fixtureBook('tables-images.fb2');
 const TABLES_BOOK = fixtureBook('tables.fb2');
+/** A picture of the image fixtures, for step 8's *Inline image…* (an id the book does not use). */
+const TINY_PNG = path.resolve(path.dirname(BOOK), '..', 'images', 'tiny.png');
 const EXPECTED = JSON.parse(
   readFileSync(fixtureBook('tables-images.expected.json'), 'utf8'),
 ) as Expected;
@@ -119,6 +124,13 @@ declare const window: {
   __mfbeTest?: {
     scripts?: { document(): { docId: string }; toXml(): Promise<string> };
     sourceMapping?: { sourceText(): string | null; last: unknown };
+    tables?: {
+      target(): {
+        kind: string;
+        key: string;
+        selection: { type: string; head: string | null; headOffset: number };
+      } | null;
+    };
   };
 };
 
@@ -924,6 +936,94 @@ test.describe('US3 - pictures in table cells', () => {
     expect(tablesWritten).toContain(
       'A linked picture <a l:href="#t-linked"><image l:href="#cell.png"/></a> and a bold picture <strong><image l:href="#cell.png"/></strong> in a paragraph.',
     );
+  });
+
+  test('8. US10 sc.3: in the book annotation’s field, c21 takes a pasted picture, two dropped ones and Inline image… in its cells, one Description undo step each', async ({
+    core,
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    const docId = await docIdOf(page);
+    await page.getByTestId('view-description').click();
+    const field = page.getByTestId('description-annotation');
+    await expect(field).toHaveAttribute('contenteditable', 'true');
+    const c21 = field.locator('table.fb-table[data-id="c21"]');
+    await expect(c21).toHaveCount(1);
+    const fieldCell = (row: number, col: number) =>
+      c21.locator(':scope > tbody > tr').nth(row).locator(':scope > td, :scope > th').nth(col);
+    const head = () => page.evaluate(() => window.__mfbeTest!.tables!.target());
+    const nodeIdOf = async (cell: Locator) => (await cell.getAttribute('data-node-id'))!;
+
+    // The first cell holds a picture: selected by a click, the caret after it by ArrowRight.
+    const first = fieldCell(0, 0);
+    const firstId = await nodeIdOf(first);
+    await first.locator('[data-testid="body-inline-image"]').scrollIntoViewIfNeeded();
+    await first.locator('[data-testid="body-inline-image"]').click();
+    await expect.poll(async () => (await head())?.selection.type).toBe('node');
+    await page.keyboard.press('ArrowRight');
+    await expect
+      .poll(async () => {
+        const target = await head();
+        return target ? [target.key, target.selection.head, target.selection.headOffset] : null;
+      })
+      .toEqual(['titleInfo.annotation', firstId, 1]);
+    let after = await undoRedo(page, async () => {
+      await dispatchCellFiles(page, 'paste', first, [files['cell-16x16.png']]);
+      await expect(picture(first, '#cell-16x16.png')).toHaveCount(1);
+    });
+    expect(tableXml(after, 'c21')).toContain(
+      '<td><image l:href="#pic-400x300.png"/><image l:href="#cell-16x16.png"/></td>',
+    );
+
+    // Two files dropped on the second cell: both, in their order, two undo steps.
+    const second = fieldCell(0, 1);
+    after = await undoRedo(
+      page,
+      async () => {
+        await dispatchCellFiles(page, 'drop', second, [
+          files['cell-400x300.png'],
+          files['cell-4000x3000.png'],
+        ]);
+        await expect(second.locator('[data-testid="body-inline-image"]')).toHaveCount(2);
+      },
+      2,
+    );
+    const hrefs = await second
+      .locator('[data-testid="body-inline-image"]')
+      .evaluateAll((els) =>
+        els.map((el) =>
+          (el as unknown as { getAttribute(n: string): string }).getAttribute('data-href'),
+        ),
+      );
+    expect(hrefs).toEqual(['#cell-400x300.png', '#cell-4000x3000.png']);
+    expect(tableXml(after, 'c21')).toMatch(
+      /<td>[^<]*<image l:href="#cell-400x300\.png"\/><image l:href="#cell-4000x3000\.png"\/>[^<]*<\/td>/,
+    );
+
+    // Inline image… from the field's context menu in the third cell (r2c1).
+    const third = fieldCell(1, 0);
+    await third.scrollIntoViewIfNeeded();
+    const box = (await third.boundingBox())!;
+    await page.evaluate(
+      'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
+    );
+    await third.click({ button: 'right', position: { x: box.width - 3, y: box.height / 2 } });
+    await expect(page.getByTestId('context-menu-insert.inlineImage')).toBeVisible();
+    after = await undoRedo(page, async () => {
+      await core.enqueueDialog('dialog.openFile', { paths: [TINY_PNG] });
+      await page.getByTestId('context-menu-insert.inlineImage').click();
+      await expect(page.getByTestId('dialog-insert-clear-image')).toBeVisible();
+      await page.getByTestId('dialog-insert-clear-image-button-no').click();
+      await expect(third.locator('[data-testid="body-inline-image"]')).toHaveCount(1);
+    });
+    expect(tableXml(after, 'c21')).toContain('<td>r2c1<image l:href="#tiny.png"/></td>');
+
+    // The new binaries are listed; nothing went into the field's paragraphs.
+    const list = await core.rpc<{ id: string }[]>('binary.list', { docId });
+    for (const id of ['cell-16x16.png', 'cell-400x300.png', 'cell-4000x3000.png', 'tiny.png']) {
+      expect(list.map((binary) => binary.id)).toContain(id);
+    }
+    await expect(field.locator(':scope > p [data-testid="body-inline-image"]')).toHaveCount(0);
   });
 });
 

@@ -9,7 +9,9 @@
  * (`__mfbeTest.tables`) and the Source view's (`__mfbeTest.sourceTable`, `sourceTable.ts`).
  * US8 gives the Body editor's table node views the warning mark of an irregular table: its texts
  * from `describeTableMark` in the interface language (`marks.ts`), its click the popover with
- * *Repair table* (`MarkPopover.tsx`).
+ * *Repair table* (`MarkPopover.tsx`). US10 installs the focus rule of the Description view's
+ * field targets (`target.ts`): the hotkey scope, the menus and the toolbar buttons then follow
+ * the focused annotation or history field there.
  */
 
 import type { FeatureContext } from '@/app/services';
@@ -19,11 +21,11 @@ import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 import { registerContextMenuExtension } from '@/views/body/contextMenuExtensions';
 
 import { TABLE_COMMAND_ROWS, createInsertTableCommand, tableCommand } from './commands';
-import { prepareTableContextMenu, tableContextMenuItems } from './contextMenu';
+import { prepareTableClick, tableSectionItems } from './contextMenu';
 import { describeTableMark } from './marks';
 import { openTableMarkPopover } from './MarkPopover';
 import { installSourceTableHooks } from './sourceTable';
-import { activeTableTarget } from './target';
+import { activeTableTarget, bodyTableTarget, installFieldFocusRule } from './target';
 import { installTablesTestHooks } from './testHooks';
 
 export {
@@ -42,7 +44,7 @@ export {
   rememberTableDialog,
   tableDialogValues,
 } from './dialog';
-export { prepareTableContextMenu, tableContextMenuItems } from './contextMenu';
+export { prepareTableClick, tableSectionItems } from './contextMenu';
 export { describeTableMark, type TableMarkDescription } from './marks';
 export { openTableMarkPopover, type MarkActivation } from './MarkPopover';
 export { reasonText, type ReasonCode } from './reasons';
@@ -56,9 +58,16 @@ export {
   type SourceTableTestHooks,
 } from './sourceTable';
 export {
+  activateFieldTarget,
   activeTableTarget,
   bodyTableTarget,
+  createFieldTarget,
+  fieldTargetFor,
+  installFieldFocusRule,
+  registerFieldTarget,
   subscribeTableTargets,
+  type FieldTarget,
+  type FieldTargetOptions,
   type TableEditTarget,
 } from './target';
 export { findModelTable, installTablesTestHooks, type TablesTestHooks } from './testHooks';
@@ -72,12 +81,19 @@ export function registerTablesFeature(ctx: FeatureContext): void {
   for (const row of TABLE_COMMAND_ROWS) ctx.commands.replace(tableCommand(row));
   // *Add → Table* (US1): takes over the stub the editing feature no longer replaces.
   ctx.commands.replace(createInsertTableCommand());
+  // The scope is the active target's editor: the Body editor, or the focused field (C6).
   ctx.commands.setHotkeyScope('tableTarget', () => activeTableTarget(ctx.store)?.dom ?? null);
-  // The Body context menu's table section and its right-click rule (C28; data-model §9.3).
-  registerContextMenuExtension('prepare', prepareTableContextMenu);
-  registerContextMenuExtension('table', (controller, click, commandCtx) =>
-    tableContextMenuItems(ctx.commands, controller, click, commandCtx),
-  );
+  installFieldFocusRule(ctx.store);
+  // The Body context menu's table section and its right-click rule on the Body adapter (C28;
+  // data-model §9.3); the Description fields' menu uses them on the field's adapter (US10).
+  registerContextMenuExtension('prepare', (_controller, click) => {
+    const target = bodyTableTarget(ctx.store);
+    if (target) prepareTableClick(target, click);
+  });
+  registerContextMenuExtension('table', (_controller, click, commandCtx) => {
+    const target = bodyTableTarget(ctx.store);
+    return target ? tableSectionItems(ctx.commands, target, click, commandCtx) : [];
+  });
   // The warning mark of an irregular table in the Body view (FR-057; data-model §3.3): the
   // controller exists - the editing feature installed it first -, the texts follow the
   // interface language through the controller's language listeners, and a click opens the

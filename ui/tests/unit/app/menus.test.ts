@@ -2,7 +2,9 @@
  * *Add → Table structure* (feature 006, T043; FR-039, SC-008; U12, C32; data-model §9.1, §9.2):
  * the one list of the 24 table commands in the eight groups of FR-039, the Add menu's submenu
  * right after *Table*, its derived test ids, its English labels, its disabled stubs and the
- * accelerator letters live inside the open submenu.
+ * accelerator letters live inside the open submenu. US10 (T159; C30; data-model §6.2): the Add
+ * menu follows the active description field - *Table*, the live table commands and *Inline
+ * image* with the caret in a field cell, no *Inline image* in a field paragraph.
  */
 
 import { act, render, screen, within } from '@testing-library/react';
@@ -14,7 +16,14 @@ import { createCommandRegistry } from '@/app/commands';
 import { MAIN_MENU, TABLE_STRUCTURE_ITEMS, type MenuItemSpec } from '@/app/menus';
 import { createAppServices } from '@/app/services';
 import { changeLanguage, initI18n } from '@/i18n';
-import { createAppStore } from '@/model/store';
+import { actions, createAppStore } from '@/model/store';
+
+import {
+  fieldCaret,
+  fieldHost,
+  removeHarnessHosts,
+  tablesHarness,
+} from '../features/tablesHarness';
 
 /** The groups of FR-039 (data-model §9.1), in order. */
 const GROUPS: readonly (readonly string[])[] = [
@@ -164,5 +173,52 @@ describe('Add → Table structure (feature 006)', () => {
     await user.keyboard('p');
     expect(run).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('menu-add-popup')).not.toBeInTheDocument();
+  });
+});
+
+describe('the Add menu follows a description field (feature 006, US10, C30)', () => {
+  afterEach(() => removeHarnessHosts());
+
+  it('with the caret in a field cell Table, the live table commands and Inline image are enabled; in a field paragraph Inline image is not', async () => {
+    const { services, ctx, store } = await tablesHarness();
+    actions.setActiveView(store, 'description');
+    const field = fieldHost('srcTitleInfo.annotation');
+    field.view.dom.focus();
+    const enabled = (id: string) => services.commands.isEnabled(id, ctx);
+    fieldCaret(field, 'srcTitleInfo-annotation-t-0-1', 2);
+    expect(enabled('insert.table')).toBe(true);
+    expect(enabled('insert.inlineImage')).toBe(true);
+    for (const id of [
+      'table.insertRowAbove',
+      'table.insertRowBelow',
+      'table.deleteRow',
+      'table.insertColumnLeft',
+      'table.insertColumnRight',
+      'table.deleteColumn',
+      'table.toggleHeaderCell',
+      'table.makeHeaderCells',
+      'table.toggleHeaderRow',
+      'table.toggleHeaderColumn',
+      'table.select',
+      'table.delete',
+      'table.duplicateRow',
+      'table.duplicateColumn',
+      'table.paragraphBefore',
+      'table.paragraphAfter',
+    ]) {
+      expect(enabled(id), id).toBe(true);
+    }
+    // Unavailable at a caret in a regular table: with their reasons, as in the Body view.
+    for (const id of ['table.mergeCells', 'table.splitCell', 'table.repair']) {
+      expect(enabled(id), id).toBe(false);
+    }
+    expect(enabled('insert.image')).toBe(false);
+    expect(services.commands.unavailableReason('insert.image', ctx)).toBe(
+      'a cell takes inline images only',
+    );
+    fieldCaret(field, 'srcTitleInfo-annotation-p', 2);
+    expect(enabled('insert.inlineImage')).toBe(false);
+    expect(enabled('insert.table')).toBe(true);
+    expect(enabled('table.insertRowBelow')).toBe(false);
   });
 });

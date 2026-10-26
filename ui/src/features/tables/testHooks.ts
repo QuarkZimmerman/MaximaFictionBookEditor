@@ -3,20 +3,24 @@
  * `window.__mfbeTest.tables`, installed only for a page that asks for test hooks (`?test=1`)
  * or a core started with them. `grid(tableRef)` gives the summary of the table whose `nodeId`
  * is `tableRef` - the `data-node-id` of its `body-table` -, looked up in the store's document:
- * the bodies, both annotations and the history. `placementSweep(positions)` (US1; C79; U18)
+ * the bodies, both annotations and the history. `target()` (US10) describes the active table edit
+ * target - the Body view's or a focused description field's - and its selection by node ids, so
+ * the journeys see where a field's caret or block is. `placementSweep(positions)` (US1; C79; U18)
  * gives the Body editor's placement at each model point with the registry's state of
  * `insert.table` there. `fuzz(seed, steps)` (US2; SC-003; C76) runs the seeded fuzz on the Body
  * editor, every step validated by the core: its generator (`@/editor/table/testing/fuzz`) is
  * loaded by a dynamic import only when the hook is called, so no bundle imports it statically.
  */
 
-import type { Node as PMNode } from 'prosemirror-model';
+import type { Node as PMNode, ResolvedPos } from 'prosemirror-model';
+import { AllSelection, NodeSelection, type EditorState } from 'prosemirror-state';
 
 import type { CommandContext } from '@/app/commands';
 import type { FeatureContext } from '@/app/services';
 import { findTablePointAt, type TablePoint } from '@/editor/commands/tableInsertion';
 import { findNodeById } from '@/editor/schema';
 import { gridOfModel, type TableSummary } from '@/editor/table/grid';
+import { CellBlockSelection } from '@/editor/table/selection';
 import i18next from '@/i18n';
 import type { AnnotationNode, BodyNode, Document, TableNode } from '@/model/document';
 import { collectBookIds } from '@/model/ids';
@@ -54,9 +58,32 @@ export interface FuzzRunReport {
   commands: string[];
 }
 
+/** The active table edit target and its selection, by node ids (US10). */
+export interface TargetAnswer {
+  kind: 'body' | 'description';
+  /** `body`, or the field key (`titleInfo.annotation`, `srcTitleInfo.annotation`, …). */
+  key: string;
+  editable: boolean;
+  selection: {
+    type: 'text' | 'node' | 'cells' | 'all';
+    empty: boolean;
+    /** The node id of the text block or cell that holds the head, and the offset in it. */
+    head: string | null;
+    headOffset: number;
+    anchor: string | null;
+    anchorOffset: number;
+    /** The block's cells in document order (`cells`). */
+    cells: string[];
+    /** The selected node (`node`). */
+    node: string | null;
+  };
+}
+
 export interface TablesTestHooks {
   /** The grid summary of the table with that `nodeId`, null when no table has it. */
   grid(tableRef: string): TableSummary | null;
+  /** The active table edit target with its selection; null without one (US10). */
+  target(): TargetAnswer | null;
   /**
    * The seeded fuzz of SC-003 on the Body editor (US2): `steps` commands drawn with `seed`, the
    * start tables at the end of the book's first section, Undo and Redo through the undo
@@ -75,6 +102,41 @@ export interface TablesTestHooks {
 function nodeIdOf(node: PMNode | null | undefined): string | null {
   const id = node?.attrs.nodeId;
   return typeof id === 'string' && id !== '' ? id : null;
+}
+
+/** The node id of the innermost node with one around `$pos`. */
+function holderOf($pos: ResolvedPos): string | null {
+  for (let depth = $pos.depth; depth >= 0; depth -= 1) {
+    const id = nodeIdOf($pos.node(depth));
+    if (id) return id;
+  }
+  return null;
+}
+
+/** A selection in node-id terms (`TargetAnswer.selection`). */
+function describeSelection(state: EditorState): TargetAnswer['selection'] {
+  const { selection } = state;
+  const cells =
+    selection instanceof CellBlockSelection
+      ? selection.cellPositions().map((pos) => nodeIdOf(state.doc.nodeAt(pos)) ?? '')
+      : [];
+  return {
+    type:
+      selection instanceof CellBlockSelection
+        ? 'cells'
+        : selection instanceof NodeSelection
+          ? 'node'
+          : selection instanceof AllSelection
+            ? 'all'
+            : 'text',
+    empty: selection.empty,
+    head: holderOf(selection.$head),
+    headOffset: selection.$head.parentOffset,
+    anchor: holderOf(selection.$anchor),
+    anchorOffset: selection.$anchor.parentOffset,
+    cells,
+    node: selection instanceof NodeSelection ? nodeIdOf(selection.node) : null,
+  };
 }
 
 /** A point in the Body editor's document in model terms (the blocks by `FIXED_BLOCK_IDS`). */
@@ -140,6 +202,17 @@ export function installTablesTestHooks(ctx: FeatureContext): void {
       if (!doc || typeof tableRef !== 'string') return null;
       const table = findModelTable(doc, tableRef);
       return table ? { ...gridOfModel(table).summary } : null;
+    },
+    target() {
+      const target = activeTableTarget(ctx.store);
+      const state = target?.state;
+      if (!target || !state) return null;
+      return {
+        kind: target.kind,
+        key: target.key,
+        editable: target.editable,
+        selection: describeSelection(state),
+      };
     },
     placementSweep(positions) {
       if (!hasBodyController(ctx.store)) throw new Error('placementSweep: no Body editor');
