@@ -37,7 +37,7 @@ const DEFAULT_RC = path.resolve(REPO, '..', 'reference', 'fictionbookeditor', 'F
 const STATUSES = new Set(['implemented', 'implemented-differently', 'dropped']);
 // Command ids of the registry (`<group>.<name>`); other dotted tokens in the MFBE column (RPC
 // methods such as `doc.recent`, script API members) are references, not commands.
-const COMMAND_GROUPS = ['file', 'edit', 'view', 'insert', 'style', 'tools', 'scripts', 'help', 'nav', 'tree', 'source', 'symbol', 'script', 'image'];
+const COMMAND_GROUPS = ['file', 'edit', 'view', 'insert', 'style', 'tools', 'scripts', 'help', 'nav', 'tree', 'source', 'symbol', 'script', 'image', 'table'];
 const COMMAND_ID = new RegExp(`^(?:${COMMAND_GROUPS.join('|')})\\.[A-Za-z0-9][A-Za-z0-9.]*$`);
 
 /* -------------------------------------------------------------------------------------- */

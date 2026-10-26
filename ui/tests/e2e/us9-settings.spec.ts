@@ -186,10 +186,11 @@ test.describe('US9 - configure settings and hotkeys', () => {
       /standard list \(\d+\)/,
     );
 
-    // Hotkeys (FR-092): the eight groups, commands, shortcut control, actions, description.
+    // Hotkeys (FR-092): the nine groups - the original's eight and Table (feature 006, C23) -,
+    // commands, shortcut control, actions, description.
     await showPage(page, 'hotkeys');
     await expect(page.getByTestId('settings-hotkeys-groups').locator('[role="option"]')).toHaveText(
-      ['File', 'Edit', 'Navigation', 'Style', 'View', 'Tools', 'Symbols', 'Scripts'],
+      ['File', 'Edit', 'Navigation', 'Style', 'View', 'Tools', 'Symbols', 'Scripts', 'Table'],
     );
     await expect(page.getByTestId('settings-hotkeys-command-file.save')).toContainText('F2');
     for (const control of [

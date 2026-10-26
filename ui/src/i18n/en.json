@@ -521,6 +521,15 @@
       "description": "Run the script {{name}}"
     }
   },
+  "commands": {
+    "unavailable": {
+      "title": "{{command}}: {{reason}}",
+      "runLock": {
+        "script": "a script is running; wait until it ends",
+        "ai": "a request to the AI assistant is running; wait until it ends"
+      }
+    }
+  },
   "hotkeys": {
     "groups": {
       "file": "File",

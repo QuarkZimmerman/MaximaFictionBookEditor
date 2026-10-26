@@ -29,9 +29,21 @@ import { startSourceTagCompletion } from '@/views/source/completion';
 import type { HotkeyMap } from './hotkeys';
 
 export type CommandGroup =
-  'file' | 'edit' | 'navigation' | 'style' | 'view' | 'tools' | 'symbols' | 'scripts' | 'help';
+  | 'file'
+  | 'edit'
+  | 'navigation'
+  | 'style'
+  | 'view'
+  | 'tools'
+  | 'symbols'
+  | 'scripts'
+  | 'table'
+  | 'help';
 
-/** Hotkey-page group order as in the original (Plugins dropped: no plugin system). */
+/**
+ * Hotkey-page group order as in the original (Plugins dropped: no plugin system), with the
+ * table commands of feature 006 (C23) after the original groups.
+ */
 export const COMMAND_GROUPS: readonly CommandGroup[] = [
   'file',
   'edit',
@@ -41,8 +53,16 @@ export const COMMAND_GROUPS: readonly CommandGroup[] = [
   'tools',
   'symbols',
   'scripts',
+  'table',
   'help',
 ];
+
+/**
+ * A hotkey focus scope (feature 006, C6): a chord the user assigned to a command of the scope
+ * runs it only while the key event's target lies inside the scope's element - for
+ * `tableTarget`, the active table edit target's DOM (the Body editor, the focused rich field).
+ */
+export type HotkeyScope = 'tableTarget';
 
 export interface CommandContext {
   store: AppStore;
@@ -95,6 +115,20 @@ export interface Command {
    * Help, About, Exit...).
    */
   duringScriptRun?: 'blocked' | 'allowed';
+  /**
+   * Why the command is unavailable, in words for the user (feature 006, FR-043; data-model
+   * §9.6), or null. An opt-in: only a command that defines it gets a reason, and it is read
+   * through `CommandRegistry.unavailableReason`, which answers for the stub, the enabled and
+   * the run-locked cases itself - so the function is asked only while the command is disabled
+   * by its own `enabled` predicate.
+   */
+  unavailableReason?: (ctx: CommandContext) => string | null;
+  /**
+   * The focus scope of the command's hotkey (feature 006, C6; `HotkeyScope`): unset for every
+   * command but the 24 `table.*` ones. Menus, context menus, toolbar buttons and the bars are
+   * not affected.
+   */
+  hotkeyScope?: HotkeyScope;
   /** Registered for parity but not implemented yet; always disabled. */
   stub?: boolean;
 }
@@ -102,6 +136,7 @@ export interface Command {
 export class CommandRegistry {
   private readonly commands = new Map<string, Command>();
   private readonly listeners = new Set<() => void>();
+  private readonly scopes = new Map<HotkeyScope, () => HTMLElement | null>();
 
   register(command: Command): () => void {
     if (this.commands.has(command.id)) {
@@ -147,6 +182,52 @@ export class CommandRegistry {
     if (!command || command.stub) return false;
     if (isRunLocked(ctx.store.getState()) && command.duringScriptRun !== 'allowed') return false;
     return command.enabled ? command.enabled(ctx) : true;
+  }
+
+  /**
+   * Why a command is unavailable (feature 006, FR-043; data-model §9.6), for the title of a
+   * disabled menu item, popup entry or toolbar button (`unavailableTitle`). Null for an
+   * unregistered id, a stub, a command that defines no `unavailableReason` (an opt-in: every
+   * other tooltip stays as it is) and an enabled command; while the run lock blocks the
+   * command, the text of the lock's kind - a script run or an AI request, which is the only
+   * time the assistant is named (feature 005 FR-096); otherwise the command's own text.
+   */
+  unavailableReason(id: string, ctx: CommandContext): string | null {
+    const command = this.commands.get(id);
+    if (!command || command.stub || !command.unavailableReason) return null;
+    if (this.isEnabled(id, ctx)) return null;
+    const state = ctx.store.getState();
+    if (isRunLocked(state) && command.duringScriptRun !== 'allowed') {
+      return ctx.t(`commands.unavailable.runLock.${state.runLock!.kind}`) as string;
+    }
+    return command.unavailableReason(ctx);
+  }
+
+  /**
+   * Installs the element resolver of a hotkey scope (feature 006, C6): the tables feature
+   * gives the active table edit target's DOM, so this layer imports nothing of it. Returns the
+   * function that removes the resolver again (when it is still the installed one).
+   */
+  setHotkeyScope(scope: HotkeyScope, resolve: () => HTMLElement | null): () => void {
+    this.scopes.set(scope, resolve);
+    return () => {
+      if (this.scopes.get(scope) === resolve) this.scopes.delete(scope);
+    };
+  }
+
+  /**
+   * Whether a chord bound to `id` may be handed to the command for a key event aimed at
+   * `target` (the capture-phase dispatcher of `App.tsx`): always for a command without a
+   * scope (and for an unregistered id, which `dispatch` refuses anyway); for a scoped one only
+   * when `target` is a node inside the element the scope's resolver gives - never while no
+   * resolver is installed. Otherwise the key goes on to the editor, the field or the browser.
+   */
+  allowsHotkey(id: string, target: EventTarget | null): boolean {
+    const scope = this.commands.get(id)?.hotkeyScope;
+    if (!scope) return true;
+    const resolve = this.scopes.get(scope);
+    const element = resolve ? resolve() : null;
+    return !!element && target instanceof Node && element.contains(target);
   }
 
   /**
@@ -236,6 +317,16 @@ export function commandDescription(command: Command, t: TFunction): string {
   if (command.description !== undefined) return command.description;
   if (command.descriptionKey) return t(command.descriptionKey, command.labelParams ?? {}) as string;
   return commandTooltip(command, t);
+}
+
+/**
+ * The title of a disabled entry whose command gives a reason (feature 006, FR-043; data-model
+ * §9.6): "Delete row: the table has only one row; use Delete table". Menus, popup entries and
+ * toolbar buttons set it as `title` and `aria-description` - native tooltips do not show on
+ * keyboard focus (U40).
+ */
+export function unavailableTitle(command: Command, reason: string, t: TFunction): string {
+  return t('commands.unavailable.title', { command: commandTooltip(command, t), reason }) as string;
 }
 
 export function symbolCommandId(index: number): string {
@@ -432,6 +523,18 @@ function stub(id: string, group: CommandGroup, keys: CommandKeys, icon?: string)
 /** `cmd.<id>.tooltip` / `cmd.<id>.description` keys for a command id (plus the menu label key). */
 function cmdKeys(id: string, labelKey?: string): CommandKeys {
   return { labelKey, tooltipKey: `cmd.${id}.tooltip`, descriptionKey: `cmd.${id}.description` };
+}
+
+/**
+ * The keys of the table command `table.<name>` (feature 006, data-model §9.1): its label in
+ * *Add → Table structure* and its short name and description in the feature's catalogue.
+ */
+function tableKeys(name: string): CommandKeys {
+  return {
+    labelKey: `menu.tableStructure.${name}`,
+    tooltipKey: `tables.cmd.${name}.tooltip`,
+    descriptionKey: `tables.cmd.${name}.description`,
+  };
 }
 
 const NEVER_VISIBLE = (): boolean => false;
@@ -666,7 +769,8 @@ export function createBuiltinCommands(): Command[] {
     ),
     stub('insert.poem', 'edit', cmdKeys('insert.poem', 'menu.add.poem'), 'id_edit_ins_poem'),
     stub('insert.cite', 'edit', cmdKeys('insert.cite', 'menu.add.cite'), 'id_edit_ins_cite'),
-    stub('insert.table', 'edit', cmdKeys('insert.table', 'menu.add.table'), 'id_insert_table'),
+    // The project's own 24 px icon (feature 006, C27): the original's exists at 16 px only.
+    stub('insert.table', 'edit', cmdKeys('insert.table', 'menu.add.table'), 'table-insert'),
     stub(
       'insert.sectionImage',
       'edit',
@@ -674,6 +778,178 @@ export function createBuiltinCommands(): Command[] {
       'id_edit_add_image',
     ),
     stub('insert.binary', 'edit', cmdKeys('insert.binary', 'menu.add.binary'), 'id_edit_addbinary'),
+
+    // ---- Table (table.*, feature 006) -----------------------------------
+    // The 24 table commands in the order of FR-039 (data-model §9.1): disabled stubs, so the
+    // menus, Customize and the Hotkeys page list them, until the tables feature replaces each
+    // (`registerTablesFeature`); their chords run only inside the active table edit target
+    // (`hotkeyScope`, C6), and none has a default chord (decision 15).
+    {
+      ...stub(
+        'table.insertRowAbove',
+        'table',
+        tableKeys('insertRowAbove'),
+        'table-insert-row-above',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.insertRowBelow',
+        'table',
+        tableKeys('insertRowBelow'),
+        'table-insert-row-below',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.deleteRow', 'table', tableKeys('deleteRow'), 'table-delete-row'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.insertColumnLeft',
+        'table',
+        tableKeys('insertColumnLeft'),
+        'table-insert-column-left',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.insertColumnRight',
+        'table',
+        tableKeys('insertColumnRight'),
+        'table-insert-column-right',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.deleteColumn', 'table', tableKeys('deleteColumn'), 'table-delete-column'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.mergeCells', 'table', tableKeys('mergeCells'), 'table-merge-cells'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.splitCell', 'table', tableKeys('splitCell'), 'table-split-cell'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.toggleHeaderCell',
+        'table',
+        tableKeys('toggleHeaderCell'),
+        'table-toggle-header-cell',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.makeHeaderCells',
+        'table',
+        tableKeys('makeHeaderCells'),
+        'table-make-header-cells',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.makeNormalCells',
+        'table',
+        tableKeys('makeNormalCells'),
+        'table-make-normal-cells',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.toggleHeaderRow',
+        'table',
+        tableKeys('toggleHeaderRow'),
+        'table-toggle-header-row',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.toggleHeaderColumn',
+        'table',
+        tableKeys('toggleHeaderColumn'),
+        'table-toggle-header-column',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.repair', 'table', tableKeys('repair'), 'table-repair'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.select', 'table', tableKeys('select'), 'table-select'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.delete', 'table', tableKeys('delete'), 'table-delete'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.moveRowUp', 'table', tableKeys('moveRowUp'), 'table-move-row-up'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.moveRowDown', 'table', tableKeys('moveRowDown'), 'table-move-row-down'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.moveColumnLeft',
+        'table',
+        tableKeys('moveColumnLeft'),
+        'table-move-column-left',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.moveColumnRight',
+        'table',
+        tableKeys('moveColumnRight'),
+        'table-move-column-right',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub('table.duplicateRow', 'table', tableKeys('duplicateRow'), 'table-duplicate-row'),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.duplicateColumn',
+        'table',
+        tableKeys('duplicateColumn'),
+        'table-duplicate-column',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.paragraphBefore',
+        'table',
+        tableKeys('paragraphBefore'),
+        'table-paragraph-before',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
+    {
+      ...stub(
+        'table.paragraphAfter',
+        'table',
+        tableKeys('paragraphAfter'),
+        'table-paragraph-after',
+      ),
+      hotkeyScope: 'tableTarget',
+    },
 
     // ---- Style ----------------------------------------------------------
     stub('style.normal', 'style', cmdKeys('style.normal', 'menu.style.normal'), 'id_style_normal'),

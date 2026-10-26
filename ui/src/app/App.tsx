@@ -259,6 +259,8 @@ function Shell({
   // Not while a modal dialog is open; in a modeless dialog its own keys and the editing
   // commands of its fields come first, and so do the AI panel's instruction field's keys
   // (Enter sends, Shift+Enter breaks the line) and its editing commands (feature 005 FR-105).
+  // A command with a hotkey scope (the table commands, feature 006 C6) takes its chord only
+  // while the key is aimed inside the scope's element; elsewhere the key goes on unconsumed.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || dialogs.service.isModalOpen) return;
@@ -267,11 +269,11 @@ function Shell({
       if (inModeless && isDialogKey(event)) return;
       const inPanelField = !inModeless && inAiPanelField(event);
       if (inPanelField && isPanelFieldKey(event)) return;
-      hotkeys.handleKeyDown(event, (id) =>
-        (inModeless || inPanelField) && FIELD_EDIT_COMMANDS.has(id)
-          ? false
-          : commands.dispatch(id, ctx),
-      );
+      hotkeys.handleKeyDown(event, (id) => {
+        if ((inModeless || inPanelField) && FIELD_EDIT_COMMANDS.has(id)) return false;
+        if (!commands.allowsHotkey(id, event.target)) return false;
+        return commands.dispatch(id, ctx);
+      });
     };
     document.addEventListener('keydown', onKeyDown, { capture: true });
     return () => document.removeEventListener('keydown', onKeyDown, { capture: true });
