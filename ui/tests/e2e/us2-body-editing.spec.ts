@@ -17,6 +17,8 @@
  *  8. Clone / Split / Merge / Remove outer container
  *  9. incremental search from the keyboard
  * 10. Table properties dialog and the Table bar
+ * 11. a keyboard selection reaches the editor before a menu or a key takes the focus
+ * 12. keys typed right after the press that focuses the editor stay when reported late
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -33,7 +35,7 @@ import {
 } from './fixtures/core';
 import { pageAnyPattern, pageText } from './fixtures/i18n';
 import type { Locator, Page } from '@playwright/test';
-import { LINE_END, LINE_START, MOD, REPLACE } from './fixtures/keys';
+import { LINE_END, LINE_START, MAC, MOD, REPLACE, SELECT_TO_LINE_END } from './fixtures/keys';
 
 interface ValidationJson {
   errorCount: number;
@@ -123,6 +125,78 @@ async function selectedText(page: Page): Promise<string> {
 async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
   await page.getByTestId(`menu-${menuId}`).click();
   await page.getByTestId(`menu-${menuId}-${itemId}`).click();
+}
+
+/**
+ * Holds the browser's `selectionchange` events back from the page (a capture listener on the
+ * document stops them before ProseMirror's own), as a loaded machine delayed them;
+ * `RELEASE_SELECTIONCHANGE` lets them through again and delivers one.
+ */
+const HOLD_SELECTIONCHANGE = `(() => {
+  if (!window.__mfbeHeldSelection) {
+    window.__mfbeHeldSelection = { held: false };
+    document.addEventListener('selectionchange', (event) => {
+      if (window.__mfbeHeldSelection.held) event.stopImmediatePropagation();
+    }, true);
+  }
+  window.__mfbeHeldSelection.held = true;
+})()`;
+const RELEASE_SELECTIONCHANGE = `(() => {
+  window.__mfbeHeldSelection.held = false;
+  document.dispatchEvent(new Event('selectionchange'));
+})()`;
+
+interface BurstKey {
+  key: string;
+  code: string;
+  windowsVirtualKeyCode: number;
+  commands?: string[];
+}
+
+/**
+ * Shift+End (Shift+Cmd+Right on macOS, with the editing command Playwright gives that chord)
+ * and then a press at a point or the key F10, as one burst of input events sent without a wait
+ * in between: the browser reports the new selection (`selectionchange`) only after the input
+ * that follows has been handled - the order a loaded machine produced at random.
+ */
+async function selectToLineEndThen(
+  page: Page,
+  then: { x: number; y: number } | 'F10',
+): Promise<void> {
+  const SHIFT = 8;
+  const META = 4;
+  const meta: BurstKey = { key: 'Meta', code: 'MetaLeft', windowsVirtualKeyCode: 91 };
+  const shift: BurstKey = { key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16 };
+  const line: BurstKey = MAC
+    ? { key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39 }
+    : { key: 'End', code: 'End', windowsVirtualKeyCode: 35 };
+  const f10: BurstKey = { key: 'F10', code: 'F10', windowsVirtualKeyCode: 121 };
+  const held = MAC ? SHIFT | META : SHIFT;
+  const keys: ['rawKeyDown' | 'keyUp', number, BurstKey][] = [];
+  if (MAC) keys.push(['rawKeyDown', META, meta]);
+  keys.push(['rawKeyDown', held, shift]);
+  const command = MAC ? ['moveToRightEndOfLineAndModifySelection'] : undefined;
+  keys.push(['rawKeyDown', held, { ...line, commands: command }]);
+  keys.push(['keyUp', held, line]);
+  keys.push(['keyUp', held & ~SHIFT, shift]);
+  if (MAC) keys.push(['keyUp', 0, meta]);
+  if (then === 'F10') keys.push(['rawKeyDown', 0, f10], ['keyUp', 0, f10]);
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const sends = keys.map(([type, modifiers, key]) =>
+      cdp.send('Input.dispatchKeyEvent', { type, modifiers, ...key }),
+    );
+    if (then !== 'F10') {
+      for (const type of ['mousePressed', 'mouseReleased'] as const) {
+        sends.push(
+          cdp.send('Input.dispatchMouseEvent', { type, ...then, button: 'left', clickCount: 1 }),
+        );
+      }
+    }
+    await Promise.all(sends);
+  } finally {
+    await cdp.detach();
+  }
 }
 
 /** Names of the direct child elements of an element's inner XML (`<section ...>` stripped). */
@@ -941,5 +1015,80 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     );
     const report = await validateFile(core, file);
     expect(bodyErrors(report, xml)).toEqual([]);
+  });
+
+  test('11. a keyboard selection reaches the editor before a menu or a key takes the focus', async ({
+    page,
+  }) => {
+    // The browser reports a selection made with the keyboard after the input that follows it;
+    // the editor reads it first, so the focus a menu or the menu bar takes does not lose it
+    // (a script that needs a selection stayed disabled, us9-ai-disabled under load).
+    await newDocument(page);
+    const paragraph = firstParagraph(page);
+    const text = 'A line of words to select.';
+    await retype(page, paragraph, text);
+    const button = (await page.getByTestId('menu-scripts').boundingBox())!;
+    const scripts = { x: button.x + button.width / 2, y: button.y + button.height / 2 };
+
+    // Shift+End and at once a press on the Scripts menu.
+    await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
+    await page.keyboard.press(LINE_START);
+    await settle(page);
+    await expect.poll(() => selectedText(page)).toBe('');
+    await page.mouse.move(scripts.x, scripts.y);
+    await selectToLineEndThen(page, scripts);
+    await expect(page.getByTestId('menu-scripts-popup')).toBeVisible();
+    await expect.poll(() => selectedText(page)).toBe(text);
+    const group = page.getByTestId('menu-scripts-18_editing');
+    await expect(group).toBeVisible();
+    await group.hover();
+    await expect(page.getByTestId('menu-scripts-18_editing-18/remove-spaces')).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+
+    // Shift+End and at once F10, which gives the menu bar the focus.
+    await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
+    await expect(page.getByTestId('menu-scripts-popup')).toHaveCount(0);
+    await page.keyboard.press(LINE_START);
+    await settle(page);
+    await expect.poll(() => selectedText(page)).toBe('');
+    await selectToLineEndThen(page, 'F10');
+    await expect(page.getByTestId('menu-file')).toBeFocused();
+    await expect.poll(() => selectedText(page)).toBe(text);
+  });
+
+  test('12. keys typed right after the press that gives the editor the focus stay, also when the browser reports them late', async ({
+    page,
+  }) => {
+    // ProseMirror writes its own selection back 20 ms after the editor gains the focus when the
+    // browser's differs from the last one it read; under load the browser reported the press and
+    // Home and Shift+End after that, and they were undone (us9-ai-disabled). Here the browser's
+    // reports are held back until the 20 ms have passed, then delivered.
+    await newDocument(page);
+    const first = firstParagraph(page);
+    const text = 'A line of words to select.';
+    await retype(page, first, text);
+    await page.keyboard.press(LINE_END);
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Another line.');
+    const second = page
+      .getByTestId('body-editor')
+      .locator('.fb-body > .fb-section > p.fb-p')
+      .nth(1);
+    await expect(second).toHaveText('Another line.');
+    await clickInto(page, second, { path: MAIN_PARAGRAPH });
+    // A menu takes the focus and gives it up (Escape twice): the editor has none.
+    await page.getByTestId('menu-file').click();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('body-editor')).not.toBeFocused();
+    await page.evaluate(HOLD_SELECTIONCHANGE);
+    await first.click({ position: { x: 8, y: 8 } });
+    await page.keyboard.press(LINE_START);
+    await page.keyboard.press(SELECT_TO_LINE_END);
+    await page.waitForTimeout(150);
+    await page.evaluate(RELEASE_SELECTIONCHANGE);
+    await expect.poll(() => selectedText(page)).toBe(text);
   });
 });

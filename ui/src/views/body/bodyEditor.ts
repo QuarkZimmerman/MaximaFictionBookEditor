@@ -50,6 +50,7 @@ import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/ed
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { overtypePlugin } from '@/editor/plugins/overtype';
 import { searchMatchPlugin, withSearchMatch } from '@/editor/plugins/searchMatch';
+import { selectionSyncPlugin } from '@/editor/plugins/selectionSync';
 import { tableEditingPlugin } from '@/editor/table/plugin';
 import {
   computeSelectionContext,
@@ -254,6 +255,10 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
       // Shift+Arrow handling comes first; it has no paste props - `clipboardPlugin` keeps
       // claiming every paste (C4).
       tableEditingPlugin(),
+      // The browser selection read before a press elsewhere or a key is handled, and the focus
+      // that a press into the editor gives it (after the table plugin's press handling, which
+      // leaves a plain press to the plugins after it).
+      selectionSyncPlugin(),
       bodyKeymap({ toggleOvertype: options.toggleOvertype, nextNodeId }),
       baseEditorKeymap(),
       overtypePlugin(options.isOvertype ?? (() => false)),
@@ -655,8 +660,8 @@ export class BodyEditorController {
 
   /**
    * The state commands are evaluated against. ProseMirror reads the browser selection
-   * asynchronously (`selectionchange`); the editor state is the single source of truth here,
-   * so a hotkey pressed within the same tick as a keyboard selection sees the previous one.
+   * asynchronously (`selectionchange`); a key and a press outside the editor have it read first
+   * (`selectionSyncPlugin`), so a hotkey or a menu sees a keyboard selection made just before.
    */
   get selectionState(): EditorState | null {
     return this.editorState;
