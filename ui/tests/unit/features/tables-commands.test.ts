@@ -1011,19 +1011,6 @@ function mergedDoc(): PMNode {
 }
 
 describe('US5: Merge cells and Split cell', () => {
-  beforeAll(() => {
-    // jsdom measures no range: a commit's scroll into view after a command focused the Body
-    // editor reads these (as `images.test.ts` and the description tests stub them).
-    Object.defineProperty(Range.prototype, 'getClientRects', {
-      configurable: true,
-      value: () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }),
-    });
-    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
-    });
-  });
-
   it('availability agrees with every plan’s dry run: ok exactly when the plan acts, else the plan’s refusal', () => {
     let compared = 0;
     let ids = 0;

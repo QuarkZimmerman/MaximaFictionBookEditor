@@ -449,20 +449,16 @@ async function changedFrom(page: Page, before: string): Promise<string> {
   return toXml(page);
 }
 
-/**
- * A click on a cell's text end: the caret there. The first click after File → Open can come
- * while the Body view still settles, so the click is repeated until the selection's head stands
- * in the cell (as `us4-table-blocks.spec.ts` does).
- */
+/** A click on a cell's text end: the caret there, once - never repeated. */
 async function clickEnd(page: Page, element: Locator): Promise<void> {
   const nodeId = await element.getAttribute('data-node-id');
-  await expect(async () => {
-    await element.scrollIntoViewIfNeeded();
-    const box = (await element.boundingBox())!;
-    await element.click({ position: { x: box.width - 3, y: box.height / 2 } });
-    await page.keyboard.press(LINE_END);
-    expect((await headPoint(page))?.nodeId).toBe(nodeId);
-  }).toPass({ timeout: 15_000 });
+  await element.scrollIntoViewIfNeeded();
+  const box = (await element.boundingBox())!;
+  await element.click({ position: { x: box.width - 3, y: box.height / 2 } });
+  await page.keyboard.press(LINE_END);
+  await expect
+    .poll(async () => (await headPoint(page))?.nodeId, 'the caret in the cell')
+    .toBe(nodeId);
   await expect(page.getByTestId('status-path')).toHaveText(/\/t[dh]\[\d+\]$/);
 }
 

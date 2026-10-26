@@ -367,20 +367,14 @@ async function drag(page: Page, target: Scenario, names: string[]): Promise<void
   await page.mouse.up();
 }
 
-/**
- * A click on a cell's text end: the caret there. The first click after File → Open can come
- * while the Body view still settles - the caret was seen left at the book's start once under a
- * loaded run -, so the click is repeated until the selection's head stands in the cell.
- */
+/** A click on a cell's text end: the caret there, once - never repeated. */
 async function clickEnd(page: Page, target: Scenario, name: string): Promise<void> {
   const element = cell(target, name);
-  await expect(async () => {
-    await element.scrollIntoViewIfNeeded();
-    const box = (await element.boundingBox())!;
-    await element.click({ position: { x: box.width - 3, y: box.height / 2 } });
-    await page.keyboard.press(LINE_END);
-    expect(await headNodeId(page)).toBe(target.cell(name));
-  }).toPass({ timeout: 15_000 });
+  await element.scrollIntoViewIfNeeded();
+  const box = (await element.boundingBox())!;
+  await element.click({ position: { x: box.width - 3, y: box.height / 2 } });
+  await page.keyboard.press(LINE_END);
+  await expect.poll(() => headNodeId(page), `the caret in ${name}`).toBe(target.cell(name));
   await expect(page.getByTestId('status-path')).toHaveText(/\/t[dh]\[\d+\]$/);
 }
 

@@ -76,7 +76,24 @@ export function removeHarnessHosts(): void {
   for (const host of hosts.splice(0)) host.remove();
 }
 
+/**
+ * jsdom measures no range. A command run through the controller gives the Body editor the focus
+ * before its transaction is applied, and ProseMirror then measures the selection to scroll it
+ * into view (as `images.test.ts` and the description tests stub these too).
+ */
+function measureNoRanges(): void {
+  Object.defineProperty(Range.prototype, 'getClientRects', {
+    configurable: true,
+    value: () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }),
+  });
+  Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+  });
+}
+
 export async function tablesHarness(doc: Document = tableDocument()): Promise<TablesHarness> {
+  measureNoRanges();
   await initI18n({ language: 'en' });
   const store = createAppStore();
   const rpc = fakeRpc({

@@ -31,6 +31,7 @@ import {
   EditorState,
   NodeSelection,
   type Plugin,
+  type PluginKey,
   Selection,
   TextSelection,
   type Command,
@@ -51,7 +52,7 @@ import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/ed
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { overtypePlugin } from '@/editor/plugins/overtype';
 import { searchMatchPlugin, withSearchMatch } from '@/editor/plugins/searchMatch';
-import { selectionSyncPlugin } from '@/editor/plugins/selectionSync';
+import { readDomSelection, selectionSyncPlugin } from '@/editor/plugins/selectionSync';
 import { tableEditingPlugin } from '@/editor/table/plugin';
 import {
   computeSelectionContext,
@@ -653,13 +654,20 @@ export class BodyEditorController {
 
   /**
    * Runs a ProseMirror command against the current state (view mounted or not). Each command
-   * is its own undo step: the history group of preceding typing is closed first.
+   * is its own undo step: the history group of preceding typing is closed first. A command
+   * that acts gives the editor the focus before its transaction is applied, as `setCaret`
+   * does: ProseMirror scrolls to the selection only while it owns the DOM selection, and a
+   * focus taken afterwards does not scroll (a menu, a bar's text field or a dialog had it).
    */
   execute(command: Command): boolean {
     this.syncSelectionFromDom();
     const state = this.editorState;
     if (!state) return false;
-    const result = command(state, (tr) => this.dispatch(closeHistory(tr)), this.view ?? undefined);
+    const dispatch = (tr: Transaction) => {
+      this.focus();
+      this.dispatch(closeHistory(tr));
+    };
+    const result = command(state, dispatch, this.view ?? undefined);
     if (result) {
       this.closeNextHistory = true;
       this.focus();
@@ -1034,8 +1042,7 @@ export class BodyEditorController {
     if (this.translate === translate) return;
     this.translate = translate;
     // The block captions are drawn from the catalogue: repaint them in the new language.
-    const state = this.editorState;
-    if (state) this.dispatch(state.tr.setMeta(blockCaptionsKey, 'refresh'));
+    this.repaint(blockCaptionsKey);
   }
 
   /** Sets the NBSP display character (Settings > Other) and repaints the markers. */
@@ -1047,8 +1054,19 @@ export class BodyEditorController {
 
   /** Repaints the NBSP markers after the display character changed. */
   refreshNbsp(): void {
+    this.repaint(nbspPluginKey);
+  }
+
+  /**
+   * Asks the plugin `key` to redraw its decorations - an update the user did not cause. The
+   * browser selection is read first (`readDomSelection`): built on a selection the browser has
+   * left since (a click whose `selectionchange` has not arrived yet), the update would have
+   * ProseMirror write that old selection back into the page.
+   */
+  private repaint(key: PluginKey): void {
+    if (this.view) readDomSelection(this.view);
     const state = this.editorState;
-    if (state) this.dispatch(state.tr.setMeta(nbspPluginKey, 'refresh'));
+    if (state) this.dispatch(state.tr.setMeta(key, 'refresh'));
   }
 
   /* ------------------------------------------------------------ undo/caret */

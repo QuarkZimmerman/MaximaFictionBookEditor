@@ -19,6 +19,13 @@
  *   script): after a press that focused the editor, the keys typed at once (Home, Shift+End) were
  *   undone when the browser reported them after those 20 ms. A press into the editor while
  *   another element has the focus therefore gives it the focus itself first (`focusForPress`).
+ * - Every update of the view whose decorations change the drawn document writes the state's
+ *   selection into the DOM. An update the user did not cause - the spell checker's verdicts from
+ *   the core, a changed setting - that came between a click and the `selectionchange` event
+ *   reporting it was built on the selection from before the click and put the browser's caret
+ *   back there: the first click after a book opened left the caret at the document start (the
+ *   verdicts on the opened text arrived in that gap under load). Such updates have the selection
+ *   read first (`readDomSelection`), before they build their transaction.
  */
 
 import { Plugin } from 'prosemirror-state';
@@ -34,7 +41,8 @@ interface ViewInternals {
  * Makes ProseMirror read the browser selection (and any DOM change it has not read yet) now, as
  * the `selectionchange` event would; nothing while the editor does not have the focus, where
  * ProseMirror ignores the browser selection, or while a composition runs, which ProseMirror
- * reads when it ends.
+ * reads when it ends. Called before a key or a press elsewhere is handled and before an update
+ * the user did not cause builds its transaction on `view.state`.
  */
 export function readDomSelection(view: EditorView): void {
   if (!view.hasFocus() || view.composing) return;

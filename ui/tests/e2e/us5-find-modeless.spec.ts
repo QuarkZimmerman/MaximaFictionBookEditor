@@ -52,7 +52,15 @@ interface MatchInfo {
   inView: boolean;
 }
 
-/* The e2e tsconfig has no DOM lib: browser-side probes are string snippets. */
+/*
+ * The e2e tsconfig has no DOM lib: browser-side probes are string snippets.
+ *
+ * "In view" is judged against the element that scrolls the Body view - the nearest ancestor
+ * that scrolls and overflows, the view pane - clipped to the window: the `body-view` element
+ * itself is as tall as the text, so a box inside it says nothing about what is shown. Within a
+ * pixel: the pane scrolls by whole pixels and the text lies at fractional ones, so a match
+ * scrolled to the pane's edge may stand out by a fraction of a pixel.
+ */
 const MATCH_PROBE = `(() => {
   const parts = [...document.querySelectorAll('[data-testid="body-editor"] .mfbe-search-match')];
   if (parts.length === 0) return null;
@@ -60,13 +68,19 @@ const MATCH_PROBE = `(() => {
   const range = document.createRange();
   range.setStart(block, 0);
   range.setEndBefore(parts[0]);
-  const view = document.querySelector('[data-testid="body-view"]').getBoundingClientRect();
+  let scroller = parts[0].parentElement;
+  while (scroller && !(scroller.scrollHeight > scroller.clientHeight &&
+      /auto|scroll/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement;
+  const view = scroller ? scroller.getBoundingClientRect() : null;
   const box = parts[0].getBoundingClientRect();
   return {
     text: parts.map((p) => p.textContent).join(''),
     offset: range.toString().length,
-    inView: box.width > 0 && box.top >= view.top && box.bottom <= view.bottom &&
-      box.left >= view.left && box.right <= view.right,
+    inView: !!view && box.width > 0 && box.height > 0 &&
+      box.top >= Math.max(0, view.top) - 1 &&
+      box.bottom <= Math.min(window.innerHeight, view.bottom) + 1 &&
+      box.left >= Math.max(0, view.left) - 1 &&
+      box.right <= Math.min(window.innerWidth, view.right) + 1,
   };
 })()`;
 
