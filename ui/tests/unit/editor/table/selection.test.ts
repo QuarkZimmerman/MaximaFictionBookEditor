@@ -1,0 +1,539 @@
+/**
+ * The block of cells and the table plugin (feature 006, T036; FR-010; I7; C4; U10; data-model
+ * §5): `CellBlockSelection` - its rectangle, ranges, head, content, JSON, mapping and
+ * bookmark - and `tableEditingPlugin` - `createSelectionBetween`, Shift+click, Shift+Arrow,
+ * Enter with a block, the normalisation of §5.2, the decorations and the absence of paste
+ * props. US4's journeys drive the same in a real page.
+ */
+
+import type { Node as PMNode } from 'prosemirror-model';
+import { history, undo } from 'prosemirror-history';
+import {
+  EditorState,
+  NodeSelection,
+  Selection,
+  TextSelection,
+  type Plugin,
+} from 'prosemirror-state';
+import { EditorView } from 'prosemirror-view';
+
+import { createTableNodeViews } from '@/editor/nodeviews/table';
+import { fb2Schema, findNodeById } from '@/editor/schema';
+import { gridOfNode } from '@/editor/table/grid';
+import { tableEditingKey, tableEditingPlugin } from '@/editor/table/plugin';
+import { CellBlockSelection, cellBlockOrNull } from '@/editor/table/selection';
+import { createBodyEditorState } from '@/views/body/bodyEditor';
+
+const N = fb2Schema.nodes;
+
+interface CellSpec {
+  kind?: 'td' | 'th';
+  text?: string;
+  colspan?: number;
+  rowspan?: number;
+  id?: string;
+  style?: string;
+  lang?: string;
+}
+type RowSpec = CellSpec[] | { align?: string; cells: CellSpec[] };
+
+/** A table whose cells carry the node ids `<prefix>-<row>-<cell>` and the texts `r<row>c<cell>`. */
+function table(prefix: string, rows: RowSpec[]): PMNode {
+  return N.table!.create(
+    { nodeId: prefix },
+    rows.map((spec, r) => {
+      const cells = Array.isArray(spec) ? spec : spec.cells;
+      const align = Array.isArray(spec) ? null : (spec.align ?? null);
+      return N.tr!.create(
+        { nodeId: `${prefix}-r${r}`, align },
+        cells.map((cell, c) =>
+          N[cell.kind ?? 'td']!.create(
+            {
+              nodeId: `${prefix}-${r}-${c}`,
+              colspan: cell.colspan ?? null,
+              rowspan: cell.rowspan ?? null,
+              id: cell.id ?? null,
+              style: cell.style ?? null,
+              lang: cell.lang ?? null,
+            },
+            cell.text === '' ? undefined : fb2Schema.text(cell.text ?? `r${r}c${c}`),
+          ),
+        ),
+      );
+    }),
+  );
+}
+
+const grid4 = (): RowSpec[] => Array.from({ length: 4 }, () => [{}, {}, {}, {}]);
+
+function p(text: string, nodeId: string): PMNode {
+  return N.p!.create({ nodeId }, text ? fb2Schema.text(text) : undefined);
+}
+
+function docOf(...blocks: PMNode[]): PMNode {
+  return N.doc!.create(
+    null,
+    N.body!.create({ nodeId: 'b' }, N.section!.create({ nodeId: 's' }, blocks)),
+  );
+}
+
+function pos(doc: PMNode, nodeId: string): number {
+  const found = findNodeById(doc, nodeId);
+  if (!found) throw new Error(`no node ${nodeId}`);
+  return found.pos;
+}
+
+function stateOf(doc: PMNode, plugins: Plugin[] = [tableEditingPlugin()]): EditorState {
+  return EditorState.create({ doc, plugins });
+}
+
+function pluginOf(state: EditorState): Plugin {
+  return tableEditingKey.get(state)!;
+}
+
+const views: EditorView[] = [];
+afterEach(() => {
+  for (const view of views.splice(0)) {
+    view.dom.parentElement?.remove();
+    view.destroy();
+  }
+});
+
+function viewOf(state: EditorState): EditorView {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const view = new EditorView(host, { state, nodeViews: createTableNodeViews() });
+  views.push(view);
+  return view;
+}
+
+function select(state: EditorState, selection: Selection): EditorState {
+  return state.apply(state.tr.setSelection(selection));
+}
+
+const caret = (doc: PMNode, nodeId: string, offset = 0) =>
+  TextSelection.create(doc, pos(doc, nodeId) + 1 + offset);
+
+describe('CellBlockSelection', () => {
+  it('create on a 4 × 4 table from row 1, column 2 to row 3, column 3 gives a 3 × 2 rectangle (US4 sc.1)', () => {
+    const doc = docOf(p('before', 'p1'), table('t', grid4()), p('after', 'p2'));
+    const block = CellBlockSelection.create(doc, pos(doc, 't-0-1'), pos(doc, 't-2-2'));
+    expect(block.rect).toEqual({ top: 0, left: 1, bottom: 3, right: 3 });
+    expect(block.tablePos).toBe(pos(doc, 't'));
+    expect(block.cellPositions()).toEqual(
+      ['t-0-1', 't-0-2', 't-1-1', 't-1-2', 't-2-1', 't-2-2'].map((id) => pos(doc, id)),
+    );
+  });
+
+  it('grows over a merged cell its corners cut (US4 sc.2)', () => {
+    //   a  b  c  d / e  f  g(colspan 2, rowspan 2) / h(rowspan 2)  i / k  l  m
+    const doc = docOf(
+      table('t', [
+        [{}, {}, {}, {}],
+        [{}, {}, { colspan: 2, rowspan: 2 }],
+        [{ rowspan: 2 }, {}],
+        [{}, {}, {}],
+      ]),
+    );
+    const block = CellBlockSelection.create(doc, pos(doc, 't-0-1'), pos(doc, 't-2-0'));
+    // b (0, 1) to h (2, 0): h reaches row 3, which brings in k.
+    expect(block.rect).toEqual({ top: 0, left: 0, bottom: 4, right: 2 });
+    const whole = CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 't-1-2'));
+    expect(whole.rect).toEqual({ top: 0, left: 0, bottom: 4, right: 4 });
+  });
+
+  it('ranges cover exactly the cells of cellsIn(rect), the top-left cell first; $anchor and $head at the start of the head cell', () => {
+    const doc = docOf(table('t', grid4()));
+    const anchor = pos(doc, 't-2-2');
+    const head = pos(doc, 't-1-1');
+    const block = CellBlockSelection.create(doc, anchor, head);
+    const tableNode = doc.nodeAt(pos(doc, 't'))!;
+    const grid = gridOfNode(tableNode);
+    expect(block.ranges).toHaveLength(grid.cellsIn(block.rect).length);
+    expect(block.ranges.map((range) => [range.$from.pos, range.$to.pos])).toEqual(
+      ['t-1-1', 't-1-2', 't-2-1', 't-2-2'].map((id) => {
+        const at = pos(doc, id);
+        return [at + 1, at + 1 + doc.nodeAt(at)!.content.size];
+      }),
+    );
+    expect(block.$anchor.pos).toBe(head + 1);
+    expect(block.$head.pos).toBe(head + 1);
+    expect(block.$anchorCell.pos).toBe(anchor);
+    expect(block.$headCell.pos).toBe(head);
+    // from / to read the top-left cell (selectedText, the Find dialog's pre-fill).
+    expect(doc.textBetween(block.from, block.to)).toBe('r1c1');
+  });
+
+  it('is never empty, also on empty cells, and not visible', () => {
+    const doc = docOf(table('t', [[{ text: '' }, { text: '' }]]));
+    const block = CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 't-0-1'));
+    expect(block.empty).toBe(false);
+    expect(block.visible).toBe(false);
+  });
+
+  it('refuses one cell, cells of two tables, positions that are no cells', () => {
+    const doc = docOf(table('t', grid4()), p('x', 'p1'), table('u', grid4()));
+    expect(() => CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 't-0-0'))).toThrow(
+      RangeError,
+    );
+    expect(() => CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 'u-0-1'))).toThrow(
+      RangeError,
+    );
+    expect(() => CellBlockSelection.create(doc, pos(doc, 'p1'), pos(doc, 't-0-1'))).toThrow(
+      RangeError,
+    );
+    expect(cellBlockOrNull(doc, pos(doc, 't-0-0'), pos(doc, 'u-0-1'))).toBeNull();
+  });
+
+  it('content() is a closed table slice: the rows with their align, the cells as they are, holes and an empty tr', () => {
+    // [a, b, c rowspan 2] / [d]: the block from b to c reaches row 2, where no cell of the block
+    // starts (d is at column 0, column 1 is a hole).
+    const doc = docOf(
+      table('t', [
+        {
+          align: 'center',
+          cells: [{}, { id: 'bid', style: 'st', lang: 'de' }, { rowspan: 2, kind: 'th' }],
+        },
+        [{}],
+      ]),
+    );
+    const block = CellBlockSelection.create(doc, pos(doc, 't-0-1'), pos(doc, 't-0-2'));
+    expect(block.rect).toEqual({ top: 0, left: 1, bottom: 2, right: 3 });
+    const slice = block.content();
+    expect(slice.openStart).toBe(0);
+    expect(slice.openEnd).toBe(0);
+    expect(slice.content.childCount).toBe(1);
+    const copied = slice.content.firstChild!;
+    expect(copied.type.name).toBe('table');
+    expect(copied.attrs).toMatchObject({ nodeId: null, id: null, style: null });
+    expect(copied.childCount).toBe(2);
+    const first = copied.child(0);
+    expect(first.attrs.align).toBe('center');
+    expect(first.childCount).toBe(2);
+    expect(first.child(0)).toBe(doc.nodeAt(pos(doc, 't-0-1')));
+    expect(first.child(0).attrs).toMatchObject({
+      id: 'bid',
+      style: 'st',
+      lang: 'de',
+      nodeId: 't-0-1',
+    });
+    expect(first.child(1)).toBe(doc.nodeAt(pos(doc, 't-0-2')));
+    expect(copied.child(1).childCount).toBe(0);
+    expect(copied.child(1).attrs.align).toBeNull();
+    // The copy keeps the grid of the block: c over both rows, a hole below b.
+    expect(gridOfNode(copied).summary).toEqual({
+      rows: 2,
+      columns: 2,
+      shortRows: 1,
+      row: 2,
+      covered: 1,
+      overlaps: 0,
+      pastEnd: 0,
+    });
+  });
+
+  it('round-trips through JSON and Selection.fromJSON', () => {
+    const doc = docOf(table('t', grid4()));
+    const block = CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 't-1-1'));
+    const json = block.toJSON();
+    expect(json).toEqual({
+      type: 'mfbe-cell-block',
+      anchor: pos(doc, 't-0-0'),
+      head: pos(doc, 't-1-1'),
+    });
+    const restored = Selection.fromJSON(doc, JSON.parse(JSON.stringify(json)));
+    expect(restored).toBeInstanceOf(CellBlockSelection);
+    expect(restored.eq(block)).toBe(true);
+    expect(() => Selection.fromJSON(doc, { type: 'mfbe-cell-block', anchor: 'x' })).toThrow(
+      RangeError,
+    );
+  });
+
+  it('maps through a step elsewhere, and becomes a text selection when a cell of it goes away', () => {
+    const doc = docOf(p('before', 'p1'), table('t', grid4()));
+    const state = select(
+      stateOf(doc),
+      CellBlockSelection.create(doc, pos(doc, 't-1-1'), pos(doc, 't-2-2')),
+    );
+    const typed = state.apply(state.tr.insertText('xx', pos(doc, 'p1') + 1));
+    expect(typed.selection).toBeInstanceOf(CellBlockSelection);
+    const mapped = typed.selection as CellBlockSelection;
+    expect(mapped.$anchorCell.pos).toBe(pos(doc, 't-1-1') + 2);
+    expect(mapped.$headCell.pos).toBe(pos(doc, 't-2-2') + 2);
+    expect(mapped.rect).toEqual({ top: 1, left: 1, bottom: 3, right: 3 });
+    // Removing the anchor cell's row.
+    const rowPos = pos(doc, 't-r1');
+    const removed = state.apply(state.tr.delete(rowPos, rowPos + doc.nodeAt(rowPos)!.nodeSize));
+    expect(removed.selection).toBeInstanceOf(TextSelection);
+  });
+
+  it('eq: the same class and the same two cells', () => {
+    const doc = docOf(table('t', grid4()));
+    const a = CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 't-1-1'));
+    expect(a.eq(CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 't-1-1')))).toBe(true);
+    // The same rectangle from other corners is another selection.
+    expect(a.eq(CellBlockSelection.create(doc, pos(doc, 't-1-1'), pos(doc, 't-0-0')))).toBe(false);
+    expect(a.eq(caret(doc, 't-1-1'))).toBe(false);
+  });
+
+  it('an Undo through history() restores a block from its bookmark', () => {
+    const doc = docOf(p('before', 'p1'), table('t', grid4()));
+    let state = stateOf(doc, [history(), tableEditingPlugin()]);
+    const block = CellBlockSelection.create(doc, pos(doc, 't-0-1'), pos(doc, 't-2-3'));
+    state = select(state, block);
+    state = state.apply(state.tr.insertText('X', pos(doc, 'p1') + 1));
+    state = select(state, caret(state.doc, 'p1', 3));
+    let undone: EditorState | null = null;
+    expect(
+      undo(state, (tr) => {
+        undone = state.apply(tr);
+      }),
+    ).toBe(true);
+    const restored = undone!.selection;
+    expect(restored).toBeInstanceOf(CellBlockSelection);
+    expect(restored.eq(block)).toBe(true);
+  });
+});
+
+describe('tableEditingPlugin', () => {
+  it('createSelectionBetween: a block for two cells of one table, nothing for one cell or two tables', () => {
+    const doc = docOf(table('t', grid4()), p('x', 'p1'), table('u', grid4()));
+    const view = viewOf(stateOf(doc));
+    const plugin = pluginOf(view.state);
+    const between = (a: number, h: number) =>
+      plugin.props.createSelectionBetween!.call(plugin, view, doc.resolve(a), doc.resolve(h));
+    const block = between(pos(doc, 't-0-0') + 2, pos(doc, 't-1-2') + 1);
+    expect(block).toBeInstanceOf(CellBlockSelection);
+    expect((block as CellBlockSelection).rect).toEqual({ top: 0, left: 0, bottom: 2, right: 3 });
+    expect(between(pos(doc, 't-0-0') + 1, pos(doc, 't-0-0') + 3)).toBeNull();
+    expect(between(pos(doc, 't-0-0') + 1, pos(doc, 'u-0-0') + 1)).toBeNull();
+    expect(between(pos(doc, 't-0-0') + 1, pos(doc, 'p1') + 1)).toBeNull();
+  });
+
+  it('Shift+click on another cell of the table makes the block from the caret cell, or from the block anchor', () => {
+    const doc = docOf(table('t', grid4()));
+    const view = viewOf(select(stateOf(doc), caret(doc, 't-0-0', 1)));
+    const plugin = pluginOf(view.state);
+    let clicked = pos(doc, 't-2-1') + 1;
+    view.posAtCoords = () => ({ pos: clicked, inside: -1 });
+    const mousedown = plugin.props.handleDOMEvents!.mousedown!;
+    const click = (init: MouseEventInit) =>
+      mousedown.call(plugin, view, new MouseEvent('mousedown', { button: 0, ...init }));
+    expect(click({ shiftKey: true })).toBe(true);
+    let selection = view.state.selection as CellBlockSelection;
+    expect(selection).toBeInstanceOf(CellBlockSelection);
+    expect(selection.$anchorCell.pos).toBe(pos(doc, 't-0-0'));
+    expect(selection.$headCell.pos).toBe(pos(doc, 't-2-1'));
+    // With a block, from its anchor cell.
+    clicked = pos(doc, 't-1-3') + 1;
+    expect(click({ shiftKey: true })).toBe(true);
+    selection = view.state.selection as CellBlockSelection;
+    expect(selection.$anchorCell.pos).toBe(pos(doc, 't-0-0'));
+    expect(selection.rect).toEqual({ top: 0, left: 0, bottom: 2, right: 4 });
+    // Ctrl+click and Cmd+click are left alone for links.
+    expect(click({ shiftKey: true, ctrlKey: true })).toBe(false);
+    expect(click({ shiftKey: true, metaKey: true })).toBe(false);
+  });
+
+  it('Shift+Arrow at the edge of the cell makes a block towards the next cell (US4 sc.3)', () => {
+    const doc = docOf(table('t', grid4()));
+    const view = viewOf(select(stateOf(doc), caret(doc, 't-1-1', 4)));
+    const plugin = pluginOf(view.state);
+    const key = (init: KeyboardEventInit) =>
+      plugin.props.handleKeyDown!.call(plugin, view, new KeyboardEvent('keydown', init));
+    view.endOfTextblock = () => false;
+    expect(key({ key: 'ArrowDown', shiftKey: true })).toBe(false);
+    view.endOfTextblock = () => true;
+    expect(key({ key: 'ArrowDown', shiftKey: true })).toBe(true);
+    const block = view.state.selection as CellBlockSelection;
+    expect(block.$anchorCell.pos).toBe(pos(doc, 't-1-1'));
+    expect(block.$headCell.pos).toBe(pos(doc, 't-2-1'));
+    // The head moves on, one grid step at a time.
+    expect(key({ key: 'ArrowRight', shiftKey: true })).toBe(true);
+    expect((view.state.selection as CellBlockSelection).rect).toEqual({
+      top: 1,
+      left: 1,
+      bottom: 3,
+      right: 3,
+    });
+  });
+
+  it('head steps skip holes', () => {
+    // [a, b, c] / [d] / [e, f, g]: below b, row 2 has a hole.
+    const doc = docOf(table('t', [[{}, {}, {}], [{}], [{}, {}, {}]]));
+    const view = viewOf(select(stateOf(doc), caret(doc, 't-0-1')));
+    const plugin = pluginOf(view.state);
+    view.endOfTextblock = () => true;
+    expect(
+      plugin.props.handleKeyDown!.call(
+        plugin,
+        view,
+        new KeyboardEvent('keydown', { key: 'ArrowDown', shiftKey: true }),
+      ),
+    ).toBe(true);
+    const block = view.state.selection as CellBlockSelection;
+    expect(block.$headCell.pos).toBe(pos(doc, 't-2-1'));
+    expect(block.rect).toEqual({ top: 0, left: 1, bottom: 3, right: 2 });
+    expect(block.cellPositions()).toEqual([pos(doc, 't-0-1'), pos(doc, 't-2-1')]);
+  });
+
+  it('the head back on the anchor cell gives a caret there; at the table edge the key is not handled', () => {
+    const doc = docOf(table('t', grid4()));
+    const block = CellBlockSelection.create(doc, pos(doc, 't-2-1'), pos(doc, 't-3-1'));
+    const view = viewOf(select(stateOf(doc), block));
+    const plugin = pluginOf(view.state);
+    const key = (init: KeyboardEventInit) =>
+      plugin.props.handleKeyDown!.call(plugin, view, new KeyboardEvent('keydown', init));
+    // The table's last row: nothing below.
+    expect(key({ key: 'ArrowDown', shiftKey: true })).toBe(false);
+    expect(view.state.selection.eq(block)).toBe(true);
+    expect(key({ key: 'ArrowUp', shiftKey: true })).toBe(true);
+    const selection = view.state.selection;
+    expect(selection).toBeInstanceOf(TextSelection);
+    expect(selection.empty).toBe(true);
+    // At the end of the anchor cell, the side the head came from.
+    expect(selection.head).toBe(pos(doc, 't-2-1') + 1 + 4);
+  });
+
+  it('plain ArrowUp and ArrowDown are not handled', () => {
+    const doc = docOf(table('t', grid4()));
+    const block = CellBlockSelection.create(doc, pos(doc, 't-1-1'), pos(doc, 't-2-1'));
+    const view = viewOf(select(stateOf(doc), block));
+    const plugin = pluginOf(view.state);
+    view.endOfTextblock = () => true;
+    for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+      expect(
+        plugin.props.handleKeyDown!.call(plugin, view, new KeyboardEvent('keydown', { key })),
+      ).toBe(false);
+    }
+  });
+
+  it('Enter with a block leaves the document unchanged (the keymap finds the top-left cell)', () => {
+    const doc = docOf(p('before', 'p1'), table('t', grid4()));
+    const state = createBodyEditorState(doc, { getNbspChar: () => '\u00b0' });
+    const block = CellBlockSelection.create(doc, pos(doc, 't-0-0'), pos(doc, 't-1-1'));
+    const view = viewOf(select(state, block));
+    const before = view.state.doc;
+    const handled = view.someProp('handleKeyDown', (f) =>
+      f(view, new KeyboardEvent('keydown', { key: 'Enter' })),
+    );
+    expect(handled).toBe(true);
+    expect(view.state.doc).toBe(before);
+  });
+
+  it('the Body editor state installs the plugin right after history()', () => {
+    const state = createBodyEditorState(docOf(p('x', 'p1')), { getNbspChar: () => '\u00b0' });
+    expect(state.plugins[1]).toBe(tableEditingKey.get(state));
+  });
+
+  describe('normalisation (U10; data-model §5.2)', () => {
+    function normalised(state: EditorState, selection: Selection) {
+      const { state: next, transactions } = state.applyTransaction(
+        state.tr.setSelection(selection),
+      );
+      expect(next.doc).toBe(state.doc);
+      for (const tr of transactions.slice(1)) expect(tr.steps).toHaveLength(0);
+      return { selection: next.selection, appended: transactions.length - 1 };
+    }
+
+    it('a text selection across two cells of one table becomes their block', () => {
+      const doc = docOf(table('t', grid4()));
+      const { selection, appended } = normalised(
+        stateOf(doc),
+        TextSelection.create(doc, pos(doc, 't-0-0') + 2, pos(doc, 't-2-1') + 3),
+      );
+      expect(appended).toBe(1);
+      expect(selection).toBeInstanceOf(CellBlockSelection);
+      expect((selection as CellBlockSelection).$anchorCell.pos).toBe(pos(doc, 't-0-0'));
+      expect((selection as CellBlockSelection).$headCell.pos).toBe(pos(doc, 't-2-1'));
+    });
+
+    it('a selected td or th becomes a text selection over its content', () => {
+      const doc = docOf(
+        table('t', [
+          [{ kind: 'th' }, {}],
+          [{}, {}],
+        ]),
+      );
+      for (const id of ['t-0-0', 't-0-1']) {
+        const at = pos(doc, id);
+        const { selection } = normalised(stateOf(doc), NodeSelection.create(doc, at));
+        expect(selection).toBeInstanceOf(TextSelection);
+        expect([selection.from, selection.to]).toEqual([at + 1, at + 5]);
+      }
+    });
+
+    it('a selected tr becomes the block over its cells, or its one cell content', () => {
+      const doc = docOf(table('t', [[{}, {}, {}], [{ colspan: 3 }]]));
+      const row = normalised(stateOf(doc), NodeSelection.create(doc, pos(doc, 't-r0'))).selection;
+      expect(row).toBeInstanceOf(CellBlockSelection);
+      expect((row as CellBlockSelection).$anchorCell.pos).toBe(pos(doc, 't-0-0'));
+      expect((row as CellBlockSelection).$headCell.pos).toBe(pos(doc, 't-0-2'));
+      expect((row as CellBlockSelection).rect).toEqual({ top: 0, left: 0, bottom: 1, right: 3 });
+      const single = normalised(
+        stateOf(doc),
+        NodeSelection.create(doc, pos(doc, 't-r1')),
+      ).selection;
+      expect(single).toBeInstanceOf(TextSelection);
+      expect([single.from, single.to]).toEqual([pos(doc, 't-1-0') + 1, pos(doc, 't-1-0') + 5]);
+    });
+
+    it('a selected row without cells gives the nearest text selection', () => {
+      const empty = N.tr!.create({ nodeId: 'empty' }, []);
+      const base = table('t', [[{}, {}]]);
+      const tableNode = N.table!.create(base.attrs, [base.child(0), empty]);
+      const doc = docOf(p('x', 'p1'), tableNode, p('y', 'p2'));
+      const { selection } = normalised(stateOf(doc), NodeSelection.create(doc, pos(doc, 'empty')));
+      expect(selection).toBeInstanceOf(TextSelection);
+    });
+
+    it('on a too-large table: a row gives a caret in its first cell, two cells stay a text selection', () => {
+      const wide: CellSpec[] = Array.from({ length: 4195 }, () => ({ colspan: 1000, text: 'w' }));
+      const doc = docOf(table('t', [wide]));
+      expect(gridOfNode(doc.nodeAt(pos(doc, 't'))!).tooLarge).toBe(true);
+      const row = normalised(stateOf(doc), NodeSelection.create(doc, pos(doc, 't-r0'))).selection;
+      expect(row).toBeInstanceOf(TextSelection);
+      expect(row.empty).toBe(true);
+      expect(row.head).toBe(pos(doc, 't-0-0') + 1);
+      const text = TextSelection.create(doc, pos(doc, 't-0-0') + 1, pos(doc, 't-0-3') + 1);
+      const kept = normalised(stateOf(doc), text);
+      expect(kept.appended).toBe(0);
+      expect(kept.selection).toBeInstanceOf(TextSelection);
+    });
+
+    it('a selection from a cell into a paragraph stays a text selection', () => {
+      const doc = docOf(table('t', grid4()), p('after', 'p1'));
+      const { selection, appended } = normalised(
+        stateOf(doc),
+        TextSelection.create(doc, pos(doc, 't-3-3') + 2, pos(doc, 'p1') + 3),
+      );
+      expect(appended).toBe(0);
+      expect(selection).toBeInstanceOf(TextSelection);
+    });
+  });
+
+  it('decorates exactly the cells of the block', () => {
+    const doc = docOf(table('t', grid4()));
+    const view = viewOf(stateOf(doc));
+    expect(view.dom.querySelectorAll('.mfbe-cell-selected')).toHaveLength(0);
+    view.dispatch(
+      view.state.tr.setSelection(
+        CellBlockSelection.create(doc, pos(doc, 't-1-2'), pos(doc, 't-2-1')),
+      ),
+    );
+    const marked = [...view.dom.querySelectorAll('.mfbe-cell-selected')].map((cell) =>
+      cell.getAttribute('data-node-id'),
+    );
+    expect(marked).toEqual(['t-1-1', 't-1-2', 't-2-1', 't-2-2']);
+    view.dispatch(view.state.tr.setSelection(caret(view.state.doc, 't-0-0')));
+    expect(view.dom.querySelectorAll('.mfbe-cell-selected')).toHaveLength(0);
+  });
+
+  it('has no paste props: the clipboard plugin routes every paste (C4)', () => {
+    const plugin = tableEditingPlugin();
+    expect(plugin.props.handlePaste).toBeUndefined();
+    expect(plugin.props.transformPasted).toBeUndefined();
+    expect(plugin.props.clipboardTextParser).toBeUndefined();
+    expect(plugin.props.handleDOMEvents?.paste).toBeUndefined();
+  });
+});

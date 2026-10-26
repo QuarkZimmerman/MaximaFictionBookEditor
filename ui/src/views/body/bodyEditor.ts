@@ -50,6 +50,7 @@ import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/ed
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { overtypePlugin } from '@/editor/plugins/overtype';
 import { searchMatchPlugin, withSearchMatch } from '@/editor/plugins/searchMatch';
+import { tableEditingPlugin } from '@/editor/table/plugin';
 import {
   computeSelectionContext,
   EMPTY_SELECTION_CONTEXT,
@@ -241,6 +242,10 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
     doc,
     plugins: [
       history(),
+      // The block of cells (feature 006, data-model §5.4): before the keymaps, so its
+      // Shift+Arrow handling comes first; it has no paste props - `clipboardPlugin` keeps
+      // claiming every paste (C4).
+      tableEditingPlugin(),
       bodyKeymap({ toggleOvertype: options.toggleOvertype }),
       baseEditorKeymap(),
       overtypePlugin(options.isOvertype ?? (() => false)),
