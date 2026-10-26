@@ -1,13 +1,16 @@
 /**
  * The table plans of `ops.ts` (feature 006; data-model §4.4 to §4.6), one `describe` block per
- * user story in story order. US4 (T091; FR-011, FR-013's joining rule, FR-016's split as the
- * paste uses it; C17, C47; data-model §4.4, §4.6 "Clear block"): `planClearBlock`,
- * `joinInlineParts` and `splitToSingleCells`; the paste-block plan has its own file,
- * `pasteBlock.test.ts`. US1 (T052; FR-003, FR-005; C15, C33; I8): `createTable` - the
- * dialog's table, rectangular and without attributes, its node ids from the host - and
- * `planTabRow`, the row Tab appends in the last cell. US2 (T071; FR-006 to FR-009, FR-030,
- * FR-035, FR-037, FR-038, FR-046, FR-047; C12 to C15, C67; decision 1; data-model §4.4, §4.5):
- * the twelve row and column plans on regular, merged and irregular tables.
+ * user story in story order. US5 (T102; FR-013 to FR-016, FR-030, FR-035, FR-046, FR-047; C12,
+ * C14, C17, C19, C67; decision 1; U8; data-model §4.5 `table.mergeCells` and `table.splitCell`,
+ * open point 4): `planMerge` and `planSplit` on regular, merged and irregular tables. US4 (T091;
+ * FR-011, FR-013's joining rule, FR-016's split as the paste uses it; C17, C47; data-model §4.4,
+ * §4.6 "Clear block"): `planClearBlock`, `joinInlineParts` and `splitToSingleCells`; the
+ * paste-block plan has its own file, `pasteBlock.test.ts`. US1 (T052; FR-003, FR-005; C15,
+ * C33; I8): `createTable` - the dialog's table, rectangular and without attributes, its node
+ * ids from the host - and `planTabRow`, the row Tab appends in the last cell. US2 (T071; FR-006
+ * to FR-009, FR-030, FR-035, FR-037, FR-038, FR-046, FR-047; C12 to C15, C67; decision 1;
+ * data-model §4.4, §4.5): the twelve row and column plans on regular, merged and irregular
+ * tables.
  */
 
 /// <reference types="node" />
@@ -46,8 +49,10 @@ import {
   planDuplicateRows,
   planInsertColumns,
   planInsertRows,
+  planMerge,
   planMoveColumns,
   planMoveRows,
+  planSplit,
   planTabRow,
   splitToSingleCells,
 } from '@/editor/table/ops';
@@ -1492,5 +1497,429 @@ describe('US4 blocks', () => {
         show(split([['a', { text: 'X', rowspan: 2 }], [{ text: 'Y', colspan: 2 }]], 'Y')),
       ).toBe('[a, X rowspan=2] / [Y]');
     });
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US5: merge and split (T102)                                              */
+/* ------------------------------------------------------------------------ */
+
+describe('US5 merge and split', () => {
+  const ctx = () => ({ nextId: idGenerator('u') });
+
+  /** `where` with the assistant's rectangle as its address: no block, no caret (C67). */
+  function withRect(where: Placed, rect: TableAddress['rect']): Placed {
+    return { ...where, address: { table: where.table, grid: where.address.grid, rect } };
+  }
+
+  /** The selection a commit of `edit` leaves on `where`'s state. */
+  function committed(where: Placed, edit: TableEdit) {
+    const tr = commitTableEdit(where.state.tr, tableTarget(where.state)!.tablePos, edit)!;
+    expect(tr).not.toBeNull();
+    return tr.selection;
+  }
+
+  /** One row of 4195 cells of colspan 1000: above MAX_GRID_POSITIONS. */
+  function big(): Placed {
+    const cells = Array.from({ length: 4195 }, (_, index) => ({
+      text: `w${index}`,
+      colspan: 1000,
+    }));
+    return placed([cells], 'w1');
+  }
+
+  /** Inline content of every kind a cell holds (U8; FR-030, FR-067, FR-069). */
+  const NOTE = {
+    type: 'text',
+    text: 'n',
+    marks: [{ type: 'link', attrs: { href: '#n1', type: 'note' } }],
+  };
+  const NESTED = {
+    type: 'text',
+    text: 's',
+    marks: [
+      { type: 'style', attrs: { name: 'outer' } },
+      { type: 'style', attrs: { name: 'inner' } },
+    ],
+  };
+  const BOLD = { type: 'text', text: 'b', marks: [{ type: 'strong' }] };
+  const IMAGE = { type: 'inline-image', attrs: { nodeId: 'img', href: '#pic' } };
+  const RAW = { type: 'raw-xml', attrs: { nodeId: 'rx', xml: '<!--kept-->', inline: true } };
+  const LINKED = { type: 'text', text: 'a', marks: [{ type: 'link', attrs: { href: '#t' } }] };
+
+  describe('Merge cells (data-model §4.5 `table.mergeCells`)', () => {
+    /** US5 sc.1's table of `tables.fb2` (T014), `r2c2` with an id. */
+    const SC1: MRow[] = [
+      [
+        {
+          type: 'th',
+          text: 'r1c1',
+          id: 'us5-r1c1',
+          style: 'hd',
+          lang: 'de',
+          align: 'right',
+          valign: 'top',
+          unknownAttrs: { class: 'k' },
+        },
+        { text: '' },
+        'r1c3',
+        'r1c4',
+      ],
+      ['r2c1', { text: 'r2c2', id: 'us5-r2c2' }, 'r2c3', 'r2c4'],
+      ['r3c1', 'r3c2', 'r3c3', 'r3c4'],
+    ];
+
+    it('sc.1: the top-left cell covers the 2 × 3 block and keeps its kind, node id and attributes; the texts follow in reading order; row 2 keeps r2c4', () => {
+      const where = placed(SC1, ['r1c1', 'r2c3']);
+      const before = where.table;
+      const { edit, after } = acted(where, planMerge);
+      expect(show(after)).toBe(
+        `[<th>r1c1 r1c3 r2c1 r2c2 r2c3 colspan=3 rowspan=2 align=right valign=top lang=de id=us5-r1c1 style=hd extra=${JSON.stringify({ unknownAttrs: { class: 'k' } })}, r1c4] / ` +
+          '[r2c4] / [r3c1, r3c2, r3c3, r3c4]',
+      );
+      const keeper = after.child(0).child(0);
+      const source = before.child(0).child(0);
+      expect(keeper.type.name).toBe('th');
+      expect(keeper.attrs.nodeId).toBe(source.attrs.nodeId);
+      expect(keeper.attrs.extraAttrs).toEqual(source.attrs.extraAttrs);
+      // The removed cells' ids; untouched rows and cells are the same objects.
+      expect(edit.removedIds).toEqual(['us5-r2c2']);
+      expect(after.child(2)).toBe(before.child(2));
+      expect(after.child(0).child(1)).toBe(before.child(0).child(3));
+      expect(after.child(1).child(0)).toBe(before.child(1).child(3));
+      expect(gridOfNode(after).summary).toMatchObject({
+        rows: 3,
+        columns: 4,
+        shortRows: 0,
+        overlaps: 0,
+        pastEnd: 0,
+      });
+      // The focus: a caret at the start of the merged cell.
+      expect(edit.focus).toEqual(caretAt(0, 0));
+      const selection = committed(where, edit);
+      expect(selection.empty).toBe(true);
+      expect(selection.$head.parent.attrs.nodeId).toBe(source.attrs.nodeId);
+      expect(selection.$head.parentOffset).toBe(0);
+    });
+
+    it('over the full width of a 3 × 3 table: one row whose cell spans 3 columns, rowspan null (decision 1; FR-014)', () => {
+      const where = placed(PLAIN, ['r1c1', 'r2c3']);
+      const { edit, after } = acted(where, planMerge);
+      expect(show(after)).toBe('[r1c1 r1c2 r1c3 r2c1 r2c2 r2c3 colspan=3] / [r3c1, r3c2, r3c3]');
+      expect(after.child(0).child(0).attrs.colspan).toBe(3);
+      expect(after.child(0).child(0).attrs.rowspan).toBeNull();
+      expect(after.child(1)).toBe(where.table.child(2));
+      expect(gridOfNode(after).regular).toBe(true);
+      expect(edit.focus).toEqual(caretAt(0, 0));
+    });
+
+    it('a block that holds a merged cell merges over the whole block', () => {
+      const rows: MRow[] = [[{ text: 'a', colspan: 2, rowspan: 2 }, 'b'], ['c'], ['d', 'e', 'f']];
+      expect(show(acted(placed(rows, ['a', 'e']), planMerge).after)).toBe(
+        '[a d e colspan=2 rowspan=3, b] / [c] / [f]',
+      );
+      // From b to d: the whole table; its emptied rows go and the span shrinks with them.
+      expect(show(acted(placed(rows, ['b', 'd']), planMerge).after)).toBe(
+        '[a b c d e f colspan=3]',
+      );
+    });
+
+    it('C17: an empty keeper gives no leading space; white space at a part’s ends stays; only parts with content are separated', () => {
+      const empty = acted(
+        placed(
+          [
+            [{ text: '' }, 'b'],
+            ['c', 'd'],
+          ],
+          ['b', 'c'],
+        ),
+        planMerge,
+      ).after;
+      expect(empty.child(0).child(0).textContent).toBe('b c d');
+      const spaced = acted(
+        placed(
+          [
+            [' a ', 'b '],
+            [{ text: '' }, ' c'],
+          ],
+          [' a ', ' c'],
+        ),
+        planMerge,
+      ).after;
+      expect(spaced.child(0).child(0).textContent).toBe(' a  b   c');
+      expect(spaced.child(0).child(0).childCount).toBe(1);
+    });
+
+    it('U8: inline images, links, note links, nested named styles and inline raw XML move unchanged and in reading order, one space node between the parts', () => {
+      const node = nodeFromModel(
+        modelTable([
+          [{ content: [BOLD, NOTE] }, { content: [NESTED] }],
+          [{ content: [IMAGE] }, { content: [RAW, LINKED] }],
+        ]),
+      )!;
+      const cells = [
+        node.child(0).child(0),
+        node.child(0).child(1),
+        node.child(1).child(0),
+        node.child(1).child(1),
+      ];
+      const { after } = acted(placed(node, ['bn', 'a']), planMerge);
+      const keeper = after.child(0).child(0);
+      const space = fb2Schema.text(' ');
+      const expected = Fragment.from([
+        ...childrenOf(cells[0]!),
+        space,
+        ...childrenOf(cells[1]!),
+        space,
+        ...childrenOf(cells[2]!),
+        space,
+        ...childrenOf(cells[3]!),
+      ]);
+      expect(keeper.content.eq(expected)).toBe(true);
+      // The atoms are the same nodes, node ids included; the nested styles keep their order.
+      expect(childrenOf(keeper)).toContain(cells[2]!.child(0));
+      expect(childrenOf(keeper)).toContain(cells[3]!.child(0));
+      const styled = childrenOf(keeper).find((child) => child.text === 's')!;
+      expect(styled.marks.map((mark) => mark.attrs.name)).toEqual(['outer', 'inner']);
+      expect(show(after)).toBe('[bn s  a colspan=2]');
+    });
+
+    it('C19: a keeper read from colspan="abc" gets colspan 2 and no unknownAttrs.colspan', () => {
+      const where = placed(
+        [
+          [{ text: 'a', unknownAttrs: { colspan: 'abc' } }, 'b'],
+          ['c', 'd'],
+        ],
+        ['a', 'b'],
+      );
+      const keeper = acted(where, planMerge).after.child(0).child(0);
+      expect(keeper.attrs.colspan).toBe(2);
+      expect(keeper.attrs.rowspan).toBeNull();
+      expect(keeper.attrs.extraAttrs).toBeNull();
+    });
+
+    it('irregular tables (FR-035): a hole inside the rectangle is covered; a hole at its top-left gives the keeper to the first cell in reading order, which moves into the top row after the hole fill', () => {
+      // [a, b, c] / [d, e]: the block from c to e holds the hole (1, 2).
+      const overHole = acted(
+        placed(
+          [
+            ['a', 'b', 'c'],
+            ['d', 'e'],
+          ],
+          ['c', 'e'],
+        ),
+        planMerge,
+      );
+      expect(show(overHole.after)).toBe('[a, b c e colspan=2 rowspan=2] / [d]');
+      expect(gridOfNode(overHole.after).owner(1, 2)).toBe(1);
+      // The assistant's rectangle over column 3, whose top position is a hole.
+      const where = placed([['a'], ['b', 'c', 'x'], ['d', 'e', 'y']], 'a');
+      const moved = acted(withRect(where, { top: 0, left: 2, bottom: 3, right: 3 }), planMerge);
+      expect(show(moved.after)).toBe('[a, <td>, x y rowspan=3] / [b, c] / [d, e]');
+      expect(moved.after.child(0).child(2).attrs.nodeId).toBe(
+        where.table.child(1).child(2).attrs.nodeId,
+      );
+      expect(moved.after.child(0).child(1).attrs.nodeId).toMatch(/^t\d+$/);
+      expect(moved.edit.focus).toEqual(caretAt(0, 2));
+      expect(gridOfNode(moved.after).regular).toBe(true);
+    });
+
+    it('C67: the assistant’s rectangle is extended first', () => {
+      const where = placed(
+        [
+          [{ text: 'a', colspan: 2 }, 'b'],
+          ['c', 'd', 'e'],
+        ],
+        'b',
+      );
+      const { after } = acted(withRect(where, { top: 0, left: 1, bottom: 2, right: 2 }), planMerge);
+      expect(show(after)).toBe('[a c d colspan=2 rowspan=2, b] / [e]');
+    });
+
+    it('needs-block for a caret and for a rectangle of one cell; too-large before anything else', () => {
+      expect(planMerge(placed(PLAIN, 'r2c2').address, ctx())).toEqual({ refused: 'needs-block' });
+      const one = withRect(placed(PLAIN, 'r2c2'), { top: 1, left: 1, bottom: 2, right: 2 });
+      expect(planMerge(one.address, ctx())).toEqual({ refused: 'needs-block' });
+      const large = big();
+      expect(large.address.grid.tooLarge).toBe(true);
+      expect(planMerge(large.address, ctx())).toEqual({ refused: 'too-large' });
+      expect(
+        planMerge(withRect(large, { top: 0, left: 0, bottom: 1, right: 2000 }).address, ctx()),
+      ).toEqual({ refused: 'too-large' });
+    });
+  });
+
+  describe('Split cell (data-model §4.5 `table.splitCell`)', () => {
+    /** US5 sc.5's table of `tables.fb2` (T014). */
+    const SC5: MRow[] = [
+      [
+        {
+          type: 'th',
+          text: 'm',
+          colspan: 3,
+          rowspan: 2,
+          id: 'us5-m',
+          style: 'hd',
+          lang: 'fr',
+          align: 'center',
+          valign: 'bottom',
+          unknownAttrs: { class: 'k' },
+        },
+        'd',
+      ],
+      ['e'],
+    ];
+
+    it('sc.5: six single cells - m keeps its content, node id and every attribute but the spans; five new empty th like it with fresh node ids; the caret keeps its offset', () => {
+      const where = placed(SC5, 'm', { offset: 1 });
+      const source = where.table.child(0).child(0);
+      const { edit, after } = acted(where, planSplit);
+      const piece = '<th> align=center valign=bottom lang=fr';
+      expect(show(after)).toBe(
+        `[<th>m align=center valign=bottom lang=fr id=us5-m style=hd extra=${JSON.stringify({ unknownAttrs: { class: 'k' } })}, ${piece}, ${piece}, d] / ` +
+          `[${piece}, ${piece}, ${piece}, e]`,
+      );
+      const kept = after.child(0).child(0);
+      expect(kept.content).toBe(source.content);
+      expect(kept.attrs.nodeId).toBe(source.attrs.nodeId);
+      expect(kept.attrs.colspan).toBeNull();
+      expect(kept.attrs.rowspan).toBeNull();
+      const pieces = [
+        after.child(0).child(1),
+        after.child(0).child(2),
+        after.child(1).child(0),
+        after.child(1).child(1),
+        after.child(1).child(2),
+      ];
+      for (const one of pieces) {
+        expect(one.type.name).toBe('th');
+        expect(one.content.size).toBe(0);
+        expect(one.attrs.id).toBeNull();
+        expect(one.attrs.style).toBeNull();
+        expect(one.attrs.extraAttrs).toBeNull();
+        expect(one.attrs.nodeId).toMatch(/^t\d+$/);
+      }
+      expect(new Set(pieces.map((one) => one.attrs.nodeId)).size).toBe(5);
+      // d and e are the same nodes, in column 4.
+      expect(after.child(0).child(3)).toBe(where.table.child(0).child(1));
+      expect(after.child(1).child(3)).toBe(where.table.child(1).child(0));
+      expect(edit.removedIds).toEqual([]);
+      expect(gridOfNode(after).summary).toMatchObject({
+        rows: 2,
+        columns: 4,
+        shortRows: 0,
+        overlaps: 0,
+        pastEnd: 0,
+      });
+      expect(edit.focus).toEqual(caretAt(0, 0));
+      const selection = committed(where, edit);
+      expect(selection.$head.parent.attrs.nodeId).toBe(source.attrs.nodeId);
+      expect(selection.$head.parentOffset).toBe(1);
+    });
+
+    it('a rowspan past the last row goes with the spans; positions an earlier cell owns get nothing; a split beside a hole fills it first', () => {
+      expect(
+        show(
+          acted(placed([[{ text: 'p', colspan: 2, rowspan: 5 }, 'b'], ['c']], 'p'), planSplit)
+            .after,
+        ),
+      ).toBe('[p, <td>, b] / [<td>, <td>, c]');
+      // [a, b, X rowspan 2] / [Y colspan 3]: Y runs into X's position (1, 2), which stays X's.
+      expect(
+        show(
+          acted(
+            placed([['a', 'b', { text: 'X', rowspan: 2 }], [{ text: 'Y', colspan: 3 }]], 'Y'),
+            planSplit,
+          ).after,
+        ),
+      ).toBe('[a, b, X rowspan=2] / [Y, <td>]');
+      expect(
+        show(acted(placed([['a', 'b', { text: 'C', rowspan: 2 }], ['d']], 'C'), planSplit).after),
+      ).toBe('[a, b, C] / [d, <td>, <td>]');
+    });
+
+    it('U8: the kept content is the same fragment, rich inline content included', () => {
+      const node = nodeFromModel(
+        modelTable([[{ content: [NOTE, NESTED, IMAGE, RAW], colspan: 2 }], ['x', 'y']]),
+      )!;
+      const where = placed(node, 'ns');
+      const { after } = acted(where, planSplit);
+      expect(after.child(0).child(0).content).toBe(node.child(0).child(0).content);
+      expect(show(after)).toBe('[ns, <td>] / [x, y]');
+      expect(after.child(1)).toBe(node.child(1));
+    });
+
+    it('spans 0, −1 and "abc" count as 1: not-merged for the cell (FR-047); a block: not-merged for the block (open point 4); too-large first', () => {
+      for (const odd of [{ colspan: 0 }, { rowspan: -1 }, { unknownAttrs: { colspan: 'abc' } }]) {
+        const where = placed(
+          [
+            [{ text: 'a', ...odd }, 'b'],
+            ['c', 'd'],
+          ],
+          'a',
+        );
+        expect(planSplit(where.address, ctx()), JSON.stringify(odd)).toEqual({
+          refused: 'not-merged',
+          params: { selection: 'cell' },
+        });
+      }
+      expect(planSplit(placed(PLAIN, 'r2c2').address, ctx())).toEqual({
+        refused: 'not-merged',
+        params: { selection: 'cell' },
+      });
+      expect(planSplit(placed(SC5, ['m', 'e']).address, ctx())).toEqual({
+        refused: 'not-merged',
+        params: { selection: 'block' },
+      });
+      expect(planSplit(big().address, ctx())).toEqual({ refused: 'too-large' });
+    });
+  });
+
+  it('every irregular case of grid-vectors.json: a caret in every cell and a block, without throwing, a valid edit or a refusal', () => {
+    const vectors = JSON.parse(readFileSync(path.join(VECTORS, 'grid-vectors.json'), 'utf8')) as {
+      cases: VectorCase[];
+    };
+    const irregular = vectors.cases.filter((one) => !one.expect.regular);
+    expect(irregular.length).toBeGreaterThan(10);
+    let edits = 0;
+    for (const one of irregular) {
+      const node = vectorTable(one.table);
+      const doc = docOf(p('before', 'p1'), node, p('after', 'p2'));
+      const tablePos = 1 + 1 + doc.child(0).child(0).child(0).nodeSize;
+      const cellPositions: number[] = [];
+      doc.nodeAt(tablePos)!.descendants((child, at) => {
+        if (child.type.name === 'td' || child.type.name === 'th')
+          cellPositions.push(tablePos + 1 + at);
+        return child.type.name === 'table' || child.type.name === 'tr';
+      });
+      const selections = [
+        ...cellPositions.map((at) => TextSelection.create(doc, at + 1)),
+        ...(cellPositions.length > 1
+          ? [CellBlockSelection.create(doc, cellPositions[0]!, cellPositions.at(-1)!)]
+          : []),
+      ];
+      for (const selection of selections) {
+        const address = tableTarget(EditorState.create({ doc, selection }))!.address;
+        for (const [name, plan] of [
+          ['mergeCells', planMerge],
+          ['splitCell', planSplit],
+        ] as const) {
+          let result: TableEdit | Refusal | undefined;
+          expect(() => {
+            result = plan(address, planContext());
+          }, `${one.name}: ${name}`).not.toThrow();
+          const edit = result;
+          if (edit && !isRefusal(edit)) {
+            edits += 1;
+            const after = applyTableEdit(address.table, edit);
+            expect(
+              () => assertTableValid(address.table, after, edit.allowedIds),
+              `${one.name}: ${name}`,
+            ).not.toThrow();
+          }
+        }
+      }
+    }
+    expect(edits).toBeGreaterThan(10);
   });
 });

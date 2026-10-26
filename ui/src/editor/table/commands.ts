@@ -6,8 +6,8 @@
  * `availability` is cheap: it reads the selection and the cached grid and builds no node, since
  * toolbar buttons evaluate it on every application revision (`ui/src/app/Toolbars.tsx`); the
  * full plan runs only when the command runs. Each command's own check stands in this module's
- * check table (US2: the twelve row and column commands); `registerAvailabilityCheck` adds or
- * replaces one.
+ * check table (US2: the twelve row and column commands; US5: *Merge cells* and *Split cell*);
+ * `registerAvailabilityCheck` adds or replaces one.
  */
 
 import type { Command as PMCommand, EditorState } from 'prosemirror-state';
@@ -24,8 +24,10 @@ import {
 } from './edit';
 import {
   checkDelete,
+  checkMerge,
   checkMove,
   checkSpanRoom,
+  checkSplit,
   insertionLine,
   unitLines,
   type InsertSide,
@@ -152,7 +154,9 @@ function duplicationCheck(axis: LineAxis): AvailabilityCheck {
  * The check table: each command's own check, the cheap part of its plan, which the plan runs
  * first, so the two cannot disagree (C21). US2: the span guard of the insertions and
  * duplications (`checkSpanRoom`), the deletes' `only-row` … `all-columns` (`checkDelete`) and the
- * moves' crossings and bands (`checkMove`).
+ * moves' crossings and bands (`checkMove`). US5: *Merge cells* (`checkMerge`: a block, else
+ * `needs-block`) and *Split cell* (`checkSplit`: the caret's cell owning a second position, else
+ * `not-merged` for the cell or the block).
  */
 const checks = new Map<TableCommandName, AvailabilityCheck>([
   ['insertRowAbove', insertionCheck('row', 'above')],
@@ -161,6 +165,8 @@ const checks = new Map<TableCommandName, AvailabilityCheck>([
   ['insertColumnRight', insertionCheck('column', 'right')],
   ['deleteRow', ({ address }) => checkDelete(address, 'row')],
   ['deleteColumn', ({ address }) => checkDelete(address, 'column')],
+  ['mergeCells', ({ address }) => checkMerge(address)],
+  ['splitCell', ({ address }) => checkSplit(address)],
   ['moveRowUp', ({ address }) => checkMove(address, 'up')],
   ['moveRowDown', ({ address }) => checkMove(address, 'down')],
   ['moveColumnLeft', ({ address }) => checkMove(address, 'left')],
@@ -218,7 +224,8 @@ export type TablePlan = (address: TableAddress, ctx: PlanContext) => TableEdit |
 /**
  * The ProseMirror adapter of a plan: the target of the selection, the plan, `commitTableEdit`
  * (one step, `DISCRETE_STEP`). It dispatches nothing for a refusal or a no-op, and answers
- * false then. (The FR-015 question is US5's.)
+ * false then. It asks nothing: the FR-015 question is the host's (`runWithLinkCheck` of the
+ * tables feature; C13).
  */
 export function planCommand(plan: TablePlan, ctx: PlanContext): PMCommand {
   return (state, dispatch) => {

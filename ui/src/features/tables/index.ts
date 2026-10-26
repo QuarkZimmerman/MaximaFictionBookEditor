@@ -28,6 +28,7 @@ export {
   type InsertTableAvailability,
   type TableCommandRow,
 } from './commands';
+export { confirmLinkTargets, linkTargetCount, runWithLinkCheck } from './confirm';
 export {
   TABLE_DIALOG_DEFAULTS,
   openTableDialog,

@@ -6,7 +6,8 @@
  * the stub of every id that has a row; the stubs of the commands without one stay until their
  * stories append them. US1 adds `insert.table`, *Add → Table* (`createInsertTableCommand`;
  * data-model §4.5), with its Source view branch (`sourceTable.ts`); US2 the twelve row and
- * column commands.
+ * column commands; US5 *Merge cells*, which asks the FR-015 question first (`confirm.ts`), and
+ * *Split cell*.
  */
 
 import type { Command as PMCommand } from 'prosemirror-state';
@@ -18,6 +19,7 @@ import {
   isAvailable,
   planCommand,
   type TableCommandName,
+  type TablePlan,
 } from '@/editor/table/commands';
 import type { PlanContext } from '@/editor/table/edit';
 import {
@@ -28,12 +30,15 @@ import {
   planDuplicateRows,
   planInsertColumns,
   planInsertRows,
+  planMerge,
   planMoveColumns,
   planMoveRows,
+  planSplit,
 } from '@/editor/table/ops';
 import { collectBookIds } from '@/model/ids';
 import type { SourceVerdict } from '@/views/source/sourceEditor';
 
+import { runWithLinkCheck } from './confirm';
 import { openTableDialog, rememberTableDialog } from './dialog';
 import { reasonText } from './reasons';
 import {
@@ -48,12 +53,21 @@ export interface TableCommandRow {
   id: `table.${TableCommandName}`;
   /** The ProseMirror command to run, made with the host's plan context. */
   command(ctx: PlanContext): PMCommand;
+  /** The plan behind `command`, which the FR-015 question makes a dry run of (US5). */
+  plan?: TablePlan;
+  /**
+   * `linkTargets`: before the plan removes cells whose `id` a link targets, ask (FR-015;
+   * data-model §6.4) - only the merges do (C13).
+   */
+  confirm?: 'linkTargets';
 }
 
 /**
  * The rows the user stories append (FR-039's order is the registry's, not this table's). US2:
  * the twelve row and column commands (FR-006, FR-038; data-model §4.5), each its plan through
- * `planCommand` - one undo step, nothing dispatched for a refusal, no question asked (C13).
+ * `planCommand` - one undo step, nothing dispatched for a refusal, no question asked (C13). US5:
+ * *Merge cells* (FR-013 to FR-015), which asks before link targets are lost, and *Split cell*
+ * (FR-016), which never asks.
  */
 export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
   {
@@ -83,6 +97,16 @@ export const TABLE_COMMAND_ROWS: TableCommandRow[] = [
   {
     id: 'table.deleteColumn',
     command: (ctx) => planCommand((address, c) => planDeleteColumns(address, c), ctx),
+  },
+  {
+    id: 'table.mergeCells',
+    plan: planMerge,
+    confirm: 'linkTargets',
+    command: (ctx) => planCommand(planMerge, ctx),
+  },
+  {
+    id: 'table.splitCell',
+    command: (ctx) => planCommand(planSplit, ctx),
   },
   {
     id: 'table.moveRowUp',
@@ -131,7 +155,9 @@ function editableTarget(ctx: Pick<CommandContext, 'store'>): TableEditTarget | n
  * assistant request holds the run lock, with the registry's run-lock text); enabled on an
  * active, editable target whose `availability` is ok; its reason `noTarget.table` without such
  * a target, else the refusal's words; `run` checks again and runs the command through the
- * target, with the target's node ids and the book's ids.
+ * target, with the target's node ids and the book's ids - for a row with `confirm`, through
+ * `runWithLinkCheck`, which asks the FR-015 question first where needed and returns the promise
+ * of the answer (data-model §9.1).
  */
 export function tableCommand(row: TableCommandRow): Command {
   const name = row.id.slice('table.'.length) as TableCommandName;
@@ -156,6 +182,9 @@ export function tableCommand(row: TableCommandRow): Command {
     run: (ctx) => {
       const target = editableTarget(ctx);
       if (!target || !isAvailable(availability(target.state!, name))) return;
+      if (row.confirm === 'linkTargets' && row.plan) {
+        return runWithLinkCheck(ctx, target, row.plan).then(() => undefined);
+      }
       const document = ctx.store.getState().document;
       target.run(
         row.command({

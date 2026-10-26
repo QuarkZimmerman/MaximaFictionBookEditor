@@ -1697,3 +1697,133 @@ export function pasteBlockPlan(
     ...(gB.regular ? {} : { pastedIrregular: true as const }),
   };
 }
+
+/* ------------------------------------------------------------------------ */
+/* US5: merge and split (FR-013 to FR-016; data-model §4.5)                 */
+/* ------------------------------------------------------------------------ */
+
+const NEEDS_BLOCK: Refusal = { refused: 'needs-block' };
+
+/**
+ * *Merge cells* may act (data-model §4.5 `table.mergeCells`; C21): `too-large` first; a block,
+ * or the assistant's rectangle, is ok - a block holds two cells or more by construction
+ * (data-model §5.2) -; a caret gives `needs-block` (US5 sc.6). Reads the cached grid only; the
+ * plan runs it first, so availability and plan cannot disagree.
+ */
+export function checkMerge(address: TableAddress): { ok: true } | Refusal {
+  if (address.grid.tooLarge) return TOO_LARGE;
+  return address.rect ? OK : NEEDS_BLOCK;
+}
+
+/**
+ * The grid index of the caret's cell when it owns a second position - found from its spans and
+ * the cached owner map, stopping at the first such position, so no node is built (C21) -, else
+ * −1. Spans of 0, negative or not a number count as 1 in the grid (FR-047).
+ */
+function splitCellIndex(address: TableAddress): number {
+  const { grid, caret } = address;
+  if (!caret) return -1;
+  const index = grid.owner(caret.row, caret.col);
+  if (index < 0) return -1;
+  const cell = grid.cells[index]!;
+  for (let r = cell.row; r < cell.row + cell.rowsIn; r += 1) {
+    for (let c = cell.left; c < cell.left + cell.colspan; c += 1) {
+      if ((r !== cell.row || c !== cell.left) && grid.owner(r, c) === index) return index;
+    }
+  }
+  return -1;
+}
+
+/**
+ * *Split cell* may act (data-model §4.5 `table.splitCell`, open point 4; C21): `too-large`
+ * first; with a block `not-merged` `{selection: 'block'}`, since FR-016 asks for a single cell
+ * (*Select td* and *Select th* select the cell's content, so the single selected cell is the
+ * caret's cell); the caret's cell is ok when it owns a second position, otherwise `not-merged`
+ * `{selection: 'cell'}`. Reads the cached grid only; the plan runs it first.
+ */
+export function checkSplit(address: TableAddress): { ok: true } | Refusal {
+  if (address.grid.tooLarge) return TOO_LARGE;
+  if (address.rect) return { refused: 'not-merged', params: { selection: 'block' } };
+  return splitCellIndex(address) >= 0
+    ? OK
+    : { refused: 'not-merged', params: { selection: 'cell' } };
+}
+
+/**
+ * *Merge cells* (data-model §4.5 `table.mergeCells`; FR-013, FR-014, FR-030, FR-035; R1.5):
+ * `too-large` first; the rectangle is `extend(address.rect)` - a block's is extended already,
+ * the assistant's is extended here (C67) -; `needs-block` for a caret and for a rectangle of
+ * fewer than two cells. The keeper is the owner of the rectangle's top-left position, or the
+ * first of its cells in reading order when that position is a hole (R1 open point 4) - in both
+ * cases the first of `cellsIn(rect)` -; its content becomes `joinInlineParts` of its own and
+ * then each other cell's content in reading order (one unmarked space only between two
+ * non-empty parts, white space at a part's ends kept; C17), so marks, links, note links, named
+ * styles, inline images and inline raw XML move unchanged; the other cells go, their ids into
+ * `removedIds`; the keeper keeps its kind, node id and every attribute and takes the
+ * rectangle's spans through `withSpans` (a span of 1 is never written, FR-014; a span kept as
+ * read in `extraAttrs.unknownAttrs` goes, C19), and when it stood in another row it moves into
+ * the rectangle's top row at its left column, after the hole fill, so the positions of the
+ * rectangle no cell covered become its (FR-035); then row compaction (decision 1). Focus: a
+ * caret at the start of the merged cell. The plan asks nothing: the host asks before link
+ * targets are lost (C13; data-model §6.4).
+ */
+export function planMerge(address: TableAddress, ctx: PlanContext): TableEdit | Refusal {
+  const check = checkMerge(address);
+  if (isRefusal(check)) return check;
+  const { table, grid } = address;
+  const rect = grid.extend(address.rect!);
+  const cells = grid.cellsIn(rect);
+  if (cells.length < 2) return NEEDS_BLOCK;
+  const owner = grid.owner(rect.top, rect.left);
+  const keeper = owner >= 0 ? owner : cells[0]!;
+  const node = gridCellNode(table, grid, keeper);
+  const parts: Fragment[] = [node.content];
+  const removedIds: string[] = [];
+  const builder = new TableBuilder(table, grid);
+  for (const index of cells) {
+    if (index === keeper) continue;
+    const other = gridCellNode(table, grid, index);
+    parts.push(other.content);
+    const id = other.attrs.id;
+    if (typeof id === 'string' && id !== '') removedIds.push(id);
+    builder.setCell(index, null);
+  }
+  const merged = node.type.create(
+    withSpans(node.attrs, rect.right - rect.left, rect.bottom - rect.top),
+    joinInlineParts(parts, node.type.schema),
+    node.marks,
+  );
+  if (grid.cells[keeper]!.row === rect.top) {
+    builder.setCell(keeper, merged);
+  } else {
+    builder.setCell(keeper, null);
+    placeCells(builder, rect.top, [{ col: rect.left, node: merged }], ctx);
+  }
+  return {
+    rows: compactRows(table, builder.build()),
+    focus: caretAt(rect.top, rect.left),
+    removedIds,
+  };
+}
+
+/**
+ * *Split cell* (data-model §4.5 `table.splitCell`; FR-016, FR-047): after `checkSplit`,
+ * `splitToSingleCells` on the caret's cell - it keeps its content and every attribute but its
+ * spans, a rowspan past the last row going with them; each other position it owns gets an empty
+ * cell of its kind, `align`, `valign` and `lang`, without `id`, `style` or `extraAttrs`, placed
+ * with the hole fill; positions of its rectangle an earlier cell owns get nothing. Focus: a
+ * caret in the cell, which keeps its offset there - its content is the same fragment
+ * (data-model §4.3). `removedIds` empty.
+ */
+export function planSplit(address: TableAddress, ctx: PlanContext): TableEdit | Refusal {
+  const check = checkSplit(address);
+  if (isRefusal(check)) return check;
+  const { table, grid } = address;
+  const index = splitCellIndex(address);
+  const cell = grid.cells[index]!;
+  return {
+    rows: splitToSingleCells(childNodes(table), grid, index, ctx),
+    focus: caretAt(cell.row, cell.left),
+    removedIds: [],
+  };
+}

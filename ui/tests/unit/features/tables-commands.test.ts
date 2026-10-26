@@ -4,7 +4,8 @@
  * refusal and only for the commands that read positions, no node built and the cached grid
  * read, `reasonText` for every code and leaf in the three catalogues, and a command built from
  * a row of the command table. Each story adds "availability agrees with every plan's dry run"
- * for its commands: US2 (T072) its twelve row and column commands.
+ * for its commands: US2 (T072) its twelve row and column commands, US5 (T102) *Merge cells* and
+ * *Split cell*.
  */
 
 /// <reference types="node" />
@@ -46,8 +47,10 @@ import {
   planDuplicateRows,
   planInsertColumns,
   planInsertRows,
+  planMerge,
   planMoveColumns,
   planMoveRows,
+  planSplit,
 } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
 import { fb2Schema, findNodeById } from '@/editor/schema';
@@ -141,11 +144,14 @@ describe('availability', () => {
     expect([...TABLE_SELECTION_COMMANDS].sort()).toEqual(
       ['delete', 'paragraphAfter', 'paragraphBefore', 'repair', 'select'].sort(),
     );
-    // In a cell: ok, but for the moves without a neighbour - US2's checks (T075) answer them.
+    // In a cell: ok, but for the moves without a neighbour - US2's checks (T075) answer them -
+    // and for Merge cells and Split cell, which a single cell refuses (US5's checks, T105).
     const inCell = stateWith(doc, (d) => TextSelection.create(d, pos(d, 'b') + 1));
     const refused: Partial<Record<string, Refusal>> = {
       moveRowUp: { refused: 'no-neighbour', params: { direction: 'up' } },
       moveColumnRight: { refused: 'no-neighbour', params: { direction: 'right' } },
+      mergeCells: { refused: 'needs-block' },
+      splitCell: { refused: 'not-merged', params: { selection: 'cell' } },
     };
     for (const name of TABLE_COMMAND_NAMES)
       expect(availability(inCell, name), name).toEqual(refused[name] ?? { ok: true });
@@ -961,5 +967,272 @@ describe('US2: the twelve row and column commands', () => {
       expect(await services.commands.execute('table.moveRowUp', ctx)).toBe(false);
     });
     expect(services.undo.entries().length).toBe(entries + 1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US5: Merge cells and Split cell (T102)                                   */
+/* ------------------------------------------------------------------------ */
+
+/** The two commands of user story 5, in FR-039's order, and their plans as the rows run them. */
+const US5_NAMES = ['mergeCells', 'splitCell'] as const satisfies readonly TableCommandName[];
+const US5_PLANS: Record<(typeof US5_NAMES)[number], TablePlan> = {
+  mergeCells: planMerge,
+  splitCell: planSplit,
+};
+
+/** US5's scenario shapes of `tables.fb2` (T014), as rows of model cells. */
+const US5_SHAPES: VectorRow[][] = [
+  [
+    [{ type: 'th', attrs: { id: 'us5-r1c1' } }, {}, {}, {}],
+    [{}, {}, {}, {}],
+    [{}, {}, {}, {}],
+  ],
+  Array.from({ length: 3 }, () => [{}, {}, {}]),
+  [
+    [{}, {}],
+    [{}, {}],
+  ],
+  [
+    [{}, span({ id: 'us5-target' })],
+    [{}, {}],
+  ],
+  [[{ type: 'th', attrs: { colspan: 3, rowspan: 2 } }, {}], [{}]],
+];
+
+/** A table `t` whose first row is one cell `m` over two columns, then the cells `c` and `d`. */
+function mergedDoc(): PMNode {
+  return docWith(
+    N.table!.create({ nodeId: 't' }, [
+      N.tr!.create({ nodeId: 'r0' }, [cell('m', 2)]),
+      N.tr!.create({ nodeId: 'r1' }, [cell('c'), cell('d')]),
+    ]),
+  );
+}
+
+describe('US5: Merge cells and Split cell', () => {
+  beforeAll(() => {
+    // jsdom measures no range: a commit's scroll into view after a command focused the Body
+    // editor reads these (as `images.test.ts` and the description tests stub them).
+    Object.defineProperty(Range.prototype, 'getClientRects', {
+      configurable: true,
+      value: () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }),
+    });
+    Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+    });
+  });
+
+  it('availability agrees with every plan’s dry run: ok exactly when the plan acts, else the plan’s refusal', () => {
+    let compared = 0;
+    let ids = 0;
+    const acting = { mergeCells: 0, splitCell: 0 };
+    const refusedCodes = new Set<string>();
+    const tables = [
+      ...agreementTables(),
+      ...US5_SHAPES.map((rows, index) => ({
+        name: `US5 table ${index + 1}`,
+        node: nodeFromModel(vectorModel(rows, true))!,
+      })),
+    ];
+    for (const { name: table, node } of tables) {
+      for (const state of statesOf(node)) {
+        const address = tableTarget(state)!.address;
+        for (const name of US5_NAMES) {
+          compared += 1;
+          const plan = US5_PLANS[name](address, { nextId: () => `x${(ids += 1)}` });
+          const answer = availability(state, name);
+          if (isRefusal(plan)) {
+            refusedCodes.add(
+              `${name}: ${plan.refused}${'params' in plan ? ` ${JSON.stringify(plan.params)}` : ''}`,
+            );
+            expect(answer, `${table}: ${name}`).toEqual(plan);
+          } else {
+            acting[name] += 1;
+            expect(answer, `${table}: ${name}`).toEqual({ ok: true });
+          }
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(500);
+    expect(acting.mergeCells).toBeGreaterThan(100);
+    expect(acting.splitCell).toBeGreaterThan(10);
+    expect([...refusedCodes].sort()).toEqual(
+      [
+        'mergeCells: needs-block',
+        'splitCell: not-merged {"selection":"block"}',
+        'splitCell: not-merged {"selection":"cell"}',
+      ].sort(),
+    );
+  });
+
+  it('availability builds no node for them, and reads the cached grid', () => {
+    const docs = [smallDoc(), mergedDoc()];
+    const states = docs.flatMap((doc) => {
+      const cells = doc === docs[0] ? ['a', 'b', 'c', 'd'] : ['m', 'c', 'd'];
+      return [
+        ...cells.map((id) => stateWith(doc, (d) => TextSelection.create(d, pos(d, id) + 1))),
+        EditorState.create({
+          doc,
+          selection: CellBlockSelection.create(doc, pos(doc, cells[0]!), pos(doc, 'd')),
+        }),
+      ];
+    });
+    const grids = docs.map((doc) => gridOfNode(doc.nodeAt(pos(doc, 't'))!));
+    const create = vi.spyOn(NodeType.prototype, 'create');
+    const createChecked = vi.spyOn(NodeType.prototype, 'createChecked');
+    try {
+      for (const state of states) for (const name of US5_NAMES) availability(state, name);
+      expect(create).not.toHaveBeenCalled();
+      expect(createChecked).not.toHaveBeenCalled();
+    } finally {
+      create.mockRestore();
+      createChecked.mockRestore();
+    }
+    docs.forEach((doc, index) => {
+      expect(gridOfNode(doc.nodeAt(pos(doc, 't'))!)).toBe(grids[index]);
+    });
+  });
+
+  it('answers the host codes first, then too-large, then the plan’s code', () => {
+    const doc = smallDoc();
+    for (const name of US5_NAMES) {
+      expect(
+        availability(
+          stateWith(doc, (d) => TextSelection.create(d, pos(d, 'p1') + 1)),
+          name,
+        ),
+      ).toEqual({ refused: 'notInTable' });
+      expect(
+        availability(
+          stateWith(doc, (d) => TextSelection.create(d, pos(d, 'p1') + 1, pos(d, 'a') + 1)),
+          name,
+        ),
+      ).toEqual({ refused: 'mixedSelection' });
+      expect(
+        availability(
+          stateWith(doc, (d) => NodeSelection.create(d, pos(d, 't'))),
+          name,
+        ),
+      ).toEqual({ refused: 'tableSelected' });
+      const large = largeDoc();
+      expect(
+        availability(
+          stateWith(large, (d) => TextSelection.create(d, pos(d, 'w1') + 1)),
+          name,
+        ),
+      ).toEqual({ refused: 'too-large' });
+    }
+    const caret = stateWith(doc, (d) => TextSelection.create(d, pos(d, 'a') + 1));
+    expect(availability(caret, 'mergeCells')).toEqual({ refused: 'needs-block' });
+    expect(availability(caret, 'splitCell')).toEqual({
+      refused: 'not-merged',
+      params: { selection: 'cell' },
+    });
+    const block = EditorState.create({
+      doc,
+      selection: CellBlockSelection.create(doc, pos(doc, 'a'), pos(doc, 'd')),
+    });
+    expect(availability(block, 'mergeCells')).toEqual({ ok: true });
+    expect(availability(block, 'splitCell')).toEqual({
+      refused: 'not-merged',
+      params: { selection: 'block' },
+    });
+    const merged = mergedDoc();
+    expect(
+      availability(
+        stateWith(merged, (d) => TextSelection.create(d, pos(d, 'm') + 1)),
+        'splitCell',
+      ),
+    ).toEqual({ ok: true });
+  });
+
+  it('has two command rows with literal ids after the column rows, only the merge asking first, registered live by the tables feature', async () => {
+    const ids = TABLE_COMMAND_ROWS.map((row) => row.id);
+    expect(ids.indexOf('table.mergeCells')).toBe(ids.indexOf('table.deleteColumn') + 1);
+    expect(ids.indexOf('table.splitCell')).toBe(ids.indexOf('table.mergeCells') + 1);
+    const merge = TABLE_COMMAND_ROWS.find((row) => row.id === 'table.mergeCells')!;
+    const split = TABLE_COMMAND_ROWS.find((row) => row.id === 'table.splitCell')!;
+    // Only the merge asks the FR-015 question (C13), with its plan.
+    expect(merge.confirm).toBe('linkTargets');
+    expect(merge.plan).toBe(planMerge);
+    expect(split.confirm).toBeUndefined();
+    const source = readFileSync(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '../../../src/features/tables/commands.ts',
+      ),
+      'utf8',
+    );
+    for (const name of US5_NAMES) expect(source, name).toContain(`id: 'table.${name}'`);
+    const { services } = await tablesHarness();
+    for (const name of US5_NAMES) {
+      const command = services.commands.get(`table.${name}`)!;
+      expect(command.stub, name).toBeUndefined();
+      expect(command.hotkeyScope, name).toBe('tableTarget');
+    }
+  });
+
+  it('a refusing target gives the titles of FR-043; their keys exist in ru and uk; enabled, each runs as one undo-coordinator entry', async () => {
+    const harness = await tablesHarness();
+    const { services, ctx, controller } = harness;
+    const reason = (id: string) => services.commands.unavailableReason(id, ctx);
+    const title = (id: string) => unavailableTitle(services.commands.get(id)!, reason(id)!, ctx.t);
+    // The caret in a single cell.
+    act(() => caretIn(harness, 't1-1-1', 1));
+    expect(services.commands.isEnabled('table.splitCell', ctx)).toBe(false);
+    expect(title('table.splitCell')).toBe('Split cell: the cell is not merged');
+    expect(services.commands.isEnabled('table.mergeCells', ctx)).toBe(false);
+    expect(title('table.mergeCells')).toBe('Merge cells: select a block of at least two cells');
+    // A block: Split cell asks for a single merged cell; Merge cells is enabled and merges.
+    const doc = () => controller.editorState!.doc;
+    act(() =>
+      select(
+        harness,
+        CellBlockSelection.create(doc(), posOf(harness, 't1-0-0'), posOf(harness, 't1-1-1')),
+      ),
+    );
+    expect(title('table.splitCell')).toBe('Split cell: select a single merged cell');
+    expect(services.commands.isEnabled('table.mergeCells', ctx)).toBe(true);
+    expect(reason('table.mergeCells')).toBeNull();
+    const entries = services.undo.entries().length;
+    await act(async () => {
+      expect(await services.commands.execute('table.mergeCells', ctx)).toBe(true);
+    });
+    expect(services.undo.entries().length).toBe(entries + 1);
+    const keeper = doc().nodeAt(posOf(harness, 't1-0-0'))!;
+    expect(keeper.attrs.colspan).toBe(2);
+    expect(keeper.attrs.rowspan).toBe(2);
+    expect(keeper.textContent).toBe('r0c0 r0c1 r1c0 r1c1');
+    // The caret in the merged cell: Split cell is enabled and gives the single cells back.
+    act(() => caretIn(harness, 't1-0-0', 2));
+    expect(services.commands.isEnabled('table.splitCell', ctx)).toBe(true);
+    await act(async () => {
+      expect(await services.commands.execute('table.splitCell', ctx)).toBe(true);
+    });
+    expect(services.undo.entries().length).toBe(entries + 2);
+    const kept = doc().nodeAt(posOf(harness, 't1-0-0'))!;
+    expect(kept.attrs.colspan).toBeNull();
+    expect(kept.textContent).toBe('r0c0 r0c1 r1c0 r1c1');
+    expect(controller.editorState!.selection.$head.parentOffset).toBe(2);
+    // A refusal dispatches nothing and records no entry.
+    act(() => caretIn(harness, 't1-2-2', 1));
+    await act(async () => {
+      expect(await services.commands.execute('table.splitCell', ctx)).toBe(false);
+    });
+    expect(services.undo.entries().length).toBe(entries + 2);
+    for (const language of ['ru', 'uk'] as const) {
+      const reasons = (
+        resources[language].translation as { tables: { reason: Record<string, unknown> } }
+      ).tables.reason;
+      expect(typeof reasons['needs-block'], language).toBe('string');
+      for (const selection of ['cell', 'block']) {
+        expect(
+          (reasons['not-merged'] as Record<string, string>)[selection],
+          `${language} ${selection}`,
+        ).toBeTruthy();
+      }
+    }
   });
 });

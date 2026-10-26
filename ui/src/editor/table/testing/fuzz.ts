@@ -17,7 +17,10 @@
  * The mix (`FUZZ_MIX`) is R8.15's weights for US2's commands, the Tab row, Undo and Redo; later
  * stories append their entries. US4 adds the block clear, the cut and the paste of a block
  * (SC-003; U19): the generator keeps its own clipboard - a cut block, or a copy of a drawn block
- * or of the whole current table - and pastes it through the router's `pasteTransaction`.
+ * or of the whole current table - and pastes it through the router's `pasteTransaction`. US5
+ * adds *Merge cells* on a drawn block and *Split cell* on a drawn caret, in a merged cell in half
+ * of the draws (R8.15's "merge 10, split 10"), both through `planCommand`, which asks nothing
+ * (the FR-015 question is the host's, C13).
  */
 
 import { Fragment, Slice, type Node as PMNode, type Schema } from 'prosemirror-model';
@@ -53,6 +56,7 @@ import {
 } from '../edit';
 import { gridOfNode, type Rect } from '../grid';
 import {
+  checkSplit,
   insertionLine,
   moveBands,
   planDeleteColumns,
@@ -61,8 +65,10 @@ import {
   planDuplicateRows,
   planInsertColumns,
   planInsertRows,
+  planMerge,
   planMoveColumns,
   planMoveRows,
+  planSplit,
   planTabRow,
   pasteBlockPlan,
   planClearBlock,
@@ -312,10 +318,11 @@ export interface FuzzEntry {
   /** The plan the step runs through `planCommand`. */
   plan?: TablePlan;
   /**
-   * Where the caret goes: a random cell or block, the table's last cell (the Tab row), or always a
-   * random block (the block commands).
+   * Where the caret goes: a random cell or block, the table's last cell (the Tab row), always a
+   * random block (the block commands), or a caret in a random cell - in a merged cell in half of
+   * the draws, when the table has one (*Split cell*).
    */
-  caret?: 'last' | 'block';
+  caret?: 'last' | 'block' | 'merged';
   /** The lines the step addresses and its column map; null when it addresses none. */
   lines?(address: TableAddress): FuzzLines | null;
   /** The step removes cells (their text leaves with them). */
@@ -326,6 +333,10 @@ export interface FuzzEntry {
   clears?: 'clear' | 'cut';
   /** US4: the step pastes the generator's clipboard through the router. */
   pastes?: boolean;
+  /** US5: *Merge cells* - its own locality and character oracle (`checkMergeStep`). */
+  merges?: boolean;
+  /** US5: *Split cell* - its own locality oracle (`checkSplitStep`). */
+  splits?: boolean;
 }
 
 /** The generator's clipboard (US4): the table a cut or a copy left, as `content()` gives it. */
@@ -525,6 +536,24 @@ export const FUZZ_MIX: FuzzEntry[] = [
     clears: 'cut',
   },
   { name: 'pasteBlock', weight: 5, pastes: true, removes: true, copies: true },
+  // US5 (SC-003; R8.15's weights): Merge cells always on a drawn block, Split cell on a drawn
+  // caret, put into a merged cell in half of the draws so that the split acts.
+  {
+    name: 'mergeCells',
+    command: 'mergeCells',
+    weight: 10,
+    plan: (address, ctx) => planMerge(address, ctx),
+    caret: 'block',
+    merges: true,
+  },
+  {
+    name: 'splitCell',
+    command: 'splitCell',
+    weight: 10,
+    plan: (address, ctx) => planSplit(address, ctx),
+    caret: 'merged',
+    splits: true,
+  },
   { name: 'undo', weight: 5 },
   { name: 'redo', weight: 5 },
 ];
@@ -799,8 +828,9 @@ export interface FuzzStepRecord {
  * id and kind and lose their content, every other position keeps its owner's content and kind;
  * after a paste, every position outside the target rectangle T keeps its owner's content and kind
  * - a cell that crossed T's edge left empty pieces of its kind, its content in its top-left
- * piece - and T's positions hold the pasted block's cells (content, kind) where the block covers
- * them.
+ * piece - and T's rows hold the pasted block's cells (content, kind) where the block starts them,
+ * less the rows of T the paste compacts, which only rows where the block starts no cell can be
+ * (data-model §8.4 step 5).
  */
 function checkBlockLocality(
   before: PMNode,
@@ -866,22 +896,208 @@ function checkBlockLocality(
   }
   if (pasted) {
     const gB = gridOfNode(pasted);
-    for (let i = 0; i < gB.height; i += 1) {
-      for (let j = 0; j < gB.width; j += 1) {
-        const ob = gB.owner(i, j);
-        if (ob < 0) continue;
+    // T's rows in the table after: B's rows less the rows of T the plan compacted (data-model
+    // §8.4 step 5, decision 1) - only a row where B starts no cell can lose all its cells. The
+    // oracle looks for a monotone mapping of B's rows onto the rows from `rect.top` on that drops
+    // exactly that many rows, each one where B starts no cell.
+    const lost = Math.max(g0.height, rect.top + gB.height) - g1.height;
+    /**
+     * Row i of B at row r after: each cell B starts in row i stands there - starting in row r -
+     * with its kind and content at its column; a row where B starts no cell brings nothing, so
+     * the cells starting there inside T are empty (B's holes filled).
+     */
+    const holds = (i: number, r: number): boolean => {
+      if (r >= g1.height) return false;
+      for (let ob = gB.rowStart[i]!; ob < gB.rowStart[i + 1]!; ob += 1) {
         const cell = gB.cells[ob]!;
-        if (cell.row !== i || cell.left !== j) continue;
-        const r = rect.top + i;
-        if (r >= g1.height) continue;
-        const o1 = g1.owner(r, rect.left + j);
-        if (o1 < 0) return `the pasted cell (${i}, ${j}) is missing`;
+        const o1 = g1.owner(r, rect.left + cell.left);
+        if (o1 < 0 || g1.cells[o1]!.row !== r) return false;
         const nb = gridCellNode(pasted, gB, ob);
         const n1 = gridCellNode(after, g1, o1);
-        if (nb.type !== n1.type || !nb.content.eq(n1.content)) {
-          return `T's position (${r}, ${rect.left + j}) does not hold the pasted "${nb.textContent}"`;
+        if (nb.type !== n1.type || !nb.content.eq(n1.content)) return false;
+      }
+      if (gB.rowStart[i]! < gB.rowStart[i + 1]!) return true;
+      for (let o1 = g1.rowStart[r]!; o1 < g1.rowStart[r + 1]!; o1 += 1) {
+        const left = g1.cells[o1]!.left;
+        if (left >= rect.left && left < rect.right) {
+          if (gridCellNode(after, g1, o1).content.size > 0) return false;
         }
       }
+      return true;
+    };
+    // The numbers of rows dropped so far for which B's rows up to i map.
+    let dropped = new Set<number>([0]);
+    for (let i = 0; i < gB.height; i += 1) {
+      const next = new Set<number>();
+      const startsNone = gB.rowStart[i] === gB.rowStart[i + 1];
+      for (const k of dropped) {
+        if (holds(i, rect.top + i - k)) next.add(k);
+        if (startsNone && k < lost) next.add(k + 1);
+      }
+      if (next.size === 0) {
+        return `T's row for row ${i} of the pasted block does not hold its cells`;
+      }
+      dropped = next;
+    }
+    if (!dropped.has(lost)) {
+      return `the paste dropped ${lost} rows of T, not only rows where the block starts no cell`;
+    }
+  }
+  return null;
+}
+
+/**
+ * US5's oracle of *Merge cells* (FR-013, FR-014, FR-035; decision 1): positions outside the
+ * extended rectangle keep their owner's content and kind; the keeper - the owner of the
+ * rectangle's top-left position, else its first cell in reading order - keeps its node id, kind,
+ * `id`, `style`, `lang`, `align` and `valign` and holds the parts' join in reading order (the
+ * non-empty contents with one unmarked space between two of them; the character oracle of vR1
+ * corr 16 counts merged cells); the rectangle's other cells are gone, every other cell keeps its
+ * text and a new cell (a hole fill) is empty; the keeper covers the rectangle's width and its
+ * height less the compacted rows; and the rectangle's rows other than its top one that held only
+ * its cells are compacted, the others kept (rows map by node id).
+ */
+function checkMergeStep(before: PMNode, after: PMNode, address: TableAddress): string | null {
+  const g0 = gridOfNode(before);
+  const g1 = gridOfNode(after);
+  if (g0.tooLarge || g1.tooLarge || !address.rect) return null;
+  const rect = g0.extend(address.rect);
+  const cells = g0.cellsIn(rect);
+  const owner = g0.owner(rect.top, rect.left);
+  const keeperIndex = owner >= 0 ? owner : cells[0]!;
+  const keeper = gridCellNode(before, g0, keeperIndex);
+  const inside = (r: number, c: number) =>
+    r >= rect.top && r < rect.bottom && c >= rect.left && c < rect.right;
+  const locality = checkLocality(before, after, { given: inside, column: (c) => c });
+  if (locality) return locality;
+  const old = cellsById(before);
+  const next = cellsById(after);
+  const merged = next.get(keeper.attrs.nodeId as string);
+  if (!merged) return 'the keeper is gone';
+  if (merged.type !== keeper.type) return 'the keeper changed its kind';
+  for (const name of ['id', 'style', 'lang', 'align', 'valign']) {
+    if ((merged.attrs[name] ?? null) !== (keeper.attrs[name] ?? null)) {
+      return `the keeper lost its ${name}`;
+    }
+  }
+  const joined: PMNode[] = [];
+  const blockIds = new Set<string>();
+  for (const index of [keeperIndex, ...cells.filter((index) => index !== keeperIndex)]) {
+    const node = gridCellNode(before, g0, index);
+    blockIds.add(node.attrs.nodeId as string);
+    if (node.content.size === 0) continue;
+    if (joined.length > 0) joined.push(before.type.schema.text(' '));
+    node.content.forEach((child) => {
+      joined.push(child);
+    });
+  }
+  if (!merged.content.eq(Fragment.from(joined))) {
+    return `the merged cell holds "${merged.textContent}", not the parts' join`;
+  }
+  for (const [id, cell] of old) {
+    const kept = next.get(id);
+    if (blockIds.has(id)) {
+      if (kept && id !== keeper.attrs.nodeId) return `the block's cell ${id} is still there`;
+      continue;
+    }
+    if (!kept) return `the cell "${cell.textContent}" (${id}) outside the block was removed`;
+    if (kept.textContent !== cell.textContent) {
+      return `the cell ${id} holds "${kept.textContent}" instead of "${cell.textContent}"`;
+    }
+  }
+  for (const [id, cell] of next) {
+    if (!old.has(id) && cell.content.size > 0) return `the new cell ${id} holds content`;
+  }
+  const rowsAfter = new Set<unknown>();
+  after.forEach((child) => {
+    rowsAfter.add(child.attrs.nodeId);
+  });
+  let compacted = 0;
+  for (let r = rect.top; r < rect.bottom; r += 1) {
+    const id = before.child(g0.rowChild[r]!).attrs.nodeId;
+    let own = 0;
+    let onlyBlock = true;
+    for (let index = g0.rowStart[r]!; index < g0.rowStart[r + 1]!; index += 1) {
+      own += 1;
+      if (!cells.includes(index)) onlyBlock = false;
+    }
+    const goes = r > rect.top && own > 0 && onlyBlock;
+    if (goes) compacted += 1;
+    if (rowsAfter.has(id) === goes) {
+      return `row ${r} of the block was ${goes ? 'kept' : 'removed'}`;
+    }
+  }
+  const at = g1.cells.findIndex(
+    (_cell, index) => gridCellNode(after, g1, index).attrs.nodeId === keeper.attrs.nodeId,
+  );
+  const cell = g1.cells[at]!;
+  if (
+    cell.colspan !== rect.right - rect.left ||
+    cell.rowsIn !== rect.bottom - rect.top - compacted
+  ) {
+    return `the merged cell covers ${cell.rowsIn} × ${cell.colspan}, not the block`;
+  }
+  return null;
+}
+
+/**
+ * US5's oracle of *Split cell* (FR-016, FR-035): every position keeps its owner's content and
+ * kind except the split cell's own other positions; the cell keeps its node id, content, kind and
+ * every attribute but its spans, which it no longer writes; each of its other positions is owned
+ * by a new empty cell of its kind, or by a later cell that overlapped the cell there (an
+ * irregular table's overlap) - no row is added or removed.
+ */
+function checkSplitStep(before: PMNode, after: PMNode, address: TableAddress): string | null {
+  const g0 = gridOfNode(before);
+  const g1 = gridOfNode(after);
+  if (g0.tooLarge || g1.tooLarge || !address.caret) return null;
+  const index = g0.owner(address.caret.row, address.caret.col);
+  if (index < 0) return 'the caret stands in no cell';
+  const cell = g0.cells[index]!;
+  const node = gridCellNode(before, g0, index);
+  const own = (r: number, c: number) =>
+    g0.owner(r, c) === index && !(r === cell.row && c === cell.left);
+  const locality = checkLocality(before, after, { given: own, column: (c) => c });
+  if (locality) return locality;
+  if (after.childCount !== before.childCount) return 'a split added or removed a row';
+  const old = cellsById(before);
+  const kept = cellsById(after).get(node.attrs.nodeId as string);
+  if (!kept || kept.type !== node.type || !kept.content.eq(node.content)) {
+    return 'the split cell lost its kind or content';
+  }
+  if (kept.attrs.colspan !== null || kept.attrs.rowspan !== null) {
+    return 'the split cell still writes a span';
+  }
+  for (const name of ['id', 'style', 'lang', 'align', 'valign']) {
+    if ((kept.attrs[name] ?? null) !== (node.attrs[name] ?? null)) {
+      return `the split cell lost its ${name}`;
+    }
+  }
+  for (let r = cell.row; r < cell.row + cell.rowsIn; r += 1) {
+    for (let c = cell.left; c < cell.left + cell.colspan; c += 1) {
+      if (!own(r, c)) continue;
+      const o1 = g1.owner(r, c);
+      if (o1 < 0) return `the split cell's position (${r}, ${c}) is a hole`;
+      const piece = gridCellNode(after, g1, o1);
+      const id = piece.attrs.nodeId as string;
+      if (!old.has(id)) {
+        if (piece.content.size > 0 || piece.type !== node.type) {
+          return `the new cell at (${r}, ${c}) is not an empty cell of the split cell's kind`;
+        }
+        continue;
+      }
+      const index0 = g0.cells.findIndex(
+        (_cell, at) => gridCellNode(before, g0, at).attrs.nodeId === id,
+      );
+      const other = g0.cells[index0];
+      const covered =
+        other !== undefined &&
+        index0 > index &&
+        other.row <= r &&
+        r < other.row + other.rowsIn &&
+        other.left <= c &&
+        c < other.left + other.colspan;
+      if (!covered) return `the split cell's position (${r}, ${c}) went to the cell ${id}`;
     }
   }
   return null;
@@ -930,6 +1146,10 @@ export function checkFuzzStep(record: FuzzStepRecord): string | null {
   // A paste of a block copied from an irregular table brings its irregularity (decision 4).
   if (gridOfNode(table).regular && !gridOfNode(next).regular && !edit.pastedIrregular) {
     return 'a regular table became irregular';
+  }
+  if (entry.merges) return checkMergeStep(table, next, address);
+  if (entry.splits) {
+    return checkSplitStep(table, next, address) ?? checkCharacters(table, next, entry);
   }
   if (entry.clears || entry.pastes) {
     let rect = address.rect;
@@ -1054,6 +1274,29 @@ function randomBlock(rng: () => number, doc: PMNode, tablePos: number): CellBloc
   );
 }
 
+/**
+ * A caret for *Split cell* (US5): in half of the draws at a random offset of a random merged
+ * cell - one that owns a second position (`checkSplit`) - when the table has one; otherwise at a
+ * random offset of a random cell.
+ */
+function splitCaret(rng: () => number, doc: PMNode, tablePos: number): Selection {
+  const table = doc.nodeAt(tablePos)!;
+  const grid = gridOfNode(table);
+  let index = -1;
+  if (rng() < 0.5 && !grid.tooLarge) {
+    const merged: number[] = [];
+    grid.cells.forEach((cell, at) => {
+      const answer = checkSplit({ table, grid, caret: { row: cell.row, col: cell.left } });
+      if (!isRefusal(answer)) merged.push(at);
+    });
+    if (merged.length > 0) index = pick(rng, merged);
+  }
+  if (index < 0) index = below(rng, grid.cells.length);
+  const cellPos = gridCellPos(table, tablePos, grid, index);
+  const size = doc.nodeAt(cellPos)!.content.size;
+  return TextSelection.create(doc, cellPos + 1 + below(rng, size + 1));
+}
+
 /** A caret at the end of the table's last cell in document order (the Tab row). */
 function lastCellCaret(doc: PMNode, tablePos: number): Selection {
   const table = doc.nodeAt(tablePos)!;
@@ -1158,7 +1401,9 @@ export async function runFuzz(
             : entry.caret === 'block'
               ? (randomBlock(rng, start.doc, current.pos) ??
                 randomSelection(rng, start.doc, current.pos))
-              : randomSelection(rng, start.doc, current.pos),
+              : entry.caret === 'merged'
+                ? splitCaret(rng, start.doc, current.pos)
+                : randomSelection(rng, start.doc, current.pos),
         );
         const before = host.state();
         selection = describeSelection(before.selection);

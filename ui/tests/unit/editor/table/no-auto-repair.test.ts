@@ -8,7 +8,8 @@
  * transaction appends nothing. Later stories append their commands to `GUARDED_COMMANDS`: US4
  * (T098) the block clear, the cut and the paste of a block - run on a block of the regular
  * table -, and the guard's edits gain Delete, Backspace, type-over and the clear a composition
- * makes on a block of the regular table.
+ * makes on a block of the regular table; US5 (T106) *Merge cells* on a block of the regular table
+ * and *Split cell* on the cell that merge made.
  */
 
 /// <reference types="node" />
@@ -35,8 +36,10 @@ import {
   planDuplicateRows,
   planInsertColumns,
   planInsertRows,
+  planMerge,
   planMoveColumns,
   planMoveRows,
+  planSplit,
 } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
 import { createBodyEditorState } from '@/views/body/bodyEditor';
@@ -59,9 +62,11 @@ function clipboardBlock() {
 
 /**
  * The commands the guard runs on the regular table: US2's twelve; later stories append (US4:
- * the block clear and the cut on a block, `block`; the paste of a block, through the router).
+ * the block clear and the cut on a block, `block`; the paste of a block, through the router;
+ * US5: *Merge cells* on a block, and *Split cell* with the caret in a merged cell, `merged` -
+ * the block from `g-0-0` to `g-1-1` merged first).
  */
-const GUARDED_COMMANDS: { name: string; plan: TablePlan; block?: boolean }[] = [
+const GUARDED_COMMANDS: { name: string; plan: TablePlan; block?: boolean; merged?: boolean }[] = [
   { name: 'insertRowAbove', plan: (a, c) => planInsertRows(a, { side: 'above' }, c) },
   { name: 'insertRowBelow', plan: (a, c) => planInsertRows(a, { side: 'below' }, c) },
   { name: 'deleteRow', plan: (a, c) => planDeleteRows(a, c) },
@@ -77,6 +82,8 @@ const GUARDED_COMMANDS: { name: string; plan: TablePlan; block?: boolean }[] = [
   { name: 'clearBlock', plan: (a, c) => planClearBlock(a, c), block: true },
   { name: 'cutBlock', plan: (a, c) => planClearBlock(a, c), block: true },
   { name: 'pasteBlock', plan: (a, c) => pasteBlockPlan(a, clipboardBlock(), c) },
+  { name: 'mergeCells', plan: (a, c) => planMerge(a, c), block: true },
+  { name: 'splitCell', plan: (a, c) => planSplit(a, c), merged: true },
 ];
 
 const VECTORS = path.resolve(
@@ -167,7 +174,7 @@ function runPlan(state: EditorState, plan: TablePlan): { state: EditorState; ran
 describe('no automatic repair (R1.7, FR-035)', () => {
   it('covers the irregular cases of the shared vectors', () => {
     expect(irregular.length).toBeGreaterThan(10);
-    expect(GUARDED_COMMANDS).toHaveLength(15);
+    expect(GUARDED_COMMANDS).toHaveLength(17);
   });
 
   for (const one of irregular) {
@@ -247,13 +254,27 @@ describe('no automatic repair (R1.7, FR-035)', () => {
         { bookIds: () => new Set(), nextNodeId: () => `q${(counter += 1)}`, message: () => {} },
       )!;
       expect(tableOf(apply(caretIn, pasteTr))).toBe(original);
-      for (const { name, plan, block } of GUARDED_COMMANDS) {
+      for (const { name, plan, block, merged } of GUARDED_COMMANDS) {
+        let start = state;
+        if (merged) {
+          // The block from g-0-0 to g-1-1 merged first, so the caret stands in a merged cell.
+          const onBlock = apply(
+            state,
+            state.tr.setSelection(
+              CellBlockSelection.create(state.doc, posOf(state, 'g-0-0'), posOf(state, 'g-1-1')),
+            ),
+          );
+          const merge = runPlan(onBlock, planMerge);
+          expect(merge.ran, name).toBe(true);
+          expect(tableOf(merge.state), name).toBe(original);
+          start = merge.state;
+        }
         const at = apply(
-          state,
-          state.tr.setSelection(
+          start,
+          start.tr.setSelection(
             block
-              ? CellBlockSelection.create(state.doc, posOf(state, 'g-0-0'), posOf(state, 'g-1-1'))
-              : TextSelection.create(state.doc, posOf(state, 'g-1-1') + 1),
+              ? CellBlockSelection.create(start.doc, posOf(start, 'g-0-0'), posOf(start, 'g-1-1'))
+              : TextSelection.create(start.doc, posOf(start, merged ? 'g-0-0' : 'g-1-1') + 1),
           ),
         );
         const result = runPlan(at, plan);

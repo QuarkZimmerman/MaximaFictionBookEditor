@@ -24,6 +24,7 @@ const MENUS: readonly MenuSpec[] = [
       { kind: 'command', commandId: 'test.plain' },
       { kind: 'command', commandId: 'test.enabled' },
       { kind: 'command', commandId: 'table.mergeCells' },
+      { kind: 'command', commandId: 'test.stub' },
       { kind: 'separator' },
       {
         kind: 'submenu',
@@ -71,6 +72,16 @@ async function setup() {
     unavailableReason: () => 'select a block of at least two cells',
     run: () => {},
   });
+  // A stub, registered for parity and not implemented: `table.mergeCells` was one until user
+  // story 5 of feature 006 made it live (T105).
+  services.commands.register({
+    id: 'test.stub',
+    group: 'table',
+    tooltip: 'Stub',
+    stub: true,
+    unavailableReason: () => 'never shown',
+    run: () => {},
+  });
   const user = userEvent.setup();
   render(
     <AppProvider services={services}>
@@ -97,18 +108,22 @@ describe('menu bar reasons (feature 006)', () => {
       'Delete row: the table has only one row; use Delete table',
     );
 
-    for (const id of ['menu-test-plain', 'menu-test-enabled', 'menu-test-mergeCells']) {
+    for (const id of ['menu-test-plain', 'menu-test-enabled', 'menu-test-stub']) {
       const item = within(popup).getByTestId(id);
       expect(item, id).not.toHaveAttribute('title');
       expect(item, id).not.toHaveAttribute('aria-description');
     }
     expect(within(popup).getByTestId('menu-test-plain')).toHaveAttribute('aria-disabled', 'true');
-    expect(within(popup).getByTestId('menu-test-mergeCells')).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    ); // a stub: disabled, without a reason
+    expect(within(popup).getByTestId('menu-test-stub')).toHaveAttribute('aria-disabled', 'true'); // a stub: disabled, without a reason
     expect(within(popup).getByTestId('menu-test-enabled')).not.toHaveAttribute('aria-disabled');
     expect(askedWhileEnabled).not.toHaveBeenCalled();
+    // Merge cells, live since feature 006's user story 5: without a table target, its reason.
+    const merge = within(popup).getByTestId('menu-test-mergeCells');
+    expect(merge).toHaveAttribute('aria-disabled', 'true');
+    expect(merge).toHaveAttribute(
+      'title',
+      'Merge cells: place the caret in a table of the Body view or of an annotation or history field',
+    );
 
     // Inside a submenu as well.
     await user.hover(within(popup).getByTestId('menu-test-sub'));

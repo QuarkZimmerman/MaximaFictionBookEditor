@@ -127,7 +127,9 @@ describe('the Body context menu', () => {
     expect(within(popup).getAllByRole('separator')).toHaveLength(7);
     expect(popup.querySelector('u')).toBeNull();
     // US2's twelve commands are live (T075): enabled in the first cell of the 3 × 3 table but
-    // the moves up and to the left, which have no neighbour there; the others are still stubs.
+    // the moves up and to the left, which have no neighbour there; US5's Merge cells and Split
+    // cell are live too (T105) and refuse a single unmerged cell with their reasons; the others
+    // are still stubs.
     const live = new Set([
       'insertRowAbove',
       'insertRowBelow',
@@ -148,6 +150,14 @@ describe('the Body context menu', () => {
     expect(screen.getByTestId('context-menu-tableStructure-moveRowUp')).toHaveAttribute(
       'title',
       'Move row up: there is no row above',
+    );
+    expect(screen.getByTestId('context-menu-tableStructure-mergeCells')).toHaveAttribute(
+      'title',
+      'Merge cells: select a block of at least two cells',
+    );
+    expect(screen.getByTestId('context-menu-tableStructure-splitCell')).toHaveAttribute(
+      'title',
+      'Split cell: the cell is not merged',
     );
     expect(screen.getByTestId('context-menu-tableStructure-insertRowBelow')).toHaveTextContent(
       'Insert row below',
