@@ -124,6 +124,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   text pasted together with tables into a cell joins that cell. A table or block of cells copied
   in the editor reaches spreadsheets and word processors as a table and plain-text editors as
   tab-separated text.
+- The book annotation, the source book's annotation and the history in the Description view
+  work with tables as the Body view does: their context menu offers *Table…*, *Table structure*
+  and, in a cell, *Inline image…*; *Add > Table*, *Add > Table structure* and *Add > Inline
+  image* follow the focused field; the Table bar edits the field's table; Tab and Shift+Tab move
+  between cells, a block of cells is selected with the mouse or the keyboard, pictures are
+  pasted or dropped into cells, irregular tables carry their warning mark, and hotkeys assigned
+  to table commands work there.
 
 ### Changed
 
@@ -181,6 +188,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   stand (feature 001's edge case on pasting rich text), and when the clipboard holds an HTML
   table with text beside a picture of it, the table is pasted. Cut, Delete and Backspace on a
   selected table now work on a section's only table too, an empty paragraph taking its place.
+- Pasting into the book annotation, the source book's annotation and the history of the
+  Description view works as in the Body view, so a pasted paragraph no longer brings its
+  language, id or style. Each table command and each table paste in these fields is one undo
+  step, and typing after it starts a new one; Shift+Tab in a table's first cell moves the focus
+  out of the field; Copy and Cut of a block of cells work in these fields.
 
 ### Fixed
 

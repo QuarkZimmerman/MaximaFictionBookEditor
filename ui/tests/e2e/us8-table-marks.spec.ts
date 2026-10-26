@@ -30,8 +30,10 @@
  * User story 10 (T155; quickstart §10: "also in `us8-table-marks`") adds the marks of the
  * Description view's fields, in the same three languages: the book annotation's
  * `overlap-from-two-rows-above` with its popover - *Repair table* and Undo, Escape and an outside
- * mousedown, the field's caret kept, and *Repair table* disabled during a waiting script - and
- * `plural-forms` in the source book's annotation, its only place.
+ * mousedown, the field's caret kept, and *Repair table* disabled while a request to the
+ * assistant's stand-in waits (the run lock a request in the Description view holds; a script run
+ * switches to the Body view) - and `plural-forms` in the source book's annotation, its only
+ * place.
  */
 
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -1223,12 +1225,6 @@ test.describe('US8 (feature 006) - irregular tables are marked, in the Body view
 /* ------------------------------------------------------------------------ */
 
 test.describe('US10 (feature 006) - irregular tables are marked in the Description view’s fields', () => {
-  test.beforeAll(({ coreServer }) => {
-    if (!coreServer.hasCore || !coreServer.dataDir) return;
-    const target = path.join(coreServer.dataDir, 'scripts', '06_Runs');
-    if (!existsSync(target)) cpSync(RUNS_FIXTURES, target, { recursive: true });
-  });
-
   test.beforeEach(async ({ core }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
     await core.rpc('settings.set', {
@@ -1240,7 +1236,7 @@ test.describe('US10 (feature 006) - irregular tables are marked in the Descripti
     if (!core.hasCore) return;
     await core
       .rpc('settings.set', {
-        patch: { session: { aiPanelVisible: null }, other: { restorePosition: null } },
+        patch: { session: { aiPanelVisible: null }, other: { restorePosition: null }, ai: null },
       })
       .catch(() => {});
   });
@@ -1248,9 +1244,23 @@ test.describe('US10 (feature 006) - irregular tables are marked in the Descripti
   test('the book annotation’s mark names its problems; its popover repairs the table in one Description undo step, closes on Escape and on an outside mousedown with the caret kept, and offers no repair during a script; plural-forms is marked in the source book’s annotation', async ({
     core,
     page,
+    standin,
   }) => {
     test.setTimeout(150_000);
+    await standin.reset();
+    await core.resetAiRequests();
+    await core.setAiResolve([]);
+    await core.rpc('settings.set', {
+      patch: {
+        session: { aiPanelVisible: true },
+        ai: {
+          mode: 'custom',
+          custom: { address: `${standin.url}/v1`, key: '', model: 'standin-chat' },
+        },
+      },
+    });
     await openBook(core, page, TABLES);
+    await ensureAssistantOn(page);
     const lang = await pageLang(page);
     const doc = await documentOf(page);
     await page.getByTestId('view-description').click();
@@ -1340,35 +1350,25 @@ test.describe('US10 (feature 006) - irregular tables are marked in the Descripti
     await expect(popover).toHaveCount(0);
     expect(await selection()).toEqual(kept);
 
-    // During a waiting script, started with the Description view shown: the mark opens the
-    // popover, whose Repair table is disabled with the run lock's reason, the focus on Close.
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() =>
-            (window.__mfbeTest?.scripts?.list() ?? []).some((one) => one.id === 'runs.longSilent'),
-          ),
-        { timeout: 15_000 },
-      )
-      .toBe(true);
-    await page.evaluate(() => {
-      void window.__mfbeTest!.scripts!.run('runs.longSilent');
-    });
+    // While a request to the assistant waits - the run lock a request in the Description view
+    // holds -, the mark opens the popover, whose Repair table is disabled with the lock's reason,
+    // the focus on Close.
+    await standin.reset();
+    await standin.scenarios([{ text: 'Later.', delayMs: 6000 }] as never);
+    await page.getByTestId('ai-input').fill('wait a little');
+    await page.getByTestId('ai-input').press('Enter');
     await expect(page.getByTestId('script-run-banner')).toBeVisible();
-    await expect(mark).toBeVisible();
+    await expect(field).toHaveAttribute('contenteditable', 'false');
+    await mark.scrollIntoViewIfNeeded();
     await mark.click();
     await expect(popover).toBeVisible();
     const repair = page.getByTestId('dialog-table-mark-button-repair');
     await expect(repair).toBeDisabled();
-    await expect(repair).toHaveAttribute(
-      'title',
-      uiText(lang, 'commands.unavailable.runLock.script'),
-    );
+    await expect(repair).toHaveAttribute('title', uiText(lang, 'commands.unavailable.runLock.ai'));
     await expect(page.getByTestId('dialog-table-mark-button-close')).toBeFocused();
     await page.getByTestId('dialog-table-mark-button-close').click();
     await expect(popover).toHaveCount(0);
-    await page.getByTestId('script-run-cancel').click();
-    await expect(page.getByTestId('script-run-banner')).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByTestId('script-run-banner')).toHaveCount(0, { timeout: 30_000 });
     expect(await toXml(page)).toBe(before);
   });
 });

@@ -119,8 +119,9 @@ export interface FieldTargetOptions {
 /**
  * The adapter of a rich field (data-model §6.1): `run` dispatches the command's transactions
  * marked `DISCRETE_STEP`, so the field records exactly one Description undo entry for it and
- * closes the typing burst around it; `setSelection` dispatches a selection as it is (a drop
- * point, a right-click); pictures go into cells only (spec Assumptions).
+ * closes the typing burst around it, and gives the field the focus as the Body controller's
+ * `execute` gives the Body editor; `setSelection` dispatches a selection as it is (a drop point,
+ * a right-click); pictures go into cells only (spec Assumptions).
  */
 export function createFieldTarget(options: FieldTargetOptions): FieldTarget {
   const listeners = new Set<() => void>();
@@ -148,7 +149,15 @@ export function createFieldTarget(options: FieldTargetOptions): FieldTarget {
     run: (cmd) => {
       const view = options.view();
       if (!view) return false;
-      return cmd(view.state, (tr) => view.dispatch(tr.setMeta(DISCRETE_STEP, true)), view);
+      // As the Body controller's `execute`: the field takes the focus with its selection, so
+      // typing goes on where the command left the caret (after a menu, the Table bar).
+      const dispatch = (tr: Transaction) => {
+        view.focus();
+        view.dispatch(tr.setMeta(DISCRETE_STEP, true));
+      };
+      const result = cmd(view.state, dispatch, view);
+      if (result) view.focus();
+      return result;
     },
     setSelection: (tr) => {
       options.view()?.dispatch(tr);

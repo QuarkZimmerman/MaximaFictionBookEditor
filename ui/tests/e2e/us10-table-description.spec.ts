@@ -47,14 +47,21 @@
  *         *Repair table* and Undo, Escape and an outside mousedown, and the run lock.
  */
 
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Locator, Page } from '@playwright/test';
 
-import { expect, fixtureBook, test, waitForBook, type CoreHandle } from './fixtures/core';
+import {
+  ensureAssistantOn,
+  expect,
+  fixtureBook,
+  test,
+  waitForBook,
+  type CoreHandle,
+} from './fixtures/core';
 import { pageText, uiText } from './fixtures/i18n';
 import { LINE_END } from './fixtures/keys';
 
@@ -162,7 +169,6 @@ const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const TABLES = fixtureBook('tables.fb2');
 const IMAGES_DIR = path.resolve(path.dirname(fixtureBook('x')), '..', 'images');
 const CLIPBOARD_DIR = path.resolve(path.dirname(fixtureBook('x')), '..', 'clipboard');
-const RUNS_FIXTURES = path.join(REPO_ROOT, 'tests', 'scripts', 'fixtures', '06_Runs');
 /** The Body view's user story 4 paste target in `tables.fb2` (T014): a 3 × 3 table after it. */
 const PASTE_TARGET = 'US4 sc.6, sc.8 (the paste target)';
 
@@ -456,9 +462,8 @@ async function unavailableTitle(page: Page, tooltipKey: string, reasonKey: strin
  * right end of its first line), carrying the files in the given order.
  */
 const DISPATCH_FILES = `(args) => {
-  const target = document.querySelector('[data-mfbe-target="' + args.marker + '"]');
-  if (!target) throw new Error('no target');
-  target.removeAttribute('data-mfbe-target');
+  const target = document.querySelector(args.selector);
+  if (!target) throw new Error('no target ' + args.selector);
   const data = new DataTransfer();
   for (const file of args.files) {
     const bytes = Uint8Array.from(atob(file.base64), (c) => c.charCodeAt(0));
@@ -480,25 +485,22 @@ const DISPATCH_FILES = `(args) => {
   target.dispatchEvent(new DragEvent('drop', init));
 }`;
 
+/**
+ * The event on the field's element with the node id `nodeId` (a cell or a paragraph), found by
+ * a selector: an attribute put on an element ProseMirror drew would be undone by its redraw.
+ */
 async function dispatchFiles(
   page: Page,
   kind: 'paste' | 'drop',
-  target: Locator,
+  field: FieldSpec,
+  nodeId: string,
   files: string[],
 ): Promise<void> {
-  await target.scrollIntoViewIfNeeded();
-  const marker = `target-${Date.now()}`;
-  await target.evaluate(
-    (element, value) =>
-      (element as unknown as { setAttribute(n: string, v: string): void }).setAttribute(
-        'data-mfbe-target',
-        value,
-      ),
-    marker,
-  );
+  const selector = `[data-testid="${field.testId}"] [data-node-id="${nodeId}"]`;
+  await page.locator(selector).scrollIntoViewIfNeeded();
   const args = {
     kind,
-    marker,
+    selector,
     files: files.map((file) => ({
       base64: readFileSync(file).toString('base64'),
       name: path.basename(file),
@@ -589,6 +591,27 @@ function clipboardTsv(name: string): string {
       tsv: string;
     }
   ).tsv;
+}
+
+/** The table right after the paragraph whose text is `label`, anywhere in `trees`. */
+function tableAfter(trees: Json[], label: string): Json {
+  const visit = (node: Json): Json | null => {
+    const children = node.content ?? [];
+    for (let index = 0; index < children.length; index += 1) {
+      const child = children[index]!;
+      if (child.type === 'p' && textOf(child) === label && children[index + 1]?.type === 'table') {
+        return children[index + 1]!;
+      }
+      const found = visit(child);
+      if (found) return found;
+    }
+    return null;
+  };
+  for (const tree of trees) {
+    const found = visit(tree);
+    if (found) return found;
+  }
+  throw new Error(`no table after "${label}"`);
 }
 
 /** The cell texts of a model table, row by row. */
@@ -700,11 +723,8 @@ async function selectionOf(page: Page): Promise<TargetInfo['selection'] | null> 
 test.describe('US10 (feature 006) - tables in the annotation and history fields', () => {
   let dir: string;
 
-  test.beforeAll(({ coreServer }) => {
+  test.beforeAll(() => {
     dir = mkdtempSync(path.join(tmpdir(), 'mfbe-us10-'));
-    if (!coreServer.hasCore || !coreServer.dataDir) return;
-    const target = path.join(coreServer.dataDir, 'scripts', '06_Runs');
-    if (!existsSync(target)) cpSync(RUNS_FIXTURES, target, { recursive: true });
   });
 
   test.afterAll(() => {
@@ -732,6 +752,7 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
         patch: {
           session: { aiPanelVisible: null, tableDialog: null },
           other: { restorePosition: null },
+          ai: null,
         },
       })
       .catch(() => {});
@@ -1010,9 +1031,7 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
       const r1c1 = cellId(regular, 'r1c1');
       await clickEnd(page, field, r1c1);
       let before = await fieldXml(page, field);
-      await dispatchFiles(page, 'paste', cellOf(page, field, r1c1), [
-        path.join(IMAGES_DIR, 'tiny.png'),
-      ]);
+      await dispatchFiles(page, 'paste', field, r1c1, [path.join(IMAGES_DIR, 'tiny.png')]);
       await expect(cellOf(page, field, r1c1).getByTestId('body-inline-image')).toHaveCount(1);
       let after = await changedField(page, field, before);
       expect(after).toContain('<td>r1c1<image l:href="#tiny.png"/></td>');
@@ -1021,7 +1040,7 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
       // Two PNGs dropped on a cell: both, in their order, each one undo step.
       const r1c2 = cellId(regular, 'r1c2');
       before = await fieldXml(page, field);
-      await dispatchFiles(page, 'drop', cellOf(page, field, r1c2), [
+      await dispatchFiles(page, 'drop', field, r1c2, [
         path.join(IMAGES_DIR, 'opaque-rgb.png'),
         path.join(IMAGES_DIR, 'alpha.png'),
       ]);
@@ -1061,12 +1080,9 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
       const count = uploads.length;
       const unchanged = await toXml(page);
       const { paragraph } = await fieldParts(page, field);
-      await dispatchFiles(
-        page,
-        'paste',
-        fieldOf(page, field).locator(`p[data-node-id="${idOf(paragraph)}"]`),
-        [path.join(IMAGES_DIR, 'tiny.png')],
-      );
+      await dispatchFiles(page, 'paste', field, idOf(paragraph), [
+        path.join(IMAGES_DIR, 'tiny.png'),
+      ]);
       await page.waitForTimeout(500);
       expect(await toXml(page)).toBe(unchanged);
       expect(uploads).toHaveLength(count);
@@ -1140,8 +1156,9 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
       expect(cellRows(regular)[1]!.every((cell) => cell.type === 'td')).toBe(true);
       await undoRedo(page, field, before, after);
 
-      // A word, Insert row above at once, a word again: three undo entries (I8).
-      for (let step = 0; step < 4; step += 1) await menu(page, 'edit', 'undo');
+      // A word, Insert row above at once, a word again: three undo entries (I8). First back to
+      // the field as opened: the merge, the split and the header row, three steps.
+      for (let step = 0; step < 3; step += 1) await menu(page, 'edit', 'undo');
       await expect.poll(() => fieldXml(page, field)).toBe(initial);
       ({ regular } = await fieldParts(page, field));
       const r2c3 = cellId(regular, 'r2c3');
@@ -1151,11 +1168,14 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
       await rightClickEnd(page, field, r2c3);
       await contextStructure(page, 'insertRowAbove');
       await expect.poll(async () => (await gridOf(page, ref))?.rows).toBe(3);
+      // The command left the caret in the new row's cell of that column (as in the Body view).
       await focusField(page, field);
       await page.keyboard.type('y');
-      await expect.poll(() => fieldXml(page, field)).toContain('<td>r2c3xy</td>');
+      await expect.poll(() => fieldXml(page, field)).toContain('<td>y</td>');
+      expect(await fieldXml(page, field)).toContain('<td>r2c3x</td>');
       await menu(page, 'edit', 'undo');
-      await expect.poll(() => fieldXml(page, field)).toContain('<td>r2c3x</td>');
+      await expect.poll(() => fieldXml(page, field)).not.toContain('<td>y</td>');
+      expect(await fieldXml(page, field)).toContain('<td>r2c3x</td>');
       expect((await gridOf(page, ref))?.rows).toBe(3);
       await menu(page, 'edit', 'undo');
       await expect.poll(async () => (await gridOf(page, ref))?.rows).toBe(2);
@@ -1251,15 +1271,7 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
     await page.getByTestId('view-body').click();
     await expect(page.getByTestId('body-editor')).toBeVisible();
     const doc = await documentOf(page);
-    const section = doc.bodies
-      .flatMap((body) => body.content ?? [])
-      .find((child) =>
-        (child.content ?? []).some((node) => node.type === 'p' && textOf(node) === PASTE_TARGET),
-      )!;
-    const labelIndex = section.content!.findIndex(
-      (node) => node.type === 'p' && textOf(node) === PASTE_TARGET,
-    );
-    const target = section.content![labelIndex + 1]!;
+    const target = tableAfter(doc.bodies, PASTE_TARGET);
     const targetRef = idOf(target);
     const r2c2 = cellId(target, 'r2c2');
     const placed = await page.evaluate(
@@ -1275,10 +1287,8 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
     const beforePaste = await toXml(page);
     await menu(page, 'edit', 'paste');
     await expect.poll(() => toXml(page)).not.toBe(beforePaste);
-    const pasted = (await documentOf(page)).bodies
-      .flatMap((body) => body.content ?? [])
-      .flatMap((child) => child.content ?? [])
-      .find((node) => node.type === 'table' && node.attrs?.nodeId === targetRef)!;
+    const pasted = tableAfter((await documentOf(page)).bodies, PASTE_TARGET);
+    expect(idOf(pasted)).toBe(targetRef);
     expect(texts(pasted)).toEqual([
       ['r1c1', 'r1c2', 'r1c3'],
       ['r2c1', 'r1c1', 'r1c2'],
@@ -1406,9 +1416,25 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
   test('FR-057 and SC-011: the irregular tables of the three fields carry the mark; the book annotation’s popover repairs its table in one step; Escape and an outside mousedown close it, the caret kept; under the run lock Repair table is disabled', async ({
     core,
     page,
+    standin,
   }) => {
     test.setTimeout(150_000);
+    // The run lock of the last leg comes from a request to the assistant's loopback stand-in,
+    // which a request in the Description view holds: a script run switches to the Body view.
+    await standin.reset();
+    await core.resetAiRequests();
+    await core.setAiResolve([]);
+    await core.rpc('settings.set', {
+      patch: {
+        session: { aiPanelVisible: true },
+        ai: {
+          mode: 'custom',
+          custom: { address: `${standin.url}/v1`, key: '', model: 'standin-chat' },
+        },
+      },
+    });
     await openBook(core, page);
+    await ensureAssistantOn(page);
     for (const field of FIELDS) {
       const { regular, irregular } = await fieldParts(page, field);
       const irregularTable = tableOf(page, field, idOf(irregular));
@@ -1477,35 +1503,27 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
     await expect(popover).toHaveCount(0);
     expect(await selectionOf(page)).toEqual(kept);
 
-    // During a waiting script the mark still opens the popover; Repair table is disabled with
-    // the run lock's reason, the focus on Close.
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() =>
-            (window.__mfbeTest?.scripts?.list() ?? []).some((one) => one.id === 'runs.longSilent'),
-          ),
-        { timeout: 15_000 },
-      )
-      .toBe(true);
-    await page.evaluate(() => {
-      void window.__mfbeTest!.scripts!.run('runs.longSilent');
-    });
+    // While a request to the assistant waits (the run lock, FR-048), the mark still opens the
+    // popover; Repair table is disabled with the lock's reason, the focus on Close.
+    await standin.reset();
+    await standin.scenarios([{ text: 'Later.', delayMs: 6000 }] as never);
+    await page.getByTestId('ai-input').fill('wait a little');
+    await page.getByTestId('ai-input').press('Enter');
     await expect(page.getByTestId('script-run-banner')).toBeVisible();
     await expect(fieldOf(page, ANNOTATION)).toHaveAttribute('contenteditable', 'false');
+    await mark.scrollIntoViewIfNeeded();
     await mark.click();
     await expect(popover).toBeVisible();
     const repair = page.getByTestId('dialog-table-mark-button-repair');
     await expect(repair).toBeDisabled();
     await expect(repair).toHaveAttribute(
       'title',
-      await pageText(page, 'commands.unavailable.runLock.script'),
+      await pageText(page, 'commands.unavailable.runLock.ai'),
     );
     await expect(page.getByTestId('dialog-table-mark-button-close')).toBeFocused();
     await page.getByTestId('dialog-table-mark-button-close').click();
     await expect(popover).toHaveCount(0);
-    await page.getByTestId('script-run-cancel').click();
-    await expect(page.getByTestId('script-run-banner')).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByTestId('script-run-banner')).toHaveCount(0, { timeout: 30_000 });
     expect(await fieldXml(page, ANNOTATION)).toBe(before);
   });
 });
