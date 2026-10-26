@@ -36,7 +36,7 @@ import { EditorState, TextSelection } from 'prosemirror-state';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2Schema } from '@/editor/schema';
 import { planCellAttrs, planRowAlign, planTableAttrs } from '@/editor/table/attrs';
-import { planCommand } from '@/editor/table/commands';
+import { availability, isAvailable, planCommand } from '@/editor/table/commands';
 import {
   applyTableEdit,
   assertTableValid,
@@ -1121,6 +1121,95 @@ describe('US2 rows and columns', () => {
       ).toBe('[a colspan=3, b] / [c, c, d, e]');
     });
 
+    it('Duplicate row removes a copy row left without a cell of its own, and every cell crossing it spans one row fewer (FR-046); the command acts', () => {
+      // Row 2's only own cell Z crosses line b = 2 and grows over the copy, X and Y cover the
+      // rest of its copy: the copy of row 2 holds no cell of its own. The table is valid and
+      // regular; the block X–Y and the assistant's rows 1–2 address the same unit.
+      const shape: MRow[] = [
+        [{ text: 'X', rowspan: 2 }, { text: 'Y', rowspan: 2 }, 'Q'],
+        [{ text: 'Z', rowspan: 2 }],
+        ['P', 'R'],
+      ];
+      const block = placed(shape, ['X', 'Y']);
+      expect(gridOfNode(block.table).regular).toBe(true);
+      const { edit, after } = acted(block, 'duplicateRow');
+      expect(show(after)).toBe('[X rowspan=2, Y rowspan=2, Q] / [Z rowspan=3] / [X, Y] / [P, R]');
+      expect(gridOfNode(after).regular).toBe(true);
+      expect(after.child(0)).toBe(block.table.child(0));
+      expect(after.child(3)).toBe(block.table.child(2));
+      expect(edit.focus).toEqual(blockOver(block.address.rect!));
+      // Enabled, it dispatches one step.
+      expect(isAvailable(availability(block.state, 'duplicateRow'))).toBe(true);
+      const dispatch = vi.fn();
+      expect(planCommand(PLANS.duplicateRow, planContext())(block.state, dispatch)).toBe(true);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      const lines = placed(shape, 'Q', { lines: { axis: 'row', from: 0, to: 2 } });
+      expect(show(acted(lines, 'duplicateRow').after)).toBe(show(after));
+      // Insert row below the block (two rows, as it spans two) acts on the same shape too.
+      expect(show(acted(block, 'insertRowBelow').after)).toBe(
+        '[X rowspan=2, Y rowspan=2, Q] / [Z rowspan=4] / [<td>, <td>] / [<td>, <td>] / [P, R]',
+      );
+      // A copy row between two that stay: the copies over it (A, B) and the grown D lose it.
+      const middle = acted(
+        placed(
+          [
+            [{ text: 'A', rowspan: 3 }, { text: 'B', rowspan: 2 }, 'C'],
+            [{ text: 'D', rowspan: 3 }],
+            ['E'],
+            ['F', 'G'],
+          ],
+          ['A', 'E'],
+        ),
+        'duplicateRow',
+      );
+      expect(show(middle.after)).toBe(
+        '[A rowspan=3, B rowspan=2, C] / [D rowspan=5] / [E] / [A rowspan=2, B] / [E] / [F, G]',
+      );
+      expect(gridOfNode(middle.after).regular).toBe(true);
+      // The rows 1–3 of the assistant: K crosses line 3 and covers column 2 of the whole copy, so
+      // the copies of rows 2 and 3 - C lies in K's column, K crosses - hold no cell (the case of
+      // fuzz seed 658).
+      const under = acted(
+        placed([[{ text: 'A', rowspan: 3 }, 'B'], ['C'], [{ text: 'K', rowspan: 2 }], ['P']], 'B', {
+          lines: { axis: 'row', from: 0, to: 3 },
+        }),
+        'duplicateRow',
+      );
+      expect(show(under.after)).toBe('[A rowspan=3, B] / [C] / [K rowspan=3] / [A] / [P]');
+      expect(gridOfNode(under.after).regular).toBe(true);
+    });
+
+    it('an invalid book’s row without cells: its copy is compacted away; nothing changes only when the cells crossing the line cover it, for Duplicate row as for Insert row', () => {
+      // Row 2 has no cell (an invalid book, kept unchecked); A and B cover it.
+      const invalid: MRow[] = [
+        [
+          { text: 'A', rowspan: 2 },
+          { text: 'B', rowspan: 2 },
+        ],
+        [],
+        ['C', 'D'],
+      ];
+      const both = placed(invalid, 'C', { lines: { axis: 'row', from: 0, to: 2 } });
+      expect(show(acted(both, 'duplicateRow').after)).toBe(
+        '[A rowspan=2, B rowspan=2] / [] / [A, B] / [C, D]',
+      );
+      // Row 1 alone: A and B cross line 1 and cover its copy, which goes - no copy row is left,
+      // so nothing changes and nothing is dispatched, as for rows inserted at line 1 (the
+      // assistant's row 2, above).
+      const first = placed(invalid, 'A');
+      const dispatch = vi.fn();
+      expect(planCommand(PLANS.duplicateRow, planContext())(first.state, dispatch)).toBe(false);
+      expect(dispatch).not.toHaveBeenCalled();
+      const tablePos = tableTarget(first.state)!.tablePos;
+      const duplicated = PLANS.duplicateRow(first.address, planContext());
+      expect(isRefusal(duplicated)).toBe(false);
+      expect(commitTableEdit(first.state.tr, tablePos, duplicated as TableEdit)).toBeNull();
+      const above = placed(invalid, 'A', { lines: { axis: 'row', from: 1, to: 2 } });
+      const inserted = PLANS.insertRowAbove(above.address, planContext());
+      expect(isRefusal(inserted)).toBe(false);
+      expect(commitTableEdit(above.state.tr, tablePos, inserted as TableEdit)).toBeNull();
+    });
+
     it('a copy keeps content, kind, spans, attributes and extraAttrs, has no id and fresh node ids throughout, also on an inline image', () => {
       const rich = {
         type: 'th' as const,
@@ -1384,6 +1473,34 @@ describe('US4 blocks', () => {
       expect(next[1]!.child(2)).toBe(before[1]!.child(2));
       expect(edit.removedIds).toEqual([]);
       expect(edit.focus).toEqual(blockOver(where.address.rect!));
+    });
+
+    it('keeps a span no plan writes - 0, 1, −1, one past the limit - as read (data-model §4.6: the cells keep their attributes)', () => {
+      // Until US6 relaxed assertTableValid to judge only the spans a plan writes (data-model
+      // §4.4), the clear wrote such a span as counted; §4.6 keeps every attribute of a cleared
+      // cell, so the values stay as they were read (FR-047).
+      const where = placed(
+        [
+          [
+            { text: 'z', colspan: 0 },
+            { text: 'o', rowspan: 1 },
+          ],
+          [
+            { text: 'n', rowspan: -1, unknownAttrs: { colspan: 'abc' } },
+            { text: 'h', colspan: 1001 },
+          ],
+        ],
+        ['z', 'h'],
+      );
+      const { after } = acted(where, planClearBlock);
+      expect(show(after)).toBe(
+        `[<td> colspan=0, <td> rowspan=1] / [<td> rowspan=-1 extra=${JSON.stringify({ unknownAttrs: { colspan: 'abc' } })}, <td> colspan=1001]`,
+      );
+      childrenOf(after).forEach((row, r) =>
+        childrenOf(row).forEach((cell, c) =>
+          expect(cell.attrs).toEqual(where.table.child(r).child(c).attrs),
+        ),
+      );
     });
 
     it('a block of empty cells commits nothing; too-large on a too-large table', () => {

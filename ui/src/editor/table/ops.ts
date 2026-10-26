@@ -657,7 +657,9 @@ function rowInsertIndex(grid: TableGrid, line: number): number {
  * reach (C15) - unless the first new row would then hold no cell: those spans are first cut to
  * end at the old last row (step 4). Every column no cell covers in a new row gets a new cell
  * like the owner of (reference row, column) - across the line where that is a hole, a plain
- * `td` where both are (FR-008). Focus: a caret in the first cell of the first new row.
+ * `td` where both are (FR-008). Nothing changes only where FR-046's compaction would remove
+ * every new row: the row at L an invalid book's row without cells under the cells crossing L,
+ * or a table without cells. Focus: a caret in the first cell of the first new row.
  */
 export function planInsertRows(
   address: TableAddress,
@@ -712,7 +714,10 @@ export function planInsertRows(
       (col) => neighbourAt(grid, table, { row: reference, col }, { row: other, col }),
       ctx,
     );
-    // Only an invalid book's empty row can leave a new row without a cell: no change then.
+    // No cell of its own: the cells crossing L cover the row at L, which a row with a cell never
+    // is (its first cell stands in a column they leave free) - an invalid book's row without
+    // cells -, or the table has no cell. Every new row is then such a row; FR-046's compaction
+    // would remove them all and give the crossing cells back their spans: nothing changes.
     if (cells.length === 0) return unchanged(table);
     if (j === 0) focusColumn = first;
     rows.push(newRowLike(referenceRow, cells, ctx));
@@ -1106,8 +1111,15 @@ export function planMoveColumns(
  * *Insert row* step 4 does). A cell wholly in the unit (`row + rowspan ≤ b`, the rowspan not
  * clipped) is copied to the same relative position (`copyCell`) where no crossing cell covers
  * its copy; every other position of the copy gets a new cell like the owner of the same
- * position in the unit, so the copy is complete also behind a short row (open point 7). Focus
- * kept.
+ * position in the unit, so the copy is complete also behind a short row (open point 7). A copy
+ * row still left without a cell of its own - each of its positions under a grown cell or under
+ * a copy from a row above it, as from X to Y in `[X rowspan 2, Y rowspan 2, Q] / [Z rowspan 2] /
+ * [P, R]`, where Z crosses line b - goes, and every cell that crosses it (a grown cell, a copy
+ * from above) spans one row fewer: FR-046's row compaction, so the table stays valid and a
+ * regular one regular. Nothing changes only when no copy row is left: row b is then an invalid
+ * book's row without cells under the cells that cross line b (a row with a cell has one in a
+ * column they leave free, where the first copy row gets a cell), or the table has no cell at
+ * all. Focus kept.
  */
 export function planDuplicateRows(address: TableAddress, ctx: PlanContext): TableEdit | Refusal {
   const { table, grid } = address;
@@ -1125,12 +1137,14 @@ export function planDuplicateRows(address: TableAddress, ctx: PlanContext): Tabl
     if (cell.row < b && b < cell.row + cell.rowspan) crossing.add(index);
   });
 
+  /** A cell of the copy: the copy of grid cell `index` over `rowspan` copy rows, or a new cell. */
   interface Item {
     col: number;
-    node: () => PMNode;
+    copy?: { index: number; rowspan: number };
+    neighbour?: PMNode | null;
   }
-  /** The copy rows' cells, by copy row; null when a copy row would hold no cell. */
-  const layout = (cut: boolean): Item[][] | null => {
+  /** The copy rows' own cells, by copy row; an empty list for a copy row without one. */
+  const layout = (cut: boolean): Item[][] => {
     const covered = Array.from({ length: count }, () => new Uint8Array(width));
     if (!cut) {
       for (const index of crossing) {
@@ -1154,52 +1168,60 @@ export function planDuplicateRows(address: TableAddress, ctx: PlanContext): Tabl
         for (let c = cell.left; c < right; c += 1) if (covered[j]![c]) return;
       }
       for (let j = top; j < top + rowspan; j += 1) taken[j]!.fill(1, cell.left, right);
-      const node = gridCellNode(table, grid, index);
-      items[top]!.push({
-        col: cell.left,
-        node: () => copyCell(node, cell.colspan, rowspan, ctx),
-      });
+      items[top]!.push({ col: cell.left, copy: { index, rowspan } });
     });
     for (let j = 0; j < count; j += 1) {
       for (let c = 0; c < width; c += 1) {
         if (covered[j]![c] || taken[j]![c]) continue;
         const owner = grid.owner(a + j, c);
-        const neighbour = owner >= 0 ? gridCellNode(table, grid, owner) : null;
-        items[j]!.push({ col: c, node: () => newCellLike(neighbour, ctx) });
+        items[j]!.push({ col: c, neighbour: owner >= 0 ? gridCellNode(table, grid, owner) : null });
       }
-      if (items[j]!.length === 0) return null;
       items[j]!.sort((x, y) => x.col - y.col);
     }
     return items;
   };
   let cut = false;
   let items = layout(false);
-  if (!items && b === height) {
+  if (b === height && items.some((cells) => cells.length === 0)) {
     cut = true;
     items = layout(true);
   }
-  // Only an invalid book's empty rows can leave a copy row without a cell: no change then.
-  if (!items) return unchanged(table);
+  // FR-046's row compaction of the copy: `gone[j]` counts the copy rows 0 … j without a cell of
+  // their own, which go.
+  const gone: number[] = [];
+  let removed = 0;
+  for (const cells of items) {
+    if (cells.length === 0) removed += 1;
+    gone.push(removed);
+  }
+  if (removed === count) return unchanged(table);
   const builder = new TableBuilder(table, grid);
   for (const index of crossing) {
     const cell = grid.cells[index]!;
     const node = gridCellNode(table, grid, index);
     if (b < height) {
+      // It covers every copy row: it grows by those that stay.
       builder.setCell(
         index,
-        withAttrs(node, withSpans(node.attrs, undefined, cell.rowspan + count)),
+        withAttrs(node, withSpans(node.attrs, undefined, cell.rowspan + count - removed)),
       );
     } else if (cut) {
       builder.setCell(index, withAttrs(node, withSpans(node.attrs, undefined, height - cell.row)));
     }
   }
-  const rows = items.map((cells, j) =>
-    newRowLike(
-      table.child(grid.rowChild[a + j]!),
-      cells.map((item) => item.node()),
-      ctx,
-    ),
-  );
+  const rows: PMNode[] = [];
+  items.forEach((cells, j) => {
+    if (cells.length === 0) return;
+    const nodes = cells.map((item) => {
+      if (!item.copy) return newCellLike(item.neighbour ?? null, ctx);
+      const { index, rowspan } = item.copy;
+      // A copy row it reaches into that goes takes one row of its span.
+      const lost = gone[j + rowspan - 1]! - gone[j]!;
+      const source = gridCellNode(table, grid, index);
+      return copyCell(source, grid.cells[index]!.colspan, rowspan - lost, ctx);
+    });
+    rows.push(newRowLike(table.child(grid.rowChild[a + j]!), nodes, ctx));
+  });
   builder.insertRows(rowInsertIndex(grid, b), rows);
   const { rect, caret } = address;
   return {
@@ -1287,11 +1309,13 @@ export function planDuplicateColumns(address: TableAddress, ctx: PlanContext): T
 /**
  * *Clear block* (data-model §4.6; FR-011): every cell of the block - `cellsIn(rect)` - loses
  * its content and keeps its node, kind and attributes (`nodeId`, `id`, `style`, `lang`, spans,
- * `extraAttrs`), so the cells stay with their ids (C47); a cell already empty and every row
- * without a changed cell are reused, so a block of empty cells commits nothing. `too-large` on
- * a grid too large for the owner map. Without a block nothing changes. Focus: the same block.
- * `keep` names a grid cell left as it is (a composition over a block keeps the top-left cell,
- * whose content it replaces, U39).
+ * `extraAttrs`) as read - a span no plan writes, such as 0, 1, −1 or one past the limit,
+ * included, which `assertTableValid` does not judge as written (data-model §4.4, FR-047) -, so
+ * the cells stay with their ids (C47); a cell already empty and every row without a changed
+ * cell are reused, so a block of empty cells commits nothing. `too-large` on a grid too large
+ * for the owner map. Without a block nothing changes. Focus: the same block. `keep` names a
+ * grid cell left as it is (a composition over a block keeps the top-left cell, whose content it
+ * replaces, U39).
  */
 export function planClearBlock(
   address: TableAddress,
@@ -1307,22 +1331,9 @@ export function planClearBlock(
     if (index === options.keep) continue;
     const node = gridCellNode(table, grid, index);
     if (node.content.size === 0) continue;
-    // A span the commands count as 1 (0, −1) is written as counted, as every plan writes spans.
-    const attrs = writtenSpans(node.attrs)
-      ? node.attrs
-      : withSpans(node.attrs, grid.cells[index]!.colspan, grid.cells[index]!.rowspan);
-    builder.setCell(index, node.type.create(attrs, Fragment.empty, node.marks));
+    builder.setCell(index, node.type.create(node.attrs, Fragment.empty, node.marks));
   }
   return { rows: builder.build(), focus: blockOver(rect), removedIds: [] };
-}
-
-/** True when a cell's spans are written as plans write them: none, or 2 up to the limits. */
-function writtenSpans(attrs: Attrs): boolean {
-  const ok = (value: unknown, limit: number) =>
-    value === null ||
-    value === undefined ||
-    (typeof value === 'number' && Number.isInteger(value) && value >= 2 && value <= limit);
-  return ok(attrs.colspan, MAX_COLSPAN) && ok(attrs.rowspan, MAX_ROWSPAN);
 }
 
 /**

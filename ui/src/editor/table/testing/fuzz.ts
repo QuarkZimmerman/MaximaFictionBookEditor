@@ -1,11 +1,11 @@
 /**
  * The seeded fuzz of SC-003 (feature 006, US2 T073; C76; I27; U19; data-model §16.4; quickstart
  * §2, §13; research R1.12, R8.15): random table commands on random tables, each step checked by
- * an oracle - the schema, `assertTableValid`, `availability` against the plan, a regular table
- * staying regular, the positions outside the addressed lines keeping their owners' content
- * (except those *Delete row* gives up where it dissolves an overlap, `deletedRows`), no
- * character lost or invented, Undo and Redo giving back exact documents and, where the host
- * can, the core's validation.
+ * an oracle - the schema, `assertTableValid`, `availability` against the plan, an available
+ * insertion or duplication acting (`grows`), a regular table staying regular, the positions
+ * outside the addressed lines keeping their owners' content (except those *Delete row* gives up
+ * where it dissolves an overlap, `deletedRows`), no character lost or invented, Undo and Redo
+ * giving back exact documents and, where the host can, the core's validation.
  *
  * Two hosts run it: `createStateHost` over an `EditorState` with history (vitest,
  * `tests/unit/editor/table/fuzz.test.ts`) and `createTargetHost` over a table edit target - the
@@ -339,6 +339,12 @@ export interface FuzzEntry {
   caret?: 'last' | 'block' | 'merged';
   /** The lines the step addresses and its column map; null when it addresses none. */
   lines?(address: TableAddress): FuzzLines | null;
+  /**
+   * The step inserts or duplicates rows or columns: on a table whose every row holds a cell it
+   * acts whenever its plan answers an edit - a new row left without a cell of its own is
+   * compacted away (FR-046), never the whole step (FR-037; data-model §4.5).
+   */
+  grows?: boolean;
   /** The step removes cells (their text leaves with them). */
   removes?: boolean;
   /** New cells may hold the text of the cells they copy. */
@@ -631,6 +637,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     weight: 5,
     plan: (address, ctx) => planInsertRows(address, { side: 'above' }, ctx),
     lines: rowLines,
+    grows: true,
   },
   {
     name: 'insertRowBelow',
@@ -638,6 +645,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     weight: 5,
     plan: (address, ctx) => planInsertRows(address, { side: 'below' }, ctx),
     lines: rowLines,
+    grows: true,
   },
   {
     name: 'insertColumnLeft',
@@ -645,6 +653,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     weight: 5,
     plan: (address, ctx) => planInsertColumns(address, { side: 'left' }, ctx),
     lines: insertedColumns('left'),
+    grows: true,
   },
   {
     name: 'insertColumnRight',
@@ -652,6 +661,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     weight: 5,
     plan: (address, ctx) => planInsertColumns(address, { side: 'right' }, ctx),
     lines: insertedColumns('right'),
+    grows: true,
   },
   {
     name: 'deleteRow',
@@ -704,6 +714,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     plan: (address, ctx) => planDuplicateRows(address, ctx),
     lines: rowLines,
     copies: true,
+    grows: true,
   },
   {
     name: 'duplicateColumn',
@@ -712,6 +723,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     plan: (address, ctx) => planDuplicateColumns(address, ctx),
     lines: duplicatedColumns,
     copies: true,
+    grows: true,
   },
   {
     name: 'tabRow',
@@ -719,6 +731,7 @@ export const FUZZ_MIX: FuzzEntry[] = [
     plan: (address, ctx) => planTabRow(address, ctx),
     caret: 'last',
     lines: rowLines,
+    grows: true,
   },
   // US4 (SC-003; U19): the block clear (Delete on a drawn block), the cut and the paste.
   {
@@ -1553,14 +1566,29 @@ function checkAttrStep(
   return null;
 }
 
+/** Every row of the table holds a cell: only an invalid book has a row without one. */
+function rowsHoldCells(table: PMNode): boolean {
+  let holds = true;
+  table.forEach((row) => {
+    if (row.type.name !== 'tr') return;
+    let cell = false;
+    row.forEach((child) => {
+      if (child.type.name === 'td' || child.type.name === 'th') cell = true;
+    });
+    if (!cell) holds = false;
+  });
+  return holds;
+}
+
 /**
  * The oracle of one command step (data-model §16.4): the availability agrees with the dry
  * run; a refused step (or a plan that changes nothing) changes nothing and adds no history
- * event - an attribute step's value refused exactly when it must be (US7) -; a step that acts
- * gives a valid document and table (`check()`, `assertTableValid`), no FB2 id twice in the
- * document, a regular table stays regular (FR-046), the positions outside its lines keep their
- * owners (FR-035) and no character is lost or invented. Null when every check holds, else the
- * reason.
+ * event - an attribute step's value refused exactly when it must be (US7) -, while an insertion
+ * or duplication that is not refused always acts on a table whose every row holds a cell
+ * (`grows`; FR-037, FR-046); a step that acts gives a valid document and table (`check()`,
+ * `assertTableValid`), no FB2 id twice in the document, a regular table stays regular (FR-046),
+ * the positions outside its lines keep their owners (FR-035) and no character is lost or
+ * invented. Null when every check holds, else the reason.
  */
 export function checkFuzzStep(record: FuzzStepRecord): string | null {
   const { entry, before, after, tablePos, address, dryRun, answer, ran, clipboard, attrValue } =
@@ -1581,6 +1609,9 @@ export function checkFuzzStep(record: FuzzStepRecord): string | null {
   let acts = !isRefusal(dryRun);
   if (acts) acts = commitTableEdit(before.tr, tablePos, dryRun as TableEdit) !== null;
   if (!acts) {
+    if (entry.grows && !isRefusal(dryRun) && rowsHoldCells(address.table)) {
+      return 'the command is available but its plan changes nothing';
+    }
     if (ran) return 'a step that does not act ran';
     if (!after.doc.eq(before.doc)) return 'a step that does not act changed the document';
     if (undoDepth(after) !== undoDepth(before))

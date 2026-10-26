@@ -37,9 +37,13 @@ function failureText(report: FuzzReport): string {
  * Exploratory seeds that once failed, kept as fixed cases: 222 and 302 broke the locality of
  * *Delete row* where it moves the earlier cell of an overlap into a row whose later cell spans
  * more rows than the moved one - the cells right of the positions that cell gave up moved left
- * (data-model §4.5, FR-007, FR-035).
+ * (data-model §4.5, FR-007, FR-035); 658 found *Duplicate row* available and changing nothing
+ * on a valid table: a row of the copy lay wholly under the cell that crosses line b and grows
+ * over the copy, and under copies from the rows above, and the plan gave up the whole copy
+ * instead of removing that row (FR-037, FR-046; `[X rowspan 2, Y rowspan 2, Q] / [Z rowspan 2]
+ * / [P, R]` from X to Y in `ops.test.ts`).
  */
-const REGRESSION_SEEDS: readonly number[] = [222, 302];
+const REGRESSION_SEEDS: readonly number[] = [222, 302, 658];
 
 const seeds = process.env.MFBE_FUZZ_SEED
   ? [Number(process.env.MFBE_FUZZ_SEED)]
