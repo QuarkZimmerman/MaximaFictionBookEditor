@@ -24,6 +24,7 @@ jobs:
   lint:
     name: lint (formats, scripts, docs)
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - name: Install tools
