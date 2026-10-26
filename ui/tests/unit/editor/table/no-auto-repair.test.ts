@@ -14,10 +14,14 @@
  * table itself leave its problems as they were, since a kind change moves no position; US7
  * (T120) the attribute plans `planCellAttrs` (on a block of the regular table), `planRowAlign`
  * and `planTableAttrs`, which on the irregular table itself leave its problems as they were too:
- * attributes move no position (quickstart §8). US10 (T157) adds a field host: each irregular case
+ * attributes move no position (quickstart §8). US8 (T135) adds the Table bar's span route, and
+ * *Repair table* on one irregular table, which leaves every other table the same node; US9
+ * (T152) the whole-table commands (`WHOLE_TABLE_GUARDED`), a foreign paste and *Paragraph after
+ * table* on the irregular table itself. US10 (T157) adds a field host: each irregular case
  * beside the regular table in a description field's state (`createRichFieldState`, with the
  * table plugin) stays the same node through typing, a selection across two cells and every
  * guarded command on the regular table, and no appended transaction carries a step there either.
+ * With SC-003's final mix (T187) the guard covers the same 24 table commands as the fuzz.
  */
 
 /// <reference types="node" />
@@ -30,6 +34,7 @@ import { redo, undo } from 'prosemirror-history';
 import { Fragment, Slice } from 'prosemirror-model';
 import {
   TextSelection,
+  type Command,
   type EditorState,
   type Selection,
   type Transaction,
@@ -40,10 +45,12 @@ import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { createNodeIdGenerator, fb2Schema, findNodeById } from '@/editor/schema';
 import { planCellAttrs, planRowAlign, planSpan, planTableAttrs } from '@/editor/table/attrs';
 import {
+  TABLE_COMMAND_NAMES,
   deleteTableCommand,
   paragraphCommand,
   planCommand,
   selectTableCommand,
+  type TableCommandName,
   type TablePlan,
 } from '@/editor/table/commands';
 import { pasteTransaction } from '@/editor/clipboard/route';
@@ -163,6 +170,20 @@ const GUARDED_COMMANDS: {
   },
 ];
 
+/**
+ * US9 (T152): the whole-table commands, ProseMirror commands rather than plans, run on the
+ * regular table with the caret in it.
+ */
+const WHOLE_TABLE_GUARDED: {
+  name: TableCommandName;
+  command(ctx: { nextId(): string }): Command;
+}[] = [
+  { name: 'select', command: () => selectTableCommand },
+  { name: 'paragraphBefore', command: (ctx) => paragraphCommand('before', ctx) },
+  { name: 'paragraphAfter', command: (ctx) => paragraphCommand('after', ctx) },
+  { name: 'delete', command: (ctx) => deleteTableCommand(ctx) },
+];
+
 /** The clipboard fixtures of T018 (the guard's foreign paste, US9). */
 const CLIPBOARD = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -276,6 +297,17 @@ describe('no automatic repair (R1.7, FR-035)', () => {
     expect(GUARDED_COMMANDS).toHaveLength(26);
   });
 
+  it('guards the 24 table commands of SC-003’s final mix (T187)', () => {
+    // The plans of `GUARDED_COMMANDS`, the whole-table commands, and *Repair table*, whose own
+    // case below repairs one irregular table beside the others (it refuses a regular table).
+    const guarded = new Set<string>([
+      ...GUARDED_COMMANDS.map((one) => one.name),
+      ...WHOLE_TABLE_GUARDED.map((one) => one.name),
+      'repair',
+    ]);
+    expect(TABLE_COMMAND_NAMES.filter((name) => !guarded.has(name))).toEqual([]);
+  });
+
   for (const one of irregular) {
     it(`${one.name}: edits and commands beside it leave it the same node`, () => {
       const doc = N.doc!.create(
@@ -358,15 +390,13 @@ describe('no automatic repair (R1.7, FR-035)', () => {
       // itself: the irregular table stays the same node; no appended transaction carries a step.
       let wholeIds = 0;
       const wholeCtx = { nextId: () => `w${(wholeIds += 1)}` };
-      for (const command of [
-        selectTableCommand,
-        paragraphCommand('before', wholeCtx),
-        paragraphCommand('after', wholeCtx),
-        deleteTableCommand(wholeCtx),
-      ]) {
+      for (const { name, command } of WHOLE_TABLE_GUARDED) {
         let next: EditorState | null = null;
-        expect(command(caretIn, (tr) => (next = apply(caretIn, tr)))).toBe(true);
-        expect(tableOf(next!)).toBe(original);
+        expect(
+          command(wholeCtx)(caretIn, (tr) => (next = apply(caretIn, tr))),
+          name,
+        ).toBe(true);
+        expect(tableOf(next!), name).toBe(original);
       }
       const foreign = withSelection(
         caretIn,

@@ -5,13 +5,17 @@
  * (`MFBE_FUZZ_SEED=<n> npx vitest run tests/unit/editor/table/fuzz.test.ts`) - through an
  * `EditorState` made by `createBodyEditorState`, with every Body plugin, the table plugin
  * included, and history; every step checked by the generator's oracle. A failure prints its
- * seed, step, command, selection and the table before and after it as model JSON.
+ * seed, step, command, selection and the table before and after it as model JSON. SC-003's
+ * final command mix (T187) is pinned here: every table command has an entry, beside the Tab
+ * row, the block commands, the attribute and span routes and the id edits, with R8.15's weights
+ * and those the stories gave their additions.
  */
 
 /// <reference types="node" />
 import { EditorState, TextSelection } from 'prosemirror-state';
 
 import { fb2Schema } from '@/editor/schema';
+import { TABLE_COMMAND_NAMES } from '@/editor/table/commands';
 import { commitTableEdit, isRefusal, tableTarget, type TableEdit } from '@/editor/table/edit';
 import { gridOfNode } from '@/editor/table/grid';
 import { pasteBlockPlan } from '@/editor/table/ops';
@@ -100,6 +104,129 @@ describe('the seeded fuzz of SC-003 (oracle layer)', () => {
     expect(second).toEqual(first);
     const other = await runFuzz(createStateHost(startState()), { seed: 1006, steps: 50 });
     expect(other.commands).not.toEqual(first.commands);
+  });
+});
+
+describe('SC-003’s final command mix (T187)', () => {
+  /** The entry of the mix named `name`. */
+  const entry = (name: string) => {
+    const found = FUZZ_MIX.find((one) => one.name === name);
+    if (!found) throw new Error(`the mix has no entry "${name}"`);
+    return found;
+  };
+  const weight = (...names: string[]) => names.reduce((sum, name) => sum + entry(name).weight, 0);
+
+  it('the mix holds every table command', () => {
+    // The `table.*` commands of the mix are the 24 of the command table, each in one entry
+    // named after it.
+    const commands = FUZZ_MIX.flatMap((one) => (one.command ? [one.command] : []));
+    expect([...commands].sort()).toEqual([...TABLE_COMMAND_NAMES].sort());
+    for (const one of FUZZ_MIX) if (one.command) expect(one.name).toBe(one.command);
+    expect(new Set(FUZZ_MIX.map((one) => one.name)).size).toBe(FUZZ_MIX.length);
+    // The Tab row, the block clear, cut and paste (US4).
+    expect(entry('tabRow')).toMatchObject({ caret: 'last', grows: true });
+    expect(entry('clearBlock')).toMatchObject({ caret: 'block', clears: 'clear' });
+    expect(entry('cutBlock')).toMatchObject({ caret: 'block', clears: 'cut' });
+    expect(entry('pasteBlock')).toMatchObject({ pastes: true });
+    // The Table bar's attribute plans, `xml:lang` among them, and its id edits (US7; U19) ...
+    expect(
+      FUZZ_MIX.flatMap((one) => (one.attr ? [`${one.attr.scope} ${one.attr.name}`] : [])).sort(),
+    ).toEqual(
+      [
+        'cells align',
+        'cells valign',
+        'cells style',
+        'cells lang',
+        'rows align',
+        'table style',
+        'head id',
+        'table id',
+      ].sort(),
+    );
+    // ... and its span route (US8).
+    expect(FUZZ_MIX.flatMap((one) => (one.span ? [one.span] : []))).toEqual(['colspan', 'rowspan']);
+    // The whole-table commands run as commands of their own (US9).
+    expect(FUZZ_MIX.flatMap((one) => (one.whole ? [one.whole] : []))).toEqual([
+      'select',
+      'delete',
+      'paragraphBefore',
+      'paragraphAfter',
+    ]);
+    expect(weight('undo', 'redo')).toBe(10);
+  });
+
+  it('the mix carries R8.15’s weights and those the stories gave their additions', () => {
+    // R8.15: inserts 20, deletes 15, merge 10, split 10, header commands 10, attributes 10
+    // (`xml:lang` and the span route included), moves and duplicates 10, repair 5, undo 5 and
+    // redo 5.
+    expect(
+      weight('insertRowAbove', 'insertRowBelow', 'insertColumnLeft', 'insertColumnRight'),
+    ).toBe(20);
+    expect(weight('deleteRow', 'deleteColumn')).toBe(15);
+    expect(weight('mergeCells')).toBe(10);
+    expect(weight('splitCell')).toBe(10);
+    expect(
+      weight(
+        'toggleHeaderCell',
+        'makeHeaderCells',
+        'makeNormalCells',
+        'toggleHeaderRow',
+        'toggleHeaderColumn',
+      ),
+    ).toBe(10);
+    expect(
+      weight(
+        'cellAlign',
+        'cellValign',
+        'cellStyle',
+        'cellLang',
+        'rowAlign',
+        'tableStyle',
+        'colspan',
+        'rowspan',
+      ),
+    ).toBe(10);
+    expect(
+      weight(
+        'moveRowUp',
+        'moveRowDown',
+        'moveColumnLeft',
+        'moveColumnRight',
+        'duplicateRow',
+        'duplicateColumn',
+      ),
+    ).toBe(10);
+    expect(weight('repair')).toBe(5);
+    expect(weight('undo')).toBe(5);
+    expect(weight('redo')).toBe(5);
+    // The stories' additions, which R8.15 leaves open.
+    const additions = [
+      'tabRow',
+      'clearBlock',
+      'cutBlock',
+      'pasteBlock',
+      'cellId',
+      'tableId',
+      'select',
+      'delete',
+      'paragraphBefore',
+      'paragraphAfter',
+    ];
+    expect(Object.fromEntries(additions.map((name) => [name, entry(name).weight]))).toEqual({
+      tabRow: 5,
+      clearBlock: 3,
+      cutBlock: 2,
+      pasteBlock: 5,
+      cellId: 1,
+      tableId: 1,
+      select: 2,
+      delete: 1,
+      paragraphBefore: 1,
+      paragraphAfter: 1,
+    });
+    // Nothing beyond them: 100 of R8.15 and 22 of the stories.
+    expect(FUZZ_MIX).toHaveLength(40);
+    expect(FUZZ_MIX.reduce((sum, one) => sum + one.weight, 0)).toBe(122);
   });
 });
 

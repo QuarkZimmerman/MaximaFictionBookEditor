@@ -8,9 +8,10 @@
  * `__mfbeTest.tables.fuzz(seed, 1000)` runs 1,000 random commands on the Body editor (seed 6, or
  * `MFBE_FUZZ_SEED`), Undo and Redo of random steps included, on tables up to 12 × 12, and the
  * core validates the document after every step (`doc.validate`, 0 errors). A failure prints the
- * seed, the step, the command and the table before and after it as model JSON. 1,000 core
- * validations do not fit the default time-out, so the journey sets its own (quickstart open
- * point 8).
+ * seed, the step, the command and the table before and after it as model JSON. The commands
+ * are SC-003's final mix (T187). The time-out is the journey's own, set from the Linux e2e leg
+ * of the CI runs (T187; quickstart open point 8; research R8.19): twice the slowest measured
+ * duration, rounded up to the next minute.
  */
 
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -81,7 +82,10 @@ test.describe('US2 (feature 006) - the seeded fuzz in the page', () => {
     page,
   }) => {
     test.skip(!core.hasCore, 'needs mfbe-core (MFBE_CORE_BIN)');
-    test.setTimeout(process.env.CI ? 600_000 : 300_000);
+    // 1,000 core validations of a small book: 4.9 to 8.0 s in the Linux e2e leg of the CI runs
+    // since user story 2 (40327009993 to 40373286236), 3.0 s on the development host; twice
+    // the slowest, rounded up to the next minute.
+    test.setTimeout(60_000);
     const seed = Number(process.env.MFBE_FUZZ_SEED ?? 6);
     const file = book(dir);
     await core.openApp(page);

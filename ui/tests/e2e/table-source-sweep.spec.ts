@@ -221,9 +221,11 @@ test.describe('US1 (feature 006) - the Source view’s table rule against the sc
     core,
     page,
   }) => {
-    // About 1,800 validations of a 5 KB book: a time-out of the test's own, to be fixed at the
-    // first green CI run (quickstart open point 8).
-    test.setTimeout(process.env.CI ? 600_000 : 300_000);
+    // About 1,800 validations of a 5 KB book, 24 at a time: 3.4 to 4.3 s in the Linux e2e leg of
+    // the CI runs since user story 1 (40280949388 to 40373286236), 1.7 s on the development
+    // host; the time-out is twice the slowest, rounded up to the next minute (T187; quickstart
+    // open point 8; research R8.19).
+    test.setTimeout(60_000);
     await openBook(core, page);
     await page.getByTestId('view-source').click();
     await expect(page.getByTestId('source-view')).toHaveAttribute('data-status', 'ready');

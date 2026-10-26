@@ -37,7 +37,11 @@
  * step from 1 to past the edge, the current one and an empty field's 1 included, and its oracle
  * (`checkSpanStep`: outside the head cell's old and new rectangles every cell keeps its content
  * and kind, a growth joins the removed cells' content into the head cell as a merge does, a shrink
- * adds empty cells only); a refusal changes nothing and adds no history event.
+ * adds empty cells only); a refusal changes nothing and adds no history event. US9 adds *Select
+ * table*, *Delete table* and the two paragraph commands, run as ProseMirror commands with their
+ * own oracle (`runWholeStep`). With them the mix is SC-003's final one (T187): each of the 24
+ * names of `TABLE_COMMAND_NAMES` has an entry (`fuzz.test.ts`, "the mix holds every table
+ * command").
  */
 
 import { Fragment, Slice, type Node as PMNode, type Schema } from 'prosemirror-model';
@@ -656,14 +660,20 @@ function attrPlan(attr: FuzzAttr, value: string): TablePlan {
 }
 
 /**
- * The commands of the mix with R8.15's weights: the four inserts 5 each, *Delete row* 8 and
- * *Delete column* 7, the four moves 1.5 and the two duplicates 2 each; the Tab row 5 (a weight
- * chosen here); the block clear 3, the cut 2 and the paste 5 (US4); *Merge cells* 10 and *Split
- * cell* 10 (US5); the five header commands 2 each (US6); *Cell align* 2, *Cell valign* 1, *Cell
- * style* 1, *Cell language* 2, *Row align* 1 and *Table style* 1 - 8 of R8.15's "attributes 10"
- * - and the id edits *Cell ID* 1 and *Table ID* 1 (US7; U19); Undo 5 and Redo 5.
+ * SC-003's final command mix (T187): every command of user stories 1 to 9 - each of the 24
+ * table commands of `TABLE_COMMAND_NAMES` through an entry of its own, and the Tab row, the
+ * block clear, cut and paste, the Table bar's attribute plans, its span route and its id edits -
+ * in this order, which fixes what a seed draws. R8.15's weights: inserts 20 (the four inserts 5
+ * each), deletes 15 (*Delete row* 8, *Delete column* 7), merge 10, split 10, header commands 10
+ * (the five 2 each), attributes 10 (*Cell align* 2, *Cell valign* 1, *Cell style* 1, *Cell
+ * language* 2 - `xml:lang` -, *Row align* 1, *Table style* 1, and the span route's colspan 1 and
+ * rowspan 1), moves and duplicates 10 (the four moves 1.5 each, the two duplicates 2 each),
+ * repair 5, Undo 5 and Redo 5; and the weights the stories gave their additions, which R8.15
+ * leaves open: the Tab row 5 (US2), the block clear 3, the cut 2 and the paste 5 (US4), the id
+ * edits *Cell ID* 1 and *Table ID* 1 (US7; U19), *Select table* 2, *Delete table* 1 and the two
+ * paragraph commands 1 each (US9). The weights add up to 122.
  */
-export const FUZZ_MIX: FuzzEntry[] = [
+export const FUZZ_MIX: readonly FuzzEntry[] = [
   {
     name: 'insertRowAbove',
     command: 'insertRowAbove',
@@ -884,6 +894,15 @@ export const FUZZ_MIX: FuzzEntry[] = [
   { name: 'rowspan', weight: 1, span: 'rowspan' },
   { name: 'undo', weight: 5 },
   { name: 'redo', weight: 5 },
+  // US9 (SC-003; weights chosen here, R8.15 gives none): *Select table* (2), whose next draw
+  // acts on the selected table - *Delete table*, or one of the commands outside
+  // `TABLE_SELECTION_COMMANDS`, which must refuse with `tableSelected` -, *Delete table* (1),
+  // after which a new start table comes, and the two paragraph commands (1 each); each a
+  // ProseMirror command with its own oracle (`runWholeStep`).
+  { name: 'select', command: 'select', weight: 2, whole: 'select' },
+  { name: 'delete', command: 'delete', weight: 1, whole: 'delete' },
+  { name: 'paragraphBefore', command: 'paragraphBefore', weight: 1, whole: 'paragraphBefore' },
+  { name: 'paragraphAfter', command: 'paragraphAfter', weight: 1, whole: 'paragraphAfter' },
 ];
 
 /**
@@ -903,23 +922,8 @@ function drawSpan(rng: () => number, address: TableAddress, axis: 'colspan' | 'r
 }
 
 /* ------------------------------------------------------------------------ */
-/* Hosts                                                                    */
+/* The whole-table steps (US9)                                              */
 /* ------------------------------------------------------------------------ */
-
-/** Where the fuzz runs: an editor state it selects in, runs commands on and undoes. */
-/**
- * US9's entries (SC-003; weights chosen here, R8.15 gives none): *Select table* (2), whose next
- * draw acts on the selected table - *Delete table*, or one of the commands outside
- * `TABLE_SELECTION_COMMANDS`, which must refuse with `tableSelected` -, *Delete table* (1), after
- * which a new start table comes, and the two paragraph commands (1 each).
- */
-const WHOLE_TABLE_MIX: FuzzEntry[] = [
-  { name: 'select', command: 'select', weight: 2, whole: 'select' },
-  { name: 'delete', command: 'delete', weight: 1, whole: 'delete' },
-  { name: 'paragraphBefore', command: 'paragraphBefore', weight: 1, whole: 'paragraphBefore' },
-  { name: 'paragraphAfter', command: 'paragraphAfter', weight: 1, whole: 'paragraphAfter' },
-];
-FUZZ_MIX.push(...WHOLE_TABLE_MIX);
 
 /** True for an empty `p` whose node id is a string the document `before` does not hold. */
 function freshEmptyParagraph(node: PMNode | null | undefined, before: PMNode): boolean {
@@ -1039,6 +1043,11 @@ function runWholeStep(
   return { reason: null, deleted: false };
 }
 
+/* ------------------------------------------------------------------------ */
+/* Hosts                                                                    */
+/* ------------------------------------------------------------------------ */
+
+/** Where the fuzz runs: an editor state it selects in, runs commands on and undoes. */
 export interface FuzzHost {
   state(): EditorState;
   select(selection: Selection): void;
