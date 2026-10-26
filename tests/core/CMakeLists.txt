@@ -2,6 +2,10 @@ find_package(Catch2 3 CONFIG REQUIRED)
 # The in-process HTTP test server (test_http_server.hpp) is a uWS::App on its own thread; the
 # core links uWebSockets privately, so the tests name the imported target for its headers.
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
+# The XML-level round-trip walker of test_support.hpp (feature 006, document-model §3.3) parses
+# with the core's hardened parser (core/src/xml/xml_security.hpp); the core links libxml2
+# privately, so the tests name the imported target for its headers.
+find_package(LibXml2 CONFIG REQUIRED)
 if(NOT WIN32)
   # The HTTPS fixture (test_tls_fixture.hpp) drives OpenSSL directly - the TLS library libcurl
   # is built on for Linux and macOS (vcpkg curl[ssl]). Windows links Schannel and no OpenSSL:
@@ -13,7 +17,7 @@ file(GLOB MFBE_CORE_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/
 if(MFBE_CORE_TEST_SOURCES)
   add_executable(mfbe_core_tests ${MFBE_CORE_TEST_SOURCES})
   target_link_libraries(mfbe_core_tests PRIVATE
-    mfbe::core Catch2::Catch2WithMain unofficial::uwebsockets::uwebsockets)
+    mfbe::core Catch2::Catch2WithMain unofficial::uwebsockets::uwebsockets LibXml2::LibXml2)
   # Internal helpers without a public header (core/src/util/sha256.hpp) are included as the
   # core's own sources include them ("util/sha256.hpp").
   target_include_directories(mfbe_core_tests PRIVATE "${CMAKE_SOURCE_DIR}/core/src")

@@ -39,7 +39,12 @@ const documents = loadDocuments();
 describe('model round trip over tests/fixtures/json', () => {
   it('finds the body fixtures', () => {
     expect(documents.map(([name]) => name)).toEqual(
-      expect.arrayContaining(['minimal-book.json', 'rich-book.json', 'description-full.json']),
+      expect.arrayContaining([
+        'minimal-book.json',
+        'rich-book.json',
+        'description-full.json',
+        'tables-book.json',
+      ]),
     );
   });
 
@@ -62,6 +67,53 @@ describe('model round trip over tests/fixtures/json', () => {
     const history = doc.description.documentInfo.history;
     expect(annotationToModel(annotationFromModel(annotation))).toEqual(annotation);
     expect(annotationToModel(annotationFromModel(history))).toEqual(history);
+  });
+
+  it('tables-book.json holds cells with lang, marks with lang and xlinkType, atoms with marks, unknownAttrs, two styles in each order and two emphasis marks of different languages', () => {
+    // Feature 006 (document-model "Tests to write"): the model book of tables.fb2 pins the
+    // shapes the conversions above carry both ways.
+    const tables = documents.find(([name]) => name === 'tables-book.json')![1];
+    const nodes: ModelNodeJson[] = [];
+    const visit = (node: ModelNodeJson) => {
+      nodes.push(node);
+      for (const child of node.content ?? []) visit(child);
+    };
+    for (const body of tables.bodies) visit(body as unknown as ModelNodeJson);
+    // A mark as `{mark, ...attrs}` (a link's own `type` attribute keeps its name).
+    const marksOf = (node: ModelNodeJson): Record<string, unknown>[] =>
+      (node.marks ?? []).map((m) => ({ mark: m.type, ...(('attrs' in m && m.attrs) || {}) }));
+    const cells = nodes.filter((n) => n.type === 'td' || n.type === 'th');
+    expect(cells.some((c) => c.attrs?.lang === 'de')).toBe(true);
+    expect(cells.some((c) => c.attrs?.lang === 'en-GB')).toBe(true);
+    const texts = nodes.filter((n) => n.type === 'text');
+    expect(
+      texts.some((t) => marksOf(t).some((m) => m.mark === 'emphasis' && m.lang === 'la')),
+    ).toBe(true);
+    expect(
+      texts.some((t) => marksOf(t).some((m) => m.mark === 'link' && m.xlinkType === 'simple')),
+    ).toBe(true);
+    const atoms = nodes.filter((n) => n.type === 'inline-image' || n.type === 'raw-xml');
+    expect(atoms.some((a) => marksOf(a).some((m) => m.mark === 'link'))).toBe(true);
+    expect(atoms.some((a) => marksOf(a).some((m) => m.mark === 'strong'))).toBe(true);
+    expect(nodes.some((n) => n.attrs && 'unknownAttrs' in n.attrs)).toBe(true);
+    const styles = (t: ModelNodeJson) =>
+      marksOf(t)
+        .filter((m) => m.mark === 'style')
+        .map((m) => m.name);
+    expect(texts.some((t) => JSON.stringify(styles(t)) === '["a","b"]')).toBe(true);
+    expect(texts.some((t) => JSON.stringify(styles(t)) === '["b","a"]')).toBe(true);
+    expect(
+      texts.some(
+        (t) =>
+          JSON.stringify(
+            marksOf(t)
+              .filter((m) => m.mark === 'emphasis')
+              .map((m) => m.lang),
+          ) === '["la","de"]',
+      ),
+    ).toBe(true);
+    // A carriage return as read from &#13;.
+    expect(texts.some((t) => (t.text ?? '').includes('\r'))).toBe(true);
   });
 
   it('rich-book: marks arrive in canonical order, raw-xml keeps inline/block variants', () => {

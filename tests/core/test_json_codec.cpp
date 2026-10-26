@@ -21,7 +21,8 @@ json load_fixture(const std::string& name) {
 TEST_CASE("json_codec: every document fixture round-trips byte-exactly (as JSON values)",
           "[codec]") {
     const std::string name =
-        GENERATE("minimal-book.json", "rich-book.json", "description-full.json");
+        GENERATE("minimal-book.json", "rich-book.json", "description-full.json",
+                 "tables-book.json");
     INFO("fixture " << name);
     const json original = load_fixture(name);
     const model::Document doc = model::document_from_json(original);

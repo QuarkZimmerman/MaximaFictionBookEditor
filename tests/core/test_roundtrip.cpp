@@ -29,7 +29,8 @@ TEST_CASE("roundtrip: every well-formed fixture is structurally identical after 
         GENERATE(std::string("legacy-cp1251.fb2"), std::string("modern-utf8.fb2"),
                  std::string("utf16-bom.fb2"), std::string("koi8r.fb2"),
                  std::string("unknown-elements.fb2"), std::string("descriptor.fbd"),
-                 std::string("mismatched-declaration.fb2"), std::string("no-declaration.fb2"));
+                 std::string("mismatched-declaration.fb2"), std::string("no-declaration.fb2"),
+                 std::string("tables.fb2"), std::string("tables-invalid.fb2"));
     const std::string encoding =
         GENERATE(std::string("utf-8"), std::string("windows-1251"), std::string("utf-16"));
     INFO(name << " -> " << encoding);
@@ -331,4 +332,83 @@ TEST_CASE(
     REQUIRE(text_change.differences.size() == 1);
     CHECK(text_change.differences[0].where == "body[1]/section[1]/p[1]/text()[3]");
     CHECK(text_change.differences[0].what == "text \"y\" became \"z\"");
+}
+
+TEST_CASE("roundtrip: tables are written back attribute for attribute", "[roundtrip][tables]") {
+    // Feature 006 (SC-004; document-model §3.3, "Tests to write"): the XML-level walker of
+    // test_support.hpp over the feature's fixture books - every table, cell language, span,
+    // mark attribute, linked or formatted picture, named style around a whole link, nested
+    // style, nested emphasis with two languages and &#13; must come back.
+    for (const char* name : {"tables.fb2", "tables-invalid.fb2", "tables-images.fb2"}) {
+        INFO(name);
+        const std::string input = test::read_text(book(name));
+        MemoryBinaryStore store;
+        model::NodeIdAllocator ids;
+        const auto read = fb2::read_bytes(input, store, ids);
+        fb2::WriteOptions options;
+        options.xlink_prefix = read.xlink_prefix;
+        const std::string output = fb2::write_document(read.document, &store, options).text;
+        const auto difference = test::xml_equivalent(input, output);
+        CHECK_FALSE(difference.has_value());
+        if (difference) {
+            FAIL_CHECK(*difference);
+        }
+    }
+
+    // The walker itself: what the recorded normalisations change is allowed...
+    const auto equivalent = [](const std::string& in, const std::string& out) {
+        return test::xml_equivalent(test::minimal_book("<section>" + in + "</section>"),
+                                    test::minimal_book("<section>\n\t" + out + "\n</section>"));
+    };
+    CHECK_FALSE(equivalent("<table><tr><td colspan=\" 2 \">x</td></tr></table>",
+                           "<table>\n<tr><td colspan=\"2\">x</td></tr></table>"));
+    CHECK_FALSE(
+        equivalent("<p><strong><emphasis>a</emphasis></strong><emphasis><strong>b"
+                   "</strong></emphasis></p>",
+                   "<p><strong><emphasis>ab</emphasis></strong></p>"));
+    CHECK_FALSE(equivalent("<p><style name=\"x\">a<style name=\"x\">b</style></style></p>",
+                           "<p><style name=\"x\">ab</style></p>"));
+    CHECK_FALSE(equivalent("<p><a l:href=\"#s\">x</a><a l:href=\"#s\">y</a></p>",
+                           "<p><a l:href=\"#s\">xy</a></p>"));
+    // ...and what the writer must not change is a difference.
+    struct Pair {
+        const char* what;
+        const char* in;
+        const char* out;
+    };
+    for (const Pair& pair : {
+             Pair{"a dropped attribute",
+                  "<table><tr><td colspan=\"2\" align=\"center\">x</td>"
+                  "</tr></table>",
+                  "<table><tr><td colspan=\"2\">x</td></tr></table>"},
+             Pair{"00 written 0", "<table><tr><td rowspan=\"00\">x</td></tr></table>",
+                  "<table><tr><td rowspan=\"0\">x</td></tr></table>"},
+             Pair{"a picture outside its link",
+                  "<p><a l:href=\"#s\">t<image l:href=\"#p\"/></a></p>",
+                  "<p><a l:href=\"#s\">t</a><image l:href=\"#p\"/></p>"},
+             Pair{"a lost inner style",
+                  "<p><style name=\"a\">x<style name=\"b\">y</style></style></p>",
+                  "<p><style name=\"a\">xy</style></p>"},
+             Pair{"a lost inner language of nested emphasis",
+                  "<p><emphasis xml:lang=\"la\">a <emphasis xml:lang=\"de\">b</emphasis>"
+                  "</emphasis></p>",
+                  "<p><emphasis xml:lang=\"la\">a b</emphasis></p>"},
+             Pair{"a carriage return turned into a line feed", "<p>a&#13;b</p>", "<p>a&#10;b</p>"},
+             Pair{"a lost cell language", "<table><tr><td xml:lang=\"de\">x</td></tr></table>",
+                  "<table><tr><td>x</td></tr></table>"},
+             Pair{"a lost link type", "<p><a l:href=\"#s\" l:type=\"simple\">x</a></p>",
+                  "<p><a l:href=\"#s\">x</a></p>"},
+         }) {
+        INFO(pair.what);
+        const auto difference = equivalent(pair.in, pair.out);
+        CHECK(difference.has_value());
+        if (difference) {
+            CHECK_FALSE(difference->empty());
+        }
+    }
+    // The element path names the place.
+    const auto where = equivalent("<table><tr><td>a</td><td rowspan=\"-01\">b</td></tr></table>",
+                                  "<table><tr><td>a</td><td rowspan=\"-1\">b</td></tr></table>");
+    REQUIRE(where.has_value());
+    CHECK(where->rfind("/FictionBook/body[1]/section[1]/table[1]/tr[1]/td[2]", 0) == 0);
 }
