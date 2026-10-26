@@ -910,20 +910,28 @@ class RequestRun {
     return fromContext === undefined ? this.partBudget : Math.min(this.partBudget, fromContext);
   }
 
-  /** Asks the running work to stop: the job is cancelled, a wait cut short (ai-catalogue §6.15). */
+  /**
+   * Asks the running work to stop: the job is cancelled - or, while `ai.complete` is on its way,
+   * as soon as its id arrives -, a wait cut short (ai-catalogue §6.15).
+   */
   cancel(): void {
     if (this.cancelled || this.ended) return;
     this.cancelled = true;
     const jobId = this.jobId;
     if (jobId) {
       this.jobId = null;
-      void Promise.resolve(this.rpc.call('job.cancel', { jobId })).catch(() => {});
+      this.cancelJob(jobId);
     }
     this.waitAbort?.();
     this.session?.cancelValidation();
     // A nested script run ends with the request (FR-080, review C10): the host closes the
     // script's dialogs and resolves the run as cancelled.
     this.nestedHost?.cancel();
+  }
+
+  /** `job.cancel` of an exchange (a job already finished is left alone); a failure is swallowed. */
+  private cancelJob(jobId: string): void {
+    void Promise.resolve(this.rpc.call('job.cancel', { jobId })).catch(() => {});
   }
 
   /* ------------------------------------------------------------ the run */
@@ -1356,7 +1364,10 @@ class RequestRun {
           { target: target.target, body },
           {
             onStart: (jobId) => {
-              this.jobId = jobId;
+              // A cancel that came while `ai.complete` was on its way found no job to cancel:
+              // the job is cancelled now, or the exchange would run to its end in the core.
+              if (this.cancelled) this.cancelJob(jobId);
+              else this.jobId = jobId;
             },
           },
         );
