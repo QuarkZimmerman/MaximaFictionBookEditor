@@ -26,6 +26,7 @@ import {
   fb2Schema,
   findNodeById,
   nodeTypeFor,
+  seededScriptIds,
 } from '@/editor/schema';
 import { DEFAULT_NBSP_DISPLAY_CHAR } from '@/editor/plugins/nbsp';
 import { nodeToModel } from '@/editor/toModel';
@@ -295,7 +296,9 @@ function optionalObject<T extends object>(value: unknown, what: string): T {
 
 export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
   const { store, controller, dialogs, rpc, t } = deps;
-  const nextNodeId = createNodeIdGenerator('sc_');
+  // The run's `sc_<N>` ids, past the highest of the document it starts from - the store's, or
+  // the AI request's working copy for a nested run (feature 006, I26).
+  const nextNodeId = deps.document ? seededScriptIds(deps.document) : createNodeIdGenerator('sc_');
   const copy = deps.document ? new WorkingCopy(deps.document) : null;
   const publish = deps.publish ?? true;
   const captionFor = (caption: string) => deps.dialogCaption?.(caption) ?? caption;

@@ -29,6 +29,8 @@ import {
   type TagParseRule,
 } from 'prosemirror-model';
 
+import type { Document } from '@/model/document';
+
 /* ------------------------------------------------------------------------ */
 /* Name mapping                                                             */
 /* ------------------------------------------------------------------------ */
@@ -675,13 +677,80 @@ export function isStructural(type: NodeType | string): boolean {
 /* Node ids                                                                 */
 /* ------------------------------------------------------------------------ */
 
-/** Generates `ui_1`, `ui_2`... (the core re-assigns ids when it re-parses). */
-export function createNodeIdGenerator(prefix = 'ui_'): () => string {
-  let next = 1;
+/**
+ * Generates `<prefix><start>`, `<prefix><start + 1>`... - `ui_1`, `ui_2`... by default (the core
+ * re-assigns ids when it re-parses).
+ */
+export function createNodeIdGenerator(prefix = 'ui_', start = 1): () => string {
+  let next = start;
   return () => `${prefix}${next++}`;
 }
 
 const defaultNodeIds = createNodeIdGenerator();
+
+/**
+ * An `sc_<N>` node id. An N of 16 digits or more is skipped: counting never reaches it, so it
+ * cannot collide with an id the allocator gives, and counting on from it would not be exact.
+ */
+const SCRIPT_NODE_ID = /^sc_(\d{1,15})$/;
+
+/** The model nodes the `sc_<N>` scan walks (a text node has neither member). */
+interface IdNode {
+  attrs?: { nodeId?: unknown };
+  content?: readonly IdNode[];
+}
+
+/**
+ * The highest N of the `sc_<N>` node ids of `document` (0 without one), at any depth of its
+ * bodies and of the three description roots that hold blocks - the annotation of `title-info`
+ * and of `src-title-info` and the history of `document-info` -: where nodes are created.
+ */
+function highestScriptNodeId(document: Document): number {
+  const { titleInfo, srcTitleInfo, documentInfo } = document.description;
+  const pending: IdNode[] = [...document.bodies];
+  for (const root of [titleInfo.annotation, srcTitleInfo?.annotation, documentInfo.history]) {
+    if (root) pending.push(root);
+  }
+  let highest = 0;
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    const id = node.attrs?.nodeId;
+    const match = typeof id === 'string' ? SCRIPT_NODE_ID.exec(id) : null;
+    if (match) highest = Math.max(highest, Number(match[1]));
+    // One push per child: a section of a long book can hold more children than a call takes.
+    for (const child of node.content ?? []) pending.push(child);
+  }
+  return highest;
+}
+
+/**
+ * The `sc_<N>` allocator of an assistant request or a script run (`seededScriptIds`): every
+ * call gives the next id.
+ */
+export interface ScriptNodeIds {
+  (): string;
+  /**
+   * Continues past the highest `sc_<N>` of `document` when that lies at or beyond the next id:
+   * a request's allocator once a nested script run's result - ids of the run's own allocator -
+   * replaces the request's working copy. It never goes back.
+   */
+  continuePast(document: Document): void;
+}
+
+/**
+ * The one `sc_<N>` allocator of the assistant's requests and the script runs (feature 006, I26,
+ * C7; ai-catalogue Δ§3 "Ids of new nodes"): taken at every request start and every script run,
+ * nested runs included, it starts past the highest `sc_<N>` of the document the request or the
+ * run starts from (the request's working copy, for a nested run), so a new node never takes the
+ * id of a node an earlier request or run created. Without one it starts at `sc_1`.
+ */
+export function seededScriptIds(document: Document): ScriptNodeIds {
+  let next = highestScriptNodeId(document) + 1;
+  const ids = (() => `sc_${next++}`) as ScriptNodeIds;
+  ids.continuePast = (later) => {
+    next = Math.max(next, highestScriptNodeId(later) + 1);
+  };
+  return ids;
+}
 
 /**
  * Returns `node` with a `nodeId` on every structural descendant that lacks one. The input is

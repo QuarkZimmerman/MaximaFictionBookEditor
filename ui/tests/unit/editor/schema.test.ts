@@ -13,8 +13,18 @@ import {
   isStructural,
   nodeTypeFor,
   rawXmlElementName,
+  seededScriptIds,
 } from '@/editor/schema';
 import { nodeToModel } from '@/editor/toModel';
+import type {
+  AnnotationNode,
+  Document,
+  ParagraphNode,
+  SectionNode,
+  TableNode,
+} from '@/model/document';
+
+import { fakeDocument } from '../features/testUtils';
 
 const { nodes, marks } = fb2Schema;
 
@@ -508,5 +518,118 @@ describe('feature 006: cells, marks and atoms in the schema and the conversions'
     expect(problems).toEqual([]);
     expect(node.childCount).toBe(4);
     expect(back).toEqual(paragraph);
+  });
+});
+
+/** A paragraph of the model with `nodeId` and the given inline content. */
+function modelParagraph(nodeId: string, content: ParagraphNode['content'] = []): ParagraphNode {
+  return { type: 'p', attrs: { nodeId }, content };
+}
+
+function modelAnnotation(nodeId: string, content: AnnotationNode['content']): AnnotationNode {
+  return { type: 'annotation', attrs: { nodeId }, content };
+}
+
+/**
+ * The fixture book with `blocks` as the text of its one section and the given description roots:
+ * the book's annotation, the source book's annotation and the history.
+ */
+function bookWith(
+  blocks: SectionNode['content'],
+  roots: {
+    annotation?: AnnotationNode;
+    srcAnnotation?: AnnotationNode;
+    history?: AnnotationNode;
+  } = {},
+): Document {
+  const base = fakeDocument();
+  const { titleInfo, documentInfo } = base.description;
+  return {
+    ...base,
+    description: {
+      ...base.description,
+      titleInfo: { ...titleInfo, ...(roots.annotation ? { annotation: roots.annotation } : {}) },
+      ...(roots.srcAnnotation
+        ? { srcTitleInfo: { ...titleInfo, annotation: roots.srcAnnotation } }
+        : {}),
+      documentInfo: { ...documentInfo, ...(roots.history ? { history: roots.history } : {}) },
+    },
+    bodies: [
+      {
+        type: 'body',
+        attrs: { nodeId: 'n1' },
+        content: [{ type: 'section', attrs: { nodeId: 'n2' }, content: blocks }],
+      },
+    ],
+  };
+}
+
+describe('feature 006: the shared sc_ allocator (I26, C7; ai-catalogue Δ§3 "Ids of new nodes")', () => {
+  it('createNodeIdGenerator counts from a start value; without one it still starts at ui_1', () => {
+    const sc = createNodeIdGenerator('sc_', 5);
+    expect([sc(), sc(), sc()]).toEqual(['sc_5', 'sc_6', 'sc_7']);
+    const ui = createNodeIdGenerator();
+    expect([ui(), ui()]).toEqual(['ui_1', 'ui_2']);
+  });
+
+  it('seededScriptIds starts past the highest sc_<N> of the bodies, both annotations and the history, ignores other ids and starts at sc_1 without one', () => {
+    const first = (document: Document) => seededScriptIds(document)();
+    // In the bodies at any depth - here a picture inside a paragraph; `sc_x`, `ui_9` and `n12`
+    // are no `sc_<N>`, whatever their numbers.
+    const blocks: SectionNode['content'] = [
+      modelParagraph('n12', [{ type: 'text', text: 'Twelve' }]),
+      modelParagraph('ui_9', [
+        { type: 'text', text: 'A picture ' },
+        { type: 'inline-image', attrs: { nodeId: 'sc_3', href: '#pic.png' } },
+      ]),
+      modelParagraph('sc_x'),
+    ];
+    const ids = seededScriptIds(bookWith(blocks));
+    expect([ids(), ids()]).toEqual(['sc_4', 'sc_5']);
+    // The description's roots that hold body content count as well, each on its own.
+    const annotation = modelAnnotation('sc_10', [modelParagraph('n40')]);
+    expect(first(bookWith(blocks, { annotation }))).toBe('sc_11');
+    const srcAnnotation = modelAnnotation('n50', [modelParagraph('sc_12')]);
+    expect(first(bookWith(blocks, { srcAnnotation }))).toBe('sc_13');
+    // An `sc_` id in a cell of the history's table counts.
+    const table: TableNode = {
+      type: 'table',
+      attrs: { nodeId: 'n61' },
+      content: [
+        {
+          type: 'tr',
+          attrs: { nodeId: 'n62' },
+          content: [{ type: 'td', attrs: { nodeId: 'sc_14' }, content: [] }],
+        },
+      ],
+    };
+    const history = modelAnnotation('n60', [modelParagraph('n63'), table]);
+    expect(first(bookWith(blocks, { history }))).toBe('sc_15');
+    expect(first(bookWith(blocks, { annotation, srcAnnotation, history }))).toBe('sc_15');
+    // Without an `sc_<N>` it starts at sc_1 and counts on from there.
+    const others = [modelParagraph('n12'), modelParagraph('ui_9'), modelParagraph('sc_x')];
+    const none = seededScriptIds(bookWith(others, { annotation: modelAnnotation('n40', []) }));
+    expect([none(), none(), none()]).toEqual(['sc_1', 'sc_2', 'sc_3']);
+    expect(first(fakeDocument())).toBe('sc_1');
+    // An N too long to count past exactly (16 digits and more) is one the allocator never
+    // gives, so it cannot collide and leaves the seed alone.
+    expect(first(bookWith([modelParagraph('sc_1234567890123456'), modelParagraph('sc_2')]))).toBe(
+      'sc_3',
+    );
+  });
+
+  it('continuePast moves the allocator past the highest sc_<N> of a later document when that lies at or beyond its next id', () => {
+    // The request's allocator after a nested script run whose result took the working copy over.
+    const ids = seededScriptIds(bookWith([modelParagraph('sc_2')]));
+    expect(ids()).toBe('sc_3');
+    ids.continuePast(
+      bookWith([modelParagraph('sc_2'), modelParagraph('sc_3'), modelParagraph('sc_6')]),
+    );
+    expect(ids()).toBe('sc_7');
+    // A document whose ids all lie below the next one leaves it as it is (it never goes back).
+    ids.continuePast(bookWith([modelParagraph('sc_4')]));
+    expect(ids()).toBe('sc_8');
+    ids.continuePast(bookWith([modelParagraph('sc_9')]));
+    expect(ids()).toBe('sc_10');
   });
 });

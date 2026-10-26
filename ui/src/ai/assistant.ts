@@ -53,7 +53,7 @@ import { TextSelection } from 'prosemirror-state';
 import type { CommandContext } from '@/app/commands';
 import { logUiError } from '@/app/diagnostics';
 import type { ModelNodeJson } from '@/editor/fromModel';
-import { createNodeIdGenerator } from '@/editor/schema';
+import { seededScriptIds, type ScriptNodeIds } from '@/editor/schema';
 import { nodeToModel } from '@/editor/toModel';
 import type { Document, ValidationReport } from '@/model/document';
 import {
@@ -815,7 +815,11 @@ class RequestRun {
   /** Set by the change hook on the third strike: the request ends `rejected` after the call. */
   private rejectedIssues: ErrorForModel[] | null = null;
   private readonly budget = new WaitBudget();
-  private readonly nextNodeId = createNodeIdGenerator('sc_');
+  /**
+   * The request's `sc_<N>` allocator (feature 006, I26), seeded when its session starts: the one
+   * function the session and the catalogue deps hold, moved on past a nested run's ids.
+   */
+  private nextNodeId: ScriptNodeIds | null = null;
   private view: AiRequestView;
   private readonly t: CommandContext['t'];
   private readonly store: AppStore;
@@ -1055,6 +1059,13 @@ class RequestRun {
     this.publish({ kind: this.kind });
 
     const label = t('ai.banner.label', { service: target.name, model: target.model });
+    // The request's `sc_<N>` allocator (feature 006, I26; ai-catalogue Δ§3 "Ids of new nodes"):
+    // seeded past the highest `sc_<N>` of the document the session starts on, before the session
+    // and the catalogue deps receive it. Without a document the session would not start.
+    const opened = store.getState().document;
+    if (!opened) return { kind: 'failed', failure: { kind: 'internal' } };
+    const nextNodeId = seededScriptIds(opened);
+    this.nextNodeId = nextNodeId;
     const started = await this.beforeSession((cancel) =>
       startRequestSession(
         {
@@ -1062,7 +1073,7 @@ class RequestRun {
           rpc: sessionRpc,
           undo: this.ctx.undo,
           getController: () => this.controller,
-          nextNodeId: this.nextNodeId,
+          nextNodeId,
         },
         {
           origin: options.origin,
@@ -1179,7 +1190,7 @@ class RequestRun {
         const result = await this.rpc.call('doc.fragmentFromXml', { docId, xml, parent });
         return { nodes: result.nodes, inline: result.inline };
       },
-      nextNodeId: this.nextNodeId,
+      nextNodeId,
       runRegex: createRegexRunner(createRegexWorker),
       applyChange: this.changeHook(session),
       resultBudget: () => this.resultBudget(),
@@ -1908,6 +1919,9 @@ class RequestRun {
       const durationMs = Date.now() - started;
       switch (result.status) {
         case 'done':
+          // The result replaces the request's copy (`run_script`): the request's allocator
+          // continues past the ids the run's own allocator gave (feature 006, I26).
+          if (result.document) this.nextNodeId?.continuePast(result.document);
           return { status: 'done', document: result.document ?? null, durationMs };
         case 'failed':
           return {

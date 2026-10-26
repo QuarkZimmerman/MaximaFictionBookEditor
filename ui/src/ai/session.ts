@@ -23,7 +23,7 @@
  */
 
 import type { ModelNodeJson } from '@/editor/fromModel';
-import { createNodeIdGenerator } from '@/editor/schema';
+import { seededScriptIds } from '@/editor/schema';
 import type { Document, ValidationReport } from '@/model/document';
 import type { AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
@@ -84,7 +84,10 @@ export interface RequestSessionDeps {
   getController: () => BodyEditorController | null;
   /** Interval of the elapsed-time ticks (default 1 s; tests shorten it). */
   tickMs?: number;
-  /** The `sc_<N>` allocator (default: a fresh one per session; the loop may share one). */
+  /**
+   * The `sc_<N>` allocator (default: one seeded past the highest `sc_<N>` of the document at the
+   * start, `seededScriptIds`; the loop shares its own with the catalogue - feature 006, I26).
+   */
   nextNodeId?: () => string;
 }
 
@@ -242,7 +245,7 @@ export class RequestSession {
     this.baseline = multiset(baselineReport.issues);
     this.baselineReport = summarise(baselineReport);
     this.validations.push(this.baselineReport);
-    this.newNodeIds = deps.nextNodeId ?? createNodeIdGenerator('sc_');
+    this.newNodeIds = deps.nextNodeId ?? seededScriptIds(run.before);
     this.origin = options.origin;
     this.kind = options.kind;
     this.instruction = options.instruction;

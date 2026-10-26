@@ -151,6 +151,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   speaker names*) keep the language of formatting - nested formatting with two languages
   included -, a link's `xlink:type` and the link and formatting around pictures; *Remove style
   tags* also removes nested named styles and the styles around pictures.
+- New elements that the AI assistant or a script creates no longer take the internal ids of
+  elements that an earlier request or script run created - nor, within one request, those of
+  the elements the assistant and the scripts it runs created before: every request and every
+  script run counts on from the highest such id in the book. Release 0.0.5 counted each from
+  `sc_1`, so a later assistant change could land on the wrong element.
 
 ## 0.0.5 - unreleased
 

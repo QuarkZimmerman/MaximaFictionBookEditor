@@ -348,6 +348,54 @@ describe('the start document and the exposed working copy (feature 005 T027)', (
   });
 });
 
+describe('feature 006: the sc_<N> ids of a run (I26; ai-catalogue Δ§3 "Ids of new nodes")', () => {
+  /** The fixture book with paragraphs of the given node ids at the end of its second section. */
+  function bookWithIds(...ids: string[]): Document {
+    const document = book();
+    const second = document.bodies[0]!.content[2] as SectionNode;
+    second.content.push(...ids.map((id) => paragraph(id, `Node ${id}.`)));
+    return document;
+  }
+
+  it('a script run is seeded past the highest sc_<N> of its document', async () => {
+    // The store's book holds `sc_3` and `sc_7` - nodes an earlier run or assistant request
+    // created - beside an id of another form.
+    const h = await harness(bookWithIds('sc_3', 'ui_12', 'sc_7'));
+    const added = (await call(h, 'doc.insertNode', 'append', 's1', {
+      type: 'p',
+      attrs: {},
+      content: [{ type: 'text', text: 'New' }],
+    })) as NodeRef;
+    expect(added.nodeId).toBe('sc_8');
+    const next = (await call(h, 'doc.insertNode', 'before', 'p1', {
+      type: 'empty-line',
+      attrs: {},
+    })) as NodeRef;
+    expect(next.nodeId).toBe('sc_9');
+
+    // A run nested in an AI request starts from the request's working copy (`ScriptApiDeps.
+    // document`) and is seeded from it, not from the store's document: here a copy without
+    // `sc_7`, which the request removed.
+    const nested = createScriptApi({
+      store: h.store,
+      document: bookWithIds('sc_3'),
+      controller: getBodyController(h.store),
+      dialogs: h.dialogs,
+      rpc: null,
+      t: h.ctx.t,
+      scriptName: 'Nested',
+      uiLanguage: 'en',
+      publish: false,
+    });
+    const inserted = (await nested.call('doc.insertNode', [
+      'append',
+      's2',
+      { type: 'p', attrs: {}, content: [{ type: 'text', text: 'Nested' }] },
+    ])) as NodeRef;
+    expect(inserted.nodeId).toBe('sc_4');
+  });
+});
+
 describe('doc.* edits (working copy)', () => {
   it('setText replaces the inline content of the working copy only', async () => {
     const h = await harness();
