@@ -37,6 +37,7 @@ import {
 } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 
+import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { baseEditorKeymap, bodyKeymap } from '@/editor/keymap';
 import { createImageNodeViews } from '@/editor/nodeviews/image';
@@ -352,7 +353,12 @@ export class BodyEditorController {
   private readonly getNbspChar: () => string;
   private readonly extraPlugins: Plugin[];
   private translate: (key: string) => string;
-  private readonly nextNodeId = createNodeIdGenerator();
+  /**
+   * The generator of the editor's `ui_N` node ids, shared with `nodeIdPlugin` (feature 006,
+   * data-model §1.6): a function property, so it may be passed on unbound - the table plans
+   * stamp every node they create with it, and the plugin then has nothing to append.
+   */
+  readonly nextNodeId = createNodeIdGenerator();
 
   private view: EditorView | null = null;
   private container: HTMLElement | null = null;
@@ -568,14 +574,18 @@ export class BodyEditorController {
   /**
    * Applies a transaction and writes the edited window back into the model, unless
    * `modelShown`: the store already holds the document the transaction shows (`showModel`).
-   * While locked only such transactions may change the document.
+   * While locked only such transactions may change the document. A document change that
+   * carries `DISCRETE_STEP` (a table command, a paste, a cleared block - feature 006, FR-045)
+   * is one history event of its own, as a command run through `execute` is: the group before
+   * it is closed, and so is the one after it.
    */
   private applyToEditor(tr: Transaction, modelShown: boolean): void {
     const before = this.editorState;
     if (!before) return;
     if (tr.docChanged && this.locked && !modelShown) return;
-    if (tr.docChanged && this.closeNextHistory) closeHistory(tr);
-    this.closeNextHistory = false;
+    const discrete = tr.docChanged && tr.getMeta(DISCRETE_STEP) === true;
+    if (tr.docChanged && (this.closeNextHistory || discrete)) closeHistory(tr);
+    this.closeNextHistory = discrete;
     const { state: after, transactions } = before.applyTransaction(tr);
     if (this.view) this.view.updateState(after);
     this.state = after;

@@ -19,6 +19,16 @@ import { fb2Schema } from '../schema';
 export const { nodes: N, marks: M } = fb2Schema;
 
 /**
+ * Transaction meta key of a discrete step (feature 006, FR-045, data-model §6.3): a
+ * transaction carrying `tr.setMeta(DISCRETE_STEP, true)` is one undo step of its own, never
+ * merged with the typing before or after it. The hosts honour it - the Body controller closes
+ * the history group around it (`bodyEditor.ts`, `applyToEditor`) - so a table command, a
+ * paste or a cleared block dispatched by a plugin's handler is exactly one Undo and one Redo,
+ * like a command run through the menu.
+ */
+export const DISCRETE_STEP = 'mfbe-discrete-step';
+
+/**
  * Containers that `GetCP()` recognises (FBE main.js): paragraph-holding block containers, plus
  * the annotation and history blocks of the Body view (feature 004, US2), whose content model
  * is the annotation's.
