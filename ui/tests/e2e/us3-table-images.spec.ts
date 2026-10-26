@@ -122,12 +122,26 @@ declare const window: {
   };
 };
 
+/** Id of the document the Body view shows, at once (null without one). */
+function shownDocId(page: Page): Promise<string | null> {
+  return page.evaluate<string | null>(
+    `document.querySelector('[data-testid="body-view"]')?.getAttribute('data-doc-id') ?? null`,
+  );
+}
+
+/**
+ * File → Open of `file`; resolves once its document replaced the one shown before - a file just
+ * saved under that name shows its title already, before the open has closed and replaced it.
+ */
 async function openViaDialog(core: CoreHandle, page: Page, file: string): Promise<void> {
+  const before = await shownDocId(page);
   await core.enqueueDialog('dialog.openFile', { paths: [file] });
   await page.getByTestId('menu-file').click();
   await page.getByTestId('menu-file-open').click();
   await waitForBook(page, file);
   await expect(page.getByTestId('body-view')).toBeVisible();
+  await expect.poll(() => shownDocId(page)).not.toBe(before);
+  await expect.poll(() => shownDocId(page)).not.toBeNull();
 }
 
 async function settle(page: Page, scope = SCOPE): Promise<void> {
