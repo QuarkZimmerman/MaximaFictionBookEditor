@@ -11,7 +11,10 @@
  * makes on a block of the regular table; US5 (T106) *Merge cells* on a block of the regular table
  * and *Split cell* on the cell that merge made; US6 (T112) the five header commands - *Make
  * normal cells* on a block of the regular table made header cells first -, which on the irregular
- * table itself leave its problems as they were, since a kind change moves no position.
+ * table itself leave its problems as they were, since a kind change moves no position; US7
+ * (T120) the attribute plans `planCellAttrs` (on a block of the regular table), `planRowAlign`
+ * and `planTableAttrs`, which on the irregular table itself leave its problems as they were too:
+ * attributes move no position (quickstart §8).
  */
 
 /// <reference types="node" />
@@ -27,6 +30,7 @@ import { TextSelection, type EditorState, type Transaction } from 'prosemirror-s
 import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2Schema, findNodeById } from '@/editor/schema';
+import { planCellAttrs, planRowAlign, planTableAttrs } from '@/editor/table/attrs';
 import { planCommand, type TablePlan } from '@/editor/table/commands';
 import { pasteTransaction } from '@/editor/clipboard/route';
 import { gridOfNode } from '@/editor/table/grid';
@@ -72,7 +76,8 @@ function clipboardBlock() {
  * US5: *Merge cells* on a block, and *Split cell* with the caret in a merged cell, `merged` -
  * the block from `g-0-0` to `g-1-1` merged first; US6: the five header commands, `kind` - their
  * irregular table keeps its problems -, *Make header cells* and *Make normal cells* on a block,
- * the latter on the block made header cells first, `headers`).
+ * the latter on the block made header cells first, `headers`; US7: the three attribute plans,
+ * `attrs` - their irregular table keeps its problems too -, the cells' on a block).
  */
 const GUARDED_COMMANDS: {
   name: string;
@@ -81,6 +86,7 @@ const GUARDED_COMMANDS: {
   merged?: boolean;
   headers?: boolean;
   kind?: boolean;
+  attrs?: boolean;
 }[] = [
   { name: 'insertRowAbove', plan: (a, c) => planInsertRows(a, { side: 'above' }, c) },
   { name: 'insertRowBelow', plan: (a, c) => planInsertRows(a, { side: 'below' }, c) },
@@ -122,6 +128,19 @@ const GUARDED_COMMANDS: {
     name: 'toggleHeaderColumn',
     plan: (a, c) => planToggleHeaderLines(a, { axis: 'column' }, c),
     kind: true,
+  },
+  {
+    name: 'cellAttrs',
+    plan: (a, c) =>
+      planCellAttrs(a, { align: 'center', valign: 'bottom', style: 'guard', lang: 'de' }, c),
+    block: true,
+    attrs: true,
+  },
+  { name: 'rowAlign', plan: (a, c) => planRowAlign(a, { align: 'right' }, c), attrs: true },
+  {
+    name: 'tableAttrs',
+    plan: (a, c) => planTableAttrs(a, { id: 'guard-table', style: 'guard' }, c),
+    attrs: true,
   },
 ];
 
@@ -213,7 +232,7 @@ function runPlan(state: EditorState, plan: TablePlan): { state: EditorState; ran
 describe('no automatic repair (R1.7, FR-035)', () => {
   it('covers the irregular cases of the shared vectors', () => {
     expect(irregular.length).toBeGreaterThan(10);
-    expect(GUARDED_COMMANDS).toHaveLength(22);
+    expect(GUARDED_COMMANDS).toHaveLength(25);
   });
 
   for (const one of irregular) {
@@ -327,7 +346,8 @@ describe('no automatic repair (R1.7, FR-035)', () => {
         expect(tableOf(back), name).toBe(original);
       }
       // A command on the irregular table itself: afterwards an empty transaction appends nothing;
-      // a header command leaves its problems as they were (a kind change moves no position).
+      // a header command or an attribute plan leaves its problems as they were (a kind or an
+      // attribute change moves no position).
       const firstCell = original.firstChild?.firstChild;
       if (firstCell && (firstCell.type.name === 'td' || firstCell.type.name === 'th')) {
         const inside = apply(
@@ -338,18 +358,24 @@ describe('no automatic repair (R1.7, FR-035)', () => {
         );
         const grid = gridOfNode(original);
         let converted = 0;
-        for (const { name, plan, kind } of GUARDED_COMMANDS) {
+        let attributed = 0;
+        for (const { name, plan, kind, attrs } of GUARDED_COMMANDS) {
           const result = runPlan(inside, plan);
           const { transactions } = result.state.applyTransaction(result.state.tr);
           expect(transactions).toHaveLength(1);
-          if (!kind) continue;
+          if (!kind && !attrs) continue;
           const after = gridOfNode(tableOf(result.state));
-          expect(after.summary, name).toEqual(grid.summary);
+          expect(after.summary, name).toEqual(
+            name === 'tableAttrs' ? { ...grid.summary, id: 'guard-table' } : grid.summary,
+          );
           expect(after.problems, name).toEqual(grid.problems);
-          if (result.ran) converted += 1;
+          if (result.ran && kind) converted += 1;
+          if (result.ran && attrs) attributed += 1;
         }
-        // Toggle header cell, Make header cells or Make normal cells, and the two toggles act.
+        // Toggle header cell, Make header cells or Make normal cells, and the two toggles act;
+        // so do the three attribute plans, on the caret's cell, its row and the table.
         expect(converted).toBeGreaterThanOrEqual(4);
+        expect(attributed).toBe(3);
       }
     });
   }

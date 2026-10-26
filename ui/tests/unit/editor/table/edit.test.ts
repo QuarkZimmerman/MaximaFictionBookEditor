@@ -4,12 +4,14 @@
  * holes, a new cell's neighbour, `tableTarget` and `tableTargetAt`, and `assertTableValid` on
  * each crafted violation. The commit is `commit.test.ts`, row compaction `compaction.test.ts`.
  * US4 (T096; U30; C24; data-model §4.5 `table.delete` steps 1 and 2): `removeTable`, the
- * *Delete table* transform the paste router uses on a selected table.
+ * *Delete table* transform the paste router uses on a selected table. US7 (T116; C19; data-model
+ * §1.5): `withLang`, the language setter of `attrs.ts`, the twin of `withSpans`.
  */
 
 import { EditorState, NodeSelection, TextSelection } from 'prosemirror-state';
 
 import { fb2Schema } from '@/editor/schema';
+import { withLang } from '@/editor/table/attrs';
 import {
   applyTableEdit,
   assertTableValid,
@@ -84,6 +86,56 @@ describe('withSpans', () => {
       extraAttrs: { unknownAttrs: { rowspan: 'q' } },
     });
     expect(withSpans({ rowspan: 2 }, undefined, 5)).toEqual({ rowspan: 5 });
+  });
+});
+
+describe('withLang (US7, T116; C19; data-model §1.5, §4.7)', () => {
+  const XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang';
+
+  it('the language setter deletes the namespaced xml:lang key', () => {
+    const attrs = {
+      nodeId: 'c1',
+      id: 'x',
+      lang: null,
+      colspan: 2,
+      extraAttrs: { unknownAttrs: { [XML_LANG]: 'de', class: 'kept' }, more: 1 },
+    };
+    const copy = structuredClone(attrs);
+    // Written: lang set, the kept text of xml:lang gone, every other key left.
+    expect(withLang(attrs, 'fr')).toEqual({
+      ...copy,
+      lang: 'fr',
+      extraAttrs: { unknownAttrs: { class: 'kept' }, more: 1 },
+    });
+    // Removed: lang null, and the kept text gone as well - it would come back otherwise.
+    expect(withLang(attrs, null)).toEqual({
+      ...copy,
+      lang: null,
+      extraAttrs: { unknownAttrs: { class: 'kept' }, more: 1 },
+    });
+    expect(withLang(attrs, '')).toEqual(withLang(attrs, null));
+    // The input object is untouched.
+    expect(attrs).toEqual(copy);
+    // Emptied objects go: first unknownAttrs, then extraAttrs.
+    expect(
+      withLang({ lang: 'de', extraAttrs: { unknownAttrs: { [XML_LANG]: 'de' }, more: 1 } }, 'en'),
+    ).toEqual({ lang: 'en', extraAttrs: { more: 1 } });
+    expect(
+      withLang({ lang: null, extraAttrs: { unknownAttrs: { [XML_LANG]: 'de' } } }, 'en'),
+    ).toEqual({
+      lang: 'en',
+      extraAttrs: null,
+    });
+    // Without the key, extraAttrs stays the same object; the plain `lang` key of an unknown
+    // attribute (no namespace) is not the cell's language and stays too.
+    const plain = { lang: 'de', extraAttrs: { unknownAttrs: { lang: 'q' } } };
+    const set = withLang(plain, 'uk');
+    expect(set).toEqual({ lang: 'uk', extraAttrs: { unknownAttrs: { lang: 'q' } } });
+    expect(set.extraAttrs).toBe(plain.extraAttrs);
+    expect(withLang({ lang: 'de', extraAttrs: null }, null)).toEqual({
+      lang: null,
+      extraAttrs: null,
+    });
   });
 });
 

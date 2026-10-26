@@ -23,7 +23,13 @@
  * (the FR-015 question is the host's, C13). US6 adds the five header commands on a drawn caret
  * or block (R8.15's "header commands 10", 2 each) with a kind-only oracle (`checkKindStep`):
  * positions keep their owners, the target cells keep their content, node id and every attribute
- * and change only their kind, every other cell keeps its kind (FR-019).
+ * and change only their kind, every other cell keeps its kind (FR-019). US7 adds the Table bar's
+ * attribute changes on a drawn caret or block (8 of R8.15's "attributes 10", `xml:lang`
+ * included; the span route's 2 come with US8) and its id edits (U19), each a plan of `attrs.ts`
+ * whose value is drawn per step - a fresh id, an invalid one, one the book holds, the target's
+ * own, a language tag or `de_DE` -, with an attribute oracle (`checkAttrStep`): the value that
+ * must be refused is refused, positions keep their owners, cells their node id and content, only
+ * the targets' attributes change; and after every step no FB2 id occurs twice in the document.
  */
 
 import { Fragment, Slice, type Node as PMNode, type Schema } from 'prosemirror-model';
@@ -39,6 +45,7 @@ import { closeHistory, redo, undo, undoDepth } from 'prosemirror-history';
 import { pasteTransaction, dedupeIds } from '../../clipboard/route';
 import { DISCRETE_STEP } from '../../commands/util';
 import { nodeToModel } from '../../toModel';
+import { planCellAttrs, planRowAlign, planTableAttrs } from '../attrs';
 import {
   availability,
   isAvailable,
@@ -56,6 +63,7 @@ import {
   type TableAddress,
   type TableEdit,
   type Refusal,
+  type RefusalCode,
 } from '../edit';
 import { gridOfNode, type Rect } from '../grid';
 import {
@@ -348,6 +356,33 @@ export interface FuzzEntry {
    * change, read from the address before it; null when it addresses none.
    */
   kinds?(address: TableAddress): KindTargets | null;
+  /** US7: a Table-bar attribute change - its value drawn per step, the attribute oracle. */
+  attr?: FuzzAttr;
+}
+
+/**
+ * US7: what an attribute step sets - `name` on the target cells (`cells`: every cell of the
+ * block, or the caret's), on the head cell (`head`, the id), on the target rows (`rows`) or on
+ * the table (`table`) - and how its value is drawn.
+ */
+export interface FuzzAttr {
+  scope: 'cells' | 'head' | 'rows' | 'table';
+  name: 'align' | 'valign' | 'style' | 'lang' | 'id';
+  draw(rng: () => number, input: FuzzAttrInput): FuzzAttrValue;
+}
+
+export interface FuzzAttrInput {
+  address: TableAddress;
+  /** The book's ids (`FuzzHost.bookIds()`). */
+  bookIds: ReadonlySet<string>;
+  /** A valid id no element of the book uses: `fz<n>`. */
+  fresh(): string;
+}
+
+export interface FuzzAttrValue {
+  value: string;
+  /** The refusal the plan must answer; none: the plan answers an edit (perhaps a no-op). */
+  refusal?: RefusalCode;
 }
 
 /**
@@ -489,11 +524,105 @@ function lineTargets(axis: 'row' | 'column') {
   };
 }
 
+/** US7: one of `values`. */
+function drawnOf(values: readonly string[]) {
+  return (rng: () => number): FuzzAttrValue => ({ value: pick(rng, values) });
+}
+
+const LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const LETTERS_DIGITS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+/** US7: a random language tag: 1-8 letters, then up to two parts of 1-8 letters or digits. */
+function drawnTag(rng: () => number): string {
+  const part = (chars: string) => {
+    let out = '';
+    const length = 1 + below(rng, 8);
+    for (let i = 0; i < length; i += 1) out += chars[below(rng, chars.length)];
+    return out;
+  };
+  let tag = part(LETTERS);
+  const parts = below(rng, 3);
+  for (let i = 0; i < parts; i += 1) tag += `-${part(LETTERS_DIGITS)}`;
+  return tag;
+}
+
+/** US7, *Cell language*: `de`, `en-GB`, a drawn tag, `''` (removal) or `de_DE`, refused. */
+function drawnLang(rng: () => number): FuzzAttrValue {
+  switch (below(rng, 5)) {
+    case 0:
+      return { value: 'de' };
+    case 1:
+      return { value: 'en-GB' };
+    case 2:
+      return { value: drawnTag(rng) };
+    case 3:
+      return { value: '' };
+    default:
+      return { value: 'de_DE', refusal: 'invalid-lang' };
+  }
+}
+
+/** The id of the head cell (US7): the cell that holds `$head`, else the caret's. */
+function headCellId(address: TableAddress): string | null {
+  const index = cellStartingAt(address, address.head ?? address.caret);
+  if (index < 0) return null;
+  const id = gridCellNode(address.table, address.grid, index).attrs.id;
+  return typeof id === 'string' && id !== '' ? id : null;
+}
+
+/**
+ * US7, the Table-bar id edits (U19): a fresh valid id; an invalid one (`1t`, `a b`); an id the
+ * book holds - another element's, refused -; the target's own id (no change); or `''`, which
+ * removes it.
+ */
+function drawnId(own: (address: TableAddress) => string | null) {
+  return (rng: () => number, input: FuzzAttrInput): FuzzAttrValue => {
+    const mine = own(input.address);
+    switch (below(rng, 6)) {
+      case 0:
+        return { value: input.fresh() };
+      case 1:
+        return { value: '1t', refusal: 'invalid-id' };
+      case 2:
+        return { value: 'a b', refusal: 'invalid-id' };
+      case 3: {
+        const held = [...input.bookIds].filter((id) => id !== mine);
+        if (held.length === 0) return { value: input.fresh() };
+        return { value: pick(rng, held), refusal: 'duplicate-id' };
+      }
+      case 4:
+        return { value: mine ?? '' };
+      default:
+        return { value: '' };
+    }
+  };
+}
+
+const ALIGNS = ['left', 'right', 'center', ''] as const;
+const VALIGNS = ['top', 'middle', 'bottom', ''] as const;
+/** Styles: trimmed (` padded `) and removed (`''`) too. */
+const STYLES = ['wide', 'narrow', ' padded ', ''] as const;
+
+/** The plan of an attribute step with its drawn value (US7). */
+function attrPlan(attr: FuzzAttr, value: string): TablePlan {
+  switch (attr.scope) {
+    case 'cells':
+    case 'head':
+      return (address, ctx) => planCellAttrs(address, { [attr.name]: value }, ctx);
+    case 'rows':
+      return (address, ctx) => planRowAlign(address, { align: value }, ctx);
+    default:
+      return (address, ctx) => planTableAttrs(address, { [attr.name]: value }, ctx);
+  }
+}
+
 /**
  * The commands of the mix with R8.15's weights: the four inserts 5 each, *Delete row* 8 and
  * *Delete column* 7, the four moves 1.5 and the two duplicates 2 each; the Tab row 5 (a weight
  * chosen here); the block clear 3, the cut 2 and the paste 5 (US4); *Merge cells* 10 and *Split
- * cell* 10 (US5); the five header commands 2 each (US6); Undo 5 and Redo 5.
+ * cell* 10 (US5); the five header commands 2 each (US6); *Cell align* 2, *Cell valign* 1, *Cell
+ * style* 1, *Cell language* 2, *Row align* 1 and *Table style* 1 - 8 of R8.15's "attributes 10"
+ * - and the id edits *Cell ID* 1 and *Table ID* 1 (US7; U19); Undo 5 and Redo 5.
  */
 export const FUZZ_MIX: FuzzEntry[] = [
   {
@@ -661,6 +790,35 @@ export const FUZZ_MIX: FuzzEntry[] = [
     weight: 2,
     plan: (address, ctx) => planToggleHeaderLines(address, { axis: 'column' }, ctx),
     kinds: lineTargets('column'),
+  },
+  // US7 (SC-003; R8.15's "attributes 10", `xml:lang` included; U19): the Table bar's fields on
+  // a drawn caret or block, each value drawn per step, checked by the attribute oracle.
+  { name: 'cellAlign', weight: 2, attr: { scope: 'cells', name: 'align', draw: drawnOf(ALIGNS) } },
+  {
+    name: 'cellValign',
+    weight: 1,
+    attr: { scope: 'cells', name: 'valign', draw: drawnOf(VALIGNS) },
+  },
+  { name: 'cellStyle', weight: 1, attr: { scope: 'cells', name: 'style', draw: drawnOf(STYLES) } },
+  { name: 'cellLang', weight: 2, attr: { scope: 'cells', name: 'lang', draw: drawnLang } },
+  { name: 'rowAlign', weight: 1, attr: { scope: 'rows', name: 'align', draw: drawnOf(ALIGNS) } },
+  {
+    name: 'tableStyle',
+    weight: 1,
+    attr: { scope: 'table', name: 'style', draw: drawnOf(STYLES) },
+  },
+  { name: 'cellId', weight: 1, attr: { scope: 'head', name: 'id', draw: drawnId(headCellId) } },
+  {
+    name: 'tableId',
+    weight: 1,
+    attr: {
+      scope: 'table',
+      name: 'id',
+      draw: drawnId((address) => {
+        const id = address.table.attrs.id;
+        return typeof id === 'string' && id !== '' ? id : null;
+      }),
+    },
   },
   { name: 'undo', weight: 5 },
   { name: 'redo', weight: 5 },
@@ -929,6 +1087,8 @@ export interface FuzzStepRecord {
   ran: boolean;
   /** US4: the block a paste step pasted, as the plan read it. */
   clipboard?: PMNode | null;
+  /** US7: the value an attribute step drew, with the refusal it must answer. */
+  attrValue?: FuzzAttrValue;
 }
 
 /**
@@ -1279,19 +1439,144 @@ function checkKindStep(before: PMNode, after: PMNode, targets: KindTargets): str
   return null;
 }
 
+/** The first FB2 id that occurs twice in `doc`, or null (FR-046: ids are unique in the book). */
+function duplicateId(doc: PMNode): string | null {
+  const seen = new Set<string>();
+  let twice: string | null = null;
+  doc.descendants((node) => {
+    if (twice !== null) return false;
+    const id = node.isText ? null : node.attrs.id;
+    if (typeof id === 'string' && id !== '') {
+      if (seen.has(id)) twice = id;
+      else seen.add(id);
+    }
+    return true;
+  });
+  return twice;
+}
+
+/**
+ * US7's attribute oracle (FR-021, FR-035; data-model §4.7): the table keeps every child in its
+ * place - every non-row and non-cell child unchanged, every row its node id and its cells -, and
+ * every cell its kind, node id, content and spans, so every position keeps its owner; only the
+ * step's attribute changes and only on its targets: every cell of the block or the caret's cell
+ * (`cells`), the head cell (`head`), the rows of the block or the caret cell's row (`rows`), the
+ * table (`table`) - a language may also drop the shadowed `xml:lang` of `extraAttrs`, never kept
+ * beside it -; and each target holds the drawn value, trimmed, or none for an empty one.
+ */
+function checkAttrStep(
+  before: PMNode,
+  after: PMNode,
+  attr: FuzzAttr,
+  value: string,
+  address: TableAddress,
+): string | null {
+  const g0 = gridOfNode(before);
+  const wanted = value.trim() === '' ? null : value.trim();
+  const cells = new Set<string>();
+  const rows = new Set<number>();
+  const addCell = (index: number) => {
+    if (index < 0) return;
+    const cell = g0.cells[index]!;
+    cells.add(`${g0.rowChild[cell.row]!}:${cell.index}`);
+  };
+  if (attr.scope === 'cells') {
+    if (address.rect) for (const index of g0.cellsIn(address.rect)) addCell(index);
+    else addCell(cellStartingAt(address, address.caret));
+  } else if (attr.scope === 'head') {
+    addCell(cellStartingAt(address, address.head ?? address.caret));
+  } else if (attr.scope === 'rows') {
+    const from = address.rect?.top ?? address.caret?.row ?? 0;
+    const to = address.rect?.bottom ?? (address.caret ? address.caret.row + 1 : 0);
+    for (let r = from; r < to && r < g0.height; r += 1) rows.add(g0.rowChild[r]!);
+  }
+  /** The first attribute other than `allowed` whose value differs, or null. */
+  const changedKey = (was: PMNode, is: PMNode, allowed: readonly string[]) => {
+    for (const key of new Set([...Object.keys(was.attrs), ...Object.keys(is.attrs)])) {
+      if (allowed.includes(key)) continue;
+      if (JSON.stringify(was.attrs[key] ?? null) !== JSON.stringify(is.attrs[key] ?? null)) {
+        return key;
+      }
+    }
+    return null;
+  };
+  const holds = (node: PMNode) => {
+    if ((node.attrs[attr.name] ?? null) !== wanted) return false;
+    if (attr.name !== 'lang') return true;
+    const unknown = (node.attrs.extraAttrs as { unknownAttrs?: Record<string, unknown> } | null)
+      ?.unknownAttrs;
+    return !unknown || !('{http://www.w3.org/XML/1998/namespace}lang' in unknown);
+  };
+  const tableKey = changedKey(before, after, attr.scope === 'table' ? [attr.name] : []);
+  if (tableKey) return `the table's ${tableKey} changed`;
+  if (attr.scope === 'table' && !holds(after)) return `the table's ${attr.name} is not the value`;
+  if (after.childCount !== before.childCount) return 'an attribute step added or removed a child';
+  const isCell = (node: PMNode) => node.type.name === 'td' || node.type.name === 'th';
+  const cellNames = attr.name === 'lang' ? ['lang', 'extraAttrs'] : [attr.name];
+  for (let index = 0; index < before.childCount; index += 1) {
+    const was = before.child(index);
+    const is = after.child(index);
+    if (was.type.name !== 'tr') {
+      if (!is.eq(was)) return `the table's child ${index}, not a row, changed`;
+      continue;
+    }
+    const rowId = String(was.attrs.nodeId);
+    if (is.type !== was.type || is.childCount !== was.childCount) {
+      return `the row ${rowId} changed beyond its attributes`;
+    }
+    const rowKey = changedKey(was, is, rows.has(index) ? ['align'] : []);
+    if (rowKey) return `the row ${rowId} changed its ${rowKey}`;
+    let hasCell = false;
+    for (let at = 0; at < was.childCount; at += 1) {
+      const cell = was.child(at);
+      const now = is.child(at);
+      if (!isCell(cell)) {
+        if (!now.eq(cell)) return `a child of the row ${rowId} changed`;
+        continue;
+      }
+      hasCell = true;
+      const id = String(cell.attrs.nodeId);
+      if (now.type !== cell.type) return `the cell ${id} changed its kind`;
+      if (!now.content.eq(cell.content))
+        return `the cell "${cell.textContent}" changed its content`;
+      const target = cells.has(`${index}:${at}`);
+      const key = changedKey(cell, now, target ? cellNames : []);
+      if (key) return `the cell ${id} changed its ${key}`;
+      if (target && !holds(now)) return `the cell ${id} does not hold the ${attr.name} drawn`;
+    }
+    if (rows.has(index) && hasCell && !holds(is)) return `the row ${rowId} does not hold the align`;
+  }
+  const summary = (node: PMNode) => ({ ...gridOfNode(node).summary, id: undefined });
+  if (JSON.stringify(summary(after)) !== JSON.stringify(summary(before))) {
+    return 'the grid summary changed';
+  }
+  return null;
+}
+
 /**
  * The oracle of one command step (data-model §16.4): the availability agrees with the dry
  * run; a refused step (or a plan that changes nothing) changes nothing and adds no history
- * event; a step that acts gives a valid document and table (`check()`, `assertTableValid`), a
- * regular table stays regular (FR-046), the positions outside its lines keep their owners
- * (FR-035) and no character is lost or invented. Null when every check holds, else the reason.
+ * event - an attribute step's value refused exactly when it must be (US7) -; a step that acts
+ * gives a valid document and table (`check()`, `assertTableValid`), no FB2 id twice in the
+ * document, a regular table stays regular (FR-046), the positions outside its lines keep their
+ * owners (FR-035) and no character is lost or invented. Null when every check holds, else the
+ * reason.
  */
 export function checkFuzzStep(record: FuzzStepRecord): string | null {
-  const { entry, before, after, tablePos, address, dryRun, answer, ran, clipboard } = record;
+  const { entry, before, after, tablePos, address, dryRun, answer, ran, clipboard, attrValue } =
+    record;
   if (answer && !sameAvailability(answer, dryRun)) {
     return `availability ${JSON.stringify(answer)} disagrees with the plan's ${
       isRefusal(dryRun) ? JSON.stringify(dryRun) : 'edit'
     }`;
+  }
+  if (attrValue) {
+    const refused = isRefusal(dryRun) ? dryRun.refused : null;
+    if ((attrValue.refusal ?? null) !== refused) {
+      return attrValue.refusal
+        ? `${JSON.stringify(attrValue.value)} was not refused with ${attrValue.refusal} (${refused ?? 'an edit'})`
+        : `${JSON.stringify(attrValue.value)} was refused with ${refused}`;
+    }
   }
   let acts = !isRefusal(dryRun);
   if (acts) acts = commitTableEdit(before.tr, tablePos, dryRun as TableEdit) !== null;
@@ -1322,6 +1607,11 @@ export function checkFuzzStep(record: FuzzStepRecord): string | null {
   // A paste of a block copied from an irregular table brings its irregularity (decision 4).
   if (gridOfNode(table).regular && !gridOfNode(next).regular && !edit.pastedIrregular) {
     return 'a regular table became irregular';
+  }
+  const twice = duplicateId(after.doc);
+  if (twice !== null) return `the FB2 id ${twice} occurs twice in the document`;
+  if (entry.attr && attrValue) {
+    return checkAttrStep(table, next, entry.attr, attrValue.value, address);
   }
   if (entry.merges) return checkMergeStep(table, next, address);
   if (entry.splits) {
@@ -1522,6 +1812,8 @@ export async function runFuzz(
   let done: Done[] = [];
   let undone: Done[] = [];
   const clipboard: FuzzClipboard = { table: null };
+  // The fresh ids of the id edits (US7): `fz<n>`, counted over the run.
+  let freshIds = 0;
   const fail = (
     step: number,
     command: string,
@@ -1603,9 +1895,26 @@ export async function runFuzz(
               block && rng() < 0.7 ? block.content().content.firstChild : current.node;
           }
           const pasted = entry.pastes ? clipboard.table : null;
+          // US7: the attribute step's value, drawn with the run's generator.
+          const attrValue = entry.attr
+            ? entry.attr.draw(rng, {
+                address: target.address,
+                bookIds: ctx.bookIds,
+                fresh: () => {
+                  let id: string;
+                  do {
+                    freshIds += 1;
+                    id = `fz${freshIds}`;
+                  } while (ctx.bookIds.has(id));
+                  return id;
+                },
+              })
+            : undefined;
           const plan: TablePlan = entry.pastes
             ? (address, c) => pasteBlockPlan(address, dedupeIds(pasted!, ctx.bookIds), c)
-            : entry.plan!;
+            : entry.attr
+              ? attrPlan(entry.attr, attrValue!.value)
+              : entry.plan!;
           const dryRun = plan(target.address, ctx);
           const answer = entry.command ? availability(before, entry.command) : null;
           const ran = host.run(
@@ -1633,7 +1942,9 @@ export async function runFuzz(
             answer,
             ran,
             clipboard: pasted,
+            attrValue,
           });
+          if (reason && attrValue) reason += ` (the value ${JSON.stringify(attrValue.value)})`;
           if (!reason && !after.doc.eq(before.doc)) {
             done.push({ before: before.doc, after: after.doc });
             undone = [];

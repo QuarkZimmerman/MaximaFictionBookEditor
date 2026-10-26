@@ -596,13 +596,14 @@ test.describe('US5 (feature 006) - merge and split cells', () => {
     expect(await headPoint(page)).toEqual({ nodeId: t1.cell('r1c1'), offset: 0 });
 
     // sc.3: still a header cell with its id, language and alignment - the XML above keeps its
-    // style too -, and the Table bar shows them (Cell language comes with US7).
+    // style too -, and the Table bar shows them (Cell language since US7).
     await expect(keeper).toHaveClass(/\bfb-th\b/);
     await expect(keeper).toHaveAttribute('data-id', 'us5-r1c1');
     await expect(keeper).toHaveAttribute('lang', 'de');
     await expect(keeper).toHaveAttribute('align', 'right');
     await expect(page.getByTestId('table-bar-cell-id')).toHaveValue('us5-r1c1');
     await expect(page.getByTestId('table-bar-style')).toHaveValue('hd');
+    await expect(page.getByTestId('table-bar-lang')).toHaveValue('de');
     await expect(page.getByTestId('table-bar-td-align')).toHaveValue('right');
     await expect(page.getByTestId('table-bar-colspan')).toHaveValue('3');
     await expect(page.getByTestId('table-bar-rowspan')).toHaveValue('2');

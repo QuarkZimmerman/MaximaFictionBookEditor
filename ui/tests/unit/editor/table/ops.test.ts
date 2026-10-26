@@ -1,11 +1,17 @@
 /**
  * The table plans of `ops.ts` (feature 006; data-model §4.4 to §4.6), one `describe` block per
- * user story in story order. US6 (T109; FR-017 to FR-019, FR-035; C14, C21, C67; data-model
- * §2.5, §4.5 `table.toggleHeaderCell`, `table.makeHeaderCells` / `table.makeNormalCells` and
- * `table.toggleHeaderRow` / `table.toggleHeaderColumn`): the header plans change only the kind
- * of the cells they target - the same attributes and the same content fragment -, a block's
- * head cell, the owners of whole rows or columns, a merged cell once, nothing committed when
- * nothing changes, and on a too-large table the caret's cell without the owner map. US5 (T102;
+ * user story in story order. US7 (T116; FR-020 to FR-022, FR-035, FR-045 to FR-047; C8, C14,
+ * C19, C67; I13; data-model §1.5, §2.5, §4.4, §4.7): the attribute plans of `attrs.ts` -
+ * `planCellAttrs` on a block's cells, a caret's cell or whole lines and its `id` on the head cell,
+ * `planRowAlign`, `planTableAttrs` -, their checks and refusals, attributes only (the same rows
+ * and cells otherwise), nothing committed for an equal value, the language setter's shadowed
+ * key, and on a too-large table the caret's cell, row and table. US6 (T109; FR-017 to FR-019,
+ * FR-035; C14, C21, C67; data-model §2.5, §4.5 `table.toggleHeaderCell`,
+ * `table.makeHeaderCells` / `table.makeNormalCells` and `table.toggleHeaderRow` /
+ * `table.toggleHeaderColumn`): the header plans change only the kind of the cells they target
+ * - the same attributes and the same content fragment -, a block's head cell, the owners of whole
+ * rows or columns, a merged cell once, nothing committed when nothing changes, and on a too-large
+ * table the caret's cell without the owner map. US5 (T102;
  * FR-013 to FR-016, FR-030, FR-035, FR-046, FR-047; C12, C14, C17, C19, C67; decision 1; U8;
  * data-model §4.5 `table.mergeCells` and `table.splitCell`, open point 4): `planMerge` and
  * `planSplit` on regular, merged and irregular tables. US4 (T091; FR-011, FR-013's joining
@@ -29,6 +35,7 @@ import { EditorState, TextSelection } from 'prosemirror-state';
 
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { fb2Schema } from '@/editor/schema';
+import { planCellAttrs, planRowAlign, planTableAttrs } from '@/editor/table/attrs';
 import { planCommand } from '@/editor/table/commands';
 import {
   applyTableEdit,
@@ -71,6 +78,10 @@ import {
 } from '@/editor/table/ops';
 import { CellBlockSelection } from '@/editor/table/selection';
 import { nodeToModel } from '@/editor/toModel';
+import type { AnnotationNode } from '@/model/document';
+import { collectBookIds } from '@/model/ids';
+
+import { fakeDocument } from '../../features/testUtils';
 
 import { childrenOf, docOf, idGenerator, p, table, type RowSpec } from './helpers';
 
@@ -2486,5 +2497,586 @@ describe('US6 header cells', () => {
         ctx(),
       ),
     ).toEqual({ refused: 'too-large' });
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* US7: attribute plans (T116)                                              */
+/* ------------------------------------------------------------------------ */
+
+describe('US7 attribute plans', () => {
+  const XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang';
+  const ctx = (bookIds: Iterable<string> = []): PlanContext => ({
+    nextId: idGenerator('a'),
+    bookIds: new Set(bookIds),
+  });
+
+  /** The 4 × 3 table of the user story 7 subsection of `tables.fb2` (T014). */
+  const FOUR: MRow[] = Array.from({ length: 4 }, (_, r) =>
+    Array.from({ length: 3 }, (_, c) => `r${r + 1}c${c + 1}`),
+  );
+  /** The six cells of the block from r1c1 to r3c2 (US7 sc.1). */
+  const SIX = ['r1c1', 'r1c2', 'r2c1', 'r2c2', 'r3c1', 'r3c2'];
+  /** `[w colspan 2, x] / [y, z, q] / [a, b, c]`. */
+  const WIDE3: MRow[] = [
+    [{ text: 'w', colspan: 2 }, 'x'],
+    ['y', 'z', 'q'],
+    ['a', 'b', 'c'],
+  ];
+  /** A cell `m` over rows 2 and 3. */
+  const TALL: MRow[] = [
+    ['r1c1', 'r1c2', 'r1c3'],
+    [{ text: 'm', rowspan: 2 }, 'r2c2', 'r2c3'],
+    ['r3c2', 'r3c3'],
+  ];
+
+  /** The plan's edit (a refusal throws) and its table, which passes `assertTableValid`. */
+  function edited(where: Placed, result: TableEdit | Refusal): { edit: TableEdit; after: PMNode } {
+    if (isRefusal(result)) throw new Error(`refused: ${JSON.stringify(result)}`);
+    const after = applyTableEdit(where.table, result);
+    assertTableValid(where.table, after, result.allowedIds, result.pastedIrregular);
+    return { edit: result, after };
+  }
+
+  /**
+   * Checks that `after` differs from `before` in attributes only - every child in its place;
+   * a changed cell of the same kind, with its node id, the same content fragment (`===`) and
+   * its marks; a changed row with its node id and, when only its `align` changed, the same
+   * content fragment (its cells reused); every other row and cell reused (`===`) - and returns
+   * the texts of the cells whose attributes changed, in reading order, and the indices of the
+   * rows whose own attributes changed.
+   */
+  function attrChanges(before: PMNode, after: PMNode): { cells: string[]; rows: number[] } {
+    expect(after.childCount).toBe(before.childCount);
+    const cells: string[] = [];
+    const rows: number[] = [];
+    before.forEach((row, _offset, index) => {
+      const next = after.child(index);
+      if (row.type.name !== 'tr') {
+        expect(next).toBe(row);
+        return;
+      }
+      expect(next.type).toBe(row.type);
+      expect(next.attrs.nodeId).toBe(row.attrs.nodeId);
+      expect(next.childCount).toBe(row.childCount);
+      const rowAttrsChanged = JSON.stringify(next.attrs) !== JSON.stringify(row.attrs);
+      if (rowAttrsChanged) {
+        rows.push(index);
+        expect(next.content).toBe(row.content);
+        return;
+      }
+      let changed = false;
+      row.forEach((cell, _at, cellIndex) => {
+        const now = next.child(cellIndex);
+        if (now === cell) return;
+        expect(cell.type.name === 'td' || cell.type.name === 'th').toBe(true);
+        expect(now.type).toBe(cell.type);
+        expect(now.attrs.nodeId).toBe(cell.attrs.nodeId);
+        expect(now.content).toBe(cell.content);
+        expect(now.marks).toEqual(cell.marks);
+        expect(JSON.stringify(now.attrs)).not.toBe(JSON.stringify(cell.attrs));
+        changed = true;
+        cells.push(cell.textContent);
+      });
+      if (!changed) expect(next).toBe(row);
+    });
+    return { cells, rows };
+  }
+
+  /** The set attributes of the cell whose text is `text`, `nodeId` aside. */
+  function cellAttrs(node: PMNode, text: string): Record<string, unknown> {
+    for (const row of childrenOf(node)) {
+      for (const cell of childrenOf(row)) {
+        if (cell.textContent === text) return setAttrs(cell);
+      }
+    }
+    throw new Error(`no cell "${text}"`);
+  }
+
+  /** The selection a commit of `edit` leaves on `where`'s state. */
+  function committed(where: Placed, edit: TableEdit) {
+    const tr = commitTableEdit(where.state.tr, tableTarget(where.state)!.tablePos, edit);
+    expect(tr).not.toBeNull();
+    return tr!.selection;
+  }
+
+  /** `where`'s table addressed by the assistant's whole `lines` only. */
+  function byLines(node: PMNode, lines: TableAddress['lines']): Placed {
+    const where = placed(node, childrenOf(childrenOf(node)[0]!)[0]!.textContent);
+    return { ...where, address: { table: node, grid: gridOfNode(node), lines } };
+  }
+
+  /** One row of 4195 cells of colspan 1000 - above MAX_GRID_POSITIONS -, the caret in `w1`. */
+  function big(offset = 0): Placed {
+    const cells = Array.from({ length: 4195 }, (_, index) => ({
+      text: `w${index}`,
+      colspan: 1000,
+    }));
+    return placed([cells], 'w1', { offset });
+  }
+
+  it('sc.1: Cell align, Cell valign, Cell style and Cell language reach every cell of a block, each cell once; the rows and the other cells stay', () => {
+    const where = placed(FOUR, ['r1c1', 'r3c2']);
+    for (const values of [
+      { align: 'center' },
+      { valign: 'middle' },
+      { style: 'wide' },
+      { lang: 'de' },
+    ] as const) {
+      const { edit, after } = edited(where, planCellAttrs(where.address, values, ctx()));
+      const [[name, value]] = Object.entries(values) as [[string, string]];
+      expect(attrChanges(where.table, after), name).toEqual({ cells: SIX, rows: [] });
+      for (const text of SIX) expect(cellAttrs(after, text)[name], text).toBe(value);
+      expect(cellAttrs(after, 'r1c3')).toEqual({});
+      expect(edit.tableAttrs).toBeUndefined();
+      expect(edit.removedIds).toEqual([]);
+      expect(edit.allowedIds ?? []).toEqual([]);
+      // The block stays selected.
+      expect(edit.focus).toEqual(blockOver(where.address.rect!));
+      expect(committed(where, edit)).toBeInstanceOf(CellBlockSelection);
+    }
+    // All four in one plan.
+    const { after } = edited(
+      where,
+      planCellAttrs(
+        where.address,
+        { align: 'center', valign: 'middle', style: 'wide', lang: 'de' },
+        ctx(),
+      ),
+    );
+    const set = 'align=center valign=middle lang=de style=wide';
+    expect(show(after)).toBe(
+      `[r1c1 ${set}, r1c2 ${set}, r1c3] / [r2c1 ${set}, r2c2 ${set}, r2c3] / ` +
+        `[r3c1 ${set}, r3c2 ${set}, r3c3] / [r4c1, r4c2, r4c3]`,
+    );
+  });
+
+  it('C14, C67: a block’s rectangle is extended already, a merged cell counts once; a caret’s cell alone; the assistant’s whole rows or columns, never extended', () => {
+    // A block from x to z covers w's second column: extended to w, so rows 1-2 entirely.
+    const block = placed(WIDE3, ['x', 'z']);
+    const extended = edited(block, planCellAttrs(block.address, { align: 'right' }, ctx()));
+    expect(attrChanges(block.table, extended.after).cells).toEqual(['w', 'x', 'y', 'z', 'q']);
+    // A caret: its cell alone, which keeps the caret's offset (the same content fragment).
+    const caret = placed(FOUR, 'r2c2', { offset: 2 });
+    const one = edited(caret, planCellAttrs(caret.address, { valign: 'bottom' }, ctx()));
+    expect(attrChanges(caret.table, one.after).cells).toEqual(['r2c2']);
+    expect(one.edit.focus).toEqual(caretAt(1, 1));
+    const selection = committed(caret, one.edit);
+    expect(selection.empty).toBe(true);
+    expect(selection.$head.parent.attrs.nodeId).toBe(
+      cellAtTopLeft(caret.address.grid, caret.table, { row: 1, col: 1 })!.node.attrs.nodeId,
+    );
+    expect(selection.$head.parentOffset).toBe(2);
+    // Lines: the owners of column 2 are w and z - w is not extended to column 1, so y stays -;
+    // of row 2, y, z and q; of rows 2-3 of TALL, m once with its rows' cells.
+    const wide = nodeFromModel(modelTable(WIDE3))!;
+    const column = byLines(wide, { axis: 'column', from: 1, to: 2 });
+    expect(
+      attrChanges(wide, edited(column, planCellAttrs(column.address, { lang: 'uk' }, ctx())).after)
+        .cells,
+    ).toEqual(['w', 'z', 'b']);
+    const row = byLines(wide, { axis: 'row', from: 1, to: 2 });
+    expect(
+      attrChanges(wide, edited(row, planCellAttrs(row.address, { style: 's' }, ctx())).after).cells,
+    ).toEqual(['y', 'z', 'q']);
+    const tall = nodeFromModel(modelTable(TALL))!;
+    const rows = byLines(tall, { axis: 'row', from: 2, to: 3 });
+    expect(
+      attrChanges(tall, edited(rows, planCellAttrs(rows.address, { align: 'left' }, ctx())).after)
+        .cells,
+    ).toEqual(['m', 'r3c2', 'r3c3']);
+    // Lines that are no range of the grid address nothing.
+    const outside = byLines(wide, { axis: 'row', from: 2, to: 9 });
+    const none = planCellAttrs(outside.address, { align: 'left' }, ctx());
+    if (isRefusal(none)) throw new Error(`refused: ${none.refused}`);
+    none.rows.forEach((child, index) => expect(child).toBe(wide.child(index)));
+  });
+
+  it('sc.2: Cell ID goes to the head cell only - the cell that holds $head -, beside the block-wide values; the edit allows that id', () => {
+    const down = placed(FOUR, ['r1c1', 'r3c2']);
+    const named = edited(down, planCellAttrs(down.address, { id: 'c32' }, ctx()));
+    expect(attrChanges(down.table, named.after).cells).toEqual(['r3c2']);
+    expect(cellAttrs(named.after, 'r3c2')).toEqual({ id: 'c32' });
+    expect(named.edit.allowedIds).toEqual(['c32']);
+    expect(() => assertTableValid(down.table, named.after)).toThrow(/c32 is new/);
+    // Dragged upwards, the head is r1c1.
+    const up = placed(FOUR, ['r3c2', 'r1c1']);
+    const upNamed = edited(up, planCellAttrs(up.address, { id: 'c11' }, ctx()));
+    expect(attrChanges(up.table, upNamed.after).cells).toEqual(['r1c1']);
+    // A caret: its cell.
+    const caret = placed(FOUR, 'r4c3');
+    expect(
+      attrChanges(
+        caret.table,
+        edited(caret, planCellAttrs(caret.address, { id: 'x' }, ctx())).after,
+      ).cells,
+    ).toEqual(['r4c3']);
+    // An id with a block-wide value: the id on the head cell, the value on the block.
+    const both = edited(down, planCellAttrs(down.address, { id: 'h', align: 'left' }, ctx()));
+    expect(attrChanges(down.table, both.after).cells).toEqual(SIX);
+    expect(cellAttrs(both.after, 'r3c2')).toEqual({ id: 'h', align: 'left' });
+    expect(cellAttrs(both.after, 'r1c1')).toEqual({ align: 'left' });
+  });
+
+  it('values are trimmed and an empty value removes the attribute from every target; a target without it stays the same node', () => {
+    const rows: MRow[] = [
+      [
+        { text: 'a', id: 'i1', style: 's', align: 'left', valign: 'top', lang: 'de' },
+        { text: 'b', align: 'left' },
+      ],
+      ['c', 'd'],
+    ];
+    const block = placed(rows, ['a', 'b']);
+    const right = edited(block, planCellAttrs(block.address, { align: '  right ' }, ctx()));
+    expect(cellAttrs(right.after, 'a').align).toBe('right');
+    expect(cellAttrs(right.after, 'b')).toEqual({ align: 'right' });
+    const unstyled = edited(block, planCellAttrs(block.address, { style: '   ' }, ctx()));
+    expect(attrChanges(block.table, unstyled.after).cells).toEqual(['a']);
+    expect(cellAttrs(unstyled.after, 'a').style).toBeUndefined();
+    const unaligned = edited(block, planCellAttrs(block.address, { align: '' }, ctx()));
+    expect(attrChanges(block.table, unaligned.after).cells).toEqual(['a', 'b']);
+    expect(cellAttrs(unaligned.after, 'b')).toEqual({});
+    const caret = placed(rows, 'a');
+    const french = edited(caret, planCellAttrs(caret.address, { lang: ' fr ' }, ctx()));
+    expect(cellAttrs(french.after, 'a').lang).toBe('fr');
+    const unnamed = edited(caret, planCellAttrs(caret.address, { id: '' }, ctx()));
+    expect(cellAttrs(unnamed.after, 'a')).toEqual({
+      style: 's',
+      align: 'left',
+      valign: 'top',
+      lang: 'de',
+    });
+    expect(unnamed.edit.allowedIds ?? []).toEqual([]);
+    const valigned = edited(caret, planCellAttrs(caret.address, { valign: null }, ctx()));
+    expect(cellAttrs(valigned.after, 'a').valign).toBeUndefined();
+    // Only the enumerations: anything else is a caller's error.
+    expect(() => planCellAttrs(caret.address, { align: 'middle' }, ctx())).toThrow(RangeError);
+    expect(() => planCellAttrs(caret.address, { valign: 'center' }, ctx())).toThrow(RangeError);
+  });
+
+  it('refusals: invalid-lang, invalid-id and duplicate-id - also for an id that only the whole book’s annotation or history holds -, while the target’s own id is accepted; a refusal changes nothing', () => {
+    const rows: MRow[] = [
+      [{ text: 'a', id: 'own' }, { text: 'b', id: 'other' }, 'c'],
+      ['d', 'e', 'f'],
+    ];
+    const node = nodeFromModel(modelTable(rows, { id: 'tid' }))!;
+    const before = JSON.stringify(nodeToModel(node));
+    const caret = placed(node, 'a');
+    expect(planCellAttrs(caret.address, { lang: 'de_DE' }, ctx())).toEqual({
+      refused: 'invalid-lang',
+      params: { value: 'de_DE' },
+    });
+    expect(planCellAttrs(caret.address, { lang: ' de_DE ' }, ctx())).toEqual({
+      refused: 'invalid-lang',
+      params: { value: 'de_DE' },
+    });
+    for (const id of ['1t', 'a b', 'a:b', ' -x ']) {
+      expect(planCellAttrs(caret.address, { id }, ctx()), id).toEqual({ refused: 'invalid-id' });
+      expect(planTableAttrs(caret.address, { id }, ctx()), id).toEqual({ refused: 'invalid-id' });
+    }
+    // An id of the book (here the context's), or of another element of the same table.
+    expect(planCellAttrs(caret.address, { id: 'elsewhere' }, ctx(['elsewhere']))).toEqual({
+      refused: 'duplicate-id',
+      params: { id: 'elsewhere' },
+    });
+    expect(planCellAttrs(caret.address, { id: 'other' }, ctx())).toEqual({
+      refused: 'duplicate-id',
+      params: { id: 'other' },
+    });
+    expect(planCellAttrs(caret.address, { id: 'tid' }, ctx())).toEqual({
+      refused: 'duplicate-id',
+      params: { id: 'tid' },
+    });
+    expect(planTableAttrs(caret.address, { id: 'own' }, ctx(['own']))).toEqual({
+      refused: 'duplicate-id',
+      params: { id: 'own' },
+    });
+    // The whole book's ids (collectBookIds): its annotation's and its history's.
+    const annotation = (nodeId: string, id: string) =>
+      ({
+        type: 'annotation',
+        attrs: { nodeId },
+        content: [
+          {
+            type: 'p',
+            attrs: { nodeId: `${nodeId}-p`, id },
+            content: [{ type: 'text', text: 'x' }],
+          },
+        ],
+      }) as AnnotationNode;
+    const book = fakeDocument();
+    book.description.titleInfo.annotation = annotation('ann', 'in-annotation');
+    book.description.documentInfo.history = annotation('hist', 'in-history');
+    const bookIds = collectBookIds(book);
+    for (const id of ['in-annotation', 'in-history']) {
+      expect(planCellAttrs(caret.address, { id }, { nextId: idGenerator(), bookIds }), id).toEqual({
+        refused: 'duplicate-id',
+        params: { id },
+      });
+    }
+    // The target's own id, even where the book lists it, is no duplicate: nothing changes.
+    for (const result of [
+      planCellAttrs(caret.address, { id: 'own' }, ctx(['own', 'other', 'tid'])),
+      planCellAttrs(caret.address, { id: ' own ' }, ctx(['own'])),
+      planTableAttrs(caret.address, { id: 'tid' }, ctx(['own', 'other', 'tid'])),
+    ]) {
+      if (isRefusal(result)) throw new Error(`refused: ${result.refused}`);
+      result.rows.forEach((child, index) => expect(child).toBe(node.child(index)));
+      expect(result.tableAttrs).toBeUndefined();
+    }
+    // A free id is accepted.
+    const free = edited(caret, planCellAttrs(caret.address, { id: 'free' }, ctx(['own'])));
+    expect(cellAttrs(free.after, 'a').id).toBe('free');
+    expect(free.edit.allowedIds).toEqual(['free']);
+    // Every refusal left the table as it was.
+    expect(JSON.stringify(nodeToModel(node))).toBe(before);
+  });
+
+  it('FR-045: a value equal to the current one in every target - rows all ===, no tableAttrs, commitTableEdit null, no undo step', () => {
+    const rows: MRow[] = [
+      {
+        align: 'right',
+        cells: [
+          { text: 'a', align: 'center', lang: 'de' },
+          { text: 'b', align: 'center' },
+        ],
+      },
+      ['c', 'd'],
+    ];
+    const node = nodeFromModel(modelTable(rows, { id: 't', style: 'grid' }))!;
+    const block = placed(node, ['a', 'b']);
+    const caret = placed(node, 'a');
+    const cases: [Placed, Plan][] = [
+      [block, (a, c) => planCellAttrs(a, { align: 'center' }, c)],
+      [block, (a, c) => planCellAttrs(a, { style: '' }, c)],
+      [caret, (a, c) => planCellAttrs(a, { lang: 'de' }, c)],
+      [caret, (a, c) => planCellAttrs(a, { id: '' }, c)],
+      [block, (a, c) => planRowAlign(a, { align: 'right' }, c)],
+      [caret, (a, c) => planRowAlign(a, { align: ' right ' }, c)],
+      [caret, (a, c) => planTableAttrs(a, { id: 't', style: 'grid' }, c)],
+    ];
+    for (const [where, plan] of cases) {
+      const edit = plan(where.address, ctx(['t']));
+      if (isRefusal(edit)) throw new Error(`refused: ${edit.refused}`);
+      expect(edit.rows).toHaveLength(node.childCount);
+      edit.rows.forEach((child, index) => expect(child).toBe(node.child(index)));
+      expect(edit.tableAttrs).toBeUndefined();
+      expect(commitTableEdit(where.state.tr, tableTarget(where.state)!.tablePos, edit)).toBeNull();
+      const state = EditorState.create({
+        doc: where.state.doc,
+        selection: where.state.selection,
+        plugins: [history()],
+      });
+      const dispatch = vi.fn();
+      expect(planCommand(plan, ctx(['t']))(state, dispatch)).toBe(false);
+      expect(dispatch).not.toHaveBeenCalled();
+    }
+    // A change records one undo step.
+    let state = EditorState.create({
+      doc: block.state.doc,
+      selection: block.state.selection,
+      plugins: [history()],
+    });
+    const ran = planCommand((a, c) => planCellAttrs(a, { align: 'left' }, c), ctx())(
+      state,
+      (tr) => {
+        state = state.apply(tr);
+      },
+    );
+    expect(ran).toBe(true);
+    expect(undoDepth(state)).toBe(1);
+  });
+
+  it('planRowAlign: every row of the block, the caret cell’s row, or the assistant’s rows; each row keeps its cells by identity', () => {
+    const block = placed(FOUR, ['r1c1', 'r3c2']);
+    const right = edited(block, planRowAlign(block.address, { align: 'right' }, ctx()));
+    expect(attrChanges(block.table, right.after)).toEqual({ cells: [], rows: [0, 1, 2] });
+    expect(show(right.after)).toBe(
+      '{right}[r1c1, r1c2, r1c3] / {right}[r2c1, r2c2, r2c3] / {right}[r3c1, r3c2, r3c3] / ' +
+        '[r4c1, r4c2, r4c3]',
+    );
+    expect(right.edit.focus).toEqual(blockOver(block.address.rect!));
+    expect(right.edit.tableAttrs).toBeUndefined();
+    // The caret in m, over rows 2 and 3: m's own row.
+    const inM = placed(TALL, 'm');
+    expect(
+      attrChanges(
+        inM.table,
+        edited(inM, planRowAlign(inM.address, { align: 'center' }, ctx())).after,
+      ),
+    ).toEqual({ cells: [], rows: [1] });
+    // The assistant's rows 2-3; column lines address no row.
+    const tall = nodeFromModel(modelTable(TALL))!;
+    const rows = byLines(tall, { axis: 'row', from: 1, to: 3 });
+    expect(
+      attrChanges(tall, edited(rows, planRowAlign(rows.address, { align: 'left' }, ctx())).after),
+    ).toEqual({ cells: [], rows: [1, 2] });
+    const columns = byLines(tall, { axis: 'column', from: 0, to: 1 });
+    const none = planRowAlign(columns.address, { align: 'left' }, ctx());
+    if (isRefusal(none)) throw new Error(`refused: ${none.refused}`);
+    none.rows.forEach((child, index) => expect(child).toBe(tall.child(index)));
+    // An empty value removes it; a row without it stays the same node.
+    const aligned = nodeFromModel(modelTable([{ align: 'right', cells: ['a'] }, ['b']] as MRow[]))!;
+    const both = placed(aligned, ['a', 'b']);
+    const cleared = edited(both, planRowAlign(both.address, { align: '' }, ctx()));
+    expect(attrChanges(aligned, cleared.after)).toEqual({ cells: [], rows: [0] });
+    expect(cleared.after.child(0).attrs.align).toBeNull();
+    expect(() => planRowAlign(both.address, { align: 'top' }, ctx())).toThrow(RangeError);
+  });
+
+  it('planTableAttrs: id and style through tableAttrs only - every row the same node -, the id checked as for cells against the table’s own id', () => {
+    const node = nodeFromModel(modelTable(FOUR))!;
+    const caret = placed(node, 'r2c2');
+    const { edit, after } = edited(
+      caret,
+      planTableAttrs(caret.address, { id: ' tab ', style: 'wide' }, ctx(['other'])),
+    );
+    edit.rows.forEach((child, index) => expect(child).toBe(node.child(index)));
+    expect(edit.tableAttrs).toEqual({ ...node.attrs, id: 'tab', style: 'wide' });
+    expect(edit.allowedIds).toEqual(['tab']);
+    expect(after.attrs.id).toBe('tab');
+    expect(edit.focus).toEqual(caretAt(1, 1));
+    expect(() => assertTableValid(node, after)).toThrow(/tab is new/);
+    // An empty value removes it.
+    const named = nodeFromModel(modelTable(FOUR, { id: 'tab', style: 'wide' }))!;
+    const inNamed = placed(named, 'r1c1');
+    const cleared = edited(inNamed, planTableAttrs(inNamed.address, { style: '' }, ctx(['tab'])));
+    expect(cleared.edit.tableAttrs).toEqual({ ...named.attrs, style: null });
+    expect(cleared.after.attrs.id).toBe('tab');
+    const unnamed = edited(inNamed, planTableAttrs(inNamed.address, { id: '' }, ctx(['tab'])));
+    expect(unnamed.after.attrs.id).toBeNull();
+    // The table and its block: the block stays.
+    const block = placed(named, ['r1c1', 'r2c2']);
+    expect(edited(block, planTableAttrs(block.address, { style: 'x' }, ctx())).edit.focus).toEqual(
+      blockOver(block.address.rect!),
+    );
+  });
+
+  it('data-model §2.5: above MAX_GRID_POSITIONS the three plans act on the caret’s cell, its row and the table without the owner map; a block or lines refuse with too-large', () => {
+    const where = big(1);
+    const { grid } = where.address;
+    expect(grid.tooLarge).toBe(true);
+    const owner = vi.spyOn(grid, 'owner');
+    const cellsIn = vi.spyOn(grid, 'cellsIn');
+    const extend = vi.spyOn(grid, 'extend');
+    try {
+      const cell = edited(
+        where,
+        planCellAttrs(where.address, { align: 'center', lang: 'de', id: 'w-one' }, ctx()),
+      );
+      expect(attrChanges(where.table, cell.after).cells).toEqual(['w1']);
+      expect(cell.edit.focus).toEqual(caretAt(0, 1000));
+      const row = edited(where, planRowAlign(where.address, { align: 'right' }, ctx()));
+      expect(attrChanges(where.table, row.after)).toEqual({ cells: [], rows: [0] });
+      const tableAttrs = edited(where, planTableAttrs(where.address, { style: 'big' }, ctx()));
+      expect(tableAttrs.after.attrs.style).toBe('big');
+      expect(owner).not.toHaveBeenCalled();
+      expect(cellsIn).not.toHaveBeenCalled();
+      expect(extend).not.toHaveBeenCalled();
+      // The commit puts the caret back into w1, at its offset.
+      const selection = committed(where, cell.edit);
+      expect(selection.$head.parent.textContent).toBe('w1');
+      expect(selection.$head.parentOffset).toBe(1);
+    } finally {
+      owner.mockRestore();
+      cellsIn.mockRestore();
+      extend.mockRestore();
+    }
+    const lines = { ...where.address, lines: { axis: 'row' as const, from: 0, to: 1 } };
+    const rect = { ...where.address, rect: { top: 0, left: 0, bottom: 1, right: 2000 } };
+    for (const address of [lines, rect]) {
+      expect(planCellAttrs(address, { align: 'left' }, ctx())).toEqual({ refused: 'too-large' });
+      expect(planRowAlign(address, { align: 'left' }, ctx())).toEqual({ refused: 'too-large' });
+    }
+  });
+
+  it('FR-035: on every irregular case of grid-vectors.json - a caret in every cell and a block - only the attributes change and the summary stays deep-equal', () => {
+    const vectors = JSON.parse(readFileSync(path.join(VECTORS, 'grid-vectors.json'), 'utf8')) as {
+      cases: VectorCase[];
+    };
+    const irregular = vectors.cases.filter((one) => !one.expect.regular);
+    expect(irregular.length).toBeGreaterThan(10);
+    const plans: [string, Plan][] = [
+      [
+        'cells',
+        (a, c) =>
+          planCellAttrs(a, { align: 'center', valign: 'bottom', style: 's', lang: 'de' }, c),
+      ],
+      ['id', (a, c) => planCellAttrs(a, { id: 'fresh' }, c)],
+      ['row', (a, c) => planRowAlign(a, { align: 'right' }, c)],
+      ['table', (a, c) => planTableAttrs(a, { id: 'tfresh', style: 't' }, c)],
+    ];
+    let edits = 0;
+    let changed = 0;
+    for (const one of irregular) {
+      const node = vectorTable(one.table);
+      const doc = docOf(p('before', 'p1'), node, p('after', 'p2'));
+      const tablePos = 1 + 1 + doc.child(0).child(0).child(0).nodeSize;
+      const cellPositions: number[] = [];
+      doc.nodeAt(tablePos)!.descendants((child, at) => {
+        if (child.type.name === 'td' || child.type.name === 'th')
+          cellPositions.push(tablePos + 1 + at);
+        return child.type.name === 'table' || child.type.name === 'tr';
+      });
+      const selections = [
+        ...cellPositions.map((at) => TextSelection.create(doc, at + 1)),
+        ...(cellPositions.length > 1
+          ? [CellBlockSelection.create(doc, cellPositions[0]!, cellPositions.at(-1)!)]
+          : []),
+      ];
+      for (const selection of selections) {
+        const address = tableTarget(EditorState.create({ doc, selection }))!.address;
+        const summary = gridOfNode(address.table).summary;
+        for (const [name, plan] of plans) {
+          const edit = plan(address, ctx());
+          if (isRefusal(edit)) throw new Error(`${one.name}: ${name} refused ${edit.refused}`);
+          edits += 1;
+          const after = applyTableEdit(address.table, edit);
+          expect(
+            () => assertTableValid(address.table, after, edit.allowedIds),
+            `${one.name}: ${name}`,
+          ).not.toThrow();
+          expect(gridOfNode(after).summary, `${one.name}: ${name}`).toEqual({
+            ...summary,
+            ...(name === 'table' ? { id: 'tfresh' } : {}),
+          });
+          const { cells, rows } = attrChanges(address.table, after);
+          changed += cells.length + rows.length;
+        }
+      }
+    }
+    expect(edits).toBeGreaterThan(100);
+    expect(changed).toBeGreaterThan(100);
+  });
+
+  it('the language setter: a cell read with xml:lang among its unknown attributes, given fr, keeps no such key; given an empty value, neither lang nor the key', () => {
+    const rows: MRow[] = [
+      [
+        { text: 'a', unknownAttrs: { [XML_LANG]: 'de' } },
+        { text: 'b', unknownAttrs: { [XML_LANG]: 'la', class: 'k' } },
+      ],
+    ];
+    const node = nodeFromModel(modelTable(rows))!;
+    expect(node.child(0).child(0).attrs.extraAttrs).toEqual({ unknownAttrs: { [XML_LANG]: 'de' } });
+    const inA = placed(node, 'a');
+    const french = edited(inA, planCellAttrs(inA.address, { lang: 'fr' }, ctx()));
+    const a = french.after.child(0).child(0);
+    expect(a.attrs.lang).toBe('fr');
+    expect(a.attrs.extraAttrs).toBeNull();
+    expect(nodeToModel(a)).toMatchObject({ attrs: { lang: 'fr' } });
+    expect(JSON.stringify(nodeToModel(a))).not.toContain(XML_LANG);
+    // An empty value: lang was null already, but the kept key goes - a change of its own.
+    const removed = edited(inA, planCellAttrs(inA.address, { lang: '' }, ctx()));
+    expect(attrChanges(node, removed.after).cells).toEqual(['a']);
+    const bare = removed.after.child(0).child(0);
+    expect(bare.attrs.lang).toBeNull();
+    expect(bare.attrs.extraAttrs).toBeNull();
+    expect(JSON.stringify(nodeToModel(bare))).not.toContain(XML_LANG);
+    // Other unknown attributes stay.
+    const inB = placed(node, 'b');
+    const english = edited(inB, planCellAttrs(inB.address, { lang: 'en' }, ctx()));
+    expect(english.after.child(0).child(1).attrs.extraAttrs).toEqual({
+      unknownAttrs: { class: 'k' },
+    });
   });
 });

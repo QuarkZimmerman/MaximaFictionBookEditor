@@ -31,10 +31,25 @@ export interface BarTextFieldProps {
   disabled: boolean;
   width?: number;
   focusKey?: BarField;
-  onCommit: (value: string) => void;
+  /**
+   * The targets' values differ (the Table bar's block-wide fields, feature 006 US7): the field is
+   * empty and carries `data-mixed="true"`; Enter on the still-empty field commits `''`, which
+   * removes the attribute from every target, while a blur without typing commits nothing.
+   */
+  mixed?: boolean;
+  /** The id of a `<datalist>` of suggestions: the input's `list`. */
+  list?: string;
+  /** The input's `title` (feature 006 US8 sets it on the disabled span fields). */
+  title?: string;
+  /** Applies the value; `false` when nothing was applied, after which the field shows `value`. */
+  onCommit: (value: string) => boolean | void;
 }
 
-/** Text field that applies its value on Enter or blur and re-syncs when the selection moves. */
+/**
+ * Text field that applies its value on Enter or blur and re-syncs when the selection moves.
+ * One commit per edit: Enter commits and then blurs the field, Escape restores it and blurs it,
+ * and the blur that follows commits nothing more.
+ */
 export function BarTextField({
   id,
   label,
@@ -42,6 +57,9 @@ export function BarTextField({
   disabled,
   width = 120,
   focusKey,
+  mixed = false,
+  list,
+  title,
   onCommit,
 }: BarTextFieldProps) {
   const [draft, setDraft] = useState(value);
@@ -63,13 +81,15 @@ export function BarTextField({
     });
   }, [focusKey]);
 
-  const commit = () => {
+  const commit = (enter: boolean) => {
     // Enter commits and then blurs the field, Escape restores it and blurs it: the blur that
     // follows must not commit (again) - a second commit of a picture's Href was a second undo
-    // step (feature 006, FR-029: each change is one undo step).
+    // step (feature 006, FR-029: each change is one undo step), and a refusal would show its
+    // message twice (US7).
     if (!editing.current) return;
     editing.current = false;
-    if (draft !== value) onCommit(draft);
+    if (draft === value && !(enter && mixed)) return;
+    if (onCommit(draft) === false) setDraft(value);
   };
 
   return (
@@ -84,16 +104,19 @@ export function BarTextField({
         value={disabled ? '' : draft}
         disabled={disabled}
         spellCheck={false}
+        list={list}
+        title={title}
         data-testid={id}
+        data-mixed={mixed && !disabled ? 'true' : undefined}
         onFocus={() => {
           editing.current = true;
         }}
         onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
+        onBlur={() => commit(false)}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault();
-            commit();
+            commit(true);
             event.currentTarget.blur();
           } else if (event.key === 'Escape') {
             event.preventDefault();

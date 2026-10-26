@@ -262,8 +262,11 @@ function targetRect(address: TableAddress): Rect | null {
   return index < 0 ? null : cellRect(grid.cells[index]!);
 }
 
-/** The assistant's whole lines of `axis`, when they are a valid range of the grid (C67). */
-function linesOf(address: TableAddress, axis: LineAxis): [number, number] | null {
+/**
+ * The assistant's whole lines of `axis`, when they are a valid range of the grid (C67); the
+ * attribute plans of `attrs.ts` read them too (US7).
+ */
+export function linesOf(address: TableAddress, axis: LineAxis): [number, number] | null {
   const lines = address.lines;
   if (!lines || lines.axis !== axis) return null;
   const size = sizeOf(address.grid, axis);
@@ -1885,8 +1888,11 @@ export function lineOwners(grid: TableGrid, axis: LineAxis, from: number, to: nu
   );
 }
 
-/** The focus a header plan keeps: the block over the same rectangle, or the caret. */
-function keptFocus(address: TableAddress): TableFocus {
+/**
+ * The focus a header plan keeps: the block over the same rectangle, or the caret; the attribute
+ * plans of `attrs.ts` keep it too (US7).
+ */
+export function keptFocus(address: TableAddress): TableFocus {
   if (address.rect) return blockOver(address.rect);
   const at = address.caret ?? address.head;
   return at ? caretAt(at.row, at.col) : caretAt(0, 0);

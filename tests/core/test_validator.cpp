@@ -788,3 +788,70 @@ TEST_CASE("validator: malformed text gives no table.irregular", "[validator][tab
     options.record_positions = true;
     CHECK_THROWS_AS(fb2::read_bytes(malformed, scratch, ids, options), fb2::ParseFailure);
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: ids are NCNames exactly as the UI checks them (T115; FR-022; U16; I13)         */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+// `text` as the value of an attribute in double quotes.
+std::string xml_attribute_text(const std::string& text) {
+    std::string out;
+    for (const char c : text) {
+        switch (c) {
+            case '&':
+                out += "&amp;";
+                break;
+            case '<':
+                out += "&lt;";
+                break;
+            case '>':
+                out += "&gt;";
+                break;
+            case '"':
+                out += "&quot;";
+                break;
+            default:
+                out += c;
+        }
+    }
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("validator: table ids are xs:ID exactly where ncnames.json says",
+          "[validator][tables]") {
+    // The UI's isNcName (ui/src/editor/table/attrs.ts) decides every name of the shared list as
+    // its `valid` says (ui/tests/unit/features/tables-ids.test.ts); here each name is the id of a
+    // one-cell table of a minimal valid book, and the schema accepts it exactly when `valid` is
+    // true: XML 1.0 Fifth Edition's productions [4], [4a] and [5] without `:`, which libxml2
+    // applies to xs:ID (xmlValidateNCName) - so the two checks cannot drift.
+    const std::string list_text =
+        test::read_text(test::fixtures_dir() / "tables" / "ncnames.json");
+    const nlohmann::json list = nlohmann::json::parse(list_text, nullptr, false);
+    REQUIRE_FALSE(list.is_discarded());
+    REQUIRE(list.at("version").get<int>() == 1);
+    const nlohmann::json& names = list.at("names");
+    REQUIRE(names.size() >= 15);
+    std::size_t valid_names = 0;
+    for (const auto& entry : names) {
+        const std::string name = entry.at("name").get<std::string>();
+        const bool valid = entry.at("valid").get<bool>();
+        INFO(name << ": " << entry.at("note").get<std::string>());
+        const std::string text = test::minimal_book("<section><table id=\"" +
+                                                    xml_attribute_text(name) +
+                                                    "\"><tr><td>cell</td></tr></table></section>");
+        const auto report = validation::validate_xml_text(text);
+        const auto invalid = with_code(report, "schema.invalid");
+        CHECK(invalid.empty() == valid);
+        // Nothing else of the book is at fault: an accepted id leaves no error at all.
+        if (valid) {
+            CHECK(report.errorCount == 0);
+            ++valid_names;
+        }
+    }
+    CHECK(valid_names > 0);
+    CHECK(valid_names < names.size());
+}

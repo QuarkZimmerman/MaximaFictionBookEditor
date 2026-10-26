@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "names": [
+    { "name": "t1", "valid": true, "note": "letters and digits, a letter first" },
+    { "name": "_x", "valid": true, "note": "an underscore may start a name" },
+    { "name": "x-1.y_2", "valid": true, "note": "hyphen, full stop, digits and underscore after the first character" },
+    { "name": "1t", "valid": false, "note": "a digit may not start a name" },
+    { "name": "a b", "valid": false, "note": "no spaces" },
+    { "name": "a:b", "valid": false, "note": "no colon in an NCName" },
+    { "name": "-x", "valid": false, "note": "a hyphen may not start a name" },
+    { "name": ".x", "valid": false, "note": "a full stop may not start a name" },
+    { "name": "ä-1", "valid": true, "note": "U+00E4 is a start character (U+00D8-U+00F6)" },
+    { "name": "Таблица1", "valid": true, "note": "Cyrillic letters are start characters (U+037F-U+1FFF)" },
+    { "name": "表1", "valid": true, "note": "a CJK ideograph is a start character (U+3001-U+D7FF)" },
+    { "name": "\u00b7x", "valid": false, "note": "U+00B7 (middle dot) is a name character, no start character" },
+    { "name": "x\u00b7", "valid": true, "note": "U+00B7 (middle dot) after the first character" },
+    { "name": "\u0301x", "valid": false, "note": "U+0301 (combining acute accent) is a name character, no start character" },
+    { "name": "x\u0301", "valid": true, "note": "U+0301 (combining acute accent) after the first character" },
+    { "name": "\u0661x", "valid": true, "note": "U+0661 (Arabic-Indic digit one): a start character in XML 1.0 Fifth Edition (U+037F-U+1FFF), a digit under the old Appendix B classes - the case shows which set is in force" },
+    { "name": "\u203fx", "valid": false, "note": "U+203F (undertie) is a name character, no start character" },
+    { "name": "x\u203f", "valid": true, "note": "U+203F (undertie) after the first character" },
+    { "name": "x\u00d7", "valid": false, "note": "U+00D7 (multiplication sign) is in no name class" },
+    { "name": "x\u00f7", "valid": false, "note": "U+00F7 (division sign) is in no name class" },
+    { "name": "x\u2000", "valid": false, "note": "U+2000 (en quad) is in no name class" },
+    { "name": "\u2070x", "valid": true, "note": "U+2070 (superscript zero) is a start character (U+2070-U+218F)" },
+    { "name": "\ud800\udc00x", "valid": true, "note": "U+10000 is a start character (U+10000-U+EFFFF)" }
+  ]
+}
