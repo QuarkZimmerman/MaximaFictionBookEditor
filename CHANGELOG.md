@@ -26,6 +26,22 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   undo step; inside text, inside a tag, where the schema allows no table or while the text is
   not well-formed XML (with the line of the first problem) the command is unavailable and says
   why.
+- Pictures in table cells: *Add > Inline image*, pasting an image and dropping image files put
+  inline images into a cell (`td` or `th`) through the usual flow - the "Insert clear image?"
+  prompt, the file choice, the binary object -, several dropped files in their order, each one
+  undo step. *Add > Image* and *Add > Section image* say why they are unavailable in a cell
+  ("a cell takes inline images only").
+- A picture in a cell is shown at the size of its preview (at most 800 px wide; an SVG at its
+  own size), scaled down with its proportions to the space its column gets and to 10 lines of
+  Body text, never enlarged, and never narrower than the smallest of its own width, the height
+  of an inline picture and the width its 10-line height allows - so a table never gets wider
+  than the text area because of its pictures but by that much per column that holds pictures.
+  Rows and columns without pictures look as before while the table has room. Placeholders and
+  Fast Mode keep the same limits, and tables keep their height while the previews load.
+  Pictures outside tables look as before.
+- The Links bar's new *Alt text* field shows and edits the alternative text of a selected
+  picture, inline or block, in a table cell or anywhere else; an empty value removes it, and
+  each change is one undo step.
 
 - Tables gain *Insert row above* and *below*, *Insert column to the left* and *to the right*,
   *Delete row*, *Delete column*, *Move row up* and *down*, *Move column left* and *right*,
@@ -113,6 +129,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   or language stays inside the link, and a style without a name is written there as `<style>`.
   The text on screen shows an extension once the book is read again; `mfbe-core validate` and
   `roundtrip` no longer report `schema.invalid` for such books.
+- A field of the Links bar or the Table bar committed its value a second time when Enter
+  moved the focus out of it - a selected block picture's new *Href* took two undo steps - and
+  committed the typed value after Escape; Enter now commits once and Escape restores the field.
 - The bundled scripts that rewrite paragraphs through the original editor's HTML notation
   (*General clean-up*, *Broken sentences*, the five interactive clean-ups and *Drama: mark
   speaker names*) keep the language of formatting - nested formatting with two languages
