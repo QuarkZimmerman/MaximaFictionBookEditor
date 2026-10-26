@@ -39,11 +39,13 @@ export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for; it accepts any core answering minor >= 1 (rpc-api.md §6) -
- * the client performs no minor check at connect time; the AI assistant (feature 005) reads
- * `app.info().apiMinor` itself and requires >= 4.
+ * revision this UI was written for (5 since feature 006: the cell's and the marks' languages,
+ * marks on inline atoms, the writer's link rule, `session.tableDialog`); it accepts any core
+ * answering minor >= 1 (rpc-api.md §6) - the client performs no minor check at connect time and
+ * gates nothing on 5; the AI assistant (feature 005) reads `app.info().apiMinor` itself and
+ * requires >= 4.
  */
-export const RPC_API_MINOR = 4;
+export const RPC_API_MINOR = 5;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -316,6 +318,19 @@ export interface Settings {
      * `ai.mode` and is not stored.
      */
     aiPanelVisible: boolean;
+    /**
+     * The Table properties dialog's last confirmed values (feature 006, FR-002; rpc-api.md
+     * §3.7, resource-formats.md §6): `rows` 1-999 (the normal rows; default 2), `columns` 1-64
+     * (default 2), `headerRow` and `headerColumn` (default false). Written whole, all four
+     * members in one patch, by the dialog's OK; Cancel writes nothing. A snapshot from an older
+     * core has no such member: the dialog then proposes 2, 2, false, false (U26).
+     */
+    tableDialog: {
+      rows: number;
+      columns: number;
+      headerRow: boolean;
+      headerColumn: boolean;
+    };
   };
   /** The AI assistant (feature 005, rpc-api.md §3.7, resource-formats.md §B). */
   ai: AiSettings;

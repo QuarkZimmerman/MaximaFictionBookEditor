@@ -67,7 +67,10 @@ TEST_CASE("settings: defaults are exactly resource-formats.md section 6", "[sett
     CHECK_FALSE(d["session"].contains("lastVersionCheck"));  // feature 003: absent until a check
     CHECK(d["session"]["aiPanelWidth"] == 360);              // feature 005
     CHECK(d["session"]["aiPanelVisible"] == true);           // feature 005: open at the first start
-    CHECK(d["session"].size() == 10);
+    // Feature 006 (FR-002): the Table properties dialog's last confirmed values.
+    CHECK(d["session"]["tableDialog"] ==
+          json{{"rows", 2}, {"columns", 2}, {"headerRow", false}, {"headerColumn", false}});
+    CHECK(d["session"].size() == 11);
     // Feature 005 (resource-formats §B): the ai group - mode (Disabled by default, FR-001 as
     // amended 2026-10-23), freeServiceId, the custom triple, the verification record and the
     // agreements.
@@ -513,9 +516,10 @@ TEST_CASE("settings: a 0.0.2 settings file keeps every value; the new keys take 
     CHECK(s["session"]["aiPanelWidth"] == 360);  // feature 005
     CHECK(s["session"]["aiPanelVisible"] == true);
     CHECK(s["ai"] == settings::defaults()["ai"]);
+    CHECK(s["session"]["tableDialog"] == settings::defaults()["session"]["tableDialog"]);
     CHECK(s["view"].size() == 18);
     CHECK(s["other"].size() == 16);
-    CHECK(s["session"].size() == 10);
+    CHECK(s["session"].size() == 11);
 
     // Saving the migrated file keeps the key absent; the shell's maximised flag is accepted.
     CHECK(store.save());
@@ -586,8 +590,9 @@ TEST_CASE(
     CHECK(s["session"]["treeWidth"] == 260);
     CHECK(s["other"].size() == 16);
     // The eight of 0.0.3 (lastVersionCheck set) + treeWidth + aiPanelWidth and aiPanelVisible
-    // (feature 005).
-    CHECK(s["session"].size() == 11);
+    // (feature 005) + tableDialog (feature 006).
+    CHECK(s["session"].size() == 12);
+    CHECK(s["session"]["tableDialog"] == settings::defaults()["session"]["tableDialog"]);
     CHECK(s["session"]["aiPanelWidth"] == 360);
     CHECK(s["session"]["aiPanelVisible"] == true);
     CHECK(s["ai"] == settings::defaults()["ai"]);
@@ -947,4 +952,147 @@ TEST_CASE(
     const std::string text = test::read_text(logs / "mfbe-errors.log");
     CHECK(text.find("sk-secret") == std::string::npos);
     CHECK(text.find("last read") == std::string::npos);
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: session.tableDialog (rpc-api §3.7, resource-formats §6)                      */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "settings: session.tableDialog defaults are 2, 2, false, false; a patch outside 1-999 or "
+    "1-64, or of the wrong type, is 1040 with the field; invalid stored values are replaced and "
+    "logged by field name",
+    "[settings]") {
+    test::TempDir tmp;
+    const auto file = tmp / "settings.json";
+    const json defaults_group =
+        json{{"rows", 2}, {"columns", 2}, {"headerRow", false}, {"headerColumn", false}};
+    CHECK(settings::defaults()["session"]["tableDialog"] == defaults_group);
+
+    settings::SettingsStore store(file);
+    store.load();
+    CHECK(store.get()["session"]["tableDialog"] == defaults_group);
+    const json before = store.get();
+
+    // settings.set answers 1040 settings.invalid {field} for a SettingsError
+    // (settings_handlers.cpp); nothing of a refused patch is applied.
+    auto expect_field = [&](const json& group, const std::string& field) {
+        INFO(group.dump());
+        try {
+            store.apply_patch(json{{"session", {{"tableDialog", group}}}});
+            FAIL("expected SettingsError for " << field);
+        } catch (const settings::SettingsError& e) {
+            CHECK(e.field == field);
+        }
+        CHECK(store.get() == before);
+    };
+    for (const json& rows : {json(0), json(1000), json(2.5), json("x"), json(-1), json(true)}) {
+        expect_field(json{{"rows", rows}, {"columns", 3}}, "session.tableDialog.rows");
+    }
+    for (const json& columns : {json(0), json(65), json(2.5), json("2")}) {
+        expect_field(json{{"rows", 3}, {"columns", columns}}, "session.tableDialog.columns");
+    }
+    expect_field(json{{"headerRow", "yes"}}, "session.tableDialog.headerRow");
+    expect_field(json{{"headerColumn", 1}}, "session.tableDialog.headerColumn");
+    for (const json& group : {json(5), json("2x2"), json::array({2, 2}), json(true)}) {
+        expect_field(group, "session.tableDialog");
+    }
+
+    // Both ends of each range are accepted; the dialog's OK writes the four members in one
+    // patch; no restart.
+    auto written = store.apply_patch(
+        json{{"session",
+              {{"tableDialog",
+                {{"rows", 999}, {"columns", 64}, {"headerRow", true}, {"headerColumn", true}}}}}});
+    CHECK_FALSE(written.restartRequired);
+    CHECK(written.settings["session"]["tableDialog"] ==
+          json{{"rows", 999}, {"columns", 64}, {"headerRow", true}, {"headerColumn", true}});
+    auto low =
+        store.apply_patch(json{{"session", {{"tableDialog", {{"rows", 1}, {"columns", 1}}}}}});
+    CHECK(low.settings["session"]["tableDialog"] ==
+          json{{"rows", 1}, {"columns", 1}, {"headerRow", true}, {"headerColumn", true}});
+    // Members merge one by one; null resets one to its default; the siblings stay.
+    auto reset = store.apply_patch(json{{"session", {{"tableDialog", {{"headerRow", nullptr}}}}}});
+    CHECK(reset.settings["session"]["tableDialog"] ==
+          json{{"rows", 1}, {"columns", 1}, {"headerRow", false}, {"headerColumn", true}});
+    CHECK(reset.settings["session"]["treeWidth"] == 260);
+    // Kept across restarts (US1 sc.8): the file holds the group, a new store reads it back.
+    settings::SettingsStore reloaded(file);
+    reloaded.load();
+    CHECK(reloaded.get()["session"]["tableDialog"] == reset.settings["session"]["tableDialog"]);
+    CHECK(reloaded.get_int("session.tableDialog.rows") == 1);
+    CHECK(reloaded.get_bool("session.tableDialog.headerColumn") == true);
+
+    // A file without the group (an older release's) loads with the defaults and no entry.
+    {
+        json loaded = json::parse(R"({"schemaVersion": 1, "session": {"treeWidth": 300}})");
+        CHECK(settings::sanitize(loaded).empty());
+        CHECK(loaded["session"]["tableDialog"] == defaults_group);
+        CHECK(loaded["session"]["treeWidth"] == 300);
+    }
+    // A stored group that is not an object becomes one holding the defaults.
+    {
+        json loaded = json::parse(R"({"schemaVersion": 1, "session": {"tableDialog": "3x4"}})");
+        settings::sanitize(loaded);
+        CHECK(loaded["session"]["tableDialog"] == defaults_group);
+    }
+    // A missing member takes its default without an entry; unknown members are kept.
+    {
+        json loaded = json::parse(
+            R"({"schemaVersion": 1, "session": {"tableDialog": {"rows": 7, "future": 1}}})");
+        CHECK(settings::sanitize(loaded).empty());
+        CHECK(loaded["session"]["tableDialog"] == json{{"rows", 7},
+                                                       {"columns", 2},
+                                                       {"headerRow", false},
+                                                       {"headerColumn", false},
+                                                       {"future", 1}});
+    }
+    // Each invalid stored member is replaced by its default and reported by its field name.
+    struct StoredCase {
+        const char* text;
+        const char* field;
+    };
+    for (const StoredCase& c :
+         {StoredCase{R"({"schemaVersion": 1, "session": {"tableDialog": {"rows": 0}}})",
+                     "session.tableDialog.rows"},
+          StoredCase{R"({"schemaVersion": 1, "session": {"tableDialog": {"rows": 1000}}})",
+                     "session.tableDialog.rows"},
+          StoredCase{R"({"schemaVersion": 1, "session": {"tableDialog": {"columns": 65}}})",
+                     "session.tableDialog.columns"},
+          StoredCase{R"({"schemaVersion": 1, "session": {"tableDialog": {"columns": "4"}}})",
+                     "session.tableDialog.columns"},
+          StoredCase{R"({"schemaVersion": 1, "session": {"tableDialog": {"headerRow": "yes"}}})",
+                     "session.tableDialog.headerRow"},
+          StoredCase{R"({"schemaVersion": 1, "session": {"tableDialog": {"headerColumn": 0}}})",
+                     "session.tableDialog.headerColumn"}}) {
+        INFO(c.text);
+        json loaded = json::parse(c.text);
+        const auto invalid = settings::sanitize(loaded);
+        REQUIRE(invalid.size() == 1);
+        CHECK(invalid[0].field == c.field);
+        CHECK(loaded["session"]["tableDialog"] == defaults_group);
+    }
+
+    // The loader logs settings.invalidValue {field, reason} - the field name, never the value.
+    const auto logs = tmp / "logs";
+    log::init(logs);
+    test::write_text(file,
+                     R"({"schemaVersion": 1, "session": {"tableDialog": {"rows": 0, "columns": 5,
+                         "headerRow": true, "headerColumn": false}}})");
+    store.load();
+    CHECK(store.get()["session"]["tableDialog"] ==
+          json{{"rows", 2}, {"columns", 5}, {"headerRow", true}, {"headerColumn", false}});
+    log::shutdown();
+    std::istringstream lines(test::read_text(logs / "mfbe-errors.log"));
+    std::vector<json> entries;
+    for (std::string line; std::getline(lines, line);) {
+        if (!line.empty()) {
+            entries.push_back(json::parse(line));
+        }
+    }
+    REQUIRE(entries.size() == 1);
+    CHECK(entries[0]["code"] == "settings.invalidValue");
+    CHECK(entries[0]["context"]["field"] == "session.tableDialog.rows");
+    CHECK(entries[0]["context"]["reason"].is_string());
+    CHECK_FALSE(entries[0]["context"].contains("value"));
 }

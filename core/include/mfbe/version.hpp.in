@@ -10,6 +10,6 @@ inline constexpr const char* kBuildDate = "@MFBE_BUILD_DATE@";
 inline constexpr const char* kHomepage = "@MFBE_URL@";
 inline constexpr int kApiVersion = 1;
 // Additive contract revision within kApiVersion (absent in app.info = 0); feature 002 = 1,
-// feature 003 = 2, feature 004 = 3, feature 005 = 4.
-inline constexpr int kApiMinor = 4;
+// feature 003 = 2, feature 004 = 3, feature 005 = 4, feature 006 = 5.
+inline constexpr int kApiMinor = 5;
 }  // namespace mfbe::version

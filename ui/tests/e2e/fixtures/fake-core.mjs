@@ -101,6 +101,8 @@ const defaultSettings = {
     lastFileDialogFolder: '',
     aiPanelWidth: 360,
     aiPanelVisible: true,
+    // Feature 006 (resource-formats §6): the Table properties dialog's last confirmed values.
+    tableDialog: { rows: 2, columns: 2, headerRow: false, headerColumn: false },
   },
   // Feature 005 (resource-formats §B): Disabled by default (FR-001), the panel open and inert.
   ai: {
@@ -240,7 +242,7 @@ const methods = {
     logDir: path.join(dataDir, 'logs'),
     resourceLayers: [],
     apiVersion: 1,
-    apiMinor: 4,
+    apiMinor: 5,
   }),
   'app.quit': () => {
     setTimeout(() => process.exit(0), 50);
