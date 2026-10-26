@@ -305,7 +305,10 @@ describe('App shell', () => {
       });
       // The user assigns a chord (there is no default, decision 15).
       expect(services.hotkeys.get('table.mergeCells')).toBeUndefined();
-      expect(services.hotkeys.assign('table.mergeCells', 'Ctrl+Alt+M').ok).toBe(true);
+      // The menus and toolbars re-render with the new chord: inside act.
+      act(() => {
+        expect(services.hotkeys.assign('table.mergeCells', 'Ctrl+Alt+M').ok).toBe(true);
+      });
       const chord = '{Control>}{Alt>}m{/Alt}{/Control}';
 
       // Without a resolver (no tables feature) the chord is never taken.
