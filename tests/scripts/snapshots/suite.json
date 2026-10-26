@@ -429,6 +429,15 @@
     ]
   },
   {
+    "snapshot": "06/broken-sentences.marks-006.xml",
+    "script": "scripts/06_cleanup/14_broken-sentences",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
+    "args": [
+      "--answer",
+      "yes"
+    ]
+  },
+  {
     "snapshot": "06/dot-dash-letter-no-ellipsis.conv-b-06.xml",
     "script": "scripts/06_cleanup/16_dot-dash-letter-no-ellipsis",
     "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
@@ -471,6 +480,12 @@
     "args": []
   },
   {
+    "snapshot": "06/general-cleanup.marks-006.xml",
+    "script": "scripts/06_cleanup/02_general-cleanup",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
+    "args": []
+  },
+  {
     "snapshot": "06/guided-paragraph-breaks.conv-b-06.xml",
     "script": "scripts/06_cleanup/06_guided-paragraph-breaks",
     "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
@@ -493,6 +508,19 @@
     ]
   },
   {
+    "snapshot": "06/hyphen-vs-dash.marks-006.xml",
+    "script": "scripts/06_cleanup/08_hyphen-vs-dash",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
+    "args": [
+      "--answer",
+      "стоял — сказал",
+      "--answer",
+      "",
+      "--answer",
+      "стоял — сказал"
+    ]
+  },
+  {
     "snapshot": "06/large-numbers.conv-b-06.xml",
     "script": "scripts/06_cleanup/07_large-numbers",
     "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
@@ -503,6 +531,17 @@
       "10 000 000",
       "--answer",
       "1 500 000"
+    ]
+  },
+  {
+    "snapshot": "06/large-numbers.marks-006.xml",
+    "script": "scripts/06_cleanup/07_large-numbers",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
+    "args": [
+      "--answer",
+      "1 500 000",
+      "--answer",
+      "2 500 000"
     ]
   },
   {
@@ -523,6 +562,21 @@
     ]
   },
   {
+    "snapshot": "06/missing-full-stop.marks-006.xml",
+    "script": "scripts/06_cleanup/10_missing-full-stop",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
+    "args": [
+      "--answer",
+      "",
+      "--answer",
+      "домой. Было",
+      "--answer",
+      "",
+      "--answer",
+      "домой. Было"
+    ]
+  },
+  {
     "snapshot": "06/remove-back-links.conv-b-06.xml",
     "script": "scripts/06_cleanup/12_remove-back-links",
     "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
@@ -532,6 +586,12 @@
     "snapshot": "06/remove-style-tags.conv-b-06.xml",
     "script": "scripts/06_cleanup/21_remove-style-tags",
     "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "06/remove-style-tags.marks-006.xml",
+    "script": "scripts/06_cleanup/21_remove-style-tags",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
     "args": []
   },
   {
@@ -558,6 +618,25 @@
     ]
   },
   {
+    "snapshot": "06/stuck-words.marks-006.xml",
+    "script": "scripts/06_cleanup/05_stuck-words",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
+    "args": [
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "",
+      "--answer",
+      "Слипшиеся. Слова",
+      "--answer",
+      "",
+      "--answer",
+      "слово Слово"
+    ]
+  },
+  {
     "snapshot": "06/surname-initials.conv-b-06.xml",
     "script": "scripts/06_cleanup/04_surname-initials",
     "book": "tests/scripts/fixtures/books/conv-b-06.fb2",
@@ -572,6 +651,17 @@
       "",
       "--answer",
       ""
+    ]
+  },
+  {
+    "snapshot": "06/surname-initials.marks-006.xml",
+    "script": "scripts/06_cleanup/04_surname-initials",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
+    "args": [
+      "--answer",
+      "А. С. Пушкин",
+      "--answer",
+      "Л. Н. Толстой"
     ]
   },
   {
@@ -714,6 +804,17 @@
     "snapshot": "09/drama-speakers.conv-b-09.xml",
     "script": "scripts/09_poems/02_drama-speakers",
     "book": "tests/scripts/fixtures/books/conv-b-09.fb2",
+    "args": [
+      "--answer",
+      "10",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "09/drama-speakers.marks-006.xml",
+    "script": "scripts/09_poems/02_drama-speakers",
+    "book": "tests/scripts/fixtures/books/marks-006.fb2",
     "args": [
       "--answer",
       "10",

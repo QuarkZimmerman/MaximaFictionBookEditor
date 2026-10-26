@@ -71,6 +71,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   or language stays inside the link, and a style without a name is written there as `<style>`.
   The text on screen shows an extension once the book is read again; `mfbe-core validate` and
   `roundtrip` no longer report `schema.invalid` for such books.
+- The bundled scripts that rewrite paragraphs through the original editor's HTML notation
+  (*General clean-up*, *Broken sentences*, the five interactive clean-ups and *Drama: mark
+  speaker names*) keep the language of formatting - nested formatting with two languages
+  included -, a link's `xlink:type` and the link and formatting around pictures; *Remove style
+  tags* also removes nested named styles and the styles around pictures.
 
 ## 0.0.5 - unreleased
 

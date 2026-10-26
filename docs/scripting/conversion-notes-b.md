@@ -3,9 +3,11 @@
 Legacy sources: `reference/fictionbookeditor/FBE/files/Scripts/<group>/`. Converted packages live in
 `scripts/<group>/<original folder name>/` with `legacy.source` set; ids are `<NN>/<slug>`.
 Snapshots: `tests/scripts/snapshots/<NN>/<slug>.<book>.xml`, fixture books
-`tests/scripts/fixtures/books/conv-b-{06,07,09,10,11,12}.fb2`. Every snapshot below was produced
-with `--update`, checked semantically against the legacy logic (see the per-script notes) and
-re-run without `--update` (all 49 match). The exact harness invocations are listed at the end.
+`tests/scripts/fixtures/books/conv-b-{06,07,09,10,11,12}.fb2` and, for the inline marks of
+feature 006, `marks-006.fb2`. Every snapshot below was produced with `--update`, checked
+semantically against the legacy logic (see the per-script notes) and re-run without `--update`
+(all 58 match: 49 on the `conv-b` books, 9 on `marks-006.fb2`). The exact harness invocations
+are listed at the end.
 
 ## Shared technique: the legacy inline-HTML notation
 
@@ -16,6 +18,18 @@ of the document model in exactly that notation (`<EM>`, `<STRONG>`, `<STRIKE>`, 
 `<SPAN class=code>`, `<SPAN class=NAME>` for named styles, `<A class=note href="…">` for links,
 `<IMG href=… alt=…>` for inline images, `&nbsp;`/`&lt;`/`&gt;`/`&amp;`) and parses the edited
 string back. The legacy expressions therefore run verbatim and inline formatting survives.
+Since feature 006 the notation also carries what the reader now keeps: a mark's language
+(`xml:lang`, any value, `""` included) as `lang="…"` on its tag (`<EM lang="la">`,
+`<SPAN class=NAME lang="la">`), repeated on the closing tag of `STRONG`, `EM`, `STRIKE`, `SUB`
+and `SUP` (`</EM lang="la">`) so that the legacy expressions, written for bare tags (General
+clean-up's `</EM></EM>` → `</EM>`), leave formatting with a language alone; a link's
+`xlink:type` as `xlinktype="…"` after its `href` (without a colon: General clean-up's "missing
+space after a colon" expression would split `xlink:type`); and inline pictures inside the tags
+of their marks (`<A href="#s2"><IMG href="#pic.png"></A>`, `<STRONG><IMG …></STRONG>`), as text.
+Nested marks of one kind with different attributes nest as read (two named styles,
+`<EM lang="la">` around `<EM lang="de">`); a closing tag ends the innermost open mark of its
+kind - with a language, the innermost one with that language. The `marks-006` snapshots prove
+it for the eight packages that rewrite blocks through the notation.
 `lib/interactive.js` is the common engine of the five interactive clean-up scripts 04/05/07/08/10 (highlight,
 Yes/No/Cancel prompt, placeholders, decision memory). The 8 copies of `legacy-html.js` and the
 5 copies of `interactive.js` are byte-identical.
@@ -47,6 +61,19 @@ same rule, so the originals behaved like that too; the converted scripts use `^(
 | `win1252-letters` | 19_Символы win-1252 (буквы)... | 3 (frameset → form per finding) | `--select n48:0:0`, 2 forms |
 | `win1252-words` | 20_Символы win-1252 (слова)... | 3 | `--select n48:0:0`, 2 forms |
 | `remove-style-tags` | 21_Удаление тегов style | 2 | no dialogs |
+
+The inline marks of feature 006 (FR-064, FR-067, FR-069): `marks-006.fb2` holds, in a `p` and in
+a `td`, nested named styles (also `<style name="a" xml:lang="la">` around `<style name="b">`), a
+linked and a bold picture, formatting with `xml:lang` (around whole links only), an
+`<emphasis xml:lang="la">` holding an `<emphasis xml:lang="de">` and a note link with
+`l:type="simple"`, beside text each package changes. The snapshots
+`<slug>.marks-006.xml` of `general-cleanup`, `surname-initials` (2 prompts), `stuck-words`
+(2 Yes/No + 4 prompts), `large-numbers` (2 prompts), `hyphen-vs-dash` (3 prompts),
+`missing-full-stop` (4 prompts), `broken-sentences` (1 Yes/No), `remove-style-tags` and
+`09/drama-speakers` show all of it back as in the book apart from the script's own change;
+*Remove style tags* removes every style, nested ones and those around pictures included (each
+style a run starts counts as one removed `<style>` element), while the pictures keep their link
+and their bold.
 
 Behaviour and justified differences:
 
@@ -222,6 +249,16 @@ node tests/scripts/run-script.mjs "$G/17_Превращение внешних �
 node tests/scripts/run-script.mjs "$G/19_Символы win-1252 (буквы)..." $B --select n48:0:0 --answer '{}' --answer '{}' --snapshot $S/win1252-letters.conv-b-06.xml
 node tests/scripts/run-script.mjs "$G/20_Символы win-1252 (слова)..." $B --select n48:0:0 --answer '{}' --answer '{"replacement":"Zurich"}' --snapshot $S/win1252-words.conv-b-06.xml
 node tests/scripts/run-script.mjs "$G/21_Удаление тегов style" $B --snapshot $S/remove-style-tags.conv-b-06.xml
+M=tests/scripts/fixtures/books/marks-006.fb2   # feature 006: the inline marks
+node tests/scripts/run-script.mjs scripts/06_cleanup/02_general-cleanup $M --snapshot $S/general-cleanup.marks-006.xml
+node tests/scripts/run-script.mjs scripts/06_cleanup/04_surname-initials $M --answer "А. С. Пушкин" --answer "Л. Н. Толстой" --snapshot $S/surname-initials.marks-006.xml
+node tests/scripts/run-script.mjs scripts/06_cleanup/05_stuck-words $M --answer no --answer no --answer "" --answer "Слипшиеся. Слова" --answer "" --answer "слово Слово" --snapshot $S/stuck-words.marks-006.xml
+node tests/scripts/run-script.mjs scripts/06_cleanup/07_large-numbers $M --answer "1 500 000" --answer "2 500 000" --snapshot $S/large-numbers.marks-006.xml
+node tests/scripts/run-script.mjs scripts/06_cleanup/08_hyphen-vs-dash $M --answer "стоял — сказал" --answer "" --answer "стоял — сказал" --snapshot $S/hyphen-vs-dash.marks-006.xml
+node tests/scripts/run-script.mjs scripts/06_cleanup/10_missing-full-stop $M --answer "" --answer "домой. Было" --answer "" --answer "домой. Было" --snapshot $S/missing-full-stop.marks-006.xml
+node tests/scripts/run-script.mjs scripts/06_cleanup/14_broken-sentences $M --answer yes --snapshot $S/broken-sentences.marks-006.xml
+node tests/scripts/run-script.mjs scripts/06_cleanup/21_remove-style-tags $M --snapshot $S/remove-style-tags.marks-006.xml
+node tests/scripts/run-script.mjs scripts/09_poems/02_drama-speakers $M --answer 10 --answer yes --snapshot tests/scripts/snapshots/09/drama-speakers.marks-006.xml
 G=scripts/07_Символы; B=tests/scripts/fixtures/books/conv-b-07.fb2; S=tests/scripts/snapshots/07
 node tests/scripts/run-script.mjs "$G/01_Спецсимволы" $B --select n8:8:16 --answer '{"symbol":"§"}' --snapshot $S/special-symbols.conv-b-07.xml
 node tests/scripts/run-script.mjs "$G/02_Диакритика" $B --select n9:15:16 --answer '{"symbol":"é"}' --snapshot $S/diacritics.conv-b-07.xml
