@@ -3,8 +3,10 @@
  * FR-034, SC-005): Escape (or Stop) between `ai.complete` going out and its `{jobId}` coming
  * back cancels the job the moment the id arrives, so the core's exchange does not run to its
  * end and its record says `cancelled` - the race behind a failure of `us2-ai-popup` scenario 6
- * under load ("ok" instead of "cancelled"). The loop runs against a fake RPC whose `runJob`
- * holds the job's start until the test releases it.
+ * under load ("ok" instead of "cancelled"). The same holds for the commit's `doc.validate`, a
+ * job above 2 MiB: a cancel before its id arrived would let the job end with its report and
+ * the copy be committed. The loop runs against a fake RPC whose `runJob` holds the job's start
+ * until the test releases it.
  */
 
 import { cancelRequest, startAssistant, startRequest, stopAssistant } from '@/ai/assistant';
@@ -12,7 +14,7 @@ import type { CommandContext } from '@/app/commands';
 import { initI18n } from '@/i18n';
 import { actions } from '@/model/store';
 import { RpcError } from '@/rpc/client';
-import { RpcErrorCode } from '@/rpc/types';
+import { RpcErrorCode, type AiOutcome } from '@/rpc/types';
 
 import { fakeDialogs, fakeRpc, makeContext, type FakeRpc } from '../features/testUtils';
 import { defaultSettings } from '../settings/fixtures';
@@ -35,14 +37,34 @@ interface HeldJob {
   finish(error: RpcError): void;
 }
 
-async function harness(): Promise<{ ctx: CommandContext; rpc: FakeRpc; held: () => HeldJob[] }> {
-  const rpc = fakeRpc({
-    'doc.validate': (params: unknown) =>
-      validateDocument((params as { document: Parameters<typeof validateDocument>[0] }).document),
+type ValidateParams = { document: Parameters<typeof validateDocument>[0] };
+
+/** The fake RPC with the given extra responders; `doc.validate` answers at once. */
+function rpcWith(extra: Record<string, unknown> = {}): FakeRpc {
+  return fakeRpc({
+    'doc.validate': (params: unknown) => validateDocument((params as ValidateParams).document),
     'log.error': {},
     'job.cancel': {},
     'schema.text': { text: '' },
+    ...extra,
   });
+}
+
+/** The command context with the assistant on, the custom target and the fixture book. */
+async function assistantContext(rpc: FakeRpc): Promise<CommandContext> {
+  const ctx = await makeContext({ rpc: rpc.client, dialogs: fakeDialogs() });
+  const settings = defaultSettings();
+  settings.ai.mode = 'custom';
+  settings.ai.custom = { address: 'http://127.0.0.1:8787/v1', key: '', model: 'm1' };
+  actions.setSettings(ctx.store, settings);
+  actions.setConnection(ctx.store, 'connected');
+  actions.setDocument(ctx.store, book({ preExisting: false }));
+  startAssistant(ctx.store);
+  return ctx;
+}
+
+async function harness(): Promise<{ ctx: CommandContext; rpc: FakeRpc; held: () => HeldJob[] }> {
+  const rpc = rpcWith();
   const jobs: HeldJob[] = [];
   const fake = rpc.client as unknown as { runJob: RunJob };
   const original = fake.runJob;
@@ -53,18 +75,73 @@ async function harness(): Promise<{ ctx: CommandContext; rpc: FakeRpc; held: () 
       jobs.push({ start: (jobId) => options?.onStart?.(jobId), finish: reject });
     });
   };
-  const ctx = await makeContext({ rpc: rpc.client, dialogs: fakeDialogs() });
-  const settings = defaultSettings();
-  settings.ai.mode = 'custom';
-  settings.ai.custom = { address: 'http://127.0.0.1:8787/v1', key: '', model: 'm1' };
-  actions.setSettings(ctx.store, settings);
-  actions.setConnection(ctx.store, 'connected');
-  actions.setDocument(ctx.store, book({ preExisting: false }));
-  startAssistant(ctx.store);
-  return { ctx, rpc, held: () => jobs };
+  return { ctx: await assistantContext(rpc), rpc, held: () => jobs };
 }
 
 const cancels = (rpc: FakeRpc) => rpc.calls.filter((call) => call.method === 'job.cancel');
+
+/** The held validation: `start` delivers the job's id, `settle` ends the job as the core does. */
+interface HeldValidation {
+  start(jobId: string): void;
+  /** `job.failed` 1090 when a `job.cancel` reached the job, else `job.done` with the report. */
+  settle(): void;
+}
+
+function answer(finishReason: string, message: Record<string, unknown>): AiOutcome {
+  const choice = { finish_reason: finishReason, message: { role: 'assistant', ...message } };
+  return { ok: true, status: 200, elapsedMs: 1, body: { choices: [choice] } };
+}
+
+/**
+ * A request with a change to commit: `ai.complete` answers at once - `set_text` on `p1`, then a
+ * text -, and so do the baseline and the change's validation; the commit's validation is held.
+ */
+async function commitHarness(): Promise<{
+  ctx: CommandContext;
+  rpc: FakeRpc;
+  held: HeldValidation[];
+}> {
+  const edit = { node: 'p1', text: 'First paragraph, edited.' };
+  const answers = [
+    answer('tool_calls', {
+      content: null,
+      tool_calls: [
+        {
+          id: 'call_1',
+          type: 'function',
+          function: { name: 'set_text', arguments: JSON.stringify(edit) },
+        },
+      ],
+    }),
+    answer('stop', { content: 'Done.' }),
+  ];
+  const rpc = rpcWith({ 'ai.complete': () => answers.shift() });
+  const held: HeldValidation[] = [];
+  let validations = 0;
+  const fake = rpc.client as unknown as { runJob: RunJob };
+  const original = fake.runJob;
+  fake.runJob = (method, params, options) => {
+    if (method !== 'doc.validate' || ++validations < 3) return original(method, params, options);
+    rpc.calls.push({ method, params });
+    let jobId = '';
+    return new Promise((resolve, reject) => {
+      held.push({
+        start: (id) => {
+          jobId = id;
+          options?.onStart?.(id);
+        },
+        settle: () => {
+          const hit = cancels(rpc).some(
+            (call) => (call.params as { jobId: string }).jobId === jobId,
+          );
+          if (hit) reject(new RpcError(RpcErrorCode.cancelled, 'cancelled', { jobId }));
+          else resolve(validateDocument((params as ValidateParams).document));
+        },
+      });
+    });
+  };
+  return { ctx: await assistantContext(rpc), rpc, held };
+}
 
 describe('a cancel while the exchange is on its way (ai-catalogue §6.15)', () => {
   let store: CommandContext['store'] | null = null;
@@ -122,5 +199,47 @@ describe('a cancel while the exchange is on its way (ai-catalogue §6.15)', () =
     held()[0]!.finish(new RpcError(RpcErrorCode.cancelled, 'cancelled', { jobId: 'job-43' }));
     expect((await outcome).kind).toBe('cancelled');
     expect(cancels(rpc)).toHaveLength(1);
+  });
+});
+
+describe('a cancel while the validation of the commit is on its way (ai-catalogue §6.14, §6.15)', () => {
+  let store: CommandContext['store'] | null = null;
+  let held: HeldValidation[] = [];
+  let running: Promise<unknown> | null = null;
+
+  afterEach(async () => {
+    // A request a failed expectation left waiting ends here, so the next one is not `busy`.
+    for (const job of held) job.settle();
+    await running;
+    if (store) stopAssistant(store);
+    store = null;
+    held = [];
+    running = null;
+  });
+
+  it('before the job id arrives: the job is cancelled as soon as the id comes back, nothing is committed', async () => {
+    const harnessed = await commitHarness();
+    const { ctx, rpc } = harnessed;
+    store = ctx.store;
+    held = harnessed.held;
+    const before = ctx.store.getState().document;
+    const outcome = startRequest(ctx, {
+      origin: 'panel',
+      instruction: 'Edit the first paragraph',
+      selection: null,
+    });
+    running = outcome;
+    await vi.waitFor(() => expect(held).toHaveLength(1));
+    // Escape while the commit's `doc.validate` is on its way: there is no job id to cancel yet.
+    cancelRequest(ctx.store);
+    expect(cancels(rpc)).toEqual([]);
+    // The id arrives: the job is cancelled at once - left alone, it would end with its report
+    // and the copy would be committed although the user cancelled.
+    held[0]!.start('job-44');
+    expect(cancels(rpc)).toEqual([{ method: 'job.cancel', params: { jobId: 'job-44' } }]);
+    held[0]!.settle();
+    expect((await outcome).kind).toBe('cancelled');
+    expect(ctx.store.getState().document).toBe(before);
+    expect(ctx.undo.canUndo).toBe(false);
   });
 });

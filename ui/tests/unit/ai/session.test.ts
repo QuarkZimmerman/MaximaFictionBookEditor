@@ -42,6 +42,31 @@ async function start(
   return result.session;
 }
 
+/** A validation job of `holdJobs`: `start` delivers its id, `fail` ends it. */
+interface HeldJob {
+  start(jobId: string): void;
+  fail(error: RpcError): void;
+}
+
+/** Makes every later `runJob` of the harness a job whose `{jobId}` waits for the test. */
+function holdJobs(h: Harness): HeldJob[] {
+  type RunJob = (
+    method: string,
+    params: unknown,
+    options?: { onStart?: (id: string) => void },
+  ) => Promise<unknown>;
+  const held: HeldJob[] = [];
+  (h.rpc.client as unknown as { runJob: RunJob }).runJob = (method, params, options) => {
+    h.rpc.calls.push({ method, params });
+    return new Promise((_resolve, reject) => {
+      held.push({ start: (jobId) => options?.onStart?.(jobId), fail: reject });
+    });
+  };
+  return held;
+}
+
+const cancelled = (jobId: string) => new RpcError(RpcErrorCode.cancelled, 'cancelled', { jobId });
+
 describe('startRequestSession', () => {
   it('takes the ai lock, validates the live document for the baseline and builds the copy over it', async () => {
     const h = harness();
@@ -293,6 +318,51 @@ describe('RequestSession', () => {
     release!({ issues: [], errorCount: 0, warningCount: 0, durationMs: 1 });
     await pending;
     expect(h.store.getState().runLock).toBeNull();
+  });
+
+  it('a cancel before doc.validate answered its job id cancels the job as soon as the id arrives, and every later validation job of the request (ai-catalogue §6.15)', async () => {
+    const h = harness();
+    const session = await start(h);
+    const held = holdJobs(h);
+    const cancels = () => h.rpc.calls.filter((c) => c.method === 'job.cancel');
+    session.copy.insert('after', 'p1', paragraph('sc_1', 'x') as unknown as ModelNodeJson);
+    // Cancel during `validating` while `doc.validate` is on its way: no job id to cancel yet.
+    const copy = session.validate();
+    session.cancelValidation();
+    expect(cancels()).toEqual([]);
+    // The id arrives: the job is cancelled at once - else it would end with a report the
+    // request goes on with (the commit's validation publishing the copy).
+    held[0]!.start('job-8');
+    expect(cancels()).toEqual([{ method: 'job.cancel', params: { jobId: 'job-8' } }]);
+    held[0]!.fail(cancelled('job-8'));
+    await expect(copy).rejects.toMatchObject({ code: RpcErrorCode.cancelled });
+    // The request is ending: a validation job started after the cancel goes the same way.
+    const text = session.validateText('<FictionBook/>');
+    held[1]!.start('job-9');
+    expect(cancels()).toEqual([
+      { method: 'job.cancel', params: { jobId: 'job-8' } },
+      { method: 'job.cancel', params: { jobId: 'job-9' } },
+    ]);
+    held[1]!.fail(cancelled('job-9'));
+    await expect(text).rejects.toMatchObject({ code: RpcErrorCode.cancelled });
+    session.discard();
+    expect(cancels()).toHaveLength(2);
+    expect(session.validations).toHaveLength(1);
+  });
+
+  it('discard() before doc.validate answered its job id cancels the job as soon as the id arrives', async () => {
+    const h = harness();
+    const session = await start(h);
+    const held = holdJobs(h);
+    const pending = session.validateText('<FictionBook/>');
+    session.discard();
+    expect(h.store.getState().runLock).toBeNull();
+    held[0]!.start('job-10');
+    expect(h.rpc.calls.filter((c) => c.method === 'job.cancel')).toEqual([
+      { method: 'job.cancel', params: { jobId: 'job-10' } },
+    ]);
+    held[0]!.fail(cancelled('job-10'));
+    await expect(pending).rejects.toMatchObject({ code: RpcErrorCode.cancelled });
   });
 
   it('reports the run as lost when the document is replaced meanwhile', async () => {

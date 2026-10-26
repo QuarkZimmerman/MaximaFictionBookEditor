@@ -56,6 +56,14 @@ import { stripFence, undoLabel } from './reply';
 /** The RPC surface the session uses (the real client, or a fake in tests). */
 export type SessionRpc = Pick<RpcClient, 'call' | 'runJob'>;
 
+/**
+ * `job.cancel` of a job of the request - an exchange, a validation (a job already finished is
+ * left alone by the core); a failure is swallowed.
+ */
+export function cancelJob(rpc: Pick<RpcClient, 'call'>, jobId: string): void {
+  void Promise.resolve(rpc.call('job.cancel', { jobId })).catch(() => {});
+}
+
 export interface RequestSessionDeps {
   store: AppStore;
   rpc: SessionRpc;
@@ -188,6 +196,8 @@ export class RequestSession {
   after: Document | null | undefined;
   private readonly deps: RequestSessionDeps;
   private validationJobId: string | null = null;
+  /** Set by `cancelValidation()`: the request is ending, a validation job is cancelled at once. */
+  private validationCancelled = false;
   private changeCount = 0;
 
   /** @internal Use `startRequestSession`. */
@@ -245,11 +255,7 @@ export class RequestSession {
     const report = await this.deps.rpc.runJob(
       'doc.validate',
       { docId: this.docId, document: this.copy.document },
-      {
-        onStart: (jobId) => {
-          this.validationJobId = jobId;
-        },
-      },
+      { onStart: (jobId) => this.validationStarted(jobId) },
     );
     this.validationJobId = null;
     this.validations.push(summarise(report));
@@ -265,11 +271,7 @@ export class RequestSession {
     const report = await this.deps.rpc.runJob(
       'doc.validate',
       { docId: this.docId, text },
-      {
-        onStart: (jobId) => {
-          this.validationJobId = jobId;
-        },
-      },
+      { onStart: (jobId) => this.validationStarted(jobId) },
     );
     this.validationJobId = null;
     this.validations.push(summarise(report));
@@ -284,12 +286,27 @@ export class RequestSession {
     this.baseline = multiset(report.issues);
   }
 
-  /** Cancels a running validation job (Cancel during `validating`); 1090 and the like are swallowed. */
+  /**
+   * Cancels a running validation job (Cancel during `validating`, the end of the request) - or,
+   * while `doc.validate` is on its way, as soon as its id arrives; the request is ending, so a
+   * validation job started later is cancelled too. 1090 and the like are swallowed.
+   */
   cancelValidation(): void {
+    this.validationCancelled = true;
     const jobId = this.validationJobId;
     if (!jobId) return;
     this.validationJobId = null;
-    void Promise.resolve(this.deps.rpc.call('job.cancel', { jobId })).catch(() => {});
+    cancelJob(this.deps.rpc, jobId);
+  }
+
+  /**
+   * A validation job's id has arrived. A cancel that came while `doc.validate` was on its way
+   * found no job to cancel: the job is cancelled now, or it would end with its report and the
+   * request go on with it - the commit publishing the copy the user cancelled.
+   */
+  private validationStarted(jobId: string): void {
+    if (this.validationCancelled) cancelJob(this.deps.rpc, jobId);
+    else this.validationJobId = jobId;
   }
 
   /**

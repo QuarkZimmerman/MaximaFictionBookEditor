@@ -161,7 +161,7 @@ import {
 import { createRegexRunner } from './regexRunner';
 import { createRegexWorker } from './regexWorkerFactory';
 import { claimsChange, decideTextReply, isQuestion, undoLabel } from './reply';
-import { startRequestSession, type RequestSession, type SessionRpc } from './session';
+import { cancelJob, startRequestSession, type RequestSession, type SessionRpc } from './session';
 import {
   commitSource,
   firstChangedNodeId,
@@ -911,8 +911,9 @@ class RequestRun {
   }
 
   /**
-   * Asks the running work to stop: the job is cancelled - or, while `ai.complete` is on its way,
-   * as soon as its id arrives -, a wait cut short (ai-catalogue §6.15).
+   * Asks the running work to stop: the job of the exchange or of a validation is cancelled - or,
+   * while `ai.complete` / `doc.validate` is on its way, as soon as its id arrives -, a wait cut
+   * short (ai-catalogue §6.15).
    */
   cancel(): void {
     if (this.cancelled || this.ended) return;
@@ -920,18 +921,13 @@ class RequestRun {
     const jobId = this.jobId;
     if (jobId) {
       this.jobId = null;
-      this.cancelJob(jobId);
+      cancelJob(this.rpc, jobId);
     }
     this.waitAbort?.();
     this.session?.cancelValidation();
     // A nested script run ends with the request (FR-080, review C10): the host closes the
     // script's dialogs and resolves the run as cancelled.
     this.nestedHost?.cancel();
-  }
-
-  /** `job.cancel` of an exchange (a job already finished is left alone); a failure is swallowed. */
-  private cancelJob(jobId: string): void {
-    void Promise.resolve(this.rpc.call('job.cancel', { jobId })).catch(() => {});
   }
 
   /* ------------------------------------------------------------ the run */
@@ -1366,7 +1362,7 @@ class RequestRun {
             onStart: (jobId) => {
               // A cancel that came while `ai.complete` was on its way found no job to cancel:
               // the job is cancelled now, or the exchange would run to its end in the core.
-              if (this.cancelled) this.cancelJob(jobId);
+              if (this.cancelled) cancelJob(this.rpc, jobId);
               else this.jobId = jobId;
             },
           },
