@@ -112,6 +112,19 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   the irregular parts of a table as they are, and are one undo step each; an unavailable command
   says why, for example "Delete row: the table has only one row; use Delete table".
 
+- Tables gain *Select table*, *Delete table*, *Paragraph before table* and *Paragraph after
+  table*, in *Add > Table structure*, in the table's context menu, as buttons offered in
+  *Customize toolbar* and as commands a hotkey can be assigned to. A selected table is copied,
+  cut, deleted or replaced by typing as a whole, and *Delete table* puts the caret into the
+  empty paragraph that takes the table's place, or else on the element that followed it; a
+  paragraph can now be added before a table that starts its section and after one that ends it.
+- Tables pasted from web pages, word processors and spreadsheets become FB2 tables with the same
+  rows, columns, header cells, merged cells, alignment and supported formatting, irregular ones
+  made regular, placed where a table may stand or pasted into a table's cells by position, and
+  text pasted together with tables into a cell joins that cell. A table or block of cells copied
+  in the editor reaches spreadsheets and word processors as a table and plain-text editors as
+  tab-separated text.
+
 ### Changed
 
 - A paste first replaces the selected text, also when it pastes a table; a selected table or
@@ -163,6 +176,11 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   *Split cell* would, asking first when a link would lose its target, and refuse a span past the
   table's last column or row, where they wrote the attribute alone and made rows irregular. Every
   table in the Body view keeps an 8 px right margin for the warning mark.
+
+- HTML tables from other programs are no longer flattened into paragraphs where a table may
+  stand (feature 001's edge case on pasting rich text), and when the clipboard holds an HTML
+  table with text beside a picture of it, the table is pasted. Cut, Delete and Backspace on a
+  selected table now work on a section's only table too, an empty paragraph taking its place.
 
 ### Fixed
 
