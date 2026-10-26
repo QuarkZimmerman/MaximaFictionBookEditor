@@ -31,7 +31,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 import {
   expect,
@@ -704,7 +704,26 @@ async function rightClickAfterText(page: Page, text: string): Promise<void> {
     return null;
   })()`);
   if (!point) throw new Error(`no text "${text}" in the Body view`);
-  await blockElement(page, 'p', text).click({ button: 'right', position: point });
+  await rightClick(page, blockElement(page, 'p', text), point);
+}
+
+/**
+ * Right-clicks `target` (at `position` in it) once it is in view and the scroll that brought it
+ * there has reached the page. The context menu closes on any scroll (`PopupMenu`, U13), and the
+ * browser delivers a scroll's event in the next frame: the scroll into view a click makes itself,
+ * for an element out of view, comes in after the menu it opens - which closes again. `caretAt`
+ * brings nothing into view while the editor lacks the focus (after a menu, for instance).
+ */
+async function rightClick(
+  page: Page,
+  target: Locator,
+  position?: { x: number; y: number },
+): Promise<void> {
+  await target.scrollIntoViewIfNeeded();
+  await page.evaluate(
+    'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
+  );
+  await target.click({ button: 'right', position });
 }
 
 /** The Body view's element of the text block whose text starts with `text`. */
@@ -1188,7 +1207,7 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
         await expect(button).toBeDisabled();
         await expect(button).toHaveAttribute('title', title);
         // The context menu's Table… judged at the clicked point, the same place.
-        await place.element.click({ button: 'right' });
+        await rightClick(page, place.element);
         const table = page.getByTestId('context-menu-insert.table');
         await expect(table).toHaveAttribute('aria-disabled', 'true');
         await expect(table).toHaveAttribute('title', title);
@@ -1454,9 +1473,7 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
     await expect.poll(() => toXml(page)).toBe(before);
 
     // Disabled, with its reason, for a click in the body's title.
-    await blockElement(page, '.fb-body > .fb-title p', 'Table placement').click({
-      button: 'right',
-    });
+    await rightClick(page, blockElement(page, '.fb-body > .fb-title p', 'Table placement'));
     await expect(entry).toHaveAttribute('aria-disabled', 'true');
     await expect(entry).toHaveAttribute('title', await noTablePlaceTitle(page));
     await page.keyboard.press('Escape');

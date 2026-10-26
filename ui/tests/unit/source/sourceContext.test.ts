@@ -2,8 +2,9 @@
  * The Source controller's table state (feature 006, T055; I23; FR-061; FR-045; C28;
  * data-model §6.3, §7.3 "Live state"; research R4.3, R4.6, R4.7): `subscribeContext` notifies
  * once per verdict change, 100 ms after the last selection, text or tree change, and not while
- * typing keeps the verdict; `tablePoint()` is memoised on its key; the idle parse task turns
- * `analysing` into a verdict in slices of at most 25 ms while the view is mounted and stops
+ * typing keeps the verdict - but a verdict back at the announced one after `tablePoint()` handed
+ * out another meanwhile is announced; `tablePoint()` is memoised on its key; the idle parse task
+ * turns `analysing` into a verdict in slices of at most 25 ms while the view is mounted and stops
  * with `unmount`; `pointAt` judges the offset under the pointer, or the selection's end for a
  * click inside a non-empty selection, which it keeps, and answers `loading` while unmounted;
  * `insertTable` refuses while the editor is locked or the verdict is not `ok`.
@@ -175,6 +176,43 @@ describe('subscribeContext', () => {
     expect(listener).toHaveBeenCalledTimes(1);
     controller.reset();
     expect(controller.tablePoint()).toEqual({ code: 'loading' });
+    vi.advanceTimersByTime(100);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('announces the verdict coming back to the announced one when another was handed out meanwhile', async () => {
+    vi.useFakeTimers();
+    const { store, controller } = await loaded(BOOK);
+    select(controller, IN_TEXT);
+    const listener = vi.fn();
+    controller.subscribeContext(listener);
+
+    // Out of the text and back within 100 ms, nothing read in between: nothing to tell.
+    select(controller, OK_1);
+    vi.advanceTimersByTime(50);
+    select(controller, IN_TEXT);
+    vi.advanceTimersByTime(300);
+    expect(listener).not.toHaveBeenCalled();
+
+    // The same with the passing verdict handed out (the toolbar re-rendered for a store change
+    // and shows it): the way back is announced, 100 ms after the last change.
+    select(controller, OK_1);
+    expect(controller.tablePoint().code).toBe('ok');
+    vi.advanceTimersByTime(50);
+    select(controller, IN_TEXT);
+    vi.advanceTimersByTime(99);
+    expect(listener).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(listener).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(300);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    // Leaving the view and coming back within 100 ms (US1 sc.10): `loading` handed out while
+    // the text was away, the cursor's verdict the announced one again once the text is back.
+    controller.unmount();
+    expect(controller.tablePoint()).toEqual({ code: 'loading' });
+    await controller.load({ store, rpc: null } as never);
+    expect(controller.tablePoint().code).toBe('inText');
     vi.advanceTimersByTime(100);
     expect(listener).toHaveBeenCalledTimes(2);
   });

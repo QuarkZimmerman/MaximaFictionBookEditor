@@ -334,6 +334,12 @@ export class SourceEditorController {
   private readonly contextListeners = new Set<() => void>();
   private contextTimer: ReturnType<typeof setTimeout> | null = null;
   private contextKey: string | null = null;
+  /**
+   * `tablePoint()` handed out another verdict than the one last announced since the last check:
+   * a reader that renders for another reason (the toolbar, after a store change) may show it,
+   * so the next check announces even when the verdict is back at the announced one.
+   */
+  private contextStale = false;
   /** `tablePoint()` for its key: the text, the selection's end, the tree, the error, the status. */
   private verdictMemo: {
     doc: Text;
@@ -714,9 +720,19 @@ export class SourceEditorController {
    * The table rule's verdict at the end of the main selection (`tablePoint.ts`; I23), memoised
    * on the text, the selection's end, the tree's completeness, the core's parse error and the
    * load status - `insert.table`'s `enabled` and its reason read it on every render. `loading`
-   * while the view is unmounted (the status is then `idle`).
+   * while the view is unmounted (the status is then `idle`). A verdict other than the one last
+   * announced marks the table state stale for the next check (`subscribeContext`).
    */
   tablePoint(): SourceVerdict {
+    const verdict = this.currentVerdict();
+    if (this.contextListeners.size > 0 && sourceVerdictKey(verdict) !== this.contextKey) {
+      this.contextStale = true;
+    }
+    return verdict;
+  }
+
+  /** The memoised verdict at the end of the main selection (`tablePoint()`). */
+  private currentVerdict(): SourceVerdict {
     const state = this.state;
     const at = state.selection.main.to;
     const complete = syntaxTreeAvailable(state, state.doc.length);
@@ -759,10 +775,16 @@ export class SourceEditorController {
    * Tells `listener` when the table verdict changes - its code, its line or its element - 100 ms
    * after the last selection, text or tree change (and after a change of the load status or of
    * the core's parse error): `services.subscribeAll` attaches it, so the menus and the toolbar
-   * follow the verdict, and typing that keeps the verdict notifies nothing.
+   * follow the verdict, and typing that keeps the verdict notifies nothing. A verdict that only
+   * passed between two checks counts as a change when `tablePoint()` handed it out meanwhile:
+   * the toolbar re-renders on every store change and may show it (`loading` on the way back from
+   * the Body view), and the verdict coming back to the announced one must reach it as well.
    */
   readonly subscribeContext = (listener: () => void): (() => void) => {
-    if (this.contextListeners.size === 0) this.contextKey = sourceVerdictKey(this.tablePoint());
+    if (this.contextListeners.size === 0) {
+      this.contextKey = sourceVerdictKey(this.currentVerdict());
+      this.contextStale = false;
+    }
     this.contextListeners.add(listener);
     return () => {
       this.contextListeners.delete(listener);
@@ -778,9 +800,10 @@ export class SourceEditorController {
     if (this.contextTimer) clearTimeout(this.contextTimer);
     this.contextTimer = setTimeout(() => {
       this.contextTimer = null;
-      const key = sourceVerdictKey(this.tablePoint());
-      if (key === this.contextKey) return;
+      const key = sourceVerdictKey(this.currentVerdict());
+      if (key === this.contextKey && !this.contextStale) return;
       this.contextKey = key;
+      this.contextStale = false;
       for (const listener of [...this.contextListeners]) listener();
     }, CONTEXT_DELAY_MS);
   }
