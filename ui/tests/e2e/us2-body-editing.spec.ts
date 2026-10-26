@@ -19,7 +19,7 @@
  * 10. Table properties dialog and the Table bar
  */
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -494,6 +494,42 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     expect(xml).toContain('<p>The footnote text.</p>');
     const report = await validateFile(core, file);
     expect(bodyErrors(report, xml)).toEqual([]);
+  });
+
+  test('4b. Go to footnote or reference finds a note reference made of a picture alone', async ({
+    core,
+    page,
+  }) => {
+    // Feature 006 (FR-067 as amended at /speckit-analyze): the reference to the note is a
+    // picture inside the link; release 0.0.5 dropped that link when the book was opened.
+    const tinyPng = readFileSync(
+      path.join(path.dirname(fixtureBook('modern-utf8.fb2')), '..', 'images', 'tiny.png'),
+    ).toString('base64');
+    const file = path.join(dir, 'picture-reference.fb2');
+    writeFileSync(
+      file,
+      `<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description><title-info><genre>prose_classic</genre><author><first-name>Ann</first-name><last-name>Writer</last-name></author><book-title>Picture reference</book-title><lang>en</lang></title-info>
+<document-info><author><nickname>fixture</nickname></author><date>2026</date><id>picture-reference</id><version>1.0</version></document-info></description>
+<body><section><p>See the picture <a l:href="#n_1" type="note"><image l:href="#pic.png"/></a>.</p></section></body>
+<body name="notes"><section id="n_1"><title><p>1</p></title><p>The note.</p></section></body>
+<binary id="pic.png" content-type="image/png">${tinyPng}</binary>
+</FictionBook>
+`,
+    );
+    await core.enqueueDialog('dialog.openFile', { paths: [file] });
+    await menu(page, 'file', 'open');
+    const editor = page.getByTestId('body-editor');
+    await expect(editor).toContainText('The note.');
+    // The picture is shown inside the note link.
+    await expect(editor.locator('a.fb-note [data-testid="body-inline-image"]')).toHaveCount(1);
+    await clickInto(page, editor.getByText('The note.'), {
+      path: /^body\[2\]\/section\[1\]\/p\[1\]$/,
+    });
+    await menu(page, 'edit', 'gotoFootnote');
+    await expect(page.getByTestId('status-path')).toHaveText('body[1]/section[1]/p[1]');
+    await expect(page.getByTestId('dialog-reference-not-found')).toHaveCount(0);
   });
 
   test('5. Undo reverts every edit in reverse order and Redo re-applies them', async ({ page }) => {

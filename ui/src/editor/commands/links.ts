@@ -275,13 +275,20 @@ export function referenceIdAt(state: EditorState): string | null {
   return id;
 }
 
-/** Position right after the first link to `#id` in `doc`, or null. */
+/**
+ * The range of the first link to `#id` in `doc`, or null: a linked text, or a linked inline
+ * image - a note reference may be a picture alone (feature 006, FR-067). The first in document
+ * order wins.
+ */
 export function findReference(doc: PMNode, id: string): { from: number; to: number } | null {
   const href = `#${id}`;
   let found: { from: number; to: number } | null = null;
   doc.descendants((node, pos) => {
     if (found) return false;
-    if (node.isText && node.marks.some((m) => m.type === M.link && m.attrs.href === href)) {
+    if (
+      (node.isText || node.type === N.inline_image) &&
+      node.marks.some((m) => m.type === M.link && m.attrs.href === href)
+    ) {
       found = { from: pos, to: pos + node.nodeSize };
       return false;
     }

@@ -55,6 +55,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   Release 0.0.5 dropped them when a book was opened, and wrote a picture at the end of a link
   outside it. File > Validate also reports a broken link on a picture alone, and
   `mfbe-core roundtrip` counts a lost link or formatting around a picture as a difference.
+- Edit > Go to footnote or reference also finds a note reference made of a picture alone, in
+  the part of the book on screen and in the rest of a long book.
 
 ## 0.0.5 - unreleased
 

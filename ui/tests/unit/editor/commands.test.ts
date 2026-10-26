@@ -4,7 +4,7 @@
  * split / merge / remove-outer; footnote creation (`n_<N>` in the notes body); links.
  */
 
-import { Node as PMNode } from 'prosemirror-model';
+import { Node as PMNode, type Mark } from 'prosemirror-model';
 import { EditorState, NodeSelection, TextSelection, type Command } from 'prosemirror-state';
 
 import {
@@ -23,6 +23,7 @@ import {
   appendNoteSection,
   canCreateLink,
   collectIds,
+  findReference,
   gotoFootnote,
   gotoReference,
   nextNoteNumber,
@@ -616,6 +617,62 @@ describe('Links and footnotes (T061)', () => {
     // Missing target: the command reports false ("Reference not found." is shown by the feature).
     const dangling = run(stateAt(d, from, from + 4), setLink('#nowhere'))!;
     expect(gotoFootnote(stateAt(dangling.doc, from + 1))).toBe(false);
+  });
+
+  it('gotoReference finds a note reference made of a picture alone', () => {
+    // Feature 006 (FR-067 as amended at /speckit-analyze): the reference is an inline image
+    // carrying the note's link mark; the caret lands right after the picture.
+    const noteLink = M.link!.create({ href: '#n_1', type: 'note' });
+    const otherLink = M.link!.create({ href: '#n_2', type: 'note' });
+    const picture = (marks: readonly Mark[] = []) =>
+      N.inline_image!.create({ href: '#pic.png' }, null, marks);
+    const d = doc(
+      body([
+        section([
+          N.p!.create(null, [fb2Schema.text('Other '), picture([otherLink])]),
+          N.p!.create(null, [fb2Schema.text('Plain '), picture()]),
+          N.p!.create(null, [fb2Schema.text('See the picture '), picture([noteLink])]),
+        ]),
+      ]),
+      body([title('Notes'), section([title('1'), p('The note.')], { id: 'n_1' })], {
+        name: 'notes',
+      }),
+    );
+    const at = posOf(d, 'See the picture ') + 'See the picture '.length;
+    expect(d.nodeAt(at)!.type).toBe(N.inline_image);
+    expect(findReference(d, 'n_1')).toEqual({ from: at, to: at + 1 });
+    const inNote = stateAt(d, posOf(d, 'The note.') + 3);
+    const back = run(inNote, gotoReference)!;
+    expect(back.selection.empty).toBe(true);
+    expect(back.selection.from).toBe(at + 1); // right after the picture
+    expect(back.selection.$from.parent.textContent).toBe('See the picture ');
+    // A picture with another link, or without marks, is no reference to n_1.
+    expect(findReference(d, 'n_3')).toBeNull();
+    const withoutNote = doc(
+      body([
+        section([
+          N.p!.create(null, [fb2Schema.text('Other '), picture([otherLink])]),
+          N.p!.create(null, [fb2Schema.text('Plain '), picture()]),
+        ]),
+      ]),
+      body([title('Notes'), section([title('1'), p('The note.')], { id: 'n_1' })], {
+        name: 'notes',
+      }),
+    );
+    expect(findReference(withoutNote, 'n_1')).toBeNull();
+    expect(gotoReference(stateAt(withoutNote, posOf(withoutNote, 'The note.') + 1))).toBe(false);
+    // The first reference in document order wins, text or picture.
+    const textFirst = doc(
+      body([
+        section([
+          N.p!.create(null, [fb2Schema.text('note', [noteLink])]),
+          N.p!.create(null, [picture([noteLink])]),
+        ]),
+      ]),
+      body([section([p('The note.')], { id: 'n_1' })], { name: 'notes' }),
+    );
+    const word = posOf(textFirst, 'note');
+    expect(findReference(textFirst, 'n_1')).toEqual({ from: word, to: word + 4 });
   });
 });
 

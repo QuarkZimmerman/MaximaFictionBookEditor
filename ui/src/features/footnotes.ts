@@ -74,7 +74,16 @@ export function findIdInModel(model: Pick<Document, 'bodies'>, id: string): stri
   return found;
 }
 
-/** First text block (nodeId, end offset of the link) holding a link to `#id`. */
+/** A text or an inline image of a text block: the children a reference can be made of. */
+function isReferenceChild(child: ModelNodeJson): boolean {
+  return child.type === 'text' || child.type === 'inline-image';
+}
+
+/**
+ * First text block (nodeId, end offset of the link) holding a link to `#id`: on a text or on an
+ * inline image - a note reference may be a picture alone (feature 006, FR-067; the image counts
+ * as one position). The first in document order wins.
+ */
 export function findReferenceInModel(
   model: Pick<Document, 'bodies'>,
   id: string,
@@ -83,12 +92,12 @@ export function findReferenceInModel(
   let found: { nodeId: string; offset: number } | null = null;
   const visit = (json: ModelNodeJson) => {
     if (found) return;
-    if (json.content && json.content.some((c) => c.type === 'text')) {
+    if (json.content && json.content.some(isReferenceChild)) {
       let offset = 0;
       for (const child of json.content) {
         const length = child.type === 'text' ? (child.text ?? '').length : 1;
         if (
-          child.type === 'text' &&
+          isReferenceChild(child) &&
           child.marks?.some((m) => m.type === 'link' && m.attrs?.href === href)
         ) {
           const nodeId = json.attrs?.nodeId;
