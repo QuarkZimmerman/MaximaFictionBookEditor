@@ -40,6 +40,9 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   Details*) and of the macOS application bundle name the project's licence - "Copyright (c)
   2026 Quark Zimmerman. GNU General Public License version 3 (GPL-3.0-only)." -, as Help >
   About does; both had kept the licence of 0.0.1.
+- Carriage returns written in a book as `&#13;` (or `&#xD;`) no longer turn into line feeds
+  when the book is saved: the text is written with `&#13;` again, in the body, the annotations
+  and the other description fields alike, and reads back unchanged.
 
 ## 0.0.5 - unreleased
 

@@ -686,3 +686,56 @@ TEST_CASE("writer: integer spans are written in canonical decimal form; unknownA
         CHECK_FALSE(fb2::check_well_formed(text).has_value());
     }
 }
+
+TEST_CASE(
+    "writer: a carriage return in text is written as &#13; and read back as a carriage return",
+    "[writer]") {
+    // A carriage return reaches the model only from a reference (XML 1.0 §2.11): &#13; or &#xD;.
+    test::BookParts parts;
+    parts.book_title = "Title&#13;Two";
+    parts.annotation = "<p>note&#13;line</p>";
+    parts.body =
+        "<section><p>cr&#13;here</p><p>hex&#xD;form <strong>b&#13;old</strong></p>"
+        "Loose&#13;text<p>after</p></section>";
+    auto r = read_text(test::book_text(parts));
+    const model::Document& doc = r->result.document;
+    CHECK(doc.description.titleInfo.bookTitle == "Title\rTwo");
+    REQUIRE(doc.description.titleInfo.annotation);
+    CHECK(doc.description.titleInfo.annotation->content.at(0).content.at(0).text == "note\rline");
+    const model::Node& section = doc.bodies.at(0).content.at(0);
+    CHECK(section.content.at(0).content.at(0).text == "cr\rhere");
+    CHECK(section.content.at(1).content.at(0).text == "hex\rform ");
+    CHECK(section.content.at(1).content.at(1).text == "b\rold");
+    // Stray text of a block context is kept as raw XML, escaped by the reader's raw path.
+    REQUIRE(section.content.at(2).type == "raw-xml");
+    CHECK(section.content.at(2).attr_string("xml") == "Loose&#13;text");
+
+    const std::string text = fb2::write_document(doc, &r->store).text;
+    CHECK(text.find('\r') == std::string::npos);  // never a raw carriage return
+    CHECK_THAT(text, ContainsSubstring("<book-title>Title&#13;Two</book-title>"));
+    CHECK_THAT(text, ContainsSubstring("<p>note&#13;line</p>"));
+    CHECK_THAT(text, ContainsSubstring("<p>cr&#13;here</p>"));
+    CHECK_THAT(text, ContainsSubstring("<p>hex&#13;form <strong>b&#13;old</strong></p>"));
+    CHECK_THAT(text, ContainsSubstring("\tLoose&#13;text\n"));
+    CHECK_FALSE(fb2::check_well_formed(text).has_value());
+
+    // Read back: carriage returns again, not line feeds; the model equals the first read
+    // apart from the node ids.
+    auto back = read_text(text);
+    const model::Document& again = back->result.document;
+    CHECK(again.description.titleInfo.bookTitle == "Title\rTwo");
+    REQUIRE(again.description.titleInfo.annotation);
+    CHECK(again.description.titleInfo.annotation->content.at(0).content.at(0).text == "note\rline");
+    const model::Node& section2 = again.bodies.at(0).content.at(0);
+    CHECK(section2.content.at(0).content.at(0).text == "cr\rhere");
+    CHECK(section2.content.at(1).content.at(0).text == "hex\rform ");
+    CHECK(section2.content.at(1).content.at(1).text == "b\rold");
+    CHECK(section2.content.at(2).attr_string("xml") == "Loose&#13;text");
+    // The raw text decodes to a carriage return where it is parsed as XML.
+    const auto fragment =
+        fb2::read_fragment(section2.content.at(2).attr_string("xml").value(), "p");
+    REQUIRE(fragment.nodes.size() == 1);
+    CHECK(fragment.nodes[0].text == "Loose\rtext");
+    // The fragment writer shares the escaping.
+    CHECK(fb2::write_fragment({text_node("a\rb")}) == "a&#13;b");
+}
