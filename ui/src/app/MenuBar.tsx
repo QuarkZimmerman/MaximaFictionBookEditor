@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 
 import { parseAccelerator } from '@/i18n';
 
-import { commandLabelRaw, type CommandContext } from './commands';
+import { commandLabelRaw, unavailableTitle, type CommandContext } from './commands';
 import {
   MAIN_MENU,
   menuItemTestId,
@@ -26,6 +26,7 @@ import {
   type MenuItemSpec,
   type MenuSpec,
 } from './menus';
+import { fitPopupInViewport } from './popupFit';
 import { useAppRevision, useAppServices, useCommandContext, type AppServices } from './services';
 
 export interface MenuBarProps {
@@ -45,6 +46,11 @@ interface ResolvedItem {
   /** Command has a checked state (toggle). */
   toggle: boolean;
   hotkey: string | undefined;
+  /**
+   * "Command: reason" of a disabled command whose registry entry gives a reason (feature 006,
+   * FR-043), set as `title` and `aria-description`.
+   */
+  title?: string;
   items?: ResolvedItem[];
 }
 
@@ -53,53 +59,6 @@ interface ResolveDeps {
   ctx: CommandContext;
   t: TFunction;
   dynamicItems: DynamicMenuItems;
-}
-
-/**
- * Keeps a popup inside the window (feature 003: the longer Ukrainian labels push the Scripts
- * submenus past the right edge, tall menus past the bottom). Called through a ref on every
- * render of an open popup: the inline overrides are cleared first, so the measurement is of the
- * natural position; a submenu that does not fit to the right opens to the left of its item, a
- * popup that does not fit below moves up and, when the window is too small, scrolls.
- */
-function fitPopupInViewport(popup: HTMLElement | null): void {
-  if (!popup) return;
-  const submenu = popup.classList.contains('mfbe-menu-submenu');
-  popup.style.left = '';
-  popup.style.right = '';
-  popup.style.top = '';
-  popup.style.maxHeight = '';
-  popup.style.overflowY = '';
-  const margin = 4;
-  const viewportWidth = document.documentElement.clientWidth;
-  const viewportHeight = document.documentElement.clientHeight;
-  let rect = popup.getBoundingClientRect();
-  if (rect.right > viewportWidth - margin) {
-    if (submenu) {
-      popup.style.left = 'auto';
-      popup.style.right = '100%';
-      rect = popup.getBoundingClientRect();
-      if (rect.left < margin) {
-        popup.style.left = `${Math.round(-rect.left + margin)}px`;
-        popup.style.right = 'auto';
-      }
-    } else {
-      popup.style.left = `${Math.round(-(rect.right - viewportWidth + margin))}px`;
-    }
-    rect = popup.getBoundingClientRect();
-  }
-  if (rect.bottom > viewportHeight - margin) {
-    const parentTop = popup.offsetParent?.getBoundingClientRect().top ?? 0;
-    const shift = Math.min(rect.bottom - viewportHeight + margin, rect.top - margin);
-    if (shift > 0) {
-      popup.style.top = `${Math.round(rect.top - shift - parentTop)}px`;
-      rect = popup.getBoundingClientRect();
-    }
-    if (rect.bottom > viewportHeight - margin) {
-      popup.style.maxHeight = `${Math.floor(viewportHeight - rect.top - margin)}px`;
-      popup.style.overflowY = 'auto';
-    }
-  }
 }
 
 /**
@@ -127,7 +86,7 @@ function collapseSeparators(items: ResolvedItem[]): ResolvedItem[] {
  */
 function resolveItems(
   menuId: string,
-  items: MenuItemSpec[],
+  items: readonly MenuItemSpec[],
   dynamic: string | undefined,
   deps: ResolveDeps,
 ): ResolvedItem[] {
@@ -159,16 +118,21 @@ function resolveItems(
       }
       const raw = command ? commandLabelRaw(command, t) : spec.commandId;
       const parsed = parseAccelerator(raw);
+      const enabled = command ? services.commands.isEnabled(spec.commandId, ctx) : false;
+      // A disabled command tells why, when it can (feature 006, FR-043; data-model §9.6).
+      const reason =
+        command && !enabled ? services.commands.unavailableReason(spec.commandId, ctx) : null;
       resolved.push({
         spec,
         testId,
         label: parsed.text,
         accelerator: parsed.key,
         acceleratorIndex: parsed.index,
-        enabled: command ? services.commands.isEnabled(spec.commandId, ctx) : false,
+        enabled,
         checked: command ? services.commands.isChecked(spec.commandId, ctx) : false,
         toggle: command?.checked !== undefined,
         hotkey: services.hotkeys.display(spec.commandId),
+        title: command && reason ? unavailableTitle(command, reason, t) : undefined,
       });
       return;
     }
@@ -458,6 +422,8 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
           role={item.toggle ? 'menuitemcheckbox' : 'menuitem'}
           aria-checked={item.toggle ? item.checked : undefined}
           aria-disabled={!item.enabled || undefined}
+          title={item.title}
+          aria-description={item.title}
           aria-haspopup={isSubmenu || undefined}
           aria-expanded={isSubmenu ? openSubmenu === index : undefined}
           className={[
