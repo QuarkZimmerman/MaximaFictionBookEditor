@@ -130,6 +130,15 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ### Changed
 
+- The *Table structure* submenu moved from the Add menu to the Edit menu, since its commands edit
+  a table rather than add anything (issue #6).
+- *Table...* is no longer offered in the right-click menus of the Body view, the Source view and
+  the description fields; a table is inserted through *Add → Table*, its toolbar button or its
+  hotkey. A click in a table still offers *Table structure* there (issue #8).
+- Table cells in the Body view and the description fields are at least 3em wide, so an empty
+  cell or one holding a single character is as easy to click and type into as any other
+  (issue #7).
+
 - Builds of the 0.0.6 development line call themselves `0.0.6-rc` - in Help > About, in
   `mfbe --version` and `mfbe-core --version`, in the build id (`0.0.6-rc+<hash>`) and in the
   package file names (`MaximaFictionBookEditor-0.0.6-rc-win64.msi`, `mfbe_0.0.6-rc_amd64.deb`,

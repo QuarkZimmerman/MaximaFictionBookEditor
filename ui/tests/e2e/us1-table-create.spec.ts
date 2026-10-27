@@ -1242,11 +1242,10 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
         const button = page.getByTestId('toolbar-insert.table');
         await expect(button).toBeDisabled();
         await expect(button).toHaveAttribute('title', title);
-        // The context menu's Table… judged at the clicked point, the same place.
+        // The context menu offers no Table… at all (issue #8).
         await rightClick(page, place.element);
-        const table = page.getByTestId('context-menu-insert.table');
-        await expect(table).toHaveAttribute('aria-disabled', 'true');
-        await expect(table).toHaveAttribute('title', title);
+        await expect(page.getByTestId('context-menu')).toBeVisible();
+        await expect(page.getByTestId('context-menu-insert.table')).toHaveCount(0);
         await page.keyboard.press('Escape');
         await expect(page.getByTestId('context-menu')).toHaveCount(0);
         // Alt+T opens no dialog (an Alt letter the command leaves alone may open a menu).
@@ -1471,48 +1470,17 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
     });
   });
 
-  test('Table… in the context menu follows FR-004, judged at the clicked point', async ({
+  test('the context menu offers no Table… (issue #8): inserting a table is an Add-menu operation', async ({
     core,
     page,
   }) => {
     await openBook(core, page, PLACEMENT);
-    const doc = await documentOf(page);
-    const bodyTitle = blockStarting(doc, 'p', 'Table placement');
-    await caretAt(page, { nodeId: bodyTitle.nodeId, offset: 2 });
-    const caretInTitle = { nodeId: bodyTitle.nodeId, offset: 2 };
-    const paragraph = 'A paragraph in the middle of section 1.';
-    const entry = page.getByTestId('context-menu-insert.table');
-
-    // Enabled for a click in a section's paragraph although the caret stands in the body's title.
-    await rightClickAfterText(page, paragraph);
-    await expect(entry).toBeVisible();
-    await expect(entry).not.toHaveAttribute('aria-disabled');
-    // Opening the menu moved nothing; Escape leaves the caret where it was (C28).
+    await rightClickAfterText(page, 'A paragraph in the middle of section 1.');
+    await expect(page.getByTestId('context-menu')).toBeVisible();
+    await expect(page.getByTestId('context-menu-insert.table')).toHaveCount(0);
+    await expect(page.getByTestId('context-menu-tableStructure')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('context-menu')).toHaveCount(0);
-    await expect
-      .poll(() => bodySelection(page))
-      .toEqual({ anchor: caretInTitle, head: caretInTitle });
-
-    // Running it moves the caret to the click and inserts the table at that paragraph.
-    const before = await toXml(page);
-    const tables = tableIds(doc);
-    await rightClickAfterText(page, paragraph);
-    await entry.click();
-    await confirmTableDialog(page, { rows: 2, columns: 2 });
-    await expect.poll(() => toXml(page)).not.toBe(before);
-    expect(await toXml(page)).toMatch(
-      new RegExp(`${esc(paragraph)}</p>\\s*${TABLE_2X2}\\s*<poem>`),
-    );
-    await expectCaretInFirstCell(page, newTableIn(await documentOf(page), tables));
-    await menu(page, 'edit', 'undo');
-    await expect.poll(() => toXml(page)).toBe(before);
-
-    // Disabled, with its reason, for a click in the body's title.
-    await rightClick(page, blockElement(page, '.fb-body > .fb-title p', 'Table placement'));
-    await expect(entry).toHaveAttribute('aria-disabled', 'true');
-    await expect(entry).toHaveAttribute('title', await noTablePlaceTitle(page));
-    await page.keyboard.press('Escape');
   });
 
   test('edge cases: a selection is kept and the table goes at its end; Enter in a cell changes nothing', async ({
@@ -1751,26 +1719,11 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
     await page.getByTestId('dialog-table-button-cancel').click();
     await expect(button).toBeEnabled();
 
-    // Table… in the Source context menu, judged at the clicked point; opening it moves nothing.
+    // The Source context menu offers no Table… (issue #8); opening it moves nothing.
     await cursorAt(betweenNow);
     await rightClickAtCursor();
-    const sourceEntry = page.getByTestId('source-context-menu-insert.table');
-    await expect(sourceEntry).not.toHaveAttribute('aria-disabled');
-    const order = await page
-      .getByTestId('source-context-menu')
-      .locator('[role="menuitem"]')
-      .evaluateAll((items) =>
-        items.map((item) => (item as unknown as { dataset: { testid?: string } }).dataset.testid),
-      );
-    expect(order.indexOf('source-context-menu-insert.table')).toBe(
-      order.indexOf('source-context-menu-selectAll') + 1,
-    );
-    await page.keyboard.press('Escape');
-    await cursorAt(inText);
-    await rightClickAtCursor();
-    await expect(sourceEntry).toHaveAttribute('aria-disabled', 'true');
-    await expect(sourceEntry).toHaveAttribute('title', await refusal('inText'));
-    expect(await sourceSelection()).toEqual({ anchor: inText, head: inText });
+    await expect(page.getByTestId('source-context-menu')).toBeVisible();
+    await expect(page.getByTestId('source-context-menu-insert.table')).toHaveCount(0);
     await page.keyboard.press('Escape');
 
     // A broken closing tag: notWellFormed with the line of the first problem; repaired, the
@@ -1998,13 +1951,13 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
       await menu(page, 'edit', 'redo');
       await expect.poll(() => toXml(page), { message: 'one Redo applies it again' }).toBe(after4);
 
-      // (5) Add → Table structure → Insert column to the right from r1c3: every row holds four
+      // (5) Edit → Table structure → Insert column to the right from r1c3: every row holds four
       // cells, the new one empty and of its neighbour's kind (FR-006, FR-008).
       await caretAt(page, { nodeId: await cellId('r1c3'), offset: 'r1c3'.length });
       const before5 = await toXml(page);
-      await page.getByTestId('menu-add').click();
-      await page.getByTestId('menu-add-tableStructure').click();
-      const insertColumn = page.getByTestId('menu-add-tableStructure-insertColumnRight');
+      await page.getByTestId('menu-edit').click();
+      await page.getByTestId('menu-edit-tableStructure').click();
+      const insertColumn = page.getByTestId('menu-edit-tableStructure-insertColumnRight');
       await expect(insertColumn).not.toHaveAttribute('aria-disabled');
       await insertColumn.click();
       const after5 = await changed(before5);
@@ -2030,9 +1983,9 @@ test.describe('US1 (feature 006) - create a table where it is needed', () => {
       // columns, the texts joined, nothing else changed (FR-013, FR-014; US5 sc.1).
       await block('h1', 'h2', 2);
       const before6 = await toXml(page);
-      await page.getByTestId('menu-add').click();
-      await page.getByTestId('menu-add-tableStructure').click();
-      const merge = page.getByTestId('menu-add-tableStructure-mergeCells');
+      await page.getByTestId('menu-edit').click();
+      await page.getByTestId('menu-edit-tableStructure').click();
+      const merge = page.getByTestId('menu-edit-tableStructure-mergeCells');
       await expect(merge).not.toHaveAttribute('aria-disabled');
       await merge.click();
       const after6 = await changed(before6);

@@ -141,6 +141,6 @@ export function FieldContextMenu({ field, position, click, onClose }: FieldConte
     click ?? { x: position.x, y: position.y, pos: null },
     ctx,
   );
-  items.push('separator', ...popupItems(section));
+  if (section.length > 0) items.push('separator', ...popupItems(section));
   return <PopupMenu items={items} position={position} onClose={onClose} testId="context-menu" />;
 }

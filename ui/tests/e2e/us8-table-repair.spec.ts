@@ -373,15 +373,15 @@ async function saveAs(core: CoreHandle, page: Page, file: string): Promise<strin
   return readFileSync(file, 'utf8');
 }
 
-/** The entry of *Add → Table structure* for the command `commandId`, its submenu open. */
+/** The entry of *Edit → Table structure* for the command `commandId`, its submenu open. */
 async function structureEntry(page: Page, commandId: string): Promise<Locator> {
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
-  return page.getByTestId(`menu-add-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+  return page.getByTestId(`menu-edit-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
 }
 
-/** Runs `commandId` from *Add → Table structure*: `menu-add-tableStructure-<name>`. */
+/** Runs `commandId` from *Edit → Table structure*: `menu-edit-tableStructure-<name>`. */
 async function structure(page: Page, commandId: string): Promise<void> {
   const entry = await structureEntry(page, commandId);
   await expect(entry).not.toHaveAttribute('aria-disabled');
@@ -588,12 +588,12 @@ test.describe('US8 (feature 006) - Repair table and the span fields', () => {
     // sc.4: the caret still in the repaired table - the entry is unavailable with its reason.
     await caretIn(page, firstCell(shortRow.model));
     await unavailable(await structureEntry(page, 'table.repair'), title);
-    await closeMenus(page, 'menu-add-popup');
+    await closeMenus(page, 'menu-edit-popup');
     // So it is on any regular table, here the 1 × 1 one.
     const regular = await caseScenario(page, 'one-by-one');
     await caretIn(page, firstCell(regular.model));
     await unavailable(await structureEntry(page, 'table.repair'), title);
-    await closeMenus(page, 'menu-add-popup');
+    await closeMenus(page, 'menu-edit-popup');
     // And in the repaired table's context menu.
     const cell = shortRow.element.locator(
       `:is(td.fb-td, th.fb-th)[data-node-id="${firstCell(shortRow.model)}"]`,
@@ -614,7 +614,7 @@ test.describe('US8 (feature 006) - Repair table and the span fields', () => {
     await caretIn(page, firstCell(shortRow.model));
     const entry = await structureEntry(page, 'table.repair');
     await expect(entry).not.toHaveAttribute('aria-disabled');
-    await closeMenus(page, 'menu-add-popup');
+    await closeMenus(page, 'menu-edit-popup');
   });
 
   test('sc.2 and sc.3: a row span past the last row ends there, an overlapping span loses columns without losing content, and every other irregular table of the Body view gives its repaired vector', async ({

@@ -1,5 +1,5 @@
 /**
- * *Add → Table structure* (feature 006, T043; FR-039, SC-008; U12, C32; data-model §9.1, §9.2):
+ * *Edit → Table structure* (feature 006, T043; FR-039, SC-008; U12, C32; data-model §9.1, §9.2):
  * the one list of the 24 table commands in the eight groups of FR-039, the Add menu's submenu
  * right after *Table*, its derived test ids, its English labels, its disabled stubs and the
  * accelerator letters live inside the open submenu. US10 (T159; C30; data-model §6.2): the Add
@@ -88,7 +88,7 @@ function groupsOf(items: readonly MenuItemSpec[]): string[][] {
   return groups;
 }
 
-describe('Add → Table structure (feature 006)', () => {
+describe('Edit → Table structure (feature 006)', () => {
   it('TABLE_STRUCTURE_ITEMS holds exactly the 24 ids of the group table, in FR-039 order, with seven separators between the eight groups', () => {
     expect(groupsOf(TABLE_STRUCTURE_ITEMS)).toEqual(GROUPS);
     expect(TABLE_STRUCTURE_ITEMS.filter((item) => item.kind === 'separator')).toHaveLength(7);
@@ -100,19 +100,24 @@ describe('Add → Table structure (feature 006)', () => {
     expect(ids).toHaveLength(24);
   });
 
-  it("the Add menu's item after insert.table is the submenu; Table keeps its label key", () => {
+  it('the Edit menu ends with the submenu after a separator, the Add menu has none (issue #6); Table keeps its label key', () => {
+    const edit = MAIN_MENU.find((menu) => menu.id === 'edit')!;
+    expect(edit.items.at(-2)).toEqual({ kind: 'separator' });
+    expect(edit.items.at(-1)).toEqual({
+      kind: 'submenu',
+      id: 'tableStructure',
+      labelKey: 'menu.edit.tableStructure',
+      items: TABLE_STRUCTURE_ITEMS,
+    });
     const add = MAIN_MENU.find((menu) => menu.id === 'add')!;
+    expect(add.items.some((item) => item.kind === 'submenu' && item.id === 'tableStructure')).toBe(
+      false,
+    );
     const index = add.items.findIndex(
       (item) => item.kind === 'command' && item.commandId === 'insert.table',
     );
     expect(index).toBeGreaterThan(0);
-    expect(add.items[index + 1]).toEqual({
-      kind: 'submenu',
-      id: 'tableStructure',
-      labelKey: 'menu.add.tableStructure',
-      items: TABLE_STRUCTURE_ITEMS,
-    });
-    expect(add.items[index + 2]).toEqual({ kind: 'command', commandId: 'insert.sectionImage' });
+    expect(add.items[index + 1]).toEqual({ kind: 'command', commandId: 'insert.sectionImage' });
     const registry = createCommandRegistry();
     expect(registry.get('insert.table')!.labelKey).toBe('menu.add.table'); // C32
   });
@@ -124,28 +129,28 @@ describe('Add → Table structure (feature 006)', () => {
     const user = userEvent.setup();
     render(createElement(App, { services }));
 
-    await user.click(screen.getByTestId('menu-add'));
-    const entry = within(screen.getByTestId('menu-add-popup')).getByTestId(
-      'menu-add-tableStructure',
+    await user.click(screen.getByTestId('menu-edit'));
+    const entry = within(screen.getByTestId('menu-edit-popup')).getByTestId(
+      'menu-edit-tableStructure',
     );
     expect(entry).toHaveTextContent('Table structure');
-    expect(entry.querySelector('u')).toHaveTextContent('r'); // Table st&ructure
+    expect(entry.querySelector('u')).toHaveTextContent('b'); // Ta&ble structure
     expect(entry).toHaveAttribute('aria-haspopup', 'true');
     await user.hover(entry);
-    const popup = screen.getByTestId('menu-add-tableStructure-popup');
+    const popup = screen.getByTestId('menu-edit-tableStructure-popup');
     const entries = within(popup).getAllByRole('menuitem');
     expect(entries.map((item) => item.dataset.testid)).toEqual(
-      GROUPS.flat().map((id) => `menu-add-tableStructure-${id.slice('table.'.length)}`),
+      GROUPS.flat().map((id) => `menu-edit-tableStructure-${id.slice('table.'.length)}`),
     );
     expect(entries.map((item) => item.querySelector('.mfbe-menu-label')!.textContent)).toEqual(
       ENGLISH_LABELS,
     );
     for (const item of entries) expect(item).toHaveAttribute('aria-disabled', 'true');
-    expect(within(popup).getByTestId('menu-add-tableStructure-insertRowBelow')).toBeInTheDocument();
+    expect(within(popup).getByTestId('menu-edit-tableStructure-insertRowBelow')).toBeInTheDocument();
     const separators = within(popup).getAllByRole('separator');
     expect(separators).toHaveLength(7);
     expect(separators.map((separator) => separator.dataset.testid)).toEqual(
-      [3, 7, 10, 16, 18, 21, 28].map((index) => `menu-add-tableStructure-separator-${index}`),
+      [3, 7, 10, 16, 18, 21, 28].map((index) => `menu-edit-tableStructure-separator-${index}`),
     );
     // 21 of the 24 labels carry a letter (resource-formats §9): Duplicate row, Duplicate
     // column and Paragraph before table none.
@@ -154,7 +159,7 @@ describe('Add → Table structure (feature 006)', () => {
     await user.keyboard('{Escape}{Escape}');
 
     // A live entry runs by its letter inside the open submenu ("p", Re&pair table), not the
-    // Add menu's own "p" (&Poem).
+    // Edit menu's own "p" (&Paste).
     const run = vi.fn();
     act(() => {
       services.commands.replace({
@@ -164,15 +169,15 @@ describe('Add → Table structure (feature 006)', () => {
         run,
       });
     });
-    await user.click(screen.getByTestId('menu-add'));
-    await user.keyboard('r'); // opens Table st&ructure
-    expect(screen.getByTestId('menu-add-tableStructure-popup')).toBeInTheDocument();
-    expect(screen.getByTestId('menu-add-tableStructure-repair')).not.toHaveAttribute(
+    await user.click(screen.getByTestId('menu-edit'));
+    await user.keyboard('b'); // opens Ta&ble structure
+    expect(screen.getByTestId('menu-edit-tableStructure-popup')).toBeInTheDocument();
+    expect(screen.getByTestId('menu-edit-tableStructure-repair')).not.toHaveAttribute(
       'aria-disabled',
     );
     await user.keyboard('p');
     expect(run).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId('menu-add-popup')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('menu-edit-popup')).not.toBeInTheDocument();
   });
 });
 

@@ -457,7 +457,7 @@ async function editingSession(page: Page, core: CoreHandle, dir: string): Promis
   await expect(complete).toHaveCount(0);
 
   // A table step (feature 006, US11 sc.5): the book holds tables - a block of two cells of
-  // table t1 (a click and a Shift+click), Add → Table structure → Insert row below on it (two
+  // table t1 (a click and a Shift+click), Edit → Table structure → Insert row below on it (two
   // rows), Undo, Redo and Undo again (SC-007, U22); a right-click in a cell shows the table
   // section and no Ask entry. Nothing of the assistant's table additions loads.
   const t1 = editor.locator('[data-testid="body-table"][data-id="t1"]');
@@ -468,9 +468,9 @@ async function editingSession(page: Page, core: CoreHandle, dir: string): Promis
   await cellThree.click({ modifiers: ['Shift'] });
   await expect(t1.locator('.mfbe-cell-selected')).toHaveCount(2);
   const tableBefore = await documentXml(page);
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  const insertBelow = page.getByTestId('menu-add-tableStructure-insertRowBelow');
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  const insertBelow = page.getByTestId('menu-edit-tableStructure-insertRowBelow');
   await expect(insertBelow).not.toHaveAttribute('aria-disabled');
   await insertBelow.click();
   await expect(t1.locator('tr')).toHaveCount(5);

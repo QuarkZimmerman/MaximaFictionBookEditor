@@ -2,7 +2,7 @@
  * Feature 006, User Story 5 - Merge and split cells (T100; spec FR-013 to FR-015, FR-030,
  * FR-035, FR-045; US5 sc.1 to sc.4; the spec's edge cases on note links and on blocks that
  * already hold merged cells; C13, C17; decision 1; U22; SC-007, SC-009; quickstart §5 "Manual
- * check" steps 1 to 5 and "Automated"). *Merge cells* runs from *Add → Table structure*
+ * check" steps 1 to 5 and "Automated"). *Merge cells* runs from *Edit → Table structure*
  * (`structure(page, 'table.mergeCells')`, which takes the command id, so that
  * `tools/parity-check.mjs` finds every id quoted here).
  *
@@ -318,15 +318,15 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
   await page.getByTestId(`menu-${menuId}-${itemId}`).click();
 }
 
-/** The entry of *Add → Table structure* for the command `commandId`, its submenu open. */
+/** The entry of *Edit → Table structure* for the command `commandId`, its submenu open. */
 async function structureEntry(page: Page, commandId: string): Promise<Locator> {
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
-  return page.getByTestId(`menu-add-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+  return page.getByTestId(`menu-edit-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
 }
 
-/** Runs `commandId` from *Add → Table structure*: `menu-add-tableStructure-<name>`. */
+/** Runs `commandId` from *Edit → Table structure*: `menu-edit-tableStructure-<name>`. */
 async function structure(page: Page, commandId: string): Promise<void> {
   const entry = await structureEntry(page, commandId);
   await expect(entry).not.toHaveAttribute('aria-disabled');
@@ -840,10 +840,10 @@ test.describe('US5 (feature 006) - merge and split cells', () => {
     const split = await structureEntry(page, 'table.splitCell');
     await unavailable(split, 'Split cell: the cell is not merged');
     await unavailable(
-      page.getByTestId('menu-add-tableStructure-mergeCells'),
+      page.getByTestId('menu-edit-tableStructure-mergeCells'),
       'Merge cells: select a block of at least two cells',
     );
-    await closeMenus(page, 'menu-add-popup');
+    await closeMenus(page, 'menu-edit-popup');
 
     // A block selected: Split cell asks for a single merged cell; Merge cells is available.
     await selectBlock(page, t5.cell('d'), t5.cell('e'));
@@ -851,10 +851,10 @@ test.describe('US5 (feature 006) - merge and split cells', () => {
       await structureEntry(page, 'table.splitCell'),
       'Split cell: select a single merged cell',
     );
-    await expect(page.getByTestId('menu-add-tableStructure-mergeCells')).not.toHaveAttribute(
+    await expect(page.getByTestId('menu-edit-tableStructure-mergeCells')).not.toHaveAttribute(
       'aria-disabled',
     );
-    await closeMenus(page, 'menu-add-popup');
+    await closeMenus(page, 'menu-edit-popup');
 
     // A right-click in a single cell: the context menu's entry carries the same title.
     await caretIn(page, t5.cell('e'));
@@ -883,7 +883,7 @@ test.describe('US5 (feature 006) - merge and split cells', () => {
       await structureEntry(page, 'table.mergeCells'),
       'Merge cells: the selection reaches outside the table',
     );
-    await closeMenus(page, 'menu-add-popup');
+    await closeMenus(page, 'menu-edit-popup');
     // Nothing of it changed the book.
     expect(await toXml(page)).toBe(fixture);
   });

@@ -1,8 +1,8 @@
 {
-  "$comment": "Table editing (feature 006): the feature's catalogue, deep-merged into the base catalogue by ui/src/i18n/index.ts; en, ru and uk stay in parity (tools/i18n-check.mjs). Keys, placeholders and plural families are those of contracts/resource-formats.md §9: the Add menu's Table structure submenu and its 24 command labels (menu.tableStructure.<name>, <name> being the command id without \"table.\"), their tooltips and descriptions, the Hotkeys page group, the context-menu entries, the reasons of unavailable commands (tables.reason.<code>, the part after \"{{command}}: \"), the problem phrases of irregular tables, the Validate and mark texts, the mark's popover, the Table properties dialog's fields, the two bar labels and the status-bar messages.",
+  "$comment": "Table editing (feature 006): the feature's catalogue, deep-merged into the base catalogue by ui/src/i18n/index.ts; en, ru and uk stay in parity (tools/i18n-check.mjs). Keys, placeholders and plural families are those of contracts/resource-formats.md §9: the Edit menu's Table structure submenu and its 24 command labels (menu.tableStructure.<name>, <name> being the command id without \"table.\"), their tooltips and descriptions, the Hotkeys page group, the context-menu entries, the reasons of unavailable commands (tables.reason.<code>, the part after \"{{command}}: \"), the problem phrases of irregular tables, the Validate and mark texts, the mark's popover, the Table properties dialog's fields, the two bar labels and the status-bar messages.",
   "menu": {
-    "add": {
-      "tableStructure": "Table st&ructure"
+    "edit": {
+      "tableStructure": "Ta&ble structure"
     },
     "tableStructure": {
       "insertRowAbove": "Insert row &above",
@@ -137,7 +137,6 @@
     },
     "contextMenu": {
       "structure": "Table structure",
-      "table": "Table...",
       "inlineImage": "Inline image..."
     },
     "reason": {

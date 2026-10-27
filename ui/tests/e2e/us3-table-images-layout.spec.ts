@@ -481,10 +481,14 @@ test.describe('US3 - the layout of pictures in table cells (SC-006)', () => {
       for (const picture of t!.pictures) {
         const [nw, nh] = EXPECTED.pictures[picture.href.slice(1)]!.natural;
         const floor = floorOf(nw, nh, picture.em, measurement.env.LH);
+        // Every cell is at least 3em wide (issue #7), so a picture squeezed by its table's text
+        // keeps the cell's minimum width when that is more than its floor (never more than its
+        // natural width).
+        const expected = Math.max(floor, Math.min(nw, 3 * picture.em));
         expect(picture.shown, `${id} ${picture.href} shown`).toBe(true);
         expect(
-          Math.abs(picture.w - floor),
-          `${id} ${picture.href} at its floor ${floor}`,
+          Math.abs(picture.w - expected),
+          `${id} ${picture.href} at ${expected} (floor ${floor}, 3em ${3 * picture.em})`,
         ).toBeLessThanOrEqual(1);
       }
     }

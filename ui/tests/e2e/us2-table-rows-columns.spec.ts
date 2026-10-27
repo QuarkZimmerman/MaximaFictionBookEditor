@@ -20,7 +20,7 @@
  *  (6) "US2 sc.7 (one row)" 1 × 3 and "US2 sc.7 (one column)" 3 × 1;
  *  (7) "US2 sc.10": `[r1c1, r1c2] / [r2c1, r2c2] / [m rowspan 2, r3c2] / [r4c2] / [r5c1, r5c2]`.
  *
- * Every command runs through *Add → Table structure* (`structure()`, which takes the command id
+ * Every command runs through *Edit → Table structure* (`structure()`, which takes the command id
  * so that `tools/parity-check.mjs` finds each id quoted here) or through the context menu, and is
  * followed by Edit → Undo, after which the whole document's XML equals the XML before the command
  * byte for byte, and by Edit → Redo, after which it equals the command's result (sc.8 in every
@@ -210,15 +210,17 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
   await page.getByTestId(`menu-${menuId}-${itemId}`).click();
 }
 
-/** The entry of *Add → Table structure* for the command `commandId`, its submenu open. */
+/** The entry of *Edit → Table structure* for the command `commandId`, its submenu open. */
 async function structureEntry(page: Page, commandId: string) {
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
-  return page.getByTestId(`menu-add-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+  return page.getByTestId(
+    `menu-edit-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`,
+  );
 }
 
-/** Runs `commandId` from *Add → Table structure*: `menu-add-tableStructure-<name>`. */
+/** Runs `commandId` from *Edit → Table structure*: `menu-edit-tableStructure-<name>`. */
 async function structure(page: Page, commandId: string): Promise<void> {
   const entry = await structureEntry(page, commandId);
   await expect(entry).not.toHaveAttribute('aria-disabled');
@@ -345,7 +347,7 @@ async function expectDisabled(page: Page, commandId: string, title: string): Pro
   await expect(entry).toHaveAttribute('aria-description', title);
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('menu-add-popup')).toHaveCount(0);
+  await expect(page.getByTestId('menu-edit-popup')).toHaveCount(0);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -687,8 +689,9 @@ test.describe('US2 (feature 006) - rows and columns', () => {
         page.evaluate(() => window.__mfbeTest!.sourceMapping!.bodySelection()?.head.nodeId),
       )
       .toBe(t1.cell('r2c2'));
-    // The table section: Table… and the submenu, no table command directly (decision 2).
-    await expect(page.getByTestId('context-menu-insert.table')).toBeVisible();
+    // The table section: the submenu only (issue #8: no Table…), no table command directly
+    // (decision 2).
+    await expect(page.getByTestId('context-menu-insert.table')).toHaveCount(0);
     await expect(page.getByTestId('context-menu-tableStructure')).toBeVisible();
     await expect(contextMenu.locator('[data-testid^="context-menu-table."]')).toHaveCount(0);
     await page.getByTestId('context-menu-tableStructure').click();

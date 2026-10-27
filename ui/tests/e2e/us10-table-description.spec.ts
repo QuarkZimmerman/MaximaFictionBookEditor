@@ -777,20 +777,18 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
         'context-menu-edit.cut',
         'context-menu-edit.copy',
         'context-menu-edit.paste',
-        '|',
-        'context-menu-insert.table',
       ]);
       await expect(page.getByTestId('context-menu-insert.inlineImage')).toHaveCount(0);
       await expect(page.getByTestId('context-menu-tableStructure')).toHaveCount(0);
-      await expect(page.getByTestId('context-menu-insert.table')).not.toHaveAttribute(
-        'aria-disabled',
-        'true',
-      );
+      // Issue #8: no Table… in the field's context menu; the table comes from Add → Table.
+      await expect(page.getByTestId('context-menu-insert.table')).toHaveCount(0);
+      await page.keyboard.press('Escape');
 
       // Table… → the dialog → OK: a 2 × 2 table right after the paragraph (FR-004 (a)), the
       // caret in its first cell, one undo step.
       const before = await fieldXml(page, field);
-      await page.getByTestId('context-menu-insert.table').click();
+      await page.getByTestId('menu-add').click();
+      await page.getByTestId('menu-add-table').click();
       await expect(page.getByTestId('dialog-table')).toBeVisible();
       await page.getByTestId('dialog-table-button-ok').click();
       await expect(page.getByTestId('dialog-table')).toHaveCount(0);
@@ -821,7 +819,6 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
         '|',
         'context-menu-insert.inlineImage',
         '|',
-        'context-menu-insert.table',
         'context-menu-tableStructure',
       ]);
       await expect(page.getByTestId('context-menu-insert.inlineImage')).toHaveText(
@@ -866,9 +863,12 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
         'aria-disabled',
         'true',
       );
-      await page.getByTestId('menu-add-tableStructure').hover();
-      await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
-      const insertRow = page.getByTestId('menu-add-tableStructure-insertRowBelow');
+      // Table structure lives in the Edit menu (issue #6).
+      await page.keyboard.press('Escape');
+      await page.getByTestId('menu-edit').click();
+      await page.getByTestId('menu-edit-tableStructure').hover();
+      await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+      const insertRow = page.getByTestId('menu-edit-tableStructure-insertRowBelow');
       await expect(insertRow).toHaveAttribute('aria-disabled', 'true');
       await expect(insertRow).toHaveAttribute(
         'title',
@@ -878,7 +878,7 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
           'tables.reason.notInTable',
         ),
       );
-      await closeMenus(page, 'menu-add-popup');
+      await closeMenus(page, 'menu-edit-popup');
 
       // The caret in a cell: the table commands and Inline image act on the field's table; the
       // block pictures say why a cell refuses them.
@@ -899,8 +899,11 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
           await unavailableTitle(page, tooltip, 'tables.reason.cellInlineOnly'),
         );
       }
-      await page.getByTestId('menu-add-tableStructure').hover();
-      await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
+      // Table structure lives in the Edit menu (issue #6).
+      await page.keyboard.press('Escape');
+      await page.getByTestId('menu-edit').click();
+      await page.getByTestId('menu-edit-tableStructure').hover();
+      await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
       await expect(insertRow).not.toHaveAttribute('aria-disabled', 'true');
       const before = await fieldXml(page, field);
       await insertRow.click();

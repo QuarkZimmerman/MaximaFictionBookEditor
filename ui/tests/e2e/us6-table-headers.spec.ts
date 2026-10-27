@@ -1,7 +1,7 @@
 /**
  * Feature 006, User Story 6 - Header cells, header rows and header columns (T108; spec FR-017
  * to FR-019; US6 sc.1 to sc.4; C14, C60; U22; SC-007, SC-009; quickstart §6 "Manual check" and
- * "Automated"). The five header commands run from *Add → Table structure*
+ * "Automated"). The five header commands run from *Edit → Table structure*
  * (`structure(page, 'table.toggleHeaderCell')`, which takes the command id, so that
  * `tools/parity-check.mjs` finds every id quoted here).
  *
@@ -221,13 +221,13 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
   await page.getByTestId(`menu-${menuId}-${itemId}`).click();
 }
 
-/** Runs `commandId` from *Add → Table structure*: `menu-add-tableStructure-<name>`. */
+/** Runs `commandId` from *Edit → Table structure*: `menu-edit-tableStructure-<name>`. */
 async function structure(page: Page, commandId: string): Promise<void> {
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
   const entry = page.getByTestId(
-    `menu-add-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`,
+    `menu-edit-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`,
   );
   await expect(entry).not.toHaveAttribute('aria-disabled');
   await entry.click();

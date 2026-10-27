@@ -766,14 +766,16 @@ function stateOf(page: Page, testId: string): Promise<EntryState> {
   })()`);
 }
 
-/** *Add → Table* and the 24 entries of *Add → Table structure*; the menus closed again. */
+/** *Add → Table* and the 24 entries of *Edit → Table structure*; the menus closed again. */
 async function menuStates(page: Page): Promise<{ insert: EntryState; entries: EntryState[] }> {
   await page.getByTestId('menu-add').click();
   await expect(page.getByTestId('menu-add-table')).toBeVisible();
   const insert = await stateOf(page, 'menu-add-table');
-  await page.getByTestId('menu-add-tableStructure').click();
-  await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
-  const entries = await popupEntries(page, 'menu-add-tableStructure-popup');
+  await closeMenus(page);
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+  const entries = await popupEntries(page, 'menu-edit-tableStructure-popup');
   await closeMenus(page);
   return { insert, entries };
 }
@@ -794,7 +796,8 @@ async function contextStates(
   >(`[...document.querySelector('[data-testid="context-menu"]').children]
     .map((child) => child.getAttribute('role') === 'separator' ? '|' : (child.getAttribute('data-testid') ?? '?'))`);
   const section = top.slice(top.lastIndexOf('|') + 1);
-  const insert = await stateOf(page, 'context-menu-insert.table');
+  // Issue #8: the context menu offers no Table…, in or outside a table.
+  await expect(page.getByTestId('context-menu-insert.table')).toHaveCount(0);
   let entries: EntryState[] | null = null;
   if (section.includes('context-menu-tableStructure')) {
     await page.getByTestId('context-menu-tableStructure').click();
@@ -802,7 +805,7 @@ async function contextStates(
     entries = await popupEntries(page, 'context-menu-tableStructure-popup');
   }
   await closeMenus(page);
-  return { section, insert, entries };
+  return { section, entries };
 }
 
 /** The states of the 25 offered buttons on the toolbar, by command id. */
@@ -850,13 +853,13 @@ async function expectSurfaces(page: Page, located: Located, lang: UiLang): Promi
   await located.select();
   const buttons = await buttonStates(page);
   const inTable = located.table !== null;
-  expect(fromContext.section).toEqual(
-    inTable
-      ? ['context-menu-insert.table', 'context-menu-tableStructure']
-      : ['context-menu-insert.table'],
-  );
+  expect(
+    fromContext.section.filter(
+      (id) => id === 'context-menu-insert.table' || id === 'context-menu-tableStructure',
+    ),
+  ).toEqual(inTable ? ['context-menu-tableStructure'] : []);
   expect(fromMenu.entries.map((entry) => entry.id)).toEqual(
-    FR039.map((name) => `menu-add-tableStructure-${name}`),
+    FR039.map((name) => `menu-edit-tableStructure-${name}`),
   );
   if (fromContext.entries) {
     expect(fromContext.entries.map((entry) => entry.id)).toEqual(
@@ -903,7 +906,7 @@ async function expectSurfaces(page: Page, located: Located, lang: UiLang): Promi
     'insert.table',
     'cmd.insert.table.tooltip',
     fromMenu.insert,
-    [fromContext.insert],
+    [],
     buttons.get('insert.table')!,
   );
   const own =
@@ -921,19 +924,21 @@ async function confirmTableDialog(page: Page): Promise<void> {
   await expect(dialog).toBeHidden();
 }
 
-/** The place's command from *Add → Table structure* (*Add → Table* for *Table…*). */
+/** The place's command from *Edit → Table structure* (*Add → Table* for *Table…*). */
 async function runFromMenu(page: Page, located: Located): Promise<void> {
   const { id } = located.place;
-  await page.getByTestId('menu-add').click();
   if (id === 'insert.table') {
+    await page.getByTestId('menu-add').click();
     const entry = page.getByTestId('menu-add-table');
     await expect(entry).not.toHaveAttribute('aria-disabled');
     await entry.click();
     await confirmTableDialog(page);
     return;
   }
-  await page.getByTestId('menu-add-tableStructure').click();
-  const entry = page.getByTestId(`menu-add-tableStructure-${id.slice('table.'.length)}`);
+  // The table commands live in Edit → Table structure (issue #6).
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  const entry = page.getByTestId(`menu-edit-tableStructure-${id.slice('table.'.length)}`);
   await expect(entry).not.toHaveAttribute('aria-disabled');
   await entry.click();
 }
@@ -944,9 +949,11 @@ async function runFromContextMenu(page: Page, located: Located): Promise<void> {
   await rightClick(page, located.target, located.position);
   await expect(page.getByTestId('context-menu')).toBeVisible();
   if (id === 'insert.table') {
-    const entry = page.getByTestId('context-menu-insert.table');
-    await expect(entry).not.toHaveAttribute('aria-disabled');
-    await entry.click();
+    // Issue #8: the context menu offers no Table…; the command runs from Add → Table instead.
+    await expect(page.getByTestId('context-menu-insert.table')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await page.getByTestId('menu-add').click();
+    await page.getByTestId('menu-add-table').click();
     await confirmTableDialog(page);
     return;
   }
@@ -1186,7 +1193,7 @@ test.describe('Feature 006 - every table command from every surface', () => {
     saved = null;
   });
 
-  test('1. every table command from Add → Table structure, the context menu and its toolbar button; the surfaces agree and say why a command is unavailable; scripts and the assistant see each result as a table', async ({
+  test('1. every table command from Edit → Table structure, the context menu and its toolbar button; the surfaces agree and say why a command is unavailable; scripts and the assistant see each result as a table', async ({
     core,
     page,
     standin,
@@ -1226,7 +1233,7 @@ test.describe('Feature 006 - every table command from every surface', () => {
       expect(onlyRow).toBe('Delete row: the table has only one row; use Delete table');
     const deleteRow = (await menuStates(page)).entries[FR039.indexOf('deleteRow')]!;
     expect(deleteRow).toEqual({
-      id: 'menu-add-tableStructure-deleteRow',
+      id: 'menu-edit-tableStructure-deleteRow',
       disabled: true,
       title: onlyRow,
       description: onlyRow,
@@ -1533,7 +1540,7 @@ test.describe('Feature 006 - every table command from every surface', () => {
             reason,
           });
           return {
-            id: `menu-add-tableStructure-${name}`,
+            id: `menu-edit-tableStructure-${name}`,
             disabled: true,
             title,
             description: title,

@@ -10,14 +10,10 @@
  *   change, no undo step); a click inside the block keeps the block (the table plugin keeps
  *   the native selection where it is); a click anywhere else leaves the selection as it is.
  * - `table` builds the section, which holds no direct command entry (decision 2) and no
- *   accelerators (U12): *Table…* (`insert.table`), always present - shown unavailable, not
- *   hidden (FR-043) - and judged at the clicked point (US1, FR-040, C28): at the caret a click
- *   there would make, or at the selection's end when the click lies inside a non-empty
- *   selection (which is kept, the spec's edge case); opening the menu moves nothing, running
- *   the entry first puts that caret (a selection change, no undo step) and then runs
- *   `insert.table`. For a click in a table it adds *Table structure ▸* with the entries of
+ *   accelerators (U12): for a click in a table, *Table structure ▸* with the entries of
  *   `TABLE_STRUCTURE_ITEMS`, each running its command on the clicked table, which `prepare`
- *   made the caret's.
+ *   made the caret's. *Table…* is not offered in a context menu: inserting a table is an Add-menu
+ *   operation (*Add → Table*, the toolbar button and its hotkey; requester, issue #8).
  */
 
 import { TextSelection, type EditorState } from 'prosemirror-state';
@@ -29,16 +25,13 @@ import {
   type CommandRegistry,
 } from '@/app/commands';
 import { TABLE_STRUCTURE_ITEMS, type MenuItemSpec } from '@/app/menus';
-import { findTablePoint } from '@/editor/commands/tableInsertion';
 import { CellBlockSelection, cellRefAround } from '@/editor/table/selection';
-import { isRunLocked } from '@/model/store';
 import type {
   ContextMenuClick,
   ContextMenuEntry,
   ContextMenuItem,
 } from '@/views/body/contextMenuExtensions';
 
-import { reasonText } from './reasons';
 import type { TableEditTarget } from './target';
 
 /**
@@ -107,73 +100,7 @@ function structureItems(registry: CommandRegistry, ctx: CommandContext): Context
 }
 
 /**
- * Where *Table…* is judged for `click` (C28): the caret `TextSelection.near` makes at the
- * clicked position, which the entry moves to when it runs; or, for a click inside a non-empty
- * selection (a block of cells included) or without a position, the selection's end, the
- * selection kept (`moveTo` null).
- */
-function tableClickPoint(
-  state: EditorState,
-  click: ContextMenuClick,
-): { at: number; moveTo: number | null } {
-  const { selection } = state;
-  const pos = click.pos;
-  const outside = pos === null || pos < 0 || pos > state.doc.content.size;
-  const inSelection =
-    selection instanceof CellBlockSelection ||
-    (!selection.empty && pos !== null && pos >= selection.from && pos <= selection.to);
-  if (outside || inSelection) return { at: selection.to, moveTo: null };
-  const caret = TextSelection.near(state.doc.resolve(pos));
-  return { at: caret.to, moveTo: caret.head };
-}
-
-/**
- * *Table…*: enabled exactly where FR-004 finds a point at the clicked place and the target is
- * editable; otherwise disabled with the reason - the run lock's, `noTarget`'s or
- * `noTablePlace`'s - as `title` (and, through `PopupMenu`, `aria-description`).
- */
-function insertTableEntry(
-  registry: CommandRegistry,
-  target: TableEditTarget,
-  click: ContextMenuClick,
-  ctx: CommandContext,
-): ContextMenuEntry {
-  const spec = registry.get('insert.table');
-  const state = target.state;
-  let enabled = false;
-  let reason: string | null = null;
-  let moveTo: number | null = null;
-  if (spec && !spec.stub) {
-    if (isRunLocked(ctx.store.getState()) && spec.duringScriptRun !== 'allowed') {
-      reason = registry.unavailableReason('insert.table', ctx);
-    } else if (!target.editable || !state) {
-      reason = reasonText('noTarget', { command: 'insert.table' }, ctx.t);
-    } else {
-      const point = tableClickPoint(state, click);
-      moveTo = point.moveTo;
-      enabled = findTablePoint(state.doc, point.at) !== null;
-      if (!enabled) reason = reasonText('noTablePlace', undefined, ctx.t);
-    }
-  }
-  return {
-    id: 'insert.table',
-    label: ctx.t('tables.contextMenu.table'),
-    enabled,
-    title: spec && reason ? unavailableTitle(spec, reason, ctx.t) : undefined,
-    run: () => {
-      const current = target.state;
-      if (current && moveTo !== null && moveTo <= current.doc.content.size) {
-        target.setSelection(
-          current.tr.setSelection(TextSelection.near(current.doc.resolve(moveTo))),
-        );
-      }
-      void registry.execute('insert.table', ctx);
-    },
-  };
-}
-
-/**
- * The table section on `target`: *Table…* always, *Table structure ▸* for a click in a table;
+ * The table section on `target`: *Table structure ▸* for a click in a table, nothing elsewhere;
  * the entries run their commands on the active target, which the menu's opener made `target`.
  */
 export function tableSectionItems(
@@ -182,14 +109,13 @@ export function tableSectionItems(
   click: ContextMenuClick,
   ctx: CommandContext,
 ): ContextMenuItem[] {
-  const items: ContextMenuItem[] = [insertTableEntry(registry, target, click, ctx)];
-  if (inTable(target.state, click)) {
-    items.push({
+  if (!inTable(target.state, click)) return [];
+  return [
+    {
       id: 'tableStructure',
       label: ctx.t('tables.contextMenu.structure'),
       items: structureItems(registry, ctx),
       run: () => {},
-    });
-  }
-  return items;
+    },
+  ];
 }

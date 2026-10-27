@@ -31,7 +31,7 @@ const cmd = (commandId: string): MenuItemSpec => ({ kind: 'command', commandId }
 /**
  * *Table structure* (feature 006, FR-039; data-model §9.1, §9.2): the 24 table commands in the
  * eight groups of FR-039, separators between them - rows, columns, merge and split, header
- * cells, repair, whole tables, move and duplicate, paragraphs. The one list of the Add menu's
+ * cells, repair, whole tables, move and duplicate, paragraphs. The one list of the Edit menu's
  * submenu and of the context menus' *Table structure* submenus.
  */
 export const TABLE_STRUCTURE_ITEMS: readonly MenuItemSpec[] = [
@@ -128,6 +128,15 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('edit.split'),
       cmd('edit.merge'),
       cmd('edit.removeOuter'),
+      sep,
+      // *Table structure* (feature 006, FR-039): the table commands edit a table, so they live in
+      // the Edit menu, not the Add menu (requester, issue #6).
+      {
+        kind: 'submenu',
+        id: 'tableStructure',
+        labelKey: 'menu.edit.tableStructure',
+        items: TABLE_STRUCTURE_ITEMS,
+      },
     ],
   },
   {
@@ -166,13 +175,6 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('insert.poem'),
       cmd('insert.cite'),
       cmd('insert.table'),
-      // *Table structure* (feature 006, FR-039): the table commands, right after *Table*.
-      {
-        kind: 'submenu',
-        id: 'tableStructure',
-        labelKey: 'menu.add.tableStructure',
-        items: TABLE_STRUCTURE_ITEMS,
-      },
       cmd('insert.sectionImage'),
       sep,
       cmd('insert.binary'),

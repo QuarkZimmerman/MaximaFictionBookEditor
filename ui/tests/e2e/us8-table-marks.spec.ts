@@ -410,12 +410,12 @@ function markedRefs(page: Page): Promise<(string | null)[]> {
     );
 }
 
-/** The entry of *Add → Table structure* for the command `commandId`, its submenu open. */
+/** The entry of *Edit → Table structure* for the command `commandId`, its submenu open. */
 async function structureEntry(page: Page, commandId: string): Promise<Locator> {
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
-  return page.getByTestId(`menu-add-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+  return page.getByTestId(`menu-edit-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
 }
 
 async function closeMenus(page: Page, popup: string): Promise<void> {
@@ -921,7 +921,7 @@ test.describe('US8 (feature 006) - irregular tables are marked, in the Body view
     await expect(page.getByTestId(`tree-row-${ref}-mark`)).toHaveCount(1);
     await caretIn(page, firstCell(model).attrs!.nodeId!, 1);
     await expect(await structureEntry(page, 'table.repair')).not.toHaveAttribute('aria-disabled');
-    await closeMenus(page, 'menu-add-popup');
+    await closeMenus(page, 'menu-edit-popup');
     await menu(page, 'edit', 'redo');
     await expect.poll(() => toXml(page)).toBe(after);
     await expect(element).not.toHaveAttribute('data-irregular');

@@ -419,11 +419,11 @@ async function caretIn(page: Page, nodeId: string, offset = 1): Promise<void> {
   expect(placed, `the caret in ${nodeId}`).toBe(true);
 }
 
-/** Runs a table command from *Add → Table structure* (`menu-add-tableStructure-<name>`). */
+/** Runs a table command from *Edit → Table structure* (`menu-edit-tableStructure-<name>`). */
 async function structure(page: Page, name: string): Promise<void> {
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  const entry = page.getByTestId(`menu-add-tableStructure-${name}`);
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  const entry = page.getByTestId(`menu-edit-tableStructure-${name}`);
   await expect(entry).not.toHaveAttribute('aria-disabled');
   await entry.click();
 }
@@ -1432,7 +1432,7 @@ test.describe('US11 (006) - the AI assistant edits tables reliably', () => {
     );
   });
 
-  test('U15 the run lock: while a request waits, Add → Table structure → Insert row above is unavailable with the assistant’s reason, and enabled again after the answer', async ({
+  test('U15 the run lock: while a request waits, Edit → Table structure → Insert row above is unavailable with the assistant’s reason, and enabled again after the answer', async ({
     core,
     page,
     standin,
@@ -1445,10 +1445,10 @@ test.describe('US11 (006) - the AI assistant edits tables reliably', () => {
     await input(page).fill('wait a moment');
     await input(page).press('Enter');
     await expect(banner(page)).toBeVisible();
-    await page.getByTestId('menu-add').click();
-    await expect(page.getByTestId('menu-add-popup')).toBeVisible();
-    await page.getByTestId('menu-add-tableStructure').hover();
-    const entry = page.getByTestId('menu-add-tableStructure-insertRowAbove');
+    await page.getByTestId('menu-edit').click();
+    await expect(page.getByTestId('menu-edit-popup')).toBeVisible();
+    await page.getByTestId('menu-edit-tableStructure').hover();
+    const entry = page.getByTestId('menu-edit-tableStructure-insertRowAbove');
     const reason = await pageText(page, 'commands.unavailable.title', {
       command: await pageText(page, 'tables.cmd.insertRowAbove.tooltip'),
       reason: await pageText(page, 'commands.unavailable.runLock.ai'),
@@ -1459,10 +1459,10 @@ test.describe('US11 (006) - the AI assistant edits tables reliably', () => {
     await closeMenus(page);
     await expect(banner(page)).toHaveCount(0, { timeout: 30_000 });
     await caretIn(page, cellId(t1, 'r2c1'));
-    await page.getByTestId('menu-add').click();
-    await expect(page.getByTestId('menu-add-popup')).toBeVisible();
-    await page.getByTestId('menu-add-tableStructure').hover();
-    await expect(page.getByTestId('menu-add-tableStructure-insertRowAbove')).not.toHaveAttribute(
+    await page.getByTestId('menu-edit').click();
+    await expect(page.getByTestId('menu-edit-popup')).toBeVisible();
+    await page.getByTestId('menu-edit-tableStructure').hover();
+    await expect(page.getByTestId('menu-edit-tableStructure-insertRowAbove')).not.toHaveAttribute(
       'aria-disabled',
     );
     await closeMenus(page);

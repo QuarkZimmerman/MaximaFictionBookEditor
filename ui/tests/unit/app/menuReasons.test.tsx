@@ -29,7 +29,7 @@ const MENUS: readonly MenuSpec[] = [
       {
         kind: 'submenu',
         id: 'sub',
-        labelKey: 'menu.add.tableStructure',
+        labelKey: 'menu.edit.tableStructure',
         items: [{ kind: 'command', commandId: 'test.nested' }],
       },
     ],

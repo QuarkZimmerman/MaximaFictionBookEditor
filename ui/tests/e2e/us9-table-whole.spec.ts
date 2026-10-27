@@ -251,30 +251,30 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
 }
 
 /**
- * The test ids of user story 9's four entries in *Add → Table structure*, written out: the
+ * The test ids of user story 9's four entries in *Edit → Table structure*, written out: the
  * evidence of their rows in `docs/parity-matrix.md` (`tools/parity-check.mjs`).
  */
 const US9_ENTRIES: Readonly<Record<string, string>> = {
-  select: 'menu-add-tableStructure-select',
-  delete: 'menu-add-tableStructure-delete',
-  paragraphBefore: 'menu-add-tableStructure-paragraphBefore',
-  paragraphAfter: 'menu-add-tableStructure-paragraphAfter',
+  select: 'menu-edit-tableStructure-select',
+  delete: 'menu-edit-tableStructure-delete',
+  paragraphBefore: 'menu-edit-tableStructure-paragraphBefore',
+  paragraphAfter: 'menu-edit-tableStructure-paragraphAfter',
 };
 
-/** The test id of the entry of *Add → Table structure* for the command `name`. */
+/** The test id of the entry of *Edit → Table structure* for the command `name`. */
 function entryId(name: string): string {
-  return US9_ENTRIES[name] ?? `menu-add-tableStructure-${name}`;
+  return US9_ENTRIES[name] ?? `menu-edit-tableStructure-${name}`;
 }
 
-/** The entry of *Add → Table structure* for the command `name`, its submenu open. */
+/** The entry of *Edit → Table structure* for the command `name`, its submenu open. */
 async function structureEntry(page: Page, name: string): Promise<Locator> {
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
   return page.getByTestId(entryId(name));
 }
 
-/** Runs `name` from *Add → Table structure*: `menu-add-tableStructure-<name>`. */
+/** Runs `name` from *Edit → Table structure*: `menu-edit-tableStructure-<name>`. */
 async function structure(page: Page, name: string): Promise<void> {
   const entry = await structureEntry(page, name);
   await expect(entry).not.toHaveAttribute('aria-disabled');
@@ -285,7 +285,7 @@ async function structure(page: Page, name: string): Promise<void> {
 async function closeMenus(page: Page): Promise<void> {
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('menu-add-popup')).toHaveCount(0);
+  await expect(page.getByTestId('menu-edit-popup')).toHaveCount(0);
 }
 
 /** `tables.fb2` (or another book) through File → Open and the queued native dialog. */

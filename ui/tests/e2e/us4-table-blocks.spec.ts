@@ -237,12 +237,12 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
   await page.getByTestId(`menu-${menuId}-${itemId}`).click();
 }
 
-/** The entry of *Add → Table structure* for the command `commandId`, its submenu open. */
+/** The entry of *Edit → Table structure* for the command `commandId`, its submenu open. */
 async function structureEntry(page: Page, commandId: string): Promise<Locator> {
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
-  return page.getByTestId(`menu-add-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+  return page.getByTestId(`menu-edit-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
 }
 
 /** `tables.fb2` through File → Open and the queued native dialog; the hooks ready. */
@@ -398,7 +398,7 @@ async function shiftBlock(page: Page, target: Scenario, from: string, to: string
   await expect.poll(() => highlighted(page)).toContain(target.cell(to));
 }
 
-/** Runs `commandId` from *Add → Table structure*: `menu-add-tableStructure-<name>`. */
+/** Runs `commandId` from *Edit → Table structure*: `menu-edit-tableStructure-<name>`. */
 async function structure(page: Page, commandId: string): Promise<void> {
   const entry = await structureEntry(page, commandId);
   await expect(entry).not.toHaveAttribute('aria-disabled');
@@ -743,7 +743,7 @@ test.describe('US4 (feature 006) - blocks of cells', () => {
     await expect(entry).toHaveAttribute('aria-description', title);
     await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('menu-add-popup')).toHaveCount(0);
+    await expect(page.getByTestId('menu-edit-popup')).toHaveCount(0);
   });
 
   test('sc.6: a copied block overwrites the cells from the caret by position, from r3c3 it grows the table; a used id is dropped', async ({

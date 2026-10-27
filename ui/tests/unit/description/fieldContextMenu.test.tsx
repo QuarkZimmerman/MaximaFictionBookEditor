@@ -91,12 +91,11 @@ const EDIT_ENTRIES = [
 ];
 
 describe('the context menu of a rich field (feature 006, US10)', () => {
-  it('in a paragraph: the four edit entries, then Table…; in a cell also Inline image… and Table structure', async () => {
+  it('in a paragraph: the four edit entries only (issue #8: no Table…); in a cell also Inline image… and Table structure', async () => {
     const { harness, field } = await setup();
     const paragraph = openMenu(harness, field, clickAt(field, `${ID}-p`, 2));
-    expect(topLevel(paragraph.menu)).toEqual([...EDIT_ENTRIES, '|', 'context-menu-insert.table']);
-    expect(screen.getByTestId('context-menu-insert.table')).toHaveTextContent('Table...');
-    expect(screen.getByTestId('context-menu-insert.table')).not.toHaveAttribute('aria-disabled');
+    expect(topLevel(paragraph.menu)).toEqual(EDIT_ENTRIES);
+    expect(screen.queryByTestId('context-menu-insert.table')).toBeNull();
     cleanup();
     const cell = openMenu(harness, field, clickAt(field, `${ID}-t-1-0`, 2));
     expect(topLevel(cell.menu)).toEqual([
@@ -104,7 +103,6 @@ describe('the context menu of a rich field (feature 006, US10)', () => {
       '|',
       'context-menu-insert.inlineImage',
       '|',
-      'context-menu-insert.table',
       'context-menu-tableStructure',
     ]);
     expect(screen.getByTestId('context-menu-insert.inlineImage')).toHaveTextContent(
@@ -114,18 +112,15 @@ describe('the context menu of a rich field (feature 006, US10)', () => {
       'aria-disabled',
     );
     expect(screen.getByTestId('context-menu-tableStructure')).toHaveTextContent('Table structure');
+    expect(screen.queryByTestId('context-menu-insert.table')).toBeNull();
   });
 
-  it('Table… is judged at the clicked point and says why it is unavailable: the field read-only gives noTarget', async () => {
+  it('offers no Table… entry while the field is read-only either (issue #8)', async () => {
     const { harness, field } = await setup();
     field.lock.readOnly = true;
-    openMenu(harness, field, clickAt(field, `${ID}-p`, 1));
-    const table = screen.getByTestId('context-menu-insert.table');
-    expect(table).toHaveAttribute('aria-disabled', 'true');
-    expect(table).toHaveAttribute(
-      'title',
-      'Insert table: place the caret in the Body view, in an annotation or history field, or in the Source view',
-    );
+    const { menu } = openMenu(harness, field, clickAt(field, `${ID}-p`, 1));
+    expect(topLevel(menu)).toEqual(EDIT_ENTRIES);
+    expect(screen.queryByTestId('context-menu-insert.table')).toBeNull();
   });
 
   it('Table structure lists the 24 table commands in FR-039’s order with seven separators; no entry of the section carries an accelerator (U12)', async () => {
@@ -144,11 +139,7 @@ describe('the context menu of a rich field (feature 006, US10)', () => {
     );
     expect(entries).toHaveLength(24);
     expect(within(popup).getAllByRole('separator')).toHaveLength(7);
-    for (const id of [
-      'context-menu-insert.inlineImage',
-      'context-menu-insert.table',
-      'context-menu-tableStructure',
-    ]) {
+    for (const id of ['context-menu-insert.inlineImage', 'context-menu-tableStructure']) {
       expect(screen.getByTestId(id).querySelector('u'), id).toBeNull();
     }
     for (const entry of entries) expect(entry.querySelector('u')).toBeNull();

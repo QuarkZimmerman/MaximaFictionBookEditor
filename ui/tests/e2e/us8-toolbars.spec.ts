@@ -637,7 +637,6 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
       ...(await Promise.all(
         sourceEntries.map((entry) => pageText(page, `source.contextMenu.${entry}`)),
       )),
-      await pageText(page, 'tables.contextMenu.table'),
     ]);
     await page.getByTestId('source-context-menu-selectAll').click();
     await source.click({ button: 'right' });

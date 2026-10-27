@@ -411,12 +411,12 @@ async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
   await page.getByTestId(`menu-${menuId}-${itemId}`).click();
 }
 
-/** Runs `name` from *Add → Table structure*: `menu-add-tableStructure-<name>`. */
+/** Runs `name` from *Edit → Table structure*: `menu-edit-tableStructure-<name>`. */
 async function structure(page: Page, name: string): Promise<void> {
-  await page.getByTestId('menu-add').click();
-  await page.getByTestId('menu-add-tableStructure').click();
-  await expect(page.getByTestId('menu-add-tableStructure-popup')).toBeVisible();
-  const entry = page.getByTestId(`menu-add-tableStructure-${name}`);
+  await page.getByTestId('menu-edit').click();
+  await page.getByTestId('menu-edit-tableStructure').click();
+  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+  const entry = page.getByTestId(`menu-edit-tableStructure-${name}`);
   await expect(entry).not.toHaveAttribute('aria-disabled');
   await entry.click();
 }

@@ -6,7 +6,7 @@
  * right-click rule; and an Edit letter running its entry.
  */
 
-import { act, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TextSelection } from 'prosemirror-state';
 
@@ -85,30 +85,28 @@ describe('the Body context menu', () => {
       'context-menu-select-1',
     ]);
     expect(screen.getByTestId('context-menu-select-5')).toHaveTextContent('Select td');
-    // The table section comes last, after a separator, and holds nothing else.
-    expect(ids.slice(-3)).toEqual([
-      '|',
-      'context-menu-insert.table',
-      'context-menu-tableStructure',
-    ]);
-    expect(screen.getByTestId('context-menu-insert.table')).toHaveTextContent('Table...');
+    // The table section comes last, after a separator: Table structure only (issue #8: no
+    // Table…, inserting a table is an Add-menu operation).
+    expect(ids.slice(-2)).toEqual(['|', 'context-menu-tableStructure']);
+    expect(screen.queryByTestId('context-menu-insert.table')).toBeNull();
     expect(screen.getByTestId('context-menu-tableStructure')).toHaveTextContent('Table structure');
-    // The Edit entries' letters are live (underlined); the section's entries carry none.
+    // The Edit entries' letters are live (underlined); the section's entry carries none.
     expect(within(screen.getByTestId('context-menu-edit.cut')).getByText('t').tagName).toBe('U');
     expect(
-      within(screen.getByTestId('context-menu-insert.table')).queryByText(
+      within(screen.getByTestId('context-menu-tableStructure')).queryByText(
         (_, el) => el?.tagName === 'U',
       ),
     ).toBeNull();
   });
 
-  it('shows Table… for a click outside a table, without Table structure', async () => {
+  it('has no table section for a click outside a table (issue #8: no Table…)', async () => {
     const harness = await tablesHarness();
     const click = clickAt(harness, 'p1');
     contextMenuExtensions.prepare!(harness.controller, click);
     const { menu } = openMenu(harness, click);
     const ids = topLevel(menu);
-    expect(ids.slice(-2)).toEqual(['|', 'context-menu-insert.table']);
+    expect(ids).not.toContain('context-menu-insert.table');
+    expect(ids.at(-1)).not.toBe('|');
     expect(screen.queryByTestId('context-menu-tableStructure')).toBeNull();
   });
 
@@ -255,85 +253,29 @@ describe('the Body context menu', () => {
     expect(execute).toHaveBeenCalledWith('edit.copy', expect.anything());
   });
 
-  /** The harness's book with a body title (`btp`), where no table may stand. */
-  function bookWithTitle() {
-    const doc = tableDocument();
-    (doc.bodies[0]!.content as unknown[]).unshift({
-      type: 'title',
-      attrs: { nodeId: 'bt' },
-      content: [{ type: 'p', attrs: { nodeId: 'btp' }, content: [{ type: 'text', text: 'Book' }] }],
-    });
-    return doc;
-  }
-
-  it('judges Table… at the clicked point: enabled in a paragraph with the caret in the body title, disabled with its reason in the title', async () => {
-    const harness = await tablesHarness(bookWithTitle());
+  it('offers Table… nowhere (issue #8): not in a paragraph, not in a cell, not with a selection', async () => {
+    const harness = await tablesHarness();
     const { controller } = harness;
+    for (const [id, offset] of [
+      ['p1', 3],
+      ['t1-1-1', 0],
+    ] as const) {
+      const click = clickAt(harness, id, offset);
+      contextMenuExtensions.prepare!(controller, click);
+      const { menu } = openMenu(harness, click);
+      expect(topLevel(menu)).not.toContain('context-menu-insert.table');
+      cleanup();
+    }
     const doc = controller.editorState!.doc;
-    act(() => select(harness, TextSelection.create(doc, posOf(harness, 'btp') + 2)));
-    const caret = controller.editorState!.selection;
-    const click = clickAt(harness, 'p1', 3);
-    contextMenuExtensions.prepare!(controller, click);
-    openMenu(harness, click);
-    const entry = screen.getByTestId('context-menu-insert.table');
-    expect(entry).not.toHaveAttribute('aria-disabled');
-    // Opening the menu moves nothing.
-    expect(controller.editorState!.selection.eq(caret)).toBe(true);
-  });
-
-  it('shows Table… disabled with the noTablePlace title for a click in the body title', async () => {
-    const harness = await tablesHarness(bookWithTitle());
-    const { controller } = harness;
     act(() =>
-      select(harness, TextSelection.create(controller.editorState!.doc, posOf(harness, 'p1') + 2)),
+      select(
+        harness,
+        TextSelection.create(doc, posOf(harness, 'p1') + 1, posOf(harness, 'p1') + 4),
+      ),
     );
-    const click = clickAt(harness, 'btp', 2);
+    const click = clickAt(harness, 'p1', 2);
     contextMenuExtensions.prepare!(controller, click);
     openMenu(harness, click);
-    const entry = screen.getByTestId('context-menu-insert.table');
-    expect(entry).toHaveAttribute('aria-disabled', 'true');
-    expect(entry).toHaveAttribute('title', 'Insert table: no table may stand here');
-    expect(entry).toHaveAttribute('aria-description', 'Insert table: no table may stand here');
-  });
-
-  it('running Table… moves the caret to the click first and opens the dialog', async () => {
-    const harness = await tablesHarness(bookWithTitle());
-    const user = userEvent.setup();
-    const { controller } = harness;
-    act(() =>
-      select(harness, TextSelection.create(controller.editorState!.doc, posOf(harness, 'btp') + 2)),
-    );
-    const openCustom = vi.spyOn(harness.services.dialogs, 'openCustom').mockResolvedValue(null);
-    const entries = harness.services.undo.entries().length;
-    const click = clickAt(harness, 'p1', 3);
-    contextMenuExtensions.prepare!(controller, click);
-    openMenu(harness, click);
-    await user.click(screen.getByTestId('context-menu-insert.table'));
-    expect(openCustom).toHaveBeenCalledTimes(1);
-    const selection = controller.editorState!.selection;
-    expect(selection.empty).toBe(true);
-    expect(selection.head).toBe(click.pos);
-    // A selection change only: no undo step (the dialog was cancelled).
-    expect(harness.services.undo.entries().length).toBe(entries);
-  });
-
-  it('keeps a non-empty selection for a click inside it and judges its end', async () => {
-    const harness = await tablesHarness(bookWithTitle());
-    const user = userEvent.setup();
-    const { controller } = harness;
-    const doc = controller.editorState!.doc;
-    // From the body title into p1: the click in the title lies inside the selection, whose end
-    // in p1 takes a table.
-    const kept = TextSelection.create(doc, posOf(harness, 'btp') + 2, posOf(harness, 'p1') + 3);
-    act(() => select(harness, kept));
-    const openCustom = vi.spyOn(harness.services.dialogs, 'openCustom').mockResolvedValue(null);
-    const click = clickAt(harness, 'btp', 3);
-    contextMenuExtensions.prepare!(controller, click);
-    openMenu(harness, click);
-    const entry = screen.getByTestId('context-menu-insert.table');
-    expect(entry).not.toHaveAttribute('aria-disabled');
-    await user.click(entry);
-    expect(openCustom).toHaveBeenCalledTimes(1);
-    expect(controller.editorState!.selection.eq(kept)).toBe(true);
+    expect(screen.queryByTestId('context-menu-insert.table')).toBeNull();
   });
 });
