@@ -336,7 +336,16 @@ test.describe('US8 - the interface in Russian (?lang=ru)', () => {
           problems.push(...russianProblems(label, testId, strict));
         }
         itemCount += 1;
-        if ((await item.getAttribute('aria-haspopup')) === 'true') {
+        // A submenu without an available command (Edit → Table structure outside a table) is
+        // disabled and opens nothing: the reason in its tooltip must be Russian too.
+        if (
+          (await item.getAttribute('aria-haspopup')) === 'true' &&
+          (await item.getAttribute('aria-disabled')) === 'true'
+        ) {
+          problems.push(
+            ...russianProblems((await item.getAttribute('title')) ?? '', `${testId} title`, true),
+          );
+        } else if ((await item.getAttribute('aria-haspopup')) === 'true') {
           await item.hover();
           const submenu = page.getByTestId(`${testId}-popup`);
           await expect(submenu).toBeVisible();

@@ -549,6 +549,12 @@ async function walkMenus(page: Page, lang: UiLang): Promise<{ problems: string[]
       const item = submenus.nth(index);
       const itemId = (await item.getAttribute('data-testid')) ?? '';
       if (isDynamicMenuEntry(itemId)) continue;
+      // A submenu without an available command (Edit → Table structure outside a table) is
+      // disabled and opens nothing: its own texts, the reason in its tooltip included, are checked.
+      if ((await item.getAttribute('aria-disabled')) === 'true') {
+        problems.push(...(await walkProblems(page, lang, itemId, `disabled submenu ${itemId}`)));
+        continue;
+      }
       await item.hover();
       const submenuId = `${itemId}-popup`;
       await expect(page.getByTestId(submenuId)).toBeVisible();
