@@ -766,18 +766,28 @@ function stateOf(page: Page, testId: string): Promise<EntryState> {
   })()`);
 }
 
-/** *Add → Table* and the 24 entries of *Edit → Table structure*; the menus closed again. */
-async function menuStates(page: Page): Promise<{ insert: EntryState; entries: EntryState[] }> {
+/**
+ * *Add → Table*, *Edit → Table structure* itself and, while it is available, its 24 entries; the
+ * menus closed again. Without an available table command the submenu is disabled and opens
+ * nothing, so `entries` is empty.
+ */
+async function menuStates(
+  page: Page,
+): Promise<{ insert: EntryState; submenu: EntryState; entries: EntryState[] }> {
   await page.getByTestId('menu-add').click();
   await expect(page.getByTestId('menu-add-table')).toBeVisible();
   const insert = await stateOf(page, 'menu-add-table');
   await closeMenus(page);
   await page.getByTestId('menu-edit').click();
-  await page.getByTestId('menu-edit-tableStructure').click();
-  await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
-  const entries = await popupEntries(page, 'menu-edit-tableStructure-popup');
+  const submenu = await stateOf(page, 'menu-edit-tableStructure');
+  let entries: EntryState[] = [];
+  if (!submenu.disabled) {
+    await page.getByTestId('menu-edit-tableStructure').click();
+    await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+    entries = await popupEntries(page, 'menu-edit-tableStructure-popup');
+  }
   await closeMenus(page);
-  return { insert, entries };
+  return { insert, submenu, entries };
 }
 
 /**
@@ -858,9 +868,20 @@ async function expectSurfaces(page: Page, located: Located, lang: UiLang): Promi
       (id) => id === 'context-menu-insert.table' || id === 'context-menu-tableStructure',
     ),
   ).toEqual(inTable ? ['context-menu-tableStructure'] : []);
-  expect(fromMenu.entries.map((entry) => entry.id)).toEqual(
-    FR039.map((name) => `menu-edit-tableStructure-${name}`),
-  );
+  if (fromMenu.submenu.disabled) {
+    // No table command is available here: Edit → Table structure is disabled with its first
+    // command's reason and opens nothing; every table button is unavailable too.
+    expect(inTable, 'Table structure is unavailable only outside a table').toBe(false);
+    expect(
+      reasons.has(fromMenu.submenu.title ?? ''),
+      `Table structure: "${fromMenu.submenu.title}"`,
+    ).toBe(true);
+    for (const name of FR039) expect(buttons.get(`table.${name}`)!.disabled, name).toBe(true);
+  } else {
+    expect(fromMenu.entries.map((entry) => entry.id)).toEqual(
+      FR039.map((name) => `menu-edit-tableStructure-${name}`),
+    );
+  }
   if (fromContext.entries) {
     expect(fromContext.entries.map((entry) => entry.id)).toEqual(
       FR039.map((name) => `context-menu-tableStructure-${name}`),
@@ -893,15 +914,17 @@ async function expectSurfaces(page: Page, located: Located, lang: UiLang): Promi
     expect(button.title, `${what}: the button`).toBe(entry.title);
     expect(button.description?.endsWith(entry.title!), `${what}: the button`).toBe(true);
   };
-  FR039.forEach((name, index) =>
-    compare(
-      name,
-      `tables.cmd.${name}.tooltip`,
-      fromMenu.entries[index]!,
-      [fromContext.entries?.[index]],
-      buttons.get(`table.${name}`)!,
-    ),
-  );
+  if (!fromMenu.submenu.disabled) {
+    FR039.forEach((name, index) =>
+      compare(
+        name,
+        `tables.cmd.${name}.tooltip`,
+        fromMenu.entries[index]!,
+        [fromContext.entries?.[index]],
+        buttons.get(`table.${name}`)!,
+      ),
+    );
+  }
   compare(
     'insert.table',
     'cmd.insert.table.tooltip',
@@ -1531,22 +1554,11 @@ test.describe('Feature 006 - every table command from every surface', () => {
     /** Every entry of *Table structure* unavailable with the lock's reason; *Table* too. */
     const expectLocked = async (kind: 'script' | 'ai') => {
       const reason = uiText(lang, `commands.unavailable.runLock.${kind}`);
-      const { insert, entries } = await menuStates(page);
+      const { insert, submenu } = await menuStates(page);
       expect(insert.disabled, 'Add → Table').toBe(true);
-      expect(entries).toEqual(
-        FR039.map((name) => {
-          const title = uiText(lang, 'commands.unavailable.title', {
-            command: uiText(lang, `tables.cmd.${name}.tooltip`),
-            reason,
-          });
-          return {
-            id: `menu-edit-tableStructure-${name}`,
-            disabled: true,
-            title,
-            description: title,
-          };
-        }),
-      );
+      // Every table command is locked, so the submenu is disabled with the lock's reason.
+      expect(submenu.disabled, 'Edit → Table structure').toBe(true);
+      expect(submenu.title, 'Edit → Table structure').toBe(reason);
     };
     /** A right-click on `cell` opens no context menu. */
     const noContextMenu = async (cell: Locator) => {

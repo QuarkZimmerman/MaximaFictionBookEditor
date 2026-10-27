@@ -866,18 +866,16 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
       // Table structure lives in the Edit menu (issue #6).
       await page.keyboard.press('Escape');
       await page.getByTestId('menu-edit').click();
-      await page.getByTestId('menu-edit-tableStructure').hover();
-      await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
-      const insertRow = page.getByTestId('menu-edit-tableStructure-insertRowBelow');
-      await expect(insertRow).toHaveAttribute('aria-disabled', 'true');
-      await expect(insertRow).toHaveAttribute(
+      // No table command acts in a paragraph: the submenu is disabled with the reason and opens
+      // nothing.
+      const structure = page.getByTestId('menu-edit-tableStructure');
+      await expect(structure).toHaveAttribute('aria-disabled', 'true');
+      await expect(structure).toHaveAttribute(
         'title',
-        await unavailableTitle(
-          page,
-          'tables.cmd.insertRowBelow.tooltip',
-          'tables.reason.notInTable',
-        ),
+        await pageText(page, 'tables.reason.notInTable'),
       );
+      await structure.hover();
+      await expect(page.getByTestId('menu-edit-tableStructure-popup')).toHaveCount(0);
       await closeMenus(page, 'menu-edit-popup');
 
       // The caret in a cell: the table commands and Inline image act on the field's table; the
@@ -904,6 +902,7 @@ test.describe('US10 (feature 006) - tables in the annotation and history fields'
       await page.getByTestId('menu-edit').click();
       await page.getByTestId('menu-edit-tableStructure').hover();
       await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
+      const insertRow = page.getByTestId('menu-edit-tableStructure-insertRowBelow');
       await expect(insertRow).not.toHaveAttribute('aria-disabled', 'true');
       const before = await fieldXml(page, field);
       await insertRow.click();

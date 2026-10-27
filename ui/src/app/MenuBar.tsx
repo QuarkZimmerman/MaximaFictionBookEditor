@@ -138,17 +138,25 @@ function resolveItems(
     }
     const parsed = parseAccelerator(t(spec.labelKey));
     if (spec.kind === 'submenu') {
+      const items = resolveItems(`${menuId}-${spec.id}`, spec.items, spec.dynamic, deps);
+      const enabled = !spec.enabledByItems || items.some((item) => item.enabled);
+      const first = spec.items.find((item) => item.kind === 'command');
+      const reason =
+        !enabled && first?.kind === 'command'
+          ? services.commands.unavailableReason(first.commandId, ctx)
+          : null;
       resolved.push({
         spec,
         testId,
         label: parsed.text,
         accelerator: parsed.key,
         acceleratorIndex: parsed.index,
-        enabled: true,
+        enabled,
         checked: false,
         toggle: false,
         hotkey: undefined,
-        items: resolveItems(`${menuId}-${spec.id}`, spec.items, spec.dynamic, deps),
+        title: reason ?? undefined,
+        items,
       });
       return;
     }
@@ -255,7 +263,7 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
     (item: ResolvedItem, index: number, inSubmenu: boolean) => {
       if (item.spec.kind === 'separator' || item.spec.kind === 'placeholder') return;
       if (item.spec.kind === 'submenu') {
-        if (inSubmenu) return; // nested submenus are not used
+        if (inSubmenu || !item.enabled) return; // nested submenus are not used
         setOpenSubmenu(index);
         setSubHighlight(0);
         return;
@@ -313,7 +321,7 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
       case 'ArrowRight': {
         event.preventDefault();
         const highlighted = openItems[highlight];
-        if (!inSubmenu && highlighted?.spec.kind === 'submenu') {
+        if (!inSubmenu && highlighted?.spec.kind === 'submenu' && highlighted.enabled) {
           setOpenSubmenu(highlight);
           setSubHighlight(0);
           return;
@@ -441,7 +449,7 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
               setSubHighlight(index);
             } else {
               setHighlight(index);
-              if (isSubmenu) {
+              if (isSubmenu && item.enabled) {
                 setOpenSubmenu(index);
                 setSubHighlight(-1);
               } else if (openSubmenu >= 0) {

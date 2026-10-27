@@ -108,6 +108,7 @@ describe('Edit → Table structure (feature 006)', () => {
       id: 'tableStructure',
       labelKey: 'menu.edit.tableStructure',
       items: TABLE_STRUCTURE_ITEMS,
+      enabledByItems: true,
     });
     const add = MAIN_MENU.find((menu) => menu.id === 'add')!;
     expect(add.items.some((item) => item.kind === 'submenu' && item.id === 'tableStructure')).toBe(
@@ -136,7 +137,27 @@ describe('Edit → Table structure (feature 006)', () => {
     expect(entry).toHaveTextContent('Table structure');
     expect(entry.querySelector('u')).toHaveTextContent('b'); // Ta&ble structure
     expect(entry).toHaveAttribute('aria-haspopup', 'true');
+    // No table command is available: the submenu is disabled and opens nothing.
+    expect(entry).toHaveAttribute('aria-disabled', 'true');
     await user.hover(entry);
+    await user.click(entry);
+    expect(screen.queryByTestId('menu-edit-tableStructure-popup')).toBeNull();
+    await user.keyboard('{Escape}');
+    // One live command enables it.
+    act(() => {
+      services.commands.replace({
+        id: 'table.repair',
+        group: 'table',
+        labelKey: 'menu.tableStructure.repair',
+        run: vi.fn(),
+      });
+    });
+    await user.click(screen.getByTestId('menu-edit'));
+    const live = within(screen.getByTestId('menu-edit-popup')).getByTestId(
+      'menu-edit-tableStructure',
+    );
+    expect(live).not.toHaveAttribute('aria-disabled');
+    await user.hover(live);
     const popup = screen.getByTestId('menu-edit-tableStructure-popup');
     const entries = within(popup).getAllByRole('menuitem');
     expect(entries.map((item) => item.dataset.testid)).toEqual(
@@ -145,7 +166,13 @@ describe('Edit → Table structure (feature 006)', () => {
     expect(entries.map((item) => item.querySelector('.mfbe-menu-label')!.textContent)).toEqual(
       ENGLISH_LABELS,
     );
-    for (const item of entries) expect(item).toHaveAttribute('aria-disabled', 'true');
+    for (const item of entries) {
+      if (item.dataset.testid === 'menu-edit-tableStructure-repair') {
+        expect(item).not.toHaveAttribute('aria-disabled');
+      } else {
+        expect(item).toHaveAttribute('aria-disabled', 'true');
+      }
+    }
     expect(
       within(popup).getByTestId('menu-edit-tableStructure-insertRowBelow'),
     ).toBeInTheDocument();

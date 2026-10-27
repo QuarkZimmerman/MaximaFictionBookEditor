@@ -13,6 +13,11 @@ export type MenuItemSpec =
       labelKey: string;
       items: readonly MenuItemSpec[];
       dynamic?: string;
+      /**
+       * Enabled only while one of its commands is, and then it tells why with its first command's
+       * reason (feature 006: *Table structure*).
+       */
+      enabledByItems?: boolean;
     }
   /** Informational disabled entry such as "No scripts found". */
   | { kind: 'placeholder'; id: string; labelKey: string };
@@ -136,6 +141,7 @@ export const MAIN_MENU: readonly MenuSpec[] = [
         id: 'tableStructure',
         labelKey: 'menu.edit.tableStructure',
         items: TABLE_STRUCTURE_ITEMS,
+        enabledByItems: true,
       },
     ],
   },

@@ -881,10 +881,11 @@ test.describe('US5 (feature 006) - merge and split cells', () => {
     );
     expect(placed).toBe(true);
     await expect(page.locator('.mfbe-cell-selected')).toHaveCount(0);
-    await unavailable(
-      await structureEntry(page, 'table.mergeCells'),
-      'Merge cells: the selection reaches outside the table',
-    );
+    // Every table command is unavailable here, so the submenu is disabled with the reason.
+    await page.getByTestId('menu-edit').click();
+    const structure = page.getByTestId('menu-edit-tableStructure');
+    await expect(structure).toHaveAttribute('aria-disabled', 'true');
+    await expect(structure).toHaveAttribute('title', 'the selection reaches outside the table');
     await closeMenus(page, 'menu-edit-popup');
     // Nothing of it changed the book.
     expect(await toXml(page)).toBe(fixture);

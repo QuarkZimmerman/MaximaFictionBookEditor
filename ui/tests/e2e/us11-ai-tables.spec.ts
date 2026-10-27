@@ -1447,15 +1447,14 @@ test.describe('US11 (006) - the AI assistant edits tables reliably', () => {
     await expect(banner(page)).toBeVisible();
     await page.getByTestId('menu-edit').click();
     await expect(page.getByTestId('menu-edit-popup')).toBeVisible();
-    await page.getByTestId('menu-edit-tableStructure').hover();
-    const entry = page.getByTestId('menu-edit-tableStructure-insertRowAbove');
-    const reason = await pageText(page, 'commands.unavailable.title', {
-      command: await pageText(page, 'tables.cmd.insertRowAbove.tooltip'),
-      reason: await pageText(page, 'commands.unavailable.runLock.ai'),
-    });
-    await expect(entry).toHaveAttribute('aria-disabled', 'true');
-    await expect(entry).toHaveAttribute('title', reason);
-    await expect(entry).toHaveAttribute('aria-description', reason);
+    // Every table command waits for the request, so the submenu is disabled with the lock's
+    // reason.
+    const structure = page.getByTestId('menu-edit-tableStructure');
+    await expect(structure).toHaveAttribute('aria-disabled', 'true');
+    await expect(structure).toHaveAttribute(
+      'title',
+      await pageText(page, 'commands.unavailable.runLock.ai'),
+    );
     await closeMenus(page);
     await expect(banner(page)).toHaveCount(0, { timeout: 30_000 });
     await caretIn(page, cellId(t1, 'r2c1'));

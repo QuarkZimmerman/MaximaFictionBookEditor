@@ -736,14 +736,12 @@ test.describe('US4 (feature 006) - blocks of cells', () => {
     expect(placed).toBe(true);
     // No block: no element carries the block's class.
     await expect(page.locator('.mfbe-cell-selected')).toHaveCount(0);
-    // A block command (Delete row, live since US2) is unavailable with the reason
-    // `mixedSelection` (data-model §9.6).
-    const entry = await structureEntry(page, 'table.deleteRow');
-    const title = 'Delete row: the selection reaches outside the table';
-    await expect(entry).toHaveAttribute('aria-disabled', 'true');
-    await expect(entry).toHaveAttribute('title', title);
-    await expect(entry).toHaveAttribute('aria-description', title);
-    await page.keyboard.press('Escape');
+    // Every table command is unavailable with the reason `mixedSelection` (data-model §9.6), so
+    // Edit → Table structure is disabled with that reason and opens nothing.
+    await page.getByTestId('menu-edit').click();
+    const structure = page.getByTestId('menu-edit-tableStructure');
+    await expect(structure).toHaveAttribute('aria-disabled', 'true');
+    await expect(structure).toHaveAttribute('title', 'the selection reaches outside the table');
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('menu-edit-popup')).toHaveCount(0);
   });

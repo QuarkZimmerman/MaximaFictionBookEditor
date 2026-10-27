@@ -131,7 +131,8 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 ### Changed
 
 - The *Table structure* submenu moved from the Add menu to the Edit menu, since its commands edit
-  a table rather than add anything (issue #6).
+  a table rather than add anything (issue #6) It is unavailable, with the reason as its tooltip, while none of
+  its commands is - outside a table, for example.
 - *Table...* is no longer offered in the right-click menus of the Body view, the Source view and
   the description fields; a table is inserted through *Add → Table*, its toolbar button or its
   hotkey. A click in a table still offers *Table structure* there (issue #8).
