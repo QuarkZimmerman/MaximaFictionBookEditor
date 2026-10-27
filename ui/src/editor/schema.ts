@@ -29,6 +29,8 @@ import {
   type TagParseRule,
 } from 'prosemirror-model';
 
+import type { Document } from '@/model/document';
+
 /* ------------------------------------------------------------------------ */
 /* Name mapping                                                             */
 /* ------------------------------------------------------------------------ */
@@ -438,7 +440,9 @@ const nodes: Record<string, NodeSpec> = {
 function cellSpec(tag: 'td' | 'th'): NodeSpec {
   return {
     content: INLINE,
-    attrs: optional('id', 'style', 'colspan', 'rowspan', 'align', 'valign'),
+    // `lang` is the cell's xml:lang (feature 006, FR-020; document-model §1.1): declared, so a
+    // model cell's `lang` lands in `node.attrs.lang`, not in `extraAttrs`.
+    attrs: optional('id', 'style', 'colspan', 'rowspan', 'align', 'valign', 'lang'),
     isolating: true,
     toDOM(node) {
       const attrs = domAttrs(node, `fb-${tag}`, {
@@ -499,12 +503,39 @@ function parseRawXmlAttrs(dom: HTMLElement | string): Attrs | null {
 /* Marks (canonical order = rank order)                                     */
 /* ------------------------------------------------------------------------ */
 
+/** The DOM attribute of a mark's `lang` (its xml:lang): written only when set, `""` included. */
+function langAttr(mark: { attrs: Attrs }): Record<string, string> {
+  const lang = mark.attrs.lang as string | null | undefined;
+  return lang === null || lang === undefined ? {} : { lang: String(lang) };
+}
+
+/**
+ * A formatting mark (`strong` ... `code`) with its `lang`, the element's xml:lang (feature 006,
+ * FR-064; data-model §12.2). Only the editor's own markup (`<tag class=className>`, the first
+ * rule) carries a language: the generic rules after it give none, so foreign HTML never brings
+ * one onto a mark. `excludes: ''`: a node may carry several marks of the kind with different
+ * languages, nested formatting kept as read (FR-069); an equal one is never added twice, and a
+ * new one goes after the node's others of its kind.
+ */
 function simpleMark(tag: string, className: string, parse: ParseRule[]): MarkSpec {
   return {
-    toDOM() {
-      return [tag, { class: className }, 0];
+    attrs: { lang: { default: null } },
+    excludes: '',
+    toDOM(mark) {
+      return [tag, { class: className, ...langAttr(mark) }, 0];
     },
-    parseDOM: parse,
+    parseDOM: [
+      { tag: `${tag}.${className}`, getAttrs: (dom) => ({ lang: dom.getAttribute('lang') }) },
+      ...parse,
+    ],
+  };
+}
+
+/** `href` and `type` of a link element (the editor's own or foreign HTML). */
+function linkAttrsOf(dom: HTMLElement): Attrs {
+  return {
+    href: dom.getAttribute('href') ?? '',
+    type: dom.getAttribute('data-type') ?? (dom.classList.contains('fb-note') ? 'note' : null),
   };
 }
 
@@ -531,39 +562,54 @@ const marks: Record<string, MarkSpec> = {
   sub: simpleMark('sub', 'fb-sub', [{ tag: 'sub' }, { style: 'vertical-align=sub' }]),
   sup: simpleMark('sup', 'fb-sup', [{ tag: 'sup' }, { style: 'vertical-align=super' }]),
   code: simpleMark('code', 'fb-code', [{ tag: 'code' }, { tag: 'tt' }]),
+  // A named style with its `lang` (feature 006, FR-064), both on the editor's own span; nested
+  // styles are all kept, outer first (`excludes: ''`, FR-069).
   style: {
-    attrs: { name: { default: '' } },
+    attrs: { name: { default: '' }, lang: { default: null } },
+    excludes: '',
     toDOM(mark) {
-      return ['span', { class: 'fb-style', 'data-style': String(mark.attrs.name) }, 0];
+      return [
+        'span',
+        { class: 'fb-style', 'data-style': String(mark.attrs.name), ...langAttr(mark) },
+        0,
+      ];
     },
     parseDOM: [
       {
         tag: 'span.fb-style',
-        getAttrs: (dom) => ({ name: dom.getAttribute('data-style') ?? '' }),
+        getAttrs: (dom) => ({
+          name: dom.getAttribute('data-style') ?? '',
+          lang: dom.getAttribute('lang'),
+        }),
       },
     ],
   },
+  // `xlinkType` is the link's xlink:type (feature 006, FR-064): written as `data-xlink-type`
+  // and read back only from the editor's own `a.fb-link`; the generic rule gives none. A link
+  // keeps excluding itself: a node carries at most one (the schema holds no `a` inside `a`).
   link: {
-    attrs: { href: { default: '' }, type: { default: null } },
+    attrs: { href: { default: '' }, type: { default: null }, xlinkType: { default: null } },
     inclusive: false,
     toDOM(mark) {
       const type = mark.attrs.type as string | null;
+      const xlinkType = mark.attrs.xlinkType as string | null;
       const attrs: Record<string, string> = {
         class: type === 'note' ? 'fb-link fb-note' : 'fb-link',
         href: String(mark.attrs.href),
       };
       if (type) attrs['data-type'] = type;
+      if (xlinkType !== null && xlinkType !== undefined) attrs['data-xlink-type'] = xlinkType;
       return ['a', attrs, 0];
     },
     parseDOM: [
       {
-        tag: 'a[href]',
+        tag: 'a.fb-link[href]',
         getAttrs: (dom) => ({
-          href: dom.getAttribute('href') ?? '',
-          type:
-            dom.getAttribute('data-type') ?? (dom.classList.contains('fb-note') ? 'note' : null),
+          ...linkAttrsOf(dom),
+          xlinkType: dom.getAttribute('data-xlink-type'),
         }),
       },
+      { tag: 'a[href]', getAttrs: (dom) => linkAttrsOf(dom) },
     ],
   },
 };
@@ -631,13 +677,80 @@ export function isStructural(type: NodeType | string): boolean {
 /* Node ids                                                                 */
 /* ------------------------------------------------------------------------ */
 
-/** Generates `ui_1`, `ui_2`... (the core re-assigns ids when it re-parses). */
-export function createNodeIdGenerator(prefix = 'ui_'): () => string {
-  let next = 1;
+/**
+ * Generates `<prefix><start>`, `<prefix><start + 1>`... - `ui_1`, `ui_2`... by default (the core
+ * re-assigns ids when it re-parses).
+ */
+export function createNodeIdGenerator(prefix = 'ui_', start = 1): () => string {
+  let next = start;
   return () => `${prefix}${next++}`;
 }
 
 const defaultNodeIds = createNodeIdGenerator();
+
+/**
+ * An `sc_<N>` node id. An N of 16 digits or more is skipped: counting never reaches it, so it
+ * cannot collide with an id the allocator gives, and counting on from it would not be exact.
+ */
+const SCRIPT_NODE_ID = /^sc_(\d{1,15})$/;
+
+/** The model nodes the `sc_<N>` scan walks (a text node has neither member). */
+interface IdNode {
+  attrs?: { nodeId?: unknown };
+  content?: readonly IdNode[];
+}
+
+/**
+ * The highest N of the `sc_<N>` node ids of `document` (0 without one), at any depth of its
+ * bodies and of the three description roots that hold blocks - the annotation of `title-info`
+ * and of `src-title-info` and the history of `document-info` -: where nodes are created.
+ */
+function highestScriptNodeId(document: Document): number {
+  const { titleInfo, srcTitleInfo, documentInfo } = document.description;
+  const pending: IdNode[] = [...document.bodies];
+  for (const root of [titleInfo.annotation, srcTitleInfo?.annotation, documentInfo.history]) {
+    if (root) pending.push(root);
+  }
+  let highest = 0;
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    const id = node.attrs?.nodeId;
+    const match = typeof id === 'string' ? SCRIPT_NODE_ID.exec(id) : null;
+    if (match) highest = Math.max(highest, Number(match[1]));
+    // One push per child: a section of a long book can hold more children than a call takes.
+    for (const child of node.content ?? []) pending.push(child);
+  }
+  return highest;
+}
+
+/**
+ * The `sc_<N>` allocator of an assistant request or a script run (`seededScriptIds`): every
+ * call gives the next id.
+ */
+export interface ScriptNodeIds {
+  (): string;
+  /**
+   * Continues past the highest `sc_<N>` of `document` when that lies at or beyond the next id:
+   * a request's allocator once a nested script run's result - ids of the run's own allocator -
+   * replaces the request's working copy. It never goes back.
+   */
+  continuePast(document: Document): void;
+}
+
+/**
+ * The one `sc_<N>` allocator of the assistant's requests and the script runs (feature 006, I26,
+ * C7; ai-catalogue Δ§3 "Ids of new nodes"): taken at every request start and every script run,
+ * nested runs included, it starts past the highest `sc_<N>` of the document the request or the
+ * run starts from (the request's working copy, for a nested run), so a new node never takes the
+ * id of a node an earlier request or run created. Without one it starts at `sc_1`.
+ */
+export function seededScriptIds(document: Document): ScriptNodeIds {
+  let next = highestScriptNodeId(document) + 1;
+  const ids = (() => `sc_${next++}`) as ScriptNodeIds;
+  ids.continuePast = (later) => {
+    next = Math.max(next, highestScriptNodeId(later) + 1);
+  };
+  return ids;
+}
 
 /**
  * Returns `node` with a `nodeId` on every structural descendant that lacks one. The input is

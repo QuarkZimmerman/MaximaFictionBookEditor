@@ -241,8 +241,10 @@ const AttrSpec& attr_spec(const std::string& type) {
         {"cite", {{"id"}, true, false}},
         {"table", {{"id", "style"}, false, false}},
         {"tr", {{"align"}, false, false}},
-        {"td", {{"id", "style", "colspan", "rowspan", "align", "valign"}, false, false}},
-        {"th", {{"id", "style", "colspan", "rowspan", "align", "valign"}, false, false}},
+        // A cell's xml:lang is its `lang` (feature 006, FR-020; tdType extends styleType); the
+        // schema gives table and tr none, so theirs stays an unknown attribute.
+        {"td", {{"id", "style", "colspan", "rowspan", "align", "valign"}, true, false}},
+        {"th", {{"id", "style", "colspan", "rowspan", "align", "valign"}, true, false}},
         {"p", {{"id", "style"}, true, false}},
         {"subtitle", {{"id", "style"}, true, false}},
         {"text-author", {{"id", "style"}, true, false}},
@@ -270,7 +272,14 @@ void collect_attrs(xmlNodePtr el, Node& node, const std::string& type) {
                              [&](const char* p) { return name == p; }) != spec.plain.end();
             if (known) {
                 if (name == "colspan" || name == "rowspan") {
-                    if (auto n = parse_int(value)) {
+                    // The integer value as read (feature 006, FR-047): a value of 1 or more in
+                    // any spelling (the writer respells " 2 ", "+2" and "02" as "2", a recorded
+                    // normalisation), and a smaller one only in its canonical decimal form
+                    // ("0", "-1"); any other text ("00", "+0", "-01", "abc", "2.5", a number
+                    // out of range) travels verbatim in unknownAttrs and is written back
+                    // exactly.
+                    const auto n = parse_int(value);
+                    if (n && (*n >= 1 || std::to_string(*n) == value)) {
                         node.attrs[name] = *n;
                     } else {
                         unknown[name] = value;
@@ -332,6 +341,14 @@ bool has_mark(const std::vector<Mark>& marks, const std::string& type) {
     return std::any_of(marks.begin(), marks.end(), [&](const Mark& m) { return m.type == type; });
 }
 
+// An inline atom (an inline image or inline raw XML: an unknown or misplaced element, a
+// comment, a processing instruction) takes the marks open at its place, as text does
+// (feature 006, FR-067).
+void append_atom(std::vector<Node>& out, Node atom, const std::vector<Mark>& marks) {
+    atom.marks = marks;
+    out.push_back(std::move(atom));
+}
+
 void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vector<Mark>& marks,
                              Ctx& ctx) {
     for (xmlNodePtr c = parent->children; c != nullptr; c = c->next) {
@@ -345,26 +362,42 @@ void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vec
                 break;
             case XML_COMMENT_NODE:
             case XML_PI_NODE:
-                out.push_back(raw_of(c, true));
+                append_atom(out, raw_of(c, true), marks);
                 attach_position(out.back(), c, ctx);
                 break;
             case XML_ELEMENT_NODE: {
                 if (!is_fb2_element(c)) {
-                    out.push_back(raw_of(c, true));
+                    append_atom(out, raw_of(c, true), marks);
                     attach_position(out.back(), c, ctx);
                     break;
                 }
                 const std::string name = str(c->name);
+                // Marks keep the attributes the schema gives them (feature 006, FR-064):
+                // xml:lang on formatting (any value, "" included), name and xml:lang on style,
+                // xlink:href, type and xlink:type on links. Every other attribute of a mark is
+                // dropped without a report (decision 10, a recorded exception); `attrs` is an
+                // object only with a member, so a mark read here equals one decoded from JSON.
                 std::optional<Mark> mark;
                 if (name == "strong" || name == "emphasis" || name == "strikethrough" ||
                     name == "sub" || name == "sup" || name == "code") {
-                    mark = Mark{name, nullptr};
+                    json attrs = nullptr;
+                    if (auto lang = xml_lang(c)) {
+                        attrs = json{{"lang", *lang}};
+                    }
+                    mark = Mark{name, attrs};
                 } else if (name == "style") {
-                    mark = Mark{"style", json{{"name", plain_attr(c, "name").value_or("")}}};
+                    json attrs{{"name", plain_attr(c, "name").value_or("")}};
+                    if (auto lang = xml_lang(c)) {
+                        attrs["lang"] = *lang;
+                    }
+                    mark = Mark{"style", attrs};
                 } else if (name == "a") {
                     json attrs{{"href", xlink_href(c).value_or("")}};
                     if (auto type = plain_attr(c, "type")) {
                         attrs["type"] = *type;
+                    }
+                    if (auto xlink_type = ns_attr(c, "type", kXlinkNamespace)) {
+                        attrs["xlinkType"] = *xlink_type;
                     }
                     mark = Mark{"link", attrs};
                 } else if (name == "image") {
@@ -372,15 +405,21 @@ void convert_inline_children(xmlNodePtr parent, std::vector<Node>& out, std::vec
                     img.type = "inline-image";
                     collect_attrs(c, img, "inline-image");
                     attach_position(img, c, ctx);
-                    out.push_back(std::move(img));
+                    append_atom(out, std::move(img), marks);
                     break;
                 } else {
-                    out.push_back(raw_of(c, true));  // block element or unknown inline element
+                    // A block element or an unknown inline element.
+                    append_atom(out, raw_of(c, true), marks);
                     attach_position(out.back(), c, ctx);
                     break;
                 }
-                // ProseMirror allows one mark of a type: an inner duplicate keeps the outer.
-                const bool duplicate = has_mark(marks, mark->type);
+                // Nested formatting of one kind with other attributes is a mark of its own,
+                // outer first (feature 006, FR-069; every formatting type): only an equal open
+                // mark - same type, name and language - collapses. Links keep the outer one:
+                // the schema holds no `a` inside `a`.
+                const bool duplicate = mark->type == "link" ? has_mark(marks, "link")
+                                                            : std::find(marks.begin(), marks.end(),
+                                                                        *mark) != marks.end();
                 if (!duplicate) {
                     marks.push_back(*mark);
                 }

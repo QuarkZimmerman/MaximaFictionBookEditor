@@ -27,6 +27,15 @@
  *    Description view's "Other persons" list are UI projections of this model
  *    (`description.customInfo` rows for the roles), never members of it — see
  *    specs/004-third-feedback-batch/contracts/document-model.md.
+ *  - Feature 006 (table editing) adds optional members and documented rules
+ *    only, so a model of release 0.0.5 stays valid and the version stays 1:
+ *    the cell's `lang`, the marks' `lang` and the link's `xlinkType`, `marks`
+ *    on inline images and inline raw XML, several formatting marks of one type
+ *    on one node, the documented `unknownAttrs` and the span values' rule —
+ *    each marked "feature 006" below; the reader's and writer's rules and the
+ *    rationale are in specs/006-table-editing/contracts/document-model.md.
+ *    Section 4 of specs/006-table-editing/contracts/document-model.md defines
+ *    the table grid (normative).
  */
 
 export const DOCUMENT_MODEL_VERSION = 1;
@@ -156,7 +165,19 @@ export interface ImageRef {
 
 export interface BaseNode<T extends string, A extends object = {}> {
   type: T;
-  attrs: A & { nodeId: string };
+  attrs: A & {
+    nodeId: string;
+    /**
+     * The element's attributes that have no member of their own (feature 006 documents it,
+     * contracts/document-model.md §1.3): on every node the reader builds from an element (the
+     * structural and block nodes of the bodies, the annotations and the history, and
+     * `inline-image`; marks have none); absent when empty. Keys: the local name of an attribute
+     * without a namespace, `{namespaceURI}localName` otherwise; values: the text, verbatim.
+     * Written after the known attributes; a name a known attribute already wrote is skipped -
+     * the known value wins.
+     */
+    unknownAttrs?: Record<string, string>;
+  };
 }
 
 export type StructAttrs = { id?: string; lang?: string };
@@ -241,10 +262,17 @@ export interface CellNode extends BaseNode<
   {
     id?: string;
     style?: string;
+    /**
+     * The integer value as read; written in canonical decimal; other text, and a value below 1
+     * not in canonical form, in `unknownAttrs` (feature 006, contracts/document-model.md §1.2).
+     */
     colspan?: number;
+    /** As `colspan`. */
     rowspan?: number;
     align?: Align;
     valign?: VAlign;
+    /** xml:lang, read and written verbatim (feature 006, FR-020). */
+    lang?: string;
   }
 > {
   content: InlineNode[];
@@ -264,7 +292,14 @@ export interface ImageNode extends BaseNode<
 > {}
 
 /** Unknown element preserved verbatim; `inline` tells where it may appear. */
-export interface RawXmlNode extends BaseNode<'raw-xml', { xml: string; inline: boolean }> {}
+export interface RawXmlNode extends BaseNode<'raw-xml', { xml: string; inline: boolean }> {
+  /**
+   * The marks open around it: inline only; feature 006, FR-067 (contracts/document-model.md
+   * §2.6). Outer first; a formatting type may repeat with different attributes, a link may not
+   * (feature 006, FR-069). Absent when empty; a block raw-xml node has none.
+   */
+  marks?: Mark[];
+}
 
 /* ------------------------------------------------------------------------ */
 /* Inline content                                                            */
@@ -275,20 +310,36 @@ export type InlineNode = TextNode | InlineImageNode | RawXmlNode;
 export interface TextNode {
   type: 'text';
   text: string;
+  /**
+   * Outer first; a formatting type may repeat with different attributes, a link may not
+   * (feature 006, FR-069; contracts/document-model.md §2.1, §2.2). Absent when empty.
+   */
   marks?: Mark[];
 }
 
-export interface InlineImageNode extends BaseNode<'inline-image', { href: string; alt?: string }> {}
+export interface InlineImageNode extends BaseNode<'inline-image', { href: string; alt?: string }> {
+  /**
+   * The marks open around the picture: inline only; feature 006, FR-067 (as `TextNode.marks`;
+   * contracts/document-model.md §2.6). Absent when empty.
+   */
+  marks?: Mark[];
+}
 
+/**
+ * An inline formatting element or a link (contracts/document-model.md §2.1, feature 006): the
+ * schema's attributes, kept verbatim - `lang` is the element's `xml:lang` (any value, `""`
+ * included), `xlinkType` a link's `xlink:type`; `attrs` is present only with a member. Every
+ * other attribute of a mark is dropped when a book is read.
+ */
 export type Mark =
-  | { type: 'strong' }
-  | { type: 'emphasis' }
-  | { type: 'strikethrough' }
-  | { type: 'sub' }
-  | { type: 'sup' }
-  | { type: 'code' }
-  | { type: 'style'; attrs: { name: string } }
-  | { type: 'link'; attrs: { href: string; type?: 'note' | string } };
+  | { type: 'strong'; attrs?: { lang?: string } }
+  | { type: 'emphasis'; attrs?: { lang?: string } }
+  | { type: 'strikethrough'; attrs?: { lang?: string } }
+  | { type: 'sub'; attrs?: { lang?: string } }
+  | { type: 'sup'; attrs?: { lang?: string } }
+  | { type: 'code'; attrs?: { lang?: string } }
+  | { type: 'style'; attrs: { name: string; lang?: string } }
+  | { type: 'link'; attrs: { href: string; type?: 'note' | string; xlinkType?: string } };
 
 /* ------------------------------------------------------------------------ */
 /* Binaries (metadata only — bytes stay in the core)                        */
@@ -298,8 +349,15 @@ export interface BinaryMeta {
   id: string;
   contentType: string; // as loaded
   size: number; // decoded bytes
+  /** The stored image's pixel size as the core probes it; absent when unknown. */
   width?: number;
+  /** The stored image's pixel size as the core probes it; absent when unknown. */
   height?: number;
+  /**
+   * Whether the core decodes the image; false after a failed conversion (contracts/document-
+   * model.md §6). The editor's preview of a decodable binary is `preview?w=800`'s size (feature
+   * 006, the reserved box of pictures in cells).
+   */
   decodable: boolean;
   willConvert: boolean; // true => re-encoded to JPEG/PNG on save
   referenceCount: number;

@@ -21,7 +21,8 @@ json load_fixture(const std::string& name) {
 TEST_CASE("json_codec: every document fixture round-trips byte-exactly (as JSON values)",
           "[codec]") {
     const std::string name =
-        GENERATE("minimal-book.json", "rich-book.json", "description-full.json");
+        GENERATE("minimal-book.json", "rich-book.json", "description-full.json",
+                 "tables-book.json");
     INFO("fixture " << name);
     const json original = load_fixture(name);
     const model::Document doc = model::document_from_json(original);
@@ -219,4 +220,84 @@ TEST_CASE("json_codec: emission rules for nodes and marks", "[codec]") {
     CHECK(model::file_kind_from_extension(".FB2") == model::FileKind::fb2);
     CHECK(model::file_kind_from_extension("fbd") == model::FileKind::fbd);
     CHECK(model::file_kind_from_extension(".xml") == model::FileKind::xml);
+}
+
+TEST_CASE("json_codec: marks carry lang and xlinkType; a mark without attributes has no attrs",
+          "[codec][marks]") {
+    // Feature 006 (document-model §2.1): the codec carries a mark's attributes as they are;
+    // `attrs` is written only when it has a member.
+    const json marks = json::array({
+        {{"type", "strong"}},
+        {{"type", "emphasis"}, {"attrs", {{"lang", "la"}}}},
+        {{"type", "code"}, {"attrs", {{"lang", ""}}}},
+        {{"type", "style"}, {"attrs", {{"name", "foreign"}, {"lang", "la"}}}},
+        {{"type", "link"}, {"attrs", {{"href", "#n1"}, {"type", "note"}, {"xlinkType", "simple"}}}},
+    });
+    const json text{{"type", "text"}, {"text", "x"}, {"marks", marks}};
+    const model::Node node = model::node_from_json(text);
+    REQUIRE(node.marks.size() == 5);
+    CHECK(node.marks[0] == model::Mark{"strong", nullptr});
+    CHECK(node.marks[1] == model::Mark{"emphasis", json{{"lang", "la"}}});
+    CHECK(node.marks[2] == model::Mark{"code", json{{"lang", ""}}});
+    CHECK(node.marks[3] == model::Mark{"style", json{{"name", "foreign"}, {"lang", "la"}}});
+    CHECK(node.marks[4] ==
+          model::Mark{"link", json{{"href", "#n1"}, {"type", "note"}, {"xlinkType", "simple"}}});
+    CHECK(model::to_json(node) == text);
+    // A mark without attributes has no attrs member, also when it was given an empty object.
+    CHECK(model::to_json(model::Mark{"sub", nullptr}) == json{{"type", "sub"}});
+    CHECK(model::to_json(model::Mark{"sub", json::object()}) == json{{"type", "sub"}});
+    CHECK_FALSE(model::to_json(model::mark_from_json(json{{"type", "sup"}})).contains("attrs"));
+    // Several marks of one kind (FR-069) are read and written in their order, outer first.
+    for (const json& nested : {
+             json::array({{{"type", "style"}, {"attrs", {{"name", "a"}}}},
+                          {{"type", "style"}, {"attrs", {{"name", "b"}}}}}),
+             json::array({{{"type", "style"}, {"attrs", {{"name", "b"}}}},
+                          {{"type", "style"}, {"attrs", {{"name", "a"}}}}}),
+             json::array({{{"type", "emphasis"}, {"attrs", {{"lang", "la"}}}},
+                          {{"type", "emphasis"}, {"attrs", {{"lang", "de"}}}}}),
+         }) {
+        INFO(nested.dump());
+        const json nested_text{{"type", "text"}, {"text", "y"}, {"marks", nested}};
+        const model::Node read = model::node_from_json(nested_text);
+        REQUIRE(read.marks.size() == 2);
+        CHECK(read.marks[0] == model::mark_from_json(nested[0]));
+        CHECK(read.marks[1] == model::mark_from_json(nested[1]));
+        CHECK(model::to_json(read) == nested_text);
+    }
+}
+
+TEST_CASE("json_codec: inline atoms carry marks; an atom without marks has no marks member",
+          "[codec][marks]") {
+    // Feature 006 (FR-067; document-model §2.6): inline-image and raw-xml nodes carry `marks`
+    // as text does, written only when non-empty.
+    const json image{{"type", "inline-image"},
+                     {"attrs", {{"nodeId", "n1"}, {"href", "#pic.png"}}},
+                     {"marks", json::array({{{"type", "link"}, {"attrs", {{"href", "#s1"}}}},
+                                            {{"type", "strong"}}})}};
+    const model::Node img = model::node_from_json(image);
+    REQUIRE(img.marks.size() == 2);
+    CHECK(img.marks[0] == model::Mark{"link", json{{"href", "#s1"}}});
+    CHECK(img.marks[1] == model::Mark{"strong", nullptr});
+    CHECK(model::to_json(img) == image);
+    const json raw{{"type", "raw-xml"},
+                   {"attrs", {{"nodeId", "n2"}, {"xml", "<!-- c -->"}, {"inline", true}}},
+                   {"marks", json::array({{{"type", "emphasis"}, {"attrs", {{"lang", "la"}}}}})}};
+    const model::Node raw_node = model::node_from_json(raw);
+    REQUIRE(raw_node.marks.size() == 1);
+    CHECK(model::to_json(raw_node) == raw);
+    // Without marks: no member, as release 0.0.5 wrote them.
+    const json plain{{"type", "inline-image"}, {"attrs", {{"nodeId", "n3"}, {"href", "#p"}}}};
+    CHECK(model::to_json(model::node_from_json(plain)) == plain);
+    const json empty_marks{{"type", "inline-image"},
+                           {"attrs", {{"nodeId", "n4"}, {"href", "#p"}}},
+                           {"marks", json::array()}};
+    CHECK_FALSE(model::to_json(model::node_from_json(empty_marks)).contains("marks"));
+    // Other node types keep ignoring a marks member.
+    const json paragraph{{"type", "p"},
+                         {"attrs", {{"nodeId", "n5"}}},
+                         {"content", json::array()},
+                         {"marks", json::array({{{"type", "strong"}}})}};
+    const model::Node p = model::node_from_json(paragraph);
+    CHECK(p.marks.empty());
+    CHECK_FALSE(model::to_json(p).contains("marks"));
 }

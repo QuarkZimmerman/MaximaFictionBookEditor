@@ -10,7 +10,11 @@
 //   - structural elements one per line, indented with one tab per level, "\n" line endings;
 //     inline content (p, subtitle, v, text-author, td/th, date) is written untouched;
 //   - marks nest in the canonical order link > style > strong > emphasis > strikethrough >
-//     sub > sup > code (outermost first);
+//     sub > sup > code (outermost first); marks of one type keep the model's order, outer
+//     first, so nested formatting of one kind is written back as read (feature 006, FR-069);
+//     formatting with a name or a language goes around a link it covers, and is extended over a
+//     link it covers in part (normalise_link_formatting below; FR-068), and inside a link
+//     formatting is written without attributes, as the schema requires;
 //   - raw-xml nodes are emitted verbatim (block ones on their own line);
 //   - binaries come from the BinaryStore in document order: base64 wrapped at 76 columns, or
 //     the `…N bytes…` placeholder in elide mode; invalid base64 kept verbatim is written back.
@@ -90,5 +94,19 @@ std::string write_fragment(const std::vector<model::Node>& nodes,
 
 // Canonical order of marks when nesting inline elements (outermost first).
 int mark_rank(const std::string& mark_type);
+
+// Formatting with a name or a language and links (feature 006, FR-068; contracts/
+// document-model.md §2.4, step 1), on an inline content list: for each link run - a maximal
+// stretch of consecutive inline nodes, atoms included, carrying one and the same link mark -
+// and each formatting kind, formatting that covers the run stays; attributed formatting (a
+// `lang`, or a style with a non-empty name) that covers only part of it is extended over the
+// run, and of several such marks of a kind the one on the first node that carries any (the
+// outer one there) wins while the others are dropped inside the run; plain formatting stays
+// beside it. Every node of a run then lists a kind's attributed marks in the run's order (the
+// first node's), its plain ones after. Idempotent; only the marks of link-run nodes change.
+// The writer applies it to a copy of each inline content list it writes (never to the model)
+// and writes a run's attributed formatting around the link and its plain formatting inside it,
+// without attributes; `mfbe-core roundtrip`'s comparison applies it to both sides.
+void normalise_link_formatting(std::vector<model::Node>& content);
 
 }  // namespace mfbe::fb2

@@ -1,0 +1,28 @@
+{
+  "blocks": [
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "td", "t": "Region", "cs": 2, "al": "center", "va": "bottom", "m": ["strong"]},
+            {"k": "td", "t": "Q1", "al": "center", "va": "bottom", "m": ["strong"]},
+            {"k": "td", "t": "Q2", "al": "center", "va": "bottom", "m": ["strong"]}
+          ],
+          [
+            {"k": "td", "t": "North", "va": "bottom"},
+            {"k": "td", "t": "Coast", "va": "bottom"},
+            {"k": "td", "t": "10.50", "al": "right", "va": "bottom"},
+            {"k": "td", "t": "12.25", "al": "right", "va": "bottom"}
+          ],
+          [
+            {"k": "td", "t": "South", "va": "bottom"},
+            {"k": "td", "t": "Hills", "va": "bottom"},
+            {"k": "td", "t": "8.00", "al": "right", "va": "bottom"},
+            {"k": "td", "t": "9.75", "al": "right", "va": "bottom"}
+          ]
+        ]
+      }
+    }
+  ],
+  "tsv": "Region\t\tQ1\tQ2\nNorth\tCoast\t10.50\t12.25\nSouth\tHills\t8.00\t9.75"
+}

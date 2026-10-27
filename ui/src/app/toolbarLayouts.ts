@@ -17,7 +17,7 @@ import type { Settings } from '@/rpc/types';
 import { actions, type AppStore } from '@/model/store';
 
 import type { CommandContext, CommandRegistry } from './commands';
-import { COMMANDS_TOOLBAR } from './toolbarDefinitions';
+import { COMMANDS_TOOLBAR, COMMANDS_TOOLBAR_OFFERED } from './toolbarDefinitions';
 
 export type CustomizableToolbar = 'commands' | 'scripts';
 
@@ -27,10 +27,14 @@ export const SEPARATOR = '-';
 /** The Scripts toolbar's "Last script" button (its command id). */
 export const LAST_SCRIPT = 'scripts.last';
 
-/** The Commands toolbar's buttons (its original layout without the separators). */
-const COMMAND_BUTTONS: readonly string[] = COMMANDS_TOOLBAR.filter(
-  (id): id is string => id !== null,
-);
+/**
+ * The Commands toolbar's buttons: its original layout without the separators, then the table
+ * buttons it offers only in Customize (feature 006, FR-041).
+ */
+const COMMAND_BUTTONS: readonly string[] = [
+  ...COMMANDS_TOOLBAR.filter((id): id is string => id !== null),
+  ...COMMANDS_TOOLBAR_OFFERED,
+];
 
 /** The original layout of a toolbar, which Reset restores. */
 export function originalLayout(toolbar: CustomizableToolbar): string[] {
@@ -38,8 +42,9 @@ export function originalLayout(toolbar: CustomizableToolbar): string[] {
 }
 
 /**
- * The buttons a toolbar offers besides separators: the Commands toolbar's original buttons;
- * "Last script" and the given scripts (command ids of the menu scripts with an icon).
+ * The buttons a toolbar offers besides separators: the Commands toolbar's original buttons
+ * followed by *Table…* and the 24 table commands (feature 006, none shown until the user adds
+ * it); "Last script" and the given scripts (command ids of the menu scripts with an icon).
  */
 export function availableButtons(
   toolbar: CustomizableToolbar,

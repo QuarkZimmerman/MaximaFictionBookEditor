@@ -20,6 +20,9 @@ update this page when the reader, the binary store or the Body view windowing ch
 | Description import with the 10 MB book as the source: File > Import until the status bar reports the import (feature 004, FR-031 — the constitution's opening budget applied to the source file; the import's apply step and the FBD export have no budget of their own) | 3 s × `MFBE_PERF_FACTOR` |
 | File > Open of the 10 MB book with a remembered position: until the Body view is editable with the caret in place (feature 004, US8) | 3 s |
 | AI assistant request on the 10 MB book: the validation of the working copy in the core after every change the request makes (`doc.validate`; feature 005, FR-060 — research R5's acceptance number for a locked request, not a constitution budget) | 1 000 ms × `MFBE_PERF_FACTOR` |
+| Table commands on a 300 × 10 table and on the largest real shapes, 628 × 4 and 298 × 14, in the 10 MB book (command to painted frame, median of 5 per command; feature 006, SC-005) | 100 ms × `MFBE_PERF_FACTOR` |
+| Table commands on a 1000 × 20 table in the 10 MB book (every run; feature 006, SC-005) | 1 s |
+| Typing in the 10 MB book after a table command (keystroke to painted frame, median of 11; feature 006) | 100 ms |
 
 ## Measurements (T150)
 
@@ -41,11 +44,23 @@ Chromium 1280 x 800; fixtures from `tests/fixtures/gen-large-book.py` — `large
 | 150 MB: peak RSS of `mfbe-core serve` (VmHWM) | — | 517–518 MB | 1 536 MB |
 | 150 MB: File > Save | — | 3 079–3 197 ms | — |
 | 150 MB: core-only `roundtrip` open / write / peak RSS | — | 1 946–2 131 / 2 880–2 953 ms / 528 MB | 1 536 MB |
+| 150 MB: open -> editable (feature 006, **Release** core, T188) | — | 501–534 ms | 15 000 ms |
+| 150 MB: peak RSS of `mfbe-core serve` (VmHWM; feature 006, **Release** core, T188) | — | 518 MB | 1 536 MB |
 
 "Before" is the state at the start of T150 (commit `90572e7`); "after" spans three runs on
 2026-10-13 (`tests/bench/run.sh --json` writes `tests/bench/results/bench-<timestamp>.json`,
 git-ignored; the numbers are copied here). All budgets hold with a Debug core; the only metric
 that was over budget was tree navigation in the 10 MB book.
+
+The two feature 006 rows (T188, the release gate before an rc tag; no workflow runs the 150 MB
+part) come from two runs of
+`tests/bench/run.sh --json --core build/linux-core-release/bin/mfbe-core` on 2026-10-26, on the
+same host (4 vCPU shared VM, 11.4 GiB RAM since, Linux 6.12) with the **Release** core at the
+head of the table-editing work, after the Body view began to reserve every picture's box before
+the picture loads (T083, `ui/src/editor/nodeviews/image.ts`): the 150 MB book was editable after
+501–534 ms with its 20 mounted previews loaded 14–16 ms later, and the core's peak resident
+memory stayed at 518 MB; the same runs saved it in 998 ms and opened the 10 MB book in 455–458 ms
+(keystroke median 15 ms, tree click 34–35 ms).
 
 **Source view tag completion** (feature 003 User Story 8, measured 2026-10-17 by the second
 journey of `ui/tests/e2e/perf-large-book.spec.ts` on the same host and Debug core, cursor in the
@@ -111,6 +126,44 @@ journey asserts from the record of the page's JSON-RPC methods. With the assista
 of the feature runs (SC-013) and the numbers above stand: the same day's run of the `@perf`
 journeys on the Release core opened the 10 MB book to an editable Body view in 617 ms, typed
 at ~15 ms per keystroke (median) and mapped the caret between Body and Source in 1 ms.
+
+**Table commands (feature 006, SC-005)** (measured 2026-10-26 by
+`ui/tests/e2e/perf-tables.spec.ts` on the same host - the 4 vCPU shared VM - with the Release
+core, three runs: `MFBE_PERF_FACTOR` 2, 1, and within the whole `@perf` line; the SC-005 book of
+`tests/fixtures/gen-large-book.py --size-mb 10 --table 300x10@1:4 --table 1000x20@3:8 --table
+628x4@4:2 --table 298x14@5:4`, the 10 MB book with a 300 × 10 table in section 1, a 1000 × 20
+table in section 3 and the census's largest real shapes, 628 × 4 in section 4 and 298 × 14 in
+section 5; the 25 table buttons on the Commands toolbar, each command started by a click on its
+button and timed to the first animation frame after the table shows the result, Undo between the
+runs): the medians of five runs of the 24 commands and *Table…* (from the dialog's OK) are
+**14–35 ms** on the 300 × 10 table (slowest *Delete table*, 33–35 ms, then *Merge cells*,
+*Duplicate column* and the column insertions), **23–51 ms** on 628 × 4 and **27–56 ms** on
+298 × 14 (slowest *Table…*, then *Move column left*, *Merge cells* and *Duplicate column*)
+against 100 ms × `MFBE_PERF_FACTOR`; on the 1000 × 20 table every run of every command took
+**34–132 ms** (slowest *Insert column left*, *Duplicate column*, *Merge cells* and *Select
+table*, 100–132 ms) against 1 s. The pastes, each replayed from the three flavours of a copy
+event: a 10 × 5 block into a cell 28–29 ms on 300 × 10, 59–63 ms on 628 × 4 (which grows by two
+columns for it), 43–45 ms on 298 × 14 and at most 151 ms on 1000 × 20; each table's own copy
+after a paragraph of section 2 50–53 ms, 46–51 ms, 62–65 ms and at most 317 ms for the 20,000
+cells of the 1000 × 20 copy. Typing in a paragraph of section 2 after the commands on each table:
+**15 ms** per keystroke (median of 11; budget 100 ms); typing in a cell of the 1000 × 20 table
+with every table button on the toolbar: 65–76 ms (budget 100 ms × `MFBE_PERF_FACTOR`). Recorded,
+without a budget (quickstart open point 7): a keystroke in a paragraph of section 3, in the
+window that holds the 1000 × 20 table, costs 31–33 ms, 16–19 ms more than in section 2 - the
+write-back of that window (research R1.9); the text form of `doc.validate` on the whole book's
+text takes 272–286 ms (round trip from the journey) whether the 300 × 10 table is regular or
+irregular, the difference (−5 to +14 ms) within the noise: the positions the text form reads for
+`table.irregular` cost nothing measurable, far under the 1 000 ms × `MFBE_PERF_FACTOR` the
+assistant's validations are held to, so the fallback of `contracts/rpc-api.md` (open point 1, a
+second scratch read) is not needed. File > Open of the book until the Body view is editable took
+811–963 ms (budget 3 s). In the Source view of the book, ready 1.1–1.5 s after View > Source,
+*Add > Table* was available **121–226 ms** after the cursor was put between two paragraphs - the
+verdict's 100 ms notification included - against 3 s × `MFBE_PERF_FACTOR`, a project number
+rather than a constitution budget (research R4.8). *Repair table* from the mark's popover
+(`ui/tests/e2e/us8-table-marks.spec.ts`, sc.9; quickstart §14, "Timed elsewhere") removed the
+mark 5–6 ms after the click (three runs; budget 100 ms × `MFBE_PERF_FACTOR`). The journey writes
+its figures to `tests/bench/results/table-commands.json`, which CI's `bench-results` artifact
+carries and the release workflow prints in its job summary.
 
 ## What was changed (T150)
 

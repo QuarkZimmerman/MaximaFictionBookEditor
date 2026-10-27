@@ -29,7 +29,8 @@
   outline: none;
   white-space: pre-wrap;
   word-wrap: break-word;
-  line-height: 1.4;
+  --mfbe-body-line-height: 1.4;
+  line-height: var(--mfbe-body-line-height);
 }
 
 .fb-editor:focus-visible {
@@ -331,17 +332,58 @@ a.fb-note {
 /* Tables                                                                 */
 /* ---------------------------------------------------------------------- */
 
+/*
+ * Every table keeps an 8 px gutter on its right for the warning mark of an irregular table
+ * (feature 006 US8, FR-057; C54), so showing or hiding the mark moves no table; only a table
+ * whose minimum width fills the gutter gains a scroll bar while the mark shows.
+ */
 .fb-editor table.fb-table {
   border-collapse: separate;
   border-spacing: 2px;
-  margin: 0.5em 0 0.5em 0.4em;
+  margin: 0.5em 8px 0.5em 0.4em;
   border-left: solid 1px var(--mfbe-fb-table-border);
   padding-left: 0.4em;
 }
 
+/*
+ * The mark (data-model §3.3; R6.2): a zero-height caption on top of the table, which leaves its
+ * layout as it is (R6 probe P8), holding the badge centred on the table's top-right corner, so
+ * it touches neither the top-right cell's text nor the block above. Never selected; the 1 px
+ * ring in the Body background sets it off from cell colours (U33). Fast Mode shows it too.
+ */
+.fb-editor table.fb-table > caption.fb-table-mark-host {
+  caption-side: top;
+  position: relative;
+  height: 0;
+  padding: 0;
+  border: 0;
+  line-height: 0;
+}
+
+.fb-editor .fb-table-mark {
+  position: absolute;
+  right: -7px;
+  top: max(-7px, -0.5em);
+  width: 14px;
+  height: 14px;
+  user-select: none;
+  cursor: pointer;
+}
+
+.fb-editor .fb-table-mark .mfbe-table-mark-badge {
+  display: block;
+  box-shadow: 0 0 0 1px var(--mfbe-body-bg);
+}
+
+/*
+ * Every cell is at least 3em wide (requester, issue #7): an empty cell or a cell holding one
+ * character is as easy to click and type into as any other, about three times the width an
+ * empty cell had (its padding alone). Wider content widens the cell as before.
+ */
 .fb-editor .fb-table th,
 .fb-editor .fb-table td {
   padding: 2px 6px;
+  min-width: 3em;
   text-indent: 0;
   vertical-align: top;
 }
@@ -356,6 +398,68 @@ a.fb-note {
 .fb-editor .fb-table td {
   background: var(--mfbe-fb-td-bg);
   color: var(--mfbe-fb-td-fg);
+}
+
+/*
+ * Cell alignment shown as written (feature 006, US6 sc.4; research R6.7; C60): an author rule
+ * outranks an attribute's presentational hint, so the defaults above would hide every `valign`
+ * and the `align` of a header cell. Header cells stay centred unless the cell or its row sets an
+ * alignment; `td` cells already follow their own `align` (`CellView` writes `align` and
+ * `valign`, the `tr` its `align`).
+ */
+.fb-editor .fb-table :is(th, td)[valign='middle'] {
+  vertical-align: middle;
+}
+
+.fb-editor .fb-table :is(th, td)[valign='bottom'] {
+  vertical-align: bottom;
+}
+
+.fb-editor .fb-table th[align='left'] {
+  text-align: left;
+}
+
+.fb-editor .fb-table th[align='right'] {
+  text-align: right;
+}
+
+.fb-editor .fb-table tr[align] > th:not([align]) {
+  text-align: inherit;
+}
+
+/*
+ * A selected block of cells (feature 006, data-model §5.6, C51): the tint over the cell's own
+ * background, so header and data cells stay apart (Fast Mode included), and an accent line
+ * that carries the visibility. Text selected inside a cell takes a colour that keeps 4.5:1.
+ */
+.fb-editor .fb-table .mfbe-cell-selected {
+  background-image: linear-gradient(var(--mfbe-cell-selected-tint), var(--mfbe-cell-selected-tint));
+  box-shadow: inset 0 0 0 1px var(--mfbe-color-accent);
+}
+
+.fb-editor .fb-table :is(td, th)::selection,
+.fb-editor .fb-table :is(td, th) *::selection {
+  background: var(--mfbe-cell-text-selection);
+}
+
+/*
+ * For a selection that is not visible (a block) ProseMirror still puts the DOM selection from
+ * anchor to head and only adds this class: hidden inside tables, caret included, so the cell
+ * colour does not paint cells outside the block. Scoped to tables: a selected image keeps its
+ * tint.
+ */
+.fb-editor.ProseMirror-hideselection .fb-table ::selection {
+  background: transparent;
+}
+
+.fb-editor.ProseMirror-hideselection .fb-table {
+  caret-color: transparent;
+}
+
+/* A table selected as a whole (Select table): the outline the hidden selection no longer gives. */
+.fb-editor table.fb-table.fb-selected {
+  outline: 2px solid var(--mfbe-color-accent);
+  outline-offset: 1px;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -393,6 +497,79 @@ a.fb-note {
 .fb-editor .fb-inline-image img {
   max-height: 1.6em;
   vertical-align: middle;
+}
+
+/* Pictures in table cells (feature 006): natural size, scaled down to the width the column can
+   take inside the text area and to 10 lines of Body text, never enlarged, never below the floor. */
+.fb-editor .fb-table .fb-inline-image {
+  max-width: 100%;
+  /* The box hangs from the top of its line: a picture no taller than a line is centred on the
+     text as elsewhere (the img keeps vertical-align: middle); a taller one starts level with the
+     line, so the text beside it stays level with the first lines of the other cells, and a cell
+     holding only a picture gets no extra line height around it. */
+  vertical-align: top;
+}
+
+/* Inside sup, sub and note links Chromium places a top-aligned box against the raised or lowered
+   inline, not against the line: there the box is centred as elsewhere, and the line grows. */
+.fb-editor .fb-table :is(sup, sub, a.fb-note) .fb-inline-image {
+  vertical-align: middle;
+}
+
+.fb-editor .fb-table .fb-inline-image img {
+  max-width: 100%;
+  max-height: calc(var(--mfbe-body-font-size) * var(--mfbe-body-line-height) * 10);
+  /* The floor: never narrower than the least of the natural width, 1.6em (the height of inline
+     pictures outside cells) and the width the 10-line cap allows, so that a picture stays visible
+     when the text alone fills the area. It needs --mfbe-nw / --mfbe-nh (image.ts), else it is 0. */
+  min-width: min(
+    calc(var(--mfbe-nw, 0) * 1px),
+    1.6em,
+    calc(
+      var(--mfbe-body-font-size) * var(--mfbe-body-line-height) * 10 * var(--mfbe-nw, 0) /
+        var(--mfbe-nh, 1)
+    )
+  );
+}
+
+.fb-editor .fb-table .fb-inline-image .fb-image-placeholder {
+  box-sizing: border-box;
+  max-width: 100%;
+  max-height: calc(var(--mfbe-body-font-size) * var(--mfbe-body-line-height) * 10);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  /* Aligned like the picture it stands for (overflow: hidden would put its baseline at its
+     bottom edge). Never a bigger font than the cell's text. It asks the table for no width of
+     its own, as the picture does: a one-column inline grid whose track may shrink to 0, side
+     padding in % and an inset outline for the dashed frame instead of a border. */
+  vertical-align: middle;
+  font-size: min(1em, var(--mfbe-font-size, 13px));
+  padding: 0.3em 4%;
+  border: 0;
+  outline: 1px dashed var(--mfbe-color-border-strong);
+  outline-offset: -1px;
+}
+
+.fb-editor .fb-table .fb-image-missing .fb-image-placeholder,
+.mfbe-body-view--fast .fb-editor .fb-table .fb-inline-image .fb-image-placeholder {
+  display: inline-grid;
+  grid-template-columns: minmax(0, auto);
+}
+
+/* Until its preview arrives, a picture's box is reserved at the size the core will serve (image.ts
+   puts it on the img as --mfbe-nw / --mfbe-nh and removes .fb-sized once the preview has loaded):
+   the natural width, capped at 10 Body lines through the aspect ratio. max-width: 100% above still
+   lets the column shrink it, exactly as it shrinks the loaded picture. */
+.fb-editor .fb-table .fb-inline-image img.fb-sized {
+  width: min(
+    calc(var(--mfbe-nw) * 1px),
+    calc(
+      var(--mfbe-body-font-size) * var(--mfbe-body-line-height) * 10 * var(--mfbe-nw) /
+        var(--mfbe-nh)
+    )
+  );
+  height: auto;
+  aspect-ratio: var(--mfbe-nw) / var(--mfbe-nh);
 }
 
 .fb-image-placeholder {

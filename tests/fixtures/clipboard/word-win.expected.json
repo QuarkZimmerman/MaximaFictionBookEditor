@@ -1,0 +1,30 @@
+{
+  "blocks": [
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "td", "t": "Name", "va": "top", "m": ["strong"]},
+            {"k": "td", "t": "Role", "va": "top", "m": ["strong"]},
+            {"k": "td", "t": "Notes", "va": "top", "m": ["strong"]}
+          ],
+          [
+            {"k": "td", "t": "Merged across two columns", "cs": 2, "va": "top"},
+            {"k": "td", "t": "Spans two rows", "rs": 2, "va": "top"}
+          ],
+          [
+            {"k": "td", "t": "Bob", "va": "top"},
+            {"k": "td", "t": "Editor", "va": "top"}
+          ],
+          [
+            {"k": "td", "t": "First item", "va": "top"},
+            {"k": "td", "t": "Centered", "al": "center", "va": "top"},
+            {"k": "td", "t": "Picture", "va": "top"}
+          ]
+        ]
+      }
+    },
+    {"p": {"text": "\u00a0"}}
+  ],
+  "tsv": "Name\tRole\tNotes\nMerged across two columns\t\tSpans two rows\nBob\tEditor\t\nFirst item\tCentered\tPicture\n\n\u00a0"
+}

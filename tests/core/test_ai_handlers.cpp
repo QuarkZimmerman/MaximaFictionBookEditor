@@ -151,7 +151,7 @@ TEST_CASE(
         "until the first ai.services()") {
         AiFixture f;
         fs::create_directories(f.user_file());
-        CHECK(f.result("app.info")["apiMinor"] == 4);
+        CHECK(f.result("app.info")["apiMinor"] == 5);
         CHECK(f.result("settings.get")["ai"]["mode"] == "disabled");  // FR-001: the default
         CHECK(f.transports->created.load() == 0);
         CHECK(f.ai_log_entries().empty());
@@ -1013,7 +1013,7 @@ TEST_CASE(
         AiFixture f(TransportKind::product);
         // Start-up, the settings and the calls outside the family touch no network library.
         CHECK_FALSE(net::global_init_ran());
-        CHECK(f.result("app.info")["apiMinor"] == 4);
+        CHECK(f.result("app.info")["apiMinor"] == 5);
         use_custom(f, http, "sk-curl");
         CHECK_FALSE(net::global_init_ran());
         CHECK(f.transports->created.load() == 0);  // no test factory was asked

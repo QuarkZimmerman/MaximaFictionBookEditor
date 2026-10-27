@@ -2,8 +2,9 @@
  * Shared harness of the catalogue tests (feature 005 T041): a small fixture book, a fake
  * `CatalogueDeps` over a real `WorkingCopy` with a tiny FB2 serialiser / parser standing in for
  * the core's `doc.fragmentToXml` / `doc.fragmentFromXml` (plain paragraphs, `<emphasis>` /
- * `<strong>` marks, `<empty-line/>`, `<subtitle>`; `&nbsp;` is a 1001, an unknown element a
- * 1201), the in-place regex runner and a recording hook.
+ * `<strong>` marks, `<empty-line/>`, `<subtitle>`, and since feature 006 `<table>`, `<tr>`,
+ * `<td>` and `<th>`; `&nbsp;` is a 1001, an unknown element a 1201), the in-place regex runner
+ * and a recording hook; `tablesBook()` holds the tables of the table tools (T171).
  */
 
 import {
@@ -17,7 +18,14 @@ import {
 } from '@/ai/catalogue';
 import { runRegexSearch, type RegexRunner } from '@/ai/regexRunner';
 import type { ModelNodeJson } from '@/editor/fromModel';
-import type { BodyNode, Document, InlineNode, ParagraphNode, SectionNode } from '@/model/document';
+import type {
+  BodyNode,
+  Document,
+  InlineNode,
+  ParagraphNode,
+  SectionNode,
+  TableNode,
+} from '@/model/document';
 import { RpcError } from '@/rpc/client';
 import { WorkingCopy } from '@/scripting/workingCopy';
 
@@ -185,6 +193,10 @@ const KNOWN_BLOCKS = new Set([
   'section',
   'epigraph',
   'text-author',
+  'table',
+  'tr',
+  'td',
+  'th',
 ]);
 const KNOWN_INLINE = new Set([
   'emphasis',
@@ -429,3 +441,152 @@ export const blocksSelection = (
   openStart: options.openStart ?? false,
   openEnd: options.openEnd ?? false,
 });
+
+/* ------------------------------------------------------------------ tables */
+
+/** A cell of a fixture table: `'text'` (a td), `'th:text'` (a th), or a spec. */
+export type FixtureCell =
+  | string
+  | { kind?: 'td' | 'th'; text?: string; content?: InlineNode[]; attrs?: Record<string, unknown> };
+
+/**
+ * A fixture table in the model JSON's canonical shape (`nodeToModel` gives the same JSON back):
+ * node ids `<id>`, `<id>r<r>` and `<id>r<r>c<c>` (1-based child indices).
+ */
+export function tableNode(
+  id: string,
+  rows: readonly FixtureCell[][],
+  attrs: Record<string, unknown> = {},
+): TableNode {
+  return {
+    type: 'table',
+    attrs: { nodeId: id, ...attrs },
+    content: rows.map((cells, r) => ({
+      type: 'tr',
+      attrs: { nodeId: `${id}r${r + 1}` },
+      content: cells.map((cell, c) => {
+        const spec =
+          typeof cell === 'string'
+            ? cell.startsWith('th:')
+              ? { kind: 'th' as const, text: cell.slice(3) }
+              : { text: cell }
+            : cell;
+        const content = spec.content ?? (spec.text ? [{ type: 'text', text: spec.text }] : []);
+        return {
+          type: spec.kind ?? 'td',
+          attrs: { nodeId: `${id}r${r + 1}c${c + 1}`, ...(spec.attrs ?? {}) },
+          content,
+        };
+      }),
+    })),
+  } as unknown as TableNode;
+}
+
+/** An inline image of a fixture cell (`marks` for a linked or a formatted picture, FR-067). */
+export function inlineImage(nodeId: string, marks?: unknown[]) {
+  return {
+    type: 'inline-image',
+    attrs: { nodeId, href: '#pic.png' },
+    ...(marks ? { marks } : {}),
+  } as unknown as InlineNode;
+}
+
+const linkTo = (href: string) => [{ type: 'link', attrs: { href } }];
+
+/**
+ * The tables of the assistant's table tools (feature 006 T171; data-model §16.1): in section
+ * `s1t` a regular table with an empty cell (`tA`), a header row with a header cell over two
+ * columns, a cell over two rows and mixed `th` / `td` (`tB`), the pictures - plain, inside a
+ * link to `#c1`, bold - with a cell with `lang: 'de'`, the cell `c12` that a paragraph links to
+ * and the cell `c1` a linked picture and a link over text and a picture target (`tC`), the
+ * vectors' `short-row`, `one-overlap` and `rowspan-past-end` and a 1 × 1 table; in section `s2t`
+ * a 300 × 10 table with a header row (`tBig`); and a 2 × 2 table in the book's annotation.
+ */
+export function tablesBook(): Document {
+  const base = book();
+  const big: FixtureCell[][] = [
+    Array.from({ length: 10 }, (_, c) => `th:h${c + 1}`),
+    ...Array.from({ length: 299 }, (_, r) =>
+      Array.from({ length: 10 }, (__, c) => `r${r + 2}c${c + 1}`),
+    ),
+  ];
+  const body: BodyNode = {
+    type: 'body',
+    attrs: { nodeId: 'tb1' },
+    content: [
+      {
+        type: 'section',
+        attrs: { nodeId: 's1t' },
+        content: [
+          { type: 'title', attrs: { nodeId: 's1title' }, content: [paragraph('s1tp', 'Tables')] },
+          tableNode('tA', [
+            ['a', ''],
+            ['c', 'd'],
+          ]),
+          tableNode('tB', [
+            [{ kind: 'th', text: 'H1', attrs: { colspan: 2 } }, 'th:H3'],
+            ['x', 'y', { text: 'M', attrs: { rowspan: 2 } }],
+            ['z', 'w'],
+          ]),
+          tableNode('tC', [
+            [
+              { content: [inlineImage('img1')] },
+              { content: [inlineImage('img2', linkTo('#c1'))] },
+              { content: [inlineImage('img3', [{ type: 'strong' }])] },
+            ],
+            [
+              { text: 'deutsch', attrs: { lang: 'de' } },
+              { text: 'target', attrs: { id: 'c12' } },
+              'plain',
+            ],
+            [{ text: 'one', attrs: { id: 'c1' } }, 'two', 'three'],
+          ]),
+          paragraph('pLink', [
+            { type: 'text', text: 'See ' },
+            { type: 'text', text: 'the cell', marks: linkTo('#c12') as never },
+          ]),
+          paragraph('pLink2', [
+            { type: 'text', text: 'pic ', marks: linkTo('#c1') as never },
+            inlineImage('img4', linkTo('#c1')),
+          ]),
+          tableNode('tShort', [
+            ['a', 'b', 'c'],
+            ['d', 'e'],
+          ]),
+          tableNode('tOverlap', [
+            ['a', { text: 'b', attrs: { rowspan: 2 } }],
+            [{ text: 'c', attrs: { colspan: 2 } }],
+          ]),
+          tableNode('tPast', [[{ text: 'a', attrs: { rowspan: 3 } }, 'b'], ['c']]),
+          tableNode('tOne', [['solo']]),
+        ],
+      } as unknown as SectionNode,
+      {
+        type: 'section',
+        attrs: { nodeId: 's2t' },
+        content: [tableNode('tBig', big)],
+      } as unknown as SectionNode,
+    ] as BodyNode['content'],
+  };
+  return {
+    ...base,
+    description: {
+      ...base.description,
+      titleInfo: {
+        ...base.description.titleInfo,
+        annotation: {
+          type: 'annotation',
+          attrs: { nodeId: 'ann' },
+          content: [
+            paragraph('annP', 'About.') as ParagraphNode,
+            tableNode('tAnn', [
+              ['r1c1', 'r1c2'],
+              ['r2c1', 'r2c2'],
+            ]) as never,
+          ],
+        },
+      },
+    },
+    bodies: [body],
+  };
+}

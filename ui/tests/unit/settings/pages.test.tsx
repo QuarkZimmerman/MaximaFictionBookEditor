@@ -703,8 +703,8 @@ describe('SettingsDialog - Hotkeys page', () => {
     );
   });
 
-  it('lists the eight groups of the original dialog and sorts commands by name', async () => {
-    await setup({ page: 'hotkeys' });
+  it('lists the eight groups of the original dialog and the Table group, and sorts commands by name', async () => {
+    const { user } = await setup({ page: 'hotkeys' });
     const groups = within(screen.getByTestId('settings-hotkeys-groups')).getAllByRole('option');
     expect(groups.map((g) => g.textContent)).toEqual([
       'File',
@@ -715,11 +715,24 @@ describe('SettingsDialog - Hotkeys page', () => {
       'Tools',
       'Symbols',
       'Scripts',
+      'Table',
     ]);
     const commands = within(screen.getByTestId('settings-hotkeys-commands')).getAllByRole('option');
     const names = commands.map((c) => c.firstElementChild?.textContent ?? '');
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
     expect(names).toContain('Open');
+
+    // The 24 table commands (feature 006, C23): listed from the registry, none with a chord.
+    await user.click(screen.getByTestId('settings-hotkeys-group-table'));
+    const rows = within(screen.getByTestId('settings-hotkeys-commands')).getAllByRole('option');
+    expect(rows).toHaveLength(24);
+    for (const row of rows) {
+      expect(row.getAttribute('data-testid')).toMatch(/^settings-hotkeys-command-table\.\w+$/);
+      expect(row.querySelector('.mfbe-hotkeys-chord')).toHaveTextContent(/^$/);
+    }
+    const tableNames = rows.map((row) => row.firstElementChild?.textContent ?? '');
+    expect(tableNames).toContain('Merge cells');
+    expect(tableNames).toEqual([...tableNames].sort((a, b) => a.localeCompare(b)));
   });
 
   it('has no row for an invisible command and gains it once the command is visible (feature 005)', async () => {

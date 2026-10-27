@@ -299,6 +299,31 @@ describe('status colours (feature 005, research R8.7)', () => {
       /--status-ok:\s*(#[0-9a-f]{6})/.exec(blocks.dark)![1],
     );
   });
+
+  it('declares --mfbe-cell-selected-tint and --mfbe-cell-text-selection in the light and dark blocks', () => {
+    // Feature 006, data-model §5.6, research R6.8: the block tint and the in-cell selection
+    // colour, a darker hue in the dark theme (selected text keeps 4.5:1, theme.spec.ts test 5).
+    const css = readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src/app/layout.css'),
+      'utf8',
+    );
+    const value = (declarations: string, variable: string) =>
+      new RegExp(`${variable}:\\s*([^;]+);`).exec(declarations)?.[1]?.trim();
+    const light = block(css, ':root {');
+    const dark = block(css, ":root[data-theme='dark'] {");
+    expect(value(light, '--mfbe-cell-selected-tint')).toBe('rgba(0, 120, 212, 0.28)');
+    expect(value(light, '--mfbe-cell-text-selection')).toBe('rgba(0, 120, 212, 0.38)');
+    expect(value(dark, '--mfbe-cell-selected-tint')).toBe('rgba(10, 106, 184, 0.4)');
+    expect(value(dark, '--mfbe-cell-text-selection')).toBe('#264f78');
+    // The editor's styles use them for a block and for text selected in a cell.
+    const styles = readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src/editor/styles.css'),
+      'utf8',
+    );
+    expect(styles).toContain('var(--mfbe-cell-selected-tint)');
+    expect(styles).toContain('background: var(--mfbe-cell-text-selection);');
+    expect(styles).toMatch(/\.fb-editor\.ProseMirror-hideselection \.fb-table ::selection\s*\{/);
+  });
 });
 
 describe('Source editor theme', () => {

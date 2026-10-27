@@ -21,6 +21,8 @@ editor no longer needs to match the original (requester decision, constitution 3
 | `app/` | CEF shell `mfbe` | thin: window, dialogs, launch args |
 | `ui/` | TypeScript/React/Vite | ProseMirror body editor, CodeMirror source view |
 | `ui/src/ai/` | the AI assistant (feature 005) | chunk rule: `index.ts`, `address.ts`, `testHooks.ts`, `agreements.ts` are static (main bundle); **everything else** in the folder, plus the MCP SDK and zod, is the lazy `ai-assistant` chunk (`ui/vite.config.ts` folder rule, `tests/unit/ai/chunk.test.ts`) - never import a chunk module statically from outside the folder; the settings page `ui/src/dialogs/settings/AiPage.tsx` stays outside |
+| `ui/src/editor/table/` | the table engine (feature 006) | the grid (`grid.ts`), the block of cells, the plans - pure functions of a table - and their commit (`commitTableEdit`: one transaction that replaces only the changed rows, one undo step); imports from `ui/src/model/` and `ui/src/editor/` only, so the Body view, the description fields, the paste router and the assistant share the plans; `testing/fuzz.ts` is reached by the test hooks through a dynamic import only - never import it statically |
+| `ui/src/features/tables/` | the table commands (feature 006) | the command table, the edit target of the Body view and the description fields, the Table dialog, the context-menu section, the irregular-table marks and their popover, the link-target question, the Source view's *Add → Table*, the test hooks |
 | `scripts/` | bundled user scripts | installed into the package — never put tooling here |
 | `tools/` | developer tooling | never shipped |
 | `resources/` | schema, genres, dictionaries, symbols, templates, messages, the AI service list `ai-services.json`, `certs/` (the Mozilla CA bundle + notice, Linux packages only) | installed |
@@ -34,21 +36,27 @@ export VCPKG_ROOT=~/maxfbeditor/vcpkg
 cmake --preset linux-core-debug && cmake --build --preset linux-core-debug   # core + tests, no CEF (the first configure also builds OpenSSL and curl, ~1 min)
 ctest --preset linux-core-debug                                               # Catch2; the TLS case (test_tls_ca.cpp) needs OpenSSL - linked by tests/core/CMakeLists.txt on Linux/macOS, skipped on Windows (Schannel)
 ctest --preset linux-core-debug -L corpus                                     # corpus round trip (slow)
+python3 tests/corpus/sample.py --containing "<table" --count 300 --seed 6 --out tests/corpus/sample-tables-6-300.txt   # the table stratum (feature 006; about 8 minutes); the inline stratum's recipe in tests/corpus/README.md; both lists local and git-ignored
+tests/corpus/run.sh <list> --core build/linux-core-release/bin/mfbe-core      # the corpus gate over one list (sample-1-50.txt, sample-tables-6-300.txt, sample-inline-marks.txt) - run before an rc tag
 cmake --preset linux-app-debug && cmake --build --preset linux-app-debug     # + CEF shell (downloads CEF once)
 tools/ci/shell-tests-xkb.sh ctest --preset linux-app-debug -L shell          # shell unit tests on an Xvfb with two XKB groups (keyboard layout)
 python3 tests/fixtures/books/make-fixtures.py                                 # regenerates the committed book fixtures (only when one must change)
 cd ui && npm ci && npm run typecheck && npm run lint && npm test && npm run build
+cd ui && MFBE_FUZZ_SEED=<n> npx vitest run tests/unit/editor/table/fuzz.test.ts   # one seed of the table fuzz (SC-003) instead of the five seeds and the regression seeds
 cd ui && npx playwright test --grep-invert @perf                              # e2e, headless, starts mfbe-core AND the AI stand-in (tests/e2e/fixtures/ai-standin.mjs) itself - no journey contacts a real service; the AI journeys need the real core (MFBE_CORE_BIN=../build/linux-core-debug/bin/mfbe-core), else they skip
-cd ui && npx playwright test --grep @platform                                 # the journeys the Windows/macOS legs run too (feature 005: us1-ai-settings and us8-ai-own-key - no locale-gen, LC_ALL, chmod or /tmp assumptions in them)
-cd ui && MFBE_CORE_BIN=../build/linux-core-release/bin/mfbe-core npx playwright test --grep @perf --workers=1  # timed journeys on the Release core
+cd ui && npx playwright test --grep @platform                                 # the journeys the Windows/macOS legs run too (feature 005: us1-ai-settings and us8-ai-own-key; feature 006: test 7 of us3-table-images-layout and the context-menu part of table-command-access - no locale-gen, LC_ALL, chmod or /tmp assumptions in them)
+cd ui && MFBE_CORE_BIN=../build/linux-core-release/bin/mfbe-core npx playwright test --grep @perf --workers=1  # timed journeys on the Release core, perf-tables (the table commands, SC-005) among them
+cd ui && MFBE_CORE_BIN=../build/linux-core-debug/bin/mfbe-core MFBE_E2E_TABLE_SHOTS=1 npx playwright test us3-table-images-layout  # pictures in table cells: test 7 attaches its contact sheets (evidence, never compared; CI's Linux leg sets the variable)
 node ui/tests/e2e/fixtures/ai-standin.mjs --port 8787                         # the AI service stand-in by hand (loopback only; scenarios over POST /__standin/scenario, record under /__standin/requests)
-tools/shell-smoke.sh                                                          # CEF shell under Xvfb + CDP (MFBE_SMOKE_CLOSE=1, MFBE_SMOKE_RESTART=1, MFBE_SMOKE_SAVE_AS=1 variants)
+tools/shell-smoke.sh                                                          # CEF shell under Xvfb + CDP (MFBE_SMOKE_CLOSE=1, MFBE_SMOKE_RESTART=1, MFBE_SMOKE_SAVE_AS=1 variants; MFBE_SMOKE_ABOUT=1 checks that About shows the version label and build id of `mfbe --version`; with MFBE_SMOKE_REAL_UI=1 and MFBE_SMOKE_OPEN_FILE the table-layout mode MFBE_SMOKE_TABLE_LAYOUT=1 on tests/fixtures/books/tables-images.fb2 and the table-marks mode MFBE_SMOKE_TABLE_MARKS=1 on tests/fixtures/books/tables.fb2)
 tools/format.sh [--check]
 python3 tools/path-conversion-check.py && python3 tools/path-portability-check.py  # explicit path/text conversions; file names that survive Windows/macOS checkouts
 python3 tools/fb2-schema-elements.py --check                                  # Source-view completion table current with resources/schema
 node tools/i18n-check.mjs --languages en,ru,uk --strict-identical --accelerators   # catalogue parity (CI runs it this strict)
 node tools/i18n-literals.mjs                                                  # no user-visible literal outside the catalogues
 python3 tools/licence-check.py --check                                        # THIRD-PARTY-NOTICES.md current; also rejects prose that pairs the X11-family three-letter licence name with "licence" (README, AGENTS, docs/**, packaging/**, i18n)
+python3 tools/version-check.py --self-test && python3 tools/version-check.py --check   # the version files agree with the label of CMakeLists.txt (CI's lint job runs both); --tag <tag> prints a release tag's forms, --tag "" the untagged ones
+python3 tools/resources-import/draw_table_icons.py --check                    # the 25 table icon pairs equal the drawing - by hand, CI does not run it
 python3 tools/refresh-cacert.py                                               # CA bundle refresh: downloads cacert.pem + digest from curl.se, rewrites resources/certs/ (then licence-check); network - by hand only
 node tools/ai-services-check.mjs                                              # RELEASE DAY ONLY: contacts the real bundled services (resources/ai-services.json) - never run by CI or a test; its table goes into docs/releases/<version>.md
 ```
@@ -90,7 +98,11 @@ Run the core headless for manual/MCP testing:
 - Contract first: change `specs/.../contracts/*` before changing RPC handlers or the UI client
   (feature 005 adds `ai-catalogue.md` for the tools, resources and prompts of
   `ui/src/ai/catalogue.ts` and `ai-service-protocol.md` for the wire handling of
-  `ui/src/ai/protocol.ts` and the core client).
+  `ui/src/ai/protocol.ts` and the core client). Feature 006's table grid
+  (`specs/006-table-editing/contracts/document-model.md` §4) is normative for
+  `ui/src/editor/table/grid.ts` and `core/src/model/table_grid.cpp`; a change to it and the
+  matching change to `tests/fixtures/tables/grid-vectors.json`, which pins both, land in one
+  commit.
 - Tests first for each user story (Playwright journey + Catch2 where the core is involved).
 - Commit messages: imperative, explain why; never commit secrets. Commit at natural
   checkpoints (a completed task or user story, a finished Spec Kit phase).

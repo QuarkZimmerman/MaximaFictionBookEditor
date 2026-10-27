@@ -5,10 +5,11 @@
  * a beep, the dialogs are modeless (the document stays usable, the dialog can be moved and the
  * next one opens where the last one was closed), the selection pre-fills the search field, a
  * selected element without text is a starting point, Replace and Replace All stay undoable when
- * the next match lies in a part of the book that is not displayed, and the Source view uses the
- * same dialogs. Book: tests/fixtures/books/many-sections.fb2 (48 sections, shown in windows of
- * 20; "разыскать" 20 times in sections 3, 10, 18, 27, 36 and 46, twice in two paragraphs; an
- * inline image before the 3rd occurrence; a picture between the paragraphs of section 10).
+ * the next match lies in a part of the book that is not displayed, the Source view uses the same
+ * dialogs, and a range the Body selects while the dialog holds the focus is scrolled into view.
+ * Book: tests/fixtures/books/many-sections.fb2 (48 sections, shown in windows of 20;
+ * "разыскать" 20 times in sections 3, 10, 18, 27, 36 and 46, twice in two paragraphs; an inline
+ * image before the 3rd occurrence; a picture between the paragraphs of section 10).
  * The messages the journey waits for come from the catalogues in the language the page shows
  * (fixtures/i18n.ts): the `chromium-ru` and `chromium-uk` projects run it with `?lang=ru` and
  * `?lang=uk` (feature 002 FR-091, feature 003 FR-005).
@@ -24,8 +25,23 @@ const WORD = 'разыскать';
 const OCCURRENCES = 20;
 const BOOK = fixtureBook('many-sections.fb2');
 
+/** A node of the document model as `__mfbeTest.scripts.document()` gives it. */
+interface ModelNode {
+  type: string;
+  attrs?: { nodeId?: string };
+  content?: ModelNode[];
+}
+
 /** Browser-side test hooks (`src/scripting/testHooks.ts`); the e2e tsconfig has no DOM lib. */
-declare const window: { __mfbeTest?: { scripts?: { toXml(): Promise<string> } } };
+declare const window: {
+  __mfbeTest?: {
+    scripts?: {
+      toXml(): Promise<string>;
+      document(): { bodies: ModelNode[] };
+      select(nodeId: string, from?: number, to?: number): boolean;
+    };
+  };
+};
 
 interface MatchInfo {
   /** Text of the highlighted current match. */
@@ -36,7 +52,15 @@ interface MatchInfo {
   inView: boolean;
 }
 
-/* The e2e tsconfig has no DOM lib: browser-side probes are string snippets. */
+/*
+ * The e2e tsconfig has no DOM lib: browser-side probes are string snippets.
+ *
+ * "In view" is judged against the element that scrolls the Body view - the nearest ancestor
+ * that scrolls and overflows, the view pane - clipped to the window: the `body-view` element
+ * itself is as tall as the text, so a box inside it says nothing about what is shown. Within a
+ * pixel: the pane scrolls by whole pixels and the text lies at fractional ones, so a match
+ * scrolled to the pane's edge may stand out by a fraction of a pixel.
+ */
 const MATCH_PROBE = `(() => {
   const parts = [...document.querySelectorAll('[data-testid="body-editor"] .mfbe-search-match')];
   if (parts.length === 0) return null;
@@ -44,14 +68,39 @@ const MATCH_PROBE = `(() => {
   const range = document.createRange();
   range.setStart(block, 0);
   range.setEndBefore(parts[0]);
-  const view = document.querySelector('[data-testid="body-view"]').getBoundingClientRect();
+  let scroller = parts[0].parentElement;
+  while (scroller && !(scroller.scrollHeight > scroller.clientHeight &&
+      /auto|scroll/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement;
+  const view = scroller ? scroller.getBoundingClientRect() : null;
   const box = parts[0].getBoundingClientRect();
   return {
     text: parts.map((p) => p.textContent).join(''),
     offset: range.toString().length,
-    inView: box.width > 0 && box.top >= view.top && box.bottom <= view.bottom &&
-      box.left >= view.left && box.right <= view.right,
+    inView: !!view && box.width > 0 && box.height > 0 &&
+      box.top >= Math.max(0, view.top) - 1 &&
+      box.bottom <= Math.min(window.innerHeight, view.bottom) + 1 &&
+      box.left >= Math.max(0, view.left) - 1 &&
+      box.right <= Math.min(window.innerWidth, view.right) + 1,
   };
+})()`;
+
+/**
+ * The Body selection lies inside the visible part of the view: its box within the box of the
+ * view's scrolling ancestor and the window.
+ */
+const SELECTION_IN_VIEW = `(() => {
+  const selection = document.getSelection();
+  const node = selection && selection.rangeCount > 0 ? selection.focusNode : null;
+  const element = node && (node.nodeType === 1 ? node : node.parentElement);
+  if (!element || !element.closest('[data-testid="body-editor"]')) return false;
+  let scroller = element.parentElement;
+  while (scroller && !(scroller.scrollHeight > scroller.clientHeight &&
+      /auto|scroll/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement;
+  if (!scroller) return false;
+  const view = scroller.getBoundingClientRect();
+  const box = selection.getRangeAt(0).getBoundingClientRect();
+  return box.height > 0 && box.top >= Math.max(0, view.top) &&
+    box.bottom <= Math.min(window.innerHeight, view.bottom);
 })()`;
 
 async function openBook(core: CoreHandle, page: Page): Promise<void> {
@@ -333,5 +382,34 @@ test.describe('US5 - Find and Replace work on the visible text', () => {
     await page.getByTestId('dialog-find-button-findNext').click();
     await expect(page.locator('.cm-activeLine')).toContainText('Карту следовало разыскать');
     await expect(page.getByTestId('dialog-find')).toBeVisible();
+  });
+
+  test('8. a range the Body selects while the dialog holds the focus is scrolled into view', async ({
+    core,
+    page,
+  }) => {
+    // The Body's range selection (the anchor an incremental search restores, the reference a
+    // footnote goes back to, the scripts' selection hook) takes the focus before it selects:
+    // ProseMirror scrolls to a selection only while it owns the browser selection, which the
+    // dialog's field held here. The last paragraph of the book lies outside the displayed window.
+    await openBook(core, page);
+    const last = await page.evaluate(() => {
+      const paragraphs: string[] = [];
+      const walk = (node: ModelNode) => {
+        if (node.type === 'p' && node.attrs?.nodeId) paragraphs.push(node.attrs.nodeId);
+        node.content?.forEach(walk);
+      };
+      walk(window.__mfbeTest!.scripts!.document().bodies[0]!);
+      return paragraphs[paragraphs.length - 1]!;
+    });
+    await openFind(page, WORD);
+    await expect(page.getByTestId('dialog-find-query')).toBeFocused();
+    const selected = await page.evaluate(
+      (nodeId) => window.__mfbeTest!.scripts!.select(nodeId, 0, 5),
+      last,
+    );
+    expect(selected).toBe(true);
+    await expect.poll(() => position(page)).toEqual([48, 3]);
+    await expect.poll(() => page.evaluate<boolean>(SELECTION_IN_VIEW)).toBe(true);
   });
 });

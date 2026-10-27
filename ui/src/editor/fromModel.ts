@@ -128,7 +128,18 @@ function unknownElement(
   report.problems.push({ path, message, nodeId: nodeIdOf(json) });
   const type = inline ? fb2Schema.nodes.raw_xml_inline! : fb2Schema.nodes.raw_xml!;
   const xml = typeof json.attrs?.xml === 'string' ? json.attrs.xml : `<${json.type}/>`;
-  return type.create({ nodeId: nodeIdOf(json) ?? null, xml, original: JSON.stringify(json) });
+  // An inline one keeps the marks of the node it stands for (feature 006, FR-067).
+  const marks = inline ? convertMarks(json.marks, report, path) : undefined;
+  return type.create(
+    { nodeId: nodeIdOf(json) ?? null, xml, original: JSON.stringify(json) },
+    null,
+    marks,
+  );
+}
+
+/** Node types whose model nodes carry marks besides text: the inline atoms (FR-067). */
+function isInlineAtom(type: NodeType): boolean {
+  return type === fb2Schema.nodes.inline_image || type === fb2Schema.nodes.raw_xml_inline;
 }
 
 function nodeIdOf(json: ModelNodeJson): string | undefined {
@@ -184,8 +195,11 @@ export function nodeFromModel(
   }
 
   const fragment = Fragment.from(children);
+  // An inline image or inline raw XML keeps the link and the formatting around it (feature
+  // 006, FR-067); no block node takes marks.
+  const marks = isInlineAtom(type) ? convertMarks(json.marks, report, path) : undefined;
   try {
-    return type.createChecked(attrs, fragment);
+    return type.createChecked(attrs, fragment, marks);
   } catch (error) {
     // Content or attributes violate the schema: keep the node (unchecked) and report it.
     report.problems.push({
@@ -194,7 +208,7 @@ export function nodeFromModel(
       nodeId: nodeIdOf(json),
     });
     try {
-      return type.create(attrs, fragment);
+      return type.create(attrs, fragment, marks);
     } catch (fatal) {
       return unknownElement(json, inlineContext, report, path, String(fatal));
     }

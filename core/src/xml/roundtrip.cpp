@@ -33,9 +33,21 @@ void drop_empty_persons(std::vector<model::Person>& list) {
     list.erase(std::remove_if(list.begin(), list.end(), person_empty), list.end());
 }
 
+// The writer's placeholder for a required genre: a title-info without one is written with an
+// empty <genre/> (the schema requires the element; the writer writes every required element),
+// which reads back as a genre without a code - as a required <author/> reads back as an empty
+// person (drop_empty_persons). A source title-info without a genre is therefore not a
+// difference (feature 006, the corpus gate's table stratum).
+void drop_empty_genres(std::vector<model::GenreRef>& list) {
+    list.erase(std::remove_if(list.begin(), list.end(),
+                              [](const model::GenreRef& g) { return g.code.empty() && !g.match; }),
+               list.end());
+}
+
 // No normalisation of the annotation and the history: since feature 004 the writer keeps a
 // present-but-empty element as read (<annotation/>), so "absent" and "present and empty" are two
-// forms the comparison must tell apart - a writer that dropped one again would be caught here.
+// forms the comparison must tell apart - a writer that dropped one again would be caught here
+// (compare_rich_field).
 
 void normalise_title_info(model::TitleInfo& info) {
     drop_empty_persons(info.authors);
@@ -45,6 +57,7 @@ void normalise_title_info(model::TitleInfo& info) {
             g.match.reset();
         }
     }
+    drop_empty_genres(info.genres);
     if (info.keywords && info.keywords->empty()) {
         info.keywords.reset();
     }
@@ -166,15 +179,53 @@ std::map<std::string, json> attrs_without_node_id(const Node& n) {
     return attrs;
 }
 
+// Marks by type with the marks of one type in their order (feature 006, FR-069): the order
+// across types does not count, the order of nested formatting of one kind does.
 std::vector<model::Mark> sorted_marks(const std::vector<model::Mark>& marks) {
     std::vector<model::Mark> sorted = marks;
-    std::sort(sorted.begin(), sorted.end(), [](const model::Mark& a, const model::Mark& b) {
-        if (a.type != b.type) {
-            return a.type < b.type;
-        }
-        return a.attrs.dump() < b.attrs.dump();
-    });
+    std::stable_sort(sorted.begin(), sorted.end(),
+                     [](const model::Mark& a, const model::Mark& b) { return a.type < b.type; });
     return sorted;
+}
+
+// Whether an inline content list differs from its writer's form: it holds a link (FR-068's
+// rule may change its formatting) or two adjacent text nodes the writer joins.
+bool needs_writer_form(const std::vector<Node>& content) {
+    for (std::size_t i = 0; i < content.size(); ++i) {
+        const Node& node = content[i];
+        if (!node.is_text() && !fb2::is_inline_node(node)) {
+            continue;
+        }
+        for (const model::Mark& mark : node.marks) {
+            if (mark.type == "link") {
+                return true;
+            }
+        }
+        if (i > 0 && node.is_text() && content[i - 1].is_text() &&
+            sorted_marks(node.marks) == sorted_marks(content[i - 1].marks)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The writer's form of a node's children (feature 006, document-model §3.3): FR-068's link
+// rule (fb2::normalise_link_formatting), then adjacent text nodes whose marks are equal as
+// compared joined (decision 11's joining, probe p14). The comparison allows nothing else.
+std::vector<Node> writer_form(const std::vector<Node>& content) {
+    std::vector<Node> normalised = content;
+    fb2::normalise_link_formatting(normalised);
+    std::vector<Node> joined;
+    joined.reserve(normalised.size());
+    for (Node& node : normalised) {
+        if (node.is_text() && !joined.empty() && joined.back().is_text() &&
+            sorted_marks(joined.back().marks) == sorted_marks(node.marks)) {
+            joined.back().text += node.text;
+            continue;
+        }
+        joined.push_back(std::move(node));
+    }
+    return joined;
 }
 
 void compare_nodes(const Node& a, const Node& b, const std::string& where, Comparison& out,
@@ -198,6 +249,10 @@ void compare_nodes(const Node& a, const Node& b, const std::string& where, Compa
         }
         return;
     }
+    // The marks of an inline atom count as those of text (feature 006, FR-067).
+    if (sorted_marks(a.marks) != sorted_marks(b.marks)) {
+        out.differences.push_back({where, "marks differ"});
+    }
     const auto aa = attrs_without_node_id(a);
     const auto ba = attrs_without_node_id(b);
     if (aa != ba) {
@@ -217,14 +272,27 @@ void compare_nodes(const Node& a, const Node& b, const std::string& where, Compa
         }
         out.differences.push_back({where, "attributes differ:" + detail});
     }
-    if (a.content.size() != b.content.size()) {
-        out.differences.push_back({where, "child count " + std::to_string(a.content.size()) +
-                                              " became " + std::to_string(b.content.size())});
+    // Both sides' children in the writer's form (copied only when it differs).
+    std::vector<Node> a_form;
+    std::vector<Node> b_form;
+    const std::vector<Node>* a_children = &a.content;
+    const std::vector<Node>* b_children = &b.content;
+    if (needs_writer_form(a.content)) {
+        a_form = writer_form(a.content);
+        a_children = &a_form;
+    }
+    if (needs_writer_form(b.content)) {
+        b_form = writer_form(b.content);
+        b_children = &b_form;
+    }
+    if (a_children->size() != b_children->size()) {
+        out.differences.push_back({where, "child count " + std::to_string(a_children->size()) +
+                                              " became " + std::to_string(b_children->size())});
         return;
     }
     std::map<std::string, std::size_t> counters;
-    for (std::size_t i = 0; i < a.content.size(); ++i) {
-        const Node& child = a.content[i];
+    for (std::size_t i = 0; i < a_children->size(); ++i) {
+        const Node& child = (*a_children)[i];
         std::string child_where;
         if (child.is_text()) {
             child_where = where + "/text()[" + std::to_string(i + 1) + "]";
@@ -232,8 +300,27 @@ void compare_nodes(const Node& a, const Node& b, const std::string& where, Compa
             const std::size_t index = ++counters[child.type];
             child_where = where + "/" + child.type + "[" + std::to_string(index) + "]";
         }
-        compare_nodes(child, b.content[i], child_where, out, max);
+        compare_nodes(child, (*b_children)[i], child_where, out, max);
     }
+}
+
+// A rich field of the description - the book's annotation, the source book's annotation, the
+// history - holds inline content that the writer brings into its form as it does in the bodies:
+// the fixed nesting order of formatting, the joining and FR-068's link rule (plan.md,
+// Complexity Tracking, exceptions 2 and 3). It is compared as a body node is (compare_nodes),
+// not as JSON, where the order of marks across kinds would count; absent and present-but-empty
+// stay two forms. The field is then cleared on both sides, so the JSON comparison of the rest of
+// the description skips it (feature 006, the corpus gate's table stratum).
+void compare_rich_field(std::optional<Node>& a, std::optional<Node>& b, const std::string& where,
+                        Comparison& out, std::size_t max) {
+    if (a.has_value() != b.has_value()) {
+        out.differences.push_back(
+            {where, a.has_value() ? "missing after round trip" : "appeared after round trip"});
+    } else if (a.has_value()) {
+        compare_nodes(*a, *b, where, out, max);
+    }
+    a.reset();
+    b.reset();
 }
 
 std::map<std::string, std::vector<std::string>> extras_by_slot(const model::Document& d) {
@@ -269,6 +356,14 @@ Comparison compare(const model::Document& a, const BinaryStore& store_a, const m
         info->date.text.clear();
         info->date.value.reset();
     }
+    compare_rich_field(da.titleInfo.annotation, db.titleInfo.annotation,
+                       "description/titleInfo/annotation", out, max);
+    if (da.srcTitleInfo && db.srcTitleInfo) {
+        compare_rich_field(da.srcTitleInfo->annotation, db.srcTitleInfo->annotation,
+                           "description/srcTitleInfo/annotation", out, max);
+    }
+    compare_rich_field(da.documentInfo.history, db.documentInfo.history,
+                       "description/documentInfo/history", out, max);
     json ja = model::to_json(da);
     json jb = model::to_json(db);
     strip_node_ids(ja);

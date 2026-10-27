@@ -69,6 +69,12 @@
   --mfbe-body-fg: #000000;
   --mfbe-body-bg: #ffffff;
   --mfbe-body-selection: #b4d5fe;
+  /* A selected block of table cells (its tint over the cell's own background) and text
+     selected inside a cell (feature 006, data-model §5.6, research R6.8): selected text keeps
+     4.5:1 or more on data and header cells; the accent line around each cell carries the
+     visibility. */
+  --mfbe-cell-selected-tint: rgba(0, 120, 212, 0.28);
+  --mfbe-cell-text-selection: rgba(0, 120, 212, 0.38);
 
   /* Body view accents (the original editor's main.css: green section frames and title bars,
      blue epigraphs, brown cites, teal annotations, red history, pink stanzas, dark-red authors,
@@ -196,6 +202,9 @@
   --mfbe-body-fg: #d6d6d6;
   --mfbe-body-bg: #1b1b1b;
   --mfbe-body-selection: #264f78;
+  /* A darker hue than the accent: within R6.8's bound of alpha 0.43 on header cells. */
+  --mfbe-cell-selected-tint: rgba(10, 106, 184, 0.4);
+  --mfbe-cell-text-selection: #264f78;
 
   --mfbe-fb-section: #2e8b3a;
   --mfbe-fb-title-bg: #1f6b2a;
@@ -472,7 +481,11 @@ textarea {
   padding: 2px 6px;
 }
 
-.mfbe-toolbar + .mfbe-toolbar {
+/* Every toolbar after the first: also while a toolbar's right-click menu, rendered right after
+   it, stands between two toolbars - an adjacent-sibling rule dropped the line then, and the
+   pixel it took moved everything below, which closed that menu again when a pane under it was
+   scrolled to its end (a scroll closes a popup menu, U13). */
+.mfbe-toolbar ~ .mfbe-toolbar {
   border-top: 1px solid var(--mfbe-color-border);
 }
 
@@ -915,4 +928,24 @@ textarea {
   flex: 0 0 48px;
   text-align: center;
   border-right: 0;
+}
+
+/*
+ * The warning badge of an irregular table (feature 006 US8, FR-057; C52, C59): its own class with
+ * exactly the values of the Validation panel's warning icon (`dialogs/validation.css`) - the
+ * theme's warning colour, the "!" in the on-accent colour (white in the light theme, #161616 in
+ * the dark one) -, used by the Body view's mark and the Document Tree's (FR-058).
+ */
+.mfbe-table-mark-badge {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--mfbe-color-warning);
+  color: var(--mfbe-color-on-accent);
+  font-family: var(--mfbe-font-family);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
 }

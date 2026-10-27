@@ -1,14 +1,25 @@
 name: Release
 
-# Tag `vX.Y.Z` (or run by hand): builds the full application on every platform, runs the
-# release gates that CI can run (unit tests, UI checks, end-to-end journeys, shell smoke,
-# licence check), produces the packages with CPack, smoke-tests each package, and attaches
-# MSI / portable ZIP / AppImage (+ .zsync) / .deb / .rpm / .dmg with SHA-256 checksums and the installation
-# excerpt to a GitHub Release.
+# Tag `vX.Y.Z` (a final version) or `vX.Y.Z-<label>.N` (a test build of the pre-release label
+# committed in CMakeLists.txt, such as `v0.0.6-rc.1`, published as a GitHub pre-release), or run
+# by hand with such a tag: builds the full application on every platform, runs the release gates
+# that CI can run (unit tests, UI checks, end-to-end journeys, shell smoke, licence check),
+# produces the packages with CPack, smoke-tests each package, and attaches MSI / portable ZIP /
+# AppImage (+ .zsync) / .deb / .rpm / .dmg with SHA-256 checksums and the installation excerpt to
+# a GitHub Release.
+#
+# The tag must fit the committed version (feature 006): each build checks it right after the
+# checkout (tools/version-check.py --tag) and at every configure (cmake/MfbeVersion.cmake, the
+# authority), and the packages carry its label (0.0.6-rc.N). A manual dry run without a tag
+# builds untagged packages - the committed label, such as 0.0.6-rc, and an AppImage without
+# update information and without a .zsync - and publishes nothing.
 #
 # Gates that cannot run here (Constitution IV/VI, documented in the release notes):
-#   * the corpus round-trip/validation gate (tests/corpus/run.sh) needs the local book
-#     collection (/book_disk/books) and is run on the development host before tagging;
+#   * the corpus round-trip/validation gate needs the local book collection (/book_disk/books)
+#     and is run on the development host before tagging: tests/corpus/run.sh over the gate's
+#     sample (sample-1-50.txt), the table stratum (sample-tables-6-300.txt) and the inline
+#     stratum (sample-inline-marks.txt; feature 006, SC-004), and ctest -L corpus over every
+#     local list (tests/corpus/README.md has the recipes);
 #   * the performance budgets (tests/bench/, T150) run when that directory exists.
 
 on:
@@ -32,6 +43,11 @@ jobs:
     name: build + package (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 240
+    env:
+      # The tag this run builds, read once (feature 006): a pushed tag, or the tag given to a
+      # manual run; empty - untagged - for a manual dry run without one. Both configures read it
+      # (cmake/MfbeVersion.cmake), and the step after the checkout checks it.
+      MFBE_RELEASE_TAG: ${{ github.event.inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name || '') }}
     strategy:
       fail-fast: false
       matrix:
@@ -57,6 +73,19 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
           fetch-depth: 0
+
+      # Feature 006 (FR-054, FR-055): the version forms of the run's tag, checked against the
+      # committed version before anything is installed or built. A tag that does not fit
+      # (v0.0.6 or v0.0.6-rc.0 while CMakeLists.txt commits 0.0.6-rc) fails here within seconds;
+      # the configure's own check comes only after the vcpkg install. MFBE_VERSION (the label),
+      # MFBE_VERSION_PACKAGE, MFBE_VERSION_NUMERIC, MFBE_VERSION_PRERELEASE,
+      # MFBE_APPIMAGE_CHANNEL, ... go to $GITHUB_ENV for the package smokes.
+      - name: Version forms of the tag (feature 006)
+        shell: bash
+        run: |
+          set -o pipefail
+          if python3 --version >/dev/null 2>&1; then python=python3; else python=python; fi
+          "$python" tools/version-check.py --tag "$MFBE_RELEASE_TAG" | tee -a "$GITHUB_ENV"
 
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
@@ -263,7 +292,7 @@ jobs:
       - name: Corpus gate (local only)
         if: runner.os == 'Linux'
         run: |
-          echo "::notice::The corpus round-trip/validation gate (tests/corpus/run.sh) needs the local book collection and is run on the development host before tagging."
+          echo "::notice::The corpus round-trip/validation gate needs the local book collection and is run on the development host before tagging: tests/corpus/run.sh over sample-1-50.txt, the table stratum sample-tables-6-300.txt and the inline stratum sample-inline-marks.txt, and ctest -L corpus."
 
       - name: Performance budgets (10 MB journeys)
         if: runner.os == 'Linux'
@@ -276,7 +305,9 @@ jobs:
       - name: Script benchmark (SC-008, times recorded)
         # As in CI (12 x ratio, 1 MB budget x MFBE_PERF_FACTOR); the measured times go to the job
         # summary and the script-benchmark artifact. The 5 s budget itself is confirmed on the
-        # reference laptop in the release smoke test (docs/performance.md).
+        # reference laptop in the release smoke test (docs/performance.md). The same run holds
+        # every @perf journey, perf-tables among them (feature 006, SC-005): its medians follow
+        # in a second table of the summary, read from tests/bench/results/table-commands.json.
         if: runner.os == 'Linux'
         working-directory: ui
         shell: bash
@@ -289,10 +320,26 @@ jobs:
             console.log("| Script | 1 MB (ms) | 10 MB (ms) |\n| --- | ---: | ---: |");
             for (const r of results) console.log(`| ${r.script} | ${r["1mb"]} | ${r["10mb"]} |`);
           ' "$MFBE_PERF_RESULTS" >> "$GITHUB_STEP_SUMMARY"
+          node -e '
+            const r = require(process.argv[1]);
+            const keys = ["table300", "table628", "table298", "table1000"];
+            const cell = (value) => (value === undefined ? "-" : String(value));
+            console.log(`\n### Table commands (MFBE_PERF_FACTOR ${r.perfFactor})\n`);
+            console.log("| Command | 300 × 10 median (ms) | 628 × 4 median (ms) | 298 × 14 median (ms) | 1000 × 20 (ms) |");
+            console.log("| --- | ---: | ---: | ---: | ---: |");
+            const names = [...new Set(keys.flatMap((key) => Object.keys(r[key] ?? {})))];
+            for (const name of names) {
+              console.log(`| ${name} | ${keys.map((key) => cell(r[key]?.[name])).join(" | ")} |`);
+            }
+            for (const paste of ["block", "table"]) {
+              console.log(`| paste (${paste}) | ${keys.map((key) => cell(r.pastes?.[key]?.[paste])).join(" | ")} |`);
+            }
+          ' "$MFBE_TABLE_RESULTS" >> "$GITHUB_STEP_SUMMARY"
         env:
           MFBE_CORE_BIN: ${{ github.workspace }}/build/linux-core-release/bin/mfbe-core
           MFBE_UI_DIST: ${{ github.workspace }}/ui/dist
           MFBE_PERF_RESULTS: ${{ github.workspace }}/tests/bench/results/script-benchmark.json
+          MFBE_TABLE_RESULTS: ${{ github.workspace }}/tests/bench/results/table-commands.json
       - name: Script benchmark failure details
         if: failure() && runner.os == 'Linux'
         shell: bash
@@ -302,7 +349,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: script-benchmark
-          path: tests/bench/results/script-benchmark.json
+          path: |
+            tests/bench/results/script-benchmark.json
+            tests/bench/results/table-commands.json
           if-no-files-found: ignore
 
       - name: Licence check (blocking, Constitution VI)
@@ -344,15 +393,38 @@ jobs:
           set -o pipefail
           {
           set -eux
-          ls -l build/${{ matrix.preset }}/packages/
-          image=$(ls build/${{ matrix.preset }}/packages/*.AppImage)
-          "$image" --appimage-extract-and-run --version
+          : "${MFBE_VERSION:?no MFBE_VERSION from the version check of the tag}"
+          packages=build/${{ matrix.preset }}/packages
+          ls -l "$packages/"
+          # Feature 006 (FR-055): the forms of the run's tag (tools/version-check.py, first step):
+          # the file names carry the label (0.0.6-rc.N from v0.0.6-rc.N), the deb and rpm versions
+          # the package form (0.0.6~rc.N, before the final), and the AppImage has a .zsync exactly
+          # when it embeds update information (a tag), never when untagged (a dry run).
+          image="$packages/MaximaFictionBookEditor-${MFBE_VERSION}-x86_64.AppImage"
+          deb="$packages/mfbe_${MFBE_VERSION}_amd64.deb"
+          rpm="$packages/mfbe-${MFBE_VERSION}-1.x86_64.rpm"
+          test -f "$image" && test -f "$deb" && test -f "$rpm"
+          test "$(dpkg-deb -f "$deb" Version)" = "$MFBE_VERSION_PACKAGE"
+          test "$(rpm -qp --qf '%{VERSION}' "$rpm")" = "$MFBE_VERSION_PACKAGE"
+          if [ -n "${MFBE_VERSION_PRERELEASE:-}" ]; then
+            dpkg --compare-versions "$MFBE_VERSION_PACKAGE" lt "$MFBE_VERSION_NUMERIC"
+          fi
+          if [ -n "${MFBE_APPIMAGE_CHANNEL:-}" ]; then
+            test -f "$image.zsync"
+          else
+            test -z "$(find "$packages" -maxdepth 1 -name '*.zsync')"
+          fi
+          version_line="Maxima Fiction Book Editor $MFBE_VERSION (build $MFBE_VERSION+"
+          "$image" --appimage-extract-and-run --version | tee "$RUNNER_TEMP/version-appimage.txt"
+          grep -qF "$version_line" "$RUNNER_TEMP/version-appimage.txt"
           APPIMAGE_EXTRACT_AND_RUN=1 MFBE_APP_BIN="$image" MFBE_SMOKE_REAL_UI=1 \
             MFBE_SMOKE_SCREENSHOT=build/shell-smoke-appimage.png tools/shell-smoke.sh
-          dpkg-deb -I build/${{ matrix.preset }}/packages/mfbe_*_amd64.deb
-          dpkg -x build/${{ matrix.preset }}/packages/mfbe_*_amd64.deb "$RUNNER_TEMP/deb" && "$RUNNER_TEMP/deb/usr/bin/mfbe" --version
-          rpm -qpi build/${{ matrix.preset }}/packages/mfbe-*.rpm
-          rpm -qpR build/${{ matrix.preset }}/packages/mfbe-*.rpm | grep -q 'libgtk-3.so.0'
+          dpkg-deb -I "$deb"
+          dpkg -x "$deb" "$RUNNER_TEMP/deb"
+          "$RUNNER_TEMP/deb/usr/bin/mfbe" --version | tee "$RUNNER_TEMP/version-deb.txt"
+          grep -qF "$version_line" "$RUNNER_TEMP/version-deb.txt"
+          rpm -qpi "$rpm"
+          rpm -qpR "$rpm" | grep -q 'libgtk-3.so.0'
           } 2>&1 | tee "$RUNNER_TEMP/smoke.log"
       - name: Package smoke failure details
         if: failure() && runner.os == 'Linux'
@@ -363,15 +435,39 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $msi = (Get-ChildItem build\${{ matrix.preset }}\packages\*.msi | Select-Object -First 1).FullName
+          # Feature 006 (FR-055): the forms of the run's tag (tools/version-check.py, first step);
+          # the MSI's name carries the version label (0.0.6-rc.N from v0.0.6-rc.N).
+          if (-not $env:MFBE_VERSION) { throw "no MFBE_VERSION from the version check of the tag" }
+          $msi = Join-Path "build\${{ matrix.preset }}\packages" "MaximaFictionBookEditor-${env:MFBE_VERSION}-win64.msi"
+          if (-not (Test-Path -LiteralPath $msi)) { Get-ChildItem build\${{ matrix.preset }}\packages | ForEach-Object { Write-Host $_.Name }; throw "no MSI named for the version label: $msi" }
+          $msi = (Resolve-Path -LiteralPath $msi).Path
           $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /qn /l*v $env:RUNNER_TEMP\install.log" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content $env:RUNNER_TEMP\install.log -Tail 80; throw "msiexec install exit $($p.ExitCode)" }
           $exe = Join-Path $env:ProgramFiles "Maxima Fiction Book Editor\bin\mfbe.exe"
-          & $exe --version
+          # Feature 006: Apps & features names the build with its label while the version has a
+          # pre-release part, and shows the numeric version (MSI ProductVersion).
+          $expectedName = if ($env:MFBE_VERSION_PRERELEASE) { "MaximaFictionBookEditor $env:MFBE_VERSION" } else { 'MaximaFictionBookEditor' }
+          $entries = @(Get-ChildItem 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall' | ForEach-Object { Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue } | Where-Object { $_.DisplayName -like 'MaximaFictionBookEditor*' })
+          if ($entries.Count -ne 1) { throw "expected one Apps & features entry, found $($entries.Count): $($entries.DisplayName -join ', ')" }
+          Write-Host "Apps & features: '$($entries[0].DisplayName)', version $($entries[0].DisplayVersion)"
+          if ($entries[0].DisplayName -ne $expectedName) { throw "Apps & features shows '$($entries[0].DisplayName)', expected '$expectedName'" }
+          if ($entries[0].DisplayVersion -ne $env:MFBE_VERSION_NUMERIC) { throw "Apps & features version '$($entries[0].DisplayVersion)', expected '$env:MFBE_VERSION_NUMERIC'" }
+          # Feature 006: --version names the label and the build id. mfbe.exe writes it to the
+          # console it attaches to, which a step does not capture: the helper reads it.
+          $versionText = (tools/ci/windows-program-output.ps1 -Exe $exe) -join "`n"
+          if ($LASTEXITCODE -ne 0) { throw "mfbe.exe --version exit $LASTEXITCODE" }
+          Write-Host $versionText
+          if ($versionText -notlike "*Maxima Fiction Book Editor ${env:MFBE_VERSION} (build ${env:MFBE_VERSION}+*") { throw "mfbe.exe --version does not name the version label $env:MFBE_VERSION and its build id" }
           # The renamed CEF bootstrap must carry the editor's own version info and icon
           # (Start menu / Explorer show the executable's resources).
           $vi = (Get-Item $exe).VersionInfo
           if ($vi.ProductName -ne 'Maxima Fiction Book Editor') { throw "version info not stamped: ProductName='$($vi.ProductName)'" }
+          # Feature 006: the version strings carry the label, the binary file version the numbers
+          # (FR-055, decision 14); the copyright names the project's licence (FR-066).
+          if ($vi.ProductVersion -ne $env:MFBE_VERSION) { throw "ProductVersion '$($vi.ProductVersion)', expected '$env:MFBE_VERSION'" }
+          if ($vi.FileVersion -ne $env:MFBE_VERSION) { throw "FileVersion '$($vi.FileVersion)', expected '$env:MFBE_VERSION'" }
+          if ("$($vi.FileVersionRaw)" -ne "${env:MFBE_VERSION_NUMERIC}.0") { throw "FileVersionRaw '$($vi.FileVersionRaw)', expected '${env:MFBE_VERSION_NUMERIC}.0'" }
+          if ($vi.LegalCopyright -notmatch 'GPL-3\.0-only') { throw "LegalCopyright '$($vi.LegalCopyright)' does not name GPL-3.0-only" }
           Add-Type -AssemblyName System.Drawing
           $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
           if ($null -eq $icon -or $icon.Width -lt 16) { throw "the executable has no icon" }
@@ -478,7 +574,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $zip = (Get-ChildItem build\${{ matrix.preset }}\packages\*-portable.zip | Select-Object -First 1).FullName
+          # Feature 006 (FR-055): the ZIP's name carries the version label of the run's tag.
+          if (-not $env:MFBE_VERSION) { throw "no MFBE_VERSION from the version check of the tag" }
+          $zip = Join-Path "build\${{ matrix.preset }}\packages" "MaximaFictionBookEditor-${env:MFBE_VERSION}-win64-portable.zip"
+          if (-not (Test-Path -LiteralPath $zip)) { Get-ChildItem build\${{ matrix.preset }}\packages | ForEach-Object { Write-Host $_.Name }; throw "no portable ZIP named for the version label: $zip" }
+          $zip = (Resolve-Path -LiteralPath $zip).Path
           # Unpacked into the user profile like a downloaded copy, outside Program Files.
           $dest = Join-Path $env:USERPROFILE 'Downloads\mfbe-portable-smoke'
           if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
@@ -532,13 +632,27 @@ jobs:
           set -o pipefail
           {
           set -eux
-          dmg=$(ls build/${{ matrix.preset }}/packages/*.dmg)
+          : "${MFBE_VERSION:?no MFBE_VERSION from the version check of the tag}"
+          # Feature 006: the dmg's name carries the version label of the run's tag; both version
+          # keys of the bundle and its helpers the numeric form (Apple wants three integers
+          # there); the copyright the project's licence (FR-066); --version the label and the
+          # build id.
+          dmg="build/${{ matrix.preset }}/packages/MaximaFictionBookEditor-${MFBE_VERSION}-macos-$(uname -m).dmg"
+          test -f "$dmg"
           hdiutil attach "$dmg" -mountpoint "$RUNNER_TEMP/dmg" -nobrowse -readonly
           codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/dmg/mfbe.app" || {
             codesign -dvvv "$RUNNER_TEMP/dmg/mfbe.app" || true
             exit 1
           }
-          "$RUNNER_TEMP/dmg/mfbe.app/Contents/MacOS/mfbe" --version
+          app="$RUNNER_TEMP/dmg/mfbe.app"
+          for plist in "$app/Contents/Info.plist" "$app"/Contents/Frameworks/*.app/Contents/Info.plist; do
+            test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = "$MFBE_VERSION_NUMERIC"
+            test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" = "$MFBE_VERSION_NUMERIC"
+          done
+          /usr/libexec/PlistBuddy -c 'Print :NSHumanReadableCopyright' "$app/Contents/Info.plist" | grep 'GPL-3\.0-only'
+          out=$("$app/Contents/MacOS/mfbe" --version); echo "$out"
+          [[ "$out" == *"Maxima Fiction Book Editor $MFBE_VERSION (build $MFBE_VERSION+"* ]] ||
+            { echo "::error::mfbe --version does not name the version label $MFBE_VERSION"; exit 1; }
           hdiutil detach "$RUNNER_TEMP/dmg"
           } 2>&1 | tee "$RUNNER_TEMP/smoke.log"
       - name: Package smoke failure details
@@ -565,6 +679,9 @@ jobs:
     needs: [build]
     runs-on: ubuntu-22.04
     if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag != ''
+    env:
+      # The tag of the build job, read the same way (feature 006).
+      MFBE_RELEASE_TAG: ${{ github.event.inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name || '') }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -609,7 +726,7 @@ jobs:
             echo
             echo "Installation and uninstallation steps for every platform, the sandbox notes for Linux and the per-user folder locations: [docs/installing.md](https://github.com/${{ github.repository }}/blob/${tag}/docs/installing.md). \`SHA256SUMS\` lists the checksums of all files."
             echo
-            echo "Release gates: unit tests, UI checks, end-to-end journeys and the shell smoke test ran in this workflow; the corpus round-trip/validation gate runs on the development host before tagging."
+            echo "Release gates: unit tests, UI checks, end-to-end journeys and the shell smoke test ran in this workflow; the corpus round-trip/validation gate, with its table and inline strata, runs on the development host before tagging."
           } > release-notes.md
           cat release-notes.md
 
@@ -620,7 +737,10 @@ jobs:
           name: Maxima Fiction Book Editor ${{ github.event.inputs.tag || github.ref_name }}
           body_path: release-notes.md
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          # A tag with "-" (v0.0.6-rc.N) publishes a public pre-release, which GitHub never
+          # reports as the latest release, so the version check of a final release never offers
+          # it (feature 006). On a manual run github.ref_name is the branch: the input comes first.
+          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}
           files: |
             dist/*
           fail_on_unmatched_files: true

@@ -10,12 +10,13 @@
  * the `{{sliceNote}}` lines, the caret-context message and the history line.
  */
 
-import { NodeSelection } from 'prosemirror-state';
+import { EditorState, NodeSelection } from 'prosemirror-state';
 
 import {
   appliedLine,
   assertChatRequestPrivate,
   buildWorkingContext,
+  CATALOGUE_VERSION,
   caretBlock,
   caretContextMessage,
   CHANGE_TOOLS_RULE,
@@ -34,14 +35,18 @@ import {
   type WorkingContextInput,
 } from '@/ai/context';
 import { createAppServices } from '@/app/services';
-import type { ModelNodeJson } from '@/editor/fromModel';
+import { docFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { findNodeById } from '@/editor/schema';
-import type { BodyNode, Document, SectionNode } from '@/model/document';
+import { CellBlockSelection } from '@/editor/table/selection';
+import type { AnnotationNode, BodyNode, Document, SectionNode } from '@/model/document';
 import { actions, createAppStore } from '@/model/store';
 import { setBodySelection } from '@/scripting/api-impl';
+import type { ViewId } from '@/rpc/types';
 import { getBodyController } from '@/views/body/bodyEditor';
+import { createRichFieldState } from '@/views/description/richFieldState';
 
 import { fakeDocument, fakeRpc } from '../features/testUtils';
+import { fakeToXml, tableNode, tablesBook } from './catalogueHarness';
 import { paragraph, section, title } from './sessionUtils';
 
 /** The fixture: two sections (the second nested), marks, a footnote link, an image, a notes body. */
@@ -208,7 +213,7 @@ describe('outlineOf', () => {
 describe('buildWorkingContext', () => {
   it('renders the §2.1 fields: version, view, languages, the title alone, counts, modified, outline, request, errors, scripts', () => {
     const context = buildWorkingContext(input({ modified: true, preExistingErrors: 2 }));
-    expect(context.catalogueVersion).toBe(1);
+    expect(context.catalogueVersion).toBe(2);
     expect(context.editor).toEqual({ name: 'Maxima Fiction Book Editor', version: '0.0.5' });
     expect(context.activeView).toBe('body');
     expect(context.uiLanguage).toBe('uk');
@@ -475,7 +480,7 @@ describe('systemPrompt', () => {
     );
     const ruleText = CHANGE_TOOLS_RULE.replace(/\n {3}/g, ' ');
     expect(ruleText).toContain(
-      'The change tools are set_description (the description fields — the metadata the Description view shows, titleInfo.bookTitle among them), set_text, replace_node, insert_node, remove_node, replace_all and replace_selection (the text of the bodies).',
+      'The change tools are set_description (the description fields — the metadata the Description view shows, titleInfo.bookTitle among them), set_text, replace_node, insert_node, remove_node, replace_all, replace_selection (the text of the bodies) and edit_table (the structure of a table).',
     );
     expect(ruleText).toContain(
       'The working context\'s activeView tells where the user is working; an ambiguous reference such as "the title", "this chapter" or "the annotation" means what that view shows.',
@@ -872,5 +877,164 @@ describe('selectionSnapshot (Body view)', () => {
       path: 'body[1]/section[1]/image[1]',
       text: '',
     });
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006 (US11, T173): tables in the prompt, the cells selection       */
+/* ------------------------------------------------------------------------ */
+
+describe('feature 006: the Tables passage, rule 1 and the cells selection (T173)', () => {
+  const PASSAGE =
+    'Tables: a table cell (<td>, or <th> for a header cell) holds inline content only — text, inline\n' +
+    'formatting, links and inline images (<image l:href="#id"/>), never paragraphs or other blocks —\n' +
+    'and a table never contains another table. read_table shows a table as a grid of rows and columns\n' +
+    'with merged cells resolved. To change the structure of an existing table (rows, columns, merged\n' +
+    'cells, header cells, attributes, repair) use edit_table rather than rewriting its XML; a new\n' +
+    'table is written as FB2 XML with insert_node.';
+
+  it('the passage stands as a paragraph of its own between the reading guidance and the rules, in every view and in text mode; rule 1 names edit_table; the rules keep 1 to 9', () => {
+    const views: [ViewId, boolean | undefined][] = [
+      ['body', undefined],
+      ['description', undefined],
+      ['source', true],
+      ['source', false],
+    ];
+    for (const [activeView, sourceWellFormed] of views) {
+      const prompt = systemPrompt(
+        buildWorkingContext(
+          input({ activeView, ...(sourceWellFormed === undefined ? {} : { sourceWellFormed }) }),
+        ),
+      );
+      expect(prompt, activeView).toContain(
+        `Finish\nyour work on a part before you fetch the next one.\n\n${PASSAGE}\n\nRules for changes:\n`,
+      );
+      expect(prompt).toContain('Tables: a table cell');
+      expect(prompt.replace(/\s+/g, ' ')).toContain(
+        'remove_node, replace_all, replace_selection (the text of the bodies) and edit_table (the structure of a table).',
+      );
+      for (const n of [1, 2, 3, 4, 5, 6, 7]) expect(prompt).toContain(`\n${n}. `);
+    }
+    expect(CATALOGUE_VERSION).toBe(2);
+  });
+
+  function tableState(document: Document): EditorState {
+    return EditorState.create({ doc: docFromModel(document).node });
+  }
+
+  const xmlOf = (nodes: ModelNodeJson[]) => Promise.resolve(fakeToXml(nodes));
+
+  function block(state: EditorState, anchor: string, head: string): EditorState {
+    const at = (id: string) => findNodeById(state.doc, id)!.pos;
+    return state.apply(
+      state.tr.setSelection(CellBlockSelection.create(state.doc, at(anchor), at(head))),
+    );
+  }
+
+  it('selectionSnapshot of a block: kind cells with the table, the extended 1-based rectangle, the characters of its cells (pictures nothing) and the head cell as the caret; contextSelection without from, to or open ends', async () => {
+    const state = block(tableState(tablesBook()), 'tBr1c2', 'tBr2c2');
+    const snapshot = (await selectionSnapshot(state, null, xmlOf))!;
+    expect(snapshot.form).toBe('cells');
+    // H3 to y cuts H1 and M: the block is extended to the whole table.
+    expect(snapshot.cells).toEqual({
+      table: expect.objectContaining({
+        id: 'tB',
+        path: 'body[1]/section[1]/table[2]',
+        type: 'table',
+      }),
+      row: 1,
+      column: 1,
+      rows: 3,
+      columns: 3,
+    });
+    expect(snapshot).toMatchObject({ characters: 9, paragraphs: 7, hasInlineElements: false });
+    expect(snapshot.from).toBeNull();
+    expect(snapshot.pm).toBeNull();
+    const context = contextSelection(snapshot);
+    expect(context).toMatchObject({
+      kind: 'cells',
+      characters: 9,
+      paragraphs: 7,
+      table: { id: 'tB', type: 'table' },
+      row: 1,
+      column: 1,
+      rows: 3,
+      columns: 3,
+    });
+    for (const member of ['from', 'to', 'openStart', 'openEnd', 'source']) {
+      expect(context).not.toHaveProperty(member);
+    }
+    expect(caretBlock(state, null)).toMatchObject({ id: 'tBr2c2' });
+    const pictures = (await selectionSnapshot(
+      block(tableState(tablesBook()), 'tCr1c1', 'tCr1c3'),
+      null,
+      xmlOf,
+    ))!;
+    expect(pictures).toMatchObject({
+      form: 'cells',
+      characters: 0,
+      paragraphs: 3,
+      hasInlineElements: true,
+    });
+    const book = tablesBook();
+    const section = book.bodies[0]!.content[0] as unknown as { content: unknown[] };
+    section.content.push(
+      tableNode('tE', [
+        ['', ''],
+        ['x', 'y'],
+      ]),
+    );
+    const empty = (await selectionSnapshot(
+      block(tableState(book), 'tEr1c1', 'tEr1c2'),
+      null,
+      xmlOf,
+    ))!;
+    expect(empty).toMatchObject({ form: 'cells', characters: 0, paragraphs: 2 });
+  });
+
+  it('a block of a description field: the table path under the field root and the source; a Body block has none', async () => {
+    const annotation = {
+      type: 'annotation',
+      attrs: { nodeId: 'fa' },
+      content: [
+        tableNode('tF', [
+          ['r1c1', 'r1c2'],
+          ['r2c1', 'r2c2'],
+        ]),
+      ],
+    } as unknown as AnnotationNode;
+    const roots = {
+      annotation: 'title-info/annotation[1]',
+      'sti-annotation': 'src-title-info/annotation[1]',
+      history: 'document-info/history[1]',
+    } as const;
+    for (const [field, root] of Object.entries(roots) as [keyof typeof roots, string][]) {
+      const state = block(
+        createRichFieldState(annotation, () => 'ui_f'),
+        'tFr1c1',
+        'tFr1c2',
+      );
+      const snapshot = (await selectionSnapshot(state, null, xmlOf, { field }))!;
+      expect(snapshot.cells).toMatchObject({
+        table: { id: 'tF', path: `${root}/table[1]`, type: 'table' },
+        row: 1,
+        column: 1,
+        rows: 1,
+        columns: 2,
+        source: { view: 'description', field },
+      });
+      expect(contextSelection(snapshot)).toMatchObject({
+        kind: 'cells',
+        characters: 8,
+        paragraphs: 2,
+        source: { view: 'description', field },
+      });
+    }
+    const body = (await selectionSnapshot(
+      block(tableState(tablesBook()), 'tAr1c1', 'tAr2c2'),
+      null,
+      xmlOf,
+    ))!;
+    expect(body.cells).not.toHaveProperty('source');
   });
 });

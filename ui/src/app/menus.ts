@@ -7,7 +7,18 @@
 export type MenuItemSpec =
   | { kind: 'command'; commandId: string }
   | { kind: 'separator' }
-  | { kind: 'submenu'; id: string; labelKey: string; items: MenuItemSpec[]; dynamic?: string }
+  | {
+      kind: 'submenu';
+      id: string;
+      labelKey: string;
+      items: readonly MenuItemSpec[];
+      dynamic?: string;
+      /**
+       * Enabled only while one of its commands is, and then it tells why with its first command's
+       * reason (feature 006: *Table structure*).
+       */
+      enabledByItems?: boolean;
+    }
   /** Informational disabled entry such as "No scripts found". */
   | { kind: 'placeholder'; id: string; labelKey: string };
 
@@ -21,6 +32,46 @@ export interface MenuSpec {
 
 const sep: MenuItemSpec = { kind: 'separator' };
 const cmd = (commandId: string): MenuItemSpec => ({ kind: 'command', commandId });
+
+/**
+ * *Table structure* (feature 006, FR-039; data-model §9.1, §9.2): the 24 table commands in the
+ * eight groups of FR-039, separators between them - rows, columns, merge and split, header
+ * cells, repair, whole tables, move and duplicate, paragraphs. The one list of the Edit menu's
+ * submenu and of the context menus' *Table structure* submenus.
+ */
+export const TABLE_STRUCTURE_ITEMS: readonly MenuItemSpec[] = [
+  cmd('table.insertRowAbove'),
+  cmd('table.insertRowBelow'),
+  cmd('table.deleteRow'),
+  sep,
+  cmd('table.insertColumnLeft'),
+  cmd('table.insertColumnRight'),
+  cmd('table.deleteColumn'),
+  sep,
+  cmd('table.mergeCells'),
+  cmd('table.splitCell'),
+  sep,
+  cmd('table.toggleHeaderCell'),
+  cmd('table.makeHeaderCells'),
+  cmd('table.makeNormalCells'),
+  cmd('table.toggleHeaderRow'),
+  cmd('table.toggleHeaderColumn'),
+  sep,
+  cmd('table.repair'),
+  sep,
+  cmd('table.select'),
+  cmd('table.delete'),
+  sep,
+  cmd('table.moveRowUp'),
+  cmd('table.moveRowDown'),
+  cmd('table.moveColumnLeft'),
+  cmd('table.moveColumnRight'),
+  cmd('table.duplicateRow'),
+  cmd('table.duplicateColumn'),
+  sep,
+  cmd('table.paragraphBefore'),
+  cmd('table.paragraphAfter'),
+];
 
 export const MAIN_MENU: readonly MenuSpec[] = [
   {
@@ -82,6 +133,16 @@ export const MAIN_MENU: readonly MenuSpec[] = [
       cmd('edit.split'),
       cmd('edit.merge'),
       cmd('edit.removeOuter'),
+      sep,
+      // *Table structure* (feature 006, FR-039): the table commands edit a table, so they live in
+      // the Edit menu, not the Add menu (requester, issue #6).
+      {
+        kind: 'submenu',
+        id: 'tableStructure',
+        labelKey: 'menu.edit.tableStructure',
+        items: TABLE_STRUCTURE_ITEMS,
+        enabledByItems: true,
+      },
     ],
   },
   {

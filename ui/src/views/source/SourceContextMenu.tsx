@@ -1,10 +1,11 @@
 /**
  * The Source view's right-click menu (feature 002 FR-064), as the original's source editor
  * (Scintilla) showed it: Undo, Redo, Cut, Copy, Paste, Delete and Select All. Undo and Redo are
- * the Edit menu's; the others act on the editor's selection. While the AI assistant is on the
- * menu ends with *Ask AI...* (`ai.ask`; feature 005 US5, FR-030), which opens the popup for the
- * selected XML text - a selection over a binary, the stylesheet or the prolog is refused by the
- * popup itself before any request (review C11).
+ * the Edit menu's; the others act on the editor's selection (*Table…* is not offered here:
+ * inserting a table is an Add-menu operation; requester, issue #8). While
+ * the AI assistant is on the menu ends with *Ask AI...* (`ai.ask`; feature 005 US5, FR-030),
+ * which opens the popup for the selected XML text - a selection over a binary, the stylesheet
+ * or the prolog is refused by the popup itself before any request (review C11).
  */
 
 import { selectAll } from '@codemirror/commands';

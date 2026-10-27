@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink" xmlns:x="urn:mfbe:test">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Table</first-name>
+				<last-name>Fixture</last-name>
+			</author>
+			<book-title>Invalid tables</book-title>
+			<lang>en</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>make-fixtures.py</program-used>
+			<date value="2026-10-26">2026-10-26</date>
+			<id>fixture-tables-invalid</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Invalid tables</p>
+		</title>
+		<section>
+			<title>
+				<p>Vector tables</p>
+			</title>
+			<p>This book is invalid on purpose: it must open and round trip without a loss.</p>
+			<p>Case empty-tr (§4.12, §4.13: an empty tr)</p>
+			<table>
+				<tr>
+					<td>a</td>
+					<td>b</td>
+				</tr>
+				<tr/>
+			</table>
+			<p>Case span-abc (§1.2, §4.2: a span kept in unknownAttrs counts 1)</p>
+			<table>
+				<tr>
+					<td colspan="abc">a</td>
+					<td>b</td>
+				</tr>
+				<tr>
+					<td>c</td>
+					<td>d</td>
+				</tr>
+			</table>
+			<p>Case raw-xml-children (§4.1: children that are neither rows nor cells are ignored)</p>
+			<table>
+				<tr>
+					<td>a</td>
+					<td>b</td>
+				</tr>
+				<caption>A caption: a child that is no row</caption>
+				<tr>
+					<td>c</td>
+					<col/>
+					<td>d</td>
+				</tr>
+			</table>
+		</section>
+		<section>
+			<title>
+				<p>Attributes</p>
+			</title>
+			<p>A span outside the reader's range, unknown attributes and cell languages.</p>
+			<table class="grid" cellpadding="4" x:hint="table">
+				<tr xml:lang="de" class="head" cellpadding="1" x:hint="row">
+					<th xml:lang="" class="corner" cellpadding="2" x:hint="header">r1c1</th>
+					<th xml:lang="de_DE">r1c2</th>
+				</tr>
+				<tr>
+					<td rowspan="99999999999">r2c1</td>
+					<td xml:lang="de_DE" class="cell" cellpadding="3" x:hint="data">r2c2</td>
+				</tr>
+			</table>
+		</section>
+		<section>
+			<title>
+				<p>Blocks in cells and a table in a paragraph</p>
+			</title>
+			<table>
+				<tr>
+					<td><p>A paragraph in a cell</p></td>
+					<td>Before an empty line<empty-line/>after it</td>
+				</tr>
+			</table>
+			<p>A paragraph that holds a table: <table><tr><td>r1c1</td><td>r1c2</td></tr></table> and goes on after it.</p>
+		</section>
+		<section>
+			<title>
+				<p>Missing pictures in cells</p>
+			</title>
+			<table>
+				<tr>
+					<td><image l:href="#missing.png"/></td>
+					<td>A clear image: <image l:href="#undefined"/></td>
+				</tr>
+			</table>
+		</section>
+	</body>
+</FictionBook>

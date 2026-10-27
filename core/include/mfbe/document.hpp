@@ -22,8 +22,11 @@ inline constexpr int kModelVersion = 1;
 /* ----------------------------------------------------------------------------------------- */
 
 struct Mark {
-    std::string type;      // strong | emphasis | strikethrough | sub | sup | code | style | link
-    nlohmann::json attrs;  // object for style{name} / link{href,type?}; null otherwise
+    std::string type;  // strong | emphasis | strikethrough | sub | sup | code | style | link
+    // An object only with a member, null otherwise: {lang?} on strong ... code,
+    // style{name, lang?}, link{href, type?, xlinkType?} (feature 006, FR-064: lang is the
+    // element's xml:lang and xlinkType a link's xlink:type, both verbatim).
+    nlohmann::json attrs;
 
     bool operator==(const Mark&) const = default;
 };
@@ -33,7 +36,9 @@ struct Node {
     std::map<std::string, nlohmann::json> attrs;  // includes "nodeId" for structural nodes
     std::vector<Node> content;                    // child nodes (empty for leaves/text)
     std::string text;                             // only for type == "text"
-    std::vector<Mark> marks;                      // only for type == "text"
+    // Text, inline-image and inline raw-xml (feature 006, FR-067); outer first; a formatting
+    // type may repeat with different attributes (FR-069), a link may not.
+    std::vector<Mark> marks;
 
     bool is_text() const { return type == "text"; }
     // attrs["nodeId"] as a string ("" when absent).

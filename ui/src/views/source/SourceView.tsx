@@ -55,7 +55,8 @@ export function SourceView() {
   const settings = useMemo(() => sourceSettingsOf(appSettings), [appSettings]);
   const theme = useSyncExternalStore(subscribeTheme, currentTheme, currentTheme);
   const [foldLevel, setFoldLevel] = useState(2);
-  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  // The context menu's place.
+  const [menuAt, setMenuAt] = useState<{ position: { x: number; y: number } } | null>(null);
 
   const controller = useMemo(() => sourceEditorFor(store, undo), [store, undo]);
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -244,14 +245,15 @@ export function SourceView() {
           aria-busy={snapshot.status === 'loading'}
           onContextMenu={(event) => {
             event.preventDefault();
-            setMenuAt({ x: event.clientX, y: event.clientY });
+            const position = { x: event.clientX, y: event.clientY };
+            setMenuAt({ position });
           }}
         />
       </div>
       {menuAt ? (
         <SourceContextMenu
           controller={controller}
-          position={menuAt}
+          position={menuAt.position}
           onClose={() => setMenuAt(null)}
         />
       ) : null}

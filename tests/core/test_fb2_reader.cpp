@@ -650,3 +650,279 @@ TEST_CASE("reader: files that are not FictionBook at all are refused while malfo
     } catch (const fb2::ParseFailure&) {
     }
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: cells, spans and unknown attributes (contracts/document-model.md §1)          */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+// Reads a minimal valid book around `body` (test_support.hpp) without the schema hint.
+fb2::ReadResult read_body(const std::string& body) {
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids;
+    return fb2::read_bytes(test::minimal_book(body), store, ids, no_hint());
+}
+
+// The cells of the first table of the first body, in reading order.
+std::vector<const model::Node*> cells_of(const fb2::ReadResult& r) {
+    REQUIRE_FALSE(r.document.bodies.empty());
+    const model::Node* table = find_type(r.document.bodies[0], "table");
+    REQUIRE(table != nullptr);
+    std::vector<const model::Node*> cells;
+    for (const auto& row : table->content) {
+        for (const auto& cell : row.content) {
+            if (cell.type == "td" || cell.type == "th") {
+                cells.push_back(&cell);
+            }
+        }
+    }
+    return cells;
+}
+
+const char* const kXmlLangKey = "{http://www.w3.org/XML/1998/namespace}lang";
+
+}  // namespace
+
+TEST_CASE("reader: a cell's xml:lang is its lang attribute; on table and tr it stays unknown",
+          "[reader][tables]") {
+    const auto r = read_body(
+        "<section><table xml:lang=\"fr\"><tr xml:lang=\"de\"><td xml:lang=\"de\">a</td>"
+        "<th xml:lang=\"en-GB\">b</th><td xml:lang=\"\">c</td><td xml:lang=\"de_DE\">d</td>"
+        "<td>e</td></tr></table></section>");
+    const auto cells = cells_of(r);
+    REQUIRE(cells.size() == 5);
+    const std::vector<std::optional<std::string>> langs = {"de", "en-GB", "", "de_DE",
+                                                           std::nullopt};
+    for (std::size_t i = 0; i < cells.size(); ++i) {
+        INFO("cell " << i);
+        CHECK(cells[i]->attr_string("lang") == langs[i]);
+        // No cell keeps the namespaced key: the language is a known attribute now.
+        CHECK_FALSE(cells[i]->attrs.count("unknownAttrs"));
+    }
+    const model::Node* table = find_type(r.document.bodies[0], "table");
+    REQUIRE(table != nullptr);
+    CHECK_FALSE(table->attrs.count("lang"));
+    REQUIRE(table->attrs.count("unknownAttrs"));
+    CHECK(table->attrs.at("unknownAttrs") == nlohmann::json{{kXmlLangKey, "fr"}});
+    const model::Node& row = table->content.at(0);
+    CHECK_FALSE(row.attrs.count("lang"));
+    REQUIRE(row.attrs.count("unknownAttrs"));
+    CHECK(row.attrs.at("unknownAttrs") == nlohmann::json{{kXmlLangKey, "de"}});
+
+    // The fragment reader (doc.fragmentFromXml) shares the attribute table.
+    const auto fragment =
+        fb2::read_fragment("<table><tr><td xml:lang=\"uk\">x</td></tr></table>", "section");
+    REQUIRE(fragment.nodes.size() == 1);
+    const model::Node& cell = fragment.nodes[0].content.at(0).content.at(0);
+    CHECK(cell.attr_string("lang") == "uk");
+    CHECK_FALSE(cell.attrs.count("unknownAttrs"));
+}
+
+TEST_CASE(
+    "reader: spans keep their integer value, 0 and negatives included; other text goes verbatim "
+    "to unknownAttrs",
+    "[reader][tables]") {
+    struct Case {
+        const char* text;
+        std::optional<int> value;  // the integer kept, or nullopt: the text in unknownAttrs
+    };
+    const std::vector<Case> cases = {
+        {"1", 1},
+        {"2", 2},
+        {" 2 ", 2},
+        {"+2", 2},
+        {"02", 2},
+        {"03", 3},
+        {"1000", 1000},
+        {"0", 0},
+        {"-1", -1},
+        {"-5", -5},
+        {"00", std::nullopt},
+        {"+0", std::nullopt},
+        {" 0 ", std::nullopt},
+        {"-01", std::nullopt},
+        {"-0", std::nullopt},
+        {"abc", std::nullopt},
+        {"2.5", std::nullopt},
+        {"99999999999", std::nullopt},
+        {"", std::nullopt},
+    };
+    for (const char* attribute : {"colspan", "rowspan"}) {
+        std::string row;
+        for (const Case& c : cases) {
+            row += std::string("<td ") + attribute + "=\"" + c.text + "\">x</td>";
+        }
+        const auto r = read_body("<section><table><tr>" + row + "</tr></table></section>");
+        const auto cells = cells_of(r);
+        REQUIRE(cells.size() == cases.size());
+        for (std::size_t i = 0; i < cases.size(); ++i) {
+            INFO(attribute << "=\"" << cases[i].text << "\"");
+            const model::Node& cell = *cells[i];
+            if (cases[i].value) {
+                REQUIRE(cell.attrs.count(attribute));
+                CHECK(cell.attrs.at(attribute).is_number_integer());
+                CHECK(cell.attrs.at(attribute) == *cases[i].value);
+                CHECK_FALSE(cell.attrs.count("unknownAttrs"));
+            } else {
+                CHECK_FALSE(cell.attrs.count(attribute));
+                REQUIRE(cell.attrs.count("unknownAttrs"));
+                CHECK(cell.attrs.at("unknownAttrs") ==
+                      nlohmann::json{{attribute, std::string(cases[i].text)}});
+            }
+        }
+    }
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: the attributes of marks (contracts/document-model.md §2.1, §2.2)              */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "reader: marks keep xml:lang and the link's xlink:type; their other attributes are dropped",
+    "[reader][marks]") {
+    const auto r = read_body(
+        "<section><p>"
+        "<emphasis xml:lang=\"la\" class=\"x\">a</emphasis>"
+        "<strong xml:lang=\"\">b</strong>"
+        "<strikethrough xml:lang=\"de\">c</strikethrough><sub xml:lang=\"de\">d</sub>"
+        "<sup xml:lang=\"de\">e</sup><code xml:lang=\"de\">f</code>"
+        "<style name=\"foreign\" xml:lang=\"la\" foo=\"bar\">g</style>"
+        "<style>h</style>"
+        "<a l:href=\"#n1\" l:type=\"simple\" type=\"note\" l:title=\"t\" class=\"y\">i</a>"
+        "<a l:href=\"#s2\" l:type=\"extended\">j</a>"
+        "<emphasis>k</emphasis><a l:href=\"#s3\">l</a>"
+        "</p></section>"
+        "<section id=\"s2\"><p>x</p></section><section id=\"s3\"><p>y</p></section>");
+    const model::Node& p = r.document.bodies.at(0).content.at(0).content.at(0);
+    REQUIRE(p.content.size() == 12);
+    const auto mark_of = [&](std::size_t i) -> const model::Mark& {
+        REQUIRE(p.content[i].marks.size() == 1);
+        return p.content[i].marks[0];
+    };
+    using nlohmann::json;
+    CHECK(mark_of(0) == model::Mark{"emphasis", json{{"lang", "la"}}});  // class dropped
+    CHECK(mark_of(1) == model::Mark{"strong", json{{"lang", ""}}});      // "" kept verbatim
+    CHECK(mark_of(2) == model::Mark{"strikethrough", json{{"lang", "de"}}});
+    CHECK(mark_of(3) == model::Mark{"sub", json{{"lang", "de"}}});
+    CHECK(mark_of(4) == model::Mark{"sup", json{{"lang", "de"}}});
+    CHECK(mark_of(5) == model::Mark{"code", json{{"lang", "de"}}});
+    CHECK(mark_of(6) == model::Mark{"style", json{{"name", "foreign"}, {"lang", "la"}}});
+    CHECK(mark_of(7) == model::Mark{"style", json{{"name", ""}}});
+    CHECK(mark_of(8) ==
+          model::Mark{"link", json{{"href", "#n1"}, {"type", "note"}, {"xlinkType", "simple"}}});
+    CHECK(mark_of(9) == model::Mark{"link", json{{"href", "#s2"}, {"xlinkType", "extended"}}});
+    // A mark without xml:lang has null attributes, as one decoded from JSON without attrs.
+    CHECK(mark_of(10) == model::Mark{"emphasis", nullptr});
+    CHECK(mark_of(10).attrs.is_null());
+    CHECK(mark_of(11) == model::Mark{"link", json{{"href", "#s3"}}});
+    // The model read from XML equals the one decoded from its JSON (Mark ==).
+    CHECK(model::node_from_json(model::to_json(p)) == p);
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: nested formatting of one kind (contracts/document-model.md §2.2; FR-069)      */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+model::Mark style_mark(const std::string& name, std::optional<std::string> lang = std::nullopt) {
+    nlohmann::json attrs{{"name", name}};
+    if (lang) {
+        attrs["lang"] = *lang;
+    }
+    return model::Mark{"style", attrs};
+}
+
+model::Mark lang_mark(const std::string& type, std::optional<std::string> lang = std::nullopt) {
+    return model::Mark{type, lang ? nlohmann::json{{"lang", *lang}} : nlohmann::json()};
+}
+
+// The (text, marks) runs of the first text container of `type` in the first body.
+std::vector<std::pair<std::string, std::vector<model::Mark>>> runs_of(const fb2::ReadResult& r,
+                                                                      const std::string& type) {
+    const model::Node* container = find_type(r.document.bodies.at(0), type);
+    REQUIRE(container != nullptr);
+    std::vector<std::pair<std::string, std::vector<model::Mark>>> out;
+    for (const auto& child : container->content) {
+        out.emplace_back(child.is_text() ? child.text : "<" + child.type + ">", child.marks);
+    }
+    return out;
+}
+
+using Runs = std::vector<std::pair<std::string, std::vector<model::Mark>>>;
+
+}  // namespace
+
+TEST_CASE(
+    "reader: a nested style with another name or language is a mark of its own, outer first; an "
+    "equal one collapses",
+    "[reader][marks]") {
+    const auto a = style_mark("a");
+    const auto b = style_mark("b");
+    CHECK(runs_of(read_body("<section><p><style name=\"a\">x<style name=\"b\">y</style>z</style>"
+                            "</p></section>"),
+                  "p") == Runs{{"x", {a}}, {"y", {a, b}}, {"z", {a}}});
+    // An equal nested style collapses (decision 11, probe p12).
+    const auto x = style_mark("x");
+    CHECK(runs_of(read_body("<section><p><style name=\"x\">a<style name=\"x\">b</style>c</style>"
+                            "</p></section>"),
+                  "p") == Runs{{"abc", {x}}});
+    // Same name, another language: two marks.
+    CHECK(runs_of(read_body("<section><p><style name=\"a\" xml:lang=\"la\">u<style "
+                            "name=\"a\">v</style></style></p></section>"),
+                  "p") == Runs{{"u", {style_mark("a", "la")}}, {"v", {style_mark("a", "la"), a}}});
+    // The census shapes: razmer > razryadka in a subtitle, shorttext > SpellE.
+    CHECK(runs_of(read_body("<section><subtitle><style name=\"razmer\"><style "
+                            "name=\"razryadka\">Chapter</style> I</style></subtitle><p>x</p>"
+                            "</section>"),
+                  "subtitle") == Runs{{"Chapter", {style_mark("razmer"), style_mark("razryadka")}},
+                                      {" I", {style_mark("razmer")}}});
+    CHECK(runs_of(read_body("<section><p><style name=\"shorttext\"><style "
+                            "name=\"SpellE\">Word</style></style></p></section>"),
+                  "p") == Runs{{"Word", {style_mark("shorttext"), style_mark("SpellE")}}});
+    // A style without a name inside a named one is a mark of its own, with the name "".
+    CHECK(runs_of(read_body("<section><p><style name=\"a\">k<style>l</style></style></p>"
+                            "</section>"),
+                  "p") == Runs{{"k", {a}}, {"l", {a, style_mark("")}}});
+}
+
+TEST_CASE(
+    "reader: nested formatting of one kind with other attributes is a mark of its own for every "
+    "formatting type; an equal one collapses; nested links keep the outer one",
+    "[reader][marks]") {
+    for (const std::string type : {"strong", "emphasis", "strikethrough", "sub", "sup", "code"}) {
+        INFO(type);
+        const std::string open_la = "<" + type + " xml:lang=\"la\">";
+        const std::string open_de = "<" + type + " xml:lang=\"de\">";
+        const std::string open = "<" + type + ">";
+        const std::string close = "</" + type + ">";
+        // Two languages: "b" carries both, outer first.
+        CHECK(runs_of(read_body("<section><p>" + open_la + "a " + open_de + "b" + close + close +
+                                "</p></section>"),
+                      "p") == Runs{{"a ", {lang_mark(type, "la")}},
+                                   {"b", {lang_mark(type, "la"), lang_mark(type, "de")}}});
+        // A plain one around one with a language: both.
+        CHECK(runs_of(read_body("<section><p>" + open + "a " + open_de + "b" + close + close +
+                                "</p></section>"),
+                      "p") ==
+              Runs{{"a ", {lang_mark(type)}}, {"b", {lang_mark(type), lang_mark(type, "de")}}});
+        // A plain one inside one with a language: a mark of its own as well.
+        CHECK(runs_of(read_body("<section><p>" + open_la + "a " + open + "b" + close + close +
+                                "</p></section>"),
+                      "p") == Runs{{"a ", {lang_mark(type, "la")}},
+                                   {"b", {lang_mark(type, "la"), lang_mark(type)}}});
+        // An equal nested one collapses into one mark over the whole text.
+        CHECK(runs_of(read_body("<section><p>" + open + "a" + open + "b" + close + close +
+                                "</p></section>"),
+                      "p") == Runs{{"ab", {lang_mark(type)}}});
+        CHECK(runs_of(read_body("<section><p>" + open_la + "a" + open_la + "b" + close + close +
+                                "</p></section>"),
+                      "p") == Runs{{"ab", {lang_mark(type, "la")}}});
+    }
+    // Of two nested links the outer one wins (no `a` inside `a` in the schema).
+    const model::Mark outer{"link", nlohmann::json{{"href", "#s2"}}};
+    CHECK(runs_of(read_body("<section><p><a l:href=\"#s2\">x<a l:href=\"#s3\">y</a></a></p>"
+                            "</section><section id=\"s2\"><p>t</p></section>"),
+                  "p") == Runs{{"xy", {outer}}});
+}

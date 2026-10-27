@@ -38,22 +38,26 @@ cd ui && MFBE_CORE=http://127.0.0.1:41237 MFBE_TOKEN=<token> npm run dev
 
 Environment variables read by the tooling:
 
-| Variable              | Used by                          | Meaning                                                                                                                                |
-| --------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `MFBE_CORE`           | `vite.config.ts`                 | Origin of the core the dev server proxies `/rpc` (WebSocket), `/binary`, `/scripts` and `/health` to. Default `http://127.0.0.1:41237` |
-| `MFBE_TOKEN`          | `vite.config.ts`                 | Core session token, compiled into the bundle as `__MFBE_TOKEN__` (empty when unset)                                                    |
-| `VITE_MFBE_CORE`      | `src/rpc/client.ts`              | Dev override of the core origin for the in-page RPC client (otherwise the page's own origin is used)                                   |
-| `MFBE_CORE_BIN`       | `tests/e2e/fixtures/core.ts`     | Path to `mfbe-core`; when set every Playwright worker starts its own core (`serve --test-hooks --data-dir <tmp> --ui <dist>`)          |
-| `MFBE_UI_DIST`        | `tests/e2e/fixtures/core.ts`     | UI bundle directory passed to `mfbe-core --ui` (default `ui/dist`)                                                                     |
-| `MFBE_RESOURCES`      | `tests/e2e/fixtures/core.ts`     | Optional `--resources` directory for the test core                                                                                     |
-| `MFBE_CORE_LOG_LEVEL` | `tests/e2e/fixtures/core.ts`     | Optional `--log-level` for the test core                                                                                               |
-| `MFBE_UI_URL`         | `playwright.config.ts`           | `baseURL` of an already running UI, e.g. `http://127.0.0.1:41237/?token=...` or `http://127.0.0.1:5173/`                               |
-| `MFBE_PREVIEW_PORT`   | `playwright.config.ts`           | Port of the `vite preview` server used in core-less e2e mode (default 4173)                                                            |
-| `MFBE_PERF_FACTOR`    | the `@perf` journeys             | Allowance for the hosted CI runners on the budgets those journeys check (default 2; `docs/performance.md`)                             |
-| `MFBE_PERF_RESULTS`   | `tests/e2e/perf-scripts.spec.ts` | File the script benchmark writes its measured times to (JSON)                                                                          |
+| Variable               | Used by                                                                    | Meaning                                                                                                                                                                                                             |
+| ---------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MFBE_CORE`            | `vite.config.ts`                                                           | Origin of the core the dev server proxies `/rpc` (WebSocket), `/binary`, `/scripts` and `/health` to. Default `http://127.0.0.1:41237`                                                                              |
+| `MFBE_TOKEN`           | `vite.config.ts`                                                           | Core session token, compiled into the bundle as `__MFBE_TOKEN__` (empty when unset)                                                                                                                                 |
+| `MFBE_UI_VERSION`      | `vite.config.ts`                                                           | Version compiled in as `__MFBE_UI_VERSION__`: the version label the CMake build passes (`ui/CMakeLists.txt`), else `package.json`'s                                                                                 |
+| `VITE_MFBE_CORE`       | `src/rpc/client.ts`                                                        | Dev override of the core origin for the in-page RPC client (otherwise the page's own origin is used)                                                                                                                |
+| `MFBE_CORE_BIN`        | `tests/e2e/fixtures/core.ts`                                               | Path to `mfbe-core`; when set every Playwright worker starts its own core (`serve --test-hooks --data-dir <tmp> --ui <dist>`)                                                                                       |
+| `MFBE_UI_DIST`         | `tests/e2e/fixtures/core.ts`                                               | UI bundle directory passed to `mfbe-core --ui` (default `ui/dist`)                                                                                                                                                  |
+| `MFBE_RESOURCES`       | `tests/e2e/fixtures/core.ts`                                               | Optional `--resources` directory for the test core                                                                                                                                                                  |
+| `MFBE_CORE_LOG_LEVEL`  | `tests/e2e/fixtures/core.ts`                                               | Optional `--log-level` for the test core                                                                                                                                                                            |
+| `MFBE_UI_URL`          | `playwright.config.ts`                                                     | `baseURL` of an already running UI, e.g. `http://127.0.0.1:41237/?token=...` or `http://127.0.0.1:5173/`                                                                                                            |
+| `MFBE_PREVIEW_PORT`    | `playwright.config.ts`                                                     | Port of the `vite preview` server used in core-less e2e mode (default 4173)                                                                                                                                         |
+| `MFBE_PERF_FACTOR`     | the `@perf` journeys                                                       | Allowance for the hosted CI runners on the budgets those journeys check (default 2; `docs/performance.md`)                                                                                                          |
+| `MFBE_PERF_RESULTS`    | `tests/e2e/perf-scripts.spec.ts`                                           | File the script benchmark writes its measured times to (JSON)                                                                                                                                                       |
+| `MFBE_E2E_TABLE_SHOTS` | `tests/e2e/us3-table-images-layout.spec.ts`                                | `1`: test 7 attaches four contact sheets of pictures in table cells to the report - evidence, never compared (CI's Linux e2e pass sets it)                                                                          |
+| `MFBE_FUZZ_SEED`       | `tests/unit/editor/table/fuzz.test.ts`, `tests/e2e/us2-table-fuzz.spec.ts` | One seed of the table fuzz: the vitest runs it alone instead of its five seeds and the regression seeds (`MFBE_FUZZ_SEED=<n> npx vitest run tests/unit/editor/table/fuzz.test.ts`), the page fuzz instead of seed 6 |
 
 Compile-time constants (declared in `src/vite-env.d.ts`): `__MFBE_TOKEN__` and
-`__MFBE_UI_VERSION__` (the `version` from `package.json`).
+`__MFBE_UI_VERSION__` (`MFBE_UI_VERSION` when set and not empty, else the `version` from
+`package.json`; feature 006).
 
 The in-page RPC client (`src/rpc/client.ts`) connects to `ws(s)://<page host>/rpc?token=<token>`
 with the token taken from the page URL (`?token=`) first and `__MFBE_TOKEN__` second. It
@@ -84,7 +88,21 @@ Three Playwright projects run: `chromium` (the interface in the system's languag
 interface (`?lang=ru` / `?lang=uk`, option `uiLang`). Journeys assert the interface's texts
 through `fixtures/i18n.ts`, which reads them from the catalogues in the language the page
 shows, never as English literals; `us1-ukrainian.spec.ts` additionally fails on any visible
-text that is not a Ukrainian catalogue value.
+text that is not a Ukrainian catalogue value. Feature 006 adds three files to the two language
+projects: `us1-table-create.spec.ts` (the Table dialog's labels and the reasons of unavailable
+commands), test 8 of `us3-table-images-layout.spec.ts` (the placeholders' text) and
+`us8-table-marks.spec.ts` (the marks of irregular tables, their tooltips, the tree marks and
+the warnings of Validate).
+
+The table journeys (feature 006) read the editor through test hooks that exist only for a page
+opened with `?test=1` or a core started with its test hooks (`testHooks` in `app.info`):
+`__mfbeTest.tables.grid(tableRef)` gives the summary of a table - rows, columns, its problems -,
+`.target()` the active table edit target and its selection by node ids,
+`.placementSweep(positions)` the Body view's placement of _Add > Table_ and the command's state
+at each model point, `.fuzz(seed, steps)` runs the seeded command fuzz on the Body editor with
+the core's validation after every step (its generator, `src/editor/table/testing/fuzz.ts`, is
+loaded by a dynamic import only then), and `__mfbeTest.sourceTable.sweep(offsets)` gives the
+Source view's verdict and the command's state at each offset.
 
 ### AI journeys and the stand-in service (feature 005)
 
@@ -149,27 +167,36 @@ runs and knows no scenarios.
 
 The script benchmark `perf-scripts.spec.ts` is tagged `@perf`, as are the timing journeys of
 `perf-large-book.spec.ts`, `us1-tree-divider.spec.ts` (the divider's layout step),
-`us4-import-description.spec.ts` (the 10 MB book as an import source) and feature 005's one
+`us4-import-description.spec.ts` (the 10 MB book as an import source), feature 005's one
 `@perf` test in `us4-ai-validity.spec.ts` (a request with five change tools on the 10 MB book
 against a zero-delay stand-in: each per-change validation of the hook under 1 000 ms × the
-factor, the end-to-end time recorded as an annotation): CI runs the journeys with
-`--grep-invert @perf` and the timed ones alone with `--grep @perf --workers=1` against the
-Release core; `MFBE_PERF_FACTOR` (default 2) widens the budgets they check - the script
-benchmark's 1 MB budget (5 s × the factor), the Body ↔ Source mapping step and the divider
-layout step (100 ms × the factor), the import source's opening budget (3 s × the factor), the
-validity hook's per-change budget (1 s × the factor) - for the hosted runners
-(`docs/performance.md`).
+factor, the end-to-end time recorded as an annotation) and feature 006's `perf-tables.spec.ts`
+(SC-005: every table command, _Table..._ and the table pastes on the 300 × 10, 628 × 4 and
+298 × 14 tables of a generated 10 MB book, the median of five runs under 100 ms × the factor,
+every run on its 1000 × 20 table under 1 s, typing after the commands and in a cell of the
+1000 × 20 table, and the Source view's _Add > Table_ step; the figures also go to
+`tests/bench/results/table-commands.json`): CI runs the journeys with `--grep-invert @perf` and
+the timed ones alone with `--grep @perf --workers=1` against the Release core;
+`MFBE_PERF_FACTOR` (default 2) widens the budgets they check - the script benchmark's 1 MB
+budget (5 s × the factor), the Body ↔ Source mapping step and the divider layout step (100 ms ×
+the factor), the import source's opening budget (3 s × the factor), the validity hook's
+per-change budget (1 s × the factor), the table commands' medians and typing in a cell of the
+1000 × 20 table (100 ms × the factor) and the Source view's _Add > Table_ step (3 s × the
+factor) - for the hosted runners (`docs/performance.md`).
 
 A journey tagged `@platform` (feature 004: the proposed and typed file names, the spelling
 scope; feature 005: `us1-ai-settings.spec.ts` and `us8-ai-own-key.spec.ts`, the whole files -
 the UI → core → libcurl → loopback stand-in path once per operating system, since the HTTP
-backends differ) runs on the Windows and macOS e2e legs of CI as well, against the
-hooks-enabled `mfbe-core` built for that system (`npx playwright test --grep @platform`). Such
-a journey must hold on all three systems: no `locale-gen`, `LC_ALL` or `chmod`, no `/tmp` or
-other Linux path assumptions (use `os.tmpdir()` and `path.join`; the stand-in and a second
-core are started through the fixtures, which do), file names compared after `normalize('NFC')`
-where macOS may answer a decomposed spelling, and nothing the Linux leg installs through
-`apt-get`. The Linux leg still runs the whole suite.
+backends differ; feature 006: test 7 of `us3-table-images-layout.spec.ts`, pictures in table
+cells in the seven deciding environments and the Description field, and the context-menu part
+of `table-command-access.spec.ts`, a right-click on a cell with no click before it) runs on
+the Windows and macOS e2e legs of CI as well, against the hooks-enabled `mfbe-core` built for
+that system (`npx playwright test --grep @platform`). Such a journey must hold on all three
+systems: no `locale-gen`, `LC_ALL` or `chmod`, no `/tmp` or other Linux path assumptions (use
+`os.tmpdir()` and `path.join`; the stand-in and a second core are started through the fixtures,
+which do), file names compared after `normalize('NFC')` where macOS may answer a decomposed
+spelling, and nothing the Linux leg installs through `apt-get`. The Linux leg still runs the
+whole suite.
 
 A dependency-free stand-in core, `tests/e2e/fixtures/fake-core.mjs` (+ `fake-doc.mjs`), serves
 the bundle and answers `app.*`, `settings.*`, `hotkeys.*`, `dialog.*` (from the `test.enqueueDialog`
@@ -182,13 +209,14 @@ and is never shipped. The US1 journey `us1-open-save.spec.ts` passes against bot
 ## Internationalisation
 
 All user-visible strings live in the base catalogues `src/i18n/en.json`, `ru.json` and
-`uk.json` plus the feature catalogues `<feature>.<lang>.json` next to them (`about`,
-`description`, `fileDialogs`, `images`, `scripts`, `settings`, `spell`, `theme`, `transfer`,
-`tree`, `words`), deep-merged at load (i18next JSON v4; plural forms `_one/_few/_many/_other`;
-`{{name}}` placeholders; `&` marks the menu/button accelerator, `&&` is a literal ampersand).
-Keys are grouped by area: `menu.*` (labels exactly as the original `IDR_MAINFRAME` menu),
-`cmd.<commandId>.{tooltip,description}`, `dialog.*`, `msg.*`, `status.*`, `hotkeys.*`. Missing
-keys print a warning in development, throw in unit tests and fall back to the key in production.
+`uk.json` plus the feature catalogues `<feature>.<lang>.json` next to them (`about`, `ai`,
+`description`, `fileDialogs`, `images`, `scripts`, `settings`, `spell`, `tables`, `theme`,
+`transfer`, `tree`, `words`), deep-merged at load (i18next JSON v4; plural forms
+`_one/_few/_many/_other`; `{{name}}` placeholders; `&` marks the menu/button accelerator, `&&` is
+a literal ampersand). Keys are grouped by area: `menu.*` (labels exactly as the original
+`IDR_MAINFRAME` menu), `cmd.<commandId>.{tooltip,description}`, `dialog.*`, `msg.*`,
+`status.*`, `hotkeys.*`. Missing keys print a warning in development, throw in unit tests and
+fall back to the key in production.
 
 The Ukrainian catalogues (release 0.0.3) reuse the original editor's own Ukrainian wording
 wherever it had the string - its resource scripts and `ukr.xsl`, paired with the Russian text
@@ -239,12 +267,29 @@ ui/
                           (lossless model <-> editor conversion), virtualization.ts (section
                           windowing), plugins/nbsp.ts (NBSP marker), styles.css (the original
                           main.css look)
+  src/editor/table/       the table engine (feature 006), importing only src/model/ and
+                          src/editor/: grid.ts (the normative table grid, cached per node),
+                          selection.ts + plugin.ts (the block of cells), ops.ts / attrs.ts (the
+                          plans, pure functions of a table), edit.ts (commitTableEdit: the
+                          changed rows in one step, one undo entry), commands.ts (availability),
+                          problems.ts (the problems' words), testing/fuzz.ts (the seeded fuzz,
+                          loaded only by the test hooks' dynamic import)
+  src/editor/clipboard/   the paste router route.ts (every paste of the Body view and the rich
+                          fields, one transaction), foreignHtml.ts + pastedCss.ts (tables from
+                          other programs, parsed inert), copyOut.ts (an HTML table and
+                          tab-separated text for other programs)
   src/features/file/      fileCommands.ts (New/Open/Save/Save As/Validate/Exit and the window-close
                           quit flow of app.closeRequested, notifications, start-up parameters),
                           recent.ts (Recent Files, caret restore)
   src/features/help/      versionCheck.ts (Help > Check for new version, the prompt),
                           schedule.ts (when a start-up check is due: other.versionCheck and
                           session.lastVersionCheck)
+  src/features/tables/    the table commands (feature 006): commands.ts (insert.table and the 24
+                          table.* commands) + reasons.ts, target.ts (the edit targets of the Body
+                          view and the rich fields), dialog.ts (session.tableDialog),
+                          contextMenu.ts, marks.ts + MarkPopover.tsx (irregular tables),
+                          confirm.ts (the link-target question), sourceTable.ts (Add > Table in
+                          the Source view), testHooks.ts
   src/scripting/          host.ts (one run at a time, working copy, cancel, duration; a run nested
                           in an AI request), runSession.ts (the run lock `store.runLock`, elapsed
                           ticks, one undo entry at the commit, restore on cancel - shared by script
@@ -258,7 +303,8 @@ ui/
                           uk.json, <feature>.<lang>.json, identical-allowlist.json
   src/model/              document.ts (copy of contracts/document-model.d.ts), store.ts
                           (AppState + useAppState), undo.ts (UndoCoordinator), caret.ts
-                          (per-view caret providers)
+                          (per-view caret providers), ids.ts (the book's ids and link counts,
+                          feature 006)
   src/rpc/                client.ts (JSON-RPC over WebSocket), types.ts (RpcMethods,
                           RpcNotifications, Settings, HotkeyBinding, ...)
   src/views/              body/ (BodyView + bodyEditor.ts controller, imageViews.ts), source/

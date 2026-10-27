@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "tables.read",
+  "name": {
+    "en": "Read the table",
+    "ru": "Прочитать таблицу"
+  },
+  "kind": "menu"
+}

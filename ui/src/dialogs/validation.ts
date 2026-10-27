@@ -11,11 +11,19 @@
  *    the cursor placed and the line highlighted for a moment;
  *  - when the preferred target is unavailable (node vanished, no position) the other one is
  *    tried.
+ *
+ * Feature 006 (US8, FR-062; C61): the warning `table.irregular` of an irregular table reads as
+ * the table's mark is named - its problems with their plurals, `Irregular table "<id>": …` for
+ * a table with an id -, and goes to the table: from the Body view to its first cell, from a
+ * clean Source view to the `<` of its `<table` line, from a dirty one to the line and column of
+ * the text form; a table the Body view lacks (the source book's annotation) to its Source line.
  */
 
 import type { TFunction, i18n as I18n } from 'i18next';
 
 import type { CommandContext } from '@/app/commands';
+import type { TableSummary } from '@/editor/table/grid';
+import { describeTableMark } from '@/features/tables/marks';
 import type { ValidationIssue, ValidationReport } from '@/model/document';
 import { getSourceEditor } from '@/views/source/sourceEditor';
 import { requestViewSwitch, setCaretWhenReady } from '@/views/source/sync';
@@ -44,6 +52,11 @@ export function issueMessage(
   t: TFunction,
   i18n?: Pick<I18n, 'exists'>,
 ): string {
+  // An irregular table (feature 006, C61): the mark's name, whose problem parts carry their
+  // plurals, which the flat key lookup below cannot build.
+  if (issue.code === 'table.irregular') {
+    return describeTableMark(issue.params as unknown as TableSummary, t).name;
+  }
   const key = issueMessageKey(issue.code);
   const exists = i18n ? i18n.exists(key) : false;
   if (exists) return t(key, { ...issue.params }) as string;

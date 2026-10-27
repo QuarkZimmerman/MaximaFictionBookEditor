@@ -2,16 +2,20 @@
 // three interface languages - English, Russian and, since feature 003 (US1), Ukrainian - in
 // both option forms, rejects anything else with the command-line error exit, and the --help
 // text names all three; the restart options of feature 003 (US3) - `--wait-for-exit <pid>` and
-// `--window-geometry <x,y,w,h[,max]>` - are parsed and validated.
+// `--window-geometry <x,y,w,h[,max]>` - are parsed and validated; `--version` names the version
+// label and the build id (feature 006, contracts/cli.md §1).
 #include "command_line.h"
 
 #include <catch2/catch_test_macros.hpp>
+#include <regex>
 #include <string>
 #include <vector>
 
+using mfbe::shell::CefVersionInfo;
 using mfbe::shell::parseArguments;
 using mfbe::shell::ParseStatus;
 using mfbe::shell::usageText;
+using mfbe::shell::versionText;
 
 TEST_CASE("command line: --wait-for-exit takes the process id to wait for", "[shell]") {
     const auto spaced = parseArguments({"--wait-for-exit", "4242", "book.fb2"});
@@ -103,4 +107,23 @@ TEST_CASE("command line: the help text offers en|ru|uk", "[shell]") {
     const auto help = parseArguments({"--help"});
     CHECK(help.status == ParseStatus::kExitOk);
     CHECK(help.message == usage);
+}
+
+// The first line of --version carries the configured version stamps (cmake/MfbeVersion.cmake,
+// passed by tests/shell/CMakeLists.txt): the label - 0.0.6-rc untagged, 0.0.6-rc.N from a
+// release tag - and the build id, the label, "+" and the commit hash.
+TEST_CASE("command line: --version names the version label and the build id", "[shell]") {
+    CefVersionInfo cef;
+    cef.compiled_cef_version = "150.0.22+gc1a097e+chromium-150.0.7871.256";
+    cef.api_version = 15000;
+    const std::string text = versionText(cef);
+    const std::string first = text.substr(0, text.find('\n'));
+    const std::string label = MFBE_VERSION;
+    const std::string build_id = MFBE_BUILD_ID;
+    CHECK(first == "Maxima Fiction Book Editor " + label + " (build " + build_id + ", " +
+                       MFBE_BUILD_DATE + ")");
+    CHECK(std::regex_match(label, std::regex(R"(\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?)")));
+    REQUIRE(build_id.size() > label.size() + 1);
+    CHECK(build_id.substr(0, label.size() + 1) == label + "+");
+    CHECK(std::regex_match(build_id.substr(label.size() + 1), std::regex("[0-9a-f]{10}|unknown")));
 }

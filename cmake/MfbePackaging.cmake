@@ -7,16 +7,20 @@
 # CPACK_* value set here is written to the generated CPackConfig.cmake and therefore visible
 # there.
 #
-# Produces (versions from MfbeVersion.cmake):
-#   mfbe_<version>_amd64.deb, mfbe-<version>-1.x86_64.rpm,
-#   MaximaFictionBookEditor-<version>-x86_64.AppImage (+ .zsync),
-#   MaximaFictionBookEditor-<version>-win64.msi,
-#   MaximaFictionBookEditor-<version>-win64-portable.zip,
-#   MaximaFictionBookEditor-<version>-macos-<arch>.dmg
+# Produces (<label> = MFBE_VERSION from MfbeVersion.cmake: 0.0.6-rc untagged, 0.0.6-rc.N from the
+# tag v0.0.6-rc.N, the plain number for a final; feature 006, contracts/installer.md):
+#   mfbe_<label>_amd64.deb, mfbe-<label>-1.x86_64.rpm (their Version: the package form,
+#   0.0.6~rc),
+#   MaximaFictionBookEditor-<label>-x86_64.AppImage (+ .zsync when it carries update information),
+#   MaximaFictionBookEditor-<label>-win64.msi (ProductVersion: the numeric form, 0.0.6),
+#   MaximaFictionBookEditor-<label>-win64-portable.zip,
+#   MaximaFictionBookEditor-<label>-macos-<arch>.dmg
 
 set(CPACK_PACKAGE_NAME "MaximaFictionBookEditor")
 set(CPACK_PACKAGE_VENDOR "${MFBE_VENDOR}")
-set(CPACK_PACKAGE_VERSION "${MFBE_VERSION}")
+# The numeric form: the MSI's Package/@Version takes numbers only (packaging/wix/mfbe.template.in).
+# The file names take the label (CPACK_MFBE_VERSION_LABEL, packaging/CPackConfig.cmake).
+set(CPACK_PACKAGE_VERSION "${MFBE_VERSION_NUMERIC}")
 set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
 set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
@@ -46,6 +50,11 @@ set(CPACK_MFBE_SHORT_NAME "${MFBE_SHORT_NAME}")
 set(CPACK_MFBE_URL "${MFBE_URL}")
 set(CPACK_MFBE_APP_BUNDLE_NAME "${MFBE_APP_BUNDLE_NAME}")
 set(CPACK_MFBE_HAVE_APP "${MFBE_BUILD_APP}")
+# The version forms (cmake/MfbeVersion.cmake): the label names the files, the package form is
+# the deb and rpm Version, and a pre-release part puts the label into the MSI's ProductName.
+set(CPACK_MFBE_VERSION_LABEL "${MFBE_VERSION}")
+set(CPACK_MFBE_VERSION_PACKAGE "${MFBE_VERSION_PACKAGE}")
+set(CPACK_MFBE_PRERELEASE "${MFBE_VERSION_PRERELEASE}")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
   set(CPACK_MFBE_ARCH "aarch64")
   set(CPACK_MFBE_APPLE_ARCH "arm64")
@@ -56,8 +65,16 @@ endif()
 if(APPLE AND CMAKE_OSX_ARCHITECTURES)
   set(CPACK_MFBE_APPLE_ARCH "${CMAKE_OSX_ARCHITECTURES}")
 endif()
-set(CPACK_MFBE_APPIMAGE_UPDATE_INFO
-  "gh-releases-zsync|QuarkZimmerman|MaximaFictionBookEditor|latest|MaximaFictionBookEditor-*-${CPACK_MFBE_ARCH}.AppImage.zsync")
+# The AppImage's update information follows the release channel of the version forms: none for
+# an untagged pre-release build (it could "update" itself to an older release; no .zsync then),
+# latest-all for a tag v<numeric>-<pre-release>.N (the next rc, then the final), latest for a
+# final.
+if(MFBE_APPIMAGE_CHANNEL STREQUAL "")
+  set(CPACK_MFBE_APPIMAGE_UPDATE_INFO "")
+else()
+  set(CPACK_MFBE_APPIMAGE_UPDATE_INFO
+    "gh-releases-zsync|QuarkZimmerman|MaximaFictionBookEditor|${MFBE_APPIMAGE_CHANNEL}|MaximaFictionBookEditor-*-${CPACK_MFBE_ARCH}.AppImage.zsync")
+endif()
 
 # Component descriptions (shown by component-aware generators).
 set(CPACK_COMPONENT_APP_DISPLAY_NAME "Application")

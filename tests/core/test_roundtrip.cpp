@@ -29,7 +29,8 @@ TEST_CASE("roundtrip: every well-formed fixture is structurally identical after 
         GENERATE(std::string("legacy-cp1251.fb2"), std::string("modern-utf8.fb2"),
                  std::string("utf16-bom.fb2"), std::string("koi8r.fb2"),
                  std::string("unknown-elements.fb2"), std::string("descriptor.fbd"),
-                 std::string("mismatched-declaration.fb2"), std::string("no-declaration.fb2"));
+                 std::string("mismatched-declaration.fb2"), std::string("no-declaration.fb2"),
+                 std::string("tables.fb2"), std::string("tables-invalid.fb2"));
     const std::string encoding =
         GENERATE(std::string("utf-8"), std::string("windows-1251"), std::string("utf-16"));
     INFO(name << " -> " << encoding);
@@ -219,4 +220,300 @@ TEST_CASE("roundtrip: the document details filled in on load are written and not
     const roundtrip::Comparison c = roundtrip::compare(a.document, store_a, b.document, store_b);
     REQUIRE(c.differences.size() == 1);
     CHECK(c.differences[0].where == "description/documentInfo/srcOcr");
+}
+
+TEST_CASE("roundtrip: the comparison reports an inline atom whose marks differ", "[roundtrip]") {
+    // Feature 006 (FR-067): a lost link or formatting around a picture or inline raw XML is a
+    // structural difference (cli.md roundtrip, exit code 3).
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const std::string text = test::minimal_book(
+        "<section><p>see <a l:href=\"#s2\"><image l:href=\"#pic\"/></a></p>"
+        "<p><strong>x<x:mark xmlns:x=\"urn:example:x\">r</x:mark></strong></p></section>"
+        "<section id=\"s2\"><p>t</p></section>");
+    const auto a = fb2::read_bytes(text, store, ids_a);
+    auto b = fb2::read_bytes(text, store, ids_b);
+    CHECK(roundtrip::compare(a.document, store, b.document, store).identical());
+
+    model::Node& picture = b.document.bodies[0].content[0].content[0].content[1];
+    REQUIRE(picture.type == "inline-image");
+    REQUIRE(picture.marks.size() == 1);
+    picture.marks.clear();  // the link around the picture lost
+    model::Node& raw = b.document.bodies[0].content[0].content[1].content[1];
+    REQUIRE(raw.type == "raw-xml");
+    REQUIRE(raw.marks.size() == 1);
+    raw.marks.clear();  // the bold around the raw XML lost
+    const roundtrip::Comparison c = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(c.differences.size() == 2);
+    CHECK(c.differences[0].where == "body[1]/section[1]/p[1]/inline-image[1]");
+    CHECK(c.differences[0].what == "marks differ");
+    CHECK(c.differences[1].where == "body[1]/section[1]/p[2]/raw-xml[1]");
+    CHECK(c.differences[1].what == "marks differ");
+}
+
+TEST_CASE("roundtrip: the order of marks of one kind counts; the order across kinds does not",
+          "[roundtrip]") {
+    // Feature 006 (FR-069; document-model §3.3): nested formatting of one kind is kept in its
+    // order, so [style a, style b] against [style b, style a] is a difference.
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const std::string text = test::minimal_book(
+        "<section><p><style name=\"a\"><style name=\"b\">x</style></style></p>"
+        "<p><emphasis xml:lang=\"la\"><emphasis xml:lang=\"de\">y</emphasis></emphasis></p>"
+        "<p><strong><emphasis>z</emphasis></strong></p></section>");
+    const auto a = fb2::read_bytes(text, store, ids_a);
+    auto b = fb2::read_bytes(text, store, ids_b);
+    CHECK(roundtrip::compare(a.document, store, b.document, store).identical());
+    auto& paragraphs = b.document.bodies[0].content[0].content;
+    REQUIRE(paragraphs[0].content.at(0).marks.size() == 2);
+    REQUIRE(paragraphs[1].content.at(0).marks.size() == 2);
+    REQUIRE(paragraphs[2].content.at(0).marks.size() == 2);
+    // Across kinds: [strong, emphasis] and [emphasis, strong] are one set.
+    std::reverse(paragraphs[2].content[0].marks.begin(), paragraphs[2].content[0].marks.end());
+    CHECK(roundtrip::compare(a.document, store, b.document, store).identical());
+    // Within a kind: the reversed styles, and the reversed languages, are differences.
+    std::reverse(paragraphs[0].content[0].marks.begin(), paragraphs[0].content[0].marks.end());
+    std::reverse(paragraphs[1].content[0].marks.begin(), paragraphs[1].content[0].marks.end());
+    const roundtrip::Comparison c = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(c.differences.size() == 2);
+    CHECK(c.differences[0].where == "body[1]/section[1]/p[1]/text()[1]");
+    CHECK(c.differences[0].what == "marks differ");
+    CHECK(c.differences[1].where == "body[1]/section[1]/p[2]/text()[1]");
+    CHECK(c.differences[1].what == "marks differ");
+}
+
+TEST_CASE(
+    "roundtrip: the comparison allows the writer's joining and the link rule, and nothing else",
+    "[roundtrip]") {
+    // Feature 006 (document-model §3.3): both sides' children are brought into the writer's
+    // form - FR-068's link rule, then adjacent text with equal marks joined - before they are
+    // compared.
+    test::TempDir out{"mfbe-roundtrip-links"};
+    const std::string text = test::minimal_book(
+        // p14: equal mark sets in two nesting orders side by side, written as one run.
+        "<section><p><strong><emphasis>a</emphasis></strong><emphasis><strong>b</strong>"
+        "</emphasis></p>"
+        // p04 as read: a style over part of a link, extended over the whole link.
+        "<p><a l:href=\"#n_1\"><style name=\"city\">Moscow</style> today</a></p></section>",
+        "<body name=\"notes\"><section id=\"n_1\"><p>1</p></section></body>");
+    test::write_text(out / "in" / "links.fb2", text);
+    const roundtrip::Report report = roundtrip::run(out / "in" / "links.fb2", out / "out");
+    for (const auto& d : report.comparison.differences) {
+        FAIL_CHECK(d.where << ": " << d.what);
+    }
+    CHECK(report.identical);
+    CHECK(report.valid);  // the input's style inside a link is written around it
+    CHECK(report.exit_code() == 0);
+
+    // Anything else is still a difference: a style dropped outside a link, a changed text.
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const std::string other = test::minimal_book(
+        "<section><p><style name=\"a\">x</style> <a l:href=\"#s2\">y</a></p></section>"
+        "<section id=\"s2\"><p>t</p></section>");
+    const auto a = fb2::read_bytes(other, store, ids_a);
+    auto b = fb2::read_bytes(other, store, ids_b);
+    REQUIRE(roundtrip::compare(a.document, store, b.document, store).identical());
+    auto changed_text = b;
+    model::Node& p = b.document.bodies[0].content[0].content[0];
+    REQUIRE(p.content.size() == 3);
+    p.content[0].marks.clear();  // the style outside the link lost
+    const roundtrip::Comparison dropped = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(dropped.differences.size() == 1);
+    CHECK(dropped.differences[0].where == "body[1]/section[1]/p[1]");
+    CHECK(dropped.differences[0].what == "child count 3 became 2");  // "x" now joins " "
+    model::Node& q = changed_text.document.bodies[0].content[0].content[0];
+    q.content[2].text = "z";  // the link's text changed
+    const roundtrip::Comparison text_change =
+        roundtrip::compare(a.document, store, changed_text.document, store);
+    REQUIRE(text_change.differences.size() == 1);
+    CHECK(text_change.differences[0].where == "body[1]/section[1]/p[1]/text()[3]");
+    CHECK(text_change.differences[0].what == "text \"y\" became \"z\"");
+}
+
+TEST_CASE("roundtrip: tables are written back attribute for attribute", "[roundtrip][tables]") {
+    // Feature 006 (SC-004; document-model §3.3, "Tests to write"): the XML-level walker of
+    // test_support.hpp over the feature's fixture books - every table, cell language, span,
+    // mark attribute, linked or formatted picture, named style around a whole link, nested
+    // style, nested emphasis with two languages and &#13; must come back.
+    for (const char* name : {"tables.fb2", "tables-invalid.fb2", "tables-images.fb2"}) {
+        INFO(name);
+        const std::string input = test::read_text(book(name));
+        MemoryBinaryStore store;
+        model::NodeIdAllocator ids;
+        const auto read = fb2::read_bytes(input, store, ids);
+        fb2::WriteOptions options;
+        options.xlink_prefix = read.xlink_prefix;
+        const std::string output = fb2::write_document(read.document, &store, options).text;
+        const auto difference = test::xml_equivalent(input, output);
+        CHECK_FALSE(difference.has_value());
+        if (difference) {
+            FAIL_CHECK(*difference);
+        }
+    }
+
+    // The walker itself: what the recorded normalisations change is allowed...
+    const auto equivalent = [](const std::string& in, const std::string& out) {
+        return test::xml_equivalent(test::minimal_book("<section>" + in + "</section>"),
+                                    test::minimal_book("<section>\n\t" + out + "\n</section>"));
+    };
+    CHECK_FALSE(equivalent("<table><tr><td colspan=\" 2 \">x</td></tr></table>",
+                           "<table>\n<tr><td colspan=\"2\">x</td></tr></table>"));
+    CHECK_FALSE(
+        equivalent("<p><strong><emphasis>a</emphasis></strong><emphasis><strong>b"
+                   "</strong></emphasis></p>",
+                   "<p><strong><emphasis>ab</emphasis></strong></p>"));
+    CHECK_FALSE(equivalent("<p><style name=\"x\">a<style name=\"x\">b</style></style></p>",
+                           "<p><style name=\"x\">ab</style></p>"));
+    CHECK_FALSE(equivalent("<p><a l:href=\"#s\">x</a><a l:href=\"#s\">y</a></p>",
+                           "<p><a l:href=\"#s\">xy</a></p>"));
+    // ...and what the writer must not change is a difference.
+    struct Pair {
+        const char* what;
+        const char* in;
+        const char* out;
+    };
+    for (const Pair& pair : {
+             Pair{"a dropped attribute",
+                  "<table><tr><td colspan=\"2\" align=\"center\">x</td>"
+                  "</tr></table>",
+                  "<table><tr><td colspan=\"2\">x</td></tr></table>"},
+             Pair{"00 written 0", "<table><tr><td rowspan=\"00\">x</td></tr></table>",
+                  "<table><tr><td rowspan=\"0\">x</td></tr></table>"},
+             Pair{"a picture outside its link",
+                  "<p><a l:href=\"#s\">t<image l:href=\"#p\"/></a></p>",
+                  "<p><a l:href=\"#s\">t</a><image l:href=\"#p\"/></p>"},
+             Pair{"a lost inner style",
+                  "<p><style name=\"a\">x<style name=\"b\">y</style></style></p>",
+                  "<p><style name=\"a\">xy</style></p>"},
+             Pair{"a lost inner language of nested emphasis",
+                  "<p><emphasis xml:lang=\"la\">a <emphasis xml:lang=\"de\">b</emphasis>"
+                  "</emphasis></p>",
+                  "<p><emphasis xml:lang=\"la\">a b</emphasis></p>"},
+             Pair{"a carriage return turned into a line feed", "<p>a&#13;b</p>", "<p>a&#10;b</p>"},
+             Pair{"a lost cell language", "<table><tr><td xml:lang=\"de\">x</td></tr></table>",
+                  "<table><tr><td>x</td></tr></table>"},
+             Pair{"a lost link type", "<p><a l:href=\"#s\" l:type=\"simple\">x</a></p>",
+                  "<p><a l:href=\"#s\">x</a></p>"},
+         }) {
+        INFO(pair.what);
+        const auto difference = equivalent(pair.in, pair.out);
+        CHECK(difference.has_value());
+        if (difference) {
+            CHECK_FALSE(difference->empty());
+        }
+    }
+    // The element path names the place.
+    const auto where = equivalent("<table><tr><td>a</td><td rowspan=\"-01\">b</td></tr></table>",
+                                  "<table><tr><td>a</td><td rowspan=\"-1\">b</td></tr></table>");
+    REQUIRE(where.has_value());
+    CHECK(where->rfind("/FictionBook/body[1]/section[1]/table[1]/tr[1]/td[2]", 0) == 0);
+}
+
+TEST_CASE("roundtrip: the description's annotations and history compare as the bodies do",
+          "[roundtrip]") {
+    // Feature 006 (the corpus gate's table stratum, books 248640 and 248642; plan.md, Complexity
+    // Tracking, exception 2): the writer writes formatting in its fixed nesting order in the rich
+    // fields of the description too, so the order of marks across kinds does not count there;
+    // the order of marks of one kind, the text and the presence of a field still do.
+    test::TempDir out{"mfbe-roundtrip-rich-fields"};
+    const std::string text =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+        "xmlns:l=\"http://www.w3.org/1999/xlink\"><description><title-info>"
+        "<genre>prose_classic</genre><author><nickname>Ann</nickname></author>"
+        "<book-title>Rich fields</book-title><annotation><p>Read <emphasis><strong>this</strong>"
+        "</emphasis>.</p><poem><stanza><v><emphasis>\n <sub><strong>Pictures</strong>: by Ann"
+        "</sub>\n</emphasis></v></stanza></poem></annotation><lang>en</lang></title-info>"
+        "<src-title-info><genre>prose_classic</genre><author><nickname>Ann</nickname></author>"
+        "<book-title>Source</book-title><annotation><p><code><sup>x</sup></code></p></annotation>"
+        "<lang>de</lang></src-title-info><document-info><author><nickname>fixture</nickname>"
+        "</author><date>2026</date><id>rich-fields</id><version>1.0</version><history><p>"
+        "<style name=\"a\"><style name=\"b\"><strikethrough><emphasis>old</emphasis>"
+        "</strikethrough></style></style></p></history></document-info></description><body>"
+        "<section><p>Text.</p></section></body></FictionBook>\n";
+    test::write_text(out / "in" / "rich.fb2", text);
+    const roundtrip::Report report = roundtrip::run(out / "in" / "rich.fb2", out / "out");
+    for (const auto& d : report.comparison.differences) {
+        FAIL_CHECK(d.where << ": " << d.what);
+    }
+    CHECK(report.identical);
+    CHECK(report.valid);
+    // The writer's form: the fixed nesting order in all three fields.
+    const std::string written = test::read_text(out / "out" / "rich.fb2");
+    CHECK(written.find("<strong><emphasis>this</emphasis></strong>") != std::string::npos);
+    CHECK(written.find("<strong><emphasis><sub>Pictures</sub></emphasis></strong>") !=
+          std::string::npos);
+    CHECK(written.find("<sup><code>x</code></sup>") != std::string::npos);
+    CHECK(written.find("<style name=\"a\"><style name=\"b\"><emphasis><strikethrough>old") !=
+          std::string::npos);
+
+    // Real differences in the rich fields are still reported, with the body's paths.
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const auto a = fb2::read_bytes(text, store, ids_a);
+    auto b = fb2::read_bytes(text, store, ids_b);
+    REQUIRE(roundtrip::compare(a.document, store, b.document, store).identical());
+    model::Node& annotation = *b.document.description.titleInfo.annotation;
+    annotation.content[0].content[0].text = "Skip ";  // a changed text
+    model::Node& old = b.document.description.documentInfo.history->content[0].content[0];
+    REQUIRE(old.marks.size() == 4);
+    std::swap(old.marks[0], old.marks[1]);                    // the two styles in the other order
+    b.document.description.srcTitleInfo->annotation.reset();  // the field lost
+    const roundtrip::Comparison c = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(c.differences.size() == 3);
+    CHECK(c.differences[0].where == "description/titleInfo/annotation/p[1]/text()[1]");
+    CHECK(c.differences[0].what == "text \"Read \" became \"Skip \"");
+    CHECK(c.differences[1].where == "description/srcTitleInfo/annotation");
+    CHECK(c.differences[1].what == "missing after round trip");
+    CHECK(c.differences[2].where == "description/documentInfo/history/p[1]/text()[1]");
+    CHECK(c.differences[2].what == "marks differ");
+}
+
+TEST_CASE("roundtrip: a title-info without a genre compares equal to the writer's empty genre",
+          "[roundtrip]") {
+    // Feature 006 (the corpus gate's table stratum, book 573073): the writer writes every
+    // required element, a missing genre as <genre/>, which reads back as a genre without a code
+    // - as a missing author comes back as an empty <author/>. Any genre with a code still counts.
+    test::TempDir out{"mfbe-roundtrip-genre"};
+    const std::string text =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<FictionBook xmlns=\"http://www.gribuser.ru/xml/fictionbook/2.0\" "
+        "xmlns:l=\"http://www.w3.org/1999/xlink\"><description><title-info>"
+        "<genre>prose_classic</genre><author><nickname>Ann</nickname></author>"
+        "<book-title>Genres</book-title><lang>no</lang></title-info><src-title-info>"
+        "<author><first-name>Tom</first-name><last-name>Writer</last-name></author>"
+        "<book-title>Source</book-title><lang>ru</lang></src-title-info><document-info>"
+        "<author><nickname>fixture</nickname></author><date>2026</date><id>genres</id>"
+        "<version>1.0</version></document-info></description><body><section><p>Text.</p>"
+        "</section></body></FictionBook>\n";
+    test::write_text(out / "in" / "genres.fb2", text);
+    const roundtrip::Report report = roundtrip::run(out / "in" / "genres.fb2", out / "out");
+    for (const auto& d : report.comparison.differences) {
+        FAIL_CHECK(d.where << ": " << d.what);
+    }
+    CHECK(report.identical);
+    const std::string written = test::read_text(out / "out" / "genres.fb2");
+    CHECK(written.find("<src-title-info>\n\t\t\t<genre/>\n") != std::string::npos);
+
+    MemoryBinaryStore store;
+    model::NodeIdAllocator ids_a;
+    model::NodeIdAllocator ids_b;
+    const auto a = fb2::read_bytes(text, store, ids_a);
+    auto b = fb2::read_bytes(text, store, ids_b);
+    REQUIRE(a.document.description.srcTitleInfo.has_value());
+    CHECK(a.document.description.srcTitleInfo->genres.empty());
+    b.document.description.srcTitleInfo->genres.push_back({"", std::nullopt});
+    CHECK(roundtrip::compare(a.document, store, b.document, store).identical());
+    b.document.description.srcTitleInfo->genres.back().code = "sf";  // a genre with a code
+    b.document.description.titleInfo.genres[0].match = 50;           // another match
+    const roundtrip::Comparison c = roundtrip::compare(a.document, store, b.document, store);
+    REQUIRE(c.differences.size() == 2);
+    CHECK(c.differences[0].where == "description/srcTitleInfo/genres");
+    CHECK(c.differences[0].what == "count differs: 0 vs 1");
+    CHECK(c.differences[1].where == "description/titleInfo/genres[1]/match");
 }

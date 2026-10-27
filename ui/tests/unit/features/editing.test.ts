@@ -15,6 +15,7 @@ import { collectTextblocks, replaceTextblocksInModel } from '@/features/search/b
 import { getSearchSession } from '@/features/search/search';
 import { IncrementalSearch } from '@/features/search/incremental';
 import { getSymbolsFeature } from '@/features/editing';
+import { findReferenceInModel } from '@/features/footnotes';
 import { findNodeById } from '@/editor/schema';
 import { initI18n } from '@/i18n';
 import type { BodyNode, Document, SectionNode } from '@/model/document';
@@ -166,7 +167,7 @@ describe('editing feature registration', () => {
     }
     // `insert.binary` belongs to US7 and stays a stub.
     expect(services.commands.get('insert.binary')?.stub).toBeUndefined();
-    expect(services.commands.get('insert.table')?.icon).toBe('id_insert_table');
+    expect(services.commands.get('insert.table')?.icon).toBe('table-insert'); // feature 006, C27
     expect(services.undo.hasView('body')).toBe(true);
     expect(services.carets.has('body')).toBe(true);
     expect(services.hotkeys.get('edit.insertNbsp')).toBe('Ctrl+Shift+Space');
@@ -425,6 +426,79 @@ describe('images and windowed documents', () => {
     expect(store.getState().selectionPath).toBe('body[1]/section[1]/p[1]');
     // Moving the window reset the editor history; the model step is still undoable.
     expect(services.undo.entries().map((e) => e.view)).toEqual(['body-model']);
+  });
+
+  it('finds a note reference made of a picture alone in the model, also when it is not mounted', async () => {
+    // Feature 006 (FR-067 as amended at /speckit-analyze): the only reference to n_1 is an
+    // inline image carrying the note's link mark, in a paragraph without text.
+    const big = twoSectionBook();
+    const body = big.bodies[0]!;
+    const referencing = {
+      type: 'section' as const,
+      attrs: { nodeId: 'sref' },
+      content: [
+        {
+          type: 'p' as const,
+          attrs: { nodeId: 'pimg' },
+          content: [
+            {
+              type: 'inline-image' as const,
+              attrs: { nodeId: 'img1', href: '#pic.png' },
+              marks: [{ type: 'link' as const, attrs: { href: '#n_1', type: 'note' } }],
+            },
+          ],
+        },
+      ],
+    };
+    const sections = Array.from({ length: 60 }, (_, i) => ({
+      type: 'section' as const,
+      attrs: { nodeId: `w${i}` },
+      content: [paragraph(`wp${i}`, `Windowed section ${i} text.`)],
+    }));
+    const notes: BodyNode = {
+      type: 'body',
+      attrs: { nodeId: 'bn', name: 'notes' },
+      content: [
+        {
+          type: 'section',
+          attrs: { nodeId: 'sn1', id: 'n_1' },
+          content: [
+            { type: 'title', attrs: { nodeId: 'tn1' }, content: [paragraph('tn1p', '1')] },
+            paragraph('np1', 'The note.'),
+          ],
+        },
+      ] as BodyNode['content'],
+    };
+    big.bodies = [
+      {
+        ...body,
+        content: [
+          body.content[0]!,
+          referencing,
+          ...body.content.slice(1),
+          ...sections,
+        ] as BodyNode['content'],
+      },
+      notes,
+    ];
+    expect(findReferenceInModel(big, 'n_1')).toEqual({ nodeId: 'pimg', offset: 1 });
+    expect(findReferenceInModel(big, 'n_2')).toBeNull();
+
+    const h = await harness(big);
+    const { services, ctx, store } = h;
+    const controller = getBodyController(store);
+    expect(controller.currentWindow?.wholeBook).toBe(false);
+    caret(h, 'np1', 3);
+    expect(store.getState().selectionPath).toBe('body[2]/section[1]/p[1]');
+    // The referencing paragraph is not mounted: Go to footnote or reference reads the model.
+    expect(findNodeById(controller.editorState!.doc, 'pimg')).toBeNull();
+    await services.commands.execute('edit.gotoFootnote', ctx);
+    expect(store.getState().selectionPath).toBe('body[1]/section[1]/p[1]');
+    expect(ctx.dialogs.shown).toEqual([]); // no "Reference not found."
+    const selection = controller.editorState!.selection;
+    expect(selection.empty).toBe(true);
+    expect(selection.$from.parent.attrs.nodeId).toBe('pimg');
+    expect(selection.$from.parentOffset).toBe(1); // right after the picture
   });
 });
 

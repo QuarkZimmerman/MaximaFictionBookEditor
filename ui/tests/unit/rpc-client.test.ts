@@ -120,17 +120,17 @@ describe('RpcClient', () => {
     await expect(info).resolves.toMatchObject({ version: '1.0' });
   });
 
-  it('is written for contract minor 4 and accepts the app.info of any 1.x core (minor >= 1)', async () => {
-    // rpc-api.md §6 (feature 005): apiVersion 1, apiMinor 4; the client performs no minor check
-    // at connect time - a core answering an older minor (or none) is used as it is, and the
-    // features that need a newer answer (the `serial` of the position map, the AI assistant's
-    // `ai.*` family) degrade or stay unregistered on their own.
+  it('is written for contract minor 5 and accepts the app.info of any 1.x core (minor >= 1)', async () => {
+    // rpc-api.md §6 (feature 006): apiVersion 1, apiMinor 5; the client performs no minor check
+    // at connect time and gates nothing on 5 - a core answering an older minor (or none) is used
+    // as it is, and the features that need a newer answer (the `serial` of the position map, the
+    // AI assistant's `ai.*` family) degrade or stay unregistered on their own.
     expect(RPC_API_VERSION).toBe(1);
-    expect(RPC_API_MINOR).toBe(4);
+    expect(RPC_API_MINOR).toBe(5);
     const { client, socket } = setup();
     client.connect();
     socket().open();
-    for (const [index, apiMinor] of [undefined, 1, 2, 3, 4].entries()) {
+    for (const [index, apiMinor] of [undefined, 1, 2, 3, 4, 5].entries()) {
       const info = client.call('app.info');
       const result = { version: '0.0.4', apiVersion: RPC_API_VERSION, apiMinor };
       socket().receive({ jsonrpc: '2.0', id: index + 1, result });

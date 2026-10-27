@@ -154,6 +154,12 @@ std::string escape_text(std::string_view text) {
             case '>':
                 out += "&gt;";
                 break;
+            case '\r':
+                // A carriage return reaches the model only from &#13; or &#xD; (a parser turns
+                // a literal one into a line feed, XML 1.0 §2.11), so it is written back as a
+                // reference (feature 006, FR-065), as attribute values already are.
+                out += "&#13;";
+                break;
             default:
                 out.push_back(c);
         }

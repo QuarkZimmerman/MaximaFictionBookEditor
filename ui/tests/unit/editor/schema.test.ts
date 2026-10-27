@@ -1,5 +1,7 @@
-import { Fragment } from 'prosemirror-model';
+import { DOMParser, DOMSerializer, Fragment } from 'prosemirror-model';
+import { EditorState, TextSelection } from 'prosemirror-state';
 
+import { createReport, nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import {
   MARK_ORDER,
   assignNodeIds,
@@ -11,7 +13,18 @@ import {
   isStructural,
   nodeTypeFor,
   rawXmlElementName,
+  seededScriptIds,
 } from '@/editor/schema';
+import { nodeToModel } from '@/editor/toModel';
+import type {
+  AnnotationNode,
+  Document,
+  ParagraphNode,
+  SectionNode,
+  TableNode,
+} from '@/model/document';
+
+import { fakeDocument } from '../features/testUtils';
 
 const { nodes, marks } = fb2Schema;
 
@@ -154,7 +167,7 @@ describe('fb2Schema', () => {
       marks.strong!.create(),
     ]);
     expect(text.marks.map((m) => m.type.name)).toEqual(['strong', 'emphasis', 'link']);
-    expect(text.marks[2]!.attrs).toEqual({ href: '#n_1', type: 'note' });
+    expect(text.marks[2]!.attrs).toEqual({ href: '#n_1', type: 'note', xlinkType: null });
   });
 
   it('renders semantic DOM with fb-* classes', () => {
@@ -222,5 +235,401 @@ describe('fb2Schema', () => {
     expect(findNodeById(withIds, 'p1')?.node.textContent).toBe('a');
     expect(findNodeById(withIds, 'nope')).toBeNull();
     expect(Fragment.from(withIds.content).childCount).toBe(1);
+  });
+});
+
+/** Model JSON -> ProseMirror -> model JSON, with the conversion's problems. */
+function viaEditor(json: ModelNodeJson) {
+  const report = createReport();
+  const node = nodeFromModel(json, report);
+  return {
+    node: node!,
+    back: nodeToModel(node!),
+    problems: report.problems.map((problem) => problem.message),
+  };
+}
+
+describe('feature 006: cells, marks and atoms in the schema and the conversions', () => {
+  it("td and th declare lang; a model cell's lang lands in node.attrs.lang, not in extraAttrs", () => {
+    for (const type of ['td', 'th'] as const) {
+      expect(Object.keys(nodes[type]!.spec.attrs ?? {})).toContain('lang');
+      const cell: ModelNodeJson = {
+        type,
+        attrs: {
+          nodeId: 'c1',
+          colspan: 2,
+          lang: 'de',
+          unknownAttrs: { rowspan: '00', '{http://www.w3.org/1999/xlink}title': 't' },
+        },
+        content: [{ type: 'text', text: 'x' }],
+      };
+      const { node, back, problems } = viaEditor(cell);
+      expect(problems).toEqual([]);
+      expect(node.attrs.lang).toBe('de');
+      expect(node.attrs.colspan).toBe(2);
+      // Only the undeclared rest waits in extraAttrs: unknownAttrs, as it came.
+      expect(node.attrs.extraAttrs).toEqual({
+        unknownAttrs: { rowspan: '00', '{http://www.w3.org/1999/xlink}title': 't' },
+      });
+      expect(back).toEqual(cell);
+      // The cell's DOM form carries the language for the editor's own HTML.
+      expect(node.type.spec.toDOM!(node)).toEqual([
+        type,
+        { class: `fb-${type}`, 'data-node-id': 'c1', lang: 'de', colspan: '2' },
+        0,
+      ]);
+    }
+    // An empty language is kept as written (File > Validate reports it).
+    const empty = viaEditor({ type: 'td', attrs: { nodeId: 'c2', lang: '' }, content: [] });
+    expect(empty.node.attrs.lang).toBe('');
+    expect(empty.back).toEqual({ type: 'td', attrs: { nodeId: 'c2', lang: '' }, content: [] });
+  });
+
+  it('marks declare lang and link declares xlinkType; both survive fromModel then toModel', () => {
+    for (const name of ['strong', 'emphasis', 'strikethrough', 'sub', 'sup', 'code', 'style']) {
+      expect(Object.keys(marks[name]!.spec.attrs ?? {}), name).toContain('lang');
+    }
+    expect(Object.keys(marks.link!.spec.attrs ?? {})).toEqual(['href', 'type', 'xlinkType']);
+    const paragraph: ModelNodeJson = {
+      type: 'p',
+      attrs: { nodeId: 'p1' },
+      content: [
+        { type: 'text', text: 'a', marks: [{ type: 'strong', attrs: { lang: 'la' } }] },
+        { type: 'text', text: 'b', marks: [{ type: 'code', attrs: { lang: '' } }] },
+        { type: 'text', text: 'c', marks: [{ type: 'style', attrs: { name: 'x', lang: 'la' } }] },
+        {
+          type: 'text',
+          text: 'd',
+          marks: [{ type: 'link', attrs: { href: '#n1', type: 'note', xlinkType: 'simple' } }],
+        },
+        { type: 'text', text: 'e', marks: [{ type: 'emphasis' }] },
+        { type: 'text', text: 'f', marks: [{ type: 'link', attrs: { href: '#s2' } }] },
+      ],
+    };
+    const { node, back, problems } = viaEditor(paragraph);
+    expect(problems).toEqual([]);
+    expect(node.child(0).marks[0]!.attrs).toEqual({ lang: 'la' });
+    expect(node.child(1).marks[0]!.attrs).toEqual({ lang: '' });
+    expect(node.child(2).marks[0]!.attrs).toEqual({ name: 'x', lang: 'la' });
+    expect(node.child(3).marks[0]!.attrs).toEqual({
+      href: '#n1',
+      type: 'note',
+      xlinkType: 'simple',
+    });
+    expect(node.child(4).marks[0]!.attrs).toEqual({ lang: null });
+    expect(back).toEqual(paragraph);
+    // The DOM form: lang on the element when set ("" included), data-xlink-type on a link.
+    const dom = (index: number) =>
+      node.child(index).marks[0]!.type.spec.toDOM!(node.child(index).marks[0]!, true);
+    expect(dom(0)).toEqual(['strong', { class: 'fb-strong', lang: 'la' }, 0]);
+    expect(dom(1)).toEqual(['code', { class: 'fb-code', lang: '' }, 0]);
+    expect(dom(2)).toEqual(['span', { class: 'fb-style', 'data-style': 'x', lang: 'la' }, 0]);
+    expect(dom(3)).toEqual([
+      'a',
+      { class: 'fb-link fb-note', href: '#n1', 'data-type': 'note', 'data-xlink-type': 'simple' },
+      0,
+    ]);
+    expect(dom(4)).toEqual(['em', { class: 'fb-emphasis' }, 0]);
+  });
+
+  it("an inline image's and an inline raw-xml node's marks survive fromModel then toModel", () => {
+    // Feature 006 (FR-067; document-model §2.6): atoms keep the link and the formatting around
+    // them; a block raw-xml node never takes marks, an atom without marks has no member.
+    const paragraph: ModelNodeJson = {
+      type: 'p',
+      attrs: { nodeId: 'p1' },
+      content: [
+        { type: 'text', text: 'see ', marks: [{ type: 'link', attrs: { href: '#s1' } }] },
+        {
+          type: 'inline-image',
+          attrs: { nodeId: 'i1', href: '#pic.png' },
+          marks: [{ type: 'strong' }, { type: 'link', attrs: { href: '#s1', type: 'note' } }],
+        },
+        {
+          type: 'raw-xml',
+          attrs: { nodeId: 'r1', xml: '<!-- c -->', inline: true },
+          marks: [{ type: 'emphasis', attrs: { lang: 'la' } }],
+        },
+        { type: 'inline-image', attrs: { nodeId: 'i2', href: '#pic.png' } },
+      ],
+    };
+    const { node, back, problems } = viaEditor(paragraph);
+    expect(problems).toEqual([]);
+    expect(node.child(1).type.name).toBe('inline_image');
+    expect(node.child(1).marks.map((m) => m.type.name)).toEqual(['strong', 'link']);
+    expect(node.child(2).type.name).toBe('raw_xml_inline');
+    expect(node.child(2).marks[0]!.attrs).toEqual({ lang: 'la' });
+    expect(node.child(3).marks).toEqual([]);
+    expect(back).toEqual(paragraph);
+    // An inline raw node kept from its original JSON (a node the schema could not take) gives
+    // back its current marks in place of the stored ones.
+    const odd: ModelNodeJson = {
+      type: 'p',
+      attrs: { nodeId: 'p2' },
+      content: [
+        {
+          type: 'mystery',
+          attrs: { nodeId: 'm1' },
+          marks: [{ type: 'strong' }],
+        },
+      ],
+    };
+    const converted = viaEditor(odd);
+    const unknown = converted.node.child(0);
+    expect(unknown.type.name).toBe('raw_xml_inline');
+    expect(unknown.marks.map((m) => m.type.name)).toEqual(['strong']);
+    expect(converted.back).toEqual(odd);
+    const restyled = unknown.mark([fb2Schema.marks.code!.create()]);
+    expect(nodeToModel(restyled)).toEqual({
+      type: 'mystery',
+      attrs: { nodeId: 'm1' },
+      marks: [{ type: 'code' }],
+    });
+    expect(nodeToModel(unknown.mark([]))).toEqual({ type: 'mystery', attrs: { nodeId: 'm1' } });
+    // A block raw-xml node is created without marks.
+    const block = viaEditor({
+      type: 'raw-xml',
+      attrs: { nodeId: 'b1', xml: '<x/>', inline: false },
+      marks: [{ type: 'strong' }],
+    } as ModelNodeJson);
+    expect(block.node.type.name).toBe('raw_xml');
+    expect(block.node.marks).toEqual([]);
+    expect(block.back).toEqual({
+      type: 'raw-xml',
+      attrs: { nodeId: 'b1', xml: '<x/>', inline: false },
+    });
+  });
+
+  it('the formatting marks exclude nothing: two styles, or two marks of each of strong to code with different languages, sit on one node in the order added, an equal one is not added twice, and Node.check accepts either order', () => {
+    // Feature 006 (FR-069; decision 23 as widened at /speckit-analyze): nested formatting of
+    // one kind with other attributes is kept.
+    const a = marks.style!.create({ name: 'a' });
+    const b = marks.style!.create({ name: 'b' });
+    const ab = b.addToSet(a.addToSet([]));
+    expect(ab.map((m) => m.attrs.name)).toEqual(['a', 'b']);
+    expect(a.addToSet(ab)).toBe(ab); // an equal one is not added twice
+    expect(a.addToSet(b.addToSet([])).map((m) => m.attrs.name)).toEqual(['b', 'a']);
+    for (const name of ['strong', 'emphasis', 'strikethrough', 'sub', 'sup', 'code']) {
+      const type = marks[name]!;
+      expect(type.spec.excludes, name).toBe('');
+      const la = type.create({ lang: 'la' });
+      const de = type.create({ lang: 'de' });
+      const plain = type.create();
+      const set = plain.addToSet(de.addToSet(la.addToSet([])));
+      expect(
+        set.map((m) => m.attrs.lang),
+        name,
+      ).toEqual(['la', 'de', null]);
+      expect(type.create({ lang: 'de' }).addToSet(set), name).toBe(set);
+      for (const order of [
+        [la, de],
+        [de, la],
+      ]) {
+        const text = fb2Schema.text('x', order);
+        expect(text.marks, name).toEqual(order);
+        const paragraph = nodes.p!.create(null, text);
+        expect(() => paragraph.check(), name).not.toThrow();
+      }
+    }
+    // Across kinds the schema's rank order holds.
+    const mixed = marks
+      .strong!.create()
+      .addToSet(b.addToSet(marks.emphasis!.create().addToSet([])));
+    expect(mixed.map((m) => m.type.name)).toEqual(['strong', 'emphasis', 'style']);
+  });
+
+  it('link still excludes itself', () => {
+    expect(marks.link!.spec.excludes).toBeUndefined();
+    const first = marks.link!.create({ href: '#a' });
+    const second = marks.link!.create({ href: '#b' });
+    expect(second.addToSet(first.addToSet([])).map((m) => m.attrs.href)).toEqual(['#b']);
+    expect(() => nodes.p!.create(null, fb2Schema.text('x', [first, second])).check()).toThrow();
+  });
+
+  it('nested span.fb-style elements, and nested em.fb-emphasis elements with different lang, parse as two marks, outer first, and serialise back nested', () => {
+    const html =
+      '<p class="fb-p"><span class="fb-style" data-style="a">x<span class="fb-style" data-style="b">y</span></span>' +
+      '<em class="fb-emphasis" lang="la">u<em class="fb-emphasis" lang="de">v</em></em></p>';
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    const slice = DOMParser.fromSchema(fb2Schema).parseSlice(container);
+    const paragraph = slice.content.firstChild!;
+    const runs: [string, unknown[]][] = [];
+    paragraph.forEach((child) =>
+      runs.push([
+        child.text ?? '',
+        child.marks.map((m) => (m.type.name === 'style' ? m.attrs.name : m.attrs.lang)),
+      ]),
+    );
+    expect(runs).toEqual([
+      ['x', ['a']],
+      ['y', ['a', 'b']],
+      ['u', ['la']],
+      ['v', ['la', 'de']],
+    ]);
+    const out = document.createElement('div');
+    out.appendChild(DOMSerializer.fromSchema(fb2Schema).serializeFragment(paragraph.content));
+    expect(out.innerHTML).toBe(
+      '<span class="fb-style" data-style="a">x<span class="fb-style" data-style="b">y</span></span>' +
+        '<em class="fb-emphasis" lang="la">u<em class="fb-emphasis" lang="de">v</em></em>',
+    );
+  });
+
+  it('text typed inside [emphasis la, emphasis de] carries both', () => {
+    const la = marks.emphasis!.create({ lang: 'la' });
+    const de = marks.emphasis!.create({ lang: 'de' });
+    const doc = nodes.doc!.create(null, [
+      nodes.body!.create(null, [
+        nodes.section!.create(null, [nodes.p!.create(null, fb2Schema.text('ab', [la, de]))]),
+      ]),
+    ]);
+    const start = 3; // doc > body > section > p
+    let state = EditorState.create({ doc });
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, start + 2)));
+    // What ProseMirror's input handling does: insert with the marks at the caret.
+    state = state.apply(state.tr.insertText('c'));
+    const text = state.doc.nodeAt(start)!;
+    expect(text.text).toBe('abc');
+    expect(text.marks).toEqual([la, de]);
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, start + 1)));
+    state = state.apply(state.tr.insertText('-'));
+    expect(state.doc.nodeAt(start)!.text).toBe('a-bc');
+    expect(state.doc.nodeAt(start)!.marks).toEqual([la, de]);
+  });
+
+  it('fromModel then toModel keep [style a, style b], [style b, style a] and [emphasis la, emphasis de] in their order', () => {
+    const style = (name: string) => ({ type: 'style' as const, attrs: { name } });
+    const emphasis = (lang: string) => ({ type: 'emphasis' as const, attrs: { lang } });
+    const paragraph: ModelNodeJson = {
+      type: 'p',
+      attrs: { nodeId: 'p1' },
+      content: [
+        { type: 'text', text: 'ab', marks: [style('a'), style('b')] },
+        { type: 'text', text: 'ba', marks: [style('b'), style('a')] },
+        { type: 'text', text: 'lade', marks: [emphasis('la'), emphasis('de')] },
+        {
+          type: 'text',
+          text: 'mixed',
+          marks: [{ type: 'strong' }, emphasis('la'), emphasis('de'), style('a'), style('b')],
+        },
+      ],
+    };
+    const { node, back, problems } = viaEditor(paragraph);
+    expect(problems).toEqual([]);
+    expect(node.childCount).toBe(4);
+    expect(back).toEqual(paragraph);
+  });
+});
+
+/** A paragraph of the model with `nodeId` and the given inline content. */
+function modelParagraph(nodeId: string, content: ParagraphNode['content'] = []): ParagraphNode {
+  return { type: 'p', attrs: { nodeId }, content };
+}
+
+function modelAnnotation(nodeId: string, content: AnnotationNode['content']): AnnotationNode {
+  return { type: 'annotation', attrs: { nodeId }, content };
+}
+
+/**
+ * The fixture book with `blocks` as the text of its one section and the given description roots:
+ * the book's annotation, the source book's annotation and the history.
+ */
+function bookWith(
+  blocks: SectionNode['content'],
+  roots: {
+    annotation?: AnnotationNode;
+    srcAnnotation?: AnnotationNode;
+    history?: AnnotationNode;
+  } = {},
+): Document {
+  const base = fakeDocument();
+  const { titleInfo, documentInfo } = base.description;
+  return {
+    ...base,
+    description: {
+      ...base.description,
+      titleInfo: { ...titleInfo, ...(roots.annotation ? { annotation: roots.annotation } : {}) },
+      ...(roots.srcAnnotation
+        ? { srcTitleInfo: { ...titleInfo, annotation: roots.srcAnnotation } }
+        : {}),
+      documentInfo: { ...documentInfo, ...(roots.history ? { history: roots.history } : {}) },
+    },
+    bodies: [
+      {
+        type: 'body',
+        attrs: { nodeId: 'n1' },
+        content: [{ type: 'section', attrs: { nodeId: 'n2' }, content: blocks }],
+      },
+    ],
+  };
+}
+
+describe('feature 006: the shared sc_ allocator (I26, C7; ai-catalogue Δ§3 "Ids of new nodes")', () => {
+  it('createNodeIdGenerator counts from a start value; without one it still starts at ui_1', () => {
+    const sc = createNodeIdGenerator('sc_', 5);
+    expect([sc(), sc(), sc()]).toEqual(['sc_5', 'sc_6', 'sc_7']);
+    const ui = createNodeIdGenerator();
+    expect([ui(), ui()]).toEqual(['ui_1', 'ui_2']);
+  });
+
+  it('seededScriptIds starts past the highest sc_<N> of the bodies, both annotations and the history, ignores other ids and starts at sc_1 without one', () => {
+    const first = (document: Document) => seededScriptIds(document)();
+    // In the bodies at any depth - here a picture inside a paragraph; `sc_x`, `ui_9` and `n12`
+    // are no `sc_<N>`, whatever their numbers.
+    const blocks: SectionNode['content'] = [
+      modelParagraph('n12', [{ type: 'text', text: 'Twelve' }]),
+      modelParagraph('ui_9', [
+        { type: 'text', text: 'A picture ' },
+        { type: 'inline-image', attrs: { nodeId: 'sc_3', href: '#pic.png' } },
+      ]),
+      modelParagraph('sc_x'),
+    ];
+    const ids = seededScriptIds(bookWith(blocks));
+    expect([ids(), ids()]).toEqual(['sc_4', 'sc_5']);
+    // The description's roots that hold body content count as well, each on its own.
+    const annotation = modelAnnotation('sc_10', [modelParagraph('n40')]);
+    expect(first(bookWith(blocks, { annotation }))).toBe('sc_11');
+    const srcAnnotation = modelAnnotation('n50', [modelParagraph('sc_12')]);
+    expect(first(bookWith(blocks, { srcAnnotation }))).toBe('sc_13');
+    // An `sc_` id in a cell of the history's table counts.
+    const table: TableNode = {
+      type: 'table',
+      attrs: { nodeId: 'n61' },
+      content: [
+        {
+          type: 'tr',
+          attrs: { nodeId: 'n62' },
+          content: [{ type: 'td', attrs: { nodeId: 'sc_14' }, content: [] }],
+        },
+      ],
+    };
+    const history = modelAnnotation('n60', [modelParagraph('n63'), table]);
+    expect(first(bookWith(blocks, { history }))).toBe('sc_15');
+    expect(first(bookWith(blocks, { annotation, srcAnnotation, history }))).toBe('sc_15');
+    // Without an `sc_<N>` it starts at sc_1 and counts on from there.
+    const others = [modelParagraph('n12'), modelParagraph('ui_9'), modelParagraph('sc_x')];
+    const none = seededScriptIds(bookWith(others, { annotation: modelAnnotation('n40', []) }));
+    expect([none(), none(), none()]).toEqual(['sc_1', 'sc_2', 'sc_3']);
+    expect(first(fakeDocument())).toBe('sc_1');
+    // An N too long to count past exactly (16 digits and more) is one the allocator never
+    // gives, so it cannot collide and leaves the seed alone.
+    expect(first(bookWith([modelParagraph('sc_1234567890123456'), modelParagraph('sc_2')]))).toBe(
+      'sc_3',
+    );
+  });
+
+  it('continuePast moves the allocator past the highest sc_<N> of a later document when that lies at or beyond its next id', () => {
+    // The request's allocator after a nested script run whose result took the working copy over.
+    const ids = seededScriptIds(bookWith([modelParagraph('sc_2')]));
+    expect(ids()).toBe('sc_3');
+    ids.continuePast(
+      bookWith([modelParagraph('sc_2'), modelParagraph('sc_3'), modelParagraph('sc_6')]),
+    );
+    expect(ids()).toBe('sc_7');
+    // A document whose ids all lie below the next one leaves it as it is (it never goes back).
+    ids.continuePast(bookWith([modelParagraph('sc_4')]));
+    expect(ids()).toBe('sc_8');
+    ids.continuePast(bookWith([modelParagraph('sc_9')]));
+    expect(ids()).toBe('sc_10');
   });
 });

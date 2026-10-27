@@ -1,0 +1,136 @@
+{
+  "_comment": "Hand-written from resources/schema/FictionBook.xsd (feature 006, T056): child sequences each content model accepts and refuses, read from sectionType, citeType, annotationType (annotation, history), epigraphType, bodyType, poemType and the stanza element. Independent of tools/fb2-schema-elements.py; the unit test runs the generated automata over them.",
+  "section": {
+    "accepted": [
+      [],
+      ["p"],
+      ["title", "p"],
+      ["title", "image", "p"],
+      ["title", "epigraph", "epigraph", "image", "annotation", "p"],
+      ["title", "section"],
+      ["title", "section", "section"],
+      ["section"],
+      ["epigraph", "p"],
+      ["image", "table"],
+      ["annotation", "cite"],
+      ["table"],
+      ["title", "table", "image", "p"],
+      ["p", "image", "image", "p"],
+      ["title", "epigraph", "section"],
+      ["empty-line", "subtitle", "poem", "cite", "table", "image"],
+      ["title", "annotation", "section"]
+    ],
+    "refused": [
+      ["title"],
+      ["title", "epigraph"],
+      ["image"],
+      ["title", "table", "epigraph"],
+      ["image", "image", "p"],
+      ["p", "title"],
+      ["p", "section"],
+      ["section", "p"],
+      ["title", "image", "annotation"],
+      ["annotation", "image", "p"],
+      ["table", "annotation"],
+      ["epigraph", "title", "p"],
+      ["title", "title", "p"],
+      ["image", "epigraph", "p"],
+      ["section", "table"],
+      ["v"],
+      ["text-author"]
+    ]
+  },
+  "cite": {
+    "accepted": [
+      [],
+      ["p"],
+      ["p", "poem", "empty-line", "subtitle", "table"],
+      ["text-author"],
+      ["p", "text-author", "text-author"],
+      ["table", "text-author"],
+      ["table", "table"]
+    ],
+    "refused": [
+      ["p", "text-author", "table"],
+      ["text-author", "p"],
+      ["title"],
+      ["image"],
+      ["epigraph"],
+      ["cite"],
+      ["section"]
+    ]
+  },
+  "annotation": {
+    "accepted": [
+      [],
+      ["p"],
+      ["table"],
+      ["cite", "p", "table", "empty-line", "poem", "subtitle"],
+      ["table", "table"]
+    ],
+    "refused": [["title"], ["text-author"], ["image"], ["epigraph"], ["section"], ["p", "image"]]
+  },
+  "history": {
+    "accepted": [[], ["p", "table"], ["cite"], ["subtitle", "empty-line"]],
+    "refused": [["text-author"], ["title"], ["image"], ["p", "section"]]
+  },
+  "epigraph": {
+    "accepted": [
+      [],
+      ["p"],
+      ["cite", "text-author"],
+      ["p", "poem", "cite", "empty-line", "text-author", "text-author"],
+      ["text-author"]
+    ],
+    "refused": [["table"], ["subtitle"], ["text-author", "p"], ["title"], ["image"], ["p", "table"]]
+  },
+  "body": {
+    "accepted": [
+      ["section"],
+      ["image", "title", "epigraph", "section", "section"],
+      ["title", "section"],
+      ["epigraph", "epigraph", "section"],
+      ["image", "section"]
+    ],
+    "refused": [
+      [],
+      ["title"],
+      ["title", "image", "section"],
+      ["section", "title"],
+      ["p"],
+      ["table", "section"],
+      ["section", "epigraph"]
+    ]
+  },
+  "poem": {
+    "accepted": [
+      ["stanza"],
+      ["title", "epigraph", "stanza", "subtitle", "stanza", "text-author", "date"],
+      ["subtitle"],
+      ["stanza", "date"],
+      ["title", "stanza", "text-author", "text-author"]
+    ],
+    "refused": [
+      [],
+      ["title"],
+      ["title", "epigraph"],
+      ["date", "stanza"],
+      ["stanza", "date", "text-author"],
+      ["stanza", "title"],
+      ["p"],
+      ["stanza", "date", "date"]
+    ]
+  },
+  "stanza": {
+    "accepted": [["v"], ["title", "subtitle", "v", "v"], ["subtitle", "v"], ["title", "v"]],
+    "refused": [
+      [],
+      ["title"],
+      ["v", "title"],
+      ["subtitle", "subtitle", "v"],
+      ["v", "subtitle"],
+      ["p"],
+      ["title", "subtitle"]
+    ]
+  }
+}

@@ -49,8 +49,14 @@ function docWith(...paragraphs: ReturnType<typeof paragraph>[]) {
   ]);
 }
 
-/** A host whose dictionary is the set of `known` words; everything else is misspelled. */
-function mockHost(known: string[], options: { highlight?: boolean; delayMs?: number } = {}) {
+/**
+ * A host whose dictionary is the set of `known` words; everything else is misspelled. With
+ * `gate`, every check answers only once that promise has settled.
+ */
+function mockHost(
+  known: string[],
+  options: { highlight?: boolean; delayMs?: number; gate?: Promise<void> } = {},
+) {
   const cache = new Map<string, boolean>();
   const listeners = new Set<(event: SpellHostEvent) => void>();
   const calls: string[][] = [];
@@ -66,6 +72,7 @@ function mockHost(known: string[], options: { highlight?: boolean; delayMs?: num
     check: async (checks) => {
       calls.push([...checks]);
       if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
+      if (options.gate) await options.gate;
       for (const check of checks) cache.set(check, !known.includes(check));
     },
     subscribe: (listener) => {
@@ -167,6 +174,46 @@ describe('spellcheck plugin', () => {
     host.emit('invalidate');
     await tick();
     expect(words()).toEqual(['превет']);
+    destroy();
+  });
+
+  it('keeps a click whose selectionchange has not arrived when the verdicts come in between', async () => {
+    // The browser moves its selection on a press and reports it by a `selectionchange` event,
+    // a task of its own - after other tasks on a loaded machine. Verdicts arriving in between
+    // were drawn on the selection from before the click, which ProseMirror wrote back into the
+    // page: the first click after a book opened left the caret at the document start.
+    let answer!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    const host = mockHost(['Hello', 'World'], { gate });
+    const { view, words, destroy } = mount(
+      docWith(paragraph('Hello helo'), paragraph('World')),
+      host,
+    );
+    view.focus();
+    await tick();
+    expect(host.calls).toEqual([['Hello', 'helo', 'World']]); // the pass waits for its answer
+    expect(view.state.selection.head).toBe(3); // the caret at the document start
+
+    // The click into "World" (after "Wor"); its selectionchange is queued as a task.
+    const world = view.dom.querySelectorAll('p')[1]!.firstChild!;
+    document.getSelection()!.collapse(world, 3);
+    let worldAt = -1;
+    view.state.doc.descendants((node, pos) => {
+      if (node.isTextblock && node.textContent === 'World') worldAt = pos + 1;
+    });
+
+    // The answer arrives first: the decorations are drawn before that task runs.
+    answer();
+    for (let i = 0; i < 50 && words().length === 0; i += 1) await Promise.resolve();
+    expect(words()).toEqual(['helo']);
+    expect(view.state.selection.head).toBe(worldAt + 3);
+    expect(document.getSelection()!.focusNode).toBe(world);
+    expect(document.getSelection()!.focusOffset).toBe(3);
+
+    await tick(); // the selectionchange task: the click stays
+    expect(view.state.selection.head).toBe(worldAt + 3);
     destroy();
   });
 

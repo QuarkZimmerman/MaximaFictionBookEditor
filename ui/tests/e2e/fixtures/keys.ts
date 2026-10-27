@@ -58,3 +58,27 @@ export async function pressAlt(page: Page, letter: string): Promise<void> {
     await cdp.detach();
   }
 }
+
+/**
+ * A composition, as an input method or a dead key makes it (feature 006, U39; quickstart §4
+ * open point 15), sent through the DevTools protocol of Playwright's Chromium at the focused
+ * element's selection: each of `steps` as the composition's current text
+ * (`Input.imeSetComposition`, its caret at the end), then `commit` as the committed text
+ * (`Input.insertText`, which ends the composition). An input method spells `に`, `にほ`, `にほん`
+ * and commits `日本`; a dead key composes `´` and commits `é`.
+ */
+export async function compose(page: Page, steps: readonly string[], commit: string): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    for (const step of steps) {
+      await cdp.send('Input.imeSetComposition', {
+        text: step,
+        selectionStart: step.length,
+        selectionEnd: step.length,
+      });
+    }
+    await cdp.send('Input.insertText', { text: commit });
+  } finally {
+    await cdp.detach();
+  }
+}

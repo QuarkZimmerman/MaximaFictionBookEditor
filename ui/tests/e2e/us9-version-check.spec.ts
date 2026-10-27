@@ -17,6 +17,10 @@
  * answer, and is silent and unrecorded on failure (no `log.error`); a check that is not due,
  * and "never" over a whole journey, make no request (`test.requests()`); the manual command
  * keeps its three messages and records on an answer only.
+ *
+ * Feature 006 (decision 13, FR-055): a pre-release is older than its final - the final of the
+ * running label (`0.0.6` for `0.0.6-rc`) is newer exactly while that label is a pre-release -,
+ * and a `+build` part is ignored, so a rebuild is still the latest.
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -45,6 +49,14 @@ const RUNNING = (
     ),
   ) as { version: string }
 ).version;
+/**
+ * The final release of the running label - its numbers alone, `0.0.6` for `0.0.6-rc` -, newer
+ * exactly while the label is a pre-release, with a `-` before any `+build` (feature 006,
+ * decision 13).
+ */
+const [RUNNING_PRECEDENCE] = RUNNING.split('+');
+const [RUNNING_FINAL] = RUNNING_PRECEDENCE.split('-');
+const RUNNING_IS_PRERELEASE = RUNNING_FINAL !== RUNNING_PRECEDENCE;
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -169,19 +181,41 @@ test.describe('US9 - check for a new version; Maxima Library in About', () => {
     expect(outside.every((url) => url.startsWith(RELEASES))).toBe(true);
   });
 
-  test('2. the same or an older version is the latest; every failure cannot connect', async ({
+  test('2. the same or an older version is the latest, the final of a pre-release is newer; every failure cannot connect', async ({
     core,
     page,
     context,
   }) => {
     const outside = await recordOutside(context);
     await openApp(core, page);
-    for (const tag of [`v${RUNNING}`, RUNNING, 'v0.0.0', `v${RUNNING}.0`]) {
+    // The same version, also rebuilt (`+rebuild`), and an older one. An added `.0` is not the
+    // same for a pre-release label: `0.0.6-rc.0` is newer than `0.0.6-rc` (feature 006,
+    // decision 13).
+    for (const tag of [`v${RUNNING}`, RUNNING, 'v0.0.0', `v${RUNNING}+rebuild`]) {
       await core.rpc('test.enqueueRelease', { result: { tag } });
       await checkVersion(page);
       await expect(page.getByTestId('dialog-version-latest')).toHaveText(
         /You have the latest version of Maxima Fiction Book Editor\./,
       );
+      await page.getByTestId('dialog-version-latest-button-ok').click();
+    }
+    // The running label's final: a test build learns that its final is out, a final build has
+    // the latest version.
+    await core.rpc('test.enqueueRelease', { result: { tag: `v${RUNNING_FINAL}` } });
+    await checkVersion(page);
+    if (RUNNING_IS_PRERELEASE) {
+      const offer = page.getByTestId('dialog-version-new');
+      await expect(offer).toContainText(
+        `A new version of Maxima Fiction Book Editor is available: ${RUNNING_FINAL}.`,
+      );
+      await expect(page.getByTestId('dialog-version-latest')).toHaveCount(0);
+      await page.getByTestId('dialog-version-new-button-no').click();
+      await expect(offer).toHaveCount(0);
+    } else {
+      await expect(page.getByTestId('dialog-version-latest')).toHaveText(
+        /You have the latest version of Maxima Fiction Book Editor\./,
+      );
+      await expect(page.getByTestId('dialog-version-new')).toHaveCount(0);
       await page.getByTestId('dialog-version-latest-button-ok').click();
     }
     for (const reason of ['offline', 'timeout', 'http', 'format']) {

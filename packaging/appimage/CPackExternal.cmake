@@ -10,6 +10,9 @@
 #   CPACK_MFBE_APPIMAGE_TOOLS_DIR    tool cache (appimagetool + runtime), default build/tools
 #   CPACK_MFBE_APPIMAGE_UPDATE_INFO  zsync update information ("" = none)
 #   CPACK_MFBE_APPIMAGE_ARCH         architecture suffix of the file name (x86_64, aarch64)
+#   CPACK_MFBE_VERSION_LABEL         the version label (cmake/MfbePackaging.cmake), passed to
+#                                    build.sh as MFBE_APPIMAGE_VERSION: the embedded desktop
+#                                    file's X-AppImage-Version
 
 if(NOT CPACK_MFBE_APPIMAGE_SCRIPT)
   message(FATAL_ERROR "CPACK_MFBE_APPIMAGE_SCRIPT is not set (see packaging/CPackConfig.cmake)")
@@ -34,7 +37,8 @@ endif()
 
 message(STATUS "AppImage: ${CPACK_MFBE_APPIMAGE_SCRIPT} ${_args}")
 execute_process(
-  COMMAND "${CPACK_MFBE_APPIMAGE_SCRIPT}" ${_args}
+  COMMAND "${CMAKE_COMMAND}" -E env "MFBE_APPIMAGE_VERSION=${CPACK_MFBE_VERSION_LABEL}"
+          "${CPACK_MFBE_APPIMAGE_SCRIPT}" ${_args}
   RESULT_VARIABLE _result)
 if(NOT _result EQUAL 0)
   message(FATAL_ERROR "AppImage build failed (exit code ${_result})")

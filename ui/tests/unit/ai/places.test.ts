@@ -34,6 +34,7 @@ import type { AiOutcome, ChatRequest } from '@/rpc/types';
 import { fakeDialogs, fakeRpc, makeContext, type FakeRpc } from '../features/testUtils';
 import { defaultSettings } from '../settings/fixtures';
 
+import { tableNode } from './catalogueHarness';
 import { book, validateDocument } from './sessionUtils';
 
 beforeAll(async () => {
@@ -49,7 +50,10 @@ interface LoopHarness {
   bodies: ChatRequest[];
 }
 
-async function loopHarness(outcomes: AiOutcome[]): Promise<LoopHarness> {
+async function loopHarness(
+  outcomes: AiOutcome[],
+  document = book({ preExisting: false }),
+): Promise<LoopHarness> {
   const bodies: ChatRequest[] = [];
   const queue = [...outcomes];
   const rpc = fakeRpc({
@@ -72,7 +76,7 @@ async function loopHarness(outcomes: AiOutcome[]): Promise<LoopHarness> {
   settings.ai.custom = { address: 'http://127.0.0.1:8787/v1', key: '', model: 'm1' };
   actions.setSettings(store, settings);
   actions.setConnection(store, 'connected');
-  actions.setDocument(store, book({ preExisting: false }));
+  actions.setDocument(store, document);
   startAssistant(store);
   return { store, rpc, ctx, bodies };
 }
@@ -353,5 +357,88 @@ describe('summarisePlaces / changesText', () => {
     expect(
       activityText(t(), entry({ total: 1, body: 0, description: 1, fields: ['titleInfo.lang'] })),
     ).toBe('Done: 1 change in the Description view (language) — 2 exchanges, 00:01');
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006 (US11, T174): edit_table counts by the root of its table      */
+/* ------------------------------------------------------------------------ */
+
+describe('feature 006: edit_table counts by the root of its table (Δ§6.14)', () => {
+  let harness: LoopHarness | null = null;
+
+  afterEach(() => {
+    if (harness) stopAssistant(harness.store);
+    harness = null;
+  });
+
+  it('a table of a body counts for the body text, the annotation table for the Description view; the strike target is split at @', async () => {
+    const document = book({ preExisting: false });
+    const sections = (
+      document.bodies[0] as unknown as {
+        content: { attrs?: { nodeId?: string }; content: unknown[] }[];
+      }
+    ).content;
+    sections
+      .find((s) => s.attrs?.nodeId === 's1')!
+      .content.push(
+        tableNode('tR', [
+          ['a', 'b'],
+          ['c', 'd'],
+        ]),
+      );
+    const withAnnotation = {
+      ...document,
+      description: {
+        ...document.description,
+        titleInfo: {
+          ...document.description.titleInfo,
+          annotation: {
+            type: 'annotation',
+            attrs: { nodeId: 'ann' },
+            content: [
+              tableNode('tAnn', [
+                ['r1c1', 'r1c2'],
+                ['r2c1', 'r2c2'],
+              ]),
+            ],
+          },
+        },
+      },
+    } as unknown as typeof document;
+    harness = await loopHarness(
+      [
+        toolCallsOutcome([
+          { name: 'edit_table', args: { table: 'tR', op: 'insertRows', row: 1, where: 'after' } },
+          {
+            name: 'edit_table',
+            args: {
+              table: 'title-info/annotation[1]/table[1]',
+              op: 'insertRows',
+              row: 2,
+              where: 'after',
+            },
+          },
+        ]),
+        textOutcome('Two rows added.'),
+      ],
+      withAnnotation,
+    );
+    const outcome = await startRequest(harness.ctx, {
+      origin: 'panel',
+      instruction: 'add the rows',
+      selection: null,
+    });
+    expect(outcome.kind).toBe('committed');
+    if (outcome.kind !== 'committed') return;
+    expect(outcome.changes).toEqual({ total: 2, body: 1, description: 1, fields: [] });
+    const tries = harness.store
+      .getState()
+      .ai.conversation.activity.filter((entry) => entry.kind === 'change.try')
+      .map((entry) => entry.payload);
+    expect(tries).toEqual([
+      { tool: 'edit_table', target: 'insertRows@tR' },
+      { tool: 'edit_table', target: 'insertRows@tAnn' },
+    ]);
   });
 });

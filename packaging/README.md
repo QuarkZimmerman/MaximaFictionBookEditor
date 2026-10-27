@@ -34,6 +34,36 @@ the `bin/mfbe` symlink, and both the shell (`app/src/user_dirs.cpp`) and the cor
 (1.4 GB with debug info, ~260 MB stripped; `MFBE_STRIP_CEF_BINARIES`), and only the `en-US`,
 `ru` and `uk` locale packs are installed (`MFBE_CEF_LOCALES`).
 
+## Version forms
+
+`CMakeLists.txt` commits the numbers (`project(MaximaFictionBookEditor VERSION 0.0.6 ...)`) and
+the pre-release part (`set(MFBE_VERSION_PRERELEASE "rc")`, emptied only for a final version);
+the release workflow adds its tag through the environment variable `MFBE_RELEASE_TAG`, read at
+every configure. `cmake/MfbeVersion.cmake` (`mfbe_version_forms`) derives every form from them,
+and a tag that does not fit the committed version stops the configure ("tag ... does not match
+the committed version 0.0.6-rc"):
+
+| Build | Label | Build id | Package form | Numeric form |
+|-------|-------|----------|--------------|--------------|
+| untagged (every CI and local build) | `0.0.6-rc` | `0.0.6-rc+<hash>` | `0.0.6~rc` | `0.0.6` |
+| tag `v0.0.6-rc.N` (release workflow) | `0.0.6-rc.N` | `0.0.6-rc.N+<hash>` | `0.0.6~rc.N` | `0.0.6` |
+| final: pre-release part `""`, tag `v0.0.6` or none | `0.0.6` | `0.0.6+<hash>` | `0.0.6` | `0.0.6` |
+
+- **Label** (`MFBE_VERSION`): every version text a person reads - About, `--version`, the UI
+  bundle (`MFBE_UI_VERSION`), the package file names, the MSI's product name
+  (`MaximaFictionBookEditor <label>` while a pre-release part is set), the Windows VERSIONINFO
+  strings and the AppImage's `X-AppImage-Version`.
+- **Build id** (`MFBE_BUILD_ID`): the label, `+` and `git rev-parse --short=10 HEAD`
+  (`unknown` without git), shown in About and by `--version`.
+- **Package form** (`MFBE_VERSION_PACKAGE`): the deb and rpm `Version`, the label with `~` in
+  place of its first `-`. `~` sorts before everything, so dpkg and rpm order
+  `0.0.5 < 0.0.6~rc < 0.0.6~rc.1 < ... < 0.0.6~rc.10 < 0.0.6`; the file names carry the label
+  (`mfbe_<label>_amd64.deb`, `mfbe-<label>-1.x86_64.rpm`).
+- **Numeric form** (`MFBE_VERSION_NUMERIC`): the fields that take numbers only - the MSI's
+  ProductVersion (`CPACK_PACKAGE_VERSION`), so that every 0.0.6 build replaces any other in
+  place, the VERSIONINFO binary fields (`0,0,6,0`), `app/win/app.manifest` (`0.0.6.0`) and
+  the macOS `CFBundleVersion` and `CFBundleShortVersionString`.
+
 ## Linux
 
 ### AppImage (`packaging/appimage`)
@@ -43,9 +73,15 @@ the `bin/mfbe` symlink, and both the shell (`app/src/user_dirs.cpp`) and the cor
 cannot be SUID inside a squashfs image) and runs `appimagetool` with the static type2
 runtime (`--runtime-file`, no `libfuse2` on the target) and zsync update information
 (`gh-releases-zsync|QuarkZimmerman|MaximaFictionBookEditor|latest|MaximaFictionBookEditor-*-x86_64.AppImage.zsync`).
-`appimagetool` and the runtime are downloaded into `build/tools/` on first use (or pointed
-to with `MFBE_APPIMAGETOOL` / `MFBE_APPIMAGE_RUNTIME`); the tool itself is run with
-`--appimage-extract-and-run`, so no FUSE is needed on the build machine either.
+The update information follows the version forms (`MFBE_APPIMAGE_CHANNEL`, which
+`cmake/MfbePackaging.cmake` turns into `CPACK_MFBE_APPIMAGE_UPDATE_INFO`): a final version
+embeds the string above, whose `latest` is the newest full release; a build from a tag
+`v0.0.6-rc.N` embeds `latest-all` in its place, the newest release of either kind, so a
+tester's image moves on to the next rc and then to the final; an untagged build of a
+pre-release line embeds none and gets no `.zsync` file, since `latest-all` could "update" it to
+0.0.5 or to an older rc. `appimagetool` and the runtime are downloaded into `build/tools/` on
+first use (or pointed to with `MFBE_APPIMAGETOOL` / `MFBE_APPIMAGE_RUNTIME`); the tool itself
+is run with `--appimage-extract-and-run`, so no FUSE is needed on the build machine either.
 
 No system libraries are bundled, on purpose: `libcef.so` links the GTK 3 stack (glib, gio,
 pango, cairo, atk/at-spi, fontconfig, freetype, X11/xcb, xkbcommon, dbus, nss/nspr, cups,
@@ -64,7 +100,8 @@ unconfined programs - the shell switches the sandbox off itself and logs
 
 CPack integration: the `External` generator stages the tree with
 `CPACK_PACKAGING_INSTALL_PREFIX=/usr` and runs `CPackExternal.cmake`, which calls
-`build.sh` and reports the image and its `.zsync` file as built packages.
+`build.sh` and reports the image and its `.zsync` file (when it has update information) as
+built packages.
 
 Portable mode (`contracts/resource-formats.md` §2): the core reads `$APPIMAGE` (set by the
 runtime) and uses `<image>.home/user`, `<image>.d/user` or `<image>.d` next to the file; when

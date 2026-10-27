@@ -7,12 +7,15 @@ is not reached from there (it imports FictionBook.xsd, not the other way round),
 the table holds the elements of FB2 documents only.
 
 Output: ui/src/views/source/fb2Elements.json (feature 003, resource-formats.md section 7;
-feature 005, its resource-formats.md amendment to section 12)
+feature 005, its resource-formats.md amendment to section 12; feature 006, the member
+`model` of its amendment to section 12)
 
   {"root": "FictionBook",
    "elements": {"<name>": {"children": ["<name>", ...],
                            "attributes": [{"name", "required", "type"?}, ...],
-                           "text": true | false}}}
+                           "text": true | false,
+                           "model"?: {"final": [<state>, ...],
+                                      "next": [{"<name>": <state>, ...}, ...]}}}}
 
 `root` is the one global element of FictionBook.xsd. `elements` lists every element
 declared anywhere in the schema (global or local, named or anonymous type) with the
@@ -36,10 +39,32 @@ when the element may hold character data: a `mixed` complex type (or a mixed
 built-in or named; an element without a type (`empty-line`) holds nothing. The core
 builds the same `children` / `text` data from the bundled schema for the admission
 check of `doc.fragmentFromXml` (core/src/xml/schema_table.cpp), and a Catch2 case
-pins the two tables equal.
+pins the two tables equal (`children` and `text` only).
+
+`model` (feature 006, I24) is the element's content model as the minimal deterministic
+automaton over its child elements, for the Source view's table rule (the order and the
+multiplicity the flattened `children` drop): `next[s][name]` is the state after a child
+`name` in state `s` (a missing entry: not allowed there), state 0 is the start and
+`final` lists the states the content may end in. It is built from the schema alone:
+the particles become a regular expression - an element (by name or `ref`) a symbol,
+sequences, choices and group references with their `minOccurs` / `maxOccurs`, an
+extension its base's expression followed by its own particles, simple content, a simple
+type and no type the empty expression, `mixed` nothing; a finite bound `{lo, hi}` is
+`lo` copies followed by nested optionals (FB2's only one is `output maxOccurs="2"`) -,
+then Glushkov positions and Moore minimisation; states are numbered breadth first from
+the start with the symbols in code-point order, so the output is deterministic. An
+ambiguous content model, `xs:all` or `xs:any` stops the generator (exit status 2, the
+element named), so that a schema change is noticed. A name declared several times gets
+one `model` when the automata of its declarations are equal (`body`) and none
+otherwise (`code`, `emphasis`, `publisher`, `strikethrough`, `strong`, `style`, `sub`,
+`sup` - none of them can hold a table). The tag completion and the assistant's
+`get_schema` ignore the member; the Source view's `contentModel.ts` reads it, and a
+Catch2 case (tests/core/test_content_models.cpp) pins the automata to libxml2.
 
 The file is formatted the way Prettier (printWidth 100) formats JSON, so the UI's
-format check accepts it as committed.
+format check accepts it as committed: an array breaks one element per line when it does
+not fit, and always when it has two or more elements that are all objects with two or
+more members (Prettier 3's rule); an object stays on one line when it fits.
 
 Usage:
   python3 tools/fb2-schema-elements.py            # rewrite the table, print a summary
@@ -344,12 +369,121 @@ class Schema:
             raise SchemaError("%s: attribute without name or ref" % doc.path)
         return {name: (required, type_name)}
 
+    # ---------------------------------------------------------- content models
+
+    def model_of_element(self, doc: SchemaDocument, element: ET.Element):
+        """The declaration's content model as a regular expression over child element names
+        (`Expr`); the empty expression for a built-in or simple type and for no type."""
+        type_name = element.get("type")
+        if type_name:
+            key = doc.qname(type_name)
+            if key[0] == XS_NS:
+                return EMPTY
+            if key not in self.types:
+                raise SchemaError("%s: element %r has unknown type %r"
+                                  % (doc.path, element.get("name"), type_name))
+            type_doc, type_node = self.types[key]
+            return self.model_of_type(type_doc, type_node, ())
+        inline = element.find(XS + "complexType")
+        if inline is not None:
+            return self.model_of_type(doc, inline, ())
+        return EMPTY
+
+    def model_of_type(self, doc: SchemaDocument, type_node: ET.Element, seen):
+        if type_node.tag != XS + "complexType":
+            return EMPTY  # xs:simpleType
+        parts = []
+        for child in type_node:
+            if child.tag == XS + "simpleContent":
+                return EMPTY
+            if child.tag == XS + "complexContent":
+                for derivation in child:
+                    if derivation.tag not in (XS + "extension", XS + "restriction"):
+                        continue
+                    base = derivation.get("base")
+                    if derivation.tag == XS + "extension" and base:
+                        key = doc.qname(base)
+                        if key[0] != XS_NS:
+                            if key not in self.types:
+                                raise SchemaError("%s: unknown base type %r" % (doc.path, base))
+                            if key in seen:
+                                raise SchemaError("%s: circular derivation of %r"
+                                                  % (doc.path, base))
+                            base_doc, base_node = self.types[key]
+                            # An extension: the base's content model, then its own particles.
+                            parts.append(self.model_of_type(base_doc, base_node, seen + (key,)))
+                    # A restriction restates the content model it keeps: its own particles.
+                    for particle in derivation:
+                        expr = self.model_of_particle(doc, particle)
+                        if expr is not None:
+                            parts.append(expr)
+                continue
+            expr = self.model_of_particle(doc, child)
+            if expr is not None:
+                parts.append(expr)
+        return sequence_of(parts)
+
+    def model_of_particle(self, doc: SchemaDocument, node: ET.Element):
+        """The particle's expression with its occurrence bounds; None for what is no particle
+        (attributes, annotations). `xs:all` and `xs:any` cannot be told apart from the rest
+        by an automaton of child names in this form: ContentModelError."""
+        if node.tag == XS + "element":
+            name = node.get("name")
+            if not name:
+                ref = node.get("ref")
+                if not ref:
+                    raise SchemaError("%s: element without name or ref" % doc.path)
+                key = doc.qname(ref)
+                if key not in self.global_elements:
+                    raise SchemaError("%s: unknown element reference %r" % (doc.path, ref))
+                name = key[1]
+            return occurring(node, ("sym", name))
+        if node.tag in (XS + "sequence", XS + "choice"):
+            items = [self.model_of_particle(doc, child) for child in node]
+            items = [item for item in items if item is not None]
+            group = sequence_of(items) if node.tag == XS + "sequence" else ("alt", tuple(items))
+            return occurring(node, group)
+        if node.tag == XS + "group":
+            ref = node.get("ref")
+            if ref:
+                key = doc.qname(ref)
+                if key not in self.groups:
+                    raise SchemaError("%s: unknown group reference %r" % (doc.path, ref))
+                group_doc, group_node = self.groups[key]
+                items = [self.model_of_particle(group_doc, child) for child in group_node]
+            else:
+                items = [self.model_of_particle(doc, child) for child in node]
+            return occurring(node, sequence_of([item for item in items if item is not None]))
+        if node.tag == XS + "all":
+            raise ContentModelError("xs:all")
+        if node.tag == XS + "any":
+            raise ContentModelError("xs:any")
+        return None
+
+    def model_table(self):
+        """name -> the content-model automaton of its declarations, for every element name
+        whose declarations all give the same automaton (others are left out)."""
+        automata = {}  # name -> [automaton per declaration]
+        for doc in self.documents:
+            for element in doc.root.iter(XS + "element"):
+                name = element.get("name")
+                if not name:
+                    continue
+                try:
+                    automaton = automaton_of(self.model_of_element(doc, element))
+                except ContentModelError as exc:
+                    raise SchemaError("%s: element %r: %s" % (doc.path.name, name, exc)) from exc
+                automata.setdefault(name, []).append(automaton)
+        return {name: found[0] for name, found in automata.items()
+                if all(other == found[0] for other in found)}
+
     # ------------------------------------------------------------------- table
 
     def element_table(self):
-        """name -> {children, attributes, text}, over every element declaration of every
-        document; a name declared several times gets the union (`required` only when every
-        declaration requires the attribute)."""
+        """name -> {children, attributes, text, model?}, over every element declaration of
+        every document; a name declared several times gets the union (`required` only when
+        every declaration requires the attribute) and a `model` only when the automata of its
+        declarations are equal."""
         children = {}
         attributes = {}  # name -> {attribute -> [required flags, type]}
         text = {}
@@ -368,6 +502,7 @@ class Schema:
                     entry = merged.setdefault(attribute, [True, None])
                     entry[0] = entry[0] and required
                     entry[1] = entry[1] or type_name
+        models = self.model_table()
         table = {}
         for name in sorted(children):
             table[name] = {
@@ -378,7 +513,148 @@ class Schema:
                 ],
                 "text": text[name],
             }
+            if name in models:
+                table[name]["model"] = models[name]
         return table, declarations
+
+
+# ------------------------------------------------------------- content-model automata
+#
+# Expressions are tuples: ("sym", name), ("seq", items), ("alt", items), ("star", expr) and
+# ("opt", expr); EMPTY is the empty sequence. Shared sub-expressions are fine: positions are
+# numbered while the expression is walked, so every occurrence gets its own.
+
+EMPTY = ("seq", ())
+
+
+class ContentModelError(Exception):
+    pass
+
+
+def sequence_of(items):
+    items = tuple(item for item in items if item != EMPTY)
+    return items[0] if len(items) == 1 else ("seq", items)
+
+
+def occurring(node: ET.Element, expr):
+    """`expr` with the particle's `minOccurs` / `maxOccurs`: `lo` copies, then `expr*` for an
+    unbounded maximum or nested optionals up to a finite one."""
+    try:
+        lo = int(node.get("minOccurs", "1"))
+        raw = node.get("maxOccurs", "1")
+        hi = None if raw == "unbounded" else int(raw)
+    except ValueError as exc:
+        raise SchemaError("bad occurrence bounds on %s: %s" % (node.tag, exc)) from exc
+    if hi is not None and hi < lo:
+        raise SchemaError("maxOccurs below minOccurs on %s" % node.tag)
+    if hi == 0:
+        return EMPTY
+    parts = [expr] * lo
+    if hi is None:
+        parts.append(("star", expr))
+    else:
+        tail = None
+        for _ in range(hi - lo):
+            tail = ("opt", sequence_of([expr] + ([tail] if tail else [])))
+        if tail:
+            parts.append(tail)
+    return sequence_of(parts)
+
+
+class Glushkov:
+    """The positions of an expression: the symbol of each, and which may follow which."""
+
+    def __init__(self, expr):
+        self.symbols = []
+        self.follow = []
+        self.nullable, self.first, self.last = self.walk(expr)
+
+    def walk(self, expr):
+        kind = expr[0]
+        if kind == "sym":
+            position = len(self.symbols)
+            self.symbols.append(expr[1])
+            self.follow.append(set())
+            return False, {position}, {position}
+        if kind == "seq":
+            nullable, first, last = True, set(), set()
+            for item in expr[1]:
+                n, f, l = self.walk(item)
+                for position in last:
+                    self.follow[position] |= f
+                if nullable:
+                    first |= f
+                last = (last | l) if n else set(l)
+                nullable = nullable and n
+            return nullable, first, last
+        if kind == "alt":
+            nullable, first, last = False, set(), set()
+            for item in expr[1]:
+                n, f, l = self.walk(item)
+                nullable, first, last = nullable or n, first | f, last | l
+            return nullable, first, last
+        n, f, l = self.walk(expr[1])
+        if kind == "star":
+            for position in l:
+                self.follow[position] |= f
+        return True, f, l  # "star" and "opt"
+
+
+def automaton_of(expr):
+    """The minimal deterministic automaton of `expr`: {"final": [...], "next": [{...}]}, the
+    states numbered breadth first from the start, the symbols in code-point order."""
+    g = Glushkov(expr)
+    # The Glushkov automaton: state 0 is the start, state p + 1 the position p.
+    transitions = []
+    for targets in [g.first] + g.follow:
+        row = {}
+        for position in sorted(targets):
+            symbol = g.symbols[position]
+            if symbol in row:
+                raise ContentModelError("ambiguous content model (two particles %r may "
+                                        "follow one another at the same point)" % symbol)
+            row[symbol] = position + 1
+        transitions.append(row)
+    final = {position + 1 for position in g.last} | ({0} if g.nullable else set())
+    alphabet = sorted(set(g.symbols))
+
+    # Moore minimisation; `dead` stands for every missing transition.
+    dead = len(transitions)
+    cls = [1 if state in final else 0 for state in range(dead)] + [0]
+    while True:
+        signatures = {}
+        refined = []
+        for state in range(dead + 1):
+            row = transitions[state] if state < dead else {}
+            signature = (cls[state],) + tuple(cls[row.get(symbol, dead)] for symbol in alphabet)
+            refined.append(signatures.setdefault(signature, len(signatures)))
+        if len(signatures) == len(set(cls)):
+            break
+        cls = refined
+    if cls[0] == cls[dead]:
+        raise ContentModelError("the content model accepts nothing")
+
+    representative = {}
+    for state in range(dead):
+        representative.setdefault(cls[state], state)
+    number = {cls[0]: 0}
+    queue = [cls[0]]
+    while queue:
+        state = representative[queue.pop(0)]
+        for symbol in alphabet:
+            target = transitions[state].get(symbol)
+            if target is None or cls[target] == cls[dead] or cls[target] in number:
+                continue
+            number[cls[target]] = len(number)
+            queue.append(cls[target])
+    rows = [None] * len(number)
+    for klass, index in number.items():
+        state = representative[klass]
+        rows[index] = {symbol: number[cls[target]] for symbol in alphabet
+                       if (target := transitions[state].get(symbol)) is not None
+                       and cls[target] != cls[dead]}
+    finals = sorted({number[cls[state]] for state in final if cls[state] in number})
+    return {"final": finals, "next": rows}
 
 
 def root_element(schema: Schema, main: Path):
@@ -400,13 +676,68 @@ def json_string(value: str) -> str:
 def format_array(key: str, items, indent: int, trailing: str, force_break: bool) -> str:
     """`"<key>": [...]` as Prettier prints it: on one line when the whole line (the trailing
     comma included) fits in PRINT_WIDTH and the array is not one Prettier always breaks
-    (`force_break`: two or more objects), else one item per line."""
+    (`force_break`: two or more elements that are all objects with two or more members),
+    else one item per line."""
     inline = "[" + ", ".join(items) + "]"
     line = " " * indent + json_string(key) + ": " + inline + trailing
     if not force_break and len(line) <= PRINT_WIDTH:
         return inline
     body = (",\n").join(" " * (indent + 2) + item for item in items)
     return "[\n" + body + "\n" + " " * indent + "]"
+
+
+def always_breaks(objects) -> bool:
+    """Prettier 3's rule for an array of objects: one element per line, whatever the width,
+    when it has two or more elements and every one has two or more members."""
+    return len(objects) >= 2 and all(len(item) >= 2 for item in objects)
+
+
+def format_row(row) -> str:
+    """One state's transitions as an object on one line, Prettier's spacing in the braces."""
+    if not row:
+        return "{}"
+    return "{ " + ", ".join("%s: %d" % (json_string(name), state)
+                            for name, state in row.items()) + " }"
+
+
+def format_model(model, indent: int):
+    """The lines of `"model": {...}`, the element's last member: on one line when it fits and
+    `next` is not an array Prettier always breaks; else `final` and `next` on lines of their
+    own, `next` broken one state per line unless it fits, each state on one line unless it
+    does not fit (then one transition per line)."""
+    pad = " " * indent
+    final = "[" + ", ".join(str(state) for state in model["final"]) + "]"
+    rows = [format_row(row) for row in model["next"]]
+    breaks = always_breaks(model["next"])
+    line = pad + '"model": { "final": %s, "next": [%s] }' % (final, ", ".join(rows))
+    if not breaks and len(line) <= PRINT_WIDTH:
+        return [line]
+    inner = " " * (indent + 2)
+    final_line = inner + '"final": ' + final + ","
+    if len(final_line) > PRINT_WIDTH:
+        # Prettier fills long number arrays across lines; FB2's automata never need that.
+        raise SchemaError("the final states of a content model do not fit on one line")
+    lines = [pad + '"model": {', final_line]
+    next_line = inner + '"next": [' + ", ".join(rows) + "]"
+    if not breaks and len(next_line) <= PRINT_WIDTH:
+        lines.append(next_line)
+    else:
+        lines.append(inner + '"next": [')
+        item_pad = " " * (indent + 4)
+        for index, (row, text) in enumerate(zip(model["next"], rows)):
+            comma = "," if index < len(rows) - 1 else ""
+            if len(item_pad + text + comma) <= PRINT_WIDTH:
+                lines.append(item_pad + text + comma)
+                continue
+            lines.append(item_pad + "{")
+            members = list(row.items())
+            for member, (name, state) in enumerate(members):
+                lines.append(item_pad + "  %s: %d%s" % (json_string(name), state,
+                                                       "," if member < len(members) - 1 else ""))
+            lines.append(item_pad + "}" + comma)
+        lines.append(inner + "]")
+    lines.append(pad + "}")
+    return lines
 
 
 def format_attribute(attribute) -> str:
@@ -430,7 +761,11 @@ def render(root: str, table) -> str:
         attributes = [format_attribute(a) for a in entry["attributes"]]
         lines.append('      "attributes": %s,'
                      % format_array("attributes", attributes, 6, ",", len(attributes) > 1))
-        lines.append('      "text": %s' % ("true" if entry["text"] else "false"))
+        model = entry.get("model")
+        lines.append('      "text": %s%s' % ("true" if entry["text"] else "false",
+                                             "," if model else ""))
+        if model:
+            lines.extend(format_model(model, 6))
         lines.append("    }" + comma)
     lines.append("  }")
     lines.append("}")

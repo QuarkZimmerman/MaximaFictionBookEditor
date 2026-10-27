@@ -10,13 +10,16 @@ import { useTranslation } from 'react-i18next';
 
 import { DialogService, createDialogs, type Dialogs } from '@/dialogs';
 import { FileFeature, registerFileCommands } from '@/features/file/fileCommands';
+import i18next from '@/i18n';
 import { CaretRegistry } from '@/model/caret';
 import { appStore, type AppStore } from '@/model/store';
 import { UndoCoordinator } from '@/model/undo';
 import type { RpcClient } from '@/rpc/client';
 import type { Platform, ViewId } from '@/rpc/types';
 import { featureRegistrars } from '@/features/registry';
+import { subscribeTableTargets } from '@/features/tables/target';
 import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
+import { getSourceEditor } from '@/views/source/sourceEditor';
 import { registerViewCommands } from '@/views/source/sourceSession';
 
 import { CommandRegistry, createCommandRegistry, type CommandContext } from './commands';
@@ -31,6 +34,12 @@ export interface FeatureContext {
   carets: CaretRegistry;
   store: AppStore;
   hotkeys: HotkeyMap;
+  /**
+   * The command context of the services, for flows that start outside a command (feature 006
+   * US8: the irregular-table mark's click opens its popover). Optional, so feature tests may
+   * pass a context without it.
+   */
+  getCommandContext?(): CommandContext;
 }
 
 export interface AppServices {
@@ -79,6 +88,8 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
   // Feature modules (editing, source tools, description, tree, spelling, images, words,
   // settings, scripts) register their commands/plugins through their own registrar file;
   // see src/features/registry.ts. Each registrar owns exactly one directory.
+  const version =
+    options.version ?? (typeof __MFBE_UI_VERSION__ === 'string' ? __MFBE_UI_VERSION__ : '');
   const featureContext: FeatureContext = {
     commands,
     rpc: options.rpc ?? null,
@@ -86,6 +97,16 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
     carets,
     store,
     hotkeys,
+    getCommandContext: () => ({
+      store,
+      rpc: options.rpc ?? null,
+      undo,
+      dialogs,
+      hotkeys,
+      carets,
+      t: i18next.t,
+      version,
+    }),
   };
   for (const register of featureRegistrars) register(featureContext);
 
@@ -111,6 +132,13 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
       if (hasBodyController(store)) {
         unsubscribeSources.push(getBodyController(store).subscribeContext(bump));
       }
+      // The active table edit target and its selection (feature 006, data-model §6.1): the
+      // table commands' states and reasons follow them.
+      unsubscribeSources.push(subscribeTableTargets(store, bump));
+      // The Source view's table verdict (feature 006, I23): `insert.table` follows the cursor
+      // there, notified when the verdict changes (the Source feature made the controller).
+      const source = getSourceEditor(store);
+      if (source) unsubscribeSources.push(source.subscribeContext(bump));
     }
     listeners.add(listener);
     return () => {
@@ -139,8 +167,7 @@ export function createAppServices(options: CreateAppServicesOptions = {}): AppSe
     carets,
     files,
     platform,
-    version:
-      options.version ?? (typeof __MFBE_UI_VERSION__ === 'string' ? __MFBE_UI_VERSION__ : ''),
+    version,
     subscribeAll,
     getRevision: () => revision,
   };

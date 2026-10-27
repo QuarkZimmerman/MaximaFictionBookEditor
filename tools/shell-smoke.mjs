@@ -21,6 +21,12 @@
 //   MFBE_SMOKE_ABOUT            1 = open Help > About when the menu exists and check the
 //                               dialog ([data-testid="dialog-about"]); a UI without the
 //                               dialog is reported, not failed
+//   MFBE_SMOKE_EXPECT_VERSION   with MFBE_SMOKE_ABOUT: the version label About must show
+//                               (about-version contains it; <n>.<n>.<n>[-<pre-release>], e.g.
+//                               0.0.6-rc; feature 006, FR-055) - shell-smoke.sh reads it from
+//                               the shell's `--version`
+//   MFBE_SMOKE_EXPECT_BUILD     with MFBE_SMOKE_ABOUT: the build id About must show (about-build
+//                               equals it; <label>+<10-hex hash> or <label>+unknown)
 //   MFBE_SMOKE_SETTINGS_FILE    the settings.json of this run (real UI): View > Status Bar
 //                               hides the status bar and the file records it
 //                               (session.toolbars.status = false) within 10 s, although the
@@ -66,6 +72,32 @@
 //                               exactly that name, the window title start with it; a second
 //                               Save As with Ctrl+A, "Новая книга.fb2" typed through xdotool
 //                               (Cyrillic keysyms under Xvfb) and Return must write that file
+//   MFBE_SMOKE_TABLE_LAYOUT     <width>: pictures in table cells in the real CEF shell (feature
+//                               006, research R9.5; shell-smoke.sh sets the window width it
+//                               started the shell with, 1280 or 640, with MFBE_SMOKE_OPEN_FILE =
+//                               tests/fixtures/books/tables-images.fb2): for Fast Mode off and
+//                               then on - switched through the in-process core's settings.set
+//                               (the shell has no test hooks) - once the pictures have settled,
+//                               every table of tables-images.expected.json and its control is
+//                               measured under the Body editor (MEASURE_TABLES of
+//                               ui/tests/e2e/fixtures/tableLayout.ts, imported under Node's type
+//                               stripping) and checked with the layout gates (checkLayout; the
+//                               broken-word scan C3 on the curated tables); any finding fails
+//                               the run with describeFailures and a -failed.png screenshot. The
+//                               status-bar check is skipped in this mode
+//   MFBE_SMOKE_TABLE_MARKS      1: the warning marks of irregular tables in the real CEF shell
+//                               (feature 006 US8, FR-057's "does not change the table's layout,
+//                               and it hides no cell text"; C54; MFBE_SMOKE_OPEN_FILE =
+//                               tests/fixtures/books/tables.fb2): once the book is open, the Body
+//                               view's DOM is read (the shell has no test hooks) - every
+//                               [data-testid=body-table][data-irregular=true] has one
+//                               body-table-mark whose centre lies within 1 px of the table's right
+//                               border edge, whose rect meets the content box of none of the
+//                               table's cells and whose top lies at or below the bottom of the
+//                               block above the table; the table's box is the same with its
+//                               caption set to display: none; no other table has a mark. Logs
+//                               "table marks: <n> tables, 0 findings", or fails with the findings
+//                               and a -failed.png screenshot. The status-bar check is skipped
 //   MFBE_SMOKE_LOG              the shell's log of this run (stdout and stderr; shell-smoke.sh):
 //                               the "shelltest: argv" lines of the restart check, and on every
 //                               run the engine's spell-check line (feature 004 US9, FR-081) -
@@ -82,7 +114,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -117,6 +149,8 @@ const expectSelector = process.env.MFBE_SMOKE_EXPECT_SELECTOR ?? '#menubar';
 const openFile = process.env.MFBE_SMOKE_OPEN_FILE ?? '';
 const expectText = process.env.MFBE_SMOKE_EXPECT_TEXT ?? '';
 const checkAbout = process.env.MFBE_SMOKE_ABOUT === '1';
+const expectVersion = process.env.MFBE_SMOKE_EXPECT_VERSION ?? '';
+const expectBuild = process.env.MFBE_SMOKE_EXPECT_BUILD ?? '';
 const settingsFile = process.env.MFBE_SMOKE_SETTINGS_FILE ?? '';
 // The hidden status bar is in the settings file within this time (the UI saves the toolbar
 // flags with a short delay; the Windows journey allows 30 s).
@@ -125,6 +159,8 @@ const restartVariant = process.env.MFBE_SMOKE_RESTART ?? '';
 const restartMustFail = process.env.MFBE_SMOKE_RESTART_FAIL === '1';
 // SC-005: the restarted editor is back with the document within 15 s of the user's Yes.
 const restartBudgetMs = 15_000;
+const tableLayoutWidth = process.env.MFBE_SMOKE_TABLE_LAYOUT ?? '';
+const checkTableMarks = process.env.MFBE_SMOKE_TABLE_MARKS === '1';
 const checkClose = process.env.MFBE_SMOKE_CLOSE === '1';
 const checkSaveAs = process.env.MFBE_SMOKE_SAVE_AS === '1';
 const saveAsFolder = process.env.MFBE_SMOKE_SAVE_AS_FOLDER ?? '';
@@ -217,11 +253,47 @@ async function checkAboutDialog(page) {
   if (!text.includes(expectTitle)) {
     throw new Error(`About dialog does not mention "${expectTitle}": ${text.slice(0, 200)}`);
   }
+  if (expectVersion || expectBuild) {
+    await checkAboutVersion(page);
+  }
   const shotPath = screenshotPath.replace(/\.png$/, '-about.png');
   await page.screenshot({ path: shotPath });
   console.log(`about:         dialog shown (${text.slice(0, 80)}...) screenshot ${shotPath}`);
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+}
+
+// About shows the version label and the build id the shell's --version printed (feature 006,
+// FR-055): about-version contains the label, about-build equals the build id. Until the core's
+// app.info arrives the dialog shows the bundle's version and no build, so both are awaited.
+async function checkAboutVersion(page) {
+  if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/.test(expectVersion)) {
+    throw new Error(`"${expectVersion}" is not a version label (<n>.<n>.<n>[-<pre-release>])`);
+  }
+  const hash = expectBuild.startsWith(`${expectVersion}+`)
+    ? expectBuild.slice(expectVersion.length + 1)
+    : '';
+  if (!/^([0-9a-f]{10}|unknown)$/.test(hash)) {
+    throw new Error(`the build id "${expectBuild}" is not "${expectVersion}+<hash>"`);
+  }
+  const versionCell = page.locator('[data-testid="about-version"]');
+  const buildCell = page.locator('[data-testid="about-build"]');
+  const deadline = Date.now() + 10_000;
+  let shownVersion = '';
+  let shownBuild = '';
+  while (Date.now() < deadline) {
+    shownVersion = (await versionCell.innerText()).trim();
+    shownBuild = (await buildCell.innerText()).trim();
+    if (shownVersion.includes(expectVersion) && shownBuild === expectBuild) {
+      console.log(`about version: "${shownVersion}", build ${shownBuild}`);
+      return;
+    }
+    await sleep(250);
+  }
+  throw new Error(
+    `About shows "${shownVersion}" and the build "${shownBuild}"; expected the version ` +
+      `${expectVersion} and the build ${expectBuild}`,
+  );
 }
 
 /* ---------------------------------------------------------------------------------------- */
@@ -935,6 +1007,123 @@ async function checkStatusBarSetting(page) {
   console.log('status bar:    shown again and recorded');
 }
 
+// Pictures in table cells in CEF (feature 006, research R9.5): the gates of the layout journey
+// (ui/tests/e2e/us3-table-images-layout.spec.ts) on every table of tables-images.fb2 and its
+// control, Fast Mode off and then on, in the window width shell-smoke.sh started the shell with.
+/**
+ * The irregular-table marks of the open book in CEF (feature 006 US8, FR-057; C54): read from the
+ * Body view's DOM in the page. Throws with every finding.
+ */
+async function checkTableMarksLayout(page) {
+  const deadline = Date.now() + timeoutMs;
+  let report = null;
+  while (Date.now() < deadline) {
+    report = await page.evaluate(() => {
+      const findings = [];
+      const tables = [...document.querySelectorAll('[data-testid="body-editor"] [data-testid="body-table"]')];
+      const marked = tables.filter((table) => table.getAttribute('data-irregular') === 'true');
+      for (const table of tables) {
+        const name = table.getAttribute('data-node-id') || '?';
+        const marks = table.querySelectorAll('[data-testid="body-table-mark"]');
+        if (table.getAttribute('data-irregular') !== 'true') {
+          if (marks.length > 0) findings.push(`${name}: a regular table has a mark`);
+          continue;
+        }
+        if (marks.length !== 1) {
+          findings.push(`${name}: ${marks.length} marks`);
+          continue;
+        }
+        const box = table.getBoundingClientRect();
+        const mark = marks[0].getBoundingClientRect();
+        const centre = (mark.left + mark.right) / 2;
+        if (Math.abs(centre - box.right) > 1) {
+          findings.push(`${name}: the mark's centre ${centre.toFixed(1)} is not on the right edge ${box.right.toFixed(1)}`);
+        }
+        for (const cell of table.querySelectorAll(':scope > tbody > tr > :is(td, th)')) {
+          const r = cell.getBoundingClientRect();
+          const style = getComputedStyle(cell);
+          const px = (name) => parseFloat(style.getPropertyValue(name)) || 0;
+          const content = {
+            left: r.left + px('border-left-width') + px('padding-left'),
+            right: r.right - px('border-right-width') - px('padding-right'),
+            top: r.top + px('border-top-width') + px('padding-top'),
+            bottom: r.bottom - px('border-bottom-width') - px('padding-bottom'),
+          };
+          if (mark.left < content.right && mark.right > content.left && mark.top < content.bottom && mark.bottom > content.top) {
+            findings.push(`${name}: the mark meets the content box of the cell ${cell.getAttribute('data-node-id') || '?'}`);
+          }
+        }
+        const above = table.previousElementSibling;
+        if (above && mark.top < above.getBoundingClientRect().bottom - 0.5) {
+          findings.push(`${name}: the mark covers the block above the table`);
+        }
+        const caption = table.querySelector(':scope > caption');
+        if (caption) {
+          caption.style.display = 'none';
+          const hidden = table.getBoundingClientRect();
+          caption.style.display = '';
+          const moved = ['x', 'y', 'width', 'height'].filter((key) => Math.abs(hidden[key] - box[key]) > 0.01);
+          if (moved.length > 0) findings.push(`${name}: the caption moves the table (${moved.join(', ')})`);
+        }
+      }
+      return { marked: marked.length, findings };
+    });
+    if (report.marked > 0) break;
+    await sleep(250);
+  }
+  if (!report || report.marked === 0) {
+    throw new Error('table marks: no marked table in the Body view');
+  }
+  if (report.findings.length > 0) {
+    throw new Error(`table marks: ${report.marked} tables, ${report.findings.length} findings:\n  ${report.findings.join('\n  ')}`);
+  }
+  console.log(`table marks: ${report.marked} tables, 0 findings`);
+}
+
+async function checkTableLayout(page) {
+  const helper = path.join(root, 'ui', 'tests', 'e2e', 'fixtures', 'tableLayout.ts');
+  const { MEASURE_TABLES, PICTURES_SETTLED, checkLayout, describeFailures } = await import(
+    pathToFileURL(helper).href
+  );
+  const expected = JSON.parse(
+    fs.readFileSync(path.join(root, 'tests', 'fixtures', 'books', 'tables-images.expected.json'), 'utf8'),
+  );
+  const scope = '[data-testid="body-editor"]';
+  const curated = Object.keys(expected.tables);
+  const sc006 = Object.keys(expected.sc006);
+  const view = page.locator('[data-testid="body-view"]');
+  for (const fastMode of [false, true]) {
+    await coreRpc(page.url(), 'settings.set', { patch: { view: { fastMode } } });
+    await waitUntil(
+      `Fast Mode ${fastMode ? 'on' : 'off'} in the Body view`,
+      async () => /\bmfbe-body-view--fast\b/.test((await view.getAttribute('class')) ?? '') === fastMode,
+      timeoutMs,
+    );
+    await page.evaluate(`(${PICTURES_SETTLED})(${JSON.stringify({ scope, timeoutMs })})`);
+    const where = `${tableLayoutWidth} px, Fast Mode ${fastMode ? 'on' : 'off'}`;
+    const failures = [];
+    let vanished = 0;
+    for (const [ids, words] of [
+      [curated, true],
+      [sc006, false],
+    ]) {
+      const measurement = await page.evaluate(
+        `(${MEASURE_TABLES})(${JSON.stringify({ scope, ids, words })})`,
+      );
+      const result = checkLayout(measurement, expected, ids, { words });
+      failures.push(...result.failures);
+      vanished += result.metrics.vanishedPictures.count;
+    }
+    if (failures.length) {
+      throw new Error(describeFailures(`table layout: ${where}`, failures));
+    }
+    console.log(
+      `table layout:  ${where}: ${curated.length + sc006.length} tables, 0 findings, ${vanished} vanished pictures`,
+    );
+  }
+  await coreRpc(page.url(), 'settings.set', { patch: { view: { fastMode: null } } });
+}
+
 let browser;
 try {
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: timeoutMs });
@@ -988,9 +1177,32 @@ try {
     await checkAboutDialog(page);
   }
 
-  // View > Status Bar is recorded in the settings file (real UI; not in the restart, close and
-  // Save As scenarios, whose runs are about those alone).
-  if (settingsFile && !restartVariant && !checkClose && !checkSaveAs) {
+  // Pictures in table cells laid out by CEF (feature 006): the layout gates on the opened book.
+  if (tableLayoutWidth) {
+    if (!openFile) {
+      throw new Error('MFBE_SMOKE_TABLE_LAYOUT needs MFBE_SMOKE_OPEN_FILE (tables-images.fb2)');
+    }
+    await checkTableLayout(page);
+  }
+
+  // The warning marks of irregular tables laid out by CEF (feature 006 US8, FR-057).
+  if (checkTableMarks) {
+    if (!openFile) {
+      throw new Error('MFBE_SMOKE_TABLE_MARKS needs MFBE_SMOKE_OPEN_FILE (tables.fb2)');
+    }
+    await checkTableMarksLayout(page);
+  }
+
+  // View > Status Bar is recorded in the settings file (real UI; not in the restart, close,
+  // Save As and table-layout scenarios, whose runs are about those alone).
+  if (
+    settingsFile &&
+    !restartVariant &&
+    !checkClose &&
+    !checkSaveAs &&
+    !tableLayoutWidth &&
+    !checkTableMarks
+  ) {
     await checkStatusBarSetting(page);
   }
 

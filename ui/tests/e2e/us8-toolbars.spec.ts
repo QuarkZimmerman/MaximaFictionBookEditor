@@ -89,6 +89,38 @@ const ORIGINAL_COMMANDS = [
   'tools.spellcheck',
 ];
 
+/**
+ * The buttons the Commands toolbar offers beyond its original layout (feature 006, FR-041):
+ * *Table…* and the 24 table commands, in the order of FR-039; none is shown until added.
+ */
+const OFFERED_COMMANDS = [
+  'insert.table',
+  'table.insertRowAbove',
+  'table.insertRowBelow',
+  'table.deleteRow',
+  'table.insertColumnLeft',
+  'table.insertColumnRight',
+  'table.deleteColumn',
+  'table.mergeCells',
+  'table.splitCell',
+  'table.toggleHeaderCell',
+  'table.makeHeaderCells',
+  'table.makeNormalCells',
+  'table.toggleHeaderRow',
+  'table.toggleHeaderColumn',
+  'table.repair',
+  'table.select',
+  'table.delete',
+  'table.moveRowUp',
+  'table.moveRowDown',
+  'table.moveColumnLeft',
+  'table.moveColumnRight',
+  'table.duplicateRow',
+  'table.duplicateColumn',
+  'table.paragraphBefore',
+  'table.paragraphAfter',
+];
+
 /** A core of the test's own, on a data folder of its own. */
 interface OwnCore {
   url: string;
@@ -324,8 +356,9 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await expect(
       page.getByTestId('dialog-customize-toolbar-title').locator('.mfbe-dialog-title-text'),
     ).toHaveText(await pageText(page, 'dialog.customizeToolbar.caption'));
-    // Every button is shown: only the separator is available; the end entry closes the list.
-    expect(await listItems(page, 'available')).toEqual(['-']);
+    // Every original button is shown: the separator and the offered table buttons are
+    // available (feature 006, FR-041); the end entry closes the list.
+    expect(await listItems(page, 'available')).toEqual(['-', ...OFFERED_COMMANDS]);
     expect(await listItems(page, 'current')).toEqual([...ORIGINAL_COMMANDS, 'end']);
     await expect(page.getByTestId('customize-toolbar-current').locator('option').nth(2)).toHaveText(
       await pageText(page, 'cmd.file.save.tooltip'),
@@ -335,7 +368,7 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     await selectItem(page, 'current', 'file.save');
     await page.getByTestId('dialog-customize-toolbar-button-remove').click();
     await expect(page.getByTestId('toolbar-file.save')).toHaveCount(0);
-    expect(await listItems(page, 'available')).toEqual(['-', 'file.save']);
+    expect(await listItems(page, 'available')).toEqual(['-', 'file.save', ...OFFERED_COMMANDS]);
 
     // Add it before New; Move Down twice puts it back in its place.
     await selectItem(page, 'current', 'file.new');
@@ -475,7 +508,7 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     const empty = await pointIn(page, 'toolbar-commands', 0.99);
     await page.mouse.dblclick(empty.x, empty.y);
     await expect(page.getByTestId('dialog-customize-toolbar')).toBeVisible();
-    expect(await listItems(page, 'available')).toEqual(['-', 'file.save']);
+    expect(await listItems(page, 'available')).toEqual(['-', 'file.save', ...OFFERED_COMMANDS]);
     await closeCustomize(page);
   });
 
@@ -592,18 +625,19 @@ test.describe('US8 - toolbars and right-click as in the original', () => {
     const clicks = (await page.evaluate(TAKE_RIGHT_CLICKS)) as RightClick[];
     expect(clicks.every((click) => click.cancelled)).toBe(true);
 
-    // Source: Undo, Redo, Cut, Copy, Paste, Delete, Select All.
+    // Source: Undo, Redo, Cut, Copy, Paste, Delete, Select All, then Table... (feature 006,
+    // FR-061: Add → Table in the Source view, judged at the clicked point).
     await page.getByTestId('view-source').click();
     const source = page.getByTestId('source-editor');
     await expect(source).toContainText('FictionBook');
     await source.click({ button: 'right' });
     const sourceMenu = page.getByTestId('source-context-menu');
     const sourceEntries = ['undo', 'redo', 'cut', 'copy', 'paste', 'delete', 'selectAll'];
-    await expect(sourceMenu.getByRole('menuitem')).toHaveText(
-      await Promise.all(
+    await expect(sourceMenu.getByRole('menuitem')).toHaveText([
+      ...(await Promise.all(
         sourceEntries.map((entry) => pageText(page, `source.contextMenu.${entry}`)),
-      ),
-    );
+      )),
+    ]);
     await page.getByTestId('source-context-menu-selectAll').click();
     await source.click({ button: 'right' });
     await expect(page.getByTestId('source-context-menu-copy')).not.toHaveAttribute(

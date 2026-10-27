@@ -8,10 +8,12 @@
 
 import { createAppServices } from '@/app/services';
 import type { ModelNodeJson } from '@/editor/fromModel';
+import { gridOfModel } from '@/editor/table/grid';
 import type {
   BodyNode,
   Document,
   SectionNode,
+  TableNode,
   ValidationIssue,
   ValidationReport,
 } from '@/model/document';
@@ -90,7 +92,10 @@ export function book(options: { preExisting?: boolean; bookTitle?: string } = {}
  * (`schema.invalid`, element `title`, libxml2's wording) with the section's path, the title's
  * nodeId and a line that grows with the position; a paragraph holding the word `BAD` is an
  * error of another kind; a paragraph holding `warn` is a warning; a book titled `NO SCHEMA`
- * answers `schema.unavailable`. Lines and paths shift with insertions, as the core's do.
+ * answers `schema.unavailable`. Lines and paths shift with insertions, as the core's do. Since
+ * feature 006 (T172) every irregular `table` of the bodies, both annotations and the history is a
+ * `table.irregular` warning in the document form - its grid summary as `params`, its line, node
+ * id and path - after the walk's other issues (the core's `table.irregular`, I20).
  */
 export function validateDocument(document: Document): ValidationReport {
   const issues: ValidationIssue[] = [];
@@ -144,12 +149,58 @@ export function validateDocument(document: Document): ValidationReport {
   document.bodies.forEach((body, index) =>
     visitSection(body as unknown as ModelNodeJson, `body[${index + 1}]`),
   );
+  issues.push(...irregularTableWarnings(document));
   return {
     issues,
     errorCount: issues.filter((i) => i.severity === 'error').length,
     warningCount: issues.filter((i) => i.severity === 'warning').length,
     durationMs: 3,
   };
+}
+
+/**
+ * The `table.irregular` warnings of a document in the document form (rpc-api §3.2): every table
+ * at any depth of the bodies and the description roots, in document order, an irregular one with
+ * its summary, a line that grows with the walk, its node id and its structural path.
+ */
+export function irregularTableWarnings(document: Document): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  let line = 100;
+  const visit = (node: ModelNodeJson, path: string) => {
+    line += 1;
+    if (node.type === 'table') {
+      const grid = gridOfModel(node as unknown as TableNode);
+      if (!grid.regular) {
+        issues.push({
+          severity: 'warning',
+          code: 'table.irregular',
+          params: { ...grid.summary },
+          line,
+          nodeId: String(node.attrs?.nodeId ?? ''),
+          path,
+        });
+      }
+      return;
+    }
+    const counts = new Map<string, number>();
+    for (const child of node.content ?? []) {
+      if (child.type === 'text') continue;
+      const n = (counts.get(child.type) ?? 0) + 1;
+      counts.set(child.type, n);
+      visit(child, `${path}/${child.type}[${n}]`);
+    }
+  };
+  document.bodies.forEach((body, index) =>
+    visit(body as unknown as ModelNodeJson, `body[${index + 1}]`),
+  );
+  const { titleInfo, srcTitleInfo, documentInfo } = document.description;
+  const roots: [unknown, string][] = [
+    [titleInfo.annotation, 'title-info/annotation[1]'],
+    [srcTitleInfo?.annotation, 'src-title-info/annotation[1]'],
+    [documentInfo.history, 'document-info/history[1]'],
+  ];
+  for (const [root, path] of roots) if (root) visit(root as ModelNodeJson, path);
+  return issues;
 }
 
 /** A parsed fragment the fake `doc.fragmentFromXml` answers, by its (fence-stripped) xml text. */
@@ -174,15 +225,35 @@ export interface Harness {
 }
 
 export function harness(
-  options: { document?: Document; controller?: boolean; fragments?: FragmentTable } = {},
+  options: {
+    document?: Document;
+    controller?: boolean;
+    fragments?: FragmentTable;
+    /**
+     * The reports the fake `doc.validate({docId, text})` answers, by the text (the Source text
+     * path; text-form warnings carry `path`, `line`, `column` and a scratch `nodeId`); a text
+     * without an entry answers an empty report.
+     */
+    textReports?: Record<string, ValidationReport>;
+  } = {},
 ): Harness {
   const store = createAppStore();
   const validated: Document[] = [];
   const rpc = fakeRpc({
     'doc.validate': (params: unknown) => {
-      const { document } = params as { docId: string; document: Document };
-      validated.push(document);
-      return validateDocument(document);
+      const { document, text } = params as { docId: string; document?: Document; text?: string };
+      if (text !== undefined) {
+        return (
+          options.textReports?.[text] ?? {
+            issues: [],
+            errorCount: 0,
+            warningCount: 0,
+            durationMs: 3,
+          }
+        );
+      }
+      validated.push(document!);
+      return validateDocument(document!);
     },
     'doc.fragmentFromXml': (params: unknown) => {
       const { xml } = params as { xml: string };

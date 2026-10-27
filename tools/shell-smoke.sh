@@ -30,7 +30,15 @@
 #                               title must start with its name and the Body must show text
 #                               (MFBE_SMOKE_EXPECT_TEXT = text that must appear)
 #   MFBE_SMOKE_ABOUT            1 = open Help > About and check [data-testid="dialog-about"]
-#                               (skipped with a note when the UI has no About dialog yet)
+#                               (skipped with a note when the UI has no About dialog yet): it
+#                               must show the version label and the build id of the shell's
+#                               own `--version` (feature 006, FR-055), read from its first line
+#                               "Maxima Fiction Book Editor <label> (build <build id>, <date>)" -
+#                               an AppImage runs with APPIMAGE_EXTRACT_AND_RUN=1 for it
+#   MFBE_SMOKE_EXPECT_VERSION   the version label About must show (with MFBE_SMOKE_ABOUT=1;
+#                               default: from `"$MFBE_APP_BIN" --version`), e.g. 0.0.6-rc
+#   MFBE_SMOKE_EXPECT_BUILD     the build id About must show (with MFBE_SMOKE_ABOUT=1; default:
+#                               from `"$MFBE_APP_BIN" --version`), e.g. 0.0.6-rc+1a2b3c4d5e
 #   MFBE_SMOKE_CLIPBOARD        1 = clipboard image check (dev/test builds, Linux): a small GTK
 #                               program (python3-gi) puts a PNG on the X clipboard of the virtual
 #                               display, the shell reads it through the core's clipboard provider
@@ -94,6 +102,25 @@
 #                               accepts it and the file must exist under exactly that name in
 #                               the remembered folder; a second Save As with Ctrl+A, "Новая
 #                               книга.fb2" typed with xdotool and Return must write that file
+#   MFBE_SMOKE_TABLE_LAYOUT     1 = pictures in table cells in the real CEF shell (feature 006,
+#                               research R9.5; real UI with MFBE_SMOKE_OPEN_FILE =
+#                               tests/fixtures/books/tables-images.fb2): the shell is started once
+#                               per window width, 1280 and then 640 px (--window-geometry
+#                               0,0,<w>,800 on the 1280 x 800 screen), and shell-smoke.mjs runs the
+#                               layout gates of ui/tests/e2e/fixtures/tableLayout.ts on every table
+#                               of the book and its control, Fast Mode off and on - CI's only CEF
+#                               evidence for this layout; the screenshots are
+#                               <MFBE_SMOKE_SCREENSHOT>-<w>.png. Exclusive with the restart, close,
+#                               Save As and self-test scenarios
+#   MFBE_SMOKE_TABLE_MARKS      1 = the warning marks of irregular tables in the real CEF shell
+#                               (feature 006 US8, FR-057; real UI with MFBE_SMOKE_OPEN_FILE =
+#                               tests/fixtures/books/tables.fb2): shell-smoke.mjs reads the Body
+#                               view's DOM once the book is open - every marked table has one mark
+#                               centred on its right border edge (within 1 px), meeting the content
+#                               box of none of its cells and lying at or below the block above it;
+#                               the table's box is the same with the mark's caption hidden; no
+#                               regular table has a mark. Exclusive with the restart, close, Save
+#                               As, self-test and table-layout scenarios
 #   (every run)                 The browser engine's own spell checking is off (feature 004 US9,
 #                               FR-081): the shell sets browser.enable_spellchecking=false at
 #                               every start and a test-hook build prints "shelltest: spellcheck
@@ -136,6 +163,28 @@ if [[ "$MFBE_APP_BIN" != *.AppImage ]]; then
     head -n 20 <<<"$LEAKED" >&2
     exit 1
   fi
+fi
+
+# Help > About must show the shell's own version label and build id (feature 006, FR-055),
+# unless given: the first line of `--version` reads
+# "Maxima Fiction Book Editor <label> (build <build id>, <date>)".
+if [[ "${MFBE_SMOKE_ABOUT:-0}" == "1" ]] &&
+   [[ -z "${MFBE_SMOKE_EXPECT_VERSION:-}" || -z "${MFBE_SMOKE_EXPECT_BUILD:-}" ]]; then
+  if [[ "$MFBE_APP_BIN" == *.AppImage ]]; then
+    VERSION_OUTPUT=$(APPIMAGE_EXTRACT_AND_RUN=1 "$MFBE_APP_BIN" --version)
+  else
+    VERSION_OUTPUT=$("$MFBE_APP_BIN" --version)
+  fi
+  VERSION_LINE=${VERSION_OUTPUT%%$'\n'*}
+  VERSION_RE='^.+ ([^ ]+) \(build ([^ ,]+), [^)]*\)$'
+  if [[ ! "$VERSION_LINE" =~ $VERSION_RE ]]; then
+    echo "shell-smoke: no version label in the first line of '$MFBE_APP_BIN --version': $VERSION_LINE" >&2
+    exit 1
+  fi
+  : "${MFBE_SMOKE_EXPECT_VERSION:=${BASH_REMATCH[1]}}"
+  : "${MFBE_SMOKE_EXPECT_BUILD:=${BASH_REMATCH[2]}}"
+  export MFBE_SMOKE_EXPECT_VERSION MFBE_SMOKE_EXPECT_BUILD
+  echo "shell-smoke: About must show the version $MFBE_SMOKE_EXPECT_VERSION and the build $MFBE_SMOKE_EXPECT_BUILD"
 fi
 
 TMP=$(mktemp -d -t mfbe-smoke.XXXXXX)
@@ -347,6 +396,36 @@ if [[ "$SAVE_AS" == "1" ]]; then
     fi
   done
 fi
+TABLE_LAYOUT="${MFBE_SMOKE_TABLE_LAYOUT:-0}"
+if [[ "$TABLE_LAYOUT" == "1" ]]; then
+  if [[ "${MFBE_SMOKE_REAL_UI:-0}" != "1" || -z "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_TABLE_LAYOUT needs MFBE_SMOKE_REAL_UI=1 and MFBE_SMOKE_OPEN_FILE (tables-images.fb2)" >&2
+    exit 1
+  fi
+  if [[ "$RESTART" == "1" || "$CLOSE" == "1" || "$SAVE_AS" == "1" || -n "$SELFTEST" ||
+        "${MFBE_SMOKE_CLIPBOARD:-0}" == "1" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_TABLE_LAYOUT is exclusive with the restart, close, Save As and self-test scenarios" >&2
+    exit 1
+  fi
+elif [[ "$TABLE_LAYOUT" != "0" ]]; then
+  echo "shell-smoke: MFBE_SMOKE_TABLE_LAYOUT must be 1 (the widths are the script's own)" >&2
+  exit 1
+fi
+TABLE_MARKS="${MFBE_SMOKE_TABLE_MARKS:-0}"
+if [[ "$TABLE_MARKS" == "1" ]]; then
+  if [[ "${MFBE_SMOKE_REAL_UI:-0}" != "1" || -z "${MFBE_SMOKE_OPEN_FILE:-}" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_TABLE_MARKS needs MFBE_SMOKE_REAL_UI=1 and MFBE_SMOKE_OPEN_FILE (tables.fb2)" >&2
+    exit 1
+  fi
+  if [[ "$RESTART" == "1" || "$CLOSE" == "1" || "$SAVE_AS" == "1" || -n "$SELFTEST" ||
+        "${MFBE_SMOKE_CLIPBOARD:-0}" == "1" || "$TABLE_LAYOUT" == "1" ]]; then
+    echo "shell-smoke: MFBE_SMOKE_TABLE_MARKS is exclusive with the restart, close, Save As, self-test and table-layout scenarios" >&2
+    exit 1
+  fi
+elif [[ "$TABLE_MARKS" != "0" ]]; then
+  echo "shell-smoke: MFBE_SMOKE_TABLE_MARKS must be 0 or 1" >&2
+  exit 1
+fi
 # Clipboard check: a GTK clipboard owner must live on the same virtual display as the shell,
 # so both are started by one wrapper script under xvfb-run.
 LAUNCHER="$MFBE_APP_BIN"
@@ -551,6 +630,21 @@ if [[ "$RESTART" == "1" ]]; then
   elif grep -q "mfbe: Chromium sandbox unavailable" "$TMP/mfbe.log"; then
     echo "shell-smoke: sandbox: off - $(grep -o "Chromium sandbox unavailable ([^;]*;[^;]*;[^)]*)" "$TMP/mfbe.log" | head -n1)"
   fi
+  exit 0
+fi
+
+if [[ "$TABLE_LAYOUT" == "1" ]]; then
+  # --- pictures in table cells in CEF (feature 006, research R9.5) ------------------------------
+  # Once per window width, as the restart scenario starts once per variant; the shell clamps the
+  # placement to its work area (the 1280 x 800 screen) and keeps its 640 px minimum.
+  for width in 1280 640; do
+    echo "shell-smoke: table layout at $width px (--window-geometry 0,0,$width,800)"
+    start_shell --window-geometry "0,0,$width,800"
+    MFBE_SMOKE_TABLE_LAYOUT="$width" MFBE_SMOKE_SCREENSHOT="${MFBE_SMOKE_SCREENSHOT%.png}-$width.png" \
+      node "$ROOT/tools/shell-smoke.mjs" "$CDP_PORT"
+    check_spellcheck_engine
+    stop_shell
+  done
   exit 0
 fi
 

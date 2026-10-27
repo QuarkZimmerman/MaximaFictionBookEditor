@@ -2032,3 +2032,354 @@ TEST_CASE("doc.exportDescription: a store at Save's threshold runs as a job with
     CHECK_THAT(written, ContainsSubstring("\t<body>\n\t\t<section/>\n\t</body>\n"));
     CHECK(f.ws.call("binary.list", json{{"docId", doc_id}})["result"].size() == 3);
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: the writer's rules in the doc.* texts (contracts/rpc-api.md §3.2)            */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "doc handlers: doc.toXml and doc.validate - a cell with colspan and unknownAttrs.colspan is "
+    "well-formed",
+    "[server][doc][tables]") {
+    ServerFixture f;
+    const std::string doc_id = f.ws.call("doc.new")["result"]["docId"];
+    // A cell whose colspan text is not a number, read through doc.fromXml...
+    const json read = f.ws.call(
+        "doc.fromXml",
+        json{{"docId", doc_id},
+             {"text", test::minimal_book("<section><table><tr><td colspan=\"abc\" "
+                                         "xml:lang=\"de\">x</td></tr></table></section>")}});
+    REQUIRE(read.contains("result"));
+    json document = read["result"]["document"];
+    json& cell = document["bodies"][0]["content"][0]["content"][0]["content"][0]["content"][0];
+    REQUIRE(cell["type"] == "td");
+    CHECK(cell["attrs"]["unknownAttrs"] == json{{"colspan", "abc"}});
+    CHECK(cell["attrs"]["lang"] == "de");
+    // ...then given a span by a client that left the unknown text in place (a script, the
+    // assistant): the known value wins, written once.
+    cell["attrs"]["colspan"] = 3;
+    const json xml = f.ws.call("doc.toXml", json{{"docId", doc_id}, {"document", document}});
+    REQUIRE(xml.contains("result"));
+    const std::string text = xml["result"]["text"];
+    CHECK_THAT(text, ContainsSubstring("<td colspan=\"3\" xml:lang=\"de\">x</td>"));
+    CHECK(text.find("abc") == std::string::npos);
+    CHECK_FALSE(fb2::check_well_formed(text).has_value());
+    const json report = f.run_job("doc.validate", json{{"docId", doc_id}, {"document", document}});
+    REQUIRE(report.contains("result"));
+    for (const auto& issue : report["result"]["issues"]) {
+        INFO(issue.dump());
+        CHECK(issue["code"] != "xml.notWellFormed");
+        CHECK(issue["severity"] != "error");
+    }
+    CHECK(report["result"]["errorCount"] == 0);
+    // Read back, the cell holds the known value alone.
+    const json back = f.ws.call("doc.fromXml", json{{"docId", doc_id}, {"text", text}});
+    REQUIRE(back.contains("result"));
+    const json& back_cell = back["result"]["document"]["bodies"][0]["content"][0]["content"][0]
+                                ["content"][0]["content"][0];
+    CHECK(back_cell["attrs"]["colspan"] == 3);
+    CHECK(back_cell["attrs"]["lang"] == "de");
+    CHECK_FALSE(back_cell["attrs"].contains("unknownAttrs"));
+}
+
+TEST_CASE(
+    "doc handlers: doc.toXml writes a style over part of a link around the whole link, and "
+    "doc.fromXml of that text gives the extended model",
+    "[server][doc][marks]") {
+    // Feature 006 (FR-068; rpc-api §3.2): the writer's rule changes the text, never the model.
+    ServerFixture f;
+    const std::string doc_id = f.ws.call("doc.new")["result"]["docId"];
+    const json read = f.ws.call(
+        "doc.fromXml",
+        json{{"docId", doc_id},
+             {"text", test::minimal_book("<section><p><a l:href=\"#n_1\"><style "
+                                         "name=\"city\">Moscow</style> today</a></p></section>",
+                                         "<body name=\"notes\"><section id=\"n_1\"><p>1</p>"
+                                         "</section></body>")}});
+    REQUIRE(read.contains("result"));
+    const json document = read["result"]["document"];
+    const json& p = document["bodies"][0]["content"][0]["content"][0];
+    REQUIRE(p["content"].size() == 2);  // "Moscow" {link, style city}, " today" {link}
+    const json xml = f.ws.call("doc.toXml", json{{"docId", doc_id}, {"document", document}});
+    REQUIRE(xml.contains("result"));
+    const std::string text = xml["result"]["text"];
+    CHECK_THAT(text, ContainsSubstring("<p><style name=\"city\"><a l:href=\"#n_1\">Moscow today</a>"
+                                       "</style></p>"));
+    // The model the core holds is the one sent: a second call writes the same text.
+    CHECK(f.ws.call("doc.toXml",
+                    json{{"docId", doc_id}, {"document", document}})["result"]["text"] == text);
+    // doc.validate of the same model: no schema.invalid (the style is outside the link).
+    const json report = f.run_job("doc.validate", json{{"docId", doc_id}, {"document", document}});
+    REQUIRE(report.contains("result"));
+    for (const auto& issue : report["result"]["issues"]) {
+        INFO(issue.dump());
+        CHECK(issue["code"] != "schema.invalid");
+    }
+    // Read again, the text gives the extended model: one text node with both marks.
+    const json back = f.ws.call("doc.fromXml", json{{"docId", doc_id}, {"text", text}});
+    REQUIRE(back.contains("result"));
+    const json& again = back["result"]["document"]["bodies"][0]["content"][0]["content"][0];
+    REQUIRE(again["content"].size() == 1);
+    CHECK(again["content"][0]["text"] == "Moscow today");
+    CHECK(again["content"][0]["marks"] ==
+          json::array({json{{"type", "style"}, {"attrs", {{"name", "city"}}}},
+                       json{{"type", "link"}, {"attrs", {{"href", "#n_1"}}}}}));
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: the warning table.irregular through the doc.* methods (T124; FR-062; C66;     */
+/* I20; U4, U41; contracts/rpc-api.md §3.2 and its Tests)                                     */
+/* ----------------------------------------------------------------------------------------- */
+
+namespace {
+
+json grid_vectors() {
+    json vectors = json::parse(
+        test::read_text(test::fixtures_dir() / "tables" / "grid-vectors.json"), nullptr, false);
+    REQUIRE_FALSE(vectors.is_discarded());
+    return vectors;
+}
+
+// The params of the irregular vector cases written into `fixture` (T012) as JSON texts, sorted.
+std::vector<std::string> irregular_case_params(const std::string& fixture) {
+    const json vectors = grid_vectors();
+    std::vector<std::string> out;
+    for (const auto& c : vectors.at("cases")) {
+        if (c.value("fixture", "") == fixture && !c.at("expect").at("regular").get<bool>()) {
+            out.push_back(c.at("expect").at("params").dump());
+        }
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+json case_params(const std::string& name) {
+    const json vectors = grid_vectors();
+    for (const auto& c : vectors.at("cases")) {
+        if (c.at("name") == name) {
+            return c.at("expect").at("params");
+        }
+    }
+    FAIL("no vector case " << name);
+    return json();
+}
+
+// The table.irregular entries of a ValidationReport (JSON).
+std::vector<json> irregular_issues(const json& report) {
+    std::vector<json> out;
+    for (const auto& issue : report.at("issues")) {
+        if (issue.value("code", "") == "table.irregular") {
+            out.push_back(issue);
+        }
+    }
+    return out;
+}
+
+// The params of `issues` as JSON texts, sorted.
+std::vector<std::string> sorted_params(const std::vector<json>& issues) {
+    std::vector<std::string> out;
+    for (const auto& issue : issues) {
+        out.push_back(issue.at("params").dump());
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+// The node ids of the `table` nodes below `value`.
+void collect_table_ids(const json& value, std::set<std::string>& out) {
+    if (value.is_object()) {
+        if (value.value("type", "") == "table" && value.contains("attrs") &&
+            value["attrs"].contains("nodeId")) {
+            out.insert(value["attrs"]["nodeId"].get<std::string>());
+        }
+        for (const auto& [key, child] : value.items()) {
+            collect_table_ids(child, out);
+        }
+    } else if (value.is_array()) {
+        for (const auto& child : value) {
+            collect_table_ids(child, out);
+        }
+    }
+}
+
+}  // namespace
+
+TEST_CASE(
+    "doc handlers: doc.save of a book with irregular tables writes without needsConfirmation; its "
+    "report lists them",
+    "[server][doc][tables]") {
+    ServerFixture f;
+    const json opened = f.ws.call("doc.open", json{{"path", f.book("tables.fb2").string()}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    const std::string target = (f.data / "tables-saved.fb2").string();
+    const json saved =
+        f.run_job("doc.save", json{{"docId", doc_id}, {"document", doc}, {"path", target}});
+    REQUIRE(saved.contains("result"));
+    const json& result = saved["result"];
+    // The warning never asks: only errors do (doc_handlers.cpp, perform_save).
+    CHECK_FALSE(result.contains("needsConfirmation"));
+    CHECK(result["path"] == target);
+    REQUIRE(std::filesystem::exists(target));
+    CHECK_FALSE(fb2::check_well_formed(read_all(target)).has_value());
+    const json& validation = result["validation"];
+    CHECK(validation["errorCount"] == 0);
+    const std::vector<json> irregular = irregular_issues(validation);
+    const std::vector<std::string> expected = irregular_case_params("tables.fb2");
+    REQUIRE(expected.size() == 13);
+    CHECK(sorted_params(irregular) == expected);
+    CHECK(validation["warningCount"] == static_cast<int>(irregular.size()));
+    std::set<std::string> table_ids;
+    collect_table_ids(doc, table_ids);
+    std::set<std::string> paths;
+    for (json issue : irregular) {
+        INFO(issue.dump());
+        CHECK(issue["severity"] == "warning");
+        CHECK(issue["line"].is_number_integer());
+        CHECK_FALSE(issue.contains("column"));  // the document form has none
+        REQUIRE(issue["nodeId"].is_string());
+        CHECK(table_ids.count(issue["nodeId"].get<std::string>()) == 1);
+        REQUIRE(issue["path"].is_string());
+        paths.insert(issue["path"].get<std::string>());
+    }
+    CHECK(paths.size() == irregular.size());
+}
+
+TEST_CASE(
+    "doc handlers: doc.exportDescription reports an irregular table of the annotation as a warning",
+    "[server][doc][export][tables]") {
+    ServerFixture f;
+    const json opened = f.ws.call("doc.open", json{{"path", f.book("tables.fb2").string()}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    const std::string out = (f.data / "tables-description.fbd").string();
+    const json exported = f.run_job("doc.exportDescription",
+                                    json{{"docId", doc_id}, {"document", doc}, {"path", out}});
+    REQUIRE(exported.contains("result"));
+    const json& result = exported["result"];
+    CHECK_FALSE(result.contains("needsConfirmation"));
+    CHECK(result["path"] == out);
+    CHECK(std::filesystem::exists(out));
+    const json& validation = result["validation"];
+    CHECK(validation["errorCount"] == 0);
+    // The description's irregular tables (T012): the book's annotation holds
+    // overlap-from-two-rows-above, the source book's annotation plural-forms and the history
+    // three-problems; the exported body has none.
+    const std::map<std::string, std::string> roots = {
+        {"overlap-from-two-rows-above", "title-info/annotation[1]/table["},
+        {"plural-forms", "src-title-info/annotation[1]/table["},
+        {"three-problems", "document-info/history[1]/table["}};
+    const std::vector<json> irregular = irregular_issues(validation);
+    CHECK(irregular.size() == roots.size());
+    CHECK(validation["warningCount"] == static_cast<int>(roots.size()));
+    for (const auto& [name, root] : roots) {
+        INFO(name);
+        const std::string params = case_params(name).dump();
+        int matches = 0;
+        for (json issue : irregular) {
+            if (issue["params"].dump() != params) {
+                continue;
+            }
+            ++matches;
+            CHECK(issue["severity"] == "warning");
+            CHECK(issue["path"].get<std::string>().rfind(root, 0) == 0);
+            CHECK(issue["line"].is_number_integer());
+            CHECK(issue["nodeId"].is_string());
+        }
+        CHECK(matches == 1);
+    }
+}
+
+TEST_CASE("doc handlers: doc.save with text validates the XML only and gives no table.irregular",
+          "[server][doc][tables]") {
+    ServerFixture f;
+    const json opened = f.ws.call("doc.open", json{{"path", f.book("tables.fb2").string()}});
+    REQUIRE(opened.contains("result"));
+    const std::string doc_id = opened["result"]["document"]["docId"];
+    const std::string text = read_all(f.book("tables.fb2"));
+    // The text holds the irregular tables: its text-form validation lists them.
+    const json validated = f.run_job("doc.validate", json{{"docId", doc_id}, {"text", text}});
+    REQUIRE(validated.contains("result"));
+    CHECK(sorted_params(irregular_issues(validated["result"])) ==
+          irregular_case_params("tables.fb2"));
+    // Saving that text validates the XML alone (rpc-api.md §3.2): no model-level issue at all.
+    const std::string target = (f.data / "tables-from-text.fb2").string();
+    const json saved =
+        f.run_job("doc.save", json{{"docId", doc_id}, {"text", text}, {"path", target}});
+    REQUIRE(saved.contains("result"));
+    CHECK_FALSE(saved["result"].contains("needsConfirmation"));
+    const json& validation = saved["result"]["validation"];
+    CHECK(validation["errorCount"] == 0);
+    CHECK(irregular_issues(validation).empty());
+    CHECK(validation["issues"] == json::array());
+    REQUIRE(std::filesystem::exists(target));
+    CHECK_FALSE(fb2::check_well_formed(read_all(target)).has_value());
+}
+
+TEST_CASE("doc handlers: doc.validate with text gives table.irregular its line and UTF-16 column",
+          "[server][doc][tables]") {
+    ServerFixture f;
+    const json opened = f.ws.call("doc.open", json{{"path", f.book("tables.fb2").string()}});
+    REQUIRE(opened.contains("result"));
+    const json doc = opened["result"]["document"];
+    const std::string doc_id = doc["docId"];
+    // The document form, for the path of the table `t2` (short-row).
+    const json document_form =
+        f.run_job("doc.validate", json{{"docId", doc_id}, {"document", doc}});
+    REQUIRE(document_form.contains("result"));
+    std::string t2_path;
+    for (json issue : irregular_issues(document_form["result"])) {
+        if (issue["params"].value("id", "") == "t2") {
+            t2_path = issue["path"];
+        }
+    }
+    REQUIRE_FALSE(t2_path.empty());
+
+    // A dirty Source view (US8 sc.11, U4): "<!-- Таблица --> " typed before `<table id="t2">`.
+    std::string text = read_all(f.book("tables.fb2"));
+    const std::size_t at = text.find("<table id=\"t2\">");
+    REQUIRE(at != std::string::npos);
+    const std::string typed = "<!-- Таблица --> ";
+    text.insert(at, typed);
+    const std::size_t tag = at + typed.size();
+    const std::size_t line_start = text.rfind('\n', tag) + 1;
+    const std::size_t tabs = text.find_first_not_of('\t', line_start) - line_start;
+    REQUIRE(line_start + tabs == at);
+    const int line = 1 + static_cast<int>(std::count(
+                             text.begin(), text.begin() + static_cast<std::ptrdiff_t>(tag), '\n'));
+    // 1 + the UTF-16 length before `<`: the tabs and 17 characters ("<!-- " 5, "Таблица" 7,
+    // " -->" 4, " " 1), where the bytes are 24.
+    const int column = 1 + static_cast<int>(tabs) + 17;
+    const json validated = f.run_job("doc.validate", json{{"docId", doc_id}, {"text", text}});
+    REQUIRE(validated.contains("result"));
+    const std::vector<json> irregular = irregular_issues(validated["result"]);
+    CHECK(sorted_params(irregular) == irregular_case_params("tables.fb2"));
+    int named = 0;
+    for (json issue : irregular) {
+        INFO(issue.dump());
+        CHECK(issue["severity"] == "warning");
+        CHECK(issue["line"].is_number_integer());
+        CHECK(issue["column"].is_number_integer());
+        CHECK(issue["nodeId"].is_string());  // the scratch read's
+        CHECK(issue["path"].is_string());
+        if (issue["params"].value("id", "") == "t2") {
+            ++named;
+            CHECK(issue["line"] == line);
+            CHECK(issue["column"] == column);
+            CHECK(issue["column"] != 1 + static_cast<int>(tag - line_start));
+            CHECK(issue["path"] == t2_path);  // both forms give one path (C66)
+        }
+    }
+    CHECK(named == 1);
+
+    // Malformed text has no model-level checks: no table.irregular.
+    std::string malformed = text;
+    malformed.insert(tag, "<p>");
+    const json bad = f.run_job("doc.validate", json{{"docId", doc_id}, {"text", malformed}});
+    REQUIRE(bad.contains("result"));
+    REQUIRE(bad["result"]["issues"].size() == 1);
+    CHECK(bad["result"]["issues"][0]["code"] == "xml.notWellFormed");
+    CHECK(irregular_issues(bad["result"]).empty());
+}

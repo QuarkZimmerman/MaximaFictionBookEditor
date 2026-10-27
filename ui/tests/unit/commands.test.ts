@@ -13,6 +13,7 @@ import {
   scriptCommandId,
   switchView,
   symbolCommandId,
+  unavailableTitle,
   type Command,
   type CommandContext,
 } from '@/app/commands';
@@ -120,6 +121,34 @@ async function makeContext(overrides: Partial<CommandContext> = {}): Promise<Com
 /** The merged English catalogue: the base `en.json` plus the feature catalogues (`ai.en.json`...). */
 const en: unknown = resources.en.translation;
 
+/** The 24 table commands of feature 006 in the order of FR-039 (data-model §9.1). */
+const TABLE_COMMAND_IDS = [
+  'table.insertRowAbove',
+  'table.insertRowBelow',
+  'table.deleteRow',
+  'table.insertColumnLeft',
+  'table.insertColumnRight',
+  'table.deleteColumn',
+  'table.mergeCells',
+  'table.splitCell',
+  'table.toggleHeaderCell',
+  'table.makeHeaderCells',
+  'table.makeNormalCells',
+  'table.toggleHeaderRow',
+  'table.toggleHeaderColumn',
+  'table.repair',
+  'table.select',
+  'table.delete',
+  'table.moveRowUp',
+  'table.moveRowDown',
+  'table.moveColumnLeft',
+  'table.moveColumnRight',
+  'table.duplicateRow',
+  'table.duplicateColumn',
+  'table.paragraphBefore',
+  'table.paragraphAfter',
+];
+
 function hasKey(key: string): boolean {
   let node: unknown = en;
   for (const part of key.split('.')) {
@@ -210,6 +239,193 @@ describe('command registry', () => {
     expect(symbolCommandId(3)).toBe('symbol.3');
     expect(scriptCommandId('fbe.case.upper')).toBe('script.fbe.case.upper');
     for (const command of registry.all()) expect(COMMAND_GROUPS).toContain(command.group);
+    // The original's groups keep their order; the table commands (feature 006, C23) come
+    // right before Help.
+    expect(COMMAND_GROUPS).toEqual([
+      'file',
+      'edit',
+      'navigation',
+      'style',
+      'view',
+      'tools',
+      'symbols',
+      'scripts',
+      'table',
+      'help',
+    ]);
+  });
+
+  it('registers the 24 table.* ids as disabled stubs of the group table, with their keys, icons and hotkeyScope (feature 006)', async () => {
+    const ctx = await makeContext();
+    const registry = createCommandRegistry();
+    const table = registry.byGroup('table');
+    expect(table.map((c) => c.id)).toEqual(TABLE_COMMAND_IDS);
+    for (const id of TABLE_COMMAND_IDS) {
+      const command = registry.get(id)!;
+      const name = id.slice('table.'.length);
+      const kebab = name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+      expect(command, id).toMatchObject({
+        group: 'table',
+        labelKey: `menu.tableStructure.${name}`,
+        tooltipKey: `tables.cmd.${name}.tooltip`,
+        descriptionKey: `tables.cmd.${name}.description`,
+        icon: `table-${kebab}`,
+        hotkeyScope: 'tableTarget',
+        stub: true,
+      });
+      expect(registry.isEnabled(id, ctx), id).toBe(false);
+      expect(registry.isVisible(id, ctx), id).toBe(true); // listed by menus, Customize, Hotkeys
+      expect(registry.dispatch(id, ctx), id).toBe(false);
+      expect(command.duringScriptRun, id).toBeUndefined(); // blocked while a run holds the lock
+    }
+    expect(commandLabelRaw(registry.get('table.insertRowAbove')!, ctx.t)).toBe('Insert row &above');
+    expect(commandTooltip(registry.get('table.mergeCells')!, ctx.t)).toBe('Merge cells');
+    // No default chord (decision 15); `insert.table` keeps the group Edit, Alt+T, no scope and
+    // takes the project's 24 px icon (C27).
+    for (const id of TABLE_COMMAND_IDS) {
+      expect(
+        DEFAULT_HOTKEYS.some((binding) => binding.commandId === id),
+        id,
+      ).toBe(false);
+    }
+    const insertTable = registry.get('insert.table')!;
+    expect(insertTable).toMatchObject({ group: 'edit', icon: 'table-insert' });
+    expect(insertTable.hotkeyScope).toBeUndefined();
+    expect(DEFAULT_HOTKEYS).toContainEqual(
+      expect.objectContaining({ commandId: 'insert.table', keys: 'Alt+T' }),
+    );
+    // Only the table commands carry a scope.
+    for (const command of registry.all()) {
+      if (command.group !== 'table') expect(command.hotkeyScope, command.id).toBeUndefined();
+    }
+  });
+
+  it('unavailableReason: null for an unregistered id, a stub, a command without the function and an enabled command; the run-lock texts by kind; the command own text otherwise (feature 006, U15)', async () => {
+    const ctx = await makeContext();
+    const registry = createCommandRegistry();
+    let enabled = false;
+    const reason = vi.fn((): string | null => 'the table has only one row; use Delete table');
+    registry.replace({
+      id: 'table.deleteRow',
+      group: 'table',
+      tooltipKey: 'tables.cmd.deleteRow.tooltip',
+      enabled: () => enabled,
+      unavailableReason: reason,
+      run: () => {},
+    });
+    registry.register({ id: 'test.plain', group: 'edit', enabled: () => false, run: () => {} });
+    registry.register({
+      id: 'test.copy',
+      group: 'edit',
+      duringScriptRun: 'allowed',
+      enabled: () => false,
+      unavailableReason: () => 'nothing is selected',
+      run: () => {},
+    });
+
+    expect(registry.unavailableReason('no.such', ctx)).toBeNull();
+    expect(registry.unavailableReason('table.mergeCells', ctx)).toBeNull(); // a stub
+    expect(registry.unavailableReason('test.plain', ctx)).toBeNull(); // no function: an opt-in
+    expect(registry.unavailableReason('table.deleteRow', ctx)).toBe(
+      'the table has only one row; use Delete table',
+    );
+    const command = registry.get('table.deleteRow')!;
+    expect(
+      unavailableTitle(command, registry.unavailableReason('table.deleteRow', ctx)!, ctx.t),
+    ).toBe('Delete row: the table has only one row; use Delete table');
+    enabled = true;
+    reason.mockClear();
+    expect(registry.unavailableReason('table.deleteRow', ctx)).toBeNull(); // enabled
+    expect(reason).not.toHaveBeenCalled();
+
+    // The run lock blocks the command: the lock's text, whatever the command's state; an
+    // allowed command keeps its own text, and one without the function still gives none.
+    actions.setRunLock(ctx.store, { kind: 'script', label: 'Script', startedAt: Date.now() });
+    expect(registry.unavailableReason('table.deleteRow', ctx)).toBe(
+      'a script is running; wait until it ends',
+    );
+    expect(registry.unavailableReason('test.copy', ctx)).toBe('nothing is selected');
+    expect(registry.unavailableReason('test.plain', ctx)).toBeNull();
+    expect(registry.unavailableReason('table.mergeCells', ctx)).toBeNull();
+    actions.setRunLock(ctx.store, { kind: 'ai', label: 'Service', startedAt: Date.now() });
+    expect(registry.unavailableReason('table.deleteRow', ctx)).toBe(
+      'a request to the AI assistant is running; wait until it ends',
+    );
+    actions.setRunLock(ctx.store, null);
+    expect(registry.unavailableReason('table.deleteRow', ctx)).toBeNull(); // enabled again
+    enabled = false;
+    reason.mockReturnValueOnce(null);
+    expect(registry.unavailableReason('table.deleteRow', ctx)).toBeNull(); // its own answer
+  });
+
+  it('the run-lock reasons and the title read in Russian and Ukrainian (feature 006)', async () => {
+    const expected = {
+      ru: {
+        script: 'выполняется скрипт; дождитесь его завершения',
+        ai: 'выполняется запрос к ИИ-помощнику; дождитесь его завершения',
+      },
+      uk: {
+        script: 'виконується скрипт; дочекайтеся його завершення',
+        ai: 'виконується запит до ШІ-помічника; дочекайтеся його завершення',
+      },
+    };
+    for (const language of ['ru', 'uk'] as const) {
+      const i18n = await initI18n({ instance: createInstance(), react: false, language });
+      const ctx = await makeContext({ t: i18n.t });
+      const registry = createCommandRegistry();
+      registry.replace({
+        id: 'table.deleteRow',
+        group: 'table',
+        tooltip: 'X',
+        enabled: () => false,
+        unavailableReason: () => 'y',
+        run: () => {},
+      });
+      for (const kind of ['script', 'ai'] as const) {
+        actions.setRunLock(ctx.store, { kind, label: 'Holder', startedAt: Date.now() });
+        expect(registry.unavailableReason('table.deleteRow', ctx), `${language} ${kind}`).toBe(
+          expected[language][kind],
+        );
+      }
+      expect(unavailableTitle(registry.get('table.deleteRow')!, 'y', ctx.t)).toBe('X: y');
+    }
+  });
+
+  it('allowsHotkey: an unscoped command always; a scoped one only for a target inside the resolved element (feature 006, C6)', () => {
+    const registry = createCommandRegistry();
+    const scope = document.createElement('div');
+    const inside = document.createElement('span');
+    scope.appendChild(inside);
+    const outside = document.createElement('div');
+    document.body.append(scope, outside);
+    try {
+      // Unscoped (and unregistered) ids are never filtered.
+      expect(registry.allowsHotkey('edit.undo', outside)).toBe(true);
+      expect(registry.allowsHotkey('insert.table', outside)).toBe(true);
+      expect(registry.allowsHotkey('no.such', null)).toBe(true);
+      // Without a resolver a scoped command takes no chord at all.
+      expect(registry.allowsHotkey('table.mergeCells', inside)).toBe(false);
+      let element: HTMLElement | null = scope;
+      const off = registry.setHotkeyScope('tableTarget', () => element);
+      expect(registry.allowsHotkey('table.mergeCells', inside)).toBe(true);
+      expect(registry.allowsHotkey('table.mergeCells', scope)).toBe(true);
+      expect(registry.allowsHotkey('table.mergeCells', outside)).toBe(false);
+      expect(registry.allowsHotkey('table.mergeCells', null)).toBe(false);
+      expect(registry.allowsHotkey('table.mergeCells', window)).toBe(false);
+      // No active target: nothing is inside.
+      element = null;
+      expect(registry.allowsHotkey('table.mergeCells', inside)).toBe(false);
+      element = scope;
+      // Removing a resolver that was replaced leaves the new one installed.
+      const off2 = registry.setHotkeyScope('tableTarget', () => outside);
+      off();
+      expect(registry.allowsHotkey('table.mergeCells', outside)).toBe(true);
+      off2();
+      expect(registry.allowsHotkey('table.mergeCells', outside)).toBe(false);
+    } finally {
+      scope.remove();
+      outside.remove();
+    }
   });
 
   it('every label/tooltip/description key exists in the English catalogue and every default hotkey targets a command', () => {

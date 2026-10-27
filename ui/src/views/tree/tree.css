@@ -104,6 +104,17 @@
   text-overflow: ellipsis;
 }
 
+/*
+ * The irregular-table mark of a row (feature 006 US8, FR-058): the Body mark's badge in a
+ * right-hand column inside the row's padding - the caption's ellipsis gives way first -, the
+ * 1 px ring keeping it legible on a selected row (U33).
+ */
+.mfbe-tree-mark {
+  flex: 0 0 14px;
+  margin-left: auto;
+  box-shadow: 0 0 0 1px var(--mfbe-color-bg);
+}
+
 /* Positioned at the pointer (inline left/top); higher specificity than .mfbe-menu-popup. */
 .mfbe-menu-popup.mfbe-tree-menu {
   position: fixed;

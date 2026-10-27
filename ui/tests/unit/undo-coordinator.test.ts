@@ -1,4 +1,9 @@
+import type { AnnotationNode } from '@/model/document';
+import { actions, createAppStore } from '@/model/store';
 import { ArrayHistoryAdapter, UndoCoordinator, type UndoView } from '@/model/undo';
+import { DescriptionController, DESCRIPTION_UNDO_VIEW } from '@/views/description/binding';
+
+import { fakeDocument } from './features/testUtils';
 
 /** A view whose history replays changes into a log and reports steps to the coordinator. */
 function makeView(coordinator: UndoCoordinator, view: UndoView, log: string[]) {
@@ -342,5 +347,91 @@ describe('ArrayHistoryAdapter', () => {
     expect(adapter.canRedo).toBe(false);
     expect(adapter.depth).toBe(2);
     expect(applied).toEqual(['undo:b']);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006, US10 (T157; I8; C2; data-model §6.3): a rich field's entries */
+/* ------------------------------------------------------------------------ */
+
+describe('a rich field of the Description view on the coordinator (feature 006, US10)', () => {
+  const KEY = 'titleInfo.annotation';
+
+  /** The annotation the field writes: a paragraph `text`, and a table after it when `rows`. */
+  function annotation(text: string, rows = 0): AnnotationNode {
+    const table = {
+      type: 'table',
+      attrs: { nodeId: 't1' },
+      content: Array.from({ length: rows }, (_, row) => ({
+        type: 'tr',
+        attrs: { nodeId: `t1-r${row}` },
+        content: [{ type: 'td', attrs: { nodeId: `t1-${row}` }, content: [] }],
+      })),
+    };
+    return {
+      type: 'annotation',
+      attrs: { nodeId: 'a1' },
+      content: [
+        { type: 'p', attrs: { nodeId: 'a2' }, content: [{ type: 'text', text }] },
+        ...(rows > 0 ? [table] : []),
+      ],
+    } as unknown as AnnotationNode;
+  }
+
+  it('typing, a table command and typing again within the burst time are three description entries; one Undo per entry restores the form before it, Redo reapplies it', () => {
+    const store = createAppStore();
+    const undo = new UndoCoordinator();
+    const document = fakeDocument();
+    actions.setDocument(store, {
+      ...document,
+      description: {
+        ...document.description,
+        titleInfo: { ...document.description.titleInfo, annotation: annotation('') },
+      },
+    });
+    let now = 1000;
+    const controller = new DescriptionController({ store, undo, now: () => now });
+    undo.registerView(DESCRIPTION_UNDO_VIEW, controller.undoAdapter);
+    const start = controller.currentForm;
+
+    // Typing: a burst of coalesced changes, one entry.
+    controller.setValue(KEY, annotation('W'), { coalesce: true });
+    now += 100;
+    controller.setValue(KEY, annotation('Wo'), { coalesce: true });
+    const typed = controller.currentForm;
+    expect(undo.undoDepth).toBe(1);
+    // The command (DISCRETE_STEP): setValue without coalesce, an entry of its own that closes
+    // the burst.
+    now += 100;
+    controller.setValue(KEY, annotation('Wo', 1));
+    const commanded = controller.currentForm;
+    expect(undo.undoDepth).toBe(2);
+    // Typing again, well within the burst time: a new entry all the same.
+    now += 100;
+    controller.setValue(KEY, annotation('Wor', 1), { coalesce: true });
+    now += 100;
+    controller.setValue(KEY, annotation('Word', 1), { coalesce: true });
+    const retyped = controller.currentForm;
+    expect(undo.undoDepth).toBe(3);
+    expect(undo.peekUndo()?.view).toBe(DESCRIPTION_UNDO_VIEW);
+
+    expect(undo.undo()).toBe(true);
+    expect(controller.currentForm).toBe(commanded);
+    expect(undo.undo()).toBe(true);
+    expect(controller.currentForm).toBe(typed);
+    expect(undo.undo()).toBe(true);
+    expect(controller.currentForm).toBe(start);
+    expect(store.getState().document!.description.titleInfo.annotation).toEqual(annotation(''));
+    expect(undo.canUndo).toBe(false);
+
+    expect(undo.redo()).toBe(true);
+    expect(controller.currentForm).toBe(typed);
+    expect(undo.redo()).toBe(true);
+    expect(controller.currentForm).toBe(commanded);
+    expect(undo.redo()).toBe(true);
+    expect(controller.currentForm).toBe(retyped);
+    expect(store.getState().document!.description.titleInfo.annotation).toEqual(
+      annotation('Word', 1),
+    );
   });
 });

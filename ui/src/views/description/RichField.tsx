@@ -7,6 +7,25 @@
  * rebuilds the editor from the restored model. While a script runs (form `readOnly`, feature
  * 003 FR-011) the editor is not editable - selecting and copying keep working, nothing is
  * greyed - and the style buttons are unavailable.
+ *
+ * Feature 006, US10 (FR-044, FR-045, FR-048, FR-057, FR-059; decision 6; C2, C48; I8, I10, I14,
+ * I15; data-model §6.1, §6.3, §8.1, §9.8): the field is a table host.
+ *  - **The target**: its adapter (`createFieldTarget`) is registered on mount and removed on
+ *    unmount; every applied transaction notifies it, so the menus, the toolbar buttons and the
+ *    Table bar follow the field's selection while the focus rule keeps it active.
+ *  - **`DISCRETE_STEP`**: a change marked so - a table command run through the adapter, a table
+ *    paste, the Tab row, type-over, a cut of a block - is recorded without `coalesce`: one
+ *    Description undo entry that also closes the typing burst around it; every other change is
+ *    coalesced as typing.
+ *  - **The clipboard**: the clipboard plugin with the field's options (the book's ids, the
+ *    field's node ids, the status bar), ahead of the non-breaking-space marker as in the Body
+ *    view, so every paste takes the Body view's router - a pasted paragraph no longer brings
+ *    its language, id or style - and a copied block or table leaves as the Body view's does.
+ *  - **The node views**: a picture's box is reserved from the binary list until its preview
+ *    loads, and an irregular table carries the warning mark, its texts in the interface
+ *    language and its popover's *Repair table* run through the field's adapter.
+ * The read-only lock keeps refusing every change, so the commands, the router and the mark's
+ * button change nothing under the run lock.
  */
 
 import type { Command, EditorState, Plugin, Transaction } from 'prosemirror-state';
@@ -14,7 +33,7 @@ import { EditorView } from 'prosemirror-view';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useAppServices } from '@/app/services';
+import { useAppServices, useCommandContext } from '@/app/services';
 import { iconUrl } from '@/app/toolbarDefinitions';
 import {
   INLINE_MARKS,
@@ -22,13 +41,19 @@ import {
   toggleInlineMark,
   type InlineMarkName,
 } from '@/editor/commands/marks';
-import { M } from '@/editor/commands/util';
-import { createImageNodeViews } from '@/editor/nodeviews/image';
+import { DISCRETE_STEP, M } from '@/editor/commands/util';
+import { binaryLookup, createImageNodeViews } from '@/editor/nodeviews/image';
 import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
 import { createTableNodeViews } from '@/editor/nodeviews/table';
+import { clipboardPlugin, type ClipboardOptions } from '@/editor/plugins/clipboard';
 import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
+import { describeTableMark } from '@/features/tables/marks';
+import { openTableMarkPopover } from '@/features/tables/MarkPopover';
+import { createFieldTarget, registerFieldTarget, type FieldTarget } from '@/features/tables/target';
+import i18next from '@/i18n';
 import type { AnnotationNode } from '@/model/document';
-import { useAppState } from '@/model/store';
+import { collectBookIds } from '@/model/ids';
+import { actions, useAppState } from '@/model/store';
 
 import { RequiredMark } from './fields';
 import { useDescriptionForm } from './formContext';
@@ -73,10 +98,19 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
   const nbspCharRef = useRef(nbspChar);
   // Created with the editor (refs are read only outside render).
   const pluginsRef = useRef<Plugin[]>([]);
+  // The field's table edit target (US10), registered while the editor exists.
+  const targetRef = useRef<FieldTarget | null>(null);
+  // The command context the mark's popover opens with (the services and the current `t`).
+  const commandCtx = useCommandContext();
+  const commandCtxRef = useRef(commandCtx);
 
   useEffect(() => {
     docIdRef.current = docId;
   }, [docId]);
+
+  useEffect(() => {
+    commandCtxRef.current = commandCtx;
+  }, [commandCtx]);
 
   useEffect(() => {
     nbspCharRef.current = nbspChar;
@@ -99,7 +133,19 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
     const nextId = richFieldIdGenerator(fieldKey);
     const initial = getAtPath(controller.currentForm, fieldKey) as AnnotationNode | undefined;
     lastEmitted.current = initial;
-    pluginsRef.current = [nbspMarkerPlugin(() => nbspCharRef.current)];
+    // Every paste of the field through the Body view's router (decision 6; I14).
+    const fieldClipboardOptions: ClipboardOptions = {
+      bookIds: () => {
+        const document = store.getState().document;
+        return document ? collectBookIds(document) : new Set<string>();
+      },
+      nextNodeId: nextId,
+      message: (key) => actions.setStatusMessage(store, t(key)),
+    };
+    pluginsRef.current = [
+      clipboardPlugin(fieldClipboardOptions),
+      nbspMarkerPlugin(() => nbspCharRef.current),
+    ];
     const view = new EditorView(host, {
       state: createRichFieldState(initial, nextId, pluginsRef.current),
       editable: () => !readOnlyRef.current,
@@ -107,9 +153,23 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
         ...createImageNodeViews({
           getDocId: () => docIdRef.current,
           getMissingText: () => t('views.body.imageMissing'),
+          // A picture's box is reserved until its preview loads, as in the Body view (R9.2).
+          getBinary: binaryLookup(() => store.getState().document?.binaries),
         }),
         ...createRawXmlNodeViews(() => t('editing.unknownElement')),
-        ...createTableNodeViews(),
+        // The irregular-table mark (FR-057; data-model §3.3, §3.5): its texts follow the
+        // interface language, its popover repairs through the field's target.
+        ...createTableNodeViews({
+          describe: (summary) => describeTableMark(summary, i18next.t),
+          onLanguageChange: (listener) => {
+            i18next.on('languageChanged', listener);
+            return () => i18next.off('languageChanged', listener);
+          },
+          onMarkActivate: (info) => {
+            const target = targetRef.current;
+            if (target) void openTableMarkPopover(commandCtxRef.current, target, info);
+          },
+        }),
       },
       // No spell plugin here and `spellcheck="false"` for the engine's own checker: the
       // Description view is never checked (feature 004 US9, FR-080 / FR-081) - the annotation
@@ -136,19 +196,33 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
         if (tr.docChanged) {
           const model = richFieldModel(next);
           lastEmitted.current = model;
-          controller.setValue(fieldKey, model, { coalesce: true });
+          // A discrete step (a table command, a table paste, the Tab row; I8, C2) is an undo
+          // entry of its own that ends the typing burst; everything else coalesces as typing.
+          if (tr.getMeta(DISCRETE_STEP) === true) controller.setValue(fieldKey, model);
+          else controller.setValue(fieldKey, model, { coalesce: true });
         }
         setEditorState(next);
+        targetRef.current?.notify();
       },
     });
     viewRef.current = view;
+    const target = createFieldTarget({
+      key: fieldKey,
+      view: () => viewRef.current,
+      editable: () => !readOnlyRef.current,
+      nextNodeId: nextId,
+    });
+    targetRef.current = target;
+    const unregister = registerFieldTarget(target);
     setEditorState(view.state);
     return () => {
+      unregister();
+      targetRef.current = null;
       view.destroy();
       viewRef.current = null;
       setEditorState(null);
     };
-    // `t` and `controller` are stable for the lifetime of the field.
+    // `t`, `store` and `controller` are stable for the lifetime of the field.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fieldKey, testId]);
 
@@ -159,6 +233,7 @@ export function RichField({ fieldKey, testId, label, required }: RichFieldProps)
     const state = createRichFieldState(value, richFieldIdGenerator(fieldKey), pluginsRef.current);
     view.updateState(state);
     setEditorState(state);
+    targetRef.current?.notify();
   }, [value, fieldKey]);
 
   const run = useCallback((command: Command) => {

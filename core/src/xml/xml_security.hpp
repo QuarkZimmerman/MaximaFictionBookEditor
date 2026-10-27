@@ -59,7 +59,8 @@ CollectedError primary_error(const std::vector<CollectedError>& errors);
 // fragment. Comments and processing instructions serialise as themselves.
 std::string dump_node(xmlNodePtr node);
 
-// Escapes text for XML character data (& < >) or attribute values (also ").
+// Escapes text for XML character data (& < >, and a carriage return as &#13; - feature 006,
+// FR-065) or attribute values (also ", and line feeds, carriage returns and tabs as references).
 std::string escape_text(std::string_view text);
 std::string escape_attribute(std::string_view text);
 

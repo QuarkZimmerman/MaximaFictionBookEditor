@@ -7,7 +7,8 @@
  *    non-leaf type (even when empty) and absent for leaf types (`empty-line`, `image`,
  *    `inline-image`, `raw-xml`);
  *  - text nodes: `{type: 'text', text, marks?}` with `marks` only when non-empty, in the
- *    canonical (schema rank) order; marks carry `attrs` only when they have any;
+ *    canonical (schema rank) order; marks carry `attrs` only when they have any; the inline
+ *    atoms (`inline-image`, inline `raw-xml`) carry `marks` the same way (feature 006, FR-067);
  *  - `raw_xml` / `raw_xml_inline` become `raw-xml` with `inline: true|false`; a node created
  *    from an unknown/unconvertible model node (`original` attribute) is emitted verbatim;
  *  - `extraAttrs` (attributes the schema did not know) are merged back into `attrs`.
@@ -33,7 +34,8 @@ function markToModel(mark: Mark): ModelMark {
   return out as ModelMark;
 }
 
-function attrsToModel(node: PMNode): Record<string, unknown> {
+/** A node's attributes as the model writes them (feature 006: the assistant's changed tables too). */
+export function attrsToModel(node: PMNode): Record<string, unknown> {
   const attrs: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node.attrs)) {
     if (PM_ONLY_ATTRS.has(key)) continue;
@@ -49,6 +51,15 @@ function attrsToModel(node: PMNode): Record<string, unknown> {
   return attrs;
 }
 
+/**
+ * Gives an inline atom's model node the atom's marks (feature 006, FR-067; document-model §2.6):
+ * `marks` only when it has any, in the schema's rank order as for text.
+ */
+function withAtomMarks(out: ModelNodeJson, node: PMNode): void {
+  if (node.marks.length > 0) out.marks = node.marks.map(markToModel);
+  else delete out.marks;
+}
+
 /** Converts one node (text, structural or raw-xml). */
 export function nodeToModel(node: PMNode): ModelNodeJson {
   if (node.isText) {
@@ -59,21 +70,28 @@ export function nodeToModel(node: PMNode): ModelNodeJson {
 
   const typeName = node.type.name;
   if (typeName === 'raw_xml' || typeName === 'raw_xml_inline') {
+    const inline = typeName === 'raw_xml_inline';
     const original = node.attrs.original;
     if (typeof original === 'string') {
       try {
-        return JSON.parse(original) as ModelNodeJson;
+        const json = JSON.parse(original) as ModelNodeJson;
+        // An inline one carries its current marks, which replace the stored ones (FR-067).
+        if (inline) withAtomMarks(json, node);
+        return json;
       } catch {
         // fall through to the regular raw-xml shape
       }
     }
     const attrs = attrsToModel(node);
-    attrs.inline = typeName === 'raw_xml_inline';
-    return { type: 'raw-xml', attrs };
+    attrs.inline = inline;
+    const out: ModelNodeJson = { type: 'raw-xml', attrs };
+    if (inline) withAtomMarks(out, node);
+    return out;
   }
 
   const fb2Type = fb2NameFor(node.type);
   const out: ModelNodeJson = { type: fb2Type, attrs: attrsToModel(node) };
+  if (typeName === 'inline_image') withAtomMarks(out, node);
   if (!LEAF_MODEL_TYPES.has(fb2Type)) {
     const content: ModelNodeJson[] = [];
     node.forEach((child) => {

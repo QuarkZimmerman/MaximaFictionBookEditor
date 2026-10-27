@@ -11,6 +11,15 @@
 //   code -> <SPAN class=code>, style name -> <SPAN class=NAME>,
 //   note link -> <A class=note href="#id">, other link -> <A href="..."> / <A class=TYPE href>,
 //   inline image -> <IMG href="#id" alt="...">, text: &amp; &lt; &gt; &nbsp; (U+00A0).
+// Feature 006: a mark's language (the element's xml:lang, any value, "" included) is written
+// as lang="..." on its tag (<EM lang="la">, <SPAN class=NAME lang="la">) and repeated on the
+// closing tag of STRONG, EM, STRIKE, SUB and SUP (</EM lang="la">), so that the legacy
+// expressions, written for bare tags (General clean-up's "</EM></EM>" -> "</EM>"), leave
+// formatting with a language alone; a link's xlink:type is written as xlinktype="..." after
+// its href (no colon: the "missing space after a colon" expression would split xlink:type);
+// an inline image is written inside the tags of its marks (a linked or bold picture), as text
+// is; nested marks of one kind with different attributes nest as read
+// (<EM lang="la">a <EM lang="de">b</EM lang="de"></EM lang="la">).
 
 export const NBSP = '\u00A0';
 export const TEXT_BLOCK_TYPES = ['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date'];
@@ -38,26 +47,36 @@ function escapeAttr(value) {
     .replace(/"/g, '&quot;');
 }
 
+// The language of a formatting mark as a tag attribute (feature 006), "" when it has none.
+function langAttr(mark) {
+  const lang = mark.attrs?.lang;
+  return typeof lang === 'string' ? ` lang="${escapeAttr(lang)}"` : '';
+}
+
 function openTag(mark) {
   switch (mark.type) {
     case 'strong':
-      return '<STRONG>';
+      return `<STRONG${langAttr(mark)}>`;
     case 'emphasis':
-      return '<EM>';
+      return `<EM${langAttr(mark)}>`;
     case 'strikethrough':
-      return '<STRIKE>';
+      return `<STRIKE${langAttr(mark)}>`;
     case 'sub':
-      return '<SUB>';
+      return `<SUB${langAttr(mark)}>`;
     case 'sup':
-      return '<SUP>';
+      return `<SUP${langAttr(mark)}>`;
     case 'code':
-      return '<SPAN class=code>';
-    case 'style':
-      return `<SPAN class=${escapeAttr(mark.attrs?.name ?? '')}>`;
+      return `<SPAN class=code${langAttr(mark)}>`;
+    case 'style': {
+      const name = mark.attrs?.name ?? '';
+      return `<SPAN class=${name ? escapeAttr(name) : '""'}${langAttr(mark)}>`;
+    }
     case 'link': {
       const type = mark.attrs?.type;
       const cls = type ? ` class=${escapeAttr(type)}` : '';
-      return `<A${cls} href="${escapeAttr(mark.attrs?.href ?? '')}">`;
+      const xlinkType = mark.attrs?.xlinkType;
+      const xlink = typeof xlinkType === 'string' ? ` xlinktype="${escapeAttr(xlinkType)}"` : '';
+      return `<A${cls} href="${escapeAttr(mark.attrs?.href ?? '')}"${xlink}>`;
     }
     default:
       return '';
@@ -67,15 +86,15 @@ function openTag(mark) {
 function closeTag(mark) {
   switch (mark.type) {
     case 'strong':
-      return '</STRONG>';
+      return `</STRONG${langAttr(mark)}>`;
     case 'emphasis':
-      return '</EM>';
+      return `</EM${langAttr(mark)}>`;
     case 'strikethrough':
-      return '</STRIKE>';
+      return `</STRIKE${langAttr(mark)}>`;
     case 'sub':
-      return '</SUB>';
+      return `</SUB${langAttr(mark)}>`;
     case 'sup':
-      return '</SUP>';
+      return `</SUP${langAttr(mark)}>`;
     case 'code':
     case 'style':
       return '</SPAN>';
@@ -104,21 +123,26 @@ export function serializeInline(content, extras = []) {
   const closeDownTo = (keep) => {
     while (open.length > keep) html += closeTag(open.pop());
   };
+  // Closes the open tags the item's marks do not continue and opens the missing ones.
+  const openFor = (item) => {
+    const marks = sortedMarks(item.marks);
+    let common = 0;
+    while (common < open.length && common < marks.length && sameMark(open[common], marks[common])) {
+      common += 1;
+    }
+    closeDownTo(common);
+    for (let i = common; i < marks.length; i += 1) {
+      html += openTag(marks[i]);
+      open.push(marks[i]);
+    }
+  };
   for (const item of content ?? []) {
     if (item.type === 'text') {
-      const marks = sortedMarks(item.marks);
-      let common = 0;
-      while (common < open.length && common < marks.length && sameMark(open[common], marks[common])) {
-        common += 1;
-      }
-      closeDownTo(common);
-      for (let i = common; i < marks.length; i += 1) {
-        html += openTag(marks[i]);
-        open.push(marks[i]);
-      }
+      openFor(item);
       html += escapeText(item.text ?? '');
     } else if (item.type === 'inline-image') {
-      closeDownTo(0);
+      // A picture inside its link or formatting, as text (feature 006).
+      openFor(item);
       const alt = item.attrs?.alt ? ` alt="${escapeAttr(item.attrs.alt)}"` : '';
       html += `<IMG href="${escapeAttr(item.attrs?.href ?? '')}"${alt}>`;
     } else {
@@ -158,34 +182,41 @@ function parseAttributes(text) {
   return attrs;
 }
 
+// A formatting mark with the language of its tag, when the tag holds one (feature 006).
+function withLang(mark, attrs) {
+  if (attrs.lang !== undefined) mark.attrs = { ...(mark.attrs ?? {}), lang: attrs.lang };
+  return mark;
+}
+
 function markForTag(name, attrs) {
   switch (name) {
     case 'STRONG':
     case 'B':
-      return { type: 'strong' };
+      return withLang({ type: 'strong' }, attrs);
     case 'EM':
     case 'I':
     case 'EMPHASIS':
-      return { type: 'emphasis' };
+      return withLang({ type: 'emphasis' }, attrs);
     case 'STRIKE':
     case 'S':
     case 'STRIKETHROUGH':
-      return { type: 'strikethrough' };
+      return withLang({ type: 'strikethrough' }, attrs);
     case 'SUB':
-      return { type: 'sub' };
+      return withLang({ type: 'sub' }, attrs);
     case 'SUP':
-      return { type: 'sup' };
+      return withLang({ type: 'sup' }, attrs);
     case 'CODE':
-      return { type: 'code' };
+      return withLang({ type: 'code' }, attrs);
     case 'SPAN': {
       const cls = attrs.class ?? '';
-      if (cls === 'code') return { type: 'code' };
-      if (cls) return { type: 'style', attrs: { name: cls } };
+      if (cls === 'code') return withLang({ type: 'code' }, attrs);
+      if (cls) return withLang({ type: 'style', attrs: { name: cls } }, attrs);
       return null;
     }
     case 'A': {
       const mark = { type: 'link', attrs: { href: attrs.href ?? '' } };
       if (attrs.class) mark.attrs.type = attrs.class;
+      if (attrs.xlinktype !== undefined) mark.attrs.xlinkType = attrs.xlinktype;
       return mark;
     }
     default:
@@ -201,12 +232,17 @@ export function parseInline(html, extras = []) {
   const out = [];
   const open = [];
   let buffer = '';
-  const flush = () => {
-    if (!buffer) return;
+  // The marks open at this place, each different one once, outer first.
+  const openMarks = () => {
     const marks = [];
     for (const m of open) {
       if (m && !marks.some((other) => sameMark(other, m))) marks.push(JSON.parse(JSON.stringify(m)));
     }
+    return marks;
+  };
+  const flush = () => {
+    if (!buffer) return;
+    const marks = openMarks();
     const last = out[out.length - 1];
     if (last && last.type === 'text' && JSON.stringify(last.marks ?? []) === JSON.stringify(marks)) {
       last.text += buffer;
@@ -239,6 +275,9 @@ export function parseInline(html, extras = []) {
         const attrs = parseAttributes(attrText);
         const node = { type: 'inline-image', attrs: { href: attrs.href ?? attrs.src ?? '' } };
         if (attrs.alt) node.attrs.alt = attrs.alt;
+        // The picture takes the marks open around it (feature 006), none: no member.
+        const marks = openMarks();
+        if (marks.length) node.marks = marks;
         out.push(node);
         continue;
       }
@@ -252,13 +291,22 @@ export function parseInline(html, extras = []) {
         const kind = markForTag(name, {});
         const type = kind ? kind.type : name === 'SPAN' ? ['code', 'style'] : null;
         if (!type) continue;
-        for (let k = open.length - 1; k >= 0; k -= 1) {
-          const m = open[k];
-          if (m && (Array.isArray(type) ? type.includes(m.type) : m.type === type)) {
-            flush();
-            open.splice(k, 1);
-            break;
+        const ofKind = (m) => m && (Array.isArray(type) ? type.includes(m.type) : m.type === type);
+        // A closing tag with a language ends the innermost open mark of its kind with that
+        // language (feature 006), any other the innermost open mark of its kind.
+        const lang = parseAttributes(attrText).lang;
+        let at = -1;
+        if (lang !== undefined) {
+          for (let k = open.length - 1; k >= 0 && at < 0; k -= 1) {
+            if (ofKind(open[k]) && open[k].attrs?.lang === lang) at = k;
           }
+        }
+        for (let k = open.length - 1; k >= 0 && at < 0; k -= 1) {
+          if (ofKind(open[k])) at = k;
+        }
+        if (at >= 0) {
+          flush();
+          open.splice(at, 1);
         }
         continue;
       }

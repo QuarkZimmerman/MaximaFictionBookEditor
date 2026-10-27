@@ -86,6 +86,9 @@ const VALIDATION_CODES = [
   'binary.placeholderMissing',
   'encoding.mismatch',
   'description.emptyRequired',
+  // Feature 006 (US8, FR-062): the core's warning for an irregular table; the panel renders it
+  // through `describeTableMark` (C61), its key from the feature catalogue.
+  'table.irregular',
 ];
 
 /** Mirrors `CODE_KEY_ALIASES` of ui/src/dialogs/validation.ts. */

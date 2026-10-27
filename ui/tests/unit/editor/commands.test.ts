@@ -4,7 +4,7 @@
  * split / merge / remove-outer; footnote creation (`n_<N>` in the notes body); links.
  */
 
-import { Node as PMNode } from 'prosemirror-model';
+import { Node as PMNode, type Mark } from 'prosemirror-model';
 import { EditorState, NodeSelection, TextSelection, type Command } from 'prosemirror-state';
 
 import {
@@ -23,6 +23,7 @@ import {
   appendNoteSection,
   canCreateLink,
   collectIds,
+  findReference,
   gotoFootnote,
   gotoReference,
   nextNoteNumber,
@@ -42,16 +43,14 @@ import {
   removeOuterContainer,
   splitContainer,
 } from '@/editor/commands/structure';
-import {
-  canInsertTable,
-  gotoNextCell,
-  gotoPreviousCell,
-  insertTable,
-  setNodeAttr,
-} from '@/editor/commands/table';
+import { gotoNextCell, gotoPreviousCell, setNodeAttr } from '@/editor/commands/table';
+import { findTablePointAt, insertTableCommand } from '@/editor/commands/tableInsertion';
+import { createTable } from '@/editor/table/ops';
+import { CellBlockSelection } from '@/editor/table/selection';
 import { enterCommand } from '@/editor/keymap';
+import { nodeToModel } from '@/editor/toModel';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
-import { fb2Schema, FIXED_BLOCK_IDS } from '@/editor/schema';
+import { createNodeIdGenerator, fb2Schema, FIXED_BLOCK_IDS } from '@/editor/schema';
 
 const { nodes: N, marks: M } = fb2Schema;
 
@@ -263,31 +262,52 @@ describe('Add menu commands (T059)', () => {
     expect(insertCite(stateAt(next.doc, posOf(next.doc, 'S')))).toBe(false);
   });
 
-  it('insertTable inserts rows (+ header) after the paragraph; Tab navigates and appends rows', () => {
+  it('insertTableCommand inserts rows (+ header) before a paragraph at its start; Tab navigates and appends rows', () => {
+    const nextId = createNodeIdGenerator('t_');
     const state = stateAt(simpleBook, posOf(simpleBook, 'First'));
-    expect(canInsertTable(state)).toBe(true);
-    let next = run(state, insertTable(2, true))!;
+    expect(findTablePointAt(state)).not.toBeNull();
+    let next = run(state, insertTableCommand(createTable(2, 1, true, false, nextId), nextId))!;
     const sec = next.doc.child(0).child(1);
-    expect(names(sec)).toEqual(['title', 'p', 'table', 'p']);
-    const table = sec.child(2);
+    // Offset 0 of a non-empty paragraph: the table goes before it (feature 006, FR-004 (a)).
+    expect(names(sec)).toEqual(['title', 'table', 'p', 'p']);
+    const table = sec.child(1);
     expect(table.childCount).toBe(3);
     expect(table.child(0).child(0).type.name).toBe('th');
     expect(table.child(1).child(0).type.name).toBe('td');
     expect(next.selection.$from.parent.type.name).toBe('th');
-    next = run(next, gotoNextCell)!;
+    const tab = gotoNextCell({ nextId });
+    next = run(next, tab)!;
     expect(next.selection.$from.parent.type.name).toBe('td');
-    next = run(next, gotoNextCell)!;
-    next = run(next, gotoNextCell)!; // past the last cell: a new row
-    expect(next.doc.child(0).child(1).child(2).childCount).toBe(4);
+    next = run(next, tab)!;
+    next = run(next, tab)!; // past the last cell: the Tab row, a copy of the last row
+    const grown = next.doc.child(0).child(1).child(1);
+    expect(grown.childCount).toBe(4);
+    expect(grown.child(3).child(0).type.name).toBe('td');
+    expect(grown.child(3).child(0).attrs.nodeId).toMatch(/^t_\d+$/);
+    expect(next.selection.$from.parent).toBe(grown.child(3).child(0));
     next = run(next, gotoPreviousCell)!;
     expect(next.selection.$from.parent.type.name).toBe('td');
-    expect(canInsertTable(next)).toBe(false); // inside the table
-    expect(canInsertTable(stateAt(simpleBook, posOf(simpleBook, 'One')))).toBe(false);
+    // Inside the table a new one goes right after it; in the section title, at the first point
+    // after the title (where the rule of release 0.0.5 found none).
+    const tablePos = next.selection.$from.before(next.selection.$from.depth - 2);
+    expect(findTablePointAt(next)).toEqual({
+      kind: 'insert',
+      pos: tablePos + next.doc.nodeAt(tablePos)!.nodeSize,
+    });
+    const inTitle = stateAt(simpleBook, posOf(simpleBook, 'One'));
+    expect(findTablePointAt(inTitle)).toEqual({
+      kind: 'insert',
+      pos: inTitle.selection.$from.after(inTitle.selection.$from.depth - 1),
+    });
     expect(next.doc.check()).toBeUndefined();
   });
 
   it('setNodeAttr edits table / cell attributes (Table bar)', () => {
-    const state = run(stateAt(simpleBook, posOf(simpleBook, 'First')), insertTable(1, false))!;
+    const nextId = createNodeIdGenerator('t_');
+    const state = run(
+      stateAt(simpleBook, posOf(simpleBook, 'First')),
+      insertTableCommand(createTable(1, 1, false, false, nextId), nextId),
+    )!;
     const tablePos = state.selection.$from.before(state.selection.$from.depth - 2);
     const cellPos = state.selection.$from.before();
     let next = run(state, setNodeAttr(tablePos, 'id', 't1'))!;
@@ -337,10 +357,71 @@ describe('Style commands (T058)', () => {
     const from = posOf(simpleBook, 'Second');
     const state = stateAt(simpleBook, from, from + 6);
     const styled = run(state, setNamedStyle('note'))!;
-    expect(styled.doc.nodeAt(from)!.marks[0]!.attrs).toEqual({ name: 'note' });
+    expect(styled.doc.nodeAt(from)!.marks[0]!.attrs).toEqual({ name: 'note', lang: null });
     const cleared = run(styled, setNamedStyle(''))!;
     expect(cleared.doc.nodeAt(from)!.marks).toHaveLength(0);
     expect(setNamedStyle('x')(stateAt(simpleBook, from))).toBe(false); // needs a selection
+    // Feature 006 (FR-069): over text carrying two nested styles, setNamedStyle still replaces
+    // them all, and the empty name removes them all.
+    const twoStyles = [M.style!.create({ name: 'a' }), M.style!.create({ name: 'b' })];
+    const nested = doc(
+      body([
+        section([N.p!.create(null, [fb2Schema.text('pre '), fb2Schema.text('both', twoStyles)])]),
+      ]),
+    );
+    const at = posOf(nested, 'both');
+    expect(nested.nodeAt(at)!.marks).toHaveLength(2);
+    const replaced = run(stateAt(nested, at, at + 4), setNamedStyle('c'))!;
+    expect(replaced.doc.nodeAt(at)!.marks.map((m) => m.attrs)).toEqual([{ name: 'c', lang: null }]);
+    const none = run(stateAt(nested, at, at + 4), setNamedStyle(''))!;
+    expect(none.doc.nodeAt(at)!.marks).toEqual([]);
+  });
+
+  it('the formatting toggles act by type on nested marks of one kind', () => {
+    // Feature 006 (FR-069): toggleMark removes every mark of the type when any part of the
+    // range has one, adds one plain mark only when no part has it, and toggles a caret's stored
+    // marks by type.
+    const la = M.emphasis!.create({ lang: 'la' });
+    const de = M.emphasis!.create({ lang: 'de' });
+    const d = doc(
+      body([
+        section([
+          N.p!.create(null, [
+            fb2Schema.text('both', [la, de]),
+            fb2Schema.text(' partly', [la]),
+            fb2Schema.text(' plain'),
+          ]),
+        ]),
+      ]),
+    );
+    const both = posOf(d, 'both');
+    const emphasisOf = (state: EditorState, pos: number) =>
+      state.doc
+        .nodeAt(pos)!
+        .marks.filter((m) => m.type === M.emphasis)
+        .map((m) => m.attrs.lang);
+    // Over [emphasis la, emphasis de]: both removed.
+    const removedBoth = run(stateAt(d, both, both + 4), toggleInlineMark('emphasis'))!;
+    expect(emphasisOf(removedBoth, both)).toEqual([]);
+    // Over text partly carrying emphasis la: removed from the part that has it.
+    const partly = posOf(d, ' partly');
+    const plain = posOf(d, ' plain');
+    const removedPart = run(stateAt(d, partly, plain + 6), toggleInlineMark('emphasis'))!;
+    expect(emphasisOf(removedPart, partly)).toEqual([]);
+    expect(emphasisOf(removedPart, plain)).toEqual([]);
+    // Over text without emphasis: one plain mark added (toggleMark leaves the leading space).
+    const added = run(stateAt(d, plain, plain + 6), toggleInlineMark('emphasis'))!;
+    expect(emphasisOf(added, plain + 1)).toEqual([null]);
+    // A caret inside both marks: the stored marks are toggled by type.
+    const caret = stateAt(d, both + 2);
+    expect(markActive(caret, M.emphasis!)).toBe(true);
+    const off = run(caret, toggleInlineMark('emphasis'))!;
+    expect((off.storedMarks ?? []).filter((m) => m.type === M.emphasis)).toEqual([]);
+    expect(markActive(off, M.emphasis!)).toBe(false);
+    const on = run(off, toggleInlineMark('emphasis'))!;
+    expect(
+      (on.storedMarks ?? []).filter((m) => m.type === M.emphasis).map((m) => m.attrs.lang),
+    ).toEqual([null]);
   });
 
   it('converts paragraphs between Normal / Subtitle / Text author where the schema allows', () => {
@@ -507,7 +588,7 @@ describe('Links and footnotes (T061)', () => {
     const linked = run(stateAt(simpleBook, from, from + 5), setLink('#target'))!;
     const mark = linked.doc.nodeAt(from)!.marks[0]!;
     expect(mark.type.name).toBe('link');
-    expect(mark.attrs).toEqual({ href: '#target', type: null });
+    expect(mark.attrs).toEqual({ href: '#target', type: null, xlinkType: null });
     // Caret inside the link: editable / removable.
     const caret = stateAt(linked.doc, from + 2);
     expect(canCreateLink(caret)).toBe(true);
@@ -516,6 +597,63 @@ describe('Links and footnotes (T061)', () => {
     const removed = run(retargeted, removeLink)!;
     expect(removed.doc.nodeAt(from)!.marks).toHaveLength(0);
     expect(removeLink(removed)).toBe(false);
+  });
+
+  it('bold and a link applied to a selected inline image reach its model marks', () => {
+    // Feature 006 (FR-067; vR9 N3): ProseMirror puts formatting and links on a selected
+    // picture; the conversion now carries them to the model (and so to the file).
+    const picture = N.inline_image!.create({ nodeId: 'i1', href: '#pic.png' });
+    const d = doc(
+      body([section([N.p!.create({ nodeId: 'p1' }, [fb2Schema.text('see '), picture])])]),
+    );
+    const at = posOf(d, 'see') + 4;
+    expect(d.nodeAt(at)!.type).toBe(N.inline_image);
+    const selected = EditorState.create({ doc: d }).apply(
+      EditorState.create({ doc: d }).tr.setSelection(NodeSelection.create(d, at)),
+    );
+    const bold = run(selected, toggleInlineMark('strong'))!;
+    const linked = run(
+      bold.apply(bold.tr.setSelection(NodeSelection.create(bold.doc, at))),
+      setLink('#n_1', 'note'),
+    )!;
+    const image = linked.doc.nodeAt(at)!;
+    expect(image.marks.map((m) => m.type.name)).toEqual(['strong', 'link']);
+    expect(nodeToModel(image)).toEqual({
+      type: 'inline-image',
+      attrs: { nodeId: 'i1', href: '#pic.png' },
+      marks: [{ type: 'strong' }, { type: 'link', attrs: { href: '#n_1', type: 'note' } }],
+    });
+    // The paragraph's text is untouched.
+    expect(linked.doc.nodeAt(posOf(d, 'see'))!.marks).toEqual([]);
+  });
+
+  it("setLink keeps the link's xlinkType when it changes href or type", () => {
+    // Feature 006 (FR-064): a link read with xlink:type keeps it through an edit of its target
+    // or its kind; a new link gets none.
+    const read = M.link!.create({ href: '#s1', type: null, xlinkType: 'simple' });
+    const d = doc(
+      body([
+        section([N.p!.create(null, [fb2Schema.text('see '), fb2Schema.text('here', [read])])]),
+      ]),
+    );
+    const from = posOf(d, 'here');
+    const linkAt = (state: EditorState) =>
+      state.doc.nodeAt(from)!.marks.find((m) => m.type === M.link)!.attrs;
+    // The caret in the link: href changed, then the type.
+    const retargeted = run(stateAt(d, from + 2), setLink('#s2'))!;
+    expect(linkAt(retargeted)).toEqual({ href: '#s2', type: null, xlinkType: 'simple' });
+    const asNote = run(stateAt(retargeted.doc, from + 1), setLink('#n_1', 'note'))!;
+    expect(linkAt(asNote)).toEqual({ href: '#n_1', type: 'note', xlinkType: 'simple' });
+    // A selection over the link: the same.
+    const selected = run(stateAt(asNote.doc, from, from + 4), setLink('#s3'))!;
+    expect(linkAt(selected)).toEqual({ href: '#s3', type: null, xlinkType: 'simple' });
+    // A new link over plain text gets none.
+    const fresh = run(stateAt(d, posOf(d, 'see'), posOf(d, 'see') + 3), setLink('#s4'))!;
+    expect(fresh.doc.nodeAt(posOf(d, 'see'))!.marks[0]!.attrs).toEqual({
+      href: '#s4',
+      type: null,
+      xlinkType: null,
+    });
   });
 
   it('numbers footnotes n_<N> after the highest existing one and creates the notes body', () => {
@@ -559,6 +697,62 @@ describe('Links and footnotes (T061)', () => {
     const dangling = run(stateAt(d, from, from + 4), setLink('#nowhere'))!;
     expect(gotoFootnote(stateAt(dangling.doc, from + 1))).toBe(false);
   });
+
+  it('gotoReference finds a note reference made of a picture alone', () => {
+    // Feature 006 (FR-067 as amended at /speckit-analyze): the reference is an inline image
+    // carrying the note's link mark; the caret lands right after the picture.
+    const noteLink = M.link!.create({ href: '#n_1', type: 'note' });
+    const otherLink = M.link!.create({ href: '#n_2', type: 'note' });
+    const picture = (marks: readonly Mark[] = []) =>
+      N.inline_image!.create({ href: '#pic.png' }, null, marks);
+    const d = doc(
+      body([
+        section([
+          N.p!.create(null, [fb2Schema.text('Other '), picture([otherLink])]),
+          N.p!.create(null, [fb2Schema.text('Plain '), picture()]),
+          N.p!.create(null, [fb2Schema.text('See the picture '), picture([noteLink])]),
+        ]),
+      ]),
+      body([title('Notes'), section([title('1'), p('The note.')], { id: 'n_1' })], {
+        name: 'notes',
+      }),
+    );
+    const at = posOf(d, 'See the picture ') + 'See the picture '.length;
+    expect(d.nodeAt(at)!.type).toBe(N.inline_image);
+    expect(findReference(d, 'n_1')).toEqual({ from: at, to: at + 1 });
+    const inNote = stateAt(d, posOf(d, 'The note.') + 3);
+    const back = run(inNote, gotoReference)!;
+    expect(back.selection.empty).toBe(true);
+    expect(back.selection.from).toBe(at + 1); // right after the picture
+    expect(back.selection.$from.parent.textContent).toBe('See the picture ');
+    // A picture with another link, or without marks, is no reference to n_1.
+    expect(findReference(d, 'n_3')).toBeNull();
+    const withoutNote = doc(
+      body([
+        section([
+          N.p!.create(null, [fb2Schema.text('Other '), picture([otherLink])]),
+          N.p!.create(null, [fb2Schema.text('Plain '), picture()]),
+        ]),
+      ]),
+      body([title('Notes'), section([title('1'), p('The note.')], { id: 'n_1' })], {
+        name: 'notes',
+      }),
+    );
+    expect(findReference(withoutNote, 'n_1')).toBeNull();
+    expect(gotoReference(stateAt(withoutNote, posOf(withoutNote, 'The note.') + 1))).toBe(false);
+    // The first reference in document order wins, text or picture.
+    const textFirst = doc(
+      body([
+        section([
+          N.p!.create(null, [fb2Schema.text('note', [noteLink])]),
+          N.p!.create(null, [picture([noteLink])]),
+        ]),
+      ]),
+      body([section([p('The note.')], { id: 'n_1' })], { name: 'notes' }),
+    );
+    const word = posOf(textFirst, 'note');
+    expect(findReference(textFirst, 'n_1')).toEqual({ from: word, to: word + 4 });
+  });
 });
 
 /* ------------------------------------------------------------------------ */
@@ -599,7 +793,7 @@ describe('commands inside the annotation and history blocks (004 US2)', () => {
       expect(setParagraphStyle('subtitle')(state)).toBe(true);
       expect(insertPoem(state)).toBe(true);
       expect(insertCite(state)).toBe(true);
-      expect(canInsertTable(state)).toBe(true);
+      expect(findTablePointAt(state)).not.toBeNull();
       expect(insertInlineImage()(state)).toBe(true);
       expect(toggleInlineMark('strong')(state)).toBe(true);
     }
@@ -611,8 +805,13 @@ describe('commands inside the annotation and history blocks (004 US2)', () => {
     expect(poem.doc.check()).toBeUndefined();
     const cite = run(inHistory, insertCite)!;
     expect(names(cite.doc.child(1))).toEqual(['p', 'cite']);
-    const table = run(inHistory, insertTable(1, false))!;
-    expect(names(table.doc.child(1))).toEqual(['p', 'table']);
+    // The caret at the start of `History text`: the table before the paragraph.
+    const nextId = createNodeIdGenerator('t_');
+    const table = run(
+      inHistory,
+      insertTableCommand(createTable(1, 1, false, false, nextId), nextId),
+    )!;
+    expect(names(table.doc.child(1))).toEqual(['table', 'p']);
     expect(table.doc.check()).toBeUndefined();
   });
 
@@ -633,5 +832,87 @@ describe('commands inside the annotation and history blocks (004 US2)', () => {
     expect(names(next.doc.child(0))).toEqual(['p', 'empty_line', 'p']);
     expect(names(next.doc.child(1))).toEqual(['p']);
     expect(next.doc.check()).toBeUndefined();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Pictures in table cells (feature 006, US3)                               */
+/* ------------------------------------------------------------------------ */
+
+describe('pictures in table cells (feature 006, US3, FR-024, FR-026)', () => {
+  function cellBook() {
+    const cell = (kind: 'td' | 'th', text: string) => N[kind]!.create(null, fb2Schema.text(text));
+    return doc(
+      body([
+        section([
+          p('Before the table'),
+          N.table!.create(null, [
+            N.tr!.create(null, [cell('th', 'Head A'), cell('th', 'Head B')]),
+            N.tr!.create(null, [cell('td', 'Cell one'), cell('td', 'Cell two')]),
+          ]),
+          p('After the table'),
+        ]),
+      ]),
+    );
+  }
+
+  /** The cells of the book's table in reading order, as text with `[img]` for a picture. */
+  function cellTexts(state: EditorState): string[] {
+    const out: string[] = [];
+    state.doc.descendants((node) => {
+      if (node.type !== N.td && node.type !== N.th) return true;
+      let text = '';
+      node.forEach((child) => {
+        text += child.isText ? child.text : child.type === N.inline_image ? '[img]' : '?';
+      });
+      out.push(`${node.type.name}:${text}`);
+      return false;
+    });
+    return out;
+  }
+
+  it('insertInlineImage succeeds in a td and in a th, and the result passes doc.check()', () => {
+    const d = cellBook();
+    const image = { href: '#cell.png' };
+    // A caret in a td and in a th.
+    const inTd = run(stateAt(d, posOf(d, 'one') + 3), insertInlineImage(image))!;
+    expect(cellTexts(inTd)).toEqual(['th:Head A', 'th:Head B', 'td:Cell one[img]', 'td:Cell two']);
+    expect(inTd.doc.check()).toBeUndefined();
+    const inTh = run(stateAt(d, posOf(d, 'Head B')), insertInlineImage(image))!;
+    expect(cellTexts(inTh)).toEqual(['th:Head A', 'th:[img]Head B', 'td:Cell one', 'td:Cell two']);
+    expect(inTh.doc.check()).toBeUndefined();
+    // Text selected in a cell: the picture replaces it.
+    const from = posOf(d, 'two');
+    const replaced = run(stateAt(d, from, from + 3), insertInlineImage(image))!;
+    expect(cellTexts(replaced)).toEqual(['th:Head A', 'th:Head B', 'td:Cell one', 'td:Cell [img]']);
+    expect(replaced.doc.check()).toBeUndefined();
+    // A block of cells: the picture lands in the block's top-left cell, the others are cleared
+    // (data-model §8.3's rule for content that is no table).
+    const cells: number[] = [];
+    d.descendants((node, pos) => {
+      if (node.type === N.td || node.type === N.th) cells.push(pos);
+      return true;
+    });
+    const base = EditorState.create({ doc: d });
+    const block = base.apply(
+      base.tr.setSelection(CellBlockSelection.create(d, cells[0]!, cells[3]!)),
+    );
+    expect(block.selection).toBeInstanceOf(CellBlockSelection);
+    const inBlock = run(block, insertInlineImage(image))!;
+    expect(cellTexts(inBlock)).toEqual(['th:[img]', 'th:', 'td:', 'td:']);
+    expect(inBlock.doc.check()).toBeUndefined();
+  });
+
+  it('insertImage and addSectionImage still refuse with the caret in a cell', () => {
+    const d = cellBook();
+    for (const text of ['Head A', 'Cell two']) {
+      const state = stateAt(d, posOf(d, text) + 2);
+      expect(insertImage({ href: '#cell.png' })(state)).toBe(false);
+      expect(addSectionImage({ href: '#cell.png' })(state)).toBe(false);
+      expect(insertInlineImage({ href: '#cell.png' })(state)).toBe(true);
+    }
+    // Outside the table, in a paragraph directly in its section, both work as before.
+    const outside = stateAt(d, posOf(d, 'After'));
+    expect(insertImage({ href: '#cell.png' })(outside)).toBe(true);
   });
 });

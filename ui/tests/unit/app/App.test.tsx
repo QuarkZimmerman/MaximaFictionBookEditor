@@ -279,6 +279,71 @@ describe('App shell', () => {
     expect(screen.queryByTestId('menu-style-popup')).not.toBeInTheDocument();
   });
 
+  it('a chord the user assigned to a scoped command runs it only with the focus inside the scope element; elsewhere the key is not consumed (feature 006, C6)', async () => {
+    const { user, services, store } = await renderApp();
+    const scope = document.createElement('div');
+    const inside = document.createElement('input');
+    scope.appendChild(inside);
+    const outside = document.createElement('input');
+    document.body.append(scope, outside);
+    // The key as the page sees it after the capture-phase dispatcher: absent when consumed.
+    const reached: { target: EventTarget | null; prevented: boolean }[] = [];
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === 'KeyM')
+        reached.push({ target: event.target, prevented: event.defaultPrevented });
+    };
+    document.addEventListener('keydown', listener);
+    try {
+      const run = vi.fn();
+      act(() => {
+        services.commands.replace({
+          id: 'table.mergeCells',
+          group: 'table',
+          hotkeyScope: 'tableTarget',
+          run,
+        });
+      });
+      // The user assigns a chord (there is no default, decision 15).
+      expect(services.hotkeys.get('table.mergeCells')).toBeUndefined();
+      // The menus and toolbars re-render with the new chord: inside act.
+      act(() => {
+        expect(services.hotkeys.assign('table.mergeCells', 'Ctrl+Alt+M').ok).toBe(true);
+      });
+      const chord = '{Control>}{Alt>}m{/Alt}{/Control}';
+
+      // Without a resolver (no tables feature) the chord is never taken.
+      inside.focus();
+      await user.keyboard(chord);
+      expect(run).not.toHaveBeenCalled();
+      expect(reached).toEqual([{ target: inside, prevented: false }]);
+
+      const off = services.commands.setHotkeyScope('tableTarget', () => scope);
+      try {
+        await user.keyboard(chord);
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(reached).toHaveLength(1); // consumed: stopped in the capture phase
+
+        outside.focus();
+        await user.keyboard(chord);
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(reached).toEqual([
+          { target: inside, prevented: false },
+          { target: outside, prevented: false },
+        ]);
+
+        // An unscoped command keeps its chord everywhere (View > Source, Alt+F3).
+        await user.keyboard('{Alt>}{F3}{/Alt}');
+        expect(store.getState().activeView).toBe('source');
+      } finally {
+        off();
+      }
+    } finally {
+      document.removeEventListener('keydown', listener);
+      scope.remove();
+      outside.remove();
+    }
+  });
+
   it('toolbar buttons carry tooltips with hotkeys and reflect pressed state', async () => {
     const { user } = await renderApp();
     const body = screen.getByTestId('toolbar-view.body');

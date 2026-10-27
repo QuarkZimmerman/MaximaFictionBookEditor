@@ -1,0 +1,24 @@
+{
+  "blocks": [
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "th", "t": "Fruit and colour", "cs": 2},
+            {"k": "th", "t": "Notes"}
+          ],
+          [
+            {"k": "td", "t": "Apple", "rs": 2},
+            {"k": "td", "t": "Red", "m": ["strong"]},
+            {"k": "td", "t": "crisp", "m": ["emphasis"]}
+          ],
+          [
+            {"k": "td", "t": "Green", "m": ["link"]},
+            {"k": "td", "t": "area x2", "m": ["sup"]}
+          ]
+        ]
+      }
+    }
+  ],
+  "tsv": "Fruit and colour\t\tNotes\nApple\tRed\tcrisp\n\tGreen\tarea x2"
+}

@@ -17,9 +17,11 @@
  *  8. Clone / Split / Merge / Remove outer container
  *  9. incremental search from the keyboard
  * 10. Table properties dialog and the Table bar
+ * 11. a keyboard selection reaches the editor before a menu or a key takes the focus
+ * 12. keys typed right after the press that focuses the editor stay when reported late
  */
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -33,7 +35,7 @@ import {
 } from './fixtures/core';
 import { pageAnyPattern, pageText } from './fixtures/i18n';
 import type { Locator, Page } from '@playwright/test';
-import { LINE_END, LINE_START, MOD, REPLACE } from './fixtures/keys';
+import { LINE_END, LINE_START, MAC, MOD, REPLACE, SELECT_TO_LINE_END } from './fixtures/keys';
 
 interface ValidationJson {
   errorCount: number;
@@ -123,6 +125,78 @@ async function selectedText(page: Page): Promise<string> {
 async function menu(page: Page, menuId: string, itemId: string): Promise<void> {
   await page.getByTestId(`menu-${menuId}`).click();
   await page.getByTestId(`menu-${menuId}-${itemId}`).click();
+}
+
+/**
+ * Holds the browser's `selectionchange` events back from the page (a capture listener on the
+ * document stops them before ProseMirror's own), as a loaded machine delayed them;
+ * `RELEASE_SELECTIONCHANGE` lets them through again and delivers one.
+ */
+const HOLD_SELECTIONCHANGE = `(() => {
+  if (!window.__mfbeHeldSelection) {
+    window.__mfbeHeldSelection = { held: false };
+    document.addEventListener('selectionchange', (event) => {
+      if (window.__mfbeHeldSelection.held) event.stopImmediatePropagation();
+    }, true);
+  }
+  window.__mfbeHeldSelection.held = true;
+})()`;
+const RELEASE_SELECTIONCHANGE = `(() => {
+  window.__mfbeHeldSelection.held = false;
+  document.dispatchEvent(new Event('selectionchange'));
+})()`;
+
+interface BurstKey {
+  key: string;
+  code: string;
+  windowsVirtualKeyCode: number;
+  commands?: string[];
+}
+
+/**
+ * Shift+End (Shift+Cmd+Right on macOS, with the editing command Playwright gives that chord)
+ * and then a press at a point or the key F10, as one burst of input events sent without a wait
+ * in between: the browser reports the new selection (`selectionchange`) only after the input
+ * that follows has been handled - the order a loaded machine produced at random.
+ */
+async function selectToLineEndThen(
+  page: Page,
+  then: { x: number; y: number } | 'F10',
+): Promise<void> {
+  const SHIFT = 8;
+  const META = 4;
+  const meta: BurstKey = { key: 'Meta', code: 'MetaLeft', windowsVirtualKeyCode: 91 };
+  const shift: BurstKey = { key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16 };
+  const line: BurstKey = MAC
+    ? { key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39 }
+    : { key: 'End', code: 'End', windowsVirtualKeyCode: 35 };
+  const f10: BurstKey = { key: 'F10', code: 'F10', windowsVirtualKeyCode: 121 };
+  const held = MAC ? SHIFT | META : SHIFT;
+  const keys: ['rawKeyDown' | 'keyUp', number, BurstKey][] = [];
+  if (MAC) keys.push(['rawKeyDown', META, meta]);
+  keys.push(['rawKeyDown', held, shift]);
+  const command = MAC ? ['moveToRightEndOfLineAndModifySelection'] : undefined;
+  keys.push(['rawKeyDown', held, { ...line, commands: command }]);
+  keys.push(['keyUp', held, line]);
+  keys.push(['keyUp', held & ~SHIFT, shift]);
+  if (MAC) keys.push(['keyUp', 0, meta]);
+  if (then === 'F10') keys.push(['rawKeyDown', 0, f10], ['keyUp', 0, f10]);
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const sends = keys.map(([type, modifiers, key]) =>
+      cdp.send('Input.dispatchKeyEvent', { type, modifiers, ...key }),
+    );
+    if (then !== 'F10') {
+      for (const type of ['mousePressed', 'mouseReleased'] as const) {
+        sends.push(
+          cdp.send('Input.dispatchMouseEvent', { type, ...then, button: 'left', clickCount: 1 }),
+        );
+      }
+    }
+    await Promise.all(sends);
+  } finally {
+    await cdp.detach();
+  }
 }
 
 /** Names of the direct child elements of an element's inner XML (`<section ...>` stripped). */
@@ -303,8 +377,12 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await page.keyboard.press('Alt+t');
     const tableDialog = page.getByTestId('dialog-table');
     await expect(tableDialog).toBeVisible();
+    // All four fields (feature 006): the dialog proposes the values last confirmed, and the
+    // worker's core is shared.
     await page.getByTestId('dialog-table-header').check();
     await page.getByTestId('dialog-table-rows').fill('2');
+    await page.getByTestId('dialog-table-columns').fill('1');
+    await page.getByTestId('dialog-table-header-column').uncheck();
     await page.getByTestId('dialog-table-button-ok').click();
     const table = section.locator('> table.fb-table');
     await expect(table).toHaveCount(1);
@@ -494,6 +572,42 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     expect(xml).toContain('<p>The footnote text.</p>');
     const report = await validateFile(core, file);
     expect(bodyErrors(report, xml)).toEqual([]);
+  });
+
+  test('4b. Go to footnote or reference finds a note reference made of a picture alone', async ({
+    core,
+    page,
+  }) => {
+    // Feature 006 (FR-067 as amended at /speckit-analyze): the reference to the note is a
+    // picture inside the link; release 0.0.5 dropped that link when the book was opened.
+    const tinyPng = readFileSync(
+      path.join(path.dirname(fixtureBook('modern-utf8.fb2')), '..', 'images', 'tiny.png'),
+    ).toString('base64');
+    const file = path.join(dir, 'picture-reference.fb2');
+    writeFileSync(
+      file,
+      `<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description><title-info><genre>prose_classic</genre><author><first-name>Ann</first-name><last-name>Writer</last-name></author><book-title>Picture reference</book-title><lang>en</lang></title-info>
+<document-info><author><nickname>fixture</nickname></author><date>2026</date><id>picture-reference</id><version>1.0</version></document-info></description>
+<body><section><p>See the picture <a l:href="#n_1" type="note"><image l:href="#pic.png"/></a>.</p></section></body>
+<body name="notes"><section id="n_1"><title><p>1</p></title><p>The note.</p></section></body>
+<binary id="pic.png" content-type="image/png">${tinyPng}</binary>
+</FictionBook>
+`,
+    );
+    await core.enqueueDialog('dialog.openFile', { paths: [file] });
+    await menu(page, 'file', 'open');
+    const editor = page.getByTestId('body-editor');
+    await expect(editor).toContainText('The note.');
+    // The picture is shown inside the note link.
+    await expect(editor.locator('a.fb-note [data-testid="body-inline-image"]')).toHaveCount(1);
+    await clickInto(page, editor.getByText('The note.'), {
+      path: /^body\[2\]\/section\[1\]\/p\[1\]$/,
+    });
+    await menu(page, 'edit', 'gotoFootnote');
+    await expect(page.getByTestId('status-path')).toHaveText('body[1]/section[1]/p[1]');
+    await expect(page.getByTestId('dialog-reference-not-found')).toHaveCount(0);
   });
 
   test('5. Undo reverts every edit in reverse order and Redo re-applies them', async ({ page }) => {
@@ -845,7 +959,12 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     await settle(page);
     await page.keyboard.press('Alt+t');
     await page.getByTestId('dialog-table-header').check();
-    await page.getByTestId('dialog-table-rows').fill('1');
+    // Three rows of three columns under the header row (feature 006 US8, FR-036): colspan 2
+    // merges the first two header cells and rowspan 3 the empty block below them, where a
+    // one-column table would refuse both spans as past its edge.
+    await page.getByTestId('dialog-table-rows').fill('3');
+    await page.getByTestId('dialog-table-columns').fill('3');
+    await page.getByTestId('dialog-table-header-column').uncheck();
     await page.getByTestId('dialog-table-button-ok').click();
     const table = editor.locator('table.fb-table');
     await expect(table).toHaveCount(1);
@@ -899,5 +1018,85 @@ test.describe('US2 - edit the book text in the structured Body view', () => {
     );
     const report = await validateFile(core, file);
     expect(bodyErrors(report, xml)).toEqual([]);
+  });
+
+  test('11. a keyboard selection reaches the editor before a menu or a key takes the focus', async ({
+    page,
+  }) => {
+    // The browser reports a selection made with the keyboard after the input that follows it;
+    // the editor reads it first, so the focus a menu or the menu bar takes does not lose it
+    // (a script that needs a selection stayed disabled, us9-ai-disabled under load).
+    await newDocument(page);
+    const paragraph = firstParagraph(page);
+    const text = 'A line of words to select.';
+    await retype(page, paragraph, text);
+    const button = (await page.getByTestId('menu-scripts').boundingBox())!;
+    const scripts = { x: button.x + button.width / 2, y: button.y + button.height / 2 };
+
+    // Shift+End and at once a press on the Scripts menu.
+    await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
+    await page.keyboard.press(LINE_START);
+    await settle(page);
+    await expect.poll(() => selectedText(page)).toBe('');
+    await page.mouse.move(scripts.x, scripts.y);
+    await selectToLineEndThen(page, scripts);
+    await expect(page.getByTestId('menu-scripts-popup')).toBeVisible();
+    await expect.poll(() => selectedText(page)).toBe(text);
+    const group = page.getByTestId('menu-scripts-18_editing');
+    await expect(group).toBeVisible();
+    await group.hover();
+    await expect(page.getByTestId('menu-scripts-18_editing-18/remove-spaces')).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    // Escape closes the group, then the menu - not a click on the paragraph, which the open menu
+    // may cover (it does on macOS, where the Scripts entry stands further left).
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('menu-scripts-18_editing-popup')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('menu-scripts-popup')).toHaveCount(0);
+
+    // Shift+End and at once F10, which gives the menu bar the focus.
+    await clickInto(page, paragraph, { path: MAIN_PARAGRAPH });
+    await page.keyboard.press(LINE_START);
+    await settle(page);
+    await expect.poll(() => selectedText(page)).toBe('');
+    await selectToLineEndThen(page, 'F10');
+    await expect(page.getByTestId('menu-file')).toBeFocused();
+    await expect.poll(() => selectedText(page)).toBe(text);
+  });
+
+  test('12. keys typed right after the press that gives the editor the focus stay, also when the browser reports them late', async ({
+    page,
+  }) => {
+    // ProseMirror writes its own selection back 20 ms after the editor gains the focus when the
+    // browser's differs from the last one it read; under load the browser reported the press and
+    // Home and Shift+End after that, and they were undone (us9-ai-disabled). Here the browser's
+    // reports are held back until the 20 ms have passed, then delivered.
+    await newDocument(page);
+    const first = firstParagraph(page);
+    const text = 'A line of words to select.';
+    await retype(page, first, text);
+    await page.keyboard.press(LINE_END);
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Another line.');
+    const second = page
+      .getByTestId('body-editor')
+      .locator('.fb-body > .fb-section > p.fb-p')
+      .nth(1);
+    await expect(second).toHaveText('Another line.');
+    await clickInto(page, second, { path: MAIN_PARAGRAPH });
+    // A menu takes the focus and gives it up (Escape twice): the editor has none.
+    await page.getByTestId('menu-file').click();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('body-editor')).not.toBeFocused();
+    await page.evaluate(HOLD_SELECTIONCHANGE);
+    await first.click({ position: { x: 8, y: 8 } });
+    await page.keyboard.press(LINE_START);
+    await page.keyboard.press(SELECT_TO_LINE_END);
+    await page.waitForTimeout(150);
+    await page.evaluate(RELEASE_SELECTIONCHANGE);
+    await expect.poll(() => selectedText(page)).toBe(text);
   });
 });

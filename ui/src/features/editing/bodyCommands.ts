@@ -1,19 +1,16 @@
 /**
  * Add-menu and Style-menu commands of the Body view (T058/T059/T063): the structure commands
  * of `editor/commands/insert.ts`, the inline style toggles and paragraph styles of
- * `editor/commands/marks.ts`, the Table properties dialog flow and the image insertion flows
- * ("Insert clear image?" per settings, file dialog + `binary.add`; `insert.binary` stays with
- * US7). Everything runs against the Body controller and is enabled only where the schema
- * allows the element.
+ * `editor/commands/marks.ts` and the image insertion flows ("Insert clear image?" per settings,
+ * file dialog + `binary.add`; `insert.binary` stays with US7). Everything runs against the Body
+ * controller and is enabled only where the schema allows the element. *Add → Table* belongs to
+ * the tables feature (feature 006, `features/tables/commands.ts`).
  */
 
 import type { Command as PMCommand } from 'prosemirror-state';
-import { createElement } from 'react';
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
 import { imageFileTypes } from '@/dialogs/fileTypes';
-import { TablePropertiesDialog, type TableProperties } from '@/dialogs/TablePropertiesDialog';
-import type { Dialogs } from '@/dialogs/types';
 import {
   addAnnotation,
   addEpigraph,
@@ -37,7 +34,6 @@ import {
   type InlineMarkName,
   type ParagraphStyle,
 } from '@/editor/commands/marks';
-import { canInsertTable, insertTable } from '@/editor/commands/table';
 import { M } from '@/editor/commands/util';
 import { nodeToModel } from '@/editor/toModel';
 import type { BinaryMeta, BodyNode, Document } from '@/model/document';
@@ -69,16 +65,6 @@ const PARAGRAPH_STYLE_COMMANDS: Record<
   },
   subtitle: { id: 'style.subtitle', label: 'menu.style.subtitle', icon: 'id_style_subtitle' },
 };
-
-/** Opens the Table properties dialog; resolves with `{rows, header}` or null when cancelled. */
-export function showTablePropertiesDialog(
-  dialogs: Dialogs,
-  initial?: Partial<TableProperties>,
-): Promise<TableProperties | null> {
-  return dialogs.openCustom<TableProperties | null>((close) =>
-    createElement(TablePropertiesDialog, { initial, onClose: close }),
-  );
-}
 
 /* ------------------------------------------------------------------------ */
 /* Images                                                                   */
@@ -278,21 +264,6 @@ export function registerBodyCommands(
       icon: 'id_edit_ins_cite',
       command: insertCite,
     }),
-    {
-      id: 'insert.table',
-      group: 'edit',
-      ...cmdKeys('insert.table', 'menu.add.table'),
-      icon: 'id_insert_table',
-      enabled: (ctx) =>
-        bodyEditable(ctx) && canInsertTable(bodyController(ctx.store)!.editorState!),
-      async run(ctx) {
-        const controller = bodyController(ctx.store);
-        if (!controller?.editorState || !canInsertTable(controller.editorState)) return;
-        const result = await showTablePropertiesDialog(ctx.dialogs);
-        if (!result) return;
-        controller.execute(insertTable(result.rows, result.header));
-      },
-    },
   ];
 
   for (const name of INLINE_MARKS) {

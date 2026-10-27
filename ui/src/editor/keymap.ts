@@ -12,7 +12,8 @@
  *  - Enter inside a table cell is swallowed (cells hold inline content only);
  *  - Backspace / Delete at a block boundary merge per schema (ProseMirror joinBackward /
  *    joinForward) and remove an adjacent `<empty-line/>`;
- *  - Tab / Shift+Tab move between table cells (a new row is appended after the last cell);
+ *  - Tab / Shift+Tab move between table cells; Tab in the last cell appends the Tab row, a
+ *    table command and its own undo step (feature 006, FR-005; C33);
  *  - Insert toggles overwrite mode (INS/OVR pane).
  */
 
@@ -44,10 +45,17 @@ import {
 } from './commands/util';
 import { selectionIntoTarget } from './commands/links';
 import { gotoNextCell, gotoPreviousCell } from './commands/table';
+import { createNodeIdGenerator } from './schema';
+import type { PlanContext } from './table/edit';
 
 export interface KeymapOptions {
   /** Insert key: flips insert/overwrite mode. */
   toggleOvertype?: () => void;
+  /**
+   * The host's node-id generator (feature 006, data-model §1.6): the nodes of the Tab row carry
+   * the host's ids from the start, so the node-id plugin has nothing to append.
+   */
+  nextNodeId?: () => string;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -263,7 +271,11 @@ export const deleteCommand: Command = chainCommands(
 /** Tab outside a table is swallowed so the focus stays in the editor. */
 const swallow: Command = () => true;
 
-export const tabCommand: Command = chainCommands(gotoNextCell, swallow);
+/** Tab: the next cell or, in the last one, the Tab row; swallowed outside tables. */
+export function tabCommand(ctx: PlanContext): Command {
+  return chainCommands(gotoNextCell(ctx), swallow);
+}
+
 export const shiftTabCommand: Command = chainCommands(gotoPreviousCell, swallow);
 
 /* ------------------------------------------------------------------------ */
@@ -278,7 +290,7 @@ export function bodyKeymap(options: KeymapOptions = {}): Plugin {
     'Mod-Backspace': backspaceCommand,
     Delete: deleteCommand,
     'Mod-Delete': deleteCommand,
-    Tab: tabCommand,
+    Tab: tabCommand({ nextId: options.nextNodeId ?? createNodeIdGenerator() }),
     'Shift-Tab': shiftTabCommand,
     Insert: () => {
       options.toggleOvertype?.();

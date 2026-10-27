@@ -521,6 +521,15 @@
       "description": "Run the script {{name}}"
     }
   },
+  "commands": {
+    "unavailable": {
+      "title": "{{command}}: {{reason}}",
+      "runLock": {
+        "script": "a script is running; wait until it ends",
+        "ai": "a request to the AI assistant is running; wait until it ends"
+      }
+    }
+  },
   "hotkeys": {
     "groups": {
       "file": "File",
@@ -589,9 +598,7 @@
       "replaceAllCaption": "Replace All"
     },
     "table": {
-      "caption": "Table properties",
-      "rows": "Number of table cells <tr><td></td></tr>:",
-      "addHeader": "Add table header <tr><th></th></tr>"
+      "caption": "Table properties"
     },
     "words": {
       "caption": "Words",

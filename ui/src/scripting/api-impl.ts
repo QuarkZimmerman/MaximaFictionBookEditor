@@ -26,6 +26,7 @@ import {
   fb2Schema,
   findNodeById,
   nodeTypeFor,
+  seededScriptIds,
 } from '@/editor/schema';
 import { DEFAULT_NBSP_DISPLAY_CHAR } from '@/editor/plugins/nbsp';
 import { nodeToModel } from '@/editor/toModel';
@@ -295,7 +296,9 @@ function optionalObject<T extends object>(value: unknown, what: string): T {
 
 export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
   const { store, controller, dialogs, rpc, t } = deps;
-  const nextNodeId = createNodeIdGenerator('sc_');
+  // The run's `sc_<N>` ids, past the highest of the document it starts from - the store's, or
+  // the AI request's working copy for a nested run (feature 006, I26).
+  const nextNodeId = deps.document ? seededScriptIds(deps.document) : createNodeIdGenerator('sc_');
   const copy = deps.document ? new WorkingCopy(deps.document) : null;
   const publish = deps.publish ?? true;
   const captionFor = (caption: string) => deps.dialogCaption?.(caption) ?? caption;
@@ -665,7 +668,12 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       const { from, to, empty } = state.selection;
       if (empty) throw new ScriptApiError('selection.wrap: nothing is selected');
       const type = markFor(mark, 'selection.wrap');
-      applySelectionEdit(ctrl, state.tr.addMark(from, to, type));
+      const tr = state.tr;
+      // A named style replaces the selection's styles, as in release 0.0.5: since a node may
+      // carry several styles (feature 006, FR-069), a plain addMark would nest it instead
+      // (document-model §2.5, open point 9).
+      if (type.type === fb2Schema.marks.style) tr.removeMark(from, to, fb2Schema.marks.style);
+      applySelectionEdit(ctrl, tr.addMark(from, to, type));
     },
 
     unwrap: async (mark: unknown): Promise<void> => {

@@ -105,7 +105,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright (c) 2026 Quark Zimmerman. MIT License.</string>
+	<string>Copyright (c) 2026 Quark Zimmerman. GNU General Public License version 3 (GPL-3.0-only).</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>

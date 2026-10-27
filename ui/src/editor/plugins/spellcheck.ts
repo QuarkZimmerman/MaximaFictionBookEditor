@@ -21,6 +21,7 @@ import type { Node as PMNode } from 'prosemirror-model';
 import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirror-state';
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 
+import { readDomSelection } from '@/editor/plugins/selectionSync';
 import { tokenizeWords, type WordToken } from '@/features/spell/tokenizer';
 
 export type SpellHostEvent = 'results' | 'invalidate';
@@ -245,7 +246,14 @@ class SpellViewPlugin {
     this.unsubscribe();
   }
 
+  /**
+   * Repaints the view (verdicts from the core, a re-check) - an update the user did not cause:
+   * the browser selection is read first, since a transaction built on a selection the browser
+   * has moved away from since (a click whose `selectionchange` has not arrived yet) would have
+   * ProseMirror write that old selection back into the page (`selectionSync.ts`).
+   */
   private dispatchMeta(meta: SpellMeta): void {
+    readDomSelection(this.view);
     this.view.dispatch(this.view.state.tr.setMeta(spellPluginKey, meta));
   }
 

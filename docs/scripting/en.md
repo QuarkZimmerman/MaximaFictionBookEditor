@@ -121,8 +121,13 @@ Nodes are addressed by **references** `{ nodeId, type }` (or just the `nodeId` s
 `td`, `th`, `image`, `inline-image`, `date`. Node contents are JSON in the editor's document
 model (see `mfbe.d.ts` and the `document-model` types it references): a node is
 `{ type, attrs, content }`; text is `{ type: 'text', text, marks }` where marks are
-`strong`, `emphasis`, `strikethrough`, `sub`, `sup`, `code`, `{ type: 'style', attrs: { name } }`
-and `{ type: 'link', attrs: { href, type: 'note' } }`.
+`strong`, `emphasis`, `strikethrough`, `sub`, `sup` and `code`, each with an optional
+`attrs: { lang }` (the element's `xml:lang`), `{ type: 'style', attrs: { name, lang } }` and
+`{ type: 'link', attrs: { href, type: 'note', xlinkType } }` (`lang`, `type` and `xlinkType`
+optional; `xlinkType` is the link's `xlink:type`). A text may carry several marks of one kind
+with different attributes - several `style` marks, or `emphasis` marks with different
+languages -, listed outer first. An `inline-image` carries `marks` too: the formatting and the
+link around the picture. A table cell's language is its `attrs.lang`.
 
 ### 4.1 Document - `mfbe.doc`
 

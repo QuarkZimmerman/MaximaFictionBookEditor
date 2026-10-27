@@ -51,6 +51,7 @@ import type { SyntaxNode } from '@lezer/common';
 
 import type { AppStore } from '@/model/store';
 
+import type { ContentModel } from './contentModel';
 import fb2ElementsJson from './fb2Elements.json';
 
 /* ------------------------------------------------------------------------ */
@@ -70,9 +71,14 @@ export interface Fb2Elements {
   /**
    * Every element name with the sorted names of the elements it may contain; since feature
    * 005 also its attributes and whether it may hold text (read by the assistant's
-   * `get_schema` tool, not by the completion).
+   * `get_schema` tool, not by the completion); since feature 006 its content model as an
+   * automaton (`model`, read only by the Source view's table rule through
+   * `contentModel.ts` - the completion ignores it, and so does `get_schema`).
    */
-  elements: Record<string, { children: string[]; attributes?: Fb2Attribute[]; text?: boolean }>;
+  elements: Record<
+    string,
+    { children: string[]; attributes?: Fb2Attribute[]; text?: boolean; model?: ContentModel }
+  >;
 }
 
 /** The generated completion table (`tools/fb2-schema-elements.py`, checked by CI). */

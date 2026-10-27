@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { COMMANDS_TOOLBAR } from '@/app/toolbarDefinitions';
+import { COMMANDS_TOOLBAR, COMMANDS_TOOLBAR_OFFERED } from '@/app/toolbarDefinitions';
 import {
   availableButtons,
   LAST_SCRIPT,
@@ -40,11 +40,37 @@ describe('toolbar layouts', () => {
   });
 
   it('offers the original buttons, and "Last script" with the scripts that have an icon', () => {
-    // The original's 31 buttons plus the AI assistant's (feature 005, research R8.6).
-    expect(availableButtons('commands')).toHaveLength(32);
+    // The original's 31 buttons plus the AI assistant's (feature 005, research R8.6), then
+    // Table... and the 24 table commands (feature 006, FR-041).
+    expect(availableButtons('commands')).toHaveLength(57);
     expect(availableButtons('commands')).not.toContain(SEPARATOR);
     expect(availableButtons('commands')).toContain('ai.toggle');
+    expect(availableButtons('commands').slice(0, 32)).toEqual(
+      COMMANDS_TOOLBAR.filter((id) => id !== null),
+    );
+    expect(availableButtons('commands').slice(32)).toEqual(COMMANDS_TOOLBAR_OFFERED);
     expect(availableButtons('scripts', SCRIPTS)).toEqual([LAST_SCRIPT, ...SCRIPTS]);
+  });
+
+  it('offers Table... and the 24 table buttons, none of them in the original layout (feature 006)', async () => {
+    expect(COMMANDS_TOOLBAR_OFFERED).toHaveLength(25);
+    expect(COMMANDS_TOOLBAR_OFFERED[0]).toBe('insert.table');
+    expect(COMMANDS_TOOLBAR_OFFERED.slice(1).every((id) => id.startsWith('table.'))).toBe(true);
+    const original = originalLayout('commands');
+    for (const id of COMMANDS_TOOLBAR_OFFERED) expect(original, id).not.toContain(id);
+    // Not shown by default...
+    expect(shownLayout(null, 'commands')).toEqual(original);
+    expect(shownLayout(defaultSettings(), 'commands')).toEqual(original);
+    // ...shown once the user stored it (the format is unchanged), dropped again by Reset.
+    const store = createAppStore();
+    actions.setSettings(store, settingsWith({}));
+    const rpc = fakeRpc({ 'settings.set': {} });
+    const layout = ['file.new', 'table.mergeCells', '-', 'insert.table'];
+    await saveLayout({ store, rpc: rpc.client }, 'commands', layout);
+    expect(shownLayout(store.getState().settings, 'commands')).toEqual(layout);
+    await saveLayout({ store, rpc: rpc.client }, 'commands', null); // Reset
+    expect(shownLayout(store.getState().settings, 'commands')).not.toContain('table.mergeCells');
+    expect(shownLayout(store.getState().settings, 'commands')).toEqual(original);
   });
 
   it('puts the AI assistant button after the view buttons of the original layout', () => {

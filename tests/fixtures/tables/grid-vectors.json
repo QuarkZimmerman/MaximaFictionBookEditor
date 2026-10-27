@@ -1,0 +1,553 @@
+{
+  "version": 1,
+  "maxColspan": 1000,
+  "maxRowspan": 65534,
+  "cases": [
+    {
+      "name": "one-by-one",
+      "spec": "§4.14: regular, 1 × 1",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}] ] },
+      "expect": {
+        "rows": 1, "columns": 1, "covered": [1], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1]],
+        "params": { "rows": 1, "columns": 1, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0]]
+      }
+    },
+    {
+      "name": "three-by-three-header-row",
+      "spec": "§4.14: regular, a header row of th",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{ "type": "th" }, { "type": "th" }, { "type": "th" }],
+                           [{}, {}, {}],
+                           [{}, {}, {}] ] },
+      "expect": {
+        "rows": 3, "columns": 3, "covered": [3, 3, 3], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[0,2,1,1],[1,0,1,1],[1,1,1,1],[1,2,1,1],[2,0,1,1],[2,1,1,1],[2,2,1,1]],
+        "params": { "rows": 3, "columns": 3, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1,2],[3,4,5],[6,7,8]]
+      }
+    },
+    {
+      "name": "header-over-every-column",
+      "spec": "§4.14: regular, a header cell over every column",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{ "type": "th", "attrs": { "colspan": 3 } }],
+                           [{}, {}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 3, "covered": [3, 3], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,3,1],[1,0,1,1],[1,1,1,1],[1,2,1,1]],
+        "params": { "rows": 2, "columns": 3, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,0,0],[1,2,3]]
+      }
+    },
+    {
+      "name": "rowspan-left",
+      "spec": "§4.13: regular, c starts at column 1",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{ "attrs": { "rowspan": 2 } }, {}],
+                           [{}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,2],[0,1,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[0,2]]
+      }
+    },
+    {
+      "name": "block-merge",
+      "spec": "§4.14: regular, a merged block",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{ "attrs": { "colspan": 2, "rowspan": 2 } }, {}],
+                           [{}] ] },
+      "expect": {
+        "rows": 2, "columns": 3, "covered": [3, 3], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,2,2],[0,2,1,1],[1,2,1,1]],
+        "params": { "rows": 2, "columns": 3, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,0,1],[0,0,2]]
+      }
+    },
+    {
+      "name": "mixed-td-th",
+      "spec": "§4.14: regular, mixed td and th",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{ "type": "th" }, {}],
+                           [{}, { "type": "th" }] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    },
+    {
+      "name": "short-row",
+      "spec": "US8 sc.1",
+      "fixture": "tables.fb2",
+      "table": { "attrs": { "id": "t2" }, "rows": [ [{}, {}, {}], [{}, {}], [{}, {}, {}] ] },
+      "expect": {
+        "rows": 3, "columns": 3, "covered": [3, 2, 3], "shortRows": [2],
+        "overlaps": 0, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,1],[0,2,1,1],[1,0,1,1],[1,1,1,1],[2,0,1,1],[2,1,1,1],[2,2,1,1]],
+        "params": { "rows": 3, "columns": 3, "shortRows": 1, "row": 2, "covered": 2,
+                    "overlaps": 0, "pastEnd": 0, "id": "t2" },
+        "owners": [[0,1,2],[3,4,-1],[5,6,7]],
+        "text": { "en": "row 2 covers 2 of 3 columns" },
+        "repaired": { "attrs": { "id": "t2" }, "rows": [ [{}, {}, {}], [{}, {}, {}], [{}, {}, {}] ] }
+      }
+    },
+    {
+      "name": "repair-shift",
+      "spec": "C1",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }],
+                           [{ "attrs": { "colspan": 3 } }, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 4, "covered": [2, 4], "shortRows": [1],
+        "overlaps": 1, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,2],[1,0,3,1],[1,3,1,1]],
+        "params": { "rows": 2, "columns": 4, "shortRows": 1, "row": 1, "covered": 2,
+                    "overlaps": 1, "pastEnd": 0 },
+        "owners": [[0,1,-1,-1],[2,1,2,3]],
+        "text": { "en": "row 1 covers 2 of 4 columns; 1 overlapping span" },
+        "repaired": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }, {}], [{}, {}] ] }
+      }
+    },
+    {
+      "name": "short-rows-several",
+      "spec": "§4.14: several short rows",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, {}, {}],
+                           [{}],
+                           [{}, {}],
+                           [{}, {}, {}] ] },
+      "expect": {
+        "rows": 4, "columns": 3, "covered": [3, 1, 2, 3], "shortRows": [2, 3],
+        "overlaps": 0, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,1],[0,2,1,1],[1,0,1,1],[2,0,1,1],[2,1,1,1],[3,0,1,1],[3,1,1,1],[3,2,1,1]],
+        "params": { "rows": 4, "columns": 3, "shortRows": 2, "row": 2, "covered": 1,
+                    "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1,2],[3,-1,-1],[4,5,-1],[6,7,8]],
+        "text": { "en": "2 rows cover fewer than 3 columns" },
+        "repaired": { "rows": [ [{}, {}, {}],
+                                [{}, {}, {}],
+                                [{}, {}, {}],
+                                [{}, {}, {}] ] }
+      }
+    },
+    {
+      "name": "short-row-hole",
+      "spec": "§4.13: a hole between covered positions",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, {}, { "attrs": { "rowspan": 2 } }],
+                           [{}] ] },
+      "expect": {
+        "rows": 2, "columns": 3, "covered": [3, 2], "shortRows": [2],
+        "overlaps": 0, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,1],[0,2,1,2],[1,0,1,1]],
+        "params": { "rows": 2, "columns": 3, "shortRows": 1, "row": 2, "covered": 2,
+                    "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1,2],[3,-1,2]],
+        "text": { "en": "row 2 covers 2 of 3 columns" },
+        "repaired": { "rows": [ [{}, {}, { "attrs": { "rowspan": 2 } }],
+                                [{}, {}] ] }
+      }
+    },
+    {
+      "name": "empty-tr",
+      "spec": "§4.12, §4.13: an empty tr",
+      "fixture": "tables-invalid.fb2",
+      "table": { "rows": [ [{}, {}],
+                           [] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 0], "shortRows": [2],
+        "overlaps": 0, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 1, "row": 2, "covered": 0,
+                    "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[-1,-1]],
+        "text": { "en": "row 2 covers 0 of 2 columns" },
+        "repaired": { "rows": [ [{}, {}],
+                                [{}, {}] ] }
+      }
+    },
+    {
+      "name": "empty-tr-one-column",
+      "spec": "vR3 corr 15: the singular by columns",
+      "table": { "rows": [ [{}],
+                           [] ] },
+      "expect": {
+        "rows": 2, "columns": 1, "covered": [1, 0], "shortRows": [2],
+        "overlaps": 0, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1]],
+        "params": { "rows": 2, "columns": 1, "shortRows": 1, "row": 2, "covered": 0,
+                    "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0],[-1]],
+        "text": { "en": "row 2 covers 0 of 1 column" },
+        "repaired": { "rows": [ [{}],
+                                [{}] ] }
+      }
+    },
+    {
+      "name": "rowspan-past-end",
+      "spec": "US8 sc.2",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, { "attrs": { "rowspan": 4 } }],
+                           [{}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 1, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,2],[1,0,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 1 },
+        "owners": [[0,1],[2,1]],
+        "text": { "en": "1 span reaches past the last row" },
+        "repaired": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }],
+                                [{}] ] }
+      }
+    },
+    {
+      "name": "rowspan-past-end-left",
+      "spec": "quickstart §8",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{ "attrs": { "rowspan": 4 } }, {}],
+                           [{}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 1, "regular": false,
+        "cells": [[0,0,1,2],[0,1,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 1 },
+        "owners": [[0,1],[0,2]],
+        "text": { "en": "1 span reaches past the last row" },
+        "repaired": { "rows": [ [{ "attrs": { "rowspan": 2 } }, {}],
+                                [{}] ] }
+      }
+    },
+    {
+      "name": "rowspan-huge",
+      "spec": "§4.2: rowspan 10⁹ counts 65534",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, { "attrs": { "rowspan": 1000000000 } }],
+                           [{}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 1, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,2],[1,0,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 1 },
+        "owners": [[0,1],[2,1]],
+        "text": { "en": "1 span reaches past the last row" },
+        "repaired": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }],
+                                [{}] ] }
+      }
+    },
+    {
+      "name": "one-overlap",
+      "spec": "US8 sc.3",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }],
+                           [{ "attrs": { "colspan": 2 } }] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 1, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,2],[1,0,2,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 1, "pastEnd": 0 },
+        "owners": [[0,1],[2,1]],
+        "text": { "en": "1 overlapping span" },
+        "repaired": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }],
+                                [{}] ] }
+      }
+    },
+    {
+      "name": "overlap-from-two-rows-above",
+      "spec": "§4.14: an overlap with a rowspan from two rows above",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, { "attrs": { "rowspan": 3 } }],
+                           [{}],
+                           [{ "attrs": { "colspan": 2 } }] ] },
+      "expect": {
+        "rows": 3, "columns": 2, "covered": [2, 2, 2], "shortRows": [],
+        "overlaps": 1, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,3],[1,0,1,1],[2,0,2,1]],
+        "params": { "rows": 3, "columns": 2, "shortRows": 0, "overlaps": 1, "pastEnd": 0 },
+        "owners": [[0,1],[2,1],[3,1]],
+        "text": { "en": "1 overlapping span" },
+        "repaired": { "rows": [ [{}, { "attrs": { "rowspan": 3 } }],
+                                [{}],
+                                [{}] ] }
+      }
+    },
+    {
+      "name": "tooltip-example",
+      "spec": "US8 sc.9",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }, {}],
+                           [{ "attrs": { "colspan": 2 } }],
+                           [{}, {}, {}] ] },
+      "expect": {
+        "rows": 3, "columns": 3, "covered": [3, 2, 3], "shortRows": [2],
+        "overlaps": 1, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,2],[0,2,1,1],[1,0,2,1],[2,0,1,1],[2,1,1,1],[2,2,1,1]],
+        "params": { "rows": 3, "columns": 3, "shortRows": 1, "row": 2, "covered": 2,
+                    "overlaps": 1, "pastEnd": 0 },
+        "owners": [[0,1,2],[3,1,-1],[4,5,6]],
+        "text": { "en": "row 2 covers 2 of 3 columns; 1 overlapping span" },
+        "repaired": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }, {}],
+                                [{}, {}],
+                                [{}, {}, {}] ] }
+      }
+    },
+    {
+      "name": "plural-forms",
+      "spec": "data-model §3.2: plural forms",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, { "attrs": { "rowspan": 3 } }, {}, { "attrs": { "rowspan": 3 } }],
+                           [{ "attrs": { "colspan": 2 } }, { "attrs": { "colspan": 2 } }] ] },
+      "expect": {
+        "rows": 2, "columns": 4, "covered": [4, 4], "shortRows": [],
+        "overlaps": 2, "pastEnd": 2, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,2],[0,2,1,1],[0,3,1,2],[1,0,2,1],[1,2,2,1]],
+        "params": { "rows": 2, "columns": 4, "shortRows": 0, "overlaps": 2, "pastEnd": 2 },
+        "owners": [[0,1,2,3],[4,1,5,3]],
+        "text": { "en": "2 overlapping spans; 2 spans reach past the last row" },
+        "repaired": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }, {}, { "attrs": { "rowspan": 2 } }],
+                                [{}, {}] ] }
+      }
+    },
+    {
+      "name": "three-problems",
+      "spec": "data-model §3.2: three kinds of problem",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, { "attrs": { "rowspan": 4 } }, {}],
+                           [{ "attrs": { "colspan": 2 } }],
+                           [{}, {}, {}] ] },
+      "expect": {
+        "rows": 3, "columns": 4, "covered": [3, 2, 4], "shortRows": [1, 2],
+        "overlaps": 1, "pastEnd": 1, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,3],[0,2,1,1],[1,0,2,1],[2,0,1,1],[2,2,1,1],[2,3,1,1]],
+        "params": { "rows": 3, "columns": 4, "shortRows": 2, "row": 1, "covered": 3,
+                    "overlaps": 1, "pastEnd": 1 },
+        "owners": [[0,1,2,-1],[3,1,-1,-1],[4,1,5,6]],
+        "text": { "en": "2 rows cover fewer than 4 columns; 1 overlapping span; 1 span reaches past the last row" },
+        "repaired": { "rows": [ [{}, { "attrs": { "rowspan": 3 } }, {}, {}],
+                                [{}, {}, {}],
+                                [{}, {}, {}] ] }
+      }
+    },
+    {
+      "name": "repair-shift-cascade",
+      "spec": "C1, C16",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }, {}, { "attrs": { "rowspan": 2 } }],
+                           [{ "attrs": { "colspan": 3 } }, { "attrs": { "colspan": 2 } }] ] },
+      "expect": {
+        "rows": 2, "columns": 6, "covered": [4, 6], "shortRows": [1],
+        "overlaps": 1, "pastEnd": 0, "regular": false,
+        "cells": [[0,0,1,1],[0,1,1,2],[0,2,1,1],[0,3,1,2],[1,0,3,1],[1,4,2,1]],
+        "params": { "rows": 2, "columns": 6, "shortRows": 1, "row": 1, "covered": 4,
+                    "overlaps": 1, "pastEnd": 0 },
+        "owners": [[0,1,2,3,-1,-1],[4,1,4,3,5,5]],
+        "text": { "en": "row 1 covers 4 of 6 columns; 1 overlapping span" },
+        "repaired": { "rows": [ [{}, { "attrs": { "rowspan": 2 } }, {}, { "attrs": { "rowspan": 2 } }],
+                                [{}, {}] ] }
+      }
+    },
+    {
+      "name": "span-zero",
+      "spec": "§4.2: colspan 0 counts 1",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{ "attrs": { "colspan": 0 } }, {}],
+                           [{}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    },
+    {
+      "name": "span-negative",
+      "spec": "§4.2: rowspan -1 counts 1",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{ "attrs": { "rowspan": -1 } }, {}],
+                           [{}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    },
+    {
+      "name": "rowspan-zero",
+      "spec": "§4.9 rule 9: rowspan 0 counts 1 and shows one row",
+      "fixture": "tables.fb2",
+      "table": { "rows": [ [{ "attrs": { "rowspan": 0 } }, {}],
+                           [{}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    },
+    {
+      "name": "span-abc",
+      "spec": "§1.2, §4.2: a span kept in unknownAttrs counts 1",
+      "fixture": "tables-invalid.fb2",
+      "table": { "rows": [ [{ "attrs": { "unknownAttrs": { "colspan": "abc" } } }, {}],
+                           [{}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    },
+    {
+      "name": "span-fraction",
+      "spec": "§4.2: colspan 2.5 counts 1",
+      "table": { "rows": [ [{ "attrs": { "colspan": 2.5 } }, {}],
+                           [{}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    },
+    {
+      "name": "span-string",
+      "spec": "§4.2: the string \"2\" counts 1",
+      "table": { "rows": [ [{ "attrs": { "colspan": "2" } }, {}],
+                           [{}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    },
+    {
+      "name": "span-two-point-zero",
+      "spec": "vR3:95: colspan 2.0 counts 2",
+      "table": { "rows": [ [{ "attrs": { "colspan": 2.0 } }],
+                           [{}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,2,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,0],[1,2]]
+      }
+    },
+    {
+      "name": "span-1e21",
+      "spec": "vR3:140: colspan 1e21 counts 1",
+      "table": { "rows": [ [{ "attrs": { "colspan": 1e21 } }, {}],
+                           [{}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    },
+    {
+      "name": "colspan-5000",
+      "spec": "§4.2, C11: colspan 5000 counts 1000",
+      "table": { "rows": [ [{ "attrs": { "colspan": 5000 } }] ] },
+      "expect": {
+        "rows": 1, "columns": 1000, "covered": [1000], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1000,1]],
+        "params": { "rows": 1, "columns": 1000, "shortRows": 0, "overlaps": 0, "pastEnd": 0 }
+      }
+    },
+    {
+      "name": "colspan-1000-row",
+      "spec": "§4.10, vR3:66: 50 cells of colspan 1000, W = 50,000",
+      "table": { "rows": [ [
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } },
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } },
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } },
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } },
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } },
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } },
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } },
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } },
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } },
+        { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }, { "attrs": { "colspan": 1000 } }
+      ] ] },
+      "expect": {
+        "rows": 1, "columns": 50000, "covered": [50000], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [
+          [0,0,1000,1],[0,1000,1000,1],[0,2000,1000,1],[0,3000,1000,1],[0,4000,1000,1],
+          [0,5000,1000,1],[0,6000,1000,1],[0,7000,1000,1],[0,8000,1000,1],[0,9000,1000,1],
+          [0,10000,1000,1],[0,11000,1000,1],[0,12000,1000,1],[0,13000,1000,1],[0,14000,1000,1],
+          [0,15000,1000,1],[0,16000,1000,1],[0,17000,1000,1],[0,18000,1000,1],[0,19000,1000,1],
+          [0,20000,1000,1],[0,21000,1000,1],[0,22000,1000,1],[0,23000,1000,1],[0,24000,1000,1],
+          [0,25000,1000,1],[0,26000,1000,1],[0,27000,1000,1],[0,28000,1000,1],[0,29000,1000,1],
+          [0,30000,1000,1],[0,31000,1000,1],[0,32000,1000,1],[0,33000,1000,1],[0,34000,1000,1],
+          [0,35000,1000,1],[0,36000,1000,1],[0,37000,1000,1],[0,38000,1000,1],[0,39000,1000,1],
+          [0,40000,1000,1],[0,41000,1000,1],[0,42000,1000,1],[0,43000,1000,1],[0,44000,1000,1],
+          [0,45000,1000,1],[0,46000,1000,1],[0,47000,1000,1],[0,48000,1000,1],[0,49000,1000,1]
+        ],
+        "params": { "rows": 1, "columns": 50000, "shortRows": 0, "overlaps": 0, "pastEnd": 0 }
+      }
+    },
+    {
+      "name": "rowspan-above-int-max",
+      "spec": "§4.10: a rowspan of 3,000,000,000 counts 1",
+      "table": { "rows": [ [{ "attrs": { "rowspan": 3000000000 } }, {}],
+                           [{}, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    },
+    {
+      "name": "no-rows",
+      "spec": "§4.4: a table without rows, W = 0",
+      "table": { "rows": [] },
+      "expect": {
+        "rows": 0, "columns": 0, "covered": [], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [],
+        "params": { "rows": 0, "columns": 0, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": []
+      }
+    },
+    {
+      "name": "raw-xml-children",
+      "spec": "§4.1: children that are neither rows nor cells are ignored",
+      "fixture": "tables-invalid.fb2",
+      "table": { "rows": [ [{}, {}],
+                           { "type": "raw-xml" },
+                           [{}, { "type": "raw-xml" }, {}] ] },
+      "expect": {
+        "rows": 2, "columns": 2, "covered": [2, 2], "shortRows": [],
+        "overlaps": 0, "pastEnd": 0, "regular": true,
+        "cells": [[0,0,1,1],[0,1,1,1],[1,0,1,1],[1,1,1,1]],
+        "params": { "rows": 2, "columns": 2, "shortRows": 0, "overlaps": 0, "pastEnd": 0 },
+        "owners": [[0,1],[2,3]]
+      }
+    }
+  ]
+}

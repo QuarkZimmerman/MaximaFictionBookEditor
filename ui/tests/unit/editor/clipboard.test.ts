@@ -3,7 +3,13 @@
  * paragraphs otherwise; external HTML keeps only supported marks; plain text becomes paragraphs.
  */
 
-import { Fragment, Slice, type Node as PMNode } from 'prosemirror-model';
+import {
+  DOMParser as PMDOMParser,
+  DOMSerializer,
+  Fragment,
+  Slice,
+  type Node as PMNode,
+} from 'prosemirror-model';
 import { EditorState, TextSelection } from 'prosemirror-state';
 
 import {
@@ -146,5 +152,55 @@ describe('clipboard', () => {
     expect(flat[0]!.child(0).marks[0]!.type.name).toBe('emphasis');
     expect(flat[0]!.child(1).type.name).toBe('inline_image');
     expect(flat[1]!.textContent).toBe('me');
+  });
+
+  it("own HTML keeps a mark's lang and a link's xlinkType; foreign HTML brings neither", () => {
+    // Feature 006 (FR-064; data-model §8.5, §12.2): the editor's own markup carries the
+    // attributes, the generic parse rules never give them.
+    const paragraph = N.p!.create(null, [
+      fb2Schema.text('la', [M.emphasis!.create({ lang: 'la' })]),
+      fb2Schema.text(' '),
+      fb2Schema.text('named', [M.style!.create({ name: 'foreign', lang: 'de' })]),
+      fb2Schema.text(' '),
+      fb2Schema.text('note', [M.link!.create({ href: '#n1', type: 'note', xlinkType: 'simple' })]),
+    ]);
+    const marksOf = (fragment: Fragment) => {
+      const out: { mark: string; attrs: Record<string, unknown> }[] = [];
+      fragment.descendants((node) => {
+        for (const mark of node.marks) out.push({ mark: mark.type.name, attrs: mark.attrs });
+      });
+      return out;
+    };
+    const ownMarks = [
+      { mark: 'emphasis', attrs: { lang: 'la' } },
+      { mark: 'style', attrs: { name: 'foreign', lang: 'de' } },
+      { mark: 'link', attrs: { href: '#n1', type: 'note', xlinkType: 'simple' } },
+    ];
+    expect(marksOf(Fragment.from(paragraph))).toEqual(ownMarks);
+    // The own flavour (JSON payload) keeps them.
+    const slice = new Slice(Fragment.from(paragraph), 0, 0);
+    expect(marksOf(sliceFromPayload(JSON.stringify(payloadFromSlice(slice)))!.content)).toEqual(
+      ownMarks,
+    );
+    // The own HTML (what serializeForClipboard writes and view.pasteHTML parses) keeps them.
+    const container = document.createElement('div');
+    container.appendChild(
+      DOMSerializer.fromSchema(fb2Schema).serializeFragment(Fragment.from(paragraph)),
+    );
+    expect(container.innerHTML).toContain('<em class="fb-emphasis" lang="la">la</em>');
+    expect(container.innerHTML).toContain('data-xlink-type="simple"');
+    expect(marksOf(PMDOMParser.fromSchema(fb2Schema).parseSlice(container).content)).toEqual(
+      ownMarks,
+    );
+    // Foreign HTML: a language or an xlink type in another program's markup is not taken.
+    const foreign = sliceFromExternalHtml(
+      '<p><em lang="la">la</em> <strong lang="de">de</strong> <span class="x" lang="fr">fr</span> ' +
+        '<a href="#n1" data-xlink-type="simple">link</a></p>',
+    );
+    expect(marksOf(foreign.content)).toEqual([
+      { mark: 'emphasis', attrs: { lang: null } },
+      { mark: 'strong', attrs: { lang: null } },
+      { mark: 'link', attrs: { href: '#n1', type: null, xlinkType: null } },
+    ]);
   });
 });

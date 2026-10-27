@@ -30,7 +30,7 @@ Three parts, one product:
 | Unit | Folder | Builds | Role |
 |------|--------|--------|------|
 | core | `core/` | static library `mfbe_core`, executable `mfbe-core` | Everything that touches files or needs native code: FB2 parsing and serialisation (libxml2), XSD validation, encodings, the binary (image) store and conversions, Hunspell spell checking, the Words engine, settings / recent files / exclusions / hotkeys, the layered resource lookup (genres, scripts, dictionaries, the AI service list), the errors-only log, the outbound HTTP client of the AI assistant (libcurl, `core/src/net/`), and the loopback HTTP + WebSocket server exposing all of it as JSON-RPC. No UI, no Chromium. |
-| ui | `ui/` | web bundle `ui/dist` (Vite) | The whole user interface: menus, toolbars, bars, status bar, Description form, Body editor (ProseMirror, section-windowed), Source editor (CodeMirror, with FB2 tag completion), Document Tree, every dialog, the Find/Replace/Spelling/Words tools, settings pages, i18n (EN/RU/UK), the user-script host and sandbox, and the AI assistant - its panel, popup, request loop and MCP catalogue (`ui/src/ai/`, a lazily loaded chunk). It talks to the core only through the JSON-RPC contract and runs unchanged in the packaged shell, in a developer's browser and under Playwright. |
+| ui | `ui/` | web bundle `ui/dist` (Vite) | The whole user interface: menus, toolbars, bars, status bar, Description form, Body editor (ProseMirror, section-windowed), Source editor (CodeMirror, with FB2 tag completion and the schema's content models for *Add > Table*), Document Tree, every dialog, the Find/Replace/Spelling/Words tools, settings pages, i18n (EN/RU/UK), the user-script host and sandbox, table editing (feature 006: the table engine `ui/src/editor/table/`, the book's ids `ui/src/model/ids.ts`, the paste router `ui/src/editor/clipboard/` and the commands, dialog, marks and edit targets of `ui/src/features/tables/`), and the AI assistant - its panel, popup, request loop and MCP catalogue (`ui/src/ai/`, a lazily loaded chunk). It talks to the core only through the JSON-RPC contract and runs unchanged in the packaged shell, in a developer's browser and under Playwright. |
 | app | `app/` | executable `mfbe` (+ CEF helper processes) | A thin desktop shell: starts the core in-process, opens one CEF window on the core's URL, provides native file dialogs, the clipboard image reader, "open folder" actions, OS file associations and the single-instance hand-over, and probes the Linux sandbox. It never interprets book data. |
 
 The headless `mfbe-core serve` executable runs the same server without the shell; that is how
@@ -83,7 +83,8 @@ section), `core_server.cpp` (wiring); `ui/src/rpc/client.ts` (typed client).
 | The live document while editing | UI | ProseMirror documents for the Body view and the rich Description fields, a form model for the rest of the Description, the Source text. Keystrokes never cross the link. The multi-view undo coordinator (`ui/src/model/undo.ts`) lives here too (FR-034). |
 | Files on disk, encodings, the authoritative XML | core | `doc.open` parses FB2 into the JSON document model; `doc.save` serialises the UI's model to FB2 2.1, validates, converts images and writes atomically; `doc.toXml` / `doc.fromXml` move text between the Source view and the model. |
 | Binary objects (images) | core | Decoded from base64 while parsing, kept in a per-document `BinaryStore`, never sent as base64 to the UI; the UI receives metadata (`BinaryMeta`) and fetches bytes or scaled previews over HTTP by id. |
-| Validation | core | XSD validation against the bundled FB2 2.1 schema set plus consistency checks (dangling links, missing or unreferenced binaries, image formats, unknown genres) with line/column mapped back to node ids. |
+| Validation | core | XSD validation against the bundled FB2 2.1 schema set plus consistency checks (dangling links, missing or unreferenced binaries, image formats, unknown genres, irregular tables) with line/column mapped back to node ids. |
+| The table grid (feature 006) | UI and core, one definition | How the cells of a table occupy positions, when a table is irregular and its summary: one normative definition (`specs/006-table-editing/contracts/document-model.md` §4) implemented twice - the UI's `ui/src/editor/table/grid.ts` for the table commands, the warning marks and the assistant's table tools, the core's `mfbe::tables::analyse` (`core/src/model/table_grid.cpp`) for the `table.irregular` warning. The shared vectors `tests/fixtures/tables/grid-vectors.json` pin both (vitest and Catch2); a change to the definition and the matching change to the vectors land in one commit. |
 | Spell checking, Words analysis | core | Hunspell with the bundled en_US / ru_RU / uk_UA dictionaries, the `.aff`/`.dic` pairs of the dictionary folders (`spell.dictionaryReport` tells which are in effect and which files were rejected and why) and the user's custom dictionary; word frequency and replacement engine. |
 | Settings, recent files, remembered positions, hotkeys, exclusions | core | Per-user JSON files; the UI edits them through `settings.*` / `hotkeys.*` and receives `settings.changed`. The remembered positions of "Restore position" (`positions.json`, feature 004) are a record of their own, see *Restore position* below. |
 | Genres, scripts, dictionaries | core | Layered lookup (settings folder -> per-user folder -> portable folder -> bundled), additive, no admin rights (FR-127). |
@@ -257,6 +258,54 @@ when the UI cannot read the image itself. The Body view shows `<img src="/binary
 so huge pictures arrive scaled; "Save image as..." is `binary.export`. On save every binary
 is JPEG or PNG (FR-110); undecodable binaries are preserved and reported (FR-111).
 
+**Tables (feature 006).** Table editing happens in the UI on the model's `table` > `tr` >
+`td`/`th` nodes; the core adds the grid analysis behind one validation warning:
+
+* *The engine* - `ui/src/editor/table/`, which imports from `ui/src/model/` and `ui/src/editor/`
+  only, so that the Body view, the Description view's rich fields, the paste router and the
+  assistant's lazy chunk run the same code: `grid.ts`, the normative grid of section 3, cached
+  per table node, which never allocates per position and builds its owner map only up to 2²²
+  positions (a larger table answers `too-large`); `selection.ts` and `plugin.ts`, the block of
+  cells (`CellBlockSelection`, its highlight, the mouse and keyboard rules, typing over a
+  block); `ops.ts` and `attrs.ts`, the plans - pure functions of a table, its grid and a target
+  that return a `TableEdit` or a refusal with its reason and build nothing outside the table -,
+  and `commands.ts`, the cheap availability check behind every menu entry and toolbar button.
+  `commitTableEdit` (`edit.ts`) applies a plan as one transaction - one `ReplaceStep` over the
+  rows that changed, the unchanged rows keeping their nodes and their DOM - flagged
+  `DISCRETE_STEP`, so that every command is exactly one undo step; no command repairs a table on
+  its own. `testing/fuzz.ts`, the seeded command fuzz of the tests, is loaded only by the test
+  hooks' dynamic import.
+* *The book's ids* - `ui/src/model/ids.ts` collects the ids of the whole book and counts the
+  links to them from the store's document, for the Table bar's id check, the ids pasted cells
+  give up and the question before a merge removes a cell a link points to; the engine and the
+  paste router receive them by injection.
+* *The paste router* - `ui/src/editor/clipboard/`: `route.ts` takes every paste of the Body
+  view and the rich fields as one transaction (the editor's own block or table pasted into cells
+  by position or as a new table where a table may stand, any other content joined into a cell
+  as one line), `foreignHtml.ts` and `pastedCss.ts` convert the HTML tables of other programs
+  (section 7.2), and `copyOut.ts` gives a copied table or block of cells to other programs as an
+  HTML table and tab-separated text beside the editor's own JSON flavour.
+* *The feature folder* - `ui/src/features/tables/`: the command table of `insert.table` and the
+  24 `table.*` commands (`commands.ts`; the words of their reasons in `reasons.ts`);
+  `TableEditTarget` (`target.ts`), the Body view's adapter and those of the annotation and
+  history fields with the focus rule that picks the active one; the Table dialog's remembered
+  values (`dialog.ts`, `session.tableDialog`); the context menu's table section
+  (`contextMenu.ts`); the warning marks of irregular tables and their popover (`marks.ts`,
+  `MarkPopover.tsx`); the question before a merge removes a linked cell (`confirm.ts`); the
+  Source view's branch of *Add > Table* (`sourceTable.ts`); and the test hooks
+  (`testHooks.ts`).
+* *The Source view* - *Add > Table* is judged on the editor state by
+  `ui/src/views/source/tablePoint.ts` against the FB2 content models, the member `model` of the
+  generated `fb2Elements.json` (minimal automata that `tools/fb2-schema-elements.py` builds from
+  `resources/schema/*.xsd`), and `tableInsert.ts` writes the table's XML laid out like its
+  neighbours; validation itself stays in the core.
+* *The core* - `core/src/model/table_grid.cpp` (`mfbe::tables::analyse`,
+  `irregularity_params`) gives `doc.validate`, `mfbe-core validate` and `roundtrip` one warning
+  `table.irregular` per irregular table, in both report forms: for a model with the table's node
+  id, its structural path and the line of `<table` in the writer's text, for a Source text with
+  the path and the line and UTF-16 column of `<table` in that text. It is never an error, so it
+  never blocks a save.
+
 **Scripts.** `scripts.list` returns the catalogue of the layered script folders; the Scripts
 menu and toolbar are built from it. Running a script: the host (`ui/src/scripting/host.ts`)
 asks `scripts.source` for the entry URL, creates a dedicated Web Worker from an inline module,
@@ -284,15 +333,17 @@ with the network part in the core and the reasoning loop in the UI (plan decisio
 
 * *Registration and the lazy chunk.* `ui/src/ai/index.ts` (static, in the main bundle) registers
   nothing until the first settings snapshot arrives and then, iff `ai.mode !== 'disabled'` and
-  `app.info().apiMinor >= 4`, takes over the inert stubs `ai.toggle` (View > AI Assistant, the
-  toolbar button, `Mod+Shift+A`) and `ai.ask` (*Ask AI...*, `Mod+K`) with the live commands;
-  *Disabled* puts the stubs back - invisible in the menu, the toolbar, the Customize lists and
-  the Hotkeys page - closes the panel and drops the conversation without a restart (FR-096,
-  FR-097). The first turn-on imports the `ai-assistant` chunk once (`chunk.ts`; the folder
-  rule in `ui/vite.config.ts`: every module of `ui/src/ai/` except `index.ts`, `address.ts`,
-  `agreements.ts` and `testHooks.ts`, plus the MCP SDK and zod), so that nothing of the
-  assistant is requested while it is off or disabled (SC-013); the settings page
-  (`ui/src/dialogs/settings/AiPage.tsx`) lives outside the folder and stays in the main bundle.
+  `app.info().apiMinor >= 5` (`AI_REQUIRED_API_MINOR`, 5 since feature 006, whose table tools
+  need the core's irregular-table warning; 4 in release 0.0.5), takes over the inert stubs
+  `ai.toggle` (View > AI Assistant, the toolbar button, `Mod+Shift+A`) and `ai.ask` (*Ask
+  AI...*, `Mod+K`) with the live commands; *Disabled* puts the stubs back - invisible in the
+  menu, the toolbar, the Customize lists and the Hotkeys page - closes the panel and drops the
+  conversation without a restart (FR-096, FR-097). The first turn-on imports the
+  `ai-assistant` chunk once (`chunk.ts`; the folder rule in `ui/vite.config.ts`: every module
+  of `ui/src/ai/` except `index.ts`, `address.ts`, `agreements.ts` and `testHooks.ts`, plus the
+  MCP SDK and zod), so that nothing of the assistant is requested while it is off or disabled
+  (SC-013); the settings page (`ui/src/dialogs/settings/AiPage.tsx`) lives outside the folder
+  and stays in the main bundle.
 * *The service list and the target.* The core reads `resources/ai-services.json` and one user
   layer - `<Data>/ai-services.json` when it exists, else the read-only portable file - on the
   first `ai.*` call, never at start-up (`core/src/resources/ai_services.cpp`; union by id, the
@@ -330,7 +381,7 @@ with the network part in the core and the reasoning loop in the UI (plan decisio
   boundaries (`split.ts`); the history is trimmed from the oldest turn; every model- and
   service-supplied text is rendered as plain text, never HTML or Markdown (review C16).
 * *The catalogue.* `ui/src/ai/catalogue.ts` builds one `McpServer` (the official MCP TypeScript
-  SDK) with the contract's 22 tools, the `fb2://schema/*` and `mfbe://*` resources and two
+  SDK) with the contract's 24 tools, the `fb2://schema/*` and `mfbe://*` resources and two
   prompts, and one `Client` joined to it by `InMemoryTransport.createLinkedPair()`: nothing
   listens - no port, no pipe, no `window` export (FR-050, SC-012); the SDK and zod reach the
   page only inside the chunk. Read tools answer whole with a continuation protocol; the change
@@ -342,7 +393,12 @@ with the network part in the core and the reasoning loop in the UI (plan decisio
   through the existing host (`ui/src/scripting/host.ts`), its dialogs shown, its changes
   validated like every other; `propose_script` shows the proposal dialog (`proposal.tsx`) and
   `scripts.write` in the core writes the confirmed package under `<Data>/scripts/90_assistant/`
-  with the path rules of section 7.2.
+  with the path rules of section 7.2. Feature 006 adds the table tools
+  (`ui/src/ai/tools/table.ts`, `ui/src/ai/tables.ts`; catalogue version 2): `read_table` gives a
+  table as a grid of rows and columns with merged cells resolved, a large one in parts of whole
+  rows, and `edit_table` runs the editor's own table plans (*Tables* above) addressed by grid
+  position inside the validity hook; a change that leaves a table irregular answers with
+  `tableWarning`, and a block of cells reaches a request as the selection kind `cells`.
 * *The validity hook.* `ui/src/ai/hook.ts`: every change to the working copy is a checkpoint,
   the change, `doc.validate` of the whole copy and a diff of the error issues against the
   request's baseline by **content key** (`code|element|message`, compared as count multisets -
@@ -414,17 +470,23 @@ test hooks - API minor 2 - and the installer's public property; feature 004 - AP
 among others `doc.position`, with `doc.caret` and `RecentFile.caret` deprecated for the next
 major; feature 005 - API minor 4 - the `ai.*` family, `app.openUrl`, `doc.fragmentToXml` /
 `doc.fragmentFromXml`, `schema.text`, `scripts.write`, the `ai` settings group and the AI test
-hooks):
+hooks; feature 006 - API minor 5 - table editing: the cell's `lang`, the marks' `lang` and the
+link's `xlinkType`, `marks` on inline images and inline raw XML, the warning `table.irregular`
+in both report forms, `session.tableDialog`, the 24 `table.*` hotkey ids, the content models of
+`fb2Elements.json`, the editor's clipboard formats, the table grid and the assistant's table
+tools with catalogue version 2, and in the installer's contract the version label of every
+build and package):
 
 | Contract | Mirrors in this repository |
 |----------|----------------------------|
-| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1, minor 4) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
+| `rpc-api.md` (methods, notifications, HTTP endpoints, errors; version 1, minor 5) | `ui/src/rpc/types.ts` (`RPC_API_VERSION`), `core/src/server/handlers/*.cpp`, `core/include/mfbe/version.hpp.in` (`kApiVersion`) |
 | `document-model.d.ts` (JSON document model) | `ui/src/model/document.ts` (verbatim copy with a header), `core/include/mfbe/document.hpp` + `json_codec.hpp` |
+| `specs/006-table-editing/contracts/document-model.md` §4 (the table grid, normative; feature 006) | `ui/src/editor/table/grid.ts`, `core/include/mfbe/table_grid.hpp` + `core/src/model/table_grid.cpp`, both pinned by `tests/fixtures/tables/grid-vectors.json` |
 | `script-api.d.ts` (the complete `mfbe` allow-list) | `docs/scripting/mfbe.d.ts` (copy shipped with the editor), `ui/src/scripting/types.ts` (`API_METHODS`), `ui/src/scripting/sandbox.ts` |
 | `script-manifest.md` (package layout, `script.json`, sandbox rules) | `core/src/resources/scripts.cpp`, `ui/src/scripting/sandbox*.ts` |
-| `resource-formats.md` (per-user folders, layered lookup, file formats; feature 005: the AI service list file, the `ai` settings keys, the CA bundle, the user scripts the assistant writes) | `core/src/resources/`, `core/src/settings/`, `core/src/platform/`, `resources/ai-services.json`, `resources/certs/` |
+| `resource-formats.md` (per-user folders, layered lookup, file formats; feature 005: the AI service list file, the `ai` settings keys, the CA bundle, the user scripts the assistant writes; feature 006: `session.tableDialog`, the table buttons a stored toolbar layout may hold, the 24 `table.*` hotkey ids without default chords, the `tables` catalogues, the content models of `fb2Elements.json`, the table icons, the editor's clipboard formats) | `core/src/resources/`, `core/src/settings/`, `core/src/platform/`, `resources/ai-services.json`, `resources/certs/`, `ui/src/i18n/tables.{en,ru,uk}.json`, `ui/src/views/source/fb2Elements.json` (`tools/fb2-schema-elements.py`), `ui/public/icons/toolbar24/` and `toolbar16/` `table-*.png` (`tools/resources-import/draw_table_icons.py`), `ui/src/editor/clipboard/copyOut.ts` |
 | `cli.md` (`mfbe` and `mfbe-core` command lines) | `app/src/command_line.cpp`, `core/main.cpp` |
-| `specs/005-ai-assistant/contracts/ai-catalogue.md` (the assistant's tools, resources, prompts and request loop; version 1) | `ui/src/ai/catalogue.ts`, `ui/src/ai/assistant.ts`, `ui/src/ai/hook.ts` |
+| `specs/005-ai-assistant/contracts/ai-catalogue.md` (the assistant's tools, resources, prompts and request loop; version 2 since feature 006, whose delta adds the table tools `read_table` and `edit_table`, `tableWarning` and the selection kind `cells`) | `ui/src/ai/catalogue.ts`, `ui/src/ai/assistant.ts`, `ui/src/ai/hook.ts`, `ui/src/ai/tools/table.ts`, `ui/src/ai/tables.ts` |
 | `specs/005-ai-assistant/contracts/ai-service-protocol.md` (the chat-completions wire format, error extraction, waits, oversize detection; version 1) | `ui/src/ai/protocol.ts`, `core/src/net/http_client.cpp`, `core/src/server/ai_transport.cpp` |
 
 Rule: change the contract first, then both sides in the same change. Additive changes bump
@@ -482,6 +544,7 @@ touches), the rest of the user's files, and the user's machine.
 | Threat | Who / what | Entry point |
 |--------|------------|-------------|
 | Malicious FB2 file | a book downloaded from anywhere; crafted XML (external entities, DTDs, entity bombs, absurd nesting or sizes), crafted images, hostile link targets | `doc.open`, `doc.fromXml`, `doc.validate`, `binary.add`, the Body view rendering the content |
+| Pasted HTML from other programs (feature 006) | HTML that a web page, a word processor or a spreadsheet put on the clipboard: hostile markup (scripts, event handlers, absurd nesting, spans or sizes), external pictures and style sheets | Edit > Paste and Mod+V in the Body view and in the Description view's annotation and history fields (the paste router `ui/src/editor/clipboard/route.ts`) |
 | Malicious user script | a script package copied into the user's scripts folder; it runs JavaScript inside the editor | the Scripts menu / toolbar / hotkey, `GET /scripts/...` |
 | Other local processes | software running under the same user that finds the loopback port; a web page in another browser trying to reach `127.0.0.1` (CSRF, DNS rebinding) | the HTTP endpoints and the WebSocket upgrade |
 | The AI service and the model (feature 005) | a hostile or compromised service answering the assistant's requests; a model steered by instructions hidden in the book's text (prompt injection) asking for destructive or invalid changes, for the whole book, for a hostile script; HTML or oversized error bodies; a redirect carrying the key elsewhere; a man-in-the-middle on the way to the service | `ai.complete` / `ai.models` / `ai.test` outcomes, the catalogue's change tools, `run_script` / `propose_script`, the panel and popup rendering the answers |
@@ -546,6 +609,25 @@ XML hardening (`core/src/xml/xml_security.cpp`, used by the reader and the valid
   stb only after a content sniff; undecodable data stays an opaque binary. Links with `href`
   outside the document are reported by validation (`image.externalHref`) and never fetched by
   the core; the Body view renders only `/binary/...` previews of the document's own images.
+
+Pasted HTML (feature 006; `ui/src/editor/clipboard/foreignHtml.ts`, `pastedCss.ts`,
+`route.ts`):
+
+* Parsed with `DOMParser` into an inert document - no script runs, no event handler fires,
+  nothing is fetched - that is never inserted into the live DOM; style sheets and `style`
+  attributes are read as text by the project's own CSS reader (`pastedCss.ts`) for alignment
+  and formatting and never applied to the page.
+* Only converted content is taken: rows, header cells, spans, alignment, the supported inline
+  formatting and a link's `href`. Never taken: `id`, `class`, `lang`, `data-id`, `data-style`
+  and the editor's own markers `data-node-id` and `data-type`, so a paste brings no FB2 id and
+  no editor-internal node; the router gives the pasted nodes fresh node ids.
+* Pictures, media, frames, form controls, scripts, style elements and templates inside a table
+  are removed, and pictures are dropped whatever their URL: an external picture is never
+  fetched, and a paste makes no request.
+* Spans are capped at 1000 columns and 65534 rows, as the table grid caps them, and the table is
+  made regular; an irregular table whose grid would exceed 2²² positions is refused as
+  `too-large`. The grid's analysis itself grows with the cells and rows, never with the
+  positions, whatever the spans.
 
 Script sandbox (`ui/src/scripting/sandbox.worker.ts`, `sandbox.ts`, `host.ts`, `api-impl.ts`;
 contract `script-manifest.md` §3):
@@ -735,6 +817,14 @@ Diagnostics and privacy (`core/src/log/error_log.cpp`, FR-131; feature 005 FR-10
   agreement rules (`address.test.ts`, `agreements.test.ts`), the wait ladder (`wait.test.ts`),
   the issue keys (`issueKeys.test.ts`, `hook.test.ts`) and the chunk rule of the build output
   (`chunk.test.ts`).
+* Feature 006, pasted HTML: `ui/tests/unit/editor/clipboard/foreignHtml.test.ts` - the inert
+  document (scripts do not run, event handlers do not fire, nothing is fetched, nothing of the
+  pasted document reaches the page) and hostile HTML (unclosed tags, 2,000 nested `div`s, 50
+  nested tables, the largest spans and 5,000 rows within a coarse time bound; the spans capped
+  and the result regular, or `too-large` for an irregular table above the grid's limit);
+  `ui/tests/e2e/us9-table-clipboard.spec.ts` pastes HTML with external pictures and style
+  sheets under its request recorder (`recordOutside` and the page's own request log) and
+  asserts that no request leaves and no picture arrives.
 
 ### 7.4 Residual risks and known limitations
 

@@ -4,12 +4,21 @@
  * Delete removing empty lines, Tab in tables, the overwrite plugin and node id assignment.
  */
 
-import { EditorState, TextSelection } from 'prosemirror-state';
+import { history, undo } from 'prosemirror-history';
+import { EditorState, TextSelection, type Transaction } from 'prosemirror-state';
 import type { Node as PMNode } from 'prosemirror-model';
 
-import { backspaceCommand, deleteCommand, enterCommand, tabCommand } from '@/editor/keymap';
+import { DISCRETE_STEP } from '@/editor/commands/util';
+import {
+  backspaceCommand,
+  deleteCommand,
+  enterCommand,
+  shiftTabCommand,
+  tabCommand,
+} from '@/editor/keymap';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
-import { fb2Schema } from '@/editor/schema';
+import { createNodeIdGenerator, fb2Schema, findNodeById } from '@/editor/schema';
+import { CellBlockSelection } from '@/editor/table/selection';
 
 const { nodes: N } = fb2Schema;
 
@@ -155,11 +164,79 @@ describe('Backspace / Delete / Tab', () => {
         ]),
       ),
     );
-    const state = apply(at(doc, endOf(doc, 'c1')), tabCommand);
+    const tab = tabCommand({ nextId: createNodeIdGenerator() });
+    const state = apply(at(doc, endOf(doc, 'c1')), tab);
     expect(state.selection.$from.parent.textContent).toBe('c2');
     expect(state.selection.from).not.toBe(state.selection.to); // the cell content is selected
     const outside = at(doc, endOf(doc, 'a'));
-    expect(tabCommand(outside)).toBe(true);
+    expect(tab(outside)).toBe(true);
+  });
+
+  /** A 2 × 2 table `t` with the cells `x<row><column>`, after a paragraph. */
+  function tableDoc(): PMNode {
+    const cell = (nodeId: string) => N.td!.create({ nodeId }, fb2Schema.text(nodeId));
+    return docWith(
+      N.p!.create({ nodeId: 'p' }, fb2Schema.text('a')),
+      N.table!.create({ nodeId: 't' }, [
+        N.tr!.create({ nodeId: 'r0', align: 'center' }, [cell('x00'), cell('x01')]),
+        N.tr!.create({ nodeId: 'r1' }, [cell('x10'), cell('x11')]),
+      ]),
+    );
+  }
+
+  it('Tab in the last cell appends the Tab row in one transaction carrying DISCRETE_STEP, the caret in its first cell, and one undo through history() removes it', () => {
+    const doc = tableDoc();
+    let state = EditorState.create({ doc, plugins: [history(), nodeIdPlugin()] });
+    state = state.apply(state.tr.setSelection(TextSelection.create(doc, endOf(doc, 'x11'))));
+    const transactions: Transaction[] = [];
+    const ok = tabCommand({ nextId: createNodeIdGenerator('tab_') })(state, (tr) => {
+      transactions.push(tr);
+      state = state.apply(tr);
+    });
+    expect(ok).toBe(true);
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0]!.getMeta(DISCRETE_STEP)).toBe(true);
+    const tableNode = findNodeById(state.doc, 't')!.node;
+    expect(tableNode.childCount).toBe(3);
+    const added = tableNode.child(2);
+    expect(added.attrs.nodeId).toMatch(/^tab_\d+$/);
+    expect(added.child(0).attrs.nodeId).toMatch(/^tab_\d+$/);
+    expect(added.textContent).toBe('');
+    expect(state.selection.empty).toBe(true);
+    expect(state.selection.$from.parent).toBe(added.child(0));
+    expect(state.selection.$from.parentOffset).toBe(0);
+    expect(state.doc.check()).toBeUndefined();
+    expect(undo(state, (tr) => (state = state.apply(tr)))).toBe(true);
+    // The table as it was (the node-id plugin names the id-less body and section once, out of
+    // the history).
+    expect(findNodeById(state.doc, 't')!.node.eq(findNodeById(doc, 't')!.node)).toBe(true);
+  });
+
+  it('with a block selected, Tab and Shift+Tab start from the head cell', () => {
+    const doc = tableDoc();
+    const block = (state: EditorState) =>
+      state.apply(
+        state.tr.setSelection(
+          CellBlockSelection.create(
+            state.doc,
+            findNodeById(state.doc, 'x00')!.pos,
+            findNodeById(state.doc, 'x10')!.pos,
+          ),
+        ),
+      );
+    const start = block(EditorState.create({ doc }));
+    const forward = apply(start, tabCommand({ nextId: createNodeIdGenerator() }));
+    expect(forward.selection.$from.parent.attrs.nodeId).toBe('x11');
+    const back = apply(start, shiftTabCommand);
+    expect(back.selection.$from.parent.attrs.nodeId).toBe('x01');
+  });
+
+  it('Shift+Tab on the first cell keeps the caret in the Body view', () => {
+    const doc = tableDoc();
+    const state = at(doc, endOf(doc, 'x00'));
+    const dispatch = vi.fn();
+    expect(shiftTabCommand(state, dispatch)).toBe(true);
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });
 

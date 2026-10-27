@@ -17,6 +17,7 @@ import {
 } from '@/ai/summaries';
 import { initI18n } from '@/i18n';
 
+import { tablesBook } from './catalogueHarness';
 import { book } from './sessionUtils';
 
 const document = book({ preExisting: false });
@@ -224,4 +225,156 @@ describe('nodeLabel / continuationKey', () => {
     expect(next).toBe(first);
     expect(continuationKey({ name: 'read_part', args: { node: 's2' } })).not.toBe(first);
   });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006 (US11, T174): the table tools in three languages (Δ§6.16)     */
+/* ------------------------------------------------------------------------ */
+
+describe('feature 006: the summaries of read_table and edit_table (Δ§6.16)', () => {
+  const OPS = [
+    'insertRows',
+    'insertColumns',
+    'deleteRows',
+    'deleteColumns',
+    'moveRows',
+    'moveColumns',
+    'duplicateRows',
+    'duplicateColumns',
+    'merge',
+    'split',
+    'setKind',
+    'setAttributes.cells',
+    'setAttributes.rows',
+    'setAttributes.table',
+    'repair',
+  ];
+
+  it.each(['en', 'ru', 'uk'])(
+    '%s: the table by its path, the rows, the size and the part; one text per operation with its counts; attribute names only; the tables left irregular',
+    async (language) => {
+      await initI18n({ language: 'en' });
+      const tl = i18next.getFixedT(language);
+      const doc = tablesBook();
+      const path = 'body[1]/section[1]/table[2]';
+      expect(callSummary(tl, { name: 'read_table', args: { table: 'tB' } }, doc)).toBe(
+        tl('ai.activity.summary.readTable', { target: path }),
+      );
+      // A cell reference climbs to its table; a window names its rows.
+      expect(
+        callSummary(
+          tl,
+          { name: 'read_table', args: { table: 'tBr2c1', fromRow: 1, toRow: 2 } },
+          doc,
+        ),
+      ).toBe(tl('ai.activity.summary.readTableRows', { from: 1, to: 2, target: path }));
+      expect(callSummary(tl, { name: 'read_table', args: { table: 'nowhere' } }, doc)).toBe(
+        tl('ai.activity.summary.readTable', { target: 'nowhere' }),
+      );
+      const window = { name: 'read_table', args: { table: 'tB', fromRow: 1, toRow: 1 } };
+      expect(
+        resultSummary(
+          tl,
+          window,
+          { rowCount: 3, columnCount: 3, fromRow: 1, toRow: 1, rows: [{}] },
+          doc,
+        ),
+      ).toBe(
+        tl('ai.activity.summary.readTableRowsSized', {
+          from: 1,
+          to: 1,
+          target: path,
+          rows: 3,
+          columns: 3,
+        }),
+      );
+      const whole = { name: 'read_table', args: { table: 'tB' } };
+      expect(
+        resultSummary(
+          tl,
+          whole,
+          {
+            rowCount: 3,
+            columnCount: 3,
+            fromRow: 1,
+            toRow: 1,
+            rows: [{}],
+            more: { remaining: { rows: 2 } },
+          },
+          doc,
+        ),
+      ).toBe(
+        tl('ai.activity.summary.readTablePart', {
+          target: path,
+          rows: 3,
+          columns: 3,
+          part: 1,
+          parts: 3,
+        }),
+      );
+      for (const op of OPS) {
+        const key = `ai.activity.summary.tableOp.${op}`;
+        expect(tl(key, { count: 2, kind: 'th', names: 'align' }), key).not.toBe(key);
+      }
+      const inserted = callSummary(
+        tl,
+        {
+          name: 'edit_table',
+          args: { table: 'tB', op: 'insertColumns', column: 1, where: 'after', count: 2 },
+        },
+        doc,
+      );
+      expect(inserted).toBe(
+        tl('ai.activity.summary.editTable', {
+          target: path,
+          operation: tl('ai.activity.summary.tableOp.insertColumns', { count: 2 }),
+        }),
+      );
+      const attributes = callSummary(
+        tl,
+        {
+          name: 'edit_table',
+          args: {
+            table: 'tB',
+            op: 'setAttributes',
+            row: 2,
+            column: 1,
+            attrs: { align: 'center', lang: 'de' },
+          },
+        },
+        doc,
+      );
+      expect(attributes).toBe(
+        tl('ai.activity.summary.editTable', {
+          target: path,
+          operation: tl('ai.activity.summary.tableOp.setAttributes.cells', {
+            names: 'align, lang',
+          }),
+        }),
+      );
+      expect(attributes).not.toMatch(/center|\bde\b|deutsch|\bx\b/);
+      const warning = { message: 'w', tables: [{}] };
+      const replaced = { name: 'replace_node', args: { node: 'tB' } };
+      expect(resultSummary(tl, replaced, { node: { id: 'tB' }, tableWarning: warning }, doc)).toBe(
+        tl('ai.activity.summary.tablesLeftIrregular', {
+          summary: callSummary(tl, replaced, doc),
+          count: 1,
+        }),
+      );
+      const edited = { name: 'edit_table', args: { table: 'tB', op: 'merge', row: 1, column: 1 } };
+      expect(
+        resultSummary(
+          tl,
+          edited,
+          { op: 'merge', tableWarning: { message: 'w', tables: [{}, {}] } },
+          doc,
+        ),
+      ).toBe(
+        tl('ai.activity.summary.tablesLeftIrregular', {
+          summary: callSummary(tl, edited, doc),
+          count: 2,
+        }),
+      );
+    },
+  );
 });

@@ -5,7 +5,8 @@
  * with their default hotkeys, tree scripts stay out of the menu, "No scripts found" appears for
  * an empty catalogue, the housekeeping entries (Last script / Open scripts folder / Reload
  * scripts) follow, a fresh Scripts toolbar shows "Last script" alone, the scripts with icons
- * appear once the user's layout names them and `needsSelection` disables.
+ * appear once the user's layout names them, `needsSelection` disables and an open Customize
+ * dialog follows a reload of the scripts.
  */
 
 import { act, render, screen, within } from '@testing-library/react';
@@ -14,8 +15,9 @@ import { useMemo } from 'react';
 
 import { AppProvider } from '@/app/AppContext';
 import { MenuBar } from '@/app/MenuBar';
-import { createAppServices, type AppServices } from '@/app/services';
+import { createAppServices, useAppServices, type AppServices } from '@/app/services';
 import { Toolbars } from '@/app/Toolbars';
+import { DialogHost } from '@/dialogs';
 import { changeLanguage, initI18n } from '@/i18n';
 import { actions, createAppStore } from '@/model/store';
 import { getScriptsFeature, type ScriptsFeature } from '@/scripting/catalog';
@@ -81,8 +83,12 @@ const LIST: ScriptsListResult = {
   folders: { user: '/data/scripts' },
 };
 
-/** What App.tsx does: the hook feeds the dynamic items, the toolbar gets the buttons. */
+/**
+ * What App.tsx does: the hook feeds the dynamic items, the toolbar gets the buttons, the dialog
+ * host renders the dialogs.
+ */
 function Shell() {
+  const services = useAppServices();
   const scripts = useScriptsMenu();
   const items = useMemo(() => ({ scripts }), [scripts]);
   const scriptButtons = useScriptToolbarButtons();
@@ -90,6 +96,7 @@ function Shell() {
     <>
       <MenuBar dynamicItems={items} />
       <Toolbars scripts={scriptButtons} />
+      <DialogHost service={services.dialogs.service} />
     </>
   );
 }
@@ -243,5 +250,45 @@ describe('Scripts menu and toolbar', () => {
     });
     expect(services.commands.has('script.test.case.upper')).toBe(false);
     expect(services.commands.has('script.test.model.append')).toBe(true);
+  });
+
+  it('keeps an open Customize dialog on the scripts of the latest reload', async () => {
+    // The catalogue of a reload arrives after the core's notification, so it may land while
+    // the dialog is already open (feature 002 FR-063; us8-toolbars journey 4).
+    const { user, feature, rpc } = await renderShell();
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByTestId('toolbar-scripts') });
+    await user.click(screen.getByTestId('toolbar-menu-customize'));
+    const offered = () =>
+      within(screen.getByTestId('customize-toolbar-available'))
+        .getAllByRole('option')
+        .map((option) => option.dataset.item);
+    expect(offered()).toEqual(['-', 'script.test.case.upper', 'script.test.model.append']);
+
+    // A script with an icon added, one removed: the open dialog offers the new list.
+    rpc.responses['scripts.list'] = {
+      ...LIST,
+      groups: [
+        ...LIST.groups.slice(1),
+        {
+          id: '02_Dialogs',
+          order: 2,
+          names: { en: 'Dialogs' },
+          dir: '/scripts/02_Dialogs',
+          scripts: [
+            script('test.dialogs.form', '02_Dialogs', {
+              iconUrl: '/scripts/test.dialogs.form/icon.png',
+            }),
+          ],
+        },
+      ],
+    };
+    await act(async () => {
+      rpc.notify('resources.changed', { what: 'scripts' });
+      await feature.refresh();
+    });
+    expect(offered()).toEqual(['-', 'script.test.model.append', 'script.test.dialogs.form']);
+    expect(
+      within(screen.getByTestId('customize-toolbar-available')).getByText('Name test.dialogs.form'),
+    ).toBeInTheDocument();
   });
 });

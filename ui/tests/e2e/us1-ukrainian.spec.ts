@@ -10,7 +10,8 @@
  * Tree, the toolbar tooltips, every Settings page, About, the dialogs of a new document, the
  * Description form, a file dialog request and a script's message box is collected and judged
  * by one rule: it must be a value of `uk.json` / `*.uk.json` (placeholders resolved, `&`
- * markers removed, white space and edge punctuation normalised) or stand in
+ * markers removed, white space and edge punctuation normalised; an unavailable command's title
+ * "command: reason" both of whose parts are, feature 006) or stand in
  * `fixtures/uk-allowlist.json` (proper names, hotkey chords, file names, identifiers, versions,
  * paths, URLs, the scripts' own texts). A text found verbatim in the English or Russian
  * catalogues and not in the Ukrainian ones fails the walk whatever the allowlist says. Access
@@ -148,16 +149,24 @@ function isAllowed(text: string): boolean {
 
 /**
  * Why `text` is wrong in the `target` language (null when it is fine). Order: a value or
- * template of the target language passes; a verbatim value of another interface language
- * fails; the allowlist passes; "A (B)" passes when both parts pass (tooltips with their hotkey,
- * file types with their patterns, names with their code); then, strictly, anything else fails
- * - leniently (data the resources bring, not the catalogues) only texts in Latin letters.
+ * template of the target language passes; the title of an unavailable command - "A: B",
+ * `commands.unavailable.title` (feature 006, FR-043) - passes when A is a command's tooltip of
+ * the target language and B passes; a verbatim value of another interface language fails; the
+ * allowlist passes; "A (B)" passes when both parts pass (tooltips with their hotkey, file types
+ * with their patterns, names with their code); then, strictly, anything else fails -
+ * leniently (data the resources bring, not the catalogues) only texts in Latin letters.
  */
 function problemOf(text: string, target: LanguageTexts, strict: boolean): string | null {
   const value = normalise(text);
   if (!LETTERS.test(value)) return null;
   if (target.values.has(value)) return null;
   if (target.templates.some(({ pattern }) => pattern.test(value))) return null;
+  const unavailable = /^(.+?): (.+)$/su.exec(value);
+  if (unavailable && target.values.get(unavailable[1]!)?.some((key) => key.endsWith('.tooltip'))) {
+    const reason = problemOf(unavailable[2]!, target, strict);
+    if (!reason) return null;
+    if (reason.includes(' text of ')) return reason;
+  }
   for (const lang of UI_LANGS) {
     if (lang === target.lang) continue;
     const other = textsOf(lang);
@@ -540,6 +549,12 @@ async function walkMenus(page: Page, lang: UiLang): Promise<{ problems: string[]
       const item = submenus.nth(index);
       const itemId = (await item.getAttribute('data-testid')) ?? '';
       if (isDynamicMenuEntry(itemId)) continue;
+      // A submenu without an available command (Edit → Table structure outside a table) is
+      // disabled and opens nothing: its own texts, the reason in its tooltip included, are checked.
+      if ((await item.getAttribute('aria-disabled')) === 'true') {
+        problems.push(...(await walkProblems(page, lang, itemId, `disabled submenu ${itemId}`)));
+        continue;
+      }
       await item.hover();
       const submenuId = `${itemId}-popup`;
       await expect(page.getByTestId(submenuId)).toBeVisible();
@@ -712,7 +727,8 @@ test.describe('US1 (feature 003) - the interface in Ukrainian (?lang=uk)', () =>
     await page.keyboard.press('Escape');
     await expect(fieldMenu).toBeHidden();
 
-    // Source: Undo, Redo, Cut, Copy, Paste, Delete, Select All.
+    // Source: Undo, Redo, Cut, Copy, Paste, Delete, Select All and Table... (feature 006), the
+    // latter judged at the clicked point: where it is unavailable, its title gives the reason.
     await page.getByTestId('view-source').click();
     const source = page.getByTestId('source-editor');
     await expect(source).toContainText('FictionBook');
@@ -847,6 +863,14 @@ test.describe('US1 (feature 003) - the interface in Ukrainian (?lang=uk)', () =>
     await caretIntoParagraph(page);
     await menu(page, 'add', 'table');
     await expectDialogIn(page, UK, 'dialog-table', 'Table');
+    // The four fields of feature 006 (FR-001) with their Ukrainian labels.
+    for (const key of ['rowCount', 'columns', 'headerRow', 'headerColumn']) {
+      await expect(
+        page
+          .getByTestId('dialog-table')
+          .getByText(uiText(UK, `dialog.table.${key}`), { exact: true }),
+      ).toBeVisible();
+    }
     await page.getByTestId('dialog-table-button-cancel').click();
     await expect(page.getByTestId('dialog-table')).toBeHidden();
 

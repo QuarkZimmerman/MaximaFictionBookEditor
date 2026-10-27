@@ -24,6 +24,17 @@
  * is read-only (`EditorState.readOnly` + `EditorView.editable(false)` in a compartment): typing,
  * pasting, cutting and deleting are refused, nothing is greyed, selecting and copying keep
  * working, and the clipboard commands and the context menu follow `state.readOnly`.
+ *
+ * *Add → Table* in the Source view (feature 006, FR-061; I23; data-model §7.3): `tablePoint()`
+ * is the table rule's verdict at the end of the selection (`tablePoint.ts`), memoised on the
+ * text, the selection's end, the tree's completeness, the core's parse error and the load
+ * status, so `insert.table`'s `enabled` is cheap and synchronous; `subscribeContext` tells the
+ * command states when the verdict changes, 100 ms after the last selection, text or tree
+ * change; `pointAt` judges the point under the pointer for the context menu (C28), and a
+ * right-click keeps the cursor where it is; `insertTable` inserts the table's XML
+ * (`tableInsert.ts`) as one undo step. While the view is mounted an idle task completes the
+ * syntax tree in slices of at most 25 ms - CodeMirror stops parsing 100,000 characters past
+ * the viewport, and the rule needs the whole text.
  */
 
 import {
@@ -31,12 +42,20 @@ import {
   history,
   historyKeymap,
   indentWithTab,
+  isolateHistory,
   redo,
   redoDepth,
   undo,
   undoDepth,
 } from '@codemirror/commands';
-import { bracketMatching, foldGutter, foldKeymap } from '@codemirror/language';
+import {
+  bracketMatching,
+  ensureSyntaxTree,
+  foldGutter,
+  foldKeymap,
+  syntaxTree,
+  syntaxTreeAvailable,
+} from '@codemirror/language';
 import { highlightSelectionMatches } from '@codemirror/search';
 import {
   Compartment,
@@ -44,6 +63,7 @@ import {
   EditorState,
   Transaction,
   type Extension,
+  type Text,
   type TransactionSpec,
 } from '@codemirror/state';
 import {
@@ -59,7 +79,7 @@ import { nbspMarker } from '@/editor/plugins/nbsp';
 import type { CaretProvider } from '@/model/caret';
 import { actions, isRunLocked, type AppStore } from '@/model/store';
 import type { UndoCoordinator, ViewHistoryAdapter } from '@/model/undo';
-import type { Caret, Settings } from '@/rpc/types';
+import type { Caret, DocParseErrorData, Settings } from '@/rpc/types';
 
 import { registerCompletionEditor, sourceCompletionExtension } from './completion';
 import {
@@ -95,11 +115,32 @@ import {
   updateSourceText,
   type SourceOffsets,
 } from './sync';
+import { planSourceTableInsertion, type SourceTableSpec } from './tableInsert';
+import { sourceTablePoint, sourceVerdictKey, type SourceVerdict } from './tablePoint';
 import { sourceThemeExtension } from './theme';
 
 export { offsetForLineColumn } from './extensions';
 export type { EditorTarget } from './extensions';
 export type { SourceSearchOptions, SourceSearchTarget } from './searchTarget';
+export type { SourceTableSpec } from './tableInsert';
+export type { SourceVerdict } from './tablePoint';
+
+/**
+ * The table rule at a right-click (C28): the verdict at the offset under the pointer and that
+ * offset, where running *Table…* first moves the cursor - or, for a click inside a non-empty
+ * selection, the verdict at the selection's end and `moveTo` null (the selection stays).
+ */
+export interface SourcePointAt {
+  verdict: SourceVerdict;
+  moveTo: number | null;
+}
+
+/** How long after the last selection, text or tree change the table state is announced. */
+const CONTEXT_DELAY_MS = 100;
+/** How long after a change the idle parse task starts again. */
+const PARSE_DELAY_MS = 150;
+/** The longest slice of the idle parse task. */
+const PARSE_SLICE_MS = 25;
 
 /** 1-based column of the first non-blank character of `line` (1 for blank lines). */
 export function firstNonBlankColumn(state: EditorState, line: number): number {
@@ -196,6 +237,22 @@ const HIGHLIGHT_MS = 2500;
 const overtypeAttributes = EditorView.editorAttributes.of({ class: 'mfbe-source-overtype' });
 
 /**
+ * A right-click keeps the cursor (feature 006, C28): the browser would otherwise move its
+ * caret to the pointer, which CodeMirror reads as the new selection only when that reaches it
+ * before the context menu takes the focus - a race. The menu judges *Table…* at the clicked
+ * point and moves the cursor there only when the entry runs. The editor still takes the focus
+ * that the press would give it.
+ */
+const rightClickKeepsSelection = EditorView.domEventHandlers({
+  mousedown(event, view) {
+    if (event.button !== 2) return false;
+    event.preventDefault();
+    if (!view.hasFocus) view.focus();
+    return true;
+  },
+});
+
+/**
  * The read-only configuration of a locked editor: commands and key bindings see
  * `state.readOnly`, the content is not `contenteditable` (no typing, pasting or dropping) while
  * it stays selectable; nothing is styled differently.
@@ -273,6 +330,29 @@ export class SourceEditorController {
   private snapshot: SourceEditorSnapshot = { status: 'idle', loadError: null };
   private readonly listeners = new Set<() => void>();
 
+  /** The table state's listeners (`subscribeContext`) and the verdict last announced to them. */
+  private readonly contextListeners = new Set<() => void>();
+  private contextTimer: ReturnType<typeof setTimeout> | null = null;
+  private contextKey: string | null = null;
+  /**
+   * `tablePoint()` handed out another verdict than the one last announced since the last check:
+   * a reader that renders for another reason (the toolbar, after a store change) may show it,
+   * so the next check announces even when the verdict is back at the announced one.
+   */
+  private contextStale = false;
+  /** `tablePoint()` for its key: the text, the selection's end, the tree, the error, the status. */
+  private verdictMemo: {
+    doc: Text;
+    at: number;
+    complete: boolean;
+    parseError: DocParseErrorData | null;
+    status: SourceLoadStatus;
+    verdict: SourceVerdict;
+  } | null = null;
+  /** The idle parse task: the delay before it starts, the idle callback between its slices. */
+  private parseTimer: ReturnType<typeof setTimeout> | null = null;
+  private parseIdle: number | null = null;
+
   /** Find/Replace over the editor text for the search feature (US2). */
   readonly searchTarget: SourceSearchTarget;
 
@@ -307,6 +387,7 @@ export class SourceEditorController {
         this.translate('source.binaryPlaceholder', { count: size }),
       ),
       overtypeExtension(() => this.isOvertype()),
+      rightClickKeepsSelection,
       // Before the editor keymaps: Enter, Tab and Escape go to an open completion list first.
       c.completion.of(sourceCompletionExtension(this.settings.tagCompletion)),
       keymap.of([
@@ -323,7 +404,17 @@ export class SourceEditorController {
         indentWithTab,
       ]),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged) this.afterChange(update.startState, update.state);
+        if (update.docChanged) {
+          this.afterChange(update.startState, update.state);
+          this.scheduleParse(PARSE_DELAY_MS);
+        }
+        if (
+          update.docChanged ||
+          update.selectionSet ||
+          syntaxTree(update.state) !== syntaxTree(update.startState)
+        ) {
+          this.scheduleContextCheck();
+        }
       }),
       EditorView.contentAttributes.of({ 'data-testid': 'source-editor', spellcheck: 'false' }),
     ];
@@ -336,6 +427,8 @@ export class SourceEditorController {
       // The quiet lock of a run applies mounted or not (the kept state is what the next mount
       // shows).
       if (isRunLocked(state) !== isRunLocked(previous)) this.applyLock();
+      // The core's parse error of this text decides the table verdict (`notWellFormed`).
+      if (state.sourceParseError !== previous.sourceParseError) this.scheduleContextCheck();
     });
     onSourceSessionReset(this.store, () => this.reset());
     // The switch flow reads the selection on the way to the Body view (feature 004 US7).
@@ -370,6 +463,8 @@ export class SourceEditorController {
   private publish(patch: Partial<SourceEditorSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };
     for (const listener of [...this.listeners]) listener();
+    // The load status is part of the table verdict (`loading`, `failed`).
+    this.scheduleContextCheck();
   }
 
   setTranslate(translate: Translate): void {
@@ -387,6 +482,7 @@ export class SourceEditorController {
   }
 
   unmount(): void {
+    this.cancelParse();
     if (this.view) {
       this.headless = this.view.state;
       this.view.destroy();
@@ -403,6 +499,9 @@ export class SourceEditorController {
   destroy(): void {
     this.unmount();
     this.listeners.clear();
+    this.contextListeners.clear();
+    if (this.contextTimer) clearTimeout(this.contextTimer);
+    this.contextTimer = null;
     if (this.highlightTimer) clearTimeout(this.highlightTimer);
   }
 
@@ -438,6 +537,8 @@ export class SourceEditorController {
       const target = this.pendingTarget;
       this.pendingTarget = null;
       this.publish({ status: 'ready' });
+      // The table rule needs the whole text parsed: the idle task completes the tree.
+      this.scheduleParse(0);
       if (target) {
         this.goTo(target.line, target.column, { highlight: target.highlight });
       } else if (pending) {
@@ -567,6 +668,12 @@ export class SourceEditorController {
     const transaction: Transaction = this.headless.update(spec);
     this.headless = transaction.state;
     if (transaction.docChanged) this.afterChange(transaction.startState, transaction.state);
+    if (
+      transaction.docChanged ||
+      !transaction.startState.selection.eq(transaction.state.selection)
+    ) {
+      this.scheduleContextCheck();
+    }
   }
 
   private afterChange(startState: EditorState, state: EditorState): void {
@@ -600,6 +707,191 @@ export class SourceEditorController {
       filter: false,
     });
     this.revealSelection();
+  }
+
+  /* ------------------------------------------------- Add → Table (feature 006) */
+
+  /** What the table rule reads besides the state: the load status and the core's parse error. */
+  private tableContext(): { status: SourceLoadStatus; parseError: DocParseErrorData | null } {
+    return { status: this.snapshot.status, parseError: this.store.getState().sourceParseError };
+  }
+
+  /**
+   * The table rule's verdict at the end of the main selection (`tablePoint.ts`; I23), memoised
+   * on the text, the selection's end, the tree's completeness, the core's parse error and the
+   * load status - `insert.table`'s `enabled` and its reason read it on every render. `loading`
+   * while the view is unmounted (the status is then `idle`). A verdict other than the one last
+   * announced marks the table state stale for the next check (`subscribeContext`).
+   */
+  tablePoint(): SourceVerdict {
+    const verdict = this.currentVerdict();
+    if (this.contextListeners.size > 0 && sourceVerdictKey(verdict) !== this.contextKey) {
+      this.contextStale = true;
+    }
+    return verdict;
+  }
+
+  /** The memoised verdict at the end of the main selection (`tablePoint()`). */
+  private currentVerdict(): SourceVerdict {
+    const state = this.state;
+    const at = state.selection.main.to;
+    const complete = syntaxTreeAvailable(state, state.doc.length);
+    const { status, parseError } = this.tableContext();
+    const memo = this.verdictMemo;
+    if (
+      memo &&
+      memo.doc === state.doc &&
+      memo.at === at &&
+      memo.complete === complete &&
+      memo.parseError === parseError &&
+      memo.status === status
+    ) {
+      return memo.verdict;
+    }
+    const verdict = sourceTablePoint(state, { status, parseError }, at);
+    this.verdictMemo = { doc: state.doc, at, complete, parseError, status, verdict };
+    return verdict;
+  }
+
+  /**
+   * The verdict at the point under the pointer (the nearest position), for the context menu's
+   * *Table…* (C28): with `moveTo` that offset, where the cursor goes when the entry runs; for a
+   * click inside a non-empty main selection the verdict at the selection's end and `moveTo`
+   * null - the selection stays (the spec's edge case). Opening the menu moves nothing.
+   * `loading` while unmounted.
+   */
+  pointAt(coords: { x: number; y: number }): SourcePointAt {
+    const view = this.view;
+    if (!view) return { verdict: { code: 'loading' }, moveTo: null };
+    const pos = view.posAtCoords(coords, false);
+    const main = view.state.selection.main;
+    if (!main.empty && pos >= main.from && pos <= main.to) {
+      return { verdict: this.tablePoint(), moveTo: null };
+    }
+    return { verdict: sourceTablePoint(view.state, this.tableContext(), pos), moveTo: pos };
+  }
+
+  /**
+   * Tells `listener` when the table verdict changes - its code, its line or its element - 100 ms
+   * after the last selection, text or tree change (and after a change of the load status or of
+   * the core's parse error): `services.subscribeAll` attaches it, so the menus and the toolbar
+   * follow the verdict, and typing that keeps the verdict notifies nothing. A verdict that only
+   * passed between two checks counts as a change when `tablePoint()` handed it out meanwhile:
+   * the toolbar re-renders on every store change and may show it (`loading` on the way back from
+   * the Body view), and the verdict coming back to the announced one must reach it as well.
+   */
+  readonly subscribeContext = (listener: () => void): (() => void) => {
+    if (this.contextListeners.size === 0) {
+      this.contextKey = sourceVerdictKey(this.currentVerdict());
+      this.contextStale = false;
+    }
+    this.contextListeners.add(listener);
+    return () => {
+      this.contextListeners.delete(listener);
+      if (this.contextListeners.size === 0 && this.contextTimer) {
+        clearTimeout(this.contextTimer);
+        this.contextTimer = null;
+      }
+    };
+  };
+
+  private scheduleContextCheck(): void {
+    if (this.contextListeners.size === 0) return;
+    if (this.contextTimer) clearTimeout(this.contextTimer);
+    this.contextTimer = setTimeout(() => {
+      this.contextTimer = null;
+      const key = sourceVerdictKey(this.currentVerdict());
+      if (key === this.contextKey && !this.contextStale) return;
+      this.contextKey = key;
+      this.contextStale = false;
+      for (const listener of [...this.contextListeners]) listener();
+    }, CONTEXT_DELAY_MS);
+  }
+
+  /**
+   * The idle parse task: while the view is mounted, `delay` ms from now (0 after a load, 150 after
+   * a change), slices of at most 25 ms of `ensureSyntaxTree` on idle time until the tree reaches
+   * the end of the text; the view's own parser stops 100,000 characters past the viewport.
+   */
+  private scheduleParse(delay: number): void {
+    this.cancelParse();
+    if (!this.view) return;
+    this.parseTimer = setTimeout(() => {
+      this.parseTimer = null;
+      this.requestParseSlice();
+    }, delay);
+  }
+
+  private requestParseSlice(): void {
+    if (!this.view) return;
+    if (typeof requestIdleCallback === 'function') {
+      this.parseIdle = requestIdleCallback(
+        () => {
+          this.parseIdle = null;
+          this.parseSlice();
+        },
+        { timeout: 500 },
+      );
+    } else {
+      this.parseTimer = setTimeout(() => {
+        this.parseTimer = null;
+        this.parseSlice();
+      }, 0);
+    }
+  }
+
+  private parseSlice(): void {
+    const view = this.view;
+    if (!view) return;
+    const state = view.state;
+    const complete =
+      syntaxTreeAvailable(state, state.doc.length) ||
+      ensureSyntaxTree(state, state.doc.length, PARSE_SLICE_MS) !== null;
+    if (!complete) {
+      this.requestParseSlice();
+      return;
+    }
+    // The view's language state takes the complete tree (highlighting, folding, the matched
+    // tags); the transaction tells the context listeners (a tree change).
+    if (ensureSyntaxTree(state, state.doc.length, 0) !== syntaxTree(state)) view.dispatch({});
+    this.scheduleContextCheck();
+  }
+
+  private cancelParse(): void {
+    if (this.parseTimer) clearTimeout(this.parseTimer);
+    this.parseTimer = null;
+    if (this.parseIdle !== null && typeof cancelIdleCallback === 'function') {
+      cancelIdleCallback(this.parseIdle);
+    }
+    this.parseIdle = null;
+  }
+
+  /**
+   * Inserts FR-003's table at an allowed point (FR-061 "What" and "Undo"; data-model §7.3 "One
+   * undo step"): false while the editor is locked or the verdict is not `ok`; otherwise one
+   * transaction - the XML laid out like its neighbours (`tableInsert.ts`), the cursor between
+   * the first cell's tags, `input.table`, isolated in the history on both sides so that typing
+   * in the first cell is a step of its own - after which the editor has the focus. `afterChange`
+   * records the one undo-coordinator entry ("Source edit") and clears the core's parse error.
+   * A selection-only transaction follows, which the history keeps as the cursor after the
+   * insertion: Redo gives that cursor back (FR-045; quickstart §1, 10.), where it would
+   * otherwise map the cursor from before the insertion through it, to the end of the table.
+   */
+  insertTable(spec: SourceTableSpec): boolean {
+    if (this.locked) return false;
+    const point = this.tablePoint();
+    if (point.code !== 'ok') return false;
+    const plan = planSourceTableInsertion(this.state, point, spec);
+    this.target.dispatch({
+      changes: { from: plan.from, to: plan.to, insert: plan.insert },
+      selection: { anchor: plan.cursor },
+      userEvent: 'input.table',
+      annotations: isolateHistory.of('full'),
+      scrollIntoView: true,
+    });
+    this.target.dispatch({ selection: { anchor: plan.cursor } });
+    this.view?.focus();
+    return true;
   }
 
   /* ----------------------------------------------------------- navigation */

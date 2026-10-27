@@ -89,6 +89,166 @@ std::optional<std::string> attr_of(const Node& node, const char* name) {
 }
 
 /* ----------------------------------------------------------------------------------------- */
+/* Marks: links and formatting (feature 006, FR-068; contracts/document-model.md §2.4)        */
+/* ----------------------------------------------------------------------------------------- */
+
+// A string member of a mark's attributes (nullopt when absent or not a string).
+std::optional<std::string> mark_attr(const Mark& mark, const char* name) {
+    if (!mark.attrs.is_object()) {
+        return std::nullopt;
+    }
+    auto it = mark.attrs.find(name);
+    if (it == mark.attrs.end() || !it->is_string()) {
+        return std::nullopt;
+    }
+    return it->get<std::string>();
+}
+
+bool is_link_mark(const Mark& mark) {
+    return mark.type == "link";
+}
+
+// Attributed formatting carries a name or a language: a formatting mark with a `lang` (any
+// value, "" included) or a `style` with a non-empty name. Every other formatting is plain.
+bool is_attributed(const Mark& mark) {
+    if (is_link_mark(mark)) {
+        return false;
+    }
+    if (mark_attr(mark, "lang")) {
+        return true;
+    }
+    if (mark.type == "style") {
+        const auto name = mark_attr(mark, "name");
+        return name && !name->empty();
+    }
+    return false;
+}
+
+// The link mark of an inline node (text or inline atom), or null.
+const Mark* link_mark_of(const Node& node) {
+    if (!node.is_text() && !is_inline_node(node)) {
+        return nullptr;
+    }
+    for (const Mark& mark : node.marks) {
+        if (is_link_mark(mark)) {
+            return &mark;
+        }
+    }
+    return nullptr;
+}
+
+bool contains_mark(const std::vector<Mark>& marks, const Mark& mark) {
+    return std::find(marks.begin(), marks.end(), mark) != marks.end();
+}
+
+// Step 1 of FR-068 for one link run, the nodes [begin, end) of `content`, and every formatting
+// kind of the run: formatting that covers the run stays; the kind's attributed marks that cover
+// only part of it are its candidates - one is extended over the run, several are a conflict won
+// by the candidate on the first node that carries any (the outer one there), the others dropped
+// inside the run; then every node lists the kind's attributed marks in the run's one order (the
+// first node's, an extended winner it lacked after them) and its plain ones after, in its own
+// order, at the place of its first mark of the kind (at its end when it had none).
+void normalise_run(std::vector<Node>& content, std::size_t begin, std::size_t end) {
+    const std::size_t length = end - begin;
+    std::vector<std::string> kinds;
+    for (std::size_t k = begin; k < end; ++k) {
+        for (const Mark& mark : content[k].marks) {
+            if (!is_link_mark(mark) &&
+                std::find(kinds.begin(), kinds.end(), mark.type) == kinds.end()) {
+                kinds.push_back(mark.type);
+            }
+        }
+    }
+    for (const std::string& kind : kinds) {
+        // The kind's distinct attributed marks and the number of nodes that carry each.
+        std::vector<Mark> distinct;
+        std::vector<std::size_t> carriers;
+        for (std::size_t k = begin; k < end; ++k) {
+            std::vector<Mark> seen;
+            for (const Mark& mark : content[k].marks) {
+                if (mark.type != kind || !is_attributed(mark) || contains_mark(seen, mark)) {
+                    continue;
+                }
+                seen.push_back(mark);
+                const auto it = std::find(distinct.begin(), distinct.end(), mark);
+                if (it == distinct.end()) {
+                    distinct.push_back(mark);
+                    carriers.push_back(1);
+                } else {
+                    ++carriers[static_cast<std::size_t>(it - distinct.begin())];
+                }
+            }
+        }
+        std::vector<Mark> candidates;
+        for (std::size_t d = 0; d < distinct.size(); ++d) {
+            if (carriers[d] < length) {
+                candidates.push_back(distinct[d]);
+            }
+        }
+        std::optional<Mark> winner;
+        std::vector<Mark> dropped;
+        if (candidates.size() == 1) {
+            winner = candidates.front();
+        } else if (candidates.size() > 1) {
+            for (std::size_t k = begin; k < end && !winner; ++k) {
+                for (const Mark& mark : content[k].marks) {
+                    if (mark.type == kind && contains_mark(candidates, mark)) {
+                        winner = mark;
+                        break;
+                    }
+                }
+            }
+            for (const Mark& candidate : candidates) {
+                if (!(candidate == *winner)) {
+                    dropped.push_back(candidate);
+                }
+            }
+        }
+        // The run's one order of the kind's attributed marks.
+        std::vector<Mark> order;
+        for (const Mark& mark : content[begin].marks) {
+            if (mark.type == kind && is_attributed(mark) && !contains_mark(dropped, mark) &&
+                !contains_mark(order, mark)) {
+                order.push_back(mark);
+            }
+        }
+        if (winner && !contains_mark(order, *winner)) {
+            order.push_back(*winner);
+        }
+        for (std::size_t k = begin; k < end; ++k) {
+            std::vector<Mark>& marks = content[k].marks;
+            std::vector<Mark> sequence = order;
+            for (const Mark& mark : marks) {
+                if (mark.type == kind && !is_attributed(mark)) {
+                    sequence.push_back(mark);
+                }
+            }
+            std::vector<Mark> rewritten;
+            rewritten.reserve(marks.size() + sequence.size());
+            bool placed = false;
+            for (const Mark& mark : marks) {
+                if (mark.type != kind) {
+                    rewritten.push_back(mark);
+                } else if (!placed) {
+                    rewritten.insert(rewritten.end(), sequence.begin(), sequence.end());
+                    placed = true;
+                }
+            }
+            if (!placed) {
+                rewritten.insert(rewritten.end(), sequence.begin(), sequence.end());
+            }
+            marks = std::move(rewritten);
+        }
+    }
+}
+
+// Whether an inline content list holds a link (so that FR-068's step 1 may change it).
+bool has_link(const std::vector<Node>& content) {
+    return std::any_of(content.begin(), content.end(),
+                       [](const Node& node) { return link_mark_of(node) != nullptr; });
+}
+
+/* ----------------------------------------------------------------------------------------- */
 /* Writer                                                                                    */
 /* ----------------------------------------------------------------------------------------- */
 
@@ -321,7 +481,12 @@ private:
         }
     }
 
-    std::string unknown_attrs(const Node& node) {
+    // The unknown attributes after the known ones. `written` holds the XML names already in the
+    // start tag: an entry whose name, after the namespace mapping, is among them is skipped, so
+    // an attribute name is never written twice and the known value wins (feature 006, C19:
+    // `colspan: 3` beside `unknownAttrs.colspan "abc"` gives `colspan="3"`). No log line: the
+    // clash is the expected state after a user edit.
+    std::string unknown_attrs(const Node& node, std::set<std::string>& written) {
         auto it = node.attrs.find("unknownAttrs");
         if (it == node.attrs.end() || !it->second.is_object()) {
             return "";
@@ -348,7 +513,7 @@ private:
                     name = ns->second + ":" + local;
                 }
             }
-            if (name.empty()) {
+            if (name.empty() || !written.insert(name).second) {
                 continue;
             }
             out += attr(name.c_str(), json_string(value));
@@ -629,9 +794,12 @@ private:
     // ---- body tree -------------------------------------------------------------------------
     std::string known_attrs(const Node& node, const std::string& type) {
         std::string out;
+        std::set<std::string> written;  // the XML names in the start tag, for unknown_attrs
         const auto add = [&](const char* model_name, const char* xml_name) {
             if (auto v = attr_of(node, model_name)) {
-                out += attr(xml_name, *v);
+                if (written.insert(xml_name).second) {
+                    out += attr(xml_name, *v);
+                }
             }
         };
         const std::string href_name = options_.xlink_prefix + ":href";
@@ -657,6 +825,7 @@ private:
             add("rowspan", "rowspan");
             add("align", "align");
             add("valign", "valign");
+            add("lang", "xml:lang");  // feature 006 (FR-020): last, as on paragraphs
         } else if (type == "p" || type == "subtitle" || type == "text-author" || type == "v") {
             add("id", "id");
             add("style", "style");
@@ -675,12 +844,13 @@ private:
         } else {
             // Unknown node type (should not happen): write string attributes generically.
             for (const auto& [k, v] : node.attrs) {
-                if (k != "nodeId" && k != "unknownAttrs" && v.is_string()) {
+                if (k != "nodeId" && k != "unknownAttrs" && v.is_string() &&
+                    written.insert(k).second) {
                     out += attr(k.c_str(), v.get<std::string>());
                 }
             }
         }
-        out += unknown_attrs(node);
+        out += unknown_attrs(node, written);
         return out;
     }
 
@@ -762,34 +932,66 @@ private:
         return sorted;
     }
 
+    // The order in which a node's marks are opened, outermost first: the fixed order of
+    // document-model §3.1 (marks of one type in the model's order), and for a node of a link
+    // run its attributed formatting, then the link, then its plain formatting (feature 006,
+    // FR-068, §2.4 step 2), so that a name or a language goes around the link.
+    static std::vector<Mark> ordered_marks(const Node& node) {
+        std::vector<Mark> sorted = sorted_marks(node.marks);
+        if (link_mark_of(node) == nullptr) {
+            return sorted;
+        }
+        std::vector<Mark> ordered;
+        ordered.reserve(sorted.size());
+        for (const Mark& mark : sorted) {
+            if (is_attributed(mark)) {
+                ordered.push_back(mark);
+            }
+        }
+        for (const Mark& mark : sorted) {
+            if (is_link_mark(mark)) {
+                ordered.push_back(mark);
+            }
+        }
+        for (const Mark& mark : sorted) {
+            if (!is_link_mark(mark) && !is_attributed(mark)) {
+                ordered.push_back(mark);
+            }
+        }
+        return ordered;
+    }
+
+    // A mark's start tag with its schema attributes (feature 006, FR-064): `xml:lang` on
+    // formatting, `name` then `xml:lang` on a style, and `xlink:href`, `xlink:type` (the
+    // document's xlink prefix on both) then `type` on a link.
     std::string mark_open(const Mark& mark) {
         if (mark.type == "link") {
-            std::string href;
-            std::optional<std::string> type;
-            if (mark.attrs.is_object()) {
-                if (mark.attrs.contains("href") && mark.attrs["href"].is_string()) {
-                    href = mark.attrs["href"].get<std::string>();
-                }
-                if (mark.attrs.contains("type") && mark.attrs["type"].is_string()) {
-                    type = mark.attrs["type"].get<std::string>();
-                }
+            const std::string prefix = options_.xlink_prefix;
+            std::string out =
+                "<a" + attr((prefix + ":href").c_str(), mark_attr(mark, "href").value_or(""));
+            if (auto xlink_type = mark_attr(mark, "xlinkType")) {
+                out += attr((prefix + ":type").c_str(), *xlink_type);
             }
-            std::string out = "<a" + attr((options_.xlink_prefix + ":href").c_str(), href);
-            if (type && !type->empty()) {
+            if (auto type = mark_attr(mark, "type"); type && !type->empty()) {
                 out += attr("type", *type);
             }
             return out + ">";
         }
+        std::string out = "<" + mark.type;
         if (mark.type == "style") {
-            std::string name;
-            if (mark.attrs.is_object() && mark.attrs.contains("name") &&
-                mark.attrs["name"].is_string()) {
-                name = mark.attrs["name"].get<std::string>();
-            }
-            return "<style" + attr("name", name) + ">";
+            // The schema requires `name` outside links; an empty one is written `name=""`.
+            out += attr("name", mark_attr(mark, "name").value_or(""));
         }
-        return "<" + mark.type + ">";
+        if (auto lang = mark_attr(mark, "lang")) {
+            out += attr("xml:lang", *lang);
+        }
+        return out + ">";
     }
+
+    // Inside a link the schema allows formatting without attributes only (styleLinkType):
+    // every formatting element is written bare there (feature 006, FR-068 step 3), a style
+    // without a name as `<style>`.
+    static std::string mark_open_in_link(const Mark& mark) { return "<" + mark.type + ">"; }
 
     static std::string mark_close(const Mark& mark) {
         if (mark.type == "link") {
@@ -806,7 +1008,28 @@ private:
         return n;
     }
 
-    void write_inline_content(const std::vector<Node>& content) {
+    // An image (written as an inline `<image/>`) or a raw XML node of inline content, with
+    // its position entry; the elements of its marks are open already.
+    void write_inline_atom(const Node& node) {
+        note_node(node);
+        const int entry = begin_entry(node, PositionKind::inlineAtom);
+        if (node.type == "raw-xml") {
+            emit(raw_xml_of(node));
+        } else {
+            emit("<image" + known_attrs(node, "inline-image") + "/>");
+        }
+        end_entry(entry, true);
+    }
+
+    void write_inline_content(const std::vector<Node>& given) {
+        // FR-068's step 1 runs on a copy: the model is never changed (feature 006).
+        const bool links = has_link(given);
+        std::vector<Node> normalised;
+        if (links) {
+            normalised = given;
+            normalise_link_formatting(normalised);
+        }
+        const std::vector<Node>& content = links ? normalised : given;
         std::vector<Mark> open;
         const auto close_to = [&](std::size_t keep) {
             while (open.size() > keep) {
@@ -816,35 +1039,38 @@ private:
         };
         for (std::size_t i = 0; i < content.size(); ++i) {
             const Node& node = content[i];
-            if (node.is_text()) {
-                const std::vector<Mark> marks = sorted_marks(node.marks);
+            // Text and inline atoms (an inline image, inline raw XML) are written inside the
+            // elements of their own marks: the open elements they do not continue are closed,
+            // the missing ones opened (feature 006, FR-067).
+            if (node.is_text() || is_inline_node(node)) {
+                const std::vector<Mark> marks = ordered_marks(node);
                 close_to(common_prefix(open, marks));
+                bool in_link = std::any_of(open.begin(), open.end(), is_link_mark);
                 for (std::size_t k = open.size(); k < marks.size(); ++k) {
-                    emit(mark_open(marks[k]));
+                    const bool link = is_link_mark(marks[k]);
+                    emit(in_link && !link ? mark_open_in_link(marks[k]) : mark_open(marks[k]));
+                    in_link = in_link || link;
                     open.push_back(marks[k]);
                 }
-                emit(esc_text(node.text));
+                if (node.is_text()) {
+                    emit(esc_text(node.text));
+                } else {
+                    write_inline_atom(node);
+                }
                 continue;
             }
-            // Mark-less inline node: keep the marks that the next text node continues.
+            // An empty-line, a block image or another block node left in inline content: keep
+            // the marks that the next text node continues.
             std::vector<Mark> next;
             for (std::size_t j = i + 1; j < content.size(); ++j) {
                 if (content[j].is_text()) {
-                    next = sorted_marks(content[j].marks);
+                    next = ordered_marks(content[j]);
                     break;
                 }
             }
             close_to(common_prefix(open, next));
-            if (node.type == "inline-image" || node.type == "image") {
-                note_node(node);
-                const int entry = begin_entry(node, PositionKind::inlineAtom);
-                emit("<image" + known_attrs(node, "inline-image") + "/>");
-                end_entry(entry, true);
-            } else if (node.type == "raw-xml") {
-                note_node(node);
-                const int entry = begin_entry(node, PositionKind::inlineAtom);
-                emit(raw_xml_of(node));
-                end_entry(entry, true);
+            if (node.type == "image" || node.type == "raw-xml") {
+                write_inline_atom(node);
             } else if (node.type == "empty-line") {
                 const int entry = begin_entry(node, PositionKind::inlineAtom);
                 emit("<empty-line/>");
@@ -908,6 +1134,30 @@ private:
 };
 
 }  // namespace
+
+void normalise_link_formatting(std::vector<model::Node>& content) {
+    std::size_t i = 0;
+    while (i < content.size()) {
+        const Mark* link = link_mark_of(content[i]);
+        if (link == nullptr) {
+            ++i;
+            continue;
+        }
+        // A link run: the consecutive inline nodes carrying one and the same link mark (two
+        // adjacent equal links are one run); any other node ends it, white space included.
+        const Mark run_link = *link;
+        std::size_t j = i + 1;
+        while (j < content.size()) {
+            const Mark* next = link_mark_of(content[j]);
+            if (next == nullptr || !(*next == run_link)) {
+                break;
+            }
+            ++j;
+        }
+        normalise_run(content, i, j);
+        i = j;
+    }
+}
 
 int mark_rank(const std::string& type) {
     static const std::map<std::string, int> kRanks = {

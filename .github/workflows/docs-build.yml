@@ -32,6 +32,7 @@ jobs:
   check:
     name: tags and fences
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - run: |

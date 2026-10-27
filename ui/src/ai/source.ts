@@ -55,7 +55,7 @@ import { ToolError, US3_TOOL_NAMES, type ModelSelection } from './catalogue';
 import type { BlockRef, FragmentToXml, SelectionSnapshot } from './context';
 import { ChangeRejection, invalidXmlHint, newErrors, type ErrorForModel } from './hook';
 import { stripFence } from './reply';
-import type { CommitResult, RequestSession, SessionRpc } from './session';
+import type { CommitResult, RequestCancel, RequestSession, SessionRpc } from './session';
 import {
   commonParentBlocks,
   containerSize,
@@ -87,7 +87,11 @@ export const SOURCE_TEXT_MODE_TOOL_NAMES = [
 const TEXT_MODE_TOOLS: ReadonlySet<string> = new Set(SOURCE_TEXT_MODE_TOOL_NAMES);
 
 /** The structured change tools unavailable after a text-path change (§8.1; `run_script` is C8's). */
-export const STRUCTURED_CHANGE_TOOL_NAMES = [...US3_TOOL_NAMES, 'run_script'] as const;
+export const STRUCTURED_CHANGE_TOOL_NAMES = [
+  ...US3_TOOL_NAMES,
+  'edit_table',
+  'run_script',
+] as const;
 
 const STRUCTURED_TOOLS: ReadonlySet<string> = new Set(STRUCTURED_CHANGE_TOOL_NAMES);
 
@@ -682,7 +686,9 @@ export type PrepareSourceResult =
       /** The text's own report when it is well-formed and validated as text (the baseline). */
       textReport: ValidationReport | null;
     }
-  | { kind: 'failed'; failure: 'internal' | 'sourceNotWellFormed' | 'sourceRefused' };
+  | { kind: 'failed'; failure: 'internal' | 'sourceNotWellFormed' | 'sourceRefused' }
+  /** The request was cancelled while the pending text was committed or the text checked. */
+  | { kind: 'cancelled' };
 
 export interface PrepareSourceOptions {
   ctx: CommandContext;
@@ -695,6 +701,8 @@ export interface PrepareSourceOptions {
   /** The selection range as the popup captured it; undefined = the editor's selection now. */
   range?: SourceRange | null;
   toXml: FragmentToXml;
+  /** The request's cancel (ai-catalogue §6.15): the text check's job goes to the owner. */
+  cancel?: RequestCancel;
 }
 
 /** The editor's main selection as a sorted range; null for a caret. */
@@ -710,9 +718,11 @@ export function editorSelectionRange(editor: SourceEditorController): SourceRang
  * the call), else the text path works on the text as it stands; the selection is mapped and
  * classified; a request without a selection is refused in text mode when the text is not
  * well-formed ("select the text to change"); a popup request on a refused range is refused.
+ * A request cancelled while the pending text was committed or the text checked ends there
+ * (`cancelled`); the check's validation job is handed to the owner's `cancel`, which stops it.
  */
 export async function prepareSource(options: PrepareSourceOptions): Promise<PrepareSourceResult> {
-  const { ctx, rpc, editor, docId, origin, toXml } = options;
+  const { ctx, rpc, editor, docId, origin, toXml, cancel } = options;
   const { store } = ctx;
   const text = editor.text;
   const range = options.range === undefined ? editorSelectionRange(editor) : options.range;
@@ -728,6 +738,7 @@ export async function prepareSource(options: PrepareSourceOptions): Promise<Prep
     // reissue; the text stays byte-identical): the model and the position map made current.
     const committed = await commitPendingSource(ctx, { silent: true });
     if (committed === 'unavailable') return { kind: 'failed', failure: 'internal' };
+    if (cancel?.cancelled()) return { kind: 'cancelled' };
     if (committed === 'error') {
       textMode = true;
       wellFormed = false;
@@ -741,7 +752,13 @@ export async function prepareSource(options: PrepareSourceOptions): Promise<Prep
   if (textMode && wellFormed) {
     // No structured tools: the text path works on the text as it stands - validated once as
     // text, which tells whether it is well-formed (the baseline of the text path when it is).
-    textReport = await rpc.runJob('doc.validate', { docId, text });
+    // A job above 2 MiB goes to the owner's cancel; a plain request answers all the same.
+    textReport = await rpc.runJob(
+      'doc.validate',
+      { docId, text },
+      { onStart: (jobId) => cancel?.jobStarted(jobId) },
+    );
+    if (cancel?.cancelled()) return { kind: 'cancelled' };
     const broken = notWellFormedIssue(textReport);
     if (broken) {
       wellFormed = false;
@@ -884,8 +901,11 @@ export function textPathSpec(
 ): {
   validate: () => Promise<ValidationReport>;
   settle: (accepted: boolean) => void;
+  form: 'text';
 } {
   return {
+    // The text's report names its tables by path and line (feature 006, Δ§6.10, C66).
+    form: 'text',
     validate: async () => {
       const source = session.source;
       if (!source?.pending) throw new Error('no pending Source text to validate');
@@ -970,7 +990,9 @@ interface FromXmlAnswer {
  * store is asserted unchanged (a mismatch → `failed`, nothing committed); structured changes →
  * the copy validated a last time and re-rendered with `doc.toXml({positions: true})`; either
  * way the model is published as the one snapshot step (the presenter puts the text in the
- * editor with the selection on the replacement / the caret at the first change).
+ * editor with the selection on the replacement / the caret at the first change). A request
+ * cancelled before or during the commit's parse or validation publishes nothing (`cancelled`,
+ * ai-catalogue §6.15): neither the model nor the remap of the parse reaches the editor.
  */
 export async function commitSource(args: {
   ctx: CommandContext;
@@ -984,6 +1006,7 @@ export async function commitSource(args: {
 }): Promise<SourceCommitResult> {
   const { ctx, rpc, session, state } = args;
   if (session.ended) return { kind: 'lost' };
+  if (session.cancelled) return session.discardCancelled();
   const source = session.source;
   const docId = state.docId;
   if (source?.changed) {
@@ -995,6 +1018,7 @@ export async function commitSource(args: {
         positions: true,
       })) as FromXmlAnswer;
     } catch (error) {
+      if (session.cancelled) return session.discardCancelled();
       if (error instanceof RpcError && error.code === RpcErrorCode.docParseError) {
         const data = (error.data ?? {}) as { line?: number; message?: string };
         session.discard();
@@ -1015,6 +1039,9 @@ export async function commitSource(args: {
       }
       throw error;
     }
+    // A cancel while the text was parsed: the remap would clear the Body view's history and
+    // move the selection to nodes that never reach the editor.
+    if (session.cancelled) return session.discardCancelled();
     if (!sameBinaries(session.before.binaries, answer.document.binaries)) {
       session.discard();
       return { kind: 'failed', failure: { kind: 'binariesChanged' } };
@@ -1033,6 +1060,8 @@ export async function commitSource(args: {
     return { kind: 'unchanged' };
   }
   const report = await session.validate();
+  // A cancel while the copy was validated (a plain request below 2 MiB answers all the same).
+  if (session.cancelled) return session.discardCancelled();
   const errors = newErrors(session.baseline, report);
   if (errors.length > 0) {
     session.after = undefined;
@@ -1149,7 +1178,9 @@ export function firstChangedNodeId(session: Pick<RequestSession, 'changes'>): st
 
 function firstIdIn(result: Record<string, unknown> | undefined): string | null {
   if (!result) return null;
-  const candidates = ['node', 'nodes', 'inserted', 'blocks', 'changed', 'parent'];
+  // `focus` and then `table` (feature 006, Δ§8.3): after an `edit_table` the caret lands in the
+  // focus cell.
+  const candidates = ['node', 'nodes', 'inserted', 'blocks', 'changed', 'parent', 'focus', 'table'];
   for (const key of candidates) {
     const value = result[key];
     const entry = Array.isArray(value) ? value[0] : value;

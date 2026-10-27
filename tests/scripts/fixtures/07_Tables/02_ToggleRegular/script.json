@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "tables.toggleRegular",
+  "name": {
+    "en": "Toggle a short row",
+    "ru": "Переключить короткую строку"
+  },
+  "kind": "menu"
+}

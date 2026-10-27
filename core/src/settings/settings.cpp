@@ -134,6 +134,12 @@ const std::vector<Field>& schema() {
         // Whether the AI panel is shown (feature 005, FR-040 as amended 2026-10-23): written
         // by the UI like session.treeVisible; open at the first start.
         field("session.aiPanelVisible", Kind::boolean),
+        // Feature 006, FR-002: the Table properties dialog's last confirmed values, written
+        // whole by its OK; an out-of-range or mistyped stored value is replaced by its default.
+        integer("session.tableDialog.rows", 1, 999),
+        integer("session.tableDialog.columns", 1, 64),
+        field("session.tableDialog.headerRow", Kind::boolean),
+        field("session.tableDialog.headerColumn", Kind::boolean),
         // The AI assistant (feature 005, rpc-api §3.7 / resource-formats §B): the mode
         // ("disabled" by default - FR-001, requester 2026-10-23: the assistant works only after
         // the user has chosen a service), the chosen free entry, the custom triple, the
@@ -562,7 +568,9 @@ json defaults() {
           {"toolbarLayouts", json::object()},
           {"lastFileDialogFolder", ""},
           {"aiPanelWidth", 360},
-          {"aiPanelVisible", true}}},
+          {"aiPanelVisible", true},
+          {"tableDialog",
+           {{"rows", 2}, {"columns", 2}, {"headerRow", false}, {"headerColumn", false}}}}},
         {"ai",
          {{"mode", "disabled"},
           {"freeServiceId", "ovhcloud"},

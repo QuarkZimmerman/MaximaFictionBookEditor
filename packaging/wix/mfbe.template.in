@@ -16,13 +16,21 @@
 
 <?include "cpack_variables.wxi"?>
 
+<!-- The ProductName (Apps & features, the setup dialogs' [ProductName], the downgrade message):
+     while the version has a pre-release part, packaging/CPackConfig.cmake passes
+     "-d MfbeProductName=MaximaFictionBookEditor <label>" to wix build (feature 006); otherwise
+     it is the package name. Package/@Version stays the numeric form (CPACK_PACKAGE_VERSION). -->
+<?ifndef MfbeProductName?>
+<?define MfbeProductName = "$(var.CPACK_PACKAGE_NAME)"?>
+<?endif?>
+
 <Wix
     xmlns="http://wixtoolset.org/schemas/v4/wxs"@CPACK_WIX_CUSTOM_XMLNS_EXPANDED@
     RequiredVersion="4.0"
     >
 
     <Package
-        Name="$(var.CPACK_PACKAGE_NAME)"
+        Name="$(var.MfbeProductName)"
         Version="$(var.CPACK_PACKAGE_VERSION)"
         Manufacturer="$(var.CPACK_PACKAGE_VENDOR)"
         UpgradeCode="$(var.CPACK_WIX_UPGRADE_GUID)"

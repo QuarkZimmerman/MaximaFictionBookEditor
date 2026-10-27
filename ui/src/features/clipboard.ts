@@ -7,9 +7,20 @@
  * falls back to the `paste` command. Enable states: Cut/Copy need a selection, Paste an
  * editable target. An image on the clipboard is handed to the images feature
  * (`features/images/paste.ts`), which uploads it as a binary and inserts an image node (US7).
+ *
+ * Feature 006, US10 (FR-011, FR-024, FR-025, FR-044; decision 6; C49; U9; R5.9; data-model §5.5,
+ * §8.1, §9.7): a rich field of the Description view (the book annotation, the source book's
+ * annotation, the history) is a table host with an edit target. Copy and Cut follow the field's
+ * own ProseMirror selection - a block of cells is never empty, while its native selection is
+ * hidden and collapsed -, Cut also its lock; they fire the synchronous command, which the
+ * field's clipboard plugin answers with the Body view's three flavours, and fall back to the
+ * asynchronous clipboard, a cut then removing the selection through the field's own transform.
+ * Paste reads the whole clipboard and routes it through the field's router (`pasteIntoTarget`),
+ * a picture going into the caret's cell. The plain fields keep feature 002's text handling.
  */
 
 import type { EditorView } from '@codemirror/view';
+import type { EditorView as ProseMirrorView } from 'prosemirror-view';
 
 import type { Command, CommandContext, CommandRegistry } from '@/app/commands';
 import {
@@ -19,9 +30,12 @@ import {
   lastFocusedTextField,
   pasteIntoField,
 } from '@/app/textFields';
+import { htmlHasTextTable } from '@/editor/clipboard/foreignHtml';
+import { caretInCell } from '@/editor/commands/insert';
 import {
   MFBE_CLIPBOARD_MIME,
   MFBE_CLIPBOARD_WEB_MIME,
+  cutTransaction,
   pasteData,
   payloadFromSlice,
   type PasteData,
@@ -32,6 +46,7 @@ import { getSourceEditor } from '@/views/source/sourceEditor';
 
 import { bodyActive, bodyController, bodyEditable, cmdKeys } from './editing/common';
 import { pasteImageFile, reportImageFailure } from './images/paste';
+import { activeTableTarget, fieldTargetFor, type TableEditTarget } from './tables/target';
 
 export {
   flattenToParagraphs,
@@ -70,11 +85,24 @@ function sourceSelected(view: EditorView): boolean {
   return view.state.selection.ranges.some((range) => !range.empty);
 }
 
+/**
+ * Copy (and Cut) in a rich field: decided by the field's own selection - a block of cells is
+ * never empty although the page shows no selected text (C49, U9) -, Cut also by its lock.
+ */
+function canCopyTarget(target: TableEditTarget, cut: boolean): boolean {
+  const state = target.state;
+  return !!state && !state.selection.empty && !(cut && !target.editable);
+}
+
 function canCopy(ctx: CommandContext, cut: boolean): boolean {
   const source = sourceView(ctx);
   if (source) return sourceSelected(source) && !(cut && source.state.readOnly);
   const field = descriptionField(ctx);
-  if (field) return hasSelectedText(field) && !(cut && !isWritable(field));
+  if (field) {
+    const target = fieldTargetFor(field);
+    if (target) return canCopyTarget(target, cut);
+    return hasSelectedText(field) && !(cut && !isWritable(field));
+  }
   return hasSelection(ctx, cut);
 }
 
@@ -86,8 +114,31 @@ function cutOrCopyIn(ctx: CommandContext, cut: boolean): Promise<void> | void {
     return;
   }
   const field = descriptionField(ctx);
-  if (field) return cutOrCopy(field, cut);
+  if (field) {
+    const target = fieldTargetFor(field);
+    if (target) return cutOrCopyTarget(target, cut);
+    return cutOrCopy(field, cut);
+  }
   return copySelection(bodyController(ctx.store)!, cut);
+}
+
+/**
+ * Cut or Copy in a rich field's editor (US10): the synchronous command, which the field's
+ * clipboard plugin answers (the own flavour, the HTML table and the tab-separated text), else
+ * the asynchronous clipboard - a cut then removing the selection as the plugin's cut does: a
+ * block cleared, a selected table through the *Delete table* transform, with the field's ids.
+ */
+export async function cutOrCopyTarget(target: TableEditTarget, cut: boolean): Promise<void> {
+  const view = target.view;
+  if (!view) return;
+  view.focus();
+  const ok = document.execCommand(cut ? 'cut' : 'copy');
+  if (!ok) {
+    const written = await writeClipboard(view);
+    if (written && cut && target.editable) {
+      view.dispatch(cutTransaction(view.state, () => target.nextNodeId()));
+    }
+  }
 }
 
 /** Clipboard content: the text flavours plus an image blob when the clipboard holds one (US7). */
@@ -122,9 +173,8 @@ async function readClipboard(): Promise<ClipboardContent | null> {
   }
 }
 
-/** Writes the selection to the system clipboard with the async API (best effort). */
-async function writeClipboard(controller: BodyEditorController): Promise<boolean> {
-  const view = controller.editorView;
+/** Writes the selection of `view` to the system clipboard with the async API (best effort). */
+async function writeClipboard(view: ProseMirrorView | null): Promise<boolean> {
   const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;
   if (
     !view ||
@@ -165,8 +215,9 @@ export async function copySelection(controller: BodyEditorController, cut: boole
   // The synchronous command fires the copy/cut event handled by the editor plugin.
   const ok = document.execCommand(cut ? 'cut' : 'copy');
   if (!ok) {
-    const written = await writeClipboard(controller);
-    if (written && cut) view.dispatch(view.state.tr.deleteSelection().scrollIntoView());
+    const written = await writeClipboard(view);
+    // A selected table goes through the Delete table transform, as in the cut event (C24).
+    if (written && cut) view.dispatch(cutTransaction(view.state, controller.nextNodeId));
   }
 }
 
@@ -187,8 +238,17 @@ export async function pasteIntoEditor(
   view.focus();
   const data = await readClipboard();
   if (data) {
-    // An image wins over the text flavours unless the clipboard holds the editor's own slice.
-    if (data.image && !data.json && options.onImage && (await options.onImage(data.image))) {
+    // An image wins over the text flavours unless the clipboard holds the editor's own slice or
+    // an HTML table with text, which the picture a spreadsheet adds beside it does not beat
+    // (feature 006, R5.9; data-model §8.9).
+    const tableWins = !!data.html && htmlHasTextTable(data.html);
+    if (
+      data.image &&
+      !data.json &&
+      !tableWins &&
+      options.onImage &&
+      (await options.onImage(data.image))
+    ) {
       return;
     }
     if (data.json || data.html || data.text) {
@@ -197,6 +257,39 @@ export async function pasteIntoEditor(
     }
   }
   document.execCommand('paste');
+}
+
+/**
+ * Edit → Paste into a table edit target - a rich field of the Description view (US10; decision
+ * 6; data-model §8.1, §9.7): the whole clipboard read through the asynchronous API; a picture
+ * goes into the caret's cell through the target, when no own flavour and no HTML table with text
+ * come with it (R5.9), and is left alone with the caret outside a cell; otherwise the text
+ * flavours go through the field's router (`pasteData`). Without a readable clipboard the
+ * browser's paste goes to the focused field, which its clipboard plugin routes.
+ */
+export async function pasteIntoTarget(ctx: CommandContext, target: TableEditTarget): Promise<void> {
+  const view = target.view;
+  if (!view) return;
+  view.focus();
+  const data = await readClipboard();
+  if (!data) {
+    document.execCommand('paste');
+    return;
+  }
+  const tableWins = !!data.html && htmlHasTextTable(data.html);
+  if (data.image && !data.json && !tableWins) {
+    const state = target.state;
+    if (state && caretInCell(state) && target.editable) {
+      try {
+        await pasteImageFile(ctx.store, target, data.image);
+      } catch (error) {
+        reportImageFailure(ctx.store, error);
+      }
+      return;
+    }
+    if (!data.html && !data.text) return;
+  }
+  if (data.json || data.html || data.text) pasteData(view, data);
 }
 
 export function registerClipboardCommands(registry: CommandRegistry): void {
@@ -228,19 +321,30 @@ export function registerClipboardCommands(registry: CommandRegistry): void {
         const source = sourceView(ctx);
         if (source) return !source.state.readOnly;
         const field = descriptionField(ctx);
-        if (field) return isWritable(field);
+        if (field) {
+          const target = fieldTargetFor(field);
+          return target ? target.editable : isWritable(field);
+        }
         return bodyEditable(ctx) && !!bodyController(ctx.store)?.isMounted;
       },
       run: (ctx) => {
         const source = sourceView(ctx);
         if (source) return pasteIntoSource(source);
         const field = descriptionField(ctx);
-        if (field) return pasteIntoField(field);
+        if (field) {
+          // A rich field takes the Body view's handling (US10); a plain field the clipboard's text.
+          const target = fieldTargetFor(field);
+          return target ? pasteIntoTarget(ctx, target) : pasteIntoField(field);
+        }
         const controller = bodyController(ctx.store)!;
         return pasteIntoEditor(controller, {
           onImage: async (image) => {
+            // The image goes to the active editing target: a table cell takes it as an inline
+            // image (feature 006, FR-025).
+            const target = activeTableTarget(ctx.store);
+            if (!target?.editable) return false;
             try {
-              await pasteImageFile(ctx.store, controller, image);
+              await pasteImageFile(ctx.store, target, image);
               return true;
             } catch (error) {
               reportImageFailure(ctx.store, error);

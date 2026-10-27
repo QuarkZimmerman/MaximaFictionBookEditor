@@ -253,8 +253,9 @@ installed.
 ### 3.4 End-to-end tests (Linux, macOS)
 
 The Playwright journeys drive the real UI in a headless Chromium against `mfbe-core`, which
-the test harness starts itself. The script benchmark (tagged `@perf`) measures times, so it runs
-on its own after the journeys:
+the test harness starts itself. The timed journeys (tagged `@perf`) - among them the script
+benchmark and the table commands of `perf-tables.spec.ts` (feature 006) - measure times, so they
+run on their own after the journeys, with one worker:
 
 <!-- replay:linux -->
 ```bash
@@ -313,12 +314,22 @@ ls -l build/macos-app-release/packages/
 
 | Platform | Package | Tooling |
 |----------|---------|---------|
-| Linux | `MaximaFictionBookEditor-<version>-x86_64.AppImage` (+ `.zsync`) | `packaging/appimage/build.sh`: appimagetool and the static type2 runtime are downloaded into `build/tools/` on first use |
+| Linux | `MaximaFictionBookEditor-<version>-x86_64.AppImage` (+ `.zsync`, only when the image embeds update information - not for an untagged build of a pre-release line) | `packaging/appimage/build.sh`: appimagetool and the static type2 runtime are downloaded into `build/tools/` on first use |
 | Linux | `mfbe_<version>_amd64.deb` | CPack DEB (`dpkg-deb`) |
 | Linux | `mfbe-<version>-1.x86_64.rpm` | CPack RPM (`rpmbuild` from the `rpm` package) |
 | Windows | `MaximaFictionBookEditor-<version>-win64.msi` | CPack WIX with the WiX .NET tool (`wix`, extensions `WixToolset.UI.wixext`, `WixToolset.Util.wixext`) |
 | Windows | `MaximaFictionBookEditor-<version>-win64-portable.zip` | CPack ZIP of the same installation tree plus an empty `bin\user` folder for the copy's data (portable copy, nothing registered) |
 | macOS | `MaximaFictionBookEditor-<version>-macos-<arch>.dmg` | CPack DragNDrop; the bundle is ad-hoc signed (`codesign --sign -`) |
+
+`<version>` is the version label, made from the numbers and the pre-release part committed in
+`CMakeLists.txt`: `0.0.6-rc` for every untagged build of the 0.0.6 development line (the forms
+and where each shows are listed in `packaging/README.md`, "Version forms"). The environment
+variable `MFBE_RELEASE_TAG` is set only by the release workflow
+(`.github/workflows/release.yml`), to the tag it builds, and gives the packages of a tag
+`v0.0.6-rc.N` the label `0.0.6-rc.N`. A developer who sets it by hand gets that tagged label
+locally too: the variable is read at every configure, which checks it against the committed
+version and stops with "tag ... does not match the committed version 0.0.6-rc" when it does not
+fit; unset it and configure again for an untagged build.
 
 Details of each package (layout, file associations, sandbox helper, AppArmor profile,
 signing) are in `packaging/README.md`; end-user installation steps are in

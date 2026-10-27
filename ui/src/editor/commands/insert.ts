@@ -12,7 +12,8 @@
  *  - Text author: appended to the enclosing poem / epigraph / cite unless it already ends with one;
  *  - Image: block image after the current paragraph of a section (never the first block);
  *  - Inline image: at the caret inside a paragraph of a section, annotation, title, epigraph,
- *    cite or stanza;
+ *    cite or stanza, and inside a table cell (feature 006, FR-024), where Image and Section
+ *    image stay unavailable (FR-026);
  *  - Section image: the header image of a body or section (after title/epigraphs);
  *  - Poem / Cite: wrap the selected paragraphs (whole paragraphs; blank lines separate stanzas)
  *    in a section, epigraph, annotation or cite (poem) / section, epigraph, annotation (cite);
@@ -270,12 +271,33 @@ const INLINE_IMAGE_CONTEXTS = new Set([
   'stanza',
 ]);
 
-/** Inline image at the caret (`InsInlineImage`). */
+/** A table cell (`td` or `th`): its `inline*` content takes inline images (feature 006, FR-024). */
+function isCell(node: PMNode): boolean {
+  return node.type === N.td || node.type === N.th;
+}
+
+/**
+ * The text block of the selection's head is a table cell - the head cell of a block of cells
+ * (feature 006, FR-024 to FR-026; data-model §9.7): a cell takes inline images only.
+ */
+export function caretInCell(state: EditorState): boolean {
+  return isCell(state.selection.$head.parent);
+}
+
+/**
+ * Inline image at the caret (`InsInlineImage`): in a text block of a container that takes inline
+ * images, or in a table cell (feature 006, FR-024; with a block of cells the picture lands in its
+ * top-left cell and the other cells are cleared, data-model §8.3).
+ */
 export function insertInlineImage(attrs: ImageAttrs = { href: CLEAR_IMAGE_HREF }): Command {
   return (state, dispatch) => {
     const { $from, $to } = state.selection;
     if (!$from.parent.inlineContent || !$from.sameParent($to)) return false;
-    if ($from.depth < 2 || !INLINE_IMAGE_CONTEXTS.has($from.node($from.depth - 1).type.name)) {
+    const inCell = isCell($from.parent);
+    if (
+      !inCell &&
+      ($from.depth < 2 || !INLINE_IMAGE_CONTEXTS.has($from.node($from.depth - 1).type.name))
+    ) {
       return false;
     }
     if (!$from.parent.type.contentMatch.matchType(N.inline_image!)) return false;

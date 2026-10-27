@@ -2,10 +2,15 @@
  * T084 - tree rows (kinds, captions, nesting, caching), visible rows with collapsed containers,
  * row lookup for Body selections, and the View Source position search. Feature 004 (US2): the
  * Annotation and History rows come first, at depth 0, whatever the document holds; a Body
- * selection inside the description's annotation or history maps to its block row.
+ * selection inside the description's annotation or history maps to its block row. Feature 006
+ * (US8, T126; FR-058; decision 8; C58; I18): a table row carries the summary of an irregular
+ * table, and the rows of a cite, a section annotation, an epigraph and the two block rows the
+ * summaries of the irregular tables they contain, in document order - the source book's
+ * annotation, which has no row, gives none -, cached with the section's rows.
  */
 
-import type { ModelNodeJson } from '@/editor/fromModel';
+import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
+import { gridOfNode } from '@/editor/table/grid';
 import { locateInSource, nthTagOffset, tagOrdinal } from '@/features/tree/sourceLocate';
 import type { BodyNode, Document } from '@/model/document';
 import { FIXED_BLOCK_IDS } from '@/editor/schema';
@@ -336,6 +341,186 @@ describe('view source position', () => {
     const historyFallback = locateInSource(noHistory, doc, FIXED_BLOCK_IDS.history)!;
     expect(noHistory.slice(historyFallback.offset, historyFallback.offset + 14)).toBe(
       '<document-info',
+    );
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006, US8 (T126): irregular tables                                */
+/* ------------------------------------------------------------------------ */
+
+describe('irregular tables in the tree (feature 006, US8)', () => {
+  const td = (nodeId: string, attrs: Record<string, unknown> = {}): ModelNodeJson => ({
+    type: 'td',
+    attrs: { nodeId, ...attrs },
+    content: [text(nodeId)],
+  });
+  const tr = (nodeId: string, cells: ModelNodeJson[]): ModelNodeJson => ({
+    type: 'tr',
+    attrs: { nodeId },
+    content: cells,
+  });
+  /** `[a, b] / [c]`: a short row. */
+  const shortRow = (id: string, attrs: Record<string, unknown> = {}): ModelNodeJson => ({
+    type: 'table',
+    attrs: { nodeId: id, ...attrs },
+    content: [tr(`${id}r0`, [td(`${id}a`), td(`${id}b`)]), tr(`${id}r1`, [td(`${id}c`)])],
+  });
+  /** `[a, b rowspan 2] / [c colspan 2]`: an overlap. */
+  const overlap = (id: string): ModelNodeJson => ({
+    type: 'table',
+    attrs: { nodeId: id },
+    content: [
+      tr(`${id}r0`, [td(`${id}a`), td(`${id}b`, { rowspan: 2 })]),
+      tr(`${id}r1`, [td(`${id}c`, { colspan: 2 })]),
+    ],
+  });
+  /** `[a, b]`: regular. */
+  const regular = (id: string): ModelNodeJson => ({
+    type: 'table',
+    attrs: { nodeId: id },
+    content: [tr(`${id}r0`, [td(`${id}a`), td(`${id}b`)])],
+  });
+  const annotation = (nodeId: string, content: ModelNodeJson[]) =>
+    ({ type: 'annotation', attrs: { nodeId }, content }) as unknown as AnnotationNode;
+
+  function tablesBook(): Document {
+    const body: ModelNodeJson = {
+      type: 'body',
+      attrs: { nodeId: 'body1' },
+      content: [
+        {
+          type: 'section',
+          attrs: { nodeId: 'S1' },
+          content: [
+            { type: 'title', attrs: { nodeId: 'tS1' }, content: [p('pS1', 'Tables')] },
+            {
+              type: 'epigraph',
+              attrs: { nodeId: 'E1' },
+              content: [{ type: 'cite', attrs: { nodeId: 'EC' }, content: [overlap('T6')] }],
+            },
+            { type: 'annotation', attrs: { nodeId: 'AN1' }, content: [shortRow('T5')] },
+            p('pS1a', 'Text'),
+            shortRow('T1'),
+            regular('T2'),
+            {
+              type: 'cite',
+              attrs: { nodeId: 'C1' },
+              content: [
+                p('pC1', 'Cited'),
+                overlap('T3'),
+                regular('T3b'),
+                shortRow('T4', { id: 'named' }),
+              ],
+            },
+          ],
+        },
+        {
+          type: 'section',
+          attrs: { nodeId: 'S2' },
+          content: [p('pS2', 'Second'), regular('T7')],
+        },
+      ],
+    };
+    const doc = fakeDocument({ bodies: [body as unknown as BodyNode] });
+    doc.description.titleInfo.annotation = annotation('ann', [
+      p('pAnn', 'A'),
+      shortRow('T8'),
+      regular('T8b'),
+    ]);
+    doc.description.documentInfo.history = annotation('hist', [
+      overlap('T9'),
+      shortRow('T9b', { id: 'h9' }),
+    ]);
+    doc.description.srcTitleInfo = {
+      ...doc.description.titleInfo,
+      annotation: annotation('src', [shortRow('T10')]),
+    };
+    return doc;
+  }
+
+  /** The Body view's summary of a model table (`gridOfNode` over `nodeFromModel`). */
+  const summaryOf = (table: ModelNodeJson) => gridOfNode(nodeFromModel(table)!).summary;
+
+  function tableOf(doc: Document, id: string): ModelNodeJson {
+    let found: ModelNodeJson | null = null;
+    const visit = (node: ModelNodeJson) => {
+      if (node.type === 'table' && node.attrs?.nodeId === id) found = node;
+      for (const child of node.content ?? []) visit(child);
+    };
+    for (const root of [
+      ...doc.bodies,
+      doc.description.titleInfo.annotation,
+      doc.description.documentInfo.history,
+      doc.description.srcTitleInfo?.annotation,
+    ]) {
+      if (root) visit(root as unknown as ModelNodeJson);
+    }
+    if (!found) throw new Error(`no table ${id}`);
+    return found;
+  }
+
+  it('tableProblems only on the rows of irregular tables; containedTables on a cite’s, a section annotation’s and an epigraph’s row and on the two block rows, in document order; nothing for the source book’s annotation', () => {
+    const doc = tablesBook();
+    const index = buildTreeIndex(doc, CAPTIONS);
+    const row = (id: string) => index.rows.get(id)!;
+    expect(row('T1').tableProblems).toEqual(summaryOf(tableOf(doc, 'T1')));
+    expect(row('T2').tableProblems).toBeUndefined();
+    expect(row('S2').containedTables).toBeUndefined();
+    expect(row('C1').containedTables).toEqual([
+      summaryOf(tableOf(doc, 'T3')),
+      summaryOf(tableOf(doc, 'T4')),
+    ]);
+    expect(row('C1').containedTables![1]!.id).toBe('named');
+    expect(row('AN1').containedTables).toEqual([summaryOf(tableOf(doc, 'T5'))]);
+    expect(row('E1').containedTables).toEqual([summaryOf(tableOf(doc, 'T6'))]);
+    expect(row(FIXED_BLOCK_IDS.annotation).containedTables).toEqual([
+      summaryOf(tableOf(doc, 'T8')),
+    ]);
+    expect(row(FIXED_BLOCK_IDS.history).containedTables).toEqual([
+      summaryOf(tableOf(doc, 'T9')),
+      summaryOf(tableOf(doc, 'T9b')),
+    ]);
+    // No row of the tree stands for the source book's annotation (decision 8; C58): only the
+    // rows above carry summaries, and T1 is the only table row with one.
+    for (const one of index.rows.values()) {
+      expect(one.tableProblems === undefined || one.id === 'T1', one.id).toBe(true);
+    }
+    expect(
+      [...index.rows.values()]
+        .filter((one) => one.containedTables)
+        .map((one) => one.id)
+        .sort(),
+    ).toEqual(['AN1', 'C1', 'E1', FIXED_BLOCK_IDS.annotation, FIXED_BLOCK_IDS.history].sort());
+    // A document without a description: the block rows have nothing.
+    const bare = buildTreeIndex({ bodies: doc.bodies }, CAPTIONS);
+    expect(bare.rows.get(FIXED_BLOCK_IDS.annotation)!.containedTables).toBeUndefined();
+    expect(bare.rows.get('T1')!.tableProblems).toEqual(summaryOf(tableOf(doc, 'T1')));
+  });
+
+  it('a section’s rows - and their summaries - are reused after an edit in another section; the block rows’ summaries per annotation object', () => {
+    const doc = tablesBook();
+    const first = buildTreeIndex(doc, CAPTIONS);
+    const body = doc.bodies[0]!;
+    const edited: Document = {
+      ...doc,
+      bodies: [
+        {
+          ...body,
+          content: [
+            body.content[0]!,
+            { ...(body.content[1] as object), content: [p('pS2', 'Edited'), shortRow('T7')] },
+          ] as BodyNode['content'],
+        },
+      ],
+    };
+    const second = buildTreeIndex(edited, CAPTIONS);
+    for (const id of ['S1', 'T1', 'C1', 'AN1', 'E1']) {
+      expect(second.rows.get(id), id).toBe(first.rows.get(id));
+    }
+    expect(second.rows.get('T7')!.tableProblems).toEqual(summaryOf(shortRow('T7')));
+    expect(second.rows.get(FIXED_BLOCK_IDS.annotation)!.containedTables).toBe(
+      first.rows.get(FIXED_BLOCK_IDS.annotation)!.containedTables,
     );
   });
 });

@@ -1,45 +1,70 @@
 /**
  * Body context menu (T067), after `CFBEView::OnContextMenu`: Undo, Cut, Copy, Paste, one
  * "Select <element>" entry per ancestor container of the caret (section, body...), plus the
- * extension slots other stories fill: `spelling` (suggestions / Add to dictionary, US6) and
- * `image` ("Save image as...", US7). Rendered as a popup positioned at the pointer; Escape,
- * a click elsewhere or running an entry closes it. Keyboard: arrows, Enter, Escape.
+ * extension slots other stories fill: `spelling` (suggestions / Add to dictionary, US6),
+ * `image` ("Save image as...", US7), `ai` ("Ask AI...", feature 005) and, after a separator,
+ * the tables feature's section (*Table…* and *Table structure ▸*, feature 006, FR-040).
+ *
+ * Rendered by `PopupMenu` (feature 006, C29; kept by the requester at `/speckit-analyze`,
+ * analyze decision 1): the position is measured once rendered, the command entries' accelerator
+ * letters run them (their labels come with `&`), one submenu level opens on hover, click,
+ * Enter or ArrowRight, a disabled entry shows why it is unavailable, and the focus returns as
+ * `PopupMenu` returns it. The entries keep their ids, so `context-menu-<id>` stays.
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { commandLabelRaw } from '@/app/commands';
+import { PopupMenu, type PopupMenuItem } from '@/app/PopupMenu';
 import { useAppRevision, useAppServices, useCommandContext } from '@/app/services';
-import { commandLabel } from '@/app/commands';
 
 import type { BodyEditorController } from './bodyEditor';
 import {
   contextMenuExtensions,
   isSeparator,
   selectEntries,
+  type ContextMenuClick,
   type ContextMenuEntry,
   type ContextMenuItem,
 } from './contextMenuExtensions';
 
 export interface ContextMenuProps {
   controller: BodyEditorController;
-  position: { x: number; y: number };
+  /** Where the menu was asked for: the pointer and the document position under it. */
+  click: ContextMenuClick;
   onClose: () => void;
 }
 
-export function ContextMenu({ controller, position, onClose }: ContextMenuProps) {
+/** A label shown as it is: a literal `&` stays one (no accelerator from a slot's text). */
+const literal = (label: string) => label.replace(/&/g, '&&');
+
+/** The menu's items as `PopupMenu` items; `raw` marks the labels that carry `&` accelerators. */
+function popupItems(items: readonly ContextMenuItem[], raw: ReadonlySet<string>): PopupMenuItem[] {
+  return items.map((item) =>
+    isSeparator(item)
+      ? 'separator'
+      : {
+          id: item.id,
+          label: raw.has(item.id) ? item.label : literal(item.label),
+          enabled: item.enabled,
+          title: item.title,
+          items: item.items ? popupItems(item.items, raw) : undefined,
+          run: item.run,
+        },
+  );
+}
+
+export function ContextMenu({ controller, click, onClose }: ContextMenuProps) {
   const { t } = useTranslation();
   const services = useAppServices();
   const ctx = useCommandContext();
   useAppRevision();
-  const ref = useRef<HTMLDivElement>(null);
-  const [highlighted, setHighlighted] = useState(0);
 
   const command = (id: string, labelKey: string): ContextMenuEntry => {
     const spec = services.commands.get(id);
     return {
       id,
-      label: spec ? commandLabel(spec, t) : t(labelKey),
+      label: spec ? commandLabelRaw(spec, t) : t(labelKey),
       enabled: services.commands.isEnabled(id, ctx),
       run: () => void services.commands.execute(id, ctx),
     };
@@ -54,112 +79,23 @@ export function ContextMenu({ controller, position, onClose }: ContextMenuProps)
     { separator: true, id: 'sep-2' },
     ...selectEntries(controller, (element) => t('editing.contextMenu.select', { element })),
   ];
+  // The command entries' labels carry their `&` letters; every other label is shown as it is.
+  const accelerated = new Set(['edit.undo', 'edit.cut', 'edit.copy', 'edit.paste']);
   const spelling = contextMenuExtensions.spelling?.(controller) ?? [];
   if (spelling.length > 0) items.push({ separator: true, id: 'sep-spelling' }, ...spelling);
   const image = contextMenuExtensions.image?.(controller) ?? [];
   if (image.length > 0) items.push({ separator: true, id: 'sep-image' }, ...image);
   const ai = contextMenuExtensions.ai?.(controller) ?? [];
   if (ai.length > 0) items.push({ separator: true, id: 'sep-ai' }, ...ai);
-
-  const entries = items.filter((item): item is ContextMenuEntry => !isSeparator(item));
-
-  const activate = useCallback(
-    (entry: ContextMenuEntry) => {
-      if (entry.enabled === false) return;
-      onClose();
-      entry.run();
-    },
-    [onClose],
-  );
-
-  useEffect(() => {
-    ref.current?.focus();
-    const onPointerDown = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) onClose();
-    };
-    const onScroll = () => onClose();
-    document.addEventListener('mousedown', onPointerDown, true);
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onScroll);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown, true);
-      window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onScroll);
-    };
-  }, [onClose]);
-
-  // Keep the popup inside the viewport.
-  const style: React.CSSProperties = {
-    left: Math.min(position.x, Math.max(0, window.innerWidth - 240)),
-    top: Math.min(position.y, Math.max(0, window.innerHeight - 24 * (items.length + 1))),
-  };
-
-  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    switch (event.key) {
-      case 'Escape':
-        event.preventDefault();
-        event.stopPropagation();
-        onClose();
-        controller.focus();
-        break;
-      case 'ArrowDown':
-        event.preventDefault();
-        setHighlighted((h) => (h + 1) % Math.max(1, entries.length));
-        break;
-      case 'ArrowUp':
-        event.preventDefault();
-        setHighlighted((h) => (h - 1 + entries.length) % Math.max(1, entries.length));
-        break;
-      case 'Enter':
-      case ' ': {
-        event.preventDefault();
-        const entry = entries[highlighted];
-        if (entry) activate(entry);
-        break;
-      }
-      default:
-        break;
-    }
-  };
-
-  let entryIndex = -1;
-  const rendered: ReactNode[] = items.map((item) => {
-    if (isSeparator(item)) {
-      return <div key={item.id} className="mfbe-menu-separator" role="separator" />;
-    }
-    entryIndex += 1;
-    const index = entryIndex;
-    const disabled = item.enabled === false;
-    return (
-      <div
-        key={item.id}
-        role="menuitem"
-        aria-disabled={disabled || undefined}
-        className={`mfbe-menu-item${index === highlighted ? ' mfbe-menu-item-highlighted' : ''}${disabled ? ' mfbe-menu-item-disabled' : ''}`}
-        data-testid={`context-menu-${item.id}`}
-        onMouseEnter={() => setHighlighted(index)}
-        onClick={() => activate(item)}
-      >
-        <span className="mfbe-menu-check" />
-        <span>{item.label}</span>
-        <span className="mfbe-menu-hotkey" />
-        <span className="mfbe-menu-arrow" />
-      </div>
-    );
-  });
+  const table = contextMenuExtensions.table?.(controller, click, ctx) ?? [];
+  if (table.length > 0) items.push({ separator: true, id: 'sep-table' }, ...table);
 
   return (
-    <div
-      ref={ref}
-      role="menu"
-      tabIndex={-1}
-      className="mfbe-menu-popup mfbe-context-menu"
-      style={style}
-      data-testid="context-menu"
-      onKeyDown={onKeyDown}
-      onContextMenu={(event) => event.preventDefault()}
-    >
-      {rendered}
-    </div>
+    <PopupMenu
+      items={popupItems(items, accelerated)}
+      position={click}
+      onClose={onClose}
+      testId="context-menu"
+    />
   );
 }

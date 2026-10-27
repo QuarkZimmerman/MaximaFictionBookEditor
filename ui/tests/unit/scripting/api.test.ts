@@ -348,6 +348,54 @@ describe('the start document and the exposed working copy (feature 005 T027)', (
   });
 });
 
+describe('feature 006: the sc_<N> ids of a run (I26; ai-catalogue Δ§3 "Ids of new nodes")', () => {
+  /** The fixture book with paragraphs of the given node ids at the end of its second section. */
+  function bookWithIds(...ids: string[]): Document {
+    const document = book();
+    const second = document.bodies[0]!.content[2] as SectionNode;
+    second.content.push(...ids.map((id) => paragraph(id, `Node ${id}.`)));
+    return document;
+  }
+
+  it('a script run is seeded past the highest sc_<N> of its document', async () => {
+    // The store's book holds `sc_3` and `sc_7` - nodes an earlier run or assistant request
+    // created - beside an id of another form.
+    const h = await harness(bookWithIds('sc_3', 'ui_12', 'sc_7'));
+    const added = (await call(h, 'doc.insertNode', 'append', 's1', {
+      type: 'p',
+      attrs: {},
+      content: [{ type: 'text', text: 'New' }],
+    })) as NodeRef;
+    expect(added.nodeId).toBe('sc_8');
+    const next = (await call(h, 'doc.insertNode', 'before', 'p1', {
+      type: 'empty-line',
+      attrs: {},
+    })) as NodeRef;
+    expect(next.nodeId).toBe('sc_9');
+
+    // A run nested in an AI request starts from the request's working copy (`ScriptApiDeps.
+    // document`) and is seeded from it, not from the store's document: here a copy without
+    // `sc_7`, which the request removed.
+    const nested = createScriptApi({
+      store: h.store,
+      document: bookWithIds('sc_3'),
+      controller: getBodyController(h.store),
+      dialogs: h.dialogs,
+      rpc: null,
+      t: h.ctx.t,
+      scriptName: 'Nested',
+      uiLanguage: 'en',
+      publish: false,
+    });
+    const inserted = (await nested.call('doc.insertNode', [
+      'append',
+      's2',
+      { type: 'p', attrs: {}, content: [{ type: 'text', text: 'Nested' }] },
+    ])) as NodeRef;
+    expect(inserted.nodeId).toBe('sc_4');
+  });
+});
+
 describe('doc.* edits (working copy)', () => {
   it('setText replaces the inline content of the working copy only', async () => {
     const h = await harness();
@@ -806,6 +854,46 @@ describe('selection.*', () => {
       'unknown nodeId',
     );
     expect(h.store.getState().selectionNodeId).toBe('p3');
+
+    // Feature 006 (FR-069; document-model §2.5, open point 9): a node may carry several marks
+    // of one kind now, yet {style} keeps release 0.0.5's replacement; another formatting name
+    // stands beside a mark of its kind with a language, and unwrap removes every mark of a kind.
+    type Para = { content: { text: string; marks?: unknown[] }[] };
+    const beta = async (marks: unknown[]) => {
+      await call(h, 'doc.replaceNode', 'p2', {
+        type: 'p',
+        attrs: {},
+        content: [
+          { type: 'text', text: 'Beta ' },
+          { type: 'text', text: 'again', marks },
+          { type: 'text', text: '.' },
+        ],
+      });
+      await call(h, 'selection.set', { nodeId: 'p2', offset: 5 }, { nodeId: 'p2', offset: 10 });
+      expect(((await call(h, 'selection.get')) as SelectionInfo).text).toBe('again');
+    };
+    const marksOfAgain = async () =>
+      ((await call(h, 'doc.getNode', 'p2')) as Para).content.find((c) => c.text === 'again')?.marks;
+    const style = (name: string) => ({ type: 'style', attrs: { name } });
+    await beta([style('spaced')]);
+    await call(h, 'selection.wrap', { style: 'b' });
+    expect(await marksOfAgain()).toEqual([style('b')]);
+    await beta([style('a'), style('x')]);
+    expect(await marksOfAgain()).toEqual([style('a'), style('x')]);
+    await call(h, 'selection.wrap', { style: 'b' });
+    expect(await marksOfAgain()).toEqual([style('b')]);
+    await beta([style('a'), style('x')]);
+    await call(h, 'selection.unwrap', 'style');
+    expect(await marksOfAgain()).toBeUndefined();
+    const latin = { type: 'emphasis', attrs: { lang: 'la' } };
+    await beta([latin]);
+    await call(h, 'selection.wrap', 'emphasis');
+    expect(await marksOfAgain()).toEqual([latin, { type: 'emphasis' }]);
+    await call(h, 'selection.unwrap', 'emphasis');
+    expect(await marksOfAgain()).toBeUndefined();
+    await beta([{ type: 'emphasis' }]);
+    await call(h, 'selection.wrap', 'emphasis');
+    expect(await marksOfAgain()).toEqual([{ type: 'emphasis' }]);
   });
 
   it('selectNode moves the window onto an unmounted section', async () => {

@@ -14,8 +14,8 @@ import { installImagePaste } from './paste';
 import { registerSaveImageAs } from './saveAs';
 
 export { addBinaryToModel, referenceCounts, uploadBinary } from './binaries';
-export { chooseImage, insertImageAtCaret, wantsClearImage } from './insert';
-export { handleImagePaste, pasteImageFile } from './paste';
+export { chooseImage, insertImageAtCaret, wantsClearImage, type ImageTarget } from './insert';
+export { handleImagePaste, imageTargetFor, pasteImageFile } from './paste';
 export { handleImageDrop } from './dragdrop';
 
 export function registerImagesFeature(ctx: FeatureContext): void {

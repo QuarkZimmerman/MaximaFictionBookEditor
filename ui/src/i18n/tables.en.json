@@ -1,0 +1,249 @@
+{
+  "$comment": "Table editing (feature 006): the feature's catalogue, deep-merged into the base catalogue by ui/src/i18n/index.ts; en, ru and uk stay in parity (tools/i18n-check.mjs). Keys, placeholders and plural families are those of contracts/resource-formats.md §9: the Edit menu's Table structure submenu and its 24 command labels (menu.tableStructure.<name>, <name> being the command id without \"table.\"), their tooltips and descriptions, the Hotkeys page group, the context-menu entries, the reasons of unavailable commands (tables.reason.<code>, the part after \"{{command}}: \"), the problem phrases of irregular tables, the Validate and mark texts, the mark's popover, the Table properties dialog's fields, the two bar labels and the status-bar messages.",
+  "menu": {
+    "edit": {
+      "tableStructure": "Ta&ble structure"
+    },
+    "tableStructure": {
+      "insertRowAbove": "Insert row &above",
+      "insertRowBelow": "Insert row &below",
+      "deleteRow": "&Delete row",
+      "insertColumnLeft": "Insert column to the &left",
+      "insertColumnRight": "Insert column to the &right",
+      "deleteColumn": "Delete c&olumn",
+      "mergeCells": "&Merge cells",
+      "splitCell": "&Split cell",
+      "toggleHeaderCell": "To&ggle header cell",
+      "makeHeaderCells": "Ma&ke header cells",
+      "makeNormalCells": "Make &normal cells",
+      "toggleHeaderRow": "Toggle header ro&w",
+      "toggleHeaderColumn": "Toggle header &column",
+      "repair": "Re&pair table",
+      "select": "S&elect table",
+      "delete": "Delete &table",
+      "moveRowUp": "Move row &up",
+      "moveRowDown": "Mo&ve row down",
+      "moveColumnLeft": "Move column le&ft",
+      "moveColumnRight": "Move column r&ight",
+      "duplicateRow": "Duplicate row",
+      "duplicateColumn": "Duplicate column",
+      "paragraphBefore": "Paragraph before table",
+      "paragraphAfter": "Paragrap&h after table"
+    }
+  },
+  "hotkeys": {
+    "groups": {
+      "table": "Table"
+    }
+  },
+  "tables": {
+    "cmd": {
+      "insertRowAbove": {
+        "tooltip": "Insert row above",
+        "description": "Insert empty rows above the caret's row or the selected block"
+      },
+      "insertRowBelow": {
+        "tooltip": "Insert row below",
+        "description": "Insert empty rows below the caret's row or the selected block"
+      },
+      "deleteRow": {
+        "tooltip": "Delete row",
+        "description": "Delete the caret's row or the rows of the selected block"
+      },
+      "insertColumnLeft": {
+        "tooltip": "Insert column to the left",
+        "description": "Insert empty columns to the left of the caret's column or the selected block"
+      },
+      "insertColumnRight": {
+        "tooltip": "Insert column to the right",
+        "description": "Insert empty columns to the right of the caret's column or the selected block"
+      },
+      "deleteColumn": {
+        "tooltip": "Delete column",
+        "description": "Delete the caret's column or the columns of the selected block"
+      },
+      "mergeCells": {
+        "tooltip": "Merge cells",
+        "description": "Merge the selected block into one cell"
+      },
+      "splitCell": {
+        "tooltip": "Split cell",
+        "description": "Split a merged cell into one cell per position"
+      },
+      "toggleHeaderCell": {
+        "tooltip": "Toggle header cell",
+        "description": "Switch the caret's cell between header and normal"
+      },
+      "makeHeaderCells": {
+        "tooltip": "Make header cells",
+        "description": "Make every cell of the selected block a header cell"
+      },
+      "makeNormalCells": {
+        "tooltip": "Make normal cells",
+        "description": "Make every cell of the selected block a normal cell"
+      },
+      "toggleHeaderRow": {
+        "tooltip": "Toggle header row",
+        "description": "Make the cells of the caret's row header cells, or normal cells when all already are"
+      },
+      "toggleHeaderColumn": {
+        "tooltip": "Toggle header column",
+        "description": "Make the cells of the caret's column header cells, or normal cells when all already are"
+      },
+      "repair": {
+        "tooltip": "Repair table",
+        "description": "Make an irregular table regular without deleting any content"
+      },
+      "select": {
+        "tooltip": "Select table",
+        "description": "Select the whole table"
+      },
+      "delete": {
+        "tooltip": "Delete table",
+        "description": "Delete the whole table"
+      },
+      "moveRowUp": {
+        "tooltip": "Move row up",
+        "description": "Move the caret's row or the selected rows up"
+      },
+      "moveRowDown": {
+        "tooltip": "Move row down",
+        "description": "Move the caret's row or the selected rows down"
+      },
+      "moveColumnLeft": {
+        "tooltip": "Move column left",
+        "description": "Move the caret's column or the selected columns to the left"
+      },
+      "moveColumnRight": {
+        "tooltip": "Move column right",
+        "description": "Move the caret's column or the selected columns to the right"
+      },
+      "duplicateRow": {
+        "tooltip": "Duplicate row",
+        "description": "Insert a copy of the caret's row or the selected rows below them"
+      },
+      "duplicateColumn": {
+        "tooltip": "Duplicate column",
+        "description": "Insert a copy of the caret's column or the selected columns to their right"
+      },
+      "paragraphBefore": {
+        "tooltip": "Paragraph before table",
+        "description": "Insert an empty paragraph directly before the table"
+      },
+      "paragraphAfter": {
+        "tooltip": "Paragraph after table",
+        "description": "Insert an empty paragraph directly after the table"
+      }
+    },
+    "contextMenu": {
+      "structure": "Table structure",
+      "inlineImage": "Inline image..."
+    },
+    "reason": {
+      "only-row": "the table has only one row; use Delete table",
+      "all-rows": "the selection covers every row; use Delete table",
+      "only-column": "the table has only one column; use Delete table",
+      "all-columns": "the selection covers every column; use Delete table",
+      "merged-crosses-border": {
+        "row": "a merged cell crosses the border of the row",
+        "column": "a merged cell crosses the border of the column"
+      },
+      "no-neighbour": {
+        "up": "there is no row above",
+        "down": "there is no row below",
+        "left": "there is no column to the left",
+        "right": "there is no column to the right"
+      },
+      "not-merged": {
+        "cell": "the cell is not merged",
+        "block": "select a single merged cell"
+      },
+      "needs-block": "select a block of at least two cells",
+      "regular": "the table has nothing to repair",
+      "span-past-edge": {
+        "column": "the span would reach past the last column",
+        "row": "the span would reach past the last row"
+      },
+      "merge-needs-block": "A merged cell starts above or to the left of this cell; select the cells and use Merge cells.",
+      "too-large": "the table is too large to edit",
+      "invalid-id": "not a valid FB2 identifier: no spaces, not starting with a digit",
+      "duplicate-id": "another element of the book already uses {{id}}",
+      "invalid-lang": "\"{{value}}\" is not a language tag: letters and digits in parts separated by hyphens",
+      "noTarget": {
+        "table": "place the caret in a table of the Body view or of an annotation or history field",
+        "insert": "place the caret in the Body view, in an annotation or history field, or in the Source view"
+      },
+      "notInTable": "the caret is not in a table",
+      "mixedSelection": "the selection reaches outside the table",
+      "tableSelected": "the whole table is selected; place the caret in a cell",
+      "noTablePlace": "no table may stand here",
+      "cellInlineOnly": "a cell takes inline images only",
+      "source": {
+        "loading": "the source is still loading",
+        "failed": "the source could not be loaded",
+        "analysing": "the source is still being read; try again in a moment",
+        "notWellFormed": "the source is not well-formed XML (line {{line}}); correct it first - Go to wrong tag finds the place",
+        "inTag": "the cursor is inside a tag; place it between two elements",
+        "inMarkup": "the cursor is inside a comment, a CDATA section, a processing instruction or a doctype",
+        "outsideRoot": "the cursor is outside the FictionBook element",
+        "inText": "the cursor is inside text; in XML a table can stand only between elements",
+        "notAllowed": "the FB2 schema allows no table at this point of <{{element}}>"
+      }
+    },
+    "problem": {
+      "shortRow_one": "row {{row}} covers {{covered}} of {{columns}} column",
+      "shortRow_other": "row {{row}} covers {{covered}} of {{columns}} columns",
+      "shortRows_one": "{{count}} row covers fewer than {{columns}} columns",
+      "shortRows_other": "{{count}} rows cover fewer than {{columns}} columns",
+      "overlaps_one": "{{count}} overlapping span",
+      "overlaps_other": "{{count}} overlapping spans",
+      "pastEnd_one": "{{count}} span reaches past the last row",
+      "pastEnd_other": "{{count}} spans reach past the last row",
+      "separator": "; "
+    },
+    "mark": {
+      "repairHint": "Repair table makes the table regular.",
+      "contains": "Contains an irregular table: {{problems}}",
+      "containsNamed": "Contains an irregular table \"{{id}}\": {{problems}}"
+    },
+    "msg": {
+      "idInvalid": "The ID is not valid: an FB2 identifier has no spaces and does not start with a digit.",
+      "idInUse": "Another element of the book already uses the ID \"{{id}}\".",
+      "langInvalid": "\"{{value}}\" is not a language code: use letters and digits in parts separated by hyphens, such as en or pt-BR.",
+      "spanPastEnd": "The span would reach past the last column or row of the table.",
+      "spanInvalid": "A span must be a whole number of 1 or more.",
+      "pasteNoPlace": "The table cannot be pasted here: no table may stand at the caret.",
+      "linkTargets_one": "{{count}} link of the book points to a cell that this merge removes, and will lose its target. Merge anyway?",
+      "linkTargets_other": "{{count}} links of the book point to cells that this merge removes, and will lose their targets. Merge anyway?",
+      "linkTargetsCaption": "Merge cells"
+    }
+  },
+  "validation": {
+    "table": {
+      "irregular": "Irregular table: {{problems}}",
+      "irregularNamed": "Irregular table \"{{id}}\": {{problems}}"
+    }
+  },
+  "dialog": {
+    "table": {
+      "rowCount": "&Rows:",
+      "columns": "&Columns:",
+      "headerRow": "&Header row",
+      "headerColumn": "Header c&olumn",
+      "range": "{{min}}–{{max}}",
+      "rowsInvalid": "Rows must be a whole number between {{min}} and {{max}}.",
+      "columnsInvalid": "Columns must be a whole number between {{min}} and {{max}}."
+    },
+    "tableMark": {
+      "title": "Irregular table",
+      "repair": "&Repair table",
+      "hint": "Repair table makes the table regular. No cell content is deleted, and Undo brings the table back."
+    }
+  },
+  "tableBar": {
+    "lang": "Cell language:"
+  },
+  "linksBar": {
+    "alt": "Alt text:"
+  }
+}

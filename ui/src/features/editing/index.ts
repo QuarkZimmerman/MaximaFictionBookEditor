@@ -4,10 +4,11 @@
  *  - creates the persistent Body controller (`views/body/bodyEditor.ts`) and keeps it fed with
  *    the store's document; registers its undo adapter (`body` view of the UndoCoordinator) and
  *    caret provider;
- *  - replaces the editing stubs of the command registry: Add menu (`insert.*`), Style menu
- *    (`style.*`), container operations (`edit.clone|split|merge|removeOuter`), links and
- *    footnotes, clipboard (`edit.cut|copy|paste`), Find / Replace / Find Next / incremental
- *    search, non-breaking space and symbols, the navigation focus commands.
+ *  - replaces the editing stubs of the command registry: Add menu (`insert.*`; *Table* is the
+ *    tables feature's, feature 006), Style menu (`style.*`), container operations
+ *    (`edit.clone|split|merge|removeOuter`), links and footnotes, clipboard
+ *    (`edit.cut|copy|paste`), Find / Replace / Find Next / incremental search, non-breaking
+ *    space and symbols, the navigation focus commands.
  */
 
 import type { Command } from '@/app/commands';
@@ -21,6 +22,7 @@ import {
 } from '@/views/body/bodyEditor';
 
 import { registerClipboardCommands } from '../clipboard';
+import { activeTableTarget } from '../tables/target';
 import { registerFootnoteCommands } from '../footnotes';
 import { BodySearchTarget } from '../search/bodyTarget';
 import { IncrementalSearch, registerIncrementalSearch } from '../search/incremental';
@@ -88,12 +90,19 @@ export function installBodyEditor(ctx: FeatureContext): BodyEditorController {
   return controller;
 }
 
+/**
+ * A Links / Table bar focus hotkey: available in the Body view while the bar's field is mounted;
+ * *Table ID* (`nav.selectTableId`) also while a description field is the active table edit
+ * target, since the Table bar follows the focused field (feature 006, US10; data-model §10.1).
+ */
 function navCommand(id: string, field: BarField): Command {
+  const inField = (ctx: Parameters<NonNullable<Command['enabled']>>[0]) =>
+    field === 'tableId' && activeTableTarget(ctx.store)?.kind === 'description';
   return {
     id,
     group: 'navigation',
     ...cmdKeys(id),
-    enabled: (ctx) => bodyActive(ctx) && canFocusBarField(field),
+    enabled: (ctx) => (bodyActive(ctx) || inField(ctx)) && canFocusBarField(field),
     run: () => {
       focusBarField(field);
     },

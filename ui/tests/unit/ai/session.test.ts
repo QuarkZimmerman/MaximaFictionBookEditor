@@ -6,15 +6,26 @@
  * the lock released), works on a copy-on-write `WorkingCopy` with checkpoint / rollback, commits
  * as **one** undo snapshot named after the instruction only when the copy changed, discards
  * byte for byte otherwise, and gives the nodes of `doc.fragmentFromXml` `sc_<N>` ids (C12).
+ * Feature 006 T174 (I26, C7; ai-catalogue Δ§3 "Ids of new nodes"): those ids stay unique in the
+ * book - across requests in a row and across the script runs nested in a request.
  */
 
+import { startAssistant, startRequest, stopAssistant } from '@/ai/assistant';
 import { ChangeRejection } from '@/ai/hook';
 import { startRequestSession, type RequestSession } from '@/ai/session';
+import { createCommandRegistry } from '@/app/commands';
 import type { ModelNodeJson } from '@/editor/fromModel';
-import { actions } from '@/model/store';
+import { initI18n } from '@/i18n';
+import type { Document } from '@/model/document';
+import { actions, type AppStore } from '@/model/store';
 import { RpcError } from '@/rpc/client';
-import { RpcErrorCode } from '@/rpc/types';
-import { startRunSession } from '@/scripting/runSession';
+import { RpcErrorCode, type AiOutcome } from '@/rpc/types';
+import { installScriptsFeature } from '@/scripting/catalog';
+import { cancelActiveRun, startRunSession } from '@/scripting/runSession';
+import type { HostMessage, InitMessage, ScriptInfo, WorkerMessage } from '@/scripting/types';
+
+import { fakeDialogs, fakeRpc, makeContext } from '../features/testUtils';
+import { defaultSettings } from '../settings/fixtures';
 
 import {
   book,
@@ -22,6 +33,7 @@ import {
   paragraph,
   sectionTexts,
   TITLE_UNEXPECTED,
+  validateDocument,
   type FragmentTable,
   type Harness,
 } from './sessionUtils';
@@ -41,6 +53,40 @@ async function start(
   if (!result.ok) throw new Error(`session did not start: ${result.reason}`);
   return result.session;
 }
+
+/**
+ * A validation of `holdJobs`: `start` delivers its job id (a book above 2 MiB), `fail` ends it
+ * with an error, `answer` with the report of the document it was sent (never started: the plain
+ * request of a smaller book, which no `job.cancel` stops).
+ */
+interface HeldJob {
+  start(jobId: string): void;
+  fail(error: RpcError): void;
+  answer(): void;
+}
+
+/** Makes every later `runJob` of the harness a validation that waits for the test. */
+function holdJobs(h: Harness): HeldJob[] {
+  type RunJob = (
+    method: string,
+    params: unknown,
+    options?: { onStart?: (id: string) => void },
+  ) => Promise<unknown>;
+  const held: HeldJob[] = [];
+  (h.rpc.client as unknown as { runJob: RunJob }).runJob = (method, params, options) => {
+    h.rpc.calls.push({ method, params });
+    return new Promise((resolve, reject) => {
+      held.push({
+        start: (jobId) => options?.onStart?.(jobId),
+        fail: reject,
+        answer: () => resolve(validateDocument((params as { document: Document }).document)),
+      });
+    });
+  };
+  return held;
+}
+
+const cancelled = (jobId: string) => new RpcError(RpcErrorCode.cancelled, 'cancelled', { jobId });
 
 describe('startRequestSession', () => {
   it('takes the ai lock, validates the live document for the baseline and builds the copy over it', async () => {
@@ -138,6 +184,51 @@ describe('startRequestSession', () => {
         label: 'l',
       }),
     ).rejects.toThrow('disconnected');
+    expect(h.store.getState().runLock).toBeNull();
+  });
+
+  it('hands the baseline job to the owner, and ends cancelled when the owner cancelled while the baseline ran, the lock released (ai-catalogue §6.15)', async () => {
+    const h = harness();
+    const held = holdJobs(h);
+    const jobs: string[] = [];
+    let ownerCancelled = false;
+    const result = startRequestSession(h.deps, {
+      origin: 'popup',
+      kind: 'selection',
+      instruction: 'x',
+      label: 'l',
+      cancel: { cancelled: () => ownerCancelled, jobStarted: (jobId) => jobs.push(jobId) },
+    });
+    expect(h.store.getState().runLock).toMatchObject({ kind: 'ai' });
+    // A book above 2 MiB: the baseline's job goes to the owner, whose cancel stops it.
+    held[0]!.start('job-20');
+    expect(jobs).toEqual(['job-20']);
+    // The owner cancels before the report is back; a report no `job.cancel` stopped (the plain
+    // request of a smaller book, a job that finished first) arrives all the same - the request
+    // ends here, nothing sent.
+    ownerCancelled = true;
+    held[0]!.answer();
+    expect(await result).toEqual({ ok: false, reason: 'cancelled' });
+    expect(h.store.getState().runLock).toBeNull();
+    expect(h.undo.canUndo).toBe(false);
+    expect(h.store.getState().modified).toBe(false);
+  });
+
+  it('ends cancelled when the banner Cancel came while the baseline ran', async () => {
+    const h = harness();
+    const held = holdJobs(h);
+    const onCancel = vi.fn();
+    const result = startRequestSession(h.deps, {
+      origin: 'panel',
+      kind: 'general',
+      instruction: 'x',
+      label: 'l',
+      onCancel,
+    });
+    cancelActiveRun(h.store);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    held[0]!.answer();
+    expect(await result).toEqual({ ok: false, reason: 'cancelled' });
     expect(h.store.getState().runLock).toBeNull();
   });
 });
@@ -251,6 +342,51 @@ describe('RequestSession', () => {
     expect(session.after).toBeUndefined();
   });
 
+  it('commit() after a cancel that came while its validation was a plain request (2 MiB and less) publishes nothing: cancelled, the document, modified and the undo history as before (ai-catalogue §6.15, SC-005)', async () => {
+    const h = harness();
+    const before = h.store.getState().document!;
+    const session = await start(h);
+    session.copy.insert('after', 'p1', paragraph('sc_1', 'Inserted.') as unknown as ModelNodeJson);
+    const held = holdJobs(h);
+    const result = session.commit();
+    expect(held).toHaveLength(1);
+    // Escape while `doc.validate` runs: no job id, nothing a `job.cancel` could stop - the
+    // report arrives all the same.
+    session.cancelValidation();
+    held[0]!.answer();
+    expect(await result).toEqual({ kind: 'cancelled' });
+    expect(session.cancelled).toBe(true);
+    expect(h.store.getState().document).toBe(before);
+    expect(h.store.getState().modified).toBe(false);
+    expect(h.undo.canUndo).toBe(false);
+    expect(h.store.getState().runLock).toBeNull();
+    expect(session.ended).toBe(true);
+    expect(session.after).toBeUndefined();
+    expect(h.rpc.calls.filter((c) => c.method === 'job.cancel')).toEqual([]);
+  });
+
+  it('publish() and commit() after a cancel publish nothing: cancelled, the copy discarded', async () => {
+    const h = harness();
+    const before = h.store.getState().document!;
+    const published = await start(h);
+    published.copy.insert('after', 'p1', paragraph('sc_1', 'x') as unknown as ModelNodeJson);
+    published.cancelValidation();
+    // The Source view's commit hands its result in after its own steps.
+    expect(published.publish(published.copy.release())).toEqual({ kind: 'cancelled' });
+    expect(h.store.getState().document).toBe(before);
+    expect(h.store.getState().runLock).toBeNull();
+    const committed = await start(h);
+    committed.copy.insert('after', 'p1', paragraph('sc_1', 'x') as unknown as ModelNodeJson);
+    committed.cancelValidation();
+    expect(await committed.commit()).toEqual({ kind: 'cancelled' });
+    // No validation for a request that is over.
+    expect(h.validated).toHaveLength(2);
+    expect(h.store.getState().document).toBe(before);
+    expect(h.store.getState().modified).toBe(false);
+    expect(h.undo.canUndo).toBe(false);
+    expect(h.store.getState().runLock).toBeNull();
+  });
+
   it('discard() drops the copy and restores the document before the request and its modified flag', async () => {
     const h = harness();
     actions.setModified(h.store, true);
@@ -293,6 +429,51 @@ describe('RequestSession', () => {
     release!({ issues: [], errorCount: 0, warningCount: 0, durationMs: 1 });
     await pending;
     expect(h.store.getState().runLock).toBeNull();
+  });
+
+  it('a cancel before doc.validate answered its job id cancels the job as soon as the id arrives, and every later validation job of the request (ai-catalogue §6.15)', async () => {
+    const h = harness();
+    const session = await start(h);
+    const held = holdJobs(h);
+    const cancels = () => h.rpc.calls.filter((c) => c.method === 'job.cancel');
+    session.copy.insert('after', 'p1', paragraph('sc_1', 'x') as unknown as ModelNodeJson);
+    // Cancel during `validating` while `doc.validate` is on its way: no job id to cancel yet.
+    const copy = session.validate();
+    session.cancelValidation();
+    expect(cancels()).toEqual([]);
+    // The id arrives: the job is cancelled at once - else it would end with a report the
+    // request goes on with (the commit's validation publishing the copy).
+    held[0]!.start('job-8');
+    expect(cancels()).toEqual([{ method: 'job.cancel', params: { jobId: 'job-8' } }]);
+    held[0]!.fail(cancelled('job-8'));
+    await expect(copy).rejects.toMatchObject({ code: RpcErrorCode.cancelled });
+    // The request is ending: a validation job started after the cancel goes the same way.
+    const text = session.validateText('<FictionBook/>');
+    held[1]!.start('job-9');
+    expect(cancels()).toEqual([
+      { method: 'job.cancel', params: { jobId: 'job-8' } },
+      { method: 'job.cancel', params: { jobId: 'job-9' } },
+    ]);
+    held[1]!.fail(cancelled('job-9'));
+    await expect(text).rejects.toMatchObject({ code: RpcErrorCode.cancelled });
+    session.discard();
+    expect(cancels()).toHaveLength(2);
+    expect(session.validations).toHaveLength(1);
+  });
+
+  it('discard() before doc.validate answered its job id cancels the job as soon as the id arrives', async () => {
+    const h = harness();
+    const session = await start(h);
+    const held = holdJobs(h);
+    const pending = session.validateText('<FictionBook/>');
+    session.discard();
+    expect(h.store.getState().runLock).toBeNull();
+    held[0]!.start('job-10');
+    expect(h.rpc.calls.filter((c) => c.method === 'job.cancel')).toEqual([
+      { method: 'job.cancel', params: { jobId: 'job-10' } },
+    ]);
+    held[0]!.fail(cancelled('job-10'));
+    await expect(pending).rejects.toMatchObject({ code: RpcErrorCode.cancelled });
   });
 
   it('reports the run as lost when the document is replaced meanwhile', async () => {
@@ -457,6 +638,260 @@ describe('RequestSession.fragmentFromXml', () => {
     expect(nodes[0]!.attrs).toEqual({ id: 'keep', nodeId: 'sc_1' });
     expect(nodes[1]!.attrs).toEqual({ nodeId: 'given' });
     session.discard();
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006 T174: one seeded sc_ allocator (I26, C7; vR7:140)             */
+/* ------------------------------------------------------------------------ */
+
+/** Every node id of `document` - its bodies and description roots - in document order. */
+function nodeIdsOf(document: Document): string[] {
+  const ids: string[] = [];
+  const visit = (node: ModelNodeJson) => {
+    const id = node.attrs?.nodeId;
+    if (typeof id === 'string') ids.push(id);
+    for (const child of node.content ?? []) visit(child);
+  };
+  const { titleInfo, srcTitleInfo, documentInfo } = document.description;
+  const roots = [titleInfo.annotation, srcTitleInfo?.annotation, documentInfo.history];
+  for (const root of [...document.bodies, ...roots]) {
+    if (root) visit(root as unknown as ModelNodeJson);
+  }
+  return ids;
+}
+
+/** The text of every node of `document` with an `sc_<N>` id, by id. */
+function scriptNodeTexts(document: Document): Record<string, string> {
+  const texts: Record<string, string> = {};
+  const visit = (node: ModelNodeJson) => {
+    const id = node.attrs?.nodeId;
+    if (typeof id === 'string' && id.startsWith('sc_')) {
+      texts[id] = (node.content ?? []).map((child) => child.text ?? '').join('');
+    }
+    for (const child of node.content ?? []) visit(child);
+  };
+  for (const body of document.bodies) visit(body as unknown as ModelNodeJson);
+  return texts;
+}
+
+/** The script of the nested runs (`AppendWorker`), as the scripts feature lists it. */
+const APPEND_SCRIPT: ScriptInfo = {
+  manifestVersion: 1,
+  id: 'test.append',
+  name: { en: 'Append a paragraph' },
+  kind: 'menu',
+  entry: 'index.js',
+  needsSelection: false,
+  undoLabel: { en: 'Append a paragraph' },
+  group: '04_Model',
+  dir: '/tmp/scripts/04_Model/01_Append',
+  folder: '01_Append',
+  source: 'bundled',
+  entryUrl: '/scripts/test.append/index.js',
+  warnings: [],
+};
+
+/**
+ * Stands in for the sandbox worker of a nested run: when the host says `run`, the "script"
+ * appends a paragraph holding `text` to section `s2` through `mfbe.doc.insertNode` - a node the
+ * run's own allocator names - and ends.
+ */
+class AppendWorker {
+  onerror: ((event: ErrorEvent) => void) | null = null;
+
+  constructor(private readonly text: string) {}
+
+  postMessage(message: unknown, transfer?: Transferable[]): void {
+    const init = message as InitMessage;
+    if (init.type !== 'init') return;
+    const port = (transfer?.[0] as MessagePort | undefined) ?? init.port;
+    const send = (reply: WorkerMessage) => port.postMessage(reply);
+    port.onmessage = (event: MessageEvent<HostMessage>) => {
+      const host = event.data;
+      if (host.type === 'run') {
+        const node = { type: 'p', attrs: {}, content: [{ type: 'text', text: this.text }] };
+        send({ type: 'call', id: 1, method: 'doc.insertNode', args: ['append', 's2', node] });
+      } else if (host.type === 'result') {
+        send({ type: 'done' });
+      } else if (host.type === 'error') {
+        send({ type: 'fail', error: { name: 'Error', message: host.message } });
+      }
+    };
+    setTimeout(() => send({ type: 'ready' }), 0);
+  }
+
+  terminate(): void {}
+}
+
+/** One answer of the model (`ai.complete`): a text, or tool calls. */
+function answer(finishReason: string, message: Record<string, unknown>): AiOutcome {
+  const choice = { finish_reason: finishReason, message: { role: 'assistant', ...message } };
+  return { ok: true, status: 200, elapsedMs: 1, body: { choices: [choice] } };
+}
+
+function toolCall(id: string, name: string, args: Record<string, unknown>): AiOutcome {
+  return answer('tool_calls', {
+    content: null,
+    tool_calls: [{ id, type: 'function', function: { name, arguments: JSON.stringify(args) } }],
+  });
+}
+
+/** `insert_node` of one paragraph after `node`, as Document JSON: the request names it. */
+function insertParagraph(id: string, node: string, text: string): AiOutcome {
+  const paragraphJson = { type: 'p', content: [{ type: 'text', text }] };
+  return toolCall(id, 'insert_node', { where: 'after', node, content: { nodes: [paragraphJson] } });
+}
+
+const runAppendScript = (id: string) => toolCall(id, 'run_script', { id: APPEND_SCRIPT.id });
+
+const done = () => answer('stop', { content: 'Done.' });
+
+/**
+ * The assistant on (the custom target) over `book({preExisting: false})`, whose model answers
+ * `answers` in turn, with the scripts feature listing `APPEND_SCRIPT`: each nested run appends
+ * "Script <n>", n counting the runs.
+ */
+async function requestHarness(answers: AiOutcome[]) {
+  const rpc = fakeRpc({
+    'doc.validate': (params: unknown) =>
+      validateDocument((params as { document: Document }).document),
+    'ai.complete': () => answers.shift(),
+    'scripts.source': {
+      entryUrl: APPEND_SCRIPT.entryUrl,
+      entry: APPEND_SCRIPT.entry,
+      dir: APPEND_SCRIPT.dir,
+      files: [APPEND_SCRIPT.entry],
+    },
+    'log.error': {},
+    'job.cancel': {},
+    'schema.text': { text: '' },
+  });
+  const ctx = await makeContext({ rpc: rpc.client, dialogs: fakeDialogs() });
+  const settings = defaultSettings();
+  settings.ai.mode = 'custom';
+  settings.ai.custom = { address: 'http://127.0.0.1:8787/v1', key: '', model: 'm1' };
+  actions.setSettings(ctx.store, settings);
+  actions.setConnection(ctx.store, 'connected');
+  actions.setDocument(ctx.store, book({ preExisting: false }));
+  let runs = 0;
+  const feature = installScriptsFeature({
+    store: ctx.store,
+    commands: createCommandRegistry(),
+    hotkeys: ctx.hotkeys,
+    undo: ctx.undo,
+    createWorker: () => new AppendWorker(`Script ${++runs}`) as unknown as Worker,
+  });
+  feature.applyList({
+    groups: [
+      {
+        id: APPEND_SCRIPT.group,
+        order: 4,
+        names: { en: 'Model' },
+        dir: '/tmp/scripts/04_Model',
+        scripts: [APPEND_SCRIPT],
+      },
+    ],
+    issues: [],
+    folders: {},
+  });
+  startAssistant(ctx.store);
+  const request = (instruction: string) =>
+    startRequest(ctx, { origin: 'panel', instruction, selection: null });
+  return { ctx, rpc, request };
+}
+
+describe('feature 006: one seeded sc_ allocator for requests and script runs (I26, C7; ai-catalogue Δ§3 "Ids of new nodes")', () => {
+  const fragments = {
+    '<p>One</p>\n<p>Two</p>': {
+      inline: false,
+      nodes: [
+        { type: 'p', attrs: {}, content: [{ type: 'text', text: 'One' }] },
+        { type: 'p', attrs: {}, content: [{ type: 'text', text: 'Two' }] },
+      ],
+    },
+    '<cite><p>Three</p></cite>': {
+      inline: false,
+      nodes: [
+        {
+          type: 'cite',
+          attrs: {},
+          content: [{ type: 'p', attrs: {}, content: [{ type: 'text', text: 'Three' }] }],
+        },
+      ],
+    },
+  } as const;
+
+  it('two sessions in a row each create nodes, and every node id of the document is unique', async () => {
+    const h = harness({ fragments: fragments as unknown as FragmentTable });
+    const first = await start(h);
+    const one = await first.fragmentFromXml('<p>One</p>\n<p>Two</p>', { nodeId: 's1' });
+    for (const node of one.nodes) first.copy.insert('append', 's1', node);
+    expect((await first.commit()).kind).toBe('committed');
+    // The next session starts on the document the first one committed.
+    const second = await start(h);
+    const two = await second.fragmentFromXml('<cite><p>Three</p></cite>', { nodeId: 's1' });
+    for (const node of two.nodes) second.copy.insert('append', 's1', node);
+    expect((await second.commit()).kind).toBe('committed');
+    const ids = nodeIdsOf(h.store.getState().document!);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.filter((id) => id.startsWith('sc_'))).toEqual(['sc_1', 'sc_2', 'sc_3', 'sc_4']);
+  });
+
+  describe('in one request, with a nested run_script', () => {
+    let store: AppStore | null = null;
+
+    beforeAll(async () => {
+      await initI18n({ language: 'en' });
+    });
+
+    afterEach(() => {
+      if (store) stopAssistant(store);
+      store = null;
+    });
+
+    it('insert_node, then a node-creating nested run_script, in one request - and so again in the next request: every node id of the document is unique (vR7:140)', async () => {
+      const { ctx, request } = await requestHarness([
+        insertParagraph('call_1', 'p1', 'Assistant 1'),
+        runAppendScript('call_2'),
+        done(),
+        insertParagraph('call_3', 'p2', 'Assistant 2'),
+        runAppendScript('call_4'),
+        done(),
+      ]);
+      store = ctx.store;
+      expect((await request('Add a paragraph, then run the script')).kind).toBe('committed');
+      // The nested run starts from the request's working copy, which holds the request's node.
+      expect(scriptNodeTexts(ctx.store.getState().document!)).toEqual({
+        sc_1: 'Assistant 1',
+        sc_2: 'Script 1',
+      });
+      // The next request starts past the ids the first one left in the book.
+      expect((await request('Once more')).kind).toBe('committed');
+      const document = ctx.store.getState().document!;
+      const ids = nodeIdsOf(document);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(scriptNodeTexts(document)).toEqual({
+        sc_1: 'Assistant 1',
+        sc_2: 'Script 1',
+        sc_3: 'Assistant 2',
+        sc_4: 'Script 2',
+      });
+    });
+
+    it('a node-creating nested run_script, then insert_node, in one request: the request continues past the ids of the nested run, and every node id of the document is unique', async () => {
+      const { ctx, request } = await requestHarness([
+        runAppendScript('call_1'),
+        insertParagraph('call_2', 'p1', 'Assistant 1'),
+        done(),
+      ]);
+      store = ctx.store;
+      expect((await request('Run the script, then add a paragraph')).kind).toBe('committed');
+      const document = ctx.store.getState().document!;
+      const ids = nodeIdsOf(document);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(scriptNodeTexts(document)).toEqual({ sc_1: 'Script 1', sc_2: 'Assistant 1' });
+    });
   });
 });
 

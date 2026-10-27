@@ -51,6 +51,39 @@ export const COMMANDS_TOOLBAR: readonly (string | null)[] = [
   'tools.spellcheck',
 ];
 
+/**
+ * The buttons the Commands toolbar offers beyond its original layout (feature 006, FR-041;
+ * data-model §9.4): *Table…* and the 24 table commands in the order of FR-039. None is shown
+ * by default or after Reset; the user adds them in Customize.
+ */
+export const COMMANDS_TOOLBAR_OFFERED: readonly string[] = [
+  'insert.table',
+  'table.insertRowAbove',
+  'table.insertRowBelow',
+  'table.deleteRow',
+  'table.insertColumnLeft',
+  'table.insertColumnRight',
+  'table.deleteColumn',
+  'table.mergeCells',
+  'table.splitCell',
+  'table.toggleHeaderCell',
+  'table.makeHeaderCells',
+  'table.makeNormalCells',
+  'table.toggleHeaderRow',
+  'table.toggleHeaderColumn',
+  'table.repair',
+  'table.select',
+  'table.delete',
+  'table.moveRowUp',
+  'table.moveRowDown',
+  'table.moveColumnLeft',
+  'table.moveColumnRight',
+  'table.duplicateRow',
+  'table.duplicateColumn',
+  'table.paragraphBefore',
+  'table.paragraphAfter',
+];
+
 export function iconUrl(icon: string, size: 16 | 24 = 24): string {
   return `${import.meta.env.BASE_URL}icons/toolbar${size}/${icon}.png`;
 }

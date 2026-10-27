@@ -1,0 +1,35 @@
+{
+  "blocks": [
+    {"p": {"text": "Opening paragraph with bold text.", "marks": ["strong"]}},
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "th", "t": "Key"},
+            {"k": "th", "t": "Value"}
+          ],
+          [
+            {"k": "td", "t": "alpha"},
+            {"k": "td", "t": "1"}
+          ]
+        ]
+      }
+    },
+    {"p": {"text": "Middle paragraph with a link.", "marks": ["link"]}},
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "td", "t": "x"},
+            {"k": "td", "t": "y", "m": ["emphasis"]}
+          ],
+          [
+            {"k": "td", "t": "z", "cs": 2}
+          ]
+        ]
+      }
+    },
+    {"p": {"text": "Closing paragraph."}}
+  ],
+  "tsv": "Opening paragraph with bold text.\n\nKey\tValue\nalpha\t1\n\nMiddle paragraph with a link.\n\nx\ty\nz\t\n\nClosing paragraph."
+}

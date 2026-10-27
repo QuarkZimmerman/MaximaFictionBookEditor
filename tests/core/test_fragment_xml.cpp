@@ -970,3 +970,64 @@ TEST_CASE(
                     json{{"docId", doc_id}, {"nodes", back["result"]["nodes"]}})["result"]["xml"] ==
           xml);
 }
+
+/* ----------------------------------------------------------------------------------------- */
+/* Feature 006: cells, marks and atoms through the fragment methods                          */
+/* ----------------------------------------------------------------------------------------- */
+
+TEST_CASE(
+    "fragment: a cell's xml:lang, a mark's xml:lang and a picture inside a link or formatting "
+    "survive fromXml then toXml",
+    "[fragment][reader][writer][tables]") {
+    // The path of the assistant's read_table (fb2xml) and of a cell written back with
+    // replace_node (ai-catalogue.md §3.9): read_fragment, then write_fragment.
+    const std::string table =
+        "<table>\n"
+        "\t<tr>\n"
+        "\t\t<th colspan=\"2\" xml:lang=\"de\">Zelle</th>\n"
+        "\t</tr>\n"
+        "\t<tr>\n"
+        "\t\t<td xml:lang=\"\"><emphasis xml:lang=\"la\">lingua</emphasis> <a "
+        "l:href=\"#s1\"><image l:href=\"#pic.png\"/></a> <strong><image "
+        "l:href=\"#pic.png\"/></strong></td>\n"
+        "\t\t<td><style name=\"2\">Are you sure<a l:href=\"#n2\" type=\"note\">[2]</a>?</style> "
+        "<style name=\"a\">x<style name=\"b\">y</style>z</style> <emphasis xml:lang=\"la\">a "
+        "<emphasis xml:lang=\"de\">b</emphasis></emphasis></td>\n"
+        "\t</tr>\n"
+        "</table>";
+    const fb2::FragmentResult read = fb2::read_fragment(table, "section");
+    REQUIRE(read.nodes.size() == 1);
+    const model::Node& th = read.nodes[0].content.at(0).content.at(0);
+    CHECK(th.attr_string("lang") == "de");
+    const model::Node& td = read.nodes[0].content.at(1).content.at(0);
+    CHECK(td.attr_string("lang") == "");
+    REQUIRE(td.content.size() == 5);
+    CHECK(td.content[0].marks ==
+          std::vector<model::Mark>{model::Mark{"emphasis", json{{"lang", "la"}}}});
+    CHECK(td.content[2].type == "inline-image");
+    CHECK(td.content[2].marks ==
+          std::vector<model::Mark>{model::Mark{"link", json{{"href", "#s1"}}}});
+    CHECK(td.content[4].marks == std::vector<model::Mark>{model::Mark{"strong", nullptr}});
+    // Written back exactly as read.
+    CHECK(fb2::write_fragment(read.nodes) == table);
+
+    // A cell's content alone (inline): the same, and a style over part of a link comes back
+    // extended over the whole link.
+    const std::string cell_content =
+        "<a l:href=\"#n_1\"><style name=\"city\">Moscow</style> today</a> and <style "
+        "name=\"MsoFootnoteReference\"><a l:href=\"#n_1\">[1]</a></style>";
+    const fb2::FragmentResult inline_read = fb2::read_fragment(cell_content, "td");
+    CHECK(inline_read.is_inline);
+    const std::string written = fb2::write_fragment(inline_read.nodes);
+    CHECK(written ==
+          "<style name=\"city\"><a l:href=\"#n_1\">Moscow today</a></style> and <style "
+          "name=\"MsoFootnoteReference\"><a l:href=\"#n_1\">[1]</a></style>");
+    // Read again, the extension is in the model.
+    const fb2::FragmentResult again = fb2::read_fragment(written, "td");
+    REQUIRE_FALSE(again.nodes.empty());
+    CHECK(again.nodes[0].text == "Moscow today");
+    CHECK(again.nodes[0].marks ==
+          std::vector<model::Mark>{model::Mark{"style", json{{"name", "city"}}},
+                                   model::Mark{"link", json{{"href", "#n_1"}}}});
+    CHECK(fb2::write_fragment(again.nodes) == written);
+}

@@ -8,7 +8,9 @@
  * the catalogue's structural change tools behind the real hook: the strike keys
  * `replace_node:<nodeId>`, `insert_node:<where>@<nodeId>`, `remove_node:<nodeId>`,
  * `set_text:<nodeId>`, `replace_all:<query>`, `set_description:description`, pre-check and
- * hook rejections counted alike, read tools never counted.
+ * hook rejections counted alike, read tools never counted. Feature 006 (T172): the tables a
+ * change made irregular (`ChangeAccepted.madeIrregular`, the session's set, the warning of
+ * `tables.ts` in both forms, the `validate` tool's `irregularTables`).
  */
 
 import { ToolError, type ToolErrorEnvelope } from '@/ai/catalogue';
@@ -32,20 +34,31 @@ import {
   type SelectionReplacementResult,
 } from '@/ai/hook';
 import { startRequestSession, type RequestSession } from '@/ai/session';
+import {
+  irregularEntries,
+  irregularTablesOf,
+  madeIrregular,
+  tableWarningOf,
+  withTableWarning,
+} from '@/ai/tables';
+import { indexDocument } from '@/ai/tools/model';
 import type { ModelNodeJson } from '@/editor/fromModel';
+import type { Document, ValidationReport } from '@/model/document';
 import { RpcError } from '@/rpc/client';
 import { RpcErrorCode } from '@/rpc/types';
 import { setBodySelection } from '@/scripting/api-impl';
 import { getBodyController } from '@/views/body/bodyEditor';
 
-import { fakeFromXml, harness as catalogueHarness } from './catalogueHarness';
+import { fakeFromXml, harness as catalogueHarness, tableNode } from './catalogueHarness';
 import {
   BAD_WORD_MESSAGE,
+  book as sessionBook,
   harness,
   paragraph,
   sectionTexts,
   title,
   TITLE_UNEXPECTED,
+  validateDocument,
   type FragmentTable,
   type Harness,
 } from './sessionUtils';
@@ -119,6 +132,7 @@ describe('applyChange', () => {
       report: { errorCount: 1, warningCount: 0, durationMs: 3 },
       preExistingErrors: 1,
       warnings: 0,
+      madeIrregular: [], // feature 006 (FR-053): no table made irregular
     });
     expect(h.validated).toHaveLength(2);
     expect(h.validated[1]).toBe(session.copy.document);
@@ -1165,5 +1179,270 @@ describe('the stages of a rejection (data-model §7.3; US4)', () => {
       await close();
       session.discard();
     }
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Feature 006 (US11, T172): tables made irregular (FR-053; C9, C65, C66)   */
+/* ------------------------------------------------------------------------ */
+
+describe('tables made irregular (feature 006 US11; FR-053, FR-062; C9, C65, C66)', () => {
+  const R_PATH = 'body[1]/section[1]/table[1]';
+  const I_PATH = 'body[1]/section[2]/table[1]';
+  const SHORT = { rows: 2, columns: 3, shortRows: 1, row: 2, covered: 2, overlaps: 0, pastEnd: 0 };
+
+  /** The session book with a regular table in section 1 and a short-row table in section 2. */
+  function tableBook(): Document {
+    const doc = sessionBook({ preExisting: false });
+    const sections = (doc.bodies[0] as unknown as { content: ModelNodeJson[] }).content;
+    sections
+      .find((s) => s.attrs?.nodeId === 's1')!
+      .content!.push(
+        tableNode('tR', [
+          ['a', 'b'],
+          ['c', 'd'],
+        ]) as unknown as ModelNodeJson,
+      );
+    sections
+      .find((s) => s.attrs?.nodeId === 's2')!
+      .content!.push(
+        tableNode('tI', [
+          ['a', 'b', 'c'],
+          ['d', 'e'],
+        ]) as unknown as ModelNodeJson,
+      );
+    return doc;
+  }
+
+  /** A change that puts the table `json` in place of the node `id`. */
+  function replaced(session: RequestSession, id: string, json: unknown) {
+    return {
+      tool: 'replace_node',
+      target: id,
+      apply: () => {
+        session.copy.replace(id, json as ModelNodeJson);
+        return { node: { id } };
+      },
+    };
+  }
+
+  it('the baseline starts the set; a regular table made ragged is made irregular and joins the set', async () => {
+    const h = harness({ document: tableBook() });
+    const session = await start(h);
+    expect(session.irregularTables.map((entry) => entry.nodeId)).toEqual(['tI']);
+    const outcome = await applyChange(
+      session,
+      replaced(session, 'tR', tableNode('tR', [['a', 'b'], ['c']])),
+    );
+    expect(outcome.accepted).toBe(true);
+    if (!outcome.accepted) return;
+    expect(outcome.madeIrregular.map((entry) => [entry.nodeId, entry.path])).toEqual([
+      ['tR', R_PATH],
+    ]);
+    expect(outcome.madeIrregular[0]!.params).toMatchObject({ shortRows: 1, row: 2, covered: 1 });
+    expect(session.irregularTables.map((entry) => entry.nodeId).sort()).toEqual(['tI', 'tR']);
+    session.discard();
+  });
+
+  it('an already irregular table edited by set_text is not reported; one written anew with a new node id is, in place of an irregular one too; a table made regular leaves the set', async () => {
+    const h = harness({ document: tableBook() });
+    const session = await start(h);
+    const edited = await applyChange(session, {
+      tool: 'set_text',
+      target: 'tIr1c1',
+      apply: () => {
+        session.copy.replace('tIr1c1', {
+          type: 'td',
+          attrs: { nodeId: 'tIr1c1' },
+          content: [{ type: 'text', text: 'A' }],
+        });
+        return {};
+      },
+    });
+    expect(edited.accepted && edited.madeIrregular).toEqual([]);
+    const anew = await applyChange(
+      session,
+      replaced(session, 'tI', tableNode('tNew', [['a', 'b', 'c'], ['d']])),
+    );
+    expect(anew.accepted && anew.madeIrregular.map((entry) => entry.nodeId)).toEqual(['tNew']);
+    const regular = await applyChange(
+      session,
+      replaced(session, 'tNew', tableNode('tNew', [['a'], ['d']])),
+    );
+    expect(regular.accepted && regular.madeIrregular).toEqual([]);
+    expect(session.irregularTables).toEqual([]);
+    session.discard();
+  });
+
+  it('a rejected change leaves the set as it was; setBaseline replaces it', async () => {
+    const h = harness({ document: tableBook() });
+    const session = await start(h);
+    const rejected = await applyChange(session, {
+      tool: 'replace_node',
+      target: 'tR',
+      apply: () => {
+        session.copy.replace(
+          'tR',
+          tableNode('tR', [['a', 'b'], ['c']]) as unknown as ModelNodeJson,
+        );
+        session.copy.insert('after', 'p1', node(paragraph('sc_bad', 'A BAD word.')));
+        return {};
+      },
+    });
+    expect(rejected.accepted).toBe(false);
+    expect(session.irregularTables.map((entry) => entry.nodeId)).toEqual(['tI']);
+    session.setBaseline({
+      issues: [
+        {
+          severity: 'warning',
+          code: 'table.irregular',
+          params: { ...SHORT },
+          line: 40,
+          column: 3,
+          nodeId: 'scratch7',
+          path: R_PATH,
+        },
+      ],
+    });
+    expect(session.irregularTables).toEqual([
+      { nodeId: 'scratch7', path: R_PATH, line: 40, params: { ...SHORT } },
+    ]);
+    session.discard();
+  });
+
+  it('madeIrregular: the node id in the document form; the path and the params in the text form, a moved path reported; a document-form baseline against text-form reports', () => {
+    const before = [{ nodeId: 'n5', path: R_PATH, params: { ...SHORT } }];
+    expect(
+      madeIrregular(before, [{ nodeId: 'n5', path: I_PATH, params: { ...SHORT } }], 'document'),
+    ).toEqual([]);
+    expect(
+      madeIrregular(before, [{ nodeId: 'n6', path: R_PATH, params: { ...SHORT } }], 'document'),
+    ).toHaveLength(1);
+    // The text form: a table whose path moved is still reported (vR7:80).
+    expect(
+      madeIrregular(
+        before,
+        [{ nodeId: 'x1', path: I_PATH, line: 9, params: { ...SHORT } }],
+        'text',
+      ),
+    ).toHaveLength(1);
+    // Source text mode: the document-form baseline matches the text form by path and params.
+    expect(
+      madeIrregular(
+        before,
+        [{ nodeId: 'x1', path: R_PATH, line: 9, params: { ...SHORT } }],
+        'text',
+      ),
+    ).toEqual([]);
+    for (const member of ['rows', 'columns', 'shortRows', 'overlaps', 'pastEnd'] as const) {
+      const params = { ...SHORT, [member]: SHORT[member] + 1 };
+      expect(madeIrregular(before, [{ path: R_PATH, params }], 'text'), member).toHaveLength(1);
+    }
+  });
+
+  it('tableWarningOf: none without an entry; the messages for one and two tables, verbatim; the NodeInfo of the copy in the document form, {path, type} with line in the text form', () => {
+    const index = indexDocument(tableBook());
+    expect(tableWarningOf([], index, 'document')).toBeNull();
+    expect(withTableWarning({ node: { id: 'x' } }, [], index, 'document')).toEqual({
+      node: { id: 'x' },
+    });
+    const one = tableWarningOf(
+      [{ nodeId: 'tI', path: I_PATH, line: 7, params: { ...SHORT } }],
+      index,
+      'document',
+    )!;
+    expect(one.message).toBe(
+      'This change made 1 table irregular: valid FB2, but readers lay out irregular tables unpredictably. If that was not intended, make it regular with edit_table, op "repair".',
+    );
+    expect(one.tables).toEqual([
+      {
+        table: { id: 'tI', path: I_PATH, type: 'table', characters: 5 },
+        problems: 'row 2 covers 2 of 3 columns',
+      },
+    ]);
+    const two = tableWarningOf(
+      [
+        { nodeId: 'x1', path: R_PATH, line: 12, params: { ...SHORT } },
+        { nodeId: 'x2', path: I_PATH, line: 30, params: { ...SHORT, overlaps: 1 } },
+      ],
+      index,
+      'text',
+    )!;
+    expect(two.message).toBe(
+      'This change made 2 tables irregular: valid FB2, but readers lay out irregular tables unpredictably. If that was not intended, make them regular with edit_table, op "repair".',
+    );
+    expect(two.tables).toEqual([
+      { table: { path: R_PATH, type: 'table' }, line: 12, problems: 'row 2 covers 2 of 3 columns' },
+      {
+        table: { path: I_PATH, type: 'table' },
+        line: 30,
+        problems: 'row 2 covers 2 of 3 columns; 1 overlapping span',
+      },
+    ]);
+    expect(
+      withTableWarning({ ok: true }, [{ path: R_PATH, params: { ...SHORT } }], index, 'text'),
+    ).toMatchObject({
+      ok: true,
+      tableWarning: { tables: [{ problems: 'row 2 covers 2 of 3 columns' }] },
+    });
+  });
+
+  it('irregularEntries reads the table.irregular warnings of a report; irregularTablesOf gives one entry per warning in both forms, [] without one; the validate tool always lists them', async () => {
+    const doc = tableBook();
+    const index = indexDocument(doc);
+    const report = validateDocument(doc);
+    expect(irregularEntries(report.issues)).toEqual([
+      {
+        nodeId: 'tI',
+        path: I_PATH,
+        line: expect.any(Number),
+        params: expect.objectContaining(SHORT),
+      },
+    ]);
+    expect(irregularTablesOf(report, 'document', index)).toEqual([
+      {
+        table: { id: 'tI', path: I_PATH, type: 'table', characters: 5 },
+        problems: 'row 2 covers 2 of 3 columns',
+      },
+    ]);
+    expect(irregularTablesOf({ issues: [] }, 'document', index)).toEqual([]);
+    const text = {
+      issues: [
+        {
+          severity: 'warning' as const,
+          code: 'table.irregular',
+          params: { ...SHORT },
+          line: 21,
+          column: 4,
+          nodeId: 'n900',
+          path: I_PATH,
+        },
+      ],
+    };
+    expect(irregularTablesOf(text, 'text', index)).toEqual([
+      { table: { path: I_PATH, type: 'table' }, line: 21, problems: 'row 2 covers 2 of 3 columns' },
+    ]);
+    for (const [form, answer] of [
+      ['document', report],
+      ['text', { ...report, issues: text.issues, warningCount: 1 } as ValidationReport],
+    ] as const) {
+      const c = await catalogueHarness({
+        document: doc,
+        baseline: () => new Map(),
+        validate: () => Promise.resolve(answer),
+        validateForm: () => form,
+      });
+      const out = await c.catalogue.call('validate', {});
+      expect(out.result.irregularTables, form).toEqual(irregularTablesOf(answer, form, index));
+      await c.catalogue.close();
+    }
+    const clean = await catalogueHarness({
+      document: doc,
+      baseline: () => new Map(),
+      validate: () =>
+        Promise.resolve({ issues: [], errorCount: 0, warningCount: 0, durationMs: 1 }),
+    });
+    expect((await clean.catalogue.call('validate', {})).result.irregularTables).toEqual([]);
+    await clean.catalogue.close();
   });
 });

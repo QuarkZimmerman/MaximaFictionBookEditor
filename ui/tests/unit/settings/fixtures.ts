@@ -55,6 +55,7 @@ export function defaultSettings(overrides: Partial<Settings> = {}): Settings {
       lastFileDialogFolder: '',
       aiPanelWidth: 360,
       aiPanelVisible: true,
+      tableDialog: { rows: 2, columns: 2, headerRow: false, headerColumn: false },
     },
     ai: {
       mode: 'free',

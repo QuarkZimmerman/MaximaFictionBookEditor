@@ -1,0 +1,23 @@
+{
+  "blocks": [
+    {
+      "table": {
+        "rows": [
+          [
+            {"k": "td", "t": "Header one", "al": "center", "va": "top", "m": ["strong"]},
+            {"k": "td", "t": "Header two", "al": "center", "va": "top", "m": ["strong"]}
+          ],
+          [
+            {"k": "td", "t": "Plain italic words", "va": "top", "m": ["emphasis"]},
+            {"k": "td", "t": "See the example", "va": "top", "m": ["link"]}
+          ],
+          [
+            {"k": "td", "t": "Picture caption", "va": "top"},
+            {"k": "td", "t": "Last cell", "va": "top"}
+          ]
+        ]
+      }
+    }
+  ],
+  "tsv": "Header one\tHeader two\nPlain italic words\tSee the example\nPicture caption\tLast cell"
+}

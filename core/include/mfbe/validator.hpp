@@ -18,13 +18,24 @@
 //   binary.willConvert [id, contentType]     decodable but not JPEG/PNG -> converted on save
 //   binary.invalidBase64 [id]                payload kept verbatim (warning)
 //   description.emptyRequired [element]      required field left empty (warning, FR-052)
+//   table.irregular [rows, columns, shortRows, row?, covered?, overlaps, pastEnd, id?]  irregular
+//                                            table grid (warning; feature 006, FR-062)
 // Line/column refer to the validated XML text; nodeId/path are attached when the text was
 // produced by the writer (LineMap) or when the check ran on the model.
+//
+// table.irregular (contracts/rpc-api.md §3.2 of feature 006): one per table whose grid is not
+// regular (mfbe/table_grid.hpp), its params the table's TableSummary, with the table's nodeId
+// and structural path. Its line is that of the table's `<table`: in the document form
+// (validate_document) the writer's line, without a column, since the writer starts every
+// structural element on its own line; in the text form (doc.validate {text}) the line and the
+// UTF-16 column in the given text (attach_table_positions). Both forms give one path for one
+// table. It counts as a warning only, so it never blocks a save.
 #pragma once
 
 #include <mfbe/binary_store.hpp>
 #include <mfbe/document.hpp>
 #include <mfbe/fb2_writer.hpp>
+#include <mfbe/position_map.hpp>
 
 #include <filesystem>
 #include <functional>
@@ -59,9 +70,18 @@ model::ValidationReport validate_xml_text(std::string_view utf8_xml,
 model::ValidationReport validate_document(const model::Document& document, const BinaryStore* store,
                                           const std::string& xlink_prefix = "l");
 
-// Consistency checks alone (links, binaries, image formats, genres, required values).
+// Consistency checks alone (links, binaries, image formats, genres, required values, irregular
+// tables - the latter with nodeId and path, but no line).
 std::vector<model::ValidationIssue> consistency_issues(const model::Document& document,
                                                        const BinaryStore* store);
+
+// The text form's positions of table.irregular: for each such issue of `issues`, `line` = 1 +
+// the line feeds of `text` before its table's start tag (`PositionEntry::tagBegin` in
+// `positions`, the map of a read of `text` with `ReadOptions::record_positions`) and `column` =
+// 1 + the UTF-16 length of the text from that line's start to the `<` (CodeMirror's unit).
+// Issues whose node the map lacks are left as they are.
+void attach_table_positions(std::vector<model::ValidationIssue>& issues,
+                            const fb2::PositionMap& positions, std::string_view text);
 
 // Fills errorCount/warningCount from `issues` (and sorts by line when lines are known).
 void finalize_report(model::ValidationReport& report);

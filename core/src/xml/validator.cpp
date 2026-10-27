@@ -7,6 +7,7 @@
 #include <mfbe/log.hpp>
 #include <mfbe/node_ids.hpp>
 #include <mfbe/platform.hpp>
+#include <mfbe/table_grid.hpp>
 #include <mfbe/validator.hpp>
 
 #include <climits>
@@ -23,6 +24,8 @@
 #include <mutex>
 #include <set>
 #include <system_error>
+#include <unordered_map>
+#include <utility>
 
 namespace mfbe::validation {
 namespace {
@@ -251,6 +254,38 @@ void check_genres_in_doc(xmlDocPtr doc, const fb2::LineMap* lines,
                     }
                     out.push_back(std::move(issue));
                 }
+            }
+        }
+    }
+}
+
+bool is_irregular_table_issue(const ValidationIssue& issue) {
+    return issue.code == "table.irregular" && issue.nodeId.has_value();
+}
+
+// The document form's lines of table.irregular (feature 006; rpc-api.md §3.2): the line on
+// which the writer started the table's `<table`, from its line map. No column: the writer
+// starts every structural element on its own line, after its tabs.
+void attach_table_lines(std::vector<ValidationIssue>& issues, const fb2::LineMap& lines) {
+    std::unordered_map<std::string, int> line_of;
+    for (const auto& issue : issues) {
+        if (is_irregular_table_issue(issue)) {
+            line_of.emplace(*issue.nodeId, 0);
+        }
+    }
+    if (line_of.empty()) {
+        return;
+    }
+    for (const auto& [line, id] : lines.entries) {  // sorted by line: the first one counts
+        const auto it = line_of.find(id);
+        if (it != line_of.end() && it->second == 0) {
+            it->second = line;
+        }
+    }
+    for (auto& issue : issues) {
+        if (is_irregular_table_issue(issue)) {
+            if (const int line = line_of[*issue.nodeId]; line > 0) {
+                issue.line = line;
             }
         }
     }
@@ -525,10 +560,21 @@ std::vector<ValidationIssue> consistency_issues(const model::Document& document,
         if (node.type == "image" || node.type == "inline-image") {
             image_issue(node.attr_string("href").value_or(""), node.node_id(), path);
         }
-        for (const model::Node& child : node.content) {
-            if (!child.is_text()) {
-                continue;
+        // Every table of the bodies, both annotations and the history whose grid is not
+        // regular (feature 006, FR-062; contracts/document-model.md §4), with its summary.
+        if (node.type == "table") {
+            const tables::GridAnalysis grid = tables::analyse(node);
+            if (!grid.regular()) {
+                ValidationIssue issue = make_issue(Severity::warning, "table.irregular",
+                                                   tables::irregularity_params(grid, node));
+                issue.nodeId = node.node_id();
+                issue.path = path;
+                out.push_back(std::move(issue));
             }
+        }
+        // The link marks of every inline child: text, inline images and inline raw XML
+        // (feature 006, FR-067), one warning per such node.
+        for (const model::Node& child : node.content) {
             for (const model::Mark& mark : child.marks) {
                 if (mark.type != "link" || !mark.attrs.is_object() ||
                     !mark.attrs.contains("href") || !mark.attrs["href"].is_string()) {
@@ -600,6 +646,7 @@ ValidationReport validate_document(const model::Document& document, const Binary
         }
     }
     auto extra = consistency_issues(document, store);
+    attach_table_lines(extra, written.lines);
     report.issues.insert(report.issues.end(), std::make_move_iterator(extra.begin()),
                          std::make_move_iterator(extra.end()));
     finalize_report(report);
@@ -607,6 +654,39 @@ ValidationReport validate_document(const model::Document& document, const Binary
                             std::chrono::steady_clock::now() - started)
                             .count();
     return report;
+}
+
+void attach_table_positions(std::vector<ValidationIssue>& issues, const fb2::PositionMap& positions,
+                            std::string_view text) {
+    // The tables' start tags in text order, so that one pass over the text finds every line.
+    std::vector<std::pair<std::size_t, ValidationIssue*>> tags;
+    for (auto& issue : issues) {
+        if (!is_irregular_table_issue(issue)) {
+            continue;
+        }
+        const fb2::PositionEntry* entry = positions.find(*issue.nodeId);
+        if (entry != nullptr && entry->tagBegin < text.size()) {
+            tags.emplace_back(entry->tagBegin, &issue);
+        }
+    }
+    std::stable_sort(tags.begin(), tags.end(),
+                     [](const auto& a, const auto& b) { return a.first < b.first; });
+    int line = 1;
+    std::size_t line_start = 0;
+    for (const auto& [offset, issue] : tags) {
+        // The line feeds between the previous tag's line and this tag.
+        while (true) {
+            const std::size_t feed = text.find('\n', line_start);
+            if (feed == std::string_view::npos || feed >= offset) {
+                break;
+            }
+            ++line;
+            line_start = feed + 1;
+        }
+        issue->line = line;
+        issue->column =
+            1 + static_cast<int>(fb2::utf16_length(text.substr(line_start, offset - line_start)));
+    }
 }
 
 }  // namespace mfbe::validation

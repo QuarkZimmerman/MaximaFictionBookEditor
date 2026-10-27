@@ -27,28 +27,33 @@
 import { Slice, type Node as PMNode } from 'prosemirror-model';
 import { closeHistory, history, redo, redoDepth, undo, undoDepth } from 'prosemirror-history';
 import {
+  AllSelection,
   EditorState,
   NodeSelection,
   type Plugin,
+  type PluginKey,
   Selection,
   TextSelection,
   type Command,
   type Transaction,
 } from 'prosemirror-state';
-import { EditorView } from 'prosemirror-view';
+import { EditorView, type NodeViewConstructor } from 'prosemirror-view';
 
+import { DISCRETE_STEP } from '@/editor/commands/util';
 import { nodeFromModel, type ModelNodeJson } from '@/editor/fromModel';
 import { baseEditorKeymap, bodyKeymap } from '@/editor/keymap';
-import { createImageNodeViews } from '@/editor/nodeviews/image';
+import { binaryLookup, createImageNodeViews } from '@/editor/nodeviews/image';
 import { createRawXmlNodeViews } from '@/editor/nodeviews/rawXml';
-import { createTableNodeViews } from '@/editor/nodeviews/table';
+import { createTableNodeViews, type TableViewOptions } from '@/editor/nodeviews/table';
 import { blockBoundaryPlugin, markControllerTransaction } from '@/editor/plugins/blockBoundary';
 import { blockCaptionsKey, blockCaptionsPlugin } from '@/editor/plugins/blockCaptions';
-import { clipboardPlugin } from '@/editor/plugins/clipboard';
+import { clipboardPlugin, type ClipboardOptions } from '@/editor/plugins/clipboard';
 import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { overtypePlugin } from '@/editor/plugins/overtype';
 import { searchMatchPlugin, withSearchMatch } from '@/editor/plugins/searchMatch';
+import { readDomSelection, selectionSyncPlugin } from '@/editor/plugins/selectionSync';
+import { tableEditingPlugin } from '@/editor/table/plugin';
 import {
   computeSelectionContext,
   EMPTY_SELECTION_CONTEXT,
@@ -71,6 +76,7 @@ import {
 } from '@/editor/virtualization';
 import { pathOfCaret, type StructuralPosition } from '@/editor/structuralPath';
 import type { Document } from '@/model/document';
+import { collectBookIds } from '@/model/ids';
 import { actions, type AppStore } from '@/model/store';
 import type { UndoCoordinator } from '@/model/undo';
 import type { Caret, ModelPoint } from '@/rpc/types';
@@ -233,20 +239,38 @@ export interface EditorStateOptions {
   nextNodeId?: () => string;
   /** The localised texts the block captions use (read on every repaint). */
   getTranslate?: () => (key: string) => string;
+  /**
+   * The paste router's options (feature 006, I14): the book's ids, the node-id generator and the
+   * status bar. Without them: no book ids, the state's generator, no messages (the unit tests).
+   */
+  clipboard?: ClipboardOptions;
 }
 
 export function createBodyEditorState(doc: PMNode, options: EditorStateOptions): EditorState {
+  // One generator for the keymap's Tab row and the node-id plugin (feature 006, §1.6).
+  const nextNodeId = options.nextNodeId ?? createNodeIdGenerator();
   return EditorState.create({
     doc,
     plugins: [
       history(),
-      bodyKeymap({ toggleOvertype: options.toggleOvertype }),
+      // The block of cells (feature 006, data-model §5.4): before the keymaps, so its
+      // Shift+Arrow handling and a selected table's Delete, Backspace and typing (US9) come
+      // first; it has no paste props - `clipboardPlugin` keeps claiming every paste (C4).
+      tableEditingPlugin({ nextNodeId }),
+      // The browser selection read before a press elsewhere or a key is handled, and the focus
+      // that a press into the editor gives it (after the table plugin's press handling, which
+      // leaves a plain press to the plugins after it).
+      selectionSyncPlugin(),
+      bodyKeymap({ toggleOvertype: options.toggleOvertype, nextNodeId }),
       baseEditorKeymap(),
       overtypePlugin(options.isOvertype ?? (() => false)),
-      clipboardPlugin(),
+      // Before the feature plugins, so it claims every paste (C4).
+      clipboardPlugin(
+        options.clipboard ?? { bookIds: () => new Set(), nextNodeId, message: () => {} },
+      ),
       blockBoundaryPlugin(),
       blockCaptionsPlugin(options.getTranslate ?? (() => (key) => key)),
-      nodeIdPlugin(options.nextNodeId ?? createNodeIdGenerator()),
+      nodeIdPlugin(nextNodeId),
       nbspMarkerPlugin(options.getNbspChar),
       searchMatchPlugin(),
       ...(options.plugins ?? []),
@@ -352,7 +376,12 @@ export class BodyEditorController {
   private readonly getNbspChar: () => string;
   private readonly extraPlugins: Plugin[];
   private translate: (key: string) => string;
-  private readonly nextNodeId = createNodeIdGenerator();
+  /**
+   * The generator of the editor's `ui_N` node ids, shared with `nodeIdPlugin` (feature 006,
+   * data-model §1.6): a function property, so it may be passed on unbound - the table plans
+   * stamp every node they create with it, and the plugin then has nothing to append.
+   */
+  readonly nextNodeId = createNodeIdGenerator();
 
   private view: EditorView | null = null;
   private container: HTMLElement | null = null;
@@ -379,6 +408,13 @@ export class BodyEditorController {
    * scrolled into view when the view mounts (feature 004 US8, research R5.1 H5-a).
    */
   private scrollOnMount = false;
+  /**
+   * What the tables feature gives the table node views for the warning mark (feature 006 US8,
+   * data-model §3.3): its texts and the click on it; null until the feature sets them.
+   */
+  private tableViewOptions: Pick<TableViewOptions, 'describe' | 'onMarkActivate'> | null = null;
+  /** The table node views' language listeners, called by `setTranslate`. */
+  private readonly languageListeners = new Set<() => void>();
   /**
    * The Body view was shown for the current document, or its caret was placed on purpose
    * (`setCaret`): only then is the caret worth remembering - a document whose Body view was
@@ -508,6 +544,16 @@ export class BodyEditorController {
       nextNodeId: this.nextNodeId,
       getTranslate: () => this.translate,
       plugins: this.extraPlugins,
+      // The paste router (feature 006, I14): the whole book's ids from the store's document, the
+      // generator the plans share, refusals in the status bar.
+      clipboard: {
+        bookIds: () => {
+          const document = this.store.getState().document;
+          return document ? collectBookIds(document) : new Set<string>();
+        },
+        nextNodeId: this.nextNodeId,
+        message: (key) => actions.setStatusMessage(this.store, this.translate(key)),
+      },
     });
   }
 
@@ -521,22 +567,23 @@ export class BodyEditorController {
       if (this.view.state !== this.state) this.view.updateState(this.state!);
       return;
     }
+    const kept = this.state!;
+    // ProseMirror draws a selection only when an update changes it or the view takes the focus,
+    // so a new view would not show a node selection kept while the view was unmounted (a picture
+    // selected before another view was visited) although the commands act on it. The view
+    // starts with the selection widened to the whole document and then shows the kept state,
+    // which draws it without taking the focus.
+    const drawSelection = kept.selection instanceof NodeSelection;
     this.view = new EditorView(this.container, {
-      state: this.state!,
+      state: drawSelection ? kept.apply(kept.tr.setSelection(new AllSelection(kept.doc))) : kept,
       editable: () => this.isEditable,
-      nodeViews: {
-        ...createImageNodeViews({
-          getDocId: () => this.store.getState().docId,
-          getMissingText: () => this.translate('views.body.imageMissing'),
-        }),
-        ...createRawXmlNodeViews(() => this.translate('editing.unknownElement')),
-        ...createTableNodeViews(),
-      },
+      nodeViews: this.nodeViews(),
       dispatchTransaction: (tr) => this.dispatch(tr),
       // `spellcheck="false"`: the browser engine's own checker stays off the editable root (the
       // editor's own plugin marks the misspellings - feature 004 US9, FR-081).
       attributes: { class: 'fb-editor', 'data-testid': 'body-editor', spellcheck: 'false' },
     });
+    if (drawSelection) this.view.updateState(kept);
     if (this.scrollOnMount) {
       // The selection was placed while the view was unmounted (a mapped Source selection, a
       // restored position): bring it into view now that there is a DOM to scroll. The focus
@@ -547,6 +594,47 @@ export class BodyEditorController {
       this.view.dispatch(this.view.state.tr.scrollIntoView());
     }
     this.publishSelection();
+  }
+
+  /**
+   * The node views of the editor: pictures, raw XML and tables - the tables with the warning mark
+   * of an irregular table once the tables feature has set its options (feature 006 US8), their
+   * texts rendered again through the language listeners `setTranslate` calls.
+   */
+  private nodeViews(): Record<string, NodeViewConstructor> {
+    const tableOptions = this.tableViewOptions;
+    return {
+      ...createImageNodeViews({
+        getDocId: () => this.store.getState().docId,
+        getMissingText: () => this.translate('views.body.imageMissing'),
+        // The pictures' boxes are reserved from the binary list (feature 006, R9.2).
+        getBinary: binaryLookup(() => this.store.getState().document?.binaries),
+      }),
+      ...createRawXmlNodeViews(() => this.translate('editing.unknownElement')),
+      ...createTableNodeViews(
+        tableOptions
+          ? {
+              ...tableOptions,
+              onLanguageChange: (listener) => {
+                this.languageListeners.add(listener);
+                return () => {
+                  this.languageListeners.delete(listener);
+                };
+              },
+            }
+          : undefined,
+      ),
+    };
+  }
+
+  /**
+   * The options of the table node views (feature 006 US8; I15; data-model §3.3): the mark's
+   * texts (`describe`) and the click on it (`onMarkActivate`); null draws no mark. Once the view
+   * exists its table node views are made again with them.
+   */
+  setTableViewOptions(options: Pick<TableViewOptions, 'describe' | 'onMarkActivate'> | null): void {
+    this.tableViewOptions = options;
+    this.view?.setProps({ nodeViews: this.nodeViews() });
   }
 
   /**
@@ -568,14 +656,18 @@ export class BodyEditorController {
   /**
    * Applies a transaction and writes the edited window back into the model, unless
    * `modelShown`: the store already holds the document the transaction shows (`showModel`).
-   * While locked only such transactions may change the document.
+   * While locked only such transactions may change the document. A document change that
+   * carries `DISCRETE_STEP` (a table command, a paste, a cleared block - feature 006, FR-045)
+   * is one history event of its own, as a command run through `execute` is: the group before
+   * it is closed, and so is the one after it.
    */
   private applyToEditor(tr: Transaction, modelShown: boolean): void {
     const before = this.editorState;
     if (!before) return;
     if (tr.docChanged && this.locked && !modelShown) return;
-    if (tr.docChanged && this.closeNextHistory) closeHistory(tr);
-    this.closeNextHistory = false;
+    const discrete = tr.docChanged && tr.getMeta(DISCRETE_STEP) === true;
+    if (tr.docChanged && (this.closeNextHistory || discrete)) closeHistory(tr);
+    this.closeNextHistory = discrete;
     const { state: after, transactions } = before.applyTransaction(tr);
     if (this.view) this.view.updateState(after);
     this.state = after;
@@ -601,13 +693,20 @@ export class BodyEditorController {
 
   /**
    * Runs a ProseMirror command against the current state (view mounted or not). Each command
-   * is its own undo step: the history group of preceding typing is closed first.
+   * is its own undo step: the history group of preceding typing is closed first. A command
+   * that acts gives the editor the focus before its transaction is applied, as `setCaret`
+   * does: ProseMirror scrolls to the selection only while it owns the DOM selection, and a
+   * focus taken afterwards does not scroll (a menu, a bar's text field or a dialog had it).
    */
   execute(command: Command): boolean {
     this.syncSelectionFromDom();
     const state = this.editorState;
     if (!state) return false;
-    const result = command(state, (tr) => this.dispatch(closeHistory(tr)), this.view ?? undefined);
+    const dispatch = (tr: Transaction) => {
+      this.focus();
+      this.dispatch(closeHistory(tr));
+    };
+    const result = command(state, dispatch, this.view ?? undefined);
     if (result) {
       this.closeNextHistory = true;
       this.focus();
@@ -617,8 +716,8 @@ export class BodyEditorController {
 
   /**
    * The state commands are evaluated against. ProseMirror reads the browser selection
-   * asynchronously (`selectionchange`); the editor state is the single source of truth here,
-   * so a hotkey pressed within the same tick as a keyboard selection sees the previous one.
+   * asynchronously (`selectionchange`); a key and a press outside the editor have it read first
+   * (`selectionSyncPlugin`), so a hotkey or a menu sees a keyboard selection made just before.
    */
   get selectionState(): EditorState | null {
     return this.editorState;
@@ -982,8 +1081,9 @@ export class BodyEditorController {
     if (this.translate === translate) return;
     this.translate = translate;
     // The block captions are drawn from the catalogue: repaint them in the new language.
-    const state = this.editorState;
-    if (state) this.dispatch(state.tr.setMeta(blockCaptionsKey, 'refresh'));
+    this.repaint(blockCaptionsKey);
+    // So are the irregular tables' marks (feature 006 US8, data-model §3.3 "Language").
+    for (const listener of [...this.languageListeners]) listener();
   }
 
   /** Sets the NBSP display character (Settings > Other) and repaints the markers. */
@@ -995,8 +1095,19 @@ export class BodyEditorController {
 
   /** Repaints the NBSP markers after the display character changed. */
   refreshNbsp(): void {
+    this.repaint(nbspPluginKey);
+  }
+
+  /**
+   * Asks the plugin `key` to redraw its decorations - an update the user did not cause. The
+   * browser selection is read first (`readDomSelection`): built on a selection the browser has
+   * left since (a click whose `selectionchange` has not arrived yet), the update would have
+   * ProseMirror write that old selection back into the page.
+   */
+  private repaint(key: PluginKey): void {
+    if (this.view) readDomSelection(this.view);
     const state = this.editorState;
-    if (state) this.dispatch(state.tr.setMeta(nbspPluginKey, 'refresh'));
+    if (state) this.dispatch(state.tr.setMeta(key, 'refresh'));
   }
 
   /* ------------------------------------------------------------ undo/caret */
@@ -1143,9 +1254,11 @@ export class BodyEditorController {
         );
       }
     }
+    // Mounted: the focus first (ProseMirror scrolls only while it owns the DOM selection), as
+    // `setCaret` does; unmounted: scrolled into view on mount.
+    this.focus();
     this.dispatch(state.tr.setSelection(selection).scrollIntoView());
     if (!this.view) this.scrollOnMount = true;
-    this.focus();
     return true;
   }
 
@@ -1204,10 +1317,13 @@ export class BodyEditorController {
     const size = found.node.content.size;
     const start = base + Math.min(Math.max(from, 0), size);
     const end = base + Math.min(Math.max(to, from), size);
+    // The focus first, as `setCaret` does: ProseMirror scrolls to the selection only while it
+    // owns the DOM selection, and a focus taken afterwards does not scroll (the Find dialog,
+    // a text field or a menu had it).
+    this.focus();
     this.dispatch(
       state.tr.setSelection(TextSelection.create(state.doc, start, end)).scrollIntoView(),
     );
-    this.focus();
     return true;
   }
 }
