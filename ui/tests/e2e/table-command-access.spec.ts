@@ -788,7 +788,7 @@ async function menuStates(page: Page): Promise<{ insert: EntryState; entries: En
 async function contextStates(
   page: Page,
   located: Located,
-): Promise<{ section: string[]; insert: EntryState; entries: EntryState[] | null }> {
+): Promise<{ section: string[]; entries: EntryState[] | null }> {
   await rightClick(page, located.target, located.position);
   await expect(page.getByTestId('context-menu')).toBeVisible();
   const top = await page.evaluate<
