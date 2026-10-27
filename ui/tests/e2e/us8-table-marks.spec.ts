@@ -415,7 +415,9 @@ async function structureEntry(page: Page, commandId: string): Promise<Locator> {
   await page.getByTestId('menu-edit').click();
   await page.getByTestId('menu-edit-tableStructure').click();
   await expect(page.getByTestId('menu-edit-tableStructure-popup')).toBeVisible();
-  return page.getByTestId(`menu-edit-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`);
+  return page.getByTestId(
+    `menu-edit-tableStructure-${commandId.slice(commandId.indexOf('.') + 1)}`,
+  );
 }
 
 async function closeMenus(page: Page, popup: string): Promise<void> {

@@ -146,7 +146,9 @@ describe('Edit → Table structure (feature 006)', () => {
       ENGLISH_LABELS,
     );
     for (const item of entries) expect(item).toHaveAttribute('aria-disabled', 'true');
-    expect(within(popup).getByTestId('menu-edit-tableStructure-insertRowBelow')).toBeInTheDocument();
+    expect(
+      within(popup).getByTestId('menu-edit-tableStructure-insertRowBelow'),
+    ).toBeInTheDocument();
     const separators = within(popup).getAllByRole('separator');
     expect(separators).toHaveLength(7);
     expect(separators.map((separator) => separator.dataset.testid)).toEqual(

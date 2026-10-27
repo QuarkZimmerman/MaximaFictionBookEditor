@@ -25,11 +25,7 @@ export interface SourceContextMenuProps {
   onClose: () => void;
 }
 
-export function SourceContextMenu({
-  controller,
-  position,
-  onClose,
-}: SourceContextMenuProps) {
+export function SourceContextMenu({ controller, position, onClose }: SourceContextMenuProps) {
   const { t } = useTranslation();
   const services = useAppServices();
   const ctx = useCommandContext();
