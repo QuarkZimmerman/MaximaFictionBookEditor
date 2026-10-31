@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test05/chain-save-twice",
+  "name": {
+    "ru": "Цепочка: вложения сохраняются дважды",
+    "en": "Chain: saving the binary objects twice"
+  },
+  "kind": "menu"
+}

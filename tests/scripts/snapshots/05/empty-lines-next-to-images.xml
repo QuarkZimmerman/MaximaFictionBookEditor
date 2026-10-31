@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Иллюстрации</last-name>
+			</author>
+			<book-title>Пустые картинки в разделах</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Пустые картинки в разделах</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Первый абзац.</p>
+			<p>Второй абзац.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<epigraph>
+				<p>Эпиграф главы.</p>
+			</epigraph>
+			<p>Текст после эпиграфа.</p>
+		</section>
+		<section>
+			<title>
+				<p>Часть 3</p>
+			</title>
+			<section>
+				<title>
+					<p>Глава 3.1</p>
+				</title>
+				<p>Текст вложенной главы.</p>
+			</section>
+			<section>
+				<p>Безымянный вложенный раздел.</p>
+				<subtitle>Подзаголовок в конце</subtitle>
+			</section>
+		</section>
+		<section>
+			<title>
+				<p>Глава 4</p>
+			</title>
+			<image l:href="#undefined"/>
+			<p>Пустые картинки уже стоят.</p>
+			<image l:href="#undefined"/>
+		</section>
+		<section>
+			<title>
+				<p>Глава 5</p>
+			</title>
+			<image l:href="#real.png"/>
+			<p>В начале уже есть обычная картинка.</p>
+		</section>
+		<section>
+			<p>Безымянный раздел.</p>
+			<p>Его второй абзац.</p>
+		</section>
+		<section>
+			<subtitle>* * *</subtitle>
+			<p>Безымянный раздел, начинающийся подзаголовком.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 8</p>
+			</title>
+			<annotation>
+				<p>Аннотация раздела.</p>
+			</annotation>
+			<p>Текст после аннотации.</p>
+		</section>
+		<section/>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="note1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Текст примечания.</p>
+		</section>
+	</body>
+</FictionBook>

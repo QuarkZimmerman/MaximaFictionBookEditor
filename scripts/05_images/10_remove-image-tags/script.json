@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "05/remove-image-tags",
+  "name": {
+    "ru": "Удалить все теги иллюстраций - теги image",
+    "en": "Remove all illustration tags - image tags",
+    "uk": "Видалити всі теги ілюстрацій - теги image"
+  },
+  "description": {
+    "ru": "Удаляет из текста книги все иллюстрации - блочные и внутриабзацные, обложка остаётся - и пустые строки рядом с блочными иллюстрациями.",
+    "en": "Removes every illustration from the text of the book - block and inline pictures, the cover stays - and the empty lines next to the block pictures.",
+    "uk": "Видаляє з тексту книги всі ілюстрації - блокові та вбудовані в абзаци, обкладинка лишається - і порожні рядки поряд із блоковими ілюстраціями."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить все теги иллюстраций - теги image",
+    "en": "Remove all illustration tags - image tags"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/10_Удалить все теги иллюстраций - теги image.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.6"
+  }
+}

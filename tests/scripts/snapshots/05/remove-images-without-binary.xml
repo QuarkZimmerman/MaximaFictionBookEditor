@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Иллюстрации</last-name>
+			</author>
+			<book-title>Теги иллюстраций</book-title>
+			<annotation>
+				<p>Аннотация с картинкой <image l:href="#pic1.png"/> в тексте.</p>
+				<empty-line/>
+			</annotation>
+			<coverpage>
+				<image l:href="#cover.jpg"/>
+			</coverpage>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>История: <image l:href="#pic2.png"/> исправлена.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<image l:href="#pic1.png"/>
+		<title>
+			<p>Теги иллюстраций</p>
+		</title>
+		<section id="ch1">
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<image l:href="#pic2.png"/>
+			<empty-line/>
+			<p>Первый абзац главы.</p>
+			<image l:href="#pic1.png" title="подпись"/>
+			<p>   </p>
+			<p>Абзац с картинкой <image l:href="#pic1.png"/> внутри и  заглушкой.</p>
+			<p><image l:href="#pic2.png"/></p>
+			<subtitle>Подзаголовок</subtitle>
+			<image l:href="#pic1.png" id="img-ch1"/>
+			<p>undefined</p>
+			<p>Абзац <strong><image l:href="#pic2.png"/></strong> с жирной картинкой.</p>
+		</section>
+		<section>
+			<image l:href="#pic1.png"/>
+			<empty-line/>
+			<p>Раздел без заголовка, картинка первая.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 3</p>
+			</title>
+			<empty-line/>
+		</section>
+		<section>
+			<title>
+				<p>Глава 4</p>
+			</title>
+			<empty-line/>
+			<image l:href="#pic2.png"/>
+			<empty-line/>
+		</section>
+		<section>
+			<title>
+				<p>Глава 5</p>
+			</title>
+			<poem>
+				<stanza>
+					<v>Строка стиха</v>
+					<v><image l:href="#pic1.png"/></v>
+				</stanza>
+			</poem>
+			<table>
+				<tr>
+					<td><image l:href="#pic2.png"/></td>
+					<td>Ячейка</td>
+				</tr>
+			</table>
+			<cite>
+				<p>Цитата.</p>
+				<empty-line/>
+			</cite>
+			<p>Ссылка <a l:href="http://example.com/"><image l:href="#pic1.png"/></a> и конец.</p>
+			<p>Конец главы.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="note1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание с  картинкой.</p>
+			<empty-line/>
+			<image l:href="#pic2.png"/>
+			<p>Текст после картинки примечания.</p>
+		</section>
+	</body>
+	<binary id="cover.jpg" content-type="image/jpeg">…</binary>
+	<binary id="pic1.png" content-type="image/png">…</binary>
+	<binary id="pic2.png" content-type="image/png">…</binary>
+</FictionBook>

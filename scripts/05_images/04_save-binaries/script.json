@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "05/save-binaries",
+  "name": {
+    "ru": "Сохранить вложения на накопитель",
+    "en": "Save the binary objects to a drive",
+    "uk": "Зберегти вкладення на накопичувач"
+  },
+  "description": {
+    "ru": "После подтверждения сохраняет все вложения книги - картинки и другие файлы - под их id в папку, которую вы выберете.",
+    "en": "After a confirmation saves every binary object of the book - pictures and other files - named by its id into a folder you choose.",
+    "uk": "Після підтвердження зберігає всі вкладення книги - малюнки та інші файли - під їхніми id у теку, яку ви виберете."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Сохранить вложения на накопитель",
+    "en": "Save the binary objects to a drive"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/04_Сохранить вложения на накопитель.js",
+    "fbeVersion": "2.7.9"
+  }
+}

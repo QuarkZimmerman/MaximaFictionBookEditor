@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test05/chain-navigation",
+  "name": {
+    "ru": "Цепочка: переходы по иллюстрациям",
+    "en": "Chain: going from picture to picture"
+  },
+  "kind": "menu"
+}

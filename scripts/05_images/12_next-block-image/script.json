@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/next-block-image",
+  "name": {
+    "ru": "Перейти на следующую 'блочную' иллюстрацию",
+    "en": "Go to the next 'block' illustration",
+    "uk": "Перейти до наступної 'блокової' ілюстрації"
+  },
+  "description": {
+    "ru": "Ставит курсор после следующей блочной иллюстрации - картинки между абзацами.",
+    "en": "Puts the caret right after the next block illustration - a picture between paragraphs.",
+    "uk": "Ставить курсор після наступної блокової ілюстрації - малюнка між абзацами."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующую 'блочную' иллюстрацию",
+    "en": "Go to the next 'block' illustration"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/12_Перейти на следующую 'блочную' иллюстрацию.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.1"
+  }
+}

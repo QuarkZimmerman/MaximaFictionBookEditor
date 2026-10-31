@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test05/empty-lines-keep",
+  "name": {
+    "ru": "Тест: пустые строки рядом с иллюстрациями (keep)",
+    "en": "Test: empty lines next to the illustrations (keep)"
+  },
+  "kind": "menu"
+}

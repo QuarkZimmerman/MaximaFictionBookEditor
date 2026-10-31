@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/fix-jpg-png-names",
+  "name": {
+    "ru": "Коррекция jpg-png",
+    "en": "Correction of jpg-png names",
+    "uk": "Корекція jpg-png"
+  },
+  "description": {
+    "ru": "Иллюстрации без вложения переводит на неиспользуемое вложение с тем же именем и расширением jpg, jpeg или png - после того как вложенные файлы переформатированы в jpg или png.",
+    "en": "Points the illustrations without a binary object to an unused binary of the same name with the extension jpg, jpeg or png - for after the binaries were converted to jpg or png.",
+    "uk": "Ілюстрації без вкладення переводить на невикористане вкладення з тим самим іменем і розширенням jpg, jpeg або png - після того як вкладені файли переформатовано в jpg або png."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Коррекция jpg-png",
+    "en": "Correction of jpg-png names"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/25_Коррекция jpg-png.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "05/insert-empty-images",
+  "name": {
+    "ru": "Вставить пустые картинки в началах и концах секций",
+    "en": "Insert empty pictures at the starts and ends of sections",
+    "uk": "Вставити порожні малюнки на початках і в кінцях секцій"
+  },
+  "description": {
+    "ru": "Вставляет пустые картинки (ссылки #undefined) после заголовков разделов и в конце разделов без вложенных, кроме сносок и уже расставленных, - места для иллюстраций.",
+    "en": "Inserts empty pictures (links to #undefined) after the section titles and at the ends of the sections without subsections, notes and places already set aside - places for illustrations.",
+    "uk": "Вставляє порожні малюнки (посилання #undefined) після заголовків розділів і в кінці розділів без вкладених, крім приміток і вже розставлених, - місця для ілюстрацій."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Вставить пустые картинки в началах и концах секций",
+    "en": "Insert empty pictures at the starts and ends of sections"
+  },
+  "legacy": {
+    "source": "05_Иллюстрации/30_Вставить пустые картинки в началах и концах секций.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "3.7"
+  }
+}

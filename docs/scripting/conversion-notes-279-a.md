@@ -214,7 +214,315 @@ stays.
 
 ## 05_Иллюстрации
 
-23 scripts in 2.7.9: 14 new, 7 successors of converted packages, 2 successor(s) of scripts the 2.7beta1 conversion dropped. Not yet converted or rechecked.
+23 scripts in 2.7.9: 14 new, 2 dropped when 2.7beta1 was converted and re-examined here (03, 04),
+7 successors of converted packages (01, 02, 05, 06, 07, 08, 09: left for their recheck; they still
+carry their 2.7beta1 `legacy` and have no Ukrainian texts yet). Converted here (T049, T069): 13 of
+the 14 new scripts - "14_Удалить все иллюстрации, их тэги и пустые строки (комбо)" runs other
+scripts and is converted with the combos - and 04; 03 stays not converted. Packages:
+`scripts/05_images/<NN>_<slug>/` with the 2.7.9 number, ids `05/<slug>`, `legacy.source` the 2.7.9
+path (the path `mfbe.scripts.run` resolves for the combo, which runs 10 among others). Every
+package has `name` and `description` in ru, en and uk, `needsSelection: false`, the 2.7.9 icon
+where the script has one (10 and the "15 …" without "1.3" have none; 04's `icon.png` is made from
+its `.ico` with the converter of `tools/legacy-script-audit.py`, byte-identical to what the
+skeletons got), and in `index.js` the original's leading comment verbatim (`check-notices.py
+--package`: OK for all 14). Dialog and message texts in Russian and English (FR-026).
+
+### The common ground
+
+**The book as the originals saw it.** The scripts walked FictionBook Editor's `fbw_body` - the
+book's annotation and its history first, then every body (`files/fb2.xsl` of 2.7.9) -, where a
+block picture is a `DIV.image` and an inline picture a `SPAN.image` (each holding an `IMG`), a
+paragraph or an empty line a `P`. The conversions rebuild that order from `mfbe.doc.get()`
+(description and bodies): pictures of the book annotation and the history count as the originals
+counted them, and are changed through `doc.setDescription`; the bodies through `doc.replaceNode`,
+`doc.removeNode` and `doc.insertNode`. Those calls are schema-checked: an edit FB2 does not allow
+at that place - which FictionBook Editor made, leaving an invalid book - is not made and not
+counted (recorded per script).
+
+**An emptied paragraph** is written as FictionBook Editor saved it (`FBDoc.cpp`, `ProcessP`): a P
+with no child left, or with one plain text of white space, became an empty line; in a stanza a
+verse of one space; a table cell stayed a cell (10, 13, 15, 16), as group 19's "Превратить таблицы
+в простой текст" does.
+
+**Engines** (each package carries its copy; byte-identical, md5-checked): `image-removal.js` (10,
+16), `image-nav.js` (11, 12, 18, 19), `picture-refs.js` (17, 20, 25), `place-images.js` (both 15),
+`lib/legacy-html.js` (13: a copy of `scripts/06_cleanup/02_general-cleanup/lib/legacy-html.js`).
+
+**Run from other scripts.** Every `run()` returns what the original's `Run()` returned: nothing
+(a caller of `mfbe.scripts.run` gets `null`), except 15 (`true` without a body, `false` when
+cancelled at its first question). The navigation scripts return nothing either - their originals
+had no "Found"/"NotFound" -, and say so in a message when there is no further picture, as 2.7.9.
+
+**Reference books** (`tests/scripts/fixtures/279/05/`, valid FB2 2.1 against
+`resources/schema/FictionBook.xsd`; PNG binaries made with zlib, the 8×6 JPEG of
+`tests/fixtures/books/ai-selection.fb2`): `tags.fb2` (10, 16, 04, 15's mismatch, 20's set cover),
+`navigation.fb2` (11, 12, 18, 19; 17's and 25's "none" runs), `copies.fb2` (17), `names.fb2` (25),
+`covers.fb2` (20), `placement.fb2` and `placement-edge.fb2` (15), `sections.fb2` (30; 04 without
+binaries; 13's direct run), `empty-lines.fb2` (13). Node ids: `run-script.mjs --list-nodes`.
+**Tests**: `tests/scripts/snapshots/05/suite.json` (35 entries). Test drivers (packages under
+`fixtures/279/05/chains/`, never bundled) run scripts through `mfbe.scripts.run` by their 2.7.9
+paths: `navigation` (11, 12, 18, 19 from given selections; one clipboard line per call, recorded
+in `chain-navigation.outputs.json`), `save-twice` (04 twice into one folder),
+`empty-lines-{keep,auto-add,auto-remove,ask}` (13 with settings and a fixed date). Every snapshot
+equals the result derived from the 2.7.9 code before its first run (below). Gate:
+`tests/scripts/run-all.sh --group 05` - 45 snapshots (35 new, 10 of the 2.7beta1 packages) pass.
+
+### 04 Сохранить вложения на накопитель
+
+`04_save-binaries`, id `05/save-binaries` (T069: dropped from 2.7beta1, which had no file access).
+Asks for a confirmation, saves every binary object with its original bytes, named by its id,
+through `mfbe.files.saveBinaries` (script API version 2), and reports "Было сохранено N из M
+бинарных объектов" with the original's time string, "Ни один бинарник не сохранён! Возможно файлы
+уже существуют?" when none was saved, "В этом документе нет бинарных объектов." without binaries
+(the "–= Alex Saveliev Script =–" banner kept). Snapshots: `save-binaries.xml` (`tags.fb2`, yes,
+folder `pictures`: the outputs list cover.jpg 376, pic1.png 73, pic2.png 74 bytes with the SHA-256
+of the book's base64 data), `.no` (declined), `.cancel` (folder dialog cancelled: nothing, no
+message), `.none` (`sections.fb2`: the message), `chain-save-twice.xml` (second run into the same
+folder: the editor asks for each file, Skip ×3, then the "none saved" message).
+Differences: the folder is chosen in the editor's folder dialog (the original wrote next to the
+book; the confirmation now says the user chooses it); an existing file is the editor's question
+(Overwrite / Skip / Overwrite all / Cancel; the original never overwrote and counted it as not
+saved).
+
+### 10 Удалить все теги иллюстраций - теги image
+
+`10_remove-image-tags`, id `05/remove-image-tags` (v1.6, Sclex). Removes every inline picture,
+then every block picture from the last to the first together with the empty lines next to it,
+then those empty lines; the cover stays. Message: block, inline, total, empty lines (the "(автор
+Sclex)" banner kept).
+Expected and obtained on `tags.fb2`: the 13 inline pictures go - the book annotation's line keeps
+"Аннотация с картинкой  в тексте.", its paragraph of one picture becomes an empty line; the
+history "История:  исправлена."; n16; n27 "Абзац  с жирной картинкой."; the verse n50 `<v> </v>`;
+the cell n54 empty; the cite's text author n59 an empty line; n61 "Ссылка  и конец."; the note
+n71 - and the 11 block pictures (n74, n63, n42, n36, n30, n25, n21, n14, n12, n8, n2); empty lines
+removed: n73, n43, n31, n22, n19, n15, n13, n11, n9; n37 stays (after the title, last: needed);
+n41 stays (its section would keep only its title); n26 "undefined" stays. Message 11, 13, 24, 9.
+Snapshot `remove-image-tags.xml`.
+Fixes (also in 16): the word "undefined" counted as an empty line (the expression was built before
+its non-breaking space variable was set: `( | |&nbsp;|undefined)*`) - 2.7.9 removed n26; the empty
+line after a picture that opens its section stayed whatever followed (operator precedence in
+`emptyLineIsNeededForValidity`) - 2.7.9 kept n31.
+Differences: the empty line that would leave a title alone stays (2.7.9 removed 10 lines and left
+"Глава 4" invalid); an emptied formatting element or link goes (2.7.9: `<strong/>`, an empty
+`<a>`); in a poem's text author the emptied paragraph stays (no empty line allowed there); the
+count of "unclear" pictures (an IMG outside an image element) is gone.
+
+### 11 Перейти на предыдущую 'блочную' иллюстрацию, 12 … следующую 'блочную' …, 18 … предыдущую инлайн-иллюстрацию, 19 … следующую инлайн-иллюстрацию
+
+`11_previous-block-image` (`05/previous-block-image`), `12_next-block-image`, `18_previous-inline-
+image`, `19_next-inline-image` (v1.1 Sclex and stokber; v1.0 stokber after Sclex). The originals
+pasted a marker at the start of the selection, walked fbw_body forwards (pre-order) or backwards
+(each container before its content, the content from the last) to the first `DIV.image` (11/12)
+or `SPAN.image` (18/19) beyond it, went there with GoTo and stepped off the picture with Shift+Esc
+and Left (previous) or Right (next). `image-nav.js` puts the text blocks and block pictures of the
+book on one number line (a caret is its block's start plus its offset), finds the picture, and
+puts the caret back with `selection.set`: 18 right before the inline picture, 19 right after it
+(their setting `sel`, 0 as shipped, would select one character to the right); 11 at the end of the
+text right before the block picture, 12 at the start of the text right after it - or, when another
+picture or nothing lies there (pictures with only empty lines between them), right at the
+picture's side, a place between blocks that `selection.get()` reports as the container and its
+offset, which the next run reads back - so that repeated runs step through every picture. No more
+picture: "  Иллюстраций больше нет." / "  Инлайн-иллюстраций больше нет." with the script line.
+Expected and obtained (chain driver `navigation` on `navigation.fb2`, 43 calls,
+`chain-navigation.outputs.json`): 12 from n48:0 - n4:0, n9:0, n5:53 (after n12, n14 follows past
+an empty line), n5:55, n16:0, n19:0, n28:20, n36:0, n41:21, then the message (stays n41:21); 11
+from n44:13 - n28:20, n29:17, n16:23, n5:55, n5:53, n9:38, n7:7, n51:22 (end of the history), then
+the message; 19 from n48:0 - n48:13, n51:11, n9:14, n9:30, n19:1, n23:6, n36:8, n44:12, message;
+18 from n44:13 - n44:11, n36:7, n23:5, n19:0, n9:29, n9:13, n51:10, n48:12, message; a selected
+block picture n14 (`n13:0-n14:0`): 12 → n16:0, 11 → n9:38; a selected inline picture n11: 19 →
+n19:1, 18 → n9:13; a text range n9:10-20 holding n10: 19 → n9:14 (the picture inside the range),
+18 → n51:10. Every `run()` value `(nothing)`. Snapshots `previous-block-image.xml` (`--select
+n16:5:5`), `next-block-image.xml` (n9:5), `previous-inline-image.xml`, `next-inline-image.xml`
+(n9:20), `chain-navigation.xml`: the book unchanged.
+Fix: a selected picture made the script stop with an error (its control range has no `duplicate`;
+stokber's 2025 "костыль от ошибки выделения" stepped off it, but the code went on with the range it
+had failed to copy): the search now starts where that step put the caret.
+Differences: the check "Установите курсор в документ!" is dropped (scripts see the Body view's
+selection only); 11/12's caret beside a block picture as described (2.7.9: where the arrow key put
+IE's caret); the editor scrolls the place into view (GoTo centred it).
+
+### 13 Пустые строки рядом с иллюстрациями
+
+`13_empty-lines-next-to-images`, id `05/empty-lines-next-to-images` (v2.1, Александр Ка; the
+change history at the end of the original is kept in the notice). A port on a tree mirroring
+fbw_body (DIVs named by their FB2 element, a P for every paragraph and empty line), every edit
+sent to the editor as it is made (the book annotation and the history at the end through
+`doc.setDescription`), the italic and bold tests on the paragraph HTML of `lib/legacy-html.js`
+with the original's expressions. Phase 1 over every P: 111 white-space lines emptied; 112 a line
+of one inline picture stripped of spaces and formatting, 113 such a subtitle made a paragraph,
+114 a cite or poem (with its stanza) holding nothing else dissolved; 121 repeated empty line, 122
+cite / epigraph / poem / stanza / section annotation holding only an empty line dissolved, 123
+empty lines at a container's edge (not after a title, epigraph, picture or annotation), 124 next
+to a title, annotation, poem, epigraph, cite or subtitle (not next to a picture). Phase 2 over the
+block pictures of sections: 201 (the head of a section: never met in valid FB2), 211, 212 (between
+the picture and the section's edge), 221 (an empty line between a picture and a poem, table or
+epigraph). Then the 26 combinations (picture + cite / subtitle / italic / bold / plain text /
+text in a block / picture, with or without an empty line between; text + picture likewise), and
+per the settings (0 remove, 1 add, 2 ask - the default -, 3 leave) the empty line between them is
+added or removed: in mode 2 after a summary question ("• НАЙДЕНО … Продолжить?"), one question per
+place (Да keeps the added line / removes the existing one, Нет the opposite, Отмена ends that
+kind). Last the version of the file is raised with a line in the history (on by default; the name
+"Зорро"), or a recent line of the history (within 10 days) is extended, and a window gives the
+statistics. The settings are constants of the script; a script that runs it may pass its own in
+`ctx.args`, with `today` (YYYY-MM-DD) for the history date.
+Expected and obtained on `empty-lines.fb2` (`chain-empty-lines-keep.xml`, settings 3, date
+2026-11-10): annotation - the empty line and the line of a space go (121, 123); section 1 - the
+empty line after the title (124), the first of two (121); 2 - "   " and an italic space emptied
+(111 ×2) and removed (124, 123); 3 - the epigraph and a cite of one empty line dissolved (122 ×2),
+the first then removed (124), an empty line opening a cite removed (123); 4 - the subtitle of a
+picture and a space becomes `<p>` with the bare picture (112, 113), the bold picture's cite
+dissolved (112, 114), the poem around a verse of a picture dissolved with its stanza (114 ×2);
+5 - the empty line between the picture and the section's end removed (212); 6 - empty lines
+inserted between the poem and the picture and the picture and the table (221 ×2); 7-10 unchanged;
+version 1.0 → 1.1 and "v.1.1 —  Скрипт: «Пустые строки рядом с иллюстрациями» 2.1 — (Зорро,
+10.11.26)" appended (1.0 is mentioned already); statistics 17 block pictures, 5 picture lines,
+22 corrections. `chain-empty-lines-auto-add.xml` (settings 1, date 2026-10-31): 25 empty lines
+added - after the pictures of kinds 001-006 (12), before those of 021-026 (12), after the picture
+before a picture (007) -, and the recent line "Правка — (Зорро, 25.10.26)" becomes "Правка; Скрипт:
+«Пустые строки рядом с иллюстрациями» 2.1 — (Зорро, 31.10.26)", the version unchanged.
+`chain-empty-lines-auto-remove.xml` (settings 0): 14 empty lines removed (011-016 after, 031-036
+before, 017). `chain-empty-lines-ask.xml` (settings 2, 34 answers): 33 questions in the derived
+order and counts, the result as answered (e.g. section 7: lines kept after n76, n83, n85, n87 and
+before n76, n79, n83, n85; Отмена at the third of seven ends kind 005). Direct run
+`empty-lines-next-to-images.xml` (`sections.fb2`, the summary answered Нет): unchanged, no history
+line (no correction).
+Differences: the result window shows no proverb - left out pending the requester's decision (the
+original appended a random saying from its list of wartime proverbs; the list is not copied); an
+edit FB2 does not allow there is not made and not counted; a container is dissolved in one step;
+a question shows the place by the selection, not a coloured line; the "B mode" check and the
+refreshing of the pictures have no counterpart; the user name is the setting "Зорро" (the original
+also read a `fbeUserName` of its main.js). Open questions: restore the proverb of the result
+message? keep "Зорро" as the history line's default name?
+
+### 15 Расставить иллюстрации по заданным местам 1.3, 15 Расставить иллюстрации по заданным местам
+
+2.7.9 ships the script twice, byte for byte the same (one with an icon and "1.3" in its name):
+`15_place-images-1-3` (`05/place-images-1-3`) and `15_place-images-at-placeholders`
+(`05/place-images-at-placeholders`), folders named so that the editor's natural order keeps 2.7.9's
+menu order (" 1.3" before ".js"); one engine, `place-images.js` (v1.3, stokber). After an
+OK/Cancel note, the places - pictures whose binary is missing (`#undefined`, `#nobin_undefined`),
+counted over the book annotation, the history and all bodies - and the unused binaries (no picture
+or cover uses them; probable covers and copies such as `cover.jpg`, `x.jpg_1` left out) are
+compared: when as many, the i-th place of the first body gets the i-th unused binary in the order
+of the binary objects, the first body's paragraphs of white space become empty lines (`correction`)
+and "Расставлено изображений: N" follows, with the left-out names on request in a report window;
+otherwise the counts, and on request the lists, in a report window.
+Expected and obtained: `place-images-at-placeholders.xml` (`placement.fb2`, OK, OK) - n7 →
+`#img01.png`, the inline n10 → `#img02.png`, n14 (`#nobin_undefined`) → `#img03.jpg`, n20 →
+`#img04.png`; n11 "   ", n13 (italic space), n19 (a non-breaking space) become empty lines, the cell
+n23 empty, the verse n28 one space; message 4; report "Skipped by the script as probable covers
+and/or copies of pictures (2 in all): img05.jpg_1, cover.png" (`.outputs.json`; the same in
+`place-images-1-3.xml`); `.no-details` (Cancel at the last question: no report), `.cancel` (Cancel
+first: unchanged); `.edge` (`placement-edge.fb2`): the places with an id, with a title and
+`#UNDEFINED` get p1-p4, the places in the annotation and the notes body stay, `cover_src.png` is
+listed as skipped, message 4 (2.7.9: 8 unused - the src-title-info cover and cover_src.png
+included - against 6 places, so it would have refused); `.mismatch` (`tags.fb2`: 9 places, no
+unused binary): the message and the report "Empty pictures (9 in all) Among them: undefined (1)",
+`.mismatch-no-details` without it.
+Fixes: the src-title-info covers count as covers, compared by address (the original: the
+title-info list as a text the id occurred in); `cover_src.*` is left out as a probable cover (the
+original's `cover(_crs)?` - a slip for the `cover_src` of scripts 02 and 20); a place is found by its
+address also with an id or a title (the original's expression over the body HTML missed them and
+the binary went to the next place); the message counts the pictures placed (not the smaller
+count). Differences: the lists in a report window (2.7.9: a message box; its `MyMsgWindow`, for a
+page 2.7.9 lacks, commented out); no refresh of the view and the cover lists, no visible-nbsp
+replacement. Open questions (kept as 2.7.9): the opening note promises alphabetical order, the
+code uses the binaries' order; places outside the first body are counted but not filled; the
+probable covers are listed with an unanchored expression and left out with an anchored one.
+
+### 16 Удалить иллюстрации, не 'ссылающиеся' на наличествующий бинарник
+
+`16_remove-images-without-binary`, id `05/remove-images-without-binary` (v1.0, stokber after
+Sclex's 10): the steps of 10 for the pictures whose address is not "#" and an existing binary's id.
+Expected and obtained on `tags.fb2` (binaries cover.jpg, pic1.png, pic2.png): inline n80
+(`#missing-a.png`, its annotation line becomes an empty line), n18 (`#undefined`), n23 (n22 then
+an empty line, removed with n21), n60 (the text author an empty line), n72; block n63 (external
+address), n36 (n37 stays), n21 `#old-pic1.png`, n12; empty lines n22, n13, n11; message 4, 5, 9,
+3. Snapshot `remove-images-without-binary.xml`.
+Fixes: exact address comparison (the original's `RegExp(ids.join('|'))` passed `#old-pic1.png` for
+`pic1.png`; 2.7.9 kept n21); the pictures kept are no longer counted (the original's last loop took
+the IMG of every kept picture out of the view and counted it as an "unclear" removed one: 16 here,
+so its "none found" message never came in a book with pictures); the two fixes of 10.
+Differences: those of 10.
+
+### 17 Исключение копий вложенных файлов
+
+`17_exclude-binary-copies`, id `05/exclude-binary-copies` (v1.2, Александр Ка). Binaries of the
+same size and the same image width and height are copies (covers aside, both description lists);
+every picture using a copy is pointed to the binary found first. Report: binaries, covers,
+pictures, names changed, and the original's warning about the imprecise search (reflowed as it
+did).
+Expected and obtained on `copies.fb2`: a-copy.png (the annotation's and n9's picture), a-copy2.png
+(n11), b.png (n12: same size and dimensions, another colour - the documented imprecision) →
+`#a.png`; picture-copy.jpg (n19) → `#picture.jpg` (cover.jpg, as large, is a cover and takes no
+part); e2.png is a copy of e.png but nothing uses it; c.png (1 byte more), d.png (other size in
+pixels) and the two fonts (no dimensions) are no copies; 5 names changed. Snapshots
+`exclude-binary-copies.xml`, `.none` (`navigation.fb2`: unchanged, "Исправлений нет").
+Difference: the copies keep their ids (2.7.9 renamed them `a_COPY_01.png`, `a_COPY_02.png`,
+`a_COPY_03.png`, `picture_COPY_01.jpg`): the script interface cannot rename a binary.
+
+### 20 Обновить иллюстрации (версия Александра Ка)
+
+`20_refresh-images-alexander-ka`, id `05/refresh-images-alexander-ka` (v1.3). Of the original's
+work - reloading the pictures of its view and tree, rebuilding the binaries panel's buttons,
+setting the standard covers - the covers remain: when the title-info's cover list has one place
+and it is empty (no cover, or one whose binary is no JPEG or PNG of the book: the form showed it
+empty), the first JPEG/PNG binary named `cover.jpg`/`cover.png` becomes the cover; the same with
+`cover_src.*` for the src-title-info. Report: pictures and image binaries "refreshed", covers set.
+Expected and obtained: `refresh-images-alexander-ka.xml` (`covers.fb2`) - the title-info gets
+`#cover.jpg` (the first of cover.jpg, cover.png), the src-title-info's `#missing-src.png` becomes
+`#cover_src.png`; 3 pictures, 4 image binaries (not notes.txt), 2 covers; `.cover-set`
+(`tags.fb2`): unchanged.
+Differences: nothing to refresh (the counts reported as before); the cover's binary is not moved
+to the front of the binaries (no API to reorder them); no "cover_src" cover for a book without a
+src-title-info (2.7.9 wrote one with empty required fields).
+
+### 25 Коррекция jpg-png
+
+`25_fix-jpg-png-names`, id `05/fix-jpg-png-names` (v1.2, Александр Ка). A picture whose address
+names no binary is pointed to an unused binary of its name (extension jpg/jpeg/png/tif/gif/bmp,
+with an optional "_N", stripped) with the extension jpg, jpeg or png; the report counts the
+changes by kind (21 kinds).
+Expected and obtained on `names.fb2`: the annotation's n24 and n10 `#pic3.png` → `#pic3.jpeg`,
+n9 `#pic2.jpg` and n14 `#pic2.jpg_1` → `#pic2.png`, n11 `#pic4.tif` → `#pic4.jpg`, n12 `#pic5` and
+n13 `#pic5.bmp` → `#pic5.png` (one binary serves both, as in the original), n17 `#Pic6.jpeg` →
+`#Pic6.JPG`, the inline bold n19 `#pic4.gif` → `#pic4.jpg` (bold kept); n7 `#pic1.jpg` has its
+binary, n15 `#nothing.jpg`, n16 `#extra.png` (only extra.gif) and n20 `#cover.jpg` (cover.png is
+the cover, not unused) stay; report: 8 binaries, unused 6 → 1, 1 cover,
+13 pictures, without binary 12 → 3, jpg→png 2, jpeg→jpg 1, png→jpeg 2, tif→jpg 1, gif→jpg 1,
+bmp→png 1, no format→png 1. Snapshots `fix-jpg-png-names.xml`, `.none` (`navigation.fb2`:
+"Исправлений нет"). No differences.
+
+### 30 Вставить пустые картинки в началах и концах секций
+
+`30_insert-empty-images`, id `05/insert-empty-images` (v3.7, TaKir with DeepSeek, as its notice
+says). The dialog (HTML/Вставить пустые ссылки на картинки - параметры.htm) becomes a form: two
+check boxes (both on), its notes as text, "Выполнить" / "Отмена". Outside the notes body every
+section gets an empty picture (`#undefined`) after its title, and a section without subsections
+one at its end (an untitled one unless it ends with a subtitle), except where one stands already;
+a section left with nothing but titles and empty pictures gets an empty line. Statistics as the
+original.
+Expected and obtained on `sections.fb2` (`insert-empty-images.xml`, both): starts in n4, n9 (after
+the epigraph), n15, n18, n42 (before the section annotation); ends in n4, n9, n18, n31, n36, n39,
+n42 and the empty section n48 (`<image/>` + `<empty-line/>`); n22 (untitled, ends with a
+subtitle), n25 (pictures there already), the notes section unchanged; n31's start not inserted
+(its head holds a picture); counts 13 (5 + 8), untitled 4, empty lines 1, notes 1, parents 1.
+`.start` (5 pictures), `.end` (8 and the empty line), `.none` (no option: "Не выбрано ни одной
+опции для вставки!"), `.cancel`: as expected.
+Fix: a subtitle counted as the title (`className.indexOf('title')` matches "subtitle"): 2.7.9 put
+n22's start picture after its closing subtitle (and then none at its end) and n39's after "* * *",
+and counted 2 untitled sections (2.7.9 on this book, all told: 8 starts - n9's between title and
+epigraph, n31's before its picture -, 8 ends, 16 in all). Differences:
+the start picture after the epigraphs (2.7.9: between title and epigraph, invalid); none before an
+ordinary picture heading a section (2.7.9 inserted it, invalid), not counted; the form.
+
+### Not converted
+
+- **03 Обновить иллюстрации** (EN "Refresh the illustrations", UK "Оновити ілюстрації"; v1.1):
+  reassigns the `src` of every IMG of the Internet Explorer view so that the pictures are drawn
+  again and refills the cover lists of the description form - the editor's own page; the book is
+  not changed, and the editor's views show a binary's current content by themselves. Needs the
+  editor's own page (FR-024 excludes it); no API change proposed.
 
 ## 06_Чистка
 

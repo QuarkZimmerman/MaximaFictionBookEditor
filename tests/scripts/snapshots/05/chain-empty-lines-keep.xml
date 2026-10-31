@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Иллюстрации</last-name>
+			</author>
+			<book-title>Пустые строки рядом с иллюстрациями</book-title>
+			<annotation>
+				<p>Аннотация.</p>
+				<p><image l:href="#pic1.png"/></p>
+				<p>Продолжение аннотации.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.1</version>
+			<history>
+				<p>v.1.0 — Исходная версия</p>
+				<p>Правка — (Зорро, 25.10.26)</p>
+				<p>v.1.1 —  Скрипт: «Пустые строки рядом с иллюстрациями» 2.1 — (Зорро, 10.11.26)</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Пустые строки рядом с иллюстрациями</p>
+		</title>
+		<section>
+			<title>
+				<p>1. Повтор и край</p>
+			</title>
+			<p>А.</p>
+			<empty-line/>
+			<p>Б.</p>
+		</section>
+		<section>
+			<title>
+				<p>2. Чистка строк</p>
+			</title>
+			<p>В.</p>
+		</section>
+		<section>
+			<title>
+				<p>3. Внешний формат пустых строк</p>
+			</title>
+			<p>Г.</p>
+			<empty-line/>
+			<p>Д.</p>
+			<cite>
+				<p>Ж.</p>
+			</cite>
+			<p>З.</p>
+		</section>
+		<section>
+			<title>
+				<p>4. Строки с картинкой</p>
+			</title>
+			<p>И.</p>
+			<p><image l:href="#pic1.png"/></p>
+			<p>К.</p>
+			<p><image l:href="#pic2.png"/></p>
+			<p>Л.</p>
+			<p><image l:href="#pic1.png"/></p>
+			<p>М.</p>
+			<cite>
+				<p>Ц1.</p>
+				<empty-line/>
+				<p><image l:href="#pic2.png"/></p>
+				<empty-line/>
+				<p>Ц2.</p>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>5. Край раздела и блоки</p>
+			</title>
+			<p>О.</p>
+			<image l:href="#pic1.png"/>
+		</section>
+		<section>
+			<title>
+				<p>6. Стихи и таблица</p>
+			</title>
+			<p>П.</p>
+			<poem>
+				<stanza>
+					<v>Стих.</v>
+				</stanza>
+			</poem>
+			<empty-line/>
+			<image l:href="#pic2.png"/>
+			<empty-line/>
+			<table>
+				<tr>
+					<td>Т.</td>
+				</tr>
+			</table>
+			<p>Р.</p>
+		</section>
+		<section>
+			<title>
+				<p>7. Подписи вплотную</p>
+			</title>
+			<p>Начало.</p>
+			<image l:href="#pic1.png"/>
+			<cite>
+				<p>Цитата-подпись.</p>
+			</cite>
+			<image l:href="#pic2.png"/>
+			<subtitle>Подзаголовок-подпись</subtitle>
+			<image l:href="#pic1.png"/>
+			<p><emphasis>Курсивная подпись</emphasis></p>
+			<image l:href="#pic2.png"/>
+			<p><strong>Жирная подпись</strong></p>
+			<image l:href="#pic1.png"/>
+			<p>Обычная подпись</p>
+			<image l:href="#pic2.png"/>
+			<image l:href="#pic1.png"/>
+			<p>Конец.</p>
+		</section>
+		<section>
+			<title>
+				<p>8. Подписи через пустую строку</p>
+			</title>
+			<p>Начало.</p>
+			<empty-line/>
+			<image l:href="#pic1.png"/>
+			<empty-line/>
+			<cite>
+				<p>Цитата.</p>
+			</cite>
+			<p>Текст.</p>
+			<empty-line/>
+			<image l:href="#pic2.png"/>
+			<empty-line/>
+			<image l:href="#pic1.png"/>
+			<empty-line/>
+			<p>Конец.</p>
+		</section>
+		<section>
+			<title>
+				<p>9. Ещё подписи</p>
+			</title>
+			<p>Начало.</p>
+			<image l:href="#pic2.png"/>
+			<empty-line/>
+			<subtitle>Подпись</subtitle>
+			<p>Текст.</p>
+			<cite>
+				<p>Ц.</p>
+			</cite>
+			<empty-line/>
+			<image l:href="#pic1.png"/>
+			<empty-line/>
+			<p><emphasis>Курсив</emphasis></p>
+			<subtitle>Подзаголовок</subtitle>
+			<empty-line/>
+			<image l:href="#pic2.png"/>
+			<empty-line/>
+			<p><strong>Жирный</strong></p>
+		</section>
+		<section>
+			<title>
+				<p>10. Надписи</p>
+			</title>
+			<p><emphasis>Курсивный текст</emphasis></p>
+			<empty-line/>
+			<image l:href="#pic1.png"/>
+			<p>Обычный.</p>
+			<p><strong>Жирный текст</strong></p>
+			<empty-line/>
+			<image l:href="#pic2.png"/>
+			<p>Конец.</p>
+		</section>
+	</body>
+	<binary id="pic1.png" content-type="image/png">…</binary>
+	<binary id="pic2.png" content-type="image/png">…</binary>
+</FictionBook>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Иллюстрации</last-name>
+			</author>
+			<book-title>Расстановка: особые случаи</book-title>
+			<annotation>
+				<p>Аннотация <image l:href="#undefined"/> с местом.</p>
+			</annotation>
+			<coverpage>
+				<image l:href="#cover.jpg"/>
+			</coverpage>
+			<lang>ru</lang>
+		</title-info>
+		<src-title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Test</first-name>
+				<last-name>Illustrations</last-name>
+			</author>
+			<book-title>Placement: special cases</book-title>
+			<coverpage>
+				<image l:href="#orig-cover.png"/>
+			</coverpage>
+			<lang>en</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Расстановка: особые случаи</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<image l:href="#p1.png" id="ph1"/>
+			<p>Текст.</p>
+			<image l:href="#p2.png" title="Подпись"/>
+			<p>Ещё <image l:href="#p3.png"/> текст.</p>
+			<image l:href="#p4.png"/>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="note1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Сноска <image l:href="#undefined"/>.</p>
+		</section>
+	</body>
+	<binary id="cover.jpg" content-type="image/jpeg">…</binary>
+	<binary id="orig-cover.png" content-type="image/png">…</binary>
+	<binary id="p1.png" content-type="image/png">…</binary>
+	<binary id="cover_src.png" content-type="image/png">…</binary>
+	<binary id="p2.png" content-type="image/png">…</binary>
+	<binary id="p3.png" content-type="image/png">…</binary>
+	<binary id="p4.png" content-type="image/png">…</binary>
+	<binary id="p5.png" content-type="image/png">…</binary>
+	<binary id="p6.png" content-type="image/png">…</binary>
+</FictionBook>

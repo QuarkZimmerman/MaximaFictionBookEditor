@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Иллюстрации</last-name>
+			</author>
+			<book-title>Расстановка иллюстраций</book-title>
+			<coverpage>
+				<image l:href="#cover.jpg"/>
+			</coverpage>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Расстановка иллюстраций</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<image l:href="#undefined"/>
+			<p>Первый абзац.</p>
+			<p>Абзац с местом <image l:href="#undefined"/> для картинки.</p>
+			<p>   </p>
+			<image l:href="#used.png"/>
+			<p><emphasis>  </emphasis></p>
+			<image l:href="#nobin_undefined"/>
+			<p>Текст с неразрывным пробелом.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<p> </p>
+			<image l:href="#undefined"/>
+			<table>
+				<tr>
+					<td> </td>
+					<td>Ячейка</td>
+				</tr>
+			</table>
+			<poem>
+				<stanza>
+					<v>Строка</v>
+					<v>  </v>
+				</stanza>
+			</poem>
+		</section>
+	</body>
+	<binary id="cover.jpg" content-type="image/jpeg">…</binary>
+	<binary id="used.png" content-type="image/png">…</binary>
+	<binary id="img01.png" content-type="image/png">…</binary>
+	<binary id="img02.png" content-type="image/png">…</binary>
+	<binary id="img03.jpg" content-type="image/jpeg">…</binary>
+	<binary id="img05.jpg_1" content-type="image/jpeg">…</binary>
+	<binary id="img04.png" content-type="image/png">…</binary>
+	<binary id="cover.png" content-type="image/png">…</binary>
+</FictionBook>

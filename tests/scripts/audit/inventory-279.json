@@ -7,9 +7,9 @@
     "successorsOfDropped": 5,
     "noCounterpart": 6,
     "byStatus": {
-      "new": 230,
+      "new": 231,
       "noCounterpart": 6,
-      "notConverted": 5,
+      "notConverted": 4,
       "recheck": 62,
       "unchanged": 25,
       "updated": 49
@@ -22,7 +22,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 269
+    "converted": 283
   },
   "entries": [
     {
@@ -1376,7 +1376,8 @@
       "group": "05_Иллюстрации",
       "names": {
         "ru": "Обновить иллюстрации",
-        "en": "Obnovit illustrations"
+        "en": "Refresh the illustrations",
+        "uk": "Оновити ілюстрації"
       },
       "icon": true,
       "encoding": "utf-8",
@@ -1389,7 +1390,9 @@
       "differences": [],
       "fixes": [],
       "openQuestions": [],
-      "reason": "dropped in the conversion of 2.7beta1; to be re-examined under FR-024 with script API version 2 (T069)"
+      "reason": "It acts on the editor's own page only: it reassigns the src of every IMG of the Internet Explorer view so that the pictures are drawn again, and refills the cover lists of the description form (FillCoverList). The book is not changed, and the editor's views show a binary object's current content by themselves, so there is nothing to refresh.",
+      "namesReviewed": true,
+      "needs": "Access to the editor's own page (its rendered pictures and its description form), which spec FR-024 keeps out of scripts' reach; no API change is proposed, as the editor redraws the pictures itself."
     },
     {
       "source": "05_Иллюстрации/04_Сохранить вложения на накопитель.js",
@@ -1407,11 +1410,14 @@
         "files"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
-      "status": "notConverted",
+      "package": "scripts/05_images/04_save-binaries",
+      "id": "05/save-binaries",
+      "status": "new",
       "predecessor": "05_Иллюстрации/04_Сохранить вложения на диск.js",
-      "differences": [],
+      "differences": [
+        "The editor's folder dialog chooses where the files go (mfbe.files.saveBinaries; the original wrote them next to the book, in its folder): the confirmation says the files go into a folder the user chooses, and cancelling the dialog ends the run without a message.",
+        "A file that exists already is the editor's question - Overwrite, Skip, Overwrite all or Cancel; the original never overwrote one (CREATE_NEW) and counted it as not saved."
+      ],
       "fixes": [],
       "openQuestions": [],
       "reason": "dropped in the conversion of 2.7beta1; to be re-examined under FR-024 with script API version 2 (T069)"
@@ -1569,15 +1575,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/10_remove-image-tags",
+      "id": "05/remove-image-tags",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/10_udalit-all-tegi-illyustratsiy-tegi-image",
-      "suggestedId": "05/udalit-all-tegi-illyustratsiy-tegi-image"
+      "differences": [
+        "An empty line whose removal would leave a section with nothing but its title stays and is not counted (FB2 needs content after a title); 2.7.9 removed it and the section became invalid.",
+        "A formatting element or a link that held a removed inline picture goes with it; 2.7.9 left it empty (<strong/>, <a/>), which the document model has no form for.",
+        "A paragraph emptied of its pictures is written as FictionBook Editor saved it (FBDoc.cpp, ProcessP): an empty line, in a stanza a verse of one space, a table cell an empty cell; where FB2 allows no empty line (a poem's text author) it stays an empty paragraph (2.7.9 saved an empty line there, leaving the book invalid).",
+        "The count of 'unclear (probably wrong)' pictures - an IMG outside an image element, which 2.7.9 showed only when not 0 - is gone: the editor's document has no such picture."
+      ],
+      "fixes": [
+        "The word 'undefined' no longer counts as an empty line: the original built its empty-line expression before setting its non-breaking space variable, so the expression read '( | |&nbsp;|undefined)*' and a paragraph 'undefined' next to a removed picture was removed with it. Now only spaces and non-breaking spaces make an empty line.",
+        "The empty line after a picture that opens its section goes when more text follows: the original's operator precedence (!prev || prevIsTitle && nextIsEmpty && nextIsLast) kept it whatever followed; it was meant to stay only when it is the last thing after the picture, as after a title or an epigraph (needed for validity)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/11_Перейти на предыдущую 'блочную' иллюстрацию.js",
@@ -1596,15 +1608,19 @@
         "externalProgram"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/11_previous-block-image",
+      "id": "05/previous-block-image",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/11_go-on-predydushchuyu-blochnuyu-illyustratsiyu",
-      "suggestedId": "05/go-on-predydushchuyu-blochnuyu-illyustratsiyu"
+      "differences": [
+        "A block picture has no caret position of its own in the Body view: the caret goes to the end of the text right before the picture, or - when another picture or nothing lies there - right at the picture's side (a place between blocks), so that the next run goes on from there; 2.7.9 put the caret wherever the arrow key moved Internet Explorer's caret off the picture.",
+        "The check 'Установите курсор в документ!' (the caret outside the book) is dropped: scripts see the Body view's selection only.",
+        "The editor scrolls the place into view; the original's GoTo centred the picture in the window."
+      ],
+      "fixes": [
+        "A selected picture no longer stops the script with an error: the original's 'костыль от ошибки выделения' (stokber, 2025) stepped off the selected picture with Shift+Esc and an arrow key, but its code went on with the range it had failed to copy (a picture's selection is a control range) and stopped with a script error; the search now starts beside the picture, where that step put the caret - after it going forwards, before it going backwards."
+      ],
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/12_Перейти на следующую 'блочную' иллюстрацию.js",
@@ -1623,15 +1639,19 @@
         "externalProgram"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/12_next-block-image",
+      "id": "05/next-block-image",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/12_go-on-sleduyushchuyu-blochnuyu-illyustratsiyu",
-      "suggestedId": "05/go-on-sleduyushchuyu-blochnuyu-illyustratsiyu"
+      "differences": [
+        "A block picture has no caret position of its own in the Body view: the caret goes to the start of the text right after the picture, or - when another picture or nothing lies there - right at the picture's side (a place between blocks), so that the next run goes on from there; 2.7.9 put the caret wherever the arrow key moved Internet Explorer's caret off the picture.",
+        "The check 'Установите курсор в документ!' (the caret outside the book) is dropped: scripts see the Body view's selection only.",
+        "The editor scrolls the place into view; the original's GoTo centred the picture in the window."
+      ],
+      "fixes": [
+        "A selected picture no longer stops the script with an error: the original's 'костыль от ошибки выделения' (stokber, 2025) stepped off the selected picture with Shift+Esc and an arrow key, but its code went on with the range it had failed to copy (a picture's selection is a control range) and stopped with a script error; the search now starts beside the picture, where that step put the caret - after it going forwards, before it going backwards."
+      ],
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/13_Пустые строки рядом с иллюстрациями.js",
@@ -1647,15 +1667,22 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/13_empty-lines-next-to-images",
+      "id": "05/empty-lines-next-to-images",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The result message shows no proverb: left out pending the requester's decision (the original appended a random saying from its list of wartime proverbs; the list is not copied into the package).",
+        "An edit FB2 does not allow there is neither made nor counted: removing an empty line that would leave a section with its title alone, dissolving a container whose content may not stand in its place (an empty line in a body or a poem); 2.7.9 made them and the book became invalid.",
+        "A cite or poem around a picture line is dissolved in one step (with its stanza), and the verse becomes a paragraph, as 2.7.9 saved it.",
+        "During a question the place is shown by the selection (scrolled into view) instead of a lilac or red highlight of the line; the original's 'B mode' (Body view) check and its refreshing of the pictures have no counterpart, scripts edit the book itself.",
+        "The user name of the history line is the script's setting 'Зорро': the original took a fbeUserName variable of its main.js when there was one, which the editor has not. A script that runs this one may pass the settings in ctx.args, and 'today' (YYYY-MM-DD), the date of the history line (the tests do)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/13_empty-lines-ryadom-s-illyustratsiyami",
-      "suggestedId": "05/empty-lines-ryadom-s-illyustratsiyami"
+      "openQuestions": [
+        "Restore the proverb of the result message?",
+        "The history line names the user 'Зорро' unless the script is edited (the original's default, meant to be changed by the user): keep it, or write the line without a name?"
+      ]
     },
     {
       "source": "05_Иллюстрации/14_Удалить все иллюстрации, их тэги и пустые строки (комбо).js",
@@ -1702,15 +1729,26 @@
       "htmlDialogs": [
         "HTML/Расставить иллюстрации по заданным местам.html"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/15_place-images-1-3",
+      "id": "05/place-images-1-3",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/15_rasstavit-illustrations-po-zadannym-mestam-1-3",
-      "suggestedId": "05/rasstavit-illustrations-po-zadannym-mestam-1-3"
+      "differences": [
+        "The details - on a count mismatch, and the pictures left out as probable covers or copies - open in a report window (mfbe.ui.report); 2.7.9 showed them in a message box (its own MyMsgWindow, which opened HTML/Расставить иллюстрации по заданным местам.html, a page 2.7.9 does not ship, is commented out).",
+        "The original's refresh of the view's pictures and cover lists, and its replacement of the &nbsp; entity by a visible non-breaking space character in the first body, have no counterpart: the editor shows the binaries as they are and keeps non-breaking spaces as such. Its clean-up of the first body's paragraphs of white space (empty lines) is kept.",
+        "2.7.9 ships this script twice, byte for byte the same, as '15_Расставить иллюстрации по заданным местам 1.3.js' (with an icon) and '15_Расставить иллюстрации по заданным местам.js'; both are kept, in 2.7.9's menu order (folders 15_place-images-1-3 and 15_place-images-at-placeholders), with one engine."
+      ],
+      "fixes": [
+        "The covers of the src-title-info count as covers too, and a binary is a cover when its '#id' is a cover's address: the original read the title-info's cover list only, as a text the id had to occur in, so the src-title-info cover (or a binary whose id is part of a cover's address) could be put into the text.",
+        "The cover-like names left out are 'cover.*' and 'cover_src.*' (with '_N' after them): the original's expressions read 'cover(_crs)?', a slip for the 'cover_src' that 'Унифицировать иллюстрации и вложения' and 'Обновить иллюстрации (версия Александра Ка)' give the src-title-info cover.",
+        "A place is found by its address, letter case aside as in the original, also when the picture has an id or a title: the original's regular expression over the body's HTML required the attribute layout of a picture without them, so such a place was skipped and its binary went to the next place of the same name.",
+        "The message counts the pictures placed: the original reported the smaller of the two counts, whatever was placed."
+      ],
+      "openQuestions": [
+        "The opening message promises the alphabetical order of the illustrations' names, but the code places them in the order of the binary objects (kept): sort them by name?",
+        "Only the places of the first body are filled, as the original's comment says ('только первое body'), but those of the book annotation, the history and the other bodies are counted, so the counts can match while some binaries stay unplaced (kept): count the first body's places only?",
+        "The probable covers and copies are listed with an unanchored expression and left out with an anchored one, so an unused 'mycover.jpg' is listed as skipped ('cover.jpg') but placed (kept)?"
+      ]
     },
     {
       "source": "05_Иллюстрации/15_Расставить иллюстрации по заданным местам.js",
@@ -1730,15 +1768,26 @@
       "htmlDialogs": [
         "HTML/Расставить иллюстрации по заданным местам.html"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/15_place-images-at-placeholders",
+      "id": "05/place-images-at-placeholders",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/15_rasstavit-illustrations-po-zadannym-mestam",
-      "suggestedId": "05/rasstavit-illustrations-po-zadannym-mestam"
+      "differences": [
+        "The details - on a count mismatch, and the pictures left out as probable covers or copies - open in a report window (mfbe.ui.report); 2.7.9 showed them in a message box (its own MyMsgWindow, which opened HTML/Расставить иллюстрации по заданным местам.html, a page 2.7.9 does not ship, is commented out).",
+        "The original's refresh of the view's pictures and cover lists, and its replacement of the &nbsp; entity by a visible non-breaking space character in the first body, have no counterpart: the editor shows the binaries as they are and keeps non-breaking spaces as such. Its clean-up of the first body's paragraphs of white space (empty lines) is kept.",
+        "2.7.9 ships this script twice, byte for byte the same, as '15_Расставить иллюстрации по заданным местам 1.3.js' (with an icon) and '15_Расставить иллюстрации по заданным местам.js'; both are kept, in 2.7.9's menu order (folders 15_place-images-1-3 and 15_place-images-at-placeholders), with one engine."
+      ],
+      "fixes": [
+        "The covers of the src-title-info count as covers too, and a binary is a cover when its '#id' is a cover's address: the original read the title-info's cover list only, as a text the id had to occur in, so the src-title-info cover (or a binary whose id is part of a cover's address) could be put into the text.",
+        "The cover-like names left out are 'cover.*' and 'cover_src.*' (with '_N' after them): the original's expressions read 'cover(_crs)?', a slip for the 'cover_src' that 'Унифицировать иллюстрации и вложения' and 'Обновить иллюстрации (версия Александра Ка)' give the src-title-info cover.",
+        "A place is found by its address, letter case aside as in the original, also when the picture has an id or a title: the original's regular expression over the body's HTML required the attribute layout of a picture without them, so such a place was skipped and its binary went to the next place of the same name.",
+        "The message counts the pictures placed: the original reported the smaller of the two counts, whatever was placed."
+      ],
+      "openQuestions": [
+        "The opening message promises the alphabetical order of the illustrations' names, but the code places them in the order of the binary objects (kept): sort them by name?",
+        "Only the places of the first body are filled, as the original's comment says ('только первое body'), but those of the book annotation, the history and the other bodies are counted, so the counts can match while some binaries stay unplaced (kept): count the first body's places only?",
+        "The probable covers and copies are listed with an unanchored expression and left out with an anchored one, so an unused 'mycover.jpg' is listed as skipped ('cover.jpg') but placed (kept)?"
+      ]
     },
     {
       "source": "05_Иллюстрации/16_Удалить иллюстрации, не 'ссылающиеся' на наличествующий бинарник.js",
@@ -1754,15 +1803,22 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/16_remove-images-without-binary",
+      "id": "05/remove-images-without-binary",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/16_udalit-illyustratsii-ne-ssylayushchiesya-on-nali",
-      "suggestedId": "05/udalit-illyustratsii-ne-ssylayushchiesya-on-nali"
+      "differences": [
+        "An empty line whose removal would leave a section with nothing but its title stays and is not counted (FB2 needs content after a title); 2.7.9 removed it and the section became invalid.",
+        "A formatting element or a link that held a removed inline picture goes with it; 2.7.9 left it empty (<strong/>, <a/>), which the document model has no form for.",
+        "A paragraph emptied of its pictures is written as FictionBook Editor saved it (FBDoc.cpp, ProcessP): an empty line, in a stanza a verse of one space, a table cell an empty cell; where FB2 allows no empty line (a poem's text author) it stays an empty paragraph (2.7.9 saved an empty line there, leaving the book invalid)."
+      ],
+      "fixes": [
+        "A picture is kept when its address is '#' and the id of a binary object of the book, compared exactly: the original tested the address against a regular expression of all ids joined by '|' - unanchored, '.' matching any character - so '#old-pic1.png' passed for an existing 'pic1.png' (and '#11.jpg' for '1.jpg') and its picture stayed.",
+        "The pictures kept are no longer counted as removed: the original's last loop tested the IMG elements left, which have no address, against that expression, took them out of the view (the saved book kept them) and counted each as an 'unclear (probably wrong)' picture, so in a book with pictures its message never said that none was found.",
+        "The word 'undefined' no longer counts as an empty line: the original built its empty-line expression before setting its non-breaking space variable, so the expression read '( | |&nbsp;|undefined)*' and a paragraph 'undefined' next to a removed picture was removed with it. Now only spaces and non-breaking spaces make an empty line.",
+        "The empty line after a picture that opens its section goes when more text follows: the original's operator precedence (!prev || prevIsTitle && nextIsEmpty && nextIsLast) kept it whatever followed; it was meant to stay only when it is the last thing after the picture, as after a title or an epigraph (needed for validity)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/17_Исключение копий вложенных файлов.js",
@@ -1778,15 +1834,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/17_exclude-binary-copies",
+      "id": "05/exclude-binary-copies",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The copies keep their ids: the script interface cannot rename a binary object (the original renamed each copy whose pictures it moved to '<original>_COPY_01.<ext>', '_COPY_02' and so on, for the user to spot them before removing them). The pictures are moved to the original as in 2.7.9."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/17_isklyuchenie-kopiy-nested-faylov",
-      "suggestedId": "05/isklyuchenie-kopiy-nested-faylov"
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/18_Перейти на предыдущую инлайн-иллюстрацию.js",
@@ -1805,15 +1861,18 @@
         "externalProgram"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/18_previous-inline-image",
+      "id": "05/previous-inline-image",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/18_go-on-predydushchuyu-inlayn-illyustratsiyu",
-      "suggestedId": "05/go-on-predydushchuyu-inlayn-illyustratsiyu"
+      "differences": [
+        "The check 'Установите курсор в документ!' (the caret outside the book) is dropped: scripts see the Body view's selection only.",
+        "The editor scrolls the place into view; the original's GoTo centred the picture in the window."
+      ],
+      "fixes": [
+        "A selected picture no longer stops the script with an error: the original's 'костыль от ошибки выделения' (stokber, 2025) stepped off the selected picture with Shift+Esc and an arrow key, but its code went on with the range it had failed to copy (a picture's selection is a control range) and stopped with a script error; the search now starts beside the picture, where that step put the caret - after it going forwards, before it going backwards."
+      ],
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/19_Перейти на следующую инлайн-иллюстрацию.js",
@@ -1832,15 +1891,18 @@
         "externalProgram"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/19_next-inline-image",
+      "id": "05/next-inline-image",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/19_go-on-sleduyushchuyu-inlayn-illyustratsiyu",
-      "suggestedId": "05/go-on-sleduyushchuyu-inlayn-illyustratsiyu"
+      "differences": [
+        "The check 'Установите курсор в документ!' (the caret outside the book) is dropped: scripts see the Body view's selection only.",
+        "The editor scrolls the place into view; the original's GoTo centred the picture in the window."
+      ],
+      "fixes": [
+        "A selected picture no longer stops the script with an error: the original's 'костыль от ошибки выделения' (stokber, 2025) stepped off the selected picture with Shift+Esc and an arrow key, but its code went on with the range it had failed to copy (a picture's selection is a control range) and stopped with a script error; the search now starts beside the picture, where that step put the caret - after it going forwards, before it going backwards."
+      ],
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/20_Обновить иллюстрации (версия Александра Ка).js",
@@ -1856,15 +1918,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/20_refresh-images-alexander-ka",
+      "id": "05/refresh-images-alexander-ka",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Nothing is refreshed: the editor's views show the pictures and the binaries as they are (the original reloaded every IMG of its view and its tree and rebuilt the save and preview buttons of its binary objects panel); the counts of the pictures and of the image binaries are reported as the original reported them.",
+        "The cover's binary is not moved to the front of the binary objects: the script interface cannot reorder them (their order does not change the book).",
+        "A book without a src-title-info gets no 'cover_src' cover: 2.7.9 then wrote a src-title-info with an empty genre, author, title and language, which FB2 requires."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/20_obnovit-illustrations-versiya-aleksandra-ka",
-      "suggestedId": "05/obnovit-illustrations-versiya-aleksandra-ka"
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/25_Коррекция jpg-png.js",
@@ -1880,15 +1944,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/25_fix-jpg-png-names",
+      "id": "05/fix-jpg-png-names",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/25_korrektsiya-jpg-png",
-      "suggestedId": "05/korrektsiya-jpg-png"
+      "openQuestions": []
     },
     {
       "source": "05_Иллюстрации/30_Вставить пустые картинки в началах и концах секций.js",
@@ -1908,15 +1970,19 @@
       "htmlDialogs": [
         "HTML/Вставить пустые ссылки на картинки - параметры.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/05_images/30_insert-empty-images",
+      "id": "05/insert-empty-images",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/05_images/30_insert-empty-images-into-nachalakh-and-kontsakh",
-      "suggestedId": "05/insert-empty-images-into-nachalakh-and-kontsakh"
+      "differences": [
+        "In a section with epigraphs the start picture goes after them, the place FB2 gives a section's picture (2.7.9 put it between the title and the first epigraph, leaving the book invalid), and an empty picture already there is looked for at that place.",
+        "Where the head of a section holds an ordinary picture already, no empty picture is put before it, as FB2 allows one picture there, and none is counted; 2.7.9 inserted it (its dialog sends the user to '13_Почистить структуру.js' for an invalid document).",
+        "The HTML dialog is a form: its two options as check boxes, its notes as text, OK named 'Выполнить'."
+      ],
+      "fixes": [
+        "A subtitle no longer counts as the section's title: the original took the first child whose class contains 'title', which 'subtitle' does too, so an untitled section got its 'start' picture after its first subtitle - wherever that stood - and was not counted as untitled, and the rule for the end of untitled sections (no picture after a closing subtitle) never applied."
+      ],
+      "openQuestions": []
     },
     {
       "source": "06_Чистка/02_Генеральная уборка.js",

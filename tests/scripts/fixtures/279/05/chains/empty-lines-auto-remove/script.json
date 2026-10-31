@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test05/empty-lines-auto-remove",
+  "name": {
+    "ru": "Тест: пустые строки рядом с иллюстрациями (auto-remove)",
+    "en": "Test: empty lines next to the illustrations (auto-remove)"
+  },
+  "kind": "menu"
+}
