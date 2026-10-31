@@ -10,7 +10,8 @@
 #     "save the page";
 #   - the browser engine's keys sent as real keystrokes (feature 007 FR-002 to FR-005) keep an
 #     unsaved edit, the process and the window: Ctrl+R, F5 with Help > About open, Ctrl+F4, and
-#     Ctrl+W with About open; no key opens a window: Ctrl+N and F12 with About open (US5);
+#     Ctrl+W with About open; no key opens a window: Ctrl+N with About open, and F12 in a run without
+#     the debugging port, which is no developer run (US5);
 #   - View > Status Bar, chosen with the Russian accelerators (Alt+В, С), hides the status bar and
 #     settings.json records it;
 #   - File > New, the author "Толстой Лев Николаевич" and the title "Война и мир" typed into the
@@ -1042,17 +1043,12 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
     Assert-EditKept 'Ctrl+W with About open' $modifiedTitle $marker
     # Feature 007, US5 (FR-002, FR-008): no key opens a window of the engine. With About open
     # the keys reach the engine: Ctrl+N (a new window) adds no top-level window of the editor's
-    # processes, and F12 no DevTools window - the release package is not a developer run.
+    # processes. (F12 is checked in a run without the debugging port below: this run has the
+    # port, which makes it a developer run, where F12 may open the developer tools.)
     $windowsBefore = Get-EditorWindows
     Send-Chord 'Ctrl+N'
     Assert-NoNewWindow 'Ctrl+N with About open' $windowsBefore
     Assert-EditKept 'Ctrl+N with About open' $modifiedTitle $marker
-    Send-Chord 'F12'
-    Assert-NoNewWindow 'F12 with About open' $windowsBefore
-    if (@(Get-EditorWindows | Where-Object { $_ -match 'DevTools' }).Count -gt 0) {
-        throw 'F12 opened a DevTools window in the release package'
-    }
-    Assert-EditKept 'F12 with About open' $modifiedTitle $marker
     Close-About
     # Saved again: the steps that follow start from an unmodified book.
     Send-CdpKey $script:cdp $keyF2
@@ -1073,6 +1069,26 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
 
     # The window's close button with a modified document runs the Exit flow (FR-017).
     Close-EditorThroughWindow
+}
+
+# Feature 007, US5 (FR-006): the release package started as a user starts it - without a
+# debugging port, so no developer run (contracts/shell.md §5) - opens no window on F12, the
+# developer tools included. The other runs need the port for their page connection.
+Write-Host 'No developer run: the editor without a debugging port'
+$script:editor = Start-ProcessAsUser -Account $account -FilePath $Exe -ArgumentList "`"$bookPath`"" `
+    -WorkingDirectory (Split-Path -Parent $Exe) `
+    -StandardOutput (Join-Path $temp 'mfbe-journey-nondev-stdout.txt') `
+    -StandardError (Join-Path $temp 'mfbe-journey-nondev-stderr.txt')
+try {
+    Wait-Until 'the editor window without a debugging port' {
+        @(Get-EditorWindows | Where-Object { $_ -like "* - $appName" }).Count -gt 0
+    } $TimeoutSeconds
+    Start-Sleep -Seconds 2  # the page loaded and focused
+    $windowsBefore = Get-EditorWindows
+    Send-Chord 'F12'
+    Assert-NoNewWindow 'F12 outside a developer run' $windowsBefore
+} finally {
+    Stop-Editor $script:editor $Exe
 }
 
 Invoke-EditorRun 'Restart' '' {
