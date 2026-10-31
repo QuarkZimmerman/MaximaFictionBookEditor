@@ -1,7 +1,7 @@
 [
   {
     "snapshot": "01/capitalize-first-word.xml",
-    "script": "scripts/01_case/06_capitalize-first-word",
+    "script": "scripts/01_case/04_capitalize-first-word",
     "book": "tests/scripts/fixtures/books/conv-a-01.fb2",
     "args": [
       "--select",

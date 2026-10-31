@@ -2,19 +2,21 @@
   "manifestVersion": 1,
   "id": "11/caption-emphasis",
   "name": {
-    "en": "Image title to caption (emphasis)",
-    "ru": "Заголовок картинки в подпись (emphasis)"
+    "en": "Make picture captions from their title attribute (mark italic)",
+    "ru": "Сделать подписи к картинкам из их атрибута title (разметить курсивом)",
+    "uk": "Зробити підписи до малюнків з їхнього атрибута title (розмітити курсивом)"
   },
   "description": {
     "en": "Moves the title of every block image into an italic paragraph below the image (plus an empty line) and removes the title attribute",
-    "ru": "Переносит заголовок (title) каждой картинки под неё как курсивный абзац (плюс пустая строка) и удаляет атрибут title"
+    "ru": "Переносит заголовок (title) каждой картинки под неё как курсивный абзац (плюс пустая строка) и удаляет атрибут title",
+    "uk": "Переносить заголовок (title) кожного малюнка під нього як курсивний абзац (плюс порожній рядок) і видаляє атрибут title"
   },
   "kind": "menu",
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Image title to caption (emphasis)",
-    "ru": "Заголовок картинки в подпись (emphasis)"
+    "en": "Make picture captions from their title attribute (mark italic)",
+    "ru": "Сделать подписи к картинкам из их атрибута title (разметить курсивом)"
   },
   "legacy": {
     "source": "11_Заголовки картинок в подписи/601_Заголовок картинки в подпись (emphasis).js",

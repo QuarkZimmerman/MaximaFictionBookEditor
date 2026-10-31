@@ -1,6 +1,9 @@
 // Converted from 01_Регистр/06_Капитализация первого слова.js (FictionBook Editor 2.7), Tier 1.
 // Only the first word of the selection is capitalised; every other letter of the selection is
 // lower-cased. With a caret only the word under it is used.
+// FictionBook Editor 2.7.9 ships this code unchanged, renamed and moved to place 04, as
+// "01_Регистр/04_Первую букву - в верхний регистр, остальные - в нижний.js"; the package took
+// that name, place and icon (the folder was 06_capitalize-first-word; the id is unchanged).
 // Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
 //скрипт смены регистра by Sclex
 //v1.3

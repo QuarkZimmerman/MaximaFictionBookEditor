@@ -7,7 +7,114 @@ as the group's entries of `tests/scripts/audit/inventory-279.json`.
 
 ## 01_Регистр
 
-6 scripts in 2.7.9: 0 new, 6 successors of converted packages. Not yet converted or rechecked.
+6 scripts in 2.7.9, the successors of 6 of the 8 packages converted from 2.7beta1 (task T073,
+recheck of `scripts/01_case/`; the 2.7beta1 conversion is in conversion-notes-a.md, group 01).
+Outcomes: 1 updated (08), 5 unchanged (01, 02, 04 *Первую букву…*, 05, 07), 2 without a 2.7.9
+counterpart and kept as converted (03 *Предложение_alxs*, 04 *Предложение*; FR-027). Every
+package gained `name.uk` and `description.uk`; the ids are unchanged. The unchanged and kept
+packages keep their 2.7beta1 `legacy.source` and `fbeVersion` "2.7" and their snapshots.
+Reference book: the existing `tests/scripts/fixtures/books/conv-a-01.fb2`; the new snapshot is in
+`tests/scripts/snapshots/01/` and its `suite.json`. Its expected result was written from the
+2.7.9 original before the run, and the snapshot equals it.
+
+How 2.7.9 regrouped the case scripts: it dropped 2.7beta1's *03_Предложение_alxs* (only its icon
+is left in the folder) and *04_Предложение*, and renamed *06_Капитализация первого слова* -
+Sclex's v1.3, byte for byte the same code - to *04_Первую букву - в верхний регистр, остальные - в
+нижний*, in the place and with the icon of *Предложение*. Following that rename and move
+(FR-021), the package of 06 is its successor: unchanged, renamed, and moved from
+`scripts/01_case/06_capitalize-first-word` to `scripts/01_case/04_capitalize-first-word` with its
+id `01/capitalize-first-word`, so hotkeys, toolbar buttons and the Last script command keep
+finding it (FR-028). The menu sorts by the number, then by the name, so it comes before
+`04_sentence-case` and the 2.7.9 scripts keep 2.7.9's order (FR-026). *Предложение* keeps its
+code, name, folder and default hotkey. (The first pairing review had put *Предложение* with
+2.7.9's 04 by its place; the recheck found the identical code, and the pairing follows it.)
+
+The originals 01, 02, 04 *Первую букву…*, 05 and 07 also handled a selection inside a text field
+of FictionBook Editor's description page (a TEXTAREA branch); scripts here work on the Body
+view's selection, the only one the script API gives - a difference recorded for each of them.
+
+### 01 В верхний регистр
+
+`scripts/01_case/01_upper-case`, id `01/upper-case`: **unchanged** (2.7.9's code is 2.7beta1's
+*01_Верхний регистр*). Renamed as in 2.7.9: ru *В верхний регистр*, en *To upper case*, uk *У
+верхній регістр*; the undo label follows. Snapshot `upper-case.xml` stays.
+
+### 02 В нижний регистр
+
+`scripts/01_case/02_lower-case`, id `01/lower-case`: **unchanged** (2.7beta1's *02_Нижний
+регистр*). Renamed: ru *В нижний регистр*, en *To lower case*, uk *У нижній регістр*. Snapshot
+`lower-case.xml` stays.
+
+### 03 Предложение_alxs
+
+`scripts/01_case/03_sentence-case-simple`, id `01/sentence-case-simple`: **no 2.7.9
+counterpart**, kept as converted (FR-027). Gained uk *Речення_alxs* (the name keeps its author's
+tag, as the Russian one does). Snapshot `sentence-case-simple.xml` stays.
+
+### 04 Первую букву - в верхний регистр, остальные - в нижний
+
+`scripts/01_case/04_capitalize-first-word` (moved from `06_capitalize-first-word`), id
+`01/capitalize-first-word`: **unchanged** - 2.7beta1's *06_Капитализация первого слова*, renamed
+and moved to place 04 by 2.7.9 with the same code. The code is not touched (the index gained a
+comment on the rename); the first word of the selection, or the word under the caret, gets a
+capital first letter and every other letter of the selection becomes lower case, across inline
+formatting and paragraphs. Names as in 2.7.9: ru and undo label *Первую букву - в верхний
+регистр, остальные - в нижний*, en *First letter to upper case, the rest to lower case*, uk
+*Першу літеру - у верхній регістр, решту - у нижній*. 2.7.9 gave the script an icon (2.7beta1's
+06 had none; it is *Предложение*'s image), so the package gained `icon.png`. Snapshot
+`capitalize-first-word.xml` stays; its entry in `tests/scripts/snapshots/suite.json` names the
+new folder.
+
+### 04 Предложение
+
+`scripts/01_case/04_sentence-case`, id `01/sentence-case`: **no 2.7.9 counterpart**, kept as
+converted (FR-027): every run of equally formatted text in the selection gets a capital first
+letter, with the default hotkey Ctrl+Shift+P of the original's `SetHotkey()`. Gained uk
+*Речення*. Snapshot `sentence-case.xml` stays.
+
+### 05 Капитализация выделения
+
+`scripts/01_case/05_capitalize-words`, id `01/capitalize-words`: **unchanged** (the same file in
+both). Gained uk *Капіталізація виділення*. Snapshot `capitalize-words.xml` stays.
+
+### 07 Циклическое изменение регистра
+
+`scripts/01_case/07_cycle-case`, id `01/cycle-case`: **unchanged** (the same file, v1.4). Gained
+uk *Циклічна зміна регістру*. Snapshot `cycle-case.xml` stays. Difference kept from 0.0.1: the
+original stops analysing the selection at the first text run holding an upper-case letter (`if
+(bigLetterFlag && bigLetterFlag)`, a typo for a second flag), the conversion analyses the whole
+selection; 2.7.9 kept the code, so the difference remains (it shows only when that run is
+followed by lower-case runs). Also the description-page text field.
+
+### 08 Регистр заголовков и подзаголовков...
+
+`scripts/01_case/08_titles-case`, id `01/titles-case`: **updated** (the same file name; no header
+version, so no `sourceVersion`). The script only opens its dialog, now *HTML/Регистр заголовков и
+подзаголовков - набор фреймов.html*, version 1.9 instead of 1.6. 2.7.9 changed in it: the
+version in the title, OK with nothing listed (1.6 took its "Пусто." / "Ничего не найдено."
+message for the list and failed with a script error; 1.9 just closes the dialog), and the
+stylesheet (font sizes, frame height). Ported: the forms' title reads *Регистр заголовков и
+подзаголовков v1.9 (скрипт Sclex’а)*; the conversion already ended with *Ничего не найдено.* and
+no change when nothing is listed. Gained uk *Регістр заголовків і підзаголовків...*.
+
+Snapshots: `titles-case.xml` stays (a title is not part of the result). Added
+`titles-case.nothing-found.xml` (`--answer '{"bodySectionTitles":false,"sectionSubtitles":false}'`:
+nothing is listed, the message is shown, the book is unchanged), the case 1.9 fixed.
+
+Differences (from the 0.0.1 conversion, still true against 2.7.9): Tier 3 - the dialog's editing
+of single characters (clicking or dragging over the letters of a listed title, the context menu
+*Большие буквы* / *Маленькие буквы*) cannot be expressed by a form; the first form asks the
+dialog's five filters, the second lists the title paragraphs and subtitles found (all ticked)
+with the operation upper case, lower case, sentence case or Capitalised Words. Every title
+paragraph of a body or section is listed, where the original listed a title only when it was the
+first child of its parent.
+
+### Harness commands
+
+```bash
+G=scripts/01_case; B=tests/scripts/fixtures/books/conv-a-01.fb2; S=tests/scripts/snapshots/01
+node tests/scripts/run-script.mjs $G/08_titles-case $B --answer '{"bodySectionTitles":false,"sectionSubtitles":false}' --snapshot $S/titles-case.nothing-found.xml
+```
 
 ## 02_Примечания
 
@@ -19,7 +126,91 @@ as the group's entries of `tests/scripts/audit/inventory-279.json`.
 
 ## 04_Примечания и комментарии из скобок
 
-12 scripts in 2.7.9: 0 new, 12 successors of converted packages. Not yet converted or rechecked.
+12 scripts in 2.7.9, all successors, with the same file names, of the 12 packages converted from
+2.7beta1 (task T076, recheck of `scripts/04_notes-from-brackets/`; the 2.7beta1 conversion is in
+conversion-notes-a.md, group 04). All 12 **updated**; ids and folders unchanged.
+
+What 2.7.9 changed, the same in all twelve (Sclex's engine, still "v2.2" in its messages): the
+word for a section, «раздел» where 2.7beta1 said «секция», in the comments and in three
+messages - *В body примечаний есть разделы второго уровня вложения…* (nested sections in the
+notes body), *Ссылка сноски ссылается на несуществующий раздел…* (a note link to a missing
+section) and *Ссылка сноски ссылается не внутрь раздела в теле примечаний…* (a note link that
+points outside the notes body). Nothing else changed. Ported: the three Russian texts in every
+package's own copy of `brackets-engine.js` (the twelve copies stay identical); the English
+texts already said "section". The packages now name their 2.7.9 original, keep its notice
+(`извлечение сносок из разных скобок`, `написал Sclex`, the same as 2.7beta1's) and set
+`legacy.fbeVersion` "2.7.9" (no header version, so no `sourceVersion`). Their Russian
+descriptions say «раздел в body …» like 2.7.9, and every package gained `name.uk` and
+`description.uk` (*Примітки з …* / *Коментарі з …*; «регэксп» is *регулярний вираз*).
+
+Snapshots: none re-recorded and none added - a snapshot holds the book, and the book after a
+run is the same as before (only message texts changed; the snapshots of `conv-a-04.fb2` and
+`conv-a-04-errors.fb2` pass unchanged). Difference kept from the 0.0.1 conversion, still true
+against 2.7.9: inline formatting that crosses a bracket is kept by the document model's marks,
+so the original's error *Не все тэги, открытые внутри скобок, в них закрываются* cannot occur.
+No fixes, no open questions.
+
+### 601 Примечания из []
+
+`…/601_footnotes-from-square`, id `04/footnotes-from-square`: updated as above; uk *Примітки з
+[]*. Snapshots `footnotes-from-square.xml`, `footnotes-from-square.errors.xml` stay.
+
+### 602 Примечания из {}
+
+`…/602_footnotes-from-curly`, id `04/footnotes-from-curly`: updated; uk *Примітки з {}*.
+Snapshot `footnotes-from-curly.xml` stays.
+
+### 603 Примечания из [! !]
+
+`…/603_footnotes-from-square-bang`, id `04/footnotes-from-square-bang`: updated; uk *Примітки з
+[! !]*. Snapshot `footnotes-from-square-bang.xml` stays.
+
+### 604 Примечания из [~ ~]
+
+`…/604_footnotes-from-square-tilde`, id `04/footnotes-from-square-tilde`: updated; uk *Примітки
+з [~ ~]*. Snapshot `footnotes-from-square-tilde.xml` stays.
+
+### 605 Примечания из скобок, заданных регэкспами
+
+`…/605_footnotes-from-regex-brackets`, id `04/footnotes-from-regex-brackets`: updated; uk
+*Примітки з дужок, заданих регулярними виразами*. Snapshot `footnotes-from-regex-brackets.xml`
+stays.
+
+### 606 Примечания из скобок, заданных простым текстом
+
+`…/606_footnotes-from-text-brackets`, id `04/footnotes-from-text-brackets`: updated; uk
+*Примітки з дужок, заданих простим текстом*. Snapshot `footnotes-from-text-brackets.xml` stays.
+
+### 607 Комментарии из []
+
+`…/607_comments-from-square`, id `04/comments-from-square`: updated; uk *Коментарі з []*.
+Snapshot `comments-from-square.xml` stays.
+
+### 608 Комментарии из {}
+
+`…/608_comments-from-curly`, id `04/comments-from-curly`: updated; uk *Коментарі з {}*.
+Snapshot `comments-from-curly.xml` stays.
+
+### 609 Комментарии из [! !]
+
+`…/609_comments-from-square-bang`, id `04/comments-from-square-bang`: updated; uk *Коментарі з
+[! !]*. Snapshot `comments-from-square-bang.xml` stays.
+
+### 610 Комментарии из [~ ~]
+
+`…/610_comments-from-square-tilde`, id `04/comments-from-square-tilde`: updated; uk *Коментарі
+з [~ ~]*. Snapshot `comments-from-square-tilde.xml` stays.
+
+### 611 Комментарии из скобок, заданных регэкспами
+
+`…/611_comments-from-regex-brackets`, id `04/comments-from-regex-brackets`: updated; uk
+*Коментарі з дужок, заданих регулярними виразами*. Snapshot `comments-from-regex-brackets.xml`
+stays.
+
+### 612 Комментарии из скобок, заданных простым текстом
+
+`…/612_comments-from-text-brackets`, id `04/comments-from-text-brackets`: updated; uk *Коментарі
+з дужок, заданих простим текстом*. Snapshot `comments-from-text-brackets.xml` stays.
 
 ## 05_Иллюстрации
 

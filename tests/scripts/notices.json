@@ -29,6 +29,15 @@
       ],
       "shown": []
     },
+    "scripts/01_case/04_capitalize-first-word": {
+      "original": "01_Регистр/06_Капитализация первого слова.js",
+      "fbeVersion": "2.7",
+      "header": [
+        "скрипт смены регистра by Sclex",
+        "v1.3"
+      ],
+      "shown": []
+    },
     "scripts/01_case/04_sentence-case": {
       "original": "01_Регистр/04_Предложение.js",
       "fbeVersion": "2.7",
@@ -50,15 +59,6 @@
       ],
       "shown": []
     },
-    "scripts/01_case/06_capitalize-first-word": {
-      "original": "01_Регистр/06_Капитализация первого слова.js",
-      "fbeVersion": "2.7",
-      "header": [
-        "скрипт смены регистра by Sclex",
-        "v1.3"
-      ],
-      "shown": []
-    },
     "scripts/01_case/07_cycle-case": {
       "original": "01_Регистр/07_Циклическое изменение регистра.js",
       "fbeVersion": "2.7",
@@ -70,7 +70,7 @@
     },
     "scripts/01_case/08_titles-case": {
       "original": "01_Регистр/08_Регистр заголовков и подзаголовков....js",
-      "fbeVersion": "2.7",
+      "fbeVersion": "2.7.9",
       "header": [
         "скрипт \"Регистр заголовков и подзаголовков\"",
         "автор Sclex",
@@ -2001,27 +2001,27 @@
       "shown": []
     },
     "scripts/17_notes-to-brackets/01_notes-into-brackets": {
-      "original": "17_Перенос примечаний в скобки/01_Перенос примечаний в скобки.js",
-      "fbeVersion": "2.7",
+      "original": "17_Перенос примечаний в скобки/01_Перенести примечания в скобки.js",
+      "fbeVersion": "2.7.9",
       "header": [],
       "shown": [
-        "Перенос примечаний в скобки v1.1. Автор Sclex."
+        "Перенос примечаний в скобки v1.2. Автор Sclex."
       ]
     },
     "scripts/17_notes-to-brackets/02_notes-into-brackets-with-space": {
-      "original": "17_Перенос примечаний в скобки/02_Перенос примечаний в скобки (пробел перед открывающей скобкой).js",
-      "fbeVersion": "2.7",
+      "original": "17_Перенос примечаний в скобки/02_Перенести примечания в скобки (пробел перед открывающей скобкой).js",
+      "fbeVersion": "2.7.9",
       "header": [],
       "shown": [
-        "Перенос примечаний в скобки v1.1. Автор Sclex."
+        "Перенос примечаний в скобки v1.2. Автор Sclex."
       ]
     },
     "scripts/17_notes-to-brackets/03_one-note-into-brackets": {
-      "original": "17_Перенос примечаний в скобки/03_Перенос одного примечания в скобки.js",
-      "fbeVersion": "2.7",
+      "original": "17_Перенос примечаний в скобки/03_Перенести одно примечание в скобки.js",
+      "fbeVersion": "2.7.9",
       "header": [],
       "shown": [
-        "Перенос одного примечания в скобки v1.0. Автор Sclex."
+        "Перенос одного примечания в скобки v1.1. Автор Sclex."
       ]
     },
     "scripts/18_editing/01_remove-spaces": {

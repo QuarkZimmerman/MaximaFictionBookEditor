@@ -11,7 +11,51 @@ as the group's entries of `tests/scripts/audit/inventory-279.json`.
 
 ## 11_Сделать подписи к картинкам из их атрибута title
 
-5 scripts in 2.7.9: 0 new, 5 successors of converted packages. Not yet converted or rechecked.
+5 scripts in 2.7.9, all successors of the 5 packages converted from 2.7beta1 (task T081, recheck
+of `scripts/11_image-captions/`; the 2.7beta1 conversion is in conversion-notes-b.md, group 11).
+All 5 **unchanged**: 2.7.9 renamed the group (*Заголовки картинок в подписи* before) and the
+scripts, and kept their code (Sclex, version 1.1) byte for byte. The packages keep their code,
+their 2.7beta1 `legacy.source` and `fbeVersion` "2.7", their ids, folders and snapshots (on
+`tests/scripts/fixtures/books/conv-b-11.fb2`); only the names follow 2.7.9. The Russian names and
+undo labels are 2.7.9's *Сделать подписи к картинкам из их атрибута title (…)*, the English ones
+*Make picture captions from their title attribute (…)*, and each package gained `name.uk`
+(*Зробити підписи до малюнків з їхнього атрибута title (…)*, «картинка» being *малюнок* in the
+glossary) and `description.uk`.
+
+Difference kept from the 0.0.1 conversion, still true against 2.7.9, in all five: where the
+schema allows no caption after the image (an image in front of the nested sections of a section,
+or the body's image in front of its title) the image is left as it is and counted in the final
+message; the original wrote invalid FB2 there. No fixes, no open questions.
+
+### 600 Сделать подписи к картинкам из их атрибута title (разметить жирностью)
+
+`scripts/11_image-captions/600_caption-strong`, id `11/caption-strong` (2.7beta1 *600_Заголовок
+картинки в подпись (strong)*): unchanged. en *(mark bold)*, uk *(розмітити жирним)*. Snapshot
+`caption-strong.conv-b-11.xml` stays.
+
+### 601 Сделать подписи к картинкам из их атрибута title (разметить курсивом)
+
+`scripts/11_image-captions/601_caption-emphasis`, id `11/caption-emphasis` (*…(emphasis)*):
+unchanged. en *(mark italic)*, uk *(розмітити курсивом)*. Snapshot
+`caption-emphasis.conv-b-11.xml` stays.
+
+### 602 Сделать подписи к картинкам из их атрибута title (разметить как подзаголовок)
+
+`scripts/11_image-captions/602_caption-subtitle`, id `11/caption-subtitle` (*…(subtitle)*):
+unchanged. en *(mark as a subtitle)*, uk *(розмітити як підзаголовок)*. Snapshot
+`caption-subtitle.conv-b-11.xml` stays.
+
+### 603 Сделать подписи к картинкам из их атрибута title (разметить как подзаголовок с жирностью)
+
+`scripts/11_image-captions/603_caption-subtitle-strong`, id `11/caption-subtitle-strong`
+(*…(subtitle, strong)*): unchanged. en *(mark as a bold subtitle)*, uk *(розмітити як жирний
+підзаголовок)*. Snapshot `caption-subtitle-strong.conv-b-11.xml` stays.
+
+### 604 Сделать подписи к картинкам из их атрибута title (разметить как подзаголовок с курсивом)
+
+`scripts/11_image-captions/604_caption-subtitle-emphasis`, id `11/caption-subtitle-emphasis`
+(*…(subtitle, emphasis)*): unchanged. en *(mark as an italic subtitle)*, uk *(розмітити як
+курсивний підзаголовок)*. Snapshot `caption-subtitle-emphasis.conv-b-11.xml` stays.
 
 ## 12_Обработка кавычек
 
@@ -1223,7 +1267,84 @@ node tests/scripts/run-script.mjs $C/conv-c-16 tests/scripts/fixtures/books/conv
 
 ## 17_Перенос примечаний в скобки
 
-3 scripts in 2.7.9: 0 new, 3 successors of converted packages. Not yet converted or rechecked.
+3 scripts in 2.7.9, all successors of the 3 packages converted from 2.7beta1 (task T085, its
+group 17 part: recheck of `scripts/17_notes-to-brackets/`; the 2.7beta1 conversion is in
+conversion-notes-c.md, group 17). All 3 **updated**; ids and folders unchanged.
+
+What 2.7.9 changed (Sclex's v1.2 of 01 and 02, v1.1 of 03):
+- **The escaping of the note text.** The scripts rebuild the note as HTML before they insert it
+  in brackets. 2.7beta1's `ampRegExp` was `/>/g` → `&gt;`, a slip, so an ampersand was never
+  escaped and text such as "&lt;b&gt;", "&amp;" or "&copy;" written in a note came back decoded
+  ("<b>", "&", "©"); 2.7.9 escapes "&" first, then "<" and ">", so the text stays as written.
+  The conversion copies the note's inline nodes and never rebuilt HTML, so its result already
+  was 2.7.9's; the new snapshots show it.
+- **The version** in the final message of 01 and 02: *Перенос примечаний в скобки v1.2. Автор
+  Sclex.* (it was v1.1); ported, in English *Move notes into brackets v1.2. Author: Sclex.* 03's
+  version string (now v1.1) is never shown and stays in the index as the original's notice.
+- **«раздел» for «секция»**, in the comments and in 03's message on nested sections in the notes
+  body: *В body … есть разделы второго уровня вложения…* (the conversion's text names the body,
+  `notes` or `comments`, where the original always said *примечаний*; it was kept so).
+- The names (*Перенос …* → *Перенести …*) and icons: the three scripts have an `.ico` in 2.7.9,
+  so the packages gained `icon.png` (16×16, converted with the audit tool's `ico_to_png`, as the
+  skeletons were).
+
+Ported as described, in each package's own copies of `notes-lib.js` (three identical copies) and
+`move-all.js` (two). The indexes name the 2.7.9 originals and keep their notice, the version
+line `var versionStr="… v1.2. Автор Sclex."` / `"… v1.1. Автор Sclex."` (`check-notices.py`
+finds the author credit the message shows); `legacy` is 2.7.9's file with `sourceVersion` "1.2",
+"1.2" and "1.1". The conversion's own texts follow 2.7.9's word too: 03's message when a note is
+the only section of its body (*Раздел примечания «…» удалить не удалось — это единственный
+раздел тела…*) and 03's description. The comment in `move-all.js` that said the script API could
+not remove a body is corrected (`doc.removeNode` removes a notes or comments body; the fallback
+stays). Every package gained `name.uk` and `description.uk`.
+
+Reference book `tests/scripts/fixtures/279/17/escapes.fb2` (valid FB2 2.1): one paragraph with
+links to two notes; note 1 holds written-out entities ("&lt;b&gt;жирный&lt;/b&gt;", "&amp;",
+"&copy;", and "&quot;…&quot;" inside emphasis), note 2 a plain "&", "<" and ">". The existing
+snapshots on `conv-c-17.fb2` and `conv-c-17-comments.fb2` stay: their books hold none of these
+characters, and the book after a run is the same as before (only a message changed). No fixes.
+
+### 01 Перенести примечания в скобки
+
+`scripts/17_notes-to-brackets/01_notes-into-brackets`, id `17/notes-into-brackets` (2.7beta1
+*01_Перенос примечаний в скобки*): updated. en *Move notes into brackets*, uk *Перенести примітки
+в дужки*. Added `notes-into-brackets.escapes.xml`. Expected and obtained: the paragraph becomes
+"Буквальные сущности[Буквально: &lt;b&gt;жирный&lt;/b&gt;, &amp; и &copy; в
+<emphasis>курсиве &quot;с кавычками&quot;</emphasis>.] и амперсанд[Tom & Jerry, AT&T, a < b > c.]
+в тексте примечаний." (the text as written, the emphasis kept), the notes body is removed, and
+the message counts 2 (2.7beta1 would have made the first bracket "[Буквально: <b>жирный</b>, & и
+© в …]"). No differences.
+
+### 02 Перенести примечания в скобки (пробел перед открывающей скобкой)
+
+`scripts/17_notes-to-brackets/02_notes-into-brackets-with-space`, id
+`17/notes-into-brackets-with-space`: updated. en *Move notes into brackets (space before the
+opening bracket)*, uk *Перенести примітки в дужки (пробіл перед відкривною дужкою)*. Added
+`notes-into-brackets-with-space.escapes.xml`: as 01, with a space in front of each opening
+bracket. No differences.
+
+### 03 Перенести одно примечание в скобки
+
+`scripts/17_notes-to-brackets/03_one-note-into-brackets`, id `17/one-note-into-brackets`
+(2.7beta1 *03_Перенос одного примечания в скобки*): updated. en *Move one note into brackets*,
+uk *Перенести одну примітку в дужки*. Added `one-note-into-brackets.escapes.xml` (`--select
+n14:3:3`, the caret in note 1). Expected and obtained: the reference to note 1 becomes " [Буквально:
+&lt;b&gt;жирный&lt;/b&gt;, &amp; и &copy; в <emphasis>курсиве &quot;с кавычками&quot;</emphasis>.]"
+with the leading space, the section is removed, note 2 becomes note 1 (id `n_1`, title "1") and
+its link "[1]" pointing to `#n_1`. Differences (from the 0.0.1 conversion, still true against
+2.7.9): with the caret outside a note, or on a note nothing refers to, the original did nothing
+at all, a status line says so here; a note that is the only section of its body is not removed
+(a body keeps at least one section) and the script says so, where the original left an empty
+notes body.
+
+### Harness commands
+
+```bash
+G=scripts/17_notes-to-brackets; B=tests/scripts/fixtures/279/17/escapes.fb2; S=tests/scripts/snapshots/17
+node tests/scripts/run-script.mjs $G/01_notes-into-brackets $B --snapshot $S/notes-into-brackets.escapes.xml
+node tests/scripts/run-script.mjs $G/02_notes-into-brackets-with-space $B --snapshot $S/notes-into-brackets-with-space.escapes.xml
+node tests/scripts/run-script.mjs $G/03_one-note-into-brackets $B --select n14:3:3 --snapshot $S/one-note-into-brackets.escapes.xml
+```
 
 ## 18_Мелочи редактирования
 

@@ -49,12 +49,10 @@
       "package": "scripts/01_case/04_sentence-case",
       "id": "01/sentence-case",
       "predecessor": "01_Регистр/04_Предложение.js",
-      "successor": "01_Регистр/04_Первую букву - в верхний регистр, остальные - в нижний.js",
+      "successor": null,
       "method": "review",
-      "similarity": 0.395,
-      "class": "major",
-      "changedLines": 73,
-      "percent": 65.8
+      "similarity": 0.0,
+      "class": "noCounterpart"
     },
     {
       "package": "scripts/01_case/05_capitalize-words",
@@ -1529,13 +1527,15 @@
       "class": "noCounterpart"
     },
     {
-      "package": "scripts/01_case/06_capitalize-first-word",
+      "package": "scripts/01_case/04_capitalize-first-word",
       "id": "01/capitalize-first-word",
       "predecessor": "01_Регистр/06_Капитализация первого слова.js",
-      "successor": "01_Регистр/05_Капитализация выделения.js",
-      "method": "code",
-      "similarity": 0.896,
-      "class": "merged"
+      "successor": "01_Регистр/04_Первую букву - в верхний регистр, остальные - в нижний.js",
+      "method": "review",
+      "similarity": 1.0,
+      "class": "identical",
+      "changedLines": 0,
+      "percent": 0.0
     },
     {
       "package": "scripts/06_cleanup/17_external-links-to-text",

@@ -1,0 +1,23 @@
+[
+  {
+    "snapshot": "17/notes-into-brackets.escapes.xml",
+    "script": "scripts/17_notes-to-brackets/01_notes-into-brackets",
+    "book": "tests/scripts/fixtures/279/17/escapes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "17/notes-into-brackets-with-space.escapes.xml",
+    "script": "scripts/17_notes-to-brackets/02_notes-into-brackets-with-space",
+    "book": "tests/scripts/fixtures/279/17/escapes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "17/one-note-into-brackets.escapes.xml",
+    "script": "scripts/17_notes-to-brackets/03_one-note-into-brackets",
+    "book": "tests/scripts/fixtures/279/17/escapes.fb2",
+    "args": [
+      "--select",
+      "n14:3:3"
+    ]
+  }
+]

@@ -3,11 +3,13 @@
   "id": "04/footnotes-from-square-bang",
   "name": {
     "en": "Footnotes from [! !]",
-    "ru": "Примечания из [! !]"
+    "ru": "Примечания из [! !]",
+    "uk": "Примітки з [! !]"
   },
   "description": {
     "en": "Turns every fragment of the book enclosed in [! !] into a footnote (link in the text, section in the footnotes body)",
-    "ru": "Превращает каждый фрагмент книги в скобках [! !] в сноску (ссылка в тексте, секция в body примечаний)"
+    "ru": "Превращает каждый фрагмент книги в скобках [! !] в сноску (ссылка в тексте, раздел в body примечаний)",
+    "uk": "Перетворює кожен фрагмент книги в дужках [! !] на примітку (посилання в тексті, розділ у body приміток)"
   },
   "kind": "menu",
   "entry": "index.js",
@@ -19,6 +21,6 @@
   },
   "legacy": {
     "source": "04_Примечания и комментарии из скобок/603_Примечания из [! !].js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7.9"
   }
 }

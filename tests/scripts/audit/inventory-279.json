@@ -10,9 +10,9 @@
       "new": 230,
       "noCounterpart": 6,
       "notConverted": 5,
-      "recheck": 88,
-      "unchanged": 24,
-      "updated": 24
+      "recheck": 71,
+      "unchanged": 25,
+      "updated": 40
     },
     "recheckClasses": {
       "identical": 24,
@@ -43,7 +43,9 @@
       "id": "01/upper-case",
       "status": "unchanged",
       "predecessor": "01_Регистр/01_Верхний регистр.js",
-      "differences": [],
+      "differences": [
+        "A selection inside a text field of FictionBook Editor's description page (the original's TEXTAREA branch) is not handled: the script works on the Body view's selection, the only one the script API gives."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -70,7 +72,9 @@
       "id": "01/lower-case",
       "status": "unchanged",
       "predecessor": "01_Регистр/02_Нижний регистр.js",
-      "differences": [],
+      "differences": [
+        "A selection inside a text field of FictionBook Editor's description page (the original's TEXTAREA branch) is not handled: the script works on the Body view's selection, the only one the script API gives."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -93,17 +97,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": "scripts/01_case/04_sentence-case",
-      "id": "01/sentence-case",
-      "status": "recheck",
-      "predecessor": "01_Регистр/04_Предложение.js",
-      "differences": [],
+      "package": "scripts/01_case/04_capitalize-first-word",
+      "id": "01/capitalize-first-word",
+      "status": "unchanged",
+      "predecessor": "01_Регистр/06_Капитализация первого слова.js",
+      "differences": [
+        "A selection inside a text field of FictionBook Editor's description page (the original's TEXTAREA branch) is not handled: the script works on the Body view's selection, the only one the script API gives."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
-        "class": "major",
-        "changedLines": 73,
-        "percent": 65.8
+        "class": "identical",
+        "changedLines": 0,
+        "percent": 0.0
       }
     },
     {
@@ -124,7 +130,9 @@
       "id": "01/capitalize-words",
       "status": "unchanged",
       "predecessor": "01_Регистр/05_Капитализация выделения.js",
-      "differences": [],
+      "differences": [
+        "A selection inside a text field of FictionBook Editor's description page (the original's TEXTAREA branch) is not handled: the script works on the Body view's selection, the only one the script API gives."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -151,7 +159,10 @@
       "id": "01/cycle-case",
       "status": "unchanged",
       "predecessor": "01_Регистр/07_Циклическое изменение регистра.js",
-      "differences": [],
+      "differences": [
+        "The original stops analysing the selection at the first text run that holds an upper-case letter (`if (bigLetterFlag && bigLetterFlag)`, a typo for a second flag); the conversion of 0.0.1 analyses the whole selection, which differs only when that run is followed by lower-case runs. 2.7.9 kept the code, so the difference remains.",
+        "A selection inside a text field of FictionBook Editor's description page (the original's TEXTAREA branch) is not handled: the script works on the Body view's selection, the only one the script API gives."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -180,9 +191,12 @@
       ],
       "package": "scripts/01_case/08_titles-case",
       "id": "01/titles-case",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "01_Регистр/08_Регистр заголовков и подзаголовков....js",
-      "differences": [],
+      "differences": [
+        "Tier 3: the dialog's editing of single characters (clicking or dragging over the letters of a listed title, the context menu Большие буквы / Маленькие буквы) cannot be expressed by a form. The first form asks the dialog's five filters, the second lists the title paragraphs and subtitles found (all ticked) with the operation: upper case, lower case, sentence case or Capitalised Words.",
+        "Every title paragraph of a body or section is listed; the original listed a title only when it was the first child of its parent (an image before a body title hid it)."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -968,9 +982,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/601_footnotes-from-square",
       "id": "04/footnotes-from-square",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/601_Примечания из [].js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -995,9 +1011,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/602_footnotes-from-curly",
       "id": "04/footnotes-from-curly",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/602_Примечания из {}.js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1022,9 +1040,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/603_footnotes-from-square-bang",
       "id": "04/footnotes-from-square-bang",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/603_Примечания из [! !].js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1049,9 +1069,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/604_footnotes-from-square-tilde",
       "id": "04/footnotes-from-square-tilde",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/604_Примечания из [~ ~].js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1076,9 +1098,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/605_footnotes-from-regex-brackets",
       "id": "04/footnotes-from-regex-brackets",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/605_Примечания из скобок, заданных регэкспами.js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1103,9 +1127,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/606_footnotes-from-text-brackets",
       "id": "04/footnotes-from-text-brackets",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/606_Примечания из скобок, заданных простым текстом.js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1130,9 +1156,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/607_comments-from-square",
       "id": "04/comments-from-square",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/607_Комментарии из [].js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1157,9 +1185,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/608_comments-from-curly",
       "id": "04/comments-from-curly",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/608_Комментарии из {}.js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1184,9 +1214,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/609_comments-from-square-bang",
       "id": "04/comments-from-square-bang",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/609_Комментарии из [! !].js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1211,9 +1243,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/610_comments-from-square-tilde",
       "id": "04/comments-from-square-tilde",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/610_Комментарии из [~ ~].js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1238,9 +1272,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/611_comments-from-regex-brackets",
       "id": "04/comments-from-regex-brackets",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/611_Комментарии из скобок, заданных регэкспами.js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1265,9 +1301,11 @@
       "htmlDialogs": [],
       "package": "scripts/04_notes-from-brackets/612_comments-from-text-brackets",
       "id": "04/comments-from-text-brackets",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "04_Примечания и комментарии из скобок/612_Комментарии из скобок, заданных простым текстом.js",
-      "differences": [],
+      "differences": [
+        "Inline formatting that crosses a bracket is kept by the document model's marks, so the original's error «Не все тэги, открытые внутри скобок, в них закрываются» cannot occur."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3523,7 +3561,9 @@
       "id": "11/caption-strong",
       "status": "unchanged",
       "predecessor": "11_Заголовки картинок в подписи/600_Заголовок картинки в подпись (strong).js",
-      "differences": [],
+      "differences": [
+        "Where the schema allows no caption after the image (an image in front of the nested sections of a section, or the body's image in front of its title) the image is left as it is and counted in the final message; the original wrote invalid FB2 there."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3550,7 +3590,9 @@
       "id": "11/caption-emphasis",
       "status": "unchanged",
       "predecessor": "11_Заголовки картинок в подписи/601_Заголовок картинки в подпись (emphasis).js",
-      "differences": [],
+      "differences": [
+        "Where the schema allows no caption after the image (an image in front of the nested sections of a section, or the body's image in front of its title) the image is left as it is and counted in the final message; the original wrote invalid FB2 there."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3577,7 +3619,9 @@
       "id": "11/caption-subtitle",
       "status": "unchanged",
       "predecessor": "11_Заголовки картинок в подписи/602_Заголовок картинки в подпись (subtitle).js",
-      "differences": [],
+      "differences": [
+        "Where the schema allows no caption after the image (an image in front of the nested sections of a section, or the body's image in front of its title) the image is left as it is and counted in the final message; the original wrote invalid FB2 there."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3604,7 +3648,9 @@
       "id": "11/caption-subtitle-strong",
       "status": "unchanged",
       "predecessor": "11_Заголовки картинок в подписи/603_Заголовок картинки в подпись (subtitle, strong).js",
-      "differences": [],
+      "differences": [
+        "Where the schema allows no caption after the image (an image in front of the nested sections of a section, or the body's image in front of its title) the image is left as it is and counted in the final message; the original wrote invalid FB2 there."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3631,7 +3677,9 @@
       "id": "11/caption-subtitle-emphasis",
       "status": "unchanged",
       "predecessor": "11_Заголовки картинок в подписи/604_Заголовок картинки в подпись (subtitle, emphasis).js",
-      "differences": [],
+      "differences": [
+        "Where the schema allows no caption after the image (an image in front of the nested sections of a section, or the body's image in front of its title) the image is left as it is and counted in the final message; the original wrote invalid FB2 there."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -7006,7 +7054,7 @@
       "htmlDialogs": [],
       "package": "scripts/17_notes-to-brackets/01_notes-into-brackets",
       "id": "17/notes-into-brackets",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "17_Перенос примечаний в скобки/01_Перенос примечаний в скобки.js",
       "differences": [],
       "fixes": [],
@@ -7033,7 +7081,7 @@
       "htmlDialogs": [],
       "package": "scripts/17_notes-to-brackets/02_notes-into-brackets-with-space",
       "id": "17/notes-into-brackets-with-space",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "17_Перенос примечаний в скобки/02_Перенос примечаний в скобки (пробел перед открывающей скобкой).js",
       "differences": [],
       "fixes": [],
@@ -7060,9 +7108,12 @@
       "htmlDialogs": [],
       "package": "scripts/17_notes-to-brackets/03_one-note-into-brackets",
       "id": "17/one-note-into-brackets",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "17_Перенос примечаний в скобки/03_Перенос одного примечания в скобки.js",
-      "differences": [],
+      "differences": [
+        "With the caret outside a note, or a note that nothing refers to, the original did nothing at all; a status line says so here.",
+        "A note that is the only section of its body is not removed (a body keeps at least one section): the script says so; the original removed it and left an empty notes body."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -10250,23 +10301,22 @@
       "openQuestions": []
     },
     {
-      "source": "01_Регистр/06_Капитализация первого слова.js",
+      "source": "01_Регистр/04_Предложение.js",
       "fbeVersion": "2.7",
-      "sourceVersion": "1.3",
-      "sha256": "4abe15ab6f9bd649d5d36d67590c9a1dc60feab7c1ef5a3cdbf45ebd0d0fdbdf",
+      "sourceVersion": "1.1",
+      "sha256": "c06c4964ff236dbb4e197265df05406cdb192c9f64318f8d04ebc0ae371bdd15",
       "group": "01_Регистр",
       "names": {
-        "en": "Capitalize the first word",
-        "ru": "Капитализация первого слова"
+        "ru": "Предложение",
+        "en": "Sentence"
       },
-      "package": "scripts/01_case/06_capitalize-first-word",
-      "id": "01/capitalize-first-word",
+      "package": "scripts/01_case/04_sentence-case",
+      "id": "01/sentence-case",
       "status": "noCounterpart",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "mergedInto": "01_Регистр/05_Капитализация выделения.js"
+      "openQuestions": []
     },
     {
       "source": "06_Чистка/17_Превращение внешних ссылок в текст.js",

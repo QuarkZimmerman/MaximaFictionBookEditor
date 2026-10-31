@@ -64,16 +64,15 @@ tool applies over its own pairing:
 - *Поиск по набору регэкспов (заготовка)* (21) is *Поиск (без замены) по набору регэкспов
   (версия с исключениями) (заготовка)*; the search engine the 2.7.9 searches share made others
   look closer.
-- *Предложение* (01) is *Первую букву - в верхний регистр, остальные - в нижний*.
+- *Капитализация первого слова* (01, place 06) is *Первую букву - в верхний регистр, остальные - в нижний* (place 04): byte-identical, renamed and moved. The review first paired *Предложение* with it by the name; the recheck (T073) found the identical code and corrected the pair.
 - *Унификация сносок* (02) is *Перенумеровать примечания*, as *Унификация комментариев* is
   *Перенумеровать комментарии*.
 - *Расстановка елочек и лапок (с позиции курсора, начиная с 1-го / 2-го уровня)* (12) are
   *Проставить елочки и лапки (от позиции курсора; как будто перед курсором 1 незакрытая
   кавычка / 2 незакрытые кавычки)*; the variants from the document's start with a level have no
   2.7.9 successor.
-- No successor: *Предложение_alxs* (01), *Превращение внешних ссылок в текст* (06), *Сброс
+- No successor: *Предложение* and *Предложение_alxs* (01), *Превращение внешних ссылок в текст* (06), *Сброс
   структуры разделов* (08), and the two from-the-start level variants of group 12.
-  *Капитализация первого слова* (01) was merged into *Капитализация выделения*.
 
 ## Credits (T133)
 
