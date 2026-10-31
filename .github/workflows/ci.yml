@@ -409,7 +409,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build pkg-config autoconf automake autoconf-archive libtool bison flex \
-            libgtk-3-dev libnss3 libasound2 xvfb file rpm dpkg-dev patchelf openbox xdotool
+            libgtk-3-dev libnss3 libasound2 xvfb file rpm dpkg-dev patchelf openbox xdotool x11-utils
 
       - name: Generate the regional locales the Russian-environment smoke runs under (feature 002)
         # Before the step that sets LC_ALL=ru_RU.UTF-8: bash warns at start-up when the locale
@@ -674,6 +674,22 @@ jobs:
           MFBE_SMOKE_REAL_UI: "1"
           MFBE_SMOKE_SAVE_AS: "1"
           MFBE_SMOKE_SCREENSHOT: build/shell-smoke-saveas.png
+
+      - name: Shell smoke of the browser engine's own keys (feature 007, contracts/shell.md §3-§5)
+        # Real X keys (xdotool under openbox) with the focus in the Body view and with Help > About
+        # open: every key set of tools/shell-smoke.mjs keeps the page, the unsaved edit and the
+        # windows, and has its own outcome (Ctrl+S saves the book, ...). The release shell has no
+        # test hooks, so its gate prints no decisions: the outcomes are the check here. A second
+        # run without --remote-debugging-port - no developer run - asserts that F12 and
+        # Ctrl+Shift+I/J/C open no window.
+        if: runner.os == 'Linux'
+        run: tools/shell-smoke.sh
+        env:
+          MFBE_APP_BIN: ${{ github.workspace }}/build/${{ matrix.preset }}/bin/mfbe
+          MFBE_SMOKE_REAL_UI: "1"
+          MFBE_SMOKE_OPEN_FILE: tests/fixtures/books/modern-utf8.fb2
+          MFBE_SMOKE_ENGINE_KEYS: "1"
+          MFBE_SMOKE_SCREENSHOT: build/shell-smoke-engine-keys.png
 
       - name: Installed tree (Linux)
         if: runner.os == 'Linux'

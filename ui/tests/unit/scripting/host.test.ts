@@ -90,6 +90,7 @@ const SCRIPT: ScriptInfo = {
   dir: '/tmp/scripts/04_Model/01_Append',
   folder: '01_Append',
   source: 'bundled',
+  origin: 'bundled',
   entryUrl: '/scripts/test.append/index.js',
   warnings: [],
 };
@@ -193,6 +194,7 @@ describe('ScriptHost', () => {
         script: { id: 'test.append', name: 'Append paragraph', group: '04_Model', kind: 'menu' },
         uiLanguage: 'en',
         treeNode: { nodeId: 'n2', type: 'section' },
+        startedBy: 'user',
       },
     });
     h.worker.send(APPEND_CALL);

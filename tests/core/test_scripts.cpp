@@ -10,6 +10,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
+#include <map>
 #include <set>
 
 using namespace mfbe;
@@ -485,4 +486,127 @@ TEST_CASE("scripts: scripts.* RPCs, Last script memory and the /scripts endpoint
           (data / "custom-scripts").string());
     CHECK(ws.call("scripts.list")["result"]["folders"]["custom"] ==
           (data / "custom-scripts").string());
+}
+
+// Feature 007 (T004, contracts/rpc-api.md §2 and §3.6 of the feature): the legacy source
+// version is forwarded, every script names its origin, and a package's modules may load only
+// their own package's files - decided by the request's referrer.
+TEST_CASE("scripts: legacy source versions and origins (feature 007)", "[scripts]") {
+    const json manifest = json::parse(R"json({"manifestVersion": 1, "id": "13/glava-1",
+        "name": {"en": "Chapter titles"}, "kind": "menu",
+        "legacy": {"source": "13_Заголовки/30_Привести заголовки глав к виду 'Глава 1'.js",
+                   "fbeVersion": "2.7.9", "sourceVersion": "1.2"}})json");
+    const auto parsed = scripts::parse_manifest(manifest, "a", "menu");
+    REQUIRE(parsed.manifest.has_value());
+    REQUIRE(parsed.manifest->legacy.has_value());
+    CHECK(parsed.manifest->legacy->sourceVersion == "1.2");
+    CHECK(parsed.warnings.empty());
+
+    scripts::ScriptPackage package;
+    package.manifest = *parsed.manifest;
+    package.id = package.manifest.id;
+    package.group = "13_subtitles";
+    package.dir = std::filesystem::path("scripts") / "13_subtitles" / "30_glava-1";
+    const json out = scripts::Catalog::package_to_json(package);
+    CHECK(out["legacy"] ==
+          json{{"source", "13_Заголовки/30_Привести заголовки глав к виду 'Глава 1'.js"},
+               {"fbeVersion", "2.7.9"},
+               {"sourceVersion", "1.2"}});
+    CHECK(out["origin"] == "bundled");
+
+    // Without sourceVersion the field is absent; a non-string one is ignored like fbeVersion.
+    const auto plain = scripts::parse_manifest(
+        json::parse(R"json({"manifestVersion": 1, "name": {"en": "N"}, "kind": "menu",
+            "legacy": {"source": "x.js", "sourceVersion": 3}})json"),
+        "a", "menu");
+    REQUIRE(plain.manifest.has_value());
+    REQUIRE(plain.manifest->legacy.has_value());
+    CHECK(plain.manifest->legacy->sourceVersion.empty());
+    package.manifest = *plain.manifest;
+    CHECK_FALSE(scripts::Catalog::package_to_json(package)["legacy"].contains("sourceVersion"));
+
+    // Every script names its origin: the layer, or `assistant` for the assistant's folder.
+    test::TempDir tmp{"mfbe-scripts-origin"};
+    resources::Roots roots = roots_with_bundled(tmp, fixtures());
+    roots.settings_scripts = tmp / "custom";
+    roots.portable = tmp / "portable";
+    const auto add = [](const std::filesystem::path& dir, const std::string& id) {
+        copy_tree(fixtures() / "01_Case" / "01_Upper", dir);
+        test::write_text(dir / "script.json", R"json({"manifestVersion":1,"id":")json" + id +
+                                                  R"json(","name":{"en":"N"},"kind":"menu"})json");
+    };
+    add(tmp / "data" / "scripts" / "09_User" / "01_Added", "user.added");
+    add(tmp / "data" / "scripts" / "90_assistant" / "mine", "assistant/mine");
+    add(tmp / "custom" / "08_Custom" / "01_One", "custom.one");
+    add(tmp / "portable" / "scripts" / "07_Portable" / "01_One", "portable.one");
+    const resources::ResourceLayers layers(roots);
+    const scripts::Catalog catalog = scripts::load_catalog(layers);
+    const json list = catalog.to_json();
+    std::map<std::string, std::string> origins;
+    for (const json& group : list["groups"]) {
+        for (const json& script : group["scripts"]) {
+            REQUIRE(script.contains("origin"));
+            origins[script["id"].get<std::string>()] = script["origin"].get<std::string>();
+        }
+    }
+    CHECK(origins.at("test.case.upper") == "bundled");
+    CHECK(origins.at("user.added") == "user");
+    CHECK(origins.at("assistant/mine") == "assistant");
+    CHECK(origins.at("custom.one") == "settings");
+    CHECK(origins.at("portable.one") == "portable");
+}
+
+TEST_CASE("scripts: a package's modules load only their own package's files (feature 007)",
+          "[scripts][server]") {
+    test::TempDir data{"mfbe-scripts-isolation"};
+    // A user package whose entry imports a module of its own; its id holds a slash, so it is
+    // percent-encoded as one segment in every URL.
+    const std::filesystem::path own = data / "scripts" / "09_User" / "01_WithLib";
+    copy_tree(fixtures() / "01_Case" / "01_Upper", own);
+    test::write_text(own / "script.json",
+                     R"json({"manifestVersion":1,"id":"09/with-lib","name":{"en":"N"},)json"
+                     R"json("kind":"menu"})json");
+    test::write_text(own / "lib" / "util.js", "export const util = 1;\n");
+    test::write_text(own / "lib" / "deep.js", "export const deep = 2;\n");
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.scripts_dir = fixtures().string();
+    options.test_hooks = true;
+    auto server = CoreServer::start(options);
+    const std::string origin = "http://127.0.0.1:" + std::to_string(server->port());
+    const std::string token = "?token=" + server->token();
+    const auto get = [&](const std::string& path, const std::string& referer) {
+        std::map<std::string, std::string> headers;
+        if (!referer.empty()) {
+            headers["Referer"] = referer;
+        }
+        return test::http_get(server->port(), path + token, headers).status;
+    };
+    const std::string own_entry = origin + "/scripts/09%2Fwith-lib/index.js";
+
+    // The entry of a run or of an mfbe.scripts.run callee: a worker made from a blob: URL
+    // sends no referrer.
+    CHECK(get("/scripts/09%2Fwith-lib/index.js", "") == 200);
+    CHECK(get("/scripts/test.case.upper/index.js", "") == 200);
+    // The host page and its own scripts (the assistant's read_script, the scripts feature).
+    CHECK(get("/scripts/test.case.upper/index.js", origin + "/") == 200);
+    CHECK(get("/scripts/test.case.upper/icon.png", origin + "/index.html") == 200);
+    CHECK(get("/scripts/09%2Fwith-lib/lib/util.js", origin + "/assets/index-abc.js") == 200);
+    // The package's own imports, from its entry and from its own nested modules.
+    CHECK(get("/scripts/09%2Fwith-lib/lib/util.js", own_entry) == 200);
+    CHECK(get("/scripts/09%2Fwith-lib/lib/deep.js",
+              origin + "/scripts/09%2Fwith-lib/lib/util.js") == 200);
+    CHECK(get("/scripts/09%2Fwith-lib/lib/util.js", own_entry + "?token=x#f") == 200);
+    // Another package's files are refused to a module of this one, and the other way round.
+    CHECK(get("/scripts/test.case.upper/index.js", own_entry) == 404);
+    CHECK(get("/scripts/test.case.upper/icon.png", own_entry) == 404);
+    CHECK(get("/scripts/09%2Fwith-lib/lib/util.js",
+              origin + "/scripts/test.case.upper/index.js") == 404);
+    // A referrer under /scripts/ that names no package file is no package's own.
+    CHECK(get("/scripts/test.case.upper/index.js", origin + "/scripts/") == 404);
+    CHECK(get("/scripts/test.case.upper/index.js", origin + "/scripts/test.case.upper") == 404);
+    // HEAD follows the same rule.
+    CHECK(test::http_get(server->port(), "/scripts/test.case.upper/index.js" + token,
+                         {{"Referer", own_entry}}, "HEAD")
+              .status == 404);
 }

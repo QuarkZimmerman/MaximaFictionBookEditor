@@ -40,6 +40,7 @@ function script(id: string, group: string, extra: Partial<ScriptInfo> = {}): Scr
     dir: `/scripts/${group}/${id}`,
     folder: id,
     source: 'bundled',
+    origin: 'bundled',
     entryUrl: `/scripts/${id}/index.js`,
     warnings: [],
     ...extra,

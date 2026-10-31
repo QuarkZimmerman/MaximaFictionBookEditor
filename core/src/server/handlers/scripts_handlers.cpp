@@ -28,7 +28,10 @@
 //        resources.changed {what: 'scripts'}.
 //   GET/HEAD /scripts/{scriptId}/{file}      package files for the sandbox loader; only files
 //        inside the script's own folder (no "..", no absolute paths); .js served as
-//        text/javascript; 404 otherwise.
+//        text/javascript; 404 otherwise. Feature 007 (rpc-api §2): a request whose Referer
+//        is a module of another package ("/scripts/<A>/…") gets 404 - a package's modules
+//        load only their own package's files; the host page, its workers and requests with
+//        no referrer (a blob: worker loading an entry) are served.
 #include "server/loopback_server.hpp"
 #include "server/services.hpp"
 
@@ -252,6 +255,15 @@ void serve_script_file(LoopbackServer& server, Services& services, uWS::HttpResp
     }
     if (package == nullptr) {
         end_plain(res, "404 Not Found", "unknown script");
+        return;
+    }
+    // Package isolation (feature 007, rpc-api §2): a module of package A loads only A's files;
+    // the host page, its workers and requests without a referrer have no package context.
+    if (const auto context = scripts::referring_package(req->getHeader("referer"));
+        context && *context != package->id) {
+        log::warning("core", "scripts.crossPackage", "a package module asked for another package",
+                     log::extras({{"from", *context}, {"to", package->id}}));
+        end_plain(res, "404 Not Found", "not found");
         return;
     }
     const std::filesystem::path path = scripts::resolve_package_file(*package, file);

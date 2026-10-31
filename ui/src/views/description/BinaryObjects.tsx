@@ -1,6 +1,6 @@
 /**
  * Binary Objects list (T075/T094, FR-050, FR-012, FR-111): every embedded binary with its id,
- * content type, size, dimensions and a preview thumbnail (`GET /binary/{docId}/{id}/preview`),
+ * content type, size, dimensions and a preview thumbnail (the core's preview, `binaryPreviewUrl`),
  * badges for "converted to JPEG/PNG on save", "not a decodable image" and "not referenced",
  * dangling image references (from the model and from the last validation report), Remove with
  * the reference check of `binary.remove` (confirmation before `force`) and Add (the
@@ -14,7 +14,7 @@ import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAppServices, useCommandContext, useCommandState, useRunCommand } from '@/app/services';
-import { binaryPreviewUrl } from '@/editor/nodeviews/image';
+import { binaryPreviewUrl } from '@/model/binaryUrls';
 import {
   danglingImageRefs,
   referenceCounts,

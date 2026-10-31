@@ -26,16 +26,31 @@ export interface ScriptInfo {
   defaultHotkey?: string;
   needsSelection: boolean;
   undoLabel?: Record<string, string>;
-  legacy?: { source: string; fbeVersion?: string };
+  /**
+   * The classic FictionBook Editor script the package was converted from: its path in the
+   * original's Scripts folder, the FBE release (`2.7` for 2.7beta1, `2.7.9`) and the version
+   * its header states (feature 007).
+   */
+  legacy?: ScriptLegacy;
   /** Group id (folder name, `''` for ungrouped scripts, `tree` for tree commands). */
   group: string;
   dir: string;
   folder: string;
   /** Layer that provided the package: bundled | user | settings | portable. */
   source: string;
+  /** Where the script comes from; `assistant` is the assistant's folder (feature 007). */
+  origin: ScriptOrigin;
   entryUrl: string;
   warnings: string[];
 }
+
+export interface ScriptLegacy {
+  source: string;
+  fbeVersion?: string;
+  sourceVersion?: string;
+}
+
+export type ScriptOrigin = 'bundled' | 'settings' | 'user' | 'portable' | 'assistant';
 
 export interface ScriptGroup {
   id: string;
@@ -191,11 +206,23 @@ export interface RunEnd {
   subscribe(listener: () => void): () => void;
 }
 
+/**
+ * Who started a run (script API version 2, contracts/script-api.md §1 of feature 007): a menu,
+ * toolbar, hotkey or tree command ('user'), the AI assistant ('assistant'), or another script
+ * through `mfbe.scripts.run` ('script').
+ */
+export type StartedBy = 'user' | 'assistant' | 'script';
+
 /** `ctx` handed to `run(ctx)`; `cancelled` is a live getter in the worker. */
 export interface ScriptContextData {
   script: { id: string; name: string; group: string; kind: ScriptKind };
   uiLanguage: string;
   treeNode?: NodeRef;
+  startedBy: StartedBy;
+  /** The calling script's id when `startedBy` is 'script'. */
+  caller?: string;
+  /** The `args` of `mfbe.scripts.run`, structured-cloned, when `startedBy` is 'script'. */
+  args?: unknown;
 }
 
 /* ------------------------------------------------------------------------ */

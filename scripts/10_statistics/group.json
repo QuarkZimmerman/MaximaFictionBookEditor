@@ -1,3 +1,7 @@
 {
-  "names": { "en": "Statistics", "ru": "Статистика" }
+  "names": {
+    "en": "Statistics",
+    "ru": "Статистика",
+    "uk": "Статистика"
+  }
 }

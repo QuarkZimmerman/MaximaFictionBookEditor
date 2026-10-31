@@ -71,7 +71,7 @@ import { RpcErrorCode, type AiOutcome, type ChatRequest, type FragmentNode } fro
 import { plainText } from '@/scripting/api-impl';
 import { getScriptsFeature, type ScriptsFeature } from '@/scripting/catalog';
 import { scriptName, type ScriptHost } from '@/scripting/host';
-import type { ScriptInfo, ScriptSourceResult } from '@/scripting/types';
+import type { ScriptInfo } from '@/scripting/types';
 import type { WorkingCopy } from '@/scripting/workingCopy';
 import {
   getBodyController,
@@ -1928,9 +1928,7 @@ class RequestRun {
         };
       },
       files: async (id) => {
-        const source = (await this.rpc.call('scripts.source', {
-          scriptId: id,
-        })) as unknown as ScriptSourceResult;
+        const source = await this.rpc.call('scripts.source', { scriptId: id });
         return { folder: source.dir, entry: source.entry, files: source.files };
       },
       readFile: (id, file) => readScriptFile(id, file),
@@ -1995,6 +1993,7 @@ class RequestRun {
           dialogs: ctx.dialogs,
           t,
           uiLanguage: store.getState().uiLanguage,
+          startedBy: 'assistant',
           ...(treeNode ? { treeNode } : {}),
         },
         { nested: { workingCopy: session.copy, session: session.run } },

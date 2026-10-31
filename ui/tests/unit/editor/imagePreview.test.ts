@@ -20,10 +20,10 @@ import type { EditorView, NodeView } from 'prosemirror-view';
 import {
   binaryLookup,
   createImageNodeViews,
-  previewSize,
   type ImageViewOptions,
 } from '@/editor/nodeviews/image';
 import { fb2Schema } from '@/editor/schema';
+import { previewSize } from '@/model/binaryUrls';
 import type { BinaryMeta } from '@/model/document';
 
 function meta(id: string, width?: number, height?: number, decodable = true): BinaryMeta {

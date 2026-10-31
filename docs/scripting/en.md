@@ -81,7 +81,20 @@ same sub-menu.
 | `defaultHotkey` | no | chord such as `Ctrl+Alt+U`, `Mod+Shift+F5` (`Mod` = Ctrl, Cmd on macOS); users may change it in Settings > Hotkeys (group "Scripts"); collisions are reported there |
 | `needsSelection` | no | the command is disabled while nothing is selected in the Body view |
 | `undoLabel` | no | label of the single undo step (default: the name) |
-| `legacy` | no | provenance of a converted FBE script |
+| `legacy` | no | provenance of a converted FBE script: `source` (its path in the original's `Scripts` folder), `fbeVersion` (`2.7` or `2.7.9`) and `sourceVersion` (the version its header states) |
+
+### Ids and packages
+
+- **An id, once released, never changes.** A bundled script that is renamed, moved to another
+  group or updated keeps its id, so a hotkey (`script.<id>` in `hotkeys.json`), a button of the
+  Scripts toolbar and *Last script* keep following it. Give your own scripts ids of their own
+  for the same reason.
+- **Each script is an independent program.** Its package carries all the code it needs: a
+  package's modules may import only files of their own package. The editor refuses a module of
+  one package that asks for a file of another, so copy what you need into your package.
+- **The bundled group folder `20_debug` is now `95_programmers`** (*Для программистов*, as in
+  FictionBook Editor 2.7.9; since 0.0.6). Groups merge by folder name, so a group folder of your
+  own named `20_debug` now forms a group of its own instead of joining the bundled one.
 
 ## 3. A script
 

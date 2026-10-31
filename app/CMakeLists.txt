@@ -70,13 +70,15 @@ set(MFBE_SHELL_DEFINES
   MFBE_RESOURCES_SOURCE_DIR="${MFBE_RESOURCES_SOURCE_DIR}"
   MFBE_SCRIPTS_SOURCE_DIR="${MFBE_SCRIPTS_SOURCE_DIR}"
   MFBE_UI_SOURCE_DIR="${MFBE_UI_SOURCE_DIR}"
-  # F12 opens DevTools in Debug builds (and always when --remote-debugging-port is given).
+  # A developer run in Debug builds (and always with --remote-debugging-port): the developer
+  # tools pass the engine command gate (feature 007, contracts/shell.md §5).
   $<$<CONFIG:Debug>:MFBE_SHELL_DEVTOOLS=1>
   $<$<BOOL:${MFBE_TEST_HOOKS}>:MFBE_SHELL_TEST_HOOKS=1>)
 
 # ---------------------------------------------------------------------------------------------
 # Pure shell logic without CEF types (the command line, the main window's close handshake, file
-# dialog requests in each platform's terms, the right-click menu, the latest-release request,
+# dialog requests in each platform's terms, the right-click menu, the engine command gate and
+# the navigation guard (feature 007), the latest-release request,
 # the editor's relaunch of itself, the window placement and the keyboard layout switch), shared
 # by the bridge, the shell and the mfbe_shell_tests executable (tests/shell). command_line.cpp
 # prints the version stamps in --help / --version, hence the version defines. relaunch.cpp holds
@@ -93,6 +95,8 @@ add_library(mfbe_shell_logic STATIC
   src/command_line.h
   src/context_menu.cpp
   src/context_menu.h
+  src/engine_commands.cpp
+  src/engine_commands.h
   src/file_dialog_request.cpp
   src/file_dialog_request.h
   src/keyboard_layout.cpp

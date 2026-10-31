@@ -1,6 +1,6 @@
 /**
  * Cover page images (T094): the `<coverpage>` image references of a title-info block, each
- * with a thumbnail (served by `GET /binary/{docId}/{id}/preview?w=`), a drop-down of the
+ * with a thumbnail (the core's preview, `binaryPreviewUrl`), a drop-down of the
  * document's binaries (plus free text for external references) and Remove; "Add cover..." opens
  * the picker dialog - a thumbnail grid of the existing image binaries and an "Add file..."
  * button that embeds a new image through `binary.add` and selects it. While a script runs
@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppServices } from '@/app/services';
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import { imageFileTypes } from '@/dialogs/fileTypes';
-import { binaryPreviewUrl } from '@/editor/nodeviews/image';
+import { binaryPreviewUrl } from '@/model/binaryUrls';
 import { addBinaryFromFile } from '@/features/images/binaries';
 import type { BinaryMeta, ImageRef } from '@/model/document';
 import type { RpcClient } from '@/rpc/client';

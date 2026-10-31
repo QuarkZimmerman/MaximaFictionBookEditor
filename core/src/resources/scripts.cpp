@@ -343,6 +343,70 @@ std::vector<std::string> package_files(const ScriptPackage& package) {
     return files;
 }
 
+std::string origin_of(const ScriptPackage& package) {
+    if (package.layer == resources::LayerName::user && package.group == kAssistantGroup) {
+        return "assistant";
+    }
+    return resources::to_string(package.layer);
+}
+
+namespace {
+
+// Percent-decodes a URL path segment; a malformed escape is kept as written.
+std::string url_decode_segment(std::string_view text) {
+    const auto hex = [](char c) -> int {
+        if (c >= '0' && c <= '9') {
+            return c - '0';
+        }
+        if (c >= 'a' && c <= 'f') {
+            return c - 'a' + 10;
+        }
+        if (c >= 'A' && c <= 'F') {
+            return c - 'A' + 10;
+        }
+        return -1;
+    };
+    std::string out;
+    out.reserve(text.size());
+    for (std::size_t i = 0; i < text.size(); ++i) {
+        if (text[i] == '%' && i + 2 < text.size()) {
+            const int high = hex(text[i + 1]);
+            const int low = hex(text[i + 2]);
+            if (high >= 0 && low >= 0) {
+                out.push_back(static_cast<char>(high * 16 + low));
+                i += 2;
+                continue;
+            }
+        }
+        out.push_back(text[i]);
+    }
+    return out;
+}
+
+}  // namespace
+
+std::optional<std::string> referring_package(std::string_view referer) {
+    std::string_view path = referer;
+    // An absolute URL: the path starts at the first '/' after "scheme://authority".
+    if (const std::size_t scheme = path.find("://"); scheme != std::string_view::npos) {
+        const std::size_t slash = path.find('/', scheme + 3);
+        path = slash == std::string_view::npos ? std::string_view{} : path.substr(slash);
+    }
+    if (const std::size_t end = path.find_first_of("?#"); end != std::string_view::npos) {
+        path = path.substr(0, end);
+    }
+    constexpr std::string_view kPrefix = "/scripts/";
+    if (path.substr(0, kPrefix.size()) != kPrefix) {
+        return std::nullopt;  // the host page, its own scripts, or no referrer at all
+    }
+    path.remove_prefix(kPrefix.size());
+    const std::size_t slash = path.find('/');
+    if (slash == std::string_view::npos || slash == 0 || slash + 1 == path.size()) {
+        return std::string();  // under /scripts/ but no package file: no package's own
+    }
+    return url_decode_segment(path.substr(0, slash));
+}
+
 /* ----------------------------------------------------------------------------------------- */
 /* Manifest                                                                                   */
 /* ----------------------------------------------------------------------------------------- */
@@ -461,6 +525,9 @@ ParsedManifest parse_manifest(const json& manifest, const std::string& default_i
             info.source = (*legacy)["source"].get<std::string>();
             if (legacy->contains("fbeVersion") && (*legacy)["fbeVersion"].is_string()) {
                 info.fbeVersion = (*legacy)["fbeVersion"].get<std::string>();
+            }
+            if (legacy->contains("sourceVersion") && (*legacy)["sourceVersion"].is_string()) {
+                info.sourceVersion = (*legacy)["sourceVersion"].get<std::string>();
             }
             m.legacy = std::move(info);
         }
@@ -640,6 +707,7 @@ json Catalog::package_to_json(const ScriptPackage& p) {
            {"dir", platform::utf8_from_path(p.dir)},
            {"folder", platform::utf8_from_path(p.dir.filename())},
            {"source", resources::to_string(p.layer)},
+           {"origin", origin_of(p)},
            {"entryUrl", package_url(p.id, m.entry)},
            {"warnings", json(p.warnings)}};
     if (!m.description.empty()) {
@@ -659,6 +727,9 @@ json Catalog::package_to_json(const ScriptPackage& p) {
         json legacy{{"source", m.legacy->source}};
         if (!m.legacy->fbeVersion.empty()) {
             legacy["fbeVersion"] = m.legacy->fbeVersion;
+        }
+        if (!m.legacy->sourceVersion.empty()) {
+            legacy["sourceVersion"] = m.legacy->sourceVersion;
         }
         j["legacy"] = std::move(legacy);
     }

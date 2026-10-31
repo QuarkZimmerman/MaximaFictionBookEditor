@@ -33,19 +33,23 @@ import type {
   ValidationReport,
   VerseNode,
 } from '@/model/document';
+import type { ScriptSourceResult, ScriptsListResult } from '@/scripting/types';
 
 export type { BinaryMeta, Document, ValidationIssue, ValidationReport } from '@/model/document';
 
 export const RPC_API_VERSION = 1;
 /**
  * Additive contract revision within RPC_API_VERSION (`app.info().apiMinor`; absent = 0). The
- * revision this UI was written for (5 since feature 006: the cell's and the marks' languages,
- * marks on inline atoms, the writer's link rule, `session.tableDialog`); it accepts any core
- * answering minor >= 1 (rpc-api.md §6) - the client performs no minor check at connect time and
- * gates nothing on 5; the AI assistant (feature 005) reads `app.info().apiMinor` itself and
- * requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4 before).
+ * revision this UI was written for (6 since feature 007: the scripts' `legacy.sourceVersion`,
+ * `origin` and `overrides`, the group icon route, package isolation, `files.saveText` and
+ * `files.saveBinaries`, the script backups; 5 since feature 006: the cell's and the marks'
+ * languages, marks on inline atoms, the writer's link rule, `session.tableDialog`); it accepts
+ * any core answering minor >= 1 (rpc-api.md §6) - the client performs no minor check at connect
+ * time and gates nothing on 6; the AI assistant (feature 005) reads `app.info().apiMinor` itself
+ * and requires >= 5 since feature 006 (`AI_REQUIRED_API_MINOR` in `ui/src/ai/index.ts`; 4
+ * before).
  */
-export const RPC_API_MINOR = 5;
+export const RPC_API_MINOR = 6;
 
 /* ------------------------------------------------------------------------ */
 /* Error codes (rpc-api.md §1)                                              */
@@ -469,7 +473,8 @@ export interface ScriptManifest {
   defaultHotkey?: string;
   needsSelection?: boolean;
   undoLabel?: Record<string, string>;
-  legacy?: { source: string; fbeVersion?: string };
+  /** Feature 007 adds `sourceVersion`, the version the original's header states. */
+  legacy?: { source: string; fbeVersion?: string; sourceVersion?: string };
 }
 
 export interface ScriptListEntry {
@@ -597,7 +602,7 @@ export interface SaveNeedsConfirmation {
  * `description` is as read (node ids from the open document's allocator); `documentDetails`
  * the file's document-info after the fill-in of 002 FR-005 (the UI takes the four document
  * details from it); `binaries` the metadata of the binaries an importable entry refers to,
- * held by the hidden session `importId` - a `docId` for `GET /binary/{importId}/{id}/preview`
+ * held by the hidden session `importId` - a `docId` for the core's preview (`binaryPreviewUrl`)
  * (the dialog's cover picture), `binary.copy` and `doc.close`, which the UI calls whatever the
  * outcome. The reader's `warnings` are not shown.
  */
@@ -1148,9 +1153,9 @@ export interface RpcMethods {
     result: { collisions: HotkeyCollision[] };
   };
 
-  // §3.8 scripts
-  'scripts.list': { params: void; result: ScriptListEntry[] };
-  'scripts.source': { params: { scriptId: string }; result: { entryUrl: string } };
+  // §3.8 scripts (feature 007 rpc-api §3.6: the shapes as implemented)
+  'scripts.list': { params: void; result: ScriptsListResult };
+  'scripts.source': { params: { scriptId: string }; result: ScriptSourceResult };
   'scripts.reload': { params: void; result: Empty };
   'scripts.lastRun': { params: { scriptId?: string } | void; result: { scriptId?: string } };
 

@@ -122,6 +122,11 @@ export interface RunOptions {
   t: TFunction;
   uiLanguage: string;
   treeNode?: NodeRef;
+  /**
+   * Who starts the run (script API version 2): the user's menus, toolbar, hotkeys and tree
+   * commands leave it out ('user'); the assistant's `run_script` passes 'assistant'.
+   */
+  startedBy?: 'user' | 'assistant';
 }
 
 /**
@@ -312,9 +317,7 @@ export class ScriptHost {
 
     let source: ScriptSourceResult;
     try {
-      source = (await rpc.call('scripts.source', {
-        scriptId: script.id,
-      })) as unknown as ScriptSourceResult;
+      source = await rpc.call('scripts.source', { scriptId: script.id });
     } catch (error) {
       const message = t('scripting.error.loadFailed', {
         name,
@@ -505,6 +508,7 @@ export class ScriptHost {
             },
             uiLanguage: options.uiLanguage,
             treeNode: options.treeNode,
+            startedBy: options.startedBy ?? 'user',
           },
         });
         return;

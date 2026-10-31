@@ -3,7 +3,7 @@
  * entries the chosen file offers, each labelled "{{group}}: {{field}}" with the value about to
  * be imported as plain text and a checkbox that is unticked when the dialog opens; the cover
  * entry also shows a small picture of its image, served from the hidden import session's
- * `GET /binary/{importId}/{id}/preview` (requester decision of 2026-10-20), or no picture when
+ * core's preview of the import session (`binaryPreviewUrl`; requester decision of 2026-10-20), or no picture when
  * the file lacks the data. Import stays disabled while nothing is ticked; Cancel (Escape, the
  * close box) resolves null and changes nothing. Opened by `importDescription.ts` through
  * `dialogs.openCustom`; resolves with the keys of the ticked entries.
@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Dialog, type DialogButton } from '@/dialogs/Dialog';
-import { binaryPreviewUrl } from '@/editor/nodeviews/image';
+import { binaryPreviewUrl } from '@/model/binaryUrls';
 
 import { entryLabel, entryValueText, type ImportableEntry } from './importEntries';
 

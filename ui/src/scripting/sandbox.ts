@@ -252,7 +252,8 @@ export function msgBoxResult(buttonId: string): number {
 }
 
 export interface MfbeObject {
-  readonly version: 1;
+  /** Script API version 2 (feature 007): version-1 scripts run unchanged. */
+  readonly version: 2;
   readonly doc: Record<string, (...args: unknown[]) => Promise<unknown>>;
   readonly selection: Record<string, (...args: unknown[]) => Promise<unknown>>;
   readonly ui: Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -314,7 +315,7 @@ function section(
 export function createMfbe(bridge: Bridge): MfbeObject {
   const ui = section(bridge, 'ui', UI_METHODS);
   const mfbe: MfbeObject = {
-    version: 1,
+    version: 2,
     doc: section(bridge, 'doc', DOC_METHODS),
     selection: section(bridge, 'selection', SELECTION_METHODS),
     ui,
@@ -348,6 +349,9 @@ export function createContext(bridge: Bridge, data: ScriptContextData) {
     script: Object.freeze({ ...data.script }),
     uiLanguage: data.uiLanguage,
     treeNode: data.treeNode ? Object.freeze({ ...data.treeNode }) : undefined,
+    startedBy: data.startedBy,
+    caller: data.caller,
+    args: data.args,
     get cancelled() {
       return bridge.cancelRequested;
     },

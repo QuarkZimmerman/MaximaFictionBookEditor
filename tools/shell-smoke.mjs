@@ -98,6 +98,17 @@
 //                               caption set to display: none; no other table has a mark. Logs
 //                               "table marks: <n> tables, 0 findings", or fails with the findings
 //                               and a -failed.png screenshot. The status-bar check is skipped
+//   MFBE_SMOKE_ENGINE_KEYS      1 = the browser engine's own keys (feature 007, contracts/shell.md
+//                               §3-§5): an edit is typed into the Body view, then every key of
+//                               KEY_SETS is pressed as a real X key (xdotool on the display of
+//                               MFBE_SMOKE_DISPLAY_FILE; keys injected over CDP never reach the
+//                               engine's accelerators) in its state - the focus in the Body view
+//                               or Help > About open - and its outcome checked: the page not
+//                               replaced (a marker set over CDP survives), the edit kept, no new
+//                               top-level window (the developer tools excepted where the set
+//                               expects them), the key's own result; a test-hook shell must also
+//                               have logged each named decision of the gate
+//                               ("shelltest: chrome-command <IDC_…> blocked")
 //   MFBE_SMOKE_LOG              the shell's log of this run (stdout and stderr; shell-smoke.sh):
 //                               the "shelltest: argv" lines of the restart check, and on every
 //                               run the engine's spell-check line (feature 004 US9, FR-081) -
@@ -163,6 +174,11 @@ const tableLayoutWidth = process.env.MFBE_SMOKE_TABLE_LAYOUT ?? '';
 const checkTableMarks = process.env.MFBE_SMOKE_TABLE_MARKS === '1';
 const checkClose = process.env.MFBE_SMOKE_CLOSE === '1';
 const checkSaveAs = process.env.MFBE_SMOKE_SAVE_AS === '1';
+const checkEngineKeys = process.env.MFBE_SMOKE_ENGINE_KEYS === '1';
+// MFBE_SMOKE_ENGINE_KEYS_OBSERVE=1: report what the gate logged for each key instead of failing
+// on a log that differs from the set's (the outcomes are still checked) - for the audit of
+// research R1.4 (the "observed" column of feature 007's T095).
+const observeEngineKeys = process.env.MFBE_SMOKE_ENGINE_KEYS_OBSERVE === '1';
 const saveAsFolder = process.env.MFBE_SMOKE_SAVE_AS_FOLDER ?? '';
 const displayFile = process.env.MFBE_SMOKE_DISPLAY_FILE ?? '';
 // FR-017: the close request asks like Exit does - the prompt is there as fast as Exit's.
@@ -717,7 +733,7 @@ async function checkRestart(page) {
 // The X display the shell runs on, as shell-smoke.sh's launcher recorded it.
 function shellDisplayEnv() {
   if (!displayFile) {
-    throw new Error('MFBE_SMOKE_CLOSE needs MFBE_SMOKE_DISPLAY_FILE (set by shell-smoke.sh)');
+    throw new Error('this scenario needs MFBE_SMOKE_DISPLAY_FILE (set by shell-smoke.sh)');
   }
   const env = { ...process.env };
   for (const line of fs.readFileSync(displayFile, 'utf8').split('\n')) {
@@ -804,6 +820,280 @@ async function checkWindowClose(page) {
     );
   }
   console.log(`close:         positions.json remembers ${caretPath}:${caretOffset} for the book`);
+}
+
+/* ---------------------------------------------------------------------------------------- */
+/* The browser engine's own keys (feature 007, contracts/shell.md §3-§5)                     */
+/* ---------------------------------------------------------------------------------------- */
+
+const ENGINE_EDIT = 'ENGINE-KEYS-EDIT';
+/** How long a key may take to show its effect (a window, a reload, a save). */
+const engineKeySettleMs = 1500;
+
+/**
+ * The key sets of feature 007, filled by its stories (US1 `save`; US2 `reload`, `navigate`,
+ * `close`; US5 `windows`, `dialogs`, `devtools`, `kept`). Each entry:
+ * - `keys`: an xdotool chord ("ctrl+s") or `{ button: 8 }` for a mouse button;
+ * - `state`: 'body' (the focus in the Body view) or 'modal' (Help > About open);
+ * - `logs`: the gate's decisions a test-hook shell must print ("IDC_SAVE_PAGE blocked");
+ * - `outcome`: 'kept' (the page, the edit and the windows stay), 'saved' (the book file is
+ *   rewritten and the modified marker goes), 'devtools' (exactly one new "DevTools" window -
+ *   this run is a developer run - closed again), or a function `async (ctx) => description`
+ *   for a check of its own, called after the key with the context of checkEngineKeys.
+ */
+const KEY_SETS = {};
+
+// The editor's X window on the display of this run, found by the book's name in its title.
+function editorWindow(env) {
+  const ids = xdotool(env, 'search', '--onlyvisible', '--name', path.basename(openFile))
+    .split(/\s+/)
+    .filter(Boolean);
+  if (ids.length === 0) {
+    throw new Error(`no visible window showing ${path.basename(openFile)} on ${env.DISPLAY}`);
+  }
+  return ids[0];
+}
+
+// The visible top-level windows of the display: id -> title.
+function visibleWindows(env) {
+  let ids = [];
+  try {
+    ids = xdotool(env, 'search', '--onlyvisible', '--name', '.').split(/\s+/).filter(Boolean);
+  } catch {
+    // xdotool exits with 1 while nothing matches
+  }
+  const windows = new Map();
+  for (const id of ids) {
+    let name = '';
+    try {
+      name = xdotool(env, 'getwindowname', id);
+    } catch {
+      // the window went meanwhile
+    }
+    windows.set(id, name);
+  }
+  return windows;
+}
+
+function newWindows(before, after) {
+  return [...after].filter(([id]) => !before.has(id));
+}
+
+// The shell printed "shelltest: argv" at start: a test-hook build, which reports the gate's
+// decisions too.
+function testHookShell() {
+  const log = process.env.MFBE_SMOKE_LOG;
+  return Boolean(log) && fs.existsSync(log) && /^shelltest: argv /m.test(fs.readFileSync(log, 'utf8'));
+}
+
+// The gate's and the guard's lines of the shell's log ("shelltest: chrome-command …",
+// "shelltest: navigation-refused …"), in order.
+function shelltestLines() {
+  const log = process.env.MFBE_SMOKE_LOG;
+  if (!log || !fs.existsSync(log)) {
+    return [];
+  }
+  return fs
+    .readFileSync(log, 'utf8')
+    .split('\n')
+    .filter((line) => /^shelltest: (chrome-command|navigation-refused) /.test(line));
+}
+
+function readBook() {
+  return fs.readFileSync(openFile);
+}
+
+async function engineKeysContext(page, env) {
+  const ctx = {
+    page,
+    env,
+    window: editorWindow(env),
+    hooks: testHookShell(),
+    marker: `engine-keys-${process.pid}-${Date.now()}`,
+    url: page.url(),
+    edits: 0,
+  };
+  await page.evaluate((marker) => {
+    window.__mfbeEngineKeysMarker = marker;
+  }, ctx.marker);
+  ctx.focusEditor = () => focusEditor(ctx);
+  ctx.typeEdit = () => typeEdit(ctx);
+  ctx.openAbout = () => openAbout(ctx);
+  ctx.closeAbout = () => closeAbout(ctx);
+  ctx.press = (chord) => pressKey(ctx, chord);
+  ctx.click = (button) => clickButton(ctx, button);
+  ctx.windows = () => visibleWindows(env);
+  ctx.pageAlive = () => pageAlive(ctx);
+  ctx.editKept = () => editKept(ctx);
+  ctx.shelltestLines = shelltestLines;
+  return ctx;
+}
+
+// The editor's window gets the X focus, the Body view the page's focus.
+async function focusEditor(ctx) {
+  xdotool(ctx.env, 'windowactivate', '--sync', ctx.window);
+  await ctx.page.locator('[data-testid="body-editor"] p').first().click();
+}
+
+// Types the unsaved edit into the Body view; the title carries the modified marker.
+async function typeEdit(ctx) {
+  await focusEditor(ctx);
+  await ctx.page.keyboard.press(process.platform === 'darwin' ? 'Meta+Home' : 'Control+Home');
+  await ctx.page.keyboard.type(`${ENGINE_EDIT} `);
+  ctx.edits += 1;
+  await waitUntil('the modified marker after the edit', async () => (await ctx.page.title()).includes('*'), timeoutMs);
+}
+
+// Help > About through the page's own menu, as a user's clicks.
+async function openAbout(ctx) {
+  const dialog = ctx.page.locator('[data-testid="dialog-about"]');
+  if (await dialog.isVisible()) {
+    return;
+  }
+  await ctx.page.locator('[data-testid="menu-help"]').click();
+  await ctx.page.locator('[data-testid="menu-help-about"]').click();
+  await dialog.waitFor({ state: 'visible', timeout: timeoutMs });
+  xdotool(ctx.env, 'windowactivate', '--sync', ctx.window);
+}
+
+async function closeAbout(ctx) {
+  const dialog = ctx.page.locator('[data-testid="dialog-about"]');
+  if (await dialog.isVisible()) {
+    await ctx.page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'hidden', timeout: timeoutMs });
+  }
+}
+
+// A real key on the editor's window: xdotool sends it through the X server, so it reaches the
+// engine's accelerators as a user's key does.
+function pressKey(ctx, chord) {
+  xdotool(ctx.env, 'windowactivate', '--sync', ctx.window);
+  xdotool(ctx.env, 'key', '--clearmodifiers', chord);
+}
+
+// A real mouse button over the page (8 = back, 9 = forward).
+function clickButton(ctx, button) {
+  xdotool(ctx.env, 'windowactivate', '--sync', ctx.window);
+  xdotool(ctx.env, 'mousemove', '--window', ctx.window, '400', '300');
+  xdotool(ctx.env, 'click', String(button));
+}
+
+// The page that was loaded at the start is still there: not reloaded, not replaced.
+async function pageAlive(ctx) {
+  if (ctx.page.isClosed() || ctx.page.url() !== ctx.url) {
+    return false;
+  }
+  try {
+    return (await ctx.page.evaluate(() => window.__mfbeEngineKeysMarker)) === ctx.marker;
+  } catch {
+    return false;
+  }
+}
+
+// The unsaved edit is still in the Body view and the title still marks the book modified.
+async function editKept(ctx) {
+  const text = await ctx.page.locator('[data-testid="body-editor"]').innerText();
+  return text.includes(ENGINE_EDIT) && (await ctx.page.title()).includes('*');
+}
+
+function chordLabel(keys) {
+  return typeof keys === 'string' ? keys : `mouse button ${keys.button}`;
+}
+
+async function runEngineKey(ctx, set, entry) {
+  const label = `${set}: ${chordLabel(entry.keys)} (${entry.state})`;
+  if (entry.state === 'modal') {
+    await ctx.openAbout();
+  } else {
+    await ctx.closeAbout();
+    await ctx.focusEditor();
+  }
+  const windowsBefore = ctx.windows();
+  const linesBefore = ctx.shelltestLines().length;
+  const bookBefore = readBook();
+  if (typeof entry.keys === 'string') {
+    ctx.press(entry.keys);
+  } else {
+    ctx.click(entry.keys.button);
+  }
+  await sleep(engineKeySettleMs);
+
+  // The gate's decisions this key caused, in a test-hook shell.
+  if (ctx.hooks && !observeEngineKeys) {
+    const deadline = Date.now() + timeoutMs;
+    for (const expected of entry.logs ?? []) {
+      const line = `shelltest: chrome-command ${expected}`;
+      while (!ctx.shelltestLines().slice(linesBefore).includes(line)) {
+        if (Date.now() > deadline) {
+          throw new Error(`${label}: the shell did not log "${line}" (logged: ${JSON.stringify(ctx.shelltestLines().slice(linesBefore))})`);
+        }
+        await sleep(100);
+      }
+    }
+  }
+  if (!(await ctx.pageAlive())) {
+    throw new Error(`${label}: the editor's page was replaced (url ${ctx.page.url()})`);
+  }
+  const windowsAfter = ctx.windows();
+  if (!windowsAfter.has(ctx.window)) {
+    throw new Error(`${label}: the editor's window ${ctx.window} closed`);
+  }
+  const added = newWindows(windowsBefore, windowsAfter);
+  let result;
+  if (entry.outcome === 'devtools') {
+    if (added.length !== 1 || !/DevTools/.test(added[0][1])) {
+      throw new Error(`${label}: expected one DevTools window, got ${JSON.stringify(added)}`);
+    }
+    xdotool(ctx.env, 'windowclose', added[0][0]);
+    await sleep(500);
+    result = `DevTools window "${added[0][1]}" opened (a developer run) and closed`;
+  } else {
+    if (added.length > 0) {
+      throw new Error(`${label}: new top-level window(s) ${JSON.stringify(added)}`);
+    }
+    if (entry.outcome === 'saved') {
+      const bookAfter = readBook();
+      if (bookAfter.equals(bookBefore) || !bookAfter.toString('utf8').includes(ENGINE_EDIT)) {
+        throw new Error(`${label}: the book file was not rewritten with the edit`);
+      }
+      await waitUntil('the modified marker to go after the save', async () => !(await ctx.page.title()).includes('*'), timeoutMs);
+      result = 'the book file was rewritten, the modified marker went';
+      await ctx.typeEdit();  // a new unsaved edit for the keys that follow
+    } else {
+      if (!(await ctx.editKept())) {
+        throw new Error(`${label}: the unsaved edit or the modified marker was lost`);
+      }
+      if (!readBook().equals(bookBefore)) {
+        throw new Error(`${label}: the book file changed`);
+      }
+      result =
+        typeof entry.outcome === 'function'
+          ? await entry.outcome(ctx)
+          : 'nothing happened: page, edit, file and windows kept';
+    }
+  }
+  const logged = ctx.hooks ? ctx.shelltestLines().slice(linesBefore).map((l) => l.replace(/^shelltest: /, '')) : [];
+  console.log(`engine keys:   ${label} - ${result}${logged.length ? ` [${logged.join('; ')}]` : ''}`);
+}
+
+async function checkEngineKeysScenario(page) {
+  const env = shellDisplayEnv();
+  const ctx = await engineKeysContext(page, env);
+  console.log(
+    `engine keys:   window ${ctx.window}, ${ctx.hooks ? 'a test-hook shell (the gate logs its decisions)' : 'a shell without test hooks (outcomes only)'}`,
+  );
+  await ctx.typeEdit();
+  let count = 0;
+  for (const [set, entries] of Object.entries(KEY_SETS)) {
+    for (const entry of entries) {
+      await runEngineKey(ctx, set, entry);
+      count += 1;
+    }
+  }
+  await ctx.closeAbout();
+  const shotPath = screenshotPath.replace(/\.png$/, '-engine-keys.png');
+  await page.screenshot({ path: shotPath });
+  console.log(`engine keys:   ${count} key(s) of ${Object.keys(KEY_SETS).length} set(s) passed; screenshot ${shotPath}`);
 }
 
 /* ---------------------------------------------------------------------------------------- */
@@ -1201,9 +1491,18 @@ try {
     !checkClose &&
     !checkSaveAs &&
     !tableLayoutWidth &&
-    !checkTableMarks
+    !checkTableMarks &&
+    !checkEngineKeys
   ) {
     await checkStatusBarSetting(page);
+  }
+
+  // The browser engine's own keys pass one gate (feature 007): real X keys, real outcomes.
+  if (checkEngineKeys) {
+    if (!openFile) {
+      throw new Error('MFBE_SMOKE_ENGINE_KEYS needs MFBE_SMOKE_OPEN_FILE (the book to edit and save)');
+    }
+    await checkEngineKeysScenario(page);
   }
 
   // The native GTK Save dialog with the proposed and a typed Cyrillic name (feature 004 US6).

@@ -2,7 +2,7 @@
  * Drag-and-drop of image files onto the Body editor (T093, FR-038): document-level
  * `dragover` / `drop` handlers (capture phase, scoped to the mounted editor's DOM so no change
  * to the Body view is needed). The caret moves to the drop position, every dropped image file
- * is uploaded with `POST /binary/{docId}` and inserted as an image node (inline where the
+ * is uploaded through the core's upload route (`binaryUploadUrl`) and inserted as an image node (inline where the
  * paragraph allows it, otherwise block / section image). While a file drag hovers the editor
  * the `mfbe-drop-target` class is set on it for visual feedback. Feature 006 (US3, FR-025): the
  * handlers act on the active editing target (`imageTargetFor`), so files dropped on a table

@@ -6,11 +6,15 @@
 // browser), OS drag-and-drop of documents onto the window (opened through app.openPaths;
 // images and other files reach the page as HTML5 drops), the right-click menu (a text box's
 // edit menu, nothing elsewhere: context_menu.h), permission requests (the clipboard for the
-// editor's page, nothing else: permission_policy.h) and F12 -> DevTools in development builds.
+// editor's page, nothing else: permission_policy.h), and (feature 007, engine_commands.h) the
+// gate every Chrome command passes - keys, mouse buttons and menus alike - and the navigation
+// guard that keeps the editor's page loaded once; the developer tools follow the gate.
 #pragma once
 
 #include "close_handshake.h"
+#include "engine_commands.h"
 #include "include/cef_client.h"
+#include "include/cef_command_handler.h"
 
 #include <functional>
 #include <list>
@@ -24,18 +28,20 @@ class CoreHost;
 class NativeDialogs;
 
 class MfbeClient : public CefClient,
+                   public CefCommandHandler,
                    public CefContextMenuHandler,
                    public CefDisplayHandler,
                    public CefDragHandler,
                    public CefLifeSpanHandler,
                    public CefLoadHandler,
                    public CefPermissionHandler,
-                   public CefRequestHandler,
-                   public CefKeyboardHandler {
+                   public CefRequestHandler {
 public:
     struct Config {
-        std::string app_origin;         // "http://127.0.0.1:<port>" - the only navigable origin
-        bool devtools_enabled = false;  // F12 opens DevTools
+        std::string app_origin;  // "http://127.0.0.1:<port>" - the only navigable origin
+        // A developer run (MFBE_SHELL_DEVTOOLS builds, --remote-debugging-port): the developer
+        // tools' commands pass the engine command gate (contracts/shell.md §5 of feature 007).
+        bool devtools_enabled = false;
         // Receives the absolute paths of .fb2/.fbd/.xml files dragged onto the window.
         std::function<void(const std::vector<std::string>&)> open_paths;
         // Close handshake (feature 003 FR-013): asks the UI to close through the core
@@ -57,6 +63,7 @@ public:
     static MfbeClient* GetInstance();
 
     // CefClient methods:
+    CefRefPtr<CefCommandHandler> GetCommandHandler() override { return this; }
     CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
     CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
     CefRefPtr<CefDragHandler> GetDragHandler() override { return this; }
@@ -64,7 +71,10 @@ public:
     CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
     CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
     CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
-    CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
+
+    // CefCommandHandler methods: the engine command gate (engine_commands.h) - true blocks.
+    bool OnChromeCommand(CefRefPtr<CefBrowser> browser, int command_id,
+                         cef_window_open_disposition_t disposition) override;
 
     // CefContextMenuHandler methods:
     void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
@@ -94,6 +104,8 @@ public:
     void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
 
     // CefLoadHandler methods:
+    void OnLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+                     TransitionType transition_type) override;
     void OnLoadError(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, ErrorCode error_code,
                      const CefString& error_text, const CefString& failed_url) override;
 
@@ -110,10 +122,6 @@ public:
                           const CefString& target_url,
                           cef_window_open_disposition_t target_disposition,
                           bool user_gesture) override;
-
-    // CefKeyboardHandler methods:
-    bool OnPreKeyEvent(CefRefPtr<CefBrowser> browser, const CefKeyEvent& event,
-                       CefEventHandle os_event, bool* is_keyboard_shortcut) override;
 
     // Brings the main window to the front (any thread).
     void ShowMainWindow();
@@ -133,7 +141,7 @@ public:
     bool IsClosing() const { return is_closing_; }
 
     // True when `url` may be loaded in the shell window (loopback origin, about:/data:,
-    // DevTools). Exposed for tests.
+    // DevTools) - the navigation guard's rule before the editor's page has loaded.
     bool IsAllowedUrl(const std::string& url) const;
 
 private:
@@ -150,6 +158,10 @@ private:
 
     const Config config_;
     std::shared_ptr<NativeDialogs> dialogs_;
+    // The engine command gate's id map (built once from the running engine) and the
+    // navigation guard (feature 007); CEF UI thread.
+    const EngineCommandNames command_names_;
+    NavigationGuard navigation_guard_;
 
     // Existing browsers (main window + DevTools); only accessed on the CEF UI thread.
     std::list<CefRefPtr<CefBrowser>> browser_list_;

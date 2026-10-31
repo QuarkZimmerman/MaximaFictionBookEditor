@@ -1,7 +1,8 @@
 {
   "names": {
-    "en": "Subtitles, empty lines",
-    "ru": "Подзаголовки, пустые строки"
+    "en": "Titles, subtitles, empty lines",
+    "ru": "Заголовки, подзаголовки, пустые строки",
+    "uk": "Заголовки, підзаголовки, порожні рядки"
   },
   "icon": "icon.png"
 }

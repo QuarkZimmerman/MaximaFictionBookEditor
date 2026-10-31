@@ -17,6 +17,16 @@ fallback, flagged as a draft) and writes under ``tests/scripts/audit/``:
 * ``skeletons/<group>/group.json``           – group names (Russian + drafted English)
 
 Usage: ``python3 tools/legacy-script-audit.py [--source DIR] [--out DIR] [--no-skeletons]``.
+
+Feature 007 (FictionBook Editor 2.7.9): ``--recheck [--source 2.7.9/files] [--baseline
+2.7beta1/files]`` pairs every converted package's original with its 2.7.9 successor (the same
+name first, else the most similar code; the review's ``pairing-overrides-279.json`` wins),
+classifies each change (identical / small < 5 % / moderate < 30 % / major, code without comments
+and layout) and writes ``inventory-279.json`` (one entry per 2.7.9 script and per package without
+a successor; the fields recorded by hand survive a regeneration), ``recheck-279.json``,
+``authors-279.txt`` and ``skeletons-279/`` (group names and icons, a starting package per new
+script with its 16 x 16 icon). ``--diff <package>`` prints a pair's diff; ``--self-test`` checks
+the pairing on five known pairs.
 Pure standard library (no PIL): the ICO → PNG conversion decodes the BMP/DIB images itself.
 Developer tooling only - never shipped.
 """
@@ -798,12 +808,572 @@ def write_outputs(entries: list[ScriptEntry], problems: list[str], source: Path,
     print(f"skeletons: {len(entries)} packages, {icons_ok} icons converted -> {root}")
 
 
+# --------------------------------------------------------------------------------------------
+# FictionBook Editor 2.7.9: pairing, recheck and inventory (feature 007, T018; data-model §7.4)
+# --------------------------------------------------------------------------------------------
+
+DEFAULT_SOURCE_279 = Path.home() / "maxfbeditor" / "reference" / "fictionbookeditor-2.7.9" / "files"
+INVENTORY = "inventory-279.json"
+RECHECK = "recheck-279.json"
+AUTHORS = "authors-279.txt"
+SKELETONS_279 = "skeletons-279"
+# Manual pairing decisions of the review (T019): "<2.7beta1 path>": "<2.7.9 path>" | null. They
+# beat the computed pairing, so a regenerated inventory keeps them.
+OVERRIDES = "pairing-overrides-279.json"
+
+# The bundled package folder of each 2.7.9 group (data-model §7.5): English slugs; 20_debug is
+# 95_programmers since feature 007 (the 2.7.9 group "Для программистов").
+GROUP_FOLDERS_279: dict[int, str] = {
+    1: "01_case", 2: "02_footnotes", 3: "03_comments", 4: "04_notes-from-brackets",
+    5: "05_images", 6: "06_cleanup", 7: "07_symbols", 8: "08_sections", 9: "09_poems",
+    10: "10_statistics", 11: "11_image-captions", 12: "12_quotes", 13: "13_subtitles",
+    14: "14_citations", 16: "16_find-formatting", 17: "17_notes-to-brackets", 18: "18_editing",
+    19: "19_formatting", 21: "21_search-replace", 22: "22_description", 30: "30_numbering",
+    31: "31_automation", 32: "32_note-markers", 34: "34_caret-selection", 37: "37_epigraphs",
+    40: "40_tables", 95: "95_programmers", 99: "99_misc",
+}
+
+# The capability scan of research R6.3: what a script needs beyond script API version 1.
+CAPABILITIES: dict[str, str] = {
+    "clipboardWrite": r"clipboardData\.setData",
+    "clipboardRead": r"clipboardData\.getData",
+    "files": r"FileSystemObject|\.SaveBinary\s*\(|OpenTextFile|CreateTextFile|ADODB\.Stream",
+    "reportWindow": r"window\.open\s*\(",
+    "otherScripts": r"\brunScript(?:InFolder)?\s*\(",
+    "htmlDialog": r"showModa(?:l|less)Dialog\s*\(",
+    "sendKeys": r"\bSendKeys\b",
+    "externalProgram": r"WScript\.Shell|Shell\.Application|ShellExecute",
+    "web": r"XMLHTTP|InternetExplorer\.Application",
+    "timers": r"\bsetTimeout\s*\(|\bsetInterval\s*\(",
+    "eval": r"\beval\s*\(",
+}
+
+VERSION_PATTERNS = [
+    r"NumerusVersion\s*=\s*[\"']([^\"']+)[\"']",
+    r"(?i)верси[яи]\s*[:№]?\s*v?\.?\s*([0-9]+(?:\.[0-9]+)*)",
+    r"(?i)\bver(?:sion)?\.?\s*:?\s*([0-9]+(?:\.[0-9]+)+)",
+    r"\bv\.?\s?([0-9]+(?:\.[0-9]+)+)\b",
+]
+AUTHOR_RE = re.compile(
+    r"(?i)(?:автор(?:ы|ом|ством)?(?:\s+(?:скрипта|сборки))?|author|написал|engine by|by|©)"
+    r"\s*[:\-—–]?\s*©?\s*([A-Za-zА-Яа-яЁё][\w\-]{2,}(?:\s[A-ZА-Я][a-zа-я]+)?)"
+)
+AUTHOR_STOP = {"скрипта", "сборки", "the", "this", "default", "name", "first", "last", "fb2",
+               "имени", "имя", "author", "authors", "info", "стиха", "файла", "книги"}
+
+
+@dataclass
+class Original:
+    rel: str  # "01_Регистр/01_В верхний регистр.js", "29_Режим чтения.js", "TreeCmd/Пример 1.js"
+    path: Path
+    text: str
+    encoding: str
+    sha256: str
+    lines: list[str]
+    grams: set
+    key: str
+    group: str  # the group folder, "" at the top level, "TreeCmd" for tree commands
+
+
+def code_lines(text: str) -> list[str]:
+    """The code of a script without comments, one entry per non-empty line, spaces collapsed:
+    what the recheck compares (a comment or layout change is no change)."""
+    code = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    code = re.sub(r"(?<![:\\])//[^\n]*", " ", code)
+    out = []
+    for line in code.splitlines():
+        line = re.sub(r"\s+", " ", line).strip()
+        if line:
+            out.append(line)
+    return out
+
+
+def token_grams(lines: list[str]) -> set:
+    tokens = re.findall(r"\w+|[^\s\w]", " ".join(lines))
+    return {tuple(tokens[i : i + 4]) for i in range(max(0, len(tokens) - 3))}
+
+
+def name_key(rel: str) -> str:
+    stem = Path(rel).name
+    stem = stem[:-3] if stem.lower().endswith(".js") else stem
+    stem = re.sub(r"^\d+_", "", stem)
+    stem = re.sub(r"[\s.…]+$", "", stem).replace("ё", "е").replace("Ё", "Е")
+    return stem.lower()
+
+
+def similarity(a: Original, b: Original) -> float:
+    if not a.grams or not b.grams:
+        return 1.0 if a.lines == b.lines else 0.0
+    return len(a.grams & b.grams) / len(a.grams | b.grams)
+
+
+def load_originals(files: Path) -> dict[str, Original]:
+    import hashlib
+
+    out: dict[str, Original] = {}
+    scripts_dir = files / "Scripts"
+    paths = [(p, p.relative_to(scripts_dir).as_posix()) for p in sorted(scripts_dir.rglob("*.js"))]
+    paths += [(p, f"TreeCmd/{p.name}") for p in sorted((files / "TreeCmd").glob("*.js"))]
+    for path, rel in paths:
+        data = path.read_bytes()
+        text, encoding = decode_text(data)
+        lines = code_lines(text)
+        group = rel.split("/")[0] if "/" in rel else ""
+        out[rel] = Original(rel, path, text, encoding, hashlib.sha256(data).hexdigest(), lines,
+                            token_grams(lines), name_key(rel), group)
+    return out
+
+
+def header_version(text: str) -> str | None:
+    head = text[:8000]
+    for pattern in VERSION_PATTERNS:
+        match = re.search(pattern, head)
+        if match:
+            return match.group(1).strip().rstrip(".")
+    return None
+
+
+def capabilities(text: str) -> list[str]:
+    code = "\n".join(code_lines(text))
+    return [name for name, pattern in CAPABILITIES.items() if re.search(pattern, code)]
+
+
+def author_candidates(text: str) -> list[str]:
+    names = []
+    for line in text[:8000].splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("//") and not stripped.startswith("*"):
+            continue
+        for match in AUTHOR_RE.finditer(stripped):
+            name = match.group(1).strip(" .,;")
+            if name.lower() not in AUTHOR_STOP and not name.isdigit():
+                names.append(name)
+    return names
+
+
+def our_packages(repo: Path) -> list[dict]:
+    """Every bundled package: its folder, id, names and legacy reference."""
+    out = []
+    for manifest in sorted((repo / "scripts").glob("*/*/script.json")):
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        legacy = data.get("legacy") or {}
+        out.append({
+            "package": manifest.parent.relative_to(repo).as_posix(),
+            "id": data.get("id") or f"{manifest.parent.parent.name}/{manifest.parent.name}",
+            "source": legacy.get("source"),
+            "fbeVersion": legacy.get("fbeVersion"),
+            "name": data.get("name", {}),
+        })
+    return out
+
+
+def diff_class(old: Original, new: Original) -> dict:
+    import difflib
+
+    matcher = difflib.SequenceMatcher(None, old.lines, new.lines, autojunk=False)
+    changed = sum(max(i2 - i1, j2 - j1) for tag, i1, i2, j1, j2 in matcher.get_opcodes() if tag != "equal")
+    percent = changed / max(1, max(len(old.lines), len(new.lines)))
+    if changed == 0:
+        cls = "identical"
+    elif percent < 0.05:
+        cls = "small"
+    elif percent < 0.30:
+        cls = "moderate"
+    else:
+        cls = "major"
+    return {"class": cls, "changedLines": changed, "percent": round(percent * 100, 1)}
+
+
+def pair_successors(old: dict[str, Original], new: dict[str, Original],
+                    overrides: dict[str, str | None]) -> dict[str, dict]:
+    """The 2.7.9 successor of every 2.7beta1 script: the same name first (in any group: a
+    moved script keeps its name), else the most similar code (a renamed script keeps most of
+    it; 4-gram Jaccard similarity at least 0.3), else none. The review's overrides win."""
+    pairs: dict[str, dict] = {}
+    for rel, script in old.items():
+        if rel in overrides:
+            target = overrides[rel]
+            if target is not None and target not in new:
+                raise SystemExit(f"{OVERRIDES}: {rel} -> {target}: no such 2.7.9 script")
+            pairs[rel] = {"successor": target, "method": "review",
+                          "similarity": round(similarity(script, new[target]), 3) if target else 0.0}
+            continue
+        same_name = [n for n in new.values() if n.key == script.key]
+        if same_name:
+            best = max(same_name, key=lambda n: similarity(script, n))
+            pairs[rel] = {"successor": best.rel, "method": "name",
+                          "similarity": round(similarity(script, best), 3)}
+            continue
+        scores = {n.rel: similarity(script, n) for n in new.values()}
+        top = max(scores.values())
+        if top < 0.30:
+            pairs[rel] = {"successor": None, "method": "none", "similarity": round(top, 3)}
+            continue
+        # Siblings often share nearly all their code (the variants of "add a note"): among the
+        # close candidates the name decides - its words' stems, then the same position.
+        close = [n for n in new.values() if scores[n.rel] >= max(0.30, top - 0.15)]
+        best = max(close, key=lambda n: (name_overlap(script, n) + same_position(script, n) * 0.05
+                                         + scores[n.rel]))
+        pairs[rel] = {"successor": best.rel, "method": "code", "similarity": round(scores[best.rel], 3)}
+    return pairs
+
+
+def name_stems(rel: str) -> set[str]:
+    return {word[:4] for word in re.findall(r"\w+", name_key(rel)) if len(word) > 2}
+
+
+def name_overlap(a: Original, b: Original) -> float:
+    sa, sb = name_stems(a.rel), name_stems(b.rel)
+    return len(sa & sb) / max(1, len(sa | sb))
+
+
+def same_position(a: Original, b: Original) -> bool:
+    order_a, _ = split_order(Path(a.rel).stem)
+    order_b, _ = split_order(Path(b.rel).stem)
+    return order_a is not None and order_a == order_b
+
+
+def suggested_package(rel: str) -> tuple[str | None, str | None, dict]:
+    """The package folder and id a new 2.7.9 script would get (conversion rule 2), with drafted
+    names: scripts/<group folder>/<NN>_<english slug>, id <group NN>/<slug>."""
+    parts = rel.split("/")
+    order, name_ru = split_order(Path(parts[-1]).stem)
+    name_ru = re.sub(r"[\s.…]+$", "", name_ru)
+    name_en, _draft = draft_english(name_ru)
+    script_slug = slug(name_en)[:48].strip("-") or "script"
+    if len(parts) == 1:
+        return None, None, {"ru": name_ru, "en": name_en}
+    group_order, _ = split_order(parts[0])
+    if parts[0] == "TreeCmd" or group_order not in GROUP_FOLDERS_279:
+        return None, None, {"ru": name_ru, "en": name_en}
+    folder = GROUP_FOLDERS_279[group_order]
+    prefix = f"{order:02d}_" if order is not None else ""
+    return (f"scripts/{folder}/{prefix}{script_slug}", f"{group_order:02d}/{script_slug}",
+            {"ru": name_ru, "en": name_en})
+
+
+def recheck(source: Path, baseline: Path, out: Path, repo: Path, skeletons: bool) -> int:
+    new = load_originals(source)
+    old = load_originals(baseline)
+    overrides_path = out / OVERRIDES
+    overrides = json.loads(overrides_path.read_text(encoding="utf-8")) if overrides_path.exists() else {}
+    overrides = {k: v for k, v in overrides.items() if not k.startswith("_")}
+    pairs = pair_successors(old, new, overrides)
+    packages = our_packages(repo)
+    # A package names the original it was converted from: a 2.7beta1 script, or - once
+    # converted or updated from 2.7.9 - a 2.7.9 one.
+    by_new = {p["source"]: p for p in packages if p["source"] and p["fbeVersion"] == "2.7.9"}
+    by_source = {p["source"]: p for p in packages if p["source"] and p["fbeVersion"] != "2.7.9"}
+    for rel, pair in pairs.items():
+        successor = pair["successor"]
+        if rel not in by_source and successor in by_new and successor not in {
+            pairs[r]["successor"] for r in by_source
+        }:
+            by_source[rel] = by_new[successor]  # updated to its 2.7.9 version already
+    converted = {rel for rel in old if rel in by_source}
+    dropped = sorted(rel for rel in old if rel not in by_source)
+
+    # Converted predecessors of each 2.7.9 script; the most similar one is its predecessor, the
+    # others are merged into it (2.7.9 kept one of them).
+    predecessors: dict[str, list[str]] = {}
+    for rel in sorted(converted):
+        successor = pairs[rel]["successor"]
+        if successor:
+            predecessors.setdefault(successor, []).append(rel)
+    for successor, rels in predecessors.items():
+        rels.sort(key=lambda r: -similarity(old[r], new[successor]))
+    dropped_successors = {pairs[r]["successor"]: r for r in dropped if pairs[r]["successor"]}
+
+    entries: list[dict] = []
+    recheck_rows: list[dict] = []
+    authors: dict[str, list[str]] = {}
+    for rel, script in new.items():
+        package_dir, package_id, names = suggested_package(rel)
+        entry = {
+            "source": rel,
+            "fbeVersion": "2.7.9",
+            "sourceVersion": header_version(script.text),
+            "sha256": script.sha256,
+            "group": script.group,
+            "names": names,
+            "icon": (script.path.with_suffix(".ico")).exists(),
+            "encoding": script.encoding,
+            "capabilities": capabilities(script.text),
+            "htmlDialogs": sorted({m.group(1) for m in HTML_REF_RE.finditer(script.text)}),
+            "package": None,
+            "id": None,
+            "status": "new",
+            "predecessor": None,
+            "differences": [],
+            "fixes": [],
+            "openQuestions": [],
+        }
+        for name in author_candidates(script.text):
+            authors.setdefault(name, []).append(rel)
+        if rel in predecessors:
+            first = predecessors[rel][0]
+            package = by_source[first]
+            stats = diff_class(old[first], script)
+            entry.update({
+                "package": package["package"], "id": package["id"], "predecessor": first,
+                "status": "unchanged" if stats["class"] == "identical" else "recheck",
+                "recheck": stats,
+            })
+            recheck_rows.append({"package": package["package"], "id": package["id"],
+                                 "predecessor": first, "successor": rel,
+                                 "method": pairs[first]["method"],
+                                 "similarity": pairs[first]["similarity"], **stats})
+        elif rel in dropped_successors:
+            entry.update({
+                "status": "notConverted", "predecessor": dropped_successors[rel],
+                "reason": "dropped in the conversion of 2.7beta1; to be re-examined under "
+                          "FR-024 with script API version 2 (T069)",
+            })
+        elif rel in by_new:
+            entry.update({"package": by_new[rel]["package"], "id": by_new[rel]["id"]})
+        else:
+            entry.update({"suggestedPackage": package_dir, "suggestedId": package_id})
+        entries.append(entry)
+    # Converted packages whose script has no 2.7.9 successor of its own: removed in 2.7.9, or
+    # merged into a successor another package already represents.
+    for rel in sorted(converted):
+        successor = pairs[rel]["successor"]
+        if successor and predecessors.get(successor, [None])[0] == rel:
+            continue
+        package = by_source[rel]
+        entry = {
+            "source": rel, "fbeVersion": "2.7", "sourceVersion": header_version(old[rel].text),
+            "sha256": old[rel].sha256, "group": old[rel].group, "names": package["name"],
+            "package": package["package"], "id": package["id"], "status": "noCounterpart",
+            "predecessor": None, "differences": [], "fixes": [], "openQuestions": [],
+        }
+        if successor:
+            entry["mergedInto"] = successor
+        entries.append(entry)
+        recheck_rows.append({"package": package["package"], "id": package["id"],
+                             "predecessor": rel, "successor": successor,
+                             "method": pairs[rel]["method"],
+                             "similarity": pairs[rel]["similarity"],
+                             "class": "merged" if successor else "noCounterpart"})
+
+    counts: dict[str, int] = {}
+    for entry in entries:
+        counts[entry["status"]] = counts.get(entry["status"], 0) + 1
+    summary = {
+        "scripts279": len(new),
+        "new": counts.get("new", 0),
+        "successors": counts.get("unchanged", 0) + counts.get("recheck", 0),
+        "successorsOfDropped": len(dropped_successors),
+        "noCounterpart": counts.get("noCounterpart", 0),
+        "byStatus": dict(sorted(counts.items())),
+        "recheckClasses": {cls: sum(1 for r in recheck_rows if r.get("class") == cls)
+                           for cls in ("identical", "small", "moderate", "major", "merged", "noCounterpart")},
+    }
+    out.mkdir(parents=True, exist_ok=True)
+    inventory = {
+        "_about": "One entry per FictionBook Editor 2.7.9 script and per converted package without "
+                  "a 2.7.9 successor (data-model §7.4 of feature 007). Written by "
+                  "tools/legacy-script-audit.py --recheck, completed by hand during the "
+                  "conversion; read by tests/scripts/run-all.mjs and "
+                  "tools/release-notes-scripts.py. Status 'recheck' marks a converted package "
+                  "whose 2.7.9 successor differs and is not rechecked yet (US4 turns it into "
+                  "updated, unchanged or kept).",
+        "counts": summary,
+        "entries": entries,
+    }
+    inventory_path = out / INVENTORY
+    if inventory_path.exists():
+        merge_manual_fields(inventory, json.loads(inventory_path.read_text(encoding="utf-8")))
+    inventory_path.write_text(json.dumps(inventory, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (out / RECHECK).write_text(json.dumps({
+        "_about": "The pairing of each converted package with its FictionBook Editor 2.7.9 "
+                  "successor and the class of the change (code without comments and layout; "
+                  "small < 5 % of the lines, moderate < 30 %, major otherwise). "
+                  "tools/legacy-script-audit.py --diff <package> prints a pair's diff.",
+        "dropped2_7beta1": [{"source": r, "successor": pairs[r]["successor"]} for r in dropped],
+        "pairs": recheck_rows,
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    lines = ["# Author names found in the headers of the FictionBook Editor 2.7.9 scripts",
+             "# (tools/legacy-script-audit.py --recheck): candidates for CONTRIBUTORS.txt, to be",
+             "# reviewed by hand. <name> <TAB> <scripts> <TAB> <first script>"]
+    for name, rels in sorted(authors.items(), key=lambda item: (-len(item[1]), item[0].lower())):
+        lines.append(f"{name}\t{len(rels)}\t{rels[0]}")
+    (out / AUTHORS).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if skeletons:
+        write_skeletons_279(source, new, entries, out / SKELETONS_279)
+    print(json.dumps(summary, ensure_ascii=False))
+    return 0
+
+
+# The statuses the tool itself decides; every other status was recorded by hand.
+GENERATED_STATUSES = {"new", "recheck", "unchanged", "notConverted", "noCounterpart"}
+
+
+def merge_manual_fields(fresh: dict, previous: dict) -> None:
+    """Keeps what the conversion recorded by hand for every entry the regenerated inventory still
+    has: the differences, fixes, open questions, reasons and notes, a status the tool does not
+    decide (updated, kept) or a reason given for one it does, and a package the scan no longer
+    finds. The scan's own findings - the packages it finds, its verdicts - are always fresh."""
+    earlier = {(e["source"], e["fbeVersion"]): e for e in previous.get("entries", [])}
+    for entry in fresh["entries"]:
+        before = earlier.get((entry["source"], entry["fbeVersion"]))
+        if not before:
+            continue
+        for key in ("differences", "fixes", "openQuestions", "reason", "needs", "notes"):
+            if before.get(key):
+                entry[key] = before[key]
+        if before.get("status") not in GENERATED_STATUSES:
+            entry["status"] = before["status"]
+        if before.get("status") == "notConverted" and before.get("needs"):
+            entry["status"] = "notConverted"
+        if not entry.get("package") and before.get("package"):
+            entry["package"], entry["id"] = before["package"], before.get("id")
+
+
+def write_skeletons_279(source: Path, new: dict[str, Original], entries: list[dict], root: Path) -> None:
+    """Starting points for the conversion of the new 2.7.9 scripts: per group its names and
+    16 x 16 icon, per new script a script.json with legacy and drafted names, an index.js
+    quoting the original's header and the original's icon as icon.png."""
+    import shutil
+
+    if root.exists():
+        shutil.rmtree(root)
+    icons = 0
+    scripts_dir = source / "Scripts"
+    for group_icon in sorted(scripts_dir.glob("*.ico")):
+        group = group_icon.stem
+        order, name_ru = split_order(group)
+        folder = GROUP_FOLDERS_279.get(order or -1, slug(name_ru))
+        group_dir = root / folder
+        group_dir.mkdir(parents=True, exist_ok=True)
+        (group_dir / "group.json").write_text(json.dumps(
+            {"names": {"ru": name_ru, "en": draft_english(name_ru)[0], "uk": ""},
+             "icon": "icon.png", "legacy": group}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8")
+        png = ico_to_png(group_icon.read_bytes())
+        if png:
+            (group_dir / "icon.png").write_bytes(png)
+            icons += 1
+    for entry in entries:
+        if entry["fbeVersion"] != "2.7.9" or entry["status"] != "new" or not entry.get("suggestedPackage"):
+            continue
+        script = new[entry["source"]]
+        target = root / entry["suggestedPackage"].split("/", 1)[1]
+        target.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "manifestVersion": 1,
+            "id": entry["suggestedId"],
+            "name": {"ru": entry["names"]["ru"], "en": entry["names"]["en"], "uk": ""},
+            "description": {"ru": "", "en": "", "uk": ""},
+            "kind": "menu",
+            "undoLabel": {"ru": entry["names"]["ru"], "en": entry["names"]["en"]},
+            "legacy": {"source": entry["source"], "fbeVersion": "2.7.9",
+                       **({"sourceVersion": entry["sourceVersion"]} if entry["sourceVersion"] else {})},
+        }
+        icon = script.path.with_suffix(".ico")
+        if icon.exists():
+            png = ico_to_png(icon.read_bytes())
+            if png:
+                (target / "icon.png").write_bytes(png)
+                manifest["icon"] = "icon.png"
+                icons += 1
+        (target / "script.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        header = "\n".join(line for line in script.text.splitlines()[:30] if line.strip().startswith("//"))
+        (target / "index.js").write_text(
+            f"// Converted from FictionBook Editor 2.7.9: Scripts/{entry['source']}\n"
+            "// The original's notice, kept as written (FR-029):\n"
+            f"{header}\n\nexport default async function run(ctx) {{\n  // TODO: convert\n}}\n",
+            encoding="utf-8")
+    print(f"skeletons-279: {icons} icons converted -> {root}")
+
+
+def print_diff(target: str, source: Path, baseline: Path, out: Path) -> int:
+    """The diff between a converted package's 2.7beta1 original and its 2.7.9 successor."""
+    import difflib
+
+    report = json.loads((out / RECHECK).read_text(encoding="utf-8"))
+    for row in report["pairs"]:
+        if target in (row["package"], row["id"], row["predecessor"], row.get("successor")):
+            if not row.get("successor"):
+                print(f"{row['package']}: no 2.7.9 successor ({row['class']})")
+                return 0
+            old_path = (baseline / "Scripts" / row["predecessor"]) if not row["predecessor"].startswith("TreeCmd/") else baseline / row["predecessor"]
+            new_path = (source / "Scripts" / row["successor"]) if not row["successor"].startswith("TreeCmd/") else source / row["successor"]
+            old_text = decode_text(old_path.read_bytes())[0].splitlines()
+            new_text = decode_text(new_path.read_bytes())[0].splitlines()
+            sys.stdout.writelines(line + "\n" for line in difflib.unified_diff(
+                old_text, new_text, f"2.7beta1/{row['predecessor']}", f"2.7.9/{row['successor']}",
+                lineterm=""))
+            return 0
+    print(f"legacy-script-audit: no pair for {target} in {out / RECHECK}", file=sys.stderr)
+    return 1
+
+
+# Five pairs the pairing must find (T018): renames across a renamed group among siblings that
+# share their code, a rename in place, and unchanged names.
+SELF_TEST_PAIRS = {
+    "02_Добавление примечания/01_Добавить сноску, оставшись на ее ссылке.js":
+        "02_Примечания/01_Добавить примечание, остаться на его ссылке.js",
+    "02_Добавление примечания/05_Добавить последнюю сноску, оставшись на ее ссылке.js":
+        "02_Примечания/04_Добавить последнее примечание, остаться на его ссылке.js",
+    "01_Регистр/01_Верхний регистр.js": "01_Регистр/01_В верхний регистр.js",
+    "06_Чистка/03_Латиница в Кириллице.js": "06_Чистка/03_Латиница в Кириллице.js",
+    "TreeCmd/Пример 1.js": "TreeCmd/Пример 1.js",
+}
+
+
+def self_test(source: Path, baseline: Path) -> int:
+    new = load_originals(source)
+    old = load_originals(baseline)
+    failures = 0
+    for before, expected in SELF_TEST_PAIRS.items():
+        if before not in old:
+            print(f"self-test: {before} is not a 2.7beta1 script", file=sys.stderr)
+            failures += 1
+            continue
+        got = pair_successors({before: old[before]}, new, {})[before]
+        status = "ok" if got["successor"] == expected else "FAIL"
+        if status == "FAIL":
+            failures += 1
+        print(f"self-test: {status} {before} -> {got['successor']} ({got['method']}, {got['similarity']})")
+    assert name_key("01_Регистр/08_Регистр заголовков и подзаголовков....js") == "регистр заголовков и подзаголовков"
+    assert header_version('var NumerusVersion="1.4";') == "1.4"
+    assert header_version("// Версия 1.3 (август 2025), автор: stokber") == "1.3"
+    assert code_lines("a = 1; // note\n/* block */ b = 'http://x'\n") == ["a = 1;", "b = 'http://x'"]
+    return 1 if failures else 0
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE, help="FBE/files folder (contains Scripts/ and TreeCmd/)")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT, help="output folder (default tests/scripts/audit)")
     parser.add_argument("--no-skeletons", action="store_true", help="only write the plan and the summary")
+    parser.add_argument("--recheck", action="store_true",
+                        help="feature 007: pair the converted packages with the scripts of --source "
+                             "(FictionBook Editor 2.7.9), classify the changes, write "
+                             f"{INVENTORY}, {RECHECK}, {AUTHORS} and {SKELETONS_279}/")
+    parser.add_argument("--baseline", type=Path,
+                        default=DEFAULT_SOURCE,
+                        help="with --recheck: the files folder of the release the packages were "
+                             "converted from (2.7beta1)")
+    parser.add_argument("--diff", metavar="PACKAGE",
+                        help="with the recheck report: print the diff of a package's original "
+                             "and its 2.7.9 successor (package folder, id or source path)")
+    parser.add_argument("--self-test", action="store_true",
+                        help="check the pairing on five known pairs (needs both reference trees)")
     args = parser.parse_args(argv)
+    if args.recheck or args.diff or args.self_test:
+        if args.source == DEFAULT_SOURCE:
+            args.source = DEFAULT_SOURCE_279
+        for folder in (args.source, args.baseline):
+            if not (folder / "Scripts").is_dir():
+                print(f"legacy-script-audit: {folder / 'Scripts'} not found", file=sys.stderr)
+                return 2
+        if args.self_test:
+            return self_test(args.source, args.baseline)
+        if args.diff:
+            return print_diff(args.diff, args.source, args.baseline, args.out)
+        return recheck(args.source, args.baseline, args.out, REPO_ROOT, not args.no_skeletons)
     if not (args.source / "Scripts").is_dir():
         print(f"legacy-script-audit: {args.source / 'Scripts'} not found", file=sys.stderr)
         return 2

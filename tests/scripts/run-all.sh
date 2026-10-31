@@ -11,4 +11,6 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$here/../.."
-exec node tests/scripts/run-all.mjs "$@"
+# Feature 007: bundled packages and groups without Ukrainian names and descriptions are reported,
+# not failed, until the recheck of its US4 has given every one of them (T089 removes the flag).
+exec node tests/scripts/run-all.mjs --allow-missing-uk "$@"

@@ -1,10 +1,12 @@
-// Maxima Fiction Book Editor - public typings of the user script API (`mfbe`), version 1.
-// Copy of specs/001-maxima-fb2-editor/contracts/script-api.d.ts (the complete allow-list) with
-// this header; the contract is the source of truth - update it first, then this file.
+// Maxima Fiction Book Editor - public typings of the user script API (`mfbe`), version 2.
+// Copy of specs/001-maxima-fb2-editor/contracts/script-api.d.ts (the complete allow-list), as
+// amended by specs/007-fourth-feedback-batch/contracts/script-api.md (version 1 -> 2, additive:
+// a version-1 script runs unchanged), with this header; the contracts are the source of truth -
+// update them first, then this file.
 // Usage in a script project: /// <reference path="./mfbe.d.ts" /> (or add it to tsconfig "files").
 
 /**
- * Maxima Fiction Book Editor — User Script API (`mfbe`), version 1.
+ * Maxima Fiction Book Editor — User Script API (`mfbe`), version 2.
  *
  * THIS FILE IS THE COMPLETE ALLOW-LIST. A script running in the editor can use
  * the JavaScript language, the standard built-ins (String, RegExp, Array, Map,
@@ -37,6 +39,13 @@ declare namespace mfbe {
     readonly uiLanguage: string;
     /** For kind === 'tree': the node the user right-clicked in the Document Tree. */
     readonly treeNode?: NodeRef;
+    /**
+     * Version 2: who started this run - a menu, toolbar, hotkey or tree command ('user'), the AI
+     * assistant ('assistant'), or another script through mfbe.scripts.run ('script').
+     */
+    readonly startedBy: 'user' | 'assistant' | 'script';
+    /** Version 2: the calling script's id when startedBy is 'script'. */
+    readonly caller?: string;
     /** True when the user asked to cancel; long loops should check it. */
     readonly cancelled: boolean;
   }
@@ -218,7 +227,7 @@ declare namespace mfbe {
   const ui: UI;
   const edit: Edit;
   const env: Env;
-  const version: 1;
+  const version: 2;
 }
 
 export = mfbe;

@@ -1,3 +1,7 @@
 {
-  "names": { "en": "Quotation marks", "ru": "Обработка кавычек" }
+  "names": {
+    "en": "Quotation marks",
+    "ru": "Обработка кавычек",
+    "uk": "Обробка лапок"
+  }
 }

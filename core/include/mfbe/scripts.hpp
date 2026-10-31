@@ -39,8 +39,9 @@ namespace mfbe::scripts {
 using Names = std::map<std::string, std::string>;  // language -> text ("en" always present)
 
 struct LegacyInfo {
-    std::string source;      // path of the original FBE script, e.g. "01_Регистр/01_….js"
-    std::string fbeVersion;  // optional
+    std::string source;         // path of the original FBE script, e.g. "01_Регистр/01_….js"
+    std::string fbeVersion;     // optional: "2.7" (2.7beta1) or "2.7.9"
+    std::string sourceVersion;  // optional: the version in the original's header ("1.2")
 };
 
 struct ScriptManifest {
@@ -154,6 +155,18 @@ std::filesystem::path resolve_package_file(const ScriptPackage& package, std::st
 
 // Relative paths of every regular file inside the package (sorted, '/' separators).
 std::vector<std::string> package_files(const ScriptPackage& package);
+
+// Where a script comes from (feature 007, rpc-api §3.6): "bundled", "settings", "user",
+// "portable", or "assistant" for the assistant's group folder of the user layer
+// (<Data>/scripts/90_assistant/).
+std::string origin_of(const ScriptPackage& package);
+
+// The package context of an HTTP request for a package file (feature 007, rpc-api §2): the id
+// of the package whose module asked, read from the path of the `Referer` ("/scripts/<id>/…",
+// the id percent-decoded). nullopt when the request has no package context: no referrer, the
+// host page and its own scripts, a worker made from a blob: URL. A referrer under "/scripts/"
+// that names no package file gives "", which is no package's id.
+std::optional<std::string> referring_package(std::string_view referer);
 
 /* ----------------------------------------------------------------------------------------- */
 /* scripts.write (feature 005, the AI assistant - rpc-api.md §3.8 of the feature,            */

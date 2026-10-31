@@ -1557,8 +1557,8 @@
     ]
   },
   {
-    "snapshot": "20/show-code.xml",
-    "script": "scripts/20_debug/01_show-code",
+    "snapshot": "95/show-code.xml",
+    "script": "scripts/95_programmers/01_show-code",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",
@@ -1566,8 +1566,8 @@
     ]
   },
   {
-    "snapshot": "20/show-whole-code.xml",
-    "script": "scripts/20_debug/02_show-whole-code",
+    "snapshot": "95/show-whole-code.xml",
+    "script": "scripts/95_programmers/02_show-whole-code",
     "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
     "args": [
       "--select",

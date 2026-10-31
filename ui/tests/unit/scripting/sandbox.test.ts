@@ -165,7 +165,7 @@ describe('bridge and mfbe object', () => {
         'EndUndoUnit',
       ].sort(),
     );
-    expect(mfbe.version).toBe(1);
+    expect(mfbe.version).toBe(2); // script API version 2 (feature 007)
     expect(Object.keys(mfbe.doc).sort()).toEqual(
       [
         'get',
@@ -296,6 +296,7 @@ describe('bridge and mfbe object', () => {
       script: { id: 'a', name: 'A', group: 'g', kind: 'menu' },
       uiLanguage: 'en',
       treeNode: { nodeId: 'n1', type: 'section' },
+      startedBy: 'user',
     });
     expect(ctx.cancelled).toBe(true);
     expect(ctx.script).toEqual({ id: 'a', name: 'A', group: 'g', kind: 'menu' });

@@ -242,7 +242,7 @@ const methods = {
     logDir: path.join(dataDir, 'logs'),
     resourceLayers: [],
     apiVersion: 1,
-    apiMinor: 5,
+    apiMinor: 6,
   }),
   'app.quit': () => {
     setTimeout(() => process.exit(0), 50);
@@ -262,7 +262,8 @@ const methods = {
   'resources.genres': () => ({ entries: [], userFiles: [] }),
   'resources.languages': () => [],
   'resources.symbols': () => [],
-  'scripts.list': () => [],
+  // rpc-api.md §3.6 (feature 007): groups whose scripts carry `origin` and `legacy`.
+  'scripts.list': () => ({ groups: [], issues: [], folders: {} }),
   'spell.dictionaries': () => [],
   'log.error': () => ({}),
   // Feature 005 (rpc-api §3.1, §3.12): the terms link opener and the service list family.
