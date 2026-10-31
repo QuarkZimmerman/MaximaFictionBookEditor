@@ -10,9 +10,9 @@
       "new": 230,
       "noCounterpart": 6,
       "notConverted": 5,
-      "recheck": 64,
+      "recheck": 62,
       "unchanged": 25,
-      "updated": 47
+      "updated": 49
     },
     "recheckClasses": {
       "identical": 24,
@@ -7514,11 +7514,26 @@
       ],
       "package": "scripts/19_formatting/element-browser",
       "id": "19/element-browser",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "19_Обработка форматирования/Обзор и превращение элементов....js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "The three-frame dialog is a loop of two forms (the kind, then the list with the action); the list is a form field: plain text without the original's formatting and link tooltips, no 'selected' counter, no Ctrl+A, and choosing an element does not show it in the book.",
+        "Undo and Redo of the dialog are Edit > Undo after the run (the whole run is one undo step); the original's 'Выполнено.' after a case change and its counts are a status-bar line.",
+        "Subtitles as titles: where FB2 allows the content in front of the subtitle nowhere at the end of the previous container of the same kind (after its subsections, or content that starts with an epigraph or annotation), it goes to a new container, as in 2.7beta1; 2.7.9 appended it there and wrote invalid FB2.",
+        "Subtitles as titles: a subtitle in a section's annotation stays a subtitle (2.7.9 put a title into the annotation and moved the section's whole content).",
+        "An edit the FB2 schema still refuses is reported in a message and that body is left as it was, instead of producing an invalid book."
+      ],
+      "fixes": [
+        "Leading lines of a title (not the whole title) moved to the end of a previous section that ends with empty lines not preceded by a subtitle were dropped: the else-if after `if (isSubtitle(pInPreviousSection))` repeated the same condition, so the lines, already taken out of the title, were inserted nowhere and the script stopped with an error (markerEnd null). They now go to the end of that section, with an empty line after them in the 'framed by empty lines' mode - that branch's own body (snapshot 19/element-browser.titles-to-framed-subtitles.leading.xml).",
+        "With subtitles framed by empty lines, when the selection goes on in a later title, the last unselected lines of a title were followed by two empty lines framing an insertion of nothing; nothing is inserted now (19/element-browser.titles-to-framed-subtitles.lines.xml).",
+        "Merging a section that holds nothing but subtitles after a section ending with a subtitle and an empty line (titles as subtitles or framed subtitles) stopped with a script error: moving1 read tt.nextSibling with nothing left; the merge now completes (19/element-browser.titles-to-subtitles.merge.xml).",
+        "The number asked by 'N-ное «слово» каждого элемента – большими буквами…' is read as a decimal number; JScript's eval read a leading zero as octal ('010' gave the 8th word)."
+      ],
+      "openQuestions": [
+        "'Первая буква большая, остальные маленькие' now upper-cases the first character (the second after « or \"), not the first letter as 2.7beta1 did: '— и снова Глава' gives '— и снова глава'. Kept as 2.7.9.",
+        "'Первую букву каждого слова (кроме исключений)…' matches the abbreviation list ignoring case and upper-cases what it finds, so the list's mixed-case entries come out in capitals (КоАП -> КОАП, СНиП -> СНИП, СПбГУ -> СПБГУ). Kept as 2.7.9.",
+        "moveBlockIntoPreviousBlock adds an empty line in front of a subtitle that becomes the first child of an empty container in every mode: its condition `&& \"subtitles with empty lines before and after\"` is a string, always true. Kept as written; it is reached only in rare structures (a converted title starting with an empty line)."
+      ],
       "recheck": {
         "class": "major",
         "changedLines": 17,
@@ -7539,13 +7554,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+      "package": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
       "id": "18/unwrap-poem-cite-epigraph",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "18_Мелочи редактирования/03_Снятие форматирования стихом, цитатой или эпиграфом.js",
-      "differences": [],
+      "differences": [
+        "The package stays in scripts/18_editing/ with its id 18/unwrap-poem-cite-epigraph (recheck rule 2), so the Scripts menu shows it in 'Мелочи редактирования', where 2.7beta1 had it, not in 2.7.9's 'Обработка форматирования'; legacy.source names the 2.7.9 path, which the 2.7.9 combos run.",
+        "Where 2.7.9's result was invalid FB2 (which it then refused to save) the text goes to the first place the schema accepts: the text of a section's title or epigraph followed by the section's picture and annotation goes after them (2.7.9 put it in front, leaving the annotation after paragraphs), and in a section of sections into a section of its own before the subsections; a stanza's title before the stanza's subtitle becomes verses after the subtitle.",
+        "Attributes a paragraph cannot have (a cell's colspan or alignment in a cite's table) are dropped; a blank table cell (spaces, non-breaking spaces or nothing) becomes an empty line, as 2.7.9 saved such a paragraph; a cell's language (xml:lang, which 2.7.9 never read) stays.",
+        "A cite, poem or table in the book annotation or the history is dissolved through doc.setDescription (they are not nodes of the bodies); the book annotation itself stays, as in 2.7.9.",
+        "Afterwards the caret is at the start of the first paragraph that came out of the element (2.7.9 left the browser's selection); a status-bar line says when the caret is in none of the elements (2.7.9 did nothing without a word)."
+      ],
       "fixes": [],
-      "openQuestions": [],
+      "openQuestions": [
+        "A poem's title or epigraph means the poem (2.7.9's redirect), a stanza's title only that title. So the 2.7.9 combo 13/590 'Расформатировать все заголовки_Комбо' ('select the next title', then this script) dissolves every poem whose title it meets, and a 'select the next poem' loop leaves a poem whose first stanza has a title (its selection starts in that title), as snapshot 18/unwrap-poem-cite-epigraph.chain.xml shows. Kept as 2.7.9."
+      ],
       "recheck": {
         "class": "major",
         "changedLines": 125,

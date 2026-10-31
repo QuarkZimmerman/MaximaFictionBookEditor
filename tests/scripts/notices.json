@@ -2316,12 +2316,12 @@
       "shown": []
     },
     "scripts/19_formatting/element-browser": {
-      "original": "19_Обработка форматирования/Обзор и превращение элементов....js",
-      "fbeVersion": "2.7",
+      "original": "19_Обработка форматирования/01_Обзор и превращение элементов....js",
+      "fbeVersion": "2.7.9",
       "header": [
-        "скрипт \"Обзор элементов\"",
-        "автор Sclex",
-        "сайт скриптов: http://scripts.fictionbook.org"
+        "Скрипт \"Обзор и превращение элементов\"",
+        "Автор Sclex",
+        "Сайт скриптов: http://scripts.fictionbook.org"
       ],
       "shown": []
     },

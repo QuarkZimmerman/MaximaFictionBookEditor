@@ -1441,7 +1441,7 @@
       "percent": 60.7
     },
     {
-      "package": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+      "package": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
       "id": "18/unwrap-poem-cite-epigraph",
       "predecessor": "18_Мелочи редактирования/03_Снятие форматирования стихом, цитатой или эпиграфом.js",
       "successor": "19_Обработка форматирования/05_Снять форматирование блочным элементом.js",

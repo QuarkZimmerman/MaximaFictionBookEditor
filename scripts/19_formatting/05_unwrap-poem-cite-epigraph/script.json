@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "18/unwrap-poem-cite-epigraph",
+  "name": {
+    "ru": "Снять форматирование блочным элементом",
+    "en": "Remove block element formatting",
+    "uk": "Зняти форматування блоковим елементом"
+  },
+  "description": {
+    "ru": "Превращает в обычный текст блочный элемент, в котором стоит курсор или начинается выделение: стих, эпиграф, цитату, заголовок, аннотацию или таблицу",
+    "en": "Turns the block element the caret or the start of the selection is in - a poem, epigraph, cite, title, annotation or table - into plain text",
+    "uk": "Перетворює на звичайний текст блоковий елемент, у якому стоїть курсор або починається виділення: вірш, епіграф, цитату, заголовок, анотацію чи таблицю"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Снять форматирование блочным элементом",
+    "en": "Remove block element formatting"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/05_Снять форматирование блочным элементом.js",
+    "fbeVersion": "2.7.9"
+  }
+}

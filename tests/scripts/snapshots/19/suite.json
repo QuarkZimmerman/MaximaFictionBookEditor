@@ -332,5 +332,307 @@
       "--answer",
       "\\19_Обработка форматирования\\63_Расформатировать подзаголовок(-ки).js"
     ]
+  },
+  {
+    "snapshot": "19/element-browser.titles-to-framed-subtitles.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/279/19/element-browser.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n9:0\",\"n14:0\",\"n24:0\",\"n24:1\",\"n32:0\",\"n32:1\"],\"action\":\"subtitlesWithEmptyLines\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.titles-to-framed-subtitles.part.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/279/19/element-browser.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n38:0\"],\"action\":\"subtitlesWithEmptyLines\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.titles-to-framed-subtitles.lines.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/279/19/element-browser.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n47:1\",\"n53:0\"],\"action\":\"subtitlesWithEmptyLines\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.titles-to-framed-subtitles.leading.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/279/19/element-browser.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n24:0\",\"n32:0\"],\"action\":\"subtitlesWithEmptyLines\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.titles-to-subtitles.merge.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/279/19/element-browser.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n5:0\",\"n14:0\",\"n24:0\",\"n24:1\",\"n32:0\",\"n32:1\",\"n70:0\"],\"action\":\"subtitles\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.titles-to-text.merge.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/279/19/element-browser.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n5:0\",\"n14:0\",\"n24:0\",\"n24:1\",\"n43:0\"],\"action\":\"text\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.case-modes.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/279/19/element-browser-case.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"titles\"}",
+      "--answer",
+      "{\"items\":[\"n5:1\"],\"action\":\"case:onlyFirstBig\"}",
+      "--answer",
+      "{\"items\":[\"n5:0\"],\"action\":\"case:firstBigAndAfterFirstDotBig\"}",
+      "--answer",
+      "{\"action\":\"kind\"}",
+      "--answer",
+      "{\"kind\":\"subtitles\"}",
+      "--answer",
+      "{\"items\":[\"n15\"],\"action\":\"case:firstLetterBigAndAfterEveryDotBigToo\"}",
+      "--answer",
+      "{\"items\":[\"n16\"],\"action\":\"case:firstLetterBigAndAfterSymbolsBigToo\"}",
+      "--answer",
+      "{\"items\":[\"n12\"],\"action\":\"case:secondWordBigLetters\"}",
+      "--answer",
+      "{\"items\":[\"n13\"],\"action\":\"case:nthWordBigLetters\"}",
+      "--answer",
+      "x",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"items\":[\"n13\"],\"action\":\"case:nthWordBigLetters\"}",
+      "--answer",
+      "3",
+      "--answer",
+      "{\"items\":[\"n18\"],\"action\":\"case:allBig\"}",
+      "--answer",
+      "{\"items\":[\"n17\"],\"action\":\"case:allSmall\"}",
+      "--answer",
+      "{\"items\":[\"n8\"],\"action\":\"case:wordFirstLetterBig\"}",
+      "--answer",
+      "{\"items\":[\"n9\",\"n10\",\"n11\"],\"action\":\"case:wordFirstLetterBigWithExclusions\"}",
+      "--answer",
+      "{\"items\":[\"n14\"],\"action\":\"case:onlyFirstBig\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "19/element-browser.subtitles-to-titles.containers.xml",
+    "script": "scripts/19_formatting/element-browser",
+    "book": "tests/scripts/fixtures/279/19/element-browser-case.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\":\"subtitles\"}",
+      "--answer",
+      "{\"items\":[\"n8\",\"n27\",\"n29\",\"n35\"],\"action\":\"titles\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.title.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n11:3:3"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.epigraphs.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n16:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.title-picture.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n23:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.body-title.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n4:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.part-title.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n32:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.part-epigraph.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n35:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.part-title-new-section.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n46:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.poem-stanzas.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n66:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.poem-epigraph.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n58:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.stanza-title.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n98:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.cite-contents.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n75:2:2"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.table.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n91:3:3"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.annotation.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n106:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.paragraph.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n72:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.selection.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select-range",
+      "n74:2-n85:5"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.book-annotation-cite.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n114:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.book-annotation.xml",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--select",
+      "n112:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/unwrap-poem-cite-epigraph.chain.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/19/block-elements.fb2",
+    "args": [
+      "--answer",
+      "16/next-poem | 19_Обработка форматирования\\05_Снять форматирование блочным элементом.js | 16/next-poem | \\19_Обработка форматирования\\05_Снять форматирование блочным элементом.js | 16/next-poem | 19_Обработка форматирования\\05_Снять форматирование блочным элементом.js | 16/next-poem | 19_Обработка форматирования\\05_Снять форматирование блочным элементом.js | 16/next-poem",
+      "--answer",
+      "ok"
+    ]
   }
 ]

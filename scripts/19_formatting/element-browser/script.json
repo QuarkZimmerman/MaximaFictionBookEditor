@@ -2,23 +2,25 @@
   "manifestVersion": 1,
   "id": "19/element-browser",
   "name": {
+    "ru": "Обзор и превращение элементов...",
     "en": "Browse and convert elements...",
-    "ru": "Обзор и превращение элементов..."
+    "uk": "Огляд і перетворення елементів..."
   },
   "description": {
-    "en": "Lists the title lines, subtitles or runs of emphasis / strong / sup / sub / strikethrough of the book; the chosen ones are reformatted into another kind (titles, subtitles, text, another inline style) or get their case changed",
-    "ru": "Показывает строки заголовков, подзаголовки или фрагменты emphasis / strong / sup / sub / strikethrough книги; выбранные переформатируются в другой вид (заголовки, подзаголовки, текст, другое начертание) или меняют регистр"
+    "ru": "Показывает строки заголовков разделов, подзаголовки или фрагменты курсива, жирности, верхних и нижних индексов, зачеркивания книги; выбранные переформатируются в подзаголовки (в том числе обрамленные пустыми строками), текст, заголовки или другое начертание, у заголовков и подзаголовков можно поменять регистр",
+    "en": "Lists the section title lines, the subtitles or the runs of italics, bold, superscript, subscript or strikethrough of the book; the chosen ones are reformatted as subtitles (also framed by empty lines), text, titles or another inline style, and title lines and subtitles can have their case changed",
+    "uk": "Показує рядки заголовків розділів, підзаголовки або фрагменти курсиву, жирного шрифту, верхніх і нижніх індексів, закреслення книги; вибрані переформатовуються на підзаголовки (зокрема обрамлені порожніми рядками), текст, заголовки або інше накреслення, для заголовків і підзаголовків можна змінити регістр"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Browse and convert elements",
-    "ru": "Обзор и превращение элементов"
+    "ru": "Обзор и превращение элементов",
+    "en": "Browse and convert elements"
   },
   "legacy": {
-    "source": "19_Обработка форматирования/Обзор и превращение элементов....js",
-    "fbeVersion": "2.7"
+    "source": "19_Обработка форматирования/01_Обзор и превращение элементов....js",
+    "fbeVersion": "2.7.9"
   }
 }

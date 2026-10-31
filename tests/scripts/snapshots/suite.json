@@ -1441,7 +1441,7 @@
   },
   {
     "snapshot": "18/unwrap-poem-cite-epigraph.cite.xml",
-    "script": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",
@@ -1450,7 +1450,7 @@
   },
   {
     "snapshot": "18/unwrap-poem-cite-epigraph.epigraph.xml",
-    "script": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",
@@ -1459,7 +1459,7 @@
   },
   {
     "snapshot": "18/unwrap-poem-cite-epigraph.xml",
-    "script": "scripts/18_editing/03_unwrap-poem-cite-epigraph",
+    "script": "scripts/19_formatting/05_unwrap-poem-cite-epigraph",
     "book": "tests/scripts/fixtures/books/conv-c-18.fb2",
     "args": [
       "--select",

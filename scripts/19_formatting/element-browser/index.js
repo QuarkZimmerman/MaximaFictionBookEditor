@@ -1,34 +1,49 @@
-// Converted from 19_Обработка форматирования/Обзор и превращение элементов....js (FictionBook
-// Editor 2.7), Tier 3. The original opened the three-frame dialog "Обзор элементов" (element
-// browser): a list of all elements of one kind - title lines, subtitles or runs of emphasis /
-// strong / sup / sub / strikethrough - in which the user selected entries and reformatted them
-// (titles ↔ subtitles ↔ plain text, one inline style to another or to plain text) or changed
-// their case through a context menu; the dialog stayed open for further operations. Here the
-// same work is done with two forms: the kind of element, then a multi-select list with the
-// action to apply; the list is rebuilt after every action until the user closes it.
+// Converted from FictionBook Editor 2.7.9: Scripts/19_Обработка форматирования/01_Обзор и
+// превращение элементов....js, with its dialog HTML/Обзор и превращение элементов - набор
+// фреймов.html (frames 1-3); first converted from the 2.7beta1 version (v1.8), brought up to the
+// 2.7.9 one (v4.2) in feature 007.
 //
-// Structural rules kept from the original:
-//  - a subtitle turned into a title starts a new section (poem, stanza): what precedes it moves
-//    to the previous sibling of the same kind or into a new one; when nothing follows, the
-//    section is left with an empty line (the original created an empty paragraph);
-//  - title lines turned into subtitles / text: a wholly selected title is replaced in place
-//    (epigraphs right after it are dissolved); selected lines at the start go to the end of the
-//    previous sibling of the same kind (or a new one); every unselected run of lines becomes
-//    the title of a new section inserted in front, followed by the selected lines after it;
-//    a title that loses all its lines is removed and the rest of its section is merged into the
-//    section created before it. In a poem, text lines are wrapped in a stanza; in a stanza they
-//    become verses;
-//  - subtitles nested in cites are not turned into titles (reported, as the original did);
-//  - edits the FB2 schema refuses are skipped and reported instead of producing invalid XML.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
-//скрипт "Обзор элементов"
-//автор Sclex
-//сайт скриптов: http://scripts.fictionbook.org
+// The dialog lists all elements of one kind - the title lines of sections, the subtitles or the
+// runs of italics, bold, superscript, subscript or strikethrough of the book - and reformats the
+// chosen ones: section title lines as subtitles, as subtitles framed by empty lines (2.7.9's new
+// default) or as text; subtitles as titles or text; one inline style as another or as text. Its
+// context menu changes the case of title lines and subtitles in ten ways (2.7.9; 2.7beta1 had
+// three). The original's dialog stayed open; here it is a loop of two forms: the kind, then the
+// numbered list (up to 160 characters of each element, then "<...>", as 2.7.9 shows them) with the
+// action to apply - the list is rebuilt after every action until the user closes it.
+//
+// What a title becomes is worked out as 2.7.9 did it, on a copy of the body in the shape of its
+// page (page.js, the original's procedures statement by statement): a section whose whole title
+// becomes subtitles or text merges into the section before it, its epigraphs and annotation
+// becoming text and its subsections moving up; selected lines at the start of a title go to the
+// end of the section before; unselected lines between selected ones become the title of a new
+// section; "framed by empty lines" puts an empty line before and after each group of subtitles,
+// using the empty lines already there. The case changes run the original's expressions
+// (case-modes.js). Differences from 2.7.9 (docs/scripting/conversion-notes of feature 007):
+//  - the list is a form field: plain text without the original's formatting and link tooltips,
+//    no "selected" counter, no Ctrl+A; a click no longer shows the element in the book; Undo and
+//    Redo are Edit > Undo after the run (the run is one undo step); "Выполнено." after a case
+//    change and the counts are a status-bar line;
+//  - three defects are fixed (FR-023, page.js FIX 1-3): lines moved to a previous section ending
+//    with empty lines were lost and the script stopped; empty lines framed an insertion of
+//    nothing; merging a section of nothing but subtitles stopped with a script error;
+//  - the "N-th word" number is read as a decimal number (JScript's eval read "010" as octal 8);
+//  - where FB2 allows a subtitle's preceding content nowhere at the end of the previous container
+//    (after subsections, an epigraph), it goes to a new container as in 2.7beta1; a subtitle of a
+//    section's annotation stays a subtitle; an edit the schema still refuses is reported and its
+//    body left as it was, instead of producing an invalid book.
+// The original's notice, kept as written (FR-029):
+// Скрипт "Обзор и превращение элементов"
+// Автор Sclex
+// Сайт скриптов: http://scripts.fictionbook.org
 
+import { toBox, toJson, reformatTitles, reformatSubtitles } from './page.js';
+import { changeCaseOfContent, CASE_MODES } from './case-modes.js';
+
+const VERSION = '4.2';
 const INLINE_KINDS = ['emphasis', 'strong', 'sup', 'sub', 'strikethrough'];
 const TEXT_BLOCKS = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
-const CONTAINER_TYPES = new Set(['section', 'poem', 'stanza']);
-const LETTER_RE = /[\p{L}\p{N}]/u;
+const MAX_LABEL = 160; // maxNumberOfTextSymbolsInElement
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
@@ -36,51 +51,39 @@ function t(ctx, ru, en) {
 
 const nodeId = (node) => node.attrs?.nodeId;
 
-function stripIds(node) {
-  if (node.type === 'text') return node;
-  const attrs = { ...(node.attrs ?? {}) };
-  delete attrs.nodeId;
-  return { ...node, attrs, ...(node.content ? { content: node.content.map(stripIds) } : {}) };
-}
-
 function inlineText(node) {
   if (node.type === 'text') return node.text;
   return (node.content ?? []).map(inlineText).join('');
 }
 
-/** The list label the original built: only spaces → " ", longer than 50 chars → 50 + "...". */
+/** The list label 2.7.9 built: only spaces -> " "; over 160 characters -> 160 and "<...>". */
 function preview(text) {
   if (/^[ \u00A0]*$/.test(text)) return ' ';
-  return text.length > 50 ? `${text.slice(0, 50)}...` : text;
+  return text.length > MAX_LABEL ? `${text.slice(0, MAX_LABEL)}<...>` : text;
 }
 
 /* ---------------------------------------------------------------------------------------- */
-/* Scanning                                                                                   */
+/* Scanning (findBlockElements, findParagraphElements, findInlineElements)                    */
 /* ---------------------------------------------------------------------------------------- */
 
-/** Elements of `kind` in document order; `path` is the chain of ancestor nodes. */
+/** Elements of `kind` in document order. */
 async function scan(kind) {
   const found = [];
   const visit = (node, path, inSection) => {
     if (node.type === 'text') return;
     const parent = path[path.length - 1];
     if (kind === 'titles') {
-      if (node.type === 'title' && inSection && parent && CONTAINER_TYPES.has(parent.type)) {
+      // 2.7.9 lists the titles of sections only ("titles of sections"; those of poems and
+      // stanzas are commented out of its list of kinds)
+      if (node.type === 'title' && inSection && parent && parent.type === 'section') {
         (node.content ?? []).forEach((line, index) => {
-          found.push({
-            kind, key: `${nodeId(node)}:${index}`, text: preview(inlineText(line)),
-            titleId: nodeId(node), index, containerId: nodeId(parent), containerType: parent.type,
-          });
+          found.push({ kind, key: `${nodeId(node)}:${index}`, text: preview(inlineText(line)), titleId: nodeId(node), index });
         });
         return;
       }
     } else if (kind === 'subtitles') {
       if (node.type === 'subtitle' && inSection) {
-        const container = [...path].reverse().find((n) => CONTAINER_TYPES.has(n.type));
-        found.push({
-          kind, key: nodeId(node), text: preview(inlineText(node)), nodeId: nodeId(node),
-          parentType: parent?.type, containerId: container ? nodeId(container) : null,
-        });
+        found.push({ kind, key: nodeId(node), text: preview(inlineText(node)), nodeId: nodeId(node), parentType: parent?.type });
       }
     } else if (TEXT_BLOCKS.has(node.type) && inSection) {
       const content = node.content ?? [];
@@ -109,51 +112,76 @@ async function scan(kind) {
 }
 
 /* ---------------------------------------------------------------------------------------- */
-/* Case change (the original's context menu)                                                 */
+/* Titles and subtitles: on a copy of the bodies in the shape of 2.7.9's page                  */
 /* ---------------------------------------------------------------------------------------- */
 
-function changeCaseOfItems(items, mode) {
-  let capitalised = false;
-  return items.map((item) => {
-    if (item.type !== 'text') return item;
-    let text = mode === 'allBig' ? item.text.toUpperCase() : item.text.toLowerCase();
-    if (mode === 'onlyFirstBig' && !capitalised) {
-      const m = LETTER_RE.exec(text);
-      if (m) {
-        text = text.slice(0, m.index) + m[0].toUpperCase() + text.slice(m.index + m[0].length);
-        capitalised = true;
-      }
-    }
-    return text === item.text ? item : { ...item, text };
-  });
+/** Every body as a Box tree with the map of its node ids. */
+async function loadBodies() {
+  const bodies = [];
+  const byId = new Map();
+  for (const ref of await mfbe.doc.getElementsByTagName('body')) {
+    const node = await mfbe.doc.getNode(ref);
+    bodies.push({ ref, before: JSON.stringify(node), box: toBox(node, byId) });
+  }
+  return { bodies, byId };
 }
 
-async function applyCase(elements, mode, report) {
-  for (const el of elements) {
+/** Writes the bodies that changed; a body the schema refuses stays as it was (reported). */
+async function writeBodies(bodies, report) {
+  for (const body of bodies) {
+    const node = toJson(body.box);
+    if (JSON.stringify(node) === body.before) continue;
     try {
-      if (el.kind === 'titles') {
-        const title = await mfbe.doc.getNode(el.titleId);
-        const line = title.content[el.index];
-        if (!line?.content) continue;
-        await mfbe.doc.replaceNode(nodeId(line), { ...line, content: changeCaseOfItems(line.content, mode) });
-      } else if (el.kind === 'subtitles') {
-        const node = await mfbe.doc.getNode(el.nodeId);
-        await mfbe.doc.replaceNode(el.nodeId, { ...node, content: changeCaseOfItems(node.content ?? [], mode) });
-      } else {
-        const block = await mfbe.doc.getNode(el.blockId);
-        const content = block.content.slice();
-        content.splice(el.start, el.end - el.start, ...changeCaseOfItems(content.slice(el.start, el.end), mode));
-        await mfbe.doc.replaceNode(el.blockId, { ...block, content });
-      }
+      await mfbe.doc.replaceNode(body.ref, node);
     } catch (error) {
       report.push(error.message);
     }
   }
 }
 
+async function titlesTo(elements, target, report) {
+  const { bodies, byId } = await loadBodies();
+  const lines = elements.map((el) => byId.get(el.titleId)?.kids[el.index]).filter(Boolean);
+  reformatTitles(lines, target);
+  await writeBodies(bodies, report);
+}
+
+async function subtitlesToTitles(ctx, elements, report) {
+  const { bodies, byId } = await loadBodies();
+  const subtitles = elements.map((el) => byId.get(el.nodeId)).filter(Boolean);
+  const inCite = reformatSubtitles(subtitles);
+  await writeBodies(bodies, report);
+  if (inCite) {
+    await mfbe.ui.message(
+      t(ctx, 'Среди выделенных подзаголовков имелись подзаголовки, вложенные в цитаты. Они не были превращены в заголовки в процессе обработки, потому что согласно схеме формата FictionBook2 у цитат не может быть заголовков.',
+        'Some of the selected subtitles are nested in cites. They were not turned into titles, because by the FictionBook2 schema cites cannot have titles.'),
+      { icon: 'warning' },
+    );
+  }
+}
+
 /* ---------------------------------------------------------------------------------------- */
-/* Inline runs → other mark / text                                                            */
+/* Subtitles -> text, inline runs -> another mark / text (unchanged since 2.7beta1)            */
 /* ---------------------------------------------------------------------------------------- */
+
+async function subtitlesToText(elements, report) {
+  for (const el of elements) {
+    try {
+      const node = await mfbe.doc.getNode(el.nodeId);
+      const attrs = { ...(node.attrs ?? {}) };
+      if (el.parentType === 'poem') {
+        // A subtitle between stanzas becomes a one-verse stanza (an empty-class <P> in a poem).
+        await mfbe.doc.replaceNode(el.nodeId, {
+          type: 'stanza', attrs: {}, content: [{ type: 'v', attrs: {}, content: node.content ?? [] }],
+        });
+      } else {
+        await mfbe.doc.replaceNode(el.nodeId, { ...node, type: el.parentType === 'stanza' ? 'v' : 'p', attrs });
+      }
+    } catch (error) {
+      report.push(error.message);
+    }
+  }
+}
 
 async function reformatInline(elements, from, to, report) {
   const byBlock = new Map();
@@ -178,227 +206,45 @@ async function reformatInline(elements, from, to, report) {
 }
 
 /* ---------------------------------------------------------------------------------------- */
-/* Subtitles → text / titles                                                                  */
+/* Case (the context menu of titles and subtitles)                                            */
 /* ---------------------------------------------------------------------------------------- */
 
-async function subtitlesToText(elements, report) {
+/** The word number of "N-ное «слово»…": a number from 1, or null after the original's message. */
+async function askWordNumber(ctx) {
+  const value = await mfbe.ui.prompt(
+    t(ctx, 'Введите номер «слова» для перевода в верхний регистр:', 'Enter the number of the “word” to put in upper case:'),
+    { defaultValue: '2' },
+  );
+  if (value === null || value === undefined) return null;
+  let problem = null;
+  if (value === '') {
+    problem = t(ctx, 'Вы ввели не корректный номер слова, а пустую строку. Изменение регистра не будет произведено.',
+      'You entered an empty string, not a word number. The case is not changed.');
+  } else if (!/^[0-9]+$/.test(value)) {
+    problem = t(ctx, 'Введенный вами номер «слова» содержит недопустимые символы. Изменение регистра не будет произведено.',
+      'The “word” number you entered contains characters that are not allowed. The case is not changed.');
+  } else if (Number.parseInt(value, 10) < 1) {
+    problem = t(ctx, 'Вы ввели некорректное значение номера «слова». Изменение регистра не будет произведено.',
+      'The “word” number you entered is not valid. The case is not changed.');
+  }
+  if (problem) {
+    await mfbe.ui.message(problem, { icon: 'warning' });
+    return null;
+  }
+  return Number.parseInt(value, 10);
+}
+
+async function applyCase(elements, mode, number, report) {
   for (const el of elements) {
     try {
-      const node = await mfbe.doc.getNode(el.nodeId);
-      const attrs = { ...(node.attrs ?? {}) };
-      if (el.parentType === 'poem') {
-        // A subtitle between stanzas becomes a one-verse stanza (an empty-class <P> in a poem).
-        await mfbe.doc.replaceNode(el.nodeId, {
-          type: 'stanza', attrs: {}, content: [{ type: 'v', attrs: {}, content: node.content ?? [] }],
-        });
+      if (el.kind === 'titles') {
+        const title = await mfbe.doc.getNode(el.titleId);
+        const line = title.content[el.index];
+        if (!line?.content) continue;
+        await mfbe.doc.replaceNode(nodeId(line), { ...line, content: changeCaseOfContent(line.content, mode, number) });
       } else {
-        await mfbe.doc.replaceNode(el.nodeId, { ...node, type: el.parentType === 'stanza' ? 'v' : 'p', attrs });
-      }
-    } catch (error) {
-      report.push(error.message);
-    }
-  }
-}
-
-const titleOf = (lines) => ({ type: 'title', attrs: {}, content: lines });
-const asLine = (node) => ({ type: 'p', attrs: { ...(node.attrs ?? {}) }, content: node.content ?? [] });
-
-/** Content that keeps a freshly created container valid when it has nothing but a title. */
-function filler(type) {
-  if (type === 'poem') return [{ type: 'stanza', attrs: {}, content: [{ type: 'v', attrs: {}, content: [] }] }];
-  if (type === 'stanza') return [{ type: 'v', attrs: {}, content: [] }];
-  return [{ type: 'empty-line', attrs: {} }];
-}
-
-async function siblingsOf(ref) {
-  const parent = await mfbe.doc.parentOf(ref);
-  const siblings = parent ? await mfbe.doc.childrenOf(parent) : [];
-  return { parent, siblings, index: siblings.findIndex((s) => s.nodeId === (ref.nodeId ?? ref)) };
-}
-
-async function subtitlesToTitles(ctx, elements, report) {
-  let inCite = false;
-  for (const el of elements) {
-    if (el.parentType === 'cite') {
-      inCite = true;
-      continue;
-    }
-    try {
-      const container = await mfbe.doc.getNode(el.containerId);
-      const content = container.content ?? [];
-      const at = content.findIndex((n) => nodeId(n) === el.nodeId);
-      if (at < 0) continue; // already moved by an earlier conversion
-      const subtitle = content[at];
-      let before = content.slice(0, at);
-      let after = content.slice(at + 1);
-      const previousIsTitle = before.length > 0 && before[before.length - 1].type === 'title';
-      if (before.length > 0 && !previousIsTitle) {
-        // Everything in front of the subtitle leaves for the previous sibling of the same kind,
-        // or for a new one when there is none (or when the container starts with a title,
-        // an epigraph, a nested section…, which must not be appended to a neighbour).
-        const { siblings, index } = await siblingsOf(el.containerId);
-        const prev = index > 0 ? siblings[index - 1] : null;
-        const firstIsBlockLike = TEXT_BLOCKS.has(before[0].type) || before[0].type === 'empty-line';
-        let reuse = prev && prev.type === container.type && firstIsBlockLike;
-        if (reuse) {
-          const prevNode = await mfbe.doc.getNode(prev);
-          const last = prevNode.content?.[prevNode.content.length - 1];
-          if (last && last.type === 'section') reuse = false;
-          else await mfbe.doc.replaceNode(prev, { ...prevNode, content: [...(prevNode.content ?? []), ...before.map(stripIds)] });
-        }
-        if (!reuse) {
-          await mfbe.doc.insertNode('before', el.containerId, { type: container.type, attrs: {}, content: before.map(stripIds) });
-        }
-        before = [];
-      }
-      const line = asLine(subtitle);
-      let title;
-      if (previousIsTitle) {
-        title = { ...before[before.length - 1], content: [...(before[before.length - 1].content ?? []), line] };
-        before = before.slice(0, -1);
-      } else title = titleOf([line]);
-      if (after.length === 0) {
-        // The title would be the last child: the original moved it into the next sibling of
-        // the same kind (or a new one holding an empty paragraph) and left this one empty.
-        const { siblings, index } = await siblingsOf(el.containerId);
-        const next = index >= 0 && index + 1 < siblings.length ? siblings[index + 1] : null;
-        if (next && next.type === container.type) {
-          const nextNode = await mfbe.doc.getNode(next);
-          const nextContent = nextNode.content ?? [];
-          const merged = nextContent[0]?.type === 'title'
-            ? [{ ...nextContent[0], content: [...title.content, ...(nextContent[0].content ?? [])] }, ...nextContent.slice(1)]
-            : [title, ...nextContent];
-          await mfbe.doc.replaceNode(next, { ...nextNode, content: merged.map((n, i) => (i === 0 ? stripIds(n) : n)) });
-          await mfbe.doc.removeNode(el.containerId); // nothing is left in it
-          continue;
-        }
-        after = filler(container.type);
-      }
-      await mfbe.doc.replaceNode(el.containerId, { ...container, content: [...before, title, ...after] });
-    } catch (error) {
-      report.push(error.message);
-    }
-  }
-  if (inCite) {
-    await mfbe.ui.message(
-      t(ctx, 'Среди выделенных подзаголовков были подзаголовки, вложенные в цитаты. Они не были превращены в заголовки в процессе обработки.',
-        'Some of the selected subtitles are nested in cites; they were not turned into titles.'),
-      { icon: 'warning' },
-    );
-  }
-}
-
-/* ---------------------------------------------------------------------------------------- */
-/* Title lines → subtitles / text                                                             */
-/* ---------------------------------------------------------------------------------------- */
-
-/** Converted title lines for a container of `type`: subtitles stay flat, text wraps per kind. */
-function convertLines(lines, target, type) {
-  const converted = lines.map((line) => {
-    if (line.type !== 'p') return stripIds(line); // empty lines stay empty lines
-    const kind = target === 'subtitle' ? 'subtitle' : type === 'stanza' ? 'v' : type === 'poem' ? 'v' : 'p';
-    return stripIds({ ...line, type: kind });
-  });
-  if (type === 'poem' && target === 'p') {
-    const verses = converted.filter((n) => n.type === 'v');
-    return verses.length ? [{ type: 'stanza', attrs: {}, content: verses }] : [];
-  }
-  return converted;
-}
-
-/** Last nested section of a section (the original appended there). */
-async function deepestLast(ref) {
-  let current = ref;
-  for (;;) {
-    const children = await mfbe.doc.childrenOf(current);
-    const last = children[children.length - 1];
-    if (!last || last.type !== 'section' || current.type !== 'section') return current;
-    current = last;
-  }
-}
-
-async function titlesToLines(elements, target, report) {
-  const byTitle = new Map();
-  for (const el of elements) {
-    if (!byTitle.has(el.titleId)) byTitle.set(el.titleId, el);
-  }
-  const selected = new Set(elements.map((e) => e.key));
-  for (const [titleId, first] of byTitle) {
-    try {
-      const title = await mfbe.doc.getNode(titleId);
-      const containerRef = { nodeId: first.containerId, type: first.containerType };
-      const container = await mfbe.doc.getNode(containerRef);
-      const type = container.type;
-      const lines = title.content ?? [];
-      // Runs of unselected / selected lines in order.
-      const runs = [];
-      lines.forEach((line, index) => {
-        const sel = selected.has(`${titleId}:${index}`);
-        if (runs.length && runs[runs.length - 1].selected === sel) runs[runs.length - 1].lines.push(line);
-        else runs.push({ selected: sel, lines: [line] });
-      });
-      // Content of the container after its title; epigraphs right behind the title are
-      // dissolved when text is going to precede them (content may not precede an epigraph).
-      const afterTitle = () => {
-        const rest = [];
-        let leading = true;
-        for (const node of (container.content ?? []).slice(1)) {
-          if (leading && node.type === 'epigraph' && type === 'section') {
-            for (const child of node.content ?? []) rest.push(child.type === 'text-author' ? asLine(child) : child);
-          } else {
-            leading = false;
-            rest.push(node);
-          }
-        }
-        return rest;
-      };
-      if (runs.length === 1 && runs[0].selected) {
-        // The whole title: the converted lines take its place.
-        await mfbe.doc.replaceNode(containerRef, { ...container, content: [...convertLines(lines, target, type), ...afterTitle()] });
-        continue;
-      }
-      let i = 0;
-      if (runs[0].selected) {
-        // Leading selected lines: to the end of the previous sibling of the same kind.
-        const { siblings, index } = await siblingsOf(containerRef);
-        const prev = index > 0 && siblings[index - 1].type === type ? siblings[index - 1] : null;
-        const converted = convertLines(runs[0].lines, target, type);
-        if (prev) {
-          const target_ = await deepestLast(prev);
-          const prevNode = await mfbe.doc.getNode(target_);
-          await mfbe.doc.replaceNode(target_, { ...prevNode, content: [...(prevNode.content ?? []), ...converted] });
-        } else {
-          await mfbe.doc.insertNode('before', containerRef, { type, attrs: {}, content: converted });
-        }
-        i = 1;
-      }
-      while (i + 1 < runs.length) {
-        // An unselected run becomes the title of a new container in front, holding the
-        // selected lines that follow it.
-        const heading = titleOf(runs[i].lines.map(stripIds));
-        const converted = convertLines(runs[i + 1].lines, target, type);
-        await mfbe.doc.insertNode('before', containerRef, { type, attrs: {}, content: [heading, ...converted] });
-        i += 2;
-      }
-      if (i < runs.length) {
-        // A trailing unselected run stays as the (shortened) title.
-        await mfbe.doc.replaceNode(titleId, { ...title, content: runs[i].lines });
-        continue;
-      }
-      // Nothing is left of the title: the rest of the container merges into the one before it.
-      const { siblings, index } = await siblingsOf(containerRef);
-      const prev = index > 0 ? siblings[index - 1] : null;
-      const remaining = afterTitle();
-      const blocks = remaining.filter((n) => n.type !== 'section');
-      const sections = remaining.filter((n) => n.type === 'section');
-      if (prev && prev.type === type) {
-        const target_ = await deepestLast(prev);
-        const prevNode = await mfbe.doc.getNode(target_);
-        await mfbe.doc.replaceNode(target_, { ...prevNode, content: [...(prevNode.content ?? []), ...blocks.map(stripIds)] });
-        for (const section of sections) await mfbe.doc.insertNode('before', containerRef, stripIds(section));
-        await mfbe.doc.removeNode(containerRef);
-      } else {
-        await mfbe.doc.removeNode(titleId);
+        const node = await mfbe.doc.getNode(el.nodeId);
+        await mfbe.doc.replaceNode(el.nodeId, { ...node, content: changeCaseOfContent(node.content ?? [], mode, number) });
       }
     } catch (error) {
       report.push(error.message);
@@ -410,62 +256,95 @@ async function titlesToLines(elements, target, report) {
 /* Dialogs                                                                                   */
 /* ---------------------------------------------------------------------------------------- */
 
-const KIND_LABELS = {
-  titles: ['titles', 'заголовки'],
-  subtitles: ['subtitles', 'подзаголовки'],
-  emphasis: ['emphasis', 'emphasis'],
-  strong: ['strong', 'strong'],
-  sup: ['sup', 'sup'],
-  sub: ['sub', 'sub'],
-  strikethrough: ['strikethrough', 'strikethrough'],
+// frame 1's list of kinds (2.7.9 labels)
+const KINDS = [
+  ['titles', 'Заголовки разделов', 'Section titles'],
+  ['subtitles', 'Подзаголовки', 'Subtitles'],
+  ['emphasis', 'Курсив', 'Italics'],
+  ['strong', 'Жирность', 'Bold'],
+  ['sup', 'Верхние индексы', 'Superscripts'],
+  ['sub', 'Нижние индексы', 'Subscripts'],
+  ['strikethrough', 'Зачеркивание', 'Strikethrough'],
+];
+const KIND_LABEL = Object.fromEntries(KINDS.map(([value, ru, en]) => [value, [ru, en]]));
+
+// frame 3's "Переформатировать выбранные элементы как" (2.7.9 labels)
+const TARGETS = {
+  subtitles: ['Подзаголовки', 'Subtitles'],
+  subtitlesWithEmptyLines: ['Подзаголовки, обрамленные пустыми строками', 'Subtitles framed by empty lines'],
+  text: ['Текст', 'Text'],
+  titles: ['Заголовки', 'Titles'],
+  ...KIND_LABEL,
 };
 
+// the context menu of titles and subtitles (2.7.9 texts)
+const CASE_LABELS = {
+  onlyFirstBig: ['Первая буква большая, остальные маленькие', 'First letter upper case, the rest lower case'],
+  firstBigAndAfterFirstDotBig: ['Первая буква большая, и после первой точки большая буква', 'First letter upper case, and the letter after the first full stop'],
+  firstLetterBigAndAfterEveryDotBigToo: ['Первая буква большая, и после каждой точки большая буква', 'First letter upper case, and the letter after every full stop'],
+  firstLetterBigAndAfterSymbolsBigToo: ['Первая буква большая, и после символов «.», «!», «?» – большая буква', 'First letter upper case, and the letter after «.», «!», «?»'],
+  secondWordBigLetters: ['Второе «слово» каждого элемента – большими буквами', 'The second “word” of every element in capitals'],
+  nthWordBigLetters: ['N-ное «слово» каждого элемента – большими буквами…', 'The N-th “word” of every element in capitals…'],
+  allBig: ['Все буквы сделать большими', 'All letters upper case'],
+  allSmall: ['Все буквы сделать маленькими', 'All letters lower case'],
+  wordFirstLetterBig: ['Первую букву каждого слова сделать большой, остальные – маленькими', 'First letter of every word upper case, the rest lower case'],
+  wordFirstLetterBigWithExclusions: ['Первую букву каждого слова (кроме исключений) сделать большой, остальные – маленькими', 'First letter of every word (but the exceptions) upper case, the rest lower case'],
+};
+
+function targetsFor(kind) {
+  if (kind === 'titles') return ['subtitles', 'subtitlesWithEmptyLines', 'text'];
+  if (kind === 'subtitles') return ['titles', 'text'];
+  return ['text', ...INLINE_KINDS.filter((other) => other !== kind)];
+}
+
+/** The action selected when a kind is shown (2.7.9's changingOfSelect). */
+function defaultAction(kind, previous) {
+  if (previous === 'text') return 'text';
+  if (kind === 'titles') return 'subtitlesWithEmptyLines';
+  if (kind === 'subtitles') return 'titles';
+  return INLINE_KINDS.includes(previous) && previous !== kind ? previous : 'text';
+}
+
 function actionsFor(ctx, kind) {
-  const label = (en, ru) => t(ctx, ru, en);
-  const out = [];
-  if (kind === 'titles') {
-    out.push({ value: 'subtitles', label: label('Reformat as subtitles', 'Переформатировать как подзаголовки') });
-    out.push({ value: 'text', label: label('Reformat as text', 'Переформатировать как текст') });
-  } else if (kind === 'subtitles') {
-    out.push({ value: 'titles', label: label('Reformat as titles', 'Переформатировать как заголовки') });
-    out.push({ value: 'text', label: label('Reformat as text', 'Переформатировать как текст') });
-  } else {
-    out.push({ value: 'text', label: label('Reformat as text', 'Переформатировать как текст') });
-    for (const other of INLINE_KINDS) {
-      if (other !== kind) out.push({ value: other, label: label(`Reformat as ${other}`, `Переформатировать как ${other}`) });
+  const out = targetsFor(kind).map((value) => ({
+    value,
+    label: t(ctx, `Переформатировать как: ${TARGETS[value][0]}`, `Reformat as: ${TARGETS[value][1]}`),
+  }));
+  if (kind === 'titles' || kind === 'subtitles') {
+    for (const mode of CASE_MODES) {
+      out.push({ value: `case:${mode}`, label: t(ctx, `Регистр: ${CASE_LABELS[mode][0]}`, `Case: ${CASE_LABELS[mode][1]}`) });
     }
   }
-  out.push({ value: 'case:onlyFirstBig', label: label('Case: first letter upper, the rest lower', 'Регистр: первая буква большая, потом маленькие') });
-  out.push({ value: 'case:allBig', label: label('Case: all upper', 'Регистр: все буквы большие') });
-  out.push({ value: 'case:allSmall', label: label('Case: all lower', 'Регистр: все буквы маленькие') });
-  out.push({ value: 'kind', label: label('Show another kind of element…', 'Показать другой тип элементов…') });
+  out.push({ value: 'kind', label: t(ctx, 'Показать другой тип элементов…', 'Show another kind of elements…') });
   return out;
 }
 
 export default async function run(ctx) {
+  const title = t(ctx, `Обзор и превращение элементов v${VERSION} (скрипт Sclex’а)`, `Browse and convert elements v${VERSION} (script by Sclex)`);
   let kind = null;
   let action = null;
   for (;;) {
     if (!kind) {
       const choice = await mfbe.ui.form({
-        title: t(ctx, 'Обзор элементов v1.8 (скрипт Sclex’а)', 'Element browser v1.8 (script by Sclex)'),
-        width: 420,
+        title,
+        width: 520,
         fields: [
           {
             kind: 'select', id: 'kind', label: t(ctx, 'Отобразить', 'Show'), value: 'titles',
-            options: Object.entries(KIND_LABELS).map(([value, [en, ru]]) => ({ value, label: t(ctx, ru, en) })),
+            options: KINDS.map(([value, ru, en]) => ({ value, label: t(ctx, ru, en) })),
           },
         ],
         okLabel: t(ctx, 'Выполнить', 'Run'),
       });
       if (!choice) return;
       kind = String(choice.kind);
-      action = null;
+      action = defaultAction(kind, action);
     }
     const elements = await scan(kind);
     const actions = actionsFor(ctx, kind);
+    if (!actions.some((a) => a.value === action)) action = defaultAction(kind, null);
     const values = await mfbe.ui.form({
-      title: t(ctx, `Обзор элементов v1.8 (скрипт Sclex’а): ${KIND_LABELS[kind][1]}`, `Element browser v1.8 (script by Sclex): ${KIND_LABELS[kind][0]}`),
+      title: `${title}: ${t(ctx, KIND_LABEL[kind][0], KIND_LABEL[kind][1])}`,
       width: 560,
       fields: [
         { kind: 'static', id: 'count', text: t(ctx, `Всего: ${elements.length}`, `In all: ${elements.length}`) },
@@ -474,7 +353,7 @@ export default async function run(ctx) {
           multiple: true, value: [],
           options: elements.map((el, i) => ({ value: el.key, label: `${i + 1}. ${el.text}` })),
         },
-        { kind: 'select', id: 'action', label: t(ctx, 'Действие', 'Action'), options: actions, value: action ?? actions[0].value },
+        { kind: 'select', id: 'action', label: t(ctx, 'Действие', 'Action'), options: actions, value: action },
       ],
       okLabel: t(ctx, 'Выполнить', 'Run'),
       cancelLabel: t(ctx, 'Закрыть', 'Close'),
@@ -483,6 +362,7 @@ export default async function run(ctx) {
     action = String(values.action);
     if (action === 'kind') {
       kind = null;
+      action = null;
       continue;
     }
     const chosen = new Set(Array.isArray(values.items) ? values.items : values.items ? [values.items] : []);
@@ -492,9 +372,15 @@ export default async function run(ctx) {
       continue;
     }
     const report = [];
-    if (action.startsWith('case:')) await applyCase(picked, action.slice(5), report);
-    else if (kind === 'titles') await titlesToLines(picked, action === 'subtitles' ? 'subtitle' : 'p', report);
-    else if (kind === 'subtitles' && action === 'text') await subtitlesToText(picked, report);
+    if (action.startsWith('case:')) {
+      const mode = action.slice(5);
+      const number = mode === 'nthWordBigLetters' ? await askWordNumber(ctx) : undefined;
+      if (number === null) continue;
+      await applyCase(picked, mode, number, report);
+    } else if (kind === 'titles') {
+      const target = { subtitles: 'subtitle', subtitlesWithEmptyLines: 'subtitles with empty lines before and after', text: 'p' }[action];
+      await titlesTo(picked, target, report);
+    } else if (kind === 'subtitles' && action === 'text') await subtitlesToText(picked, report);
     else if (kind === 'subtitles' && action === 'titles') await subtitlesToTitles(ctx, picked, report);
     else await reformatInline(picked, kind, action, report);
     if (report.length) {

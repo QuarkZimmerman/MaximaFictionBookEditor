@@ -1867,3 +1867,210 @@ node tests/scripts/run-script.mjs $F/chain-runner $F/formatting.fb2 --select-ran
      --answer '19_Обработка форматирования\40_Сформатировать абзац(ы) жирностью.js | 19/paragraphs-remove-italics' \
      --snapshot $S/paragraphs-to-bold.chain.xml
 ```
+
+Recheck (T086) of the two packages converted from 2.7beta1 whose 2.7.9 successors are in this
+group: `01_Обзор и превращение элементов...` (`19/element-browser`, v1.8 → v4.2, a major change)
+and `05_Снять форматирование блочным элементом` (`18/unwrap-poem-cite-epigraph`, v1.3 → v2.7,
+moved here from `18_Мелочи редактирования/03_Снятие форматирования стихом, цитатой или
+эпиграфом.js`; a major change). Both are **updated**: `legacy` names the 2.7.9 file
+(`fbeVersion` "2.7.9", no `sourceVersion`: the versions are in the code only), `name.ru` and
+`undoLabel.ru` are the 2.7.9 names, every name and description has its `uk`, `index.js` keeps the
+2.7.9 notice (`check-notices.py --package`: OK for both). Ids and folders stay. The 25 packages
+converted from 2.7.9 in this group are not touched.
+
+**How the expected results were found.** Both originals restructure FictionBook Editor's page with
+long DOM procedures (removeNode, insertAdjacentHTML, markers), too intricate to trace by hand
+over many cases. A scratch emulation of the 2.7.9 page (never shipped) built the page as
+`files/fb2.xsl` renders a book - containers as `DIV.<element>`, text blocks as `P` (`P.subtitle`,
+`P.text-author` for authors and dates, `P.td` / `P.th`, an empty line an empty `P`), no text
+between blocks - ran the originals' code unmodified on it (only JScript's `inflateBlock(x)=true`
+assignment removed, the IE methods `removeNode`, `applyElement`, `innerText` and the text range
+supplied) and wrote the page back as 2.7.9 saved it (`CFBEView::Normalize`, `FBDoc.cpp`
+`ProcessDiv` / `ProcessP`). It reproduces the six existing `element-browser` snapshots and the
+unchanged `unwrap` one exactly; every snapshot below equals its result in a canonical form (the
+block tree, text runs with their marks), except where a fix or a recorded difference applies, and
+for those the emulation with the fix applied as a minimal patch of the original gives the
+snapshot.
+
+### 01 Обзор и превращение элементов...
+
+`scripts/19_formatting/element-browser`, id `19/element-browser`. **Updated.** 2.7.9 rewrote the
+dialog's frame 2 (v4.2); the script file only passes two word lists more. What changed, and how
+it was ported:
+
+- **Kinds.** Only the titles of sections are listed (2.7.9 commented the titles of poems and
+  stanzas out of its list); the kinds carry Russian labels (Заголовки разделов, Подзаголовки,
+  Курсив, Жирность, Верхние индексы, Нижние индексы, Зачеркивание).
+- **List labels.** Up to 160 characters of an element (was 50), then `<...>`.
+- **Titles as subtitles framed by empty lines** - new, and the default for titles. The other
+  targets: subtitles, text; for subtitles: titles, text; for runs: text or another style (all with
+  2.7.9's labels). Converting title lines restructures the book as 2.7.9 does, which the earlier
+  conversion had simplified (it replaced a whole title in place): a section whose whole title
+  becomes subtitles or text **merges into the section before it** (the previous one of an
+  ancestor when it has none, the deepest last subsection; in place when there is none at all),
+  its epigraphs and annotation becoming text, its subsections moving up a level; selected lines
+  at the start of a title go to the end of the section before; an unselected run between selected
+  lines becomes the title of a new section in front. In the framed mode each group of subtitles
+  gets an empty line before and after it, empty lines already there serve, and consecutive
+  subtitles gather into one group (a subtitle merged after a section ending with a subtitle and an
+  empty line joins that subtitle in front of the empty line); in the plain subtitle mode the
+  empty lines after a gathered group go.
+- **Subtitles as titles.** The content in front of the subtitle now goes to the end of the
+  previous container of the same kind unless the container starts with a title (2.7beta1: unless
+  it starts with any `DIV`, so a section starting with a cite got a new section). The warning for
+  subtitles in cites has 2.7.9's longer text.
+- **Case** (the context menu of titles and subtitles, only there as in the original - the earlier
+  conversion offered it for every kind): ten modes, 2.7.9's texts. «Первая буква большая,
+  остальные маленькие» upper-cases the first character (the second after « or "); after the first
+  full stop; after every full stop; after `.`, `!`, `?`; the second "word" or the N-th (asked,
+  with the original's three error messages) in capitals; all upper / all lower; the first letter
+  of every word, with the dates (`1990 г.`, `XIV–XV вв.`) and hyphenated words as 2.7.9 treats
+  them; and the same with the short words lower case (but at the start) and the abbreviations
+  upper case. The two "every word" modes run 2.7.9's expressions verbatim on the IE notation of
+  the element (`lib/legacy-html.js`, copied unchanged), the word lists as 2.7.9's `.js` wrote them
+  (its Roman numerals I…MMMMM generated: the same 5000 entries in the same order).
+
+Port: `page.js` reads a body into the shape of 2.7.9's page and runs
+`reformatTitlesToSubtitlesOrText`, `moveHtmlCodeIntoTargetContainer`,
+`moveBlockIntoPreviousBlock`, `moving1`, `createTargetContainer` and `reformatSubtitlesToTitles`
+statement by statement on it; the changed bodies are written back with `doc.replaceNode` (nodes
+that only moved keep their ids; a container the procedure empties goes, one empty in the book
+already stays). Subtitles
+as text and runs as another style are unchanged since 2.7beta1. `case-modes.js` holds the case
+changes, the original's expression lines copied as written.
+
+Snapshots. The six existing runs on `conv-c-19.fb2` give 2.7.9's result unchanged (checked with
+the emulation) and pass as recorded. Added (`tests/scripts/snapshots/19/suite.json`, books
+`tests/scripts/fixtures/279/19/element-browser.fb2` and `element-browser-case.fb2`):
+- `element-browser.titles-to-framed-subtitles.xml`: the whole titles of chapters 2-5 framed - each
+  merges into the chapter before; chapter 3's epigraph, author and annotation become text; the
+  empty line ending chapter 3 and the one opening chapter 4 frame «Глава 4 / Название четвёртой
+  главы»; chapter 5's lines gather with chapter 4's closing `* * *` and «Подзаголовок пятой главы» into
+  one group, an empty line added in front of it;
+- `.part.xml`: the title of a part with an epigraph and two chapters - the part merges into
+  chapter 5, its chapters move up a level;
+- `.lines.xml`: a middle line of chapter 7's title (a new section with «Глава 7» as its title and
+  the framed subtitle) and the first line of chapter 8's (to the end of chapter 7); fix 2;
+- `.leading.xml`: the first lines of chapters 4 and 5 - into the end of chapter 3 (fix 1) and in
+  front of the empty line after chapter 4's `* * *`;
+- `element-browser.titles-to-subtitles.merge.xml`: plain subtitles - chapter 1 in place (no section
+  before it), chapters 3-5 merged, the empty line after chapter 4's gathered subtitles gone,
+  chapter 10 (only a subtitle) merged into chapter 9; fix 3;
+- `element-browser.titles-to-text.merge.xml`: text - chapters 1, 3 and 4, and chapter 6, the first
+  subsection of a part (an untitled section in its place);
+- `element-browser.case-modes.xml`: the ten modes on title lines and subtitles in one run, an
+  invalid word number (`x`, message, nothing changes) and N = 3;
+- `element-browser.subtitles-to-titles.containers.xml`: a subtitle right after a title (joins
+  it), one in a cite (warning), one after a cite in an untitled section (the cite and its
+  paragraph go to the end of the chapter before), one after an epigraph in an untitled section
+  (a new section: the difference below).
+
+Fixes (FR-023):
+1. Leading title lines moved to a previous section ending with empty lines not preceded by a
+   subtitle were lost and the script stopped with an error: `else if (isSubtitle(…))` repeated
+   the `if` condition, so the lines, already out of the title, were inserted nowhere and
+   `markerEnd` was null. They go to the end of that section (an empty line after them when
+   framed) - the branch's own body.
+2. Framed mode, selection going on in a later title: the last unselected lines of a title got two
+   empty lines around an insertion of nothing. Nothing is inserted.
+3. Merging a section of nothing but subtitles after a section ending with a subtitle and an empty
+   line stopped with a script error (`tt.nextSibling` of nothing in `moving1`). It completes.
+4. The N-th word number is decimal (JScript's `eval` read `010` as octal 8).
+
+Differences: the dialog as forms (plain-text list without formatting or link tooltips, no
+"selected" counter, no Ctrl+A, no jump to the element, Undo/Redo as Edit > Undo after the run,
+"Выполнено." and the counts in the status bar); where FB2 allows a subtitle's preceding content
+nowhere at the end of the previous container (after subsections, or starting with an epigraph or
+annotation) a new container takes it, as in 2.7beta1 (2.7.9 wrote invalid FB2); a subtitle in a
+section's annotation stays a subtitle; an edit the schema still refuses is reported and its body
+left as it was.
+
+Open questions (2.7.9's behaviour kept): the first character rather than the first letter is
+upper-cased (`— и снова Глава` → `— и снова глава`); the abbreviation list is matched ignoring
+case and upper-cased, so `КоАП`, `СНиП`, `СПбГУ` come out in capitals; an empty line goes in front
+of a subtitle that becomes the first child of an empty container in every mode, the condition
+`&& "subtitles with empty lines before and after"` being a string (reached only in rare
+structures).
+
+### 05 Снять форматирование блочным элементом
+
+The package follows 2.7.9 into this group at place 05: it moved from
+`scripts/18_editing/03_unwrap-poem-cite-epigraph` to `scripts/19_formatting/05_unwrap-poem-cite-epigraph`;
+its id `18/unwrap-poem-cite-epigraph` is kept, so hotkeys, Scripts toolbar buttons and Last script
+keep running it (FR-028), and its snapshots stay under `tests/scripts/snapshots/18/`.
+
+`scripts/19_formatting/05_unwrap-poem-cite-epigraph`, id `18/unwrap-poem-cite-epigraph` (the id of
+the 2.7beta1 script). **Updated**; `legacy.source` is now the 2.7.9 path, which the combos of
+2.7.9 run (13/590, the templates 31/32 and 31/33 and others in their examples) - both spellings,
+with and without the leading backslash, resolve (`.chain` snapshot). The icon is the 2.7.9 one
+(`.ico` new in 2.7.9, converted with the audit tool's `ico_to_png`).
+
+What 2.7.9 changed, all ported (`index.js`; containers through `lib/containers.js` and the book
+annotation through `lib/text-blocks.js`, both copied unchanged from the group):
+- **The selection.** A text selection no longer stops the script with "При запуске скрипта не
+  должно быть выделения": it counts from its start (`tr.collapse(true)`); a selected picture does
+  nothing. Combos select a title, poem or cite and then call this script.
+- **More elements.** The innermost poem, epigraph, cite, **title, annotation or table** around
+  the start; a poem's title or epigraph means the poem.
+- **Flattening.** A poem: everything in it becomes paragraphs - title, epigraph and its author,
+  stanza titles, verses, subtitles, author and date - with an empty line between two stanzas that
+  follow each other (`<P>&nbsp;</P>`, saved as `<empty-line/>`). A cite: everything in it becomes
+  paragraphs, its subtitles, poems (without stanza breaks) and tables too (2.7beta1 changed its
+  authors only).
+- **Epigraph:** it and the epigraphs and annotation right after it (flattened). **Title:** the
+  epigraphs and annotation after it, then the title (a stanza's title becomes verses). **Table:**
+  rows go, every cell a paragraph without its id, style, alignment and spans. **Annotation** of a
+  section: its content in its place as it is; the book annotation stays.
+- **Before subsections** (a title, epigraph or annotation of a body or a section of sections and
+  the ones after it): their text opens the first subsection when it starts with text, a cite, a
+  poem or a table, or else becomes a new untitled section in front of it.
+
+Snapshots. On `conv-c-18.fb2`: `unwrap-poem-cite-epigraph.xml` **re-recorded** - 2.7.9 puts an
+empty line between the poem's two stanzas; `.cite.xml` **re-recorded** - the cite's subtitle
+becomes a paragraph too; `.epigraph.xml` unchanged (2.7.9 gives the same). Added
+(`tests/scripts/snapshots/19/suite.json`, files in `snapshots/18/` as the id says, book
+`tests/scripts/fixtures/279/19/block-elements.fb2`): `.title` (chapter 1's title with its two
+epigraphs and annotation), `.epigraphs` (the second epigraph and the annotation after it),
+`.title-picture` (difference), `.body-title` (the book's title and epigraph → an untitled section
+before chapter 1), `.part-title` and `.part-epigraph` (into the first subsection, which starts with
+text), `.part-title-new-section` (a new section: the subsection has a title), `.poem-stanzas`,
+`.poem-epigraph` (the same: the poem), `.stanza-title`, `.cite-contents`, `.table` (two blank cells
+→ empty lines), `.annotation` (its subtitle and poem stay), `.paragraph` (nothing), `.selection`
+(a selection from the cite into the next paragraph: the cite), `.book-annotation-cite` (through
+`setDescription`), `.book-annotation` (nothing), and `.chain`: the chain runner does what 2.7.9's
+"while (select the next poem) { 05 }" loops do - `16/next-poem` and this script by its 2.7.9 path,
+four times, then `NotFound`; the report (`.chain.outputs.json`) shows each run leaving the caret
+on the first paragraph that came out, and the book equals four runs of the original in a row.
+
+Differences: where 2.7.9's result was invalid FB2 the text goes to the first place the schema
+accepts - after a section's picture and annotation that stay (`.title-picture`; 2.7.9 left the
+annotation after paragraphs), into a section of its own before subsections, after a stanza's
+subtitle; attributes a paragraph cannot have are dropped (a cell's spans or alignment in a cite's
+table); a blank cell is an empty line, as 2.7.9 saved it; a cell's language stays; a cite, poem
+or table of the book annotation or history is dissolved through `doc.setDescription`; the caret
+is put at the start of the first paragraph that came out (2.7.9 left the browser's selection); a
+status-bar line when the caret is in none of the elements. The package stays in
+`scripts/18_editing/` (recheck rule 2), so the menu shows it in Мелочи редактирования, not in
+2.7.9's Обработка форматирования.
+
+Open question (kept as 2.7.9): a poem's title or epigraph means the poem, a stanza's title only
+that title - so 13/590 «Расформатировать все заголовки_Комбо» ("select the next title", then this
+script) dissolves every poem whose title it meets, and a "select the next poem" loop leaves a poem
+whose first stanza has a title (`.chain`: the third poem keeps its stanza, only its title became a
+verse).
+
+### Harness commands
+
+```bash
+F=tests/scripts/fixtures/279/19; S=tests/scripts/snapshots
+node tests/scripts/run-script.mjs scripts/19_formatting/element-browser $F/element-browser.fb2 \
+     --answer '{"kind":"titles"}' --answer '{"items":["n24:0","n32:0"],"action":"subtitlesWithEmptyLines"}' --answer cancel \
+     --snapshot $S/19/element-browser.titles-to-framed-subtitles.leading.xml
+node tests/scripts/run-script.mjs scripts/19_formatting/05_unwrap-poem-cite-epigraph $F/block-elements.fb2 \
+     --select-range n74:2-n85:5 --snapshot $S/18/unwrap-poem-cite-epigraph.selection.xml
+node tests/scripts/run-script.mjs $F/chain-runner $F/block-elements.fb2 \
+     --answer '16/next-poem | 19_Обработка форматирования\05_Снять форматирование блочным элементом.js | …' --answer ok \
+     --snapshot $S/18/unwrap-poem-cite-epigraph.chain.xml
+tests/scripts/run-all.sh --group 19     # 56 snapshots: the element browser's 14 among them
+tests/scripts/run-all.sh --group 18     # the unwrap package's 21 among the group's
+```
