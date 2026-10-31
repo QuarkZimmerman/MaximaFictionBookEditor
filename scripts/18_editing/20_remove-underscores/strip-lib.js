@@ -1,31 +1,23 @@
-// Shared by "Удаление пробелов" and "Удаление пробелов и дефисов" (18_Мелочи редактирования
-// 01 and 06, FictionBook Editor 2.7, Tier 1): removes the characters matching `pattern` from
-// the selected text while keeping inline formatting, then re-selects the processed text,
-// exactly as the originals did by editing the text nodes between two markers.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
-//"Удаление пробелов" by Sclex
-//v1.1
-//вид обработки, которой подвергается выделенный текст
-// 1 - перевод в верний регистр
-// 2 - перевод в верний регистр
+// Shared by "Удалить все пробелы в выделении" and "Удалить все пробелы и дефисы в выделении"
+// (FictionBook Editor 2.7.9, 18_Мелочи редактирования 17 and 18, Sclex, v1.3; converted from
+// their 2.7beta1 versions "Удаление пробелов" and "Удаление пробелов и дефисов" first and brought
+// up to 2.7.9 in feature 007) and by their sibling 20, "Удалить все символы подчеркивания в
+// выделении" (converted from 2.7.9 in feature 007). Each of the three packages carries an
+// identical copy; the originals' notices are in the packages' index.js.
+//
+// The originals removed every match of their expression from the selected text of every text
+// block of the page - 2.7.9's isInsideP: any text inside a P of fbw_body, the book's annotation
+// and history included - keeping the formatting, and left the processed text selected; without
+// a text selection they said "Ничего не выделено!". Here the bodies' paragraphs are written with
+// doc.replaceNode and the annotation's and the history's with one doc.setDescription
+// (lib/page-paragraphs.js on lib/nav-lib.js's page).
 
-function t(ctx, ru, en) {
-  return ctx.uiLanguage === 'ru' ? ru : en;
-}
-
-/** Selection as {from, to, nodes} with `from` before `to` in document order. */
-export function orderedSelection(selection) {
-  const { anchor, head, nodes } = selection;
-  let forward = true;
-  if (anchor.nodeId === head.nodeId) forward = anchor.offset <= head.offset;
-  else if (nodes.length) forward = nodes[0].nodeId === anchor.nodeId;
-  return forward ? { from: anchor, to: head, nodes } : { from: head, to: anchor, nodes };
-}
+import { PageEdits, hasContent, paragraphsOfSelection, textSelection, t } from './lib/page-paragraphs.js';
 
 /**
  * Rewrites the inline content of a text block: `transform` is applied to the text inside
  * [start, end) (offsets in the block's text, inline leaves count as 1), marks are kept.
- * Returns the new content and how many characters were removed before `end`.
+ * Returns the new content and how many characters were removed.
  */
 export function transformRange(content, start, end, transform) {
   const out = [];
@@ -58,28 +50,36 @@ export function transformRange(content, start, end, transform) {
 }
 
 export async function stripSelectedText(ctx, pattern) {
-  const raw = await mfbe.selection.get();
-  if (!raw || !raw.text) {
+  const found = await textSelection();
+  if (!found) {
     await mfbe.ui.message(t(ctx, 'Ничего не выделено!', 'Nothing is selected!'), { icon: 'warning' });
     return;
   }
-  const { from, to, nodes } = orderedSelection(raw);
+  const { book, where } = found;
+  const edits = new PageEdits();
   let removedInLast = 0;
-  for (let i = 0; i < nodes.length; i += 1) {
-    const block = nodes[i];
-    const node = await mfbe.doc.getNode(block);
-    const content = node.content ?? [];
+  for (const item of paragraphsOfSelection(book, where)) {
+    if (ctx.cancelled) return;
+    if (!hasContent(item)) continue;
+    const content = item.node.content ?? [];
     const length = content.reduce((n, c) => n + (c.type === 'text' ? c.text.length : 1), 0);
-    const start = block.nodeId === from.nodeId ? from.offset : 0;
-    const end = block.nodeId === to.nodeId ? to.offset : length;
+    const start = item.index === where.start.index ? where.start.offset : 0;
+    const end = item.index === where.end.index ? where.end.offset : length;
     const result = transformRange(content, start, end, (text) => text.replace(pattern, ''));
     if (result.removed === 0) continue;
-    await mfbe.doc.replaceNode(block, { ...node, content: result.content });
-    if (block.nodeId === to.nodeId) removedInLast = result.removed;
+    await edits.put(item, { ...item.node, content: result.content });
+    if (item.index === where.end.index) removedInLast = result.removed;
   }
+  await edits.commit();
   // The original left the processed text selected.
-  await mfbe.selection.set(
-    { nodeId: from.nodeId, offset: from.offset },
-    { nodeId: to.nodeId, offset: to.offset - removedInLast },
-  );
+  const from = where.start.item;
+  const to = where.end.item;
+  if (from?.nodeId && to?.nodeId && from.kind === 'p' && to.kind === 'p') {
+    await mfbe.selection.set(
+      { nodeId: from.nodeId, offset: where.start.offset },
+      { nodeId: to.nodeId, offset: where.end.offset - removedInLast },
+    );
+  } else {
+    await mfbe.selection.set(where.selection.anchor, where.selection.head).catch(() => {});
+  }
 }

@@ -7902,7 +7902,9 @@
       "status": "new",
       "predecessor": null,
       "differences": [],
-      "fixes": [],
+      "fixes": [
+        "A selection reaching into the annotation or the history stopped the run with a script error (\"node: unknown nodeId\"); the package now carries the space removals' new helper, which processes those blocks as 2.7.9 does."
+      ],
       "openQuestions": []
     },
     {

@@ -1,8 +1,9 @@
 // Shared by "Удалить все пробелы в выделении" and "Удалить все пробелы и дефисы в выделении"
 // (FictionBook Editor 2.7.9, 18_Мелочи редактирования 17 and 18, Sclex, v1.3; converted from
 // their 2.7beta1 versions "Удаление пробелов" and "Удаление пробелов и дефисов" first and brought
-// up to 2.7.9 in feature 007). Each of the two packages carries an identical copy; the originals'
-// notices are in the packages' index.js.
+// up to 2.7.9 in feature 007) and by their sibling 20, "Удалить все символы подчеркивания в
+// выделении" (converted from 2.7.9 in feature 007). Each of the three packages carries an
+// identical copy; the originals' notices are in the packages' index.js.
 //
 // The originals removed every match of their expression from the selected text of every text
 // block of the page - 2.7.9's isInsideP: any text inside a P of fbw_body, the book's annotation

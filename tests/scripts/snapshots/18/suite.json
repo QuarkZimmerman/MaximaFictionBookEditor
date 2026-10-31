@@ -270,5 +270,14 @@
       "--answer",
       "{\"file\":\"file:song.mid\"}"
     ]
+  },
+  {
+    "snapshot": "18/remove-underscores.description.xml",
+    "script": "scripts/18_editing/20_remove-underscores",
+    "book": "tests/scripts/fixtures/279/18/underscores-description.fb2",
+    "args": [
+      "--select-range",
+      "n6:3-n3:10"
+    ]
   }
 ]

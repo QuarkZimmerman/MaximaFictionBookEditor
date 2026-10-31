@@ -365,8 +365,9 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     const byId = new Map(lists.flatMap((list) => list.entries).map((s) => [s.id, s]));
     expect(lists[0]!.entries.map((s) => s.id)).toContain('18/remove-spaces');
     expect(byId.get('18/remove-spaces')).toMatchObject({
-      name: { en: 'Remove spaces' },
-      description: expect.stringContaining('spaces'),
+      // 2.7.9's name since the recheck of group 18 (feature 007).
+      name: { en: 'Remove all spaces in the selection' },
+      description: expect.stringContaining('every space'),
       kind: 'menu',
       origin: 'bundled',
       runnable: false,

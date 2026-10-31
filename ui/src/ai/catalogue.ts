@@ -2344,7 +2344,7 @@ const MFBE_RESOURCE_META: Record<
     name: 'example-script',
     title: 'Example script package',
     description:
-      'One bundled script as a complete package: {id, files: [{path, content}]} - script.json and index.js, whole, with its notice header.',
+      'One bundled script as a complete package: {id, files: [{path, content}]} - script.json and index.js, whole, with its notice header. The icon its manifest names is a PNG beside script.json and is not included; a script you write names no icon.',
   },
 };
 

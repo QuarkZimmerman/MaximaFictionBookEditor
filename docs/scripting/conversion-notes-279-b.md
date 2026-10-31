@@ -2689,7 +2689,15 @@ Difference: scrolling, as 01. No open question.
 the selected text, keeping its formatting, and leaves the processed text selected; without a
 selection "Ничего не выделено!" (`needsSelection: true`). The original is the sibling of
 "Удалить все пробелы в выделении" (17) and "… и дефисы" (18) with another expression, so the
-conversion is theirs: `strip-lib.js` of the package `17_remove-spaces`, copied unchanged.
+conversion is theirs: `strip-lib.js` of the package `17_remove-spaces`, copied unchanged. The
+recheck of 17 and 18 gave them a new `strip-lib.js` (with `lib/nav-lib.js` and
+`lib/page-paragraphs.js`) that also processes the annotation and the history, as 2.7.9's
+`isInsideP` does; this package takes the same copy, since with the old one a selection reaching
+into those blocks stopped the run with "node: unknown nodeId" (a fix). Recorded:
+`remove-underscores.description.xml` on `underscores-description.fb2` (`--select-range
+n6:3-n3:10`): the annotation from its fourth character "Ан_нотация с подчёркиваниями.", the
+whole history "История - с <emphasis>жирным</emphasis> текстом.", the first paragraph up to
+offset 10 "Первый аб_зац те_кста.".
 
 Expected and recorded: `remove-underscores.xml` (`--select-range n8:4-n9:30`): n8 from its fifth
 character "Текстсподчеркиваниями и <emphasis>курсивсподчеркиванием</emphasis> конец." (the
