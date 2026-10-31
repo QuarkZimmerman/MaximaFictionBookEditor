@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"14_Цитаты\\\\054_Расширенный поиск предположительных цитат.js\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n8\",\n      \"offset\": 26\n    },\n    \"head\": {\n      \"nodeId\": \"n8\",\n      \"offset\": 26\n    },\n    \"text\": \"\"\n  }\n]"
+    }
+  ]
+}

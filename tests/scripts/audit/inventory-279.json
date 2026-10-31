@@ -22,7 +22,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 319
+    "converted": 328
   },
   "entries": [
     {
@@ -4908,15 +4908,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/052_paragraphs-to-cite",
+      "id": "14/paragraphs-to-cite",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Afterwards a caret stands at the end of the citation's last paragraph: the original replaced the paragraphs the selection was in by copies inside the new citation and had commented out the code that would have selected them again, so the selection was left wherever Internet Explorer put it.",
+        "A selected picture changes nothing; the original stopped with a script error (its range of a picture has no parentElement).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/52_sformatirovat-abzats-y-tsitatoy",
-      "suggestedId": "14/sformatirovat-abzats-y-tsitatoy"
+      "openQuestions": []
     },
     {
       "source": "14_Цитаты/053_Поиск предположительных цитат (по встроенным регэкспам).js",
@@ -4932,15 +4934,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/053_find-possible-citations",
+      "id": "14/find-possible-citations",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/53_search-predpolozhitelnykh-tsitat-po-vstroennym-r",
-      "suggestedId": "14/search-predpolozhitelnykh-tsitat-po-vstroennym-r"
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw).",
+        "The editor scrolls the hit into view; the original's own scrolling step (scrollIfItNeeds) is not reproduced."
+      ],
+      "fixes": [
+        "The message for a selected picture printed the words \"sel.type\" (the variable's name, inside the string) instead of the kind of selection; it reads \"Не обрабатываемый тип выделения: выделена картинка.\" now, as in group 16's conversions."
+      ],
+      "openQuestions": []
     },
     {
       "source": "14_Цитаты/054_Расширенный поиск предположительных цитат.js",
@@ -4956,15 +4961,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/054_find-possible-citations-extended",
+      "id": "14/find-possible-citations-extended",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/54_rasshirennyy-search-predpolozhitelnykh-tsitat",
-      "suggestedId": "14/rasshirennyy-search-predpolozhitelnykh-tsitat"
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens, which this script did not decode (\"&shy;\", five characters, in its text).",
+        "The editor scrolls the hit into view; the original's own scrolling step (scrollIfItNeeds) is not reproduced.",
+        "Run1 and Run2, which called each other until one of them found something or reached the end, are a loop: a long chain of stop-word lines and dialogue lines cannot exhaust the stack."
+      ],
+      "fixes": [
+        "The message for a selected picture printed the words \"sel.type\" (the variable's name, inside the string) instead of the kind of selection; it reads \"Не обрабатываемый тип выделения: выделена картинка.\" now, as in group 16's conversions."
+      ],
+      "openQuestions": []
     },
     {
       "source": "14_Цитаты/056_Поиск предположительных цитат (без жирностей и курсивов).js",
@@ -4980,15 +4989,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/14_citations/056_find-possible-citations-no-bold-italics",
+      "id": "14/find-possible-citations-no-bold-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/14_citations/56_search-predpolozhitelnykh-tsitat-without-zhirnos",
-      "suggestedId": "14/search-predpolozhitelnykh-tsitat-without-zhirnos"
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens, which this script did not decode (\"&shy;\", five characters, in its text).",
+        "The editor scrolls the hit into view; the original's own scrolling step (scrollIfItNeeds) is not reproduced.",
+        "Run1 and Run2, which called each other until one of them found something or reached the end, are a loop: a long chain of stop-word lines and dialogue lines cannot exhaust the stack."
+      ],
+      "fixes": [
+        "The message for a selected picture printed the words \"sel.type\" (the variable's name, inside the string) instead of the kind of selection; it reads \"Не обрабатываемый тип выделения: выделена картинка.\" now, as in group 16's conversions."
+      ],
+      "openQuestions": []
     },
     {
       "source": "14_Цитаты/057_По очереди расформатировать все цитаты от жирности и курсива.js",
@@ -9438,7 +9451,8 @@
       "group": "",
       "names": {
         "ru": "Режим чтения",
-        "en": "Mode reading"
+        "en": "Reading mode",
+        "uk": "Режим читання"
       },
       "icon": false,
       "encoding": "windows-1251",
@@ -9451,7 +9465,9 @@
       "differences": [],
       "fixes": [],
       "openQuestions": [],
-      "reason": "dropped in the conversion of 2.7beta1; to be re-examined under FR-024 with script API version 2 (T069)"
+      "reason": "A mode of the editor's view, not an edit: it makes the Body view's page read-only (contentEditable false) and installs its own click, key and mouse-wheel handlers on it, which stay after the script ends - the arrow keys and the wheel scroll by whole text lines (measured with getBoundingClientRect and getClientRects, scrolled with scrollBy), a click on a link to the book jumps to its target and Backspace back, any other click leaves the mode with the caret at the clicked point (moveToPoint). A script can neither change the view's editability nor receive its events, and its run ends before the reading begins (FR-024: the editor's own page). The 2.7.9 file is the 2.7beta1 one unchanged.",
+      "namesReviewed": true,
+      "needs": "A reading mode of the Body view in the editor itself: a read-only view with line-wise scrolling and a back stack of followed links. No script API within principle V could offer it."
     },
     {
       "source": "30_'Числовые' скрипты/01_В началах выделенных абзацев добавить нумерацию вида '1.' (не нумеровать пустые строки).js",
@@ -10238,15 +10254,25 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/37_epigraphs/05_find-unmarked-epigraphs",
+      "id": "37/find-unmarked-epigraphs",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/37_epigraphs/05_search-nerazmechennykh-epigrafov",
-      "suggestedId": "37/search-nerazmechennykh-epigrafov"
+      "differences": [
+        "The lines found are selected exactly, from the start of the first to the end of the last; the original moved the end of IE's selection by a count it worked out from the section's HTML (colSumb: the characters of the lines and one per line break, the line break before the first line included, no inline picture).",
+        "The editor scrolls the selection into view; the original's scrollIfItNeeds is not reproduced.",
+        "A selected block picture is refused with the message of group 16's conversions (\"Ошибка. Вы используете тип выделения, который не поддерживатся этим скриптом...\"); the original stopped with a script error.",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
+      "fixes": [
+        "The temporary marks of a superscript at the end of a line (a footnote number) were looked for as \"<sup>\" and \"</sup>\" without the i flag, which the page's upper-case <SUP> never matched, so a line ending with a full stop and a superscript number was taken for an epigraph's last line; the marks are set now and the number moves before the punctuation, as [1], {1} and * did. On the reference book 2.7.9 selects «Всё проходит.[1]» and «И это пройдёт.²» of chapter 6 as an epigraph; the conversion passes them.",
+        "The expression that cuts the lines after an epigraph's last line read [\\\\}\\]»”“*] (a backslash) where the definition of that line - rxEndStr, and the commented-out endStr the expression was written from - reads [\\)\\}\\]»”“*] (a closing bracket): a last line ending with \")\" (\"(Из старой песни)\") now ends the epigraph. 2.7.9 took the short lines after it too: four lines of chapter 7 of the reference book, the conversion two."
+      ],
+      "openQuestions": [
+        "rxCopyright /^©|®/ is tested on the whole section's HTML without the m flag: a © at the start of a line never matches (the HTML starts with \"<DIV\"), and a ® anywhere in the section passes the whole section over, whereas the changelog of 1.12 speaks of lines starting with © and of ®. Kept as 2.7.9 behaves.",
+        "A section with an id (rxP /^<DIV class=section>/ does not match <DIV id=... class=section>) that holds an epigraph, an annotation, a citation or a poem anywhere is passed over (\"Это просто DIV!\"), the same section without an id is looked at. Kept as 2.7.9 behaves (chapters 13 and 14 of the reference book).",
+        "The search stops at the first section, or section holding one, whose id looks like a note's (n_1, c2, comment_3, FbAutId_4, bookmark_5): an ordinary chapter with such an id - FictionBook Editor gave FbAutId_ ids to link targets - stops it before the notes. Kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "37_Эпиграфы/06_По очереди расформатировать все эпиграфы от жирности и курсива.js",
@@ -10316,15 +10342,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/37_epigraphs/08_remove-all-epigraphs",
+      "id": "37/remove-all-epigraphs",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/37_epigraphs/08_udalit-all-epigrafy-and-their-soderzhimoe",
-      "suggestedId": "37/udalit-all-epigrafy-and-their-soderzhimoe"
+      "openQuestions": []
     },
     {
       "source": "37_Эпиграфы/09_Создать эпиграф из полных абзацев.js",
@@ -10340,15 +10364,22 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+      "id": "37/epigraph-from-paragraphs",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/37_epigraphs/09_sozdat-epigraf-from-polnykh-of-paragraphs",
-      "suggestedId": "37/sozdat-epigraf-from-polnykh-of-paragraphs"
+      "differences": [
+        "A stanza left without a verse, a table row left without a cell and a table left without a row go, and a result that would still not be valid FB2 (a poem left without stanzas) changes nothing and says so; 2.7.9 left such elements and then refused to save the book until it was mended by hand.",
+        "A formatting element is a run of text with one mark: two adjacent elements with the same formatting, which the original saw as two (neither spanning the last paragraph's text), are one.",
+        "The editor scrolls the caret into view; the original's GoToEndOfElement scrolled by its own rule."
+      ],
+      "fixes": [
+        "A selection starting or ending inside formatting (italics, bold, a link...) took the paragraph only from or up to that formatting element - the original widened the selection to the element holding each end (parentElement), which there is the formatting element - and then removed only that element from the paragraph, or stopped with a script error when the selection began inside formatting and ended later in the same paragraph; the whole paragraphs are taken now, as the script's name says.",
+        "A selected picture gets the message the original wrote for it (\"Вы используете не тот тип выделения, с которым работает вставка эпиграфа...\"), which its code never reached: its range of a picture (a control range) has no duplicate(), so it stopped with a script error."
+      ],
+      "openQuestions": [
+        "The text-author test of the last paragraph meant to compare the element spanning it with the single element of the paragraph before it (upTag), but for (pptag in pptags) runs over the array's indices (\"0\", \"1\"...), never equal to a tag name: the last of two or more paragraphs becomes the text author whenever one element spans its whole text. Kept as 2.7.9 behaves - the same code is FictionBook Editor's own Add epigraph (main.js, AddEpigraph); what the comparison should decide (two lines both in italics, an element that spans only part of the line before) is not clear."
+      ]
     },
     {
       "source": "40_Таблицы/01_Показать следующую таблицу в HTML-виде.js",
@@ -10536,11 +10567,15 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
-      "status": "notConverted",
+      "package": "scripts/95_programmers/03_code-to-clipboard",
+      "id": "95/code-to-clipboard",
+      "status": "new",
       "predecessor": "20_Инструменты отладки/03_Код в буфер.js",
-      "differences": [],
+      "differences": [
+        "The document model's JSON of the whole book (mfbe.doc.get(), indented) is copied instead of the HTML of the editor's page: the page is not open to scripts, and scripts see the book as that JSON, as 95/01 and 95/02 (converted from 2.7beta1) show it.",
+        "The open file's path, part of the snapshot, is left out: it is the file's place on the disk, not the book's code.",
+        "A book whose snapshot is over the API's 64 MB is not copied; a message says why."
+      ],
       "fixes": [],
       "openQuestions": [],
       "reason": "dropped in the conversion of 2.7beta1; to be re-examined under FR-024 with script API version 2 (T069)"
@@ -10561,15 +10596,22 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/99_misc/09_quote-phrasetron",
+      "id": "99/quote-phrasetron",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The window of results is one message box, which scrolls: the original's pages (\"Показать следующую страницу?\", \"Закрыть окно?\") and its setting for the window's height (Vysota_teksta) are gone.",
+        "In the English interface the window's own lines - its heading, the count, \"No quotes found\", the clipboard question and the heading of the copied text - are in English; the quotations are the book's.",
+        "The book's authors (first, middle and last name) and title come from the document's description; the original read them from the fields of the Description form.",
+        "run() returns the text of the window (the original's Run() returned nothing), and another script may run it with settings of its own (the names of its section НАСТРОЙКИ) in the args of mfbe.scripts.run; the suite's reference runs use both.",
+        "A quotation the line-breaking expression cannot take apart (a line break inside it, which a paragraph's text does not hold) ends there; the original's loop would not have ended."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/99_misc/09_tsitatnyy-frazotron",
-      "suggestedId": "99/tsitatnyy-frazotron"
+      "openQuestions": [
+        "The keywords (Родина, смысл жизни, Путин, путинский, разум, отчизна, мудрость, истина) and the special heading of five diamonds for a quotation naming Путин are the original's settings, kept as written: should the bundled script keep them?",
+        "A stanza is searched as a whole when its first line is met, and the lines after it are jumped over by the number of the stanza's children: with a title or a subtitle in the stanza the jump also passes over the first paragraph after the stanza, and a stanza whose first line is its subtitle is not searched at all. Kept as 2.7.9 behaves."
+      ]
     },
     {
       "source": "99_Прочее/10_Быки и коровы (игра).js",
@@ -10579,7 +10621,8 @@
       "group": "99_Прочее",
       "names": {
         "ru": "Быки и коровы (игра)",
-        "en": "Byki and korovy (igra)"
+        "en": "Bulls and Cows (a game)",
+        "uk": "Бики та корови (гра)"
       },
       "icon": true,
       "encoding": "utf-8",
@@ -10587,13 +10630,16 @@
       "htmlDialogs": [],
       "package": null,
       "id": null,
-      "status": "new",
+      "status": "notConverted",
       "predecessor": null,
       "differences": [],
       "fixes": [],
       "openQuestions": [],
       "suggestedPackage": "scripts/99_misc/10_byki-and-korovy-igra",
-      "suggestedId": "99/byki-and-korovy-igra"
+      "suggestedId": "99/byki-and-korovy-igra",
+      "namesReviewed": true,
+      "reason": "A number-guessing game that draws itself into the editor's own page: it inserts a styled DIV of class body before the Description form, holding the game's title, its rules, the story of the \"История\" mode, the record of the moves and a scoreboard of coloured FONT elements that it rewrites after every move; it measures the window (getViewHeight, getBoundingClientRect), scrolls it, drops old records when they no longer fit, and removes the DIV at the end. Only the moves are typed into InputBox prompts. A script has no access to the editor's page (FR-024).",
+      "needs": "A window a script can show and update while it waits in its prompts - a report window whose content a later call replaces, or a form field that shows formatted, coloured text - or a redesign of the game around message boxes and prompts alone."
     },
     {
       "source": "TreeCmd/Пример 1.js",

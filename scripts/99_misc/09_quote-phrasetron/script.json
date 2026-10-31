@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "99/quote-phrasetron",
+  "name": {
+    "ru": "Цитатный фразотрон",
+    "en": "Quote phrasetron",
+    "uk": "Цитатний фразотрон"
+  },
+  "description": {
+    "ru": "Ищет в тексте книги фразы с ключевыми словами (Родина, смысл жизни, разум, мудрость, истина…) и показывает их в окне; по настройке копирует их в буфер обмена.",
+    "en": "Finds the phrases of the book's text that hold keywords (Родина, смысл жизни, разум, мудрость, истина…) and shows them in a window; a setting copies them to the clipboard.",
+    "uk": "Шукає в тексті книги фрази з ключовими словами (Родина, смысл жизни, разум, мудрость, истина…) і показує їх у вікні; за налаштуванням копіює їх до буфера обміну."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Цитатный фразотрон",
+    "en": "Quote phrasetron"
+  },
+  "legacy": {
+    "source": "99_Прочее/09_Цитатный фразотрон.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

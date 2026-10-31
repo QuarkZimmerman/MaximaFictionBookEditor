@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "14/paragraphs-to-cite",
+  "name": {
+    "ru": "Сформатировать абзац(ы) цитатой",
+    "en": "Format the paragraph(s) as a citation",
+    "uk": "Сформатувати абзац(и) цитатою"
+  },
+  "description": {
+    "ru": "Помещает выделенные абзацы (или абзац с курсором) в новую цитату, если это простые абзацы и пустые строки одного раздела.",
+    "en": "Puts the selected paragraphs (or the caret's paragraph) into a new citation when they are plain paragraphs and empty lines of one section.",
+    "uk": "Поміщає виділені абзаци (або абзац із курсором) у нову цитату, якщо це прості абзаци й порожні рядки одного розділу."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Сформатировать абзац(ы) цитатой",
+    "en": "Format the paragraph(s) as a citation"
+  },
+  "legacy": {
+    "source": "14_Цитаты/052_Сформатировать абзац(ы) цитатой.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

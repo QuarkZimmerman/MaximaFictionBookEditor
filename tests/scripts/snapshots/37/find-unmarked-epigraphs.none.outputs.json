@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"37_Эпиграфы\\\\05_Поиск неразмеченных эпиграфов.js\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n8\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n8\",\n      \"offset\": 0\n    },\n    \"text\": \"\"\n  }\n]"
+    }
+  ]
+}

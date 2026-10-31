@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "37/find-unmarked-epigraphs",
+  "name": {
+    "ru": "Поиск неразмеченных эпиграфов",
+    "en": "Find unmarked epigraphs",
+    "uk": "Пошук нерозмічених епіграфів"
+  },
+  "description": {
+    "ru": "Ищет после заголовков строки, похожие на эпиграф без разметки (короткие строки с подписью автора), и выделяет первые найденные.",
+    "en": "Looks after the titles for lines that look like an epigraph without its markup (short lines ending with an author's name) and selects the first ones found.",
+    "uk": "Шукає після заголовків рядки, схожі на епіграф без розмітки (короткі рядки з підписом автора), і виділяє перші знайдені."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск неразмеченных эпиграфов",
+    "en": "Find unmarked epigraphs"
+  },
+  "legacy": {
+    "source": "37_Эпиграфы/05_Поиск неразмеченных эпиграфов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.12"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"37_Эпиграфы\\\\09_Создать эпиграф из полных абзацев.js\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"sc_3\",\n      \"offset\": 12\n    },\n    \"head\": {\n      \"nodeId\": \"sc_3\",\n      \"offset\": 12\n    },\n    \"text\": \"\"\n  }\n]"
+    }
+  ]
+}

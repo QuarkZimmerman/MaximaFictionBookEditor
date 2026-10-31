@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"14_Цитаты\\\\052_Сформатировать абзац(ы) цитатой.js\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n10\",\n      \"offset\": 41\n    },\n    \"head\": {\n      \"nodeId\": \"n10\",\n      \"offset\": 41\n    },\n    \"text\": \"\"\n  }\n]"
+    }
+  ]
+}

@@ -878,7 +878,194 @@ node tests/scripts/run-script.mjs $P $B/regexp-titles-basic.fb2 --answer '{"rege
 
 ## 14_Цитаты
 
-10 scripts in 2.7.9: 10 new, 0 successors of converted packages. Not yet converted or rechecked.
+10 scripts in 2.7.9, all new: the four that run no other script are converted here (part of T056)
+into the new group `scripts/14_citations/` (*Цитаты*): 052, 053, 054 and 056. The six combos 057-062
+("(По очереди) расформатировать все цитаты от жирности и курсива", "(По очереди) сформатировать
+целиком жирные (курсивные) абзацы цитатой"), which run scripts of groups 16, 19, 34 and this one, are
+converted separately. Packages: `scripts/14_citations/<NN>_<slug>/` with the 2.7.9 number as written
+(`052_` ... `056_`), ids `14/<slug>`, `legacy.source` the 2.7.9 path (the one `mfbe.scripts.run`
+resolves), `sourceVersion` from the header; `name` and `description` in ru, en and uk, `needsSelection:
+false`, the 2.7.9 icon (all four have one), `undoLabel` the name and, in `index.js`, the skeleton's
+notice lines verbatim (`check-notices.py --package`: OK for all four). None needs a power beyond
+FR-024: the scripts read and edit the book, select, and show messages and the status bar.
+
+**The page.** The originals worked on FictionBook Editor's `fbw_body`: the book's annotation and its
+history first (DIVs of class `annotation` and `history`, an empty paragraph each when the book has
+none), then the bodies; a text block was a `P` (an empty line an empty `P`). The packages rebuild it
+with group 16's `nav-lib.js` (copied unchanged, md5 `e8c399f2…`): `loadBook()` gives the tree and its
+paragraphs in document order, the description blocks included, `locate()` the selection in it. So a
+search that starts in the book's annotation searches the annotation and the history before the
+bodies, as the originals did.
+
+**The engine of the searches** (053, 054, 056; `lib/regexp-search.js`, byte-identical in the three,
+md5 `ed6892e4…`). Sclex's "Поиск по набору регэкспов" in the two generations these scripts carry:
+- the list - `addMacros`, `addRegExp`, `tagRegExp` - compiled as the originals did: leading
+  look-behinds cut off and checked by hand against the text before the match, the rest without the u
+  flag, `\s` and `\S` with JScript's meaning (no U+00A0), a `]` right after `[` a member of the class;
+  this part follows the port in group 21's `regexp-set.js`, whose search walks the bodies only and has
+  no hook for 054's exceptions, hence an engine of this group's own;
+- a paragraph's text as the original saw it - tags removed, entities decoded, an inline picture as
+  three placeholder characters (`~~~` in 053, `ǾǾǾ` in 054/056), a soft hyphen as U+00AD (053) or as
+  `&shy;` (054/056 do not decode it) - and its HTML in IE's notation for `tagRegExp`; a hit is mapped
+  back to the document exactly;
+- engine `'old'` (053): a collapsed caret skips a hit right at it (`ignoreNullPosition`), no
+  exceptions, nothing found: the message only;
+- engine `'5'` (054, 056, the `searchNext` generation): a paragraph is searched when the search does
+  not start at its end, the earliest hit wins (equal places: the entry listed first), a hit whose
+  description starts with "Пропустить" is an exception and the search goes on right after it; nothing
+  found: "Поиск завершен!" in the status bar and the message.
+
+The lists stay in `index.js` as the originals wrote them, with their instructions and comments, so
+that a copy of the package in one's own scripts folder (with an id of its own) can be edited as the
+originals were. Their descriptions are Russian; the status bar shows them in English in the English
+interface (a table in `index.js`).
+
+**Reference books** (`tests/scripts/fixtures/279/14/`, valid against `FictionBook.xsd`): `cites.fb2`
+(052: plain paragraphs with an id, a style, formatting and a note link, an empty line, a block picture
+between paragraphs, a subtitle, a citation, the book's annotation, a notes body), `quotes.fb2` (053,
+054, 056: one paragraph per expression and per exception, a stop-word line followed by a paragraph,
+by a citation and by a line of dialogue, an inline picture and a soft hyphen, quoted paragraphs in a
+title, a subtitle, a stanza and an epigraph, a quoted book annotation), `stop-word-end.fb2` (054: a
+stop word on the book's last line). **Snapshots:** `tests/scripts/snapshots/14/`, 20, listed in
+`tests/scripts/snapshots/14/suite.json`. The searches change nothing - each of their snapshots equals
+the book as the editor writes it - so they are tested through group 19's chain runner
+(`tests/scripts/fixtures/279/19/chain-runner`, used as it is): it runs a script by its 2.7.9 path
+several times in one run and its report, recorded in `<snapshot>.outputs.json`, gives the selection
+after each call. Every expected result below was worked out from the original's code before the
+first run. The harness answers every message box with OK; it can select no block picture, so the
+picture paths are not tested.
+
+### 052 Сформатировать абзац(ы) цитатой
+
+Package `scripts/14_citations/052_paragraphs-to-cite`, id `14/paragraphs-to-cite`, v1.3 (Sclex).
+
+**What it does.** The original pasted a marker at each end of the selection and took every `P` from
+the one holding the start marker to the one holding the end marker (`getNextP`: text blocks and empty
+lines at any depth; a marker at offset 0 of a paragraph is in it). `processPs()` made a citation only
+when the first `P` stood in a `DIV.section` and every `P` had that section for its parent and no class
+(or `normal`): plain paragraphs and empty lines of one section - not title lines, subtitles, verses,
+text authors, cells, nor the paragraphs of a citation, an epigraph, an annotation or the description
+blocks. It inserted a `DIV.cite` of copies of the `P`s (`cloneNode(true)`: ids, styles and formatting
+kept) before the first one and removed the originals; "ОК" in the status bar in any case.
+
+**Conversion.** `locate()` gives the paragraphs from the selection's start to its end in the page's
+order; the same test on their parents and kinds; the section's content is written once with
+`doc.replaceNode`: the citation of the paragraphs as they are (node ids kept) in the place of the
+first, and whatever stood between them that is not a `P` - a block picture - after it, in its order,
+as the original's insert-then-remove left it. The caret goes to the end of the citation's last
+paragraph. Status texts as the original.
+
+**For the combos (057-062):** acts on the paragraphs of the selection; afterwards a caret at the end of
+the new citation's last paragraph (nothing selected changes when nothing is made); `run()` returns
+nothing (`null` in the caller); started by a script it works on the selection that script left. A
+"next entirely bold/italic paragraph" search from there starts after the citation, as it did from the
+place 2.7.9's selection was left.
+
+**Expected (cites.fb2) and recorded.**
+- `paragraphs-to-cite.xml` (`--select-range n8:3-n10:5`): n8 (id `q1`, style `center`), the empty line
+  n9 and n10 (with a note link) become one citation between n7 and n11;
+- `.caret.xml` (`--select n15:5:5`): n15 alone in a citation;
+- `.picture.xml` (`n16:0-n18:4`): n16 and n18 in a citation, the picture n17 after it;
+- `.end-at-start.xml` (`n7:0-n8:0`): the end at the start of n8 takes n8 - n7 and n8;
+- `.notes.xml` (`--select n31:0:0`): the note's paragraph in a citation after the note's title;
+- unchanged: `.subtitle.xml` (`n18:0-n20:3`, the subtitle n19 between), `.title.xml` (a title line),
+  `.two-sections.xml` (`n11:3-n15:3`, the title of chapter 2 between), `.in-cite.xml` (a paragraph of a
+  citation), `.annotation.xml` (the book's annotation);
+- `.chain.xml`: the chain runner runs 052 by its 2.7.9 path on the range of the first run: the same
+  book, and the report shows `null` and a caret at n10:41, the end of the citation.
+
+**Differences.** The caret at the end of the citation (2.7.9 had replaced the paragraphs the selection
+was in and had commented out the code that would have selected them again, so the selection lay where
+Internet Explorer put it); a selected picture changes nothing (the original stopped with a script
+error: its range of a picture has no `parentElement`); the message for a selection in an input field
+is gone.
+
+### 053 Поиск предположительных цитат (по встроенным регэкспам)
+
+Package `scripts/14_citations/053_find-possible-citations`, id `14/find-possible-citations`, v5.0
+(Sclex; list TaKir 18.10.2022, reworked by stokber 30.12.2022).
+
+**What it does.** Engine `'old'`; stokber's list, all with `-cite -title -subtitle -stanza -poem
+-epigraph`: a paragraph entirely in quotation marks («...», "...", „...", “...”), with punctuation
+`[.!?…]+`, a footnote marker (`*`, digits, `[...]`, `{n}`) or both in either order after the closing
+mark; `^«[^»]+$` (the start of a citation of several paragraphs, or an unpaired «); `^[^«]+»$` and
+`^[^«]+»(punctuation|marker)*$` (its end). TaKir's earlier block is commented out in the original and
+stays so. The first hit from the end of the selection is selected, its description shown in the
+status bar; nothing found: "От позиции курсора до конца документа ничего не найдено.".
+
+**Expected (quotes.fb2) and recorded.** `find-possible-citations.chain.xml` (13 calls from the caret a
+freshly opened book has, at the start of the book's annotation): the annotation's quoted paragraph is
+passed (a collapsed caret at its start, and every expression is anchored at `^`), then n8, n9, n10,
+n11, n12 (the five forms of a quoted paragraph), n13 (start of a citation of several paragraphs), n15
+(its end, «...»."), n16 (inner guillemets: this list has no exception for them), n18 («— ...»), n30,
+n31 (with a soft hyphen and a picture: the whole paragraph), n42 - each selected whole; the titles,
+the subtitle, the verse, the epigraph and the citation's paragraph are passed; the 13th call finds
+nothing (the message), the selection stays on n42. `.caret.xml` (`--select n8:0:0`): n8 is passed, n9
+is found; `.range-end.xml` (`n7:0-n8:0`, not collapsed): n8 is found. `find-possible-citations.xml`:
+a run from the fresh caret, the book unchanged.
+
+**Differences.** The hit is selected exactly and the search starts exactly at the selection's end (the
+original moved IE's selection by its own character count, which was off after inline pictures); the
+editor scrolls the hit into view. **Fix:** the picture message printed "sel.type"; it reads "Не
+обрабатываемый тип выделения: выделена картинка." (as in group 16).
+
+### 054 Расширенный поиск предположительных цитат
+
+Package `scripts/14_citations/054_find-possible-citations-extended`, id
+`14/find-possible-citations-extended`, v1.42 (Sclex; ideas TaKir; expressions and "костыли и протезы"
+stokber).
+
+**What it does.** Two searches with engine `'5'`. Run1, stokber's list (`-cite -title -subtitle -stanza
+-poem -epigraph`): exceptions "Пропустить" for a paragraph in « » with guillemets inside and for an
+italic or bold line holding punctuation followed by a dash (`tagRegExp` with the macro
+`<откр-закр-em-str>`); found: a line wholly in italics or bold (`tagRegExp`), a paragraph in « »
+throughout with punctuation and a footnote marker `[n]`/`{n}` in the five forms, a stop word with a
+colon at the end of a line (two lists - "табличка", "надпись", "гласила", "текст", "письмо"...;
+"голос", "слово", "объявление", "газета"... - with a hand-checked look-behind `(?<![а-яё])`), a
+paragraph in CAPITAL letters, a letter's closing ("С уважением...", "Искренне ваш..."), and the start
+and end of a citation over several paragraphs. Besides, every hit in a paragraph whose text starts with
+a dash (after a «: `^«?[-—–]`) or holds punctuation followed by a dash is an exception (a line of
+dialogue). A stop word's hit is not shown: the caret goes to its end and Run2 searches on with its
+own list - any paragraph in a citation, a stanza, a poem, a title or an epigraph ("DIVs"), else the
+next one of two characters or more; a "DIVs" one or one that looks like dialogue sends the caret to
+its end and Run1 on. Run1 and Run2 call each other until one finds something or reaches the end; Run1
+collapses its selection where its last search started before its "nothing found" message, Run2 does
+not. The alternation is `lib/extended-search.js` (byte-identical in 054 and 056), a loop.
+
+**Expected (quotes.fb2) and recorded.** `.chain.xml`, 16 calls from the fresh caret: n44 (the quoted
+book annotation: this engine counts a hit at the caret), n8, n9, n10, n11, n12, n13, n15; then n16 is
+an exception (inner guillemets), n17 holds no hit, n18 is a line of dialogue, n19 a stop word ("...
+гласила:") - Run2 selects n20 whole; n21 (CAPITALS), n22 (letter), n23 (italic line); then n24 is an
+exception (bold, ", —"), n25 a stop word, Run2 meets n27 in a citation ("DIVs"), Run1 the stop word n28,
+Run2 the dialogue line n29, Run1 n30 - all in the 13th call; n31; the 15th call finds only the
+dialogue line n42 (an exception) and nothing else: the caret collapses at n42:21, the end of that
+exception, and the message; the 16th the same. `.stop-word-end.xml` (`stop-word-end.fb2`): the stop
+word on the last line, Run2 finds nothing - the message, the caret at the stop word's end (n8:26).
+`find-possible-citations-extended.xml`: a run from the fresh caret, the book unchanged.
+
+**Differences.** Exact selection and start (inline pictures, and soft hyphens, which this script left
+as "&shy;" in its text); scrolling; the loop of Run1 and Run2. **Fix:** the picture message (as 053).
+
+### 056 Поиск предположительных цитат (без жирностей и курсивов)
+
+Package `scripts/14_citations/056_find-possible-citations-no-bold-italics`, id
+`14/find-possible-citations-no-bold-italics`, v1.42 - the same file as 054 with the expression "Найдено:
+курсивная или жирная строка" commented out ("Тут отключаем поиск болдов и курсивов!!"); the bold line
+with ", —" is still an exception.
+
+**Expected and recorded.** `.chain.xml`, 15 calls: as 054 without the italic line n23 (n22 is followed
+by n30), then the two "nothing found" calls with the caret at n42:21. `.xml`: the book unchanged.
+Differences and fix as 054.
+
+### Harness commands
+
+```bash
+B=tests/scripts/fixtures/279/14; G=scripts/14_citations; S=tests/scripts/snapshots/14; CR=tests/scripts/fixtures/279/19/chain-runner
+node tests/scripts/run-script.mjs $G/052_paragraphs-to-cite $B/cites.fb2 --select-range n8:3-n10:5 --snapshot $S/paragraphs-to-cite.xml
+node tests/scripts/run-script.mjs $CR $B/cites.fb2 --select-range n8:3-n10:5 --answer '14_Цитаты\052_Сформатировать абзац(ы) цитатой.js' --snapshot $S/paragraphs-to-cite.chain.xml
+node tests/scripts/run-script.mjs $CR $B/quotes.fb2 --answer '14_Цитаты\053_Поиск предположительных цитат (по встроенным регэкспам).js|...' --snapshot $S/find-possible-citations.chain.xml
+tests/scripts/run-all.sh --group 14        # 20 snapshots
+```
 
 ## 16_Поиск форматирования
 

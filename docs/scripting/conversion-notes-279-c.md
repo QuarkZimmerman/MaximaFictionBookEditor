@@ -7,7 +7,37 @@ as the group's entries of `tests/scripts/audit/inventory-279.json`.
 
 ## (top level)
 
-1 script in 2.7.9: 0 new, 0 successors of converted packages, 1 successor(s) of scripts the 2.7beta1 conversion dropped. Not yet converted or rechecked.
+The one script at the top of 2.7.9's Scripts folder, outside every group, which the conversion of
+2.7beta1 dropped; re-examined here under FR-024 with script API version 2 (part of T069), and still
+not converted.
+
+### 29 Режим чтения
+
+v1.1 (Sclex), windows-1251; the 2.7.9 file is 2.7beta1's unchanged. Names: ru "Режим чтения", en
+"Reading mode", uk "Режим читання". Inventory: `"group": ""`; no package and no id (had it been
+converted it would have gone into `scripts/99_misc/` with an id `99/<slug>`).
+
+**What it does.** `Run()` makes the Body view's page read-only (`fbw_body.contentEditable = "false"`)
+and installs its own handlers on it, which stay after the script ends:
+- the arrow keys and the mouse wheel scroll by whole text lines - Down one line, Right three, Up one,
+  Left three - found by a binary search over the page's elements and the lines of a paragraph
+  (`getBoundingClientRect`, `getClientRects`) and scrolled with `scrollBy`;
+- a click on a link to a place in the book (`#id`) scrolls to its target and remembers the link;
+  Backspace scrolls back to the last one remembered;
+- any other click leaves the mode: the page becomes editable again, the caret goes to the clicked point
+  (`moveToPoint`) and the handlers are removed.
+
+**Reason (FR-024: the editor's own page).** A mode of the editor's view, not an edit of the book: a
+script can neither make the Body view read-only, nor receive its clicks, keys and wheel turns, nor
+measure or scroll it line by line, and its run ends before the reading begins - while a run lasts, the
+document is under the run's lock and the script's dialogs are modal. API version 2 adds the clipboard,
+files, report windows and other scripts, none of which helps.
+
+**Needs.** A reading mode of the Body view in the editor itself: a read-only view with line-wise
+scrolling by keys and wheel and a back stack of followed links. No script API within principle V could
+offer it: it would need the view's events and layout.
+
+Record: `tests/scripts/audit/updates-279/top.json` (`notConverted`, names reviewed).
 
 ## 21_Поиск и замена
 
@@ -985,7 +1015,198 @@ No difference, fix or open question.
 
 ## 37_Эпиграфы
 
-5 scripts in 2.7.9: 5 new, 0 successors of converted packages. Not yet converted or rechecked.
+5 scripts in 2.7.9, all new: the three that run no other script are converted here (part of T068)
+into the new group `scripts/37_epigraphs/` (*Эпиграфы*): 05, 08 and 09. The combos 06 and 07
+("(По очереди) расформатировать все эпиграфы от жирности и курсива"), which run scripts of groups 16,
+19 and 34, are converted separately. Packages: `scripts/37_epigraphs/<NN>_<slug>/`, ids `37/<slug>`,
+`legacy.source` the 2.7.9 path, `sourceVersion` from the header; `name` and `description` in ru, en
+and uk, `needsSelection: false`, the 2.7.9 icon where there is one (05, 08), `undoLabel` the name and
+the skeleton's notice lines verbatim in `index.js` (`check-notices.py --package`: OK for all three).
+None needs a power beyond FR-024.
+
+**Shared code** (each package carries its own copies): group 16's `nav-lib.js` (05 and 09, unchanged,
+md5 `e8c399f2…`) for the page of `fbw_body` - the book's annotation and history, then the bodies - and
+the selection in it; group 19's `lib/text-blocks.js` (08, unchanged, md5 `5bb0cdd2…`); the shared
+`lib/legacy-html.js` (05, unchanged, md5 `72451573…`) for the inline notation of IE's HTML.
+
+**Reference books** (`tests/scripts/fixtures/279/37/`, valid against `FictionBook.xsd`):
+`unmarked.fb2` (05: fourteen chapters, each built for one branch of the original's tests, and a notes
+body), `unmarked-none.fb2` (05: nothing to find after a marked epigraph), `from-paragraphs.fb2` (09: a
+paragraph with an author line in italics, a chapter with an epigraph already, a chapter of one
+paragraph, an id, a style and an empty line, a title, a poem of two stanzas, a citation, formatting in
+the middle of a paragraph, an author line in part italic, the book's annotation); 08 runs on group 19's
+`epigraphs.fb2` and on `tests/scripts/fixtures/279/14/cites.fb2` (no epigraph). **Snapshots:**
+`tests/scripts/snapshots/37/`, 19, listed in `tests/scripts/snapshots/37/suite.json`; the selections of
+05 and 09 through group 19's chain runner (`tests/scripts/fixtures/279/19/chain-runner`, used as it is),
+whose report is recorded in `<snapshot>.outputs.json`. Each expected result below was worked out from
+the original's code before the first run; for 05 a scratch copy of the original's `selEpi()`, taken
+verbatim from the 2.7.9 file, was run on hand-written IE HTML of every container the search looks at,
+in its 2.7.9 form and with the two fixes, and gave the verdicts below.
+
+### 05 Поиск неразмеченных эпиграфов
+
+Package `scripts/37_epigraphs/05_find-unmarked-epigraphs`, id `37/find-unmarked-epigraphs`, v1.12
+(stokber, December 2024; built on Sclex's "Перейти на предыдущий заголовок стиха").
+
+**What it does.** `Run1()` looks, from the end of the selection, for the next paragraph inside a title
+(any title: of a body, a section, a poem, a stanza - not the one the selection ends in), selects the
+title and moves the caret right after it; `selEpi()` takes the `outerHTML` of the DIV holding the first
+paragraph after the title and tests it with regular expressions:
+- a section, or a section holding one, whose id looks like a note's (`n_1`, `c2`, `comment_3`,
+  `FbAutId_4`, `bookmark_5`): stop - "Поиск завершён! Скрипт не ищет эпиграфы после разделов со
+  сносками." in the status bar and the message "Поиск завершён!\n\nСкрипт '...' v. 1.12.";
+- a title (the first paragraph is another title's) - "Это просто заголовок!": the caret back into this
+  title, the next title is tried;
+- an epigraph, an annotation, a citation or a poem ("Это просто DIV!"), or a ® anywhere ("символ
+  копирайта"): the next title is tried;
+- else the section's HTML is cut: the title, then from the first picture, container or subtitle that
+  starts a line, to at most 12 lines (the line break after the title counts as the first); tags go,
+  entities and soft hyphens become characters (`&shy;` a space), footnote markers move before a
+  final full stop; the lines are cut after a line of at most 80 characters followed by one of 81 or
+  more, and after the last "epigraph's last line" (`^.{1,80}[\da-zа-яё]([!?]?[\)\}\]»”“*])?$`, i: a
+  letter or a digit at the end, optionally `!`/`?` and a closing bracket or quote - an author's name);
+  when such a line is left and the lines are not too long for their number (more than 3 lines with
+  over 80 characters each on average), they are selected (`colSumb` characters from the caret) and the
+  search ends; otherwise the next title is tried.
+Nothing found up to the end: "До конца документа скрипт не видит неразмеченных эпиграфов." and the
+"Поиск завершён!" message, the caret where the last title tried left it.
+
+**Conversion.** The loop over the titles of nav-lib's page; `lib/ie-page.js` writes the DIV's
+`outerHTML` as IE7 serialised FictionBook Editor's page - upper-case tags, the id first, unquoted
+simple values, no line break between a container's start tag and its first child, CR LF between
+siblings, an empty line `<P></P>`, a block picture `<DIV onresizestart="return false" class=image ...>`
+- the layout the original's expressions rely on; `examine()` runs those expressions verbatim, keeping
+track of the line on which each `<P>` starts (every step after the title's cut keeps whole lines from
+the start), and the lines left are selected exactly with `selection.set`. Statuses and messages as the
+original; `run()` returns nothing.
+
+**Expected (unmarked.fb2) and recorded** - `find-unmarked-epigraphs.chain.xml`, 8 calls from the caret
+a fresh book has: the body's title (another title follows) is passed, then
+1. chapter 1: n7 «Я помню чудное мгновенье:» to n10 «А. С. Пушкин» (the 91-character paragraph after
+   it ends the lines);
+2. chapters 2 (an epigraph follows the title), 3 (a picture), 4 (only long lines), 5 (a subtitle), 6
+   (see the fix) are passed; chapter 7: n46 «Песня ветра,» to n47 «(Из старой песни)»;
+3. chapter 8 (a ®) is passed; chapter 9: n60 to n63 «Автор Девятый» (soft hyphens and a picture in the
+   lines);
+4. chapter 10: n69 «Первая строка,» to n72 «Автор Десятый», the empty line between included;
+5. chapter 11 (a poem's title follows; the poem's stanza holds nothing) and «Часть вторая» (a
+   subsection's title follows) are passed; chapter 12: n90 to n91 «Автор Вложенный»;
+6. chapter 13 (a section with an id that holds a citation) is passed; chapter 14, the same without an
+   id: n105 to n106;
+7. the notes body's title (a title follows), then the note `n_1`: stop, the caret at the start of its
+   text (n116:0), the status and the message;
+8. no title after the caret: the two messages, the caret stays at n116:0.
+`find-unmarked-epigraphs.none.xml` (`unmarked-none.fb2`): nothing found after the chapter whose title is
+followed by an epigraph - the two messages, the caret at the start of the epigraph's paragraph (n8:0).
+`find-unmarked-epigraphs.xml`: a run from the fresh caret, the book unchanged.
+
+**Differences.** The lines are selected exactly (the original moved the end of IE's selection by a
+count it worked out from the HTML: the lines' characters, one per line break - the one before the first
+line included - and no inline picture); the editor scrolls the selection into view; a selected block
+picture is refused with group 16's message (the original stopped with a script error); the message for
+a selection in an input field is gone.
+
+**Fixes (FR-023).**
+- The superscript marks: the original replaced `<sup>` and `</sup>` by temporary marks, so that a
+  footnote number in superscript at the end of a line would move before the full stop like `[1]`,
+  `{1}` and `*`; written in lower case without the i flag, they never matched the page's `<SUP>`, and
+  a line ending with a full stop and a superscript number counted as an epigraph's last line. Matched
+  in any case now. On `unmarked.fb2` 2.7.9 selects chapter 6's «Всё проходит.[1]» and «И это
+  пройдёт.²»; the conversion passes the chapter.
+- The cut after the last line read `[\\}\]»”“*]` - a backslash - where the definition of that line
+  (`rxEndStr`, and the commented-out `endStr` the expression was written from) reads `[\)\}\]»”“*]`;
+  a last line ending with `)` now ends the lines. On `unmarked.fb2` 2.7.9 selects four lines of chapter
+  7 (to «Ещё короткая строка.»), the conversion two.
+
+**Open questions** (kept as 2.7.9 behaves): `rxCopyright` (`/^©|®/` on the whole section's HTML,
+without the m flag) never matches a © at the start of a line, and a ® anywhere passes the whole section
+over, whereas the changelog of 1.12 speaks of lines starting with © and of ®; a section with an id
+escapes `rxP` (`^<DIV class=section>`), so one holding an epigraph, an annotation, a citation or a poem
+anywhere is passed over while the same section without an id is looked at (chapters 13 and 14); the
+search stops at any section whose id merely looks like a note's (FictionBook Editor gave `FbAutId_`
+ids to link targets).
+
+### 08 Удалить все эпиграфы и их содержимое
+
+Package `scripts/37_epigraphs/08_remove-all-epigraphs`, id `37/remove-all-epigraphs`, v1.0 (Sclex). The
+2.7.9 file is byte for byte `19_Обработка форматирования/15_Удалить все эпиграфы и их содержимое.js`
+(package `19/remove-all-epigraphs`, see `conversion-notes-279-b.md`); this package carries the same
+code under the place and the id of its own group: every epigraph of the bodies goes with its content,
+from the last to the first; "Удалено эпиграфов с их содержимым: N." in the status bar, or "Эпиграфов в
+документе не нашлось.". Snapshots: `remove-all-epigraphs.xml` on group 19's `epigraphs.fb2` - byte for
+byte group 19's `remove-all-epigraphs.xml`, as expected - and `remove-all-epigraphs.none.xml` on
+`cites.fb2` (the message, the book unchanged). No difference.
+
+### 09 Создать эпиграф из полных абзацев
+
+Package `scripts/37_epigraphs/09_epigraph-from-paragraphs`, id `37/epigraph-from-paragraphs`, v1.2
+(Sclex). The 2.7.9 file is also in group 19, disabled (`64_Создать эпиграф из полных абзацев.js_`).
+
+**What it does.** A variant of FictionBook Editor's own Add epigraph (main.js `AddEpigraph`, with
+`GetCP`, `SkipOver`, `InsBefore`): the selection is widened to the elements holding its two ends; the
+element holding that range, a paragraph counting as its container and a title as the title's container
+(`GetCP`), must be a body, a section or a poem - otherwise nothing happens. A new epigraph goes after
+the container's title and epigraphs (in a body after its picture, title and epigraphs too). Each `P`
+of the range becomes a paragraph of the epigraph with its inline content (`innerHTML`: without its id,
+style or class); of two or more, the last becomes a text author when an element of it has the
+paragraph's whole text (`innerText`). The `P`s then leave, from the last to the first: one that is the
+last child of a section is emptied (an empty line once saved), any other is removed, and a title, an
+epigraph or a citation left empty goes. The caret goes to the end of the epigraph.
+
+**Conversion.** nav-lib's page: the paragraphs from the one holding the selection's start to the one
+holding its end, their lowest common container, the original's tests; the new epigraph and the
+removals are made on a copy of the container, written with one `doc.replaceNode`; the caret with
+`selection.set` at the end of the epigraph's last text block. FictionBook Editor saved an empty `P` - or
+one of a single text of spaces, non-breaking ones too (`FBDoc.cpp` `ProcessP`, `is_whitespace`) - as
+`<empty-line/>`: such a paragraph of the epigraph, and the emptied last paragraph of a section, are
+empty lines here.
+
+**Expected (from-paragraphs.fb2) and recorded.**
+- `epigraph-from-paragraphs.xml` (`--select-range n7:5-n8:3`): chapter 1 gets an epigraph of «Мысль
+  изреченная есть ложь.» and the text author `<emphasis>Ф. И. Тютчев</emphasis>`; `.chain.xml`: the same,
+  the caret at the end of the text author (`sc_3:12`);
+- `.after-epigraph.xml` (`--select n16:3:3`): a second epigraph after the old one, its bold word kept;
+- `.last-paragraph.xml` (`n21`): the chapter's only paragraph moves into the epigraph, an empty line
+  stays;
+- `.id-style-empty-line.xml` (`n25:0-n27:5`): the paragraph without its id and style, the empty line,
+  the bold line as the text author;
+- `.title.xml` (a caret in the title of chapter 5): the title's line becomes the epigraph, the empty
+  title goes;
+- `.poem.xml` (`n41:2-n43:4`, across the stanzas): a poem epigraph of the two verses, each stanza keeps
+  its other verse;
+- `.whole-poem.xml` (`n40:0-n44:3`): the poem would keep no stanza - the message, the book unchanged;
+- `.in-cite.xml`, `.annotation.xml`: a citation's paragraph, the book's annotation - unchanged;
+- `.inside-italics.xml` (`n55:20-n56:4`, the start inside italics): both whole paragraphs (the fix);
+- `.partial-italics.xml` (`n61:0-n62:3`): «Лев <emphasis>Толстой</emphasis>» stays a paragraph;
+- `.body-title.xml` (a caret in the body's title): the body gets the epigraph, its title goes;
+- `.two-sections.xml` (`n10:3-n16:4`): the body gets an epigraph of four paragraphs (the last of chapter
+  1, the title of chapter 2, its old epigraph's line, its first paragraph); chapter 1 keeps an empty
+  line, chapter 2 loses its title and its old epigraph.
+
+**Differences.** A stanza left without a verse, a table row without a cell and a table without a row
+go, and a result still not valid FB2 changes nothing and says so (2.7.9 left them and refused to save);
+an element is a run of text with one mark (two adjacent elements with the same formatting are one); the
+editor scrolls the caret into view.
+
+**Fixes (FR-023).** A selection starting or ending inside formatting took the paragraph only from or up
+to that element and removed only it (or stopped with a script error): whole paragraphs now. A selected
+picture gets the message the original wrote for it, which its code never reached (its control range has
+no `duplicate()`).
+
+**Open question.** The text-author test means to compare the element spanning the last paragraph with
+the single element of the paragraph before it (`upTag`), but `for (pptag in pptags)` runs over the
+array's indices, never equal to a tag name: the last of two or more paragraphs becomes the text author
+whenever one element spans its text. Kept as 2.7.9 (and FictionBook Editor's own Add epigraph) behaves.
+
+### Harness commands
+
+```bash
+B=tests/scripts/fixtures/279/37; G=scripts/37_epigraphs; S=tests/scripts/snapshots/37; CR=tests/scripts/fixtures/279/19/chain-runner
+R='37_Эпиграфы\05_Поиск неразмеченных эпиграфов.js'
+node tests/scripts/run-script.mjs $CR $B/unmarked.fb2 --answer "$R|$R|$R|$R|$R|$R|$R|$R" --snapshot $S/find-unmarked-epigraphs.chain.xml
+node tests/scripts/run-script.mjs $G/09_epigraph-from-paragraphs $B/from-paragraphs.fb2 --select-range n10:3-n16:4 --snapshot $S/epigraph-from-paragraphs.two-sections.xml
+tests/scripts/run-all.sh --group 37        # 19 snapshots
+```
 
 ## 40_Таблицы
 
@@ -1157,11 +1378,142 @@ three tables.
 
 ## 95_Для программистов
 
-3 scripts in 2.7.9: 0 new, 2 successors of converted packages, 1 successor(s) of scripts the 2.7beta1 conversion dropped. Not yet converted or rechecked.
+3 scripts in 2.7.9: the successors of 01 *Показать код* and 02 *Показать весь код* (packages
+`20/show-code`, `20/show-whole-code` of 2.7beta1's *Инструменты отладки*, left for their recheck) and
+03 *Код в буфер*, which the conversion of 2.7beta1 dropped for want of the clipboard. 03 is re-examined
+here under FR-024 with script API version 2 (part of T069) and converted.
+
+### 03 Код в буфер
+
+Package `scripts/95_programmers/03_code-to-clipboard`, id `95/code-to-clipboard`; no version in the
+file (`legacy.sourceVersion` left out), no icon, and no notice of its own (FR-029: nothing to keep;
+`check-notices.py --package`: OK). `name` and `description` in ru, en and uk, `needsSelection: false`,
+`undoLabel` the name. The 2.7.9 file is 2.7beta1's `20_Инструменты отладки/03_Код в буфер.js`
+unchanged.
+
+**What it does.** The original copied the HTML of the editor's whole page
+(`document.documentElement.outerHTML`) to the clipboard (`window.clipboardData.setData`): a debugging
+aid for writing scripts against the editor's internal representation.
+
+**Conversion.** Scripts now see the book as the JSON document model, as 01 and 02 show one element of
+it, so that is what is copied, with `mfbe.clipboard.writeText`: the whole book as `mfbe.doc.get()` gives
+it - the description, the bodies with their node ids, the binaries' metadata - indented by two spaces,
+without the open file's path. A book whose snapshot is over the API's 64 MB is not copied; a message
+gives the API's reason. `run()` returns nothing.
+
+**Reference book** `tests/scripts/fixtures/279/95/code.fb2` (valid FB2: a section with italics and a
+note link, a notes body). **Expected:** the book unchanged, the clipboard holding
+`JSON.stringify(doc.get() without path, null, 2)`. **Snapshot** `tests/scripts/snapshots/95/
+code-to-clipboard.xml` (listed in `tests/scripts/snapshots/95/suite.json`) with
+`code-to-clipboard.outputs.json`: the JSON of the book - `binaries`, `bodies` (the main body and the
+`notes` body, node ids `n1`...), `description`, `docId`, `extras`, `fileKind`, `modelVersion`,
+`schemaHint`, `sourceEncoding`, `stylesheets`; no `path`. Gate: `tests/scripts/run-all.sh --group 95`
+(3 snapshots with those of 01 and 02).
+
+**Differences.** The document model's JSON instead of the page's HTML (the editor's page is not open to
+scripts); the open file's path is left out (the file's place on the disk, not the book's code - and a
+clipboard text that would differ from one copy of the files to the next); a book over the snapshot
+limit is not copied, with a message.
 
 ## 99_Прочее
 
-2 scripts in 2.7.9: 2 new, 0 successors of converted packages. Not yet converted or rechecked.
+2 scripts in 2.7.9, both new and both by Александр Ка (part of T068): 09 is converted into the new
+group `scripts/99_misc/` (*Прочее*); 10, a game drawn on the editor's own page, is not converted.
+
+### 09 Цитатный фразотрон
+
+Package `scripts/99_misc/09_quote-phrasetron`, id `99/quote-phrasetron`, v1.4 (Александр Ка,
+29.04.2025); `name` and `description` in ru, en and uk, `needsSelection: false`, the 2.7.9 icon,
+`undoLabel` the name, the skeleton's notice lines verbatim (`check-notices.py --package`: OK).
+
+**What it does.** Every `P` of the bodies other than `notes` and `comments` (the book's annotation and
+history are not bodies), in document order, with its `innerText`: a title's line, a subtitle and a text
+author (a date too) are skipped; a verse stands for its whole stanza - the stanza's text with its line
+breaks as " /&/  " - and the following lines of the stanza are jumped over by the number of the
+stanza's children. A text with a keyword (`reTrueS`: the keyword followed by punctuation, a quotation
+mark, a dash or a space) gives every match of `reTrue` - a sentence around a keyword: from the start or
+after `….?!)]` and spaces, an optional dash, an optional stretch of up to 180 characters from a
+capital, the keyword, up to 230 characters, to `…`, `.`, `?`, `!` or the end - longer than 15
+characters, at most `Max_tsitat` (100). The keywords (`W`, regular expressions): Родина, смысл жизни,
+Путин, путинский, разум, отчизна, мудрость, истина. Each quotation is trimmed of punctuation and spaces
+at its ends, its spaces doubled, broken into lines of about 47 characters (`reZit`, `reZitAlt` once
+the first fails; " /&/  " ends a line), headed by "◊ ◊ ◊" ("◊ ◊ ◊ ◊ ◊" when it names Путин) and
+followed by an empty line; with `Podcherkivat_slova` the keywords get combining low lines (U+0332).
+The window: " «Цитатный фразотрон» v.1.4", a rule, "• Найдено N цитат:" and the quotations, or
+">>  Цитаты не найдены". With `SaveTsitat` and Yes to "Сохранить текст цитат в буфер обмена?" the
+quotations - a heading, each one on its own, its stanza lines on lines of their own - and "(из книги:
+<authors>.  «<title>»)" go to the clipboard; the authors are the first, middle and last names of
+`<title-info>` (a nickname alone gives none).
+
+**Conversion.** `lib/phrasetron.js` is the original's code in its order, with its own variable names
+and comments: the `P`s are the text blocks and empty lines of the bodies (`mfbe.doc.get()`), a stanza's
+children its title, subtitle and verses; the expressions are the original's strings, compiled with
+group 06's `lib/jscript-regexp.js` (copied unchanged, md5 `e8fa308f…`) for JScript's `\s` (no
+U+00A0); `GetNBSP()` gave U+00A0, which the original turned into the text "&nbsp;", so the
+expressions' "|&nbsp;" alternatives look for that text, as they did; the window is one
+`mfbe.ui.message`, the question a Yes/No message, the clipboard `mfbe.clipboard.writeText`. The
+settings stay in `index.js` as the original's section НАСТРОЙКИ (with English glosses); another script
+may pass settings of its own in the args of `mfbe.scripts.run`, and `run()` returns the window's text.
+
+**Reference book** `tests/scripts/fixtures/279/99/phrases.fb2` (valid FB2): three authors (one a
+nickname only), a quoted keyword in the book's annotation (not a body), the body's title, keywords in
+paragraphs, a fragment of 7 characters, a quotation naming Путин, a subtitle, a citation, a stanza of
+two verses and the poem's text author, a table cell, a long paragraph, an epigraph with its text author,
+"путинской" in chapter 2 and a keyword in the notes body. **Expected:** the original's own code,
+taken verbatim from the 2.7.9 file, was run (scratch, not shipped) on a stand-in of its page built from
+this book, with JScript's `\s`: 9 quotations - the paragraphs on мудрость and Отчизна, Путин (five
+diamonds), the citation on смысл жизни, the stanza (its two lines), the cell on разумное решение, the
+whole long paragraph (истина), the epigraph on разум, the paragraph on путинской эпохи (five diamonds);
+not «Истина.» (7 characters), the titles, the subtitle, the text authors, the annotation or the note.
+**Snapshots** (`tests/scripts/snapshots/99/`, 6, in its `suite.json`; the book never changes): a run of
+the package; four runs through the test package `tests/scripts/fixtures/279/99/99_tests/run-with-args`
+(never bundled: it runs a script with the args its prompt gives and reports what `run()` returned,
+recorded in `<snapshot>.outputs.json`) - `.window` (the window's text), `.clipboard` (SaveTsitat, Yes:
+the clipboard too), `.clipboard-no` (SaveTsitat, No), `.underline` (Podcherkivat_slova, Max_tsitat 3:
+"Найдены 3 цитаты", the keywords underlined); `.none` (`tests/scripts/fixtures/279/14/cites.fb2`, no
+keyword: ">>  No quotes found", no question). Each window and clipboard text equals the original's on
+the same book, apart from the window's own lines, which the harness's English interface shows in
+English.
+
+**Differences.** One message box, which scrolls: the original's pages ("Показать следующую
+страницу?", "Закрыть окно?") and its setting for the window's height (Vysota_teksta) are gone; in the
+English interface the window's own lines are in English; the authors and the title come from the
+document's description (the original read the Description form's fields); `run()` returns the window's
+text and takes settings from the args of another script; a quotation the line-breaking expression could
+not take apart (a line break in it, which a paragraph's text does not hold) ends there instead of never.
+
+**Open questions.** The keywords and the five-diamond heading for a quotation naming Путин are the
+original's settings, kept as written: should the bundled script keep them? A stanza is searched at its
+first line and the jump that follows counts its children: with a title or a subtitle it also passes the
+paragraph after the stanza, and a stanza that starts with its subtitle is not searched; kept as 2.7.9
+behaves.
+
+### Not converted: 10 Быки и коровы (игра)
+
+v2.1 (Александр Ка, 30.04.2025). Names: ru "Быки и коровы (игра)", en "Bulls and Cows (a game)", uk
+"Бики та корови (гра)". The computer thinks of a number of distinct digits, the player guesses it in
+InputBox prompts, each guess answered with "bulls" (right digit, right place) and "cows" (right digit,
+wrong place); a "История" mode leads through a story of episodes, prizes open a digit.
+
+**Reason (FR-024: the editor's own page).** The game draws itself into the editor's page: it inserts a
+styled DIV of class body before the Description form, holding the game's title, its rules, the story
+of the "История" mode, the record of the moves and a scoreboard of coloured FONT elements it rewrites
+after every move; it measures the window (`getViewHeight`, `getBoundingClientRect`), scrolls it, drops
+old records when they no longer fit, and removes the DIV at the end. Only the moves are typed into
+prompts. **Needs:** a window a script can show and update while it waits in its prompts (a report
+window whose content a later call replaces, or a form field of formatted, coloured text) - or a
+redesign of the game around message boxes and prompts alone. The match results also showed a random
+saying from its list "Пословицы и поговорки Великой Отечественной войны" (`Kn`), whose last lines are
+about Kursk and Sudzha: nothing of the script, the list included, is copied.
+
+### Harness commands
+
+```bash
+B=tests/scripts/fixtures/279/99; S=tests/scripts/snapshots/99; T=$B/99_tests/run-with-args
+node tests/scripts/run-script.mjs scripts/99_misc/09_quote-phrasetron $B/phrases.fb2 --snapshot $S/quote-phrasetron.xml
+node tests/scripts/run-script.mjs $T $B/phrases.fb2 --answer '{"ref": "99_Прочее\\09_Цитатный фразотрон.js", "args": {"SaveTsitat": 1}}' --answer ok --answer yes --snapshot $S/quote-phrasetron.clipboard.xml
+tests/scripts/run-all.sh --group 99        # 6 snapshots
+```
 
 ## TreeCmd
 

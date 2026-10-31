@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Лев</first-name>
+				<middle-name>Николаевич</middle-name>
+				<last-name>Толстой</last-name>
+			</author>
+			<author>
+				<nickname>Аноним</nickname>
+			</author>
+			<author>
+				<first-name>Пётр</first-name>
+				<last-name>Соавторов</last-name>
+			</author>
+			<book-title>Фразы с ключевыми словами</book-title>
+			<annotation>
+				<p>Родина в аннотации не ищется, потому что аннотация — не тело книги.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Родина зовёт</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Мудрость приходит с годами, и это знает каждый. Так говорили старики в деревне.</p>
+			<p>Он сказал: «Отчизна — это мы». Потом замолчал и ушёл в поле, не оглядываясь.</p>
+			<p>Истина.</p>
+			<p>Путин выступил с речью. Это была длинная речь о разном.</p>
+			<p>В этом абзаце нет ключевых слов вовсе.</p>
+			<subtitle>Родина в подзаголовке не ищется</subtitle>
+			<cite>
+				<p>Смысл жизни в том, чтобы жить, — так написано в старой книге.</p>
+			</cite>
+			<poem>
+				<stanza>
+					<v>Родина моя, земля родная,</v>
+					<v>Ты мудрость вечную хранишь.</v>
+				</stanza>
+				<text-author>Поэт Мудрецов, певец разума</text-author>
+			</poem>
+			<table>
+				<tr>
+					<td>Разумное решение было принято в тот же день, единогласно.</td>
+				</tr>
+			</table>
+			<p>Был обычный вечер, когда все собрались за столом и начали говорить о погоде, о ценах и о соседях. Вдруг кто-то сказал, что истина где-то рядом, и все засмеялись. Потом разговор снова вернулся к погоде, и так продолжалось до самой ночи, пока гости не разошлись.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<epigraph>
+				<p>Разум — это свет души.</p>
+				<text-author>Неизвестный</text-author>
+			</epigraph>
+			<p>Обычный текст второй главы с упоминанием путинской эпохи, которая длится долго.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Родина в сноске не ищется.</p>
+		</section>
+	</body>
+</FictionBook>

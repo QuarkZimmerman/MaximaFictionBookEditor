@@ -1,0 +1,166 @@
+[
+  {
+    "snapshot": "37/find-unmarked-epigraphs.xml",
+    "script": "scripts/37_epigraphs/05_find-unmarked-epigraphs",
+    "book": "tests/scripts/fixtures/279/37/unmarked.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "37/find-unmarked-epigraphs.chain.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/37/unmarked.fb2",
+    "args": [
+      "--answer",
+      "37_Эпиграфы\\05_Поиск неразмеченных эпиграфов.js|37_Эпиграфы\\05_Поиск неразмеченных эпиграфов.js|37_Эпиграфы\\05_Поиск неразмеченных эпиграфов.js|37_Эпиграфы\\05_Поиск неразмеченных эпиграфов.js|37_Эпиграфы\\05_Поиск неразмеченных эпиграфов.js|37_Эпиграфы\\05_Поиск неразмеченных эпиграфов.js|37_Эпиграфы\\05_Поиск неразмеченных эпиграфов.js|37_Эпиграфы\\05_Поиск неразмеченных эпиграфов.js"
+    ]
+  },
+  {
+    "snapshot": "37/find-unmarked-epigraphs.none.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/37/unmarked-none.fb2",
+    "args": [
+      "--answer",
+      "37_Эпиграфы\\05_Поиск неразмеченных эпиграфов.js"
+    ]
+  },
+  {
+    "snapshot": "37/remove-all-epigraphs.xml",
+    "script": "scripts/37_epigraphs/08_remove-all-epigraphs",
+    "book": "tests/scripts/fixtures/279/19/epigraphs.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "37/remove-all-epigraphs.none.xml",
+    "script": "scripts/37_epigraphs/08_remove-all-epigraphs",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select-range",
+      "n7:5-n8:3"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.after-epigraph.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select",
+      "n16:3:3"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.last-paragraph.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select",
+      "n21:0:0"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.id-style-empty-line.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select-range",
+      "n25:0-n27:5"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.title.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select",
+      "n31:3:3"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.poem.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select-range",
+      "n41:2-n43:4"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.whole-poem.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select-range",
+      "n40:0-n44:3"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.in-cite.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select",
+      "n50:2:2"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.inside-italics.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select-range",
+      "n55:20-n56:4"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.partial-italics.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select-range",
+      "n61:0-n62:3"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.body-title.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select",
+      "n3:2:2"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.two-sections.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select-range",
+      "n10:3-n16:4"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.annotation.xml",
+    "script": "scripts/37_epigraphs/09_epigraph-from-paragraphs",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select",
+      "n65:2:2"
+    ]
+  },
+  {
+    "snapshot": "37/epigraph-from-paragraphs.chain.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/37/from-paragraphs.fb2",
+    "args": [
+      "--select-range",
+      "n7:5-n8:3",
+      "--answer",
+      "37_Эпиграфы\\09_Создать эпиграф из полных абзацев.js"
+    ]
+  }
+]

@@ -1,0 +1,61 @@
+[
+  {
+    "snapshot": "99/quote-phrasetron.xml",
+    "script": "scripts/99_misc/09_quote-phrasetron",
+    "book": "tests/scripts/fixtures/279/99/phrases.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "99/quote-phrasetron.window.xml",
+    "script": "tests/scripts/fixtures/279/99/99_tests/run-with-args",
+    "book": "tests/scripts/fixtures/279/99/phrases.fb2",
+    "args": [
+      "--answer",
+      "{\"ref\": \"99_Прочее\\\\09_Цитатный фразотрон.js\", \"args\": {}}"
+    ]
+  },
+  {
+    "snapshot": "99/quote-phrasetron.clipboard.xml",
+    "script": "tests/scripts/fixtures/279/99/99_tests/run-with-args",
+    "book": "tests/scripts/fixtures/279/99/phrases.fb2",
+    "args": [
+      "--answer",
+      "{\"ref\": \"99_Прочее\\\\09_Цитатный фразотрон.js\", \"args\": {\"SaveTsitat\": 1}}",
+      "--answer",
+      "ok",
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "99/quote-phrasetron.clipboard-no.xml",
+    "script": "tests/scripts/fixtures/279/99/99_tests/run-with-args",
+    "book": "tests/scripts/fixtures/279/99/phrases.fb2",
+    "args": [
+      "--answer",
+      "{\"ref\": \"99_Прочее\\\\09_Цитатный фразотрон.js\", \"args\": {\"SaveTsitat\": 1}}",
+      "--answer",
+      "ok",
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "99/quote-phrasetron.underline.xml",
+    "script": "tests/scripts/fixtures/279/99/99_tests/run-with-args",
+    "book": "tests/scripts/fixtures/279/99/phrases.fb2",
+    "args": [
+      "--answer",
+      "{\"ref\": \"99_Прочее\\\\09_Цитатный фразотрон.js\", \"args\": {\"Podcherkivat_slova\": 1, \"Max_tsitat\": 3}}"
+    ]
+  },
+  {
+    "snapshot": "99/quote-phrasetron.none.xml",
+    "script": "tests/scripts/fixtures/279/99/99_tests/run-with-args",
+    "book": "tests/scripts/fixtures/279/14/cites.fb2",
+    "args": [
+      "--answer",
+      "{\"ref\": \"99_Прочее\\\\09_Цитатный фразотрон.js\", \"args\": {\"SaveTsitat\": 1}}"
+    ]
+  }
+]
