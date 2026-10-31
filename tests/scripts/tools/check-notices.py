@@ -16,6 +16,9 @@ Usage::
 
     python3 tests/scripts/tools/check-notices.py            # CI: verify the packages
     python3 tests/scripts/tools/check-notices.py --update   # regenerate notices.json
+    python3 tests/scripts/tools/check-notices.py --package scripts/13_subtitles/06_x ...
+                        # check packages against their originals directly, without notices.json
+                        # (a conversion in progress; notices.json is regenerated afterwards)
 
 Exit codes: 0 ok, 1 missing notices or a package/original that cannot be matched.
 """
@@ -179,6 +182,42 @@ def check() -> int:
     return 0
 
 
+def check_packages(packages: list[Path], originals: Path, originals_279: Path) -> int:
+    """Checks the given packages against the notices of their originals, read directly."""
+    problems: list[str] = []
+    for package in packages:
+        package = package.resolve()
+        manifest = package / "script.json"
+        if not manifest.is_file():
+            problems.append(f"{package}: no script.json")
+            continue
+        legacy = json.loads(manifest.read_text(encoding="utf-8")).get("legacy") or {}
+        source = legacy.get("source")
+        if not source:
+            print(f"check-notices: {package.name}: no legacy.source, nothing to keep")
+            continue
+        root = originals_279 if legacy.get("fbeVersion") == "2.7.9" else originals
+        path = original_path(root, source)
+        if not path.is_file():
+            problems.append(f"{package.name}: original {source} not found")
+            continue
+        original = read_original(path)
+        text = package_text(package)
+        content = {normalise(line) for line in text.splitlines()}
+        for line in header_notice(original):
+            if line not in content:
+                problems.append(f"{package.name}: header notice line missing: {line}")
+        for part in shown_notices(original):
+            if part not in text:
+                problems.append(f"{package.name}: shown notice missing: {part}")
+    for problem in problems:
+        print(f"check-notices: ERROR: {problem}", file=sys.stderr)
+    if problems:
+        return 1
+    print(f"check-notices: OK ({len(packages)} package(s) keep their original notices)")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--update", action="store_true", help="regenerate notices.json")
@@ -186,7 +225,11 @@ def main(argv: list[str]) -> int:
                         help="FBE/files folder of the original editor (2.7beta1)")
     parser.add_argument("--originals-279", type=Path, default=DEFAULT_ORIGINALS_279,
                         help="files folder of FictionBook Editor 2.7.9 (feature 007)")
+    parser.add_argument("--package", type=Path, action="append", default=[],
+                        help="check this package against its original directly (repeatable)")
     args = parser.parse_args(argv)
+    if args.package:
+        return check_packages(args.package, args.originals, args.originals_279)
     return update(args.originals, args.originals_279) if args.update else check()
 
 

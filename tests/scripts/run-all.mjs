@@ -139,14 +139,14 @@ function convertedPackages() {
  * The inventory of the classic scripts (feature 007, data-model §7.4): the entries by status,
  * and every entry whose package is missing (no `script.json`) or has no snapshot in the suite.
  */
-function inventoryReport(suite) {
+function inventoryReport(suite, groups = []) {
   const inventory = JSON.parse(readFileSync(INVENTORY, "utf8"));
   const counts = {};
   const problems = [];
   const covered = new Set(suite.map((entry) => entry.script));
   for (const entry of inventory.entries) {
     counts[entry.status] = (counts[entry.status] ?? 0) + 1;
-    if (!entry.package) continue;
+    if (!entry.package || !inSelectedGroups(entry.package, groups)) continue;
     if (!existsSync(path.join(REPO_ROOT, entry.package, "script.json")))
       problems.push(`${entry.source}: package ${entry.package} has no script.json`);
     else if (!covered.has(entry.package))
@@ -159,7 +159,18 @@ function inventoryReport(suite) {
  * Spec FR-026 of feature 007: every bundled package carries `name.uk` and `description.uk`, every
  * bundled group's `group.json` its `names.uk`.
  */
-function missingUkrainian(packages) {
+/**
+ * Whether a package folder (`scripts/<NN>_<name>/<package>`) or a group folder
+ * (`scripts/<NN>_<name>`) belongs to the groups of `--group` (all when none is given): with
+ * `--group` the run is that group's gate, blind to packages of other groups still in progress.
+ */
+function inSelectedGroups(dir, groups) {
+  if (!groups.length) return true;
+  const folder = dir.split("/")[1] ?? "";
+  return groups.some((group) => folder === group || folder.startsWith(`${group}_`));
+}
+
+function missingUkrainian(packages, groups = []) {
   const missing = [];
   const hasUk = (texts) =>
     Boolean(texts) && typeof texts.uk === "string" && texts.uk.trim() !== "";
@@ -174,6 +185,7 @@ function missingUkrainian(packages) {
   for (const group of readdirSync(root, { withFileTypes: true })) {
     const file = path.join(root, group.name, "group.json");
     if (!group.isDirectory() || !existsSync(file)) continue;
+    if (!inSelectedGroups(`scripts/${group.name}`, groups)) continue;
     const data = JSON.parse(readFileSync(file, "utf8"));
     if (!hasUk(data.names)) missing.push(`scripts/${group.name}: names.uk`);
   }
@@ -251,9 +263,10 @@ async function main() {
 
   const packages = convertedPackages();
   const covered = new Set(suite.map((entry) => entry.script));
-  const uncovered = packages.filter((dir) => !covered.has(dir));
-  const inventory = inventoryReport(suite);
-  const ukMissing = missingUkrainian(packages);
+  const ownPackages = packages.filter((dir) => inSelectedGroups(dir, options.groups));
+  const uncovered = ownPackages.filter((dir) => !covered.has(dir));
+  const inventory = inventoryReport(suite, options.groups);
+  const ukMissing = missingUkrainian(ownPackages, options.groups);
   for (const entry of suite) {
     if (!existsSync(path.join(REPO_ROOT, entry.script, "script.json")))
       console.error(

@@ -41,7 +41,13 @@ MFBE_CORE_BIN=build/linux-core-release/bin/mfbe-core MFBE_UI_DIST=ui/dist tests/
 
 `run-all.mjs` prints pass/fail per snapshot, a per-group table and the totals (converted
 packages, snapshots, passed, failed, packages without a snapshot, dropped legacy scripts) and
-exits 1 when a snapshot fails or a package of `scripts/` has no snapshot. CI runs it in the
+exits 1 when a snapshot fails or a package of `scripts/` has no snapshot. With `--group` the run
+is that group's gate: packages without a snapshot, inventory problems and missing Ukrainian
+texts count for the selected groups' folders only. Besides `suite.json`, each group folder may
+hold a `suite.json` of its own (`snapshots/<NN>/suite.json`, same format), read with it.
+
+`tests/scripts/tools/check-notices.py --package <dir>` checks a package against the notices of
+its original directly, before `notices.json` is regenerated (`--update`). CI runs it in the
 Linux `e2e` job (`.github/workflows/ci.yml`).
 
 ## Creating and checking a snapshot
