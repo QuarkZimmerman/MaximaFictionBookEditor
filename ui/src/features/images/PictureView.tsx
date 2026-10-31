@@ -25,7 +25,7 @@ import {
   type Size,
 } from './pictureViewModel';
 
-import './pictureView.css';
+import './PictureView.css';
 
 export interface PictureViewProps {
   docId: string;
