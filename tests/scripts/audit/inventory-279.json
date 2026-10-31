@@ -8833,7 +8833,7 @@
         "The caret goes to the start of the new body's title, which brings it into view (2.7.9 only scrolled there); a name in error is selected instead of coloured.",
         "The reminder about the caret in a field of the Description form (setting Napominanie) and the setting for the window's height (Vysota_teksta) are gone, and so are the window's pages: the editor has no such crash and its message box scrolls.",
         "The name of a global fbeUserName in main.js is not read (there is no main.js); the name is the setting youName.",
-        "The window of results is one message box in Russian or English; the proverb under the results is shown in the Russian interface only (a Russian saying with no English text).",
+        "The window of results is one message box in Russian or English; the results show no proverb: left out pending the requester's decision.",
         "Fields that the body's text does not hold come back for the names left unchanged: a translator's or document author's id and the second and further e-mails and home pages (2.7.9's Description form held none of them, so FictionBook Editor lost them), and a sequence's language.",
         "A sequence number that is not an integer is left out: the editor's model, like FB2, holds integers only; 2.7.9 wrote the text as typed.",
         "Another script may run it with settings of its own (the names of its section НАСТРОЙКИ) and today (YYYY-MM-DD) in the args of mfbe.scripts.run; the suite's reference runs use this for both steps in one run and for a fixed history date."
@@ -8845,7 +8845,8 @@
         "A language copied from the source language of <title-info> into <src-title-info> is reported as 'Язык' (2.7.9 reported 'Язык оригинала')."
       ],
       "openQuestions": [
-        "Answering Yes to 'Прервать выполнение скрипта?' (a name with one separator too many) keeps what the second step wrote before that name, raises the version with a history line, and keeps the body: kept as 2.7.9 behaves. Should Yes rather leave the description as it was?"
+        "Answering Yes to 'Прервать выполнение скрипта?' (a name with one separator too many) keeps what the second step wrote before that name, raises the version with a history line, and keeps the body: kept as 2.7.9 behaves. Should Yes rather leave the description as it was?",
+        "Restore the proverb of the result message?"
       ]
     },
     {

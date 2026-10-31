@@ -21,7 +21,6 @@
 //    them unchanged.
 
 import { parseInline, serializeInline } from './legacy-html.js';
-import { PROVERBS } from './proverbs.js';
 
 const NBSP = ' ';
 const NBSP_ENTITY = '&nbsp;';
@@ -1310,11 +1309,7 @@ export async function editDescription(ctx, input) {
   if (HiCh === 2 || demo) mSt.push(t('• Добавлены две строки в историю', '• Two lines were added to the history'));
   if (HiCh === 3 || demo) mSt.push(t('• Изменены данные в строке истории', '• A line of the history was changed'));
   mSt.push('', '• ' + currentDate + ' • ' + currentTime + ' •');
-  if (ru) {
-    // The proverb (a Russian saying of the original's list; the English interface has none).
-    mSt.push('', '---------------------------------------------------------');
-    const proverb = PROVERBS[Math.floor(Math.random() * PROVERBS.length)];
-    for (const line of proverb.replace(/ /g, '  ').match(/([^ ].{0,45})(?=\s\s.{0,}|$)/g) ?? []) mSt.push(' ' + line);
-  }
+  // 2.7.9 closed the window with a random proverb from a list of its own; the results show no
+  // proverb, left out pending the requester's decision.
   await mfbe.ui.message(mSt.join('\n'), { caption: ctx.script.name });
 }

@@ -17,7 +17,7 @@
 // selected, not coloured; the reminder about the caret in a field of the Description form and
 // the setting for the height of the window are gone (the editor has neither problem), so are the
 // pages of the window (a long message scrolls); main.js's "fbeUserName" is not read; the
-// proverb under the results is shown in the Russian interface only; fields the body's text does
+// results show no proverb (left out pending the requester's decision); fields the body's text does
 // not hold (a translator's or document author's id, second e-mails and home pages, a sequence's
 // language) are kept for the names left unchanged; a sequence number that is not an integer is
 // left out. Another script may run this one with settings of its own (the names below) and

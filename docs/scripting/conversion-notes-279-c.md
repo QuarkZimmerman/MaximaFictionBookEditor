@@ -227,8 +227,8 @@ It then applies its automatic operations:
 
 Last, it removes the body, raises the version with the line "v.<new> —  Скрипт:
 «Редакция описания документа» 1.1 — <name>, <date>" (or updates the line of the last ten days),
-and shows what changed and a proverb. With Pause = 0 both steps run in one go, with nothing
-shown in the body: the automatic clean-up alone.
+and shows what changed (2.7.9 added a proverb under the results; see the differences). With
+Pause = 0 both steps run in one go, with nothing shown in the body: the automatic clean-up alone.
 
 **Conversion.** `index.js` keeps the settings section as written, with English guidance. The
 logic is `lib/edit-description.js`, which follows the original part by part:
@@ -246,7 +246,7 @@ logic is `lib/edit-description.js`, which follows the original part by part:
   them.
 
 The body, its markers and its explanation are in Russian in every interface, as in 2.7.9: they
-are book content that the second step reads. The proverbs are `lib/proverbs.js`.
+are book content that the second step reads.
 
 **Snapshots** (`edit-description.fb2` unless named), with the expected result written from the
 code:
@@ -331,7 +331,8 @@ code:
 - The reminder (Napominanie), the setting for the window's height (Vysota_teksta) and the
   window's pages are gone; the message box scrolls.
 - main.js's `fbeUserName` is not read.
-- The proverb is shown in the Russian interface only.
+- The results show no proverb: left out pending the requester's decision. 2.7.9 closed the
+  window with a random saying from its own list of wartime proverbs, which is not in the package.
 - Fields that the text does not hold come back for the names left unchanged: a translator's or
   document author's id, further e-mails and home pages, a sequence's language. 2.7.9's form did
   not hold them, so it lost them.
@@ -346,9 +347,11 @@ code:
 - A date value with the month 00 no longer gives the text month "undefined".
 - A language copied into `<src-title-info>` is reported as "Язык", not "Язык оригинала".
 
-**Open question.** Answering Yes to "Прервать выполнение скрипта?" keeps what step 2 wrote before
-that name, raises the version and keeps the body, as 2.7.9 does. Should Yes rather leave the
-description as it was?
+**Open questions.**
+- Answering Yes to "Прервать выполнение скрипта?" keeps what step 2 wrote before that name,
+  raises the version and keeps the body, as 2.7.9 does. Should Yes rather leave the description
+  as it was?
+- Restore the proverb of the result message?
 
 ## 30_'Числовые' скрипты
 
