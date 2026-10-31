@@ -940,6 +940,35 @@ describe('selection.*', () => {
       setBodySelection(getBodyController(h.store), { nodeId: 'nope', offset: 0 }, undefined),
     ).toThrow('unknown nodeId');
   });
+
+  it('replaceText keeps the formatting of the text it replaces, as typing over it does (feature 007)', async () => {
+    const h = await harness();
+    type Run = { text: string; marks?: { type: string }[] };
+    const runs = async () =>
+      ((await call(h, 'doc.getNode', 'p2b')) as { content: Run[] }).content.map((run) => [
+        run.text,
+        (run.marks ?? []).map((mark) => mark.type),
+      ]);
+    // The whole emphasised word: the replacement stays emphasised (2.7.9's pasteHTML did too).
+    await call(h, 'selection.set', { nodeId: 'p2b', offset: 10 }, { nodeId: 'p2b', offset: 20 });
+    expect(((await call(h, 'selection.get')) as SelectionInfo).text).toBe('emphasised');
+    await call(h, 'selection.replaceText', 'stressed');
+    expect(await runs()).toEqual([
+      ['Plain and ', []],
+      ['stressed', ['emphasis']],
+    ]);
+    // From plain text into the emphasis: the formatting the selection starts with.
+    await call(h, 'selection.set', { nodeId: 'p2b', offset: 6 }, { nodeId: 'p2b', offset: 12 });
+    await call(h, 'selection.replaceText', 'or');
+    expect(await runs()).toEqual([
+      ['Plain or', []],
+      ['ressed', ['emphasis']],
+    ]);
+    // At a caret nothing changes: the formatting before it.
+    await call(h, 'selection.set', { nodeId: 'p2b', offset: 0 });
+    await call(h, 'selection.replaceText', '> ');
+    expect((await runs())[0]).toEqual(['> Plain or', []]);
+  });
 });
 
 describe('ui.*, edit.*, env.*', () => {

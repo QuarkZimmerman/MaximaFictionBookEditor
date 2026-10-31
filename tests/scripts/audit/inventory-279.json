@@ -3049,8 +3049,7 @@
       "predecessor": "07_Символы/01_Спецсимволы.js",
       "differences": [
         "The modeless table dialog (HTML/Спецсимволы.html), which stayed open and pasted one symbol per click (one undo step each), is a modal form with a list of the same 60 symbols: one symbol per run, the run one undo step.",
-        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing.",
-        "A symbol that replaces a selection beginning exactly where formatting begins (a whole word in italics) takes the formatting of the text before the selection, not that of the selected text: selection.replaceText takes the marks at the start of the selection, which at that boundary are the marks of the preceding text. 2.7.9 pasted where IE's range began, inside or outside the formatting tag depending on how the selection was made."
+        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing."
       ],
       "fixes": [],
       "openQuestions": [],
@@ -3082,8 +3081,7 @@
       "predecessor": "07_Символы/02_Диакритика.js",
       "differences": [
         "The modeless table dialog (HTML/Диакритика.html), which stayed open and pasted one symbol per click (one undo step each), is a modal form with a list of the same 182 symbols: one symbol per run, the run one undo step.",
-        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing.",
-        "A symbol that replaces a selection beginning exactly where formatting begins (a whole word in italics) takes the formatting of the text before the selection, not that of the selected text: selection.replaceText takes the marks at the start of the selection, which at that boundary are the marks of the preceding text. 2.7.9 pasted where IE's range began, inside or outside the formatting tag depending on how the selection was made."
+        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing."
       ],
       "fixes": [
         "Three names in the list give the right mark: 2.7.9's tooltips called Ă and ă «с короной» (the table's word for the caron; the letters have a breve) and Ť «со знаком краткости» (the breve; the letter has a caron). The list says «Заглавная A со знаком краткости», «Малая A со знаком краткости» and «Заглавная T с короной»; only the labels differ from 2.7.9, the symbols inserted are the same."
@@ -3117,8 +3115,7 @@
       "predecessor": "07_Символы/Арабский.js",
       "differences": [
         "The modeless table dialog (HTML/Арабский.html), which stayed open and pasted one symbol per click (one undo step each), is a modal form with a list of the same 45 symbols: one symbol per run, the run one undo step.",
-        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing.",
-        "A symbol that replaces a selection beginning exactly where formatting begins (a whole word in italics) takes the formatting of the text before the selection, not that of the selected text: selection.replaceText takes the marks at the start of the selection, which at that boundary are the marks of the preceding text. 2.7.9 pasted where IE's range began, inside or outside the formatting tag depending on how the selection was made."
+        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing."
       ],
       "fixes": [
         "Each name in the list stands on its letter. The dialog's list of names (titleStr) has 46 entries for 45 symbols - seven empty ones before «Алиф» where the six hamza forms have none - so from the seventh symbol on every name stood on the next letter (ب «Алиф», ة «Ба», ث «Та» … ى «Вав», ي «Йа»). The list gives each name to its letter (ا «Алиф», ب «Ба», ت «Та», ث «Са» … و «Вав», ى «Йа»; ة, ـ and ي are listed without a name, as the list's empty entries fall on them); only the labels differ from 2.7.9, the symbols inserted are the same."
@@ -3152,8 +3149,7 @@
       "predecessor": "07_Символы/Валюта.js",
       "differences": [
         "The modeless table dialog (HTML/Валюты.html), which stayed open and pasted one symbol per click (one undo step each), is a modal form with a list of the same 17 symbols: one symbol per run, the run one undo step.",
-        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing.",
-        "A symbol that replaces a selection beginning exactly where formatting begins (a whole word in italics) takes the formatting of the text before the selection, not that of the selected text: selection.replaceText takes the marks at the start of the selection, which at that boundary are the marks of the preceding text. 2.7.9 pasted where IE's range began, inside or outside the formatting tag depending on how the selection was made."
+        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing."
       ],
       "fixes": [],
       "openQuestions": [],
@@ -3185,8 +3181,7 @@
       "predecessor": "07_Символы/Греческий.js",
       "differences": [
         "The modeless table dialog (HTML/Греческий.html), which stayed open and pasted one symbol per click (one undo step each), is a modal form with a list of the same 50 symbols: one symbol per run, the run one undo step.",
-        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing.",
-        "A symbol that replaces a selection beginning exactly where formatting begins (a whole word in italics) takes the formatting of the text before the selection, not that of the selected text: selection.replaceText takes the marks at the start of the selection, which at that boundary are the marks of the preceding text. 2.7.9 pasted where IE's range began, inside or outside the formatting tag depending on how the selection was made."
+        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing."
       ],
       "fixes": [],
       "openQuestions": [],
@@ -3218,8 +3213,7 @@
       "predecessor": "07_Символы/Древнерусский.js",
       "differences": [
         "The modeless table dialog (HTML/Древнерусский.html), which stayed open and pasted one symbol per click (one undo step each), is a modal form with a list of the same 16 symbols: one symbol per run, the run one undo step.",
-        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing.",
-        "A symbol that replaces a selection beginning exactly where formatting begins (a whole word in italics) takes the formatting of the text before the selection, not that of the selected text: selection.replaceText takes the marks at the start of the selection, which at that boundary are the marks of the preceding text. 2.7.9 pasted where IE's range began, inside or outside the formatting tag depending on how the selection was made."
+        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing."
       ],
       "fixes": [],
       "openQuestions": [],
@@ -3251,8 +3245,7 @@
       "predecessor": "07_Символы/Иврит.js",
       "differences": [
         "The modeless table dialog (HTML/Иврит.html), which stayed open and pasted one symbol per click (one undo step each), is a modal form with a list of the same 30 symbols: one symbol per run, the run one undo step.",
-        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing.",
-        "A symbol that replaces a selection beginning exactly where formatting begins (a whole word in italics) takes the formatting of the text before the selection, not that of the selected text: selection.replaceText takes the marks at the start of the selection, which at that boundary are the marks of the preceding text. 2.7.9 pasted where IE's range began, inside or outside the formatting tag depending on how the selection was made."
+        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing."
       ],
       "fixes": [],
       "openQuestions": [],

@@ -2350,8 +2350,8 @@ click on a cell ran, in the main window, `rng.pasteHTML(symbol)` on the selectio
 view, then collapsed the range after it, one undo unit ("Вставка символа") per click; a click
 did nothing unless the selection lay inside `fbw_body` (the book annotation, the history or a
 body). Here the table is a `list` field of one form; the chosen symbol replaces the selection
-(`selection.replaceText`, which takes the formatting at the start of the selection, as the
-paste did) and the caret is put after it (`selection.set`). Helper each package carries
+(`selection.replaceText`, which keeps the formatting of the replaced text) and the caret is put
+after it (`selection.set`). Helper each package carries
 (identical copies): `lib/symbol-table.js` ×2.
 
 Note for the recheck of the seven older packages: in 2.7.9 every table dialog of the group
@@ -2448,12 +2448,11 @@ them).
 
 Differences (each package): the modeless dialog, which stayed open and pasted one symbol per
 click (one undo step each), is a modal form, one symbol per run; with the caret outside the book
-text the script says so, where the dialog did nothing; a symbol that replaces a selection
-beginning exactly where formatting begins (a whole word in italics, as in
-`special-symbols.conv-b-07.xml`) takes the formatting before the selection, since
-`selection.replaceText` takes the marks at the selection's start, which at a boundary are those
-of the text before it - 2.7.9 pasted where IE's range began, inside or outside the formatting tag
-depending on how the selection was made.
+text the script says so, where the dialog did nothing. A symbol that replaces a whole word in
+italics stays in italics, as 2.7.9's paste inside the formatting left it: this recheck found that
+`selection.replaceText` took the formatting before the selection there, and the script API was
+corrected (contracts/script-api.md §5a of feature 007); `special-symbols.conv-b-07.xml` is
+re-recorded with the italic symbol.
 
 Snapshots kept: the five whose selection is a caret (`arabic`, `currency`, `greek`, `hebrew`,
 `old-russian` `.conv-b-07.xml`) - at a caret 2.7beta1 and 2.7.9 insert the same. Re-recorded: the

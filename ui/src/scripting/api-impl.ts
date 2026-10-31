@@ -719,12 +719,16 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
       const ctrl = requireController();
       showChanges();
       const state = ctrl.editorState!;
-      const { from, to, $from } = state.selection;
+      const { from, to, $from, $to } = state.selection;
       if (!$from.parent.inlineContent) {
         throw new ScriptApiError('selection.replaceText: the selection is not inside text');
       }
+      // The formatting of the replaced text, as typing over a selection keeps it (a whole
+      // emphasised word stays emphasised; feature 007, the 07 recheck); at a caret, the
+      // formatting before it.
+      const marks = from === to ? $from.marks() : ($from.marksAcross($to) ?? $from.marks());
       const tr = state.tr;
-      if (text) tr.replaceWith(from, to, fb2Schema.text(text, $from.marks()));
+      if (text) tr.replaceWith(from, to, fb2Schema.text(text, marks));
       else tr.delete(from, to);
       applySelectionEdit(ctrl, tr);
     },
