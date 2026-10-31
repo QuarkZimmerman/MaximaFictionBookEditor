@@ -961,8 +961,9 @@ code:
 12 scripts are new in 2.7.9 and all 12 are converted (T065) into `scripts/30_numbering/`, a new
 group. The group's 13th script, *Нумерацию 'число пробел' в началах выделенных абзацев сделать
 надстрочным текстом*, is 2.7beta1's *Нумерацию в началах строк - надстрочным текстом* moved here from
-group 18 under a new name: its package `scripts/18_editing/09_line-numbers-to-superscript` stays in
-group 18 until its recheck. None of the twelve needs a power beyond FR-024: they only read and edit
+group 18 under a new name: its package moved here with it, to
+`scripts/30_numbering/40_line-numbers-to-superscript` (its id unchanged), and is brought up to the
+2.7.9 version in its recheck. None of the twelve needs a power beyond FR-024: they only read and edit
 the book and ask the user.
 
 **Where the originals worked.** FictionBook Editor showed the book as one HTML element, `fbw_body`:

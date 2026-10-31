@@ -121,7 +121,7 @@
       "percent": 5.4
     },
     {
-      "package": "scripts/02_footnotes/05_add-last-footnote",
+      "package": "scripts/02_footnotes/04_add-last-footnote",
       "id": "02/add-last-footnote",
       "predecessor": "02_Добавление примечания/05_Добавить последнюю сноску, оставшись на ее ссылке.js",
       "successor": "02_Примечания/04_Добавить последнее примечание, остаться на его ссылке.js",
@@ -132,7 +132,7 @@
       "percent": 5.4
     },
     {
-      "package": "scripts/02_footnotes/06_add-last-footnote-with-text",
+      "package": "scripts/02_footnotes/05_add-last-footnote-with-text",
       "id": "02/add-last-footnote-with-text",
       "predecessor": "02_Добавление примечания/06_Добавить последнюю сноску, введя ее текст в окошке.js",
       "successor": "02_Примечания/05_Добавить последнее примечание, введя его текст в окошке.js",
@@ -143,7 +143,7 @@
       "percent": 5.4
     },
     {
-      "package": "scripts/02_footnotes/07_add-last-footnote-go-to-note",
+      "package": "scripts/02_footnotes/06_add-last-footnote-go-to-note",
       "id": "02/add-last-footnote-go-to-note",
       "predecessor": "02_Добавление примечания/07_Добавить последнюю сноску, перейти к ее разделу.js",
       "successor": "02_Примечания/06_Добавить последнее примечание, перейти на его раздел.js",
@@ -154,7 +154,7 @@
       "percent": 5.4
     },
     {
-      "package": "scripts/02_footnotes/04_unify-footnotes",
+      "package": "scripts/02_footnotes/07_unify-footnotes",
       "id": "02/unify-footnotes",
       "predecessor": "02_Добавление примечания/04_Унификация сносок.js",
       "successor": "02_Примечания/07_Перенумеровать примечания.js",
@@ -176,7 +176,7 @@
       "percent": 8.9
     },
     {
-      "package": "scripts/02_footnotes/20_test-footnotes",
+      "package": "scripts/02_footnotes/30_test-footnotes",
       "id": "02/test-footnotes",
       "predecessor": "02_Добавление примечания/20_Тест сносок.js",
       "successor": "02_Примечания/30_Проверить корректность оформления примечаний.js",
@@ -220,7 +220,7 @@
       "percent": 6.0
     },
     {
-      "package": "scripts/03_comments/05_add-last-comment",
+      "package": "scripts/03_comments/04_add-last-comment",
       "id": "03/add-last-comment",
       "predecessor": "03_Добавление комментария/05_Добавить последний комментарий, оставшись на его ссылке.js",
       "successor": "03_Комментарии/04_Добавить последний комментарий, остаться на его ссылке.js",
@@ -231,7 +231,7 @@
       "percent": 6.0
     },
     {
-      "package": "scripts/03_comments/06_add-last-comment-with-text",
+      "package": "scripts/03_comments/05_add-last-comment-with-text",
       "id": "03/add-last-comment-with-text",
       "predecessor": "03_Добавление комментария/06_Добавить последний комментарий, введя его текст в окошке.js",
       "successor": "03_Комментарии/05_Добавить последний комментарий, введя его текст в окошке.js",
@@ -242,7 +242,7 @@
       "percent": 6.0
     },
     {
-      "package": "scripts/03_comments/07_add-last-comment-go-to-comment",
+      "package": "scripts/03_comments/06_add-last-comment-go-to-comment",
       "id": "03/add-last-comment-go-to-comment",
       "predecessor": "03_Добавление комментария/07_Добавить последний комментарий, перейти к его разделу.js",
       "successor": "03_Комментарии/06_Добавить последний комментарий, перейти на его раздел.js",
@@ -253,7 +253,7 @@
       "percent": 6.0
     },
     {
-      "package": "scripts/03_comments/04_unify-comments",
+      "package": "scripts/03_comments/07_unify-comments",
       "id": "03/unify-comments",
       "predecessor": "03_Добавление комментария/04_Унификация комментариев.js",
       "successor": "03_Комментарии/07_Перенумеровать комментарии.js",
@@ -902,7 +902,7 @@
       "percent": 16.4
     },
     {
-      "package": "scripts/12_quotes/015_place-guillemets-only",
+      "package": "scripts/12_quotes/007_place-guillemets-only",
       "id": "12/place-guillemets-only",
       "predecessor": "12_Обработка кавычек/015_Расстановка только елочек.js",
       "successor": "12_Обработка кавычек/007_Проставить только елочки (во всем документе).js",
@@ -924,7 +924,7 @@
       "percent": 1.5
     },
     {
-      "package": "scripts/12_quotes/007_next-guillemets",
+      "package": "scripts/12_quotes/009_next-guillemets",
       "id": "12/next-guillemets",
       "predecessor": "12_Обработка кавычек/007_Переход на след. елочки.js",
       "successor": "12_Обработка кавычек/009_Перейти на следующие елочки.js",
@@ -935,7 +935,7 @@
       "percent": 1.5
     },
     {
-      "package": "scripts/12_quotes/009_previous-low-quotes",
+      "package": "scripts/12_quotes/010_previous-low-quotes",
       "id": "12/previous-low-quotes",
       "predecessor": "12_Обработка кавычек/009_Переход на пред. лапки.js",
       "successor": "12_Обработка кавычек/010_Перейти на предыдущие лапки.js",
@@ -946,7 +946,7 @@
       "percent": 1.5
     },
     {
-      "package": "scripts/12_quotes/010_next-low-quotes",
+      "package": "scripts/12_quotes/011_next-low-quotes",
       "id": "12/next-low-quotes",
       "predecessor": "12_Обработка кавычек/010_Переход на след. лапки.js",
       "successor": "12_Обработка кавычек/011_Перейти на следующие лапки.js",
@@ -957,7 +957,7 @@
       "percent": 1.5
     },
     {
-      "package": "scripts/12_quotes/011_previous-straight-quotes",
+      "package": "scripts/12_quotes/012_previous-straight-quotes",
       "id": "12/previous-straight-quotes",
       "predecessor": "12_Обработка кавычек/011_Переход на пред. прямые кавычки.js",
       "successor": "12_Обработка кавычек/012_Перейти на предыдущие прямые кавычки.js",
@@ -968,7 +968,7 @@
       "percent": 1.5
     },
     {
-      "package": "scripts/12_quotes/012_next-straight-quotes",
+      "package": "scripts/12_quotes/013_next-straight-quotes",
       "id": "12/next-straight-quotes",
       "predecessor": "12_Обработка кавычек/012_Переход на след. прямые кавычки.js",
       "successor": "12_Обработка кавычек/013_Перейти на следующие прямые кавычки.js",
@@ -979,7 +979,7 @@
       "percent": 1.5
     },
     {
-      "package": "scripts/12_quotes/013_previous-any-quotes",
+      "package": "scripts/12_quotes/014_previous-any-quotes",
       "id": "12/previous-any-quotes",
       "predecessor": "12_Обработка кавычек/013_Переход на пред. прямые кавычки, елочки или лапки.js",
       "successor": "12_Обработка кавычек/014_Перейти на предыдущие прямые кавычки, елочки или лапки.js",
@@ -990,7 +990,7 @@
       "percent": 0.8
     },
     {
-      "package": "scripts/12_quotes/014_next-any-quotes",
+      "package": "scripts/12_quotes/015_next-any-quotes",
       "id": "12/next-any-quotes",
       "predecessor": "12_Обработка кавычек/014_Переход на след. прямые кавычки, елочки или лапки.js",
       "successor": "12_Обработка кавычек/015_Перейти на следующие прямые кавычки, елочки или лапки.js",
@@ -1056,7 +1056,7 @@
       "percent": 9.9
     },
     {
-      "package": "scripts/16_find-formatting/01_previous-emphasis",
+      "package": "scripts/16_find-formatting/001_previous-emphasis",
       "id": "16/previous-emphasis",
       "predecessor": "16_Поиск форматирования/01_Переход на предыдущий курсив.js",
       "successor": "16_Поиск форматирования/001_Перейти на предыдущий курсив.js",
@@ -1067,7 +1067,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/02_next-emphasis",
+      "package": "scripts/16_find-formatting/002_next-emphasis",
       "id": "16/next-emphasis",
       "predecessor": "16_Поиск форматирования/02_Переход на следующий курсив.js",
       "successor": "16_Поиск форматирования/002_Перейти на следующий курсив.js",
@@ -1078,7 +1078,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/03_previous-paragraph-with-emphasis",
+      "package": "scripts/16_find-formatting/003_previous-paragraph-with-emphasis",
       "id": "16/previous-paragraph-with-emphasis",
       "predecessor": "16_Поиск форматирования/03_Переход на предыдущий абзац с курсивом.js",
       "successor": "16_Поиск форматирования/003_Перейти на предыдущий абзац с курсивом.js",
@@ -1089,7 +1089,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/04_next-paragraph-with-emphasis",
+      "package": "scripts/16_find-formatting/004_next-paragraph-with-emphasis",
       "id": "16/next-paragraph-with-emphasis",
       "predecessor": "16_Поиск форматирования/04_Переход на следующий абзац с курсивом.js",
       "successor": "16_Поиск форматирования/004_Перейти на следующий абзац с курсивом.js",
@@ -1100,7 +1100,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/05_previous-strong",
+      "package": "scripts/16_find-formatting/005_previous-strong",
       "id": "16/previous-strong",
       "predecessor": "16_Поиск форматирования/05_Переход на предыдущую жирность.js",
       "successor": "16_Поиск форматирования/005_Перейти на предыдущую жирность.js",
@@ -1111,7 +1111,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/06_next-strong",
+      "package": "scripts/16_find-formatting/006_next-strong",
       "id": "16/next-strong",
       "predecessor": "16_Поиск форматирования/06_Переход на следующую жирность.js",
       "successor": "16_Поиск форматирования/006_Перейти на следующую жирность.js",
@@ -1122,7 +1122,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/07_previous-paragraph-with-strong",
+      "package": "scripts/16_find-formatting/007_previous-paragraph-with-strong",
       "id": "16/previous-paragraph-with-strong",
       "predecessor": "16_Поиск форматирования/07_Переход на предыдущий абзац с жирностью.js",
       "successor": "16_Поиск форматирования/007_Перейти на предыдущий абзац с жирностью.js",
@@ -1133,7 +1133,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/08_next-paragraph-with-strong",
+      "package": "scripts/16_find-formatting/008_next-paragraph-with-strong",
       "id": "16/next-paragraph-with-strong",
       "predecessor": "16_Поиск форматирования/08_Переход на следующий абзац с жирностью.js",
       "successor": "16_Поиск форматирования/008_Перейти на следующий абзац с жирностью.js",
@@ -1144,7 +1144,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/09_previous-sup",
+      "package": "scripts/16_find-formatting/009_previous-sup",
       "id": "16/previous-sup",
       "predecessor": "16_Поиск форматирования/09_Переход на предыдущий верхний индекс.js",
       "successor": "16_Поиск форматирования/009_Перейти на предыдущий верхний индекс.js",
@@ -1155,7 +1155,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/10_next-sup",
+      "package": "scripts/16_find-formatting/010_next-sup",
       "id": "16/next-sup",
       "predecessor": "16_Поиск форматирования/10_Переход на следующий верхний индекс.js",
       "successor": "16_Поиск форматирования/010_Перейти на следующий верхний индекс.js",
@@ -1166,7 +1166,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/11_previous-paragraph-with-sup",
+      "package": "scripts/16_find-formatting/011_previous-paragraph-with-sup",
       "id": "16/previous-paragraph-with-sup",
       "predecessor": "16_Поиск форматирования/11_Переход на предыдущий абзац с верхним индексом.js",
       "successor": "16_Поиск форматирования/011_Перейти на предыдущий абзац с верхним индексом.js",
@@ -1177,7 +1177,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/12_next-paragraph-with-sup",
+      "package": "scripts/16_find-formatting/012_next-paragraph-with-sup",
       "id": "16/next-paragraph-with-sup",
       "predecessor": "16_Поиск форматирования/12_Переход на следующий абзац с верхним индексом.js",
       "successor": "16_Поиск форматирования/012_Перейти на следующий абзац с верхним индексом.js",
@@ -1188,7 +1188,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/13_previous-sub",
+      "package": "scripts/16_find-formatting/013_previous-sub",
       "id": "16/previous-sub",
       "predecessor": "16_Поиск форматирования/13_Переход на предыдующий нижний индекс.js",
       "successor": "16_Поиск форматирования/013_Перейти на предыдущий нижний индекс.js",
@@ -1199,7 +1199,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/14_next-sub",
+      "package": "scripts/16_find-formatting/014_next-sub",
       "id": "16/next-sub",
       "predecessor": "16_Поиск форматирования/14_Переход на следующий нижний индекс.js",
       "successor": "16_Поиск форматирования/014_Перейти на следующий нижний индекс.js",
@@ -1210,7 +1210,7 @@
       "percent": 10.6
     },
     {
-      "package": "scripts/16_find-formatting/15_previous-paragraph-with-sub",
+      "package": "scripts/16_find-formatting/015_previous-paragraph-with-sub",
       "id": "16/previous-paragraph-with-sub",
       "predecessor": "16_Поиск форматирования/15_Переход на предыдущий абзац с нижним индексом.js",
       "successor": "16_Поиск форматирования/015_Перейти на предыдущий абзац с нижним индексом.js",
@@ -1221,7 +1221,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/16_next-paragraph-with-sub",
+      "package": "scripts/16_find-formatting/016_next-paragraph-with-sub",
       "id": "16/next-paragraph-with-sub",
       "predecessor": "16_Поиск форматирования/16_Переход на следующий абзац с нижним индексом.js",
       "successor": "16_Поиск форматирования/016_Перейти на следующий абзац с нижним индексом.js",
@@ -1232,7 +1232,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/17_previous-strikethrough",
+      "package": "scripts/16_find-formatting/017_previous-strikethrough",
       "id": "16/previous-strikethrough",
       "predecessor": "16_Поиск форматирования/17_Переход на предыдущее зачеркивание.js",
       "successor": "16_Поиск форматирования/017_Перейти на предыдущее зачеркивание.js",
@@ -1243,7 +1243,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/18_next-strikethrough",
+      "package": "scripts/16_find-formatting/018_next-strikethrough",
       "id": "16/next-strikethrough",
       "predecessor": "16_Поиск форматирования/18_Переход на следующее зачеркивание.js",
       "successor": "16_Поиск форматирования/018_Перейти на следующее зачеркивание.js",
@@ -1254,7 +1254,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/19_previous-paragraph-with-strikethrough",
+      "package": "scripts/16_find-formatting/019_previous-paragraph-with-strikethrough",
       "id": "16/previous-paragraph-with-strikethrough",
       "predecessor": "16_Поиск форматирования/19_Переход на предыдущий абзац, содержащий зачеркивание.js",
       "successor": "16_Поиск форматирования/019_Перейти на предыдущий абзац, содержащий зачеркивание.js",
@@ -1265,7 +1265,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/20_next-paragraph-with-strikethrough",
+      "package": "scripts/16_find-formatting/020_next-paragraph-with-strikethrough",
       "id": "16/next-paragraph-with-strikethrough",
       "predecessor": "16_Поиск форматирования/20_Переход на следующий абзац, содержащий зачеркивание.js",
       "successor": "16_Поиск форматирования/020_Перейти на следующий абзац, содержащий зачеркивание.js",
@@ -1276,7 +1276,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/21_previous-code",
+      "package": "scripts/16_find-formatting/021_previous-code",
       "id": "16/previous-code",
       "predecessor": "16_Поиск форматирования/21_Переход на предыдущий код.js",
       "successor": "16_Поиск форматирования/021_Перейти на предыдущий код.js",
@@ -1287,7 +1287,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/22_next-code",
+      "package": "scripts/16_find-formatting/022_next-code",
       "id": "16/next-code",
       "predecessor": "16_Поиск форматирования/22_Переход на следующий код.js",
       "successor": "16_Поиск форматирования/022_Перейти на следующий код.js",
@@ -1298,7 +1298,7 @@
       "percent": 10.0
     },
     {
-      "package": "scripts/16_find-formatting/23_previous-paragraph-with-code",
+      "package": "scripts/16_find-formatting/023_previous-paragraph-with-code",
       "id": "16/previous-paragraph-with-code",
       "predecessor": "16_Поиск форматирования/23_Переход на предыдущий абзац, содержащий код.js",
       "successor": "16_Поиск форматирования/023_Перейти на предыдущий абзац, содержащий код.js",
@@ -1309,7 +1309,7 @@
       "percent": 4.0
     },
     {
-      "package": "scripts/16_find-formatting/24_next-paragraph-with-code",
+      "package": "scripts/16_find-formatting/024_next-paragraph-with-code",
       "id": "16/next-paragraph-with-code",
       "predecessor": "16_Поиск форматирования/24_Переход на следующий абзац, содержащий код.js",
       "successor": "16_Поиск форматирования/024_Перейти на следующий абзац, содержащий код.js",
@@ -1375,7 +1375,7 @@
       "percent": 0.0
     },
     {
-      "package": "scripts/18_editing/01_remove-spaces",
+      "package": "scripts/18_editing/17_remove-spaces",
       "id": "18/remove-spaces",
       "predecessor": "18_Мелочи редактирования/01_Удаление пробелов.js",
       "successor": "18_Мелочи редактирования/17_Удалить все пробелы в выделении.js",
@@ -1386,7 +1386,7 @@
       "percent": 47.8
     },
     {
-      "package": "scripts/18_editing/06_remove-spaces-and-hyphens",
+      "package": "scripts/18_editing/18_remove-spaces-and-hyphens",
       "id": "18/remove-spaces-and-hyphens",
       "predecessor": "18_Мелочи редактирования/06_Удаление пробелов и дефисов.js",
       "successor": "18_Мелочи редактирования/18_Удалить все пробелы и дефисы в выделении.js",
@@ -1397,7 +1397,7 @@
       "percent": 47.8
     },
     {
-      "package": "scripts/18_editing/07_bracket-superscripts-square",
+      "package": "scripts/18_editing/25_bracket-superscripts-square",
       "id": "18/bracket-superscripts-square",
       "predecessor": "18_Мелочи редактирования/07_Обрамить верхние индексы скобками [].js",
       "successor": "18_Мелочи редактирования/25_Обрамить верхние индексы скобками [].js",
@@ -1408,7 +1408,7 @@
       "percent": 0.0
     },
     {
-      "package": "scripts/18_editing/08_bracket-superscripts-curly",
+      "package": "scripts/18_editing/26_bracket-superscripts-curly",
       "id": "18/bracket-superscripts-curly",
       "predecessor": "18_Мелочи редактирования/08_Обрамить верхние индексы скобками {}.js",
       "successor": "18_Мелочи редактирования/26_Обрамить верхние индексы скобками {}.js",
@@ -1419,7 +1419,7 @@
       "percent": 0.0
     },
     {
-      "package": "scripts/18_editing/02_insert-midi-link",
+      "package": "scripts/18_editing/40_insert-midi-link",
       "id": "18/insert-midi-link",
       "predecessor": "18_Мелочи редактирования/02_Вставить ссылку на midi....js",
       "successor": "18_Мелочи редактирования/40_Сделать выделенный текст ссылкой на MIDI-файл (для AlReader'а).js",
@@ -1474,7 +1474,7 @@
       "percent": 22.2
     },
     {
-      "package": "scripts/18_editing/09_line-numbers-to-superscript",
+      "package": "scripts/30_numbering/40_line-numbers-to-superscript",
       "id": "18/line-numbers-to-superscript",
       "predecessor": "18_Мелочи редактирования/09_Нумерацию в началах строк - надстрочным текстом.js",
       "successor": "30_'Числовые' скрипты/40_Нумерацию 'число пробел' в началах выделенных абзацев сделать надстрочным текстом.js",

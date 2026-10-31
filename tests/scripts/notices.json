@@ -108,17 +108,7 @@
       ],
       "shown": []
     },
-    "scripts/02_footnotes/04_unify-footnotes": {
-      "original": "02_Добавление примечания/04_Унификация сносок.js",
-      "fbeVersion": "2.7",
-      "header": [
-        "добавление сноски между уже имеющимися",
-        "написал Sclex",
-        "версия 2.7"
-      ],
-      "shown": []
-    },
-    "scripts/02_footnotes/05_add-last-footnote": {
+    "scripts/02_footnotes/04_add-last-footnote": {
       "original": "02_Добавление примечания/05_Добавить последнюю сноску, оставшись на ее ссылке.js",
       "fbeVersion": "2.7",
       "header": [
@@ -128,7 +118,7 @@
       ],
       "shown": []
     },
-    "scripts/02_footnotes/06_add-last-footnote-with-text": {
+    "scripts/02_footnotes/05_add-last-footnote-with-text": {
       "original": "02_Добавление примечания/06_Добавить последнюю сноску, введя ее текст в окошке.js",
       "fbeVersion": "2.7",
       "header": [
@@ -138,8 +128,18 @@
       ],
       "shown": []
     },
-    "scripts/02_footnotes/07_add-last-footnote-go-to-note": {
+    "scripts/02_footnotes/06_add-last-footnote-go-to-note": {
       "original": "02_Добавление примечания/07_Добавить последнюю сноску, перейти к ее разделу.js",
+      "fbeVersion": "2.7",
+      "header": [
+        "добавление сноски между уже имеющимися",
+        "написал Sclex",
+        "версия 2.7"
+      ],
+      "shown": []
+    },
+    "scripts/02_footnotes/07_unify-footnotes": {
+      "original": "02_Добавление примечания/04_Унификация сносок.js",
       "fbeVersion": "2.7",
       "header": [
         "добавление сноски между уже имеющимися",
@@ -196,21 +196,21 @@
       ],
       "shown": []
     },
-    "scripts/02_footnotes/20_test-footnotes": {
-      "original": "02_Добавление примечания/20_Тест сносок.js",
-      "fbeVersion": "2.7",
-      "header": [
-        "Тест сносок",
-        "Версия: 1.2"
-      ],
-      "shown": []
-    },
     "scripts/02_footnotes/24_notes-from-marked-paragraphs": {
       "original": "02_Примечания/24_Создать сноски или комментарии из абзацев, помеченных маркерами....js",
       "fbeVersion": "2.7.9",
       "header": [
         "Скрипт «Создать сноски или комментарии из абзацев, помеченных маркерами»",
         "Автор Sclex"
+      ],
+      "shown": []
+    },
+    "scripts/02_footnotes/30_test-footnotes": {
+      "original": "02_Добавление примечания/20_Тест сносок.js",
+      "fbeVersion": "2.7",
+      "header": [
+        "Тест сносок",
+        "Версия: 1.2"
       ],
       "shown": []
     },
@@ -289,17 +289,7 @@
       ],
       "shown": []
     },
-    "scripts/03_comments/04_unify-comments": {
-      "original": "03_Добавление комментария/04_Унификация комментариев.js",
-      "fbeVersion": "2.7",
-      "header": [
-        "добавление сноски между уже имеющимися",
-        "написал Sclex",
-        "версия 2.6"
-      ],
-      "shown": []
-    },
-    "scripts/03_comments/05_add-last-comment": {
+    "scripts/03_comments/04_add-last-comment": {
       "original": "03_Добавление комментария/05_Добавить последний комментарий, оставшись на его ссылке.js",
       "fbeVersion": "2.7",
       "header": [
@@ -309,7 +299,7 @@
       ],
       "shown": []
     },
-    "scripts/03_comments/06_add-last-comment-with-text": {
+    "scripts/03_comments/05_add-last-comment-with-text": {
       "original": "03_Добавление комментария/06_Добавить последний комментарий, введя его текст в окошке.js",
       "fbeVersion": "2.7",
       "header": [
@@ -319,8 +309,18 @@
       ],
       "shown": []
     },
-    "scripts/03_comments/07_add-last-comment-go-to-comment": {
+    "scripts/03_comments/06_add-last-comment-go-to-comment": {
       "original": "03_Добавление комментария/07_Добавить последний комментарий, перейти к его разделу.js",
+      "fbeVersion": "2.7",
+      "header": [
+        "добавление сноски между уже имеющимися",
+        "написал Sclex",
+        "версия 2.6"
+      ],
+      "shown": []
+    },
+    "scripts/03_comments/07_unify-comments": {
+      "original": "03_Добавление комментария/04_Унификация комментариев.js",
       "fbeVersion": "2.7",
       "header": [
         "добавление сноски между уже имеющимися",
@@ -1381,11 +1381,11 @@
         "Автор Sclex."
       ]
     },
-    "scripts/12_quotes/007_next-guillemets": {
-      "original": "12_Обработка кавычек/007_Переход на след. елочки.js",
+    "scripts/12_quotes/007_place-guillemets-only": {
+      "original": "12_Обработка кавычек/015_Расстановка только елочек.js",
       "fbeVersion": "2.7",
       "header": [
-        "Переход на кавычки v2.7",
+        "Скрипт \"Новые кавычки на елочки\"",
         "Автор Sclex",
         "Подробности тут: http://www.fictionbook.org/forum/viewtopic.php?f=7&t=4412",
         "И тут: http://scripts.fictionbook.org"
@@ -1407,7 +1407,20 @@
         "Автор Sclex."
       ]
     },
-    "scripts/12_quotes/009_previous-low-quotes": {
+    "scripts/12_quotes/009_next-guillemets": {
+      "original": "12_Обработка кавычек/007_Переход на след. елочки.js",
+      "fbeVersion": "2.7",
+      "header": [
+        "Переход на кавычки v2.7",
+        "Автор Sclex",
+        "Подробности тут: http://www.fictionbook.org/forum/viewtopic.php?f=7&t=4412",
+        "И тут: http://scripts.fictionbook.org"
+      ],
+      "shown": [
+        "Автор Sclex."
+      ]
+    },
+    "scripts/12_quotes/010_previous-low-quotes": {
       "original": "12_Обработка кавычек/009_Переход на пред. лапки.js",
       "fbeVersion": "2.7",
       "header": [
@@ -1420,7 +1433,7 @@
         "Автор Sclex."
       ]
     },
-    "scripts/12_quotes/010_next-low-quotes": {
+    "scripts/12_quotes/011_next-low-quotes": {
       "original": "12_Обработка кавычек/010_Переход на след. лапки.js",
       "fbeVersion": "2.7",
       "header": [
@@ -1433,7 +1446,7 @@
         "Автор Sclex."
       ]
     },
-    "scripts/12_quotes/011_previous-straight-quotes": {
+    "scripts/12_quotes/012_previous-straight-quotes": {
       "original": "12_Обработка кавычек/011_Переход на пред. прямые кавычки.js",
       "fbeVersion": "2.7",
       "header": [
@@ -1446,7 +1459,7 @@
         "Автор Sclex."
       ]
     },
-    "scripts/12_quotes/012_next-straight-quotes": {
+    "scripts/12_quotes/013_next-straight-quotes": {
       "original": "12_Обработка кавычек/012_Переход на след. прямые кавычки.js",
       "fbeVersion": "2.7",
       "header": [
@@ -1459,7 +1472,7 @@
         "Автор Sclex."
       ]
     },
-    "scripts/12_quotes/013_previous-any-quotes": {
+    "scripts/12_quotes/014_previous-any-quotes": {
       "original": "12_Обработка кавычек/013_Переход на пред. прямые кавычки, елочки или лапки.js",
       "fbeVersion": "2.7",
       "header": [
@@ -1472,24 +1485,11 @@
         "Автор Sclex."
       ]
     },
-    "scripts/12_quotes/014_next-any-quotes": {
+    "scripts/12_quotes/015_next-any-quotes": {
       "original": "12_Обработка кавычек/014_Переход на след. прямые кавычки, елочки или лапки.js",
       "fbeVersion": "2.7",
       "header": [
         "Переход на кавычки v2.7",
-        "Автор Sclex",
-        "Подробности тут: http://www.fictionbook.org/forum/viewtopic.php?f=7&t=4412",
-        "И тут: http://scripts.fictionbook.org"
-      ],
-      "shown": [
-        "Автор Sclex."
-      ]
-    },
-    "scripts/12_quotes/015_place-guillemets-only": {
-      "original": "12_Обработка кавычек/015_Расстановка только елочек.js",
-      "fbeVersion": "2.7",
-      "header": [
-        "Скрипт \"Новые кавычки на елочки\"",
         "Автор Sclex",
         "Подробности тут: http://www.fictionbook.org/forum/viewtopic.php?f=7&t=4412",
         "И тут: http://scripts.fictionbook.org"
@@ -1734,8 +1734,261 @@
       ],
       "shown": []
     },
-    "scripts/16_find-formatting/01_previous-emphasis": {
+    "scripts/16_find-formatting/001_previous-emphasis": {
       "original": "16_Поиск форматирования/001_Перейти на предыдущий курсив.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/002_next-emphasis": {
+      "original": "16_Поиск форматирования/002_Перейти на следующий курсив.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/003_previous-paragraph-with-emphasis": {
+      "original": "16_Поиск форматирования/003_Перейти на предыдущий абзац с курсивом.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/004_next-paragraph-with-emphasis": {
+      "original": "16_Поиск форматирования/004_Перейти на следующий абзац с курсивом.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/005_previous-strong": {
+      "original": "16_Поиск форматирования/005_Перейти на предыдущую жирность.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/006_next-strong": {
+      "original": "16_Поиск форматирования/006_Перейти на следующую жирность.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/007_previous-paragraph-with-strong": {
+      "original": "16_Поиск форматирования/007_Перейти на предыдущий абзац с жирностью.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/008_next-paragraph-with-strong": {
+      "original": "16_Поиск форматирования/008_Перейти на следующий абзац с жирностью.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/009_previous-sup": {
+      "original": "16_Поиск форматирования/009_Перейти на предыдущий верхний индекс.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/010_next-sup": {
+      "original": "16_Поиск форматирования/010_Перейти на следующий верхний индекс.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/011_previous-paragraph-with-sup": {
+      "original": "16_Поиск форматирования/011_Перейти на предыдущий абзац с верхним индексом.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/012_next-paragraph-with-sup": {
+      "original": "16_Поиск форматирования/012_Перейти на следующий абзац с верхним индексом.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/013_previous-sub": {
+      "original": "16_Поиск форматирования/013_Перейти на предыдущий нижний индекс.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/014_next-sub": {
+      "original": "16_Поиск форматирования/014_Перейти на следующий нижний индекс.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/015_previous-paragraph-with-sub": {
+      "original": "16_Поиск форматирования/015_Перейти на предыдущий абзац с нижним индексом.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/016_next-paragraph-with-sub": {
+      "original": "16_Поиск форматирования/016_Перейти на следующий абзац с нижним индексом.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/017_previous-strikethrough": {
+      "original": "16_Поиск форматирования/017_Перейти на предыдущее зачеркивание.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/018_next-strikethrough": {
+      "original": "16_Поиск форматирования/018_Перейти на следующее зачеркивание.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/019_previous-paragraph-with-strikethrough": {
+      "original": "16_Поиск форматирования/019_Перейти на предыдущий абзац, содержащий зачеркивание.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/020_next-paragraph-with-strikethrough": {
+      "original": "16_Поиск форматирования/020_Перейти на следующий абзац, содержащий зачеркивание.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/021_previous-code": {
+      "original": "16_Поиск форматирования/021_Перейти на предыдущий код.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/022_next-code": {
+      "original": "16_Поиск форматирования/022_Перейти на следующий код.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/023_previous-paragraph-with-code": {
+      "original": "16_Поиск форматирования/023_Перейти на предыдущий абзац, содержащий код.js",
+      "fbeVersion": "2.7.9",
+      "header": [
+        "Скрипт набора «Поиск форматирования»",
+        "Автор Sclex",
+        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
+        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
+      ],
+      "shown": []
+    },
+    "scripts/16_find-formatting/024_next-paragraph-with-code": {
+      "original": "16_Поиск форматирования/024_Перейти на следующий абзац, содержащий код.js",
       "fbeVersion": "2.7.9",
       "header": [
         "Скрипт набора «Поиск форматирования»",
@@ -1761,116 +2014,6 @@
       "fbeVersion": "2.7.9",
       "header": [
         "Скрипт «Выделить следующее совмещение курсива с жирностью»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/02_next-emphasis": {
-      "original": "16_Поиск форматирования/002_Перейти на следующий курсив.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/03_previous-paragraph-with-emphasis": {
-      "original": "16_Поиск форматирования/003_Перейти на предыдущий абзац с курсивом.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/04_next-paragraph-with-emphasis": {
-      "original": "16_Поиск форматирования/004_Перейти на следующий абзац с курсивом.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/05_previous-strong": {
-      "original": "16_Поиск форматирования/005_Перейти на предыдущую жирность.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/06_next-strong": {
-      "original": "16_Поиск форматирования/006_Перейти на следующую жирность.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/07_previous-paragraph-with-strong": {
-      "original": "16_Поиск форматирования/007_Перейти на предыдущий абзац с жирностью.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/08_next-paragraph-with-strong": {
-      "original": "16_Поиск форматирования/008_Перейти на следующий абзац с жирностью.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/09_previous-sup": {
-      "original": "16_Поиск форматирования/009_Перейти на предыдущий верхний индекс.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/10_next-sup": {
-      "original": "16_Поиск форматирования/010_Перейти на следующий верхний индекс.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/11_previous-paragraph-with-sup": {
-      "original": "16_Поиск форматирования/011_Перейти на предыдущий абзац с верхним индексом.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
         "Автор Sclex",
         "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
         "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
@@ -1934,17 +2077,6 @@
         "Основано на скрипте \"Поиск по набору регэкспов\"",
         "Автор Sclex, сборка TaKir",
         "Скрипт производит переход на ближайший абзац с латиницей вниз по тексту."
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/12_next-paragraph-with-sup": {
-      "original": "16_Поиск форматирования/012_Перейти на следующий абзац с верхним индексом.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
       ],
       "shown": []
     },
@@ -2057,17 +2189,6 @@
       ],
       "shown": []
     },
-    "scripts/16_find-formatting/13_previous-sub": {
-      "original": "16_Поиск форматирования/013_Перейти на предыдущий нижний индекс.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
     "scripts/16_find-formatting/140_next-all-bold-italic-paragraph": {
       "original": "16_Поиск форматирования/140_Выделить следующий целиком курсивный и жирный абзац.js",
       "fbeVersion": "2.7.9",
@@ -2168,17 +2289,6 @@
       ],
       "shown": []
     },
-    "scripts/16_find-formatting/14_next-sub": {
-      "original": "16_Поиск форматирования/014_Перейти на следующий нижний индекс.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
     "scripts/16_find-formatting/150_next-epigraph": {
       "original": "16_Поиск форматирования/150_Выделить следующий эпиграф.js",
       "fbeVersion": "2.7.9",
@@ -2276,17 +2386,6 @@
         "Скрипт «Выделить предыдущую таблицу» (table)",
         "Автор Sclex, сборка TaKir",
         "Версия 1.3"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/15_previous-paragraph-with-sub": {
-      "original": "16_Поиск форматирования/015_Перейти на предыдущий абзац с нижним индексом.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
       ],
       "shown": []
     },
@@ -2396,50 +2495,6 @@
       ],
       "shown": []
     },
-    "scripts/16_find-formatting/16_next-paragraph-with-sub": {
-      "original": "16_Поиск форматирования/016_Перейти на следующий абзац с нижним индексом.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/17_previous-strikethrough": {
-      "original": "16_Поиск форматирования/017_Перейти на предыдущее зачеркивание.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/18_next-strikethrough": {
-      "original": "16_Поиск форматирования/018_Перейти на следующее зачеркивание.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/19_previous-paragraph-with-strikethrough": {
-      "original": "16_Поиск форматирования/019_Перейти на предыдущий абзац, содержащий зачеркивание.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
     "scripts/16_find-formatting/200_previous-repeated-elements": {
       "original": "16_Поиск форматирования/200_Найти предыдущие подряд идущие однотипные элементы.js",
       "fbeVersion": "2.7.9",
@@ -2468,61 +2523,6 @@
       ],
       "shown": []
     },
-    "scripts/16_find-formatting/20_next-paragraph-with-strikethrough": {
-      "original": "16_Поиск форматирования/020_Перейти на следующий абзац, содержащий зачеркивание.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/21_previous-code": {
-      "original": "16_Поиск форматирования/021_Перейти на предыдущий код.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/22_next-code": {
-      "original": "16_Поиск форматирования/022_Перейти на следующий код.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/23_previous-paragraph-with-code": {
-      "original": "16_Поиск форматирования/023_Перейти на предыдущий абзац, содержащий код.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/16_find-formatting/24_next-paragraph-with-code": {
-      "original": "16_Поиск форматирования/024_Перейти на следующий абзац, содержащий код.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт набора «Поиск форматирования»",
-        "Автор Sclex",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
     "scripts/17_notes-to-brackets/01_notes-into-brackets": {
       "original": "17_Перенос примечаний в скобки/01_Перенести примечания в скобки.js",
       "fbeVersion": "2.7.9",
@@ -2547,18 +2547,6 @@
         "Перенос одного примечания в скобки v1.1. Автор Sclex."
       ]
     },
-    "scripts/18_editing/01_remove-spaces": {
-      "original": "18_Мелочи редактирования/01_Удаление пробелов.js",
-      "fbeVersion": "2.7",
-      "header": [
-        "\"Удаление пробелов\" by Sclex",
-        "v1.1",
-        "вид обработки, которой подвергается выделенный текст",
-        "1 - перевод в верний регистр",
-        "2 - перевод в верний регистр"
-      ],
-      "shown": []
-    },
     "scripts/18_editing/04_empty-line-before-poem-or-cite": {
       "original": "18_Мелочи редактирования/04_Вставить пустую строку перед стихом или цитатой.js",
       "fbeVersion": "2.7",
@@ -2579,8 +2567,8 @@
       ],
       "shown": []
     },
-    "scripts/18_editing/06_remove-spaces-and-hyphens": {
-      "original": "18_Мелочи редактирования/06_Удаление пробелов и дефисов.js",
+    "scripts/18_editing/17_remove-spaces": {
+      "original": "18_Мелочи редактирования/01_Удаление пробелов.js",
       "fbeVersion": "2.7",
       "header": [
         "\"Удаление пробелов\" by Sclex",
@@ -2591,29 +2579,15 @@
       ],
       "shown": []
     },
-    "scripts/18_editing/07_bracket-superscripts-square": {
-      "original": "18_Мелочи редактирования/07_Обрамить верхние индексы скобками [].js",
+    "scripts/18_editing/18_remove-spaces-and-hyphens": {
+      "original": "18_Мелочи редактирования/06_Удаление пробелов и дефисов.js",
       "fbeVersion": "2.7",
       "header": [
-        "Скрипт «Обрамить верхние индексы скобками []» v1.0"
-      ],
-      "shown": []
-    },
-    "scripts/18_editing/08_bracket-superscripts-curly": {
-      "original": "18_Мелочи редактирования/08_Обрамить верхние индексы скобками {}.js",
-      "fbeVersion": "2.7",
-      "header": [
-        "Скрипт «Обрамить верхние индексы скобками {}» v1.0"
-      ],
-      "shown": []
-    },
-    "scripts/18_editing/09_line-numbers-to-superscript": {
-      "original": "18_Мелочи редактирования/09_Нумерацию в началах строк - надстрочным текстом.js",
-      "fbeVersion": "2.7",
-      "header": [
-        "скрипт «Нумерацию в началах строк - надстрочным текстом»",
-        "автор Sclex",
-        "v1.0"
+        "\"Удаление пробелов\" by Sclex",
+        "v1.1",
+        "вид обработки, которой подвергается выделенный текст",
+        "1 - перевод в верний регистр",
+        "2 - перевод в верний регистр"
       ],
       "shown": []
     },
@@ -2633,6 +2607,22 @@
         "=== Буква «Ёё» ===",
         "Engine by ©Sclex (01.05.2007 – 07.05.2008)",
         "Jurgen Script «Генеральная уборка» Golma Edition"
+      ],
+      "shown": []
+    },
+    "scripts/18_editing/25_bracket-superscripts-square": {
+      "original": "18_Мелочи редактирования/07_Обрамить верхние индексы скобками [].js",
+      "fbeVersion": "2.7",
+      "header": [
+        "Скрипт «Обрамить верхние индексы скобками []» v1.0"
+      ],
+      "shown": []
+    },
+    "scripts/18_editing/26_bracket-superscripts-curly": {
+      "original": "18_Мелочи редактирования/08_Обрамить верхние индексы скобками {}.js",
+      "fbeVersion": "2.7",
+      "header": [
+        "Скрипт «Обрамить верхние индексы скобками {}» v1.0"
       ],
       "shown": []
     },
@@ -3405,6 +3395,16 @@
         "скрипт «Удалить все 'слои' нумерации вида \"1.\" и \"1)\" в началах выделенных абзацев»",
         "автор Sclex",
         "v1.3"
+      ],
+      "shown": []
+    },
+    "scripts/30_numbering/40_line-numbers-to-superscript": {
+      "original": "18_Мелочи редактирования/09_Нумерацию в началах строк - надстрочным текстом.js",
+      "fbeVersion": "2.7",
+      "header": [
+        "скрипт «Нумерацию в началах строк - надстрочным текстом»",
+        "автор Sclex",
+        "v1.0"
       ],
       "shown": []
     },

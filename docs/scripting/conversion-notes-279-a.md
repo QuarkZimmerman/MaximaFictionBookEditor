@@ -120,7 +120,7 @@ node tests/scripts/run-script.mjs $G/08_titles-case $B --answer '{"bodySectionTi
 
 19 scripts in 2.7.9: 10 new, all converted here (T047); the successors of the nine packages
 converted from 2.7beta1 (`01_add-footnote` … `08_unify-footnotes-remove-unused`,
-`20_test-footnotes`, with `notes-engine.js`) are left for their recheck. Packages:
+`30_test-footnotes`, with `notes-engine.js`) are left for their recheck. Packages:
 `scripts/02_footnotes/<NN>_<slug>/` with the 2.7.9 number, ids `02/<slug>`, `legacy.source` the
 2.7.9 path (`sourceVersion` from the header: 31 and 32 "1.2", 35 "1.0"; the others state none),
 `name` and `description` in ru, en and uk, the 2.7.9 icon (38 has none), `undoLabel` the name,

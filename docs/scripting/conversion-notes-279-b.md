@@ -1125,7 +1125,7 @@ use `136_`, `138_`, `148_`, `150_`, `152_` and `154_` (13/590, 09/38-39, 14/057-
 resolve. Their commented-out examples name 2.7beta1-era files (`48_Перейти на следующий
 заголовок.js`, `50_…эпиграф.js`, `52_…цитату.js`, `24_…код.js`) that 2.7.9 no longer has, and
 31/50-51 call `16_Поиск форматирования\\12_Перейти на следующий абзац с верхним индексом.js`,
-which 2.7.9 itself cannot load (its file is `012_…`); since the recheck the package `12_next-paragraph-with-sup`
+which 2.7.9 itself cannot load (its file is `012_…`); since the recheck the package `012_next-paragraph-with-sup`
 resolves by its 2.7.9 path `012_…` (and by its id), not by `12_…` - see the recheck below and the
 combos of group 31.
 
@@ -1757,7 +1757,7 @@ first run of the paragraph where it goes to the end of the last one.
 
 ### 001 Перейти на предыдущий курсив
 
-`01_previous-emphasis`, `16/previous-emphasis` (2.7beta1 *01_Переход на предыдущий курсив*):
+`001_previous-emphasis`, `16/previous-emphasis` (2.7beta1 *01_Переход на предыдущий курсив*):
 updated. en *Go to previous italics*, uk *Перейти до попереднього курсиву*. Chain marks from the
 end of the book (n26:36): n23:26, n17:13, n9:19 (the run around the picture, one stop), n8:36, n8:14
 (the adjacent elements, one stop), n7:31, n7:23, n7:6, n28:20 (the annotation), the question (OK),
@@ -1766,7 +1766,7 @@ n9:12-13: n8:36. Chain conv-c-16: n8:41. Differences: inline picture, size.
 
 ### 002 Перейти на следующий курсив
 
-`02_next-emphasis`, `16/next-emphasis`: updated. en *Go to next italics*, uk *Перейти до
+`002_next-emphasis`, `16/next-emphasis`: updated. en *Go to next italics*, uk *Перейти до
 наступного курсиву*. Chain marks from the start (n28:0): n28:12 (the annotation), n7:0, n7:15,
 n7:26, n8:8 (n8:8-14, the adjacent elements), n8:23, n9:9 (the picture-only italic n9:21 is no
 stop), n17:5, n23:18, the question (OK), n28:12; from n7:15-23: n7:26; from n9:12-13: n17:5; from the
@@ -1775,48 +1775,48 @@ n12:18. Differences: inline picture, scrolling, size.
 
 ### 003 Перейти на предыдущий абзац с курсивом
 
-`03_previous-paragraph-with-emphasis`, `16/previous-paragraph-with-emphasis`: updated. en *Go to
+`003_previous-paragraph-with-emphasis`, `16/previous-paragraph-with-emphasis`: updated. en *Go to
 previous paragraph with italics*, uk *Перейти до попереднього абзацу з курсивом*. Chain marks from
 n26:36: n23:26, n17:13, n9:19, n8:36, n7:31 (each the end of the paragraph's last run), n28:20,
 the question (OK), n23:26. Chain conv-c-16: n8:41. Differences: inline picture, size.
 
 ### 004 Перейти на следующий абзац с курсивом
 
-`04_next-paragraph-with-emphasis`, `16/next-paragraph-with-emphasis`: updated; gained its icon. en
+`004_next-paragraph-with-emphasis`, `16/next-paragraph-with-emphasis`: updated; gained its icon. en
 *Go to next paragraph with italics*, uk *Перейти до наступного абзацу з курсивом*. Chain marks from
 n28:0: n7:0, n8:8, n9:9, n17:5, n23:18 (the caret's own paragraph n28 is passed), the question
 (OK), n28:12. Chain conv-c-16: n12:18. Differences: inline picture, scrolling, size.
 
 ### 005 Перейти на предыдущую жирность
 
-`05_previous-strong`, `16/previous-strong`: updated. en *Go to previous bold*, uk *Перейти до
+`005_previous-strong`, `16/previous-strong`: updated. en *Go to previous bold*, uk *Перейти до
 попереднього жирного шрифту*. Chain marks from n26:36: n18:11 (the text author), n13:11, n8:29
 (bold around italics), n30:16 (the history), the question (OK), n18:11. Chain conv-c-16: the
 question, n36:19 (the notes). Differences: inline picture, size.
 
 ### 006 Перейти на следующую жирность
 
-`06_next-strong`, `16/next-strong`: updated. en *Go to next bold*, uk *Перейти до наступного
+`006_next-strong`, `16/next-strong`: updated. en *Go to next bold*, uk *Перейти до наступного
 жирного шрифту*. Chain marks from n28:0: n30:10, n8:16, n13:5, n18:5, the question (OK), n30:10.
 Chain conv-c-16: n9:8. Differences: inline picture, scrolling, size.
 
 ### 007 Перейти на предыдущий абзац с жирностью
 
-`07_previous-paragraph-with-strong`, `16/previous-paragraph-with-strong`: updated. en *Go to
+`007_previous-paragraph-with-strong`, `16/previous-paragraph-with-strong`: updated. en *Go to
 previous paragraph with bold*, uk *Перейти до попереднього абзацу з жирним шрифтом*. Chain marks
 from n26:36: n18:11, n13:11, n8:29, n30:16, the question (OK), n18:11. Chain conv-c-16: the
 question, n36:19. Differences: inline picture, size.
 
 ### 008 Перейти на следующий абзац с жирностью
 
-`08_next-paragraph-with-strong`, `16/next-paragraph-with-strong`: updated; gained its icon. en *Go
+`008_next-paragraph-with-strong`, `16/next-paragraph-with-strong`: updated; gained its icon. en *Go
 to next paragraph with bold*, uk *Перейти до наступного абзацу з жирним шрифтом*. Chain marks from
 n28:0: n30:10, n8:16, n13:5, n18:5, the question (OK), n30:10. Chain conv-c-16: n12:11 (the bold of
 the caret's own paragraph n9 is passed). Differences: inline picture, scrolling, size.
 
 ### 009 Перейти на предыдущий верхний индекс
 
-`09_previous-sup`, `16/previous-sup`: updated; gained its icon. en *Go to previous superscript*, uk
+`009_previous-sup`, `16/previous-sup`: updated; gained its icon. en *Go to previous superscript*, uk
 *Перейти до попереднього верхнього індексу*. marks.fb2 has one superscript (n13:18-22). Chain marks
 from n26:36: n13:22, then the question (OK), "Ничего не найдено, поиск завершен.", "NotFound"
 with the caret left at n13:22; from inside the run (n13:20): the question (OK), n13:22 - the run
@@ -1825,14 +1825,14 @@ Chain conv-c-16: the question, n28:23 (the subtitle). Differences: inline pictur
 
 ### 010 Перейти на следующий верхний индекс
 
-`10_next-sup`, `16/next-sup`: updated; gained its icon. en *Go to next superscript*, uk *Перейти до
+`010_next-sup`, `16/next-sup`: updated; gained its icon. en *Go to next superscript*, uk *Перейти до
 наступного верхнього індексу*. Chain marks from n28:0: n13:18, then the question (OK), "Ничего не
 найдено…", "NotFound" (2.7beta1's conversion went back to n13:18, "found"); from n13:20: the
 question (OK), n13:18. Chain conv-c-16: n9:24. Differences: inline picture, scrolling, size.
 
 ### 011 Перейти на предыдущий абзац с верхним индексом
 
-`11_previous-paragraph-with-sup`, `16/previous-paragraph-with-sup`: updated. en *Go to previous
+`011_previous-paragraph-with-sup`, `16/previous-paragraph-with-sup`: updated. en *Go to previous
 paragraph with superscript*, uk *Перейти до попереднього абзацу з верхнім індексом*. Chain marks
 from n26:36: n13:22, then the question (OK), "Ничего не найдено…", "NotFound"; from the start of
 n13 (n13:0): the question (OK), n13:22 - the caret's own paragraph counts after the question.
@@ -1840,7 +1840,7 @@ Chain conv-c-16: the question, n28:23. Differences: inline picture, size.
 
 ### 012 Перейти на следующий абзац с верхним индексом
 
-`12_next-paragraph-with-sup`, `16/next-paragraph-with-sup`: updated; gained its icon. en *Go to
+`012_next-paragraph-with-sup`, `16/next-paragraph-with-sup`: updated; gained its icon. en *Go to
 next paragraph with superscript*, uk *Перейти до наступного абзацу з верхнім індексом*. Chain marks
 from n28:0: n13:18, then the question (OK), "Ничего не найдено…", "NotFound"; from the end of n13
 (n13:49): the question (OK), n13:18; by the path `\16_Поиск форматирования\012_…` from n28:0: n13:18.
@@ -1849,7 +1849,7 @@ Open question: 2.7.9's combos 31/50-51 call it as `12_…`, see Numbering.
 
 ### 013 Перейти на предыдущий нижний индекс
 
-`13_previous-sub`, `16/previous-sub` (2.7beta1 *13_Переход на предыдующий нижний индекс*, whose
+`013_previous-sub`, `16/previous-sub` (2.7beta1 *13_Переход на предыдующий нижний индекс*, whose
 typo the old `legacy.source` kept; the 2.7.9 file has none): updated. en *Go to previous subscript*, uk *Перейти до
 попереднього нижнього індексу*. Chain marks from n26:36: n26:21 (the notes), n13:27, n3:8 (the
 body's title), the question (OK), n26:21. Chain conv-c-16: the question, n26:25. Differences:
@@ -1857,13 +1857,13 @@ inline picture, size.
 
 ### 014 Перейти на следующий нижний индекс
 
-`14_next-sub`, `16/next-sub`: updated. en *Go to next subscript*, uk *Перейти до наступного
+`014_next-sub`, `16/next-sub`: updated. en *Go to next subscript*, uk *Перейти до наступного
 нижнього індексу*. Chain marks from n28:0: n3:7, n13:24, n26:13, the question (OK), n3:7. Chain
 conv-c-16: n11:8. Differences: inline picture, scrolling, size.
 
 ### 015 Перейти на предыдущий абзац с нижним индексом
 
-`15_previous-paragraph-with-sub`, `16/previous-paragraph-with-sub`: updated. en *Go to previous
+`015_previous-paragraph-with-sub`, `16/previous-paragraph-with-sub`: updated. en *Go to previous
 paragraph with subscript*, uk *Перейти до попереднього абзацу з нижнім індексом*. Chain marks from
 n26:36: n13:27, n3:8 (the caret's own paragraph n26 is passed), the question (OK), n26:21 (the
 walk from the end meets n26 before the selection in n3), n13:27. Chain conv-c-16: the question,
@@ -1871,54 +1871,54 @@ n26:25. Differences: inline picture, size.
 
 ### 016 Перейти на следующий абзац с нижним индексом
 
-`16_next-paragraph-with-sub`, `16/next-paragraph-with-sub`: updated; gained its icon. en *Go to
+`016_next-paragraph-with-sub`, `16/next-paragraph-with-sub`: updated; gained its icon. en *Go to
 next paragraph with subscript*, uk *Перейти до наступного абзацу з нижнім індексом*. Chain marks
 from n28:0: n3:7, n13:24, n26:13, the question (OK), n3:7. Chain conv-c-16: n11:8. Differences:
 inline picture, scrolling, size.
 
 ### 017 Перейти на предыдущее зачеркивание
 
-`17_previous-strikethrough`, `16/previous-strikethrough`: updated. en *Go to previous
+`017_previous-strikethrough`, `16/previous-strikethrough`: updated. en *Go to previous
 strikethrough*, uk *Перейти до попереднього закреслення*. Chain marks from n26:36: n26:35, n13:40,
 n6:12 (the section's title), the question (OK), n26:35. Chain conv-c-16: the question, n27:16 (the
 cite's text author). Differences: inline picture, size.
 
 ### 018 Перейти на следующее зачеркивание
 
-`18_next-strikethrough`, `16/next-strikethrough`: updated. en *Go to next strikethrough*, uk
+`018_next-strikethrough`, `16/next-strikethrough`: updated. en *Go to next strikethrough*, uk
 *Перейти до наступного закреслення*. Chain marks from n28:0: n6:6, n13:29, n26:24, the question
 (OK), n6:6. Chain conv-c-16: n11:25. Differences: inline picture, scrolling, size.
 
 ### 019 Перейти на предыдущий абзац, содержащий зачеркивание
 
-`19_previous-paragraph-with-strikethrough`, `16/previous-paragraph-with-strikethrough`: updated. en
+`019_previous-paragraph-with-strikethrough`, `16/previous-paragraph-with-strikethrough`: updated. en
 *Go to previous paragraph containing strikethrough*, uk *Перейти до попереднього абзацу, що містить
 закреслення*. Chain marks from n26:36: n13:40, n6:12, the question (OK), n26:35, n13:40. Chain
 conv-c-16: the question, n27:16. Differences: inline picture, size.
 
 ### 020 Перейти на следующий абзац, содержащий зачеркивание
 
-`20_next-paragraph-with-strikethrough`, `16/next-paragraph-with-strikethrough`: updated. en *Go to
+`020_next-paragraph-with-strikethrough`, `16/next-paragraph-with-strikethrough`: updated. en *Go to
 next paragraph containing strikethrough*, uk *Перейти до наступного абзацу, що містить
 закреслення*. Chain marks from n28:0: n6:6, n13:29, n26:24, the question (OK), n6:6. Chain
 conv-c-16: n11:25. Differences: inline picture, scrolling, size.
 
 ### 021 Перейти на предыдущий код
 
-`21_previous-code`, `16/previous-code`: updated. en *Go to previous code*, uk *Перейти до
+`021_previous-code`, `16/previous-code`: updated. en *Go to previous code*, uk *Перейти до
 попереднього коду*. Chain marks from n26:36: n21:6 (the table cell), n13:16, n28:28 (the
 annotation), the question (OK), n21:6. Chain conv-c-16: the question, n26:14 (the cite).
 Differences: inline picture, named style "code", size.
 
 ### 022 Перейти на следующий код
 
-`22_next-code`, `16/next-code`: updated. en *Go to next code*, uk *Перейти до наступного коду*.
+`022_next-code`, `16/next-code`: updated. en *Go to next code*, uk *Перейти до наступного коду*.
 Chain marks from n28:0: n28:23, n13:13, n21:0, the question (OK), n28:23. Chain conv-c-16: n11:47.
 Differences: inline picture, scrolling, named style "code", size.
 
 ### 023 Перейти на предыдущий абзац, содержащий код
 
-`23_previous-paragraph-with-code`, `16/previous-paragraph-with-code`: updated. en *Go to previous
+`023_previous-paragraph-with-code`, `16/previous-paragraph-with-code`: updated. en *Go to previous
 paragraph containing code*, uk *Перейти до попереднього абзацу, що містить код*. Chain marks from
 n26:36: n21:6, n13:16, n28:28, the question (OK), n21:6; from the start of the book (n28:0): the
 question, Cancel, "NotFound", the caret stays. Chain conv-c-16: the question, n26:14. Differences:
@@ -1926,7 +1926,7 @@ inline picture, named style "code", size.
 
 ### 024 Перейти на следующий абзац, содержащий код
 
-`24_next-paragraph-with-code`, `16/next-paragraph-with-code`: updated. en *Go to next paragraph
+`024_next-paragraph-with-code`, `16/next-paragraph-with-code`: updated. en *Go to next paragraph
 containing code*, uk *Перейти до наступного абзацу, що містить код*. Chain marks from n28:0: n13:13,
 n21:0 (the caret's own paragraph n28 is passed), the question (OK), n28:23 (now the walk from the
 start meets the annotation before the selection), n13:13; by the id `16/next-paragraph-with-code`
@@ -2025,8 +2025,9 @@ node tests/scripts/run-script.mjs $G/03_one-note-into-brackets $B --select n14:3
 ## 18_Мелочи редактирования
 
 13 scripts in 2.7.9: **6 new, all converted** here (T059), none left out; the 7 successors of the
-packages converted from 2.7beta1 (`01_remove-spaces`, `02_insert-midi-link`, `04_…`, `05_…`,
-`06_remove-spaces-and-hyphens`, `07_…`, `08_…`) are left for their recheck. Packages:
+packages converted from 2.7beta1 (`04_…`, `05_…`, `17_remove-spaces`,
+`18_remove-spaces-and-hyphens`, `25_…`, `26_…`, `40_insert-midi-link`; at their 2.7.9 places since
+the places were renumbered, ids unchanged) are left for their recheck. Packages:
 `scripts/18_editing/<NN>_<slug>/` with the 2.7.9 number as written (`01_`, `02_`, `20_`, `22_`,
 `35_`, `39_`; the menu orders them among the 2.7beta1 packages by that number), ids `18/<slug>`,
 `legacy.source` the 2.7.9 path, `name` and `description` in ru, en and uk, the 2.7.9 icon and, in
@@ -2112,7 +2113,7 @@ Difference: scrolling, as 01. No open question.
 the selected text, keeping its formatting, and leaves the processed text selected; without a
 selection "Ничего не выделено!" (`needsSelection: true`). The original is the sibling of
 "Удалить все пробелы в выделении" (17) and "… и дефисы" (18) with another expression, so the
-conversion is theirs: `strip-lib.js` of the package `01_remove-spaces`, copied unchanged.
+conversion is theirs: `strip-lib.js` of the package `17_remove-spaces`, copied unchanged.
 
 Expected and recorded: `remove-underscores.xml` (`--select-range n8:4-n9:30`): n8 from its fifth
 character "Текстсподчеркиваниями и <emphasis>курсивсподчеркиванием</emphasis> конец." (the
