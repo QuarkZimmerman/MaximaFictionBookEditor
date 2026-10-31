@@ -848,7 +848,70 @@ const KEY_SETS = {
     { keys: 'ctrl+s', state: 'body', logs: [], outcome: 'saved' },
     { keys: 'ctrl+s', state: 'modal', logs: ['IDC_SAVE_PAGE blocked'], outcome: 'kept' },
   ],
+  // US2 (FR-002 to FR-004): no key reloads the editor's page. In the Body view F5 and Ctrl+F5
+  // keep their editor meanings (Fast Mode, the Document Tree), as in FictionBook Editor.
+  reload: [
+    { keys: 'ctrl+r', state: 'body', logs: ['IDC_RELOAD blocked'], outcome: 'kept' },
+    { keys: 'ctrl+r', state: 'modal', logs: ['IDC_RELOAD blocked'], outcome: 'kept' },
+    { keys: 'F5', state: 'body', logs: [], outcome: (ctx) => toggled(ctx, 'F5', 'Fast Mode', fastModeOn) },
+    { keys: 'F5', state: 'modal', logs: ['IDC_RELOAD blocked'], outcome: 'kept' },
+    { keys: 'shift+F5', state: 'body', logs: ['IDC_RELOAD_BYPASSING_CACHE blocked'], outcome: 'kept' },
+    { keys: 'shift+F5', state: 'modal', logs: ['IDC_RELOAD_BYPASSING_CACHE blocked'], outcome: 'kept' },
+    { keys: 'ctrl+F5', state: 'body', logs: [], outcome: (ctx) => toggled(ctx, 'ctrl+F5', 'the Document Tree', treeShown) },
+    { keys: 'ctrl+F5', state: 'modal', logs: ['IDC_RELOAD_BYPASSING_CACHE blocked'], outcome: 'kept' },
+    { keys: 'ctrl+shift+r', state: 'body', logs: ['IDC_RELOAD_BYPASSING_CACHE blocked'], outcome: 'kept' },
+    { keys: 'ctrl+shift+r', state: 'modal', logs: ['IDC_RELOAD_BYPASSING_CACHE blocked'], outcome: 'kept' },
+  ],
+  // US2: no key or mouse button navigates away from it. On Linux the engine turns none of these
+  // into a command here (observed on 2026-10-31 for feature 007's T033: no gate line); if a
+  // build ever does, the gate blocks it (IDC_BACK, IDC_FORWARD, IDC_HOME) and the navigation
+  // guard refuses the navigation - the outcome is the check.
+  navigate: [
+    { keys: 'alt+Left', state: 'body', logs: [], outcome: 'kept' },
+    { keys: 'alt+Left', state: 'modal', logs: [], outcome: 'kept' },
+    { keys: 'alt+Right', state: 'body', logs: [], outcome: 'kept' },
+    { keys: 'alt+Right', state: 'modal', logs: [], outcome: 'kept' },
+    { keys: 'alt+Home', state: 'body', logs: [], outcome: 'kept' },
+    { keys: 'alt+Home', state: 'modal', logs: [], outcome: 'kept' },
+    { keys: { button: 8 }, state: 'body', logs: [], outcome: 'kept' },
+    { keys: { button: 8 }, state: 'modal', logs: [], outcome: 'kept' },
+    { keys: { button: 9 }, state: 'body', logs: [], outcome: 'kept' },
+    { keys: { button: 9 }, state: 'modal', logs: [], outcome: 'kept' },
+  ],
+  // US2 (FR-005): no key closes the window or ends the editor around the close question. In
+  // the Body view Ctrl+W is the editor's own command (a footnote, where one can be added; where
+  // none can, the engine's Close tab reaches the gate). Ctrl+Shift+Q reaches no command here
+  // (observed on 2026-10-31); the gate blocks IDC_EXIT if it ever does.
+  close: [
+    { keys: 'ctrl+w', state: 'body', logs: [], outcome: 'kept' },
+    { keys: 'ctrl+w', state: 'modal', logs: ['IDC_CLOSE_TAB blocked'], outcome: 'kept' },
+    { keys: 'ctrl+F4', state: 'body', logs: ['IDC_CLOSE_TAB blocked'], outcome: 'kept' },
+    { keys: 'ctrl+F4', state: 'modal', logs: ['IDC_CLOSE_TAB blocked'], outcome: 'kept' },
+    { keys: 'ctrl+shift+w', state: 'body', logs: ['IDC_CLOSE_WINDOW blocked'], outcome: 'kept' },
+    { keys: 'ctrl+shift+w', state: 'modal', logs: ['IDC_CLOSE_WINDOW blocked'], outcome: 'kept' },
+    { keys: 'ctrl+shift+q', state: 'body', logs: [], outcome: 'kept' },
+    { keys: 'ctrl+shift+q', state: 'modal', logs: [], outcome: 'kept' },
+  ],
 };
+
+async function fastModeOn(ctx) {
+  return (await ctx.page.locator('[data-testid="body-view"]').getAttribute('data-fast-mode')) === 'true';
+}
+
+async function treeShown(ctx) {
+  return ctx.page.locator('[data-testid="panel-tree"]').isVisible();
+}
+
+// An editor key that toggles a state: the key changed it; pressed again, it changes it back.
+async function toggled(ctx, chord, what, state) {
+  const after = await state(ctx);
+  ctx.press(chord);
+  await sleep(engineKeySettleMs);
+  if ((await state(ctx)) === after) {
+    throw new Error(`${chord} did not toggle ${what} (the editor's own command)`);
+  }
+  return `${chord} toggled ${what} (the editor's own command), and back`;
+}
 
 // The editor's X window on the display of this run, found by the book's name in its title.
 function editorWindow(env) {

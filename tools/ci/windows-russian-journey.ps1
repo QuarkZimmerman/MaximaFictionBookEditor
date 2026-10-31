@@ -8,6 +8,9 @@
 #   - Save (F2, the original editor's key) rewrites the book in place, and so does Ctrl+S sent as a
 #     real keystroke (SendInput, feature 007 FR-001) after an edit - never the browser engine's
 #     "save the page";
+#   - the browser engine's keys sent as real keystrokes (feature 007 FR-002 to FR-005) keep an
+#     unsaved edit, the process and the window: Ctrl+R, F5 with Help > About open, Ctrl+F4, and
+#     Ctrl+W with About open;
 #   - View > Status Bar, chosen with the Russian accelerators (Alt+В, С), hides the status bar and
 #     settings.json records it;
 #   - File > New, the author "Толстой Лев Николаевич" and the title "Война и мир" typed into the
@@ -84,6 +87,7 @@ $keyX = @{ key = 'x'; code = 'KeyX'; windowsVirtualKeyCode = 0x58 }
 $keyF2 = @{ key = 'F2'; code = 'F2'; windowsVirtualKeyCode = 0x71 }
 $keyF10 = @{ key = 'F10'; code = 'F10'; windowsVirtualKeyCode = 0x79 }
 $keyDown = @{ key = 'ArrowDown'; code = 'ArrowDown'; windowsVirtualKeyCode = 0x28 }
+$keyEscape = @{ key = 'Escape'; code = 'Escape'; windowsVirtualKeyCode = 0x1B }
 $temp = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
 $script:cdp = $null
 $script:editor = $null
@@ -409,6 +413,31 @@ function Send-Chord([string]$Chord) {
     $keys = Get-ChordKeys $Chord
     [MfbeWin32]::SendChord($keys.Keys, $keys.Extended)
     Start-Sleep -Seconds 1
+}
+
+# Help > About through the page's own menu, and Escape to close it (feature 007).
+function Open-About {
+    Press-Element 'menu-help'
+    Click-Element 'menu-help-about'
+    Wait-Until 'the About dialog' { Test-Element 'dialog-about' }
+}
+
+function Close-About {
+    Send-CdpKey $script:cdp $keyEscape
+    Wait-Until 'the About dialog closed' { -not (Test-Element 'dialog-about') }
+}
+
+# After an engine key (feature 007): the editor's process and main window are still there, and
+# the page still shows the unsaved edit - not reloaded, not navigated, not closed.
+function Assert-EditKept([string]$What, [string]$ModifiedTitle, [string]$Marker) {
+    if ($script:editor.HasExited) { throw "$What ended the editor" }
+    $script:editor.Refresh()
+    if ($script:editor.MainWindowHandle -eq [IntPtr]::Zero) { throw "$What closed the editor's window" }
+    $title = Get-CdpValue $script:cdp 'document.title'
+    if ($title -cne $ModifiedTitle) { throw "$What lost the unsaved edit: the title reads '$title'" }
+    $kept = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"body-editor`"]').innerText.includes('$Marker')"
+    if ($kept -ne $true) { throw "$What lost the unsaved edit: the Body view no longer holds '$Marker'" }
+    Write-Host "engine key: $What kept the process, the window and the unsaved edit"
 }
 
 # Clicks the element with $TestId in the page (menus and dialogs of the interface react to clicks
@@ -976,6 +1005,31 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
     if (-not (Test-Bytes ([IO.File]::ReadAllBytes($bookPath)) ([Text.Encoding]::UTF8.GetBytes('CtrlS-saves ')))) {
         throw 'Ctrl+S did not write the edit into the book'
     }
+
+    # Feature 007 (FR-002 to FR-005): no engine key reloads, navigates or closes the editor; an
+    # unsaved edit survives each, in the Body view and with a modal dialog open.
+    $marker = 'Kept-by-the-gate'
+    $modifiedTitle = "$bookName* - $appName"
+    $null = Get-CdpValue $script:cdp @"
+(() => { const p = document.querySelector('[data-testid="body-editor"] p'); const range = document.createRange(); range.selectNodeContents(p); range.collapse(true); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); p.closest('[data-testid="body-editor"]').focus(); return true; })()
+"@
+    $null = Invoke-Cdp $script:cdp 'Input.insertText' @{ text = "$marker " }
+    Wait-Until 'the modified marker in the title' { (Get-CdpValue $script:cdp 'document.title') -ceq $modifiedTitle }
+    Send-Chord 'Ctrl+R'
+    Assert-EditKept 'Ctrl+R' $modifiedTitle $marker
+    Open-About
+    Send-Chord 'F5'
+    Assert-EditKept 'F5 with About open' $modifiedTitle $marker
+    Close-About
+    Send-Chord 'Ctrl+F4'
+    Assert-EditKept 'Ctrl+F4' $modifiedTitle $marker
+    Open-About
+    Send-Chord 'Ctrl+W'
+    Assert-EditKept 'Ctrl+W with About open' $modifiedTitle $marker
+    Close-About
+    # Saved again: the steps that follow start from an unmodified book.
+    Send-CdpKey $script:cdp $keyF2
+    Wait-Until 'the book saved again' { (Get-CdpValue $script:cdp 'document.title') -ceq $title }
 
     Send-CdpKey $script:cdp $keyVe -Modifiers 1
     Wait-Until 'the View menu open with Status Bar checked' {
