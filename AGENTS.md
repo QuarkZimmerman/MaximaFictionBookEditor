@@ -1,10 +1,15 @@
 # Maxima Fiction Book Editor — guidance for AI agents and contributors
 
-Read first: `.specify/memory/constitution.md` (workspace `~/maxfbeditor`, version 3.1.1) — six
+Read first: `.specify/memory/constitution.md` (workspace `~/maxfbeditor`, version 3.2.0) — six
 principles (specification first with the original as reference, headless testability, native
 core behind a versioned contract, round-trip safety, fenced scripting, GPL-3.0 licensing /
 fully offline with exactly two exceptions - the version check and the AI assistant the user
-turns on, feature 005). The design artifacts live in `~/maxfbeditor/specs/<feature>/` (spec,
+turns on, feature 005). Fenced scripting (principle V, 3.2.0): a script has no file system,
+network, other processes, storage, nested workers or editor HTML of its own; the editor does four
+things at its request (feature 007): (a) plain-text clipboard read and write, reading only in a
+run the user started, (b) saving text, or the open book's binaries, to files the user picks in a
+Save or folder dialog, (c) a display-only report window, (d) running another script of the menu
+as part of the same run (one undo step, one Cancel, at most 8 deep). The design artifacts live in `~/maxfbeditor/specs/<feature>/` (spec,
 plan, research, data-model, `contracts/` = the JSON-RPC, document-model, script API, resource
 formats and CLI contracts; feature 001 holds the base contracts, later features their additive
 changes).
@@ -23,6 +28,13 @@ editor no longer needs to match the original (requester decision, constitution 3
 | `ui/src/ai/` | the AI assistant (feature 005) | chunk rule: `index.ts`, `address.ts`, `testHooks.ts`, `agreements.ts` are static (main bundle); **everything else** in the folder, plus the MCP SDK and zod, is the lazy `ai-assistant` chunk (`ui/vite.config.ts` folder rule, `tests/unit/ai/chunk.test.ts`) - never import a chunk module statically from outside the folder; the settings page `ui/src/dialogs/settings/AiPage.tsx` stays outside |
 | `ui/src/editor/table/` | the table engine (feature 006) | the grid (`grid.ts`), the block of cells, the plans - pure functions of a table - and their commit (`commitTableEdit`: one transaction that replaces only the changed rows, one undo step); imports from `ui/src/model/` and `ui/src/editor/` only, so the Body view, the description fields, the paste router and the assistant share the plans; `testing/fuzz.ts` is reached by the test hooks through a dynamic import only - never import it statically |
 | `ui/src/features/tables/` | the table commands (feature 006) | the command table, the edit target of the Body view and the description fields, the Table dialog, the context-menu section, the irregular-table marks and their popover, the link-target question, the Source view's *Add → Table*, the test hooks |
+| `app/src/engine_commands.*` | the browser engine's command gate and the navigation guard (feature 007) | in `mfbe_shell_logic`; every engine command is allowed, developer-only (DevTools) or blocked, deny by default; the main frame never leaves the application once loaded; an external link goes to the system browser |
+| `core/src/server/handlers/files_handlers.cpp` | `files.saveText` / `files.saveBinaries` (feature 007) | the native Save / folder dialog, atomic writes; a script never sees a path - the folder stays in the core behind a per-document token |
+| `core/src/resources/script_backups.*` | dated backups of replaced scripts (feature 007) | `<Data>/script-backups/<id>/<time>/`, outside every scripts root; `scripts.backups.list` / `restore` |
+| `ui/src/model/binaryUrls.ts` | the one builder of the binaries' addresses (feature 007) | preview, original bytes and upload, with the token, and the size a preview has; nobody writes the routes by hand |
+| `ui/src/editor/pictures.css` + `ui/src/editor/plugins/pictureLayout.ts` | how every picture shows (feature 007) | one stylesheet (imported by `styles.css`) and one plugin (`fb-starts-with-picture`); pictures in table cells keep feature 006's rules there |
+| `ui/src/features/images/PictureView.tsx` | the picture view of a Binary objects thumbnail (feature 007) | the dialog service's `viewer` kind; rules in `pictureViewModel.ts` |
+| `ui/src/scripting/ReportWindow.tsx` | the report window of `mfbe.ui.report` (feature 007) | HTML in a frame that runs no script and loads nothing; Copy, Save as… |
 | `scripts/` | bundled user scripts | installed into the package — never put tooling here |
 | `tools/` | developer tooling | never shipped |
 | `resources/` | schema, genres, dictionaries, symbols, templates, messages, the AI service list `ai-services.json`, `certs/` (the Mozilla CA bundle + notice, Linux packages only) | installed |
@@ -49,6 +61,13 @@ cd ui && MFBE_CORE_BIN=../build/linux-core-release/bin/mfbe-core npx playwright 
 cd ui && MFBE_CORE_BIN=../build/linux-core-debug/bin/mfbe-core MFBE_E2E_TABLE_SHOTS=1 npx playwright test us3-table-images-layout  # pictures in table cells: test 7 attaches its contact sheets (evidence, never compared; CI's Linux leg sets the variable)
 node ui/tests/e2e/fixtures/ai-standin.mjs --port 8787                         # the AI service stand-in by hand (loopback only; scenarios over POST /__standin/scenario, record under /__standin/requests)
 tools/shell-smoke.sh                                                          # CEF shell under Xvfb + CDP (MFBE_SMOKE_CLOSE=1, MFBE_SMOKE_RESTART=1, MFBE_SMOKE_SAVE_AS=1 variants; MFBE_SMOKE_ABOUT=1 checks that About shows the version label and build id of `mfbe --version`; with MFBE_SMOKE_REAL_UI=1 and MFBE_SMOKE_OPEN_FILE the table-layout mode MFBE_SMOKE_TABLE_LAYOUT=1 on tests/fixtures/books/tables-images.fb2 and the table-marks mode MFBE_SMOKE_TABLE_MARKS=1 on tests/fixtures/books/tables.fb2)
+MFBE_SMOKE_REAL_UI=1 MFBE_SMOKE_OPEN_FILE=tests/fixtures/books/modern-utf8.fb2 MFBE_SMOKE_ENGINE_KEYS=1 tools/shell-smoke.sh   # the browser engine's own keys (feature 007): key sets save, reload, navigate, close, windows, dialogs, kept, devtools, links; needs openbox, xdotool, xprop; MFBE_SMOKE_ENGINE_KEYS_OBSERVE=1 reports what the gate logged instead of failing
+tests/scripts/run-all.sh [--group NN]                                         # the script equivalence suite (snapshots per group); --group makes it that group's gate
+node tests/scripts/run-script.mjs <package> <book> [--list-nodes] [--select …] [--answer …] [--clipboard …] [--save-as …] --snapshot <file>   # one script run headless; --list-nodes prints the book's node ids
+python3 tests/scripts/tools/check-notices.py [--package <dir>] [--update]    # the scripts keep their originals' notices (notices.json; --package checks against the original directly)
+python3 tools/legacy-script-audit.py --recheck | --diff <package> | --apply-updates | --self-test   # the intake of FictionBook Editor 2.7.9 scripts: inventory-279.json, the pairing, the diff of a package against its 2.7.9 original, per-group inventory updates
+python3 tools/release-notes-scripts.py [--write | --check]                   # the release notes' scripts section from the inventory (conversion-notes-279.md § Summary)
+python3 tools/changelog-check.py                                              # every CHANGELOG.md version starts with its "### In short" list (tools/changelog-in-short.py <X.Y.Z> prints one; the Release workflow uses it)
 tools/format.sh [--check]
 python3 tools/path-conversion-check.py && python3 tools/path-portability-check.py  # explicit path/text conversions; file names that survive Windows/macOS checkouts
 python3 tools/fb2-schema-elements.py --check                                  # Source-view completion table current with resources/schema
@@ -76,11 +95,22 @@ Run the core headless for manual/MCP testing:
 - Stored data: only in the folders of `platform::Dirs` (core) and `userDirs()` (shell) - the
   per-user folders for an installed copy, never its program folder; everything in the `user`
   folder of a portable copy, so the copy moves with its folder (constitution, data locations;
-  resource-formats contract §1, §1a). The AI assistant stores exactly three things there and
+  resource-formats contract §1, §1a). The AI assistant stores exactly four things there and
   nothing else (resource-formats §F): the user's service list `<Data>/ai-services.json`, the
   `ai` settings keys in `settings.json` (the custom key included - masked on the page, never
-  logged) and the scripts it writes under `<Data>/scripts/90_assistant/`; conversations are
+  logged), the scripts it writes under `<Data>/scripts/90_assistant/` and the dated backups of
+  the scripts its writes replaced, `<Data>/script-backups/` (feature 007); conversations are
   never written to disk.
+- Scripts (feature 007): every bundled script is an independent program - a package carries its
+  own copies of the helpers it uses and imports nothing from another package (identical copies
+  are fine). A script's `id` is stable: hotkeys, the Scripts toolbar and Last script name scripts
+  by id, so a renamed or moved package keeps it (its folder may move with FictionBook Editor
+  2.7.9's group, its id never changes); a script of a higher layer with the same id replaces the
+  lower one in its group and place. `tests/scripts/audit/inventory-279.json` is the one record
+  of every classic script's state.
+- Releases (feature 007, FR-075): every version's section of `CHANGELOG.md` starts with
+  `### In short` - one line per major change for users, 1 to 8 lines of at most 100 characters,
+  no links or code - which the Release workflow puts at the top of the release text.
 - TS: strict, 2 spaces, Prettier; every interactive element has a stable `data-testid`;
   all user-visible strings go through i18n (`en.json`/`ru.json`/`uk.json` must stay in parity,
   and the feature catalogues `<feature>.<lang>.json`; `tools/i18n-check.mjs --languages`
