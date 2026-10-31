@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": " :: Links :: ",
+      "text": "INTERNAL LINKS:\n\n 01. [1] → #n_1 \n 02. [2] → #n_2 \n 03. вторую главу → #s2 \n [!!!]  04. без решётки → broken-link \n [!!!]  05. пусто → (null) \n\n-------------------------------------------- \n\nEXTERNAL LINKS:\n\n 01. сайт → https://example.org/page \n 02. http → http://example.com/ \n"
+    }
+  ]
+}

@@ -10,9 +10,9 @@
       "new": 231,
       "noCounterpart": 6,
       "notConverted": 4,
-      "recheck": 42,
+      "recheck": 41,
       "unchanged": 27,
-      "updated": 67
+      "updated": 68
     },
     "recheckClasses": {
       "identical": 24,
@@ -3354,7 +3354,11 @@
       "id": "09/merge-adjacent-poems",
       "status": "unchanged",
       "predecessor": "09_Стихи/01_Слияние подряд идущих стихов.js",
-      "differences": [],
+      "differences": [
+        "After a merge the original's clearEmpties removed every empty line from the first one after the previous poem up to the end of their container (its loop runs on to the last sibling), not only the empty lines between the two poems; the conversion removes only those between them (since 0.0.1; 2.7.9 kept the code).",
+        "Whether a poem's first stanza lies in the selection: the original marked the ends of the selection with elements and walked between them; the conversion takes a stanza whose first line is one of the selected blocks, unless the selection starts inside that line (since 0.0.1).",
+        "A selection in a text field of FictionBook Editor's description page got the message «Ошибка. Должно быть выделение в тексте книги, а не в поле ввода.»; the script works on the Body view's selection, the only one the script API gives (since 0.0.1)."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3383,7 +3387,11 @@
       "id": "09/drama-speakers",
       "status": "unchanged",
       "predecessor": "09_Стихи/02_Драма....js",
-      "differences": [],
+      "differences": [
+        "A non-breaking space counts as a space, as the original's comparisons with nbspChar mean: the original read the paragraph's innerHTML, where the character is the entity &nbsp;, six ordinary characters for its loop, so a name spaced out with non-breaking spaces was too long to be marked and that spacing was never removed (since 0.0.1).",
+        "The result message also gives the number of paragraphs marked («Размечено абзацев: N.»; the original declared a counter but never used it) and leaves out the line of dots (since 0.0.1).",
+        "The answer to «Сколько символов может быть до точки или скобки?» is read as a number; the original evaluated it as a JScript expression (eval), so 5+5 also gave 10. An answer that is not a number ends the script, as an expression that failed did (since 0.0.1)."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3410,7 +3418,10 @@
       "id": "09/merge-paragraphs",
       "status": "unchanged",
       "predecessor": "09_Стихи/03_Слить параграфы.js",
-      "differences": [],
+      "differences": [
+        "The selected blocks are merged by kind: consecutive paragraphs, or verse lines of one stanza, become the first of them, which keeps its attributes. The original rewrote the paragraph boundaries in the selection's HTML, </P><P> with nothing but an align attribute on the second paragraph; so it also merged a following empty line into a paragraph (keeping its non-breaking space) and a paragraph into a preceding subtitle or text author, and left alone a boundary before a paragraph that has an id or a style (since 0.0.1).",
+        "Run without a selection (the menu entry needs one), the conversion says so in a message, and after a merge the status bar gives the number of paragraphs merged; the original did and showed nothing (since 0.0.1)."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3621,7 +3632,12 @@
       "id": "10/show-links",
       "status": "unchanged",
       "predecessor": "10_Статистика/01_Показать все ссылки.js",
-      "differences": [],
+      "differences": [
+        "The links of the book's annotation and history are not listed: the original took every <A> of FictionBook Editor's page, which holds the annotation and the history before the bodies; the conversion walks the bodies (since 0.0.1; 10/show-all-links, updated in this recheck, lists them).",
+        "Only text counts as a link's content: a link that holds nothing but an inline picture is not listed, and a picture inside a link splits it in two; the original listed every <A> with its innerText, to which a picture adds nothing (since 0.0.1).",
+        "Two links with the same target and type written right next to each other count as one: the editor reads them as one link (and writes them so).",
+        "The targets are shown as written in the book, the value the script's tests are written for (\"#\" at the start, \"(null)\" for an empty target). FictionBook Editor's engine could give the original getAttribute(\"href\") resolved against its page (file:///…/main.html#id), and the original then flagged every internal link with [!!!]: the editor's own code reads targets with getAttribute(name, 2), the flag for the written value, and 2.7.9's 06/17 and 06/50 allow for both forms (since 0.0.1)."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3650,9 +3666,13 @@
       ],
       "package": "scripts/10_statistics/02_show-all-links",
       "id": "10/show-all-links",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "10_Статистика/02_Показать все-все ссылки.js",
-      "differences": [],
+      "differences": [
+        "The list opens in the editor's report window (title \" :: Links :: \", the text as written, in the window's type, with Copy and Save as...; modeless, it stays open after the run), not in an IE window of 300 × 710 pixels showing the page HTML/Показать все-все ссылки.html in its small grey centred type. The report window has the size of the editor's report windows and scrolls; it cannot be resized, where 2.7.9's window can (2.7.9 spells its feature resizable=yes, which 2.7beta1 misspelt resizeble).",
+        "Two links with the same target and type written right next to each other count as one: the editor reads them as one link (and writes them so).",
+        "The targets are shown as written in the book, the value the script's tests are written for (\"#\" at the start, \"(null)\" for an empty target). FictionBook Editor's engine could give the original getAttribute(\"href\") resolved against its page (file:///…/main.html#id), and the original then flagged every internal link with [!!!]: the editor's own code reads targets with getAttribute(name, 2), the flag for the written value, and 2.7.9's 06/17 and 06/50 allow for both forms (since 0.0.1)."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -3679,7 +3699,12 @@
       "id": "10/document-statistics",
       "status": "unchanged",
       "predecessor": "10_Статистика/03_Статистика документа.js",
-      "differences": [],
+      "differences": [
+        "Paragraphs are the text blocks and empty lines of the bodies; the original counted every <P> of FictionBook Editor's page, which also holds the paragraphs of the book's annotation and history (one empty paragraph each when the book has none) (since 0.0.1).",
+        "The text size is the editor's count of the bodies' characters (doc.stats); the original took the length of the page's text (the innerText of the Body view: the annotation, the history and the bodies, with the line breaks between paragraphs) (since 0.0.1).",
+        "Illustrations are the block and inline pictures of the bodies (doc.stats); the original counted every <IMG> of the page: also those of the annotation, and the two preview pictures of the description page (prevImg, fullImg), so it gave two more than the book has (since 0.0.1).",
+        "Footnotes are the note links of the bodies; the original counted every <A class=note> of the page, those of the annotation and the history included (since 0.0.1)."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {

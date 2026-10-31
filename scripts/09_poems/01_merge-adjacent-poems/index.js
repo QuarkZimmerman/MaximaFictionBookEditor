@@ -1,4 +1,6 @@
 // Converted from 09_Стихи/01_Слияние подряд идущих стихов.js (FictionBook Editor).
+// FictionBook Editor 2.7.9 has the same code as 09_Стихи/01_Объединить выделенные подряд идущие
+// стихи в один стих.js; the package carries that name (feature 007 recheck, unchanged).
 // Walks the selected part of the book and, whenever a poem starts with a stanza and follows
 // another poem with only empty lines in between, moves its content into the previous poem
 // (only when that poem ends with a stanza, otherwise the FB2 order title/stanza/text-author

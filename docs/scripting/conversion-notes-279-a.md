@@ -2508,3 +2508,72 @@ not allow; 2.7.9 did so and asked before saving such a book); a stanza's subtitl
 an epigraph becomes a paragraph.
 
 Fixes: none. Open questions: none.
+
+The 3 packages converted from 2.7beta1 (task T080, recheck of `scripts/09_poems/`; the 2.7beta1
+conversion is in conversion-notes-b.md, group 09): **all 3 unchanged**. 2.7.9's files are byte for
+byte 2.7beta1's, and so are their icons; 2.7.9 renamed 01 only. Every package gained `name.uk` and
+`description.uk`; `name.ru` and `undoLabel.ru` are the 2.7.9 names (two undo labels were the
+originals' undo-unit names until now), the English names and undo labels follow. The ids, the
+folders, `legacy` (2.7beta1's source, `fbeVersion` "2.7"), the code and the five snapshots stay.
+No 2.7.9 script runs one of them, and none carries the list of proverbs. No fixes, no open
+questions. The differences below are the 0.0.1 conversion's, still true against 2.7.9, now
+recorded per package.
+
+### 01 Объединить выделенные подряд идущие стихи в один стих
+
+`scripts/09_poems/01_merge-adjacent-poems`, id `09/merge-adjacent-poems`: **unchanged** -
+2.7beta1's *01_Слияние подряд идущих стихов* (Sclex, v1.3), renamed by 2.7.9 with the same code
+and icon (its notice still names «Слияние подряд идущих стихов»). Names as in 2.7.9: ru and undo
+label *Объединить выделенные подряд идущие стихи в один стих* (the undo label was «Объединение
+стихов», the original's undo unit), en *Merge the selected consecutive poems into one poem*, uk
+*Об'єднати виділені вірші, що йдуть поспіль, в один вірш*; the index gained a comment on the
+rename. Snapshot `merge-adjacent-poems.conv-b-09.xml` stays.
+
+Differences kept from 0.0.1:
+- after a merge the original's `clearEmpties` removed every empty line from the first one after
+  the previous poem to the end of their container (its loop runs on to the last sibling), not only
+  the empty lines between the two poems; the conversion removes those between them;
+- whether a poem's first stanza lies in the selection: the original marked the ends of the
+  selection with elements and walked between them; the conversion takes a stanza whose first line
+  is a selected block, unless the selection starts inside that line;
+- a selection in a text field of the description page got «Ошибка. Должно быть выделение в тексте
+  книги, а не в поле ввода.»; the script works on the Body view's selection, the only one the
+  script API gives.
+
+### 02 Драма...
+
+`scripts/09_poems/02_drama-speakers`, id `09/drama-speakers`: **unchanged** (the same file,
+Sclex's «Разметка имен говорящих в пьесах» v.1.2). Gained uk *Драма...*; the undo label follows
+the name, ru *Драма...*, en *Drama: mark speaker names...* (it was the original's undo unit
+«Разметка имен говорящих в пьесах»). Snapshots `drama-speakers.conv-b-09.xml` and
+`.marks-006.xml` stay.
+
+Differences kept from 0.0.1:
+- a non-breaking space counts as a space, as the original's comparisons with `nbspChar` mean: the
+  original read the paragraph's innerHTML, where the character is the entity `&nbsp;`, six ordinary
+  characters for its loop, so a name spaced out with non-breaking spaces was too long to be marked
+  and that spacing was never removed;
+- the result message also gives the number of paragraphs marked (*Размечено абзацев: N.*; the
+  original declared a counter but never used it) and leaves out the line of dots;
+- the answer to *Сколько символов может быть до точки или скобки?* is read as a number, where the
+  original evaluated it as a JScript expression (`eval`: 5+5 also gave 10); an answer that is not a
+  number ends the script, as an expression that failed did.
+
+### 03 Слить параграфы
+
+`scripts/09_poems/03_merge-paragraphs`, id `09/merge-paragraphs`: **unchanged** (the same file).
+Gained uk *Об'єднати параграфи* (the glossary's word for *Слить*, as in *Об'єднати контейнери*).
+Snapshots `merge-paragraphs.conv-b-09.xml` and `.range.conv-b-09.xml` stay.
+
+Differences kept from 0.0.1:
+- the selected blocks are merged by kind: consecutive paragraphs, or verse lines of one stanza,
+  become the first of them, which keeps its attributes. The original rewrote the paragraph
+  boundaries in the selection's HTML, `</P><P>` with nothing but an align attribute on the second
+  paragraph (fb2.xsl writes paragraphs, verses and empty lines as `<P>`, with `id` and `fbstyle`
+  when they have them, and subtitles, text authors, dates and cells as `<P class=…>`); so it also
+  merged a following empty line into a paragraph (keeping its non-breaking space) and a paragraph
+  into a preceding subtitle or text author, and left alone a boundary before a paragraph that has
+  an id or a style;
+- run without a selection (the menu entry needs one), the conversion says so in a message, and
+  after a merge the status bar gives the number of paragraphs merged; the original did and showed
+  nothing.

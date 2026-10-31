@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": " :: Links :: ",
+      "text": "INTERNAL LINKS:\n\n 01. первую главу → #ch1 \n 02. [1] → #n1 \n 03. со ссылками → #ch2 \n 04. [1] → #n1 \n 05. [2] → #n2 \n 06. {1} → #n3 \n 07. курсивом и жирным → #ch2 \n 08.  → #ch2 \n [!!!]  09. другой файл → chapter2.fb2 \n [!!!]  10. ftp → ftp://example.org/file.txt \n [!!!]  11. заглавными → HTTP://EXAMPLE.COM/ \n [!!!]  12. пусто → (null) \n 13. ссылкой → #ch1 \n 14. [2] → #n2 \n 15. главу → #ch1 \n\n-------------------------------------------- \n\nEXTERNAL LINKS:\n\n 01. сайта → https://example.org/source \n 02. http → http://example.com/ \n 03. https → https://example.org/ \n 04. решётка с адресом → #http://example.net/ \n"
+    }
+  ]
+}

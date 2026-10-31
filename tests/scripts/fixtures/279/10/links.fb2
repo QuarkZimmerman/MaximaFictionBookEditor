@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Ссылкин</last-name>
+			</author>
+			<book-title>Книга со ссылками</book-title>
+			<annotation>
+				<p>Аннотация со ссылкой на <a l:href="#ch1">первую главу</a> и примечанием<a l:href="#n1" type="note">[1]</a>.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026</date>
+			<id>fixture-279-10-links</id>
+			<version>1.0</version>
+			<history>
+				<p>Подготовлено по образцу с <a l:href="https://example.org/source">сайта</a>.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга <a l:href="#ch2">со ссылками</a></p>
+		</title>
+		<section id="ch1">
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Примечания<a l:href="#n1" type="note">[1]</a>, <a l:href="#n2" type="note">[2]</a> и комментарий<a l:href="#n3" type="note">{1}</a>.</p>
+			<p>Ссылка с <a l:href="#ch2"><emphasis>курсивом</emphasis> и <strong>жирным</strong></a> внутри.</p>
+			<p>Ссылка-картинка <a l:href="#ch2"><image l:href="#dot.gif" alt="точка"/></a> без текста.</p>
+			<p>Без решётки: <a l:href="chapter2.fb2">другой файл</a>, <a l:href="ftp://example.org/file.txt">ftp</a>, <a l:href="HTTP://EXAMPLE.COM/">заглавными</a> и пустая <a l:href="">пусто</a>.</p>
+			<p>Внешние: <a l:href="http://example.com/">http</a>, <a l:href="https://example.org/">https</a> и кривая <a l:href="#http://example.net/">решётка с адресом</a>.</p>
+			<table>
+				<tr>
+					<td>Ячейка со <a l:href="#ch1">ссылкой</a></td>
+				</tr>
+			</table>
+		</section>
+		<section id="ch2">
+			<title>
+				<p>Глава 2</p>
+			</title>
+			<poem>
+				<stanza>
+					<v>Строка стиха с примечанием<a l:href="#n2" type="note">[2]</a></v>
+					<v>и без него.</v>
+				</stanza>
+			</poem>
+			<p>Последний абзац главы.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Примечание со ссылкой на <a l:href="#ch1">главу</a>.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Второе примечание.</p>
+		</section>
+		<section id="n3">
+			<title>
+				<p>{1}</p>
+			</title>
+			<p>Комментарий.</p>
+		</section>
+	</body>
+	<binary id="dot.gif" content-type="image/gif">R0lGODlhCAAGAPAAAP/QQEBgoCH5BAAAAAAALAAAAAAIAAYAAAIJjI+gkNv6GJoFADs=</binary>
+</FictionBook>

@@ -3,22 +3,24 @@
   "id": "10/show-all-links",
   "name": {
     "en": "Show all links (in a window)",
-    "ru": "Показать все-все ссылки"
+    "ru": "Показать все-все ссылки",
+    "uk": "Показати всі-всі посилання"
   },
   "description": {
-    "en": "Lists every link of the book in a scrollable dialog (the original opened a browser window); links that do not start with # are flagged",
-    "ru": "Показывает список всех ссылок книги в окне с прокруткой (оригинал открывал окно браузера); ссылки не на # помечаются"
+    "en": "Lists every link of the book (annotation, history and all bodies), internal and external, in a report window; links whose target does not start with # are flagged",
+    "ru": "Показывает в окне отчёта список всех ссылок книги (аннотации, истории и всех body), внутренних и внешних; ссылки, адрес которых не начинается с #, помечаются",
+    "uk": "Показує у вікні звіту список усіх посилань книги (анотації, історії та всіх body), внутрішніх і зовнішніх; посилання, адреса яких не починається з #, позначаються"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Show all links",
+    "en": "Show all links (in a window)",
     "ru": "Показать все-все ссылки"
   },
   "legacy": {
     "source": "10_Статистика/02_Показать все-все ссылки.js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7.9"
   }
 }

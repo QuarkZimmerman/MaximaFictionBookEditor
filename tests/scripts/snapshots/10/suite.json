@@ -156,5 +156,17 @@
       "--answer",
       "ok"
     ]
+  },
+  {
+    "snapshot": "10/show-all-links.links.xml",
+    "script": "scripts/10_statistics/02_show-all-links",
+    "book": "tests/scripts/fixtures/279/10/links.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "10/show-all-links.none.xml",
+    "script": "scripts/10_statistics/02_show-all-links",
+    "book": "tests/scripts/fixtures/279/10/bare.fb2",
+    "args": []
   }
 ]

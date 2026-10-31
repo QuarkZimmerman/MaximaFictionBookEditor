@@ -241,6 +241,161 @@ node tests/scripts/run-script.mjs $G/18_show-genres $F/statistics.fb2 --answer o
 #   .bare: bare.fb2
 ```
 
+The 3 packages converted from 2.7beta1 (task T080, recheck of `scripts/10_statistics/`; the
+2.7beta1 conversion is in conversion-notes-b.md, group 10). Outcomes: **1 updated** (02), **2
+unchanged** (01, 03: 2.7.9's files are byte for byte 2.7beta1's). The names are 2.7beta1's in
+2.7.9 too, and so are the three icons. Every package gained `name.uk` and `description.uk`; the
+ids and folders stay; 01 and 03 keep their 2.7beta1 `legacy`, code and snapshots. No 2.7.9 script
+runs one of them, and none carries the list of proverbs. No fixes, no open questions.
+
+What the three originals read: FictionBook Editor's page (`main.html` and fb2.xsl; 2.7.9 changed
+fb2.xsl only to show pictures in table cells and verses as inline pictures). Its `fbw_desc` holds
+the description form, whose only pictures are the two preview panels `prevImg` and `fullImg`; its
+`fbw_body` holds the title-info annotation, the document-info history (an empty paragraph each when
+the book has none) and every body. Every FB2 `<a>` is an `<A class="{@type}">`; every paragraph,
+verse, empty line, subtitle, text author, date and table cell a `<P>`; every picture an `<IMG>`. The
+originals took `document.getElementsByTagName` of the whole page. The 0.0.1 conversions listed and
+counted the bodies; the updated 02 now follows the page, while 01 and 03, unchanged, keep their
+conversion, with the differences recorded (as for 06/14 in conversion-notes-279-a.md).
+
+**Reference book** (new, `tests/scripts/fixtures/279/10/links.fb2`, valid against
+`FictionBook.xsd`): an annotation with a link to the first chapter and a note link, a history with
+an https link; a body title with a link; note links [1], [2] and {1}; a link holding emphasis and
+bold; a link holding only an inline picture; targets without "#" (another file, an ftp address, an
+upper-case HTTP:// address, an empty one); http and https links and a "#http://" one; a link in a
+table cell, one in a verse and one in the notes body. Also used: the existing
+`tests/scripts/fixtures/books/conv-b-10.fb2` (seven links in the bodies) and
+`fixtures/279/10/bare.fb2` (no links). **Snapshots:** `show-all-links.conv-b-10.xml` stays (the
+unchanged book), its report is now recorded beside it in `show-all-links.conv-b-10.outputs.json`;
+added in `tests/scripts/snapshots/10/` and its `suite.json`: `show-all-links.links.xml` (with its
+`.outputs.json`) and `show-all-links.none.xml`. The snapshots of 01 and 03 stay; their message boxes
+are not recorded by the harness.
+
+### 01 Показать все ссылки
+
+`scripts/10_statistics/01_show-links`, id `10/show-links`: **unchanged** (the same file). Gained uk
+*Показати всі посилання*. Snapshot `show-links.conv-b-10.xml` stays.
+
+Differences kept from 0.0.1:
+- the links of the book's annotation and history are not listed (the page held them before the
+  bodies; the conversion walks the bodies; 02, updated, lists them);
+- only text counts as a link's content: a link holding nothing but an inline picture is not
+  listed, and a picture inside a link splits it in two (the original listed every `<A>` with its
+  innerText, to which a picture adds nothing);
+- two links with the same target and type written right next to each other count as one: the
+  editor reads them as one link (and writes them so);
+- the targets are shown as written in the book, the value the script's tests are written for
+  ("#" at the start, "(null)" for an empty target). FictionBook Editor's engine could give the
+  original `getAttribute("href")` resolved against its page (`file:///…/main.html#id`), and the
+  original then flagged every internal link with [!!!]: the editor's own code reads targets with
+  `getAttribute(name, 2)`, the flag for the written value, and 2.7.9's 06/17 and 06/50 allow for
+  both forms.
+
+### 02 Показать все-все ссылки
+
+`scripts/10_statistics/02_show-all-links`, id `10/show-all-links`: **updated** (the header gives no
+version, so `legacy` has no `sourceVersion`). What 2.7.9 changed: the window's page, the same file
+as 2.7beta1's `Scripts/links.htm` (by Jurgen), moved to `HTML/Показать все-все ссылки.html`, and
+the window's feature `resizable=yes` is spelt right (2.7beta1 wrote `resizeble`), so the window can
+be resized. Ported: the list opens in the editor's report window, `mfbe.ui.report({ title, text })`
+(the mapping of `window.open("HTML/…")` with the body's innerText), titled with the page's
+" :: Links :: " in both languages, where 0.0.1 had a modal form with a text field (script API
+version 1 had no report window); like 2.7.9's window it is modeless and stays open after the run,
+with Copy and Save as... besides. Also brought to 2.7.9's result, where the 0.0.1 conversion fell
+short: the list holds the links of the annotation and the history first, as the page did; a link
+holding an inline picture is one link, the picture adding no text; the text is the original's
+message character for character (each line ends with " \n", the last one too), and the line
+«Всего ссылок: N» of 0.0.1's form, which the original never showed, is gone. Texts: Russian as in
+the original, English as in 0.0.1 (*INTERNAL LINKS:*, *EXTERNAL LINKS:*, *The document contains no
+links.*). uk *Показати всі-всі посилання*; the descriptions name the report window and the parts
+listed; the English undo label follows the name. The index keeps the notices of the script (mkb)
+and of its page (Jurgen); `check-notices.py` finds no notice pattern in either, so FR-029 is kept
+by hand.
+
+Expected (2.7.9's `Run()` worked through by hand, and by a scratch oracle that reads the book's XML,
+takes the `<a>` elements of the annotation, the history and the bodies in order with their text and
+writes `msg` as the original does) and recorded, in the English interface:
+- `show-all-links.links.xml` (`links.fb2`): the book unchanged; the report " :: Links :: ":
+
+  ```text
+  INTERNAL LINKS:
+
+   01. первую главу → #ch1
+   02. [1] → #n1
+   03. со ссылками → #ch2
+   04. [1] → #n1
+   05. [2] → #n2
+   06. {1} → #n3
+   07. курсивом и жирным → #ch2
+   08.  → #ch2
+   [!!!]  09. другой файл → chapter2.fb2
+   [!!!]  10. ftp → ftp://example.org/file.txt
+   [!!!]  11. заглавными → HTTP://EXAMPLE.COM/
+   [!!!]  12. пусто → (null)
+   13. ссылкой → #ch1
+   14. [2] → #n2
+   15. главу → #ch1
+
+  --------------------------------------------
+
+  EXTERNAL LINKS:
+
+   01. сайта → https://example.org/source
+   02. http → http://example.com/
+   03. https → https://example.org/
+   04. решётка с адресом → #http://example.net/
+  ```
+
+  (every line ends with a space; 01, 02 and the external 01 come from the annotation and the
+  history, 08 is the link holding only a picture, 11 is internal because the test for "http://" is
+  case-sensitive, the "#http://" link is external because the test looks anywhere in the target);
+- `show-all-links.conv-b-10.xml` (`conv-b-10.fb2`, the existing run): the internal links 01 [1] →
+  #n_1, 02 [2] → #n_2, 03 вторую главу → #s2, [!!!] 04 без решётки → broken-link, [!!!] 05 пусто →
+  (null), the external 01 сайт → https://example.org/page, 02 http → http://example.com/;
+- `show-all-links.none.xml` (`bare.fb2`): no links: the message *The document contains no links.*
+  (*Документ не содержит ссылок.*), no report window, the book unchanged.
+
+Each recorded report equals the expectation. The Russian texts (*ВНУТРЕННИЕ ССЫЛКИ:*, *ВНЕШНИЕ
+ССЫЛКИ:*, the message) were checked with a scratch copy of the package forced to the Russian branch
+(not committed): the report on `links.fb2` equals the oracle's Russian one.
+
+Differences:
+- the editor's report window (the text as written, in the window's type) instead of an IE window
+  of 300 × 710 pixels in the page's small grey centred type; it has the size of the editor's report
+  windows and scrolls, and cannot be resized, where 2.7.9's window can;
+- two links with the same target and type written right next to each other count as one (as
+  for 01);
+- the targets are shown as written in the book (as for 01).
+
+### 03 Статистика документа
+
+`scripts/10_statistics/03_document-statistics`, id `10/document-statistics`: **unchanged** (the
+same file). Gained uk *Статистика документа*. Snapshot `document-statistics.conv-b-10.xml` stays.
+
+Differences kept from 0.0.1:
+- paragraphs are the text blocks and empty lines of the bodies; the original counted every `<P>`
+  of the page, the paragraphs of the annotation and the history included (one empty paragraph each
+  when the book has none);
+- the text size is the editor's count of the bodies' characters (`doc.stats`); the original took
+  the length of the page's text, the innerText of the Body view: the annotation, the history and
+  the bodies, with the line breaks between paragraphs;
+- illustrations are the block and inline pictures of the bodies (`doc.stats`); the original
+  counted every `<IMG>` of the page: those of the annotation too, and the description page's two
+  preview pictures, so it gave two more than the book has;
+- footnotes are the note links of the bodies; the original counted every `<A class=note>` of the
+  page, those of the annotation and the history included.
+
+### Harness commands
+
+```bash
+export MFBE_CORE_BIN=... MFBE_UI_DIST=...
+tests/scripts/run-all.sh --group 10
+G=scripts/10_statistics/02_show-all-links; F=tests/scripts/fixtures/279/10; S=tests/scripts/snapshots/10
+node tests/scripts/run-script.mjs $G tests/scripts/fixtures/books/conv-b-10.fb2 --snapshot $S/show-all-links.conv-b-10.xml
+node tests/scripts/run-script.mjs $G $F/links.fb2 --snapshot $S/show-all-links.links.xml
+node tests/scripts/run-script.mjs $G $F/bare.fb2 --snapshot $S/show-all-links.none.xml
+```
+
 ## 11_Сделать подписи к картинкам из их атрибута title
 
 5 scripts in 2.7.9, all successors of the 5 packages converted from 2.7beta1 (task T081, recheck
