@@ -21,7 +21,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 257
+    "converted": 269
   },
   "entries": [
     {
@@ -2230,15 +2230,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/17_external-links-to-plain-text",
+      "id": "06/external-links-to-plain-text",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A run of text that carries one link counts as one link: the editor keeps formatting as marks, so two adjacent elements with the same attributes, which the original counted as two, are one."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/17_prevratit-vneshnie-links-into-text",
-      "suggestedId": "06/prevratit-vneshnie-links-into-text"
+      "openQuestions": [
+        "FictionBook Editor 2.7.9 ran its page in the WebBrowser control's IE7 document mode (no FEATURE_BROWSER_EMULATION in its sources or installer), where getAttribute(\"href\") returns the address resolved against the page file:///.../main.html; the conversion applies that resolution. If 2.7.9 ran in a later document mode, which returns the address as written, an empty or relative address (\"\", \"other.fb2#x\") would be unformatted too; here, as in IE7 mode, it resolves to a file:// address and is kept.",
+        "The 2.7.9 file is the later version (Sclex, v1.2) of 2.7beta1's 06_Чистка/17_Превращение внешних ссылок в текст.js (v1.0, package 06/external-links-to-text), as its own header says (\"Превращение внешних ссылок в текст\"); v1.2 adds the \"#http…\" case and a closing message. The review recorded the old one as noCounterpart (pairing-overrides-279.json), so both packages now stand at place 17 of the group; the pairing may deserve a second look in the recheck (T078)."
+      ]
     },
     {
       "source": "06_Чистка/19_Символы win-1252, истолкованные как win-1251 ('cafй' и т.п.) (поиск отдельных букв)....js",
@@ -2343,15 +2346,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/30_remove-paragraph-ids",
+      "id": "06/remove-paragraph-ids",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "An id on an empty line or a date, which the FB2 schema does not allow and the editor keeps as an unknown attribute, stays; the original's page showed it as the id of the <P> and removed it."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/30_udalit-id-of-paragraphs",
-      "suggestedId": "06/udalit-id-of-paragraphs"
+      "openQuestions": []
     },
     {
       "source": "06_Чистка/35_Удалить id разделов.js",
@@ -2367,15 +2370,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/35_remove-section-ids",
+      "id": "06/remove-section-ids",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/35_udalit-id-of-sections",
-      "suggestedId": "06/udalit-id-of-sections"
+      "openQuestions": []
     },
     {
       "source": "06_Чистка/38_Удалить id картинок.js",
@@ -2391,15 +2392,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/38_remove-image-ids",
+      "id": "06/remove-image-ids",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/38_udalit-id-of-images",
-      "suggestedId": "06/udalit-id-of-images"
+      "openQuestions": []
     },
     {
       "source": "06_Чистка/40_Удалить теги style, id разделов, id абзацев и id картинок.js",
@@ -2415,15 +2414,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/40_remove-styles-and-ids",
+      "id": "06/remove-styles-and-ids",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A run of text that carries one style counts as one style: the editor keeps formatting as marks, so two adjacent elements with the same attributes, which the original counted as two, are one.",
+        "A style named \"code\" or \"image\" is removed like any other: the original's page showed it as <span class=code> or <span class=image>, which it could not tell from <code> and an inline picture, and kept it.",
+        "An inline element unknown to FB2, which the editor keeps verbatim as raw XML, stays; the original's page showed it as <span class=unknown_element> and unwrapped it with the styles.",
+        "An id on an empty line or a date (not allowed by the FB2 schema, kept by the editor as an unknown attribute) stays.",
+        "The run is one undo step; the original left its undo unit open when only the style, paragraph and section phases changed something (its firstRemoving flag is reset before the picture phase)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/40_udalit-tegi-style-id-razdelov-id-of-paragraphs-a",
-      "suggestedId": "06/udalit-tegi-style-id-razdelov-id-of-paragraphs-a"
+      "openQuestions": []
     },
     {
       "source": "06_Чистка/45_Удалить атрибуты id, на которые нет ссылок, и теги style.js",
@@ -2439,15 +2442,20 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/45_remove-unreferenced-ids-and-styles",
+      "id": "06/remove-unreferenced-ids-and-styles",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A run of text that carries one style counts as one style: the editor keeps formatting as marks, so two adjacent elements with the same attributes, which the original counted as two, are one.",
+        "A style named \"code\" or \"image\" is removed like any other (the original's page could not tell it from <code> and an inline picture and kept it).",
+        "An inline element unknown to FB2 (kept by the editor as raw XML) stays; the original unwrapped it with the styles.",
+        "An id on an empty line, a date, a title, a stanza or a table row (not allowed by the FB2 schema, kept by the editor as an unknown attribute) stays."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/45_udalit-atributy-id-on-kotorye-net-ssylok-and-teg",
-      "suggestedId": "06/udalit-atributy-id-on-kotorye-net-ssylok-and-teg"
+      "openQuestions": [
+        "The original read each link's href property, the address resolved by IE: an address \"#id\" and one containing \"main.html#\" point to an id. Leading and trailing spaces are ignored here, as the resolution ignored them (\"  #p1\" keeps the id p1); IE's percent-encoding of a fragment with spaces or non-ASCII letters, if any, is not reproduced."
+      ]
     },
     {
       "source": "06_Чистка/50_Расформатировать ссылки, адрес которых - пустая строка.js",
@@ -2463,15 +2471,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/50_unformat-empty-links",
+      "id": "06/unformat-empty-links",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A run of text that carries one link counts as one link: the editor keeps formatting as marks, so two adjacent elements with the same attributes, which the original counted as two, are one."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/50_rasformatirovat-ssylki-adres-kotorykh-empty-line",
-      "suggestedId": "06/rasformatirovat-ssylki-adres-kotorykh-empty-line"
+      "openQuestions": [
+        "FictionBook Editor 2.7.9 ran its page in the WebBrowser control's IE7 document mode (no FEATURE_BROWSER_EMULATION in its sources or installer), where getAttribute(\"href\") returns the address resolved against the page file:///.../main.html; the conversion applies that resolution. If 2.7.9 ran in a later document mode, which returns the address as written, an address of spaces only would not count as empty; here it does, as IE7 mode resolved it to the editor's folder, which the original compared with."
+      ]
     },
     {
       "source": "06_Чистка/55_Удалить ссылки 'bookmark', созданные FBD.js",
@@ -2487,15 +2497,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/55_remove-fbd-bookmark-links",
+      "id": "06/remove-fbd-bookmark-links",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A paragraph that held only the deleted link becomes an empty line: the original left an empty <P>, which FictionBook Editor saved as <empty-line/>; another emptied block (a subtitle, a verse) stays an empty block here.",
+        "An emphasis or strong element the link alone filled disappears with it; the original's page kept the empty element.",
+        "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/55_udalit-links-bookmark-sozdannye-fbd",
-      "suggestedId": "06/udalit-links-bookmark-sozdannye-fbd"
+      "openQuestions": []
     },
     {
       "source": "06_Чистка/60_Удалить разделы, внутри которых только заголовок и, возможно, пустые строки.js",
@@ -2511,15 +2523,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/60_remove-title-only-sections",
+      "id": "06/remove-title-only-sections",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/60_udalit-razdely-vnutri-kotorykh-tolko-title-i-voz",
-      "suggestedId": "06/udalit-razdely-vnutri-kotorykh-tolko-title-i-voz"
+      "differences": [
+        "A body keeps its last section, and a section that keeps an epigraph, a picture or an annotation but loses all its subsections gets an <empty-line/> in their place: FB2 requires a body to have a section and a section with a title to have content, which the editor enforces; 2.7.9 left an empty body or such a section (invalid FB2).",
+        "The count includes the subsections removed with a section."
+      ],
+      "fixes": [
+        "The original's test of a section (sectionNeedsRemoving) stopped at the section's first subsection: after removing an empty subsection it took that subsection for content (its \"neither a <P> nor a title\" check), returned \"keep\" and never looked at the later subsections; and any other content (an epigraph, a subsection with text) ended the test before the later subsections too. The script's intent, stated by its name, is to remove every section holding only a title and empty lines; here every subsection is examined, the empty ones are removed, and a section left with nothing but its title and empty lines is removed with them. On the reference book 2.7.9 removes 7 sections (b, c, e, g1, h1, k, n9) and leaves the empty chapters g3, h2 (with its part h, then holding only a title and h2) and i1; the conversion removes 11 (h with h1 and h2, and g3 and i1 besides)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "06_Чистка/65_Дроби, степени, интервалы, габариты.js",
@@ -2535,15 +2550,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/65_fractions-powers-ranges-sizes",
+      "id": "06/fractions-powers-ranges-sizes",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The title-info annotation is not processed; the original processed it only when the caret stood in it, as it walked from the caret to the end of the page (the same in 06/large-numbers, whose engine this script shares).",
+        "The place is shown by selecting it; the original's highlighting and scrolling are dropped.",
+        "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/65_drobi-stepeni-intervaly-gabarity",
-      "suggestedId": "06/drobi-stepeni-intervaly-gabarity"
+      "openQuestions": []
     },
     {
       "source": "06_Чистка/68_Генеральная уборка (версия Александра Ка).js",
@@ -2559,15 +2576,23 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/68_general-cleanup-alexander-ka",
+      "id": "06/general-cleanup-alexander-ka",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "In an input box of the by-hand passes (901, 911, 921), Yes with an emptied text counts as No (the editor's Yes / No / Cancel box returns the same empty answer for both); the original applied its proposal.",
+        "The word in question is selected instead of being coloured on the page.",
+        "A block formatted with both italic and bold is seen by the expressions with the bold outside the italic: the editor keeps formatting as marks and does not keep the nesting of the source, so operations 215/216 (tangled tags) may report work the original did not do; the text and its formatting end up the same.",
+        "The result window shows no proverb: left out pending the requester's decision.",
+        "Inline pictures are seen in the page's form (<SPAN class=image ...><IMG ...></SPAN>) and inline elements unknown to FB2 as <X n> placeholders (the page showed them as <span class=unknown_element>).",
+        "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines. Here this matters: the code works with the non-breaking spaces as U+00A0 characters, which ECMAScript's \\s matches, so several operations (562, 601, 730, 744, 760...) would match the non-breaking spaces the script itself inserts again and count them twice."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/68_general-clean-up-versiya-aleksandra-ka",
-      "suggestedId": "06/general-clean-up-versiya-aleksandra-ka"
+      "openQuestions": [
+        "Restore the proverb of the result message?",
+        "The settings at the top of the original (Version_on_off = 0, ObrabotkaHistory_on_off = 1, _format_ = 1, formatRazrjadki = 1...) are kept as written; a user who wants other settings copies the package, as in FictionBook Editor one edited the script."
+      ]
     },
     {
       "source": "06_Чистка/71_Кириллица-латиница.js",
@@ -2583,15 +2608,22 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/06_cleanup/71_cyrillic-latin",
+      "id": "06/cyrillic-latin",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "In the by-hand input boxes, Yes with an emptied text counts as No; the original applied its proposal.",
+        "The word to correct is selected instead of being framed with its foreign letters coloured red; the question still speaks of the red characters, as the original's text does.",
+        "The result window shows no proverb: left out pending the requester's decision.",
+        "A script that runs this one through mfbe.scripts.run may pass { today: \"YYYY-MM-DD\" }, the date of the history entry (used by the snapshot suite); otherwise it is today's date, as in the original.",
+        "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/06_cleanup/71_kirillitsa-latinitsa",
-      "suggestedId": "06/kirillitsa-latinitsa"
+      "openQuestions": [
+        "Restore the proverb of the result message?",
+        "The history entry names the user \"Зорро\", the original's default youName; FictionBook Editor users changed it in the script or defined fbeUserName in main.js. The setting is kept as written (a user copies the package to change it); the editor might rather offer a name of its own."
+      ]
     },
     {
       "source": "07_Символы/01_Спецсимволы.js",

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Чистка</last-name>
+			</author>
+			<book-title>Генеральная уборка: вопросы и ручная правка</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава</p>
+			</title>
+			<p>Код <code>a,b …</code> не трогать, а текст — да.</p>
+			<p>Кто– то пришёл, а кто –то нет.</p>
+			<p>Он-она и он-она.</p>
+			<p>Уже есть <emphasis>курсив</emphasis> в тексте.</p>
+			<p>Это _очень важно_ знать.</p>
+			<p>Слово <strong>слово</strong> выделено.</p>
+			<p>Буква <strong>а</strong> отдельно.</p>
+			<p>Это было в 199 °Сентябре.</p>
+			<p>Он сказал зАмок.</p>
+			<p>Это р а з р я д к а в тексте.</p>
+		</section>
+	</body>
+</FictionBook>

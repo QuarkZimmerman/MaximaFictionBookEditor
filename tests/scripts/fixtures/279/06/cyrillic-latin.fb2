@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Чистка</last-name>
+			</author>
+			<book-title>Кириллица и латиница</book-title>
+			<annotation>
+				<p>Kнигa o Mocквe и Лондоне.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2025-01-01">2025</date>
+			<id>fixture-279-06-cyrillic-latin</id>
+			<version>1.0</version>
+			<history>
+				<p>v.1.0 — пepвaя вepcия</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>В XIХ и ХХ веках жили люди.</p>
+			<p>Mocквa — 3десь, 0н сказал.</p>
+			<p>Он жил в Lоndоn и Aθήνα.</p>
+			<p>Дом a сад, кот c собакой. A потом пришёл он.</p>
+			<p>Глава Х. Карл Х, король.</p>
+			<p>Ha столе стоял KTO-то.</p>
+			<p>Он сказал: Ho нет.</p>
+			<p>Ho всё же Ha месте.</p>
+			<p>Hello world 2024 и просто текст.</p>
+		</section>
+	</body>
+</FictionBook>

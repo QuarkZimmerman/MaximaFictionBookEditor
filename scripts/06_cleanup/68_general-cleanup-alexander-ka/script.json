@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "06/general-cleanup-alexander-ka",
+  "name": {
+    "ru": "Генеральная уборка (версия Александра Ка)",
+    "en": "General clean-up (Alexander Ka's version)",
+    "uk": "Генеральне прибирання (версія Олександра Ка)"
+  },
+  "description": {
+    "ru": "«Текст-корректор»: типографская чистка всей книги (пробелы, знаки препинания, дефисы и тире, кавычки, неразрывные пробелы, теги курсива и жирности) с вопросами о сомнительных местах и итоговой статистикой.",
+    "en": "«Текст-корректор»: a typographic clean-up of the whole book (spaces, punctuation, hyphens and dashes, quotes, non-breaking spaces, italic and bold tags) that asks about doubtful places and reports its statistics.",
+    "uk": "«Текст-корректор»: типографське чищення всієї книги (пробіли, розділові знаки, дефіси й тире, лапки, нерозривні пробіли, теги курсиву й жирного) із запитаннями щодо сумнівних місць і підсумковою статистикою."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Генеральная уборка (версия Александра Ка)",
+    "en": "General clean-up (Alexander Ka's version)"
+  },
+  "legacy": {
+    "source": "06_Чистка/68_Генеральная уборка (версия Александра Ка).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "3.15"
+  }
+}

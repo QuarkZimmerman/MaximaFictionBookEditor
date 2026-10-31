@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "06/remove-styles-and-ids",
+  "name": {
+    "ru": "Удалить теги style, id разделов, id абзацев и id картинок",
+    "en": "Remove style tags, section ids, paragraph ids and picture ids",
+    "uk": "Видалити теги style, id розділів, id абзаців і id малюнків"
+  },
+  "description": {
+    "ru": "Удаляет все теги style (оставляя их текст), id абзацев во всех body, id разделов во всех body, кроме body примечаний, и id картинок во всех body.",
+    "en": "Removes every style tag (keeping its text), the paragraph ids of every body, the section ids of every body but the notes body and the picture ids of every body.",
+    "uk": "Видаляє всі теги style (залишаючи їхній текст), id абзаців у всіх body, id розділів у всіх body, крім body приміток, і id малюнків у всіх body."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить теги style, id разделов, id абзацев и id картинок",
+    "en": "Remove style tags, section ids, paragraph ids and picture ids"
+  },
+  "legacy": {
+    "source": "06_Чистка/40_Удалить теги style, id разделов, id абзацев и id картинок.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

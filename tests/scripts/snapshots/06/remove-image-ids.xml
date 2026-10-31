@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Чистка</last-name>
+			</author>
+			<book-title>Идентификаторы, стили и ссылки</book-title>
+			<annotation>
+				<p id="ann1">Аннотация со <style name="ann-style">стилем</style>, <a l:href="http://example.org/">внешней ссылкой</a>, <a l:href="">пустой ссылкой</a> и <a l:href="#s1">ссылкой на раздел</a>.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>История со <style name="hist">стилем</style>, <a l:href="https://example.com/history">ссылкой</a> и <a l:href="">пустой ссылкой</a>.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<image l:href="#pic.png"/>
+		<title>
+			<p id="bt1">Книга</p>
+		</title>
+		<epigraph id="ep1">
+			<p id="ep1p">Эпиграф книги.</p>
+			<text-author id="ta1">Автор эпиграфа</text-author>
+		</epigraph>
+		<section id="s1">
+			<title>
+				<p id="s1t">Глава первая</p>
+			</title>
+			<p id="p1">Абзац со ссылками на <a l:href="#p3">третий абзац</a>, на <a l:href="#img2">картинку</a> и на примечание<a l:href="#n1" type="note">[1]</a>.</p>
+			<p id="p2">Абзац со <style name="foo">стилем</style>, <style name="outer">внешним <style name="inner">и внутренним</style> стилем</style> и <style name="bar"><strong>жирным стилем</strong></style>.</p>
+			<p id="P3">Абзац с картинкой в стиле <style name="pic"><image l:href="#pic.png"/></style> и <a l:href="#S2">ссылкой на вторую главу</a>.</p>
+			<subtitle id="sub1">Подзаголовок</subtitle>
+			<image l:href="#pic.png"/>
+			<image l:href="#pic.png"/>
+			<cite id="cite1">
+				<p id="cp1">Цитата.</p>
+				<text-author id="cta1">Автор цитаты</text-author>
+			</cite>
+			<poem id="poem1">
+				<stanza>
+					<v id="v1">Стих первый,</v>
+					<v>стих второй.</v>
+				</stanza>
+			</poem>
+			<table id="tab1">
+				<tr>
+					<th id="th1">Заголовок</th>
+					<td id="td1">Ячейка со <style name="cell">стилем</style></td>
+				</tr>
+			</table>
+			<p>Ссылки: <a l:href="http://example.org/page">http</a>, <a l:href="https://example.org/">https</a>, <a l:href="mailto:test@example.org">почта</a>, <a l:href="ftp://example.org/">ftp</a>, <a l:href="file:///C:/book.fb2">файл</a>, <a l:href="#http://example.org/">решётка и http</a>, <a l:href="# https://example.org/">решётка, пробел и https</a>, <a l:href="  #p1">с пробелами</a>, <a l:href="">пустая</a>, <a l:href="other.fb2#x">относительная</a>.</p>
+		</section>
+		<section id="S2">
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<section id="s2a">
+				<title>
+					<p id="s2at">Часть</p>
+				</title>
+				<annotation id="ann-s2a">
+					<p>Аннотация раздела.</p>
+				</annotation>
+				<p id="s2ap">Текст части.</p>
+			</section>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p id="n1t">1</p>
+			</title>
+			<p id="n1p">Текст примечания со <style name="note-style">стилем</style>.</p>
+			<image l:href="#pic.png"/>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>
