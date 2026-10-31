@@ -1,16 +1,22 @@
-// Converted from 05_Иллюстрации/06_Пустые строки возле иллюстраций....js (FictionBook Editor 2.7),
-// Tier 2. Two modes chosen in a dialog: OK adds exactly one empty line before and after every
-// block image (none next to a title, epigraph, annotation, cite or section boundary), Cancel
-// removes the empty lines around images. The special cases of the original are kept: a section
-// holding nothing but its image gets one empty line after it; when the text of a section starts
-// with an image (or with empty lines and an image) the image keeps one empty line before it.
+// Converted from FictionBook Editor 2.7.9: Scripts/05_Иллюстрации/06_Добавить либо удалить пустые строки возле иллюстраций....js
+// (Sclex, version 1.7; 2.7beta1's 06_Пустые строки возле иллюстраций....js, 1.5, before feature
+// 007). Two modes chosen in a dialog: OK adds exactly one empty line before and after every block
+// picture (none next to a title, epigraph, annotation, cite or section boundary), Cancel removes
+// the empty lines around the pictures. The special cases of the original are kept: a section
+// holding nothing but its picture gets one empty line after it; when the text of a section starts
+// with a picture (or with empty lines and a picture) the picture keeps one empty line before it.
+// 2.7.9 speaks of illustrations where 2.7beta1 said pictures, and names the undo step by the mode.
 //
 // The original edited the IE DOM sibling by sibling (previousSibling/nextSibling); the port runs
 // the same logic over a doubly linked copy of each section's children and writes the section
 // back with one replaceNode. In the model an empty line is an <empty-line/> node or a paragraph
-// made of spaces / non-breaking spaces (what the original's regular expression matched).
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
-//Скрипт "Пустые строки вокруг картинок"
+// made of spaces / non-breaking spaces (what the original's regular expression matched). A
+// paragraph holding an inline picture is no empty line here: the original read the paragraph's
+// text (innerText), which a picture has none of, so it removed such a paragraph next to a block
+// picture (docs/scripting/conversion-notes-279-a.md, group 05). The undo step carries the
+// package's label; the original's, which names the mode, is its step name.
+// The original's notice, kept as written (FR-029):
+//Скрипт "Добавить либо удалить пустые строки возле иллюстраций"
 //Автор Sclex
 //http://www.fictionbook.org/forum/viewtopic.php?t=4412
 
@@ -57,11 +63,14 @@ function toArray(list) {
 export default async function run(ctx) {
   const answer = await mfbe.ui.message(
     t(ctx,
-      'Выберите режим обработки:\nОК – добавить пустые строки до и после картинок.\nОтмена – удалить пустые строки до и после картинок.\n',
-      'Choose the mode:\nOK - add empty lines before and after images.\nCancel - remove empty lines before and after images.\n'),
+      'Выберите режим обработки:\nОК – добавить пустые строки до и после иллюстраций.\nОтмена – удалить пустые строки до и после иллюстраций.\n',
+      'Choose the mode:\nOK - add empty lines before and after the illustrations.\nCancel - remove the empty lines before and after the illustrations.\n'),
     { icon: 'question', buttons: [{ id: 'ok', label: '', default: true }, { id: 'cancel', label: '', cancel: true }] },
   );
   const mode = answer === 'ok'; // true: add, false: remove (the original `confirm`)
+  await mfbe.edit.label(mode
+    ? t(ctx, 'добавление пустых строк возле иллюстраций', 'adding empty lines around the illustrations')
+    : t(ctx, 'удаление пустых строк возле иллюстраций', 'removing the empty lines around the illustrations'));
   const stats = { removed: 0, added: 0 };
 
   const prev = (item) => item.prev;
@@ -219,7 +228,7 @@ export default async function run(ctx) {
 
   await mfbe.ui.message(
     t(ctx,
-      `Скрипт «Пустые строки вокруг картинок»\n(Версия 1.5. Автор Sclex)\n\nОбработка успешно завершена.\n\nСтатистика пустых строк:\nУдалено: ${stats.removed}\nДобавлено: ${stats.added}`,
-      `Script "Empty lines around images"\n(Version 1.5. Author: Sclex)\n\nFinished.\n\nEmpty lines:\nRemoved: ${stats.removed}\nAdded: ${stats.added}`),
+      `Скрипт «Добавить либо удалить пустые строки возле иллюстраций»\n(Версия 1.7. Автор Sclex)\n\nОбработка успешно завершена.\n\nСтатистика пустых строк:\nУдалено: ${stats.removed}\nДобавлено: ${stats.added}`,
+      `Script "Add or remove the empty lines around the illustrations"\n(Version 1.7. Author: Sclex)\n\nFinished.\n\nEmpty lines:\nRemoved: ${stats.removed}\nAdded: ${stats.added}`),
   );
 }

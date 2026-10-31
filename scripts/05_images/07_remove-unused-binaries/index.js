@@ -1,6 +1,8 @@
 // Converted from 05_Иллюстрации/07_Удаление неиспользуемых вложений....js (FictionBook Editor 2.7),
-// Tier 2. Removes the binary objects that no image (block or inline) and no cover page refers
-// to. An image with an external address (no "#") makes the script ask whether to go on, as the
+// Tier 2; FictionBook Editor 2.7.9 has the same code as 07_Удалить неиспользуемые вложения....js.
+// Removes the binary objects that no image (block or inline) and no cover page refers to. The
+// images are those of the original's text view: the book's annotation, the history and every
+// body. An image with an external address (no "#") makes the script ask whether to go on, as the
 // original did; ids are compared case-insensitively like the original.
 //
 // LIMITATION (documented in docs/scripting/conversion-notes-a.md): the script API has no call to
@@ -26,7 +28,7 @@ export default async function run(ctx) {
   const used = new Set();
   let nonLocal = false;
   const visit = (node) => {
-    if (node.type === 'text') return;
+    if (!node || typeof node !== 'object' || node.type === 'text') return;
     if (node.type === 'image' || node.type === 'inline-image') {
       const id = localHref(node.attrs?.href ?? '');
       if (id === null) nonLocal = true;
@@ -34,6 +36,8 @@ export default async function run(ctx) {
     }
     for (const child of node.content ?? []) visit(child);
   };
+  visit(doc.description.titleInfo?.annotation);
+  visit(doc.description.documentInfo?.history);
   for (const body of doc.bodies) visit(body);
   for (const info of [doc.description.titleInfo, doc.description.srcTitleInfo]) {
     for (const ref of info?.coverpage ?? []) {

@@ -2,22 +2,25 @@
   "manifestVersion": 1,
   "id": "05/image-captions",
   "name": {
-    "en": "Mark up image captions...",
-    "ru": "Разметка подписей к иллюстрациям..."
+    "ru": "Разметить подписи к иллюстрациям...",
+    "en": "Mark up the illustration captions...",
+    "uk": "Розмітити підписи до ілюстрацій..."
   },
   "description": {
-    "en": "Marks the paragraph after each image as a caption (subtitle, bold, italic, superscript or subscript), asking about doubtful ones",
-    "ru": "Размечает абзац после каждой картинки как подпись (subtitle, жирный, курсив, индексы), спрашивая о сомнительных"
+    "ru": "Размечает абзац после каждой иллюстрации как подпись (subtitle, жирный, курсив, индексы), короткие без точки в конце - сразу, о других спрашивает",
+    "en": "Marks up the paragraph after each illustration as its caption (subtitle, bold, italic, superscript or subscript): short ones without a final full stop at once, the others after asking",
+    "uk": "Розмічає абзац після кожної ілюстрації як підпис (subtitle, жирний, курсив, індекси): короткі без крапки в кінці - одразу, про інші запитує"
   },
   "kind": "menu",
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Mark up image captions",
-    "ru": "Разметка подписей к картинкам"
+    "ru": "Разметить подписи к иллюстрациям",
+    "en": "Mark up the illustration captions"
   },
   "legacy": {
-    "source": "05_Иллюстрации/08_Разметка подписей к иллюстрациям....js",
-    "fbeVersion": "2.7"
+    "source": "05_Иллюстрации/08_Разметить подписи к иллюстрациям....js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
   }
 }

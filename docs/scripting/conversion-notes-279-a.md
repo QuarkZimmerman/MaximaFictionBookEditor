@@ -959,6 +959,257 @@ ordinary picture heading a section (2.7.9 inserted it, invalid), not counted; th
   not changed, and the editor's views show a binary's current content by themselves. Needs the
   editor's own page (FR-024 excludes it); no API change proposed.
 
+23 scripts in 2.7.9: 7 are successors of the 7 packages converted from 2.7beta1 (task T077,
+recheck of `scripts/05_images/`; the 2.7beta1 conversion is in conversion-notes-a.md, group 05),
+under the same numbers 01, 02, 05, 06, 07, 08 and 09. Outcomes: 6 updated (01, 02, 05, 06, 08,
+09), 1 unchanged (07). The ids and folders are unchanged.
+
+**Names and icons.** `name.ru` and `undoLabel.ru` are the 2.7.9 file names (2.7.9 renamed 01,
+02, 06, 07 and 08; the undo labels without the trailing dots), and the English names follow them.
+Every package gained `name.uk` and `description.uk`. The icons of 01, 02, 05 and 06 are the same
+files in both versions. 2.7.9 gives 07 and 09 an icon (2.7beta1 had none): 09's `icon.png` is its
+`.ico` converted with the audit tool's `ico_to_png`, as the skeletons were; 07's `.ico` holds one
+32×32 image only, so its `icon.png` is that image reduced to 16×16 (each 2×2 block averaged; the
+image is opaque), decoded and written with the audit tool's own functions, since resource-formats
+§22 asks for 16×16. 08 has no icon in either version.
+
+**Origin.** The updated packages name their 2.7.9 original in `legacy` and keep its notice in
+`index.js` (`check-notices.py --package`: OK for all seven). Their `sourceVersion` is the
+version the script states: 01 1.11, 02 1.6 (`versionNumber`), 05 1.4, 06 1.7 (`versionStr`), 08 1.4
+(`elementBrowser_versionNum`), 09 1.1; the inventory had none for 02, 06 and 08, the group's
+record carries them. 07 keeps its 2.7beta1 `legacy` (`fbeVersion` "2.7").
+
+**The pictures of the text view.** As the conversions of this group's new scripts note above, the
+originals read FictionBook Editor's `fbw_body`: the book's annotation and the history, then every
+body. The 2.7beta1 conversions of 01, 02 and 07 read the bodies only; they now read the annotation
+and the history too, as 2.7.9 (and 2.7beta1) do: in 01 a binary used only there is no longer
+reported as unused and a picture there without a binary is reported, in 02 those pictures are
+counted, come first in the numbering and get their `#nobin_` address through
+`doc.setDescription`, in 07 a binary used only there is no longer listed as unused. 06 and 08
+walk the bodies, as their originals do (06 the sections of every body; 08 looks for block
+pictures, which the annotation and the history cannot hold).
+
+**Undo labels.** 2.7.9 renamed the undo units of 05 («удаление всех вложений»), 06 (named by the
+mode) and 09 («превращение рисунка в тексте в обычный рисунок»). The editor names a script's undo
+step by the package's `undoLabel`, the script's name; these three pass the original's label to
+`mfbe.edit.label` as the step's name, as other conversions do, which the editor does not show (a
+difference recorded for each).
+
+**Binary objects.** The script interface still can neither rename, remove nor reorder a binary
+object (conversion-notes-a.md, API gap 1; 17 and 20 of this group record the same): 02 reports its
+plan, 05 and 07 say what they would remove; each acts once such a call exists.
+
+**Proverbs.** None of the seven originals carries the list of wartime proverbs.
+
+**Reference books** (new, `tests/scripts/fixtures/279/05/`, valid against `FictionBook.xsd`):
+`recheck-binaries.fb2` (01, 02, 07: pictures in the book annotation - a.png, used only there,
+and lost-a.png without a binary - and in the history - lost-h.png -; no title-info cover and a
+binary cover.jpg; the src-title-info cover scan.png and a binary cover_src.png that a body
+picture uses; a binary i_001.png used after b.jpg; a picture of the missing gone.png, a web
+picture; the unused unused.png and anim.gif) and `recheck-captions.fb2` (06, 08: block pictures
+followed by a caption ending with an inline picture, by a paragraph of one inline picture and by a
+caption ending with a full stop and a space); `sections.fb2` (T049) serves 01's book without binary
+objects. **Snapshots:** 7 added in `tests/scripts/snapshots/05/` and its `suite.json`, none
+re-recorded: the 10 snapshots of the seven packages on `tests/scripts/fixtures/books/conv-a-05.fb2`
+pass unchanged, their results being 2.7.9's (worked out again from the 2.7.9 code, for 06 and 08
+too, whose algorithms 2.7.9 did not change). Each expected result was worked out from the 2.7.9
+original before the run; the messages, which a snapshot does not hold, were checked in the
+harness log and with a scratch stand-in of `mfbe` that records them.
+
+### 01 Проверить иллюстрации
+
+`scripts/05_images/01_check-images`, id `05/check-images` (2.7beta1 *01_Проверка иллюстраций*):
+**updated** from 1.1 to 1.11. 2.7.9 (a change by stokber) replaced the test
+`if(!imgs || imgs.length==0, !bins || bins.length==0)`, whose comma operator left only "no binary
+objects", by `imgs.length==0 && bins.length==0`: the script gives up with «В этой книге нет ни
+обложки, ни иллюстраций.» only when the book has neither pictures nor binary objects, and a book
+with pictures but no binary object gets the report - its unused part « • нет бинарных объектов»,
+reachable now, and every picture listed as missing. Also the version in the banner («Проверка
+иллюстраций» v.1.11). Ported, and the pictures are those of the text view (above). en *Check the
+illustrations*, uk *Перевірити ілюстрації*.
+
+Snapshot `check-images.xml` stays (on conv-a-05.fb2: unused.png unused, missing.jpg missing, as
+before). Added, each holding the unchanged book: `check-images.no-binaries.xml` (`sections.fb2`,
+three pictures, no binary object): « • нет бинарных объектов» and the pictures undefined,
+undefined, real.png as missing (2.7beta1 and the 0.0.1 conversion: «В этой книге нет ни обложки,
+ни иллюстраций.»); `check-images.recheck-binaries.xml`: unused cover.jpg, unused.png, anim.gif;
+missing lost-a.png (annotation), lost-h.png (history), gone.png, http://example.com/x.png. 2.7.9
+gives unused cover.jpg, scan.png, unused.png, anim.gif and missing lost-a.png, lost-h.png,
+gone.png, "ttp://example.com/x.png"; the 0.0.1 conversion would have called a.png unused and
+gone.png alone missing. **Fixes:** the src-title-info cover counts as used, and a binary is a
+cover only when its id is the cover's address (the original read the title-info cover list alone,
+as one text in which it looked for the id; kept from 0.0.1); a picture with an address outside the
+book is listed under that address (the original listed what follows the 14th character of the
+picture's internal address, "ttp://…"; the 0.0.1 conversion left such pictures out).
+Difference: the banner lines are not centred with spaces (since 0.0.1).
+
+### 02 Унифицировать иллюстрации и вложения
+
+`scripts/05_images/02_unify-binaries`, id `05/unify-binaries` (2.7beta1 *02_Унификация вложений и
+иллюстраций*): **updated** from 1.4 to 1.6. What 2.7.9 changed:
+
+- the result message: the script's new name and v1.6 in the banner; the six counts as sentences
+  with the Russian plural forms of its new `units()` («Переименовано 5 иллюстраций.»,
+  «Переименована 1 обложка.», «Обнаружено 1 изображение с нелокальным адресом.», «Обнаружен 1
+  неиспользуемый бинарный объект.», «Обнаружены 3 безбинарные иллюстрации.», «Обнаружена 1
+  иллюстрация с типом не image/jpeg, не image/png.») instead of the dotted table; the lists'
+  headings «Неиспользуемые бинарные объекты:», «Безбинарные иллюстрации:», «Изображения с
+  нелокальными адресами:» (2.7beta1: «Вложения, на которые нет ссылки:», «Рисунки, для которых
+  нет вложения:», «Картинки с нелокальными ссылками:»);
+- a binary that gets a name i_NNN keeps its temporary entry in `BinById`
+  (`//BinById[id]=null;`), so a name that was the id of such a binary stays taken when an unused
+  or non-JPEG/PNG binary looks for its name: foo.png becomes unused_foo.png_0 when the used binary
+  unused_foo.png became i_001.png (2.7beta1: unused_foo.png);
+- the undo unit opens before the first check (an error still changes nothing, and the run is one
+  undo step here anyway); the pictures of the view are reloaded twice at the end (`updateImages`),
+  which the editor does not need; an unused variable and commented-out alerts.
+
+Ported: the message as 2.7.9 writes it, with the original's time string (English: singular and
+plural). The plan is now worked out as the original works it out, which corrects the 0.0.1
+conversion where it differed: the names i_001, i_002… follow the pictures whatever ids the
+binaries had (it added "_0" when such a name was another binary's id, so a book unified before
+and reordered got i_001.png_0; the original passes through temporary names); a binary moved off a
+cover name (unused_cover.*) is not listed as unused (it is in the original's `IdUsed`); the count
+of binaries that are neither JPEG nor PNG takes in a cover of such a type; and the pictures of the
+annotation and the history (above). What needs no renaming is applied: the `#nobin_` addresses,
+as before, and a cover taken from a binary named cover.png, cover.jpg or cover.jpeg (cover_src.*)
+where none is set, under its present name - the original set it in its form, the 0.0.1 conversion
+did not. Once the interface can rename a binary, the renames go through temporary names. en
+*Unify the illustrations and binary objects*, uk *Уніфікувати ілюстрації та вкладення*.
+
+Snapshot `unify-binaries.xml` stays: on conv-a-05.fb2 the book gets `#nobin_missing.jpg` only, as
+before; 2.7.9 also renames oblozhka.png → cover.png, pic_a.png → i_001.png, pic_b.png → i_002.png,
+unused.png → unused_unused.png and anim.gif → nonjpegpng_anim.gif and points the pictures and the
+cover to them, which the message reports as planned. Added `unify-binaries.recheck-binaries.xml`:
+the title-info gets the cover `#cover.jpg`; `#lost-a.png` (annotation), `#lost-h.png` (history)
+and `#gone.png` become `#nobin_…`; the message counts 5 illustrations, 1 cover, 1 picture with a
+non-local address, 1 unused binary, 3 illustrations without a binary, 1 not JPEG/PNG, lists
+unused_unused.png (not the displaced unused_cover_src.png), and plans i_001.png → i_003.png, a.png
+→ i_001.png, b.jpg → i_002.jpg, cover_src.png → unused_cover_src.png, scan.png → cover_src.png,
+unused.png → unused_unused.png, anim.gif → nonjpegpng_anim.gif - 2.7.9's names. Run with a stand-in
+rename call, the result is 2.7.9's apart from the binaries' order. Differences: the binaries are
+not renamed nor reordered (above); a book without a src-title-info gets no cover of the original
+edition from cover_src.* (FictionBook Editor's description form always holds that cover list, so
+2.7.9 wrote a src-title-info with empty required fields; the same in 20). No fixes.
+
+### 05 Удалить все вложения
+
+`scripts/05_images/05_remove-all-binaries`, id `05/remove-all-binaries`: **updated** from 1.3 to
+1.4. 2.7.9 says «из документа» where 2.7beta1 said «из книги», in its question and in its final
+message, and names its undo unit «удаление всех вложений» (2.7beta1: "binaries deleting").
+Ported; the conversion's own message on the missing call says «в документе» too. uk *Видалити всі
+вкладення*. Snapshot `remove-all-binaries.xml` stays (the book is not changed). Differences: no
+call removes a binary object (since 0.0.1); the undo label.
+
+### 06 Добавить либо удалить пустые строки возле иллюстраций...
+
+`scripts/05_images/06_empty-lines-near-images`, id `05/empty-lines-near-images` (2.7beta1
+*06_Пустые строки возле иллюстраций...*): **updated** from 1.5 to 1.7. 2.7.9 changed texts only:
+«иллюстраций» for «картинок» in the mode question, the script's name and version in the result
+message (a MsgBox now, an alert before: the same box here), «раздел» for «секция» in the comments,
+and the undo unit named by the mode. Ported. en *Add or remove the empty lines around the
+illustrations...*, uk *Додати або видалити порожні рядки біля ілюстрацій...*
+
+Snapshots `empty-lines-near-images.add.xml` and `.remove.xml` stay: on conv-a-05.fb2 2.7.9 adds an
+empty line after the first picture, after n11, before and after n14 and before the GIF picture of
+the nested section and removes n9 (added 5, removed 1), or removes n9, n10, n16 and n18. **Fix
+(kept from 0.0.1):** a paragraph holding an inline picture is no empty line; the original tested
+the paragraph's text (`innerText`), which has nothing for a picture, so next to a block picture
+it removed such a paragraph, picture and all, or took it for the empty line and added none. Added
+on `recheck-captions.fb2`: `empty-lines-near-images.inline.add.xml` (`--answer ok`): an empty line
+before and after each of the three pictures, between the second picture and the paragraph of one
+picture too (6 added; 2.7.9: 5), and `.inline.remove.xml` (`--answer cancel`): the book unchanged
+(2.7.9 removes the paragraph with its picture). Difference: the undo label.
+
+### 07 Удалить неиспользуемые вложения...
+
+`scripts/05_images/07_remove-unused-binaries`, id `05/remove-unused-binaries` (2.7beta1
+*07_Удаление неиспользуемых вложений...*): **unchanged** - the same code; the 2.7.9 file differs in
+its line ends only. Renamed: ru *Удалить неиспользуемые вложения...*, uk *Видалити невикористані
+вкладення...*; en *Remove unused binary objects...* as before; 2.7.9's icon (above). The package
+keeps its 2.7beta1 `legacy` and notice. One correction of the conversion: the pictures of the
+annotation and the history count as uses, as in the original (the 0.0.1 conversion read the
+bodies only and listed a binary used only there, which the original keeps). Snapshot
+`remove-unused-binaries.xml` stays; added `remove-unused-binaries.recheck-binaries.xml`
+(`--answer ok` to the question about the web picture): the book unchanged, the list cover.jpg,
+unused.png, anim.gif - the three binaries 2.7.9 removes (a.png is used by the annotation, scan.png
+is the src-title-info cover). **Fix (kept from 0.0.1):** a binary used by a further picture of a
+cover list counts as used (the original read the first picture of each list only). Differences:
+no call removes a binary object (since 0.0.1); one question about addresses outside the book for
+the pictures and the covers (the original asked again for a cover).
+
+### 08 Разметить подписи к иллюстрациям...
+
+`scripts/05_images/08_image-captions`, id `05/image-captions` (2.7beta1 *08_Разметка подписей к
+иллюстрациям...*): **updated** from 1.2 to 1.4, with its dialog (2.7.9 *HTML/Разметка подписей к
+иллюстрациям.html*, 2.7beta1 *…к картинкам.html*). What 2.7.9 changed:
+
+- the dialog: the title «Разметка подписей к иллюстрациям v1.4»; «Как форматировать подпись:»
+  before the check boxes; the length field «Не размечать автоматически абзац как подпись, если
+  число символов в нем больше» (was «Ограничение длины:»); the help popup [?] «Абзацы после
+  картинок, длина которых (абзацев) меньше или равна…»; the buttons «Стартовать от курсора - K»,
+  «Стартовать от начала документа - L», «Закрыть диалог - Esc» (the keys worked before too, only
+  the help popups named them);
+- the buttons at a doubtful paragraph: «Искать дальше – K», «Разметить как подпись – L»,
+  «Закрыть диалог – Esc», a new «Мигать абзацем» (flashes the paragraph while the mouse is over it,
+  `flash()` / `flash2()` with `setTimeout`) and «Во всех дальнейших случаях разметить как подписи
+  – A» (were «Искать дальше», «Это подпись», «Все», «Закрыть» and [?]);
+- guards of the modeless dialog: a message and the dialog closed when the user made a new
+  document meanwhile, a message when the paragraph to mark up has vanished, and at the end of the
+  document the dialog itself is closed (2.7beta1 closed the window passed in, which the new button
+  passes as the main window);
+- the first line of the notice («скрипт «Разметка подписей к картинкам»») is gone.
+
+Ported: the texts of the form and of the buttons, in 2.7.9's order (Искать дальше, Разметить как
+подпись, Закрыть диалог, Во всех дальнейших случаях разметить как подписи), the help text as a note
+of the form; the guards have nothing to guard in a modal form; the flash is dropped (the
+conversion rules: the selection shows the place). Also corrected: an inline picture is content,
+as in the original - a paragraph of one inline picture after a block picture is a candidate (the
+0.0.1 conversion took it for an empty line), and a caption ending with an inline picture is judged
+by the text before it (the original passed over the trailing tags; the 0.0.1 conversion took the
+picture for a full stop and asked). en *Mark up the illustration captions...*, uk *Розмітити
+підписи до ілюстрацій...*
+
+Snapshots `image-captions.xml` and `.all-bold.xml` stay (on conv-a-05.fb2, worked out from the
+2.7.9 code: n8 asked and skipped, n12 marked without a question, n15 asked and marked; with "all"
+at n8, n8, n12 and n15 bold). Added `image-captions.inline-pictures.xml` (`recheck-captions.fb2`,
+`{"start":"begin"}`, yes, skip): "Рис. 1 <picture>" becomes a subtitle without a question, the
+paragraph of one picture is asked about and becomes a subtitle, "Подпись с точкой и пробелом. " is
+asked about and left, then «Достигнут конец документа.». **Fix (kept from 0.0.1):** a paragraph
+ending with a sentence mark followed by spaces is asked about (the original looked at the last
+character of the paragraph's HTML, so 2.7.9 marks "Подпись с точкой и пробелом. " up without
+asking). Differences (since 0.0.1): the modal form and questions (the settings hold for the run,
+the caret cannot be moved between the questions, the settings are not remembered); the keys K,
+L, A (Enter marks up, Esc closes), the flash, the help as a note; after «Во всех дальнейших случаях…»
+the counts cover the whole run (the original began its walk again where its last search had
+started); the length limit counts characters, not the paragraph's HTML; with a picture selected,
+«Стартовать от курсора» starts at the beginning of the book.
+
+### 09 Сделать обычный рисунок из рисунка в тексте
+
+`scripts/05_images/09_inline-image-to-block`, id `05/inline-image-to-block`: **updated** from 1.0 to
+1.1. 2.7.9 changed only the notice (the script's name without ".js", Версия 1.1) and the name of its
+undo unit, «превращение рисунка в тексте в обычный рисунок» (was "uninline image"). Ported: the
+notice, the undo unit's name as the step's name; the undo label is the 2.7.9 name, as every
+package's (it was «Обычный рисунок из рисунка в тексте»). uk *Зробити звичайний малюнок із
+малюнка в тексті*; 2.7.9's icon. Snapshots `inline-image-to-block.xml` and `.with-text.xml` stay
+(the same result). Difference: the undo label.
+
+### Harness commands
+
+```bash
+export MFBE_CORE_BIN=... MFBE_UI_DIST=... TMPDIR=...
+tests/scripts/run-all.sh --group 05      # every snapshot of the group, the 7 added ones of snapshots/05/suite.json among them
+G=scripts/05_images; F=tests/scripts/fixtures/279/05; S=tests/scripts/snapshots/05
+node tests/scripts/run-script.mjs $G/01_check-images $F/sections.fb2 --snapshot $S/check-images.no-binaries.xml
+node tests/scripts/run-script.mjs $G/01_check-images $F/recheck-binaries.fb2 --snapshot $S/check-images.recheck-binaries.xml
+node tests/scripts/run-script.mjs $G/02_unify-binaries $F/recheck-binaries.fb2 --snapshot $S/unify-binaries.recheck-binaries.xml
+node tests/scripts/run-script.mjs $G/06_empty-lines-near-images $F/recheck-captions.fb2 --answer ok --snapshot $S/empty-lines-near-images.inline.add.xml
+node tests/scripts/run-script.mjs $G/06_empty-lines-near-images $F/recheck-captions.fb2 --answer cancel --snapshot $S/empty-lines-near-images.inline.remove.xml
+node tests/scripts/run-script.mjs $G/07_remove-unused-binaries $F/recheck-binaries.fb2 --answer ok --snapshot $S/remove-unused-binaries.recheck-binaries.xml
+node tests/scripts/run-script.mjs $G/08_image-captions $F/recheck-captions.fb2 --answer '{"start":"begin"}' --answer yes --answer skip --snapshot $S/image-captions.inline-pictures.xml
+```
+
 ## 06_Чистка
 
 12 scripts are new in 2.7.9 and all 12 are converted (T050) into `scripts/06_cleanup/`, beside the

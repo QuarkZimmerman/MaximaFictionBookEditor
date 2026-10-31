@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Иллюстрации</last-name>
+			</author>
+			<book-title>Вложения для перепроверки</book-title>
+			<annotation>
+				<p>Аннотация с картинкой <image l:href="#a.png"/> из вложения.</p>
+				<p>И картинка без вложения: <image l:href="#lost-a.png"/>.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<src-title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Иллюстрации</last-name>
+			</author>
+			<book-title>Оригинальное издание</book-title>
+			<coverpage>
+				<image l:href="#scan.png"/>
+			</coverpage>
+			<lang>ru</lang>
+		</src-title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>Правка: <image l:href="#lost-h.png"/> картинка без вложения.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Вложения</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<image l:href="#b.jpg"/>
+			<p>Первый абзац.</p>
+			<image l:href="#i_001.png"/>
+			<p>Абзац с картинкой <image l:href="#b.jpg"/> в тексте.</p>
+			<image l:href="#cover_src.png"/>
+			<image l:href="#gone.png"/>
+			<image l:href="http://example.com/x.png"/>
+			<p>Последний абзац.</p>
+		</section>
+	</body>
+	<binary id="i_001.png" content-type="image/png">…</binary>
+	<binary id="cover.jpg" content-type="image/jpeg">…</binary>
+	<binary id="a.png" content-type="image/png">…</binary>
+	<binary id="b.jpg" content-type="image/jpeg">…</binary>
+	<binary id="cover_src.png" content-type="image/png">…</binary>
+	<binary id="scan.png" content-type="image/png">…</binary>
+	<binary id="unused.png" content-type="image/png">…</binary>
+	<binary id="anim.gif" content-type="image/gif">…</binary>
+</FictionBook>

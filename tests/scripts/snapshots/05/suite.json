@@ -372,5 +372,63 @@
       "--answer",
       "ok"
     ]
+  },
+  {
+    "snapshot": "05/check-images.no-binaries.xml",
+    "script": "scripts/05_images/01_check-images",
+    "book": "tests/scripts/fixtures/279/05/sections.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/check-images.recheck-binaries.xml",
+    "script": "scripts/05_images/01_check-images",
+    "book": "tests/scripts/fixtures/279/05/recheck-binaries.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/unify-binaries.recheck-binaries.xml",
+    "script": "scripts/05_images/02_unify-binaries",
+    "book": "tests/scripts/fixtures/279/05/recheck-binaries.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "05/empty-lines-near-images.inline.add.xml",
+    "script": "scripts/05_images/06_empty-lines-near-images",
+    "book": "tests/scripts/fixtures/279/05/recheck-captions.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/empty-lines-near-images.inline.remove.xml",
+    "script": "scripts/05_images/06_empty-lines-near-images",
+    "book": "tests/scripts/fixtures/279/05/recheck-captions.fb2",
+    "args": [
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "05/remove-unused-binaries.recheck-binaries.xml",
+    "script": "scripts/05_images/07_remove-unused-binaries",
+    "book": "tests/scripts/fixtures/279/05/recheck-binaries.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "05/image-captions.inline-pictures.xml",
+    "script": "scripts/05_images/08_image-captions",
+    "book": "tests/scripts/fixtures/279/05/recheck-captions.fb2",
+    "args": [
+      "--answer",
+      "{\"start\":\"begin\"}",
+      "--answer",
+      "yes",
+      "--answer",
+      "skip"
+    ]
   }
 ]

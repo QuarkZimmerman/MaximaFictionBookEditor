@@ -10,9 +10,9 @@
       "new": 231,
       "noCounterpart": 6,
       "notConverted": 4,
-      "recheck": 41,
+      "recheck": 35,
       "unchanged": 27,
-      "updated": 68
+      "updated": 74
     },
     "recheckClasses": {
       "identical": 24,
@@ -1431,10 +1431,15 @@
       "htmlDialogs": [],
       "package": "scripts/05_images/01_check-images",
       "id": "05/check-images",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "05_Иллюстрации/01_Проверка иллюстраций.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "The banner lines of the message are not centred with leading spaces (since 0.0.1)."
+      ],
+      "fixes": [
+        "The cover of the src-title-info counts as used, and a binary counts as a cover only when its id is the cover's address: the original read the title-info cover list alone, as one text in which it looked for the id, so it reported the binary of the src-title-info cover as unused and took a binary whose id is part of the cover's address for the cover (kept from the 0.0.1 conversion).",
+        "A picture whose address points outside the book is listed under that address; the original listed what follows the 14th character of the picture's internal address, \"ttp://example.com/x.png\" for http://example.com/x.png (the 0.0.1 conversion did not list such pictures)."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -1445,7 +1450,7 @@
     {
       "source": "05_Иллюстрации/02_Унифицировать иллюстрации и вложения.js",
       "fbeVersion": "2.7.9",
-      "sourceVersion": null,
+      "sourceVersion": "1.6",
       "sha256": "f2c49e6ecc94b33f6cc7dd20076226fd6190451baf33a9a7e2fa993bbf2cf3de",
       "group": "05_Иллюстрации",
       "names": {
@@ -1458,9 +1463,12 @@
       "htmlDialogs": [],
       "package": "scripts/05_images/02_unify-binaries",
       "id": "05/unify-binaries",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "05_Иллюстрации/02_Унификация вложений и иллюстраций.js",
-      "differences": [],
+      "differences": [
+        "The script interface can neither rename nor reorder binary objects (since 0.0.1): the plan is worked out as the original works it out and reported in the message as the planned renames not applied; applied is only what needs no renaming - the #nobin_ addresses of the pictures without a binary and a cover taken from a binary named cover.png, cover.jpg or cover.jpeg (cover_src.*) under its present name. 2.7.9 renames the binaries, points the pictures and the covers to the new names and puts the binaries in the order covers, illustrations, displaced covers, unused, neither JPEG nor PNG. Once the interface can rename a binary, the renames are applied through temporary names, as the original does.",
+        "A book without a src-title-info gets no cover of the original edition from a binary named cover_src.*: FictionBook Editor's description form always holds that cover list, so 2.7.9 wrote a src-title-info with empty required fields."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1539,9 +1547,12 @@
       "htmlDialogs": [],
       "package": "scripts/05_images/05_remove-all-binaries",
       "id": "05/remove-all-binaries",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "05_Иллюстрации/05_Удалить все вложения.js",
-      "differences": [],
+      "differences": [
+        "The script interface has no call to remove a binary object (since 0.0.1): after the confirmation the script says how many binary objects the document has and that the Binary Objects panel removes them; it removes them itself once the interface has such a call.",
+        "The undo step carries the package's label, the script's name; the original's \"удаление всех вложений\" (2.7beta1: \"binaries deleting\") is passed as the step's name (mfbe.edit.label), which the editor does not show."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -1553,7 +1564,7 @@
     {
       "source": "05_Иллюстрации/06_Добавить либо удалить пустые строки возле иллюстраций....js",
       "fbeVersion": "2.7.9",
-      "sourceVersion": null,
+      "sourceVersion": "1.7",
       "sha256": "b2220e007ffe6de867f5a0ac3cff30beceb88d625873c0321af1e3daf4aef152",
       "group": "05_Иллюстрации",
       "names": {
@@ -1566,10 +1577,14 @@
       "htmlDialogs": [],
       "package": "scripts/05_images/06_empty-lines-near-images",
       "id": "05/empty-lines-near-images",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "05_Иллюстрации/06_Пустые строки возле иллюстраций....js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "The undo step carries the package's label, the script's name; the original's, which names the mode (\"добавление пустых строк возле иллюстраций\" or \"удаление пустых строк возле иллюстраций\"; 2.7beta1: \"empty lines near images\"), is passed as the step's name (mfbe.edit.label), which the editor does not show."
+      ],
+      "fixes": [
+        "A paragraph holding an inline picture is not an empty line: the original tested the paragraph's text (innerText), which has nothing for a picture, so next to a block picture it removed such a paragraph, picture and all, in the removal mode and took it for the empty line, adding none, in the adding mode (kept from the 0.0.1 conversion; snapshots 05/empty-lines-near-images.inline.add.xml and .inline.remove.xml)."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "small",
@@ -1595,8 +1610,13 @@
       "id": "05/remove-unused-binaries",
       "status": "unchanged",
       "predecessor": "05_Иллюстрации/07_Удаление неиспользуемых вложений....js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "The script interface has no call to remove a binary object (since 0.0.1): the script lists the unused binary objects and says that the Binary Objects panel removes them; it removes them itself once the interface has such a call.",
+        "One question about addresses outside the book covers the pictures and the covers; the original asked again when a cover had such an address (since 0.0.1)."
+      ],
+      "fixes": [
+        "A binary used by a further picture of a cover list counts as used: the original read only the first picture of each cover list, so it removed the binary of a second cover picture (kept from the 0.0.1 conversion)."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "identical",
@@ -1607,7 +1627,7 @@
     {
       "source": "05_Иллюстрации/08_Разметить подписи к иллюстрациям....js",
       "fbeVersion": "2.7.9",
-      "sourceVersion": null,
+      "sourceVersion": "1.4",
       "sha256": "925c9cdf0650a8f307f9e05d39bd61708587fa32040a92cff8dcc2b950094e81",
       "group": "05_Иллюстрации",
       "names": {
@@ -1624,10 +1644,18 @@
       ],
       "package": "scripts/05_images/08_image-captions",
       "id": "05/image-captions",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "05_Иллюстрации/08_Разметка подписей к иллюстрациям....js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "The modeless dialog is a form followed by a question per doubtful paragraph (since 0.0.1): the settings hold for the whole run, the caret cannot be moved between the questions to search on from elsewhere, and the settings are not remembered between runs (the original kept them in cookies).",
+        "The dialog's keys K, L and A have no counterpart: Enter marks the paragraph up as a caption, Esc closes. The button \"Мигать абзацем\", which flashed the paragraph while the mouse was over it, is dropped, since the paragraph is selected; the text of the help popup [?] is a note of the form.",
+        "After \"Во всех дальнейших случаях разметить как подписи\" the final counts cover the whole run; the original began its walk again where its last search had started (the beginning, the caret, or the paragraph last marked or skipped by hand) and counted from there (since 0.0.1).",
+        "The length limit counts the characters of the paragraph, a picture as one; the original counted its HTML, where a non-breaking space or one of & < > took four to six characters (since 0.0.1).",
+        "With no text block at the caret (a picture selected), \"Стартовать от курсора\" starts at the beginning of the book; the original started after the selected picture (since 0.0.1)."
+      ],
+      "fixes": [
+        "A paragraph ending with a full stop, an ellipsis, an exclamation or a question mark followed by spaces is asked about: the original looked at the last character of the paragraph's HTML, so a trailing space or non-breaking space made such a paragraph a caption without asking (kept from the 0.0.1 conversion; snapshot 05/image-captions.inline-pictures.xml)."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "major",
@@ -1651,9 +1679,11 @@
       "htmlDialogs": [],
       "package": "scripts/05_images/09_inline-image-to-block",
       "id": "05/inline-image-to-block",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "05_Иллюстрации/09_Сделать обычный рисунок из рисунка в тексте.js",
-      "differences": [],
+      "differences": [
+        "The undo step carries the package's label, the script's name; the original's \"превращение рисунка в тексте в обычный рисунок\" (2.7beta1: \"uninline image\") is passed as the step's name (mfbe.edit.label), which the editor does not show."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
