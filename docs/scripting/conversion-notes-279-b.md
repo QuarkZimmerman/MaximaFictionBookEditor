@@ -19,7 +19,329 @@ as the group's entries of `tests/scripts/audit/inventory-279.json`.
 
 ## 13_Заголовки, подзаголовки, пустые строки
 
-19 scripts in 2.7.9: 14 new, 5 successors of converted packages. Not yet converted or rechecked.
+Task T055: the 13 scripts new in 2.7.9, except *590_Расформатировать все заголовки_Комбо*, which
+runs other scripts and is converted with the combos. The packages 525–528 (2.7beta1 conversions,
+see conversion-notes-c.md) are rechecked under T083. Originals: `files/Scripts/13_…` and the
+dialogs in `files/HTML/` of 2.7.9. Reference books: `tests/scripts/fixtures/279/13/` (valid FB2
+2.1); snapshots and the group's `suite.json`: `tests/scripts/snapshots/13/`. Every expected
+result below was written from the original's code before the run; each snapshot equals it.
+
+Shared technique. Most of these scripts rewrote the `innerHTML` of paragraphs; they run here on
+the legacy inline-HTML notation of `lib/legacy-html.js` (copied unchanged), so the originals'
+expressions and character counting work as written and inline formatting survives. As in the
+other conversions, formatting with a language (`<EM lang="…">`, which 2.7.9 did not keep) is
+not matched by expressions written for bare tags. FictionBook Editor showed an `<empty-line/>`
+as an empty `<P>` and saved any `<P>` holding only white space as `<empty-line/>`; the scripts'
+"empty line" is both. Edits the schema forbids (a section left with its title only) are skipped
+and reported where 2.7.9 wrote invalid FB2. Helpers each package carries (identical copies):
+`numerals.js` ×3, `roman-titles.js` ×2, `section-split.js` ×2, `lib/legacy-html.js` ×9.
+
+### 06 Разметить заголовки разделов либо подзаголовки, найденные по регэкспу... (расширенная версия)
+
+`scripts/13_subtitles/06_regexp-titles-extended`, id `13/regexp-titles-extended`, Tier 3. The
+script only opened the modeless dialog `HTML/…(расширенная версия) - задание параметров.htm`,
+which held the logic (functions `markupTitles` and `markupSubtitles` evaluated in the main
+window). The dialog is one `ui.form`: a field of kind `'regexp'` (feature 007, contract §4)
+with the dialog's 52 ready-made patterns as presets (`presets.js`, extracted mechanically, HTML
+entities decoded; the initial pattern is `[^ \xA0]`, "Любой непустой абзац", the option the
+dialog selected last), the checkboxes (case, entirely bold, entirely italic, after a (sub)title,
+between empty lines, first non-empty paragraph of an untitled section), the maximum length, the
+paragraphs to take before and after (0–3), and the choice "Разметить": titles or subtitles. In
+every body except the notes and comments bodies, each section is walked after its sub-sections.
+Titles: a matching paragraph (not a subtitle) and the paragraphs taken with it become the title
+of a new sibling section that starts there; the original did it with marker paragraphs and an
+`outerHTML` rewrite, and its tests of the previous and next paragraph saw those markers, so
+`section-split.js` keeps markers in the list of children exactly where the original put them and
+cuts the section afterwards. Subtitles: the paragraph (and the ones taken) becomes a subtitle.
+Book `regexp-titles.fb2`; snapshots `regexp-titles-extended.titles.xml` (preset «Глава 123»,
+one paragraph after), `.subtitles.xml` (preset «***»), `.bold-untitled.xml` (default pattern,
+entirely bold, first paragraph of an untitled section), `.empty-lines.xml` (between empty
+lines), `.after-title.xml` (preset «123», subtitles, after a (sub)title).
+
+Expected and obtained: titles — the flat section is cut into four (the name line under each
+"Глава N" goes into its title; the subtitle "Глава 3" is never a candidate; the cite after
+"Глава 4" stops the capture; the 80-character "Глава 5. …" is too long); in the titled section
+the first part keeps only its title and gets an `<empty-line/>`, and so does the new section
+"Глава 8" with nothing after its title; the untitled section with id `s3` keeps the id on its
+first new section; count 6. Subtitles — the two asterisk paragraphs (`* * *`, `***`) become
+subtitles, the existing subtitle and the notes stay; count 2. Bold/untitled — the empty line in
+front of the bold first paragraph is removed and that paragraph (a note link in it does not
+count against "entirely bold") becomes the title; count 1. Empty lines — the line framed by empty
+lines becomes a title; the empty line after it is no candidate (its previous sibling is the end
+marker); count 1. After a title — "1" after the title and "2" after the subtitle "1" just made
+become subtitles, "3" after a paragraph stays; count 2.
+
+Differences: one run per invocation (the modeless dialog stayed open); the buttons are the
+choice and OK, the presets and validity check of the `'regexp'` field replace the dropdown and
+the compile-error message; title-only parts and new sections get an `<empty-line/>`; the first
+new section keeps the section's id when nothing precedes it (2.7.9 dropped the emptied section
+and its id when saving); an empty line chosen as a subtitle stays one (2.7.9 saved its empty
+subtitle as `<empty-line/>`); the caret stays where it was; the "after a (sub)title" test is made
+per paragraph (the legacy JScript engine shared one `/…/gi` literal whose `lastIndex` could make
+consecutive tests alternate). No fixes, no open questions.
+
+### 07 Разметить заголовки разделов согласно оглавлению документа...
+
+`scripts/13_subtitles/07_titles-from-contents`, id `13/titles-from-contents`, Tier 3,
+`needsSelection`. The script opened `HTML/…согласно оглавлению документа - основной диалог.htm`
+with the selected paragraphs of the book's contents. The form holds the list (the selected text
+blocks' texts, one per line), the choice "Действие" — "Удалить из оглавления лишние символы"
+(the dialog's `removeSymbols`: page numbers, dot leaders, the dash before a number) or "Разметить
+заголовки разделов согласно списку" — the comparison (exact, or ignoring punctuation, numbers and
+note marks after the line: link texts, `[1]`, `{1}`, asterisks and digits after letters are left
+out), "case as in the contents" and "join titles that touch". The form returns after each action,
+with the cleaned list or with the lines no title matched, until it is closed. Marking up walks
+every body (notes too): the titles of the sections consume the lines they match, then every
+paragraph or subtitle of a section outside the contents that matches a line becomes the title of
+a new section (the same marker technique and `section-split.js` as 06); with the case option the
+letters take the case of the line (`adaptCase`, as written). The message counts paragraphs and
+subtitles turned into titles. Book `contents.fb2`; snapshots `titles-from-contents.xml`
+(clean, exact match, then ignoring), `.plain.xml` (no case, no joining), `.toc-title.xml`
+(selection from the contents' title, the fix).
+
+Expected and obtained: cleaning gives "Часть первая / Глава 1. Начало / Глава 2. Дорога / Глава
+4. Буря / «Встреча» / Эпилог / Приложение". Exact match: "Часть первая" and "ГЛАВА 1. НАЧАЛО"
+(case from the list: "Глава 1. Начало") touch and form one title; the subtitle "Глава 2. Дорога"
+and «Встреча» (`«»` compare as `"`) become titles; "Глава 4. Буря" with its note link (the link's
+"1" is part of the exact text) and "Эпилог." (the dot) do not; 3 paragraphs + 1 subtitle. Then
+ignoring: those two become titles; "Приложение" is left in the list. Without the options:
+"Часть первая" is a section of its own (title only, padded with `<empty-line/>`) and "ГЛАВА 1.
+НАЧАЛО" keeps its case. From the contents' title: nothing is marked up.
+
+Fixes: (1) the contents are skipped wherever the selection starts and ends — 2.7.9 recognised them
+only when their first paragraph was a paragraph of a section, so a selection starting in the
+contents' title turned the contents' own lines into one joined title (and one ending in a cite or
+poem skipped the rest of the book); (2) an empty list gives the message the original meant to show;
+2.7.9 stopped with a script error (`Arr.length` of null). Differences: the dialog loop as a form;
+title-only parts padded and the section id kept, as in 06. Open question: a line may match several
+paragraphs (used lines are still compared), kept.
+
+### 30 Привести заголовки глав к виду 'Глава 1'
+
+`scripts/13_subtitles/30_chapter-titles`, id `13/chapter-titles`, Tier 1. Every paragraph of a
+section title (not the body's title, not poem or stanza titles; the notes and comments bodies
+are skipped) is tried against the original's branches in their order: "XII", "12", "Глава XII",
+"Глава двенадцатая", "XII. …", "Глава XII. …", "Глава двенадцатая. …", "12. …", "Двенадцатая
+глава", "Двенадцатая глава. …", "глава 12", "Глава 12. …"; the matching part becomes "Глава 12"
+(the rest of the title stays). The original's expressions are spliced in as written (with
+`nbspChar` = U+00A0); `removeSymbolsBeyondTags` counts the characters outside the tags of the
+legacy HTML and writes the replacement where the first removed character was, so formatting is
+kept (a bold title stays bold; `<emphasis>XXI.</emphasis> Встреча` becomes `<emphasis>Глава 21.
+</emphasis>Встреча`). The tables a1 (Roman → Arabic) and a2 (ordinal words → Arabic, 1000 phrases)
+are in `numerals.js`: the ordinal phrases extracted in the original's order, the Roman numerals
+generated and checked to equal the tables of 30, 40 and 50 exactly. Books `chapters.fb2` (the
+journey book of us3-scripts-279: 20 titles changed, the rest left alone) and `chapters-edge.fb2`;
+snapshots `chapter-titles.xml`, `chapter-titles.edge.xml`.
+
+Expected and obtained (chapters.fb2): "I"→"Глава 1", "2"→"Глава 2", "3."→"Глава 3", "Глава IV"→
+"Глава 4", "ГЛАВА v"→"Глава 5", "Глава шестая"→"Глава 6", "ГЛАВА СЕДЬМАЯ."→"Глава 7", "Глава
+восьмая. Переправа"→"Глава 8. Переправа", "Глава девятая: Лес"→"Глава 9: Лес", "X. Город"→"Глава
+10. Город", "Глава XI. Мост"→"Глава 11. Мост", "Глава XII Башня"→"Глава 12. Башня" (a dot is
+added), "13. Река"→"Глава 13. Река", "Четырнадцатая глава"→"Глава 14", "Пятнадцатая глава.
+Возвращение"→"Глава 15. Возвращение", "глава 16"→"Глава 16", "ГЛАВА 19. Утро"→"Глава 19. Утро",
+bold "Глава двадцатая"→bold "Глава 20", "Глава двадцать вторая"→"Глава 22" (the second line of the
+title stays); unchanged: the body title "I", "Пролог", "Глава 17", "Глава 18: Ночь", "Глава 23."
+(no expression takes the dot alone), "Глава MMXX" (beyond 1000), "Глава двадцать" (no ordinal),
+"Часть первая", the poem title "XXX", "Эпилог", a subtitle "Глава 5", the notes' "1"; the message
+counts 20. Edge book: "Пролог. Глава XII. Ночь"→"ПрологГлава 12. Ночь", "XIII. "→"Глава 13.",
+"Глава четырнадцатая,"→"Глава 14,", "Пятнадцатая глава, Встреча"→"Глава 15 Встреча", "Глава
+сорок&#160;первая" unchanged, "Глава XXIII [1]"→"Глава 23. [1]", "Первая глава "→"Глава 1",
+"Глава шестнадцатая[2]"→"Глава 16 [2]", "  Глава XVII. Дождь"→"Глава 17. Дождь", "Глава 18 & 19"
+unchanged (but counted), "1001"→"Глава 1001", "Liv"→"Глава 54", "Mix" unchanged; count 11.
+
+Fix: where the replaced part reaches the end of the title, the space the replacement ends with is
+not written ("Четырнадцатая глава" → "Глава 14"; 2.7.9 wrote "Глава 14 "). Open questions, kept as
+2.7.9: text before "Глава" ("ПрологГлава 12. Ночь": the 0-based search position used as the
+1-based start); a non-breaking space inside a numeral stops the lookup; the comma after "глава"
+is dropped; words of Roman letters ("Liv") are numerals; the "Глава 30" branches count formatted
+titles as replaced though unchanged (message only).
+
+### 40 Привести заголовки частей к виду 'Часть I' and 50 Привести заголовки разделов-'книг' к виду 'Книга I'
+
+`scripts/13_subtitles/40_part-titles` (id `13/part-titles`) and
+`scripts/13_subtitles/50_book-section-titles` (id `13/book-section-titles`), Tier 1. The two
+originals' `HandleP` are identical but for the keyword; the engine is `roman-titles.js`
+(identical copies), each `index.js` holds its original's expressions as written. Section-title
+paragraphs (as in 30) reading "Часть 3", "Часть третья", "Часть 3. …" / "Часть 3: …", "Часть
+третья. …" or "Третья часть" become "Часть III" / "Часть III. …" (tables a3 and a4 of
+`numerals.js`). Book `parts.fb2` (books holding parts holding chapters); snapshots
+`part-titles.xml`, `book-section-titles.xml`.
+
+Expected and obtained, 40: "Часть 1"→"Часть I", "ЧАСТЬ 2"→"Часть II", "Часть третья"→"Часть III",
+"Часть четвёртая."→"Часть IV", "Часть 5. Начало"→"Часть V. Начало", "Часть 6: Середина"→"Часть VI:
+Середина", "Часть седьмая. Конец"→"Часть VII. Конец", "Восьмая часть"→"Часть VIII", "Часть 10
+Перелом"→"Часть X Перелом", `<strong>Часть</strong> 11`→`<strong>Часть XI</strong>`, "Двадцать
+первая часть"→"Часть XXI", "Часть двенадцатая"→"Часть XII"; unchanged: "Часть IX", "Часть 1001",
+"Часть 007" (the table has no leading zeros), the body and notes titles, every "Книга" and
+"Глава" title; count 12. 50: "Книга 1"→"Книга I", "Книга вторая"→"Книга II", "Книга 3. Путь"→
+"Книга III. Путь", "Книга четвёртая: Дом"→"Книга IV: Дом", "Пятая книга"→"Книга V", "КНИГА
+шестая."→"Книга VI", "Книга 8 Финал"→"Книга VIII Финал"; "Книга VII" unchanged; count 7. No
+differences, fixes or open questions (40's message keeps the original's text "к виду "Часть 1"").
+
+### 529 Удалить форматирование в заголовках и подзаголовках
+
+`scripts/13_subtitles/529_remove-title-formatting`, id `13/remove-title-formatting`, Tier 2. A
+title line or a subtitle loses bold, italics, subscript, superscript, strikethrough, code or a
+named style when every letter of it (А-я, Ёё, A-Za-z, Α-ω) carries that formatting (the test
+removes the formatted fragments and looks for letters in the rest of the HTML; for code and style
+the text outside those elements). Titles of the notes and comments bodies: each kind that covers
+all their letters goes. The book's annotation and the document's history are part of the text
+(edited through `doc.setDescription`). The original's settings are kept as constants with its
+values: each kind never (0), always (1, default) or "show and ask" (2: the lines one by one —
+selected in the Body view, Да/Нет/Отмена to move — then the question, after preliminary
+statistics); the version raise with a history line (off by default) is ported. Book
+`formatting.fb2`; snapshot `remove-title-formatting.xml` (defaults). Mode 2 for the title bold and
+the history entry were verified with a scratch copy (questions answered; version 1.0 → 1.1, the
+lines "v.1.0 — ?" and "v.1.1 —  Скрипт: «Удаление форматирования…» 2.4 — Зорро, <date>" added).
+
+Expected and obtained: titles — the body title, "Глава первая", the poem title and the title with a
+note link lose the bold (the link stays), "Встреча" the italics, "<strong>Глава</strong> 2" the
+bold (a digit is no letter), the sub, sup, strikethrough, code and style titles their formatting;
+"<strong>Глава</strong>&nbsp;3" keeps the bold (the entity's letters); subtitles — the annotation's
+bold, the history's italics, the bold, italic and bold-italic subtitles; the partly formatted ones
+stay; notes titles "Примечания" and "1" lose the bold, "<code>2</code>" the code (the fix), the
+partly bold one stays. Statistics: titles 5/1/1/1/1/1/1, subtitles bold 3, italics 4, notes
+titles 3.
+
+Fix: the code and style checks of notes titles tested a variable left over from the previous line;
+they test the title itself (2.7.9 kept "<code>2</code>"). Differences: the proverb of the results
+window is left out pending the requester's decision (277 sayings: the 271 of «Пословицы и
+поговорки Великой Отечественной войны» plus six about Kursk and Sudzha, among them calls to kill
+"fascists"); mode 2 selects instead of underlining; no Body-view check; no `fbeUserName`. Open
+questions, kept: `&nbsp;` counts as letters in the HTML tests; Ukrainian і ї є ґ are no letters.
+
+### 530 Удаление жирности и курсива в подзаголовках
+
+`scripts/13_subtitles/530_remove-subtitle-bold-italics`, id `13/remove-subtitle-bold-italics`,
+Tier 1. Every subtitle of the text (annotation and history on, as in the original; notes too)
+loses all bold (`</?(STRONG)>`), then a subtitle that is exactly `<EM>text</EM>` the italics.
+Book `formatting.fb2`; snapshot `remove-subtitle-bold-italics.xml`. Expected and obtained: the
+annotation's, the history's, the bold, italic and bold-italic subtitles become plain, "Частично
+<strong>жирный</strong>" loses its bold, "<emphasis>Курсив</emphasis> и обычный" stays, the notes
+subtitle becomes plain; counts bold 4, italics 4. Fix: the heading "Статистика" also when only
+italics were processed (the original tested the bold counter twice). Credits "–= Jurgen Script =–"
+and "stokber Edition 2024" are kept in the message.
+
+### 540 Удалить все пустые строки во всех body, кроме body примечаний и комментариев
+
+`scripts/13_subtitles/540_remove-all-empty-lines`, id `13/remove-all-empty-lines`, Tier 2. Every
+empty line, and every paragraph, subtitle, verse or text author of spaces and non-breaking spaces
+(a picture counts as content), goes, outside the notes and comments bodies, section annotations
+and tables; a title, section, poem, stanza, cite or epigraph left empty goes too (the original's
+cascade); the count is in the status bar. Book `empty-lines.fb2`; snapshot
+`remove-all-empty-lines.xml`. Expected and obtained: 17 removals (the body title's empty line;
+seven in the first section, among them `<p> </p>`, `<p>&#160;</p>`, `<p><strong> </strong></p>`,
+`<p/>`; the blank subtitle, verse and text author; the stanza, the cite and the title they empty;
+the epigraph's empty line; the section holding only an empty line); kept: the picture paragraph,
+the table, the annotation, the notes. Difference: two removals the schema forbids are not made and
+are counted (the empty line of a section with a title only, the only verse of a titled poem);
+2.7.9 made them (count 19) and wrote invalid FB2.
+
+### 543 Удалить пустые строки в выделении
+
+`scripts/13_subtitles/543_remove-empty-lines-in-selection`, id
+`13/remove-empty-lines-in-selection`, Tier 2. From the paragraph of the selection's start to the
+one of its end (the caret's paragraph without a selection), from the last one back, an empty
+paragraph goes when its element has another child. Book `empty-lines.fb2`; snapshots
+`remove-empty-lines-in-selection.xml` (`--select-range n9:0-n34:5`: 9 removed; the only verse of
+a stanza and the cite's only line stay; the empty table cell stays — fix) and `.caret.xml`
+(`--select n12:0:0`: that paragraph only). Fixes: empty table cells are not empty lines (2.7.9
+removed them from the rows); a selection ending inside formatted text ends there (2.7.9 went on to
+the end of the book). Differences: schema-refused removals counted; no input-field check.
+
+### 550 Создать заголовок книги (в body) из названия (в описании документа)
+
+`scripts/13_subtitles/550_book-title-from-description`, id `13/book-title-from-description`,
+Tier 2. The authors (up to five, "и др." after them; patronymics after a Yes/No question) and the
+book title of `title-info` go to the top of the main body's title, made when missing (after the
+body's picture); empty lines at the start of the title go, a line already holding the authors or
+the title is not added again (with a message), an empty line separates the new lines from an
+existing title; two main bodies are refused. The settings are constants with the original's
+values. Books `book-title.fb2`, `book-title-existing.fb2`, `book-title-two-bodies.fb2`; snapshots
+`book-title-from-description.xml` (patronymics yes: "Лев Николаевич Толстой, Анна Ахматова" /
+"Война & мир"), `.no-patronymic.xml` ("Лев Толстой, Анна Ахматова"), `.existing.xml` (six authors:
+"Иван Первый, … Ерёма Пятый и др.", an empty line, then the old title without its leading empty
+line; the book title not added twice), `.two-bodies.xml` (message, unchanged). Differences: a book
+without any body is refused (2.7.9 made one); the caret goes to the start of the title.
+
+### 560 Унификация подзаголовков-звездочек (С-К)
+
+`scripts/13_subtitles/560_unify-asterisk-subtitles`, id `13/unify-asterisk-subtitles`, Tier 1. A
+"script constructor": its list of search-and-replace operations (one, TaKir's) is kept as
+`OPERATIONS` with the original's instructions translated; every paragraph of the bodies (notes
+too) and of the annotation (history off, as set) is passed through it. The operation turns a
+subtitle of three or more asterisks with any spaces, also in italics or bold, into "* * *". The
+statistics window keeps the original's layout (columns, date line). Book `asterisks.fb2`;
+snapshot `unify-asterisk-subtitles.xml`: "***", "*  *  *" in italics, "****" in bold italics,
+"* * * *", "&#160;* * *&#160;" and the annotation's "***" become "* * *"; "**", "* * * Звёзды"
+and the paragraph "***" stay; 13 matches, 6 lines changed, 36 lines. The history setting was
+checked with a scratch copy. Difference: the optional proverb (off by default) is not included.
+
+### 570 Поиск возможных заголовков по ключевым словам
+
+`scripts/13_subtitles/570_find-possible-titles`, id `13/find-possible-titles`, Tier 1. TaKir's 15
+expressions and 7 macros, as written, on the 2.7.9 engine of Sclex's "Поиск по набору регэкспов"
+(`keyword-search.js`, derived from the converted 2.7 engine with the 2.7.9 changes: a hit right at
+a collapsed caret counts, non-breaking spaces are spaces, "Пропустить" descriptions are passed
+over, "Поиск завершен!" in the status bar). From the end of the selection to the end of the book,
+the next paragraph outside titles and subtitles that starts like a title is selected and the kind
+is shown in the status bar; the book is not changed. Book `keywords.fb2`; snapshots
+`find-possible-titles.xml` (`--select n7:0:0`) and `.end.xml` (after the last hit: the message).
+Successive runs were verified with a scratch wrapper: "Первая глава", "Вторая часть,", "Глава ",
+"ГЛАВА ", "Двадцать первый том", "Первое действие", "Об авторе", "Список ", "Chapter ", "Эпилог",
+"Об&#160;авторе", the notes' "Глава ", then nothing; titles, the subtitle and "Главная" are skipped.
+Differences: a picture is one character; the annotation and history are not searched; English
+status texts. Open question: equal positions — the earlier expression wins ("Список литературы"
+is found as "Список ").
+
+### 580 Удалить подзаголовки из звездочек рядом с заголовками
+
+`scripts/13_subtitles/580_remove-asterisks-near-titles`, id `13/remove-asterisks-near-titles`,
+Tier 2 (idea TaKir, implementation DeepSeek and TaKir, credits kept). A subtitle whose text is
+"* * *" goes when it is the first element after the title of its container ("below") or the last
+element of its container while the next container starts with a title ("above"); two messages
+give the number found and the numbers removed. The annotation and history are searched too. Book
+`asterisks.fb2`; snapshot `remove-asterisks-near-titles.xml`: found 6, removed 5 (above 2: the end
+of chapter 1, the end of the cite before a titled poem; below 3: after chapter 1's title, after
+the poem's title, in the notes); the one under "Глава 3" is not removed (the section would keep its
+title only; difference); the non-breaking-space one and the one ending an untitled last section
+stay. Open question: a "* * *" ending a cite or poem counts as "above" when the next container
+after it starts with a title (paragraphs skipped), kept as 2.7.9.
+
+### Not converted in this task
+
+- 590_Расформатировать все заголовки_Комбо — runs other scripts; converted with the combos.
+
+### Harness commands
+
+```bash
+G=scripts/13_subtitles; B=tests/scripts/fixtures/279/13; S=tests/scripts/snapshots/13
+node tests/scripts/run-script.mjs $G/30_chapter-titles $B/chapters.fb2 --snapshot $S/chapter-titles.xml
+node tests/scripts/run-script.mjs $G/30_chapter-titles $B/chapters-edge.fb2 --snapshot $S/chapter-titles.edge.xml
+node tests/scripts/run-script.mjs $G/40_part-titles $B/parts.fb2 --snapshot $S/part-titles.xml
+node tests/scripts/run-script.mjs $G/50_book-section-titles $B/parts.fb2 --snapshot $S/book-section-titles.xml
+node tests/scripts/run-script.mjs $G/06_regexp-titles-extended $B/regexp-titles.fb2 --answer '{"regexp":"^[ \\xA0]*Глава[ \\xA0]+\\d+(\\..*)?[ \\xA0]*$","captureAfter":"1"}' --snapshot $S/regexp-titles-extended.titles.xml
+node tests/scripts/run-script.mjs $G/06_regexp-titles-extended $B/regexp-titles.fb2 --answer '{"regexp":"^[ \\xA0]*(\\*[ \\xA0]*){3}[ \\xA0]*$","action":"subtitles"}' --snapshot $S/regexp-titles-extended.subtitles.xml
+node tests/scripts/run-script.mjs $G/06_regexp-titles-extended $B/regexp-titles.fb2 --answer '{"bold":true,"inUntitledSection":true}' --snapshot $S/regexp-titles-extended.bold-untitled.xml
+node tests/scripts/run-script.mjs $G/06_regexp-titles-extended $B/regexp-titles.fb2 --answer '{"inEmptyLines":true}' --snapshot $S/regexp-titles-extended.empty-lines.xml
+node tests/scripts/run-script.mjs $G/06_regexp-titles-extended $B/regexp-titles.fb2 --answer '{"regexp":"^[ \\xA0]*\\d+[ \\xA0]*\\.?$","afterTitle":true,"action":"subtitles"}' --snapshot $S/regexp-titles-extended.after-title.xml
+node tests/scripts/run-script.mjs $G/07_titles-from-contents $B/contents.fb2 --select-range n7:0-n13:5 --answer '{"action":"removeSymbols"}' --answer '{"action":"markup"}' --answer ok --answer '{"action":"markup","processingType":"ignoring"}' --answer ok --answer cancel --snapshot $S/titles-from-contents.xml
+node tests/scripts/run-script.mjs $G/07_titles-from-contents $B/contents.fb2 --select-range n7:0-n13:5 --answer '{"action":"removeSymbols"}' --answer '{"action":"markup","adaptCase":false,"mergeAdjacent":false}' --answer ok --answer cancel --snapshot $S/titles-from-contents.plain.xml
+node tests/scripts/run-script.mjs $G/07_titles-from-contents $B/contents.fb2 --select-range n6:0-n13:5 --answer '{"action":"markup"}' --answer ok --answer cancel --snapshot $S/titles-from-contents.toc-title.xml
+node tests/scripts/run-script.mjs $G/540_remove-all-empty-lines $B/empty-lines.fb2 --snapshot $S/remove-all-empty-lines.xml
+node tests/scripts/run-script.mjs $G/543_remove-empty-lines-in-selection $B/empty-lines.fb2 --select-range n9:0-n34:5 --snapshot $S/remove-empty-lines-in-selection.xml
+node tests/scripts/run-script.mjs $G/543_remove-empty-lines-in-selection $B/empty-lines.fb2 --select n12:0:0 --snapshot $S/remove-empty-lines-in-selection.caret.xml
+node tests/scripts/run-script.mjs $G/560_unify-asterisk-subtitles $B/asterisks.fb2 --snapshot $S/unify-asterisk-subtitles.xml
+node tests/scripts/run-script.mjs $G/580_remove-asterisks-near-titles $B/asterisks.fb2 --snapshot $S/remove-asterisks-near-titles.xml
+node tests/scripts/run-script.mjs $G/530_remove-subtitle-bold-italics $B/formatting.fb2 --snapshot $S/remove-subtitle-bold-italics.xml
+node tests/scripts/run-script.mjs $G/529_remove-title-formatting $B/formatting.fb2 --snapshot $S/remove-title-formatting.xml
+node tests/scripts/run-script.mjs $G/550_book-title-from-description $B/book-title.fb2 --answer yes --snapshot $S/book-title-from-description.xml
+node tests/scripts/run-script.mjs $G/550_book-title-from-description $B/book-title.fb2 --answer no --snapshot $S/book-title-from-description.no-patronymic.xml
+node tests/scripts/run-script.mjs $G/550_book-title-from-description $B/book-title-existing.fb2 --snapshot $S/book-title-from-description.existing.xml
+node tests/scripts/run-script.mjs $G/550_book-title-from-description $B/book-title-two-bodies.fb2 --snapshot $S/book-title-from-description.two-bodies.xml
+node tests/scripts/run-script.mjs $G/570_find-possible-titles $B/keywords.fb2 --select n7:0:0 --snapshot $S/find-possible-titles.xml
+node tests/scripts/run-script.mjs $G/570_find-possible-titles $B/keywords.fb2 --select n27:6:6 --answer ok --snapshot $S/find-possible-titles.end.xml
+```
 
 ## 14_Цитаты
 

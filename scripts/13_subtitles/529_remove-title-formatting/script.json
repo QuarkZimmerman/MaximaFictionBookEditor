@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "13/remove-title-formatting",
+  "name": {
+    "ru": "Удалить форматирование в заголовках и подзаголовках",
+    "en": "Remove formatting in titles and subtitles",
+    "uk": "Видалити форматування в заголовках і підзаголовках"
+  },
+  "description": {
+    "ru": "Удаляет из строк заголовков и подзаголовков жирность, курсив, индексы, зачёркивание, код или стиль, которыми оформлены все буквы строки, и показывает статистику.",
+    "en": "Removes from title lines and subtitles the bold, italics, subscript, superscript, strikethrough, code or style that covers all letters of the line, and shows statistics.",
+    "uk": "Видаляє з рядків заголовків і підзаголовків жирне, курсив, індекси, закреслення, код або стиль, якими оформлено всі літери рядка, і показує статистику."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить форматирование в заголовках и подзаголовках",
+    "en": "Remove formatting in titles and subtitles"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/529_Удалить форматирование в заголовках и подзаголовках.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.4"
+  }
+}

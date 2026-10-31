@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Форматирование</last-name>
+			</author>
+			<book-title>Форматирование заголовков</book-title>
+			<annotation>
+				<p>Аннотация книги.</p>
+				<subtitle>Подзаголовок аннотации</subtitle>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>История документа.</p>
+				<subtitle>Подзаголовок истории</subtitle>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p><strong>Книга</strong></p>
+		</title>
+		<section>
+			<title>
+				<p><strong>Глава первая</strong></p>
+				<p><emphasis>Встреча</emphasis></p>
+			</title>
+			<subtitle>Жирный подзаголовок</subtitle>
+			<p>Текст с <strong>жирным</strong> словом и <emphasis>курсивом</emphasis>.</p>
+			<subtitle>Курсивный подзаголовок</subtitle>
+			<subtitle>Жирный курсив</subtitle>
+			<subtitle>Частично жирный</subtitle>
+			<subtitle><emphasis>Курсив</emphasis> и обычный</subtitle>
+			<p>Текст.</p>
+		</section>
+		<section>
+			<title>
+				<p><strong>Глава</strong> 2</p>
+			</title>
+			<p>Буквы жирные, номер нет.</p>
+		</section>
+		<section>
+			<title>
+				<p><strong>Глава</strong> 3</p>
+			</title>
+			<p>Неразрывный пробел после жирного слова.</p>
+		</section>
+		<section>
+			<title>
+				<p><sub>Нижний индекс</sub></p>
+			</title>
+			<p>Текст.</p>
+		</section>
+		<section>
+			<title>
+				<p><sup>Верхний индекс</sup></p>
+			</title>
+			<p>Текст.</p>
+		</section>
+		<section>
+			<title>
+				<p><strikethrough>Зачёркнутый</strikethrough></p>
+			</title>
+			<p>Текст.</p>
+		</section>
+		<section>
+			<title>
+				<p><code>Код</code></p>
+			</title>
+			<p>Текст.</p>
+		</section>
+		<section>
+			<title>
+				<p><style name="red">Стилевой</style></p>
+			</title>
+			<p>Текст.</p>
+		</section>
+		<section>
+			<title>
+				<p><strong>Заголовок со сноской</strong><a l:href="#n1" type="note">1</a></p>
+			</title>
+			<p>Текст.</p>
+		</section>
+		<section>
+			<title>
+				<p>Обычный заголовок</p>
+			</title>
+			<poem>
+				<title>
+					<p><strong>Стих</strong></p>
+				</title>
+				<stanza>
+					<v>Строка.</v>
+				</stanza>
+			</poem>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p><strong>Примечания</strong></p>
+		</title>
+		<section id="n1">
+			<title>
+				<p><strong>1</strong></p>
+			</title>
+			<subtitle>Подзаголовок примечания</subtitle>
+			<p>Первое примечание.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p><code>2</code></p>
+			</title>
+			<p>Второе примечание.</p>
+		</section>
+		<section id="n3">
+			<title>
+				<p><strong>Частично</strong> жирный</p>
+			</title>
+			<p>Третье примечание.</p>
+		</section>
+	</body>
+</FictionBook>

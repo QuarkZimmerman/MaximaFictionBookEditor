@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Главы</last-name>
+			</author>
+			<book-title>Заголовки глав</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026</date>
+			<id>fixture-279-13-chapters</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>I</p>
+		</title>
+		<section>
+			<title>
+				<p>Пролог</p>
+			</title>
+			<p>Заголовок тела книги «I» и этот пролог остаются как есть.</p>
+		</section>
+		<section>
+			<title>
+				<p>I</p>
+			</title>
+			<p>Римское число.</p>
+		</section>
+		<section>
+			<title>
+				<p>2</p>
+			</title>
+			<p>Арабское число.</p>
+		</section>
+		<section>
+			<title>
+				<p>3.</p>
+			</title>
+			<p>Число с точкой.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава IV</p>
+			</title>
+			<p>Глава с римским числом.</p>
+		</section>
+		<section>
+			<title>
+				<p>ГЛАВА v</p>
+			</title>
+			<p>Прописными буквами, строчное римское число.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава шестая</p>
+			</title>
+			<p>Числительное словом.</p>
+		</section>
+		<section>
+			<title>
+				<p>ГЛАВА СЕДЬМАЯ.</p>
+			</title>
+			<p>Числительное прописными, с точкой.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава восьмая. Переправа</p>
+			</title>
+			<p>Числительное и название.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава девятая: Лес</p>
+			</title>
+			<p>Числительное, двоеточие и название.</p>
+		</section>
+		<section>
+			<title>
+				<p>X. Город</p>
+			</title>
+			<p>Римское число и название.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава XI. Мост</p>
+			</title>
+			<p>Глава с римским числом и названием.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава XII Башня</p>
+			</title>
+			<p>Без точки после числа.</p>
+		</section>
+		<section>
+			<title>
+				<p>13. Река</p>
+			</title>
+			<p>Арабское число и название.</p>
+		</section>
+		<section>
+			<title>
+				<p>Четырнадцатая глава</p>
+			</title>
+			<p>Числительное перед словом «глава».</p>
+		</section>
+		<section>
+			<title>
+				<p>Пятнадцатая глава. Возвращение</p>
+			</title>
+			<p>То же с названием.</p>
+		</section>
+		<section>
+			<title>
+				<p>глава 16</p>
+			</title>
+			<p>Строчная буква.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 17</p>
+			</title>
+			<p>Уже в нужном виде.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 18: Ночь</p>
+			</title>
+			<p>Уже в нужном виде, с названием.</p>
+		</section>
+		<section>
+			<title>
+				<p>ГЛАВА 19. Утро</p>
+			</title>
+			<p>Прописные буквы и название.</p>
+		</section>
+		<section>
+			<title>
+				<p><strong>Глава двадцатая</strong></p>
+			</title>
+			<p>Жирный заголовок остаётся жирным.</p>
+		</section>
+		<section>
+			<title>
+				<p><emphasis>XXI.</emphasis> Встреча</p>
+			</title>
+			<p>Курсивное число.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава двадцать вторая</p>
+				<p>Старый дом</p>
+			</title>
+			<p>Заголовок из двух абзацев: второй не меняется.</p>
+			<subtitle>Глава 5</subtitle>
+			<p>Подзаголовок выше и этот абзац «Глава 1» не трогаются.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 23.</p>
+			</title>
+			<p>Точка после числа без названия: не подходит ни под один шаблон.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава MMXX</p>
+			</title>
+			<p>Римское число больше тысячи: нет в таблице.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава двадцать</p>
+			</title>
+			<p>Количественное числительное: нет в таблице.</p>
+		</section>
+		<section>
+			<title>
+				<p>Часть первая</p>
+			</title>
+			<p>Другое ключевое слово.</p>
+			<poem>
+				<title>
+					<p>XXX</p>
+				</title>
+				<stanza>
+					<v>Заголовок стиха не меняется.</v>
+				</stanza>
+			</poem>
+		</section>
+		<section>
+			<title>
+				<p>Эпилог</p>
+			</title>
+			<p>Конец<a l:href="#n1" type="note">1</a>.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Заголовки примечаний не меняются.</p>
+		</section>
+	</body>
+</FictionBook>

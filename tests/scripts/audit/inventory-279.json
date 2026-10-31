@@ -21,7 +21,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 221
+    "converted": 234
   },
   "entries": [
     {
@@ -4051,15 +4051,21 @@
       "htmlDialogs": [
         "HTML/Разметить заголовки разделов либо подзаголовки, найденные по регэкспу (расширенная версия) - задание параметров.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/06_regexp-titles-extended",
+      "id": "13/regexp-titles-extended",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The modeless dialog, which stayed open for further runs, is a modal form (one run per invocation): its button rows \"Разметить заголовки\" / \"Разметить заголовки и выйти\" and \"Разметить подзаголовки\" / \"Разметить подзаголовки и выйти\" are the choice \"Разметить\" (titles or subtitles) and OK; its ready-made patterns are the presets of a 'regexp' field, whose validity check (OK disabled) replaces the message about a pattern that does not compile; the maximum length is a number field.",
+        "A part of a section left with nothing but its title, epigraphs, image or annotation, and a new section with nothing after its title, get an <empty-line/>: FB2 and the editor require a block there; 2.7.9 wrote the invalid section.",
+        "When nothing precedes the first new title of a section, the first new section keeps the section's id and language; 2.7.9 left the emptied section, which it dropped (with its id) when the book was saved, so the new section had no id.",
+        "An empty line, or a paragraph of spaces, chosen as a subtitle stays as it is: 2.7.9 gave it the subtitle class, which it saved as an <empty-line/> again; it is counted as in 2.7.9.",
+        "The caret stays where it was; 2.7.9 put it at the start of the book after rewriting the sections.",
+        "The test \"right after a title or subtitle\" is made for each paragraph: under the legacy JScript engine the original's /^(sub)?title$/gi literal was one shared object whose lastIndex could make consecutive tests alternate (engine-dependent, not the script's intent); not reproduced.",
+        "The bold and italic tests run on the legacy inline-HTML notation, where formatting with a language (which 2.7.9 did not keep) is written <STRONG lang=...>/<EM lang=...> and does not count as plain bold or italics, as in the other converted scripts."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/06_razmetit-titles-of-sections-libo-subtitles-nayde",
-      "suggestedId": "13/razmetit-titles-of-sections-libo-subtitles-nayde"
+      "openQuestions": []
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/07_Разметить заголовки разделов согласно оглавлению документа....js",
@@ -4079,15 +4085,21 @@
       "htmlDialogs": [
         "HTML/Разметить заголовки разделов согласно оглавлению документа - основной диалог.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/07_titles-from-contents",
+      "id": "13/titles-from-contents",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/07_razmetit-titles-of-sections-soglasno-oglavleniyu",
-      "suggestedId": "13/razmetit-titles-of-sections-soglasno-oglavleniyu"
+      "differences": [
+        "The modal dialog, which stayed open after each action, is a form shown again after each action until it is closed (Закрыть); its two buttons (\"Удалить из оглавления лишние символы\", \"Разметить заголовки разделов согласно списку\") are the choice \"Действие\" and OK; the list is a multi-line text field.",
+        "A part of a section left with nothing but its title and a new section with nothing after its title get an <empty-line/> (FB2 and the editor require a block; 2.7.9 wrote the invalid section); the first new section keeps the section's id when nothing precedes it (2.7.9 dropped the emptied section with its id on saving)."
+      ],
+      "fixes": [
+        "The selected contents are skipped wherever the selection starts and ends (every text block from the first to the last selected one). 2.7.9 recognised the contents only when their first paragraph was a paragraph of a section itself: a selection starting in the contents' title turned the contents' own paragraphs (which equal their lines) into one joined title, and one ending in a cite, poem or title skipped every paragraph to the end of the book. With the fix those runs mark up the book's titles instead (snapshot titles-from-contents.toc-title: nothing to mark up, the contents untouched).",
+        "An empty list gives the message the original meant to show (\"Список не содержит ни одного заголовка, поэтому заголовки в этот раз не были размечены.\") and returns to the dialog; 2.7.9 stopped with a script error (Arr.length of null) before reaching it."
+      ],
+      "openQuestions": [
+        "A line of the list can make several paragraphs titles: the original marks a matched line as used only for the list it leaves, it still compares used lines; kept as 2.7.9."
+      ]
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/30_Привести заголовки глав к виду 'Глава 1'.js",
@@ -4103,15 +4115,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/30_chapter-titles",
+      "id": "13/chapter-titles",
       "status": "new",
       "predecessor": null,
       "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/30_privesti-titles-glav-to-vidu-glava-1",
-      "suggestedId": "13/privesti-titles-glav-to-vidu-glava-1"
+      "fixes": [
+        "Where the replaced part reaches the end of the title, the space the replacement string ends with is not written: \"Четырнадцатая глава\" becomes \"Глава 14\" (2.7.9: \"Глава 14 \"), likewise \"XIII. \" -> \"Глава 13.\", \"Глава четырнадцатая,\" -> \"Глава 14,\", \"Первая глава \" -> \"Глава 1\". The replacements \"Глава N. \" and \"Глава N \" were written for a title that goes on after the number; when nothing follows, the trailing space is a clear defect of the target form \"Глава 1\"."
+      ],
+      "openQuestions": [
+        "Three expressions are not anchored at the start: with text before \"Глава\" the 0-based search position is used as the 1-based start of the replacement, so \"Пролог. Глава XII. Ночь\" becomes \"ПрологГлава 12. Ночь\" (the \". \" before \"Глава\" is eaten). Whether such titles should be normalised at all (the other expressions are anchored) is unclear; kept as 2.7.9.",
+        "A non-breaking space between the words of a numeral stops the table lookup (only runs of two or more spaces are collapsed): \"Глава сорок<NBSP>первая\" stays as it is; kept.",
+        "\"Пятнадцатая глава, Встреча\" loses the comma (\"Глава 15 Встреча\"): the branch \"<числительное> глава\" keeps only a dot or a colon; kept.",
+        "A word made of Roman letters is read as a numeral: a title \"Liv\" becomes \"Глава 54\"; kept.",
+        "The \"Глава 30\" branches count a title as replaced when its text differs from the new HTML, so a formatted title is counted though unchanged (message only); kept."
+      ]
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/40_Привести заголовки частей к виду 'Часть I'.js",
@@ -4127,15 +4145,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/40_part-titles",
+      "id": "13/part-titles",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/40_privesti-titles-chastey-to-vidu-chast-i",
-      "suggestedId": "13/privesti-titles-chastey-to-vidu-chast-i"
+      "openQuestions": []
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/50_Привести заголовки разделов-'книг' к виду 'Книга I'.js",
@@ -4151,15 +4167,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/50_book-section-titles",
+      "id": "13/book-section-titles",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/50_privesti-titles-razdelov-knig-to-vidu-kniga-i",
-      "suggestedId": "13/privesti-titles-razdelov-knig-to-vidu-kniga-i"
+      "openQuestions": []
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/525_Разметка подзаголовков, чистка пустых строк.js",
@@ -4283,15 +4297,23 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/529_remove-title-formatting",
+      "id": "13/remove-title-formatting",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/529_udalit-formatting-into-zagolovkakh-and-podzagolo",
-      "suggestedId": "13/udalit-formatting-into-zagolovkakh-and-podzagolo"
+      "differences": [
+        "The random proverb the original appended to its results window is left out, pending the requester's decision: the list (277 sayings, the 271 of the book «Пословицы и поговорки Великой Отечественной войны» plus six about Kursk and Sudzha) includes calls to kill \"fascists\".",
+        "In the \"show\" mode (setting 2) the line is selected in the Body view instead of being underlined in red and scrolled with the window's measures; the Да / Нет / Отмена browsing is a message with three buttons. The original's check that the Body (\"B\") view is shown has no counterpart.",
+        "The history entry (setting Version_on_off, off by default) uses the setting youName; the original's override by a global fbeUserName of main.js does not exist.",
+        "The expressions run on the legacy inline-HTML notation, where formatting with a language (which 2.7.9 did not keep) is written with lang=... and is left alone, as in the other converted scripts."
+      ],
+      "fixes": [
+        "The code and style checks of the titles in the notes and comments bodies test the title itself; the original tested a variable left over from the previous line, so a notes title entirely in code (\"<code>2</code>\") kept the code unless the line before happened to hold code. Converted, the code goes (snapshot remove-title-formatting: the notes title \"2\")."
+      ],
+      "openQuestions": [
+        "The bold, italic, index and strikethrough tests run on the line's HTML, where &nbsp; counts as the letters n, b, s, p: \"<strong>Глава</strong>&nbsp;3\" keeps its bold; kept as 2.7.9.",
+        "Letters are А-я, Ёё, A-Za-z and Α-ω only: Ukrainian і, ї, є, ґ count as no letters; kept."
+      ]
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/530_Удаление жирности и курсива в подзаголовках.js",
@@ -4307,15 +4329,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/530_remove-subtitle-bold-italics",
+      "id": "13/remove-subtitle-bold-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/530_removal-zhirnosti-and-kursiva-into-podzagolovkak",
-      "suggestedId": "13/removal-zhirnosti-and-kursiva-into-podzagolovkak"
+      "differences": [
+        "The expressions run on the legacy inline-HTML notation, where bold or italics with a language (which 2.7.9 did not keep) are written with lang=... and are left alone, as in the other converted scripts."
+      ],
+      "fixes": [
+        "The heading \"Статистика\" of the message shows when only italic subtitles were processed too; the original tested the bold counter twice (count_111 || count_111). Message only."
+      ],
+      "openQuestions": []
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/540_Удалить все пустые строки во всех body, кроме body примечаний и комментариев.js",
@@ -4331,15 +4355,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/540_remove-all-empty-lines",
+      "id": "13/remove-all-empty-lines",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A removal the schema forbids is not made and is counted in the status bar (\"Не удалено (запрещено структурой документа)\"): the empty line of a section that would keep only its title, the only verse of a stanza whose poem would keep only its title. 2.7.9 removed them and wrote invalid FB2."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/540_udalit-all-empty-lines-vo-vsekh-body-krome-body",
-      "suggestedId": "13/udalit-all-empty-lines-vo-vsekh-body-krome-body"
+      "openQuestions": []
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/543_Удалить пустые строки в выделении.js",
@@ -4355,15 +4379,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/543_remove-empty-lines-in-selection",
+      "id": "13/remove-empty-lines-in-selection",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/543_udalit-empty-lines-into-vydelenii",
-      "suggestedId": "13/udalit-empty-lines-into-vydelenii"
+      "differences": [
+        "A removal the schema forbids (the empty line of a section that would keep only its title) is not made and is counted in the status bar; 2.7.9 wrote the invalid section.",
+        "The original's message for a selection inside an input field has no counterpart: a script sees only the Body view; a caret in the book's annotation or history (the top of the Body view) processes nothing."
+      ],
+      "fixes": [
+        "Empty table cells inside the selection are left alone: 2.7.9 took the cells (<P class=td>) for empty lines and removed the empty ones that had a neighbour, taking cells out of the table's rows.",
+        "A selection that ends inside formatted text (bold, italics, a link) ends there: the original took the formatting element as the end of the selection, never met it among the paragraphs and went on to the end of the book."
+      ],
+      "openQuestions": []
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/550_Создать заголовок книги (в body) из названия (в описании документа).js",
@@ -4379,15 +4407,16 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/550_book-title-from-description",
+      "id": "13/book-title-from-description",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A book without any body (a descriptor) is refused with a message; 2.7.9 made a body. A book with only notes or comments bodies gets a new main body in front of them, as in 2.7.9.",
+        "The caret is put at the start of the title's first line; 2.7.9 also scrolled the title to the middle of the window."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/550_sozdat-title-knigi-v-body-from-nazvaniya-v-opisa",
-      "suggestedId": "13/sozdat-title-knigi-v-body-from-nazvaniya-v-opisa"
+      "openQuestions": []
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/560_Унификация подзаголовков-звездочек (С-К).js",
@@ -4403,15 +4432,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/560_unify-asterisk-subtitles",
+      "id": "13/unify-asterisk-subtitles",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The optional proverb of the results window (setting Poslovitsa_on_off, off by default) is not included; its list is the 271 sayings of the book «Пословицы и поговорки Великой Отечественной войны» (see 529)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/560_unification-podzagolovkov-zvezdochek-s-k",
-      "suggestedId": "13/unification-podzagolovkov-zvezdochek-s-k"
+      "openQuestions": []
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/570_Поиск возможных заголовков по ключевым словам.js",
@@ -4427,15 +4456,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/570_find-possible-titles",
+      "id": "13/find-possible-titles",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "An inline picture counts as one character, as in the converted 2.7 engine; the original counted it as \"~~~\", three characters, which shifted the selection after a picture.",
+        "The book's annotation and history, shown at the top of the Body view, are not searched; the original searched them when the caret was there.",
+        "The status-bar descriptions have English versions for the English interface; the Russian ones are the original's."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/570_search-vozmozhnykh-of-titles-po-klyuchevym-slova",
-      "suggestedId": "13/search-vozmozhnykh-of-titles-po-klyuchevym-slova"
+      "openQuestions": [
+        "When two expressions match at the same place, the earlier one of the list wins (JavaScript's stable sort): \"Список литературы\" is reported as the keyword \"Список \", not as the heading of several words; the order JScript's sort gave equal positions is unknown; kept."
+      ]
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/580_Удалить подзаголовки из звездочек рядом с заголовками.js",
@@ -4451,15 +4484,17 @@
       "encoding": "utf-8-sig",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/13_subtitles/580_remove-asterisks-near-titles",
+      "id": "13/remove-asterisks-near-titles",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A removal the schema forbids (the \"* * *\" subtitle of a section that would keep only its title) is not made and is reported in the final message; 2.7.9 removed it and wrote invalid FB2."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/13_subtitles/580_udalit-subtitles-from-zvezdochek-ryadom-s-zagolo",
-      "suggestedId": "13/udalit-subtitles-from-zvezdochek-ryadom-s-zagolo"
+      "openQuestions": [
+        "A \"* * *\" subtitle that ends a cite or a poem counts as \"above a title\" when the next container after that element (paragraphs skipped) starts with a title, for instance a poem with a title after a paragraph: the original's functions speak of sections but take any container; kept as 2.7.9."
+      ]
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/590_Расформатировать все заголовки_Комбо.js",

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "13/remove-subtitle-bold-italics",
+  "name": {
+    "ru": "Удаление жирности и курсива в подзаголовках",
+    "en": "Remove bold and italics in subtitles",
+    "uk": "Видалення жирного та курсиву в підзаголовках"
+  },
+  "description": {
+    "ru": "Удаляет жирность из всех подзаголовков и курсив из подзаголовков, целиком набранных курсивом, во всём тексте, включая аннотацию и историю документа.",
+    "en": "Removes the bold from every subtitle, and the italics from the subtitles that are italic as a whole, in the whole text, the annotation and the document history included.",
+    "uk": "Видаляє жирне накреслення з усіх підзаголовків і курсив із підзаголовків, цілком набраних курсивом, у всьому тексті, зокрема в анотації та історії документа."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удаление жирности и курсива в подзаголовках",
+    "en": "Remove bold and italics in subtitles"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/530_Удаление жирности и курсива в подзаголовках.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.02"
+  }
+}

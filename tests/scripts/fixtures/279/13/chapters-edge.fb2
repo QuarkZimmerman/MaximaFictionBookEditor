@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Главы</last-name>
+			</author>
+			<book-title>Заголовки глав: особые случаи</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026</date>
+			<id>fixture-279-13-chapters-edge</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Пролог. Глава XII. Ночь</p>
+			</title>
+			<p>Слово «Глава» не в начале заголовка.</p>
+		</section>
+		<section>
+			<title>
+				<p>XIII. </p>
+			</title>
+			<p>Римское число, точка и пробел, больше ничего.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава четырнадцатая,</p>
+			</title>
+			<p>Числительное и запятая.</p>
+		</section>
+		<section>
+			<title>
+				<p>Пятнадцатая глава, Встреча</p>
+			</title>
+			<p>Запятая после слова «глава».</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава сорок&#160;первая</p>
+			</title>
+			<p>Неразрывный пробел внутри числительного.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава XXIII <a l:href="#n1" type="note">[1]</a></p>
+			</title>
+			<p>Сноска после номера.</p>
+		</section>
+		<section>
+			<title>
+				<p>Первая глава </p>
+			</title>
+			<p>Пробел в конце.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава шестнадцатая<a l:href="#n2" type="note">[2]</a></p>
+			</title>
+			<p>Сноска сразу после числительного.</p>
+		</section>
+		<section>
+			<title>
+				<p>  Глава XVII. Дождь</p>
+			</title>
+			<p>Пробелы в начале.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава 18 &amp; 19</p>
+			</title>
+			<p>Амперсанд после номера.</p>
+		</section>
+		<section>
+			<title>
+				<p>1001</p>
+			</title>
+			<p>Арабское число без ограничения.</p>
+		</section>
+		<section>
+			<title>
+				<p>Liv</p>
+			</title>
+			<p>Слово из римских букв, которое есть в таблице (LIV = 54).</p>
+		</section>
+		<section>
+			<title>
+				<p>Mix</p>
+			</title>
+			<p>Слово из римских букв, которого в таблице нет.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Первая сноска.</p>
+		</section>
+		<section id="n2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Вторая сноска.</p>
+		</section>
+	</body>
+</FictionBook>

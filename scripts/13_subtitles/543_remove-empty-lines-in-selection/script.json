@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "13/remove-empty-lines-in-selection",
+  "name": {
+    "ru": "Удалить пустые строки в выделении",
+    "en": "Remove the empty lines in the selection",
+    "uk": "Видалити порожні рядки у виділенні"
+  },
+  "description": {
+    "ru": "Удаляет пустые строки и абзацы из одних пробелов в выделенных абзацах (без выделения - в абзаце с курсором), оставляя элементу хотя бы одну строку.",
+    "en": "Removes the empty lines and the paragraphs of spaces in the selected paragraphs (without a selection, in the caret's paragraph), leaving each element at least one line.",
+    "uk": "Видаляє порожні рядки та абзаци з самих пробілів у виділених абзацах (без виділення - в абзаці з курсором), залишаючи елементові принаймні один рядок."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить пустые строки в выделении",
+    "en": "Remove the empty lines in the selection"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/543_Удалить пустые строки в выделении.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "13/book-title-from-description",
+  "name": {
+    "ru": "Создать заголовок книги (в body) из названия (в описании документа)",
+    "en": "Create the book title (in the body) from the title in the description",
+    "uk": "Створити заголовок книги (у body) з назви (в описі документа)"
+  },
+  "description": {
+    "ru": "Вписывает в начало заголовка основного тела книги строку с именами авторов и строку с названием книги из описания документа, создавая заголовок, если его нет.",
+    "en": "Writes a line with the authors' names and a line with the book title from the document description at the top of the main body's title, making the title when there is none.",
+    "uk": "Вписує на початок заголовка основного тіла книги рядок з іменами авторів і рядок із назвою книги з опису документа, створюючи заголовок, якщо його немає."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Создать заголовок книги (в body) из названия (в описании документа)",
+    "en": "Create the book title (in the body) from the title in the description"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/550_Создать заголовок книги (в body) из названия (в описании документа).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

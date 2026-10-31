@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "13/unify-asterisk-subtitles",
+  "name": {
+    "ru": "Унификация подзаголовков-звездочек (С-К)",
+    "en": "Unify asterisk subtitles (script constructor)",
+    "uk": "Уніфікація підзаголовків-зірочок (С-К)"
+  },
+  "description": {
+    "ru": "Подзаголовки из трёх и более звёздочек с любыми пробелами, в том числе курсивные и жирные, во всех телах книги и в аннотации превращает в «* * *» без форматирования и показывает статистику.",
+    "en": "Turns the subtitles made of three or more asterisks with any spaces, italic and bold ones too, in every body and in the book's annotation into \"* * *\" without formatting, and shows statistics.",
+    "uk": "Підзаголовки з трьох і більше зірочок із будь-якими пробілами, зокрема курсивні й жирні, в усіх тілах книги та в анотації перетворює на «* * *» без форматування і показує статистику."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Унификация подзаголовков-звездочек (С-К)",
+    "en": "Unify asterisk subtitles (script constructor)"
+  },
+  "legacy": {
+    "source": "13_Заголовки, подзаголовки, пустые строки/560_Унификация подзаголовков-звездочек (С-К).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}
