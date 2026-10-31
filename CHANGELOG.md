@@ -5,6 +5,15 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.6 - unreleased
 
+### In short
+
+- Improved table editing
+- Ctrl+S saves the book; browser shortcuts no longer interfere
+- Added the scripts of FictionBook Editor 2.7.9 and updated the existing ones
+- Icons in the Scripts menu
+- Pictures: full-size view and natural-size inline pictures
+- The AI assistant can find, explain, run and change scripts
+
 ### Added
 
 - *Add > Table* asks for the columns and for a header column besides the rows and a header
@@ -291,6 +300,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.5 - 2026-10-23
 
+### In short
+
+- The AI assistant, with free services or your own
+- Ask AI about the selection in the Body and Source views
+- The assistant lists, explains and runs scripts
+- Every request is one undo step and is checked against the schema
+
 ### Added
 
 - The AI assistant (feature 005). Settings gains an **AI assistant** page with three choices:
@@ -486,6 +502,16 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.4 - 2026-10-21
 
+### In short
+
+- The Document Tree pane can be resized
+- Other persons in the Description view
+- Description import from another book and export as FBD
+- A proposed file name for new books
+- Annotation and history back at the top of the Body view
+- The caret and the selection carried between the Body and Source views
+- Restore position and the keyboard layout switch fixed
+
 ### Added
 
 - The Document Tree pane can be made narrower or wider: a divider between the pane and the
@@ -617,6 +643,16 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.3 - 2026-10-17
 
+### In short
+
+- Ukrainian interface and spelling dictionary
+- Spelling dictionaries from a folder
+- Scheduled check for a new version
+- Desktop shortcut option in the Windows installer
+- Tag completion in the Source view
+- A running script is clearly shown
+- The window reopens where it was closed
+
 ### Added
 
 - Ukrainian interface, as the original offered: Settings > View lists System default, English,
@@ -736,6 +772,15 @@ All notable changes to Maxima Fiction Book Editor. The format follows
 
 ## 0.0.2 - 2026-10-15
 
+### In short
+
+- Check for a new version from the Help menu
+- Toolbars customised as in the original
+- Your own blank book template
+- A new untitled document at start-up
+- Published under the GNU General Public License version 3
+- Fixes to start-up on Windows, menus, Find and Replace, and file dialogs
+
 ### Added
 
 - Help > Check for new version...: asks the project's release page for the latest published
@@ -830,6 +875,13 @@ All notable changes to Maxima Fiction Book Editor. The format follows
   kept them disabled there.
 
 ## 0.0.1 - first public build
+
+### In short
+
+- The first public build of Maxima Fiction Book Editor
+- System, light or dark theme
+- A portable ZIP for Windows next to the installer
+- The original's scripts in a sandbox
 
 A complete re-implementation of the classic FictionBook Editor for Windows 10/11,
 Linux (Ubuntu 22.04+, X11 and Wayland) and macOS (best effort), with the same

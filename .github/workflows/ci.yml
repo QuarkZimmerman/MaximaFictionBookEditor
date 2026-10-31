@@ -76,6 +76,15 @@ jobs:
         # docs/releases page exists while a pre-release part is set. tools/version-check.py
         # mirrors cmake/MfbeVersion.cmake, which stays the authority.
         run: python3 tools/version-check.py --self-test && python3 tools/version-check.py --check
+      - name: Short list of changes per release (FR-075 of feature 007)
+        # Every version of CHANGELOG.md starts with its "### In short" list, which the Release
+        # workflow puts at the top of the release text; the dry run reads the current version's
+        # list exactly as the Release workflow will, and fails when it is empty.
+        run: |
+          python3 tools/changelog-in-short.py --self-test
+          python3 tools/changelog-check.py
+          version=$(sed -n 's/^.*"version": *"\([0-9.]*\).*$/\1/p' ui/package.json | head -1)
+          python3 tools/changelog-in-short.py "$version"
       - uses: actions/setup-node@v5
         with:
           node-version: 24
