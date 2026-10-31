@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Footnote texts from paragraphs marked with asterisks",
+      "html": "<style>body{font-family:Tahoma,sans-serif}div.title{text-align:center;font-weight:bold}p.subtitle{text-align:center;font-weight:bold}p.author{text-align:right;font-style:italic}div.poem,div.cite,div.epigraph{margin-left:2em}table{border-collapse:collapse}td,th{border:1px solid #888;padding:2px 4px}div.section{margin-top:1em}</style><div class=\"title\"><p>Footnote texts taken from paragraphs marked with asterisks</p><p>Count: 5</p></div><div class=\"section\"><div class=\"title\"><p>1</p></div><p>Примечание к аннотации.</p></div><div class=\"section\"><div class=\"title\"><p>2</p></div><p>Первое примечание.</p><p>Его второй абзац.</p></div><div class=\"section\"><div class=\"title\"><p>3</p></div><p>Второе примечание с <strong>жирным</strong> словом.</p><div class=\"poem\"><div class=\"stanza\"><p>Стих второго примечания,</p><p>второй стих.</p></div></div></div><div class=\"section\"><div class=\"title\"><p>4</p></div><p>Третье примечание.</p></div><div class=\"section\"><div class=\"title\"><p>5</p></div><div class=\"cite\"><p>Четвертое примечание в цитате.</p><p class=\"author\">Автор</p></div></div>"
+    }
+  ]
+}

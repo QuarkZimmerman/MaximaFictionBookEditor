@@ -118,11 +118,446 @@ node tests/scripts/run-script.mjs $G/08_titles-case $B --answer '{"bodySectionTi
 
 ## 02_Примечания
 
-19 scripts in 2.7.9: 10 new, 9 successors of converted packages. Not yet converted or rechecked.
+19 scripts in 2.7.9: 10 new, all converted here (T047); the successors of the nine packages
+converted from 2.7beta1 (`01_add-footnote` … `08_unify-footnotes-remove-unused`,
+`20_test-footnotes`, with `notes-engine.js`) are left for their recheck. Packages:
+`scripts/02_footnotes/<NN>_<slug>/` with the 2.7.9 number, ids `02/<slug>`, `legacy.source` the
+2.7.9 path (`sourceVersion` from the header: 31 and 32 "1.2", 35 "1.0"; the others state none),
+`name` and `description` in ru, en and uk, the 2.7.9 icon (38 has none), `undoLabel` the name,
+`needsSelection` true for 12 only. In `index.js` the skeleton's notice lines verbatim
+(`check-notices.py --package`: OK for all ten); the dialogs keep their credit in their title
+("… v4.5. Автор Sclex."). Reference books `tests/scripts/fixtures/279/02/`, snapshots
+`tests/scripts/snapshots/02/` (33, listed in its `suite.json`); every book validates against
+`FictionBook.xsd`. The harness runs the English interface: the messages quoted below are the
+Russian originals, the logs show their English texts.
+
+### The common ground
+
+**The page.** The note scripts walked FictionBook Editor's `fbw_body`: the book annotation and the
+history first (DIVs `annotation`, `history`), then every body; a text block was a `P` (an empty
+line an empty `P`, a subtitle `P.subtitle`, a text author and a poem's date `P.text-author`, a
+table cell `P.td`/`P.th`), a link an `A` of `document.links`. `lib/notes-book.js` (byte-identical
+in 09, 12, 15, 17, 19, 24, 38 and in 03/20, 03/38) gives that page from the document model: a
+working copy of the description and the bodies that a script changes in memory, the text blocks
+and the links (`linkGroups`: consecutive items under one link mark with the same marks outside
+it - one `A`) in page order, FictionBook Editor's `getLocalHref`, the renumbering the note
+scripts end with (`renumber`: the sections of a body get the ids `prefix`N and the titles N,
+every link of the page whose address was a section's id gets the new address and, where the
+script set `innerHTML`, the text [N] or a superscript {N} inside the marks around the link) and
+`commit` - `doc.replaceNode` per changed body (its untouched nodes keep their ids),
+`doc.insertNode('after', …)` for a body the script made, `doc.setDescription` for the annotation
+and the history. The run is one undo step; a script that asks a question after changing the book
+commits first, so the user sees the change behind the question, as in 2.7.9.
+
+**Nesting of a new link.** The editor keeps a link outside the formatting of the same characters
+when it writes FB2: a note link made inside an emphasis comes out as `<emphasis>…</emphasis><a
+…><emphasis>[4]</emphasis></a>` where 2.7.9 wrote `<emphasis>…<a …>[4]</a></emphasis>`. The text
+and its formatting are the same; the records list it as a difference.
+
+**The IE HTML.** 09 and 35 run the originals' expressions on a paragraph's HTML. `lib/ie-html.js`
+(byte-identical in both) writes a block in the notation of `lib/legacy-html.js` (`<EM>`,
+`<STRONG>`, `<SUP>`, `<A class=note href="#n_1">`, `&nbsp;`, …) but nests the marks in the order
+the model lists them - the order the book was read in, as they nested in the original's page,
+where `legacy-html.js` sorts them with the link outermost - and maps every HTML position back to a
+block offset. 09 reads its result back with `legacy-html.js`'s `parseInline` (copied unchanged
+from General clean-up) and writes a mark's language as that module does; 35 only searches and
+writes none, as Internet Explorer had none.
+
+### 09 Перенумеровать примечания (расширенная версия)
+
+`09_renumber-footnotes-extended`, id `02/renumber-footnotes-extended`. The original runs two
+scripts in one undo step and then says «Скрипт «Перенумеровать примечания (расширенная версия)»
+v.1.0 GE»:
+- Run1, "Унификация сносок (объединенная)", the renumbering of 07 in its older form: the notes
+  body gets the title «Примечания» when its first section/epigraph/title is no title, its sections
+  the ids n_1, n_2… and the titles 1, 2… (a section without a title gets one), and every link of
+  the page that points to one of them - the annotation and the history included, whatever its
+  type - the address #n_N and the text [N]. Unlike 07 of 2.7.9 it adds no `type="note"` and shows
+  no message of its own; with sections nested in the notes body it stops with «В body примечаний
+  есть секции второго уровня вложения…».
+- Run2, GE's "Уборка сносок": seven expressions over the `innerHTML` of every paragraph of the
+  bodies (not the annotation, not the history - `ObrabotkaAnnotation`/`ObrabotkaHistory` false)
+  around the links of class `note`: a closing `</EM>`/`</STRONG>` after the link goes before it,
+  an opening one before it (after at most two dots or spaces) goes after it, a space or `&nbsp;`
+  before the link goes, punctuation after it (`.,;` or `!?:…`, a closing tag and the spaces
+  around it) goes before it, a `…` at the paragraph's end goes before it, a space comes after it
+  before a letter, a dash, `(` or `[`.
+
+Converted with `notes-book.js` (`renumber` on the working copy, then `commit`) and the
+expressions run verbatim on `ie-html.js`'s HTML of each paragraph that holds a note link
+(`\s` written out as JScript's `[ \f\n\r\t\v]`), read back with `parseInline`.
+
+Books and snapshots: `renumber.fb2` (`renumber-footnotes-extended.xml`): an annotation with a note
+link, ten paragraphs each exercising an expression, a comment link and an internal link left
+alone, a notes body without a title whose sections are `n_3`, `old` (no title) and `n_1`.
+Expected and recorded: the body titled «Примечания», the sections n_1 «Первое по порядку.», n_2
+(titled 2) and n_3; the links #n_3 → [1], #old → [2], #n_1 → [3], the annotation's too
+(«Аннотация [2] .» keeps its spaces - Run2 does not clean the annotation); "Первый[1] абзац,
+слово[1] с пробелом." (the space before the second link goes, the one after comes back),
+"<emphasis>Курсив</emphasis>[2] после.", "Точка.[3]", "Многоточие…[3]", "Запятая,[2] дальше.",
+"Буква[1] дальше.", "<strong>Жирный</strong>[2] текст.", "Неразрывный пробел[3] и комментарий {1}
+." (the `&nbsp;` before the link goes, the comment link and its space stay), "Ссылка на главу
+глава ." unchanged. `renumber-no-notes.fb2` (`.no-notes.xml`): no notes body - nothing
+renumbered, Run2 makes "Сноска без раздела.[1]". `renumber-nested.fb2` (`.nested.xml`): the
+message, the book unchanged.
+
+Differences: no notes body is made when there is none (2.7.9 made one holding only a title, which
+FB2 does not allow); formatting with a language keeps its tags where they are (the expressions
+match bare tags; FictionBook Editor dropped `xml:lang` of formatting when reading); the nesting
+of a renumbered link inside formatting (above). Fix: with nested sections the script stops after
+its message with nothing changed; 2.7.9 had already titled the body and then stopped with a
+script error (it removed a link this script never inserts), so the clean-up and the final message
+never came.
+
+### The engine of 12, 15, 17, 19 and 24: `lib/paragraph-notes.js`
+
+Sclex's "Создать сноски или комментарии из … абзацев" scripts open a modeless HTML dialog
+(`HTML/Создать сноски … - задание параметров.htm`); the `.js` only passes the version. The dialog
+does the work over the page, in passes:
+1. the note texts: the selected paragraphs (12) or the paragraphs starting with the "first
+   paragraph" marker (15-24); each starts a note text, one starting with the continuation marker
+   («++», plain text, the dialog's field) continues the one before, its marker and the spaces
+   around it removed; a poem, cite, table or epigraph is taken whole (its paragraphs stripped
+   alike); a paragraph becomes a `<P>` of the note (a subtitle stays a subtitle; one with nothing
+   but spaces an empty line, as FictionBook Editor saved it), losing its id and style;
+2. the signs: the matches of the sign marker outside links - 12: in the text before the
+   selection's first paragraph; 15-24: in every paragraph that is no asterisk line («* * *») and
+   does not start with the first paragraph marker, not at the very start of a paragraph
+   («совпадение должно быть не от начала абзаца»);
+3. both numbers differ: «Найдены 2 маркера знака сноски. / Найден 1 текст сноски. / Поскольку эти
+   числа не совпадают, добавление сносок не будет произведено.»; they agree: «… Ура! Эти числа
+   совпали. А значит, сноски можно создать. Создать сноски?» (OK/Cancel). Then every sign, in
+   order, becomes a link (class `note` with "[N]" for footnotes, a superscript "{N}" without type
+   for comments) that takes the formatting of the sign's first character without superscript
+   (`unsupReferences`), the spaces before the sign removed (`removeSpacesBeyondTags`, pictures in
+   between kept); its section, titled 0 and holding the next note text, goes after the section of
+   the note link before it (`findPreviousNote`: a link of class `note`, for footnotes, or one
+   pointing into the target body), else at the start of the target body (titled «Примечания» /
+   «Комментарии» first when it has no title), else into a new body at the end of the book; at the
+   end the target body is renumbered (`renumberNotes`) and the status bar says «Было добавлено 5
+   текстов сносок.»;
+4. 15-24 ask «Удалить ли абзацы-исходники текстов сносок?» and remove the source paragraphs and
+   containers with the empty lines right before and after each (`removeSourceNodes`).
+
+The modeless dialog is a loop of forms: its action buttons are a radio choice («Создать сноски»,
+«Создать комментарии», «Предпросмотр…»; «… и выйти» and «Выйти» are OK and Cancel), and the form
+comes back where the dialog stayed open - after a preview (a report window: the note texts under
+the original's heading and «Количество: N»), a count that does not agree, a declined
+confirmation, an error - with the values entered. Creating the notes ends the run. The passes
+work on the working copy: the texts and signs are taken from the book as it was, the links are
+put in from the last sign of a paragraph to the first, the sections inserted, the body
+renumbered, then committed; the removal of the sources (and its commit) follows the second
+question. A sign that is a "number in superscript" is matched as the originals did: the paragraph
+as text with only its first-level `<SUP>` tags (`leaveOnlyFirstLevelSups`) against their two
+expressions (the count used `upperNumberRegExp` with every link's content replaced by "x", the
+search the dialog's own one); the matches map back to the characters.
+
+Differences of the five (each record lists its own): the form loop; the preview's report window;
+a poem's date is not searched for signs (FB2 allows no link in it); an epigraph taken into a note
+where it cannot open the section becomes a cite, and a new section with no note link before it
+goes before the body's first section, after its title and epigraphs (2.7.9: right after the
+title); a section emptied by the removal keeps an empty line (15-24), an annotation or history
+emptied by it goes (2.7.9 saved none, as with group 19); the nesting of a new link (above).
+Fixes: a note link before a sign that points to no section of the target body stops the creation
+with the original's message before anything changes (2.7.9 showed it and went on, leaving the
+sign replaced by a link with the placeholder text «Œ±Ǥ» and its note text unused, or put the new
+section next to whatever the link pointed to); 15-24 do not take note texts from the notes and
+comments bodies (the walk meant to skip them but tested the element's first child) and do not
+search the sections they made for signs (2.7.9 did, so a note text holding the sign character got
+a section of its own with the text «undefined»); in 15-24 an «&» before a sign no longer shifts it
+(the dialogs' `unmakeEntities` left «&amp;» five characters long, so the link went four characters
+past the sign and a character there was deleted); in 12 and 24 a superscript sign mixing Unicode
+digits and `<sup>` loses its own characters only, and an empty match finds nothing (2.7.9 looped
+for ever). Open question (15-24, kept): a «++» paragraph continues the note text before it
+wherever it stands (`previosPWasPartOfNote` is never set false).
+
+### 12 Создать сноски или комментарии из выделенных абзацев
+
+`12_notes-from-selected-paragraphs`, id `02/notes-from-selected-paragraphs`, v4.2. The note texts
+are the selection's paragraphs (the one the selection starts in whole, the one it ends at the very
+start of left out; a selection starting inside a poem, cite, table or epigraph takes that
+container); signs as chosen: «вида [1]», «{1}», «[~1~]», «{~1~}», «* (одна звездочка)», «число
+надстрочным текстом» (the default) or «задать свой» (a regular expression with the flags gm, or
+plain text); continuation «++». The selected paragraphs stay (2.7.9 left them to the user) and
+the selection is put back. Form fields: `noteSign`, `refMarkerStr`, `interpretAsRegExp`,
+`notFirstParagraphStr`, `action`.
+
+Books and snapshots: `selected.fb2`, selection `n9:3`-`n17:0` - `notes-from-selected-paragraphs.xml`
+(`{"noteSign":"1","action":"notes"}`, ok): notes 1 «Текст первой сноски.» + «Продолжение
+первой.», 2 «Текст второй сноски.», 3 the poem + «после стиха.», 4 the subtitle «Подзаголовок
+четвертой» («После выделения.» is not taken); signs [1], [2], [4] (in strong), [5] - «ссылка[3]»
+is inside a link; links "сноска[1]", "сноска[2]" (the space before it gone), "сноска[3]" (strong),
+"четвертая[4]"; `.comments.xml` the same as comments ({N}, a comments body); `.preview.xml` the
+report of the four texts. `markers.fb2`, selection `n12:0`-`n15:14` - `.superscript.xml`
+(defaults): signs `<sup>1</sup>`, «²», `<sup>12</sup>` (the linked `<sup>3</sup>` is no sign); the
+four selected paragraphs are the texts as they are, «¹»/«²»/«³» included (12 removes no first
+paragraph marker - it has none); links [1] [2] [3] without the superscript. All as expected.
+
+Further differences: «задать свой» is a choice of its own (the dialog chose it when its field got
+the focus); without a selection the message («Пожалуйста вначале выделите абзацы…») ends the run
+(the menu item needs a selection; a modal form cannot wait for one); a custom marker that does not
+compile gets the message of 15-24 and the form comes back (2.7.9: a script error); a pattern typed
+into the dialog is a JavaScript regular expression (JScript's `\s` did not match U+00A0). Further
+fix: the walk over the selection goes on after a container that ends its section (2.7.9 stopped
+there and lost the rest), stops after the container holding the selection's end (2.7.9 took the
+paragraphs after the selection up to the end of the book or the next container ending a section)
+and no longer fails on a selection starting inside such a container (a script error in 2.7.9).
+
+### 15 Создать сноски или комментарии из абзацев, помеченных звездочками
+
+`15_notes-from-asterisk-paragraphs`, id `02/notes-from-asterisk-paragraphs`, v4.5. The dialog's
+visible part: the two help texts (static fields), the continuation marker and the buttons; its
+hidden settings are fixed: signs `\*+`, first paragraph marker `^[ \u00A0*]*\*[ \u00A0*]*` (the
+original's two spellings, one with a typo «#\*», match the same), not at the paragraph's start.
+Only this one of the four leaves a container whose first paragraph is an asterisk line alone.
+
+Books and snapshots: `asterisks.fb2` - `notes-from-asterisk-paragraphs.xml` (`{"action":"notes"}`,
+ok, ok): signs in the annotation «звездочкой*», «сноской*», «сноска **», «звездочкой*» (in an
+emphasis), «цитату***»; not signs «* * *», «ссылка*» (in a link), the cite starting with «* * *»
+(left alone), the sources; texts «Примечание к аннотации.», «Первое примечание.» + «Его второй
+абзац.», «Второе примечание с <strong>жирным</strong> словом.» + the poem (its first verse without
+«++ », the second without «*»), «Третье примечание.» (after spaces), the cite «Четвертое
+примечание в цитате.» with its text author; a notes body after the main body, n_1…n_5, links in
+sign order, «сноска[3] и» without the space; the five sources go with the four empty lines, the
+section keeps its title and an empty line. `.comments.xml` (comments, keep the sources), `.preview.xml`,
+`.mismatch.xml` (`mismatch.fb2`: two signs, one text - the message, the form, cancel),
+`.broken-link.xml` (`broken-link.fb2`: the note link [9] to «#nowhere» before the sign - «Ошибка!
+Ссылка в документе указывает на элемент, которого не существует.», unchanged),
+`.annotation-source.xml` (`annotation-source.fb2`: the annotation's only paragraph is the text of
+the one note; removed, the annotation goes). All as expected.
+
+### 17 Создать сноски или комментарии из абзацев, помеченных знаками решетки
+
+`17_notes-from-hash-paragraphs`, id `02/notes-from-hash-paragraphs`, v4.4: as 15 with «#» (signs
+`#+`, first paragraph marker `^[ \u00A0#]*#[ \u00A0#]*`); a line of asterisks is skipped, as the
+original's check (written for asterisks) did, but a line «# # #» is a note text.
+
+Books and snapshots: `hashes.fb2` (a notes body with n_1, n_2 and links to them) -
+`notes-from-hash-paragraphs.xml` (notes, ok, keep the sources): signs A «Начало#», B «новая##»
+(after the link [1]), C «новая # сноска» (after an untyped link to n_2); A goes before n_1, B after
+n_1, C after n_2 → n_1 A, n_2 old 1, n_3 B, n_4 old 2, n_5 C; the old [1] becomes [2], both links to
+the old n_2 become #n_4 with the text [4] - the untyped one's word «второй» too, as renumberNotes
+set every such link's innerHTML; the sources stay. `.comments.xml`: the note links are no
+candidates for comments - c_1…c_3 in sign order, the notes untouched. `.preview.xml`;
+`.mismatch.xml` (`mismatch.fb2`: «# # #» is a text, there is no sign - 0 against 1). All as
+expected. Open question (kept): «# # #» as a note text.
+
+### 19 Создать сноски или комментарии из абзацев, помеченных знаками карет
+
+`19_notes-from-caret-paragraphs`, id `02/notes-from-caret-paragraphs`, v4.4: as 17 with «^».
+
+Books and snapshots: `carets.fb2` (a history with a sign, a subtitle «* * *» skipped, a source
+subtitle continued by a «++» paragraph) - `notes-from-caret-paragraphs.comments.xml` (comments,
+ok, ok): a comments body after the main body, c_1 for the history's sign («История{1} правок.»),
+«Комментарий{2} и еще один{3}», «Жирный{4}» in strong without its space; c_3 holds the subtitle
+«Подзаголовок второго.» and «Абзац второго.»; the section of the sources keeps an empty line;
+`.xml` the same as footnotes; `.preview.xml`; `.none.xml` (`mismatch.fb2`: «В документе не нашлось
+ни одного абзаца-исходника текста сноски.», the form, cancel). All as expected. Open question
+(kept): «^ ^ ^» as a note text.
+
+### 24 Создать сноски или комментарии из абзацев, помеченных маркерами
+
+`24_notes-from-marked-paragraphs`, id `02/notes-from-marked-paragraphs`, v7.3: the dialog shows all
+its settings - the sign marker (`noteSign`: [1], {1}, [~1~], {~1~}, `[*]+`, «число надстрочным
+текстом» the default, or one's own `refMarkerStr` with `interpretAsRegExp`), «совпадение должно
+быть не от начала абзаца» (`matchNotFromBeginning`, on), the first paragraph marker
+(`firstNoteP`: the same kinds as regular expressions with the flags gm, «число надстрочным
+текстом» the default, or one's own `firstNotePMarkerStr` with `interpretAsRegExp2`), the
+continuation marker; a pattern that does not compile: «Произошла ошибка при компиляции регэкспа
+для маркера знака сноски.» (or «…маркера первого абзаца текста сноски.») with the engine's message,
+and the form comes back.
+
+Books and snapshots: `markers.fb2` - `notes-from-marked-paragraphs.xml` (defaults, ok, ok): signs
+`<sup>1</sup>`, «²», `<sup>12</sup>`, not the linked `<sup>3</sup>`; texts «Первая сноска.»,
+«Вторая сноска.» + «Продолжение второй.», «Третья сноска.» (a source starting with a space and
+`<sup>3</sup>`); links without the superscript; `.comments.xml`, `.preview.xml`, `.bad-regexp.xml`
+(own sign «[»: the message, unchanged); `markers-brackets.fb2` - `.brackets.xml`
+(`{"noteSign":"1","firstNoteP":"30","action":"notes"}`, keep): «Текст[1]», «подряд[2][3]» - two
+signs in a row - and the texts «Первая.», «Вторая.», «Третья.». All as expected. Further fixes:
+the first paragraph marker is removed only at the start of a paragraph (this dialog searched it
+anywhere and cut that many characters off the start of a continuation paragraph or a verse holding
+a number further on); two signs in a row are both counted (2.7.9's count stopped with «Произошла
+ошибка (код 1)» and still asked whether to remove the sources).
+
+### 31 Расширенный поиск возможных сносок
+
+`31_find-possible-footnotes-extended`, id `02/find-possible-footnotes-extended`; v1.2 (TaKir and
+Sclex's set of 22.11.2024). "Поиск по набору регэкспов" of the current generation: group 16's
+`regexp-set.js` and `nav-lib.js`, copied unchanged (engine 'current', `returns: false` - the
+original's `Run()` returns nothing). The expressions, as JScript read the strings: `^[\]]` (the
+original's "^[\]]" is `^[]]`, which JScript - like Perl - took for a "]" at the start) «Найдено:
+скобки в начале строки»; `^[*]` outside subtitles; `([A-Za-zА-яЁё0-9…,;.»"!?:%“™”©\)])[[*]`
+«звездочки или скобки после букв, цифр и знаков препинания»; four, three, two and one digits after
+`[A-Za-zА-яЁё…,;.»"!?:%“™”©\)]` «… прилипшие к словам» (of two at one place the longer, registered
+first, wins). Book `search.fb2`, snapshot `find-possible-footnotes-extended.xml` (`--select n5:0:0`,
+unchanged) and the chain `chain-search.xml` (below). Expected and recorded from n5:0: n5:0-1 «]»,
+n6:0-1 «*», n8:4-6 «о*», n8:13-15 «о[», n9:4-7 «т12», n10:5-9 «.123», n11:7-9 «)*», n12:10-12 «я1»
+(the superscript is text), n14:16-18 «а5», n15:5-7 «.*», then «Поиск завершен!» and «От позиции
+курсора до конца документа ничего не найдено.» with the selection left; from n8:5 n8:13-15 (the
+match «о*» starts before the caret). Differences: a picture is one character (2.7.9: three); a
+soft hyphen is a character (2.7.9: «&shy;», five, whose «;» could complete «…;*»); the
+`addMacros` definitions, used by tag expressions only, are not carried over; no scrolling step.
+Fix: the picture-selection message (group 16's).
+
+### 32 Поиск возможных сносок (без скобок)
+
+`32_find-possible-footnotes-no-brackets`, id `02/find-possible-footnotes-no-brackets`; v1.2. As 31
+with its own set: «]» and «*» at the start; `([A-Za-zА-яЁё…,;.»"!?:%“™”©\)])([\x20\xA0])?[*]`
+«звездочки после букв и знаков препинания» (a space or `&nbsp;` between allowed);
+`[*]([\x20\xA0])?[A-Za-zА-яЁё]` «звездочки или скобки перед буквами»; the digits «… прилипшие к
+словам и знакам препинания». Snapshot `find-possible-footnotes-no-brackets.xml` (`n5:0:0`) and
+the chain. Expected and recorded from n5:0: n5:0-1, n6:0-1 (of «*» and «* з» at 0 the first
+registered), n8:4-6, n9:4-7, n10:5-9, n11:7-9, n11:20-23 «а *», n12:10-12, n14:16-18, n15:5-7, then
+the message. Differences and fix as 31.
+
+### 35 Поиск возможных маркеров сносок
+
+`35_find-possible-footnote-markers`, id `02/find-possible-footnote-markers`; v1.0 (20.02.2022).
+The older generation of the engine (`marker-search.js`, on group 16's `nav-lib.js` and
+`lib/ie-html.js`): a collapsed caret starts one character on and a match right at it does not
+count, the caret's paragraph is searched to its end, no «Пропустить» exceptions, no «Поиск
+завершен!»; and `tagRegExp`, expressions over the paragraph's HTML with the macros `<sup>`
+(`<[Ss][Uu][Pp](?![a-z])[^>]*?>`) and `</sup>`, a match ending inside a tag passed over. The
+set: a superscript number after a real space in the HTML («Пробел перед маркером сноски, возможно
+приклеившийся абзац текста сноски»), a superscript at the start and in the middle of a paragraph,
+digits stuck to letters (`i`) or to punctuation, apostrophes stuck to letters or digits (a space
+between allowed for two more), asterisks stuck to letters, after `[»….,:;!\?-—–]` - whose range
+`?`–`—` takes in every Latin and Cyrillic letter, so it also finds a letter and an asterisk, one
+character before «Прилипшие к тексту звездочки» would -, after a letter and a space, and «*» at
+the start outside subtitles. The look-behinds, cut off and checked by hand in the original, are
+the engine's own: here both give the same matches. Snapshot `find-possible-footnote-markers.xml`
+(`n5:0:0`) and the chain. Expected and recorded from n5:0: n6:0-1, n8:4-6 «о*» (the range),
+n9:5-7 «12», n10:6-9 «123», n11:21-23 « *», n12:11-12 (the superscript in the middle, registered
+before the digits at the same place), n12:22-23 (after a space), n13:0-1 (at the start), n14:8-9
+«'», n14:17-18 «5», n14:18-19 «'», n14:27-29 « '», n15:5-7, then the message; from the caret n8:5
+- n9:5-7 (the «*» right at the caret is not reached). Differences: a picture is one character
+(2.7.9: «~~~») and an `<IMG href>` in the HTML (Internet Explorer: `<SPAN class=image><IMG src>`),
+which no expression looks at; a soft hyphen is a character (2.7.9: «&shy;», whose «;» could
+complete «Прилипшие к знакам препинания цифры»); the look-behinds; no scrolling. Fix: the
+picture-selection message.
+
+**The chain** `tests/scripts/fixtures/279/02/chains/search` (a test driver, not a bundled script)
+runs 31 (11 times from n5:0 and once from n8:5), 32 (11 times) and 35 (14 times, and once from
+n8:5) through `mfbe.scripts.run` by their FictionBook Editor paths and writes one line per call -
+the value (null) and the selection - to the clipboard: `chain-search.outputs.json`, on
+`search.fb2`, the book unchanged (`chain-search.xml`).
+
+### 38 Превратить внешние ссылки в примечания
+
+`38_external-links-to-footnotes`, id `02/external-links-to-footnotes`; stokber's compilation 1.3
+(December 2024). The original first turns, in every paragraph (annotation and history included),
+an external link - `<A (class="" )?href="(https?:|ftp:|file:|mailto:)…">text</A>`, no type - into
+its text and the address between the temporary brackets 【♣★ ★♣】 (General clean-up's expression),
+then runs "Примечания из скобок" (the 2.7beta1 604 with those brackets): every bracketed address
+becomes a link [N] of class `note` to a new section holding the address, inserted before the
+section of the next note link of the book (appended without one), and `finalization` renumbers
+the sections (titles, ids n_N), the addresses of every link to them and the text of those of
+class `note`. A book that already holds 【♣★ or ★♣】 is refused («Это невероятно, но в вашем
+документе обнаружились…») with the pattern «【♣★|★♣】» on the clipboard. The end: «'Превратить
+внешние ссылки в примечания' v1.3. / Добавлено примечаний: 5. / Затрачено времени: …».
+Converted in one pass on the document (`lib/external-links.js`, shared with 03/38): every
+external link's items lose the link mark and get a note link after them, inside the marks that
+were around the link; the placement is worked out first, then the sections inserted, the body
+renumbered (`renumber`) and committed; the clipboard through `mfbe.clipboard.writeText`.
+
+Books and snapshots: `external-links.fb2` (`external-links-to-footnotes.xml`): links in the
+annotation, plain, inside an emphasis, around a strong word (mailto:), ftp:; an old note [1], an
+untyped internal link to n_1 and a «www.» address without a scheme. Expected and recorded: the
+first three notes go before the old n_1 (the next note link after them), the last two at the end -
+n_1 «http://example.com/annotation», n_2, n_3 «https://example.com/b?x=1&y=2», n_4 the old note,
+n_5 «mailto:user@example.com», n_6; «ссылкой[1]», «первый[2]», «второй[3]» (in the emphasis),
+«Старая сноска[4]», «<strong>письмо</strong>[5]» (the strong was inside the link), «файл[6]»; the
+internal link gets #n_4 and keeps its text (only links of class `note` got [N]); the «www.» link
+stays; «Добавлено примечаний: 5.». `external-links-broken.fb2` (`.broken-link.xml`): the note link
+after the external one points to «#nowhere» - «Ссылка сноски ссылается на несуществующий
+раздел…», «Добавлено примечаний: 0.», the book unchanged. `external-links-marks.fb2`
+(`.marks.xml`): the refusal, the clipboard «【♣★|★♣】» in `outputs.json`, unchanged.
+
+Differences: no brackets are written into the text (the refusal stays, as the observable
+behaviour); the nesting of a new link (above). Fixes: a note link after an external link that
+points to no section of the notes body stops the run before anything changes (2.7.9 stopped in the
+middle, the later links left as «【♣★address★♣】» text); sections nested in the notes body stop it
+before anything changes, as its message says (2.7.9 said so after bracketing the links and then
+made the notes all the same).
 
 ## 03_Комментарии
 
-10 scripts in 2.7.9: 2 new, 8 successors of converted packages. Not yet converted or rechecked.
+10 scripts in 2.7.9: 2 new, both converted here (T048); the successors of the eight packages
+converted from 2.7beta1 (`01_add-comment` … `08_unify-comments-remove-unused`, with
+`notes-engine.js`) are left for their recheck. Packages: `scripts/03_comments/<NN>_<slug>/` with
+the 2.7.9 number, ids `03/<slug>`, `legacy.source` the 2.7.9 path (20: `sourceVersion` "1.4"),
+`name` and `description` in ru, en and uk, the 2.7.9 icon (38 has none), `undoLabel` the name,
+`needsSelection` false; in `index.js` the skeleton's notice lines verbatim
+(`check-notices.py --package`: OK for both). Both use `lib/notes-book.js`, the page helper of
+group 02 (byte-identical; see the group 02 notes). Reference books
+`tests/scripts/fixtures/279/03/`, snapshots `tests/scripts/snapshots/03/` (9, in its `suite.json`).
+A comments body is a FictionBook Editor convention that FB2 2.1 does not allow (a second body
+must be named "notes"): the books holding one validate without it and load as legacy, as
+`conv-a-02.fb2` of the earlier conversion does.
+
+### 20 Проверить корректность оформления комментариев
+
+`20_check-comments`, id `03/check-comments`; v1.4. The counterpart of 02_Примечания/30 for
+comments: no comments body - «Отсутствует body комментариев.»; a section of the comments body
+without id - «Раздел номер N в body комментариев не имеет id. Перемещаемся на нее...»; then every
+link of the page in order (the annotation and the history first), except external ones (an
+address holding http://, https:// or ftp://) and those pointing into the notes body: an empty
+text - «Текст ссылки равен пустой строке.», an empty address - «Пустой адрес ссылки.», no «#» -
+«Отсутствует # в адресе ссылки.», no comment section of that id - «В body комментариев нет раздела
+комментария с id, указанным в ссылке.», a section pointed to twice - «Вторая сноска, которая
+ссылается на тот же раздел.», a link out of order - «Ссылки идут не по порядку…» with the previous
+and the current section, the first link not to the first section - «Первая ссылка ссылается не на
+первый раздел…»; each as «Ошибка в сноске {N} … Перемещаемся на ошибочную сноску...». Then the
+sections no link points to - «Отсутствуют ссылки на некоторые разделы комментариев…» with their
+list; else «Проверка корректности оформления комментариев завершена. Ошибок не обнаружено.
+Затраченное время: …». After a problem the caret goes where it is, as FictionBook Editor's `GoTo`
+put it: at the start of the faulty link, or of the first paragraph (the title) of the section.
+Read-only; `selection.set` places the caret.
+
+Books and snapshots: `check-comments.xml` (`check-ok.fb2`, `--select n5:0:0`, unchanged) and the
+chain `tests/scripts/fixtures/279/03/chains/check` - it puts the caret at the start of the book,
+runs the check through `mfbe.scripts.run` by its FictionBook Editor path and writes the value
+(null) and the caret to the clipboard - on seven books, `chain-check.<book>.xml` with its
+`outputs.json`. Expected and recorded: `ok` - no error, the caret left at n4:0; `order` (an
+external link and a footnote link before the comment links {2}, {1}) - «Первая ссылка ссылается
+не на первый раздел. … Номер: 2 id: c_2 Текст ссылки: {2}», the caret at n6:11, the link {2};
+`unreferenced` - c_3 listed, the caret at the start of its title (n27:0); `no-id` - section 2, the
+caret at its title (n23:0); `unknown` (a link to the chapter's id) - «В body комментариев нет
+раздела комментария с id, указанным в ссылке.», the caret at n6:4; `twice` - «Вторая сноска…»,
+the caret at the second link (n6:24); `no-body` - «Отсутствует body комментариев.», the caret
+left.
+
+Difference: the messages show a link's text ({1}) where 2.7.9 showed its HTML (`<SUP>{1}</SUP>`).
+Fix: the order check compares a comment link with the comment link before it; 2.7.9 took the link
+before it in the book, so a footnote or external link before the first comment link made it
+report «Ссылки идут не по порядку» with «Номер: 0 id: undefined» and that other link's text
+instead of «Первая ссылка ссылается не на первый раздел» (the `order` book); that message now
+shows the link's text, which a stray semicolon dropped. Open question (kept as in 2.7.9, whose
+test of the link type is commented out): every link that is neither external nor into the notes
+body is checked as a comment link, so an internal link to a chapter is reported (the `unknown`
+book).
+
+### 38 Превратить внешние ссылки в комментарии
+
+`38_external-links-to-comments`, id `03/external-links-to-comments`; stokber's compilation 1.3: as
+02_Примечания/38 with the comment settings of its "Комментарии из скобок" - a comments body titled
+«Комментарии», ids c_N, the links {N} in superscript without a type, the next comment link a link
+whose local address starts with «c_», and every link to a comment section gets the text {N}
+(`finalization` tested the address it had just written). Engine `lib/external-links.js`
+(byte-identical with 02/38); the messages «'Превратить внешние ссылки в комментарии' v1.3.»,
+«Добавлено комментариев: N.».
+
+Book and snapshot: `external-links.fb2` (`external-links-to-comments.xml`): the links of the 02
+book with an old comment {1} (to c_1) between the third and the fourth, a footnote link beside
+it, and notes and comments bodies. Expected and recorded: the first three comments go before the
+old c_1, the last two at the end - c_1 the annotation's address, c_2, c_3, c_4 the old comment,
+c_5 «mailto:…», c_6; «ссылкой{1}», «первый{2}», «второй{3}» (in the emphasis), «Старый
+комментарий{4}» with the footnote [1] untouched, «<strong>письмо</strong>{5}», «файл{6}»;
+«Добавлено комментариев: 5.».
+
+Differences and fixes as 02/38 (no brackets written into the text, the refusal kept; the nesting
+of a new link in formatting; a comment link pointing to no comment section and sections nested in
+the comments body stop the run before anything changes).
 
 ## 04_Примечания и комментарии из скобок
 

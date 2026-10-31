@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "02/renumber-footnotes-extended",
+  "name": {
+    "ru": "Перенумеровать примечания (расширенная версия)",
+    "en": "Renumber footnotes (extended version)",
+    "uk": "Перенумерувати примітки (розширена версія)"
+  },
+  "description": {
+    "ru": "Перенумеровывает разделы примечаний (id n_N, заголовки N) и все ссылки на них ([N]), затем приводит в порядок пробелы, знаки препинания и курсив или жирность вокруг ссылок сносок",
+    "en": "Renumbers the footnote sections (ids n_N, titles N) and every link to them ([N]), then tidies the spaces, punctuation and italics or bold around the footnote links",
+    "uk": "Перенумеровує розділи приміток (id n_N, заголовки N) і всі посилання на них ([N]), потім упорядковує пробіли, розділові знаки та курсив або жирний шрифт навколо посилань на примітки"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перенумеровать примечания (расширенная версия)",
+    "en": "Renumber footnotes (extended version)"
+  },
+  "legacy": {
+    "source": "02_Примечания/09_Перенумеровать примечания (расширенная версия).js",
+    "fbeVersion": "2.7.9"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "02/notes-from-hash-paragraphs",
+  "name": {
+    "ru": "Создать сноски или комментарии из абзацев, помеченных знаками решетки",
+    "en": "Create footnotes or comments from paragraphs marked with hash signs",
+    "uk": "Створити примітки або коментарі з абзаців, позначених знаками решітки"
+  },
+  "description": {
+    "ru": "Абзацы, начинающиеся со знаков решетки, становятся текстами сносок или комментариев, а знаки решетки в тексте — ссылками на них; помеченные абзацы затем можно удалить",
+    "en": "Paragraphs that start with hash signs (#) become footnote or comment texts and the hash signs in the text links to them; the marked paragraphs can then be removed",
+    "uk": "Абзаци, що починаються зі знаків решітки, стають текстами приміток або коментарів, а знаки решітки в тексті — посиланнями на них; позначені абзаци потім можна видалити"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Создать сноски или комментарии из абзацев, помеченных знаками решетки",
+    "en": "Create footnotes or comments from paragraphs marked with hash signs"
+  },
+  "legacy": {
+    "source": "02_Примечания/17_Создать сноски или комментарии из абзацев, помеченных знаками решетки....js",
+    "fbeVersion": "2.7.9"
+  }
+}

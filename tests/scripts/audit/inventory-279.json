@@ -22,7 +22,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 283
+    "converted": 295
   },
   "entries": [
     {
@@ -435,15 +435,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/09_renumber-footnotes-extended",
+      "id": "02/renumber-footnotes-extended",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/09_perenumerovat-footnotes-rasshirennaya-versiya",
-      "suggestedId": "02/perenumerovat-footnotes-rasshirennaya-versiya"
+      "differences": [
+        "Without a notes body nothing is renumbered and no body is made: 2.7.9 created a notes body holding only a title, which FB2 does not allow (a body needs a section); the clean-up of the note links runs all the same.",
+        "The clean-up leaves an opening or closing EM or STRONG of formatting with a language (xml:lang) where it is: its expressions match bare tags and such tags carry the language (FictionBook Editor dropped xml:lang of formatting when it read the book).",
+        "A renumbered link inside formatting is written with the formatting inside the link (<a><emphasis>[2]</emphasis></a>): the editor nests a link outside the formatting of the same characters; the text and its formatting are the same."
+      ],
+      "fixes": [
+        "With sections nested in the notes body the script stops after its message with nothing changed, as the message says («Работа скрипта завершена»); 2.7.9 had already titled a notes body without a title and then stopped with a script error (it removed a link this script never inserts), so the clean-up and the final message never came."
+      ],
+      "openQuestions": []
     },
     {
       "source": "02_Примечания/12_Создать сноски или комментарии из выделенных абзацев....js",
@@ -461,15 +465,29 @@
       "htmlDialogs": [
         "HTML/Создать сноски из выделенных абзацев - задание параметров.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/12_notes-from-selected-paragraphs",
+      "id": "02/notes-from-selected-paragraphs",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/12_sozdat-snoski-ili-comments-from-vydelennykh-of-p",
-      "suggestedId": "02/sozdat-snoski-ili-comments-from-vydelennykh-of-p"
+      "differences": [
+        "The modeless dialog is a form whose action choice holds the dialog's buttons (Создать сноски, Создать комментарии - with or without «и выйти» -, Предпросмотр); the form comes back where the dialog stayed open (after a preview, a count that does not agree, a declined confirmation or an error), and creating the notes ends the run, where the buttons without «и выйти» kept the dialog open for another run.",
+        "The preview is a report window with the note texts numbered 1, 2... under the original's heading and «Количество: N» (2.7.9 opened an HTML window styled like the book).",
+        "«задать свой» is chosen in its own right (the dialog chose it when the text field got the focus).",
+        "Without a selection the message ends the run (the menu item needs a selection anyway): a modal form cannot wait while the user selects text, the modeless dialog could.",
+        "A custom marker that is not a valid regular expression gets the message of 15-24 («Произошла ошибка при компиляции регэкспа для маркера знака сноски.») and the form comes back; 2.7.9 stopped with a script error.",
+        "A poem's date is not searched for signs: FB2 allows no link in it (FictionBook Editor showed the date as a P of class text-author and searched it).",
+        "An epigraph taken into a note text where it cannot open the section becomes a cite, and a new section with no note link before it goes before the first section of the notes body, after the body's title and epigraphs (2.7.9 put it right after the title, before the epigraphs): FB2 allows an epigraph only at the start of a section and before the first section of a body.",
+        "The selection is put back where it was after the notes are made (2.7.9 selected from its block markers with a setEndPoint call whose result depended on Internet Explorer).",
+        "A new note link inside formatting is written with the formatting inside the link (<a><emphasis>[4]</emphasis></a> for 2.7.9's <emphasis>...<a>[4]</a></emphasis>): the editor nests a link outside the formatting of the same characters; the text and its formatting are the same.",
+        "A pattern typed into the dialog is a JavaScript regular expression: JScript's \\s did not match U+00A0 or the other Unicode spaces, JavaScript's does."
+      ],
+      "fixes": [
+        "The walk over the selection goes on after a poem, cite, table or epigraph that ends its section (2.7.9 stopped there and lost the rest of the selection), stops after the container that holds the end of the selection (2.7.9 did not see its end marker inside it and took every paragraph after the selection up to the end of the book or the next such container ending a section), and no longer fails on a selection that starts inside such a container ending its section (a script error in 2.7.9).",
+        "A note link before a sign that points to no section of the notes body (an id that does not exist, or one outside the notes body) stops the creation with the original's message «Ошибка!» before anything changes, and the form comes back; 2.7.9 showed the message and went on, leaving that sign replaced by a link with the placeholder text «Œ±Ǥ» and its note text unused (with a link pointing outside the notes body it put the new section next to whatever the link pointed to).",
+        "A sign of Unicode superscript digits and <sup> digits together (¹<sup>2</sup>) loses its own characters only; 2.7.9 measured the match with its <SUP> tags and removed as many characters again after it.",
+        "A pattern that matches empty text finds no sign there (2.7.9 looped for ever on such a match)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "02_Примечания/15_Создать сноски или комментарии из абзацев, помеченных звездочками....js",
@@ -487,15 +505,27 @@
       "htmlDialogs": [
         "HTML/Создать сноски или комментарии из абзацев, помеченных звездочками - задание параметров.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/15_notes-from-asterisk-paragraphs",
+      "id": "02/notes-from-asterisk-paragraphs",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/15_sozdat-snoski-ili-comments-from-abzatsev-pomeche",
-      "suggestedId": "02/sozdat-snoski-ili-comments-from-abzatsev-pomeche"
+      "differences": [
+        "The modeless dialog is a form whose action choice holds the dialog's buttons (Создать сноски, Создать комментарии - with or without «и выйти» -, Предпросмотр); the form comes back where the dialog stayed open (after a preview, a count that does not agree, a declined confirmation or an error), and creating the notes ends the run, where the buttons without «и выйти» kept the dialog open for another run.",
+        "The preview is a report window with the note texts numbered 1, 2... under the original's heading and «Количество: N» (2.7.9 opened an HTML window styled like the book).",
+        "A poem's date is not searched for signs: FB2 allows no link in it (FictionBook Editor showed the date as a P of class text-author and searched it).",
+        "An epigraph taken into a note text where it cannot open the section becomes a cite, and a new section with no note link before it goes before the first section of the notes body, after the body's title and epigraphs (2.7.9 put it right after the title, before the epigraphs): FB2 allows an epigraph only at the start of a section and before the first section of a body.",
+        "A section whose content was all source paragraphs keeps an empty line: FB2 wants content in a section, and 2.7.9 left the section with its title only.",
+        "A new note link inside formatting is written with the formatting inside the link (<a><emphasis>[4]</emphasis></a> for 2.7.9's <emphasis>...<a>[4]</a></emphasis>): the editor nests a link outside the formatting of the same characters; the text and its formatting are the same."
+      ],
+      "fixes": [
+        "The notes and comments bodies are not searched for note texts: 2.7.9's walk meant to skip them but tested the wrong node (the first child of the element instead of the element), so a paragraph of an existing note that started with the marker became a note text and was removed with the sources.",
+        "The sections made in the run are not searched for signs: 2.7.9's walk went on into them, so a note text holding the sign character got a section of its own whose text was «undefined».",
+        "A note link before a sign that points to no section of the notes body (an id that does not exist, or one outside the notes body) stops the creation with the original's message «Ошибка! Ссылка в документе указывает на элемент, которого не существует.» before anything changes, and the form comes back; 2.7.9 showed the message and went on, leaving that sign replaced by a link with the placeholder text «Œ±Ǥ» and its note text unused (with a link pointing outside the notes body it put the new section next to whatever the link pointed to).",
+        "Text before a sign that holds «&» no longer shifts the sign: the dialog's unmakeEntities left «&amp;» five characters long (a misplaced parenthesis), so after an ampersand 2.7.9 put the link four characters past the sign, left the sign and deleted a character there."
+      ],
+      "openQuestions": [
+        "A paragraph starting with the continuation marker («++») continues the note text before it wherever it stands, also after paragraphs that are no note text (the dialog's previosPWasPartOfNote is never set false); kept as in 2.7.9."
+      ]
     },
     {
       "source": "02_Примечания/17_Создать сноски или комментарии из абзацев, помеченных знаками решетки....js",
@@ -513,15 +543,28 @@
       "htmlDialogs": [
         "HTML/Создать сноски или комментарии из абзацев, помеченных знаками решетки - задание параметров.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/17_notes-from-hash-paragraphs",
+      "id": "02/notes-from-hash-paragraphs",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/17_sozdat-snoski-ili-comments-from-abzatsev-pomeche",
-      "suggestedId": "02/sozdat-snoski-ili-comments-from-abzatsev-pomeche"
+      "differences": [
+        "The modeless dialog is a form whose action choice holds the dialog's buttons (Создать сноски, Создать комментарии - with or without «и выйти» -, Предпросмотр); the form comes back where the dialog stayed open (after a preview, a count that does not agree, a declined confirmation or an error), and creating the notes ends the run, where the buttons without «и выйти» kept the dialog open for another run.",
+        "The preview is a report window with the note texts numbered 1, 2... under the original's heading and «Количество: N» (2.7.9 opened an HTML window styled like the book).",
+        "A poem's date is not searched for signs: FB2 allows no link in it (FictionBook Editor showed the date as a P of class text-author and searched it).",
+        "An epigraph taken into a note text where it cannot open the section becomes a cite, and a new section with no note link before it goes before the first section of the notes body, after the body's title and epigraphs (2.7.9 put it right after the title, before the epigraphs): FB2 allows an epigraph only at the start of a section and before the first section of a body.",
+        "A section whose content was all source paragraphs keeps an empty line: FB2 wants content in a section, and 2.7.9 left the section with its title only.",
+        "A new note link inside formatting is written with the formatting inside the link (<a><emphasis>[4]</emphasis></a> for 2.7.9's <emphasis>...<a>[4]</a></emphasis>): the editor nests a link outside the formatting of the same characters; the text and its formatting are the same."
+      ],
+      "fixes": [
+        "The notes and comments bodies are not searched for note texts: 2.7.9's walk meant to skip them but tested the wrong node (the first child of the element instead of the element), so a paragraph of an existing note that started with the marker became a note text and was removed with the sources.",
+        "The sections made in the run are not searched for signs: 2.7.9's walk went on into them, so a note text holding the sign character got a section of its own whose text was «undefined».",
+        "A note link before a sign that points to no section of the notes body (an id that does not exist, or one outside the notes body) stops the creation with the original's message «Ошибка! Ссылка в документе указывает на элемент, которого не существует.» before anything changes, and the form comes back; 2.7.9 showed the message and went on, leaving that sign replaced by a link with the placeholder text «Œ±Ǥ» and its note text unused (with a link pointing outside the notes body it put the new section next to whatever the link pointed to).",
+        "Text before a sign that holds «&» no longer shifts the sign: the dialog's unmakeEntities left «&amp;» five characters long (a misplaced parenthesis), so after an ampersand 2.7.9 put the link four characters past the sign, left the sign and deleted a character there."
+      ],
+      "openQuestions": [
+        "A paragraph starting with the continuation marker («++») continues the note text before it wherever it stands, also after paragraphs that are no note text (the dialog's previosPWasPartOfNote is never set false); kept as in 2.7.9.",
+        "A line of the marker character and spaces alone («# # #») is a note text here - an empty one -, as in 2.7.9: only lines of asterisks are skipped, the original's check (pIsSubtitleRegExp) being written for asterisks in this dialog too; kept."
+      ]
     },
     {
       "source": "02_Примечания/19_Создать сноски или комментарии из абзацев, помеченных знаками карет....js",
@@ -539,15 +582,28 @@
       "htmlDialogs": [
         "HTML/Создать сноски или комментарии из абзацев, помеченных знаками карет - задание параметров.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/19_notes-from-caret-paragraphs",
+      "id": "02/notes-from-caret-paragraphs",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/19_sozdat-snoski-ili-comments-from-abzatsev-pomeche",
-      "suggestedId": "02/sozdat-snoski-ili-comments-from-abzatsev-pomeche"
+      "differences": [
+        "The modeless dialog is a form whose action choice holds the dialog's buttons (Создать сноски, Создать комментарии - with or without «и выйти» -, Предпросмотр); the form comes back where the dialog stayed open (after a preview, a count that does not agree, a declined confirmation or an error), and creating the notes ends the run, where the buttons without «и выйти» kept the dialog open for another run.",
+        "The preview is a report window with the note texts numbered 1, 2... under the original's heading and «Количество: N» (2.7.9 opened an HTML window styled like the book).",
+        "A poem's date is not searched for signs: FB2 allows no link in it (FictionBook Editor showed the date as a P of class text-author and searched it).",
+        "An epigraph taken into a note text where it cannot open the section becomes a cite, and a new section with no note link before it goes before the first section of the notes body, after the body's title and epigraphs (2.7.9 put it right after the title, before the epigraphs): FB2 allows an epigraph only at the start of a section and before the first section of a body.",
+        "A section whose content was all source paragraphs keeps an empty line: FB2 wants content in a section, and 2.7.9 left the section with its title only.",
+        "A new note link inside formatting is written with the formatting inside the link (<a><emphasis>[4]</emphasis></a> for 2.7.9's <emphasis>...<a>[4]</a></emphasis>): the editor nests a link outside the formatting of the same characters; the text and its formatting are the same."
+      ],
+      "fixes": [
+        "The notes and comments bodies are not searched for note texts: 2.7.9's walk meant to skip them but tested the wrong node (the first child of the element instead of the element), so a paragraph of an existing note that started with the marker became a note text and was removed with the sources.",
+        "The sections made in the run are not searched for signs: 2.7.9's walk went on into them, so a note text holding the sign character got a section of its own whose text was «undefined».",
+        "A note link before a sign that points to no section of the notes body (an id that does not exist, or one outside the notes body) stops the creation with the original's message «Ошибка! Ссылка в документе указывает на элемент, которого не существует.» before anything changes, and the form comes back; 2.7.9 showed the message and went on, leaving that sign replaced by a link with the placeholder text «Œ±Ǥ» and its note text unused (with a link pointing outside the notes body it put the new section next to whatever the link pointed to).",
+        "Text before a sign that holds «&» no longer shifts the sign: the dialog's unmakeEntities left «&amp;» five characters long (a misplaced parenthesis), so after an ampersand 2.7.9 put the link four characters past the sign, left the sign and deleted a character there."
+      ],
+      "openQuestions": [
+        "A paragraph starting with the continuation marker («++») continues the note text before it wherever it stands, also after paragraphs that are no note text (the dialog's previosPWasPartOfNote is never set false); kept as in 2.7.9.",
+        "A line of the marker character and spaces alone («^ ^ ^») is a note text here - an empty one -, as in 2.7.9: only lines of asterisks are skipped, the original's check (pIsSubtitleRegExp) being written for asterisks in this dialog too; kept."
+      ]
     },
     {
       "source": "02_Примечания/24_Создать сноски или комментарии из абзацев, помеченных маркерами....js",
@@ -565,15 +621,33 @@
       "htmlDialogs": [
         "HTML/Создать сноски или комментарии из абзацев, помеченных маркерами - задание параметров.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/24_notes-from-marked-paragraphs",
+      "id": "02/notes-from-marked-paragraphs",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/24_sozdat-snoski-ili-comments-from-abzatsev-pomeche",
-      "suggestedId": "02/sozdat-snoski-ili-comments-from-abzatsev-pomeche"
+      "differences": [
+        "The modeless dialog is a form whose action choice holds the dialog's buttons (Создать сноски, Создать комментарии - with or without «и выйти» -, Предпросмотр); the form comes back where the dialog stayed open (after a preview, a count that does not agree, a declined confirmation or an error), and creating the notes ends the run, where the buttons without «и выйти» kept the dialog open for another run.",
+        "The preview is a report window with the note texts numbered 1, 2... under the original's heading and «Количество: N» (2.7.9 opened an HTML window styled like the book).",
+        "A poem's date is not searched for signs: FB2 allows no link in it (FictionBook Editor showed the date as a P of class text-author and searched it).",
+        "An epigraph taken into a note text where it cannot open the section becomes a cite, and a new section with no note link before it goes before the first section of the notes body, after the body's title and epigraphs (2.7.9 put it right after the title, before the epigraphs): FB2 allows an epigraph only at the start of a section and before the first section of a body.",
+        "A section whose content was all source paragraphs keeps an empty line: FB2 wants content in a section, and 2.7.9 left the section with its title only.",
+        "A new note link inside formatting is written with the formatting inside the link (<a><emphasis>[4]</emphasis></a> for 2.7.9's <emphasis>...<a>[4]</a></emphasis>): the editor nests a link outside the formatting of the same characters; the text and its formatting are the same.",
+        "«задать свой» is chosen in its own right for either marker (the dialog chose it when its text field got the focus).",
+        "A pattern typed into the dialog is a JavaScript regular expression: JScript's \\s did not match U+00A0 or the other Unicode spaces, JavaScript's does."
+      ],
+      "fixes": [
+        "The notes and comments bodies are not searched for note texts: 2.7.9's walk meant to skip them but tested the wrong node (the first child of the element instead of the element), so a paragraph of an existing note that started with the marker became a note text and was removed with the sources.",
+        "The sections made in the run are not searched for signs: 2.7.9's walk went on into them, so a note text holding the sign character got a section of its own whose text was «undefined».",
+        "A note link before a sign that points to no section of the notes body (an id that does not exist, or one outside the notes body) stops the creation with the original's message «Ошибка! Ссылка в документе указывает на элемент, которого не существует.» before anything changes, and the form comes back; 2.7.9 showed the message and went on, leaving that sign replaced by a link with the placeholder text «Œ±Ǥ» and its note text unused (with a link pointing outside the notes body it put the new section next to whatever the link pointed to).",
+        "Text before a sign that holds «&» no longer shifts the sign: the dialog's unmakeEntities left «&amp;» five characters long (a misplaced parenthesis), so after an ampersand 2.7.9 put the link four characters past the sign, left the sign and deleted a character there.",
+        "The first paragraph marker is removed only where it stands at the start of a paragraph: this dialog's removeMarkerAtBeginning searched it anywhere in the paragraph (its pattern had no ^, its superscript search no anchor) and cut that many characters off the paragraph's start, so a continuation paragraph or a verse of a poem in a note with a number in superscript or in brackets somewhere inside lost its first characters.",
+        "Two signs in a row ([2][3]) are both counted: 2.7.9's count consumed the second one as if it stood at the start of the paragraph, then stopped with «Произошла ошибка (код 1)» and still asked whether to remove the source paragraphs, so they could go with no note made.",
+        "A sign of Unicode superscript digits and <sup> digits together (¹<sup>2</sup>) loses its own characters only; 2.7.9 measured the match with its <SUP> tags and removed as many characters again after it.",
+        "A pattern that matches empty text finds no sign there (2.7.9 looped for ever on such a match)."
+      ],
+      "openQuestions": [
+        "A paragraph starting with the continuation marker («++») continues the note text before it wherever it stands, also after paragraphs that are no note text (the dialog's previosPWasPartOfNote is never set false); kept as in 2.7.9."
+      ]
     },
     {
       "source": "02_Примечания/30_Проверить корректность оформления примечаний.js",
@@ -616,15 +690,20 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/31_find-possible-footnotes-extended",
+      "id": "02/find-possible-footnotes-extended",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/31_rasshirennyy-search-vozmozhnykh-of-footnotes",
-      "suggestedId": "02/rasshirennyy-search-vozmozhnykh-of-footnotes"
+      "differences": [
+        "A picture is one character of the paragraph's text (2.7.9 wrote it as three placeholder characters, shifting a selection after it by two per picture).",
+        "A soft hyphen is the character it is: 2.7.9 left it as the five characters «&shy;» in the text, whose «;» could complete an expression such as «…;*».",
+        "The original's addMacros definitions, which only tagRegExp expressions use and this script has none of, are not carried over.",
+        "The view is not scrolled by the original's scrollIfItNeeds; selecting the match brings it into view."
+      ],
+      "fixes": [
+        "The message about a selected picture printed the words «sel.type»; it reads «Не обрабатываемый тип выделения: выделена картинка.» now (the fix of group 16's engine)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "02_Примечания/32_Поиск возможных сносок (без скобок).js",
@@ -640,15 +719,20 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/32_find-possible-footnotes-no-brackets",
+      "id": "02/find-possible-footnotes-no-brackets",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/32_search-vozmozhnykh-of-footnotes-without-skobok",
-      "suggestedId": "02/search-vozmozhnykh-of-footnotes-without-skobok"
+      "differences": [
+        "A picture is one character of the paragraph's text (2.7.9 wrote it as three placeholder characters, shifting a selection after it by two per picture).",
+        "A soft hyphen is the character it is: 2.7.9 left it as the five characters «&shy;» in the text, whose «;» could complete an expression such as «…;*».",
+        "The original's addMacros definitions, which only tagRegExp expressions use and this script has none of, are not carried over.",
+        "The view is not scrolled by the original's scrollIfItNeeds; selecting the match brings it into view."
+      ],
+      "fixes": [
+        "The message about a selected picture printed the words «sel.type»; it reads «Не обрабатываемый тип выделения: выделена картинка.» now (the fix of group 16's engine)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "02_Примечания/35_Поиск возможных маркеров сносок.js",
@@ -664,15 +748,20 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/35_find-possible-footnote-markers",
+      "id": "02/find-possible-footnote-markers",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/35_search-vozmozhnykh-markerov-of-footnotes",
-      "suggestedId": "02/search-vozmozhnykh-markerov-of-footnotes"
+      "differences": [
+        "A picture is one character of the paragraph's text (2.7.9 wrote it as «~~~», three characters, shifting a selection after it by two per picture); in the paragraph's HTML it is <IMG href=\"…\"> (Internet Explorer had <SPAN class=image><IMG src=\"…\"></SPAN>), which none of the expressions looks at.",
+        "A soft hyphen is the character it is: 2.7.9 left it as the five characters «&shy;» in the text, whose «;» could complete «Прилипшие к знакам препинания цифры».",
+        "The leading look-behinds, which JScript lacked and the original cut off and checked by hand, are the engine's own: for these expressions both give the same matches, the characters a look-behind looks at never being part of its match.",
+        "The view is not scrolled; selecting the match brings it into view."
+      ],
+      "fixes": [
+        "The message about a selected picture printed the words «sel.type»; it reads «Не обрабатываемый тип выделения: выделена картинка.» now (the fix of group 16's engine)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "02_Примечания/38_Превратить внешние ссылки в примечания.js",
@@ -690,15 +779,19 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/02_footnotes/38_external-links-to-footnotes",
+      "id": "02/external-links-to-footnotes",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/02_footnotes/38_prevratit-vneshnie-links-into-footnotes",
-      "suggestedId": "02/prevratit-vneshnie-links-into-footnotes"
+      "differences": [
+        "The links are turned into notes directly on the document: the temporary brackets 【♣★ ★♣】 are never written into the text (a book that already holds them is still refused with the original's message and the pattern on the clipboard).",
+        "A note link inside formatting is written with the formatting inside the link (<a><emphasis>[3]</emphasis></a> for 2.7.9's <emphasis>...<a>[3]</a></emphasis>): the editor nests a link outside the formatting of the same characters; the text and its formatting are the same."
+      ],
+      "fixes": [
+        "A footnote link after an external link that points to no section of the notes body stops the run before anything changes, with the original's message, the caret on that link and «Добавлено примечаний: 0»; 2.7.9 stopped in the middle: the external links before it were notes already, this one and every later one stayed in the text as «【♣★address★♣】».",
+        "Sections nested in the notes body stop the run before anything changes, as the message says («Работа скрипта завершена»); 2.7.9 showed the message after it had turned the links into bracketed text, and then made the notes all the same."
+      ],
+      "openQuestions": []
     },
     {
       "source": "03_Комментарии/01_Добавить комментарий, остаться на его ссылке.js",
@@ -930,15 +1023,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/03_comments/20_check-comments",
+      "id": "03/check-comments",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/03_comments/20_proverit-korrektnost-oformleniya-comments",
-      "suggestedId": "03/proverit-korrektnost-oformleniya-comments"
+      "differences": [
+        "The messages show a link's text ({1}) where 2.7.9 showed its HTML (<SUP>{1}</SUP>)."
+      ],
+      "fixes": [
+        "The order check compares a comment link with the comment link before it: 2.7.9 took the link before it in the book, so a footnote or external link before the first comment link made it report «Ссылки идут не по порядку» with «Номер: 0 id: undefined» and that other link's text instead of «Первая ссылка ссылается не на первый раздел»; that message shows the link's text now, which a stray semicolon dropped from it."
+      ],
+      "openQuestions": [
+        "Every link that is neither external (http://, https://, ftp://) nor pointing into the notes body is checked as a comment link - an internal link to a chapter is reported as pointing to no comment section -, as in 2.7.9, whose test of the link type is commented out; kept."
+      ]
     },
     {
       "source": "03_Комментарии/38_Превратить внешние ссылки в комментарии.js",
@@ -956,15 +1053,19 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/03_comments/38_external-links-to-comments",
+      "id": "03/external-links-to-comments",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/03_comments/38_prevratit-vneshnie-links-into-comments",
-      "suggestedId": "03/prevratit-vneshnie-links-into-comments"
+      "differences": [
+        "The links are turned into notes directly on the document: the temporary brackets 【♣★ ★♣】 are never written into the text (a book that already holds them is still refused with the original's message and the pattern on the clipboard).",
+        "A note link inside formatting is written with the formatting inside the link (<a><emphasis>[3]</emphasis></a> for 2.7.9's <emphasis>...<a>[3]</a></emphasis>): the editor nests a link outside the formatting of the same characters; the text and its formatting are the same."
+      ],
+      "fixes": [
+        "A comment link after an external link that points to no section of the comments body stops the run before anything changes, with the original's message, the caret on that link and «Добавлено комментариев: 0»; 2.7.9 stopped in the middle: the external links before it were notes already, this one and every later one stayed in the text as «【♣★address★♣】».",
+        "Sections nested in the comments body stop the run before anything changes, as the message says («Работа скрипта завершена»); 2.7.9 showed the message after it had turned the links into bracketed text, and then made the notes all the same."
+      ],
+      "openQuestions": []
     },
     {
       "source": "04_Примечания и комментарии из скобок/601_Примечания из [].js",

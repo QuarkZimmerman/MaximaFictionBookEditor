@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Примечания</last-name>
+			</author>
+			<book-title>Комментарии из абзацев со знаками карет</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>История^ правок.</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Глава</p>
+			</title>
+			<p>Комментарий^ и еще один^^ в одном абзаце.</p>
+			<p><strong>Жирный ^</strong> комментарий.</p>
+			<subtitle>* * *</subtitle>
+		</section>
+		<section>
+			<title>
+				<p>Комментарии к главе</p>
+			</title>
+			<p>^ К истории правок.</p>
+			<p>^ Первый комментарий.</p>
+			<empty-line/>
+			<subtitle>^^ Подзаголовок второго.</subtitle>
+			<p>++ Абзац второго.</p>
+			<p>^^^ Третий комментарий.</p>
+		</section>
+	</body>
+</FictionBook>
