@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "18/insert-body-title",
+  "name": {
+    "ru": "Вставить заголовок body",
+    "en": "Insert a body title",
+    "uk": "Вставити заголовок body"
+  },
+  "description": {
+    "ru": "Вставляет пустой заголовок в body, в котором стоит курсор, или переводит курсор в заголовок этого body, если он уже есть.",
+    "en": "Inserts an empty title into the body the caret is in, or moves the caret to the body's title when it has one.",
+    "uk": "Вставляє порожній заголовок у body, у якому стоїть курсор, або переводить курсор до заголовка цього body, якщо він уже є."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Вставить заголовок body",
+    "en": "Insert a body title"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/02_Вставить заголовок body.js",
+    "fbeVersion": "2.7.9"
+  }
+}

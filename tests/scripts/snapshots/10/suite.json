@@ -1,0 +1,160 @@
+[
+  {
+    "snapshot": "10/general-statistics.xml",
+    "script": "scripts/10_statistics/07_general-statistics",
+    "book": "tests/scripts/fixtures/279/10/statistics.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "10/general-statistics.save-cancelled.xml",
+    "script": "scripts/10_statistics/07_general-statistics",
+    "book": "tests/scripts/fixtures/279/10/statistics.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "10/chain-general-statistics.xml",
+    "script": "tests/scripts/fixtures/279/10/chains/general-statistics",
+    "book": "tests/scripts/fixtures/279/10/statistics.fb2",
+    "args": [
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "10/chain-general-statistics.bare.xml",
+    "script": "tests/scripts/fixtures/279/10/chains/general-statistics",
+    "book": "tests/scripts/fixtures/279/10/bare.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "yes",
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "10/obscene-words-statistics.xml",
+    "script": "scripts/10_statistics/10_obscene-words-statistics",
+    "book": "tests/scripts/fixtures/279/10/obscene.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "10/obscene-words-statistics.no-notes.xml",
+    "script": "scripts/10_statistics/10_obscene-words-statistics",
+    "book": "tests/scripts/fixtures/279/10/obscene.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "cancel",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "10/obscene-words-statistics.none.xml",
+    "script": "scripts/10_statistics/10_obscene-words-statistics",
+    "book": "tests/scripts/fixtures/279/10/bare.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "10/book-dictionary-to-clipboard.xml",
+    "script": "scripts/10_statistics/16_book-dictionary-to-clipboard",
+    "book": "tests/scripts/fixtures/279/10/statistics.fb2",
+    "args": [
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "10/book-dictionary-to-clipboard.no.xml",
+    "script": "scripts/10_statistics/16_book-dictionary-to-clipboard",
+    "book": "tests/scripts/fixtures/279/10/statistics.fb2",
+    "args": [
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "10/book-dictionary-to-clipboard.bare.xml",
+    "script": "scripts/10_statistics/16_book-dictionary-to-clipboard",
+    "book": "tests/scripts/fixtures/279/10/bare.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "10/book-info-to-clipboard.xml",
+    "script": "scripts/10_statistics/17_book-info-to-clipboard",
+    "book": "tests/scripts/fixtures/279/10/statistics.fb2",
+    "args": [
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "10/book-info-to-clipboard.bare.xml",
+    "script": "scripts/10_statistics/17_book-info-to-clipboard",
+    "book": "tests/scripts/fixtures/279/10/bare.fb2",
+    "args": [
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "10/show-genres.xml",
+    "script": "scripts/10_statistics/18_show-genres",
+    "book": "tests/scripts/fixtures/279/10/statistics.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "10/show-genres.bare.xml",
+    "script": "scripts/10_statistics/18_show-genres",
+    "book": "tests/scripts/fixtures/279/10/bare.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  }
+]

@@ -1,0 +1,236 @@
+[
+  {
+    "snapshot": "18/insert-poem-title.xml",
+    "script": "scripts/18_editing/01_insert-poem-title",
+    "book": "tests/scripts/fixtures/279/18/editing.fb2",
+    "args": [
+      "--select",
+      "n14:5:5"
+    ]
+  },
+  {
+    "snapshot": "18/insert-poem-title.titled.xml",
+    "script": "scripts/18_editing/01_insert-poem-title",
+    "book": "tests/scripts/fixtures/279/18/editing.fb2",
+    "args": [
+      "--select",
+      "n20:3:3"
+    ]
+  },
+  {
+    "snapshot": "18/insert-poem-title.selection.xml",
+    "script": "scripts/18_editing/01_insert-poem-title",
+    "book": "tests/scripts/fixtures/279/18/editing.fb2",
+    "args": [
+      "--select",
+      "n14:0:5",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "18/insert-poem-title.annotation.xml",
+    "script": "scripts/18_editing/01_insert-poem-title",
+    "book": "tests/scripts/fixtures/279/18/editing.fb2",
+    "args": [
+      "--select",
+      "n34:2:2"
+    ]
+  },
+  {
+    "snapshot": "18/insert-body-title.xml",
+    "script": "scripts/18_editing/02_insert-body-title",
+    "book": "tests/scripts/fixtures/279/18/editing.fb2",
+    "args": [
+      "--select",
+      "n8:2:2"
+    ]
+  },
+  {
+    "snapshot": "18/insert-body-title.notes.xml",
+    "script": "scripts/18_editing/02_insert-body-title",
+    "book": "tests/scripts/fixtures/279/18/editing.fb2",
+    "args": [
+      "--select",
+      "n29:2:2"
+    ]
+  },
+  {
+    "snapshot": "18/insert-body-title.titled.xml",
+    "script": "scripts/18_editing/02_insert-body-title",
+    "book": "tests/scripts/fixtures/279/18/editing-titled.fb2",
+    "args": [
+      "--select",
+      "n7:3:3"
+    ]
+  },
+  {
+    "snapshot": "18/remove-underscores.xml",
+    "script": "scripts/18_editing/20_remove-underscores",
+    "book": "tests/scripts/fixtures/279/18/editing.fb2",
+    "args": [
+      "--select-range",
+      "n8:4-n9:30"
+    ]
+  },
+  {
+    "snapshot": "18/fix-mojibake.xml",
+    "script": "scripts/18_editing/39_fix-mojibake",
+    "book": "tests/scripts/fixtures/279/18/editing.fb2",
+    "args": [
+      "--select-range",
+      "n25:0-n26:13"
+    ]
+  },
+  {
+    "snapshot": "18/chain-editing.xml",
+    "script": "tests/scripts/fixtures/279/18/chains/editing",
+    "book": "tests/scripts/fixtures/279/18/editing.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "18/chain-titled.xml",
+    "script": "tests/scripts/fixtures/279/18/chains/titled",
+    "book": "tests/scripts/fixtures/279/18/editing-titled.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "18/yofier.xml",
+    "script": "scripts/18_editing/22_yofier",
+    "book": "tests/scripts/fixtures/279/18/yofier.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "18/yo-e-variants.xml",
+    "script": "scripts/18_editing/35_yo-e-variants",
+    "book": "tests/scripts/fixtures/279/18/yo-e.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "ok",
+      "--answer",
+      "no",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "18/chain-yo-e.xml",
+    "script": "tests/scripts/fixtures/279/18/chains/yo-e",
+    "book": "tests/scripts/fixtures/279/18/yo-e.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "back",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "cancel",
+      "--answer",
+      "stop",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "no",
+      "--answer",
+      "no",
+      "--answer",
+      "ok",
+      "--answer",
+      "yes",
+      "--answer",
+      "yes",
+      "--answer",
+      "ok",
+      "--answer",
+      "yes",
+      "--answer",
+      "back",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "cancel",
+      "--answer",
+      "no",
+      "--answer",
+      "yes",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "18/chain-yo-e-recent.xml",
+    "script": "tests/scripts/fixtures/279/18/chains/yo-e-recent",
+    "book": "tests/scripts/fixtures/279/18/yo-e.fb2",
+    "args": [
+      "--answer",
+      "ok",
+      "--answer",
+      "ok",
+      "--answer",
+      "yes",
+      "--answer",
+      "stop",
+      "--answer",
+      "yes",
+      "--answer",
+      "ok",
+      "--answer",
+      "no",
+      "--answer",
+      "ok"
+    ]
+  }
+]

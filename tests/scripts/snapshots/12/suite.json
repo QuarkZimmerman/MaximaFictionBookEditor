@@ -1,0 +1,26 @@
+[
+  {
+    "snapshot": "12/unpaired-brackets-quotes-traditional.xml",
+    "script": "scripts/12_quotes/020_unpaired-brackets-quotes-traditional",
+    "book": "tests/scripts/fixtures/279/12/unpaired.fb2",
+    "args": [
+      "--select",
+      "n30:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/unpaired-brackets-quotes-alternative.xml",
+    "script": "scripts/12_quotes/025_unpaired-brackets-quotes-alternative",
+    "book": "tests/scripts/fixtures/279/12/unpaired.fb2",
+    "args": [
+      "--select",
+      "n9:0:0"
+    ]
+  },
+  {
+    "snapshot": "12/chain-unpaired.xml",
+    "script": "tests/scripts/fixtures/279/12/chains/unpaired",
+    "book": "tests/scripts/fixtures/279/12/unpaired.fb2",
+    "args": []
+  }
+]

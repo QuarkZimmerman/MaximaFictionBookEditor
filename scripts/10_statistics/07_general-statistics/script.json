@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "10/general-statistics",
+  "name": {
+    "ru": "Общая статистика",
+    "en": "General statistics",
+    "uk": "Загальна статистика"
+  },
+  "description": {
+    "ru": "Показывает подробную статистику книги (строки, слова, символы, разделы, файлы, иллюстрации, форматирование, вероятные ошибки) и предлагает скопировать её в буфер обмена и сохранить в TXT-файл.",
+    "en": "Shows detailed statistics of the book (lines, words, characters, parts, files, pictures, formatting, likely errors) and offers to copy them to the clipboard and save them to a TXT file.",
+    "uk": "Показує докладну статистику книги (рядки, слова, символи, розділи, файли, ілюстрації, форматування, імовірні помилки) і пропонує скопіювати її до буфера обміну та зберегти у TXT-файл."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Общая статистика",
+    "en": "General statistics"
+  },
+  "legacy": {
+    "source": "10_Статистика/07_Общая статистика.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

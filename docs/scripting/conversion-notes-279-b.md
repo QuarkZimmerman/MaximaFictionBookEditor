@@ -7,7 +7,239 @@ as the group's entries of `tests/scripts/audit/inventory-279.json`.
 
 ## 10_Статистика
 
-8 scripts in 2.7.9: 5 new, 3 successors of converted packages. Not yet converted or rechecked.
+8 scripts in 2.7.9: **5 new, all converted** here (T053), none left out; the 3 successors of the
+packages converted from 2.7beta1 (`01_show-links`, `02_show-all-links`, `03_document-statistics`) are
+left for their recheck. Packages: `scripts/10_statistics/<NN>_<slug>/` with the 2.7.9 numbers (`07_`,
+`10_`, `16_`, `17_`, `18_`), ids `10/<slug>`, `legacy.source` the 2.7.9 path, `name` and
+`description` in ru, en and uk, the 2.7.9 icon and, in `index.js`, the original's leading comment
+verbatim and, where the original ends with one, its change history (`check-notices.py --package`: OK
+for all five). Dialog and message texts in Russian and English; the English interface also gives the
+genres and the languages (17, 18) in English - the editor's own English names (`resources/genres`,
+`resources/languages.json`, from FictionBook Editor's lists) and, for the codes those lists do not
+name, translations of the scripts' Russian names. Four of the five are Александр Ка's; their texts
+and the book's description are read from the document model (`doc.get`, `doc.binaries`) instead of
+the Description view's fields, and FictionBook Editor's page (`fbw_body`: the book's annotation and
+the history first, one empty paragraph each when the book has none, then every body) is rebuilt from
+it where the originals walked it. Where the originals' `\s` matters it keeps JScript's meaning (the
+ASCII white space; the non-breaking space is named in the expressions themselves).
+
+**Reference books** (`tests/scripts/fixtures/279/10/`, valid FB2 2.1): `statistics.fb2` (three
+genres, one of them a schema code the scripts' table does not know, three authors - one with a
+nickname only -, a date, a series with a nested one, the source language German and a translator, an
+annotation with a note link and an empty line, src-title-info with a genre and the same cover, a
+history that does not name the version 2.3, publish-info with a series, a custom-info "illustrator";
+a main body with a picture, a two-line title and an epigraph, two chapters - the first with a title,
+an epigraph and an annotation and two sections, holding paragraphs for each error search, all kinds
+of inline formatting with a note and a comment link and a hyperlink, a poem with title, epigraph, two
+stanzas, text author and date, a cite with a text author, adjacent subtitles, an empty line, a table
+with an empty cell, inline pictures of a stored and of a missing binary -, the second with an empty
+line in its title; a notes body with a title and two notes; four binaries: a JPEG cover, a PNG
+picture, an identical copy of it, an unused GIF), `obscene.fb2` (below), `bare.fb2` (a genre code
+the table does not know, an author with a nickname only, an empty title, English, no annotation, no
+history, one English paragraph).
+
+**Tests.** `tests/scripts/snapshots/10/suite.json` (14 runs). Message boxes are not recorded by the
+harness: their full texts were checked, in English and in Russian, with a scratch copy of each
+package that records its messages on the clipboard (not committed). Group gate:
+`tests/scripts/run-all.sh --group 10` - 17 snapshots (14 new, 3 of the 2.7beta1 packages), all pass.
+
+### 07 Общая статистика
+
+`07_general-statistics`, `10/general-statistics`; v1.4, Александр Ка. The fullest statistics of the
+book, as the original's window gave them: lines, words and characters; for each part of the page - the
+book's annotation and the history, the main bodies, the notes and comments bodies, unknown root parts
+- the sections of each level with their titles, epigraphs and annotations, the poems with their
+titles, epigraphs, stanzas and text authors, cites, groups of subtitles, text authors (of cites, of
+epigraphs, invalid ones), tables (rows, cells), unknown parts, lines of ordinary text, empty lines (in
+titles, subtitles, epigraphs, poems); the attached files (unused ones, copies - same pixel size and
+byte size -, sizes in B, kB, MB); covers and block and inline pictures by format (jpg, png, other),
+covers used again, repeated and empty pictures, pictures with a title; the inline formatting
+(italics, bold, bold italics, superscript, subscript, strikethrough, code, styles, note and comment
+links, hyperlinks); likely errors (the version missing from the history, more left or right angle or
+inner quotes, straight quotes, s p a c e d words, Latin letters inside Cyrillic words, a lower-case
+letter at the start of a line, large numbers without separators, a line starting with an asterisk,
+text or numbers in square or curly brackets, a number glued to a word). The lines are shown page by
+page with the original's page layout (`Vysota_teksta = 50`, the sections kept whole; Yes shows the
+next page, at the last one Yes closes); a section without items is left out. The counts follow the
+original's definitions (`HandleP` on every paragraph of the page: its innerHTML in the legacy notation
+of `lib/legacy-html.js`, its innerText; the classes of the page's DIVs and P's; the history's
+paragraphs count for lines, words and characters only). Then two questions: "◊ Сохранить текст общей
+статистики в буфер обмена?" (Yes: `mfbe.clipboard.writeText`) and "◊ Сохранить текст общей
+статистики в TXT-файл, в кодировке "UTF-16 LE"?" (Yes: the editor's Save dialog,
+`mfbe.files.saveText` in `utf-16`, proposing "Общая статистика (<date> <time>).txt"). The text is all
+the lines of the statistics.
+
+Differences:
+- the original saved its text only as its setting `SaveStat` said (0, the default: never; 1: the
+  clipboard; 2: a TXT file, each after its question); a bundled script cannot be edited, so both
+  questions are asked after the results, one after the other;
+- the result message shows no proverb: left out pending the requester's decision;
+- inline formatting is counted in the editor's terms: an element is a run of text with one mark (bold
+  italics: a run that is both), so adjacent elements of one kind count once and the nesting of the
+  file does not split them; a note link's formatting is taken as inside the link, which matters only
+  for "[N]" and "{N}" written as note links.
+
+Open question: restore the proverb of the result message?
+
+Expected (derived from the code before the runs) and recorded, on `statistics.fb2` (94 lines, two
+pages of 47): 49 lines, 129 words, 898 characters; annotation 1 /3/, history 1 /1/, 1 empty line;
+the main body 1 /40/ - its title 1 /2/ and epigraph 1 /2/, 2 sections of level 1 (titles 2 /4/, an
+epigraph, an annotation), 2 of level 2 (titles 2 /2/), a poem 1 /7/ with title, epigraph, 2 stanzas
+/3/ and a group of text authors /2/ (the date counts as one, as 2.7.9 rendered it), a cite, 2 groups
+of subtitles /3/, text authors in cites and epigraphs, a table 1 /2/ with 4 cells, 12 lines of
+ordinary text, 3 empty lines (1 in a title); the notes body 1 /5/ - its title, 2 sections of level 1
+with their titles, 2 lines of ordinary text; 4 files, 2 unused, 1 copy, 973 B in all, 243.25 B on
+average, the cover 304 B, the illustration 312 B; covers (jpg) 1, covers of the original (jpg) 1,
+block pictures (png) 1, inline pictures (png) 1, a cover used again, a repeated illustration, an
+empty picture; italics 3, bold 2, bold italics 1, superscript 1 (the comment link's taken away),
+subscript, strikethrough, code, style 1 each, note links 3, comment links 1 (hyperlinks 0 after
+taking those away); the version v.2.3 missing from the history, 2 straight quotes, 1 spaced word,
+1 Latin letter, 2 lower-case starts ("строчная …" and "курсив, …" - the latter was first missed by
+the hand derivation and is right for 2.7.9 too), 2 large numbers, 1 asterisk line, one each of [text],
+{text}, [number] (the note link's "[1]" taken away), {number}, 3 numbers glued to words. On
+`bare.fb2`: 3 lines, 7 words, 44 characters, the two empty paragraphs of the missing annotation and
+history counted as empty lines, the version missing, the other sections left out. Snapshots:
+- `general-statistics.xml` (Yes, Yes on the pages; No, No): the book unchanged, no outputs;
+- `general-statistics.save-cancelled.xml` (Yes, Yes; No; Yes, then `--save-as cancel`): the Save
+  dialog offered and cancelled;
+- `chain-general-statistics.xml` and `.bare.xml`: a chain driver
+  (`tests/scripts/fixtures/279/10/chains/general-statistics/`, a test package) runs the script by its
+  2.7.9 path, answered Yes to the clipboard and No to the file, and writes the clipboard back with the
+  time and the date replaced by "<время>" / "<дата>": `chain-general-statistics*.outputs.json` holds
+  the whole text, equal to the derivation above.
+- The file itself, with `--save-as` (not in the suite, since it holds the time): UTF-16 LE with a BOM,
+  the same 94 lines.
+
+For the journey of T041: after the pages (Yes on each), answer Yes to the clipboard question - the
+clipboard then holds the text - and Yes to the file question: the Save dialog (the stand-in) is
+offered with "Общая статистика (…).txt" (English interface: "General statistics (…).txt").
+
+### 10 Статистика нецензурных слов
+
+`10_obscene-words-statistics`, `10/obscene-words-statistics`; v1.8, stokber, with imDaniX's anti-mat
+expression. Counts the obscene words of the whole text (the page's innerText: the book's annotation,
+the history, every body, a line each) and the mentions of the networks and organisations banned in
+Russia (Meta, Facebook, Instagram): the original's expressions, word lists and exceptions are copied
+as written into `patterns.js`, its processing into `index.js` line by line. A message gives both
+numbers ("Найдено нецензурных слов: …", "Упоминаний запрещённых на территории РФ сетей и
+организаций: …"; "В документе не найдено нецензурных слов." when there are none), a report window
+(`mfbe.ui.report`, the original's "HTML/Статистика нецензурных слов.html") shows the words in the
+order of the text and alphabetically with their counts, Latin letters, digits and asterisks in red,
+the network names in green. Then it offers ("ОК / Отмена", the original's `confirm`) to note in the
+book's annotation that the text holds obscene language, and the mentions of Facebook and Instagram
+(with the note on Meta) or of Meta alone; each note is a paragraph after an empty one ("&nbsp;"),
+trailing and leading empty paragraphs removed, as the original's `addToAnno` did - Russian text of the
+book in every interface. The settings `okno = 0` and `tablCopu = 1` are the original's; `okno = 1`
+(its modeless window) also puts the tables on the clipboard as text (`mfbe.clipboard.writeText`).
+Returns `true` as the original's `Run()` did, except after the Meta-only question.
+
+Difference: the tables open in the editor's report window (with Copy and Save as...); the original's
+two kinds of window (an HTML window that could be copied from, a modeless dialog that could not, but
+put the tables on the clipboard) are one, the setting choosing the clipboard only.
+
+Open question: a word at the very start of the text (the first characters of the book's annotation)
+is never found, since the expression needs a character before a word; kept as in 2.7.9 - should the
+start of the text count as such a character?
+
+Reference book `obscene.fb2`: an annotation that starts with an obscene word (not found), words in
+lower case, with a capital and in formatting, an exception the main expression catches ("скипидар"),
+exceptions it does not ("Мандела", "Педерсен"), words with asterisks, an English word, a Latin "x"
+inside a Cyrillic word, "Дранг нах Остен", Instagram, Фейсбук and Meta, a note. Expected - the
+original's own `Run()`, run in an isolated context on the page text, `alert`, `confirm` and the window
+recorded - and recorded: 11 words and 3 mentions, both tables exactly as 2.7.9 builds them (the English
+interface translates the two headers); `obscene-words-statistics.xml` (OK, OK, OK): the annotation
+gets the three notes, each after an empty paragraph (2.7.9 the same); `.no-notes.xml` (OK, Cancel,
+Cancel): the book unchanged, the same report; `.none.xml` (`bare.fb2`): the message, no report.
+
+### 16 Словарь книги - в буфер обмена
+
+`16_book-dictionary-to-clipboard`, `10/book-dictionary-to-clipboard`; v1.1, Александр Ка. The
+dictionary of the main body (the first body: no annotation, no notes): its innerText in capitals, the
+words of `[A-Z0-9\-]*[А-ЯЁ][А-Я́ЁA-Z0-9\-]*` (Latin letters, digits and hyphens may be part of a word,
+and stress marks), counted; above 130,000 and 200,000 words the original's warnings ask whether to go
+on (`Preduprezhdenie_on_off = 1`). The window "«Словарь книги – в буфер обмена» v.1.1" gives the time,
+the number of words and of unique words (with their share) and asks whether to send the list; Yes puts
+on the clipboard "Число слов в тексте<Tab>Слово" and a line per unique word, the most frequent first,
+words of one count alphabetically (the original's two sorts: by binary insertion, then stable by
+count) - "<count><Tab><Word>", the first letter as found, the rest in lower case. Without a Russian
+letter: "В разделе <body> нет слов.".
+
+Fix: a main body with a stress mark (U+0301) but no Cyrillic letter passed the original's check for
+Russian letters (its class included the stress mark), and the original then failed on the missing word
+list (a script error); the conversion shows the "no words" message there.
+
+Expected - computed independently from the book's XML (the body's text, the expression, the counts,
+the order) - and recorded: `book-dictionary-to-clipboard.xml` (Yes; `statistics.fb2`): 111 words, 69
+unique (62.2 %), the clipboard "9 И, 8 Текст, 4 В, 3 Главы …" equal to the computation, with
+"Комментарий1" (the comment link's "1" glued to the word, as in the page's innerText) and
+"Кирилlица"; `.no.xml` (No): no clipboard; `.bare.xml` (`bare.fb2`): the "no words" message.
+
+### 17 Информацию о книге - в буфер обмена
+
+`17_book-info-to-clipboard`, `10/book-info-to-clipboard`; v1.3, Александр Ка. Gathers the main facts
+about the book into a text: the authors (at most 20 names, then "и другие"), the title with the date
+written, the series (nested ones indented), the language (unless Russian), the annotation (cut after
+about 1,000 characters at the end of a sentence, " <…>"; note links without letters dropped), the
+genres (the original's table of 295, `genres.js`), the translation ("Перевод с <language in the
+genitive>" and the translators; the original's language tables, `languages.js`), the illustrators
+(custom-info "illustrator" or "mlillustrator"), additional information (the pictures, the covers and
+an estimate of printed pages: 2,000 characters, 35 lines of verse or 0.3 megapixels of pictures a
+page), the print edition (title — city: publisher, year; its series; the ISBN), the contents (the
+titles of the bodies and sections, compact: the lines of a section title joined with "•"; poems'
+titles too in a book that is mostly verse) and the number of notes and comments (sections of those
+bodies). A window shows what was found ("· Авторы . . . 2", "<есть>", "<нет>" …) and asks whether to
+send the text; Yes puts it on the clipboard. The settings are the original's (`Dizajn = 0`,
+`MaxAuthor = 20`, `Dlina = 1000`, the order of the blocks `mW`).
+
+No difference, fix or open question.
+
+Expected (derived by hand from the code; the character count of the page estimate computed from the
+XML) and recorded: `book-info-to-clipboard.xml` (Yes; `statistics.fb2`): the authors "Иван Петрович
+Сидоров", "Анна Каренина" (the nickname-only author left out), "Статистика книги" "<1999>", the series
+"Цикл  – 3" and, indented, "Подцикл  – 1", the annotation's two paragraphs with the empty line
+between them and the note link's "[1]" dropped, the genres "Фэнтези · Классический детектив ·
+vampire_book" (English interface: "Fantasy · Classical Detective · vampire_book"), "Перевод с
+немецкого:" (English: "Translated from German:") "Пётр Переводчиков", the illustrator "Художник
+Иллюстраторов" (spaces and the line break collapsed), "3 иллюстрации,  2 обложки" and "1 условная
+бумажная страница", "Статистика. — Москва: Наука, 2001.", " (серия:  Библиотека  – 12)", the ISBN, the
+contents - the body title's two lines, "      Глава 1     • Название главы", the two sections and
+"Глава 2" -, "2 примечания"; `.bare.xml` (`bare.fb2`): "<не указан>", "<не указано>", "Английский",
+"unrecognised", "1 условная бумажная страница".
+
+### 18 Показать жанры
+
+`18_show-genres`, `10/show-genres`; v1.0, Александр Ка. Shows the book's genres in a message: "ЖАНРЫ:",
+every genre of title-info and, under a line, of src-title-info, each code decoded with the original's
+table of 295 genres (`genres.js`; a code the table does not know is shown as it is),
+"<основной жанр не указан>" when title-info has none.
+
+Difference: while its message was open, the original also wrote each genre's name, in green, next to
+the code in the Description view (when that view was shown) and removed it afterwards - an addition to
+the editor's own page, beyond FR-024; the conversion shows the message only.
+
+Expected and checked (the message): `statistics.fb2` " • Фэнтези", " • Классический детектив",
+" • vampire_book", the line, " • Классическая проза" (English interface: Fantasy, Classical Detective,
+vampire_book, Classics Prose); `bare.fb2` " • unrecognised". Snapshots `show-genres.xml` and
+`.bare.xml`: the books unchanged.
+
+### Harness commands
+
+```bash
+F=tests/scripts/fixtures/279/10; S=tests/scripts/snapshots/10; G=scripts/10_statistics
+node tests/scripts/run-script.mjs $G/07_general-statistics $F/statistics.fb2 --answer yes --answer yes --answer no --answer no --snapshot $S/general-statistics.xml
+node tests/scripts/run-script.mjs $G/07_general-statistics $F/statistics.fb2 --answer yes --answer yes --answer no --answer yes --save-as cancel --snapshot $S/general-statistics.save-cancelled.xml
+node tests/scripts/run-script.mjs tests/scripts/fixtures/279/10/chains/general-statistics $F/statistics.fb2 --answer yes --answer yes --answer yes --answer no --snapshot $S/chain-general-statistics.xml
+node tests/scripts/run-script.mjs tests/scripts/fixtures/279/10/chains/general-statistics $F/bare.fb2 --answer ok --answer yes --answer no --snapshot $S/chain-general-statistics.bare.xml
+node tests/scripts/run-script.mjs $G/10_obscene-words-statistics $F/obscene.fb2 --answer ok --answer ok --answer ok --snapshot $S/obscene-words-statistics.xml
+node tests/scripts/run-script.mjs $G/10_obscene-words-statistics $F/obscene.fb2 --answer ok --answer cancel --answer cancel --snapshot $S/obscene-words-statistics.no-notes.xml
+node tests/scripts/run-script.mjs $G/10_obscene-words-statistics $F/bare.fb2 --answer ok --snapshot $S/obscene-words-statistics.none.xml
+node tests/scripts/run-script.mjs $G/16_book-dictionary-to-clipboard $F/statistics.fb2 --answer yes --snapshot $S/book-dictionary-to-clipboard.xml
+#   .no: --answer no; .bare: bare.fb2 --answer ok
+node tests/scripts/run-script.mjs $G/17_book-info-to-clipboard $F/statistics.fb2 --answer yes --snapshot $S/book-info-to-clipboard.xml
+#   .bare: bare.fb2 --answer yes
+node tests/scripts/run-script.mjs $G/18_show-genres $F/statistics.fb2 --answer ok --snapshot $S/show-genres.xml
+#   .bare: bare.fb2
+```
 
 ## 11_Сделать подписи к картинкам из их атрибута title
 
@@ -59,7 +291,100 @@ unchanged. en *(mark as a subtitle)*, uk *(розмітити як підзаг�
 
 ## 12_Обработка кавычек
 
-15 scripts in 2.7.9: 2 new, 13 successors of converted packages. Not yet converted or rechecked.
+15 scripts in 2.7.9: **2 new, both converted** here (T054), none left out; the 13 successors of the
+packages converted from 2.7beta1 are left for their recheck (2 more packages, `002_` and `003_`, have
+no 2.7.9 counterpart). Packages: `scripts/12_quotes/020_unpaired-brackets-quotes-traditional/` and
+`025_unpaired-brackets-quotes-alternative/` (the 2.7.9 numbers as written), ids
+`12/unpaired-brackets-quotes-traditional` and `12/unpaired-brackets-quotes-alternative`,
+`legacy.source` the 2.7.9 paths, `name` and `description` in ru, en and uk, the 2.7.9 icons and, in
+`index.js`, the originals' leading comments verbatim (`check-notices.py --package`: OK for both).
+
+### The common ground
+
+Both scripts are stokber's additions (v1.1 of the pair) to Sclex's "Поиск (без замены) ошибок текста
+(версия с исключениями)" 4.8 - the search by a set of regular expressions with "Пропустить"
+exceptions - and differ only in the pairs of inner quotes. The engine is `unpaired.js` (a copy in
+each package), built on `nav-lib.js` of the converted group 16 (copied unchanged: the book as
+FictionBook Editor's page, the book's annotation and the history first, then every body, the caret's
+place in it, the select helpers).
+
+The search goes paragraph by paragraph from the end of the selection to the end of the book (no
+wrap-around), every text block counted, an empty line as an empty paragraph; in the caret's
+paragraph it starts at the caret (a match right at it counts) and the paragraph is passed over when
+the caret is at its end, as in the original. Its one expression,
+`["„“”{}[\]()«»<>].*["„“”{}[\]()«»<>]|["„“”{}[\]()«»<>]`, finds the text from the first bracket or
+quote at or after the caret to the last one of the paragraph. For such a paragraph the original took
+the paragraph's whole text, removed a list marker at its start (`^[1-9а-е][)]`, "1)" … "а)") and
+everything but the brackets and quotes, then took away adjacent pairs again and again - `""`, `«»`,
+`{}`, `[]`, `()`, `<>` and `„“` (020, "традиционные" лапки) or `“”` (025, "альтернативные") - until none
+was left (`unpairedOf`). When nothing remains the description was "Пропустить: " and the search goes on
+after the match (in effect with the next paragraph); otherwise the match is selected
+(`selection.set`) and the status bar says "Найдено: Следующие символы непарные: <the rest>.
+Вы выбрали проверку документа с „традиционными“ лапками (н99…в66)." (025: "… с “альтернативными
+лапками” (в66…в99)."). At the end "Поиск завершен!" in the status bar and "От позиции курсора до
+конца документа ничего не найдено." in a message, the selection unchanged. `Run()` returned nothing:
+`run()` returns nothing (`null` in a calling script). The expressions are compiled without the u flag,
+as JScript had none (the pairs `\{}` and `\[]` need that).
+
+Differences (both scripts):
+- a picture is one character of the paragraph's text, as the editor counts offsets; 2.7.9 replaced a
+  picture by "~~~", so its selection of a match after a picture was two characters further on per
+  picture (as in group 16's regexp searches);
+- the original's machinery for user expressions (`addRegExp`, `tagRegExp`, macros, emulated
+  look-behinds and their compile-error message), unused by its one fixed expression, is not carried
+  over;
+- the editor scrolls the selection into view (the original: to the middle of the window).
+
+Fix (both): a selected picture is refused with "Не обрабатываемый тип выделения: выделена картинка.";
+the original's message printed the words "sel.type" instead of the kind of selection - the same fix
+as in group 16's regexp searches.
+
+**Reference book** `tests/scripts/fixtures/279/12/unpaired.fb2` (valid FB2 2.1): an annotation with an
+unpaired "(", a history with «…», a body title "Заголовок [1]", and paragraphs n5-n14: no brackets;
+every kind paired; "1) …" (the marker's bracket alone); "а) … (лишняя …" (the marker and an unpaired
+bracket); «… „…“ …» (paired for 020, not for 025); «… “…” …» (paired for 025, not for 020); three
+straight quotes; ")…(" in the wrong order; "<…> … >"; a paragraph with an inline picture before
+"(…) … (" and formatting; an empty line; a verse, a cite, a table cell, two notes ("(…)" paired,
+"„…" unpaired). Node ids: `run-script.mjs --list-nodes`.
+
+**Tests.** `tests/scripts/snapshots/12/suite.json`: `unpaired-brackets-quotes-traditional.xml`
+(`--select n30:0:0`) and `unpaired-brackets-quotes-alternative.xml` (`--select n9:0:0`) - the book
+unchanged; `chain-unpaired.xml`: a chain driver (`tests/scripts/fixtures/279/12/chains/unpaired/`,
+a test package, never bundled) runs both scripts through `mfbe.scripts.run` by their 2.7.9 paths,
+again and again from the selection the previous call left, and writes one line per call to the
+clipboard (`<NN> from <start> #<call>: <run() value> <anchor>-<head> "<text>"`, recorded in
+`chain-unpaired.outputs.json`; 26 calls). Group gate: `tests/scripts/run-all.sh --group 12` - 18
+snapshots (3 new, 15 of the 2.7beta1 packages), all pass.
+
+### 020 Поиск абзацев с непарными скобками и кавычками („традиционные“ лапки)
+
+`020_unpaired-brackets-quotes-traditional`, `12/unpaired-brackets-quotes-traditional`; v4.8 of the
+engine, v1.1 of the script. Expected (derived from the code before the runs) and recorded, from the
+annotation's start (n30:0), 11 calls: n30:10-11 "(" (rest "("), n8:1-25 ") Буквенный перечень и ("
+(rest "("), n10:15-41 the «… “…” …» paragraph (rest "«“”»"), n11:7-29 (rest `"`), n12:21-29 ")скобок("
+(rest ")("), n13:8-32 (rest ">"), n14:17-39 "(скобкой и курсив) с (" (rest "("; 2.7.9 would have
+selected 19-41), n19:5-6 (the verse), n24:7-8 (the table cell), n28:11-12 "„" (the note), then the
+message, the selection unchanged; the history, the title, n6, n7 and n9 are passed over. From n8:5
+(after the list marker's bracket): n8:24-25. From n30:20 (the end of the annotation's paragraph):
+n8:1-25. Every call returns `null`. The status texts (the rests above) were checked on the
+paragraphs with `unpairedOf` directly (a script cannot read the status bar).
+
+### 025 Поиск абзацев с непарными скобками и кавычками (“альтернативные” лапки)
+
+`025_unpaired-brackets-quotes-alternative`, `12/unpaired-brackets-quotes-alternative`; v4.8 / v1.1 (the
+header's first line reads «Скрипт «Поиск … v.1.1», kept as written). As 020 with `“”` as the inner
+pair: from n30:0 the same calls, except that n9 («… „…“ …», rest "«„“»"; n9:10-36) is found and n10 is
+passed over; "„" never pairs. From the selection n6:0-n6:20 (the search starts at its end): n8:1-25.
+From n28:21 (the end of the book): the message, the caret stays. Every call returns `null`.
+
+### Harness commands
+
+```bash
+B=tests/scripts/fixtures/279/12/unpaired.fb2; S=tests/scripts/snapshots/12
+node tests/scripts/run-script.mjs scripts/12_quotes/020_unpaired-brackets-quotes-traditional $B --select n30:0:0 --snapshot $S/unpaired-brackets-quotes-traditional.xml
+node tests/scripts/run-script.mjs scripts/12_quotes/025_unpaired-brackets-quotes-alternative $B --select n9:0:0 --snapshot $S/unpaired-brackets-quotes-alternative.xml
+node tests/scripts/run-script.mjs tests/scripts/fixtures/279/12/chains/unpaired $B --snapshot $S/chain-unpaired.xml
+```
 
 ## 13_Заголовки, подзаголовки, пустые строки
 
@@ -1512,7 +1837,249 @@ node tests/scripts/run-script.mjs $G/03_one-note-into-brackets $B --select n14:3
 
 ## 18_Мелочи редактирования
 
-13 scripts in 2.7.9: 6 new, 7 successors of converted packages. Not yet converted or rechecked.
+13 scripts in 2.7.9: **6 new, all converted** here (T059), none left out; the 7 successors of the
+packages converted from 2.7beta1 (`01_remove-spaces`, `02_insert-midi-link`, `04_…`, `05_…`,
+`06_remove-spaces-and-hyphens`, `07_…`, `08_…`) are left for their recheck. Packages:
+`scripts/18_editing/<NN>_<slug>/` with the 2.7.9 number as written (`01_`, `02_`, `20_`, `22_`,
+`35_`, `39_`; the menu orders them among the 2.7beta1 packages by that number), ids `18/<slug>`,
+`legacy.source` the 2.7.9 path, `name` and `description` in ru, en and uk, the 2.7.9 icon and, in
+`index.js`, the original's leading comment verbatim (`check-notices.py --package`: OK for all six;
+01 and 02 have no leading comment). Dialog and message texts in Russian and English.
+
+**Reference books** (`tests/scripts/fixtures/279/18/`, valid FB2 2.1): `editing.fb2` (a book
+annotation holding a poem without a title, a history; a main body that starts with a picture and an
+epigraph and has no title; paragraphs with underscores in plain and formatted text; a poem without a
+title that starts with an epigraph, one with a title, one with a stanza and a text author; two
+paragraphs of mojibake, `×` and `ß` among it; a notes body without a title), `editing-titled.fb2`
+(a body with a picture and then a title that starts with an empty line, a poem with a title, a
+notes body with a title), `yofier.fb2` and `yo-e.fb2` (below). Node ids: `run-script.mjs
+--list-nodes`.
+
+**Tests.** One snapshot per package and case (`tests/scripts/snapshots/18/suite.json`, 15 runs);
+where the effect is where the caret or the selection ends up, a **chain driver** (test package,
+never bundled; `tests/scripts/fixtures/279/18/chains/`) runs the scripts through `mfbe.scripts.run`
+by their 2.7.9 paths from given selections and writes one line per call to the clipboard
+(`<NN> from <start>: <run() value> <anchor>-<head> "<text>"`), recorded in
+`<snapshot>.outputs.json`; the snapshot shows the book after all the calls. New nodes get the ids
+the editor gives nodes a script creates (`sc_N`); a paragraph the description just got has a UI id
+only (`ui_block`). Group gate: `tests/scripts/run-all.sh --group 18` - 27 snapshots (15 new, 12 of
+the 2.7beta1 packages), all pass.
+
+### 01 Вставить заголовок стиха
+
+`01_insert-poem-title`, `18/insert-poem-title`; no version in the header (the code says 1.0). With
+the caret in a poem, inserts an empty title (a title holding one empty paragraph) as the poem's
+first child and puts the caret into it; when the poem's first child is a title already, the caret
+goes to the start of that title's first paragraph (FictionBook Editor's `GoTo`); outside a poem
+nothing happens; a selection instead of a caret gives "При запуске скрипта не должно быть выделения.
+Должен быть просто курсор." and nothing else. The original climbed from a marker pasted at the
+caret to the nearest `DIV.poem`; the conversion finds the caret's text block in the document model -
+in a body or, as FictionBook Editor showed them above the bodies, in the book's annotation or the
+history - and its nearest poem (`title-lib.js`, shared with 02). In a body the title is inserted
+with `doc.insertNode` and the caret set with `selection.set` into the new paragraph; in a poem of
+the annotation or the history (node operations cover the bodies only) the description is changed
+with `doc.setDescription`, and since the new paragraph has no id of the document model, only a UI
+id, the poem is selected once (`selection.selectNode`, which starts at its first paragraph, the new
+title's) and the caret set there - group 16's technique for the description blocks. Returns nothing.
+
+Expected (derived from the code before the runs) and recorded on `editing.fb2`:
+`insert-poem-title.xml` (`--select n14:5:5`, a verse of the poem that starts with an epigraph): a
+`<title><p></p></title>` before its epigraph; `.titled.xml` (`n20:3:3`, the poem with a title): the
+book unchanged; `.selection.xml` (`n14:0:5`): the message, the book unchanged; `.annotation.xml`
+(`n34:2:2`, the annotation's poem): its title inserted. Chain `chain-editing.xml`: from n20:3 the
+caret to n18:0 (the existing title); from n14:5 and n23:2 a new title each with the caret at its
+start (sc_2:0, sc_4:0); from n24:4 (the text author of the poem just given a title) to that title
+(sc_4:0); from n8:3 (no poem) nothing, the caret stays; from the selection n14:0-n14:5 the message,
+the selection stays ("Перва"); from n34:2 a title in the annotation's poem, the caret in it
+(ui_block:0). `chain-titled.xml` (`editing-titled.fb2`): from n12:2 to n10:0. Every call returns
+`null`.
+
+Difference: the editor scrolls the title into view (the original scrolled it to the middle of the
+window). No fix, no open question.
+
+### 02 Вставить заголовок body
+
+`02_insert-body-title`, `18/insert-body-title`; no version in the header (1.0 in the code). As 01
+for the body the caret is in (the main body, the notes body): an empty title, or the caret to the
+body's title. In the annotation or the history - no body - nothing happens.
+
+**Fix:** the original looked at the body's first child only. A body that starts with a picture (FB2:
+`image?, title?, epigraph*, section+`) got its new title before the picture - an invalid book - and
+a body with a picture and a title got a second title. The conversion inserts the title after the
+picture and finds a title that follows it (then only the caret moves).
+
+Expected and recorded: `insert-body-title.xml` (`editing.fb2`, `--select n8:2:2`): the title after
+the body's picture, before its epigraph (2.7.9: before the picture); `.notes.xml` (`n29:2:2`): a
+title at the start of the notes body; `.titled.xml` (`editing-titled.fb2`, `n7:3:3`): unchanged
+(2.7.9: a second title before the picture). Chain `chain-editing.xml`: from n8:2 a title after the
+picture, the caret in it (sc_6:0); from n4:1 (the body's epigraph) the caret to that title; from
+n29:2 the notes body's new title (sc_8:0); from n31:2 (the annotation) nothing. `chain-titled.xml`:
+from n7:3 the caret to n5:0 - the title's first paragraph after its empty line; from n17:2 to the
+notes body's title n15:0. Every call returns `null`.
+
+Difference: scrolling, as 01. No open question.
+
+### 20 Удалить все символы подчеркивания в выделении
+
+`20_remove-underscores`, `18/remove-underscores`; v1.3, Sclex. Removes every underscore (`[_]+`) from
+the selected text, keeping its formatting, and leaves the processed text selected; without a
+selection "Ничего не выделено!" (`needsSelection: true`). The original is the sibling of
+"Удалить все пробелы в выделении" (17) and "… и дефисы" (18) with another expression, so the
+conversion is theirs: `strip-lib.js` of the package `01_remove-spaces`, copied unchanged.
+
+Expected and recorded: `remove-underscores.xml` (`--select-range n8:4-n9:30`): n8 from its fifth
+character "Текстсподчеркиваниями и <emphasis>курсивсподчеркиванием</emphasis> конец." (the
+underscores before offset 4 would stay; there are none), n9 up to offset 30 "Второйабзацвыделения,
+<strong>жирный_текст</strong>_остаток." - the underscores after the selection stay. Chain: the
+selection afterwards n8:4-n9:28 (two characters fewer in n9). No difference, fix or open question.
+
+### 22 Ёфикатор
+
+`22_yofier`, `18/yofier`; no version in the header (`VersionNumber = "0.1"`); "Engine by ©Sclex",
+"Jurgen Script «Генеральная уборка» Golma Edition". Puts the letter Ё back into some 70 groups of
+common words written with Е (ёлка, ёж, её, моё, придётся, ребёнок, причём, приём, о нём, о чём,
+во всём, вперёд, всё-таки, ещё, шёл, ушёл, зелёный, чёрный, тётя …) in every paragraph of the book:
+the bodies and, as its settings `ObrabotkaHistory` and `ObrabotkaAnnotation` say, the book's
+annotation and the history. Then a message: " «Маленький Ёфикатор» v.0.1", the time, and under
+"Статистика" "• Ё:" the number of times an expression changed a paragraph (one per expression and
+paragraph). The original's expression block - from "Регулярные выражения" to "Конец шаблонов", its
+comments, word lists and warnings included - is copied as written into `rules.js` (73 definitions;
+the ones the author disabled stay commented out); the expressions run in the order of the original's
+`HandleP` on the legacy inline-HTML notation of `lib/legacy-html.js` (copied unchanged from
+`06_cleanup/02_general-cleanup`), as the original ran them on the paragraph's HTML, so the
+formatting stays and their quirks with it: a word directly after a changed word (one space between)
+is not changed in the same pass ("ещё еще", "её Ее"), since that space was taken by the first match;
+a word glued to a hyphen or a Latin letter is left ("еще-то", "xеще"). Bodies are rewritten with
+`doc.replaceNode`, the annotation and the history with `doc.setDescription`. The three expressions
+with "\s" (о нём, о чём, во всём) keep JScript's meaning of it - a tab, a line break or a plain
+space -, so a thin space does not count, as in 2.7.9.
+
+**Fix:** `re19a`, the expression for "нашёл", "нашёлся", was defined but missing from `HandleP` -
+unlike the expressions the author disabled, it was not commented out - so these words never got
+their Ё; it runs after `re19` ("ушёл", "уйдёт" …), where it is defined.
+
+Reference book `yofier.fb2` (annotation, history, a body title, 9 section paragraphs with the cases
+above, formatting, a non-breaking and a thin space, a verse, a cite, a notes body). Expected, computed
+before the run from the original's own expression block (evaluated as written, applied in its order
+to each paragraph's HTML as 2.7.9 rendered it, with the fix) and recorded in `yofier.xml`: "Ещё в
+аннотации: её слова.", "Причём в истории …", "… всё-таки ещё есть её", "Ещё один день: её дом, моё
+окно, у неё.", "Ещё еще — …", "Ребёнок пришёл, причём шёл быстро; приём окончен.", "О нём и о нём
+(non-breaking space), но о нем (thin space) …", "<emphasis>Ещё</emphasis> … <strong>чёрный</strong>
+… иссиня-чёрных …", "Ушёл и нашёл: найденный клад.", "Пчёл много, пчелы летят; далеко и
+неподалёку.", "Своё слово, лёд и ледяной ветер, ёлка и ежик.", "еще-то и xеще остаются." unchanged,
+"Вперёд, зелёный лес!", "Тётя Мотя и молодёжь.", "Ещё примечание."; the message "• Ё: 29" (28
+without the fix).
+
+Open question: the expressions run on the paragraph's HTML, as in 2.7.9, so they also reach the
+addresses of links and pictures and the names of styles (a picture with the id "лед" would get the
+reference "#лёд"); keep, or let them change the text only?
+
+### 35 Разночтения Ё-Е
+
+`35_yo-e-variants`, `18/yo-e-variants`; v2.2, Александр Ка. Words that read differently with Е and
+with Ё: the original's list of 179 pairs with hints (`words.js`, copied as written, the author's
+doubtful pairs commented out as there; every pair passes the original's two checks, whose questions
+are kept). In the whole text - the book's annotation and the history first, as FictionBook Editor
+showed them - the words of the list are found in lower case, with a capital or in capitals; a page
+of statistics (found words and groups, the share with Ё, the words with Е, a dotted line, the words
+with Ё); the help window ("• УПРАВЛЕНИЕ"); then, group by group in the list's sorted order (the Е
+and Ё readings of a pair next to each other), each word is selected in the text and offered for the
+other reading - "◊ Найден текст: … (hint) / ◊ Заменить на: … (hint)", the caption
+"• все ››› всё — 1 / 2". Then the words written with Ё that are not in the list (one letter and the
+list's Ё readings left out) are counted in groups and shown, and the script offers to write them with
+Е - all at once, or group by group. Finally, with the original's settings (`Version_on_off = 1`), a
+run that changed a word raises the file's version and writes a line into the history
+("v.1.1 —  Скрипт: «Разночтения Ё/Е» 2.2 — Зорро, 31.10.2026"; first a line "v.<old> — ?" when the
+history does not name the old version; a line of the last ten days of the same name and date form
+gets the script added instead: "Скрипты: «…»; «Разночтения Ё/Е» 2.2 — Зорро, <today>"), and the
+results are shown page by page (`Vysota_teksta = 50` lines a page; the original's page loop). The
+original's sorting, searches and undo stack are ported line by line; the words are found on the
+paragraph's HTML (`lib/legacy-html.js`) and changed in place with their formatting (the readings have
+equal lengths), the bodies with `doc.replaceNode`, the annotation and the history with
+`doc.setDescription`; the history change is `history.js`, the original's `HistoryChange` on the
+description.
+
+Differences:
+- the question for each word was an input box: an empty field and Yes, No, Cancel; a minus typed
+  before Yes undid the last answer, several minuses several answers, any other text stopped the work.
+  The script API's input box resolves `''` both for No and for Yes with an empty field, so it cannot
+  carry the original's Yes; the question is a message with the buttons Yes, No, Cancel (the rest of
+  the group), Step back (one answer per press, as one minus) and Stop (then the original's question
+  "◊ Прервать обработку слов с разночтением?"); in the de-yo-fication by groups Yes, No, Cancel (then
+  "◊ Прервать выполнение скрипта?") and Step back. The help windows describe these buttons. The undo
+  stack is the original's, its quirk included (after Stop - No the word is asked again and a Step back
+  then only repeats it);
+- the word is selected in the Body view; the original framed and coloured it and its letter and
+  scrolled it to a set height of the window (`Raspolozhenie`, not carried over);
+- the result message shows no proverb: left out pending the requester's decision;
+- the original's check that the Body view ("B" mode) is shown has no counterpart.
+
+Open questions: restore the proverb of the result message? With the original's settings every run
+that changes a word raises the version and writes a history line by the name «Зорро», the original's
+placeholder for the user's own name (main.js's `fbeUserName`, which 2.7.9 does not define); kept as
+the original's defaults - should a bundled script write that line, and under which name?
+
+Reference book `yo-e.fb2`: "Все" in the annotation, a history line naming v.1.0, "Небо … мел",
+"Всё … все", "НЕБО и Небо", "Ёлка, ещё одна ёлка и Ёжик.", "<emphasis>мел</emphasis> … нёбо", a
+verse "Шлем …", a note "Слезы и слёзы.". Expected (derived from the code): 12 words in 8 groups, 25 %
+with Ё; the questions in the order все (annotation, p2), всё, мел ×2, небо ×3, нёбо, слезы, слёзы,
+шлем; then "Ещё" 1, "Ёжик" 1, "Ёлка" 2 (4 words in 3 groups, 12.9 %); 43 words. Recorded:
+- `yo-e-variants.xml`: every question answered No, no de-yo-fication - the book unchanged, no
+  history line (the results "Исправлений нет", 16.2 % with Ё);
+- `chain-yo-e.xml` (a chain driver that runs the script by its 2.7.9 path and then writes
+  "<сегодня>" for today's date in the history, so the snapshot does not depend on the day): Yes, No,
+  Yes, Yes, Step back, No, Yes, Cancel, Stop - No, Yes, Yes, No, No, then de-yo-fication by groups
+  Yes, Step back, No, Yes, Cancel - No, Yes. The book: "Всё слова в аннотации.", "Все уже сказано, и
+  все ушли.", "Елка, ещё одна елка и Ежик.", "<emphasis>мёл</emphasis> в курсиве и небо.", "Слёзы и
+  слёзы."; version 1.1 and the line "v.1.1 —  Скрипт: «Разночтения Ё/Е» 2.2 — Зорро, <сегодня>".
+  The results (checked with a copy that records the messages): 5 variant readings changed, 3 words
+  written with Е, 11.6 % with Ё, "• Добавлена новая строка в историю";
+- `chain-yo-e-recent.xml`: the driver first adds the line "v.1.1 — Скрипт: «Генеральная уборка» —
+  Зорро, <two days ago>" and sets version 1.1; one Yes, then Stop - Yes, no de-yo-fication: the line
+  becomes "v.1.1 — Скрипты: «Генеральная уборка»; «Разночтения Ё/Е» 2.2 — Зорро, <сегодня>", the
+  version stays.
+
+### 39 Исправление крякозябров (кривые кодировки)
+
+`39_fix-mojibake`, `18/fix-mojibake`; v1.11, Sclex, completed by stokber, "создан на базе скрипта
+замены регистра за авторством Sclex-а". Repairs Russian text read in the wrong encoding - letters of
+Windows-1251 shown as their Windows-1252 namesakes ("Ïðèâåò" for "Привет") - in the selected text,
+keeping the formatting; without a selection "Выделите текст!\nСкрипт производит замену символов
+только в выделенном тексте!" (`needsSelection: true`). Like its original it is built on the case
+scripts: `case-lib.js` of the converted `01_case` packages, copied unchanged; the processed text is
+selected again, as there.
+
+**Fix:** "Ч" and "Я" were never restored. The original's table had the key "÷" twice (for "Ч" and
+for "ч"; in an object literal the second wins) and "Ÿ" for "Я"; "×" and "ß" - how Windows-1252 shows
+these two letters of Windows-1251 - now become "Ч" and "Я", and "Ÿ" is left alone.
+
+Expected and recorded: `fix-mojibake.xml` (`--select-range n25:0-n26:13`): "Привет, мир! Что-то
+Яблоко, Ёжик и ёлка. Ÿ остаётся." and "<strong>Жирный</strong> текст и ×àé ñ
+<emphasis>ßÃÎÄÀÌÈ</emphasis>." (the part after offset 13 is outside the selection). In 2.7.9 "Что-то"
+and "Яблоко" would have stayed "×òî-òî" and "ßáëîêî", and "Ÿ" would have become "Я". Chain: the
+selection afterwards n25:0-n26:13.
+
+Difference: scripts see the Body view's selection only; the original also worked on a selection in a
+text field of the description. Open question: after the run the processed text is selected again,
+as in the conversions of the case scripts it was built on; the original's last call
+(`setEndPoint("StartToStart", …)`) probably left a caret at its end instead.
+
+### Harness commands
+
+The runs of `tests/scripts/snapshots/18/suite.json` (book `editing.fb2` unless named):
+
+```bash
+node tests/scripts/run-script.mjs scripts/18_editing/01_insert-poem-title tests/scripts/fixtures/279/18/editing.fb2 --select n14:5:5 --snapshot tests/scripts/snapshots/18/insert-poem-title.xml
+#   .titled --select n20:3:3; .selection --select n14:0:5 --answer ok; .annotation --select n34:2:2
+node tests/scripts/run-script.mjs scripts/18_editing/02_insert-body-title tests/scripts/fixtures/279/18/editing.fb2 --select n8:2:2 --snapshot tests/scripts/snapshots/18/insert-body-title.xml
+#   .notes --select n29:2:2; .titled on editing-titled.fb2 --select n7:3:3
+node tests/scripts/run-script.mjs scripts/18_editing/20_remove-underscores tests/scripts/fixtures/279/18/editing.fb2 --select-range n8:4-n9:30 --snapshot tests/scripts/snapshots/18/remove-underscores.xml
+node tests/scripts/run-script.mjs scripts/18_editing/39_fix-mojibake tests/scripts/fixtures/279/18/editing.fb2 --select-range n25:0-n26:13 --snapshot tests/scripts/snapshots/18/fix-mojibake.xml
+node tests/scripts/run-script.mjs tests/scripts/fixtures/279/18/chains/editing tests/scripts/fixtures/279/18/editing.fb2 --answer ok --snapshot tests/scripts/snapshots/18/chain-editing.xml
+node tests/scripts/run-script.mjs tests/scripts/fixtures/279/18/chains/titled tests/scripts/fixtures/279/18/editing-titled.fb2 --snapshot tests/scripts/snapshots/18/chain-titled.xml
+node tests/scripts/run-script.mjs scripts/18_editing/22_yofier tests/scripts/fixtures/279/18/yofier.fb2 --answer ok --snapshot tests/scripts/snapshots/18/yofier.xml
+# 35: --answer ok ok, 12 x no, ok, no, ok (yo-e-variants.xml); the chains with the answers listed above
+```
 
 ## 19_Обработка форматирования
 

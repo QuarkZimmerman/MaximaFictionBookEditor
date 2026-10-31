@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "10/obscene-words-statistics",
+  "name": {
+    "ru": "Статистика нецензурных слов",
+    "en": "Obscene words statistics",
+    "uk": "Статистика нецензурних слів"
+  },
+  "description": {
+    "ru": "Считает нецензурные слова и упоминания запрещённых в РФ сетей и организаций, показывает их таблицей и предлагает отметить это в аннотации книги.",
+    "en": "Counts the obscene words and the mentions of networks and organisations banned in Russia, shows them in a table and offers to note it in the book's annotation.",
+    "uk": "Рахує нецензурні слова та згадки заборонених у РФ мереж і організацій, показує їх таблицею й пропонує зазначити це в анотації книги."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Статистика нецензурных слов",
+    "en": "Obscene words statistics"
+  },
+  "legacy": {
+    "source": "10_Статистика/10_Статистика нецензурных слов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.8"
+  }
+}

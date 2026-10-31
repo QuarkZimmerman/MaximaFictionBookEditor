@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "18/fix-mojibake",
+  "name": {
+    "ru": "Исправление крякозябров (кривые кодировки)",
+    "en": "Fix mojibake (wrong encodings)",
+    "uk": "Виправлення кракозябр (неправильні кодування)"
+  },
+  "description": {
+    "ru": "Исправляет в выделенном тексте русские буквы, прочитанные в неверной кодировке (Windows-1251 как Windows-1252), сохраняя форматирование.",
+    "en": "Repairs Russian letters in the selected text that were read in the wrong encoding (Windows-1251 as Windows-1252), keeping the formatting.",
+    "uk": "Виправляє у виділеному тексті російські літери, прочитані в неправильному кодуванні (Windows-1251 як Windows-1252), зберігаючи форматування."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Исправление крякозябров (кривые кодировки)",
+    "en": "Fix mojibake (wrong encodings)"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/39_Исправление крякозябров (кривые кодировки).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.11"
+  }
+}

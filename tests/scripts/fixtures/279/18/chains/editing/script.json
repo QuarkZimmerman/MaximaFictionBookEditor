@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test18/chain-editing",
+  "name": {
+    "ru": "Цепочка: мелочи редактирования",
+    "en": "Chain: editing trifles"
+  },
+  "kind": "menu"
+}

@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "18/yofier",
+  "name": {
+    "ru": "Ёфикатор",
+    "en": "Yo-fier",
+    "uk": "Ёфікатор"
+  },
+  "description": {
+    "ru": "Расставляет букву «ё» в распространённых словах, написанных через «е» (ещё, её, придётся, ребёнок, о нём…), во всём тексте книги, аннотации и истории.",
+    "en": "Restores the letter Ё in common Russian words written with Е (ещё, её, придётся, ребёнок, о нём…) throughout the book, its annotation and history.",
+    "uk": "Відновлює літеру «ё» в поширених російських словах, написаних через «е» (ещё, её, придётся, ребёнок, о нём…), у всьому тексті книги, анотації та історії."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Ёфикатор",
+    "en": "Yo-fier"
+  },
+  "legacy": {
+    "source": "18_Мелочи редактирования/22_Ёфикатор.js",
+    "fbeVersion": "2.7.9"
+  }
+}

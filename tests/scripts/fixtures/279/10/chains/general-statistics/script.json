@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test10/chain-general-statistics",
+  "name": {
+    "ru": "Цепочка: общая статистика",
+    "en": "Chain: general statistics"
+  },
+  "kind": "menu"
+}

@@ -22,7 +22,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 306
+    "converted": 319
   },
   "entries": [
     {
@@ -3671,15 +3671,19 @@
         "files"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/10_statistics/07_general-statistics",
+      "id": "10/general-statistics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "the original saved its text only as its setting SaveStat said (0, the default: never; 1: to the clipboard; 2: to a TXT file, each after its question); a bundled script cannot be edited, so both questions are asked after the results, one after the other: copy the text to the clipboard (mfbe.clipboard.writeText), then save it as a TXT file in UTF-16 LE through the editor's Save dialog (mfbe.files.saveText, proposing 'Общая статистика (<date> <time>).txt')",
+        "the result message shows no proverb: left out pending the requester's decision",
+        "inline formatting is counted in the editor's terms: an element is a run of text that carries one mark (bold italics: a run that is both italic and bold), so adjacent elements of one kind count once and the nesting of the file does not split them; 2.7.9 counted the elements of its page as the file nested them. A note link's formatting is taken as inside the link, which matters only for '[N]' and '{N}' written as note links ('…]</A>', '…}</SUP></A>')"
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/10_statistics/07_obshchaya-statistics",
-      "suggestedId": "10/obshchaya-statistics"
+      "openQuestions": [
+        "restore the proverb of the result message?"
+      ]
     },
     {
       "source": "10_Статистика/10_Статистика нецензурных слов.js",
@@ -3700,15 +3704,17 @@
       "htmlDialogs": [
         "HTML/Статистика нецензурных слов.html"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/10_statistics/10_obscene-words-statistics",
+      "id": "10/obscene-words-statistics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "the tables open in the editor's report window (mfbe.ui.report, with Copy and Save as...); the original's setting okno chose between an HTML window (0, the default) and a modeless dialog that could not be copied from (1) and, with tablCopu = 1, put the tables on the clipboard as text: kept as the same settings, where 1 adds the clipboard (mfbe.clipboard.writeText) to the same report window"
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/10_statistics/10_statistics-netsenzurnykh-slov",
-      "suggestedId": "10/statistics-netsenzurnykh-slov"
+      "openQuestions": [
+        "a word at the very start of the text (the first characters of the book's annotation) is never found, since the expression needs a character before a word; kept as in 2.7.9 - should the start of the text count as such a character?"
+      ]
     },
     {
       "source": "10_Статистика/16_Словарь книги - в буфер обмена.js",
@@ -3726,15 +3732,15 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/10_statistics/16_book-dictionary-to-clipboard",
+      "id": "10/book-dictionary-to-clipboard",
       "status": "new",
       "predecessor": null,
       "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/10_statistics/16_slovar-knigi-into-clipboard-obmena",
-      "suggestedId": "10/slovar-knigi-into-clipboard-obmena"
+      "fixes": [
+        "a main body with a stress mark (U+0301) but no Cyrillic letter passed the original's check for Russian letters (its class included the stress mark), and the original then failed on the missing word list (a script error); the conversion shows the original's message 'В разделе <body> нет слов.' there"
+      ],
+      "openQuestions": []
     },
     {
       "source": "10_Статистика/17_Информацию о книге - в буфер обмена.js",
@@ -3752,15 +3758,13 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/10_statistics/17_book-info-to-clipboard",
+      "id": "10/book-info-to-clipboard",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/10_statistics/17_informatsiyu-o-knige-into-clipboard-obmena",
-      "suggestedId": "10/informatsiyu-o-knige-into-clipboard-obmena"
+      "openQuestions": []
     },
     {
       "source": "10_Статистика/18_Показать жанры.js",
@@ -3776,15 +3780,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/10_statistics/18_show-genres",
+      "id": "10/show-genres",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "while its message was open, the original also wrote each genre's name, in green, next to the code in the Description view (when that view was shown) and removed it afterwards - an addition to the editor's own page, beyond FR-024; the conversion shows the message only"
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/10_statistics/18_show-zhanry",
-      "suggestedId": "10/show-zhanry"
+      "openQuestions": []
     },
     {
       "source": "11_Сделать подписи к картинкам из их атрибута title/600_Сделать подписи к картинкам из их атрибута title (разметить жирностью).js",
@@ -4296,15 +4300,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/12_quotes/020_unpaired-brackets-quotes-traditional",
+      "id": "12/unpaired-brackets-quotes-traditional",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/12_quotes/20_search-of-paragraphs-s-neparnymi-skobkami-and-ka",
-      "suggestedId": "12/search-of-paragraphs-s-neparnymi-skobkami-and-ka"
+      "differences": [
+        "a picture is one character of the paragraph's text, as the editor counts offsets; 2.7.9 replaced a picture by '~~~', so its selection of a match after a picture was two characters further on per picture",
+        "the original's machinery for user expressions (addRegExp, tagRegExp, macros, emulated look-behinds and their compile-error message), unused by its one fixed expression, is not carried over",
+        "the editor scrolls the selection into view (the original scrolled it to the middle of the window)"
+      ],
+      "fixes": [
+        "a selected picture is refused with 'Не обрабатываемый тип выделения: выделена картинка.'; the original's message printed the words 'sel.type' instead of the kind of selection (the same fix as in group 16's regexp searches)"
+      ],
+      "openQuestions": []
     },
     {
       "source": "12_Обработка кавычек/025_Поиск абзацев с непарными скобками и кавычками (“альтернативные” лапки).js",
@@ -4320,15 +4328,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/12_quotes/025_unpaired-brackets-quotes-alternative",
+      "id": "12/unpaired-brackets-quotes-alternative",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/12_quotes/25_search-of-paragraphs-s-neparnymi-skobkami-and-ka",
-      "suggestedId": "12/search-of-paragraphs-s-neparnymi-skobkami-and-ka"
+      "differences": [
+        "a picture is one character of the paragraph's text, as the editor counts offsets; 2.7.9 replaced a picture by '~~~', so its selection of a match after a picture was two characters further on per picture",
+        "the original's machinery for user expressions (addRegExp, tagRegExp, macros, emulated look-behinds and their compile-error message), unused by its one fixed expression, is not carried over",
+        "the editor scrolls the selection into view (the original scrolled it to the middle of the window)"
+      ],
+      "fixes": [
+        "a selected picture is refused with 'Не обрабатываемый тип выделения: выделена картинка.'; the original's message printed the words 'sel.type' instead of the kind of selection (the same fix as in group 16's regexp searches)"
+      ],
+      "openQuestions": []
     },
     {
       "source": "13_Заголовки, подзаголовки, пустые строки/05_Разметить заголовки разделов либо подзаголовки, найденные по регэкспу....js",
@@ -7414,15 +7426,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/18_editing/01_insert-poem-title",
+      "id": "18/insert-poem-title",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "the editor scrolls the selection into view (the original scrolled it to the middle of the window)"
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/18_editing/01_insert-title-stikha",
-      "suggestedId": "18/insert-title-stikha"
+      "openQuestions": []
     },
     {
       "source": "18_Мелочи редактирования/02_Вставить заголовок body.js",
@@ -7438,15 +7450,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/18_editing/02_insert-body-title",
+      "id": "18/insert-body-title",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/18_editing/02_insert-title-body",
-      "suggestedId": "18/insert-title-body"
+      "differences": [
+        "the editor scrolls the selection into view (the original scrolled it to the middle of the window)"
+      ],
+      "fixes": [
+        "a body that starts with a picture: the original looked at the body's first child only, so it inserted the new title before the picture - an invalid book (FB2: image?, title?, epigraph*, section+) - and added a second title to a body with a picture and a title; the conversion puts the title after the picture and finds a title that follows it (only the caret moves then)"
+      ],
+      "openQuestions": []
     },
     {
       "source": "18_Мелочи редактирования/04_Вставить пустую строку перед стихом или цитатой.js",
@@ -7570,15 +7584,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/18_editing/20_remove-underscores",
+      "id": "18/remove-underscores",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/18_editing/20_udalit-all-symbols-podcherkivaniya-into-vydeleni",
-      "suggestedId": "18/udalit-all-symbols-podcherkivaniya-into-vydeleni"
+      "openQuestions": []
     },
     {
       "source": "18_Мелочи редактирования/22_Ёфикатор.js",
@@ -7594,15 +7606,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/18_editing/22_yofier",
+      "id": "18/yofier",
       "status": "new",
       "predecessor": null,
       "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/18_editing/22_yofikator",
-      "suggestedId": "18/yofikator"
+      "fixes": [
+        "re19a, the expression for 'нашёл', 'нашёлся', was defined but missing from the original's HandleP, so these words never got their Ё (unlike the expressions the author disabled, it was not commented out); it runs after re19 ('ушёл', 'уйдёт' …), where it is defined"
+      ],
+      "openQuestions": [
+        "the expressions run on the paragraph's HTML, as in 2.7.9, so they also reach the addresses of links and pictures and the names of styles (a picture with the id 'лед' would get the reference '#лёд'); keep, or let them change the text only?"
+      ]
     },
     {
       "source": "18_Мелочи редактирования/25_Обрамить верхние индексы скобками [].js",
@@ -7672,15 +7686,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/18_editing/35_yo-e-variants",
+      "id": "18/yo-e-variants",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "the question for each word was an input box with Yes, No and Cancel, an empty field and typed commands (a minus before Yes undid the last answer, several minuses several answers, any other text stopped the work); it is a message with the buttons Yes, No, Cancel, Step back (one answer per press) and Stop (followed by the original's question whether to stop), and in the de-yo-fication by groups Yes, No, Cancel (followed by the question whether to stop the script) and Step back. The script API's input box gives '' for No and for Yes with an empty field, so it cannot carry the original's Yes; the help windows ('Окно Управление') describe the buttons",
+        "the word in question is selected in the Body view; the original framed and coloured it and its letter and scrolled it to a set height of the window (the setting Raspolozhenie, not carried over)",
+        "the result message shows no proverb: left out pending the requester's decision",
+        "the original's check that the Body view ('B' mode) is shown has no counterpart: scripts work on the book itself"
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/18_editing/35_raznochteniya-yo-e",
-      "suggestedId": "18/raznochteniya-yo-e"
+      "openQuestions": [
+        "restore the proverb of the result message?",
+        "with the original's settings (Version_on_off = 1) every run that changes a word raises the file's version and writes a history line by the name «Зорро», the original's placeholder for the user's own name (main.js's fbeUserName, which 2.7.9 does not define); kept as the original's defaults - should a bundled script write that line, and under which name?"
+      ]
     },
     {
       "source": "18_Мелочи редактирования/39_Исправление крякозябров (кривые кодировки).js",
@@ -7696,15 +7716,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/18_editing/39_fix-mojibake",
+      "id": "18/fix-mojibake",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/18_editing/39_fixing-kryakozyabrov-krivye-kodirovki",
-      "suggestedId": "18/fixing-kryakozyabrov-krivye-kodirovki"
+      "differences": [
+        "scripts see the Body view's selection only: the original also worked on a selection in a text field of the description"
+      ],
+      "fixes": [
+        "Ч and Я were never restored: the original's table had the key '÷' twice (for 'Ч' and for 'ч'; in an object literal the second wins) and 'Ÿ' for 'Я'; '×' and 'ß' - how Windows-1252 shows these letters of Windows-1251 - now become 'Ч' and 'Я', and 'Ÿ' is left alone"
+      ],
+      "openQuestions": [
+        "after the run the processed text is selected again, as in the conversions of the case scripts it was built on; the original's last call (setEndPoint('StartToStart', …)) probably left a caret at its end instead"
+      ]
     },
     {
       "source": "18_Мелочи редактирования/40_Сделать выделенный текст ссылкой на MIDI-файл (для AlReader'а).js",
