@@ -72,6 +72,10 @@
       "saveAs": "Save as...",
       "copied": "Copied to the clipboard",
       "saveTitle": "Save the report"
+    },
+    "form": {
+      "regexpPresets": "Ready-made patterns",
+      "regexpInvalid": "Not a regular expression: {{message}}"
     }
   }
 }

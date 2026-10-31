@@ -1,6 +1,7 @@
 /**
  * Script dialog components (T104): the declarative form renderer behind `mfbe.ui.form(spec)`
- * (text, number, checkbox, select, radio, list and static fields; OK returns the values,
+ * (text, number, checkbox, select, radio, list, static and - feature 007 - regexp fields; OK
+ * returns the values,
  * Cancel / Escape returns null), the message box with script-defined buttons behind
  * `mfbe.ui.message` and the input prompt behind `mfbe.ui.prompt`. They open through the
  * application's modal dialog stack: see `dialogs.ts` (`showScriptForm`, `showScriptMessage`,
@@ -15,7 +16,7 @@ import { Dialog, type DialogButton } from '@/dialogs/Dialog';
 import { InputDialog } from '@/dialogs/InputDialog';
 import type { InputDialogOptions, InputDialogResult } from '@/dialogs/types';
 
-import { initialValues, normaliseFields } from './formModel';
+import { initialValues, invalidField, normaliseFields, regexpProblem } from './formModel';
 import type { ButtonSpec, FormField, FormSpec, FormValue, FormValues, RunEnd } from './types';
 
 import './scripting.css';
@@ -64,7 +65,14 @@ export function ScriptFormDialog({
   const set = (id: string, value: FormValue) => setValues((v) => ({ ...v, [id]: value }));
 
   const buttons: DialogButton[] = [
-    { id: 'ok', label: spec.okLabel ?? t('dialog.buttons.ok'), onClick: () => onClose(values) },
+    {
+      id: 'ok',
+      label: spec.okLabel ?? t('dialog.buttons.ok'),
+      disabled: invalidField(fields, values) !== null,
+      onClick: () => {
+        if (invalidField(fields, values) === null) onClose(values);
+      },
+    },
     {
       id: 'cancel',
       label: spec.cancelLabel ?? t('dialog.buttons.cancel'),
@@ -114,6 +122,16 @@ interface FormFieldViewProps {
 
 function FormFieldView({ field, value, onChange, htmlId, testId }: FormFieldViewProps) {
   switch (field.kind) {
+    case 'regexp':
+      return (
+        <RegexpFieldView
+          field={field}
+          value={String(value ?? '')}
+          onChange={onChange}
+          htmlId={htmlId}
+          testId={testId}
+        />
+      );
     case 'static':
       return (
         <div className="mfbe-script-form-static" data-testid={testId}>
@@ -260,6 +278,79 @@ function FormFieldView({ field, value, onChange, htmlId, testId }: FormFieldView
       );
     }
   }
+}
+
+/** A pattern with named presets and a validity check (contracts/script-api.md §4, feature 007). */
+function RegexpFieldView({
+  field,
+  value,
+  onChange,
+  htmlId,
+  testId,
+}: {
+  field: Extract<FormField, { kind: 'regexp' }>;
+  value: string;
+  onChange: (value: FormValue) => void;
+  htmlId: string;
+  testId: string;
+}) {
+  const { t } = useTranslation();
+  const presets = Array.isArray(field.presets) ? field.presets : [];
+  const problem = regexpProblem(value, field.flags);
+  const preset = presets.some((p) => p.value === value) ? value : '';
+  const errorId = `${htmlId}-error`;
+  return (
+    <div className="mfbe-script-form-row mfbe-script-form-regexp">
+      {presets.length > 0 && (
+        <>
+          <label htmlFor={`${htmlId}-presets`} className="mfbe-script-form-label">
+            {field.presetsLabel ?? t('scripting.form.regexpPresets')}
+          </label>
+          <select
+            id={`${htmlId}-presets`}
+            className="mfbe-script-form-input"
+            value={preset}
+            data-testid={`${testId}-presets`}
+            onChange={(e) => {
+              if (e.target.value !== '') onChange(e.target.value);
+            }}
+          >
+            <option value="" />
+            {presets.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
+      <label htmlFor={htmlId} className="mfbe-script-form-label">
+        {field.label}
+      </label>
+      <input
+        id={htmlId}
+        type="text"
+        spellCheck={false}
+        className="mfbe-script-form-input mfbe-script-form-pattern"
+        value={value}
+        aria-invalid={problem !== null}
+        aria-describedby={problem !== null ? errorId : undefined}
+        data-field-id={field.id}
+        data-testid={testId}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {problem !== null && (
+        <div
+          id={errorId}
+          className="mfbe-script-form-error"
+          role="alert"
+          data-testid={`${testId}-error`}
+        >
+          {t('scripting.form.regexpInvalid', { message: problem })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------------ */

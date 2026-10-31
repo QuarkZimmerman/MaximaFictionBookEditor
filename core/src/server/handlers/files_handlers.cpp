@@ -65,7 +65,8 @@ bool is_bare_file_name(const std::string& name) {
 // The types of the Save dialog: the suggested name's own (named by their pattern, which needs
 // no translation), then every file.
 std::vector<FileFilter> text_filters(const std::string& suggested) {
-    std::string extension = platform::utf8_from_path(platform::path_from_utf8(suggested).extension());
+    std::string extension =
+        platform::utf8_from_path(platform::path_from_utf8(suggested).extension());
     for (char& c : extension) {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
@@ -94,8 +95,8 @@ std::string binary_file_name(const std::string& id) {
     name.reserve(id.size());
     for (const char c : id) {
         const auto u = static_cast<unsigned char>(c);
-        const bool forbidden = u < 0x20 || u == 0x7F || std::string_view("/\\:*?\"<>|").find(c) !=
-                                                             std::string_view::npos;
+        const bool forbidden = u < 0x20 || u == 0x7F ||
+                               std::string_view("/\\:*?\"<>|").find(c) != std::string_view::npos;
         name.push_back(forbidden ? '_' : c);
     }
     while (!name.empty() && (name.back() == '.' || name.back() == ' ')) {
@@ -150,7 +151,8 @@ void write_binaries(BinariesJob job, rpc::Responder respond) {
             }
             ++saved;
         }
-        respond.ok(json{{"saved", saved}, {"skipped", std::move(skipped)}, {"folderToken", job.token}});
+        respond.ok(
+            json{{"saved", saved}, {"skipped", std::move(skipped)}, {"folderToken", job.token}});
     }).detach();
 }
 
@@ -213,12 +215,12 @@ void register_files_handlers(rpc::RpcRouter& router, Services& services) {
                     respond.fail(io_error(path, e.reason));
                     return;
                 }
-                respond.ok(json{{"saved", true},
-                                {"name", platform::utf8_from_path(path.filename())}});
+                respond.ok(
+                    json{{"saved", true}, {"name", platform::utf8_from_path(path.filename())}});
             });
         } catch (const DialogUnavailable& e) {
-            respond.fail(rpc::RpcError(rpc::codes::kDialogUnavailable, "",
-                                       json{{"reason", e.what()}}));
+            respond.fail(
+                rpc::RpcError(rpc::codes::kDialogUnavailable, "", json{{"reason", e.what()}}));
         }
     });
 
@@ -258,8 +260,8 @@ void register_files_handlers(rpc::RpcRouter& router, Services& services) {
                 auto record = [&services, respond, doc_id, ids, overwrite, folder] {
                     session::DocumentSession* current = services.documents.find(doc_id);
                     if (current == nullptr) {
-                        respond.fail(rpc::RpcError(rpc::codes::kDocNotFound, "",
-                                                   json{{"docId", doc_id}}));
+                        respond.fail(
+                            rpc::RpcError(rpc::codes::kDocNotFound, "", json{{"docId", doc_id}}));
                         return;
                     }
                     const std::string token = new_token();
@@ -273,8 +275,8 @@ void register_files_handlers(rpc::RpcRouter& router, Services& services) {
                 }
             });
         } catch (const DialogUnavailable& e) {
-            respond.fail(rpc::RpcError(rpc::codes::kDialogUnavailable, "",
-                                       json{{"reason", e.what()}}));
+            respond.fail(
+                rpc::RpcError(rpc::codes::kDialogUnavailable, "", json{{"reason", e.what()}}));
         }
     });
 }

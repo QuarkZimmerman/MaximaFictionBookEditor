@@ -47,6 +47,19 @@
   min-height: 4em;
 }
 
+.mfbe-script-form-pattern {
+  font-family: var(--mfbe-font-mono, ui-monospace, monospace);
+}
+
+.mfbe-script-form-pattern[aria-invalid='true'] {
+  border-color: var(--mfbe-color-danger, #c42b1c);
+}
+
+.mfbe-script-form-error {
+  color: var(--mfbe-color-danger, #c42b1c);
+  white-space: pre-wrap;
+}
+
 .mfbe-script-form-group {
   margin: 0;
   padding: 4px 8px 6px;

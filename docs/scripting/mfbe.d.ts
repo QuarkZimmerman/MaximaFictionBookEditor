@@ -190,7 +190,11 @@ declare namespace mfbe {
     | { kind: 'select';   id: string; label: string; options: { value: string; label: string }[]; value?: string }
     | { kind: 'radio';    id: string; label: string; options: { value: string; label: string }[]; value?: string }
     | { kind: 'list';     id: string; label: string; options: { value: string; label: string }[]; value?: string[]; multiple?: boolean }
-    | { kind: 'static';   id: string; text: string };
+    | { kind: 'static';   id: string; text: string }
+    /** Version 2: a pattern with named presets (choosing one puts its value in the field) and a
+     *  validity check - OK stays disabled while `new RegExp(value, flags)` throws. The value is
+     *  the pattern string. */
+    | { kind: 'regexp';   id: string; label: string; value?: string; presets?: { value: string; label: string }[]; presetsLabel?: string; flags?: string };
 
   /* ---------------------------------------------------------------------- */
   /* Editing helpers                                                        */

@@ -160,7 +160,21 @@ export type FormField =
       value?: string[];
       multiple?: boolean;
     }
-  | { kind: 'static'; id: string; text: string };
+  | { kind: 'static'; id: string; text: string }
+  | {
+      /**
+       * A pattern with named presets and a validity check (feature 007, contracts/script-api.md
+       * §4): choosing a preset puts its value in the field; OK is disabled while the pattern
+       * does not compile with `flags`. The value is the pattern string.
+       */
+      kind: 'regexp';
+      id: string;
+      label: string;
+      value?: string;
+      presets?: FormOption[];
+      presetsLabel?: string;
+      flags?: string;
+    };
 
 export interface FormOption {
   value: string;
