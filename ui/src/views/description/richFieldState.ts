@@ -28,6 +28,7 @@ import { emptyParagraph, N } from '@/editor/commands/util';
 import { annotationFromModel } from '@/editor/fromModel';
 import { backspaceCommand, deleteCommand, enterCommand } from '@/editor/keymap';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
+import { pictureLayoutPlugin } from '@/editor/plugins/pictureLayout';
 import { selectionSyncPlugin } from '@/editor/plugins/selectionSync';
 import { assignNodeIds, createNodeIdGenerator } from '@/editor/schema';
 import { tableEditingPlugin } from '@/editor/table/plugin';
@@ -120,6 +121,9 @@ export function createRichFieldState(
       keymap(bindings),
       keymap(baseKeymap),
       nodeIdPlugin(nextId),
+      // As in the Body view: a paragraph that starts with a picture has no first-line indent
+      // (feature 007, DP-4).
+      pictureLayoutPlugin(),
       ...extraPlugins,
     ],
   });

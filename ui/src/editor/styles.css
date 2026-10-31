@@ -9,6 +9,8 @@
  * the accents are the `--mfbe-fb-*` variables declared there for the light and the dark theme.
  */
 
+@import './pictures.css';
+
 .mfbe-body-view {
   display: flex;
   flex-direction: column;
@@ -463,135 +465,8 @@ a.fb-note {
 }
 
 /* ---------------------------------------------------------------------- */
-/* Images                                                                 */
+/* Images: pictures.css (imported at the top)                             */
 /* ---------------------------------------------------------------------- */
-
-.fb-editor figure.fb-image {
-  margin: 0.5em 0;
-  padding: 0;
-  border: none;
-  overflow: hidden;
-  clear: both;
-  text-align: center;
-}
-
-.fb-editor .fb-image img {
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-  border: none;
-  vertical-align: middle;
-}
-
-.fb-editor .fb-image-caption {
-  font-size: 85%;
-  color: var(--mfbe-color-fg-muted);
-  text-indent: 0;
-}
-
-.fb-editor .fb-inline-image {
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.fb-editor .fb-inline-image img {
-  max-height: 1.6em;
-  vertical-align: middle;
-}
-
-/* Pictures in table cells (feature 006): natural size, scaled down to the width the column can
-   take inside the text area and to 10 lines of Body text, never enlarged, never below the floor. */
-.fb-editor .fb-table .fb-inline-image {
-  max-width: 100%;
-  /* The box hangs from the top of its line: a picture no taller than a line is centred on the
-     text as elsewhere (the img keeps vertical-align: middle); a taller one starts level with the
-     line, so the text beside it stays level with the first lines of the other cells, and a cell
-     holding only a picture gets no extra line height around it. */
-  vertical-align: top;
-}
-
-/* Inside sup, sub and note links Chromium places a top-aligned box against the raised or lowered
-   inline, not against the line: there the box is centred as elsewhere, and the line grows. */
-.fb-editor .fb-table :is(sup, sub, a.fb-note) .fb-inline-image {
-  vertical-align: middle;
-}
-
-.fb-editor .fb-table .fb-inline-image img {
-  max-width: 100%;
-  max-height: calc(var(--mfbe-body-font-size) * var(--mfbe-body-line-height) * 10);
-  /* The floor: never narrower than the least of the natural width, 1.6em (the height of inline
-     pictures outside cells) and the width the 10-line cap allows, so that a picture stays visible
-     when the text alone fills the area. It needs --mfbe-nw / --mfbe-nh (image.ts), else it is 0. */
-  min-width: min(
-    calc(var(--mfbe-nw, 0) * 1px),
-    1.6em,
-    calc(
-      var(--mfbe-body-font-size) * var(--mfbe-body-line-height) * 10 * var(--mfbe-nw, 0) /
-        var(--mfbe-nh, 1)
-    )
-  );
-}
-
-.fb-editor .fb-table .fb-inline-image .fb-image-placeholder {
-  box-sizing: border-box;
-  max-width: 100%;
-  max-height: calc(var(--mfbe-body-font-size) * var(--mfbe-body-line-height) * 10);
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  /* Aligned like the picture it stands for (overflow: hidden would put its baseline at its
-     bottom edge). Never a bigger font than the cell's text. It asks the table for no width of
-     its own, as the picture does: a one-column inline grid whose track may shrink to 0, side
-     padding in % and an inset outline for the dashed frame instead of a border. */
-  vertical-align: middle;
-  font-size: min(1em, var(--mfbe-font-size, 13px));
-  padding: 0.3em 4%;
-  border: 0;
-  outline: 1px dashed var(--mfbe-color-border-strong);
-  outline-offset: -1px;
-}
-
-.fb-editor .fb-table .fb-image-missing .fb-image-placeholder,
-.mfbe-body-view--fast .fb-editor .fb-table .fb-inline-image .fb-image-placeholder {
-  display: inline-grid;
-  grid-template-columns: minmax(0, auto);
-}
-
-/* Until its preview arrives, a picture's box is reserved at the size the core will serve (image.ts
-   puts it on the img as --mfbe-nw / --mfbe-nh and removes .fb-sized once the preview has loaded):
-   the natural width, capped at 10 Body lines through the aspect ratio. max-width: 100% above still
-   lets the column shrink it, exactly as it shrinks the loaded picture. */
-.fb-editor .fb-table .fb-inline-image img.fb-sized {
-  width: min(
-    calc(var(--mfbe-nw) * 1px),
-    calc(
-      var(--mfbe-body-font-size) * var(--mfbe-body-line-height) * 10 * var(--mfbe-nw) /
-        var(--mfbe-nh)
-    )
-  );
-  height: auto;
-  aspect-ratio: var(--mfbe-nw) / var(--mfbe-nh);
-}
-
-.fb-image-placeholder {
-  display: none;
-  padding: 0.3em 0.6em;
-  border: 1px dashed var(--mfbe-color-border-strong);
-  color: var(--mfbe-color-fg-muted);
-  font: var(--mfbe-font-ui);
-}
-
-.fb-image-missing img,
-.fb-image-external img {
-  display: none;
-}
-
-.fb-image-missing .fb-image-placeholder {
-  display: inline-block;
-}
-
-.fb-selected {
-  outline: 2px solid var(--mfbe-color-accent);
-}
 
 /* ---------------------------------------------------------------------- */
 /* Unknown elements (raw-xml)                                             */
@@ -685,16 +560,7 @@ a.fb-note {
   background: transparent;
 }
 
-/* Images: previews are not laid out or painted; the placeholder box shows the reference. */
-.mfbe-body-view--fast .fb-image img,
-.mfbe-body-view--fast .fb-inline-image img {
-  display: none;
-}
-
-.mfbe-body-view--fast .fb-image .fb-image-placeholder,
-.mfbe-body-view--fast .fb-inline-image .fb-image-placeholder {
-  display: inline-block;
-}
+/* Images: pictures.css, "Fast Mode". */
 
 /* Non-breaking spaces are shown as plain spaces. */
 .mfbe-body-view--fast .fb-nbsp {

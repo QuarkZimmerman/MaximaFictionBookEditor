@@ -49,6 +49,7 @@ import { blockBoundaryPlugin, markControllerTransaction } from '@/editor/plugins
 import { blockCaptionsKey, blockCaptionsPlugin } from '@/editor/plugins/blockCaptions';
 import { clipboardPlugin, type ClipboardOptions } from '@/editor/plugins/clipboard';
 import { DEFAULT_NBSP_DISPLAY_CHAR, nbspMarkerPlugin, nbspPluginKey } from '@/editor/plugins/nbsp';
+import { pictureLayoutPlugin } from '@/editor/plugins/pictureLayout';
 import { nodeIdPlugin } from '@/editor/plugins/nodeIds';
 import { overtypePlugin } from '@/editor/plugins/overtype';
 import { searchMatchPlugin, withSearchMatch } from '@/editor/plugins/searchMatch';
@@ -273,6 +274,8 @@ export function createBodyEditorState(doc: PMNode, options: EditorStateOptions):
       nodeIdPlugin(nextNodeId),
       nbspMarkerPlugin(options.getNbspChar),
       searchMatchPlugin(),
+      // A paragraph that starts with a picture loses its first-line indent (feature 007, DP-4).
+      pictureLayoutPlugin(),
       ...(options.plugins ?? []),
     ],
   });
