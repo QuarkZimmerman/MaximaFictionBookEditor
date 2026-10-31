@@ -29,6 +29,12 @@ export interface ImageViewOptions {
   getMissingText: () => string;
   /** The document's binary for an id (Document.binaries), or null when there is none. */
   getBinary?: (id: string) => BinaryMeta | null;
+  /**
+   * Registers a listener for every new binary list of the document; returns its removal. The
+   * view draws itself again then, so a picture whose binary appears, goes or changes shows it at
+   * once - no refresh (feature 007).
+   */
+  onBinariesChange?: (listener: () => void) => () => void;
 }
 
 /**
@@ -55,6 +61,7 @@ export class ImageView implements NodeView {
   private readonly img: HTMLImageElement;
   private readonly caption: HTMLElement | null;
   private readonly missing: HTMLElement;
+  private readonly stopListening: (() => void) | undefined;
 
   constructor(
     private node: PMNode,
@@ -87,6 +94,11 @@ export class ImageView implements NodeView {
       this.dom.appendChild(this.caption);
     }
     this.render();
+    this.stopListening = this.options.onBinariesChange?.(() => this.render());
+  }
+
+  destroy(): void {
+    this.stopListening?.();
   }
 
   private render(): void {

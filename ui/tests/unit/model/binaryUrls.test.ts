@@ -14,9 +14,12 @@ import {
   binaryOriginalUrl,
   binaryPreviewUrl,
   displayableInEngine,
+  forgetBinaries,
+  observeBinaries,
   previewSize,
 } from '@/model/binaryUrls';
-import type { BinaryMeta } from '@/model/document';
+import type { BinaryMeta, Document } from '@/model/document';
+import { createAppStore } from '@/model/store';
 
 function meta(width?: number, height?: number, decodable = true): BinaryMeta {
   return {
@@ -39,6 +42,7 @@ function withToken(token: string): void {
 
 afterEach(() => {
   window.history.replaceState(null, '', '/');
+  forgetBinaries(null);
 });
 
 describe('PREVIEW_WIDTH and previewSize', () => {
@@ -151,5 +155,74 @@ describe('displayableInEngine', () => {
     ]) {
       expect(displayableInEngine(type)).toBe(false);
     }
+  });
+});
+
+/** A binary of the revision tests: `pic` with a size and dimensions to vary. */
+function binary(id: string, size = 100, width = 10): BinaryMeta {
+  return {
+    id,
+    contentType: 'image/png',
+    size,
+    width,
+    height: 10,
+    decodable: true,
+    willConvert: false,
+    referenceCount: 1,
+  };
+}
+
+describe('observeBinaries - the addresses follow the binaries (feature 007: no refresh command)', () => {
+  it('leaves the addresses of a document’s first list as they are', () => {
+    observeBinaries('doc-1', [binary('a.png')]);
+    expect(binaryPreviewUrl('doc-1', '#a.png', 96)).toBe(`${BASE}binary/doc-1/a.png/preview?w=96`);
+    expect(binaryOriginalUrl('doc-1', '#a.png')).toBe(`${BASE}binary/doc-1/a.png`);
+  });
+
+  it('gives a binary that appears, goes, comes back or changes a new address', () => {
+    withToken('t0k');
+    observeBinaries('doc-1', [binary('a.png')]);
+    // The binary of a dangling reference is added.
+    observeBinaries('doc-1', [binary('a.png'), binary('b.png')]);
+    expect(binaryPreviewUrl('doc-1', '#b.png', 96)).toBe(
+      `${BASE}binary/doc-1/b.png/preview?w=96&r=1&token=t0k`,
+    );
+    expect(binaryOriginalUrl('doc-1', '#b.png')).toBe(`${BASE}binary/doc-1/b.png?r=1&token=t0k`);
+    // Removed, then added again: the engine must not show its cached picture.
+    observeBinaries('doc-1', [binary('a.png')]);
+    observeBinaries('doc-1', [binary('a.png'), binary('b.png', 200)]);
+    expect(binaryPreviewUrl('doc-1', '#b.png', 96)).toContain('&r=3&');
+    // Converted in place: another size or pixel size.
+    observeBinaries('doc-1', [binary('a.png', 100, 20), binary('b.png', 200)]);
+    expect(binaryPreviewUrl('doc-1', '#a.png', 96)).toContain('&r=1&');
+    expect(binaryPreviewUrl('doc-1', '#b.png', 96)).toContain('&r=3&');
+  });
+
+  it('keeps the addresses when a new list holds the same binaries', () => {
+    observeBinaries('doc-1', [binary('a.png')]);
+    observeBinaries('doc-1', [binary('a.png')]);
+    expect(binaryPreviewUrl('doc-1', '#a.png', 96)).toBe(`${BASE}binary/doc-1/a.png/preview?w=96`);
+  });
+
+  it('keeps the documents apart and forgets all but the one kept', () => {
+    observeBinaries('doc-1', []);
+    observeBinaries('doc-1', [binary('a.png')]);
+    observeBinaries('doc-2', [binary('a.png')]);
+    expect(binaryPreviewUrl('doc-1', '#a.png', 96)).toContain('r=1');
+    expect(binaryPreviewUrl('doc-2', '#a.png', 96)).not.toContain('r=');
+    forgetBinaries('doc-2');
+    expect(binaryPreviewUrl('doc-1', '#a.png', 96)).not.toContain('r=');
+  });
+
+  it('is fed by the store whenever the open document’s binary list changes', () => {
+    const store = createAppStore();
+    const document = (binaries: BinaryMeta[]) => ({ binaries }) as unknown as Document;
+    store.setState({ docId: 'doc-9', document: document([]) });
+    expect(binaryPreviewUrl('doc-9', '#a.png', 96)).not.toContain('r=');
+    store.setState({ document: document([binary('a.png')]) });
+    expect(binaryPreviewUrl('doc-9', '#a.png', 96)).toContain('r=1');
+    // Another document: the first one's revisions are forgotten.
+    store.setState({ docId: 'doc-10', document: document([binary('a.png')]) });
+    expect(binaryPreviewUrl('doc-9', '#a.png', 96)).not.toContain('r=');
   });
 });

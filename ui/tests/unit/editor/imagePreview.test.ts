@@ -23,7 +23,7 @@ import {
   type ImageViewOptions,
 } from '@/editor/nodeviews/image';
 import { fb2Schema } from '@/editor/schema';
-import { previewSize } from '@/model/binaryUrls';
+import { forgetBinaries, observeBinaries, previewSize } from '@/model/binaryUrls';
 import type { BinaryMeta } from '@/model/document';
 
 function meta(id: string, width?: number, height?: number, decodable = true): BinaryMeta {
@@ -184,6 +184,40 @@ describe('the image node view reserves a picture’s box until its preview loads
 /* ------------------------------------------------------------------------ */
 /* The display rules' scope (research R9.1)                                 */
 /* ------------------------------------------------------------------------ */
+
+describe('the image node view follows the binary list - no refresh command (feature 007)', () => {
+  it('shows a dangling picture once its binary is added, and listens no more once destroyed', () => {
+    let list: BinaryMeta[] = [];
+    const listeners = new Set<() => void>();
+    observeBinaries('d1', list);
+    const view = viewOf(inlineImage('#photo.png'), {
+      getBinary: binaryLookup(() => list),
+      onBinariesChange: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    const before = imgOf(view).getAttribute('src');
+    expect(before).not.toContain('r=');
+    imgOf(view).dispatchEvent(new Event('error'));
+    expect(view.dom.classList.contains('fb-image-missing')).toBe(true);
+
+    // The binary arrives: the store records it, the editor tells its picture views.
+    list = [meta('photo.png', 40, 30)];
+    observeBinaries('d1', list);
+    for (const listener of [...listeners]) listener();
+    const after = imgOf(view).getAttribute('src');
+    expect(after).toContain('r=1');
+    expect(after).not.toBe(before);
+    expect(properties(imgOf(view))).toEqual(['40', '30']);
+    loadAs(imgOf(view), 40, 30);
+    expect(view.dom.classList.contains('fb-image-missing')).toBe(false);
+
+    view.destroy!();
+    expect(listeners.size).toBe(0);
+    forgetBinaries(null);
+  });
+});
 
 describe('the display rules of pictures (ui/src/editor/pictures.css, styles.css)', () => {
   const read = (name: string) =>

@@ -373,6 +373,42 @@ test.describe('US7 - images and binary objects', () => {
     await expect(page.getByTestId('binary-objects-dangling')).toContainText('#missing.png');
   });
 
+  test('4b. a picture shows its binary as soon as it is added, removed or added again - no refresh (feature 007)', async ({
+    core,
+    page,
+  }) => {
+    // FictionBook Editor 2.7.9 had a script to redraw the pictures; the editor needs none
+    // (docs/scripting/conversion-notes-279.md, group 05).
+    await openViaDialog(core, page, book(dir, 'refresh.fb2', '<image l:href="#tiny.png"/>'));
+    const picture = page.getByTestId('body-image').first();
+    const shown = () =>
+      picture.evaluate(
+        (el) =>
+          !el.classList.contains('fb-image-missing') &&
+          ((el.querySelector('img') as unknown as { naturalWidth: number } | null)?.naturalWidth ??
+            0) > 0,
+      );
+    await expect(picture).toHaveClass(/fb-image-missing/);
+
+    // The binary of the dangling reference is added: the Body view shows it at once.
+    await core.enqueueDialog('dialog.openFile', { paths: [image('tiny.png')] });
+    await menu(page, 'add', 'binary');
+    await expect.poll(shown).toBe(true);
+
+    // Removed in the Description view: the picture is missing on the way back.
+    await page.getByTestId('view-description').click();
+    await page.getByTestId('binary-objects-remove-tiny.png').click();
+    await page.getByTestId('dialog-binary-remove-referenced-button-yes').click();
+    await expect(page.getByTestId('binary-objects-row-tiny.png')).toHaveCount(0);
+    await page.getByTestId('view-body').click();
+    await expect(picture).toHaveClass(/fb-image-missing/);
+
+    // Added again under the same name, while the Body view is shown: it shows at once.
+    await core.enqueueDialog('dialog.openFile', { paths: [image('tiny.png')] });
+    await menu(page, 'add', 'binary');
+    await expect.poll(shown).toBe(true);
+  });
+
   test('5. Add > Binary Object... appends binaries that appear in the Description list', async ({
     core,
     page,
