@@ -225,5 +225,14 @@
     "script": "tests/scripts/fixtures/279/30/30_tests/reselect",
     "book": "tests/scripts/fixtures/279/30/numbering.fb2",
     "args": []
+  },
+  {
+    "snapshot": "30/line-numbers-to-superscript.description.xml",
+    "script": "scripts/30_numbering/40_line-numbers-to-superscript",
+    "book": "tests/scripts/fixtures/279/30/line-numbers-description.fb2",
+    "args": [
+      "--select-range",
+      "n6:0-n3:5"
+    ]
   }
 ]

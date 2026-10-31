@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "12/previous-low-quotes",
   "name": {
+    "ru": "Перейти на предыдущие лапки",
     "en": "Go to previous low quotes",
-    "ru": "Переход на пред. лапки"
+    "uk": "Перейти до попередніх лапок"
   },
   "description": {
-    "en": "Moves the caret to the previous low/high quote („“”) and selects it; at the beginning of the book offers to continue from the end",
-    "ru": "Переводит курсор на предыдущую лапку („“”) и выделяет её; в начале книги предлагает продолжить с конца"
+    "ru": "Выделяет ближайшую лапку („, “ или ”) перед курсором или выделением; в начале книги предлагает продолжить с конца",
+    "en": "Selects the nearest low or high quote („, “ or ”) before the caret or the selection; at the start of the book it offers to go on from the end",
+    "uk": "Виділяє найближчу лапку („, “ або ”) перед курсором чи виділенням; на початку книги пропонує продовжити з кінця"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to characters „,“,” v2.8",
-    "ru": "Переход на символы „,“,” v2.8"
+    "ru": "Перейти на предыдущие лапки",
+    "en": "Go to previous low quotes"
   },
   "legacy": {
-    "source": "12_Обработка кавычек/009_Переход на пред. лапки.js",
-    "fbeVersion": "2.7"
-  },
-  "icon": "icon.png"
+    "source": "12_Обработка кавычек/010_Перейти на предыдущие лапки.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.9"
+  }
 }

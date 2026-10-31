@@ -541,6 +541,338 @@ node tests/scripts/run-script.mjs scripts/12_quotes/025_unpaired-brackets-quotes
 node tests/scripts/run-script.mjs tests/scripts/fixtures/279/12/chains/unpaired $B --snapshot $S/chain-unpaired.xml
 ```
 
+Recheck (task T082) of the 15 packages converted from 2.7beta1 (`scripts/12_quotes/001_` to
+`015_`; the 2.7beta1 conversion is in conversion-notes-b.md, group 12). 2.7.9 has successors for 13
+of them, all **updated**: the quote-placing scripts 001 and 004-007 (Sclex, version 3.9, 007 3.7; a
+moderate change) and the "Перейти на ..." scripts 008-015 (Sclex, version 2.9; texts only). 002 and
+003 (*Расстановка елочек и лапок (начиная с 1-го / со 2-го уровня)*) have **no 2.7.9 counterpart**
+and stay (FR-027). The ids and folders are unchanged.
+
+**Names and icons.** `name.ru` and `undoLabel.ru` are the 2.7.9 file names: *Расстановка ...* became
+*Проставить ...* with the range in brackets (*(от начала документа)*, *(от позиции курсора)*, *(от
+позиции курсора; как будто перед курсором 1 незакрытая кавычка)*, *... 2 незакрытые кавычки)*, *только
+елочки (во всем документе)*), *Переход на пред. / след. ...* became *Перейти на предыдущие /
+следующие ...*; the English names follow them. Every package gained `name.uk` and `description.uk`
+(«ялинки» for guillemets, «лапки» for quotes, «прямі лапки» for straight ones); 002 and 003 keep their
+other texts. The icons of 001 and 008-011 are the same files in both versions; 2.7.9 gives 004 and
+007 an icon (2.7beta1 had none), converted with the audit tool's `ico_to_png` as the skeletons were;
+005, 006 and 012-015 have none in either version.
+
+**Origin.** The updated packages name their 2.7.9 original in `legacy` with its version (001, 004-006
+3.9; 007 3.7; 008-015 2.9) and keep its notice in `index.js` (`check-notices.py --package`: OK for
+all 15). 002 and 003 keep their 2.7beta1 `legacy` (`fbeVersion` "2.7"). No original of the group
+carries the list of wartime proverbs.
+
+**The page.** The originals worked on the book as FictionBook Editor showed it: the book's annotation
+and its history first, then every body (`fbw_body`). The 0.0.1 conversions read and changed the bodies
+only, as the script interface then allowed; the rechecked packages walk the same page as the group's
+2.7.9 packages 020 and 025 (`lib/nav-lib.js`, copied unchanged), and the quote-placing ones write the
+annotation's and the history's paragraphs with one `doc.setDescription` (`lib/page-paragraphs.js`,
+copied unchanged from the packages of group 32), the bodies' with `doc.replaceNode`.
+
+### The placing scripts: what 2.7.9 changed and how it was ported
+
+001 and 004-007 share one engine again, `quotes.js` (five identical copies; 002 and 003 keep their
+0.0.1 copy). 2.7.9 changed:
+
+- **The decision.** An ellipsis right after the quote ("..." or "…") makes an ambiguous quote an
+  opening one, and an ellipsis right before it a closing one, now only when there is none on the
+  other side: a quote between two ellipses (`ждал…"…и`) is undecidable, where 2.7beta1 took it for an
+  opening quote. Ported; the decision function was compared with the 2.7.9 original's own
+  `decideIsItLeftOrRightQuotes` (run from its source) on 200,000 random neighbourhoods: no difference.
+- **The checks at a block's end.** The nesting level must now be 0 at the end of the book's annotation
+  and of its history too, not only of a section; the message names the block: «В конце аннотации
+  документа / истории документа / раздела получился ненулевой уровень вложенности кавычек. То есть не
+  все открытые в аннотации документа / истории документа / разделе кавычки были в ней / ней / нем
+  закрыты. Выделение установлено в конец этой аннотации документа / этой истории документа / этого
+  раздела.» (2.7beta1: «В конце секции ...»). 2.7beta1 carried an open quote out of the annotation into
+  the history and the bodies.
+- **The error place.** An undecidable quote, or one that would go deeper than level 2 or below 0, is
+  now selected (2.7beta1: the caret before it); at the end of a block or of the range the last two
+  characters are selected (2.7beta1: the caret at the end). Then 2.7.9 scrolls the selection to the
+  middle of the window; the editor scrolls it into view.
+- **005 and 006: a start rule.** With the caret at the end of a paragraph that stands directly in the
+  book's annotation or history (an empty block's own paragraph included), the placing pass starts with
+  the block that follows (open question, below).
+- **Texts.** The version line («Скрипт «Проставить елочки и лапки (от начала документа)» (версия 3.9)»,
+  «... (от позиции курсора)» ..., «Скрипт «Проставить только елочки» (версия 3.7)»), «Проставлено
+  кавычек:» / «Проставлено елочек:», «Ура! Проставить кавычки удалось без ошибок.» / «Ура! Проставить
+  елочки удалось без ошибок.», «Не удалось определить, является кавычка открывающей или же
+  закрывающей.» (2.7beta1: «Невозможно определить, какой нужен тип кавычки: кавычка получается и левой
+  и правой.» or «... ни левой ни правой.»), «В конце блочного элемента получился не тот же уровень
+  вложенности кавычек, что в начале. Выделение установлено в конец этого элемента.» (001; 004-006 say
+  «элемента»), «... Выделение установлено в конец этой области.», 007's «Елочки проставлены, но... в
+  некоторых случаях было непонятно, открывающие или закрывающие елочки нужно проставить, ...» (its
+  lines indented with non-breaking spaces, as in the original), and the undo units' names. All ported
+  (Russian as written, English translated).
+- Layout only: debugging alerts behind `debug=false`, commented code.
+
+With the page, the rest of the engine was brought to the originals as well; the 0.0.1 conversion
+differed from them here:
+
+- the annotation and the history are processed (above), first, as in FictionBook Editor;
+- the first pass turns every typographic quote of the whole range into a straight one before the
+  second pass decides any, so after an error the rest of the range has straight quotes, as in
+  FictionBook Editor (one Undo reverts the run); the 0.0.1 conversion worked block by block and left
+  the rest as it was;
+- `\s` in the original's expressions has JScript's meaning, `[\t\n\v\f\r ]`: a thin space next to a
+  quote decides nothing (`"Тонкий пробел{U+2009}" перед кавычкой.` gives a closing quote; with
+  ECMAScript's `\s` it was undecidable);
+- 004-006 with a text selection process the selection only, as their originals do (the 0.0.1
+  conversion went from the selection's start to the end of the book);
+- the text of a note link is left alone in both passes (the 0.0.1 conversion turned its typographic
+  quotes straight in the first pass and never placed them again);
+- after a run without an error the selection is put back as it was.
+
+**Expected results.** The originals themselves were run, before the packages: a scratch oracle builds
+FictionBook Editor's page from a reference book as `files/fb2.xsl` of 2.7.9 renders it (`DIV.annotation`,
+`DIV.history`, a `DIV.body` per body, a `P` per text block and empty line, inline elements, `SPAN.image`
+for an inline picture) in a small DOM with the TextRange calls the scripts make (`pasteHTML` of the
+markers, `moveToElementText`, `setEndPoint`, `moveStart`/`moveEnd` by characters, `select`), and runs
+each 2.7.9 file's `Run()` unchanged (with JScript's `\s`), answering its questions. On conv-b-12.fb2 it
+reproduces the four existing snapshots of 001 and 004-006 exactly, 2.7.9 giving the same text there as
+2.7beta1. Every snapshot and every line of the chain drivers below equals the oracle's result
+(paragraph texts, the selection the run leaves, the messages; the Russian messages were captured from
+the packages in the Russian interface and are identical to the original's strings).
+
+**Reference books** (new, `tests/scripts/fixtures/279/12/`, valid FB2 2.1):
+- `quotes-recheck.fb2`: the annotation «Аннотация про "кавычки" и «ёлочки».» (n31), a history of two
+  paragraphs, «Правка "первая".» (n33) and «Правка «вторая».» (n34); the body title «Проверка
+  "кавычек"» (n3); a first section with «Он сказал: "Привет" и ушёл.» (n7), the one-sided ellipses
+  `"Начало"…потом…"конец"` (n8), a thin space before a closing quote (n9), the ellipses on both sides
+  `ждал…"…и дождался.` (n10) and typographic quotes (n11); a second section whose quote stays open to
+  its end (n15, n16); a third whose quote opened before a cite closes inside it (n20, n22, n23); a fourth
+  with a balanced paragraph (n27) and a quote opened in n28 and closed in n29.
+- `quotes-annotation.fb2`: an annotation with an unclosed quote (n5), a history with «ёлочки» (n7) and
+  a body paragraph with „лапки“ and straight quotes (n3).
+- `quotes-levels.fb2` (for 002): a quote opened in n3 whose cite (n5) holds a pair of its own, closed in
+  n6.
+
+**Tests** (`tests/scripts/snapshots/12/suite.json`): 7 snapshots of single runs and 2 chain drivers
+(test packages, never bundled, `tests/scripts/fixtures/279/12/chains/`): `place-quotes` runs the placing
+scripts through `mfbe.scripts.run` by their 2.7.9 paths from 13 carets and selections, each on the
+unchanged book, writing per run the selection it left and every paragraph it changed, and puts the
+book back after each run (`chain-place-quotes.outputs.json`; the snapshot is the book as it began);
+`goto-quotes` runs the "Перейти" scripts from 13 starting points, again and again from the selection
+each call left (`chain-goto-quotes.outputs.json`, 43 calls; the first question answered Cancel, every
+later one OK). The 15 snapshots of the 0.0.1 conversion on conv-b-12.fb2 pass unchanged: 2.7.9 gives
+the same result there (worked out again with the oracle). Group gate: `tests/scripts/run-all.sh
+--group 12` - 27 snapshots (9 added), all pass; no package of the group without Ukrainian names.
+
+### 001 Проставить елочки и лапки (от начала документа)
+
+`scripts/12_quotes/001_place-quotes`, id `12/place-quotes` (2.7beta1 *001_Расстановка елочек и
+лапок*): **updated** from 2.9 to 3.9. en *Place guillemets and low quotes (from the start of the
+document)*, uk *Проставити ялинки й лапки (від початку документа)*. The selection, or the whole page
+without one. Snapshot `place-quotes.conv-b-12.xml` stays. Added `place-quotes.recheck.xml`
+(quotes-recheck.fb2, caret n7:0, the whole book): the annotation becomes «Аннотация про «кавычки» и
+«ёлочки».», the history's first paragraph «Правка «первая».», the title «Проверка «кавычек»», n7
+«Он сказал: «Привет» и ушёл.», n8 «Многоточие с одной стороны: «Начало„…потом…“конец».» (the one-sided
+ellipses: after the quote an opening one, before it a closing one), n9 «Тонкий пробел » перед
+кавычкой.»; at n10's quote between two ellipses the run stops with «Не удалось определить, является
+кавычка открывающей или же закрывающей.» (the quote n10:21-22 selected; 18 quotes counted), and n11,
+past it, keeps the straight quotes of the first pass, «Уже "типографские" и "лапки".». 2.7beta1 took
+n10's quote for an opening one and stopped at the end of the section instead, its n11 «Уже
+„типографские“ и „лапки“.». Added `place-quotes.annotation.xml` (quotes-annotation.fb2, the whole
+book): the annotation's quote is placed («Аннотация с «незакрытой кавычкой.») and the run stops at the
+annotation's end («В конце аннотации документа ...», its last two characters n5:31-33 selected); the
+history's and the body's quotes are straight from the first pass. 2.7beta1 carried the open quote on
+and stopped at the end of the range, with the history's and the body's quotes nested („...“).
+Chain place-quotes: from n7:0 as above; the selection n28 (a quote left open): «В конце области
+документа ...», n28:28-30 selected; the selection n20:0-n23:13 (the cite): «В конце блочного элемента
+...», the cite's last two characters n22:21-23 selected. Differences: note links; scrolling; an empty
+line at a block's end; the undo step's name.
+
+### 002 Расстановка елочек и лапок (начиная с 1-го уровня)
+
+`scripts/12_quotes/002_place-quotes-level1`, id `12/place-quotes-level1`: **no 2.7.9 counterpart**
+(2.7.9's 005 and 006 start from the caret), kept as converted (FR-027; inventory entry `fbeVersion`
+"2.7"), with its 0.0.1 engine and differences (conversion-notes-b.md). Gained uk *Розставлення ялинок і
+лапок (починаючи з 1-го рівня)*. **Fix:** the level at the end of each block entered inside the range
+is compared with the level the block started with, as in the original, whose
+`blockInitQuotesLevel[currentBlockIndex]=0;` the next line overwrites with `=currentQuotesLevel;`; the
+0.0.1 conversion compared it with 0 ("002 keeps its blockInitQuotesLevel = 0 quirk") and stopped with an
+error where the original goes on. Snapshot `place-quotes-level1.conv-b-12.xml` stays (no block in its
+range); added `place-quotes-level1.block-level.xml` (quotes-levels.fb2, n3:11-n6:19): the cite's own pair
+becomes „внутри“ and the closing quote of n6 », as the 2.7beta1 original gives (the oracle); the 0.0.1
+version stopped at the cite's end.
+
+### 003 Расстановка елочек и лапок (начиная со 2-го уровня)
+
+`scripts/12_quotes/003_place-quotes-level2`, id `12/place-quotes-level2`: **no 2.7.9 counterpart**,
+kept as converted (FR-027; `fbeVersion` "2.7"). Gained uk *Розставлення ялинок і лапок (починаючи з
+2-го рівня)*; code unchanged. Snapshot `place-quotes-level2.conv-b-12.xml` stays.
+
+### 004 Проставить елочки и лапки (от позиции курсора)
+
+`scripts/12_quotes/004_place-quotes-from-caret`, id `12/place-quotes-from-caret` (2.7beta1
+*004_Расстановка елочек и лапок (с позиции курсора)*): **updated** from 2.9 to 3.9, as 001, from the
+caret to the end of the page or over the selection; gained its icon. en *Place guillemets and low
+quotes (from the caret)*, uk *Проставити ялинки й лапки (від позиції курсора)*. Snapshot
+`place-quotes-from-caret.conv-b-12.xml` stays. Added `place-quotes-from-caret.selection.xml` (the
+selection n27): only n27 changes, «Первая реплика» и «вторая».; the 0.0.1 conversion also placed the
+quotes of n28 and n29, past the selection. Chain place-quotes: from n15:0 the section ends with the
+quote open: «В конце раздела получился ненулевой уровень вложенности кавычек. ...», n16:22-24 selected;
+from n20:0 the cite: «В конце элемента ...», n22:21-23; the selection n10: the quote n10:21-22
+undecidable, nothing changed; from the end of the annotation (n31:35; 004 has no start rule): the
+history is processed and the run stops at n10. **Fix:** a selected picture is refused with the group's
+2.7.9 message («Ошибка. Вы используете тип выделения, который не поддерживатся этим скриптом –
+выделение картинок, а не текста. ...»); 2.7.9 stopped with a script error (a control range has no
+`pasteHTML`). Differences: as 001.
+
+### 005 Проставить елочки и лапки (от позиции курсора; как будто перед курсором 1 незакрытая кавычка)
+
+`scripts/12_quotes/005_place-quotes-from-caret-level1`, id `12/place-quotes-from-caret-level1`
+(2.7beta1 *005_Расстановка елочек и лапок (с позиции курсора, начиная с 1-го уровня)*): **updated**
+from 2.9 to 3.9, as 004 starting at level 1, with 2.7.9's start rule. en *Place guillemets and low
+quotes (from the caret; as if 1 quote before the caret were still open)*, uk *Проставити ялинки й
+лапки (від позиції курсора; ніби перед курсором 1 незакрита лапка)*. Snapshot
+`place-quotes-from-caret-level1.conv-b-12.xml` stays. Added
+`place-quotes-from-caret-level1.history-end.xml` (caret at the end of the history's first paragraph,
+n33:16): the start rule skips the history's second paragraph, which keeps the straight quotes of the
+first pass («Правка "вторая".»), and the bodies are placed one level deeper («Проверка „кавычек“», «Он
+сказал: „Привет“ и ушёл.», «„Начало„…потом…“конец“», «„Тонкий пробел “ ...») up to n10's undecidable
+quote. Chain place-quotes: from n31:0 the annotation ends with a quote open («В конце аннотации
+документа ...», n31:33-35 selected; the annotation «Аннотация про „кавычки“ и „ёлочки“.»); from n28:1
+(inside an open quote) the closing quote of n29 becomes », no error, the caret stays. Fix: the selected
+picture, as 004. **Open question:** the start rule (below). Differences: as 001.
+
+### 006 Проставить елочки и лапки (от позиции курсора; как будто перед курсором 2 незакрытые кавычки)
+
+`scripts/12_quotes/006_place-quotes-from-caret-level2`, id `12/place-quotes-from-caret-level2`:
+**updated** from 2.9 to 3.9, as 005 starting at level 2. en *Place guillemets and low quotes (from the
+caret; as if 2 quotes before the caret were still open)*, uk *Проставити ялинки й лапки (від позиції
+курсора; ніби перед курсором 2 незакриті лапки)*. Snapshot `place-quotes-from-caret-level2.conv-b-12.xml`
+stays. Added `place-quotes-from-caret-level2.annotation-end.xml` (caret at the end of the annotation,
+n31:35): the start rule enters the history at level 2, its quotes become „первая“ and „вторая“, and
+the run stops at the history's end («В конце истории документа получился ненулевой уровень вложенности
+кавычек. ...», n34:14-16 selected); n11 keeps the straight quotes of the first pass. 2.7beta1 went on
+through the history into the bodies and stopped at n8 («кавычка получается больше чем второго уровня
+вложения»). **Fixes:** the messages name the script «... как будто перед курсором 2 незакрытые
+кавычки)» (версия 3.9); 2.7.9's `versionStr` is 005's («... 1 незакрытая кавычка»); the selected
+picture, as 004. **Open question:** the start rule (below). Differences: as 001.
+
+### 007 Проставить только елочки (во всем документе)
+
+`scripts/12_quotes/007_place-guillemets-only`, id `12/place-guillemets-only` (2.7beta1 *015_Расстановка
+только елочек*): **updated** from 2.9 to 3.7; gained its icon. en *Place guillemets only (in the whole
+document)*, uk *Проставити лише ялинки (в усьому документі)*. The selection or the whole page; no
+levels: an opening quote becomes «, a closing one », an undecidable one stays straight and is counted.
+2.7.9 changed the decision (the ellipses) and the texts. Snapshot `place-guillemets-only.conv-b-12.xml`
+stays. Added `place-guillemets-only.recheck.xml` (quotes-recheck.fb2, the whole book): the annotation,
+the history and the bodies get « and » (n8 «Начало«…потом…»конец», n9 «Тонкий пробел »), n10's quote stays
+straight, and the message says «Елочки проставлены, но... Осталось прямых кавычек – " – 1» (16 left, 15
+right); 2.7beta1 made n10's quote « and reported success. Differences: note links; the undo step's
+name.
+
+### 008 Перейти на предыдущие елочки
+
+`scripts/12_quotes/008_previous-guillemets`, id `12/previous-guillemets` (2.7beta1 *008_Переход на
+пред. елочки*): **updated** from 2.8 to 2.9.
+
+The eight scripts 008-015 share `goto-quotes.js` (eight identical copies). 2.7.9 changed their texts
+only: the version line of every message, «Скрипт «Перейти на кавычки v2.9».» in 008-013 and «Скрипт
+«Переход на кавычки v2.9».» in 014 and 015 (2.7beta1 «Переход на кавычки v2.8» in all), and the version
+in the undo unit's name; the names (*Переход на пред. / след.* → *Перейти на предыдущие / следующие*)
+and the numbers (2.7beta1 had 007 next and 008 previous guillemets, 2.7.9 008 previous and 009 next;
+the packages keep their folders). Ported, and the search brought to the originals: the book's
+annotation and history are searched, first, as in FictionBook Editor (the 0.0.1 conversion searched the
+bodies only and did nothing with the caret in the annotation or history); the question at the book's
+end is the original's `confirm()`, OK and Cancel (the 0.0.1 conversion asked Yes / No); a selected
+picture gets the original's message («Выделена картинка, а чтобы сработал скрипт, надо, чтобы курсор
+был в тексте. Так что перейти на кавычку не выйдет.»; the 0.0.1 conversion did nothing). `run()` returns
+nothing, as `Run()` did. The 0.0.1 snapshots on conv-b-12.fb2 (the book unchanged) stay; the selections
+are in `chain-goto-quotes.outputs.json`. Difference (all eight): the editor scrolls the found quote
+into view (2.7.9: 60 pixels below the window's top).
+
+en *Go to previous guillemets*, uk *Перейти до попередніх ялинок*. Chain goto-quotes from the end of the
+book (n29:29): n11:17, n11:4, n34:14, n34:7 (the history), n31:33, n31:26 (the annotation), the question
+(OK), n11:17, n11:4; with everything selected (n31:0-n29:29): the question, then «Ничего не найдено,
+поиск завершен.», the selection unchanged.
+
+### 009 Перейти на следующие елочки
+
+`scripts/12_quotes/009_next-guillemets`, id `12/next-guillemets` (2.7beta1 *007_Переход на след.
+елочки*): **updated**, as 008. en *Go to next guillemets*, uk *Перейти до наступних ялинок*. Chain
+goto-quotes from n31:0: n31:26, n31:33 (the annotation), n34:7, n34:14, n11:4, n11:17, the question (OK),
+n31:26, n31:33; from n29:29: the question, Cancel, the caret stays; everything selected: the question,
+«Ничего не найдено ...».
+
+### 010 Перейти на предыдущие лапки
+
+`scripts/12_quotes/010_previous-low-quotes`, id `12/previous-low-quotes` (2.7beta1 *009_Переход на пред.
+лапки*): **updated**, as 008 („, “ and ”). en *Go to previous low quotes*, uk *Перейти до попередніх
+лапок*. Chain goto-quotes from n29:29: n11:27, n11:21, the question (OK), n11:27.
+
+### 011 Перейти на следующие лапки
+
+`scripts/12_quotes/011_next-low-quotes`, id `12/next-low-quotes` (2.7beta1 *010_Переход на след.
+лапки*): **updated**, as 008. en *Go to next low quotes*, uk *Перейти до наступних лапок*. Chain
+goto-quotes from n31:0: n11:21, n11:27, the question (OK), n11:21.
+
+### 012 Перейти на предыдущие прямые кавычки
+
+`scripts/12_quotes/012_previous-straight-quotes`, id `12/previous-straight-quotes` (2.7beta1
+*011_Переход на пред. прямые кавычки*): **updated**, as 008. en *Go to previous straight quotes*, uk
+*Перейти до попередніх прямих лапок*. Chain goto-quotes from n15:0: n10:21, n9:15, n9:0, n8:49.
+
+### 013 Перейти на следующие прямые кавычки
+
+`scripts/12_quotes/013_next-straight-quotes`, id `12/next-straight-quotes` (2.7beta1 *012_Переход на
+след. прямые кавычки*): **updated**, as 008. en *Go to next straight quotes*, uk *Перейти до наступних
+прямих лапок*. Chain goto-quotes from n9:0: n9:0 (a quote right at the caret counts), n9:15, n10:21,
+n15:6.
+
+### 014 Перейти на предыдущие прямые кавычки, елочки или лапки
+
+`scripts/12_quotes/014_previous-any-quotes`, id `12/previous-any-quotes` (2.7beta1 *013_Переход на
+пред. прямые кавычки, елочки или лапки*): **updated**, as 008 (its messages keep 2.7.9's «Переход на
+кавычки v2.9»). en *Go to previous straight quotes, guillemets or low quotes*, uk *Перейти до
+попередніх прямих лапок, ялинок або лапок*. Chain goto-quotes from n7:0: n3:17, n3:9 (the body's
+title), n34:14, n34:7; from the selection n8:30-45: n8:28, before its start.
+
+### 015 Перейти на следующие прямые кавычки, елочки или лапки
+
+`scripts/12_quotes/015_next-any-quotes`, id `12/next-any-quotes` (2.7beta1 *014_Переход на след.
+прямые кавычки, елочки или лапки*): **updated**, as 014. en *Go to next straight quotes, guillemets or
+low quotes*, uk *Перейти до наступних прямих лапок, ялинок або лапок*. Chain goto-quotes from n33:0:
+n33:7, n33:14, n34:7, n34:14; from the selection n8:30-45: n8:49, after its end.
+
+### Differences, fixes and open questions of the placing scripts
+
+**Differences** (each entry of `updates-279/12-recheck.json` lists those of its script): the text of a
+note link is left alone (FictionBook Editor turned its quotes straight and decided them with the text
+around the link; since 0.0.1, now in both passes); the editor scrolls the selected error place into
+view (2.7.9: to the middle of the window, a quote to 60 pixels below the top); where a block ends with
+an empty line the two characters selected at an error are the end of its last paragraph with text (how
+FictionBook Editor's `moveStart` counted an empty line is not known); the undo step is named after the
+script, not after the original's undo unit («проставление елочек и лапок (от начала документа)» ...).
+**Fixes:** 006's name in its messages; the picture refused by 004-006; 002's block level.
+
+**Open question (005, 006).** 2.7.9's new start rule: with the caret at the end of a paragraph that
+stands directly in the book's annotation or history (an empty annotation's or history's own paragraph
+included), the placing pass starts with the block that follows. The first pass, from the caret, has already turned the typographic quotes of the rest of
+that annotation or history into straight ones, which then stay straight; and every block after it is
+entered with the starting level, so its end check fails whether the quote closes in it or not: a run
+started there always ends in an error (on quotes-recheck.fb2 from the end of the history's first
+paragraph and from the end of the annotation, above). Kept as 2.7.9; was the rule meant to skip the rest
+of the annotation or history, or only its end check?
+
+### Harness commands of the recheck
+
+```bash
+G=scripts/12_quotes; B=tests/scripts/fixtures/279/12; S=tests/scripts/snapshots/12
+node tests/scripts/run-script.mjs $G/001_place-quotes $B/quotes-recheck.fb2 --select n7:0:0 --snapshot $S/place-quotes.recheck.xml
+node tests/scripts/run-script.mjs $G/001_place-quotes $B/quotes-annotation.fb2 --select n3:0:0 --snapshot $S/place-quotes.annotation.xml
+node tests/scripts/run-script.mjs $G/002_place-quotes-level1 $B/quotes-levels.fb2 --select-range n3:11-n6:19 --snapshot $S/place-quotes-level1.block-level.xml
+node tests/scripts/run-script.mjs $G/004_place-quotes-from-caret $B/quotes-recheck.fb2 --select n27:0:28 --snapshot $S/place-quotes-from-caret.selection.xml
+node tests/scripts/run-script.mjs $G/005_place-quotes-from-caret-level1 $B/quotes-recheck.fb2 --select n33:16:16 --snapshot $S/place-quotes-from-caret-level1.history-end.xml
+node tests/scripts/run-script.mjs $G/006_place-quotes-from-caret-level2 $B/quotes-recheck.fb2 --select n31:35:35 --snapshot $S/place-quotes-from-caret-level2.annotation-end.xml
+node tests/scripts/run-script.mjs $G/007_place-guillemets-only $B/quotes-recheck.fb2 --select n7:0:0 --snapshot $S/place-guillemets-only.recheck.xml
+node tests/scripts/run-script.mjs $B/chains/place-quotes $B/quotes-recheck.fb2 --snapshot $S/chain-place-quotes.xml
+node tests/scripts/run-script.mjs $B/chains/goto-quotes $B/quotes-recheck.fb2 --answer cancel --snapshot $S/chain-goto-quotes.xml
+```
+
 ## 13_Заголовки, подзаголовки, пустые строки
 
 Task T055: the 13 scripts new in 2.7.9, except *590_Расформатировать все заголовки_Комбо*, which
@@ -2511,6 +2843,142 @@ node tests/scripts/run-script.mjs tests/scripts/fixtures/279/18/chains/editing t
 node tests/scripts/run-script.mjs tests/scripts/fixtures/279/18/chains/titled tests/scripts/fixtures/279/18/editing-titled.fb2 --snapshot tests/scripts/snapshots/18/chain-titled.xml
 node tests/scripts/run-script.mjs scripts/18_editing/22_yofier tests/scripts/fixtures/279/18/yofier.fb2 --answer ok --snapshot tests/scripts/snapshots/18/yofier.xml
 # 35: --answer ok ok, 12 x no, ok, no, ok (yo-e-variants.xml); the chains with the answers listed above
+```
+
+Recheck (task T085, part) of the 7 packages converted from 2.7beta1 that have their 2.7.9 successor
+in this group (`scripts/18_editing/`; the 2.7beta1 conversion is in conversion-notes-c.md, group 18).
+Outcomes: 3 **updated** (17, 18, 40), 4 **unchanged** (04, 05, 25, 26: the same files). 2.7beta1's
+*03_Снятие форматирования стихом, цитатой или эпиграфом* moved to group 19 (rechecked there) and
+*09_Нумерацию в началах строк - надстрочным текстом* to group 30 (its package's recheck is in group
+30's notes). The ids and folders are unchanged.
+
+**Names and icons.** `name.ru` and `undoLabel.ru` of the updated packages are the 2.7.9 file names:
+*Удаление пробелов* → *Удалить все пробелы в выделении*, *Удаление пробелов и дефисов* → *Удалить все
+пробелы и дефисы в выделении*, *Вставить ссылку на midi...* → *Сделать выделенный текст ссылкой на
+MIDI-файл (для AlReader'а)*; the English names follow them, as the group's new *Remove all underscores in
+the selection* (20). The unchanged packages keep their names, which 2.7.9 kept, and their undo labels.
+Every package gained `name.uk` and `description.uk`. The icons of 17 and 40 are the same files in both
+versions; 2.7.9 gives 04, 05, 18, 25 and 26 an icon (2.7beta1 had none), converted with the audit
+tool's `ico_to_png` as the skeletons were.
+
+**Origin.** 17 and 18 name their 2.7.9 original in `legacy` with its version 1.3 and keep its notice in
+`index.js`; 40's original has neither a version nor a leading comment. The unchanged packages keep
+their 2.7beta1 `legacy` (`fbeVersion` "2.7"). `check-notices.py --package`: OK for all seven. No
+original of these carries the list of wartime proverbs.
+
+**Reference book** (new, `tests/scripts/fixtures/279/18/spaces-description.fb2`, valid FB2 2.1): spaces,
+hyphens and a non-breaking space in the book's annotation («Ан но та ция с про-бе-ла ми.», a
+non-breaking space before «ми», n6), in its
+history («Ис то рия - с *жир ным* тек-стом.», n8) and in two body paragraphs (n3, n4). **Snapshots:** 4
+added in `tests/scripts/snapshots/18/` and its `suite.json`, none re-recorded: the 7 snapshots of the
+seven packages on `tests/scripts/fixtures/books/conv-c-18.fb2` pass unchanged, their results being
+2.7.9's. Each expected result was worked out from the 2.7.9 original before the run; the selection a
+run leaves was checked with a scratch package that runs the script through `mfbe.scripts.run` and
+records it, the messages in the harness log. Group gate: `tests/scripts/run-all.sh --group 18` - 49
+snapshots, all pass; no package of the group without Ukrainian names.
+
+### 04 Вставить пустую строку перед стихом или цитатой
+
+`scripts/18_editing/04_empty-line-before-poem-or-cite`, id `18/empty-line-before-poem-or-cite`:
+**unchanged** (the same file, version 1.0). Gained uk *Вставити порожній рядок перед віршем або
+цитатою* and 2.7.9's icon. Snapshot `empty-line-before-poem-or-cite.xml` stays. Difference kept from
+0.0.1: with the caret in the book's annotation or history the script stops with a script error (its
+node operations reach the bodies only); FictionBook Editor inserted the empty line before a poem or cite
+of the annotation, or did nothing. **Open question:** bring the script to the annotation and history
+(written with `doc.setDescription`), as FictionBook Editor did?
+
+### 05 Вставить пустую строку за стихом, эпиграфом или цитатой
+
+`scripts/18_editing/05_empty-line-after-poem-epigraph-or-cite`, id
+`18/empty-line-after-poem-epigraph-or-cite`: **unchanged** (version 1.0). Gained uk *Вставити порожній
+рядок після вірша, епіграфа або цитати* and 2.7.9's icon. Snapshot
+`empty-line-after-poem-epigraph-or-cite.xml` stays. Difference and open question as 04.
+
+### 17 Удалить все пробелы в выделении
+
+`scripts/18_editing/17_remove-spaces`, id `18/remove-spaces` (2.7beta1 *01_Удаление пробелов*):
+**updated** from 1.1 to 1.3 (a major change by line count, 33 lines). en *Remove all spaces in the
+selection*, uk *Видалити всі пробіли у виділенні*. What 2.7.9 changed:
+
+- **Which text is processed.** 2.7beta1 walked the page from the selection with a flag `InsideP`, set
+  when it met a `P` and cleared when its look-ahead climbed out of one - before the text node was
+  processed; so the last text node of every paragraph the walk left before reaching the selection's end
+  was skipped: in a selection over several paragraphs, all but the last kept the last piece of their
+  text (a paragraph of one text node all of it). 2.7.9 asks for each text node whether a `P` of the page
+  holds it (`isInsideP`). The 0.0.1 conversion already processed the selected text of every text block,
+  which is now 2.7.9's behaviour: nothing to port in the removal itself.
+- The expression takes runs of spaces (`[ nbsp]+`; the same result), the undo unit's name
+  («удаление всех пробелов в выделении»), the header.
+
+Brought to the original as well: `isInsideP` takes any `P` of `fbw_body`, the book's annotation and
+history included; the 0.0.1 conversion stopped with a script error when the selection reached into
+them (its node operations reach the bodies only). The engine `strip-lib.js` (identical copies in 17 and
+18) now works on the page of `lib/nav-lib.js` and writes the annotation's and the history's paragraphs
+with one `doc.setDescription` (`lib/page-paragraphs.js`, both copied unchanged from other packages).
+Without a text selection (a caret or a picture): «Ничего не выделено!», as before. Afterwards the
+processed text is selected, as in the original.
+
+Snapshot `remove-spaces.xml` stays. Added `remove-spaces.description.xml` (the selection n6:3-n3:10,
+from the annotation over the history into the body): «Ан нотацияспро-бе-лами.» (the space before the
+selection's start stays; the non-breaking space goes), «История-с*жирным*тек-стом.», «Первыйаб-зац те
+кста.»; the selection afterwards n6:3-n3:8. The 0.0.1 version stopped there with «Script error: node:
+unknown nodeId "n6"». Difference: the undo step is named after the script.
+
+### 18 Удалить все пробелы и дефисы в выделении
+
+`scripts/18_editing/18_remove-spaces-and-hyphens`, id `18/remove-spaces-and-hyphens` (2.7beta1
+*06_Удаление пробелов и дефисов*): **updated** as 17, with the expression `[- nbsp]+`; gained its icon.
+en *Remove all spaces and hyphens in the selection*, uk *Видалити всі пробіли й дефіси у виділенні*.
+Snapshot `remove-spaces-and-hyphens.xml` stays. Added `remove-spaces-and-hyphens.description.xml` (the
+history's paragraph n8 selected): «Историяс*жирным*текстом.», the selection afterwards n8:0-22.
+Difference: the undo step is named after the script («удаление всех пробелов и дефисов в выделении»).
+
+### 25 Обрамить верхние индексы скобками []
+
+`scripts/18_editing/25_bracket-superscripts-square`, id `18/bracket-superscripts-square`:
+**unchanged** (version 1.0). Gained uk *Обрамити верхні індекси дужками []* and 2.7.9's icon. Snapshot
+`bracket-superscripts-square.xml` stays. Difference kept from 0.0.1: the superscripts of the book's
+annotation and history are left without brackets (the conversion reads the bodies only); FictionBook
+Editor bracketed them too. **Open question:** as 04.
+
+### 26 Обрамить верхние индексы скобками {}
+
+`scripts/18_editing/26_bracket-superscripts-curly`, id `18/bracket-superscripts-curly`: **unchanged**
+(version 1.0). Gained uk *Обрамити верхні індекси дужками {}* and 2.7.9's icon. Snapshot
+`bracket-superscripts-curly.xml` stays. Difference and open question as 25.
+
+### 40 Сделать выделенный текст ссылкой на MIDI-файл (для AlReader'а)
+
+`scripts/18_editing/40_insert-midi-link`, id `18/insert-midi-link` (2.7beta1 *02_Вставить ссылку на
+midi...*): **updated**. en *Make the selected text a link to a MIDI file (for AlReader)*, uk *Зробити
+виділений текст посиланням на MIDI-файл (для AlReader)*. What 2.7.9 changed: before its dialog it now
+says «Вы ничего не выделили. Перед запуском скрипта нужно выделить текст, который требуется превратить
+в ссылку.» when nothing is selected; the dialog is *HTML/Сделать выделенный текст ссылкой на MIDI-файл
+(для AlReader'а).html*, the old one under a new name, with the title and the button «Сделать выделенный
+текст ссылкой» to match; the undo unit's name («создание ссылки на MIDI-файл (для AlReader'а)»). Ported:
+the message (in place of the 0.0.1 conversion's own), the form's title and OK label; and, as in the
+dialog, the name box now starts with "file:". The button still turns the selection into a superscript
+link `<a l:href="file:NAME"><sup>…</sup></a>` (superscripts inside it merge into it). `needsSelection`
+stays: the original refuses to work without a selection; the message shows when the script runs without
+one anyway (from the harness, for example).
+
+Snapshot `insert-midi-link.xml` stays (the harness types "song.mid" over the box's "file:"). Added
+`insert-midi-link.no-selection.xml` (a caret: the message, the book unchanged) and
+`insert-midi-link.file-prefix.xml` (the name typed as "file:song.mid": the link `file:song.mid`, where
+2.7.9 wrote `file:file:song.mid`). **Fix** (kept from 0.0.1, whose box started empty): a name typed
+after the box's "file:", or with that prefix, gives `file:NAME`, and a name left empty changes nothing;
+the original wrote `file:file:NAME` and `file:file:`. Differences: no file picker in the script sandbox,
+so the name is typed and the Browse button is gone (since 0.0.1); the undo step is named after the
+script.
+
+### Harness commands of the recheck
+
+```bash
+G=scripts/18_editing; B=tests/scripts/fixtures/279/18/spaces-description.fb2; S=tests/scripts/snapshots/18
+node tests/scripts/run-script.mjs $G/17_remove-spaces $B --select-range n6:3-n3:10 --snapshot $S/remove-spaces.description.xml
+node tests/scripts/run-script.mjs $G/18_remove-spaces-and-hyphens $B --select n8:0:31 --snapshot $S/remove-spaces-and-hyphens.description.xml
+node tests/scripts/run-script.mjs $G/40_insert-midi-link $B --select n3:0:0 --snapshot $S/insert-midi-link.no-selection.xml
+node tests/scripts/run-script.mjs $G/40_insert-midi-link $B --select n3:0:3 --answer '{"file":"file:song.mid"}' --snapshot $S/insert-midi-link.file-prefix.xml
 ```
 
 ## 19_Обработка форматирования

@@ -2,22 +2,25 @@
   "manifestVersion": 1,
   "id": "12/place-quotes-from-caret-level2",
   "name": {
-    "en": "Place guillemets and low quotes (from the caret, starting at level 2)",
-    "ru": "Расстановка елочек и лапок (с позиции курсора, начиная со 2-го уровня)"
+    "ru": "Проставить елочки и лапки (от позиции курсора; как будто перед курсором 2 незакрытые кавычки)",
+    "en": "Place guillemets and low quotes (from the caret; as if 2 quotes before the caret were still open)",
+    "uk": "Проставити ялинки й лапки (від позиції курсора; ніби перед курсором 2 незакриті лапки)"
   },
   "description": {
-    "en": "Replaces straight quotes with «» (level 0) and „“ (nested) from the caret to the end of the book, assuming the caret is inside an open level-1 quote; stops with a message when the nesting cannot be resolved",
-    "ru": "Заменяет прямые кавычки на «» (0-й уровень) и „“ (вложенные) от позиции курсора до конца книги, считая, что курсор внутри открытой кавычки 1-го уровня; при невозможности определить вложенность останавливается с сообщением"
+    "ru": "Как «от позиции курсора», но считает, что перед курсором открыты две кавычки: первая закрывающая кавычка становится “, вторая — »",
+    "en": "As \"from the caret\", but as if two quotes were open before the caret: the first closing quote becomes “ and the second »",
+    "uk": "Як «від позиції курсора», але ніби перед курсором відкриті дві лапки: перша закривна лапка стає “, друга — »"
   },
   "kind": "menu",
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Quotes to guillemets v2.0",
-    "ru": "Кавычки на елочки v2.0"
+    "ru": "Проставить елочки и лапки (от позиции курсора; как будто перед курсором 2 незакрытые кавычки)",
+    "en": "Place guillemets and low quotes (from the caret; as if 2 quotes before the caret were still open)"
   },
   "legacy": {
-    "source": "12_Обработка кавычек/006_Расстановка елочек и лапок (с позиции курсора, начиная со 2-го уровня).js",
-    "fbeVersion": "2.7"
+    "source": "12_Обработка кавычек/006_Проставить елочки и лапки (от позиции курсора; как будто перед курсором 2 незакрытые кавычки).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "3.9"
   }
 }

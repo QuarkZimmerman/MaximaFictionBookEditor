@@ -2,22 +2,25 @@
   "manifestVersion": 1,
   "id": "12/previous-any-quotes",
   "name": {
+    "ru": "Перейти на предыдущие прямые кавычки, елочки или лапки",
     "en": "Go to previous straight quotes, guillemets or low quotes",
-    "ru": "Переход на пред. прямые кавычки, елочки или лапки"
+    "uk": "Перейти до попередніх прямих лапок, ялинок або лапок"
   },
   "description": {
-    "en": "Moves the caret to the previous quote of any kind and selects it; at the beginning of the book offers to continue from the end",
-    "ru": "Переводит курсор на предыдущую кавычку любого вида и выделяет её; в начале книги предлагает продолжить с конца"
+    "ru": "Выделяет ближайшую кавычку любого вида (\", «, », „, “ или ”) перед курсором или выделением; в начале книги предлагает продолжить с конца",
+    "en": "Selects the nearest quote of any kind (\", «, », „, “ or ”) before the caret or the selection; at the start of the book it offers to go on from the end",
+    "uk": "Виділяє найближчу лапку будь-якого виду (\", «, », „, “ або ”) перед курсором чи виділенням; на початку книги пропонує продовжити з кінця"
   },
   "kind": "menu",
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to characters «,»,„,“,”,\" v2.8",
-    "ru": "Переход на символы «,»,„,“,”,\" v2.8"
+    "ru": "Перейти на предыдущие прямые кавычки, елочки или лапки",
+    "en": "Go to previous straight quotes, guillemets or low quotes"
   },
   "legacy": {
-    "source": "12_Обработка кавычек/013_Переход на пред. прямые кавычки, елочки или лапки.js",
-    "fbeVersion": "2.7"
+    "source": "12_Обработка кавычек/014_Перейти на предыдущие прямые кавычки, елочки или лапки.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.9"
   }
 }

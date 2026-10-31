@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test12/chain-place-quotes",
+  "name": {
+    "ru": "Цепочка: проставить кавычки",
+    "en": "Chain: place quotes"
+  },
+  "kind": "menu"
+}

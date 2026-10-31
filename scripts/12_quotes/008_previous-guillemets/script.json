@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "12/previous-guillemets",
   "name": {
+    "ru": "Перейти на предыдущие елочки",
     "en": "Go to previous guillemets",
-    "ru": "Переход на пред. елочки"
+    "uk": "Перейти до попередніх ялинок"
   },
   "description": {
-    "en": "Moves the caret to the previous guillemet («») and selects it; at the beginning of the book offers to continue from the end",
-    "ru": "Переводит курсор на предыдущую ёлочку («») и выделяет её; в начале книги предлагает продолжить с конца"
+    "ru": "Выделяет ближайшую ёлочку (« или ») перед курсором или выделением; в начале книги предлагает продолжить с конца",
+    "en": "Selects the nearest guillemet (« or ») before the caret or the selection; at the start of the book it offers to go on from the end",
+    "uk": "Виділяє найближчу ялинку (« або ») перед курсором чи виділенням; на початку книги пропонує продовжити з кінця"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to characters «,» v2.8",
-    "ru": "Переход на символы «,» v2.8"
+    "ru": "Перейти на предыдущие елочки",
+    "en": "Go to previous guillemets"
   },
   "legacy": {
-    "source": "12_Обработка кавычек/008_Переход на пред. елочки.js",
-    "fbeVersion": "2.7"
-  },
-  "icon": "icon.png"
+    "source": "12_Обработка кавычек/008_Перейти на предыдущие елочки.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.9"
+  }
 }

@@ -232,5 +232,43 @@
       "--answer",
       "ok"
     ]
+  },
+  {
+    "snapshot": "18/remove-spaces.description.xml",
+    "script": "scripts/18_editing/17_remove-spaces",
+    "book": "tests/scripts/fixtures/279/18/spaces-description.fb2",
+    "args": [
+      "--select-range",
+      "n6:3-n3:10"
+    ]
+  },
+  {
+    "snapshot": "18/remove-spaces-and-hyphens.description.xml",
+    "script": "scripts/18_editing/18_remove-spaces-and-hyphens",
+    "book": "tests/scripts/fixtures/279/18/spaces-description.fb2",
+    "args": [
+      "--select",
+      "n8:0:31"
+    ]
+  },
+  {
+    "snapshot": "18/insert-midi-link.no-selection.xml",
+    "script": "scripts/18_editing/40_insert-midi-link",
+    "book": "tests/scripts/fixtures/279/18/spaces-description.fb2",
+    "args": [
+      "--select",
+      "n3:0:0"
+    ]
+  },
+  {
+    "snapshot": "18/insert-midi-link.file-prefix.xml",
+    "script": "scripts/18_editing/40_insert-midi-link",
+    "book": "tests/scripts/fixtures/279/18/spaces-description.fb2",
+    "args": [
+      "--select",
+      "n3:0:3",
+      "--answer",
+      "{\"file\":\"file:song.mid\"}"
+    ]
   }
 ]

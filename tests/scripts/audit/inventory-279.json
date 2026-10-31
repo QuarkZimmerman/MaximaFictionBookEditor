@@ -10,9 +10,8 @@
       "new": 231,
       "noCounterpart": 6,
       "notConverted": 4,
-      "recheck": 17,
       "unchanged": 27,
-      "updated": 92
+      "updated": 109
     },
     "recheckClasses": {
       "identical": 24,
@@ -4171,9 +4170,14 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/001_place-quotes",
       "id": "12/place-quotes",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/001_Расстановка елочек и лапок.js",
-      "differences": [],
+      "differences": [
+        "Quotes inside the text of a note link are left alone in both passes (since 0.0.1, now in the first pass too): FictionBook Editor turned them into straight ones and decided them with the text around the link as neighbours.",
+        "The editor scrolls the selected error place into view; 2.7.9 scrolled it to the middle of the window (scrollIfItNeeds) or, for a quote, to 60 pixels below the window's top edge.",
+        "At an error at the end of a block or of the range the last two characters of text are selected, taken from the block's last paragraph that holds text when it ends with an empty line; how FictionBook Editor's moveStart counted an empty line there is not known.",
+        "The undo step is named after the script (its undoLabel); 2.7.9 named it «проставление елочек и лапок (от начала документа)»."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4198,10 +4202,17 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/004_place-quotes-from-caret",
       "id": "12/place-quotes-from-caret",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/004_Расстановка елочек и лапок (с позиции курсора).js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "Quotes inside the text of a note link are left alone in both passes (since 0.0.1, now in the first pass too): FictionBook Editor turned them into straight ones and decided them with the text around the link as neighbours.",
+        "The editor scrolls the selected error place into view; 2.7.9 scrolled it to the middle of the window (scrollIfItNeeds) or, for a quote, to 60 pixels below the window's top edge.",
+        "At an error at the end of a block or of the range the last two characters of text are selected, taken from the block's last paragraph that holds text when it ends with an empty line; how FictionBook Editor's moveStart counted an empty line there is not known.",
+        "The undo step is named after the script (its undoLabel); 2.7.9 named it «проставление елочек и лапок (от позиции курсора)»."
+      ],
+      "fixes": [
+        "A selected picture is refused with the message of the group's 2.7.9 scripts («Ошибка. Вы используете тип выделения, который не поддерживатся этим скриптом – выделение картинок, а не текста. ...»); 2.7.9 stopped with a script error there (its caret range was a control range, which has no pasteHTML)."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -4225,11 +4236,20 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/005_place-quotes-from-caret-level1",
       "id": "12/place-quotes-from-caret-level1",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/005_Расстановка елочек и лапок (с позиции курсора, начиная с 1-го уровня).js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "Quotes inside the text of a note link are left alone in both passes (since 0.0.1, now in the first pass too): FictionBook Editor turned them into straight ones and decided them with the text around the link as neighbours.",
+        "The editor scrolls the selected error place into view; 2.7.9 scrolled it to the middle of the window (scrollIfItNeeds) or, for a quote, to 60 pixels below the window's top edge.",
+        "At an error at the end of a block or of the range the last two characters of text are selected, taken from the block's last paragraph that holds text when it ends with an empty line; how FictionBook Editor's moveStart counted an empty line there is not known.",
+        "The undo step is named after the script (its undoLabel); 2.7.9 named it «проставление елочек и лапок (от позиции курсора; как будто перед курсором 1 незакрытая кавычка)»."
+      ],
+      "fixes": [
+        "A selected picture is refused with the message of the group's 2.7.9 scripts («Ошибка. Вы используете тип выделения, который не поддерживатся этим скриптом – выделение картинок, а не текста. ...»); 2.7.9 stopped with a script error there (its caret range was a control range, which has no pasteHTML)."
+      ],
+      "openQuestions": [
+        "2.7.9 (new in 3.9): with the caret at the end of a paragraph that stands directly in the book's annotation or history (the empty block's own paragraph included), the placing pass starts with the block that follows, while the first pass has already turned the typographic quotes of the rest of that annotation or history into straight ones, which then stay straight; and every block after it is entered with the starting level, so a run started there always ends in an error (quotes-recheck.fb2: from the end of the history's first paragraph the second keeps straight quotes; from the end of the annotation the history fails). Kept as 2.7.9 - was the rule meant to skip the rest of the annotation or history, or only its own end check?"
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 69,
@@ -4252,11 +4272,21 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/006_place-quotes-from-caret-level2",
       "id": "12/place-quotes-from-caret-level2",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/006_Расстановка елочек и лапок (с позиции курсора, начиная со 2-го уровня).js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "Quotes inside the text of a note link are left alone in both passes (since 0.0.1, now in the first pass too): FictionBook Editor turned them into straight ones and decided them with the text around the link as neighbours.",
+        "The editor scrolls the selected error place into view; 2.7.9 scrolled it to the middle of the window (scrollIfItNeeds) or, for a quote, to 60 pixels below the window's top edge.",
+        "At an error at the end of a block or of the range the last two characters of text are selected, taken from the block's last paragraph that holds text when it ends with an empty line; how FictionBook Editor's moveStart counted an empty line there is not known.",
+        "The undo step is named after the script (its undoLabel); 2.7.9 named it «проставление елочек и лапок (от позиции курсора; как будто перед курсором 2 незакрытые кавычки)»."
+      ],
+      "fixes": [
+        "The messages name the script «Проставить елочки и лапки (от позиции курсора; как будто перед курсором 2 незакрытые кавычки)» (версия 3.9); 2.7.9's versionStr is 005's, «... 1 незакрытая кавычка».",
+        "A selected picture is refused with the message of the group's 2.7.9 scripts («Ошибка. Вы используете тип выделения, который не поддерживатся этим скриптом – выделение картинок, а не текста. ...»); 2.7.9 stopped with a script error there (its caret range was a control range, which has no pasteHTML)."
+      ],
+      "openQuestions": [
+        "2.7.9 (new in 3.9): with the caret at the end of a paragraph that stands directly in the book's annotation or history (the empty block's own paragraph included), the placing pass starts with the block that follows, while the first pass has already turned the typographic quotes of the rest of that annotation or history into straight ones, which then stay straight; and every block after it is entered with the starting level, so a run started there always ends in an error (quotes-recheck.fb2: from the end of the history's first paragraph the second keeps straight quotes; from the end of the annotation the history fails). Kept as 2.7.9 - was the rule meant to skip the rest of the annotation or history, or only its own end check?"
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 68,
@@ -4279,9 +4309,12 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/007_place-guillemets-only",
       "id": "12/place-guillemets-only",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/015_Расстановка только елочек.js",
-      "differences": [],
+      "differences": [
+        "Quotes inside the text of a note link are left alone in both passes (since 0.0.1, now in the first pass too): FictionBook Editor turned them into straight ones and decided them with the text around the link as neighbours.",
+        "The undo step is named after the script (its undoLabel); 2.7.9 named it «проставление только елочек»."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4306,9 +4339,11 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/008_previous-guillemets",
       "id": "12/previous-guillemets",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/008_Переход на пред. елочки.js",
-      "differences": [],
+      "differences": [
+        "The editor scrolls the found quote into view; 2.7.9 scrolled it to 60 pixels below the window's top edge."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4333,9 +4368,11 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/009_next-guillemets",
       "id": "12/next-guillemets",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/007_Переход на след. елочки.js",
-      "differences": [],
+      "differences": [
+        "The editor scrolls the found quote into view; 2.7.9 scrolled it to 60 pixels below the window's top edge."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4360,9 +4397,11 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/010_previous-low-quotes",
       "id": "12/previous-low-quotes",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/009_Переход на пред. лапки.js",
-      "differences": [],
+      "differences": [
+        "The editor scrolls the found quote into view; 2.7.9 scrolled it to 60 pixels below the window's top edge."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4387,9 +4426,11 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/011_next-low-quotes",
       "id": "12/next-low-quotes",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/010_Переход на след. лапки.js",
-      "differences": [],
+      "differences": [
+        "The editor scrolls the found quote into view; 2.7.9 scrolled it to 60 pixels below the window's top edge."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4414,9 +4455,11 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/012_previous-straight-quotes",
       "id": "12/previous-straight-quotes",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/011_Переход на пред. прямые кавычки.js",
-      "differences": [],
+      "differences": [
+        "The editor scrolls the found quote into view; 2.7.9 scrolled it to 60 pixels below the window's top edge."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4441,9 +4484,11 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/013_next-straight-quotes",
       "id": "12/next-straight-quotes",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/012_Переход на след. прямые кавычки.js",
-      "differences": [],
+      "differences": [
+        "The editor scrolls the found quote into view; 2.7.9 scrolled it to 60 pixels below the window's top edge."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4468,9 +4513,11 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/014_previous-any-quotes",
       "id": "12/previous-any-quotes",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/013_Переход на пред. прямые кавычки, елочки или лапки.js",
-      "differences": [],
+      "differences": [
+        "The editor scrolls the found quote into view; 2.7.9 scrolled it to 60 pixels below the window's top edge."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4495,9 +4542,11 @@
       "htmlDialogs": [],
       "package": "scripts/12_quotes/015_next-any-quotes",
       "id": "12/next-any-quotes",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "12_Обработка кавычек/014_Переход на след. прямые кавычки, елочки или лапки.js",
-      "differences": [],
+      "differences": [
+        "The editor scrolls the found quote into view; 2.7.9 scrolled it to 60 pixels below the window's top edge."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -7732,9 +7781,13 @@
       "id": "18/empty-line-before-poem-or-cite",
       "status": "unchanged",
       "predecessor": "18_Мелочи редактирования/04_Вставить пустую строку перед стихом или цитатой.js",
-      "differences": [],
+      "differences": [
+        "With the caret in the book's annotation or history the script stops with a script error (as converted in 0.0.1, whose node operations reach the bodies only); FictionBook Editor inserted the empty line next to a poem or cite there, or did nothing."
+      ],
       "fixes": [],
-      "openQuestions": [],
+      "openQuestions": [
+        "Bring the script to the book's annotation and history (written with doc.setDescription), as FictionBook Editor did?"
+      ],
       "recheck": {
         "class": "identical",
         "changedLines": 0,
@@ -7759,9 +7812,13 @@
       "id": "18/empty-line-after-poem-epigraph-or-cite",
       "status": "unchanged",
       "predecessor": "18_Мелочи редактирования/05_Вставить пустую строку за стихом, эпиграфом или цитатой.js",
-      "differences": [],
+      "differences": [
+        "With the caret in the book's annotation or history the script stops with a script error (as converted in 0.0.1, whose node operations reach the bodies only); FictionBook Editor inserted the empty line next to a poem or cite there, or did nothing."
+      ],
       "fixes": [],
-      "openQuestions": [],
+      "openQuestions": [
+        "Bring the script to the book's annotation and history (written with doc.setDescription), as FictionBook Editor did?"
+      ],
       "recheck": {
         "class": "identical",
         "changedLines": 0,
@@ -7784,9 +7841,11 @@
       "htmlDialogs": [],
       "package": "scripts/18_editing/17_remove-spaces",
       "id": "18/remove-spaces",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "18_Мелочи редактирования/01_Удаление пробелов.js",
-      "differences": [],
+      "differences": [
+        "The undo step is named after the script (its undoLabel); 2.7.9 named it «удаление всех пробелов в выделении»."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -7811,9 +7870,11 @@
       "htmlDialogs": [],
       "package": "scripts/18_editing/18_remove-spaces-and-hyphens",
       "id": "18/remove-spaces-and-hyphens",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "18_Мелочи редактирования/06_Удаление пробелов и дефисов.js",
-      "differences": [],
+      "differences": [
+        "The undo step is named after the script (its undoLabel); 2.7.9 named it «удаление всех пробелов и дефисов в выделении»."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -7888,9 +7949,13 @@
       "id": "18/bracket-superscripts-square",
       "status": "unchanged",
       "predecessor": "18_Мелочи редактирования/07_Обрамить верхние индексы скобками [].js",
-      "differences": [],
+      "differences": [
+        "The superscripts of the book's annotation and history are left without brackets (as converted in 0.0.1, which reads the bodies only); FictionBook Editor bracketed them too."
+      ],
       "fixes": [],
-      "openQuestions": [],
+      "openQuestions": [
+        "Bring the script to the book's annotation and history (written with doc.setDescription), as FictionBook Editor did?"
+      ],
       "recheck": {
         "class": "identical",
         "changedLines": 0,
@@ -7915,9 +7980,13 @@
       "id": "18/bracket-superscripts-curly",
       "status": "unchanged",
       "predecessor": "18_Мелочи редактирования/08_Обрамить верхние индексы скобками {}.js",
-      "differences": [],
+      "differences": [
+        "The superscripts of the book's annotation and history are left without brackets (as converted in 0.0.1, which reads the bodies only); FictionBook Editor bracketed them too."
+      ],
       "fixes": [],
-      "openQuestions": [],
+      "openQuestions": [
+        "Bring the script to the book's annotation and history (written with doc.setDescription), as FictionBook Editor did?"
+      ],
       "recheck": {
         "class": "identical",
         "changedLines": 0,
@@ -8002,10 +8071,15 @@
       ],
       "package": "scripts/18_editing/40_insert-midi-link",
       "id": "18/insert-midi-link",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "18_Мелочи редактирования/02_Вставить ссылку на midi....js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "The dialog's Browse button is gone: the script sandbox has no file picker, so the file name is typed (since 0.0.1); the dialog is a modal form with a label and a line of help.",
+        "The undo step is named after the script (its undoLabel); 2.7.9 named it «создание ссылки на MIDI-файл (для AlReader'а)»."
+      ],
+      "fixes": [
+        "A name typed after the box's \"file:\", or typed with that prefix, gives the link file:NAME, and a name left empty changes nothing; the original wrote file:file:NAME and file:file: (kept from the 0.0.1 conversion, whose box started empty)."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "major",
@@ -10062,11 +10136,19 @@
       "htmlDialogs": [],
       "package": "scripts/30_numbering/40_line-numbers-to-superscript",
       "id": "18/line-numbers-to-superscript",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "18_Мелочи редактирования/09_Нумерацию в началах строк - надстрочным текстом.js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "Only emphasis and strong may surround the number (since 0.0.1): the original's expression allowed the tags EM, I, B and STRONG around it, which are those two marks in the editor's model.",
+        "The undo step is named after the script (its undoLabel); 2.7.9 named it «сделывание нумерации в началах абзацев – надстрочным текстом»."
+      ],
+      "fixes": [
+        "A number inside two nested formatting elements keeps both, and the rest of the paragraph keeps its formatting; the original's replacement \"$1<SUP>$3</SUP>$4$6\" kept only the last opening tag before the number and the last closing tag after it (its groups hold their last repetition), which broke the paragraph's formatting (kept from the 0.0.1 conversion).",
+        "A selected picture gets the script's message «Нет выделения. ...»; the original stopped with a script error there (its selection was then a control range, which has no compareEndPoints)."
+      ],
+      "openQuestions": [
+        "The original re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's; that is taken here, as for the group's other scripts, as selecting the processed text. If Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection."
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 11,
@@ -11120,7 +11202,9 @@
       "status": "noCounterpart",
       "predecessor": null,
       "differences": [],
-      "fixes": [],
+      "fixes": [
+        "The level at the end of each block entered inside the range is compared with the level the block started with, as in the original, whose `blockInitQuotesLevel[...]=0` the next line overwrites with the current level; the 0.0.1 conversion compared it with 0 and stopped with an error where the original went on (quotes-levels.fb2: a cite with its own pair of quotes inside a quote left open before the selection)."
+      ],
       "openQuestions": []
     },
     {

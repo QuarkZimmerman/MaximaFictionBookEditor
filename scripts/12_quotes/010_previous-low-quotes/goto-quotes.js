@@ -1,31 +1,28 @@
-// Shared engine of the "Переход на ... кавычки" scripts (group 12): moves the caret to the
-// next / previous occurrence of one of `chars`, selecting that character. At the end (start)
-// of the book the user is asked whether to continue from the other end; the search then
-// stops at the original position.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
-//Переход на кавычки v2.7
+// Engine of the "Перейти на предыдущие / следующие ..." quote scripts of FictionBook Editor
+// 2.7.9's group 12_Обработка кавычек (008-015, Sclex, version 2.9; converted from their
+// 2.7beta1 versions first and brought up to 2.7.9 in feature 007). Each of the eight packages
+// carries an identical copy: the sandbox only loads modules from the script's own folder.
+//
+// The originals walked the text of the book as FictionBook Editor showed it (lib/nav-lib.js
+// rebuilds that page: the book's annotation and its history first, then every body) from the end
+// of the selection (forward) or its start (backward) to the nearest of the given characters and
+// selected it. At the end (start) of the book they asked whether to go on from the other end
+// (confirm: OK / Cancel), then searched up to the selection and said "Ничего не найдено, поиск
+// завершен." when they got there. A selected picture is refused with the original's message.
+// Run() returned nothing; so does run().
+//
+// Differences from 2.7.9 (docs/scripting/conversion-notes-279-b.md, group 12): the editor scrolls
+// the selection into view (the original: 60 pixels below the window's top edge); a picture
+// inside a paragraph counts as one character of its text, as the editor counts offsets.
+// The original's notice, kept as written (FR-029):
+//Перейти на кавычки v2.9
 //Автор Sclex
 //Подробности тут: http://www.fictionbook.org/forum/viewtopic.php?f=7&t=4412
 //И тут: http://scripts.fictionbook.org
 
-const TEXT_BLOCK_TYPES = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
+import { loadBook, locate, textOf, t } from './lib/nav-lib.js';
 
-function textBlocks(snapshot) {
-  const out = [];
-  const visit = (node) => {
-    if (!node || node.type === 'text') return;
-    if (TEXT_BLOCK_TYPES.has(node.type)) {
-      const text = (node.content ?? []).map((c) => (c.type === 'text' ? c.text ?? '' : '\uFFFC')).join('');
-      out.push({ nodeId: node.attrs.nodeId, text });
-      return;
-    }
-    for (const child of node.content ?? []) visit(child);
-  };
-  for (const body of snapshot.bodies ?? []) visit(body);
-  return out;
-}
-
-/** Smallest index >= from (or largest index < before) of any of `chars` in `text`. */
+/** The nearest of `chars` in `text` at or after `from`, -1 when none. */
 function findForward(text, chars, from) {
   let best = -1;
   for (const ch of chars) {
@@ -35,83 +32,89 @@ function findForward(text, chars, from) {
   return best;
 }
 
+/** The nearest of `chars` in `text` before `before`, -1 when none. */
 function findBackward(text, chars, before) {
   let best = -1;
-  for (const ch of chars) {
-    const index = before > 0 ? text.lastIndexOf(ch, before - 1) : -1;
-    if (index > best) best = index;
-  }
+  if (before <= 0) return best;
+  for (const ch of chars) best = Math.max(best, text.lastIndexOf(ch, before - 1));
   return best;
 }
 
-export async function goToQuotes(ctx, { direction, chars }) {
-  const ru = ctx.uiLanguage === 'ru';
-  const versionStr = ru ? 'Скрипт «Переход на кавычки v2.8».\nАвтор Sclex.\n\n' : 'Script "Go to quotes" v2.8.\nAuthor: Sclex.\n\n';
-  const selection = await mfbe.selection.get();
-  if (!selection) {
+/**
+ * Runs one search: `forward` the direction, `chars` the characters, `version` {ru, en} the
+ * script's line in its messages ("Скрипт «Перейти на кавычки v2.9».").
+ */
+export async function goToQuotes(ctx, { forward, chars, version }) {
+  const versionStr = `${t(ctx, version.ru, version.en)}\n${t(ctx, 'Автор Sclex.', 'Author: Sclex.')}\n\n`;
+  const book = await loadBook();
+  const where = await locate(book, forward);
+  if (!where) return undefined;
+  if (where.picture) {
     await mfbe.ui.message(
-      ru ? `${versionStr}Курсор должен находиться в тексте книги.` : `${versionStr}The caret must be in the book text.`,
-      { icon: 'warning' },
+      versionStr +
+        t(
+          ctx,
+          'Выделена картинка, а чтобы сработал скрипт,\nнадо, чтобы курсор был в тексте.\nТак что перейти на кавычку не выйдет.',
+          'A picture is selected, but the script needs\nthe caret in the text.\nSo it cannot go to a quote.',
+        ),
+      { caption: ctx.script.name, icon: 'warning' },
     );
-    return;
+    return undefined;
   }
-  const blocks = textBlocks(await mfbe.doc.get());
-  const indexOf = (id) => blocks.findIndex((b) => b.nodeId === id);
-  // Selection boundaries in document order.
-  let startPos = selection.anchor;
-  let endPos = selection.head;
-  if (selection.anchor.nodeId === selection.head.nodeId) {
-    if (selection.anchor.offset > selection.head.offset) [startPos, endPos] = [endPos, startPos];
-  } else if (indexOf(selection.anchor.nodeId) > indexOf(selection.head.nodeId)) {
-    [startPos, endPos] = [endPos, startPos];
-  }
-  const startIndex = indexOf(startPos.nodeId);
-  const endIndex = indexOf(endPos.nodeId);
-  if (startIndex < 0 || endIndex < 0) return;
-
-  const select = async (block, index) => {
-    await mfbe.selection.set({ nodeId: block.nodeId, offset: index }, { nodeId: block.nodeId, offset: index + 1 });
+  const ps = book.ps;
+  const texts = ps.map((p) => textOf(p));
+  const select = async (index, offset) => {
+    await mfbe.selection.set(
+      { nodeId: ps[index].nodeId, offset },
+      { nodeId: ps[index].nodeId, offset: offset + 1 },
+    );
     await mfbe.selection.scrollIntoView();
+    return undefined;
   };
-  const confirmWrap = async () => {
-    const text = direction === 'forward'
-      ? (ru ? 'Достигнут конец документа.\nПродолжить поиск с начала документа?' : 'The end of the document was reached.\nContinue from the beginning?')
-      : (ru ? 'Достигнуто начало документа.\nПродолжить поиск с конца документа?' : 'The beginning of the document was reached.\nContinue from the end?');
-    return (await MsgBox(versionStr + text, ctx.script.name, 4 + 32)) === 6;
-  };
-  const notFound = () =>
-    mfbe.ui.message(ru ? `${versionStr}Ничего не найдено, поиск завершен.` : `${versionStr}Nothing found, the search is over.`, { icon: 'info' });
-
-  if (direction === 'forward') {
-    // After the selection end, then the following blocks.
-    let found = findForward(blocks[endIndex].text, chars, endPos.offset);
-    if (found !== -1) return select(blocks[endIndex], found);
-    for (let i = endIndex + 1; i < blocks.length; i += 1) {
-      found = findForward(blocks[i].text, chars, 0);
-      if (found !== -1) return select(blocks[i], found);
+  // A point between paragraphs (in a container) has a fractional index.
+  const { start, end } = where;
+  if (forward) {
+    // From the end of the selection to the end of the book.
+    for (let i = Math.ceil(end.index); i < ps.length; i += 1) {
+      const found = findForward(texts[i], chars, i === end.index ? end.offset : 0);
+      if (found !== -1) return select(i, found);
     }
-    if (!(await confirmWrap())) return;
-    for (let i = 0; i < startIndex; i += 1) {
-      found = findForward(blocks[i].text, chars, 0);
-      if (found !== -1) return select(blocks[i], found);
+  } else {
+    // From the start of the selection back to the start of the book.
+    for (let i = Math.floor(start.index); i >= 0; i -= 1) {
+      const found = findBackward(texts[i], chars, i === start.index ? start.offset : texts[i].length);
+      if (found !== -1) return select(i, found);
     }
-    found = findForward(blocks[startIndex].text, chars, 0);
-    if (found !== -1 && found < startPos.offset) return select(blocks[startIndex], found);
-    return notFound();
   }
-  // Backward: before the selection start, then the preceding blocks.
-  let found = findBackward(blocks[startIndex].text, chars, startPos.offset);
-  if (found !== -1) return select(blocks[startIndex], found);
-  for (let i = startIndex - 1; i >= 0; i -= 1) {
-    found = findBackward(blocks[i].text, chars, blocks[i].text.length);
-    if (found !== -1) return select(blocks[i], found);
+  // The original's confirm(): OK and Cancel, with the editor's own button labels.
+  const question = forward
+    ? t(ctx, 'Достигнут конец документа.\nПродолжить поиск с начала документа?', 'The end of the document has been reached.\nContinue searching from the beginning?')
+    : t(ctx, 'Достигнуто начало документа.\nПродолжить поиск с конца документа?', 'The beginning of the document has been reached.\nContinue searching from the end?');
+  const answer = await mfbe.ui.message(versionStr + question, {
+    caption: ctx.script.name,
+    icon: 'question',
+    buttons: [
+      { id: 'ok', label: '', default: true },
+      { id: 'cancel', label: '', cancel: true },
+    ],
+  });
+  if (answer !== 'ok') return undefined;
+  if (forward) {
+    // From the start of the book up to the start of the selection.
+    for (let i = 0; i <= Math.floor(start.index) && i < ps.length; i += 1) {
+      const found = findForward(texts[i], chars, 0);
+      if (found !== -1 && (i < start.index || found < start.offset)) return select(i, found);
+    }
+  } else {
+    // From the end of the book back to the end of the selection.
+    for (let i = ps.length - 1; i >= Math.ceil(end.index) && i >= 0; i -= 1) {
+      const found = findBackward(texts[i], chars, texts[i].length);
+      if (found !== -1 && (i > end.index || found >= end.offset)) return select(i, found);
+    }
   }
-  if (!(await confirmWrap())) return;
-  for (let i = blocks.length - 1; i > endIndex; i -= 1) {
-    found = findBackward(blocks[i].text, chars, blocks[i].text.length);
-    if (found !== -1) return select(blocks[i], found);
-  }
-  found = findBackward(blocks[endIndex].text, chars, blocks[endIndex].text.length);
-  if (found !== -1 && found >= endPos.offset) return select(blocks[endIndex], found);
-  return notFound();
+  await mfbe.ui.message(
+    versionStr + t(ctx, 'Ничего не найдено, поиск завершен.', 'Nothing found, the search is finished.'),
+    { caption: ctx.script.name, icon: 'info' },
+  );
+  return undefined;
 }

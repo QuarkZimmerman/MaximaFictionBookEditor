@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test12/chain-goto-quotes",
+  "name": {
+    "ru": "Цепочка: переходы по кавычкам",
+    "en": "Chain: go to quotes"
+  },
+  "kind": "menu"
+}

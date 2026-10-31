@@ -2,22 +2,26 @@
   "manifestVersion": 1,
   "id": "12/place-guillemets-only",
   "name": {
-    "en": "Place guillemets only",
-    "ru": "Расстановка только елочек"
+    "ru": "Проставить только елочки (во всем документе)",
+    "en": "Place guillemets only (in the whole document)",
+    "uk": "Проставити лише ялинки (в усьому документі)"
   },
   "description": {
-    "en": "Replaces straight quotes with «» in the selection (or the whole book); ambiguous quotes are left straight",
-    "ru": "Заменяет прямые кавычки на «» в выделении (или во всей книге); сомнительные кавычки остаются прямыми"
+    "ru": "Заменяет прямые кавычки выделения или всей книги (с аннотацией и историей) на «»; где неясно, открывающая кавычка или закрывающая, оставляет прямую и сообщает их число",
+    "en": "Replaces the straight quotes of the selection, or of the whole book with its annotation and history, by «»; where it is unclear whether a quote opens or closes, it keeps the straight one and reports how many were kept",
+    "uk": "Замінює прямі лапки виділення або всієї книги (разом з анотацією та історією) на «»; де незрозуміло, відкривна лапка чи закривна, залишає пряму й повідомляє їхню кількість"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Quotes to guillemets v2.0",
-    "ru": "Кавычки на елочки v2.0"
+    "ru": "Проставить только елочки (во всем документе)",
+    "en": "Place guillemets only (in the whole document)"
   },
   "legacy": {
-    "source": "12_Обработка кавычек/015_Расстановка только елочек.js",
-    "fbeVersion": "2.7"
+    "source": "12_Обработка кавычек/007_Проставить только елочки (во всем документе).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "3.7"
   }
 }

@@ -8,5 +8,7 @@
 import { placeQuotes } from './quotes.js';
 
 export default async function run(ctx) {
-  await placeQuotes(ctx, { startLevel: 1, resetBlockLevels: true });
+  // Each block entered inside the range keeps the level it starts with, as in the original, whose
+  // `blockInitQuotesLevel[...]=0` is overwritten by the next line (`=currentQuotesLevel`).
+  await placeQuotes(ctx, { startLevel: 1 });
 }

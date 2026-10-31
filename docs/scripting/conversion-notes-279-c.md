@@ -1217,6 +1217,71 @@ with a script error).
 did: was a step of 0 (the same number on every paragraph) meant to be possible? And the common
 question of the re-selection.
 
+Recheck (task T085, part) of the one package converted from 2.7beta1 whose 2.7.9 successor is in this
+group: 2.7beta1's *18_Мелочи редактирования/09_Нумерацию в началах строк - надстрочным текстом*, which
+2.7.9 moved here as *40_Нумерацию 'число пробел' в началах выделенных абзацев сделать надстрочным
+текстом* (the 2.7beta1 conversion is in conversion-notes-c.md, group 18). Its package moved with it to
+`scripts/30_numbering/40_line-numbers-to-superscript` before this recheck; its id stays
+`18/line-numbers-to-superscript`, so hotkeys, Scripts toolbar buttons and Last script keep running it
+(FR-028). Its two snapshots stay in the main suite (`18/line-numbers-to-superscript.xml` and
+`.range.xml` on `tests/scripts/fixtures/books/conv-c-18.fb2`, run by group 18's gate); the one added
+here is in `tests/scripts/snapshots/30/`.
+
+### 40 Нумерацию 'число пробел' в началах выделенных абзацев сделать надстрочным текстом
+
+`scripts/30_numbering/40_line-numbers-to-superscript`, id `18/line-numbers-to-superscript`:
+**updated** from 1.0 to 1.2 (Sclex). en *Make 'number space' numbering at the starts of the selected
+paragraphs superscript*, uk *Нумерацію 'число пробіл' на початках виділених абзаців зробити надрядковим
+текстом*; `legacy` names the 2.7.9 original with version 1.2, `index.js` keeps its notice
+(`check-notices.py --package`: OK), and the package gained 2.7.9's icon (2.7beta1 had none, converted
+with the audit tool's `ico_to_png`). No list of proverbs in the original.
+
+What 2.7.9 changed: `processP` reads the paragraph's HTML with every `&nbsp;` turned into the
+non-breaking space itself, both for the test and for the replacement. In 2.7beta1 the expression
+`^(tags)*?([0-9]+?)(tags)*?( |nbsp)( |nbsp)*` met `&nbsp;` in `innerHTML`, never the character, so a
+number followed by a non-breaking space was left alone; in 2.7.9 it becomes a superscript and the spaces
+after it collapse to the non-breaking one. The 0.0.1 conversion already treated a non-breaking space as
+a space there (`<sup>3</sup>` followed by U+00A0 in `line-numbers-to-superscript.range.xml`), which is
+now 2.7.9's behaviour: nothing to port in the match. Also new: the name (*Нумерацию в началах строк -
+надстрочным текстом* before), the header and the undo unit's name («сделывание нумерации в началах
+абзацев – надстрочным текстом»).
+
+Brought to the original as well: the original processes every `P` of `fbw_body` the selection touches,
+the book's annotation and history included; the 0.0.1 conversion stopped with a script error when the
+selection reached into them (its node operations reach the bodies only). The package now works on the
+page of `lib/nav-lib.js` and writes the annotation's and the history's paragraphs with one
+`doc.setDescription` (`lib/page-paragraphs.js`; both copied unchanged from other packages). Subtitles,
+text authors and dates stay untouched, as before; without a text selection the original's message
+«Нет выделения. ...», a selected picture included.
+
+**Reference book** (new, `tests/scripts/fixtures/279/30/line-numbers-description.fb2`, valid FB2 2.1): the
+annotation «1⍽⍽Первый абзац аннотации.» (n6) and «2» with a non-breaking space and a space before
+«Второй абзац с неразрывным пробелом.» (n7), the history «3 История.» (n9) and the subtitle «4
+Подзаголовок не трогаем» (n10), the body «5⍽⍽⍽Абзац тела.» (n3) and «6 Последний абзац.» (n4) (⍽ a space).
+**Snapshot** `30/line-numbers-to-superscript.description.xml` (`tests/scripts/snapshots/30/suite.json`,
+the selection n6:0-n3:5): `<sup>1</sup> Первый ...`, `<sup>2</sup>` followed by the non-breaking space
+alone, `<sup>3</sup> История.`, the subtitle unchanged, `<sup>5</sup> Абзац тела.`, n4 outside the
+selection unchanged; the selection afterwards n6:0-n3:3. Worked out from the 2.7.9 code before the run
+(2.7beta1 would have left n7 alone); the 0.0.1 version stopped there with «Script error: node: unknown
+nodeId "n6"». The two snapshots of the main suite pass unchanged. Group gate: `tests/scripts/run-all.sh
+--group 30` - 25 snapshots (1 added), all pass; no package of the group without Ukrainian names.
+
+**Fixes** (kept from the 0.0.1 conversion): a number inside two nested formatting elements keeps both,
+and the rest of the paragraph its formatting - the original's replacement "$1<SUP>$3</SUP>$4$6" kept
+only the last opening tag before the number and the last closing tag after it (its groups hold their
+last repetition), which broke the paragraph's formatting; a selected picture gets the message «Нет
+выделения. ...», where the original stopped with a script error (its selection was then a control
+range, without `compareEndPoints`). **Differences:** only emphasis and strong may surround the number,
+the marks that the original's tags EM, I, B and STRONG are in the editor's model (since 0.0.1); the undo
+step is named after the script. **Open question** (the group's common one): the original re-selected
+with `tr1.setEndPoint("StartToStart", tr2)` from the start marker's range to the end marker's; that is
+taken, as for the group's other scripts, as selecting the processed text. If Internet Explorer
+collapsed that range instead, 2.7.9 left a caret at the end of the selection.
+
+```bash
+node tests/scripts/run-script.mjs scripts/30_numbering/40_line-numbers-to-superscript tests/scripts/fixtures/279/30/line-numbers-description.fb2 --select-range n6:0-n3:5 --snapshot tests/scripts/snapshots/30/line-numbers-to-superscript.description.xml
+```
+
 ## 31_Автоматизация
 
 6 scripts in 2.7.9, all new, all converted here (T066) into the new group `scripts/31_automation/`

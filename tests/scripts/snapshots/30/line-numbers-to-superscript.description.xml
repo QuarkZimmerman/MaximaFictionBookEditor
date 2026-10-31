@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Нумерация</last-name>
+			</author>
+			<book-title>Нумерация в описании</book-title>
+			<annotation>
+				<p><sup>1</sup> Первый абзац аннотации.</p>
+				<p><sup>2</sup> Второй абзац с неразрывным пробелом.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p><sup>3</sup> История.</p>
+				<subtitle>4 Подзаголовок не трогаем</subtitle>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<p><sup>5</sup> Абзац тела.</p>
+			<p>6 Последний абзац.</p>
+		</section>
+	</body>
+</FictionBook>

@@ -2,15 +2,18 @@
   "manifestVersion": 1,
   "id": "18/bracket-superscripts-square",
   "name": {
+    "ru": "Обрамить верхние индексы скобками []",
     "en": "Enclose superscripts in [] brackets",
-    "ru": "Обрамить верхние индексы скобками []"
+    "uk": "Обрамити верхні індекси дужками []"
   },
   "description": {
+    "ru": "Обрамляет содержимое каждого верхнего индекса в книге скобками [ ]",
     "en": "Puts [ and ] around the content of every superscript in the book",
-    "ru": "Обрамляет содержимое каждого верхнего индекса в книге скобками [ ]"
+    "uk": "Обрамлює вміст кожного верхнього індексу в книзі дужками [ ]"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
     "en": "Enclose superscripts in [] brackets",
