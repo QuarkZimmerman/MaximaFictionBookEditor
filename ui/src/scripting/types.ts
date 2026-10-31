@@ -59,6 +59,11 @@ export interface ScriptLegacy {
   source: string;
   fbeVersion?: string;
   sourceVersion?: string;
+  /**
+   * Other paths of the same classic script (feature 007): the 2.7.9 path of a package unchanged
+   * since 2.7beta1, whose `source` stays 2.7beta1's. References resolve them like `source`.
+   */
+  aliases?: string[];
 }
 
 export type ScriptOrigin = 'bundled' | 'settings' | 'user' | 'portable' | 'assistant';

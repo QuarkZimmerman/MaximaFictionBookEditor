@@ -20,6 +20,9 @@
   },
   "legacy": {
     "source": "06_Чистка/21_Удаление тегов style.js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7",
+    "aliases": [
+      "06_Чистка/21_Удалить теги style.js"
+    ]
   }
 }

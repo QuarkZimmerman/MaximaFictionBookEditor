@@ -212,15 +212,27 @@ TEST_CASE("scripts: discovery walks groups in NN order and reports invalid packa
     const scripts::Catalog catalog = scripts::load_catalog(layers);
 
     // Valid packages, in group order, tree group last.
-    CHECK(ids_of(catalog) == std::vector<std::string>{
-                                 "test.case.upper", "test.case.lower", "test.dialogs.form",
-                                 "test.dialogs.message", "test.errors.throws",
-                                 "test.errors.infinite", "test.errors.sandbox", "test.model.append",
-                                 "test.model.replaceAll", "runs.bulk", "runs.busy", "runs.prompt",
-                                 "runs.failing", "runs.longProgress", "runs.longSilent",
-                                 "runs.prompting", "runs.short", "tables.read",
-                                 "tables.toggleRegular", "test.invalid.warnings",
-                                 "test.tree.mark"});
+    CHECK(ids_of(catalog) == std::vector<std::string>{"test.case.upper",
+                                                      "test.case.lower",
+                                                      "test.dialogs.form",
+                                                      "test.dialogs.message",
+                                                      "test.errors.throws",
+                                                      "test.errors.infinite",
+                                                      "test.errors.sandbox",
+                                                      "test.model.append",
+                                                      "test.model.replaceAll",
+                                                      "runs.bulk",
+                                                      "runs.busy",
+                                                      "runs.prompt",
+                                                      "runs.failing",
+                                                      "runs.longProgress",
+                                                      "runs.longSilent",
+                                                      "runs.prompting",
+                                                      "runs.short",
+                                                      "tables.read",
+                                                      "tables.toggleRegular",
+                                                      "test.invalid.warnings",
+                                                      "test.tree.mark"});
     REQUIRE(catalog.groups().size() == 9);
     CHECK(catalog.groups()[0].id == "01_Case");
     CHECK(catalog.groups()[0].order == 1);
@@ -541,6 +553,32 @@ TEST_CASE("scripts: legacy source versions and origins (feature 007)", "[scripts
     package.manifest = *plain.manifest;
     CHECK_FALSE(scripts::Catalog::package_to_json(package)["legacy"].contains("sourceVersion"));
 
+    // The other paths of the same classic script (feature 007): a package unchanged since
+    // 2.7beta1 keeps that source and names its 2.7.9 path, so a 2.7.9 script list finds it.
+    const auto aliased = scripts::parse_manifest(
+        json::parse(R"json({"manifestVersion": 1, "name": {"en": "N"}, "kind": "menu",
+            "legacy": {"source": "01_Регистр/01_Верхний регистр.js", "fbeVersion": "2.7",
+                       "aliases": ["01_Регистр/01_В верхний регистр.js"]}})json"),
+        "a", "menu");
+    REQUIRE(aliased.manifest.has_value());
+    CHECK(aliased.warnings.empty());
+    CHECK(aliased.manifest->legacy->aliases ==
+          std::vector<std::string>{"01_Регистр/01_В верхний регистр.js"});
+    package.manifest = *aliased.manifest;
+    CHECK(scripts::Catalog::package_to_json(package)["legacy"]["aliases"] ==
+          json::array({"01_Регистр/01_В верхний регистр.js"}));
+    // Not an array of strings: ignored, with a warning; the rest of the legacy block stays.
+    const auto bad_aliases = scripts::parse_manifest(
+        json::parse(R"json({"manifestVersion": 1, "name": {"en": "N"}, "kind": "menu",
+            "legacy": {"source": "x.js", "aliases": ["y.js", 5]}})json"),
+        "a", "menu");
+    REQUIRE(bad_aliases.manifest.has_value());
+    CHECK(bad_aliases.manifest->legacy->source == "x.js");
+    CHECK(bad_aliases.manifest->legacy->aliases.empty());
+    CHECK_FALSE(bad_aliases.warnings.empty());
+    package.manifest = *bad_aliases.manifest;
+    CHECK_FALSE(scripts::Catalog::package_to_json(package)["legacy"].contains("aliases"));
+
     // Every script names its origin: the layer, or `assistant` for the assistant's folder.
     test::TempDir tmp{"mfbe-scripts-origin"};
     resources::Roots roots = roots_with_bundled(tmp, fixtures());
@@ -616,8 +654,8 @@ TEST_CASE("scripts: a package's modules load only their own package's files (fea
     // Another package's files are refused to a module of this one, and the other way round.
     CHECK(get("/scripts/test.case.upper/index.js", own_entry) == 404);
     CHECK(get("/scripts/test.case.upper/icon.png", own_entry) == 404);
-    CHECK(get("/scripts/09%2Fwith-lib/lib/util.js",
-              origin + "/scripts/test.case.upper/index.js") == 404);
+    CHECK(get("/scripts/09%2Fwith-lib/lib/util.js", origin + "/scripts/test.case.upper/index.js") ==
+          404);
     // A referrer under /scripts/ that names no package file is no package's own.
     CHECK(get("/scripts/test.case.upper/index.js", origin + "/scripts/") == 404);
     CHECK(get("/scripts/test.case.upper/index.js", origin + "/scripts/test.case.upper") == 404);

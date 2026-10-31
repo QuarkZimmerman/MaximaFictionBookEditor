@@ -22,16 +22,22 @@ export function normaliseLegacyPath(path: string): string {
   return value;
 }
 
-/** The script a reference names: the exact id first, else the normalised legacy path; null. */
+/**
+ * The script a reference names: the exact id first, else the normalised legacy path - the
+ * manifest's `legacy.source` or one of its `legacy.aliases` (the 2.7.9 path of a package
+ * unchanged since 2.7beta1); null.
+ */
 export function resolveScriptRef(ref: string, scripts: readonly ScriptInfo[]): ScriptInfo | null {
   if (!ref) return null;
   const byId = scripts.find((script) => script.id === ref);
   if (byId) return byId;
   const wanted = normaliseLegacyPath(ref);
   if (!wanted) return null;
+  const paths = (script: ScriptInfo) =>
+    script.legacy ? [script.legacy.source, ...(script.legacy.aliases ?? [])] : [];
   return (
-    scripts.find(
-      (script) => !!script.legacy?.source && normaliseLegacyPath(script.legacy.source) === wanted,
+    scripts.find((script) =>
+      paths(script).some((path) => !!path && normaliseLegacyPath(path) === wanted),
     ) ?? null
   );
 }

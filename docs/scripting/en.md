@@ -92,7 +92,7 @@ backup in `script-backups/` of your data folder, from which the assistant can re
 | `defaultHotkey` | no | chord such as `Ctrl+Alt+U`, `Mod+Shift+F5` (`Mod` = Ctrl, Cmd on macOS); users may change it in Settings > Hotkeys (group "Scripts"); collisions are reported there |
 | `needsSelection` | no | the command is disabled while nothing is selected in the Body view |
 | `undoLabel` | no | label of the single undo step (default: the name) |
-| `legacy` | no | provenance of a converted FBE script: `source` (its path in the original's `Scripts` folder), `fbeVersion` (`2.7` or `2.7.9`) and `sourceVersion` (the version its header states) |
+| `legacy` | no | provenance of a converted FBE script: `source` (its path in the original's `Scripts` folder), `fbeVersion` (`2.7` or `2.7.9`), `sourceVersion` (the version its header states) and `aliases` (other paths of the same script, such as the 2.7.9 path of a script unchanged since 2.7beta1); `mfbe.scripts.run` finds a script by `source` and by its `aliases` |
 
 ### Ids and packages
 

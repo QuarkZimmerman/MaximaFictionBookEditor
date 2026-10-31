@@ -216,6 +216,14 @@ describe('script references (data-model §7.3)', () => {
     script('06/latin-in-cyrillic', {
       legacy: { source: '06_Чистка/03_Латиница в Кириллице.js', fbeVersion: '2.7.9' },
     }),
+    // Unchanged since 2.7beta1: its source is 2.7beta1's path, its 2.7.9 path an alias.
+    script('01/upper-case', {
+      legacy: {
+        source: '01_Регистр/01_Верхний регистр.js',
+        fbeVersion: '2.7',
+        aliases: ['01_Регистр/01_В верхний регистр.js'],
+      },
+    }),
   ];
 
   it('normalises a legacy path: separators, a leading Scripts folder, ".js" and case', () => {
@@ -244,6 +252,13 @@ describe('script references (data-model §7.3)', () => {
     ).toBe('06/latin-in-cyrillic');
     expect(resolveScriptRef('16/no-such-script', scripts)).toBeNull();
     expect(resolveScriptRef('', scripts)).toBeNull();
+  });
+
+  it('resolves the 2.7.9 path of a package unchanged since 2.7beta1 through its aliases (feature 007)', () => {
+    expect(resolveScriptRef('01_Регистр\\01_В верхний регистр.js', scripts)?.id).toBe(
+      '01/upper-case',
+    );
+    expect(resolveScriptRef('01_Регистр/01_Верхний регистр.js', scripts)?.id).toBe('01/upper-case');
   });
 });
 

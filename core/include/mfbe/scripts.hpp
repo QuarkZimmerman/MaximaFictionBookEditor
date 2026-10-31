@@ -46,6 +46,9 @@ struct LegacyInfo {
     std::string source;         // path of the original FBE script, e.g. "01_Регистр/01_….js"
     std::string fbeVersion;     // optional: "2.7" (2.7beta1) or "2.7.9"
     std::string sourceVersion;  // optional: the version in the original's header ("1.2")
+    // optional: other paths of the same classic script - the 2.7.9 path of a package unchanged
+    // since 2.7beta1 - which references resolve like `source` (feature 007)
+    std::vector<std::string> aliases;
 };
 
 struct ScriptManifest {

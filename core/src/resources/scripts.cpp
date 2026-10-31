@@ -573,6 +573,17 @@ ParsedManifest parse_manifest(const json& manifest, const std::string& default_i
             if (legacy->contains("sourceVersion") && (*legacy)["sourceVersion"].is_string()) {
                 info.sourceVersion = (*legacy)["sourceVersion"].get<std::string>();
             }
+            if (const auto aliases = legacy->find("aliases"); aliases != legacy->end()) {
+                const bool strings =
+                    aliases->is_array() &&
+                    std::all_of(aliases->begin(), aliases->end(),
+                                [](const json& alias) { return alias.is_string(); });
+                if (strings) {
+                    info.aliases = aliases->get<std::vector<std::string>>();
+                } else {
+                    warning("legacy.aliases", "expected an array of strings");
+                }
+            }
             m.legacy = std::move(info);
         }
     }
@@ -852,6 +863,9 @@ json Catalog::package_to_json(const ScriptPackage& p) {
         }
         if (!m.legacy->sourceVersion.empty()) {
             legacy["sourceVersion"] = m.legacy->sourceVersion;
+        }
+        if (!m.legacy->aliases.empty()) {
+            legacy["aliases"] = m.legacy->aliases;
         }
         j["legacy"] = std::move(legacy);
     }

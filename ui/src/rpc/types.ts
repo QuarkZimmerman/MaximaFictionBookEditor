@@ -479,7 +479,7 @@ export interface ScriptManifest {
   needsSelection?: boolean;
   undoLabel?: Record<string, string>;
   /** Feature 007 adds `sourceVersion`, the version the original's header states. */
-  legacy?: { source: string; fbeVersion?: string; sourceVersion?: string };
+  legacy?: { source: string; fbeVersion?: string; sourceVersion?: string; aliases?: string[] };
 }
 
 export interface ScriptListEntry {
