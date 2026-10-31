@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-to-superscript",
+  "name": {
+    "ru": "Сформатировать абзац(ы) верхним индексом",
+    "en": "Format paragraph(s) as superscript",
+    "uk": "Відформатувати абзац(и) верхнім індексом"
+  },
+  "description": {
+    "ru": "Делает верхним индексом целиком все абзацы, которых касается выделение (или абзац с курсором), сняв прежний верхний индекс внутри них.",
+    "en": "Makes the whole of every paragraph the selection touches (or the caret's paragraph) superscript, removing the superscript already inside it.",
+    "uk": "Робить верхнім індексом цілком усі абзаци, яких торкається виділення (або абзац із курсором), знявши наявний усередині верхній індекс."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Сформатировать абзац(ы) верхним индексом",
+    "en": "Format paragraph(s) as superscript"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/44_Сформатировать абзац(ы) верхним индексом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

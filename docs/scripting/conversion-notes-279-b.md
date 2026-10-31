@@ -569,4 +569,354 @@ editor's messages.
 
 ## 19_Обработка форматирования
 
-27 scripts in 2.7.9: 25 new, 2 successors of converted packages. Not yet converted or rechecked.
+27 scripts in 2.7.9 (and a disabled `64_Создать эпиграф из полных абзацев.js_`): **25 new, all
+converted** here (T060, T061); the successors of the two packages converted from 2.7beta1
+(`01_Обзор и превращение элементов...` → `19/element-browser`, `05_Снять форматирование блочным
+элементом` → `18/unwrap-poem-cite-epigraph`) are left for their recheck. Packages:
+`scripts/19_formatting/<NN>_<slug>/` with the 2.7.9 number, ids `19/<slug>`, `legacy.source` the
+2.7.9 path (the one `mfbe.scripts.run` resolves when a combo runs them; `sourceVersion` from the
+header, absent for 20 and 35, whose version 1.2 is in their code only). Every package has `name`
+and `description` in ru, en and uk, `needsSelection: false` (the originals' "nothing selected"
+check is commented out), the 2.7.9 icon where there is one (11, 16, 17, 18, 35, 57), `undoLabel`
+the name, and in `index.js` the skeleton's comment lines verbatim (`check-notices.py --package`: OK
+for all 25); 35 keeps the credit line of its message (`–= Sclex Script =–`) and the commented-out
+`–=Jürgen Script=–` line of its header.
+
+### The common ground
+
+**The book as the originals saw it.** They worked on FictionBook Editor's `fbw_body`: the book
+annotation and the history first (DIVs `annotation` and `history`, each with one empty paragraph
+when the book has none), then the bodies; every text block was a `P` (a subtitle `P.subtitle`, a
+text author and a poem's date `P.text-author`, a table cell `P.td` / `P.th`, an empty line an
+empty `P`), a container a `DIV` named by its element (`files/fb2.xsl`). The Body view has the same
+order - the annotation and history blocks above the first body, with an empty paragraph when the
+book has none - so a selection may start or end in the description, and the caret of a fresh
+document stands there (`selection.get()` reports the annotation's first paragraph).
+
+**Text blocks of the Body view** (`lib/text-blocks.js`, in 20, 25 and every paragraph script):
+`doc.getNode` / `doc.replaceNode` address the bodies only, so a block of the book annotation or
+the history is found in `doc.get().description` and written with one `doc.setDescription` at the
+end; the empty paragraph the Body view shows for a missing annotation or history (an id like
+`ui_block_1` the model does not know) is skipped.
+
+**The paragraph engine** (`lib/paragraph-format.js`, 40-46, 55-63, and 20 for its subtitle rule).
+The originals pasted an empty marker element at each end of the selection, took every `P` from the
+one holding the start marker to the one holding the end marker (`getNextP` over the DOM), rewrote
+the `innerHTML` of each with one expression and selected the processed paragraphs from the start
+of the first to the end of the last. Here the blocks are those `selection.get().nodes` lists: the
+text blocks from the one holding the selection's start to the one holding its end, a caret its own
+block, the end at offset 0 of a block including that block, as the marker pasted there did. A
+mark transform replaces the expression - "remove every mark of these types (any attributes: the
+expressions removed the tags whatever their attributes) and put these around the whole content,
+outermost" - which equals the expression on the IE notation for every inline node: text, inline
+pictures (formatted too: `<STRONG>` wrapped them), unknown inline elements. A poem's date is left
+alone (FB2 allows no formatting in it). The run leaves the processed blocks selected as the
+originals did and shows "ОК" in the status bar.
+
+**Containers** (`lib/containers.js`, 10, 11, 16, 18, 25). The originals removed each `DIV` from the
+last to the first, with its content (`removeNode(true)`) or leaving its children in its place
+(`removeNode(false)`). That page was not checked: a dissolved body epigraph left paragraphs in the
+body, a dissolved section epigraph before an annotation left paragraphs before it, and 2.7.9's
+save then failed its validation ("save anyway?", No by default). Here every change is a new
+content of the container's parent written with `doc.replaceNode`, which the editor checks before
+anything changes; the places are tried in order and the first one the schema accepts is taken:
+(1) in the container's place, as the originals did; (2) in a section, at the start of its text,
+after its title, epigraphs, picture and annotation; (3) in a body or a section of sections, as a
+section of its own, untitled, before the first child section; (4) in a poem, as stanzas (paragraphs
+as verses, an empty line between two stanzas). A container none of them fits stays, and the status
+bar says how many stayed. Where the originals' result was valid, (1) gives exactly it.
+
+**35** runs its expression verbatim on the inline HTML of each paragraph through
+`lib/legacy-html.js` (copied unchanged; md5 `72451573…`, as in 06/02 and its siblings).
+
+**Run from other scripts.** The combos of 2.7.9 (09/38, 09/39, 13/590, 14/057-062, 31/50, 31/51,
+37/06, 37/07 and the templates 31/30-33) call `40`, `41`, `43`-`46`, `55`, `56`, `60`, `05` and
+`34/001` between navigation steps that select an element:
+`while (runScriptInFolder("16_Поиск форматирования\\154_Выделить следующий стих (poem).js")=="Found") { runScriptInFolder("\\19_Обработка форматирования\\55_Расформатировать абзац(ы) от жирности.js"); ... }`.
+The conversions work on the selection the previous script of the run left (the chain shares the
+Body view's selection), behave the same when `ctx.startedBy` is `'script'`, and keep the
+originals' messages (a "not found" message of 10-18 shows in a chain too, as in 2.7.9). Both
+forms of a 2.7.9 path resolve, with and without the leading backslash
+(`19/*.chain` snapshots). For the agent converting the combos:
+
+| Script | Acts on | Selection afterwards | `run()` returns |
+|--------|---------|----------------------|-----------------|
+| 40-46, 55-62, 63 | every text block from the one holding the selection's start to the one holding its end (a caret: its block), the book annotation and history included | from the start of the first processed block to the end of the last (63: of the verse when a block became a stanza) | nothing (`null` in the caller) |
+| 20 | the text block holding the selection's start (the caret) | unchanged | nothing |
+| 10, 11, 25, 35 | the whole document: the bodies, the book annotation and the history | unchanged | nothing |
+| 15, 16, 17, 18 | the whole document: the bodies | unchanged | nothing |
+
+**Reference books and expected results.** `tests/scripts/fixtures/279/19/`: `formatting.fb2`
+(40-46, 55-62; and the "none found" runs of 10-18), `cites.fb2` (10, 11), `epigraphs.fb2` (15, 16),
+`annotations.fb2` (17, 18), `subtitles.fb2` (20, 63), `tables.fb2` (25), `underscores.fb2` (35),
+all valid against `FictionBook.xsd`. Before any conversion ran, the expected result of every run
+was written down from the original's code as a book (the reference book with the changes the
+original makes, and the recorded differences where it wrote invalid FB2); for 35 the expected
+paragraphs came from the original expression itself, run verbatim on the IE `innerHTML` of each
+test paragraph written by hand. Every snapshot of `tests/scripts/snapshots/19/suite.json` (42 runs)
+equals its expected book in a canonical form (the block tree, each text block as runs of text with
+their marks, so that the editor's choice of nesting does not matter). The chain runs use the test
+package `tests/scripts/fixtures/279/19/chain-runner` (never bundled): it runs the scripts its
+prompt names through `mfbe.scripts.run` and reports, in a report window recorded in
+`<snapshot>.outputs.json`, what each returned and the selection it left.
+
+### 10 Удалить все цитаты и их содержимое
+
+`10_remove-all-cites`, id `19/remove-all-cites` (v1.0, Sclex). Removes every cite with its
+content, from the last to the first (a cite nested in another one, through a poem's epigraph, goes
+first; both count), in the bodies (`doc.removeNode`) and in the book annotation and the history
+(`doc.setDescription`), as the original's page held those too. A cite that is all the content of a
+section leaves an empty line (`removeNode` refuses to empty the section: `replaceNode` with
+`empty-line`). An annotation or history left with nothing but empty lines goes, as 2.7.9 saved no
+such element (`main.js`, `MakeTitleInfo` / `MakeDocInfo` with `IsEmpty`). Status bar: "Удалено
+цитат с их содержимым: N."; without a cite the message "Цитат в документе не нашлось.". Acts on
+the whole document, returns nothing.
+
+Snapshots (`cites.fb2`, 9 cites): `remove-all-cites.xml` - the annotation keeps its paragraph, the
+history (only a cite) goes, the body epigraph keeps its paragraph and author, chapter 1 its two
+paragraphs, chapter 2 (a cite only) holds an empty line, chapter 3's annotation and last cite
+lose their cites, chapter 4 its nested cites; `remove-all-cites.none.xml` (`formatting.fb2`): the
+message, the book unchanged.
+Difference: the empty line of chapter 2 (the original left a section with its title only).
+
+### 11 Расформатировать все цитаты
+
+`11_unformat-all-cites`, id `19/unformat-all-cites` (v1.2, Sclex). Dissolves every cite, from the
+last to the first: its text authors (those whose parent is the cite) become paragraphs, its other
+children stay as they are in its place, the cite and its id go - in the bodies (containers rule
+(1)) and in the book annotation and the history. Inside an epigraph a subtitle of the cite becomes
+a paragraph too (an epigraph holds no subtitles); a cite whose content still cannot stand there (a
+table) stays; an empty cite that was a section's whole content leaves an empty line. Status bar:
+"Расформатировано цитат: N." (with " Оставлено цитат: M — …" when some stayed); without a cite the
+same message as 10. Acts on the whole document, returns nothing.
+
+Snapshots: `unformat-all-cites.xml` (`cites.fb2`) - every cite's lines in its place: in the
+annotation and history paragraphs, in the body epigraph the cite's paragraph, subtitle and author
+as paragraphs before the epigraph's own author, in chapter 1 the paragraph, subtitle, poem (its
+text author and date untouched, they are the poem's), empty line and table, then the two authors
+as paragraphs, chapter 3's annotation and last cite, in chapter 4 the inner cite's lines in the
+poem's epigraph and the outer cite's poem and author in the section; `unformat-all-cites.none.xml`.
+Differences: the epigraph's subtitle as a paragraph, a cite left where its content cannot stand,
+the empty line for an empty sole cite (the original wrote invalid FB2 in each case).
+
+### 15 Удалить все эпиграфы и их содержимое
+
+`15_remove-all-epigraphs`, id `19/remove-all-epigraphs` (v1.0, Sclex). Removes every epigraph of
+the bodies - of bodies, sections and poems - with its content, from the last to the first
+(`doc.removeNode`; an epigraph is never required, so it always goes). Status bar "Удалено
+эпиграфов с их содержимым: N."; without an epigraph "Эпиграфов в документе не нашлось.". Acts on
+the whole document, returns nothing.
+Snapshots: `remove-all-epigraphs.xml` (`epigraphs.fb2`, 8 epigraphs: two of the body, four of
+sections - before the text, before a picture, before an annotation, before subsections - and two
+of poems), `remove-all-epigraphs.none.xml`. No difference.
+
+### 16 Расформатировать все эпиграфы
+
+`16_unformat-all-epigraphs`, id `19/unformat-all-epigraphs` (v1.2, Sclex). Dissolves every
+epigraph from the last to the first: its own text authors become paragraphs (a cite's stay with
+the cite), its content goes to the first place of the containers rule that fits. Status bar
+"Расформатировано эпиграфов: N." (with the count of those that stayed); without an epigraph the
+message of 15. Acts on the whole document, returns nothing.
+
+Snapshot `unformat-all-epigraphs.xml` (`epigraphs.fb2`), place by place:
+- chapter 1 (epigraph before the text) and chapter 2 (before the section's picture): in the
+  epigraph's place, as in the original (the picture then stands in the section's text);
+- chapter 3 (before an annotation): after the annotation, at the start of the text (rule 2);
+- chapter 4 (a section of sections) and the two body epigraphs: a section of its own, untitled,
+  before the first section (rule 3; the body's two in their order);
+- chapter 5 (a poem's epigraph of two paragraphs, an empty line and an author): stanzas
+  `[Эпиграф стиха.]`, `[Вторая часть…, Автор…]` before the poem's stanza (rule 4);
+- chapter 6 (a poem's epigraph holding a poem): stays, "Оставлено эпиграфов: 1".
+`unformat-all-epigraphs.none.xml`: the message, the book unchanged.
+Differences: rules 2-4 and the epigraph that stays (the original left paragraphs where FB2 allows
+none: in the body, before the annotation and subsections, in the poem).
+
+### 17 Удалить все аннотации разделов и их содержимое
+
+`17_remove-section-annotations`, id `19/remove-section-annotations` (v1.0, Sclex). Removes the
+annotation of every section with its content (`doc.removeNode`). The original skipped the
+annotation standing directly in its page's body - the book's own; here the book annotation is not
+a node of the bodies (`getElementsByTagName` does not list it) and stays. Status bar "Удалено
+аннотаций разделов с их содержимым: N."; without one "Аннотаций разделов в документе не
+нашлось.". Acts on the whole document (the bodies), returns nothing.
+Snapshots: `remove-section-annotations.xml` (`annotations.fb2`, 5 annotations: before the text,
+after a picture, in a section of sections, in a subsection, an empty one; the book annotation
+stays), `remove-section-annotations.none.xml` (`formatting.fb2`, whose book annotation stays). No
+difference.
+
+### 18 Расформатировать все аннотации разделов
+
+`18_unformat-section-annotations`, id `19/unformat-section-annotations` (v1.0, Sclex). Dissolves
+the annotation of every section, from the last to the first: its content opens the section's text
+in its place (rule 1); in a section of sections it becomes a section of its own, untitled, before
+the first subsection (rule 3). The book annotation stays. Status bar "Расформатировано аннотаций
+разделов: N."; without one the message of 17. Acts on the whole document, returns nothing.
+Snapshots: `unformat-section-annotations.xml` - chapter 1's paragraph, poem and subtitle open its
+text, chapter 2's paragraph, cite, table and empty line follow its picture, chapter 3's paragraph
+is a section before subsection 3.1, whose own annotation opens its text, chapter 4's empty
+annotation is gone; `unformat-section-annotations.none.xml`.
+Difference: the section of its own for the annotation of a section of sections.
+
+### 20 Расформатировать подзаголовок
+
+`20_unformat-subtitle`, id `19/unformat-subtitle` (version 1.2 by its code, no header). When the
+text block holding the selection's start (the caret) is a subtitle, makes it plain text keeping
+its content and attributes: a paragraph (the original set its class to `normal` with `SetStyleEx`
+and removed it), a verse inside a stanza (what that `P` became on saving), a stanza of one verse
+directly in a poem (a paragraph there is invalid FB2; 19/element-browser does the same). Also in
+the book annotation. The selection is not changed; a selected picture or another block leaves
+everything as it is. Acts on the caret's block, returns nothing.
+Snapshots (`subtitles.fb2`): `unformat-subtitle.xml` (`--select n10:3:3`: the subtitle with an id,
+a style and bold → `<p id="s2" style="center">Второй <strong>подзаголовок</strong></p>`),
+`.stanza.xml` (n24 → a verse), `.poem.xml` (n27 → a stanza of one verse), `.annotation.xml` (n39,
+the book annotation's subtitle → a paragraph, through `setDescription`), `.paragraph.xml` (a
+paragraph: nothing changes).
+Difference: the stanza of one verse in a poem.
+
+### 25 Превратить таблицы в простой текст
+
+`25_tables-to-text`, id `19/tables-to-text` (v1.3, Sclex). Every table, from the last to the
+first, in the bodies and in the book annotation and the history: each cell, row by row, becomes a
+paragraph with the cell's content; the table, the rows and the cells' id, style, alignment and
+spans go (the original removed exactly those attributes; a cell's `xml:lang`, which 2.7.9 never
+read, stays on its paragraph). A cell with nothing but spaces (non-breaking ones included)
+becomes an empty line, as 2.7.9 saved such a paragraph (`FBDoc.cpp` `ProcessP`). The original
+also split a cell's paragraph at each inline picture (`re0`) and made the picture a block (with its
+href and title; here its href and alt), dropping the empty paragraphs left (`re1`); where FB2
+allows no block picture - in a cite or an annotation, right after a section's annotation, as a
+section's only content - the pictures of that table stay inline (containers rule: the parent's
+content with block pictures, else with inline ones). Text after a picture keeps its own
+formatting. Status bar "Все таблицы успешно превращены в текст.". Acts on the whole document,
+returns nothing.
+Snapshot `tables-to-text.xml` (`tables.fb2`): chapter 1's table → `Заголовок 1`, `Заголовок 2`,
+`Текст <strong>ячейки</strong>` (without the cell's id, style, valign), two empty lines (an empty
+cell, a cell of one space), `До `, a picture with its alt, ` после`, a picture, `English cell` with
+`xml:lang="en"`; chapter 2 (table right after the annotation, starting with a picture), chapter 3
+(table in a cite) and chapter 4 (a table of one picture, the section's only content) keep their
+pictures inline; the book annotation's table → two paragraphs, the picture inline.
+Differences: the inline pictures where FB2 allows no block, the alt kept, the cell's language
+kept, the formatting after a picture kept.
+
+### 35 Разметить курсивом буквы рядом со знаками подчеркивания
+
+`35_underscored-letters-to-italics`, id `19/underscored-letters-to-italics` (version 1.2 by its
+code; author Sclex by its message; the header lines kept are the commented-out code of the
+original, the `Jürgen Script` credit among them). Every paragraph of the bodies, the book
+annotation and the history (its `ObrabotkaAnnotation` / `ObrabotkaHistory` switches are true)
+whose text holds an underscore gets the original `regExp01` applied to its inline HTML: a run of
+letters spaced out with underscores (`_т_е_к_с_т`, `т_е_к_с_т`), with the short words between
+such words, a leading `«`, `«…` or (at the very start) `— `, and the trailing `.,…?!»`, is wrapped
+in emphasis without its underscores; the non-breaking space is `mfbe.edit.nbsp` (`&nbsp;` in the
+notation, as `GetNBSP()` gave). Latin letters count as the original's classes say (`snake_case`
+→ `snak`*`ec`*`as`*`en`*`ame`). The message gives the count of emphasis tags added and the time
+with the original's credit line. A poem's date is skipped. Acts on the whole document, returns
+nothing.
+Snapshot `underscored-letters-to-italics.xml` (`underscores.fb2`): 20 matches - the annotation
+(`разрядкой.`), the history (`разрядка`, `д.`), the body title, the paragraphs (`Мы вышли и пошли`,
+`— Нет,`, `«Да!»`, `слову`, `слово.`, `стиля` inside its named style, `ec` and `en`, `Они в доме, а
+мы`, `раз два` and `«… три».` over non-breaking spaces, `уже` inside italics, `жирный` inside
+bold), the verse, the cell, the note; a paragraph of lone underscores unchanged, the date
+`д_а_т_а` unchanged, the note link `#n_1`, the picture `#pic_1.png` and the style `my_style`
+intact.
+Fix (FR-023): the expression's look-ahead `(?=[^>]*(<|$))` ("not inside a tag") applies to its last
+part only, so a letter next to an underscore inside a tag was matched too: 2.7.9 rewrote the link
+to `#n_1` as `#<EM>n</EM>1`, the picture `#pic_1.png` (both its `href` and its `src`) and the style
+class `my_style` the same way, and counted them (on this book 2.7.9 counts 25 matches, 4 of them
+inside tags; the conversion counts 20 - the 21 of the text less the skipped date). Here the tags
+are matched first and kept (`<[^>]*>|` in front of the expression), so no match starts inside a
+tag. Differences: the date skipped; a match inside italics gives one emphasis (the editor keeps
+no formatting nested in an equal one; 2.7.9 wrote `<emphasis>` inside `<emphasis>`).
+
+### 40-46 Сформатировать абзац(ы) …
+
+`40_paragraphs-to-bold` (`19/paragraphs-to-bold`, strong), `41_paragraphs-to-italics` (emphasis),
+`42_paragraphs-to-bold-italics` (strong and emphasis inside it), `43_paragraphs-to-strikethrough`,
+`44_paragraphs-to-superscript`, `45_paragraphs-to-subscript`, `46_paragraphs-to-code` (v1.5,
+Sclex). The paragraph engine with `remove` = `add` = the kind(s): each block of the selection
+loses its marks of the kind (with or without a language) and its whole content gets the mark(s),
+outermost, pictures included. Act on the selection's blocks (a caret: its block), leave them
+selected, return nothing.
+Snapshots (`formatting.fb2`; P1 n7 holds every kind of formatting, a note link and an external
+link, P2 n8 formatting with languages and two pictures, one bold, P3 n11 bold-italic overlaps):
+- `paragraphs-to-bold.xml` (`n7:9-n8:3`): P1 and P2 bold as a whole, their italics, strikethrough,
+  sub, sup, code, style and links inside; P2's `<strong xml:lang="en">` gone into the whole;
+  `.caret.xml` (`n11:3:3`): P3 only; `.annotation.xml` (no selection: the caret of a fresh document,
+  in the book annotation): the annotation's paragraph, through `setDescription`;
+- `paragraphs-to-italics.xml` (`n7:0-n8:5`), `paragraphs-to-bold-italics.xml` (the poem: title,
+  verses, author; the date stays), `paragraphs-to-strikethrough.xml` (`n13:2-n25:1`: subtitle, poem
+  lines, author, th, td; not the date), `paragraphs-to-superscript.xml` (`--select n7`, the whole
+  block: `x2` and the note's `1` inside the one sup), `paragraphs-to-subscript.xml` (td and the last
+  paragraph), `paragraphs-to-code.xml` (`n7:0-n8:0`: the end at the start of P2 takes P2; the code
+  spans, P2's with a language too, go into the whole; `H<sub>2</sub>O` keeps its sub).
+- `paragraphs-to-bold.chain.xml`: the chain runner runs 40 by its 2.7.9 path and then
+  `19/paragraphs-remove-italics` on the same selection: after 40 the selection is `n7:0`-`n8:57`, and
+  56 works on exactly those blocks (bold P1 and P2 without italics).
+Fix (46): the original also removed every subscript - its `/<\/?SUB( [^>]*)?>/gi` is 45's line,
+copied unchanged; formatting as code leaves subscripts alone.
+Differences: the date stays; Select All and a selected picture change nothing (below).
+Open question: a mark of the reformatted kind with a language (`xml:lang`, kept by the editor
+since feature 006) goes with its language, as the original's expression removed the tags whatever
+their attributes (2.7.9 dropped every mark's language when it read a book).
+
+### 55-62 Расформатировать абзац(ы) от …
+
+`55_paragraphs-remove-bold` (strong), `56_paragraphs-remove-italics` (emphasis),
+`57_paragraphs-remove-bold-and-italics` (both), `58_paragraphs-remove-bold-italics-overlaps`,
+`59_paragraphs-remove-strikethrough`, `60_paragraphs-remove-superscript`,
+`61_paragraphs-remove-subscript`, `62_paragraphs-remove-code` (v1.5, 58 v1.6, Sclex). The engine
+with `remove` only: every mark of the kind goes, with or without a language; a picture loses its
+bold too, a footnote link keeps its link (60). 58 removes strong and emphasis from exactly the text
+that has both: the original walked the tags with two counters, closed the outer tag on entering
+italics in bold (or bold in italics), reopened it on leaving and dropped the tags met while both
+were open - text under both lost both, the rest kept its formatting - which a look at each text
+node's marks reproduces. Act on the selection's blocks, leave them selected, return nothing.
+Snapshots (`formatting.fb2`): `paragraphs-remove-bold.xml`, `-italics`, `-bold-and-italics`,
+`-bold-italics-overlaps` (`n7:3-n11:4`: P1, P2, P3; 58 leaves P2 alone and turns
+`<strong>Жирный <emphasis>и курсивный</emphasis> жирный</strong>` into bold - plain - bold, keeps
+the lone `<emphasis xml:lang="la">lingua</emphasis>` and frees the `lingua` inside bold),
+`paragraphs-remove-bold.annotation.xml` (no selection: the book annotation's paragraph),
+`-strikethrough`, `-superscript`, `-subscript`, `-code` (`n7:0-n8:10`; 62 keeps `H<sub>2</sub>O`).
+Fix (62): as 46 - the copied `SUB` line of 61 removed every subscript; left alone here.
+Difference (58): formatting of one kind nested in itself (here only with different languages) is
+handled like any other - the original's counters lost track of nested tags of one kind and let
+italics or bold run on past their end.
+
+### 63 Расформатировать подзаголовок(-ки)
+
+`63_unformat-subtitles`, id `19/unformat-subtitles` (v1.6, Sclex). The engine with 20's rule:
+every subtitle among the selection's blocks becomes a paragraph, a verse in a stanza or a stanza of
+one verse directly in a poem; the run selects the processed blocks (the verse where a block became
+a stanza). Acts on the selection's blocks, returns nothing.
+Snapshots (`subtitles.fb2`): `unformat-subtitles.xml` (`n7:3-n15:2`: two section subtitles, the
+second with its id and style, and the cite's subtitle → paragraphs), `.poem.xml` (`n22:0-n27:5`:
+the poem's two subtitles → stanzas, the stanza's → a verse), `.annotation.xml` (`n39:0-n3:2`, from
+the book annotation into the body: the annotation's subtitle → a paragraph); `.chain.xml` (the
+`.poem` range, 63 by its 2.7.9 path with a leading backslash): the selection afterwards runs from
+the start of the first new verse `sc_1` to the end of the last, `sc_2:27`.
+Difference: the stanza of one verse (as 20).
+
+### Paragraph scripts: Select All and pictures
+
+After **Select All** (Ctrl+A) in the Body view, `mfbe.selection.get()` returns `null`, although a
+book is open (`docs/scripting/en.md` §4.2 says null only without one): the Body view makes a
+ProseMirror `AllSelection`, whose ends lie outside every node with an id. The paragraph scripts
+(40-46, 55-63) and 20 then change nothing, where the originals processed every paragraph (checked
+with a harness copy that presses Ctrl+A before the run). A selected picture gives no text block
+(`nodes: []`): nothing changes, where the originals stopped with a script error (a control range
+has no `parentElement`).
+
+### Harness commands
+
+The runs are `tests/scripts/snapshots/19/suite.json` (42 entries; the 6 `element-browser` runs stay
+in the main manifest). Gate: `tests/scripts/run-all.sh --group 19` - 48 snapshots, all pass.
+
+```bash
+F=tests/scripts/fixtures/279/19; G=scripts/19_formatting; S=tests/scripts/snapshots/19
+node tests/scripts/run-script.mjs $G/40_paragraphs-to-bold $F/formatting.fb2 --select-range n7:9-n8:3 --snapshot $S/paragraphs-to-bold.xml
+node tests/scripts/run-script.mjs $G/58_paragraphs-remove-bold-italics-overlaps $F/formatting.fb2 --select-range n7:3-n11:4 --snapshot $S/paragraphs-remove-bold-italics-overlaps.xml
+node tests/scripts/run-script.mjs $G/16_unformat-all-epigraphs $F/epigraphs.fb2 --snapshot $S/unformat-all-epigraphs.xml
+node tests/scripts/run-script.mjs $G/63_unformat-subtitles $F/subtitles.fb2 --select-range n22:0-n27:5 --snapshot $S/unformat-subtitles.poem.xml
+node tests/scripts/run-script.mjs $F/chain-runner $F/formatting.fb2 --select-range n7:9-n8:3 \
+     --answer '19_Обработка форматирования\40_Сформатировать абзац(ы) жирностью.js | 19/paragraphs-remove-italics' \
+     --snapshot $S/paragraphs-to-bold.chain.xml
+```

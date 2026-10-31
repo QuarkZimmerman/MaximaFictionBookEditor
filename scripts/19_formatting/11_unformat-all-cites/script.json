@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "19/unformat-all-cites",
+  "name": {
+    "ru": "Расформатировать все цитаты",
+    "en": "Unformat all cites",
+    "uk": "Розформатувати всі цитати"
+  },
+  "description": {
+    "ru": "Превращает все цитаты книги в обычный текст: их содержимое остаётся на их месте, авторы цитат становятся абзацами.",
+    "en": "Turns every cite of the book into plain text: its content stays in its place and its text authors become paragraphs.",
+    "uk": "Перетворює всі цитати книги на звичайний текст: їхній вміст лишається на їхньому місці, автори цитат стають абзацами."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать все цитаты",
+    "en": "Unformat all cites"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/11_Расформатировать все цитаты.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

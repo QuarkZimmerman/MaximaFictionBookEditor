@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-remove-italics",
+  "name": {
+    "ru": "Расформатировать абзац(ы) от курсива",
+    "en": "Remove italics from paragraph(s)",
+    "uk": "Прибрати курсив з абзацу(-ів)"
+  },
+  "description": {
+    "ru": "Снимает курсив во всех абзацах, которых касается выделение (или в абзаце с курсором).",
+    "en": "Removes italics from every paragraph the selection touches (or from the caret's paragraph).",
+    "uk": "Знімає курсив в усіх абзацах, яких торкається виділення (або в абзаці з курсором)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать абзац(ы) от курсива",
+    "en": "Remove italics from paragraph(s)"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/56_Расформатировать абзац(ы) от курсива.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

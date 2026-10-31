@@ -1,0 +1,33 @@
+[
+  {
+    "snapshot": "34/caret-to-document-start.xml",
+    "script": "scripts/34_caret-selection/001_caret-to-document-start",
+    "book": "tests/scripts/fixtures/279/34/caret.fb2",
+    "args": [
+      "--select",
+      "n12:3:3"
+    ]
+  },
+  {
+    "snapshot": "34/caret-to-document-start.chain.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/34/caret.fb2",
+    "args": [
+      "--select",
+      "n12:3:3",
+      "--answer",
+      "\\34_Управление курсором либо выделением\\001_Установить курсор в начало документа.js"
+    ]
+  },
+  {
+    "snapshot": "34/caret-to-document-start.chain-no-annotation.xml",
+    "script": "tests/scripts/fixtures/279/19/chain-runner",
+    "book": "tests/scripts/fixtures/279/34/caret-no-annotation.fb2",
+    "args": [
+      "--select",
+      "n12:3:3",
+      "--answer",
+      "\\34_Управление курсором либо выделением\\001_Установить курсор в начало документа.js"
+    ]
+  }
+]

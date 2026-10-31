@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/underscored-letters-to-italics",
+  "name": {
+    "ru": "Разметить курсивом буквы рядом со знаками подчеркивания",
+    "en": "Mark letters next to underscores as italics",
+    "uk": "Розмітити курсивом літери поряд зі знаками підкреслення"
+  },
+  "description": {
+    "ru": "Во всём тексте книги делает курсивом буквы, разделённые знаками подчёркивания (разрядку вида «т_е_к_с_т»), и удаляет эти знаки.",
+    "en": "Throughout the book makes the letters spaced out with underscores (“t_e_x_t”) italic and removes the underscores.",
+    "uk": "У всьому тексті книги робить курсивом літери, розділені знаками підкреслення (розрядку на кшталт «т_е_к_с_т»), і видаляє ці знаки."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Разметить курсивом буквы рядом со знаками подчеркивания",
+    "en": "Mark letters next to underscores as italics"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/35_Разметить курсивом буквы рядом со знаками подчеркивания.js",
+    "fbeVersion": "2.7.9"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "34/caret-to-document-start",
+  "name": {
+    "ru": "Установить курсор в начало документа",
+    "en": "Put the caret at the start of the document",
+    "uk": "Встановити курсор на початок документа"
+  },
+  "description": {
+    "ru": "Ставит курсор в самое начало документа — в начало аннотации книги, с которой начинается текст в редакторе.",
+    "en": "Puts the caret at the very start of the document: at the start of the book annotation, which the Body view shows first.",
+    "uk": "Ставить курсор на самий початок документа — на початок анотації книги, якою починається текст у редакторі."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Установить курсор в начало документа",
+    "en": "Put the caret at the start of the document"
+  },
+  "legacy": {
+    "source": "34_Управление курсором либо выделением/001_Установить курсор в начало документа.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

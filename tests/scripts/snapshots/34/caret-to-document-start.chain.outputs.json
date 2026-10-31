@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"\\\\34_Управление курсором либо выделением\\\\001_Установить курсор в начало документа.js\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n15\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n15\",\n      \"offset\": 0\n    },\n    \"text\": \"\"\n  }\n]"
+    }
+  ]
+}

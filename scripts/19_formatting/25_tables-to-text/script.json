@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/tables-to-text",
+  "name": {
+    "ru": "Превратить таблицы в простой текст",
+    "en": "Turn tables into plain text",
+    "uk": "Перетворити таблиці на простий текст"
+  },
+  "description": {
+    "ru": "Превращает все таблицы книги в простой текст: каждая ячейка становится абзацем, а картинки в ячейках — отдельными картинками там, где это допустимо.",
+    "en": "Turns every table of the book into plain text: each cell becomes a paragraph and the pictures in cells become pictures of their own where FB2 allows it.",
+    "uk": "Перетворює всі таблиці книги на простий текст: кожна клітинка стає абзацом, а малюнки в клітинках — окремими малюнками там, де це допустимо."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Превратить таблицы в простой текст",
+    "en": "Turn tables into plain text"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/25_Превратить таблицы в простой текст.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

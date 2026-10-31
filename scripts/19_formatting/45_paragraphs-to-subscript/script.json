@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-to-subscript",
+  "name": {
+    "ru": "Сформатировать абзац(ы) нижним индексом",
+    "en": "Format paragraph(s) as subscript",
+    "uk": "Відформатувати абзац(и) нижнім індексом"
+  },
+  "description": {
+    "ru": "Делает нижним индексом целиком все абзацы, которых касается выделение (или абзац с курсором), сняв прежний нижний индекс внутри них.",
+    "en": "Makes the whole of every paragraph the selection touches (or the caret's paragraph) subscript, removing the subscript already inside it.",
+    "uk": "Робить нижнім індексом цілком усі абзаци, яких торкається виділення (або абзац із курсором), знявши наявний усередині нижній індекс."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Сформатировать абзац(ы) нижним индексом",
+    "en": "Format paragraph(s) as subscript"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/45_Сформатировать абзац(ы) нижним индексом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

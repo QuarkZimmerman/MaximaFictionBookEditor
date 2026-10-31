@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "19/remove-section-annotations",
+  "name": {
+    "ru": "Удалить все аннотации разделов и их содержимое",
+    "en": "Remove all section annotations with their content",
+    "uk": "Видалити всі анотації розділів разом із вмістом"
+  },
+  "description": {
+    "ru": "Удаляет аннотации всех разделов книги вместе с их содержимым; аннотация самой книги остаётся.",
+    "en": "Removes the annotation of every section of the book with its content; the book's own annotation stays.",
+    "uk": "Видаляє анотації всіх розділів книги разом із їхнім вмістом; анотація самої книги лишається."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить все аннотации разделов и их содержимое",
+    "en": "Remove all section annotations with their content"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/17_Удалить все аннотации разделов и их содержимое.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

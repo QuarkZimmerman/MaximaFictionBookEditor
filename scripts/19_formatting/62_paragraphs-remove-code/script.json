@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-remove-code",
+  "name": {
+    "ru": "Расформатировать абзац(ы) от программного кода",
+    "en": "Remove program code from paragraph(s)",
+    "uk": "Прибрати програмний код з абзацу(-ів)"
+  },
+  "description": {
+    "ru": "Снимает оформление программным кодом во всех абзацах, которых касается выделение (или в абзаце с курсором).",
+    "en": "Removes the program code formatting from every paragraph the selection touches (or from the caret's paragraph).",
+    "uk": "Знімає оформлення програмним кодом в усіх абзацах, яких торкається виділення (або в абзаці з курсором)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать абзац(ы) от программного кода",
+    "en": "Remove program code from paragraph(s)"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/62_Расформатировать абзац(ы) от программного кода.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

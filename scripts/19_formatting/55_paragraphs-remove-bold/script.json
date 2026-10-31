@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-remove-bold",
+  "name": {
+    "ru": "Расформатировать абзац(ы) от жирности",
+    "en": "Remove bold from paragraph(s)",
+    "uk": "Прибрати жирний шрифт з абзацу(-ів)"
+  },
+  "description": {
+    "ru": "Снимает жирность во всех абзацах, которых касается выделение (или в абзаце с курсором).",
+    "en": "Removes bold from every paragraph the selection touches (or from the caret's paragraph).",
+    "uk": "Знімає жирний шрифт в усіх абзацах, яких торкається виділення (або в абзаці з курсором)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать абзац(ы) от жирности",
+    "en": "Remove bold from paragraph(s)"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/55_Расформатировать абзац(ы) от жирности.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Таблицы</last-name>
+			</author>
+			<book-title>Таблицы в простой текст</book-title>
+			<annotation>
+				<p>Аннотация с таблицей.</p>
+				<p>Ячейка аннотации</p>
+				<p>С картинкой <image l:href="#pic.png"/></p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Книга с таблицами</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<p>Перед таблицей.</p>
+			<p>Заголовок 1</p>
+			<p>Заголовок 2</p>
+			<p>Текст <strong>ячейки</strong></p>
+			<empty-line/>
+			<empty-line/>
+			<p>До </p>
+			<image l:href="#pic.png" alt="рис"/>
+			<p> после</p>
+			<image l:href="#pic.png"/>
+			<p xml:lang="en">English cell</p>
+			<p>После таблицы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<annotation>
+				<p>Аннотация второй главы.</p>
+			</annotation>
+			<p><image l:href="#pic.png"/></p>
+			<p>Текст рядом с картинкой</p>
+			<p>Текст второй главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава третья</p>
+			</title>
+			<cite>
+				<p>Цитата с таблицей.</p>
+				<p>В цитате</p>
+				<p><image l:href="#pic.png"/></p>
+				<text-author>Автор цитаты</text-author>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>Глава четвёртая</p>
+			</title>
+			<p><image l:href="#pic.png"/></p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

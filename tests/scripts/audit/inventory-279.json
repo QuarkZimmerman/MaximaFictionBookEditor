@@ -21,7 +21,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 185
+    "converted": 211
   },
   "entries": [
     {
@@ -7320,15 +7320,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/10_remove-all-cites",
+      "id": "19/remove-all-cites",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A cite that is all the content of a section leaves an empty line in its place: FB2 wants content in a section, and the original left the section with its title only - invalid FB2 that 2.7.9 refused to save until it was mended."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/10_udalit-all-tsitaty-and-their-soderzhimoe",
-      "suggestedId": "19/udalit-all-tsitaty-and-their-soderzhimoe"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/11_Расформатировать все цитаты.js",
@@ -7344,15 +7344,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/11_unformat-all-cites",
+      "id": "19/unformat-all-cites",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Inside an epigraph a subtitle of the dissolved cite becomes a paragraph, as its text authors do: an epigraph holds no subtitles (the original left the subtitle there - invalid FB2).",
+        "A cite whose content cannot stand in its place even so (a table, in an epigraph) stays, and the status bar says how many cites stayed; the original dissolved it into invalid FB2.",
+        "An empty cite that was all the content of a section leaves an empty line in its place (the original left the section with its title only)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/11_rasformatirovat-all-tsitaty",
-      "suggestedId": "19/rasformatirovat-all-tsitaty"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/15_Удалить все эпиграфы и их содержимое.js",
@@ -7368,15 +7370,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/15_remove-all-epigraphs",
+      "id": "19/remove-all-epigraphs",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/15_udalit-all-epigrafy-and-their-soderzhimoe",
-      "suggestedId": "19/udalit-all-epigrafy-and-their-soderzhimoe"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/16_Расформатировать все эпиграфы.js",
@@ -7392,15 +7392,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/16_unformat-all-epigraphs",
+      "id": "19/unformat-all-epigraphs",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The content of a body epigraph becomes a section of its own, untitled, before the first section: a body holds no paragraphs, and the original left them directly in the body - invalid FB2 that 2.7.9 refused to save until it was mended.",
+        "The content of a section epigraph that precedes an annotation opens the section's text, after the annotation (no paragraph may precede it); in a section of sections it becomes a section of its own, untitled, before the first subsection. The original left it in the epigraph's place in both cases (invalid FB2).",
+        "The content of a poem's epigraph becomes stanzas in its place, its paragraphs and text authors their verses and an empty line the break between two stanzas, since a poem holds no paragraphs; a poem's epigraph holding a poem or a cite stays, and the status bar says how many epigraphs stayed. The original left paragraphs in the poem (invalid FB2)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/16_rasformatirovat-all-epigrafy",
-      "suggestedId": "19/rasformatirovat-all-epigrafy"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/17_Удалить все аннотации разделов и их содержимое.js",
@@ -7416,15 +7418,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/17_remove-section-annotations",
+      "id": "19/remove-section-annotations",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/17_udalit-all-annotatsii-of-sections-and-their-sode",
-      "suggestedId": "19/udalit-all-annotatsii-of-sections-and-their-sode"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/18_Расформатировать все аннотации разделов.js",
@@ -7440,15 +7440,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/18_unformat-section-annotations",
+      "id": "19/unformat-section-annotations",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The annotation of a section of sections becomes a section of its own, untitled, before the first subsection: FB2 does not mix text and sections, and the original left the annotation's paragraphs before the subsections - invalid FB2 that 2.7.9 refused to save until it was mended."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/18_rasformatirovat-all-annotatsii-of-sections",
-      "suggestedId": "19/rasformatirovat-all-annotatsii-of-sections"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/20_Расформатировать подзаголовок.js",
@@ -7464,15 +7464,16 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/20_unformat-subtitle",
+      "id": "19/unformat-subtitle",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A subtitle directly in a poem (between its stanzas) becomes a stanza of one verse; the original made a paragraph of it, which left a <p> in the poem - invalid FB2 that 2.7.9 refused to save until it was mended. 19/element-browser treats such a subtitle the same way.",
+        "A selected picture leaves everything as it is, as in the original (it returned on a control selection)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/20_rasformatirovat-subtitle",
-      "suggestedId": "19/rasformatirovat-subtitle"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/25_Превратить таблицы в простой текст.js",
@@ -7488,15 +7489,18 @@
       "encoding": "utf-8-sig",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/25_tables-to-text",
+      "id": "19/tables-to-text",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Where FB2 allows no picture as a block - in a cite, in an annotation (the book's or a section's), right after a section's annotation, or as a section's only content - the pictures of that table stay inline in their paragraphs; the original made blocks of them there - invalid FB2 that 2.7.9 refused to save until it was mended.",
+        "A picture made a block keeps its alt; the original kept its href and title (2.7.9 did not read an inline picture's alt).",
+        "A cell's language (xml:lang) stays on its paragraph; 2.7.9 did not read a cell's language.",
+        "Text after a picture keeps its own formatting: the original split the cell's HTML at the picture, which left the formatting open around the picture behind, so the text after the picture lost it."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/25_prevratit-tablitsy-into-prostoy-text",
-      "suggestedId": "19/prevratit-tablitsy-into-prostoy-text"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/35_Разметить курсивом буквы рядом со знаками подчеркивания.js",
@@ -7512,15 +7516,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/35_underscored-letters-to-italics",
+      "id": "19/underscored-letters-to-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/35_razmetit-kursivom-bukvy-ryadom-so-znakami-podche",
-      "suggestedId": "19/razmetit-kursivom-bukvy-ryadom-so-znakami-podche"
+      "differences": [
+        "A poem's date is left as it is: FB2 allows no formatting in a date. 2.7.9 showed the date as a text-author paragraph, italicized its letters and saved it as a text-author.",
+        "A match inside italics gives one emphasis, not an emphasis inside another one: the editor keeps no formatting nested in an equal one (2.7.9 wrote the nested emphasis)."
+      ],
+      "fixes": [
+        "The expression was also matched inside the tags of the paragraph's HTML - its look-ahead \"not inside a tag\" applies to its last part only - so a letter next to an underscore in an attribute was rewritten too: a footnote link to \"#n_1\" became \"#<EM>n</EM>1\", a picture \"#pic_1.png\" and a named style \"my_style\" broke the same way, and the count included them. The conversion never starts a match inside a tag (the tags are matched first and kept): links, pictures and styles stay intact and the count is that of the text's matches."
+      ],
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/40_Сформатировать абзац(ы) жирностью.js",
@@ -7536,15 +7543,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/40_paragraphs-to-bold",
+      "id": "19/paragraphs-to-bold",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture.",
+        "A poem's date is left as it is: FB2 allows no formatting in a date. 2.7.9 showed the date as a text-author paragraph, formatted it with the others and saved it as a text-author."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/40_sformatirovat-abzats-y-zhirnostyu",
-      "suggestedId": "19/sformatirovat-abzats-y-zhirnostyu"
+      "openQuestions": [
+        "A mark of the reformatted kind that carries a language (xml:lang, which the editor keeps since feature 006) goes like any other, so its language is lost: the original's expression removed the tags whatever their attributes (2.7.9 itself dropped every mark's language on reading a book). Whether such a language should survive the reformatting is left open."
+      ]
     },
     {
       "source": "19_Обработка форматирования/41_Сформатировать абзац(ы) курсивом.js",
@@ -7560,15 +7570,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/41_paragraphs-to-italics",
+      "id": "19/paragraphs-to-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture.",
+        "A poem's date is left as it is: FB2 allows no formatting in a date. 2.7.9 showed the date as a text-author paragraph, formatted it with the others and saved it as a text-author."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/41_sformatirovat-abzats-y-kursivom",
-      "suggestedId": "19/sformatirovat-abzats-y-kursivom"
+      "openQuestions": [
+        "A mark of the reformatted kind that carries a language (xml:lang, which the editor keeps since feature 006) goes like any other, so its language is lost: the original's expression removed the tags whatever their attributes (2.7.9 itself dropped every mark's language on reading a book). Whether such a language should survive the reformatting is left open."
+      ]
     },
     {
       "source": "19_Обработка форматирования/42_Сформатировать абзац(ы) курсивом и жирностью.js",
@@ -7584,15 +7597,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/42_paragraphs-to-bold-italics",
+      "id": "19/paragraphs-to-bold-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture.",
+        "A poem's date is left as it is: FB2 allows no formatting in a date. 2.7.9 showed the date as a text-author paragraph, formatted it with the others and saved it as a text-author."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/42_sformatirovat-abzats-y-kursivom-and-zhirnostyu",
-      "suggestedId": "19/sformatirovat-abzats-y-kursivom-and-zhirnostyu"
+      "openQuestions": [
+        "A mark of the reformatted kind that carries a language (xml:lang, which the editor keeps since feature 006) goes like any other, so its language is lost: the original's expression removed the tags whatever their attributes (2.7.9 itself dropped every mark's language on reading a book). Whether such a language should survive the reformatting is left open."
+      ]
     },
     {
       "source": "19_Обработка форматирования/43_Сформатировать абзац(ы) зачеркнутостью.js",
@@ -7608,15 +7624,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/43_paragraphs-to-strikethrough",
+      "id": "19/paragraphs-to-strikethrough",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture.",
+        "A poem's date is left as it is: FB2 allows no formatting in a date. 2.7.9 showed the date as a text-author paragraph, formatted it with the others and saved it as a text-author."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/43_sformatirovat-abzats-y-zacherknutostyu",
-      "suggestedId": "19/sformatirovat-abzats-y-zacherknutostyu"
+      "openQuestions": [
+        "A mark of the reformatted kind that carries a language (xml:lang, which the editor keeps since feature 006) goes like any other, so its language is lost: the original's expression removed the tags whatever their attributes (2.7.9 itself dropped every mark's language on reading a book). Whether such a language should survive the reformatting is left open."
+      ]
     },
     {
       "source": "19_Обработка форматирования/44_Сформатировать абзац(ы) верхним индексом.js",
@@ -7632,15 +7651,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/44_paragraphs-to-superscript",
+      "id": "19/paragraphs-to-superscript",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture.",
+        "A poem's date is left as it is: FB2 allows no formatting in a date. 2.7.9 showed the date as a text-author paragraph, formatted it with the others and saved it as a text-author."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/44_sformatirovat-abzats-y-verkhnim-indeksom",
-      "suggestedId": "19/sformatirovat-abzats-y-verkhnim-indeksom"
+      "openQuestions": [
+        "A mark of the reformatted kind that carries a language (xml:lang, which the editor keeps since feature 006) goes like any other, so its language is lost: the original's expression removed the tags whatever their attributes (2.7.9 itself dropped every mark's language on reading a book). Whether such a language should survive the reformatting is left open."
+      ]
     },
     {
       "source": "19_Обработка форматирования/45_Сформатировать абзац(ы) нижним индексом.js",
@@ -7656,15 +7678,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/45_paragraphs-to-subscript",
+      "id": "19/paragraphs-to-subscript",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture.",
+        "A poem's date is left as it is: FB2 allows no formatting in a date. 2.7.9 showed the date as a text-author paragraph, formatted it with the others and saved it as a text-author."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/45_sformatirovat-abzats-y-nizhnim-indeksom",
-      "suggestedId": "19/sformatirovat-abzats-y-nizhnim-indeksom"
+      "openQuestions": [
+        "A mark of the reformatted kind that carries a language (xml:lang, which the editor keeps since feature 006) goes like any other, so its language is lost: the original's expression removed the tags whatever their attributes (2.7.9 itself dropped every mark's language on reading a book). Whether such a language should survive the reformatting is left open."
+      ]
     },
     {
       "source": "19_Обработка форматирования/46_Сформатировать абзац(ы) программным кодом.js",
@@ -7680,15 +7705,20 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/46_paragraphs-to-code",
+      "id": "19/paragraphs-to-code",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/46_sformatirovat-abzats-y-programmnym-kodom",
-      "suggestedId": "19/sformatirovat-abzats-y-programmnym-kodom"
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture.",
+        "A poem's date is left as it is: FB2 allows no formatting in a date. 2.7.9 showed the date as a text-author paragraph, formatted it with the others and saved it as a text-author."
+      ],
+      "fixes": [
+        "The original also removed every subscript of the processed paragraphs: its expression /<\\/?SUB( [^>]*)?>/gi is the line of 45_Сформатировать абзац(ы) нижним индексом, copied unchanged into this script, while nothing in formatting a paragraph as program code concerns subscripts. The conversion leaves subscripts alone, so a paragraph with subscripts keeps them (in 2.7.9 they were lost)."
+      ],
+      "openQuestions": [
+        "A mark of the reformatted kind that carries a language (xml:lang, which the editor keeps since feature 006) goes like any other, so its language is lost: the original's expression removed the tags whatever their attributes (2.7.9 itself dropped every mark's language on reading a book). Whether such a language should survive the reformatting is left open."
+      ]
     },
     {
       "source": "19_Обработка форматирования/55_Расформатировать абзац(ы) от жирности.js",
@@ -7704,15 +7734,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/55_paragraphs-remove-bold",
+      "id": "19/paragraphs-remove-bold",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/55_rasformatirovat-abzats-y-by-zhirnosti",
-      "suggestedId": "19/rasformatirovat-abzats-y-by-zhirnosti"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/56_Расформатировать абзац(ы) от курсива.js",
@@ -7728,15 +7758,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/56_paragraphs-remove-italics",
+      "id": "19/paragraphs-remove-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/56_rasformatirovat-abzats-y-by-kursiva",
-      "suggestedId": "19/rasformatirovat-abzats-y-by-kursiva"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/57_Расформатировать абзац(ы) от всего курсива и всей жирности.js",
@@ -7752,15 +7782,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/57_paragraphs-remove-bold-and-italics",
+      "id": "19/paragraphs-remove-bold-and-italics",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/57_rasformatirovat-abzats-y-by-vsego-kursiva-and-vs",
-      "suggestedId": "19/rasformatirovat-abzats-y-by-vsego-kursiva-and-vs"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/58_Расформатировать абзац(ы) от совмещений курсива с жирностью.js",
@@ -7776,15 +7806,16 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/58_paragraphs-remove-bold-italics-overlaps",
+      "id": "19/paragraphs-remove-bold-italics-overlaps",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture.",
+        "Formatting of one kind nested in itself (here only possible with different languages, since the editor keeps no formatting nested in an equal one) is handled like any other: the original's two counters lost track of tags of one kind nested in each other, kept a combination there and let italics or bold run on past its end."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/58_rasformatirovat-abzats-y-by-sovmeshcheniy-kursiv",
-      "suggestedId": "19/rasformatirovat-abzats-y-by-sovmeshcheniy-kursiv"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/59_Расформатировать абзац(ы) от зачеркнутости.js",
@@ -7800,15 +7831,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/59_paragraphs-remove-strikethrough",
+      "id": "19/paragraphs-remove-strikethrough",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/59_rasformatirovat-abzats-y-by-zacherknutosti",
-      "suggestedId": "19/rasformatirovat-abzats-y-by-zacherknutosti"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/60_Расформатировать абзац(ы) от верхнего индекса.js",
@@ -7824,15 +7855,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/60_paragraphs-remove-superscript",
+      "id": "19/paragraphs-remove-superscript",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/60_rasformatirovat-abzats-y-by-verkhnego-indeksa",
-      "suggestedId": "19/rasformatirovat-abzats-y-by-verkhnego-indeksa"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/61_Расформатировать абзац(ы) от нижнего индекса.js",
@@ -7848,15 +7879,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/61_paragraphs-remove-subscript",
+      "id": "19/paragraphs-remove-subscript",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/61_rasformatirovat-abzats-y-by-nizhnego-indeksa",
-      "suggestedId": "19/rasformatirovat-abzats-y-by-nizhnego-indeksa"
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/62_Расформатировать абзац(ы) от программного кода.js",
@@ -7872,15 +7903,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/62_paragraphs-remove-code",
+      "id": "19/paragraphs-remove-code",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/62_rasformatirovat-abzats-y-by-programmnogo-koda",
-      "suggestedId": "19/rasformatirovat-abzats-y-by-programmnogo-koda"
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture."
+      ],
+      "fixes": [
+        "The original also removed every subscript of the processed paragraphs: its expression /<\\/?SUB( [^>]*)?>/gi is the line of 61_Расформатировать абзац(ы) от нижнего индекса, copied unchanged into this script, while nothing in removing the program code formatting concerns subscripts. The conversion leaves subscripts alone, so a paragraph with subscripts keeps them (in 2.7.9 they were lost)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "19_Обработка форматирования/63_Расформатировать подзаголовок(-ки).js",
@@ -7896,15 +7929,16 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/19_formatting/63_unformat-subtitles",
+      "id": "19/unformat-subtitles",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "Select All (Ctrl+A) in the Body view and a selected picture give the script no paragraph, so it changes nothing: mfbe.selection.get() reports no selection for the editor's whole-view selection (an API limitation) and lists no text block for a picture. The original processed every paragraph under Select All and stopped with a script error on a selected picture.",
+        "A subtitle directly in a poem (between its stanzas) becomes a stanza of one verse; the original made a paragraph of it, which left a <p> in the poem - invalid FB2 that 2.7.9 refused to save until it was mended. 19/element-browser treats such a subtitle the same way."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/19_formatting/63_rasformatirovat-podzagolovok-ki",
-      "suggestedId": "19/rasformatirovat-podzagolovok-ki"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/04_Поиск (без замены) ошибок текста (регэкспы от wotti, Roxana, JonVic и др.).js",
@@ -9475,15 +9509,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/34_caret-selection/001_caret-to-document-start",
+      "id": "34/caret-to-document-start",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/34_caret-selection/01_ustanovit-kursor-into-nachalo-dokumenta",
-      "suggestedId": "34/ustanovit-kursor-into-nachalo-dokumenta"
+      "openQuestions": []
     },
     {
       "source": "37_Эпиграфы/05_Поиск неразмеченных эпиграфов.js",

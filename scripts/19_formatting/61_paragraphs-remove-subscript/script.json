@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/paragraphs-remove-subscript",
+  "name": {
+    "ru": "Расформатировать абзац(ы) от нижнего индекса",
+    "en": "Remove subscript from paragraph(s)",
+    "uk": "Прибрати нижній індекс з абзацу(-ів)"
+  },
+  "description": {
+    "ru": "Снимает нижний индекс во всех абзацах, которых касается выделение (или в абзаце с курсором).",
+    "en": "Removes subscript from every paragraph the selection touches (or from the caret's paragraph).",
+    "uk": "Знімає нижній індекс в усіх абзацах, яких торкається виділення (або в абзаці з курсором)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать абзац(ы) от нижнего индекса",
+    "en": "Remove subscript from paragraph(s)"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/61_Расформатировать абзац(ы) от нижнего индекса.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

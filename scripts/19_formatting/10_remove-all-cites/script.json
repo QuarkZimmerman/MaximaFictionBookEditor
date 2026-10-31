@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "19/remove-all-cites",
+  "name": {
+    "ru": "Удалить все цитаты и их содержимое",
+    "en": "Remove all cites with their content",
+    "uk": "Видалити всі цитати разом із вмістом"
+  },
+  "description": {
+    "ru": "Удаляет все цитаты книги вместе с их содержимым — в телах, в аннотации и в истории документа.",
+    "en": "Removes every cite of the book with its content - in the bodies, the annotation and the document history.",
+    "uk": "Видаляє всі цитати книги разом із їхнім вмістом — у тілах, в анотації та в історії документа."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Удалить все цитаты и их содержимое",
+    "en": "Remove all cites with their content"
+  },
+  "legacy": {
+    "source": "19_Обработка форматирования/10_Удалить все цитаты и их содержимое.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}
