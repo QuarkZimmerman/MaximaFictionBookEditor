@@ -60,7 +60,9 @@ node tests/scripts/run-script.mjs ... --snapshot <same file>                  # 
 node tests/scripts/run-script.mjs ... --snapshot <same file> --update         # accepts a new result
 ```
 
-Dialog answers are given in order with `--answer` (button id for message boxes, text for
+`--list-nodes` prints the book's node ids (the values `--select` takes) with each text block's
+first characters, and exits without running the script. Dialog answers are given in order with
+`--answer` (button id for message boxes, text for
 prompts, a JSON object for forms, `cancel` to cancel; `wait`/`cancel` for the "still running"
 prompt). The selection before the run is `--select <nodeId>[:from[:to]]` (one text block, a
 caret with `from == to`) or `--select-range <fromNodeId>:<offset>-<toNodeId>:<offset>` for a

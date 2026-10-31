@@ -9,7 +9,7 @@
  *        [--select-range <fromNodeId>:<offset>-<toNodeId>:<offset>] [--tree-node <nodeId>]
  *        [--snapshot <file>] [--update] [--timeout <ms>] [--core <mfbe-core>]
  *        [--ui-dist <dir>] [--keep] [--clipboard <text>] [--save-as <name|cancel>]...
- *        [--pick-folder <name|cancel>]...
+ *        [--pick-folder <name|cancel>]... [--list-nodes]
  *
  *   --answer        pre-answers the script's dialogs in order: a button id for message boxes
  *                   (`ok`, `yes`, `no`, `cancel`...), text for prompts (`cancel` cancels) and a
@@ -26,6 +26,8 @@
  *                   007): a file of that name in the run's output folder; `cancel` cancels
  *   --pick-folder   answers its folder dialogs in order (`mfbe.files.saveBinaries`): a folder
  *                   of that name in the output folder; `cancel` cancels
+ *   --list-nodes    prints the book's nodes with their ids (for --select) and exits without
+ *                   running the script
  *
  * Outputs (feature 007): what a script hands the user besides the document - the clipboard
  * text when it changed, the files written into the output folder (UTF-8 text as it is, other
@@ -106,6 +108,7 @@ function parseArgs(argv) {
     clipboard: null,
     saveAs: [],
     pickFolder: [],
+    listNodes: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -162,6 +165,9 @@ function parseArgs(argv) {
         break;
       case "--pick-folder":
         options.pickFolder.push(next());
+        break;
+      case "--list-nodes":
+        options.listNodes = true;
         break;
       case "--help":
       case "-h":
@@ -496,6 +502,32 @@ async function main() {
     await page.waitForFunction(
       () => window.__mfbeTest.scripts.document() !== null,
     );
+
+    if (options.listNodes) {
+      const lines = await page.evaluate(() => {
+        const out = [];
+        const doc = window.__mfbeTest.scripts.document();
+        const textOf = (node) =>
+          (node.content ?? [])
+            .map((child) => (child.type === "text" ? child.text : textOf(child)))
+            .join("");
+        const visit = (node, depth, where) => {
+          if (!node || typeof node !== "object" || node.type === "text") return;
+          const block = (node.content ?? []).some((child) => child.type === "text");
+          const text = block ? ` ${JSON.stringify(textOf(node).slice(0, 70))}` : "";
+          out.push(`${"  ".repeat(depth)}${node.attrs?.nodeId ?? "-"} ${node.type}${where}${text}`);
+          for (const child of node.content ?? []) visit(child, depth + 1, "");
+        };
+        for (const body of doc.bodies ?? []) visit(body, 0, body.attrs?.name ? ` (${body.attrs.name})` : "");
+        const info = doc.description?.titleInfo;
+        if (info?.annotation) visit(info.annotation, 0, " (title-info)");
+        if (doc.description?.documentInfo?.history)
+          visit(doc.description.documentInfo.history, 0, " (document-info)");
+        return out;
+      });
+      console.log(lines.join("\n"));
+      return;
+    }
 
     if (options.select) {
       const [nodeId, from, to] = options.select.split(":");
