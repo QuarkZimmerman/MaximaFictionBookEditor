@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "02/add-last-footnote-go-to-note",
   "name": {
+    "ru": "Добавить последнее примечание, перейти на его раздел",
     "en": "Add the last footnote and go to its section",
-    "ru": "Добавить последнюю сноску, перейти к ее разделу"
+    "uk": "Додати останню примітку, перейти до її розділу"
   },
   "description": {
-    "en": "Inserts the last footnote link at the caret, appends the note section and moves the caret into it",
-    "ru": "Вставляет ссылку последней сноски в позиции курсора, добавляет секцию примечания в конец и переводит курсор в нее"
+    "ru": "Вставляет в позиции курсора ссылку на последнее примечание, добавляет его раздел в конец body примечаний и переводит курсор в него",
+    "en": "Inserts a link to the last footnote at the caret, appends its section to the notes body and moves the caret into it",
+    "uk": "Вставляє в позиції курсора посилання на останню примітку, додає її розділ у кінець body приміток і переводить курсор у нього"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Add the last footnote and go to its section",
-    "ru": "Добавить последнюю сноску, перейти к ее разделу"
+    "ru": "Добавить последнее примечание, перейти на его раздел",
+    "en": "Add the last footnote and go to its section"
   },
   "legacy": {
-    "source": "02_Добавление примечания/07_Добавить последнюю сноску, перейти к ее разделу.js",
-    "fbeVersion": "2.7"
+    "source": "02_Примечания/06_Добавить последнее примечание, перейти на его раздел.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.8"
   }
 }

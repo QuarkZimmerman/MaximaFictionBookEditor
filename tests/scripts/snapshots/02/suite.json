@@ -360,5 +360,50 @@
       "--answer",
       "ok"
     ]
+  },
+  {
+    "snapshot": "02/add-footnote.annotation.xml",
+    "script": "scripts/02_footnotes/01_add-footnote",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": [
+      "--select",
+      "n7:30:30"
+    ]
+  },
+  {
+    "snapshot": "02/add-footnote.in-annotation.xml",
+    "script": "scripts/02_footnotes/01_add-footnote",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": [
+      "--select",
+      "n29:9:9"
+    ]
+  },
+  {
+    "snapshot": "02/unify-footnotes.annotation.xml",
+    "script": "scripts/02_footnotes/07_unify-footnotes",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/unify-footnotes-remove-unused.annotation.xml",
+    "script": "scripts/02_footnotes/08_unify-footnotes-remove-unused",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "02/chain-check-notes.annotation.xml",
+    "script": "tests/scripts/fixtures/279/02/chains/check-notes",
+    "book": "tests/scripts/fixtures/279/02/recheck-notes.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "02/chain-check-notes.unreferenced.xml",
+    "script": "tests/scripts/fixtures/279/02/chains/check-notes",
+    "book": "tests/scripts/fixtures/books/conv-a-02.fb2",
+    "args": []
   }
 ]

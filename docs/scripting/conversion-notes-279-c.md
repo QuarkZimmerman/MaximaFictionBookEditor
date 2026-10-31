@@ -1975,6 +1975,66 @@ scripts); the open file's path is left out (the file's place on the disk, not th
 clipboard text that would differ from one copy of the files to the next); a book over the snapshot
 limit is not copied, with a message.
 
+Recheck of the two packages converted from 2.7beta1's *20_Инструменты отладки* (task T087, part;
+their 2.7beta1 conversion is in conversion-notes-c.md, group 20, and the group folder became
+`scripts/95_programmers` with 2.7.9's group): `01_show-code` and `02_show-whole-code`. Outcomes: 01
+**unchanged**, 02 **updated**; ids `20/show-code` and `20/show-whole-code` unchanged (hotkeys, the
+Scripts toolbar and Last script name them by id). Both gained `name.uk` and `description.uk`; the
+names are 2.7.9's, the same as 2.7beta1's; the icons are 2.7.9's, the same images. 03 *Код в буфер*
+is this feature's conversion (see the group's notes).
+
+Both scripts show the code of the element holding the caret - the nearest container of its text
+block: a section, a title, a stanza, a cite, the annotation… They now look that element up in the
+whole book (`doc.get()`), the annotation and the history included, which the Body view shows before
+the bodies as FictionBook Editor's page did. The conversion of 2.7beta1 asked `doc.getNode`, which
+knows the bodies only, so with the caret in the annotation or the history both stopped with *Script
+error: node: unknown nodeId*; 2.7.9 shows the annotation's or the history's HTML. Recorded as a fix
+for each (a defect of the conversion; the result is now 2.7.9's).
+
+### 01 Показать код
+
+`01_show-code`, id `20/show-code`: **unchanged** (2.7.9's file is 2.7beta1's, byte for byte), so it
+keeps `legacy.source` "20_Инструменты отладки/01_Показать код.js" and `fbeVersion` "2.7". uk
+*Показати код*. The code changed only by the fix above; `index.js` now also quotes the original's
+header (*Displays HTML code for the current section (only for script debugging)*). Snapshot
+`show-code.xml` stays. Added `show-code.history.xml` (`tests/scripts/fixtures/279/95/
+annotation.fb2`, a valid book with an annotation «Аннотация с курсивом.» and a history «История
+версий.»; `--select n7:3:3`, in the history): expected and recorded - the book unchanged, a message
+box with the JSON of the history (`n6`), no error. Differences (kept from 0.0.1): the document
+model's JSON instead of the page's HTML (scripts see the model, not the editor's page); code over
+2000 characters is cut, with a line pointing to *Показать весь код*.
+
+### 02 Показать весь код
+
+`02_show-whole-code`, id `20/show-whole-code`: **updated** (no header version, so no
+`sourceVersion`). 2.7.9 changed the comment of its header (*Отображение HTML кода текущего раздела*,
+where 2.7beta1 said *секции*) and its window: it opens `HTML/Показать весь код.html` - 2.7beta1's
+`Scripts/debug.htm` moved, the same page by Jurgen - and spells the feature `resizable=yes`, which
+2.7beta1 misspelt (`resizeble`), so the window can now be resized. Ported: the original's
+`window.open` is now `mfbe.ui.report({ title, text })` (the mapping of feature 007 for a window the
+original opened from `HTML/…`): a report window that can be resized and stays open after the run,
+like the original's window, where the conversion of 2.7beta1 used a modal form with a text box.
+`index.js` keeps 2.7.9's notice (*Отображение HTML кода текущего раздела (only for script
+debugging)*, *THX to mkb (Konstantin Matveev) for ingenious idea*) and the page's author line;
+`check-notices.py --package`: OK. Description now *…в окне отчета…*; uk *Показати весь код*.
+
+Snapshots: `show-whole-code.xml` (`conv-c-16.fb2`, `--select n26`) stays - the book is unchanged -
+and gained `show-whole-code.outputs.json`, the report the run opens: title *Code of the "cite"
+element (1102 characters)* (the harness runs the English interface; Russian *Код элемента «cite»
+(1102 символов)*) and the JSON of the cite holding `n26`, as 2.7.9 showed that cite's HTML. Added
+`show-whole-code.annotation.xml` with its `outputs.json` (`annotation.fb2`, `--select n5:3:3`): the
+report of the annotation (`n4`). Differences: the document model's JSON instead of the page's HTML
+(kept from 0.0.1); the window is titled with the element and the length of its code, where 2.7.9's
+was titled * :: Debugging HTML code :: *, and offers Copy and Save as… besides Close.
+
+### Harness commands
+
+```bash
+G=scripts/95_programmers; B=tests/scripts/fixtures/279/95/annotation.fb2; S=tests/scripts/snapshots/95
+node tests/scripts/run-script.mjs $G/01_show-code $B --select n7:3:3 --snapshot $S/show-code.history.xml
+node tests/scripts/run-script.mjs $G/02_show-whole-code $B --select n5:3:3 --snapshot $S/show-whole-code.annotation.xml
+```
+
 ## 99_Прочее
 
 2 scripts in 2.7.9, both new and both by Александр Ка (part of T068): 09 is converted into the new

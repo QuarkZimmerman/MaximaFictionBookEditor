@@ -55,5 +55,23 @@
     "script": "scripts/03_comments/38_external-links-to-comments",
     "book": "tests/scripts/fixtures/279/03/external-links.fb2",
     "args": []
+  },
+  {
+    "snapshot": "03/add-comment.annotation.xml",
+    "script": "scripts/03_comments/01_add-comment",
+    "book": "tests/scripts/fixtures/279/03/recheck-comments.fb2",
+    "args": [
+      "--select",
+      "n7:35:35"
+    ]
+  },
+  {
+    "snapshot": "03/unify-comments-remove-unused.annotation.xml",
+    "script": "scripts/03_comments/08_unify-comments-remove-unused",
+    "book": "tests/scripts/fixtures/279/03/recheck-comments.fb2",
+    "args": [
+      "--answer",
+      "ok"
+    ]
   }
 ]

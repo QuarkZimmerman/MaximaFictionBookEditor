@@ -1,15 +1,28 @@
-// Converted from 03_Добавление комментария/08_Унификация комментариев (с удалением неиспользуемых разделов комментариев).js (FictionBook Editor 2.7), Tier 2.
-// Removes the comment sections no link points to, then renumbers the comment sections and links.
-// Comments differ from footnotes only in their settings: ids c_N, link text {N} as superscript
-// without type="note", body "comments" titled "Комментарии". The engine is shared with group 02.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Converted from FictionBook Editor 2.7: Scripts/03_Добавление комментария/08_Унификация комментариев (с удалением неиспользуемых разделов комментариев).js,
+// brought up to FictionBook Editor 2.7.9: Scripts/03_Комментарии/08_Перенумеровать комментарии, удаляя неиспользуемые разделы комментариев.js
+// (version 2.9), Tier 2.
+// After a confirmation removes the sections of the comments body that no link points to, then
+// renumbers the sections and the links to them as 03/unify-comments does.
+// The scripts 01-08 of the group are one program by Sclex (notes-engine.js: this package's own
+// copy, with its original's texts and lines) and differ in this settings block, as the
+// originals did.
+// Differences from 2.7.9: docs/scripting/conversion-notes-279-a.md (group 03).
+// The original's notice, kept as written (FR-029):
 // добавление сноски между уже имеющимися
 // написал Sclex
-// версия 2.8
+// версия 2.9
 // Sclex, помни: данный скрипт имеет собственный код, не такой,
 //   как остальные скрипты в этом наборе
-import { COMMENTS, runNotesScript } from './notes-engine.js';
+import { runNotesScript } from './notes-engine.js';
 
 export default async function run(ctx) {
-  await runNotesScript(ctx, { ...COMMENTS, ...{ addNote: false, inputText: false, moveFocus: false, lastMode: false, endWindow: true, removeUnused: true } });
+  // The settings block of the original («НАСТРОЙКИ»): EndWindow, addSnoska, InputSnoskaText,
+  // MoveFocusToNote, lastSnoskaMode.
+  await runNotesScript(ctx, {
+    endWindow: true,
+    addNote: false,
+    inputText: false,
+    moveFocus: false,
+    lastMode: false,
+  });
 }

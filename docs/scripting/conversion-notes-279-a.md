@@ -480,6 +480,225 @@ middle, the later links left as «【♣★address★♣】» text); sections ne
 before anything changes, as its message says (2.7.9 said so after bracketing the links and then
 made the notes all the same).
 
+Recheck of the nine packages converted from 2.7beta1 (task T074; their 2.7beta1 conversion is in
+conversion-notes-a.md, group 02): `01_add-footnote` … `08_unify-footnotes-remove-unused` and
+`30_test-footnotes`. All nine **updated**; ids and folders unchanged (the folders already carry the
+2.7.9 numbers). 2.7.9 renamed them: *сноска* became *примечание*, *…, оставшись на ее ссылке* and
+*…, перейти к ее разделу* became *…, остаться на его ссылке* and *…, перейти на его раздел*,
+*Унификация сносок* became *Перенумеровать примечания* and *Тест сносок* *Проверить корректность
+оформления примечаний*. Every package now names its 2.7.9 original in `legacy.source`, with
+`fbeVersion` "2.7.9" and the header version as `sourceVersion` (2.8 for 01-06, 3.0 for 07, 3.2 for
+08, 1.3 for 30), keeps that original's notice in `index.js` (`check-notices.py --package`: OK for
+all nine), and has the 2.7.9 name in `name.ru` and `undoLabel.ru`, an English name of the same
+meaning, and `name.uk` and `description.uk` (*примітка*, *розділ*, *посилання* as in the glossary);
+the Russian descriptions say *раздел* and *примечание* like 2.7.9. The harness runs the English
+interface: the messages quoted are the Russian originals, the logs show their English texts.
+
+### The engine of 01-08: every package's own `notes-engine.js`
+
+The eight scripts are one program by Sclex with a settings block at the top; 2.7.9 changed the
+program (2.7 → 2.8 in 01-06, 3.0 in 07, 3.2 in 08) and, unevenly, its texts. Each package's
+`notes-engine.js` is now that package's own copy of its own original: the same code, written from
+one template, with the texts and the lines of that original. The copies differ in the message about
+nested sections (2.7.9 has three wordings: *…разделы второго уровня вложенности. Такие документы…*
+in 01, 03, 04, 05, 07 and 08, *…вложения. Такие файлы…* in 02, *…вложенности. Такие файлы…* in 06),
+in the result at the end and in 07's and 08's own lines. `index.js` passes the settings block as the
+original sets it (EndWindow, addSnoska, InputSnoskaText, MoveFocusToNote, lastSnoskaMode).
+
+What 2.7.9 changed, and how it was ported:
+- **Texts.** *секция* became *раздел* everywhere. The refusal when the footnote link before the
+  caret points to no section of the notes body is now an explanation - *Не удалось создать
+  примечание. Чтобы определить, с каким разделом в body примечаний связать сноску, которую
+  пользователь хочет вставить, скрипт смотрит… исправьте, пожалуйста, сноску, которая идет перед
+  ней.* - instead of *Не удается по ссылке перед вставляемой определить номер вставляемого
+  примечания.* Ported as written; the English texts are translations.
+- **The result goes to the status bar.** 01-06 and 08 no longer end with a message box: they write
+  *Добавлена сноска № N. Время работы скрипта: …* (08: *Перенумерация сносок успешно завершена.
+  Время работы скрипта: …*) to the status bar with `window.external.SetStatusBarText`, whatever
+  EndWindow says - so the go-to variants 03 and 06, which showed nothing, now write it too. Ported
+  as `mfbe.ui.status(text, { sticky: true })`, which keeps the text after the run as FictionBook
+  Editor's status bar did. 07 still ends with a message box, now *Перенумерация примечаний успешно
+  завершена. Время работы скрипта: …*.
+- **07 and 08 mark the footnote links.** A link that the renumbering handles (one pointing to a
+  section of the notes body) gets `class="note"` - FB2's `type="note"` - when it lacks it, and the
+  result starts with *Был добавлен атрибут class="note" такому количеству знаков примечания: N.*
+  Ported: the link gets `type="note"`, the count leads the result.
+- **08's own code.** The confirmation reads *Вы запустили скрипт «Перенумеровать примечания,
+  удаляя неиспользуемые разделы примечаний». Вы действительно хотите, чтобы неиспользуемые разделы
+  примечаний были удалены?*; an unused section with the id `$` is no longer removed. Both ported (the
+  `$` case was tried on a scratch book - such an id is no valid FB2 id, so no reference book holds
+  it).
+- 2.7.9 also takes back the link it pasted only when it pasted one (`if (addSnoska)`), which
+  matters to 07 and 08 alone; the conversion pastes nothing before its checks.
+
+Corrections of the conversion of 2.7beta1 that the recheck found (recorded as fixes; the result
+is now 2.7.9's):
+- **The page.** FictionBook Editor's page (`fbw_body`) shows the book's annotation and history
+  before the bodies, and the scripts' `document.links` hold their links. The 0.0.1 engine walked the
+  bodies only: a footnote link in the annotation or the history was not renumbered and then pointed
+  to another note, a new note after such a link got a number too low, 08 removed the sections only
+  such links pointed to, and a caret in the annotation or the history stopped the add scripts with
+  a script error (`doc.getNode` knows the bodies only). The engine now walks the page: the
+  annotation's and the history's blocks come first, count and are renumbered, a note can be added
+  there, and they are written back with `doc.setDescription`.
+- **The address.** A link's address is read as the original's `getLocalHref`: what follows
+  `main.html#`, else the address without its first character. An external link such as
+  `https://example.org/page#n_a` is no footnote link; the 0.0.1 engine took everything after `#` for
+  the id, so the renumbering turned such a link into a footnote link and replaced its text.
+
+The 0.0.1 packages, run on the new book for comparison, show all of it: 01 with the caret in the
+annotation fails with *node: unknown nodeId "n29"*; 01 in the text numbers the new note 1, leaves
+the annotation's and the history's links pointing to `n_b` and `n_c`, which no longer exist, and
+turns the external link into «[2]» pointing to `#n_2`; 08 removes `n_b`, `n_c` and `n_d`.
+
+Kept from the conversion of 2.7beta1, still true against 2.7.9 (differences): a selection over
+several paragraphs is refused with *Выделение должно находиться внутри одного абзаца.* (2.7.9 pasted
+the link over the range, joining the paragraphs); the prompt of 02 and 05 opens empty where 2.7.9
+proposed `&nbsp;`; without a notes body 07 and 08 make nothing (2.7.9 made a body holding only the
+title *Примечания*, which FB2 does not allow); a link made inside formatting is written outside it
+with the formatting repeated inside (`<emphasis>ку</emphasis><a …><emphasis>[2]</emphasis></a>
+<emphasis>рсив</emphasis>`, where 2.7.9 wrote `<emphasis>ку<a …>[2]</a>рсив</emphasis>`; the same
+text and formatting); 08 removes an unused section itself, where 2.7.9 removed the first element of
+the page with its id. Fix kept: a refusal (nested sections, *Это получается не последняя сноска в
+документе!*, a footnote link before the caret that points to no section) or a cancelled prompt
+leaves the book unchanged - 2.7.9 had already given a notes body without a title its title
+*Примечания*, or made a notes body, and after a cancelled prompt left the new link «[N]» in the
+text, pointing to a section it never made.
+
+**Reference book** `tests/scripts/fixtures/279/02/recheck-notes.fb2` (valid FB2): an annotation
+«Аннотация со сноской[2].» (to `n_b`, type note), a history «История со сноской[5].» (to `n_c`),
+a paragraph «Сюда вставляется новая сноска. Ссылка без типа[1] и внешняя ссылка с якорем
+страница.» with [1] to `n_a` without `type="note"` and the external link
+`https://example.org/page#n_a`, and a notes body with `n_a`, `n_b`, `n_c` and `n_d` (titles 1-4;
+nothing points to `n_d`). The new snapshots are in `tests/scripts/snapshots/02/` and its
+`suite.json`; each was written down from 2.7.9's code before the run and equals it. The ten
+snapshots of the 0.0.1 conversion on `conv-a-02.fb2` (listed in `tests/scripts/snapshots/suite.json`)
+stay: their expected results did not change - the book holds no annotation, history or untyped
+footnote link, and a result in the status bar is no part of the book - and they pass unchanged.
+
+### 01 Добавить примечание, остаться на его ссылке
+
+`01_add-footnote`, id `02/add-footnote`, from *01_Добавить сноску, оставшись на ее ссылке* (2.7 →
+2.8): **updated** as above. en *Add a footnote and stay at its reference*, uk *Додати примітку,
+залишитися на її посиланні*. Snapshot `add-footnote.xml` stays. Added:
+- `add-footnote.annotation.xml` (`recheck-notes.fb2`, `--select n7:30:30`, after «сноска.»): the
+  nearest footnote link before the caret on the page is the history's, to the third section, so the
+  new note is 4 - «сноска.[4]» (`#n_4`, type note), the section `n_4` (title 4, an empty paragraph)
+  after `n_c`, `n_d` renumbered `n_5` (title 5), `n_a`, `n_b`, `n_c` → `n_1`, `n_2`, `n_3`; the
+  annotation's link `#n_2` «[2]», the history's `#n_3` «[3]», the untyped link `#n_1` «[1]» (still
+  untyped: 01 marks nothing), the external link unchanged. Status bar *Добавлена сноска № 4…*.
+- `add-footnote.in-annotation.xml` (`--select n29:9:9`, in the annotation after «Аннотация»): no
+  link before the caret, so the new note is 1 - «Аннотация[1] со сноской[3].», the history's `#n_4`
+  «[4]», the text's `#n_2` «[2]», the sections `n_1` (new, empty) to `n_5`.
+
+### 02 Добавить примечание, введя его текст в окошке
+
+`02_add-footnote-with-text`, id `02/add-footnote-with-text`, from *02_Добавить сноску, введя ее
+текст в окошке* (2.7 → 2.8): **updated**. en *Add a footnote, entering its text in a dialog*, uk
+*Додати примітку, ввівши її текст у віконці*. Its nested-sections message keeps 2.7.9's wording
+*…второго уровня вложения. Такие файлы…*. Snapshot `add-footnote-with-text.xml` stays.
+
+### 03 Добавить примечание, перейти на его раздел
+
+`03_add-footnote-go-to-note`, id `02/add-footnote-go-to-note`, from *03_Добавить сноску, перейти к
+ее разделу* (2.7 → 2.8): **updated**. en *Add a footnote and go to its section*, uk *Додати
+примітку, перейти до її розділу*. New in 2.7.9: it writes *Добавлена сноска № N…* to the status bar
+too (2.7beta1 showed nothing). Snapshot `add-footnote-go-to-note.xml` stays.
+
+### 04 Добавить последнее примечание, остаться на его ссылке
+
+`04_add-last-footnote`, id `02/add-last-footnote`, from *05_Добавить последнюю сноску, оставшись на
+ее ссылке* (2.7 → 2.8): **updated**. en *Add the last footnote and stay at its reference*, uk
+*Додати останню примітку, залишитися на її посиланні*. Snapshots `add-last-footnote.xml` and
+`add-last-footnote.not-last.xml` (*Ошибка. Это получается не последняя сноска в документе!*, the
+book unchanged) stay.
+
+### 05 Добавить последнее примечание, введя его текст в окошке
+
+`05_add-last-footnote-with-text`, id `02/add-last-footnote-with-text`, from *06_Добавить последнюю
+сноску, введя ее текст в окошке* (2.7 → 2.8): **updated**. en *Add the last footnote, entering its
+text in a dialog*, uk *Додати останню примітку, ввівши її текст у віконці*. Snapshot
+`add-last-footnote-with-text.xml` stays.
+
+### 06 Добавить последнее примечание, перейти на его раздел
+
+`06_add-last-footnote-go-to-note`, id `02/add-last-footnote-go-to-note`, from *07_Добавить
+последнюю сноску, перейти к ее разделу* (2.7 → 2.8): **updated**. en *Add the last footnote and go
+to its section*, uk *Додати останню примітку, перейти до її розділу*. Like 03 it now writes the
+status bar; its nested-sections message keeps 2.7.9's *…вложенности. Такие файлы…*. Snapshot
+`add-last-footnote-go-to-note.xml` stays.
+
+### 07 Перенумеровать примечания
+
+`07_unify-footnotes`, id `02/unify-footnotes`, from *04_Унификация сносок* (2.7 → 3.0):
+**updated**. en *Renumber footnotes*, uk *Перенумерувати примітки*. Ported: the marking of the
+footnote links and the new message. Snapshot `unify-footnotes.xml` stays (all its links are typed).
+Added `unify-footnotes.annotation.xml` (`recheck-notes.fb2`): the sections `n_1`-`n_4` (their titles
+already 1-4); the annotation's link `#n_2` «[2]», the history's `#n_3` «[3]», the paragraph's link
+`#n_1` «[1]» now with `type="note"`, the external link unchanged; the message *Был добавлен атрибут
+class="note" такому количеству знаков примечания: 1. Перенумерация примечаний успешно завершена.
+Время работы скрипта: …*.
+
+### 08 Перенумеровать примечания, удаляя неиспользуемые разделы примечаний
+
+`08_unify-footnotes-remove-unused`, id `02/unify-footnotes-remove-unused`, from *08_Унификация
+сносок (с удалением неиспользуемых разделов сносок)* (2.8 → 3.2): **updated**. en *Renumber
+footnotes, removing unused footnote sections*, uk *Перенумерувати примітки, видаляючи
+невикористовувані розділи приміток*. Ported: the confirmation, the `$` exception, the marking of the
+footnote links, the result in the status bar. 2.7.9 gave the script an icon (2.7beta1's had none),
+so the package gained `icon.png`, made from it. Snapshot `unify-footnotes-remove-unused.xml`
+(`--answer ok`) stays. Added `unify-footnotes-remove-unused.annotation.xml` (`recheck-notes.fb2`,
+`--answer ok`): `n_d` removed - `n_b` and `n_c`, which only the annotation and the history point to,
+stay -, `n_a`, `n_b`, `n_c` → `n_1`, `n_2`, `n_3`, the links as in 07; status bar *Был добавлен
+атрибут class="note" такому количеству знаков примечания: 1. Перенумерация сносок успешно
+завершена…*.
+
+### 30 Проверить корректность оформления примечаний
+
+`30_test-footnotes`, id `02/test-footnotes`, from *20_Тест сносок* (1.2 → 1.3): **updated**. en
+*Check how the footnotes are marked up*, uk *Перевірити правильність оформлення приміток* (as its
+comments counterpart 03/20). 2.7.9 changed the texts only (*Раздел номер N в body примечаний не
+имеет id. Перемещаемся на нее...*, *…нет раздела примечания…*, *Вторая сноска, которая ссылается на
+тот же раздел.*, *Первая ссылка ссылается не на первый раздел.*, *Отсутствуют ссылки на некоторые
+разделы примечаний… Переходим на первый из таких разделов...*, *Проверка корректности оформления
+примечаний завершена. Ошибок не обнаружено.*); ported as written. The package no longer carries a
+copy of the notes engine: `index.js` holds its own page walk (the annotation and the history first,
+as `fbw_body.getElementsByTagName("A")`), its own `getLocalHref`, and 2.7.9's test of an external
+address (http://, https:// or ftp:// anywhere in it). 2.7.9's file has no icon (2.7beta1's icon of
+*Тест сносок* is now that of 03/20), so the package dropped `icon.png` like 2.7.9 - open question
+below.
+
+Snapshot `test-footnotes.xml` stays. Added, with the chain `tests/scripts/fixtures/279/02/chains/
+check-notes` - it puts the caret at the start of the book, runs the check through
+`mfbe.scripts.run` by its FictionBook Editor path and writes the value (null) and the selection to
+the clipboard - `chain-check-notes.annotation.xml` (`recheck-notes.fb2`: the first footnote link of
+the page, the annotation's, points to the second section - *Ошибка в сноске [2] Первая ссылка
+ссылается не на первый раздел. … Номер: 2 id: n_b Текст ссылки: [2]*, the link selected, `n29:20-
+n29:23`) and `chain-check-notes.unreferenced.xml` (`conv-a-02.fb2`: *Отсутствуют ссылки на некоторые
+разделы примечаний… Номер: 4 id: n_unused*, the section selected, `n30:0-n31:33`), each with its
+`outputs.json`.
+
+Differences: after a problem the faulty link or the whole section is selected, where 2.7.9 put the
+caret at its start (kept from 0.0.1: the selection shows the place); the messages show a link's
+text where 2.7.9 showed its HTML. Fixes (as in 03/20): the order check compares a footnote link with
+the footnote link before it - 2.7.9 compared it with the link before it on the page, so another link
+before the first footnote link gave *Ссылки идут не по порядку* with *Номер: 0 id: undefined*; *Первая
+ссылка ссылается не на первый раздел* shows the link's text, which a stray semicolon dropped; the
+annotation's and the history's links are checked (the 0.0.1 conversion walked the bodies only). Open
+question: restore the icon of 2.7beta1's *Тест сносок*, which 2.7.9 dropped?
+
+### Harness commands
+
+```bash
+G=scripts/02_footnotes; B=tests/scripts/fixtures/279/02/recheck-notes.fb2; S=tests/scripts/snapshots/02
+node tests/scripts/run-script.mjs $G/01_add-footnote $B --select n7:30:30 --snapshot $S/add-footnote.annotation.xml
+node tests/scripts/run-script.mjs $G/01_add-footnote $B --select n29:9:9 --snapshot $S/add-footnote.in-annotation.xml
+node tests/scripts/run-script.mjs $G/07_unify-footnotes $B --snapshot $S/unify-footnotes.annotation.xml
+node tests/scripts/run-script.mjs $G/08_unify-footnotes-remove-unused $B --answer ok --snapshot $S/unify-footnotes-remove-unused.annotation.xml
+node tests/scripts/run-script.mjs tests/scripts/fixtures/279/02/chains/check-notes $B --snapshot $S/chain-check-notes.annotation.xml
+node tests/scripts/run-script.mjs tests/scripts/fixtures/279/02/chains/check-notes tests/scripts/fixtures/books/conv-a-02.fb2 --snapshot $S/chain-check-notes.unreferenced.xml
+```
+
 ## 03_Комментарии
 
 10 scripts in 2.7.9: 2 new, both converted here (T048); the successors of the eight packages
@@ -558,6 +777,147 @@ c_5 «mailto:…», c_6; «ссылкой{1}», «первый{2}», «втор�
 Differences and fixes as 02/38 (no brackets written into the text, the refusal kept; the nesting
 of a new link in formatting; a comment link pointing to no comment section and sections nested in
 the comments body stop the run before anything changes).
+
+Recheck of the eight packages converted from 2.7beta1 (task T075; their 2.7beta1 conversion is in
+conversion-notes-a.md, group 03): `01_add-comment` … `08_unify-comments-remove-unused`. All eight
+**updated**; ids and folders unchanged (the folders already carry the 2.7.9 numbers). 2.7.9 renamed
+them like the footnote scripts: *…, оставшись на его ссылке* and *…, перейти к его разделу* became
+*…, остаться на его ссылке* and *…, перейти на его раздел*, *Унификация комментариев* became
+*Перенумеровать комментарии*. Every package now names its 2.7.9 original in `legacy.source`, with
+`fbeVersion` "2.7.9" and the header version as `sourceVersion` (2.8 for 01-06, 2.7 for 07, 2.9 for
+08), keeps that original's notice in `index.js` (`check-notices.py --package`: OK for all eight),
+and has the 2.7.9 name in `name.ru` and `undoLabel.ru`, an English name of the same meaning, and
+`name.uk` and `description.uk` (*коментар*, *розділ*, *посилання*); the Russian descriptions say
+*раздел* like 2.7.9. The icons are 2.7.9's (the same images; 08 has none in either release).
+
+### The engine of 01-08: every package's own `notes-engine.js`
+
+The same program by Sclex as the footnote scripts of group 02, with the comment settings (a body
+`comments` titled «Комментарии», ids `c_N`, the link text `{N}` in superscript, no link type, a
+comment link one whose local address starts with `c_`). Each package's `notes-engine.js` is that
+package's own copy of its own original, written from the template of group 02's copies with the
+texts and lines of the comment original (see the group 02 notes for the engine, the page and the
+address); the copies differ in the message about nested sections (*…вложенности. Такие документы…*
+in 01, 03, 04, 05, 07 and 08, *…вложения. Такие файлы…* in 02, *…вложенности. Такие файлы…* in 06),
+the result at the end and 08's own lines.
+
+What 2.7.9 changed, and how it was ported:
+- **Texts.** Sclex fitted some texts of the comment scripts to comments, where 2.7beta1 said
+  *примечание* in all of them: the refusal when the comment link before the caret points to no
+  section of the comments body - *Не удалось создать комментарий. Чтобы определить, с каким разделом
+  в body комментариев связать сноску… исправьте, пожалуйста, сноску, которая идет перед ней.*; nested
+  sections - *В body комментариев есть разделы второго уровня вложенности…*; the prompt of 02 and 05
+  - *Текст комментария. Используйте <b>...</b> <i>...</i> <br> <strong>...</strong>
+  <emphasis>...</emphasis> <em>...</em>*; 08's confirmation - *Вы запустили скрипт «Перенумеровать
+  комментарии, удаляя неиспользуемые разделы комментариев». Вы действительно хотите, чтобы
+  неиспользуемые разделы комментариев были удалены?*. Others keep the word *сноска*, which in these
+  scripts names the link: *Ошибка. Это получается не последняя сноска в документе!* and the results
+  below. All ported as written - the conversion of 2.7beta1 had fitted the texts to comments on its
+  own (*…не последний комментарий…*, *Добавлен комментарий № N*); they now follow each package's
+  original. The English texts say *comment* where the Russian says *сноска*.
+- **The result goes to the status bar.** 01-06 and 08 write *Добавлена сноска № N. Время работы
+  скрипта: …* (08: *Перенумерация сносок успешно завершена. Время работы скрипта: …*) to the status
+  bar, whatever EndWindow says, so 03 and 06 write it too; ported as `mfbe.ui.status(text, { sticky:
+  true })`. 07 ends with a message box: *Перенумерация комментариев успешно завершена. Время работы
+  скрипта: …*.
+- **08's own code** removes an unused section without the `$` exception of the footnote 08 - as
+  ported. 2.7.9 takes back a pasted link only when it pasted one, which matters to 07 and 08 alone.
+
+Corrections of the conversion of 2.7beta1 (fixes; the result now 2.7.9's), as in group 02: the
+annotation's and the history's comment links count and are renumbered, and a comment can be added
+there (the 0.0.1 engine walked the bodies only, so such a link was not renumbered, a new comment
+after it got a number too low, 08 removed the sections only such links pointed to, and a caret there
+stopped the add scripts with a script error); an address is read as `getLocalHref` read it, so an
+external link `https://…#c_1` is no comment link. Kept from the conversion of 2.7beta1 (differences):
+a selection over several paragraphs is refused; the prompt of 02 and 05 opens empty where 2.7.9
+proposed `&nbsp;`; without a comments body 07 and 08 make nothing (2.7.9 made a body holding only
+the title *Комментарии*); a link made inside formatting is written outside it with the formatting
+repeated inside (`<emphasis>ку</emphasis><a …><emphasis><sup>{2}</sup></emphasis></a>…`); 08 removes
+an unused section itself, where 2.7.9 removed the first element of the page with its id. Fix kept: a
+refusal or a cancelled prompt leaves the book unchanged (2.7.9 had already titled or made the
+comments body, and after a cancelled prompt left the new link in the text).
+
+**Reference book** `tests/scripts/fixtures/279/03/recheck-comments.fb2`: an annotation «Аннотация с
+комментарием{2}.» (to `c_b`), a paragraph «Сюда вставляется новый комментарий. Текст с
+комментарием{1}.» (to `c_a`) and a comments body with `c_a`, `c_b` and `c_unused` (titles 1, 2, 9;
+nothing points to `c_unused`). Without its comments body - a FictionBook Editor convention FB2 2.1
+does not allow - it validates against `FictionBook.xsd`, like the other books of the group. The new
+snapshots are in `tests/scripts/snapshots/03/` and its `suite.json`; each was written down from
+2.7.9's code before the run and equals it. The eight snapshots of the 0.0.1 conversion on
+`conv-a-02.fb2` stay: their expected results did not change, and they pass unchanged.
+
+### 01 Добавить комментарий, остаться на его ссылке
+
+`01_add-comment`, id `03/add-comment`, from *01_Добавить комментарий, оставшись на его ссылке* (2.6
+→ 2.8): **updated** as above. en *Add a comment and stay at its reference*, uk *Додати коментар,
+залишитися на його посиланні*. Snapshot `add-comment.xml` stays. Added `add-comment.annotation.xml`
+(`recheck-comments.fb2`, `--select n7:35:35`, after «комментарий.»): the nearest comment link before
+the caret on the page is the annotation's, to the second section, so the new comment is 3 -
+«комментарий.{3}» (`#c_3`, superscript), the section `c_3` (title 3, an empty paragraph) after
+`c_b`, `c_unused` renumbered `c_4` (title 4), `c_a`, `c_b` → `c_1`, `c_2`; the annotation's link
+`#c_2` «{2}», the paragraph's `#c_1` «{1}». Status bar *Добавлена сноска № 3…*.
+
+### 02 Добавить комментарий, введя его текст в окошке
+
+`02_add-comment-with-text`, id `03/add-comment-with-text`, from *02_Добавить комментарий, введя его
+текст в окошке* (2.6 → 2.8): **updated**. en *Add a comment, entering its text in a dialog*, uk
+*Додати коментар, ввівши його текст у віконці*. Its nested-sections message keeps 2.7.9's *…второго
+уровня вложения. Такие файлы…*. Snapshot `add-comment-with-text.xml` stays.
+
+### 03 Добавить комментарий, перейти на его раздел
+
+`03_add-comment-go-to-comment`, id `03/add-comment-go-to-comment`, from *03_Добавить комментарий,
+перейти к его разделу* (2.6 → 2.8): **updated**. en *Add a comment and go to its section*, uk
+*Додати коментар, перейти до його розділу*. New in 2.7.9: it writes the result to the status bar.
+Snapshot `add-comment-go-to-comment.xml` stays.
+
+### 04 Добавить последний комментарий, остаться на его ссылке
+
+`04_add-last-comment`, id `03/add-last-comment`, from *05_Добавить последний комментарий, оставшись
+на его ссылке* (2.6 → 2.8): **updated**. en *Add the last comment and stay at its reference*, uk
+*Додати останній коментар, залишитися на його посиланні*. Snapshot `add-last-comment.xml` stays.
+
+### 05 Добавить последний комментарий, введя его текст в окошке
+
+`05_add-last-comment-with-text`, id `03/add-last-comment-with-text`, from *06_Добавить последний
+комментарий, введя его текст в окошке* (2.6 → 2.8): **updated**. en *Add the last comment, entering
+its text in a dialog*, uk *Додати останній коментар, ввівши його текст у віконці*. Snapshot
+`add-last-comment-with-text.xml` stays.
+
+### 06 Добавить последний комментарий, перейти на его раздел
+
+`06_add-last-comment-go-to-comment`, id `03/add-last-comment-go-to-comment`, from *07_Добавить
+последний комментарий, перейти к его разделу* (2.6 → 2.8): **updated**. en *Add the last comment
+and go to its section*, uk *Додати останній коментар, перейти до його розділу*. Like 03 it now
+writes the status bar; its nested-sections message keeps 2.7.9's *…вложенности. Такие файлы…*.
+Snapshot `add-last-comment-go-to-comment.xml` stays.
+
+### 07 Перенумеровать комментарии
+
+`07_unify-comments`, id `03/unify-comments`, from *04_Унификация комментариев* (2.6 → 2.7):
+**updated**. en *Renumber comments*, uk *Перенумерувати коментарі*. Ported: the new message.
+Snapshot `unify-comments.xml` stays.
+
+### 08 Перенумеровать комментарии, удаляя неиспользуемые разделы комментариев
+
+`08_unify-comments-remove-unused`, id `03/unify-comments-remove-unused`, from *08_Унификация
+комментариев (с удалением неиспользуемых разделов комментариев)* (2.8 → 2.9): **updated**. en
+*Renumber comments, removing unused comment sections*, uk *Перенумерувати коментарі, видаляючи
+невикористовувані розділи коментарів*. Ported: the confirmation (2.7beta1's spoke of «Унификация
+сносок» and «секций примечаний»), the result in the status bar. Snapshot
+`unify-comments-remove-unused.xml` (`--answer ok`) stays. Added
+`unify-comments-remove-unused.annotation.xml` (`recheck-comments.fb2`, `--answer ok`): `c_unused`
+removed - `c_b`, which only the annotation points to, stays -, `c_a`, `c_b` → `c_1`, `c_2`, the
+annotation's link `#c_2` «{2}», the paragraph's `#c_1` «{1}»; status bar *Перенумерация сносок
+успешно завершена…*.
+
+### Harness commands
+
+```bash
+G=scripts/03_comments; B=tests/scripts/fixtures/279/03/recheck-comments.fb2; S=tests/scripts/snapshots/03
+node tests/scripts/run-script.mjs $G/01_add-comment $B --select n7:35:35 --snapshot $S/add-comment.annotation.xml
+node tests/scripts/run-script.mjs $G/08_unify-comments-remove-unused $B --answer ok --snapshot $S/unify-comments-remove-unused.annotation.xml
+```
 
 ## 04_Примечания и комментарии из скобок
 

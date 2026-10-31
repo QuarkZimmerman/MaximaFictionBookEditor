@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Code of the \"annotation\" element (509 characters)",
+      "text": "{\n  \"attrs\": {\n    \"nodeId\": \"n4\"\n  },\n  \"content\": [\n    {\n      \"attrs\": {\n        \"nodeId\": \"n5\"\n      },\n      \"content\": [\n        {\n          \"text\": \"Аннотация с \",\n          \"type\": \"text\"\n        },\n        {\n          \"marks\": [\n            {\n              \"type\": \"emphasis\"\n            }\n          ],\n          \"text\": \"курсивом\",\n          \"type\": \"text\"\n        },\n        {\n          \"text\": \".\",\n          \"type\": \"text\"\n        }\n      ],\n      \"type\": \"p\"\n    }\n  ],\n  \"type\": \"annotation\"\n}"
+    }
+  ]
+}

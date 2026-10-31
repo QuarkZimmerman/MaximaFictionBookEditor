@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Code of the \"cite\" element (1102 characters)",
+      "text": "{\n  \"attrs\": {\n    \"nodeId\": \"n25\"\n  },\n  \"content\": [\n    {\n      \"attrs\": {\n        \"nodeId\": \"n26\"\n      },\n      \"content\": [\n        {\n          \"text\": \"Цитата с \",\n          \"type\": \"text\"\n        },\n        {\n          \"marks\": [\n            {\n              \"type\": \"code\"\n            }\n          ],\n          \"text\": \"кодом\",\n          \"type\": \"text\"\n        },\n        {\n          \"text\": \" и \",\n          \"type\": \"text\"\n        },\n        {\n          \"marks\": [\n            {\n              \"type\": \"sub\"\n            }\n          ],\n          \"text\": \"индексом\",\n          \"type\": \"text\"\n        },\n        {\n          \"text\": \".\",\n          \"type\": \"text\"\n        }\n      ],\n      \"type\": \"p\"\n    },\n    {\n      \"attrs\": {\n        \"nodeId\": \"n27\"\n      },\n      \"content\": [\n        {\n          \"text\": \"Цитируемый \",\n          \"type\": \"text\"\n        },\n        {\n          \"marks\": [\n            {\n              \"type\": \"strikethrough\"\n            }\n          ],\n          \"text\": \"автор\",\n          \"type\": \"text\"\n        }\n      ],\n      \"type\": \"text-author\"\n    }\n  ],\n  \"type\": \"cite\"\n}"
+    }
+  ]
+}

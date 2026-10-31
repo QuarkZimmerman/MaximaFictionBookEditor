@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "03/unify-comments",
   "name": {
-    "en": "Unify comments",
-    "ru": "Унификация комментариев"
+    "ru": "Перенумеровать комментарии",
+    "en": "Renumber comments",
+    "uk": "Перенумерувати коментарі"
   },
   "description": {
+    "ru": "Перенумеровывает разделы комментариев (id c_N, заголовки N) и ссылки на них ({N})",
     "en": "Renumbers the comment sections (ids c_N, titles N) and the links that point to them ({N})",
-    "ru": "Перенумеровывает секции комментариев (id c_N, заголовки N) и ссылки на них ({N})"
+    "uk": "Перенумеровує розділи коментарів (id c_N, заголовки N) і посилання на них ({N})"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Unify comments",
-    "ru": "Унификация комментариев"
+    "ru": "Перенумеровать комментарии",
+    "en": "Renumber comments"
   },
   "legacy": {
-    "source": "03_Добавление комментария/04_Унификация комментариев.js",
-    "fbeVersion": "2.7"
+    "source": "03_Комментарии/07_Перенумеровать комментарии.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.7"
   }
 }

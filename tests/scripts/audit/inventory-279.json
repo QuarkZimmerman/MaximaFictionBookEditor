@@ -10,9 +10,9 @@
       "new": 231,
       "noCounterpart": 6,
       "notConverted": 4,
-      "recheck": 35,
+      "recheck": 17,
       "unchanged": 27,
-      "updated": 74
+      "updated": 92
     },
     "recheckClasses": {
       "identical": 24,
@@ -221,10 +221,17 @@
       "htmlDialogs": [],
       "package": "scripts/02_footnotes/01_add-footnote",
       "id": "02/add-footnote",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "02_Добавление примечания/01_Добавить сноску, оставшись на ее ссылке.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis>[2]</emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …>[2]</a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a footnote can be added there: the conversion of 2.7beta1 walked the bodies only, so such a footnote link was not renumbered and then pointed to another footnote, a new footnote got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#n_1) is no footnote link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; a footnote link before the caret that points to no section of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a notes body without a title the title «Примечания» (or made a notes body when there was none) and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -248,10 +255,18 @@
       "htmlDialogs": [],
       "package": "scripts/02_footnotes/02_add-footnote-with-text",
       "id": "02/add-footnote-with-text",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "02_Добавление примечания/02_Добавить сноску, введя ее текст в окошке.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "The prompt for the footnote text opens empty where 2.7.9 proposed «&nbsp;»; a blank entry gives the footnote an empty paragraph, as the variants without a prompt do (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis>[2]</emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …>[2]</a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a footnote can be added there: the conversion of 2.7beta1 walked the bodies only, so such a footnote link was not renumbered and then pointed to another footnote, a new footnote got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#n_1) is no footnote link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; a footnote link before the caret that points to no section of the body) or a cancelled prompt leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a notes body without a title the title «Примечания» (or made a notes body when there was none) and kept it, and after a cancelled prompt it left the new link in the text, pointing to a section it never made."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -275,10 +290,17 @@
       "htmlDialogs": [],
       "package": "scripts/02_footnotes/03_add-footnote-go-to-note",
       "id": "02/add-footnote-go-to-note",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "02_Добавление примечания/03_Добавить сноску, перейти к ее разделу.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis>[2]</emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …>[2]</a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a footnote can be added there: the conversion of 2.7beta1 walked the bodies only, so such a footnote link was not renumbered and then pointed to another footnote, a new footnote got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#n_1) is no footnote link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; a footnote link before the caret that points to no section of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a notes body without a title the title «Примечания» (or made a notes body when there was none) and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -302,10 +324,17 @@
       "htmlDialogs": [],
       "package": "scripts/02_footnotes/04_add-last-footnote",
       "id": "02/add-last-footnote",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "02_Добавление примечания/05_Добавить последнюю сноску, оставшись на ее ссылке.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis>[2]</emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …>[2]</a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a footnote can be added there: the conversion of 2.7beta1 walked the bodies only, so such a footnote link was not renumbered and then pointed to another footnote, a new footnote got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#n_1) is no footnote link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; «Это получается не последняя сноска в документе!»; a footnote link before the caret that points to no section of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a notes body without a title the title «Примечания» (or made a notes body when there was none) and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -329,10 +358,18 @@
       "htmlDialogs": [],
       "package": "scripts/02_footnotes/05_add-last-footnote-with-text",
       "id": "02/add-last-footnote-with-text",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "02_Добавление примечания/06_Добавить последнюю сноску, введя ее текст в окошке.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "The prompt for the footnote text opens empty where 2.7.9 proposed «&nbsp;»; a blank entry gives the footnote an empty paragraph, as the variants without a prompt do (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis>[2]</emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …>[2]</a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a footnote can be added there: the conversion of 2.7beta1 walked the bodies only, so such a footnote link was not renumbered and then pointed to another footnote, a new footnote got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#n_1) is no footnote link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; «Это получается не последняя сноска в документе!»; a footnote link before the caret that points to no section of the body) or a cancelled prompt leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a notes body without a title the title «Примечания» (or made a notes body when there was none) and kept it, and after a cancelled prompt it left the new link in the text, pointing to a section it never made."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -356,10 +393,17 @@
       "htmlDialogs": [],
       "package": "scripts/02_footnotes/06_add-last-footnote-go-to-note",
       "id": "02/add-last-footnote-go-to-note",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "02_Добавление примечания/07_Добавить последнюю сноску, перейти к ее разделу.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis>[2]</emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …>[2]</a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a footnote can be added there: the conversion of 2.7beta1 walked the bodies only, so such a footnote link was not renumbered and then pointed to another footnote, a new footnote got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#n_1) is no footnote link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; «Это получается не последняя сноска в документе!»; a footnote link before the caret that points to no section of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a notes body without a title the title «Примечания» (or made a notes body when there was none) and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -383,10 +427,16 @@
       "htmlDialogs": [],
       "package": "scripts/02_footnotes/07_unify-footnotes",
       "id": "02/unify-footnotes",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "02_Добавление примечания/04_Унификация сносок.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "Without a notes body nothing is made: 2.7.9 made a notes body holding only the title «Примечания», which FB2 does not allow (a body needs a section)."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies: the conversion of 2.7beta1 walked the bodies only, so such a footnote link was not renumbered and then pointed to another footnote. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#n_1) is no footnote link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a notes body without a title the title «Примечания» and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -410,10 +460,17 @@
       "htmlDialogs": [],
       "package": "scripts/02_footnotes/08_unify-footnotes-remove-unused",
       "id": "02/unify-footnotes-remove-unused",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "02_Добавление примечания/08_Унификация сносок (с удалением неиспользуемых разделов сносок).js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "Without a notes body nothing is made: 2.7.9 made a notes body holding only the title «Примечания», which FB2 does not allow (a body needs a section).",
+        "An unused section is removed itself; 2.7.9 removed the first element of the page with its id (document.getElementById), which is the section unless an element before it has the same id."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies: the conversion of 2.7beta1 walked the bodies only, so such a footnote link was not renumbered and then pointed to another footnote, and the sections that only such a link pointed to were removed as unused. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#n_1) is no footnote link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a notes body without a title the title «Примечания» and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -665,11 +722,20 @@
       "htmlDialogs": [],
       "package": "scripts/02_footnotes/30_test-footnotes",
       "id": "02/test-footnotes",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "02_Добавление примечания/20_Тест сносок.js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "After a problem the faulty link, or the whole section, is selected; 2.7.9 put the caret at its start (GoTo). The selection shows the place (kept from the conversion of 2.7beta1).",
+        "The messages show a link's text where 2.7.9 showed its HTML (innerHTML) - the same «[1]» for a plain link."
+      ],
+      "fixes": [
+        "The order check compares a footnote link with the footnote link before it; 2.7.9 compared it with the link before it on the page, whatever its kind, so another link before the first footnote link (an external link, a comment) made it report «Ссылки идут не по порядку» with «Номер: 0 id: undefined» and that link's text instead of «Первая ссылка ссылается не на первый раздел» (fixed alike in 03/20).",
+        "«Первая ссылка ссылается не на первый раздел» shows the link's text («Текст ссылки: …»), which a stray semicolon dropped in 2.7.9 (fixed alike in 03/20).",
+        "The links of the book's annotation and history are checked first, as on FictionBook Editor's page (fbw_body's A elements), and an external address is one holding http://, https:// or ftp:// anywhere, as in 2.7.9: the conversion of 2.7beta1 walked the bodies only and looked at the start of the address. A defect of the conversion; the result is now 2.7.9's."
+      ],
+      "openQuestions": [
+        "Restore the icon? 2.7.9 ships this script without an .ico (the icon of 2.7beta1's «Тест сносок» is now that of 03_Комментарии/20 «Проверить корректность оформления комментариев»), so the package dropped its icon like 2.7.9."
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 7,
@@ -809,10 +875,17 @@
       "htmlDialogs": [],
       "package": "scripts/03_comments/01_add-comment",
       "id": "03/add-comment",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "03_Добавление комментария/01_Добавить комментарий, оставшись на его ссылке.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis><sup>{2}</sup></emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …><sup>{2}</sup></a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a comment can be added there: the conversion of 2.7beta1 walked the bodies only, so such a comment link was not renumbered and then pointed to another comment, a new comment got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#c_1) is no comment link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; a comment link before the caret that points to no section of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a comments body without a title the title «Комментарии» (or made a comments body when there was none) and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -836,10 +909,18 @@
       "htmlDialogs": [],
       "package": "scripts/03_comments/02_add-comment-with-text",
       "id": "03/add-comment-with-text",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "03_Добавление комментария/02_Добавить комментарий, введя его текст в окошке.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "The prompt for the comment text opens empty where 2.7.9 proposed «&nbsp;»; a blank entry gives the comment an empty paragraph, as the variants without a prompt do (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis><sup>{2}</sup></emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …><sup>{2}</sup></a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a comment can be added there: the conversion of 2.7beta1 walked the bodies only, so such a comment link was not renumbered and then pointed to another comment, a new comment got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#c_1) is no comment link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; a comment link before the caret that points to no section of the body) or a cancelled prompt leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a comments body without a title the title «Комментарии» (or made a comments body when there was none) and kept it, and after a cancelled prompt it left the new link in the text, pointing to a section it never made."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -863,10 +944,17 @@
       "htmlDialogs": [],
       "package": "scripts/03_comments/03_add-comment-go-to-comment",
       "id": "03/add-comment-go-to-comment",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "03_Добавление комментария/03_Добавить комментарий, перейти к его разделу.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis><sup>{2}</sup></emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …><sup>{2}</sup></a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a comment can be added there: the conversion of 2.7beta1 walked the bodies only, so such a comment link was not renumbered and then pointed to another comment, a new comment got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#c_1) is no comment link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; a comment link before the caret that points to no section of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a comments body without a title the title «Комментарии» (or made a comments body when there was none) and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -890,10 +978,17 @@
       "htmlDialogs": [],
       "package": "scripts/03_comments/04_add-last-comment",
       "id": "03/add-last-comment",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "03_Добавление комментария/05_Добавить последний комментарий, оставшись на его ссылке.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis><sup>{2}</sup></emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …><sup>{2}</sup></a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a comment can be added there: the conversion of 2.7beta1 walked the bodies only, so such a comment link was not renumbered and then pointed to another comment, a new comment got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#c_1) is no comment link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; «Это получается не последняя сноска в документе!»; a comment link before the caret that points to no section of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a comments body without a title the title «Комментарии» (or made a comments body when there was none) and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -917,10 +1012,18 @@
       "htmlDialogs": [],
       "package": "scripts/03_comments/05_add-last-comment-with-text",
       "id": "03/add-last-comment-with-text",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "03_Добавление комментария/06_Добавить последний комментарий, введя его текст в окошке.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "The prompt for the comment text opens empty where 2.7.9 proposed «&nbsp;»; a blank entry gives the comment an empty paragraph, as the variants without a prompt do (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis><sup>{2}</sup></emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …><sup>{2}</sup></a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a comment can be added there: the conversion of 2.7beta1 walked the bodies only, so such a comment link was not renumbered and then pointed to another comment, a new comment got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#c_1) is no comment link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; «Это получается не последняя сноска в документе!»; a comment link before the caret that points to no section of the body) or a cancelled prompt leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a comments body without a title the title «Комментарии» (or made a comments body when there was none) and kept it, and after a cancelled prompt it left the new link in the text, pointing to a section it never made."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -944,10 +1047,17 @@
       "htmlDialogs": [],
       "package": "scripts/03_comments/06_add-last-comment-go-to-comment",
       "id": "03/add-last-comment-go-to-comment",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "03_Добавление комментария/07_Добавить последний комментарий, перейти к его разделу.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "A selection over several paragraphs is refused with «Выделение должно находиться внутри одного абзаца.» (a message of the conversion): 2.7.9 pasted the link over the range, deleting the selected text and joining the paragraphs; the script API edits the text of one paragraph at a time, and adding a note is not meant to join paragraphs (kept from the conversion of 2.7beta1).",
+        "A link made inside formatting is written outside it, with the formatting repeated inside: <emphasis>ку</emphasis><a …><emphasis><sup>{2}</sup></emphasis></a><emphasis>рсив</emphasis> where 2.7.9 wrote <emphasis>ку<a …><sup>{2}</sup></a>рсив</emphasis>: the editor writes a link outside the formatting of the same characters. The text and its formatting are the same."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies, and a comment can be added there: the conversion of 2.7beta1 walked the bodies only, so such a comment link was not renumbered and then pointed to another comment, a new comment got a number too low when such a link came before it, and with the caret in the annotation or the history the script stopped with an error. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#c_1) is no comment link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body; «Это получается не последняя сноска в документе!»; a comment link before the caret that points to no section of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a comments body without a title the title «Комментарии» (or made a comments body when there was none) and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -971,10 +1081,16 @@
       "htmlDialogs": [],
       "package": "scripts/03_comments/07_unify-comments",
       "id": "03/unify-comments",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "03_Добавление комментария/04_Унификация комментариев.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "Without a comments body nothing is made: 2.7.9 made a comments body holding only the title «Комментарии», which FB2 does not allow (a body needs a section)."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies: the conversion of 2.7beta1 walked the bodies only, so such a comment link was not renumbered and then pointed to another comment. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#c_1) is no comment link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a comments body without a title the title «Комментарии» and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -998,10 +1114,17 @@
       "htmlDialogs": [],
       "package": "scripts/03_comments/08_unify-comments-remove-unused",
       "id": "03/unify-comments-remove-unused",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "03_Добавление комментария/08_Унификация комментариев (с удалением неиспользуемых разделов комментариев).js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "Without a comments body nothing is made: 2.7.9 made a comments body holding only the title «Комментарии», which FB2 does not allow (a body needs a section).",
+        "An unused section is removed itself; 2.7.9 removed the first element of the page with its id (document.getElementById), which is the section unless an element before it has the same id."
+      ],
+      "fixes": [
+        "The links of the book's annotation and history count and are renumbered, as on FictionBook Editor's page, which shows them before the bodies: the conversion of 2.7beta1 walked the bodies only, so such a comment link was not renumbered and then pointed to another comment, and the sections that only such a link pointed to were removed as unused. A defect of the conversion; the result is now 2.7.9's.",
+        "A link's address is read as the original's getLocalHref did: an external address with a fragment (https://example.org/page#c_1) is no comment link; the conversion of 2.7beta1 took its fragment for an id and renumbered such a link. A defect of the conversion; the result is now 2.7.9's.",
+        "A refusal (sections nested in the sections of the body) leaves the book unchanged: every check comes before the first change and the run is one undo step. 2.7.9 had by then given a comments body without a title the title «Комментарии» and kept it."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",
@@ -10681,8 +10804,13 @@
       "id": "20/show-code",
       "status": "unchanged",
       "predecessor": "20_Инструменты отладки/01_Показать код.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "Shows the JSON of the document model where 2.7.9 showed the HTML of the editor's page: scripts see the book as the document model, not the editor's page (kept from the conversion of 2.7beta1).",
+        "Code over 2000 characters is cut, with a line pointing to «Показать весь код», since a message box does not scroll (kept from the conversion of 2.7beta1)."
+      ],
+      "fixes": [
+        "With the caret in the book's annotation or history the script shows the annotation's or the history's code, as 2.7.9 showed its HTML; the conversion of 2.7beta1 stopped there with an error (it asked doc.getNode, which knows the bodies only). A defect of the conversion; the result is now 2.7.9's."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "identical",
@@ -10710,10 +10838,15 @@
       ],
       "package": "scripts/95_programmers/02_show-whole-code",
       "id": "20/show-whole-code",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "20_Инструменты отладки/02_Показать весь код.js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "Shows the JSON of the document model where 2.7.9 showed the HTML of the editor's page: scripts see the book as the document model, not the editor's page (kept from the conversion of 2.7beta1).",
+        "The report window is titled with the element and the length of its code («Код элемента «cite» (1102 символов)»), where 2.7.9's window was titled « :: Debugging HTML code :: », and it offers Copy and Save as… besides Close."
+      ],
+      "fixes": [
+        "With the caret in the book's annotation or history the script shows the annotation's or the history's code, as 2.7.9 showed its HTML; the conversion of 2.7beta1 stopped there with an error (it asked doc.getNode, which knows the bodies only). A defect of the conversion; the result is now 2.7.9's."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "moderate",

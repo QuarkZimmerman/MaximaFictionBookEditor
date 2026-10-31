@@ -1,39 +1,115 @@
-// Shared engine of the "Добавление примечания" / "Добавление комментария" scripts (every script
-// folder carries its own copy: the sandbox only allows imports from the script's own folder).
+// The engine of this package, its own copy: the program of its original, FictionBook Editor 2.7.9
+// Scripts/02_Примечания/04_Добавить последнее примечание, остаться на его ссылке.js.
+// Every package of the groups 02 and 03 carries its own copy (the sandbox loads modules from the
+// script's own folder only), each with the texts of its own original.
 //
-// The legacy scripts were one JScript program with a block of settings at the top; the settings
-// are passed here as `options`. What it does, in the order of the original:
-//   1. finds the notes (or comments) body, refuses nested note sections;
-//   2. in "add" mode works out the number of the new note from the nearest preceding note link,
-//      optionally asks for the note text and refuses a non-last note in "last note" mode;
-//   3. renumbers the existing note sections (ids `n_N`, titles `N`) and every link that points to
-//      them (href and text `[N]`), leaving room for the new note;
-//   4. replaces the selection with the new note link and inserts the new note section at the
-//      right place (empty paragraph or the entered text), optionally moving the caret there;
-//   5. reports what was done.
-// The whole run is one undo step, so the original's manual clean-up on errors is not needed:
-// every check happens before the first change.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Sclex's note scripts are one JScript program with a block of settings at the top, which
+// index.js passes here; the scripts of a group differ in that block, in some of their texts and,
+// for the renumbering ones, in lines of their own. What it does, in the order of the original:
+// - finds the notes body and refuses sections nested in its sections;
+// - in "add" mode works out the number of the new note from the nearest note link before the
+//   caret, asks for the note text when the settings say so, and in "last" mode refuses when a
+//   note link follows the caret;
+// - renumbers the sections of the body (ids, titles) and every link of the page that points to
+//   one of them (address and text), leaving room for the new note;
+// - replaces the selection with the new note link and inserts the new section (an empty
+//   paragraph or the entered text), moving the caret into it when the settings say so;
+// - writes the result to the status bar (window.external.SetStatusBarText), whatever EndWindow
+//   says.
+// The page is FictionBook Editor's: the book's annotation and history, then every body. A link in
+// the annotation or the history counts and is renumbered like one in a body, and a note can be
+// added there (doc.setDescription writes them back). An address is read as the original's
+// getLocalHref did: the id after "#" of a local address.
+// The whole run is one undo step, and every check happens before the first change: a refusal or
+// a cancelled prompt leaves the book as it was. (By then the original had pasted the new link and
+// given the body its title, or made the body; it took the link back on a refusal, not on a
+// cancelled prompt.)
+// The original's notice, kept as written (FR-029):
 // добавление сноски между уже имеющимися
 // написал Sclex
-// версия 2.7
+// версия 2.8
 
 const TEXT_BLOCKS = new Set(['p', 'subtitle', 'v', 'text-author', 'td', 'th']);
 
+/** The settings of the original that index.js does not pass: its templates and note type. */
+const SETTINGS = {
+  idTemplate: 'n_%N', // the ids of the sections of the notes body
+  titleTemplate: '%N', // the title of a note
+  linkTemplate: '[%N]', // the text of a link
+  linkSup: false,
+  bodyName: 'notes', // the name attribute of the notes body
+  bodyTitle: 'Примечания', // the title of the notes body
+  noteType: 'note', // a new link is a footnote link (FictionBook Editor's class="note", FB2 type="note")
+  isNoteLink: (link) => link.type === 'note', // the original's isItNote: class="note"
+};
+
+/** Russian in the Russian interface, English otherwise. */
 export function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;
 }
+
+/* ------------------------------------------------------------------------------------------ */
+/* The texts of the original (its Russian, and English)                                        */
+/* ------------------------------------------------------------------------------------------ */
+
+const TEXTS = {
+  nested: [
+    'В body примечаний есть разделы второго уровня вложенности. Такие документы не обрабатываются данным скриптом. Работа скрипта завершена.',
+    'The notes body has sections at the second level of nesting. Such documents are not processed by this script. The script has finished.',
+  ],
+  numberUnknown: [
+    'Не удалось создать примечание.\n\n' +
+      'Чтобы определить, с каким разделом в body примечаний ' +
+      'связать сноску, которую пользователь хочет вставить, ' +
+      'скрипт смотрит, с каким разделом в body примечаний ' +
+      'связана определенная ранее созданная сноска. А именно – ' +
+      'скрипт смотрит на ближайшую сноску вверх по документу ' +
+      'от той сноски, которую пытается создать и вставить. ' +
+      'Но в этот раз оказалось, что эта ближайшая сверху ' +
+      'сноска не связана корректным образом с разделом в body ' +
+      'примечаний. Поэтому, чтобы вставить новую сноску, ' +
+      'исправьте, пожалуйста, сноску, которая идет перед ней.',
+    'The footnote could not be created.\n\n' +
+      'To find out which section of the notes body the footnote the user wants to insert ' +
+      'should be tied to, the script looks at the section of the notes body that a footnote ' +
+      'created earlier is tied to - namely the nearest footnote above the one it is trying ' +
+      'to create and insert. This time, however, that nearest footnote above is not tied ' +
+      'properly to a section of the notes body. So, to insert the new footnote, please ' +
+      'correct the footnote that comes before it.',
+  ],
+  notLast: [
+    'Ошибка. Это получается не последняя сноска в документе!',
+    'Error: this would not be the last footnote of the document!',
+  ],
+  prompt: [
+    'Текст примечания. Используйте <b>...</b> <i>...</i> <br> <strong>...</strong> <emphasis>...</emphasis> <em>...</em>',
+    'Footnote text. You may use <b>...</b> <i>...</i> <br> <strong>...</strong> <emphasis>...</emphasis> <em>...</em>',
+  ],
+  added: (n, time) => [`Добавлена сноска № ${n}. Время работы скрипта: ${time}`, `Footnote No. ${n} added. Time taken: ${time}`],
+  renumbered: (time) => [
+    `Перенумерация сносок успешно завершена. Время работы скрипта: ${time}`,
+    `Footnotes renumbered successfully. Time taken: ${time}`,
+  ],
+};
 
 function fill(template, n) {
   return template.replace('%N', String(n));
 }
 
-/** `#id` (also `main.html#id` of the IE days) -> `id`; null for external links. */
+function copy(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+/**
+ * The original's getLocalHref: null without "#"; what follows "main.html#" (the page's own
+ * address in Internet Explorer); else the address without its first character - the id of
+ * "#id", nothing an id could equal for an external address.
+ */
 export function localHref(href) {
-  if (typeof href !== 'string') return null;
-  const hash = href.indexOf('#');
-  if (hash < 0) return null;
-  return href.slice(hash + 1);
+  if (typeof href !== 'string' || href.indexOf('#') < 0) return null;
+  const at = href.search(/main\.html#/i);
+  if (at >= 0) return href.slice(at + 10);
+  return href.substring(1);
 }
 
 function sameLink(a, b) {
@@ -45,39 +121,54 @@ function linkMarkOf(textNode) {
 }
 
 /**
- * Every link of the document in document order (the legacy `document.links`): consecutive text
- * nodes carrying the same link mark form one link.
- * -> [{ blockId, href, id, type, start, end, first, last }] (offsets/indexes inside the block).
+ * The text blocks of the page in FictionBook Editor's order: those of the annotation and of the
+ * history of `description` (a working copy, written back with doc.setDescription), then those
+ * of every body. -> [{ nodeId, node, inDescription, order }]
  */
-export function collectLinks(doc) {
-  const links = [];
-  const visit = (node) => {
-    if (node.type === 'text') return;
+export function pageBlocks(doc, description) {
+  const blocks = [];
+  const visit = (node, inDescription) => {
+    if (!node || typeof node !== 'object' || node.type === 'text') return;
     if (TEXT_BLOCKS.has(node.type)) {
-      let pos = 0;
-      let current = null;
-      (node.content ?? []).forEach((child, index) => {
-        const mark = child.type === 'text' ? linkMarkOf(child) : null;
-        const len = child.type === 'text' ? child.text.length : 1;
-        if (mark && current && sameLink(current.mark, mark) && current.last === index - 1) {
-          current.end = pos + len;
-          current.last = index;
-        } else if (mark) {
-          current = {
-            blockId: node.attrs.nodeId, mark, href: mark.attrs.href, id: localHref(mark.attrs.href),
-            type: mark.attrs.type ?? null, start: pos, end: pos + len, first: index, last: index,
-          };
-          links.push(current);
-        } else {
-          current = null;
-        }
-        pos += len;
-      });
+      blocks.push({ nodeId: node.attrs?.nodeId ?? null, node, inDescription, order: blocks.length });
       return;
     }
-    for (const child of node.content ?? []) visit(child);
+    for (const child of node.content ?? []) visit(child, inDescription);
   };
-  for (const body of doc.bodies) visit(body);
+  visit(description?.titleInfo?.annotation, true);
+  visit(description?.documentInfo?.history, true);
+  for (const body of doc.bodies) visit(body, false);
+  return blocks;
+}
+
+/**
+ * Every link of the page in page order (the legacy `document.links`): consecutive text nodes
+ * carrying the same link mark form one link.
+ * -> [{ block, blockId, href, id, type, start, end, first, last }] (offsets/indexes inside the block).
+ */
+export function collectLinks(blocks) {
+  const links = [];
+  for (const block of blocks) {
+    let pos = 0;
+    let current = null;
+    (block.node.content ?? []).forEach((child, index) => {
+      const mark = child.type === 'text' ? linkMarkOf(child) : null;
+      const len = child.type === 'text' ? child.text.length : 1;
+      if (mark && current && sameLink(current.mark, mark) && current.last === index - 1) {
+        current.end = pos + len;
+        current.last = index;
+      } else if (mark) {
+        current = {
+          block, blockId: block.nodeId, mark, href: mark.attrs.href, id: localHref(mark.attrs.href),
+          type: mark.attrs.type ?? null, start: pos, end: pos + len, first: index, last: index,
+        };
+        links.push(current);
+      } else {
+        current = null;
+      }
+      pos += len;
+    });
+  }
   return links;
 }
 
@@ -139,9 +230,9 @@ function spliceContent(content, from, to, node) {
   return out;
 }
 
-/* ------------------------------------------------------------------------ */
-/* Note text entered in a prompt (the "введя ее текст в окошке" variants)   */
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------------------------ */
+/* Note text entered in a prompt (the "введя его текст в окошке" variants)                     */
+/* ------------------------------------------------------------------------------------------ */
 
 const TAG_MARKS = { b: 'strong', strong: 'strong', i: 'emphasis', em: 'emphasis', emphasis: 'emphasis', sup: 'sup', sub: 'sub' };
 const ENTITIES = { nbsp: '\u00A0', lt: '<', gt: '>', amp: '&', quot: '"' };
@@ -218,9 +309,7 @@ const PARSE_ERRORS = {
 };
 
 async function askNoteText(ctx) {
-  const prompt = t(ctx,
-    'Текст примечания. Используйте <b>...</b> <i>...</i> <br> <strong>...</strong> <emphasis>...</emphasis> <em>...</em>',
-    'Note text. You may use <b>...</b> <i>...</i> <br> <strong>...</strong> <emphasis>...</emphasis> <em>...</em>');
+  const prompt = t(ctx, TEXTS.prompt[0], TEXTS.prompt[1]);
   let value = '';
   for (;;) {
     value = await mfbe.ui.prompt(prompt, { defaultValue: value });
@@ -232,14 +321,15 @@ async function askNoteText(ctx) {
   }
 }
 
-/* ------------------------------------------------------------------------ */
-/* The engine                                                               */
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------------------------ */
+/* The engine                                                                                 */
+/* ------------------------------------------------------------------------------------------ */
 
 function title(text) {
   return { type: 'title', attrs: {}, content: [{ type: 'p', attrs: {}, content: [{ type: 'text', text }] }] };
 }
 
+/** The time a run took, as the original wrote it ("0.4 с", "1 мин. 2.5 с"). */
 function elapsed(since) {
   const ms = Date.now() - since;
   const min = Math.floor(ms / 60000);
@@ -248,41 +338,29 @@ function elapsed(since) {
 }
 
 /**
- * @param options {
- *   idTemplate, titleTemplate, linkTemplate, linkSup, bodyName, bodyTitle, noteType,
- *   isNoteLink(link) -> boolean,
- *   addNote, inputText, moveFocus, lastMode, endWindow, removeUnused, noun: {ru, en} }
+ * Runs the original with the settings block of index.js:
+ *   endWindow (EndWindow), addNote (addSnoska), inputText (InputSnoskaText),
+ *   moveFocus (MoveFocusToNote), lastMode (lastSnoskaMode).
  */
 export async function runNotesScript(ctx, options) {
   const started = Date.now();
-  const o = options;
-
-  if (o.removeUnused) {
-    const answer = await mfbe.ui.message(
-      t(ctx,
-        `Вы запустили скрипт «Унификация ${o.noun.ruGenPl} (с удалением неиспользуемых секций ${o.noun.ruBody})».\nВы действительно хотите, чтобы неиспользуемые секции ${o.noun.ruBody} были удалены?`,
-        `You started "Unify ${o.noun.en} (removing unused ${o.noun.en} sections)".\nDo you really want the unused ${o.noun.en} sections to be removed?`),
-      { buttons: [{ id: 'ok', label: '', default: true }, { id: 'cancel', label: '', cancel: true }], icon: 'question' },
-    );
-    if (answer !== 'ok') return;
-  }
+  const o = { ...SETTINGS, ...options };
 
   const doc = await mfbe.doc.get();
+  const description = copy(doc.description ?? {});
+  let descriptionChanged = false;
   const notesBody = doc.bodies.find((b) => b.attrs?.name === o.bodyName) ?? null;
   const sections = notesBody ? notesBody.content.filter((c) => c.type === 'section') : [];
 
-  // Nested note sections are not handled (as in the original).
+  // Sections nested in the sections of the body are not handled (as in the original).
   if (sections.some((s) => s.content.some((c) => c.type === 'section'))) {
-    await mfbe.ui.message(
-      t(ctx,
-        `В body ${o.noun.ruBody} есть секции второго уровня вложения. Такие файлы не обрабатываются данным скриптом. Работа скрипта завершена.`,
-        `The ${o.noun.en} body contains nested sections. Such files are not handled by this script.`),
-      { icon: 'warning' },
-    );
+    await mfbe.ui.message(t(ctx, TEXTS.nested[0], TEXTS.nested[1]), { icon: 'warning' });
     return;
   }
 
-  const links = collectLinks(doc);
+  const blocks = pageBlocks(doc, description);
+  const blockById = new Map(blocks.filter((b) => b.nodeId).map((b) => [b.nodeId, b]));
+  const links = collectLinks(blocks);
   const sectNumById = new Map();
   sections.forEach((s, i) => {
     if (s.attrs?.id) sectNumById.set(s.attrs.id, i + 1);
@@ -309,21 +387,10 @@ export async function runNotesScript(ctx, options) {
     const from = Math.min(sel.anchor.offset, sel.head.offset);
     const to = Math.max(sel.anchor.offset, sel.head.offset);
     // Links before the insertion point = links of earlier blocks + links of this block ending before it.
+    const here = blockById.get(blockId)?.order ?? -1;
     let index = 0;
-    const order = [];
-    const visitOrder = (node) => {
-      if (node.type === 'text') return;
-      if (TEXT_BLOCKS.has(node.type)) {
-        order.push(node.attrs.nodeId);
-        return;
-      }
-      for (const child of node.content ?? []) visitOrder(child);
-    };
-    doc.bodies.forEach(visitOrder);
-    const blockOrder = new Map(order.map((id, i) => [id, i]));
-    const here = blockOrder.get(blockId) ?? -1;
     for (const link of links) {
-      const where = blockOrder.get(link.blockId) ?? -1;
+      const where = link.block.order;
       if (where < here || (where === here && link.start < from)) index += 1;
       else break;
     }
@@ -331,10 +398,7 @@ export async function runNotesScript(ctx, options) {
     insertCnt = 1;
 
     if (o.lastMode && links.slice(index).some((l) => o.isNoteLink(l))) {
-      await mfbe.ui.message(
-        t(ctx, `Ошибка. Это получается не последн${o.noun.ruLast} в документе!`, `Error: this would not be the last ${o.noun.en} of the document!`),
-        { icon: 'error' },
-      );
+      await mfbe.ui.message(t(ctx, TEXTS.notLast[0], TEXTS.notLast[1]), { icon: 'error' });
       return;
     }
     let previous = -1;
@@ -347,12 +411,7 @@ export async function runNotesScript(ctx, options) {
     if (previous >= 0) {
       const num = links[previous].id ? sectNumById.get(links[previous].id) : undefined;
       if (num === undefined) {
-        await mfbe.ui.message(
-          t(ctx,
-            `Не удается по ссылке перед вставляемой определить номер вставляемого ${o.noun.ruGen}.`,
-            `The number of the new ${o.noun.en} cannot be derived from the ${o.noun.en} link before the caret.`),
-          { icon: 'error' },
-        );
+        await mfbe.ui.message(t(ctx, TEXTS.numberUnknown[0], TEXTS.numberUnknown[1]), { icon: 'error' });
         return;
       }
       insertN = num + 1;
@@ -369,18 +428,6 @@ export async function runNotesScript(ctx, options) {
   // --- changes start here -----------------------------------------------------------------
   let bodyRef = notesBody ? { nodeId: notesBody.attrs.nodeId, type: 'body' } : null;
   let liveSections = sections.slice();
-
-  // Variant 08: drop note sections no link points to.
-  if (o.removeUnused && notesBody) {
-    const referenced = new Set(links.map((l) => l.id).filter(Boolean));
-    const unused = liveSections.filter((s) => s.attrs?.id && !referenced.has(s.attrs.id));
-    for (const s of unused) await mfbe.doc.removeNode(s.attrs.nodeId);
-    liveSections = liveSections.filter((s) => !unused.includes(s));
-    sectNumById.clear();
-    liveSections.forEach((s, i) => {
-      if (s.attrs?.id) sectNumById.set(s.attrs.id, i + 1);
-    });
-  }
 
   // Renumber the existing sections (ids and titles), leaving room for the new one.
   if (notesBody && !o.lastMode) {
@@ -410,23 +457,26 @@ export async function runNotesScript(ctx, options) {
       if (num >= insertN) num += 1;
       const href = `#${fill(o.idTemplate, num)}`;
       const text = fill(o.linkTemplate, num);
+      const type = link.type;
       if (!byBlock.has(link.blockId)) byBlock.set(link.blockId, []);
-      byBlock.get(link.blockId).push({ link, href, text });
+      byBlock.get(link.blockId).push({ link, href, text, type });
     }
   }
   if (target && !byBlock.has(target.blockId)) byBlock.set(target.blockId, []);
 
   let newLinkHref = null;
   for (const [blockId, changes] of byBlock) {
-    const block = await mfbe.doc.getNode(blockId);
+    const entry = blockById.get(blockId);
+    const inDescription = !!entry?.inDescription;
+    const block = inDescription ? entry.node : await mfbe.doc.getNode(blockId);
     let content = block.content ?? [];
     let changed = false;
     // Existing links first, from the end so earlier offsets stay valid.
-    for (const { link, href, text } of [...changes].sort((a, b) => b.link.start - a.link.start)) {
+    for (const { link, href, text, type } of [...changes].sort((a, b) => b.link.start - a.link.start)) {
       const current = content.slice(link.first, link.last + 1).map((c) => (c.type === 'text' ? c.text : '\uFFFC')).join('');
-      if (link.href === href && current === text) continue;
+      if (link.href === href && current === text && link.type === type) continue;
       const base = content[link.first].marks ?? [];
-      const node = linkTextNode(text, base, href, link.type, o.linkSup);
+      const node = linkTextNode(text, base, href, type, o.linkSup);
       content = [...content.slice(0, link.first), node, ...content.slice(link.last + 1)];
       // The index map of later links in this block is unaffected (we go from the end).
       changed = true;
@@ -443,8 +493,13 @@ export async function runNotesScript(ctx, options) {
       content = spliceContent(content, target.from + shift, target.to + shift, node);
       changed = true;
     }
-    if (changed) await mfbe.doc.replaceNode(blockId, { ...block, content });
+    if (!changed) continue;
+    if (inDescription) {
+      entry.node.content = content;
+      descriptionChanged = true;
+    } else await mfbe.doc.replaceNode(blockId, { ...block, content });
   }
+  if (descriptionChanged) await mfbe.doc.setDescription(description);
 
   // The notes body and its title.
   let newSectionRef = null;
@@ -479,44 +534,8 @@ export async function runNotesScript(ctx, options) {
     if (paragraph) await mfbe.selection.selectNode(paragraph);
   }
 
-  if (o.endWindow && o.addNote) {
-    await mfbe.ui.message(
-      t(ctx,
-        `\n\nДобавлен${o.noun.ruAdded}   \n\n         № ${insertN}   \n\nВремя работы скрипта: ${elapsed(started)}`,
-        `\n\nAdded ${o.noun.en}   \n\n         No. ${insertN}   \n\nTime taken: ${elapsed(started)}`),
-    );
-  }
-  if (o.endWindow && !o.addNote) {
-    await mfbe.ui.message(
-      t(ctx,
-        `Обработка ${o.noun.ruGenPl} закончена.\nДобавления ${o.noun.ruNewGen} не было, так как это отключено в настройках скрипта.\nВремя работы скрипта: ${elapsed(started)}`,
-        `Processing of the ${o.noun.en}s is finished.\nNo new ${o.noun.en} was added (disabled in this script's settings).\nTime taken: ${elapsed(started)}`),
-    );
-  }
+  const time = elapsed(started);
+  // 2.7.9 writes the result to the status bar, whatever EndWindow says; it stays there after the run.
+  const result = o.addNote ? TEXTS.added(insertN, time) : TEXTS.renumbered(time);
+  await mfbe.ui.status(t(ctx, result[0], result[1]), { sticky: true });
 }
-
-/** Settings shared by the footnote ("сноска") scripts. */
-export const FOOTNOTES = {
-  idTemplate: 'n_%N',
-  titleTemplate: '%N',
-  linkTemplate: '[%N]',
-  linkSup: false,
-  bodyName: 'notes',
-  bodyTitle: 'Примечания',
-  noteType: 'note',
-  isNoteLink: (link) => link.type === 'note',
-  noun: { en: 'footnote', ruBody: 'примечаний', ruGen: 'примечания', ruGenPl: 'сносок', ruLast: 'яя сноска', ruAdded: 'а сноска', ruNewGen: 'новой сноски' },
-};
-
-/** Settings shared by the comment ("комментарий") scripts. */
-export const COMMENTS = {
-  idTemplate: 'c_%N',
-  titleTemplate: '%N',
-  linkTemplate: '{%N}',
-  linkSup: true,
-  bodyName: 'comments',
-  bodyTitle: 'Комментарии',
-  noteType: null,
-  isNoteLink: (link) => typeof link.id === 'string' && /^c_/.test(link.id),
-  noun: { en: 'comment', ruBody: 'комментариев', ruGen: 'комментария', ruGenPl: 'комментариев', ruLast: 'ий комментарий', ruAdded: ' комментарий', ruNewGen: 'нового комментария' },
-};

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Комментарии</last-name>
+			</author>
+			<book-title>Комментарий в аннотации</book-title>
+			<annotation>
+				<p>Аннотация с комментарием<a l:href="#c_2"><sup>{2}</sup></a>.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Перепроверка комментариев</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава 1</p>
+			</title>
+			<p>Сюда вставляется новый комментарий. Текст с комментарием<a l:href="#c_1"><sup>{1}</sup></a>.</p>
+			<p>Последний абзац главы.</p>
+		</section>
+	</body>
+	<body name="comments">
+		<title>
+			<p>Комментарии</p>
+		</title>
+		<section id="c_1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>Комментарий из текста.</p>
+		</section>
+		<section id="c_2">
+			<title>
+				<p>2</p>
+			</title>
+			<p>Комментарий из аннотации.</p>
+		</section>
+	</body>
+</FictionBook>

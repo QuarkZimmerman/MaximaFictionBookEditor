@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "03/add-comment-with-text",
   "name": {
+    "ru": "Добавить комментарий, введя его текст в окошке",
     "en": "Add a comment, entering its text in a dialog",
-    "ru": "Добавить комментарий, введя его текст в окошке"
+    "uk": "Додати коментар, ввівши його текст у віконці"
   },
   "description": {
-    "en": "Inserts a comment link at the caret and creates the comment section with the text entered in a prompt",
-    "ru": "Вставляет ссылку комментария в позиции курсора и создает секцию комментария с текстом, введенным в окошке"
+    "ru": "Вставляет в позиции курсора ссылку на новый комментарий, перенумеровывает комментарии и создает раздел комментария с текстом, введенным в окошке",
+    "en": "Inserts a link to a new comment at the caret, renumbers the comments and creates the comment's section with the text entered in a dialog",
+    "uk": "Вставляє в позиції курсора посилання на новий коментар, перенумеровує коментарі і створює розділ коментаря з текстом, введеним у віконці"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Add a comment, entering its text in a dialog",
-    "ru": "Добавить комментарий, введя его текст в окошке"
+    "ru": "Добавить комментарий, введя его текст в окошке",
+    "en": "Add a comment, entering its text in a dialog"
   },
   "legacy": {
-    "source": "03_Добавление комментария/02_Добавить комментарий, введя его текст в окошке.js",
-    "fbeVersion": "2.7"
+    "source": "03_Комментарии/02_Добавить комментарий, введя его текст в окошке.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.8"
   }
 }

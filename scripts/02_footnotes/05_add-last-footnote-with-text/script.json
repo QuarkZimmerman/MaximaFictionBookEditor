@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "02/add-last-footnote-with-text",
   "name": {
+    "ru": "Добавить последнее примечание, введя его текст в окошке",
     "en": "Add the last footnote, entering its text in a dialog",
-    "ru": "Добавить последнюю сноску, введя ее текст в окошке"
+    "uk": "Додати останню примітку, ввівши її текст у віконці"
   },
   "description": {
-    "en": "Inserts the last footnote link at the caret and appends the note section with the text entered in a prompt",
-    "ru": "Вставляет ссылку последней сноски в позиции курсора и добавляет в конец секцию примечания с текстом, введенным в окошке"
+    "ru": "Вставляет в позиции курсора ссылку на последнее примечание и добавляет в конец body примечаний его раздел с текстом, введенным в окошке",
+    "en": "Inserts a link to the last footnote at the caret and appends its section, with the text entered in a dialog, to the notes body",
+    "uk": "Вставляє в позиції курсора посилання на останню примітку і додає в кінець body приміток її розділ із текстом, введеним у віконці"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Add the last footnote, entering its text in a dialog",
-    "ru": "Добавить последнюю сноску, введя ее текст в окошке"
+    "ru": "Добавить последнее примечание, введя его текст в окошке",
+    "en": "Add the last footnote, entering its text in a dialog"
   },
   "legacy": {
-    "source": "02_Добавление примечания/06_Добавить последнюю сноску, введя ее текст в окошке.js",
-    "fbeVersion": "2.7"
+    "source": "02_Примечания/05_Добавить последнее примечание, введя его текст в окошке.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.8"
   }
 }

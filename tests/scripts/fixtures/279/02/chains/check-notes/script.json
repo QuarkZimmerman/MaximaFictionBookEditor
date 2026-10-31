@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test02/chain-check-notes",
+  "name": {
+    "ru": "Цепочка: проверка примечаний",
+    "en": "Chain: the check of the footnotes"
+  },
+  "kind": "menu"
+}
