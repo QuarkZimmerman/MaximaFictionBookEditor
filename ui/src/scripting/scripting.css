@@ -218,8 +218,9 @@
   }
 }
 
-/* The report window of mfbe.ui.report (feature 007, ReportWindow.tsx): modeless, resizable,
-   its text pre-wrapped, its HTML in a sandboxed frame. */
+/* The report window of mfbe.ui.report (feature 007, ReportWindow.tsx): modeless, of a fixed
+   size (2.7.9's resizable windows are a recorded difference), its text pre-wrapped, its HTML in
+   a sandboxed frame. */
 .mfbe-report-window {
   width: min(680px, calc(100vw - 32px));
   max-width: none;
