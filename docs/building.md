@@ -322,13 +322,14 @@ ls -l build/macos-app-release/packages/
 | macOS | `MaximaFictionBookEditor-<version>-macos-<arch>.dmg` | CPack DragNDrop; the bundle is ad-hoc signed (`codesign --sign -`) |
 
 `<version>` is the version label, made from the numbers and the pre-release part committed in
-`CMakeLists.txt`: `0.0.6-rc` for every untagged build of the 0.0.6 development line (the forms
-and where each shows are listed in `packaging/README.md`, "Version forms"). The environment
+`CMakeLists.txt`: `0.0.6-rc` for the untagged builds of the 0.0.6 development line, and `0.0.6`
+since its final release, whose commit empties the pre-release part (the forms and where each
+shows are listed in `packaging/README.md`, "Version forms"). The environment
 variable `MFBE_RELEASE_TAG` is set only by the release workflow
 (`.github/workflows/release.yml`), to the tag it builds, and gives the packages of a tag
 `v0.0.6-rc.N` the label `0.0.6-rc.N`. A developer who sets it by hand gets that tagged label
 locally too: the variable is read at every configure, which checks it against the committed
-version and stops with "tag ... does not match the committed version 0.0.6-rc" when it does not
+version and stops with "tag ... does not match the committed version <label>" when it does not
 fit; unset it and configure again for an untagged build.
 
 Details of each package (layout, file associations, sandbox helper, AppArmor profile,
