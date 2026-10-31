@@ -17,7 +17,10 @@
 //   requester's decision (277 sayings: those of the book «Пословицы и поговорки Великой
 //   Отечественной войны» and six about Kursk and Sudzha, calls to kill "fascists" among them);
 // - in the "show" mode (2) the line is selected in the Body view instead of being underlined, and
-//   the original's "B mode" check (the Body view) has no counterpart: scripts edit the book itself.
+//   the original's "B mode" check (the Body view) has no counterpart: scripts edit the book itself;
+// - the history line (setting Version_on_off, off by default) has no user name, by the requester's
+//   decision (2026-10-31): youName is empty, the original's own way to a line without a name (its
+//   «Зорро» was a placeholder; main.js's fbeUserName, which could override it, does not exist).
 // The original's notice, kept as written (FR-029):
 //======================================
 //  «Удалить форматирование в заголовках и подзаголовках»
@@ -62,8 +65,9 @@ const Obrabotka_Subtitle_Style = 1; //     Удаление формата ст�
 const Version_on_off = 0;
 //  Добавлять, если не сделано ни одного исправления ("0" — отключить, "1" — включить)
 const Vsegda_on_off = 0;
-//   Имя используемое в добавленной записи (an empty name gives a line without a name):
-const youName = 'Зорро';
+//   Имя используемое в добавленной записи (an empty name gives a line without a name; the
+//   original's "Зорро" is left out by the requester's decision of 2026-10-31):
+const youName = '';
 //  Демонстрационный режим "Показать все строки" ("0" — отключить, "1" — включить)
 const VseStroki_on_off = 0;
 

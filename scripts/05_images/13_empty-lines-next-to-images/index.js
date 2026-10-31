@@ -13,8 +13,9 @@
 // and, as the settings below say, an empty line between them is added or removed always, never,
 // or - the default - after a question for each (the line is shown, Да / Нет / Отмена). Last the
 // version of the file is raised with a line in the history, and a window gives the statistics.
-// The settings are the original's, with its values; another script may pass its own in
-// `ctx.args` (and `today`, YYYY-MM-DD, the date the history line takes; the tests do).
+// The settings are the original's, with its values (the user name excepted, below); another
+// script may pass its own in `ctx.args` (and `today`, YYYY-MM-DD, the date the history line
+// takes; the tests do).
 // The book is rebuilt as FictionBook Editor showed it (fbw_body: DIVs named by their FB2 element,
 // a P for every paragraph and empty line), every rule runs on that tree, and each edit goes to the
 // editor as it is made (`doc.replaceNode` / `removeNode` / `insertNode`; the book annotation and
@@ -26,7 +27,11 @@
 // - an edit FB2 does not allow there (a section left with a title alone, an empty line in a body
 //   or a poem) is not made and not counted; a container is dissolved in one step;
 // - a question shows the place by the selection instead of a coloured line; the "B mode" check
-//   and the refreshing of the pictures have no counterpart (scripts edit the book itself).
+//   and the refreshing of the pictures have no counterpart (scripts edit the book itself);
+// - the history line carries no user name, by the requester's decision (2026-10-31): the
+//   original's setting youName was «Зорро», a placeholder for the user's own name, and an empty
+//   name - what the setting holds here - is the original's own way to a line without one,
+//   "v.1.1 —  Скрипт: ... — (31.10.26)" (it also read a fbeUserName of its main.js).
 // The original's notice, kept as written (FR-029):
 //======================================
 //             «Пустые строки рядом с иллюстрациями»
@@ -68,8 +73,9 @@ const SETTINGS = {
   Version_on_off: 1,
   //  Добавлять, если не сделано ни одного исправления ("0" — отключить, "1" — включить)
   Vsegda_on_off: 0,
-  //   Имя используемое в добавленной записи (an empty name gives a line without a name):
-  youName: 'Зорро',
+  //   Имя используемое в добавленной записи (an empty name gives a line without a name; the
+  //   original's "Зорро" is left out by the requester's decision of 2026-10-31):
+  youName: '',
   /// Демонстрационный режим "Показать все строки" ("0" — отключить, "1" — включить)
   VseStroki_on_off: 0,
 };

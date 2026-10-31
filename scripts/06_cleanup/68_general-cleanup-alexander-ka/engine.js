@@ -15,7 +15,10 @@
 //   the texts of the dialogs and of the result window are English in the English interface (tx);
 //   the proverb the result window ended with is left out, and its list (Kn) is not in the package,
 //     until the requester decides (conversion brief, "Proverbs"); the dashed line before it is
-//     shown only when the line of a holiday, a countdown or a wish follows it (Prazdniki).
+//     shown only when the line of a holiday, a countdown or a wish follows it (Prazdniki);
+//   the setting youName is "" instead of the placeholder "Зорро", by the requester's decision
+//     (2026-10-31): a history entry (Version_on_off = 1) has no name, as the comment under the
+//     setting describes.
 import { jscriptRegExp } from './lib/jscript-regexp.js';
 
 export async function Run(ctx, host) {
@@ -53,7 +56,7 @@ export async function Run(ctx, host) {
  var Vsegda_on_off = 0;      // 0 ; 1 //      ("0" — отключить, "1" — включить)
 
 //   Имя используемое в добавленной записи:
- var youName = "Зорро";
+ var youName = "";
 
 //  * Можно использовать почти любые символы. Исключения:   |  "  |  \  |    Но и любой из этих знаков можно добавить, если поставить перед ним наклонную черту ("\"), например: "\\" = "\"
 //  ** Или можно оставить эти кавычки пустыми (""), тогда строка в истории будет без имени.

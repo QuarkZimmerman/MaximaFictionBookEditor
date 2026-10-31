@@ -12,8 +12,10 @@
 // (lib/fbe-dom.js); the history line's date is today's, or the date a calling script passes as
 // { today: "YYYY-MM-DD" } (the snapshot suite does, for a stable result).
 // Differences: a subtitle of a dissolved stanza that ends up in an epigraph becomes a paragraph
-// (FB2 allows no subtitle there; the original left it); the name of main.js's fbeUserName is not
-// read (there is no main.js): the history line is signed «Зорро», as the settings say.
+// (FB2 allows no subtitle there; the original left it); the history line has no user name, by
+// the requester's decision (2026-10-31): youName is empty, the original's own way to a line
+// without a name (its «Зорро» was a placeholder; main.js's fbeUserName is not read, there is no
+// main.js).
 // The original's notice, kept as written (FR-029):
 //======================================
 //             «Расформатирование всех стихов»
@@ -38,7 +40,8 @@ import { jscriptRegExp as jre } from './lib/jscript-regexp.js';
 const Add_emptyLine_on_off = 1; // 0 ; 1 // ("0" — никогда не добавлять, "1" — всегда добавлять)
 const Version_on_off = 1; // 0 ; 1 // ("0" — отключить, "1" — включить)
 const Vsegda_on_off = 0; // 0 ; 1 // ("0" — отключить, "1" — включить)
-const youName = 'Зорро';
+// Empty: a history line without a name (the original's "Зорро" left out, 2026-10-31).
+const youName = '';
 
 const ScriptName = '«Расформатирование всех стихов»';
 const NumerusVersion = '1.5';

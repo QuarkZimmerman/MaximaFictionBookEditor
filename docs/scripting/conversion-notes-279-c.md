@@ -633,6 +633,17 @@ takes its settings and data from `ctx.args` when another script runs it, with `t
 (YYYY-MM-DD) as the date it takes as today, so that a history line does not depend on the day of
 the test run. Snapshots: `tests/scripts/snapshots/22/` (23), listed in its `suite.json`.
 
+**The user name.** 2.7.9's packages wrote their history line under the setting `youName`, «Зорро»
+as shipped, the placeholder for the user's own name. By the requester's decision (2026-10-31) the
+line has no name: `youName` is empty in all seven packages, the original's own way to a line
+without one (`textYouName` then lacks the name and the ", " after it, the rest of the line is the
+original's), and a recent line is extended only when it ends "— <date>". The reference books'
+history lines that stand for the same user's earlier lines (`templates.fb2`, `edit-description.fb2`,
+`edit-description-history.fb2`) lost the name too, so that the runs that extend a recent line
+still do; 21 of the 23 snapshots were re-recorded for the decision (each differs in its history
+lines only; `.repeat.xml` and `.automatic-dates.xml` stay). The document author «Зорро» of the books
+(a `<nickname>` of `<document-info>`) is book data and stays.
+
 ### 00 Изменить дескрипшен - исходный шаблон
 
 Package `scripts/22_description/00_change-description-source-template`, id
@@ -661,10 +672,11 @@ same order and the same use of `k`:
 - an annotation line goes after an empty line separating it from the book's text, or makes the
   annotation when that is empty, and is not added a second time;
 - the history line goes into the last empty line or a new one, and is not added a second time;
-- *HistoryChange* updates the line of the last ten days that ends with "— name, date". It puts
-  the text in front of "Скрипт" or after a full stop, and the date becomes today's. Without such
-  a line it raises the version (1.3 → 1.4, 7 → 7.1, empty → 1.0 → 1.1), adds "v.<old> — ?" when
-  the history does not mention the old version, and adds "v.<new> —  <text> — <name>, <date>".
+- *HistoryChange* updates the line of the last ten days that ends with "— date" ("— name, date"
+  when a name is set; the shipped name is empty, see above). It puts the text in front of
+  "Скрипт" or after a full stop, and the date becomes today's. Without such a line it raises the
+  version (1.3 → 1.4, 7 → 7.1, empty → 1.0 → 1.1), adds "v.<old> — ?" when the history does not
+  mention the old version, and adds "v.<new> —  <text> — <date>".
 
 The expressions that tested a line's HTML (the empty-line tests `reELine`, `reELine_ex`) run
 verbatim on the line in the IE page's notation. The history lines are edited in the notation of
@@ -686,21 +698,21 @@ verbatim on the line in the IE page's notation. The history lines are edited in 
   - `<src-title-info>` is created with John Smith, "Original Title" and en;
   - the document author becomes Новый Верстальщик;
   - the source URL is http://new.example only;
-  - the history line "v.1.4 — Правка по шаблону <тест> — Зорро" is added;
+  - the data's history line "v.1.4 — Правка по шаблону <тест> — Зорро" (its own text) is added;
   - the publisher, year 2026 and sequence "Серия издательства" without a number are set;
   - one custom-info "template" with two lines is left.
 - `.add-history.xml` (test package 02, ChangeAuthor = 1, Version_on_off = 1, today
   2026-10-31): the document author Зорро (there already) is skipped and Новый Верстальщик is
   added. The keywords and the language equal the book's, so they are not reported. No history
   line of the last ten days exists (20.10.2026 is older), so the version becomes 1.4, "v.1.3" is
-  in the history, and the line "v.1.4 —  Общая правка — Зорро, 31.10.2026" is added (the
-  double space is the original's).
-- `.history-line.xml` (test package 03, today 2026-10-25): "v.1.3 — Вычитка — Зорро,
-  20.10.2026" is within ten days and becomes "v.1.3 — Вычитка. Общая правка — Зорро,
-  25.10.2026". The version stays.
+  in the history, and the line "v.1.4 —  Общая правка — 31.10.2026" is added (the double space is
+  the original's).
+- `.history-line.xml` (test package 03, today 2026-10-25): "v.1.3 — Вычитка — 20.10.2026" is
+  within ten days and ends "— <date>"; reHist02 adds the full stop, reHist03 the text, and the
+  date becomes today's: "v.1.3 — Вычитка. Общая правка — 25.10.2026". The version stays.
 - `.clear.xml` (test package 04, ClearAnnotation = ClearHistory = ChangeID = 0, Version_on_off
   = 1): the annotation is only "Только <sup>новая</sup> строка". The id is new (elided in the
-  snapshot). The history is emptied, then gets "v.1.3 — ?" and "v.1.4 —  Общая правка — Зорро,
+  snapshot). The history is emptied, then gets "v.1.3 — ?" and "v.1.4 —  Общая правка —
   31.10.2026". The version is 1.4.
 - `.repeat.xml` (test package 06 on `templates-repeat.fb2`): the annotation lines "Роман (1990)
   о **главном**.", an empty line, "Издание [второе] + исправленное?" and the history line
@@ -714,7 +726,9 @@ verbatim on the line in the IE page's notation. The history lines are edited in 
 - The work is done on the document's description, as described above.
 - The reminder about the caret in a text field of the Description form (Napominanie) is gone. It
   guarded against a crash of FictionBook Editor that this editor does not have.
-- main.js's global `fbeUserName` is not read, since there is no main.js.
+- The history line has no user name, by the requester's decision (2026-10-31): `youName` is
+  empty (2.7.9's default was the placeholder «Зорро»). main.js's global `fbeUserName` is not
+  read, since there is no main.js.
 - A language code is written as given; FictionBook Editor's list box took only the codes of its
   list.
 - A sequence number that is not an integer is left out (the model holds integers only).
@@ -822,7 +836,8 @@ It then applies its automatic operations:
 - a partly filled `<src-title-info>` gets the genres and the language of `<title-info>`.
 
 Last, it removes the body, raises the version with the line "v.<new> —  Скрипт:
-«Редакция описания документа» 1.1 — <name>, <date>" (or updates the line of the last ten days),
+«Редакция описания документа» 1.1 — <date>" (no user name: the requester's decision of
+2026-10-31, see the group's introduction; or it updates the line of the last ten days),
 and shows what changed (2.7.9 added a proverb under the results; see the differences). With
 Pause = 0 both steps run in one go, with nothing shown in the body: the automatic clean-up alone.
 
@@ -870,7 +885,7 @@ code:
   - custom-info "note" with the lines trimmed and the run of empty lines made one, and a new
     "added";
   - version 1.4 and the history line "v.1.4 —  Скрипт: «Редакция описания документа» 1.1 —
-    Зорро, 31.10.2026"; the body is removed.
+    31.10.2026" (no user name, see the group's introduction); the body is removed.
 - `.two-steps-stop.xml` (the same, answer Yes): only the title was written before the stop. The
   version is raised with the history line, and the body stays, as in 2.7.9.
 - `.automatic.xml` (test package 08, Pause = 0):
@@ -901,17 +916,16 @@ code:
   calls imperfect), "Ли | Бо", "Иван | Петрович | Сидоров | Ник: Ваня" (a person of its own,
   because of the nickname) and "Жюль Верн | Почта: verne@example.com".
 - `.history-line.xml` (test package 13, Pause = 0, today 2026-10-25): as `.automatic.xml`, but
-  "v.1.3 — Вычитка — Зорро, 20.10.2026" is within ten days. It becomes "v.1.3 — Вычитка. Скрипт:
-  «Редакция описания документа» 1.1 — Зорро, 25.10.2026" (";" added and then made "." with
-  "Скрипт:", then the name and the date), and the version stays 1.3.
+  "v.1.3 — Вычитка — 20.10.2026" is within ten days and ends "— <date>". It becomes "v.1.3 —
+  Вычитка. Скрипт: «Редакция описания документа» 1.1 — 25.10.2026" (";" added and then made "."
+  with "Скрипт:", then the name and the date), and the version stays 1.3.
 - `.history-scripts.xml` (test package 14 on `edit-description-history.fb2`, Pause = 0, Vsegda_on_off
-  = 1, today 2026-10-25): "v.1.0 — Скрипт: Почистить структуру 3.14 — Зорро, 24.10.2026" becomes
-  "v.1.0 — Скрипты: Почистить структуру 3.14; «Редакция описания документа» 1.1 — Зорро,
-  25.10.2026".
+  = 1, today 2026-10-25): "v.1.0 — Скрипт: Почистить структуру 3.14 — 24.10.2026" becomes
+  "v.1.0 — Скрипты: Почистить структуру 3.14; «Редакция описания документа» 1.1 — 25.10.2026".
 - `.history-version.xml` (test package 15 on `edit-description-auto.fb2`, Pause = 0, Vsegda_on_off
   = 1): the automatic clean-up of `.automatic-dates.xml` without sorting and with DelLang = 1. The
   book has no history, so the version becomes 2.1 with "v.2.0 — ?" and "v.2.1 —  Скрипт:
-  «Редакция описания документа» 1.1 — Зорро, 31.10.2026".
+  «Редакция описания документа» 1.1 — 31.10.2026".
 
 **Differences.**
 - The description is the document's and the body is a body of the book.
@@ -926,7 +940,8 @@ code:
   selected, not coloured.
 - The reminder (Napominanie), the setting for the window's height (Vysota_teksta) and the
   window's pages are gone; the message box scrolls.
-- main.js's `fbeUserName` is not read.
+- The history line has no user name, by the requester's decision (2026-10-31): `youName` is empty
+  (2.7.9's default was the placeholder «Зорро»). main.js's `fbeUserName` is not read.
 - The results show no proverb: left out pending the requester's decision. 2.7.9 closed the
   window with a random saying from its own list of wartime proverbs, which is not in the package.
 - Fields that the text does not hold come back for the names left unchanged: a translator's or
@@ -1373,7 +1388,7 @@ their runs in `tests/scripts/snapshots/chains/` and its `suite.json`; gate `test
 
 **The callees** (the merge re-runs `--group chains` after the rechecks): 05/empty-lines-near-images,
 05/remove-all-binaries, 05/unify-binaries, 05/remove-unused-binaries, 05/remove-image-tags,
-06/remove-styles-and-ids, 06/general-cleanup, 06/unformat-empty-links, 06/external-links-to-plain-text,
+06/remove-styles-and-ids, 06/general-cleanup, 06/unformat-empty-links, 06/external-links-to-text,
 06/remove-fbd-bookmark-links, 06/general-cleanup-alexander-ka, 08/structure-cleanup,
 13/subtitles-empty-lines-plain-titles, 13/remove-title-formatting, 14/paragraphs-to-cite,
 16/next-all-italic-paragraph, 16/next-all-bold-paragraph, 16/next-title, 16/next-epigraph, 16/next-cite,
@@ -1466,9 +1481,11 @@ Cancel; progress.
 
 `plain-text-auto-cleanup` (no number, as 2.7.9), `31/plain-text-auto-cleanup`, v1.3 (Sclex), 2.7.9 icon.
 A fixed list (the `apiRunCmd` form): `08/structure-cleanup`, `06/general-cleanup`,
-`06/remove-styles-and-ids`, `06/unformat-empty-links`, `06/external-links-to-plain-text`,
+`06/remove-styles-and-ids`, `06/unformat-empty-links`, `06/external-links-to-text` (17),
 `06/remove-fbd-bookmark-links`, `13/subtitles-empty-lines-plain-titles` (528),
-`13/remove-title-formatting` (529), `06/general-cleanup-alexander-ka` (68), all by their 2.7.9 paths.
+`13/remove-title-formatting` (529), `06/general-cleanup-alexander-ka` (68), all by their 2.7.9 paths
+(17's is the `legacy.source` of `06/external-links-to-text` since the requester's decision of
+2026-10-31, which made 2.7.9's 17 the later version of that package; see group 06).
 **Fix:** the original names 529 as `529_Удаление жирности и курсива в заголовках и подзаголовках.js`,
 its name before version 2.0 (its history: "Изменено имя скрипта (было «Удаление жирности/курсива в
 заголовках и подзаголовках»)"); 2.7.9's file is `529_Удалить форматирование в заголовках и

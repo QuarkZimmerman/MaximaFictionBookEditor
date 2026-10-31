@@ -9,7 +9,9 @@
 //   the date of the history entry is host.now() (the clock, or the date a calling script passes);
 //   the texts of the dialogs and of the result window are English in the English interface (tx);
 //   the proverb the result window ended with, and the dashed line before it, are left out, and its
-//     list (Kn) is not in the package, until the requester decides (conversion brief, "Proverbs").
+//     list (Kn) is not in the package, until the requester decides (conversion brief, "Proverbs");
+//   the setting youName is "" instead of the placeholder "Зорро", by the requester's decision
+//     (2026-10-31): the history line has no name, as the comment under the setting describes.
 // The history entry the script writes into the book stays Russian, as in the original.
 import { jscriptRegExp } from './lib/jscript-regexp.js';
 
@@ -53,7 +55,7 @@ export async function Run(ctx, host) {
  var Vsegda_on_off = 0;      // 0 ; 1 //      ("0" — отключить, "1" — включить)
 
 //   Имя используемое в добавленной записи:
- var youName = "Зорро";
+ var youName = "";
 
 //  * Для записи имени можно использовать почти любые символы.
 //     Исключения:   |  "  |  \  |    Но и любой из этих знаков можно добавить, если поставить перед ним наклонную черту ("\"), например: "\\" = "\"

@@ -1156,10 +1156,20 @@ text in a block / picture, with or without an empty line between; text + picture
 per the settings (0 remove, 1 add, 2 ask - the default -, 3 leave) the empty line between them is
 added or removed: in mode 2 after a summary question ("• НАЙДЕНО … Продолжить?"), one question per
 place (Да keeps the added line / removes the existing one, Нет the opposite, Отмена ends that
-kind). Last the version of the file is raised with a line in the history (on by default; the name
-"Зорро"), or a recent line of the history (within 10 days) is extended, and a window gives the
-statistics. The settings are constants of the script; a script that runs it may pass its own in
-`ctx.args`, with `today` (YYYY-MM-DD) for the history date.
+kind). Last the version of the file is raised with a line in the history (on by default; no user
+name, by the requester's decision of 2026-10-31), or a recent line of the history (within 10 days)
+is extended, and a window gives the statistics. The settings are constants of the script; a
+script that runs it may pass its own in `ctx.args`, with `today` (YYYY-MM-DD) for the history date.
+**The user name.** The original's setting `youName` was «Зорро», the placeholder for the user's
+own name (and it also read a `fbeUserName` of its main.js). By the requester's decision
+(2026-10-31) the history line has no name: `youName` is `''`, the original's own way to a line
+without one ("Или можно оставить кавычки пустыми (""), тогда строка в истории будет без имени"),
+which drops the name and the ", " after it and keeps the rest of the line: `… — (10.11.26)` where
+the placeholder gave `… — (Зорро, 10.11.26)`; a recent line is extended only when it ends
+`— (<date>)`. The reference book's recent line became `Правка — (25.10.26)` (was
+`Правка — (Зорро, 25.10.26)`), the same user's line without a name, so that the runs dated
+2026-10-31 still extend it; the four chain snapshots below were re-recorded for the decision
+(each differs in its history lines only), the direct run's stays.
 Expected and obtained on `empty-lines.fb2` (`chain-empty-lines-keep.xml`, settings 3, date
 2026-11-10): annotation - the empty line and the line of a space go (121, 123); section 1 - the
 empty line after the title (124), the first of two (121); 2 - "   " and an italic space emptied
@@ -1169,12 +1179,14 @@ picture and a space becomes `<p>` with the bare picture (112, 113), the bold pic
 dissolved (112, 114), the poem around a verse of a picture dissolved with its stanza (114 ×2);
 5 - the empty line between the picture and the section's end removed (212); 6 - empty lines
 inserted between the poem and the picture and the picture and the table (221 ×2); 7-10 unchanged;
-version 1.0 → 1.1 and "v.1.1 —  Скрипт: «Пустые строки рядом с иллюстрациями» 2.1 — (Зорро,
-10.11.26)" appended (1.0 is mentioned already); statistics 17 block pictures, 5 picture lines,
-22 corrections. `chain-empty-lines-auto-add.xml` (settings 1, date 2026-10-31): 25 empty lines
-added - after the pictures of kinds 001-006 (12), before those of 021-026 (12), after the picture
-before a picture (007) -, and the recent line "Правка — (Зорро, 25.10.26)" becomes "Правка; Скрипт:
-«Пустые строки рядом с иллюстрациями» 2.1 — (Зорро, 31.10.26)", the version unchanged.
+version 1.0 → 1.1 and "v.1.1 —  Скрипт: «Пустые строки рядом с иллюстрациями» 2.1 — (10.11.26)"
+appended after the book's "Правка — (25.10.26)" (16 days old; 1.0 is mentioned already);
+statistics 17 block pictures, 5 picture lines, 22 corrections. `chain-empty-lines-auto-add.xml`
+(settings 1, date 2026-10-31): 25 empty lines added - after the pictures of kinds 001-006 (12),
+before those of 021-026 (12), after the picture before a picture (007) -, and the recent line
+"Правка — (25.10.26)" becomes "Правка; — (25.10.26)" (reHist01), "Правка; Скрипт: — (25.10.26)"
+(reHist02), "Правка; Скрипт: «Пустые строки рядом с иллюстрациями» 2.1 — (25.10.26)" (reHist03) and
+takes today's date: "… 2.1 — (31.10.26)", the version unchanged.
 `chain-empty-lines-auto-remove.xml` (settings 0): 14 empty lines removed (011-016 after, 031-036
 before, 017). `chain-empty-lines-ask.xml` (settings 2, 34 answers): 33 questions in the derived
 order and counts, the result as answered (e.g. section 7: lines kept after n76, n83, n85, n87 and
@@ -1185,9 +1197,9 @@ Differences: the result window shows no proverb - left out pending the requester
 original appended a random saying from its list of wartime proverbs; the list is not copied); an
 edit FB2 does not allow there is not made and not counted; a container is dissolved in one step;
 a question shows the place by the selection, not a coloured line; the "B mode" check and the
-refreshing of the pictures have no counterpart; the user name is the setting "Зорро" (the original
-also read a `fbeUserName` of its main.js). Open questions: restore the proverb of the result
-message? keep "Зорро" as the history line's default name?
+refreshing of the pictures have no counterpart; the history line has no user name, by the
+requester's decision (2026-10-31; the original's setting was the placeholder "Зорро", and it also
+read a `fbeUserName` of its main.js). Open question: restore the proverb of the result message?
 
 ### 15 Расставить иллюстрации по заданным местам 1.3, 15 Расставить иллюстрации по заданным местам
 
@@ -1611,10 +1623,12 @@ their dialogs set the answers of the snapshot); re-run the snapshot after the re
 
 ## 06_Чистка
 
-12 scripts are new in 2.7.9 and all 12 are converted (T050) into `scripts/06_cleanup/`, beside the
-16 packages converted from 2.7beta1 (`conversion-notes-b.md`), which are left as they are until
-their recheck. None needs a power beyond FR-024: the scripts only read and edit the book and ask
-the user.
+12 scripts are new in 2.7.9 by the pairing: 11 are converted (T050) into packages of their own in
+`scripts/06_cleanup/`, beside the 16 packages converted from 2.7beta1 (`conversion-notes-b.md`),
+which are left as they are until their recheck, and the 12th, 17, is the later version of the
+2.7beta1 package 17, which follows it (the requester's decision of 2026-10-31; see 17 in the
+recheck part below). None needs a power beyond FR-024: the scripts only read and edit the book and
+ask the user.
 
 **Where the originals worked.** FictionBook Editor showed the book as one HTML page whose editable
 part, `fbw_body`, held a div for the title-info annotation, one for the document-info history
@@ -1650,9 +1664,10 @@ looked only at bodies leaves them alone.
   `jscriptRegExp`, the host provides `document`, `window`, `AskYesNo` and `MsgBox`, the dialogs
   are awaited (so the functions that ask are `async`), `GoTo_0` selects instead of scrolling, the
   end of the undo unit commits, the long loops report progress, the history date comes from
-  `host.now()`, the dialog texts get English counterparts (`tx(ru, en)`), and the proverb that
-  ended the result window is left out, its list (`Kn`, from a collection of wartime proverbs) not
-  copied, until the requester decides.
+  `host.now()`, the dialog texts get English counterparts (`tx(ru, en)`), the proverb that ended
+  the result window is left out, its list (`Kn`, from a collection of wartime proverbs) not
+  copied, until the requester decides, and the setting `youName` is `""` instead of the placeholder
+  «Зорро», so a history entry has no user name (the requester's decision of 2026-10-31).
 
 **Reference books** (`tests/scripts/fixtures/279/06/`, all valid against `FictionBook.xsd`):
 `ids-styles-links.fb2` (17, 30, 35, 38, 40, 45, 50), `notes-sections.fb2` (55, 60), `numbers.fb2`
@@ -1660,7 +1675,7 @@ looked only at bodies leaves them alone.
 `general-cleanup-ask.fb2` (68); 40 and 45 also run on `tests/scripts/fixtures/books/marks-006.fb2`
 (the inline marks of feature 006). A schema-valid book has no body named `comments` (excluded by
 35, 40, 45 as in the originals, but not exercised) and no id on an empty line, a date, a title, a
-stanza or a table row (such an id stays, a recorded difference). **Snapshots:** `tests/scripts/snapshots/06/`, 19, listed
+stanza or a table row (such an id stays, a recorded difference). **Snapshots:** `tests/scripts/snapshots/06/`, 18, listed
 in `tests/scripts/snapshots/06/suite.json`. 71 writes today's date into the history, so its runs
 with corrections go through the test package `tests/scripts/fixtures/279/06/06_tests/
 71_cyrillic-latin-dated`, which runs `06/cyrillic-latin` through `mfbe.scripts.run` with
@@ -1668,33 +1683,6 @@ with corrections go through the test package `tests/scripts/fixtures/279/06/06_t
 result below was worked out from the original's code before the snapshot was recorded; for 68 a
 scratch copy that logs the operation counters changed on every paragraph confirmed which rules
 fired, each checked against its expression. Below, `\u00A0` stands for a non-breaking space.
-
-### 17 Превратить внешние ссылки в текст
-
-Package `scripts/06_cleanup/17_external-links-to-plain-text`, id `06/external-links-to-plain-text`,
-version 1.2 (Sclex).
-
-**What it does.** Removes, keeping the text, every link of the page (`document.links`: the
-annotation and the history included) whose address does not match `^ *?(file://|#)` or matches
-`# *https?:`, then reports the number in a message box (with Russian plural forms).
-
-**Conversion.** `stripMarks` over the text blocks of the page's parts. The original read
-`getAttribute("href")`, which in its page's IE7 document mode is the address resolved against
-`file:///.../main.html`; the conversion resolves the same way: `#id` becomes
-`file:///.../main.html#id`, an empty or relative address a `file://` one (kept), an absolute
-address stays.
-
-**Expected (ids-styles-links.fb2).** 8 links unformatted: `http://example.org/` in the annotation,
-`https://example.com/history` in the history, and in the last paragraph `http`, `https`,
-`mailto:`, `ftp:`, `#http://example.org/` and `# https://example.org/`; kept: `file:///C:/...`,
-`  #p1`, `""`, `other.fb2#x` and every `#id`. Snapshot `external-links-to-plain-text.xml`.
-
-**Differences.** A run of text carrying one link counts as one link.
-
-**Open questions.** If 2.7.9 had run in a later document mode (address as written), an empty or a
-relative address would be unformatted too. This file is the later version (v1.2) of 2.7beta1's
-*Превращение внешних ссылок в текст* (v1.0, `06/external-links-to-text`), as its header says, but
-the review recorded the old one as `noCounterpart`; both now stand at place 17 of the group.
 
 ### 30 Удалить id абзацев
 
@@ -1914,9 +1902,12 @@ proposal); the word is selected instead of coloured; italic and bold together ar
 bold outside (the editor does not keep the source nesting), so 215/216 may count work the
 original did not do, with the same text; the result window shows no proverb: left out pending the
 requester's decision (the dashed line that led into it is shown only before the line of a
-holiday, a countdown or a wish). **Open questions:** restore the proverb of the result message?
-The settings at the top stay as written; a user copies the package to change them, as one edited
-the script in FictionBook Editor.
+holiday, a countdown or a wish); a history entry (only with `Version_on_off = 1`, off as shipped)
+has no user name, by the requester's decision (2026-10-31): `youName` is `""`, the original's own
+way to an entry without a name ("— <date>" where its placeholder «Зорро» gave "— Зорро, <date>"); no
+snapshot writes one, so none changed. **Open questions:** restore the proverb of the result
+message? The settings at the top stay as written, `youName` excepted; a user copies the package to
+change them, as one edited the script in FictionBook Editor.
 
 ### 71 Кириллица-латиница
 
@@ -1933,7 +1924,11 @@ document version and writes a line into the history when it corrected something.
 with the statistics and the date.
 
 **Conversion.** As 68: `engine.js` generated from the original, on `lib/fbe-page.js`. The history
-date comes from `{ today }` when a script passes it (the suite's runner), otherwise the clock.
+date comes from `{ today }` when a script passes it (the suite's runner), otherwise the clock. By
+the requester's decision (2026-10-31) the history line has no user name: `youName` is `""` (one more
+rewrite of the engine's list; 2.7.9's default was the placeholder «Зорро»), the original's own way to
+a line without a name, described under the setting ("Или можно оставить кавычки пустыми (""), тогда
+строка в истории будет без имени"); the rest of the line is the original's.
 
 **Expected.** `cyrillic-latin.fb2` (runner, answers Yes, `На`, `кто`, No): `Книга о Москве и
 Лондоне.` in the annotation (the `o` is replaced though the question did not list it: the question
@@ -1942,17 +1937,17 @@ the history, `В XIX и XX веках`, `Москва — Здесь, Он ск�
 `Дом а сад, кот с собакой. А потом`, `Глава X. Карл X, король.`, `На столе стоял кто-то.`, `Ho нет`
 kept (No) and therefore `Ho всё же На месте.` (no question: `Ho` remembered as skipped, `Ha` as
 replaced); version 1.1 and the new history line `v.1.1 —  Скрипт: «Кириллица-латиница» 1.6 —
-(Зорро, 10.05.25)`; statistics 12 lines checked, 9 corrected. With Cancel at the first word the
-two lines with `Ha` stay. `cyrillic-latin-none.fb2` (direct run, No to both): unchanged, no
-history line. Snapshots `cyrillic-latin.xml`, `cyrillic-latin.cancel.xml`,
-`cyrillic-latin.none.xml`.
+(10.05.25)`; statistics 12 lines checked, 9 corrected. With Cancel at the first word the two lines
+with `Ha` stay. `cyrillic-latin-none.fb2` (direct run, No to both): unchanged, no history line.
+Snapshots `cyrillic-latin.xml`, `cyrillic-latin.cancel.xml` (both re-recorded for the decision:
+their new history line was `… — (Зорро, 10.05.25)`; nothing else changed), `cyrillic-latin.none.xml`.
 
 **Differences.** Yes with an emptied text counts as No; the word is selected instead of framed and
 coloured (the question still speaks of red characters); the result window shows no proverb: left
-out pending the requester's decision; a calling script may fix the history date.
-**Open questions:** restore the proverb of the result message? The history line names the user
-"Зорро", the original's default; FictionBook Editor users changed it in the script or in
-`main.js`.
+out pending the requester's decision; a calling script may fix the history date; the history line
+has no user name (the requester's decision of 2026-10-31; 2.7.9's default was the placeholder
+"Зорро", which FictionBook Editor users changed in the script or in `main.js`).
+**Open question:** restore the proverb of the result message?
 
 ### The regular expressions (JScript and JavaScript)
 
@@ -1984,7 +1979,7 @@ The originals ran in JScript 5.8 (the WebBrowser control's IE7 document mode: no
 
 ```bash
 export MFBE_CORE_BIN=... MFBE_UI_DIST=...
-tests/scripts/run-all.sh --group 06        # every snapshot of the group, the 19 of snapshots/06/suite.json among them
+tests/scripts/run-all.sh --group 06        # every snapshot of the group, the 18 of snapshots/06/suite.json among them
 F=tests/scripts/fixtures/279/06; S=tests/scripts/snapshots/06; G=scripts/06_cleanup
 node tests/scripts/run-script.mjs $G/45_remove-unreferenced-ids-and-styles $F/ids-styles-links.fb2 --snapshot $S/remove-unreferenced-ids-and-styles.xml
 node tests/scripts/run-script.mjs $G/65_fractions-powers-ranges-sizes $F/numbers.fb2 --select n6:0:0 --answer "м<sup>2</sup>" --answer "" ... --snapshot $S/fractions-powers-ranges-sizes.xml
@@ -1996,24 +1991,24 @@ The complete arguments of every run are in `tests/scripts/snapshots/06/suite.jso
 
 No script of the group is left unconverted.
 
-27 scripts in 2.7.9: 15 are successors of the 16 packages converted from 2.7beta1 (task T078,
+27 scripts in 2.7.9: 16 are successors of the 16 packages converted from 2.7beta1 (task T078,
 recheck of `scripts/06_cleanup/`; the 2.7beta1 conversion is in conversion-notes-b.md, group
-06), 12 are new (T050, conversion-notes-279-a.md). Outcomes: 10 updated (02, 04, 05, 06, 07, 08,
-10, 12, 19, 20), 5 unchanged (03, 14, 15, 16, 21), 1 without a 2.7.9 counterpart of its own and
-kept as it is (17; FR-027). The ids and folders are unchanged.
+06), 11 are new (T050, conversion-notes-279-a.md). Outcomes: 11 updated (02, 04, 05, 06, 07, 08,
+10, 12, 17, 19, 20), 5 unchanged (03, 14, 15, 16, 21). The ids and folders are unchanged.
 
-**Names and icons.** `name.ru` and `undoLabel.ru` are the 2.7.9 file names; 12, 15, 16, 19, 20
-and 21 were renamed there, and their English names follow. Every package gained `name.uk` and
-`description.uk`. 2.7.9 has an icon of its own for 15 (a new one), 16, 19 and 20 (none before):
-the packages carry them, converted with the audit tool's `ico_to_png` as the skeletons were (16's
-is 2.7beta1's icon of 15, as in 2.7.9).
+**Names and icons.** `name.ru` and `undoLabel.ru` are the 2.7.9 file names; 12, 15, 16, 17, 19,
+20 and 21 were renamed there, and their English names follow. Every package gained `name.uk` and
+`description.uk`. 2.7.9 has an icon of its own for 15 (a new one), 16, 17, 19 and 20 (none
+before): the packages carry them, converted with the audit tool's `ico_to_png` as the skeletons
+were (16's is 2.7beta1's icon of 15, as in 2.7.9).
 
 **Origin.** The updated packages name their 2.7.9 original in `legacy` and keep its notice in
 `index.js`. Their `sourceVersion` is the version the script states and shows: `VersionNumber`
-(02 2.7, 04 2.3, 05 3.3, 07 2.3, 08 1.8, 10 2.6, 12 1.3), `versionStr` (06 4.5) or the dialog's
-version (19, 20: 1.5). The inventory has the first line of the change log for 04, 05, 07, 08 and
-10 (1.2, 1.1, 1.1, 1.2, 1.1: the audit's patterns do not know `VersionNumber`) and none for 06,
-12, 19 and 20; the group's record carries the right values. The unchanged packages and 17 keep
+(02 2.7, 04 2.3, 05 3.3, 07 2.3, 08 1.8, 10 2.6, 12 1.3), `versionStr` (06 4.5), the dialog's
+version (19, 20: 1.5) or the header's «Версия» (17 1.2). The inventory has the first line of the
+change log for 04, 05, 07, 08 and 10 (1.2, 1.1, 1.1, 1.2, 1.1: the audit's patterns do not know
+`VersionNumber`) and none for 06, 12, 19 and 20; the group's record carries the right values. 17
+is the one updated package with `legacy.aliases`: its 2.7beta1 path. The unchanged packages keep
 their 2.7beta1 `legacy` (`fbeVersion` "2.7").
 
 **JScript's \s and .** The updated packages whose expressions come from their original (02, 04,
@@ -2029,14 +2024,15 @@ do, converted in T050); "Курске" in 10 is a proper name of its dictionary.
 
 **Reference books** (new, `tests/scripts/fixtures/279/06/`, valid against `FictionBook.xsd`):
 `general-cleanup-279.fb2` (02), `interactive-279.fb2` (04, 10), `paragraph-breaks.fb2` (06),
-`win1252.fb2` (19, 20). **Snapshots:** 9 added in `tests/scripts/snapshots/06/` and its
-`suite.json`, 1 re-recorded (`general-cleanup.conv-b-06.xml`); every other snapshot of the 16
-packages passes unchanged. Each expected result was worked out from the 2.7.9 original before the
-run. For 02 a scratch oracle ran the original's own `HandleP` (read from the 2.7.9 file and
-executed with JScript's `\s` and `.`) on every block of `conv-b-06.fb2`, `marks-006.fb2` and
-`general-cleanup-279.fb2`: the package's rules give the same HTML and the same counters on every
-block, and the snapshots equal the oracle's result; run on 2.7beta1's file, the oracle also gives
-the old `conv-b-06` snapshot, block for block.
+`win1252.fb2` (19, 20); 17 runs on T050's `ids-styles-links.fb2`. **Snapshots:** 10 in
+`tests/scripts/snapshots/06/suite.json` (9 added, and 17's `external-links-to-text.279.xml`,
+recorded in T050 for the package 17 absorbed), 1 re-recorded (`general-cleanup.conv-b-06.xml`);
+every other snapshot of the 16 packages passes unchanged. Each expected result was worked out from
+the 2.7.9 original before the run. For 02 a scratch oracle ran the original's own `HandleP` (read
+from the 2.7.9 file and executed with JScript's `\s` and `.`) on every block of `conv-b-06.fb2`,
+`marks-006.fb2` and `general-cleanup-279.fb2`: the package's rules give the same HTML and the same
+counters on every block, and the snapshots equal the oracle's result; run on 2.7beta1's file, the
+oracle also gives the old `conv-b-06` snapshot, block for block.
 
 ### 02 Генеральная уборка
 
@@ -2245,26 +2241,61 @@ icon is 2.7.9's new one. Snapshot `dot-dash-letter.conv-b-06.xml` stays.
 lower-case letter (without searching for ellipses)...*, uk *Крапка, тире, літера в нижньому регістрі
 (без пошуку трикрапок)...* Snapshot `dot-dash-letter-no-ellipsis.conv-b-06.xml` stays.
 
-### 17 Превращение внешних ссылок в текст
+### 17 Превратить внешние ссылки в текст
 
-`scripts/06_cleanup/17_external-links-to-text`, id `06/external-links-to-text`: **no 2.7.9
-counterpart** by the pairing review (T019, `pairing-overrides-279.json`: null), kept as converted
-(FR-027; inventory entry `fbeVersion` "2.7"). Gained uk *Перетворення зовнішніх посилань на текст*;
-code, name and undo label unchanged. Snapshot `external-links-to-text.conv-b-06.xml` stays.
+`scripts/06_cleanup/17_external-links-to-text`, id `06/external-links-to-text`: **updated** from
+version 1.0 (2.7beta1's *17_Превращение внешних ссылок в текст.js*) to 1.2 (Sclex), by the
+requester's decision (2026-10-31). 2.7.9's *17_Превратить внешние ссылки в текст.js* is this
+script's later version: its header names the same script («Превращение внешних ссылок в текст»,
+version 1.2), it stands at the same place 17, and it keeps the expression `^ *?(file://|#)` and the
+loop over `document.links`. The pairing review had recorded the 2.7beta1 file without a 2.7.9
+counterpart (T019) and T050 had converted the 2.7.9 file as a package of its own,
+`06/external-links-to-plain-text`; that package, never released, is gone, its conversion and its
+snapshot now this package's, and the id stays (FR-028).
 
-**Open question (for the requester).** 2.7.9's *17_Превратить внешние ссылки в текст.js*, converted
-in this feature as `06/external-links-to-plain-text`, is this script's later version: its header
-names the same script («Превращение внешних ссылок в текст», Sclex, version 1.2 against 1.0), it
-stands at the same place 17, and it keeps the undo label, the expression `^ *?(file://|#)` and the
-loop over `document.links`; it adds the links whose address holds "#http:" or "#https:" (the
-expression `# *https?:`) and a message with the count. Under the recheck rules this package would
-follow it - status updated, id kept (FR-028) - and `06/external-links-to-plain-text`, never
-released, would leave the menu, its conversion and its snapshot becoming this package's; one entry
-would then stand at place 17, under 2.7.9's name, and 2.7.9's *Автоматическая чистка простых
-текстов*, which runs `06_Чистка\17_Превратить внешние ссылки в текст.js`, would reach it through
-`legacy.source`. That reverses a recorded review decision (and T078's wording) and removes a package
-of T050, and the rules allow one entry only by dropping one of the two converted packages; so
-nothing was changed, and both stay at place 17 until the requester decides.
+**What 2.7.9 changed.** Links whose address holds "#http:" or "#https:" (spaces allowed after the
+"#": the expression `# *https?:`) are unformatted too, and a message box reports the count with
+Russian plural forms ("Была превращена в простой текст 1 ссылка.", "Были превращены … 3 ссылки.",
+"Было превращено … 8 ссылок."; "В документе не нашлось ни одной ссылки, подлежащей
+расформатированию." when there is none; English "1 link was turned into plain text." / "8 links
+were turned into plain text." / "The document has no link to unformat."), where the 2.7beta1
+conversion showed the count in the status bar.
+
+**Conversion.** T050's conversion of 1.2, taken unchanged: `stripMarks` over the text blocks of the
+page's parts (`lib/book.js`), the edits written back by `Changes` (`doc.replaceNode`, the
+description with `doc.setDescription`), 2.7.9's names, descriptions, undo label, icon and notice.
+Beyond 2.7.9's two changes it differs from the 2.7beta1 conversion where that one differed from the
+original: it walks the title-info annotation and the document-info history too (the original's
+`document.links` covered the whole page; the 2.7beta1 conversion looked at the bodies only); it
+reads the address as the original's `getAttribute("href")` gave it in the page's IE7 document
+mode, resolved against `file:///.../main.html` - `#id` becomes `file:///.../main.html#id`, an empty
+or a relative address a `file://` one, so these are kept (the 2.7beta1 conversion unformatted them;
+06/50 unformats the empty ones); and a mark the previous inline node did not carry counts as one
+link, inline pictures and inline raw XML included. `name.ru` and `undoLabel.ru` *Превратить
+внешние ссылки в текст* (2.7.9's file name), en *Turn external links into plain text*, uk
+*Перетворити зовнішні посилання на текст*. `legacy`: `source` `06_Чистка/17_Превратить внешние
+ссылки в текст.js`, `fbeVersion` "2.7.9", `sourceVersion` "1.2", `aliases`
+`["06_Чистка/17_Превращение внешних ссылок в текст.js"]`, so `mfbe.scripts.run` finds it by both
+paths (a scratch driver ran it by both paths and by its id; `06/external-links-to-plain-text` is
+unknown). 2.7.9's *Автоматическая чистка простых текстов* (31) runs it by its 2.7.9 path.
+
+**Expected and snapshots.** `ids-styles-links.fb2`, snapshot `external-links-to-text.279.xml`
+(T050's `external-links-to-plain-text.xml`, renamed after the id it now belongs to; in
+`snapshots/06/suite.json`): 8 links unformatted - `http://example.org/` in the annotation,
+`https://example.com/history` in the history, and in the last paragraph `http`, `https`,
+`mailto:`, `ftp:`, `#http://example.org/` and `# https://example.org/`; kept: `file:///C:/...`,
+`  #p1`, `""`, `other.fb2#x` and every `#id`; the message "8 links were turned into plain text.".
+It passes unchanged. `conv-b-06.fb2`, snapshot `external-links-to-text.conv-b-06.xml` (2.7beta1's,
+in `snapshots/suite.json`): the book's links are `http://example.com/` (unformatted), `#_ftn1`,
+`file:///tmp/x` and the notes' `#_ftnref1` (kept), and it has no annotation or history, so 1.2
+gives the book 1.0 gave: the snapshot stays as recorded (the run now ends with the message "1 link
+was turned into plain text."). The two runs are on different books, so neither duplicates the
+other.
+
+**Differences.** A run of text that carries one link counts as one link.
+
+**Open question.** Had 2.7.9 run in a later document mode (the address as written), an empty or a
+relative address would be unformatted too.
 
 ### 19 Символы win-1252, истолкованные как win-1251 ('cafй' и т.п.) (поиск отдельных букв)...
 
@@ -2320,9 +2351,10 @@ style*): **unchanged** (the same code). Renamed: ru and undo label *Удалит
 
 ```bash
 export MFBE_CORE_BIN=... MFBE_UI_DIST=...
-tests/scripts/run-all.sh --group 06      # every snapshot of the group, the 9 added ones of snapshots/06/suite.json among them
+tests/scripts/run-all.sh --group 06      # every snapshot of the group, the 10 of the recheck in snapshots/06/suite.json among them
 G=scripts/06_cleanup; F=tests/scripts/fixtures/279/06; S=tests/scripts/snapshots/06; NB=$'\xc2\xa0'
 node tests/scripts/run-script.mjs $G/02_general-cleanup tests/scripts/fixtures/books/conv-b-06.fb2 --snapshot $S/general-cleanup.conv-b-06.xml   # re-recorded with --update
+node tests/scripts/run-script.mjs $G/17_external-links-to-text $F/ids-styles-links.fb2 --snapshot $S/external-links-to-text.279.xml
 node tests/scripts/run-script.mjs $G/02_general-cleanup $F/general-cleanup-279.fb2 --snapshot $S/general-cleanup.279.xml
 node tests/scripts/run-script.mjs $G/04_surname-initials $F/interactive-279.fb2 --select n5:0:0 --answer "Пётр${NB}I" --answer "Карл${NB}XII" --snapshot $S/surname-initials.279.xml
 node tests/scripts/run-script.mjs $G/06_guided-paragraph-breaks $F/paragraph-breaks.fb2 --answer '{"case1":"10","case2":"9","case3":"9","case4":"6","case5":"12","case6":"1","case7":"1"}' --snapshot $S/guided-paragraph-breaks.auto.xml
@@ -3089,11 +3121,18 @@ follows one (with the next empty line); the poem gets an empty line before it (u
 title or a subtitle) and after it (setting `Add_emptyLine_on_off = 1`); its leading empty lines go
 when it follows a title or subtitle, or come two in a row, its trailing ones when two in a row;
 the poem is dissolved. Verses become paragraphs. Then, with corrections made, the version is
-raised and the history gets a line (settings `Version_on_off = 1`, name «Зорро»; `lib/history-
+raised and the history gets a line (setting `Version_on_off = 1`, no user name; `lib/history-
 change.js`), and a result window shows the counts. The history line carries today's date; the
 snapshots run the script through the test package `fixtures/279/09/09_tests/40_unformat-all-poems-
 dated`, which passes `{ today: "2025-05-10" }` (the script takes the date from a calling script's
-`args.today`, otherwise from the clock).
+`args.today`, otherwise from the clock). **The user name.** 2.7.9's `youName` was «Зорро», the
+placeholder for the user's own name; by the requester's decision (2026-10-31) it is `''`, the
+original's own way to a line without a name ("** Или можно оставить эти кавычки пустыми (""), тогда
+строка в истории будет без имени"): the line ends `— (10.05.25)` where the placeholder gave
+`— (Зорро, 10.05.25)`, and a recent line is extended only when it ends `— (<date>)`. The recent line
+of `poems-history.fb2` became `… 1.5 — (8.05.25)` (was `… — (Зорро, 8.05.25)`), the same user's line
+without a name, so that both `.history` runs still extend it; the five snapshots of 40 and 42 that
+write a line were re-recorded for the decision (each differs in that line only).
 
 Reference book `poems.fb2`: a section with a poem with a title, an epigraph with its author, a
 stanza, a stanza starting with the subtitle «* * *», a text author and a date, between two
@@ -3107,25 +3146,28 @@ Expected (`unformat-all-poems.xml`, Yes, then OK): section 1: the paragraph, an 
 empty line after the title): «Строка.», «Ещё строка.», empty line, «Последняя строка.»; the cite:
 «Строка в цитате.», empty line, its text author; section 4: «Абзац.», empty line, «Заглавие»,
 empty line, «Строка с заглавием.», empty line, «Вторая строфа.». Version 1.1; the history gets
-«v.1.1 —  Скрипт: «Расформатирование всех стихов» 1.5 — (Зорро, 10.05.25)» (two spaces after the
-dash, as the original wrote it; no line for the old version, which the history mentions).
+«v.1.1 —  Скрипт: «Расформатирование всех стихов» 1.5 — (10.05.25)» (two spaces after the dash,
+as the original wrote it; no line for the old version, which the history mentions).
 29 corrections (101 ×7, 102 ×4, 103, 111 ×7, 112 ×2, 113, 114 ×3, 115 ×4).
 
 `unformat-all-poems.history.xml` (`poems-history.fb2`: a poem of two stanzas; version 1.1; the
 history's last line «v.1.1 — Скрипт: «Поверхностное расформатирование всех стихов» 1.5 —
-(Зорро, 8.05.25)», two days before): the poem → «Строка первой строфы.», empty line, «Строка
-второй строфы.»; no version raise: the recent line becomes «v.1.1 — Скрипты: «Поверхностное
-расформатирование всех стихов» 1.5; «Расформатирование всех стихов» 1.5 — (Зорро, 10.05.25)».
+(8.05.25)», two days before): the poem → «Строка первой строфы.», empty line, «Строка второй
+строфы.»; no version raise: "Скрипт:" becomes "Скрипты:", reHist01 adds a semicolon after the
+first script's version, reHist03 this script's name, and the date becomes today's: «v.1.1 —
+Скрипты: «Поверхностное расформатирование всех стихов» 1.5; «Расформатирование всех стихов» 1.5 —
+(10.05.25)».
 
 `unformat-all-poems.no-history.xml` (`poems-no-history.fb2`: the same poem, no history, version
 «2»): version 2.1; the history is created with «v.2 — ?» and «v.2.1 —  Скрипт:
-«Расформатирование всех стихов» 1.5 — (Зорро, 10.05.25)».
+«Расформатирование всех стихов» 1.5 — (10.05.25)».
 
 `unformat-all-poems.no.xml` (No to the warning): the book unchanged.
 
 Differences: a subtitle of a dissolved stanza that ends up in an epigraph (a poem in an
-epigraph) becomes a paragraph (FB2 allows no subtitle there; 2.7.9 left it). The history line is
-signed «Зорро», as the settings say (2.7.9's main.js defines no `fbeUserName` either).
+epigraph) becomes a paragraph (FB2 allows no subtitle there; 2.7.9 left it). The history line has
+no user name, by the requester's decision (2026-10-31; 2.7.9's default was the placeholder
+«Зорро», and its main.js defines no `fbeUserName`).
 
 Fixes: none. Open questions: none.
 
@@ -3143,7 +3185,7 @@ Expected (`unformat-poems-shallow.xml`, `poems.fb2`): the first poem (a text aut
 unchanged; section 2: «Строка.», «Ещё строка.», empty line, «Последняя строка.»; the cite:
 «Строка в цитате.» and its text author; the poem with a title unchanged (difference); version 1.1
 and the history line «v.1.1 —  Скрипт: «Поверхностное расформатирование всех стихов» 1.5 —
-(Зорро, 10.05.25)». 6 corrections (101, 111 ×3, 112 ×2).
+(10.05.25)». 6 corrections (101, 111 ×3, 112 ×2).
 
 `unformat-poems-shallow.history.xml` (`poems-history.fb2`): the poem → «Строка первой строфы.»,
 empty line, «Строка второй строфы.»; the history's recent line already names the script: only its
@@ -3154,7 +3196,8 @@ date becomes 10.05.25; version 1.1.
 Differences: a poem with a title or an epigraph, or with a stanza that has a title, is left as it
 is (dissolving it would leave a title or an epigraph inside the text of a section, which FB2 does
 not allow; 2.7.9 did so and asked before saving such a book); a stanza's subtitle that ends up in
-an epigraph becomes a paragraph.
+an epigraph becomes a paragraph; the history line has no user name, as in 40 (the requester's
+decision of 2026-10-31).
 
 Fixes: none. Open questions: none.
 

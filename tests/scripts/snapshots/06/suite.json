@@ -1,7 +1,7 @@
 [
   {
-    "snapshot": "06/external-links-to-plain-text.xml",
-    "script": "scripts/06_cleanup/17_external-links-to-plain-text",
+    "snapshot": "06/external-links-to-text.279.xml",
+    "script": "scripts/06_cleanup/17_external-links-to-text",
     "book": "tests/scripts/fixtures/279/06/ids-styles-links.fb2",
     "args": []
   },

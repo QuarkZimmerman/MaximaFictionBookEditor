@@ -11,8 +11,10 @@
 // Differences: a poem with a title or an epigraph, or with a stanza that has a title, is left as
 // it is: dissolving it would leave a title or an epigraph inside the text of a section, which FB2
 // does not allow (2.7.9 did so and asked before saving the book); a stanza's subtitle that ends up
-// in an epigraph becomes a paragraph (FB2 allows no subtitle there); the name of main.js's
-// fbeUserName is not read (there is no main.js): the history line is signed «Зорро».
+// in an epigraph becomes a paragraph (FB2 allows no subtitle there); the history line has no user
+// name, by the requester's decision (2026-10-31): youName is empty, the original's own way to a
+// line without a name (its «Зорро» was a placeholder; main.js's fbeUserName is not read, there is
+// no main.js).
 // The original's notice, kept as written (FR-029):
 //======================================
 //             «Поверхностное расформатирование всех стихов»
@@ -35,7 +37,8 @@ import { historyChange, today } from './lib/history-change.js';
 
 const Version_on_off = 1; // 0 ; 1 // ("0" — отключить, "1" — включить)
 const Vsegda_on_off = 0; // 0 ; 1 // ("0" — отключить, "1" — включить)
-const youName = 'Зорро';
+// Empty: a history line without a name (the original's "Зорро" left out, 2026-10-31).
+const youName = '';
 
 const ScriptName = '«Поверхностное расформатирование всех стихов»';
 const NumerusVersion = '1.5';

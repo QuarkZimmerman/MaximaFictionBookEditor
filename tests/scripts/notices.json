@@ -809,25 +809,13 @@
       ],
       "shown": []
     },
-    "scripts/06_cleanup/17_external-links-to-plain-text": {
+    "scripts/06_cleanup/17_external-links-to-text": {
       "original": "06_Чистка/17_Превратить внешние ссылки в текст.js",
       "fbeVersion": "2.7.9",
       "header": [
         "скрипт \"Превращение внешних ссылок в текст\"",
         "Автор Sclex",
         "Версия 1.2",
-        "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
-        "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
-      ],
-      "shown": []
-    },
-    "scripts/06_cleanup/17_external-links-to-text": {
-      "original": "06_Чистка/17_Превращение внешних ссылок в текст.js",
-      "fbeVersion": "2.7",
-      "header": [
-        "скрипт \"Превращение внешних ссылок в текст\"",
-        "Автор Sclex",
-        "Версия 1.0",
         "Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412",
         "Мой сайт про мои скрипты: http://scripts.fictionbook.org"
       ],

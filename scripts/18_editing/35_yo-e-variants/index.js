@@ -6,8 +6,8 @@
 // (Yes replaces, No keeps, Cancel skips the rest of that word's group). Then it lists the other
 // words written with Ё and offers to write them with Е (all at once, or group by group). At the
 // end it raises the version of the file and writes a line into the history (the original's
-// settings Version_on_off = 1, with the name «Зорро»), and shows its results, page by page.
-// The settings below are the original's, with its values.
+// setting Version_on_off = 1; the line names no user), and shows its results, page by page.
+// The settings below are the original's, with its values, the user name excepted.
 // Differences from the original (docs/scripting/notes-279-drafts/18.md):
 // - the input box of each question, where a minus typed before Yes undid the last answer and any
 //   other text stopped the work, is a message with buttons: Yes, No, Cancel, Step back (one
@@ -15,7 +15,11 @@
 //   Управление") describes these buttons; the word is selected instead of being framed and
 //   coloured, and the script does not scroll it to a set height of the window (Raspolozhenie);
 // - the result message shows no proverb: left out pending the requester's decision;
-// - the original's "B mode" check has no counterpart: scripts work on the book itself.
+// - the original's "B mode" check has no counterpart: scripts work on the book itself;
+// - the history line carries no user name, by the requester's decision (2026-10-31): the
+//   original's youName was «Зорро», a placeholder for the user's own name, and an empty name -
+//   what the setting holds here - is the original's own way to a line without one,
+//   "v.1.1 —  Скрипт: «Разночтения Ё/Е» 2.2 — 31.10.2026".
 // The original's notice, kept as written (FR-029):
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //             «Разночтения Ё/Е»
@@ -46,8 +50,9 @@ const Vysota_teksta = 50;
 const Version_on_off = 1;
 //  Добавлять, если не сделано ни одного исправления ("0" — отключить, "1" — включить)
 const Vsegda_on_off = 0;
-//   Имя используемое в добавленной записи (an empty name gives a line without a name):
-const youName = 'Зорро';
+//   Имя используемое в добавленной записи (an empty name gives a line without a name; the
+//   original's "Зорро" is left out by the requester's decision of 2026-10-31):
+const youName = '';
 
 function t(ctx, ru, en) {
   return ctx.uiLanguage === 'ru' ? ru : en;

@@ -1538,15 +1538,6 @@
       "percent": 0.0
     },
     {
-      "package": "scripts/06_cleanup/17_external-links-to-text",
-      "id": "06/external-links-to-text",
-      "predecessor": "06_Чистка/17_Превращение внешних ссылок в текст.js",
-      "successor": null,
-      "method": "review",
-      "similarity": 0.0,
-      "class": "noCounterpart"
-    },
-    {
       "package": "scripts/08_sections/04_reset-structure",
       "id": "08/reset-structure",
       "predecessor": "08_Структура разделов/04_Сброс структуры разделов.js",
@@ -1572,6 +1563,17 @@
       "method": "review",
       "similarity": 0.0,
       "class": "noCounterpart"
+    },
+    {
+      "package": "scripts/06_cleanup/17_external-links-to-text",
+      "id": "06/external-links-to-text",
+      "predecessor": "06_Чистка/17_Превращение внешних ссылок в текст.js",
+      "successor": "06_Чистка/17_Превратить внешние ссылки в текст.js",
+      "method": "review",
+      "similarity": 0.338,
+      "class": "major",
+      "changedLines": 41,
+      "percent": 78.8
     }
   ]
 }

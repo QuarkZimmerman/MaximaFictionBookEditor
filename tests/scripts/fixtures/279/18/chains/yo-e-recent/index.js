@@ -1,7 +1,8 @@
 // Test driver of "Разночтения Ё-Е" (FictionBook Editor 2.7.9, 18_Мелочи редактирования\35), not a
 // bundled script: as chains/yo-e, but the history first gets a line of another script written
 // two days ago by the same user, version 1.1 - the line the script must extend rather than add
-// one of its own (the original's search of the last ten days).
+// one of its own (the original's search of the last ten days). The line names no user, as the
+// script's own lines do since the requester's decision of 2026-10-31.
 const SCRIPT = '18_Мелочи редактирования\\35_Разночтения Ё-Е.js';
 
 function day(daysAgo) {
@@ -29,7 +30,7 @@ export default async function run() {
   description.documentInfo.history.content.push({
     type: 'p',
     attrs: {},
-    content: [{ type: 'text', text: `v.1.1 — Скрипт: «Генеральная уборка» — Зорро, ${day(2)}` }],
+    content: [{ type: 'text', text: `v.1.1 — Скрипт: «Генеральная уборка» — ${day(2)}` }],
   });
   await mfbe.doc.setDescription(description);
   const result = await mfbe.scripts.run(SCRIPT);

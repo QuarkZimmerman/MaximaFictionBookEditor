@@ -2,27 +2,27 @@
   "_about": "One entry per FictionBook Editor 2.7.9 script and per converted package without a 2.7.9 successor (data-model §7.4 of feature 007). Written by tools/legacy-script-audit.py --recheck, completed by hand during the conversion; read by tests/scripts/run-all.mjs and tools/release-notes-scripts.py. Status 'recheck' marks a converted package whose 2.7.9 successor differs and is not rechecked yet (US4 turns it into updated, unchanged or kept).",
   "counts": {
     "scripts279": 371,
-    "new": 230,
-    "successors": 136,
+    "new": 229,
+    "successors": 137,
     "successorsOfDropped": 5,
-    "noCounterpart": 6,
+    "noCounterpart": 5,
     "byStatus": {
       "dropped": 4,
-      "new": 228,
-      "noCounterpart": 6,
+      "new": 227,
+      "noCounterpart": 5,
       "notConverted": 3,
       "unchanged": 27,
-      "updated": 109
+      "updated": 110
     },
     "recheckClasses": {
       "identical": 24,
       "small": 44,
       "moderate": 57,
-      "major": 11,
+      "major": 12,
       "merged": 1,
-      "noCounterpart": 5
+      "noCounterpart": 4
     },
-    "converted": 367
+    "converted": 364
   },
   "entries": [
     {
@@ -1930,12 +1930,11 @@
         "An edit FB2 does not allow there is neither made nor counted: removing an empty line that would leave a section with its title alone, dissolving a container whose content may not stand in its place (an empty line in a body or a poem); 2.7.9 made them and the book became invalid.",
         "A cite or poem around a picture line is dissolved in one step (with its stanza), and the verse becomes a paragraph, as 2.7.9 saved it.",
         "During a question the place is shown by the selection (scrolled into view) instead of a lilac or red highlight of the line; the original's 'B mode' (Body view) check and its refreshing of the pictures have no counterpart, scripts edit the book itself.",
-        "The user name of the history line is the script's setting 'Зорро': the original took a fbeUserName variable of its main.js when there was one, which the editor has not. A script that runs this one may pass the settings in ctx.args, and 'today' (YYYY-MM-DD), the date of the history line (the tests do)."
+        "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty, the original's own way to a line without a name, so the line reads \"v.<new version> —  Скрипт: «Пустые строки рядом с иллюстрациями» 2.1 — (<date>)\" and a line of the last ten days is extended when it ends \"— (<date>)\"; 2.7.9's default was the placeholder 'Зорро' (\"— (Зорро, <date>)\"), and the original also took a fbeUserName variable of its main.js when there was one, which the editor has not. A script that runs this one may pass the settings in ctx.args (youName among them), and 'today' (YYYY-MM-DD), the date of the history line (the tests do)."
       ],
       "fixes": [],
       "openQuestions": [
-        "Restore the proverb of the result message?",
-        "The history line names the user 'Зорро' unless the script is edited (the original's default, meant to be changed by the user): keep it, or write the line without a name?"
+        "Restore the proverb of the result message?"
       ]
     },
     {
@@ -2626,18 +2625,24 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": "scripts/06_cleanup/17_external-links-to-plain-text",
-      "id": "06/external-links-to-plain-text",
-      "status": "new",
-      "predecessor": null,
+      "package": "scripts/06_cleanup/17_external-links-to-text",
+      "id": "06/external-links-to-text",
+      "status": "updated",
+      "predecessor": "06_Чистка/17_Превращение внешних ссылок в текст.js",
       "differences": [
-        "A run of text that carries one link counts as one link: the editor keeps formatting as marks, so two adjacent elements with the same attributes, which the original counted as two, are one."
+        "A run of text that carries one link counts as one link: the editor keeps formatting as marks, so two adjacent elements with the same attributes, which the original counted as two, are one.",
+        "One script with 2.7beta1's earlier conversion of v1.0, by the requester's decision (2026-10-31): the package keeps the old folder and id 06/external-links-to-text, and both the 2.7.9 and the 2.7beta1 paths resolve (legacy.aliases)."
       ],
       "fixes": [],
       "openQuestions": [
         "FictionBook Editor 2.7.9 ran its page in the WebBrowser control's IE7 document mode (no FEATURE_BROWSER_EMULATION in its sources or installer), where getAttribute(\"href\") returns the address resolved against the page file:///.../main.html; the conversion applies that resolution. If 2.7.9 ran in a later document mode, which returns the address as written, an empty or relative address (\"\", \"other.fb2#x\") would be unformatted too; here, as in IE7 mode, it resolves to a file:// address and is kept.",
         "The 2.7.9 file is the later version (Sclex, v1.2) of 2.7beta1's 06_Чистка/17_Превращение внешних ссылок в текст.js (v1.0, package 06/external-links-to-text), as its own header says (\"Превращение внешних ссылок в текст\"); v1.2 adds the \"#http…\" case and a closing message. The review recorded the old one as noCounterpart (pairing-overrides-279.json), so both packages now stand at place 17 of the group; the pairing may deserve a second look in the recheck (T078)."
-      ]
+      ],
+      "recheck": {
+        "class": "major",
+        "changedLines": 41,
+        "percent": 78.8
+      }
     },
     {
       "source": "06_Чистка/19_Символы win-1252, истолкованные как win-1251 ('cafй' и т.п.) (поиск отдельных букв)....js",
@@ -2989,12 +2994,13 @@
         "A block formatted with both italic and bold is seen by the expressions with the bold outside the italic: the editor keeps formatting as marks and does not keep the nesting of the source, so operations 215/216 (tangled tags) may report work the original did not do; the text and its formatting end up the same.",
         "The result window shows no proverb: left out pending the requester's decision.",
         "Inline pictures are seen in the page's form (<SPAN class=image ...><IMG ...></SPAN>) and inline elements unknown to FB2 as <X n> placeholders (the page showed them as <span class=unknown_element>).",
-        "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines. Here this matters: the code works with the non-breaking spaces as U+00A0 characters, which ECMAScript's \\s matches, so several operations (562, 601, 730, 744, 760...) would match the non-breaking spaces the script itself inserts again and count them twice."
+        "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines. Here this matters: the code works with the non-breaking spaces as U+00A0 characters, which ECMAScript's \\s matches, so several operations (562, 601, 730, 744, 760...) would match the non-breaking spaces the script itself inserts again and count them twice.",
+        "By the requester's decision (2026-10-31) a history entry carries no user name: youName is \"\" in engine.js, the original's own way to an entry without a name (described under the setting), so the entry (written only with Version_on_off = 1, off as shipped) reads \"v.<new version> —  Скрипт: «Текст-корректор» 3.15 — <date>\" and a recent entry is extended when it ends \"— <date>\"; 2.7.9's default was the placeholder \"Зорро\", which FictionBook Editor users changed in the script or replaced with a fbeUserName of main.js."
       ],
       "fixes": [],
       "openQuestions": [
         "Restore the proverb of the result message?",
-        "The settings at the top of the original (Version_on_off = 0, ObrabotkaHistory_on_off = 1, _format_ = 1, formatRazrjadki = 1...) are kept as written; a user who wants other settings copies the package, as in FictionBook Editor one edited the script."
+        "The settings at the top of the original (Version_on_off = 0, ObrabotkaHistory_on_off = 1, _format_ = 1, formatRazrjadki = 1...) are kept as written, youName excepted (empty, by the requester's decision of 2026-10-31); a user who wants other settings copies the package, as in FictionBook Editor one edited the script."
       ]
     },
     {
@@ -3020,12 +3026,12 @@
         "The word to correct is selected instead of being framed with its foreign letters coloured red; the question still speaks of the red characters, as the original's text does.",
         "The result window shows no proverb: left out pending the requester's decision.",
         "A script that runs this one through mfbe.scripts.run may pass { today: \"YYYY-MM-DD\" }, the date of the history entry (used by the snapshot suite); otherwise it is today's date, as in the original.",
-        "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines."
+        "Its regular expressions are kept as written and compiled by lib/jscript-regexp.js with JScript's meaning of \\s ([\\t\\n\\v\\f\\r ], no U+00A0 or other Unicode spaces) and of . ([^\\n]); the other constructs they use mean the same in both engines.",
+        "By the requester's decision (2026-10-31) the history entry carries no user name: youName is \"\" in engine.js, the original's own way to an entry without a name (described under the setting), so the entry reads \"v.<new version> —  Скрипт: «Кириллица-латиница» 1.6 — (<date>)\" and a recent entry is extended when it ends \"— (<date>)\"; 2.7.9's default was the placeholder \"Зорро\", which FictionBook Editor users changed in the script or replaced with a fbeUserName of main.js."
       ],
       "fixes": [],
       "openQuestions": [
-        "Restore the proverb of the result message?",
-        "The history entry names the user \"Зорро\", the original's default youName; FictionBook Editor users changed it in the script or defined fbeUserName in main.js. The setting is kept as written (a user copies the package to change it); the editor might rather offer a name of its own."
+        "Restore the proverb of the result message?"
       ]
     },
     {
@@ -3738,7 +3744,8 @@
       "status": "new",
       "predecessor": null,
       "differences": [
-        "A subtitle of a dissolved stanza that ends up in an epigraph (a poem inside an epigraph) becomes a paragraph: FB2 allows no subtitle there, and 2.7.9 left it, writing an invalid book."
+        "A subtitle of a dissolved stanza that ends up in an epigraph (a poem inside an epigraph) becomes a paragraph: FB2 allows no subtitle there, and 2.7.9 left it, writing an invalid book.",
+        "By the requester's decision (2026-10-31) the history line carries no user name: youName is empty, the original's own way to a line without a name, so the line reads \"v.<new version> —  Скрипт: «Расформатирование всех стихов» 1.5 — (<date>)\" and a line of the last ten days is extended when it ends \"— (<date>)\"; 2.7.9's default was the placeholder \"Зорро\" (main.js's fbeUserName, which could override it, is not read: the editor has no main.js)."
       ],
       "fixes": [],
       "openQuestions": []
@@ -3763,7 +3770,8 @@
       "predecessor": null,
       "differences": [
         "A poem with a title or an epigraph, or with a stanza that has a title, is left as it is: dissolving it would leave a title or an epigraph inside the text of a section, which FB2 does not allow (2.7.9 did so and asked before saving such a book).",
-        "A stanza's subtitle that ends up in an epigraph (a poem inside an epigraph) becomes a paragraph: FB2 allows no subtitle there."
+        "A stanza's subtitle that ends up in an epigraph (a poem inside an epigraph) becomes a paragraph: FB2 allows no subtitle there.",
+        "By the requester's decision (2026-10-31) the history line carries no user name: youName is empty, the original's own way to a line without a name, so the line reads \"v.<new version> —  Скрипт: «Поверхностное расформатирование всех стихов» 1.5 — (<date>)\" and a line of the last ten days is extended when it ends \"— (<date>)\"; 2.7.9's default was the placeholder \"Зорро\" (main.js's fbeUserName, which could override it, is not read: the editor has no main.js)."
       ],
       "fixes": [],
       "openQuestions": []
@@ -4932,7 +4940,7 @@
       "differences": [
         "The random proverb the original appended to its results window is left out, pending the requester's decision: the list (277 sayings, the 271 of the book «Пословицы и поговорки Великой Отечественной войны» plus six about Kursk and Sudzha) includes calls to kill \"fascists\".",
         "In the \"show\" mode (setting 2) the line is selected in the Body view instead of being underlined in red and scrolled with the window's measures; the Да / Нет / Отмена browsing is a message with three buttons. The original's check that the Body (\"B\") view is shown has no counterpart.",
-        "The history entry (setting Version_on_off, off by default) uses the setting youName; the original's override by a global fbeUserName of main.js does not exist.",
+        "The history entry (setting Version_on_off, off by default) carries no user name, by the requester's decision (2026-10-31): youName is empty, the original's own way to a line without a name, so the entry reads \"v.<new version> —  Скрипт: «Удаление форматирования в заголовках и подзаголовках» 2.4 — <date>\" and a recent line is extended when it ends \"— <date>\"; 2.7.9's default was the placeholder \"Зорро\", and the original's override by a global fbeUserName of main.js does not exist.",
         "The expressions run on the legacy inline-HTML notation, where formatting with a language (which 2.7.9 did not keep) is written with lang=... and is left alone, as in the other converted scripts."
       ],
       "fixes": [
@@ -8005,12 +8013,12 @@
         "the question for each word was an input box with Yes, No and Cancel, an empty field and typed commands (a minus before Yes undid the last answer, several minuses several answers, any other text stopped the work); it is a message with the buttons Yes, No, Cancel, Step back (one answer per press) and Stop (followed by the original's question whether to stop), and in the de-yo-fication by groups Yes, No, Cancel (followed by the question whether to stop the script) and Step back. The script API's input box gives '' for No and for Yes with an empty field, so it cannot carry the original's Yes; the help windows ('Окно Управление') describe the buttons",
         "the word in question is selected in the Body view; the original framed and coloured it and its letter and scrolled it to a set height of the window (the setting Raspolozhenie, not carried over)",
         "the result message shows no proverb: left out pending the requester's decision",
-        "the original's check that the Body view ('B' mode) is shown has no counterpart: scripts work on the book itself"
+        "the original's check that the Body view ('B' mode) is shown has no counterpart: scripts work on the book itself",
+        "by the requester's decision (2026-10-31) the history line carries no user name: youName is '', the original's own way to a line without a name, so the line reads \"v.<new version> —  Скрипт: «Разночтения Ё/Е» 2.2 — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; 2.7.9's default was the placeholder «Зорро» for the user's own name (main.js's fbeUserName, which 2.7.9 does not define)"
       ],
       "fixes": [],
       "openQuestions": [
-        "restore the proverb of the result message?",
-        "with the original's settings (Version_on_off = 1) every run that changes a word raises the file's version and writes a history line by the name «Зорро», the original's placeholder for the user's own name (main.js's fbeUserName, which 2.7.9 does not define); kept as the original's defaults - should a bundled script write that line, and under which name?"
+        "restore the proverb of the result message?"
       ]
     },
     {
@@ -9502,7 +9510,7 @@
       "differences": [
         "A bundled script cannot be edited in place: the template's comment and its window say how to fill in a copy (Scripts > Open scripts folder, a new id in the copy's script.json, Scripts > Reload scripts). The sections НАСТРОЙКИ and ДОБАВЛЯЕМЫЕ ДАННЫЕ keep the original's names, values and form (with English guidance added), so a section filled in for FictionBook Editor can be pasted unchanged.",
         "The data are written into the document's description (mfbe.doc.get, one mfbe.doc.setDescription) instead of the fields of the Description form and the annotation and history blocks of the IE page: the model's empty list stands for the form's blank row, an absent annotation or history for the Body view's empty block, an empty line the script adds is an empty-line (as 2.7.9 saved it), and an annotation or history left with empty lines only is not written (2.7.9 did not save it).",
-        "The name of a global fbeUserName in main.js is not read (there is no main.js); the name is the setting youName.",
+        "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty (2.7.9's default was the placeholder \"Зорро\"), the original's own way to a line without a name, so the line (setting Version_on_off, off as shipped) reads \"v.<new version> —  <TextHistory> — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; a global fbeUserName in main.js is not read (there is no main.js).",
         "A language code is written as given: FictionBook Editor's language list box took only the codes of its list.",
         "A sequence number that is not an integer is left out: the editor's model, like FB2 (xs:integer), holds integers only; 2.7.9 wrote the text as typed.",
         "The language of a sequence and of a custom-info entry, which FictionBook Editor's form did not hold, stays with the entry the template fills.",
@@ -9540,7 +9548,7 @@
       "differences": [
         "A bundled script cannot be edited in place: the template's comment and its window say how to fill in a copy (Scripts > Open scripts folder, a new id in the copy's script.json, Scripts > Reload scripts). The sections НАСТРОЙКИ and ДОБАВЛЯЕМЫЕ ДАННЫЕ keep the original's names, values and form (with English guidance added), so a section filled in for FictionBook Editor can be pasted unchanged.",
         "The data are written into the document's description (mfbe.doc.get, one mfbe.doc.setDescription) instead of the fields of the Description form and the annotation and history blocks of the IE page: the model's empty list stands for the form's blank row, an absent annotation or history for the Body view's empty block, an empty line the script adds is an empty-line (as 2.7.9 saved it), and an annotation or history left with empty lines only is not written (2.7.9 did not save it).",
-        "The name of a global fbeUserName in main.js is not read (there is no main.js); the name is the setting youName.",
+        "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty (2.7.9's default was the placeholder \"Зорро\"), the original's own way to a line without a name, so the line (setting Version_on_off, off as shipped) reads \"v.<new version> —  <TextHistory> — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; a global fbeUserName in main.js is not read (there is no main.js).",
         "A language code is written as given: FictionBook Editor's language list box took only the codes of its list.",
         "A sequence number that is not an integer is left out: the editor's model, like FB2 (xs:integer), holds integers only; 2.7.9 wrote the text as typed.",
         "The language of a sequence and of a custom-info entry, which FictionBook Editor's form did not hold, stays with the entry the template fills.",
@@ -9576,7 +9584,7 @@
       "differences": [
         "A bundled script cannot be edited in place: the template's comment and its window say how to fill in a copy (Scripts > Open scripts folder, a new id in the copy's script.json, Scripts > Reload scripts). The sections НАСТРОЙКИ and ДОБАВЛЯЕМЫЕ ДАННЫЕ keep the original's names, values and form (with English guidance added), so a section filled in for FictionBook Editor can be pasted unchanged.",
         "The data are written into the document's description (mfbe.doc.get, one mfbe.doc.setDescription) instead of the fields of the Description form and the annotation and history blocks of the IE page: the model's empty list stands for the form's blank row, an absent annotation or history for the Body view's empty block, an empty line the script adds is an empty-line (as 2.7.9 saved it), and an annotation or history left with empty lines only is not written (2.7.9 did not save it).",
-        "The name of a global fbeUserName in main.js is not read (there is no main.js); the name is the setting youName.",
+        "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty (2.7.9's default was the placeholder \"Зорро\"), the original's own way to a line without a name, so the line (setting Version_on_off, off as shipped) reads \"v.<new version> —  <TextHistory> — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; a global fbeUserName in main.js is not read (there is no main.js).",
         "A language code is written as given: FictionBook Editor's language list box took only the codes of its list.",
         "A sequence number that is not an integer is left out: the editor's model, like FB2 (xs:integer), holds integers only; 2.7.9 wrote the text as typed.",
         "The language of a sequence and of a custom-info entry, which FictionBook Editor's form did not hold, stays with the entry the template fills.",
@@ -9612,7 +9620,7 @@
       "differences": [
         "A bundled script cannot be edited in place: the template's comment and its window say how to fill in a copy (Scripts > Open scripts folder, a new id in the copy's script.json, Scripts > Reload scripts). The sections НАСТРОЙКИ and ДОБАВЛЯЕМЫЕ ДАННЫЕ keep the original's names, values and form (with English guidance added), so a section filled in for FictionBook Editor can be pasted unchanged.",
         "The data are written into the document's description (mfbe.doc.get, one mfbe.doc.setDescription) instead of the fields of the Description form and the annotation and history blocks of the IE page: the model's empty list stands for the form's blank row, an absent annotation or history for the Body view's empty block, an empty line the script adds is an empty-line (as 2.7.9 saved it), and an annotation or history left with empty lines only is not written (2.7.9 did not save it).",
-        "The name of a global fbeUserName in main.js is not read (there is no main.js); the name is the setting youName.",
+        "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty (2.7.9's default was the placeholder \"Зорро\"), the original's own way to a line without a name, so the line (setting Version_on_off, off as shipped) reads \"v.<new version> —  <TextHistory> — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; a global fbeUserName in main.js is not read (there is no main.js).",
         "A language code is written as given: FictionBook Editor's language list box took only the codes of its list.",
         "A sequence number that is not an integer is left out: the editor's model, like FB2 (xs:integer), holds integers only; 2.7.9 wrote the text as typed.",
         "The language of a sequence and of a custom-info entry, which FictionBook Editor's form did not hold, stays with the entry the template fills.",
@@ -9648,7 +9656,7 @@
       "differences": [
         "A bundled script cannot be edited in place: the template's comment and its window say how to fill in a copy (Scripts > Open scripts folder, a new id in the copy's script.json, Scripts > Reload scripts). The sections НАСТРОЙКИ and ДОБАВЛЯЕМЫЕ ДАННЫЕ keep the original's names, values and form (with English guidance added), so a section filled in for FictionBook Editor can be pasted unchanged.",
         "The data are written into the document's description (mfbe.doc.get, one mfbe.doc.setDescription) instead of the fields of the Description form and the annotation and history blocks of the IE page: the model's empty list stands for the form's blank row, an absent annotation or history for the Body view's empty block, an empty line the script adds is an empty-line (as 2.7.9 saved it), and an annotation or history left with empty lines only is not written (2.7.9 did not save it).",
-        "The name of a global fbeUserName in main.js is not read (there is no main.js); the name is the setting youName.",
+        "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty (2.7.9's default was the placeholder \"Зорро\"), the original's own way to a line without a name, so the line (setting Version_on_off, off as shipped) reads \"v.<new version> —  <TextHistory> — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; a global fbeUserName in main.js is not read (there is no main.js).",
         "A language code is written as given: FictionBook Editor's language list box took only the codes of its list.",
         "A sequence number that is not an integer is left out: the editor's model, like FB2 (xs:integer), holds integers only; 2.7.9 wrote the text as typed.",
         "The language of a sequence and of a custom-info entry, which FictionBook Editor's form did not hold, stays with the entry the template fills.",
@@ -9684,7 +9692,7 @@
       "differences": [
         "A bundled script cannot be edited in place: the template's comment and its window say how to fill in a copy (Scripts > Open scripts folder, a new id in the copy's script.json, Scripts > Reload scripts). The sections НАСТРОЙКИ and ДОБАВЛЯЕМЫЕ ДАННЫЕ keep the original's names, values and form (with English guidance added), so a section filled in for FictionBook Editor can be pasted unchanged.",
         "The data are written into the document's description (mfbe.doc.get, one mfbe.doc.setDescription) instead of the fields of the Description form and the annotation and history blocks of the IE page: the model's empty list stands for the form's blank row, an absent annotation or history for the Body view's empty block, an empty line the script adds is an empty-line (as 2.7.9 saved it), and an annotation or history left with empty lines only is not written (2.7.9 did not save it).",
-        "The name of a global fbeUserName in main.js is not read (there is no main.js); the name is the setting youName.",
+        "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty (2.7.9's default was the placeholder \"Зорро\"), the original's own way to a line without a name, so the line (setting Version_on_off, off as shipped) reads \"v.<new version> —  <TextHistory> — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; a global fbeUserName in main.js is not read (there is no main.js).",
         "A language code is written as given: FictionBook Editor's language list box took only the codes of its list.",
         "A sequence number that is not an integer is left out: the editor's model, like FB2 (xs:integer), holds integers only; 2.7.9 wrote the text as typed.",
         "The language of a sequence and of a custom-info entry, which FictionBook Editor's form did not hold, stays with the entry the template fills.",
@@ -9723,7 +9731,7 @@
         "FB2 needs content after a section's title and after its annotation: an empty line follows the title of 'Название', of each sequence and of the explanation; the second step passes over it. An empty data line is an empty paragraph (to type into), a blank line of the explanation an empty-line, as 2.7.9 saved them.",
         "The caret goes to the start of the new body's title, which brings it into view (2.7.9 only scrolled there); a name in error is selected instead of coloured.",
         "The reminder about the caret in a field of the Description form (setting Napominanie) and the setting for the window's height (Vysota_teksta) are gone, and so are the window's pages: the editor has no such crash and its message box scrolls.",
-        "The name of a global fbeUserName in main.js is not read (there is no main.js); the name is the setting youName.",
+        "By the requester's decision (2026-10-31) the history line carries no user name: the setting youName is empty (2.7.9's default was the placeholder \"Зорро\"), the original's own way to a line without a name, so the line reads \"v.<new version> —  Скрипт: «Редакция описания документа» 1.1 — <date>\" and a line of the last ten days is extended when it ends \"— <date>\"; a global fbeUserName in main.js is not read (there is no main.js).",
         "The window of results is one message box in Russian or English; the results show no proverb: left out pending the requester's decision.",
         "Fields that the body's text does not hold come back for the names left unchanged: a translator's or document author's id and the second and further e-mails and home pages (2.7.9's Description form held none of them, so FictionBook Editor lost them), and a sequence's language.",
         "A sequence number that is not an integer is left out: the editor's model, like FB2, holds integers only; 2.7.9 wrote the text as typed.",
@@ -10356,7 +10364,7 @@
       "predecessor": null,
       "differences": [
         "The whole run is one undo step under this script's name, and one Cancel stops it and leaves the book as it was; in 2.7.9 each script of the list made an undo step of its own (script API v2: a chain of scripts is one run).",
-        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 08/structure-cleanup, 06/general-cleanup, 06/remove-styles-and-ids, 06/unformat-empty-links, 06/external-links-to-plain-text, 06/remove-fbd-bookmark-links, 13/subtitles-empty-lines-plain-titles, 13/remove-title-formatting, 06/general-cleanup-alexander-ka."
+        "Everything else is the behaviour of the scripts it runs, each with its own recorded differences: 08/structure-cleanup, 06/general-cleanup, 06/remove-styles-and-ids, 06/unformat-empty-links, 06/external-links-to-text, 06/remove-fbd-bookmark-links, 13/subtitles-empty-lines-plain-titles, 13/remove-title-formatting, 06/general-cleanup-alexander-ka."
       ],
       "fixes": [
         "The list names 13_Заголовки, подзаголовки, пустые строки\\529_Удаление жирности и курсива в заголовках и подзаголовках.js, the name of 529 before its version 2.0 (its history: \"Изменено имя скрипта (было «Удаление жирности/курсива в заголовках и подзаголовках»)\"); 2.7.9 has it as 529_Удалить форматирование в заголовках и подзаголовках.js (13/remove-title-formatting), which the list now runs. In 2.7.9 the list said \"Скрипт ... не был запущен ...\" at that line and went on; now the formatting that covers a whole title line or subtitle goes too (on the reference book: the bold of a subtitle)."
@@ -11117,26 +11125,6 @@
       "differences": [],
       "fixes": [],
       "openQuestions": []
-    },
-    {
-      "source": "06_Чистка/17_Превращение внешних ссылок в текст.js",
-      "fbeVersion": "2.7",
-      "sourceVersion": "1.0",
-      "sha256": "a599810e728b645c89c1bc65a8f738b2b302eebb0285fdc328d2604f7238962a",
-      "group": "06_Чистка",
-      "names": {
-        "en": "Turn external links into text",
-        "ru": "Превращение внешних ссылок в текст"
-      },
-      "package": "scripts/06_cleanup/17_external-links-to-text",
-      "id": "06/external-links-to-text",
-      "status": "noCounterpart",
-      "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [
-        "2.7.9's 17_Превратить внешние ссылки в текст.js (Sclex, version 1.2), converted in this feature as 06/external-links-to-plain-text, is this script's later version: its header names the same script («Превращение внешних ссылок в текст», version 1.0 here), it stands at the same place 17 of the group, keeps the undo label, the expression and the loop, and adds the links whose address holds \"#http:\" or \"#https:\" (spaces allowed after the #) and a message with the count. Under the recheck rules (FR-021, FR-028) this package would follow it with its id kept and status updated, and 06/external-links-to-plain-text, never released, would leave the menu (its conversion and snapshot becoming this package's). That reverses the T019 pairing (pairing-overrides-279.json, null) and removes a package of T050, so nothing was changed: both stay at place 17 until the requester decides."
-      ]
     },
     {
       "source": "08_Структура разделов/04_Сброс структуры разделов.js",

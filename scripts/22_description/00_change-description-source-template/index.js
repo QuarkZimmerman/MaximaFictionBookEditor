@@ -19,6 +19,8 @@
 // "today" (YYYY-MM-DD) in the args of mfbe.scripts.run. Fixed: a new author row no longer takes
 // the id of the row before; texts are looked for in the history and the annotation as written,
 // not as regular expressions.
+// The history line has no user name, by the requester's decision (2026-10-31): the setting
+// youName below is empty (the original's "Зорро" was a placeholder for the user's own name).
 // The original's notice, kept as written (FR-029):
 //------------------------------------------------------------------------------------------
 //             «Изменить дескрипшен»
@@ -82,8 +84,9 @@ export default async function run(ctx) {
  var TextHistory = "Общая правка";      // текст //
 
 //   Имя используемое в добавленной записи
-//   The name written in the history line
- var youName = "Зорро";      // текст //
+//   The name written in the history line (empty: a line without a name; the original's
+//   placeholder "Зорро" is left out by the requester's decision of 2026-10-31)
+ var youName = "";      // текст //
 
 // ---------------------------------------------------------------
                  ///  ДОБАВЛЯЕМЫЕ ДАННЫЕ

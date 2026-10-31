@@ -1,6 +1,7 @@
 // The original's HistoryChange (35_Разночтения Ё-Е.js, "ФУНКЦИЯ ПОВЫШЕНИЯ ВЕРСИИ ФАЙЛА И ЗАПИСЬ В
 // ИСТОРИЮ ИЗМЕНЕНИЙ") on the document model: it raises the version of the file and writes a line
-// "v.<new version> —  Скрипт: <name> — <user>, <date>" into the document's history (first a line
+// "v.<new version> —  Скрипт: <name> — <user>, <date>" ("— <date>" when the user name is empty, as
+// the package's setting is) into the document's history (first a line
 // "v.<old version> — ?" when the history does not mention the old version); when a line of the
 // last ten days names the same user and date form, it adds the script to that line instead and
 // gives it today's date. FictionBook Editor showed the history as a block of paragraphs above the

@@ -16,6 +16,7 @@
   "12_Обработка кавычек/003_Расстановка елочек и лапок (начиная со 2-го уровня).js": null,
   "_why_none": "No 2.7.9 successor (research R6, T019): kept as they are (FR-027).",
   "01_Регистр/03_Предложение_alxs.js": null,
-  "06_Чистка/17_Превращение внешних ссылок в текст.js": null,
-  "08_Структура разделов/04_Сброс структуры разделов.js": null
+  "06_Чистка/17_Превращение внешних ссылок в текст.js": "06_Чистка/17_Превратить внешние ссылки в текст.js",
+  "08_Структура разделов/04_Сброс структуры разделов.js": null,
+  "_why_06_17": "'Превратить внешние ссылки в текст' (v1.2) is the later version of 2.7beta1's 'Превращение внешних ссылок в текст' (v1.0): same place 17, same undo label, expression and loop; the pairing by the name missed it. Paired by the requester's decision (2026-10-31): one script under the old id."
 }

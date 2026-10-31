@@ -7,13 +7,15 @@
 // prepositions (a, c, o, y... between Russian words). Then, word by word in an input box (Yes takes
 // its text, No skips the word and every equal one, Cancel ends that pass), the words left mixed.
 // Finally it raises the document version and writes a line into the history (the original's
-// setting Version_on_off = 1), and shows its statistics.
+// setting Version_on_off = 1; the line names no user, by the requester's decision of 2026-10-31,
+// where the original's default youName was the placeholder «Зорро»), and shows its statistics.
 // The original's code runs as written in engine.js (generated, its rewrites listed there) on the page
 // emulated by lib/fbe-page.js; lib/jscript-regexp.js keeps the meaning JScript gave \s and . .
 // Differences: the word to correct is selected instead of being framed and coloured red (the question
 // still names the red characters); in an input box, Yes with an empty text counts as No (the
 // original applied the proposal); the result window shows no proverb: left out pending the
-// requester's decision. A script that runs this one through mfbe.scripts.run may pass
+// requester's decision; the history line has no user name (the requester's decision,
+// 2026-10-31). A script that runs this one through mfbe.scripts.run may pass
 // { today: "YYYY-MM-DD" }, the date of the history entry (for tests); otherwise it is today's date,
 // as in the original.
 // The original's notice, kept as written (FR-029):

@@ -1019,6 +1019,12 @@ statistics); the version raise with a history line (off by default) is ported. B
 `formatting.fb2`; snapshot `remove-title-formatting.xml` (defaults). Mode 2 for the title bold and
 the history entry were verified with a scratch copy (questions answered; version 1.0 → 1.1, the
 lines "v.1.0 — ?" and "v.1.1 —  Скрипт: «Удаление форматирования…» 2.4 — Зорро, <date>" added).
+**The user name.** By the requester's decision (2026-10-31) the history line has no user name:
+`youName` is `''` (2.7.9's default was «Зорро», the placeholder for the user's own name), the
+original's own way to a line without one ("Или можно оставить кавычки пустыми (""), тогда строка в
+истории будет без имени"), so the entry above now reads "v.1.1 —  Скрипт: «Удаление
+форматирования…» 2.4 — <date>", and a recent line is extended only when it ends "— <date>". The
+entry is off as shipped (`Version_on_off = 0`), so no snapshot shows it and none changed.
 
 Expected and obtained: titles — the body title, "Глава первая", the poem title and the title with a
 note link lose the bold (the link stays), "Встреча" the italics, "<strong>Глава</strong> 2" the
@@ -1033,8 +1039,9 @@ Fix: the code and style checks of notes titles tested a variable left over from 
 they test the title itself (2.7.9 kept "<code>2</code>"). Differences: the proverb of the results
 window is left out pending the requester's decision (277 sayings: the 271 of «Пословицы и
 поговорки Великой Отечественной войны» plus six about Kursk and Sudzha, among them calls to kill
-"fascists"); mode 2 selects instead of underlining; no Body-view check; no `fbeUserName`. Open
-questions, kept: `&nbsp;` counts as letters in the HTML tests; Ukrainian і ї є ґ are no letters.
+"fascists"); mode 2 selects instead of underlining; no Body-view check; no `fbeUserName`; the
+history entry has no user name (the requester's decision of 2026-10-31). Open questions, kept:
+`&nbsp;` counts as letters in the HTML tests; Ukrainian і ї є ґ are no letters.
 
 ### 530 Удаление жирности и курсива в подзаголовках
 
@@ -2731,10 +2738,15 @@ other reading - "◊ Найден текст: … (hint) / ◊ Заменить 
 list's Ё readings left out) are counted in groups and shown, and the script offers to write them with
 Е - all at once, or group by group. Finally, with the original's settings (`Version_on_off = 1`), a
 run that changed a word raises the file's version and writes a line into the history
-("v.1.1 —  Скрипт: «Разночтения Ё/Е» 2.2 — Зорро, 31.10.2026"; first a line "v.<old> — ?" when the
-history does not name the old version; a line of the last ten days of the same name and date form
-gets the script added instead: "Скрипты: «…»; «Разночтения Ё/Е» 2.2 — Зорро, <today>"), and the
-results are shown page by page (`Vysota_teksta = 50` lines a page; the original's page loop). The
+("v.1.1 —  Скрипт: «Разночтения Ё/Е» 2.2 — 31.10.2026"; first a line "v.<old> — ?" when the history
+does not name the old version; a line of the last ten days of the same name and date form gets the
+script added instead: "Скрипты: «…»; «Разночтения Ё/Е» 2.2 — <today>"), and the results are shown
+page by page (`Vysota_teksta = 50` lines a page; the original's page loop). **The user name.**
+2.7.9's `youName` was «Зорро», the placeholder for the user's own name (main.js's `fbeUserName`,
+which 2.7.9 does not define); by the requester's decision (2026-10-31) it is `''`, the original's
+own way to a line without one ("** Или можно оставить эти кавычки пустыми (""), тогда строка в
+истории будет без имени"): the name and the ", " after it go, the rest of the line is the
+original's, and a recent line is extended only when it ends "— <date>" (`reHist01`-`reHist04`). The
 original's sorting, searches and undo stack are ported line by line; the words are found on the
 paragraph's HTML (`lib/legacy-html.js`) and changed in place with their formatting (the readings have
 equal lengths), the bodies with `doc.replaceNode`, the annotation and the history with
@@ -2754,12 +2766,11 @@ Differences:
 - the word is selected in the Body view; the original framed and coloured it and its letter and
   scrolled it to a set height of the window (`Raspolozhenie`, not carried over);
 - the result message shows no proverb: left out pending the requester's decision;
-- the original's check that the Body view ("B" mode) is shown has no counterpart.
+- the original's check that the Body view ("B" mode) is shown has no counterpart;
+- the history line carries no user name, by the requester's decision (2026-10-31; 2.7.9's default
+  was the placeholder «Зорро»).
 
-Open questions: restore the proverb of the result message? With the original's settings every run
-that changes a word raises the version and writes a history line by the name «Зорро», the original's
-placeholder for the user's own name (main.js's `fbeUserName`, which 2.7.9 does not define); kept as
-the original's defaults - should a bundled script write that line, and under which name?
+Open question: restore the proverb of the result message?
 
 Reference book `yo-e.fb2`: "Все" in the annotation, a history line naming v.1.0, "Небо … мел",
 "Всё … все", "НЕБО и Небо", "Ёлка, ещё одна ёлка и Ёжик.", "<emphasis>мел</emphasis> … нёбо", a
@@ -2773,13 +2784,19 @@ with Ё; the questions in the order все (annotation, p2), всё, мел ×2,
   Yes, Yes, Step back, No, Yes, Cancel, Stop - No, Yes, Yes, No, No, then de-yo-fication by groups
   Yes, Step back, No, Yes, Cancel - No, Yes. The book: "Всё слова в аннотации.", "Все уже сказано, и
   все ушли.", "Елка, ещё одна елка и Ежик.", "<emphasis>мёл</emphasis> в курсиве и небо.", "Слёзы и
-  слёзы."; version 1.1 and the line "v.1.1 —  Скрипт: «Разночтения Ё/Е» 2.2 — Зорро, <сегодня>".
+  слёзы."; version 1.1 and the line "v.1.1 —  Скрипт: «Разночтения Ё/Е» 2.2 — <сегодня>".
   The results (checked with a copy that records the messages): 5 variant readings changed, 3 words
   written with Е, 11.6 % with Ё, "• Добавлена новая строка в историю";
 - `chain-yo-e-recent.xml`: the driver first adds the line "v.1.1 — Скрипт: «Генеральная уборка» —
-  Зорро, <two days ago>" and sets version 1.1; one Yes, then Stop - Yes, no de-yo-fication: the line
-  becomes "v.1.1 — Скрипты: «Генеральная уборка»; «Разночтения Ё/Е» 2.2 — Зорро, <сегодня>", the
-  version stays.
+  <two days ago>" (the same user's line, without a name as the script writes its own) and sets
+  version 1.1; one Yes, then Stop - Yes, no de-yo-fication: reHist04 finds "» — <two days ago>",
+  "Скрипт:" becomes "Скрипты:", reHist01 adds the semicolon after "»", reHist04 the script's name,
+  and the date becomes today's: "v.1.1 — Скрипты: «Генеральная уборка»; «Разночтения Ё/Е» 2.2 —
+  <сегодня>"; the version stays.
+
+Both chain snapshots were re-recorded for the requester's decision (2026-10-31): their history line
+lost "Зорро, " (the driver of `chain-yo-e-recent.xml` added its line with the name before), nothing
+else changed (the outputs, "run() returned null", are the same); `yo-e-variants.xml` stays.
 
 ### 39 Исправление крякозябров (кривые кодировки)
 

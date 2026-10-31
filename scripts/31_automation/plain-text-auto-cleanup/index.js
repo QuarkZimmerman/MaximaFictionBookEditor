@@ -5,7 +5,7 @@
 //   2. 06/general-cleanup "Генеральная уборка";
 //   3. 06/remove-styles-and-ids "Удалить теги style, id разделов, id абзацев и id картинок";
 //   4. 06/unformat-empty-links "Расформатировать ссылки, адрес которых - пустая строка";
-//   5. 06/external-links-to-plain-text "Превратить внешние ссылки в текст";
+//   5. 06/external-links-to-text "Превратить внешние ссылки в текст";
 //   6. 06/remove-fbd-bookmark-links "Удалить ссылки 'bookmark', созданные FBD";
 //   7. 13/subtitles-empty-lines-plain-titles "Разметка подзаголовков, чистка пустых строк, удаление
 //      жирности и курсива в заголовках";

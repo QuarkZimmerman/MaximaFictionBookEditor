@@ -19,7 +19,8 @@
 // an empty text counts as No (the original applied the proposal); a block formatted with both italic
 // and bold is seen with the bold outside the italic (the editor keeps formatting as marks, so the
 // nesting of the source is not kept), which the expressions that untangle <EM><STRONG> treat
-// accordingly; the result window shows no proverb: left out pending the requester's decision.
+// accordingly; the result window shows no proverb: left out pending the requester's decision; a
+// history entry (Version_on_off = 1) has no user name (the requester's decision, 2026-10-31).
 // The original's notice, kept as written (FR-029):
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //             «Текст-корректор»
