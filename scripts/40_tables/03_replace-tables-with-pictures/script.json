@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "40/replace-tables-with-pictures",
+  "name": {
+    "ru": "Помочь заменить таблицы на их изображения",
+    "en": "Help replace tables with their pictures",
+    "uk": "Допомогти замінити таблиці їхніми малюнками"
+  },
+  "description": {
+    "ru": "Расставляет над таблицами пустые изображения с номерными метками либо удаляет все таблицы вместе с этими метками.",
+    "en": "Puts empty pictures with numbered labels above the tables, or deletes all tables together with those labels.",
+    "uk": "Розставляє над таблицями порожні малюнки з номерними мітками або видаляє всі таблиці разом із цими мітками."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Помочь заменить таблицы на их изображения",
+    "en": "Help replace tables with their pictures"
+  },
+  "legacy": {
+    "source": "40_Таблицы/03_Помочь заменить таблицы на их изображения.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.11"
+  }
+}

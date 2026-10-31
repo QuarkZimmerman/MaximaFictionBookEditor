@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/template-1-replace",
+  "name": {
+    "en": "Test: template 1 (version 1.2), replacing",
+    "ru": "Test: template 1 (version 1.2), replacing"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

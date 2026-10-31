@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "22/change-description-template-1",
+  "name": {
+    "ru": "Изменить дескрипшен - шаблон 1",
+    "en": "Change the description: template 1",
+    "uk": "Змінити опис документа - шаблон 1"
+  },
+  "description": {
+    "ru": "Шаблон (копия версии 1.2 исходного шаблона): записывает в описание книги (<description>) данные, заполненные в начале копии скрипта, и может повысить версию файла с записью в историю; в поставке ничего не меняет.",
+    "en": "Template (a copy of version 1.2 of the source template) that writes into the book's description (<description>) the data filled in at the start of a copy of the script and can raise the file's version with a history line; as shipped it changes nothing.",
+    "uk": "Шаблон (копія версії 1.2 вихідного шаблону): записує в опис книги (<description>) дані, заповнені на початку копії скрипта, і може підвищити версію файлу із записом в історію; у постачанні нічого не змінює."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Изменить дескрипшен - шаблон 1",
+    "en": "Change the description: template 1"
+  },
+  "legacy": {
+    "source": "22_Дескрипшен/01_Изменить дескрипшен - шаблон 1.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

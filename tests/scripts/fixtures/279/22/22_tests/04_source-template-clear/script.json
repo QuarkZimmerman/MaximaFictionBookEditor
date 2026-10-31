@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/source-template-clear",
+  "name": {
+    "en": "Test: source template, clearing",
+    "ru": "Test: source template, clearing"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

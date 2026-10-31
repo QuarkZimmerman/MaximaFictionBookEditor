@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-40/pictures-both-passes",
+  "name": {
+    "en": "Test: help replace tables with their pictures, both passes",
+    "ru": "Test: help replace tables with their pictures, both passes"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

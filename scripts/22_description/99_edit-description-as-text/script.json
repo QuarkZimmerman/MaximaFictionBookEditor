@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "22/edit-description-as-text",
+  "name": {
+    "ru": "Редакция описания документа",
+    "en": "Edit the document description as text",
+    "uk": "Редагування опису документа"
+  },
+  "description": {
+    "ru": "В два этапа: выносит текстовые данные описания книги в отдельное body для правки, а при повторном запуске возвращает их в описание с автоматической обработкой и записью в историю.",
+    "en": "Works in two steps: puts the text data of the book's description into a body of their own for editing and, when run again, writes them back into the description with automatic clean-up and a history line.",
+    "uk": "Працює у два етапи: виносить текстові дані опису книги в окреме body для редагування, а під час повторного запуску повертає їх в опис з автоматичною обробкою та записом в історію."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Редакция описания документа",
+    "en": "Edit the document description as text"
+  },
+  "legacy": {
+    "source": "22_Дескрипшен/99_Редакция описания документа.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.1"
+  }
+}

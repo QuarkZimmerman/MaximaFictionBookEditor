@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "40/show-all-tables-html",
+  "name": {
+    "ru": "Показать все-все таблицы в HTML-виде",
+    "en": "Show all tables as HTML",
+    "uk": "Показати всі-всі таблиці у вигляді HTML"
+  },
+  "description": {
+    "ru": "Показывает все таблицы книги в одном окне отчёта как HTML-таблицы с их номерами.",
+    "en": "Shows all tables of the book in one report window as numbered HTML tables.",
+    "uk": "Показує всі таблиці книги в одному вікні звіту як HTML-таблиці з їхніми номерами."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Показать все-все таблицы в HTML-виде",
+    "en": "Show all tables as HTML"
+  },
+  "legacy": {
+    "source": "40_Таблицы/02_Показать все-все таблицы в HTML-виде.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

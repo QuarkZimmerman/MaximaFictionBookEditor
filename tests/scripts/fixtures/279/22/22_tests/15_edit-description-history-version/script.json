@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/edit-description-history-version",
+  "name": {
+    "en": "Test: edit the description as text, a version the history does not name",
+    "ru": "Test: edit the description as text, a version the history does not name"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

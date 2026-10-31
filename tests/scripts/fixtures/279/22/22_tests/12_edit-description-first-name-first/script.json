@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/edit-description-first-name-first",
+  "name": {
+    "en": "Test: edit the description as text, names in the order first middle last without separators",
+    "ru": "Test: edit the description as text, names in the order first middle last without separators"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-22/edit-description-first-body",
+  "name": {
+    "en": "Test: edit the description as text, an old description body before the book's body",
+    "ru": "Test: edit the description as text, an old description body before the book's body"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

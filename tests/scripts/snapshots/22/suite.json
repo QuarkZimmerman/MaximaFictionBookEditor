@@ -1,0 +1,146 @@
+[
+  {
+    "snapshot": "22/change-description-source-template.xml",
+    "script": "scripts/22_description/00_change-description-source-template",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-source-template.replace.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/01_source-template-replace",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-source-template.add-history.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/02_source-template-add-history",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-source-template.history-line.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/03_source-template-history-line",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-source-template.clear.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/04_source-template-clear",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-source-template.repeat.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/06_source-template-repeat",
+    "book": "tests/scripts/fixtures/279/22/templates-repeat.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-template-1.xml",
+    "script": "scripts/22_description/01_change-description-template-1",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-template-2.xml",
+    "script": "scripts/22_description/02_change-description-template-2",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-template-3.xml",
+    "script": "scripts/22_description/03_change-description-template-3",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-template-4.xml",
+    "script": "scripts/22_description/04_change-description-template-4",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-template-5.xml",
+    "script": "scripts/22_description/05_change-description-template-5",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/change-description-template-1.replace.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/05_template-1-replace",
+    "book": "tests/scripts/fixtures/279/22/templates.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/edit-description-as-text.xml",
+    "script": "scripts/22_description/99_edit-description-as-text",
+    "book": "tests/scripts/fixtures/279/22/edit-description.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/edit-description-as-text.two-steps.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/07_edit-description-two-steps",
+    "book": "tests/scripts/fixtures/279/22/edit-description.fb2",
+    "args": [
+      "--answer",
+      "no"
+    ]
+  },
+  {
+    "snapshot": "22/edit-description-as-text.two-steps-stop.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/07_edit-description-two-steps",
+    "book": "tests/scripts/fixtures/279/22/edit-description.fb2",
+    "args": [
+      "--answer",
+      "yes"
+    ]
+  },
+  {
+    "snapshot": "22/edit-description-as-text.automatic.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/08_edit-description-automatic",
+    "book": "tests/scripts/fixtures/279/22/edit-description.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/edit-description-as-text.other-settings.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/09_edit-description-other-settings",
+    "book": "tests/scripts/fixtures/279/22/edit-description.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/edit-description-as-text.first-body.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/10_edit-description-first-body",
+    "book": "tests/scripts/fixtures/279/22/edit-description.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/edit-description-as-text.automatic-dates.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/11_edit-description-automatic-dates",
+    "book": "tests/scripts/fixtures/279/22/edit-description-auto.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/edit-description-as-text.first-name-first.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/12_edit-description-first-name-first",
+    "book": "tests/scripts/fixtures/279/22/edit-description.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/edit-description-as-text.history-line.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/13_edit-description-history-line",
+    "book": "tests/scripts/fixtures/279/22/edit-description.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/edit-description-as-text.history-scripts.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/14_edit-description-history-scripts",
+    "book": "tests/scripts/fixtures/279/22/edit-description-history.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "22/edit-description-as-text.history-version.xml",
+    "script": "tests/scripts/fixtures/279/22/22_tests/15_edit-description-history-version",
+    "book": "tests/scripts/fixtures/279/22/edit-description-auto.fb2",
+    "args": []
+  }
+]

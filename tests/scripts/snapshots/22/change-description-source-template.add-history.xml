@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<genre match="80">det_classic</genre>
+			<author>
+				<first-name>Иван</first-name>
+				<middle-name>Петрович</middle-name>
+				<last-name>Сидоров</last-name>
+				<home-page>http://sidorov.example</home-page>
+				<email>ivan@example.com</email>
+				<id>AUTHOR-1</id>
+			</author>
+			<author>
+				<first-name>Анна</first-name>
+				<last-name>Ёлкина</last-name>
+			</author>
+			<book-title>Описание для шаблонов</book-title>
+			<annotation>
+				<p>Первая строка аннотации.</p>
+				<p>Вторая строка с <emphasis>курсивом</emphasis>.</p>
+			</annotation>
+			<keywords>шаблон, дескрипшен</keywords>
+			<date value="2025-05-17">17 мая 2025</date>
+			<lang>ru</lang>
+			<src-lang>en</src-lang>
+			<translator>
+				<first-name>Пётр</first-name>
+				<last-name>Переводов</last-name>
+			</translator>
+			<sequence name="Цикл" number="2">
+				<sequence name="Подцикл" number="1"/>
+			</sequence>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>Зорро</nickname>
+				<email>zorro@example.com</email>
+			</author>
+			<author>
+				<first-name>Новый</first-name>
+				<last-name>Верстальщик</last-name>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<src-url>http://source.example/1</src-url>
+			<src-url>http://source.example/2</src-url>
+			<src-ocr>Распознал Кто-то</src-ocr>
+			<id>…</id>
+			<version>1.4</version>
+			<history>
+				<p>v.1.0 — Создание файла — Зорро, 1.06.2025</p>
+				<p>v.1.3 — Вычитка — Зорро, 20.10.2026</p>
+				<p>v.1.4 —  Общая правка — Зорро, 31.10.2026</p>
+			</history>
+		</document-info>
+		<publish-info>
+			<book-name>Описание для шаблонов</book-name>
+			<publisher>Издательство</publisher>
+			<city>Москва</city>
+			<year>2020</year>
+			<isbn>978-5-00000-000-0</isbn>
+			<sequence name="Библиотека" number="7"/>
+		</publish-info>
+			<custom-info info-type="source">Библиотека проекта</custom-info>
+			<custom-info info-type="note">Первая строка
+Вторая строка</custom-info>
+	</description>
+	<body>
+		<title>
+			<p>Описание для шаблонов</p>
+		</title>
+		<section>
+			<p>Текст книги.</p>
+		</section>
+	</body>
+</FictionBook>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Иван</first-name>
+				<last-name>Сидоров</last-name>
+			</author>
+			<book-title>Повторный запуск шаблона</book-title>
+			<annotation>
+				<p>Роман (1990) о <strong>главном</strong>.</p>
+				<empty-line/>
+				<p>Издание [второе] + исправленное?</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>Зорро</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>2</version>
+			<history>
+				<p>v.1.0 — Создание (первое) — Зорро</p>
+				<p>v.2 — Правка [вторая] + вычитка? — Зорро</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<p>Текст книги.</p>
+		</section>
+	</body>
+</FictionBook>
