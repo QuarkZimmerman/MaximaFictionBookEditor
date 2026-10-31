@@ -22,7 +22,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 295
+    "converted": 306
   },
   "entries": [
     {
@@ -3091,15 +3091,17 @@
       "htmlDialogs": [
         "HTML/Английская транскрипция.html"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/07_symbols/08_english-transcription",
+      "id": "07/english-transcription",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The modeless table dialog (HTML/Английская транскрипция.html), which stayed open and pasted one symbol per click (one undo step each), is a modal form with a list of the same 23 symbols: one symbol per run, the run one undo step.",
+        "The blank cells of the dialog's grid (120 cells for 23 symbols; a click on one pasted a space) are not listed.",
+        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/07_symbols/08_angliyskaya-transkriptsiya",
-      "suggestedId": "07/angliyskaya-transkriptsiya"
+      "openQuestions": []
     },
     {
       "source": "07_Символы/09_Математические символы.js",
@@ -3117,15 +3119,18 @@
       "htmlDialogs": [
         "HTML/Математические символы.html"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/07_symbols/09_math-symbols",
+      "id": "07/math-symbols",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/07_symbols/09_matematicheskie-symbols",
-      "suggestedId": "07/matematicheskie-symbols"
+      "differences": [
+        "The modeless table dialog (HTML/Математические символы.html), which stayed open and pasted one symbol per click (one undo step each), is a modal form with a list of the symbols: one symbol per run, the run one undo step.",
+        "With the caret outside the book text the script says so («Курсор должен находиться в тексте книги.»), where the dialog did nothing."
+      ],
+      "fixes": [
+        "The dialog defined 61 symbols with 61 tooltips but drew a grid of 5 × 12 = 60 cells, so its last symbol, ⅞ («Простая дробь семь восьмых»), never showed and could not be inserted. The list holds all 61 symbols, so ⅞ can be inserted; the other 60 are as in 2.7.9."
+      ],
+      "openQuestions": []
     },
     {
       "source": "08_Структура разделов/01_Управление структурой разделов и их заголовками....js",
@@ -3135,7 +3140,8 @@
       "group": "08_Структура разделов",
       "names": {
         "ru": "Управление структурой разделов и их заголовками",
-        "en": "Managing the structure of sections and their zagolovkami"
+        "en": "Manage the structure of sections and their titles",
+        "uk": "Керування структурою розділів та їхніми заголовками"
       },
       "icon": true,
       "encoding": "utf-8",
@@ -3152,7 +3158,9 @@
       "differences": [],
       "fixes": [],
       "openQuestions": [],
-      "reason": "dropped in the conversion of 2.7beta1; to be re-examined under FR-024 with script API version 2 (T069)"
+      "reason": "Re-examined under FR-024 with script API version 2. The script only opens its dialog (HTML/Управление структурой разделов и их заголовками - набор фреймов.html, v2.0 by Sclex), a drag-and-drop editor of the book's tree of bodies and sections with the text runs between them as leaves: several items are dragged at once to any place and level, deleted (Del), renamed in place with the title's formatting (F2, an editable copy of the title), wrapped in a new section, expanded and collapsed, walked with the keyboard; Save writes the whole page back. The forms of the script API (text, number, checkbox, select, radio, list, static and, in version 2, regexp fields) cannot express a live, editable, reorderable tree, and none of version 2's powers (clipboard, files, report window, running other scripts) bears on it; a series of forms would be another program, not this dialog. The editor's Document Tree moves sections (Move Left, Move Right, Move With Children) and deletes them, and titles are edited in the Body view.",
+      "namesReviewed": true,
+      "needs": "A form field kind for an editable tree: the items with their nesting, moved by drag-and-drop or by commands (several at once), deleted, renamed in place keeping their inline formatting, wrapped in a new container, the result returned as the new structure; or an API that opens the Document Tree for a script and returns the user's changes as one run."
     },
     {
       "source": "08_Структура разделов/03_Раздел под курсором - обрамить другим (новым) разделом.js",
@@ -3195,15 +3203,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/08_sections/06_reset-to-first-level",
+      "id": "08/reset-to-first-level",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/08_sections/06_cbrosit-strukturu-do-of-sections-of-the-first-ur",
-      "suggestedId": "08/cbrosit-strukturu-do-of-sections-of-the-first-ur"
+      "differences": [
+        "A section left with its title, epigraphs, picture or annotation only (one whose text was all in its subsections) gets an <empty-line/>, so that it stays valid FB2; 2.7.9 wrote it with its heading only, which FB2 does not allow (2.7.9 asked before saving such a book)."
+      ],
+      "fixes": [
+        "The body's own picture, title and epigraphs stay in the body. On the original's page they were children of the body's DIV like its sections, so the walk wrapped them in a first section of their own: the book's title became the title of a chapter and, the picture coming before the title, the section was invalid. 2.7.9's result starts with that extra section; here the body keeps its heading.",
+        "Every new section keeps the id of the section it comes from (the section that held its title and text). 2.7.9 wrote each section as a bare <DIV class=section>, without its id, so the links to sections broke."
+      ],
+      "openQuestions": []
     },
     {
       "source": "08_Структура разделов/10_Сбросить структуру разделов ПОЛНОСТЬЮ.js",
@@ -3219,15 +3230,20 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/08_sections/10_full-reset",
+      "id": "08/full-reset",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/08_sections/10_sbrosit-strukturu-of-sections-polnostyu",
-      "suggestedId": "08/sbrosit-strukturu-of-sections-polnostyu"
+      "differences": [
+        "Should the merged section start with two pictures (a section's own picture followed by the picture of a subsection), an <empty-line/> goes between them: FB2 does not allow a picture as the first block after a section's picture.",
+        "The status text «Полный сброс структуры разделов успешно завершен.» stays after the run (the script API clears a status at the end of the run unless it is sticky)."
+      ],
+      "fixes": [
+        "The text author of a body epigraph stays a text author. The original took the class off every text-author whose parent was an epigraph - right for the section epigraphs it dissolved, but also in the body epigraphs it kept as epigraphs, whose authors became plain paragraphs.",
+        "The titles and epigraphs of poems and the titles of stanzas are kept. The original dissolved every title and epigraph that was not directly in a body, so a poem's title and epigraph became paragraphs inside the poem (invalid FB2, which 2.7.9 asked before saving) and a stanza's title became a verse.",
+        "The attributes the original's rebuild dropped are kept: a body's name, the style of paragraphs and tables, the alignment of rows and cells and the spans of cells (it wrote every element again from its class and id only). A poem's date also stays a date (2.7.9's page showed dates as text authors and saved them so)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "08_Структура разделов/13_Почистить структуру.js",
@@ -3243,15 +3259,26 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/08_sections/13_structure-cleanup",
+      "id": "08/structure-cleanup",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/08_sections/13_pochistit-strukturu",
-      "suggestedId": "08/pochistit-strukturu"
+      "differences": [
+        "The repairs of the page's HTML find nothing: 100 and 103 (text or inline tags outside a paragraph, a paragraph without its end tag), 150 (a title in the middle of a section), 201/202 (a formatting tag inside the same tag, with its question and the offer of a cite) and 211 (the code &nbsp; where the editor shows another character). The editor's model holds inline content only inside text blocks, a title only at the start of its section, formatting as marks (nested formatting of one kind is merged when a book is read) and the non-breaking space as a character.",
+        "A section left with its title and a picture only (the picture taken out of the only paragraph of a titled section) gets an <empty-line/> after the picture, so that it stays valid FB2; 2.7.9 left the section without text.",
+        "With the settings that ask about single places (311 in ask mode; 503, the title made from a body's name, when merging bodies) the place is not shown while the question is open: the book is written when the script ends. The 311 question quotes the title line instead.",
+        "The automatic version raise and history entry of the original's settings (Version_on_off, off in 2.7.9) is not offered.",
+        "The result message shows no proverb: left out pending the requester's decision.",
+        "A note or comment link that sat inside formatting simply loses that formatting: the editor keeps formatting as marks, so where the link sat in the formatting is not known, and the original's follow-up of moving the spaces at the edges of the split formatting out of it (re323) is not made.",
+        "The superscript of a comment link is written in the editor's order of marks, not necessarily inside the link as the original wrote it."
+      ],
+      "fixes": [
+        "A picture that is a link (a note marker or a hyperlink) is not taken out of its paragraph (231, 232 and 301 leave it). The settings at the top of the original say that such pictures are not processed, but its expression removed every tag around the picture, the link included, so the picture lost its link and became a block picture.",
+        "A picture inside a note or comment link is kept. The original meant to remove the code and style formatting inside such links but tested mSUP.className instead of mSPAN[jj].className, so it removed the picture's own element too and the picture was lost on saving."
+      ],
+      "openQuestions": [
+        "Restore the proverb of the result message?"
+      ]
     },
     {
       "source": "08_Структура разделов/21_Добавить секцию в начало книги.js",
@@ -3267,15 +3294,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/08_sections/21_add-section-at-start",
+      "id": "08/add-section-at-start",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/08_sections/21_add-sektsiyu-into-nachalo-knigi",
-      "suggestedId": "08/add-sektsiyu-into-nachalo-knigi"
+      "openQuestions": []
     },
     {
       "source": "09_Стихи/01_Объединить выделенные подряд идущие стихи в один стих.js",
@@ -3374,15 +3399,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/09_poems/10_titles-from-first-lines",
+      "id": "09/titles-from-first-lines",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/09_poems/10_sozdat-pod-zagolovki-from-pervykh-strok-stikhov",
-      "suggestedId": "09/sozdat-pod-zagolovki-from-pervykh-strok-stikhov"
+      "differences": [
+        "The paragraphs and containers the script's expressions leave as they were are written back as they were read, with what 2.7.9's page did not show (a poem's date, xml:lang, a paragraph's style, the spans of table cells, a picture's alt text); 2.7.9 saved its rebuilt page, where dates had become text authors and those attributes were gone."
+      ],
+      "fixes": [
+        "A non-breaking space between the asterisks of a line counts as a space. The expression of an asterisk line was built before nbspEntity was set (the try block that sets it comes further down), so it held the word «undefined» instead of «&nbsp;», and lines such as «*&nbsp;*&nbsp;*» were not taken for asterisk lines; now they are.",
+        "Asterisk lines in a section annotation lose their protection marks at the end. The original protected the asterisk lines of cites, poems, stanzas, epigraphs and annotations with ☺…☻ but removed the marks in cites, poems, stanzas and epigraphs only, so «☺* * *☻» stayed in the text of annotations (and the result message counted those lines as marked up)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "09_Стихи/11_Разметка стихов между разделами с заголовками.js",
@@ -3398,15 +3426,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/09_poems/11_mark-poems-between-titles",
+      "id": "09/mark-poems-between-titles",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The paragraphs and containers the script's expressions leave as they were are written back as they were read, with what 2.7.9's page did not show (a poem's date, xml:lang, a paragraph's style, the spans of table cells, a picture's alt text); 2.7.9 saved its rebuilt page, where dates had become text authors and those attributes were gone."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/09_poems/11_razmetka-stikhov-mezhdu-razdelami-s-zagolovkami",
-      "suggestedId": "09/razmetka-stikhov-mezhdu-razdelami-s-zagolovkami"
+      "openQuestions": [
+        "if(questAst = true) assigns instead of comparing, so the steps after the poems are made - turning protected asterisk lines back and framing the plain asterisk lines inside the new poems with empty lines, which makes them stanzas of their own - run even when the user answers No to the question about asterisk subtitles. Kept as in 2.7.9: whether the framing was meant to depend on that answer is not clear."
+      ]
     },
     {
       "source": "09_Стихи/35_Поиск неразмеченных стихов.js",
@@ -3422,15 +3452,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/09_poems/35_find-unmarked-poems",
+      "id": "09/find-unmarked-poems",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/09_poems/35_search-nerazmechennykh-stikhov",
-      "suggestedId": "09/search-nerazmechennykh-stikhov"
+      "differences": [
+        "The candidates passed over are not selected on the way (the original selected and scrolled to each in turn); the selection is made where the search stops.",
+        "Table cells are not looked at: the original found a short cell, took its row for the fragment and always passed over it (the fragment holds no plain paragraph), so the result is the same; only the caret left by a fruitless search can differ."
+      ],
+      "fixes": [
+        "The document history is not searched. The conditions of Sclex's engine can name the annotation but not the history, so a search started at the top of the document went through the history's lines and could stop there, selecting three short history lines as an unmarked poem.",
+        "A fragment that ends its section is selected to its end. The original subtracted one character for the line break after the fragment's last line (characterCount--), which a fragment ending its section does not have, so such a poem was selected one character short (and a search after it started one character early)."
+      ],
+      "openQuestions": []
     },
     {
       "source": "09_Стихи/38_По очереди расформатировать все стихи от жирности и курсива.js",
@@ -3500,15 +3534,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/09_poems/40_unformat-all-poems",
+      "id": "09/unformat-all-poems",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A subtitle of a dissolved stanza that ends up in an epigraph (a poem inside an epigraph) becomes a paragraph: FB2 allows no subtitle there, and 2.7.9 left it, writing an invalid book."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/09_poems/40_rasformatirovat-all-poems",
-      "suggestedId": "09/rasformatirovat-all-poems"
+      "openQuestions": []
     },
     {
       "source": "09_Стихи/42_Поверхностно расформатировать все стихи.js",
@@ -3524,15 +3558,16 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/09_poems/42_unformat-poems-shallow",
+      "id": "09/unformat-poems-shallow",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A poem with a title or an epigraph, or with a stanza that has a title, is left as it is: dissolving it would leave a title or an epigraph inside the text of a section, which FB2 does not allow (2.7.9 did so and asked before saving such a book).",
+        "A stanza's subtitle that ends up in an epigraph (a poem inside an epigraph) becomes a paragraph: FB2 allows no subtitle there."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/09_poems/42_poverkhnostno-rasformatirovat-all-poems",
-      "suggestedId": "09/poverkhnostno-rasformatirovat-all-poems"
+      "openQuestions": []
     },
     {
       "source": "10_Статистика/01_Показать все ссылки.js",

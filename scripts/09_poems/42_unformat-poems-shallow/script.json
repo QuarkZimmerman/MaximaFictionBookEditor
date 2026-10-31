@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "09/unformat-poems-shallow",
+  "name": {
+    "ru": "Поверхностно расформатировать все стихи",
+    "en": "Unformat all poems superficially",
+    "uk": "Поверхнево розформатувати всі вірші"
+  },
+  "description": {
+    "ru": "Для книг, текст которых беспорядочно размечен стихами: снимает разметку стихов и строф (кроме стихов с автором текста), ставит пустые строки между бывшими строфами; повышает версию файла и пишет строку в историю",
+    "en": "For books whose text is marked up as poems at random: removes the poem and stanza markup (except from poems with a text author), with empty lines between the former stanzas; raises the file version and writes a line in the history",
+    "uk": "Для книг, текст яких безладно розмічено віршами: знімає розмітку віршів і строф (крім віршів з автором тексту), ставить порожні рядки між колишніми строфами; підвищує версію файлу та пише рядок в історію"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поверхностно расформатировать все стихи",
+    "en": "Unformat all poems superficially"
+  },
+  "legacy": {
+    "source": "09_Стихи/42_Поверхностно расформатировать все стихи.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

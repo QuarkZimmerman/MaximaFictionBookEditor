@@ -1,0 +1,12 @@
+[
+  {"snapshot": "08/reset-to-first-level.xml", "script": "scripts/08_sections/06_reset-to-first-level", "book": "tests/scripts/fixtures/279/08/structure.fb2", "args": []},
+  {"snapshot": "08/full-reset.xml", "script": "scripts/08_sections/10_full-reset", "book": "tests/scripts/fixtures/279/08/structure.fb2", "args": []},
+  {"snapshot": "08/full-reset.caret.xml", "script": "tests/scripts/fixtures/279/08/chain-runner", "book": "tests/scripts/fixtures/279/08/structure.fb2", "args": ["--answer", "08/full-reset"]},
+  {"snapshot": "08/structure-cleanup.lines.xml", "script": "scripts/08_sections/13_structure-cleanup", "book": "tests/scripts/fixtures/279/08/cleanup-lines.fb2", "args": ["--answer", "ok"]},
+  {"snapshot": "08/structure-cleanup.sections.xml", "script": "scripts/08_sections/13_structure-cleanup", "book": "tests/scripts/fixtures/279/08/cleanup-sections.fb2", "args": ["--answer", "ok"]},
+  {"snapshot": "08/structure-cleanup.title.xml", "script": "scripts/08_sections/13_structure-cleanup", "book": "tests/scripts/fixtures/279/08/cleanup-title.fb2", "args": ["--answer", "ok"]},
+  {"snapshot": "08/structure-cleanup.bodies.xml", "script": "scripts/08_sections/13_structure-cleanup", "book": "tests/scripts/fixtures/279/08/cleanup-bodies.fb2", "args": ["--answer", "yes", "--answer", "ok"]},
+  {"snapshot": "08/structure-cleanup.bodies-no.xml", "script": "scripts/08_sections/13_structure-cleanup", "book": "tests/scripts/fixtures/279/08/cleanup-bodies.fb2", "args": ["--answer", "no", "--answer", "ok"]},
+  {"snapshot": "08/add-section-at-start.xml", "script": "scripts/08_sections/21_add-section-at-start", "book": "tests/scripts/fixtures/279/08/structure.fb2", "args": []},
+  {"snapshot": "08/add-section-at-start.caret.xml", "script": "tests/scripts/fixtures/279/08/chain-runner", "book": "tests/scripts/fixtures/279/08/structure.fb2", "args": ["--answer", "08/add-section-at-start"]}
+]

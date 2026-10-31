@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>poetry</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Стихи</last-name>
+			</author>
+			<book-title>Стихи без истории</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2024-01-01">2024</date>
+			<id>279-09-poems-no-history</id>
+			<version>2</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Стихотворение</p>
+			</title>
+			<poem>
+				<stanza>
+					<v>Строка первой строфы.</v>
+				</stanza>
+				<stanza>
+					<v>Строка второй строфы.</v>
+				</stanza>
+			</poem>
+		</section>
+	</body>
+</FictionBook>

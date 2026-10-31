@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "09/find-unmarked-poems",
+  "name": {
+    "ru": "Поиск неразмеченных стихов",
+    "en": "Find unmarked poems",
+    "uk": "Пошук нерозмічених віршів"
+  },
+  "description": {
+    "ru": "Ищет от курсора следующее место текста, похожее на стихи без разметки, и выделяет его строки",
+    "en": "Searches from the caret for the next part of the text that looks like a poem without poem markup and selects its lines",
+    "uk": "Шукає від курсору наступне місце тексту, схоже на вірші без розмітки, і виділяє його рядки"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск неразмеченных стихов",
+    "en": "Find unmarked poems"
+  },
+  "legacy": {
+    "source": "09_Стихи/35_Поиск неразмеченных стихов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

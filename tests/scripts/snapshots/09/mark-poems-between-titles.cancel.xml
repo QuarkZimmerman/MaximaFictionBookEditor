@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>poetry</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Разметка</last-name>
+			</author>
+			<book-title>Разделы со стихами</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Стихи</p>
+		</title>
+		<section>
+			<title>
+				<p>Парус</p>
+			</title>
+			<p>Белеет парус одинокий</p>
+			<p>В тумане моря голубом!..</p>
+			<empty-line/>
+			<p>Что ищет он в стране далёкой?</p>
+			<p>Что кинул он в краю родном?..</p>
+			<p><emphasis>1832</emphasis></p>
+		</section>
+		<section>
+			<title>
+				<p>Проза</p>
+			</title>
+			<p>Это строка прозы, которая заметно длиннее восьмидесяти символов, и потому стихом быть не может.</p>
+			<p>Вторая строка.</p>
+			<p>Третья строка.</p>
+		</section>
+		<section>
+			<title>
+				<p>Две строки</p>
+			</title>
+			<p>Только две</p>
+			<p>строки здесь</p>
+		</section>
+		<section>
+			<title>
+				<p>Со звёздочками</p>
+			</title>
+			<p>Первая часть, строка один</p>
+			<p>Первая часть, строка два</p>
+			<subtitle>* * *</subtitle>
+			<p>Вторая часть, строка один</p>
+			<p>Вторая часть, строка два</p>
+		</section>
+		<section>
+			<title>
+				<p>Картинка</p>
+			</title>
+			<image l:href="#pic.png"/>
+			<p>Строка под картинкой</p>
+			<p>Ещё строка под картинкой</p>
+			<p>Последняя строка</p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

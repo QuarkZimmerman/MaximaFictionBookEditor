@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "08/full-reset",
+  "name": {
+    "ru": "Сбросить структуру разделов ПОЛНОСТЬЮ",
+    "en": "Reset the section structure COMPLETELY",
+    "uk": "Скинути структуру розділів ПОВНІСТЮ"
+  },
+  "description": {
+    "ru": "Сводит все разделы каждого тела книги, кроме примечаний, в один раздел: заголовки, эпиграфы и аннотации разделов становятся обычными абзацами текста",
+    "en": "Merges all the sections of each body of the book, except the notes, into one section: the titles, epigraphs and annotations of the sections become ordinary paragraphs of the text",
+    "uk": "Зводить усі розділи кожного тіла книги, крім приміток, в один розділ: заголовки, епіграфи та анотації розділів стають звичайними абзацами тексту"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Сбросить структуру разделов ПОЛНОСТЬЮ",
+    "en": "Reset the section structure COMPLETELY"
+  },
+  "legacy": {
+    "source": "08_Структура разделов/10_Сбросить структуру разделов ПОЛНОСТЬЮ.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

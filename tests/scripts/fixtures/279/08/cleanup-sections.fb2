@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Чистка</last-name>
+			</author>
+			<book-title>Чистка разделов</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2024-01-01">2024</date>
+			<id>279-08-cleanup-sections</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Разделы</p>
+		</title>
+		<section id="wrap">
+			<epigraph>
+				<p>Эпиграф обёртки.</p>
+			</epigraph>
+			<section id="A">
+				<title>
+					<p>Глава A</p>
+				</title>
+				<section id="A1">
+					<p>Текст главы A.</p>
+				</section>
+			</section>
+			<section id="B">
+				<section id="B1">
+					<title>
+						<p>Глава B</p>
+					</title>
+					<empty-line/>
+				</section>
+				<section id="B2">
+					<p>Текст главы B.</p>
+				</section>
+			</section>
+			<section id="C">
+				<title>
+					<p>Глава C</p>
+				</title>
+				<section id="C1">
+					<section id="C11">
+						<p>Текст главы C.</p>
+					</section>
+				</section>
+			</section>
+			<section id="D">
+				<title>
+					<p>Глава D</p>
+				</title>
+				<image l:href="#pic.png"/>
+				<section id="D1">
+					<p>Текст D1.</p>
+				</section>
+				<section id="D2">
+					<p>Текст D2.</p>
+				</section>
+			</section>
+			<section id="E">
+				<title>
+					<p>Глава E</p>
+				</title>
+				<epigraph/>
+				<p>Перед картинкой.</p>
+				<image l:href="#pic.png"/>
+				<poem>
+					<stanza>
+						<v>Стих.</v>
+					</stanza>
+				</poem>
+				<image l:href="#pic.png"/>
+				<empty-line/>
+			</section>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGOQkzsBRwzEcQCcIxBBYbnFHgAAAABJRU5ErkJggg==</binary>
+</FictionBook>

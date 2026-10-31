@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"09/find-unmarked-poems\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n29\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n32\",\n      \"offset\": 26\n    },\n    \"text\": \"Белеет парус одинокий\\nВ тумане моря голубом\\nЧто ищет он в стране далёкой\\nЧто кинул он в краю родном\"\n  }\n]"
+    }
+  ]
+}

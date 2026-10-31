@@ -1,0 +1,11 @@
+[
+  {"snapshot": "07/english-transcription.xml", "script": "scripts/07_symbols/08_english-transcription", "book": "tests/scripts/fixtures/279/07/symbols.fb2", "args": ["--select", "n7:22:22", "--answer", "{\"symbol\":\"ˈ\"}"]},
+  {"snapshot": "07/english-transcription.selection.xml", "script": "scripts/07_symbols/08_english-transcription", "book": "tests/scripts/fixtures/279/07/symbols.fb2", "args": ["--select", "n8:21:22", "--answer", "{\"symbol\":\"ɛ\"}"]},
+  {"snapshot": "07/english-transcription.range.xml", "script": "scripts/07_symbols/08_english-transcription", "book": "tests/scripts/fixtures/279/07/symbols.fb2", "args": ["--select-range", "n9:42-n10:40", "--answer", "{\"symbol\":\"ð\"}"]},
+  {"snapshot": "07/english-transcription.cancel.xml", "script": "scripts/07_symbols/08_english-transcription", "book": "tests/scripts/fixtures/279/07/symbols.fb2", "args": ["--select", "n7:22:22", "--answer", "cancel"]},
+  {"snapshot": "07/english-transcription.caret.xml", "script": "tests/scripts/fixtures/279/07/chain-runner", "book": "tests/scripts/fixtures/279/07/symbols.fb2", "args": ["--select", "n8:21:22", "--answer", "07/english-transcription", "--answer", "{\"symbol\":\"ɛ\"}"]},
+  {"snapshot": "07/math-symbols.xml", "script": "scripts/07_symbols/09_math-symbols", "book": "tests/scripts/fixtures/279/07/symbols.fb2", "args": ["--select", "n16:28:28", "--answer", "{\"symbol\":\"°\"}"]},
+  {"snapshot": "07/math-symbols.selection.xml", "script": "scripts/07_symbols/09_math-symbols", "book": "tests/scripts/fixtures/279/07/symbols.fb2", "args": ["--select", "n14:9:23", "--answer", "{\"symbol\":\"≈\"}"]},
+  {"snapshot": "07/math-symbols.seven-eighths.xml", "script": "scripts/07_symbols/09_math-symbols", "book": "tests/scripts/fixtures/279/07/symbols.fb2", "args": ["--select", "n15:26:29", "--answer", "{\"symbol\":\"⅞\"}"]},
+  {"snapshot": "07/math-symbols.caret.xml", "script": "tests/scripts/fixtures/279/07/chain-runner", "book": "tests/scripts/fixtures/279/07/symbols.fb2", "args": ["--select-range", "n9:42-n10:40", "--answer", "07/math-symbols", "--answer", "{\"symbol\":\"≈\"}"]}
+]

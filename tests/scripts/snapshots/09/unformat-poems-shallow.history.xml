@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>poetry</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Стихи</last-name>
+			</author>
+			<book-title>Стихи и история</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.1</version>
+			<history>
+				<p>v1.0 — создание файла</p>
+				<p>v.1.1 — Скрипт: «Поверхностное расформатирование всех стихов» 1.5 — (Зорро, 10.05.25)</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Стихотворение</p>
+			</title>
+			<p>Строка первой строфы.</p>
+			<empty-line/>
+			<p>Строка второй строфы.</p>
+		</section>
+	</body>
+</FictionBook>

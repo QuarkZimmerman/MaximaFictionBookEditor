@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "08/add-section-at-start",
+  "name": {
+    "ru": "Добавить секцию в начало книги",
+    "en": "Add a section at the start of the book",
+    "uk": "Додати секцію на початок книги"
+  },
+  "description": {
+    "ru": "Вставляет в начало первого тела книги, после её заголовка и эпиграфов, новую секцию с пустой строкой и ставит на неё курсор",
+    "en": "Inserts a new section holding an empty line at the start of the book's first body, after its title and epigraphs, and puts the caret there",
+    "uk": "Вставляє на початок першого тіла книги, після її заголовка та епіграфів, нову секцію з порожнім рядком і ставить на неї курсор"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Добавить секцию в начало книги",
+    "en": "Add a section at the start of the book"
+  },
+  "legacy": {
+    "source": "08_Структура разделов/21_Добавить секцию в начало книги.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

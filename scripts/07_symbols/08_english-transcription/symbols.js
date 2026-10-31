@@ -1,0 +1,28 @@
+// The table of the 2.7.9 dialog HTML/Английская транскрипция.html (table: stokber, May 2024),
+// in its order: [symbol, Russian tooltip as written, English tooltip]. The dialog's grid of
+// 4 x 30 cells showed these 23 symbols and left the other cells blank.
+export const SYMBOLS = [
+  ['ˌ', 'Модификатор буквы нижняя вертикальная линия', 'Modifier letter low vertical line (secondary stress)'],
+  ['ˈ', 'Модификатор буквы вертикальная линия', 'Modifier letter vertical line (primary stress)'],
+  ['ǝ', 'Латинская строчная буква перевернутая «e»', 'Latin small letter turned e'],
+  ['æ', 'Латинская строчная лигатура ae', 'Latin small ligature ae'],
+  ['ʌ', 'Латинская строчная буква перевернутая v', 'Latin small letter turned v'],
+  ['ɜ', 'Латинская строчная буква обратная открытая e', 'Latin small letter reversed open e'],
+  ['ɛ', 'Латинская строчная буква открытая e', 'Latin small letter open e'],
+  ['ɪ', 'Латинская буква маленькая заглавная i', 'Latin letter small capital I'],
+  ['ʤ', 'Латинская строчная буква dezh диграф ', 'Latin small letter dezh digraph'],
+  ['ʒ', 'Латинская строчная буква ezh ', 'Latin small letter ezh'],
+  ['ɑ', 'Латинская строчная буква alpha', 'Latin small letter alpha'],
+  ['ŋ', 'Латинская строчная буква энг ', 'Latin small letter eng'],
+  ['ʃ', 'Латинская строчная буква эш. Глухой постальвеолярный спирант', 'Latin small letter esh. Voiceless postalveolar fricative'],
+  ['ɡ', 'Латинская строчная буква шрифт g', 'Latin small letter script g'],
+  ['θ', 'Греческая строчная буква тета', 'Greek small letter theta'],
+  ['ʊ', 'Латинская строчная буква upsilon', 'Latin small letter upsilon'],
+  ['ɒ', 'Латинская строчная буква перевернутая альфа', 'Latin small letter turned alpha'],
+  ['ð', 'Латинская строчная буква eth', 'Latin small letter eth'],
+  ['ʧ', 'Латинская строчная буква tesh диграф', 'Latin small letter tesh digraph'],
+  ['ɔ', 'Латинская строчная буква открытая o', 'Latin small letter open o'],
+  ['u', 'Латинская строчная буква u', 'Latin small letter u'],
+  ['i', 'Латинская строчная буква i', 'Latin small letter i'],
+  [':', 'Двоеточие', 'Colon (length mark)'],
+];

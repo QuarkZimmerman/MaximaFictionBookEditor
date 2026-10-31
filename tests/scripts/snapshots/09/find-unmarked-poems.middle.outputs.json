@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"09/find-unmarked-poems\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n47\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n48\",\n      \"offset\": 23\n    },\n    \"text\": \"Обычная короткая строка\\nЕщё одна обычная строка\"\n  }\n]"
+    }
+  ]
+}

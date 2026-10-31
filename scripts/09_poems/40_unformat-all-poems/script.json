@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "09/unformat-all-poems",
+  "name": {
+    "ru": "Расформатировать все стихи",
+    "en": "Unformat all poems",
+    "uk": "Розформатувати всі вірші"
+  },
+  "description": {
+    "ru": "Полностью снимает форматирование стихов во всей книге: строфы, заголовки, эпиграфы и авторы стихов становятся обычными абзацами, вокруг них расставляются пустые строки; повышает версию файла и пишет строку в историю",
+    "en": "Removes the poem formatting from the whole book: the stanzas, titles, epigraphs and authors of poems become ordinary paragraphs, with empty lines around them; raises the file version and writes a line in the history",
+    "uk": "Повністю знімає форматування віршів у всій книзі: строфи, заголовки, епіграфи й автори віршів стають звичайними абзацами, довкола них ставляться порожні рядки; підвищує версію файлу та пише рядок в історію"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расформатировать все стихи",
+    "en": "Unformat all poems"
+  },
+  "legacy": {
+    "source": "09_Стихи/40_Расформатировать все стихи.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

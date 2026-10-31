@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"09/find-unmarked-poems\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n29\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n32\",\n      \"offset\": 26\n    },\n    \"text\": \"Белеет парус одинокий\\nВ тумане моря голубом\\nЧто ищет он в стране далёкой\\nЧто кинул он в краю родном\"\n  },\n  {\n    \"ref\": \"09/find-unmarked-poems\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n38\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n41\",\n      \"offset\": 4\n    },\n    \"text\": \"Мороз и солнце; день чудесный!\\nЕщё ты дремлешь, друг прелестный —\\nПора, красавица, проснись:\\n1829\"\n  },\n  {\n    \"ref\": \"09/find-unmarked-poems\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n44\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n46\",\n      \"offset\": 21\n    },\n    \"text\": \"Тише, мыши, кот на крыше,\\nа котята ещё выше.\\nКот пошёл за молоком,\"\n  },\n  {\n    \"ref\": \"09/find-unmarked-poems\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n47\",\n      \"offset\": 0\n    },\n    \"head\": {\n      \"nodeId\": \"n48\",\n      \"offset\": 23\n    },\n    \"text\": \"Обычная короткая строка\\nЕщё одна обычная строка\"\n  },\n  {\n    \"ref\": \"09/find-unmarked-poems\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n54\",\n      \"offset\": 19\n    },\n    \"head\": {\n      \"nodeId\": \"n54\",\n      \"offset\": 19\n    },\n    \"text\": \"\"\n  }\n]"
+    }
+  ]
+}

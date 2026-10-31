@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>poetry</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Стихи</last-name>
+			</author>
+			<book-title>Стихи</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+			<history>
+				<p>v1.0 — создание файла</p>
+			</history>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Стихи</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава со стихами</p>
+			</title>
+			<p>Текст перед стихом.</p>
+			<poem>
+				<title>
+					<p>Название стиха</p>
+				</title>
+				<epigraph>
+					<p>Эпиграф стиха.</p>
+					<text-author>Автор эпиграфа</text-author>
+				</epigraph>
+				<stanza>
+					<v>Первая строка,</v>
+					<v>вторая строка.</v>
+				</stanza>
+				<stanza>
+					<subtitle>* * *</subtitle>
+					<v>Третья строка,</v>
+					<v>четвёртая строка.</v>
+				</stanza>
+				<text-author>Поэт</text-author>
+				<date>1999</date>
+			</poem>
+			<p>Текст после стиха.</p>
+		</section>
+		<section>
+			<title>
+				<p>Стих сразу после заголовка</p>
+			</title>
+			<poem>
+				<stanza>
+					<v>Строка.</v>
+					<v>Ещё строка.</v>
+				</stanza>
+				<stanza>
+					<v>Последняя строка.</v>
+				</stanza>
+			</poem>
+		</section>
+		<section>
+			<title>
+				<p>Стихи в цитате</p>
+			</title>
+			<cite>
+				<poem>
+					<stanza>
+						<v>Строка в цитате.</v>
+					</stanza>
+				</poem>
+				<text-author>Автор цитаты</text-author>
+			</cite>
+		</section>
+		<section>
+			<title>
+				<p>Стих с заглавием</p>
+			</title>
+			<p>Абзац.</p>
+			<poem>
+				<title>
+					<p>Заглавие</p>
+				</title>
+				<stanza>
+					<v>Строка с заглавием.</v>
+				</stanza>
+				<stanza>
+					<v>Вторая строфа.</v>
+				</stanza>
+			</poem>
+		</section>
+	</body>
+</FictionBook>

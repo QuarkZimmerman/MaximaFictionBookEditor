@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "09/titles-from-first-lines",
+  "name": {
+    "ru": "Создать (под)заголовки из первых строк стихов, ориентируясь по абзацам-звездочкам",
+    "en": "Create (sub)titles from the first lines of poems, guided by asterisk paragraphs",
+    "uk": "Створити (під)заголовки з перших рядків віршів, орієнтуючись на абзаци-зірочки"
+  },
+  "description": {
+    "ru": "В сборнике стихов, разделённых строками из звёздочек, делает из первой строки каждого стиха заголовок нового раздела или подзаголовок и размечает эпиграфы, помеченные знаками % и @",
+    "en": "In a collection of poems separated by lines of asterisks, makes the first line of each poem the title of a new section or a subtitle, and marks up the epigraphs marked with % and @",
+    "uk": "У збірці віршів, розділених рядками із зірочок, робить з першого рядка кожного вірша заголовок нового розділу або підзаголовок і розмічає епіграфи, позначені знаками % та @"
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Создать (под)заголовки из первых строк стихов, ориентируясь по абзацам-звездочкам",
+    "en": "Create (sub)titles from the first lines of poems, guided by asterisk paragraphs"
+  },
+  "legacy": {
+    "source": "09_Стихи/10_Создать (под)заголовки из первых строк стихов, ориентируясь по абзацам-звездочкам....js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

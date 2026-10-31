@@ -1686,12 +1686,604 @@ node tests/scripts/run-script.mjs $G/20_win1252-words $F/win1252.fb2 --select n6
 
 ## 07_Символы
 
-9 scripts in 2.7.9: 2 new, 7 successors of converted packages. Not yet converted or rechecked.
+Task T051 (part): the 2 scripts new in 2.7.9. The seven packages converted from 2.7beta1
+(`special-symbols`, `diacritics`, `arabic`, `currency`, `greek`, `old-russian`, `hebrew`; notes in
+conversion-notes-a.md and -b.md) are rechecked later. Originals:
+`files/Scripts/07_Символы/08_…`, `09_…` and their dialogs `files/HTML/Английская
+транскрипция.html`, `files/HTML/Математические символы.html` of 2.7.9. Reference book:
+`tests/scripts/fixtures/279/07/symbols.fb2` (valid FB2 2.1); snapshots and the group's
+`suite.json`: `tests/scripts/snapshots/07/`. Every expected result below was written from the
+original's code before the run; each snapshot equals it.
+
+Shared technique. Both scripts only opened a modeless HTML dialog holding a symbol table; a
+click on a cell ran, in the main window, `rng.pasteHTML(symbol)` on the selection of the Body
+view, then collapsed the range after it, one undo unit ("Вставка символа") per click; a click
+did nothing unless the selection lay inside `fbw_body` (the book annotation, the history or a
+body). Here the table is a `list` field of one form; the chosen symbol replaces the selection
+(`selection.replaceText`, which takes the formatting at the start of the selection, as the
+paste did) and the caret is put after it (`selection.set`). Helper each package carries
+(identical copies): `lib/symbol-table.js` ×2.
+
+Note for the recheck of the seven older packages: in 2.7.9 every table dialog of the group
+pastes the symbol *over* the selection (`rng.pasteHTML(ht)`), where the 2.7beta1 dialogs kept
+the selected text and appended the symbol (`rng.pasteHTML(rng.htmlText + ht)`), which is what
+those packages do.
+
+### 08 Английская транскрипция
+
+`scripts/07_symbols/08_english-transcription`, id `07/english-transcription`, Tier 3. The table
+of 23 transcription symbols (ˌ ˈ ǝ æ ʌ ɜ ɛ ɪ ʤ ʒ ɑ ŋ ʃ ɡ θ ʊ ɒ ð ʧ ɔ u i :) in the dialog's order,
+each with its Russian tooltip and an English one (`symbols.js`); the form's title is the
+dialog's, «Символы английской транскрипции».
+
+Expected (book `symbols.fb2`):
+- `english-transcription.xml` (`--select n7:22:22`, answer ˈ): «…читается [ˈæpl], …» - the
+  stress mark inserted at the caret before «æ»;
+- `english-transcription.selection.xml` (`--select n8:21:22`, answer ɛ): the selected «e» of
+  «[pen]», inside italics, becomes «ɛ», in italics: «[<emphasis>pɛn</emphasis>]»;
+- `english-transcription.range.xml` (`--select-range n9:42-n10:40`, answer ð): the selection from
+  «θ» at the end of one paragraph to «]» in the next is replaced, as the paste did, and the two
+  paragraphs become one: «…здесь: [ð]: think.»;
+- `english-transcription.cancel.xml` (Cancel): the book unchanged;
+- `english-transcription.caret.xml` (the test package `fixtures/279/07/chain-runner`, which runs
+  the script through `mfbe.scripts.run` and reports the selection it left, recorded in
+  `.caret.outputs.json`; `--select n8:21:22`, answer ɛ): the caret after the new symbol, n8:22.
+
+Differences: modeless dialog → modal form, one symbol per run (each click was one undo step in
+2.7.9, each run is one here); the blank cells of the dialog's 4 × 30 grid are not listed (a
+click on one pasted a space); with the caret outside the book text (no book, or a selection that
+is not in text) the script says «Курсор должен находиться в тексте книги.», where the dialog did
+nothing.
+
+### 09 Математические символы
+
+`scripts/07_symbols/09_math-symbols`, id `07/math-symbols`, Tier 3. The table of 61 symbols
+(° ± ∙ × ÷ ∑ ƒ √ ∞ ≠ ∆ ∇ ∂ ∫ ∬ ∮ ≤ ≥ ≦ ≧ ≡ ≪ ≫ ~ ≈ ≉ ∪ ∩ ∨ ∧ ∴ ∵ ∽ ⊆ ⊇ ⊂ ⊃ ‰ ∈ ⌂ ⌐ ↄ ∏ ∠ ′ ″ ½ ¼
+¾ and the vulgar fractions ⅓ … ⅞) with Russian and English tooltips (`symbols.js`); the form's
+title is «Математические символы».
+
+Expected (book `symbols.fb2`):
+- `math-symbols.xml` (`--select n16:28:28`, answer °): «<strong>180° градусов</strong>» - the
+  degree sign inserted at the caret, in the bold of its place;
+- `math-symbols.selection.xml` (`--select n14:9:23`, answer ≈): the selected «приблизительно» is
+  replaced: «Число пи ≈ 3,14, …»;
+- `math-symbols.seven-eighths.xml` (`--select n15:26:29`, answer ⅞): «7/8» becomes «⅞» (see the
+  fix);
+- `math-symbols.caret.xml` (chain-runner, `--select-range n9:42-n10:40`, answer ≈): the two
+  paragraphs joined around «≈» and the caret after it, n9:43.
+
+Differences: as for 08 (modal form, one symbol per run; the message outside the text).
+
+Fix (rule 8): the dialog defined 61 symbols and 61 tooltips, the last one «⅞ Простая дробь семь
+восьмых», but drew a grid of 5 × 12 = 60 cells, so ⅞ never showed and could not be inserted. The
+list holds all 61 symbols.
+
+Script API limits met: after Select All, `selection.get()` returns null in the current API (being
+fixed); both scripts then say «Курсор должен находиться в тексте книги.», as for any selection
+that is not in text (`selection.replaceText` refuses one), where the 2.7.9 dialog did nothing for
+a Select All either (its range was not inside `fbw_body`).
 
 ## 08_Структура разделов
 
-6 scripts in 2.7.9: 4 new, 1 successors of converted packages, 1 successor(s) of scripts the 2.7beta1 conversion dropped. Not yet converted or rechecked.
+Tasks T051 (part: the 4 scripts new in 2.7.9) and T069 (part: *Управление структурой разделов
+и их заголовками…*, dropped in the conversion of 2.7beta1, re-examined). The three packages
+converted from 2.7beta1 (`split-into-sections`, `section-down`, `reset-structure`; notes in
+conversion-notes-a.md) are rechecked later. Originals: `files/Scripts/08_Структура разделов/` of
+2.7.9 and the dialog frames `files/HTML/Управление структурой разделов и их заголовками - …`.
+Reference books: `tests/scripts/fixtures/279/08/` (valid FB2 2.1); snapshots and the group's
+`suite.json`: `tests/scripts/snapshots/08/`. Every expected result below was written from the
+original's code before the run; each snapshot equals it.
+
+Shared technique. The originals walked the DIVs of the editor's page (`fbw_body`: the book
+annotation, the history, then one DIV per body) and rebuilt or moved them. On that page a body's
+own picture, title and epigraphs are children of the body's DIV, like its sections, and nothing
+was checked against the FB2 schema (2.7.9 asked before saving an invalid book). Here a body is
+rebuilt from the `mfbe.doc.get()` snapshot and written with one `doc.replaceNode`, which checks
+it; nodes moved inside the body keep their node ids. Helpers each package carries (identical
+copies): `lib/fbe-dom.js` (13, and the five packages of group 09 that need the page),
+`lib/legacy-html.js` and `lib/jscript-regexp.js` (13, copied unchanged from group 06),
+`lib/text-blocks.js` (10, copied unchanged from 34/caret-to-document-start). Script API limits
+met: the caret at the start of the document (10) goes through `selection.selectNode('desc:
+annotation')`, the Body view's annotation block (the API has no call for the start of the Body
+view); the book annotation and the history (13) are written with `doc.setDescription`.
+
+Reference book `structure.fb2`: a book annotation and history; a main body with a picture, a
+two-line title and an epigraph with its author; part 1 (`part1`: title, epigraph with author,
+annotation) holding chapter 1 (`ch1`: text with a note link, a poem with title, epigraph, a
+titled stanza, text author and date, an empty line, a paragraph with a style) and chapter 2
+(`ch2`: section picture, text, a cite with author, a table with a header cell spanning two
+columns and aligned cells, a subtitle «* * *», text); part 2 (`part2`) holding an untitled
+section and chapter 4 (`ch4`) with sections 4.1 and 4.2 (a title of three lines, an empty one in
+the middle); the epilogue (`epilogue`); a notes body whose note section has a subsection.
+
+### 06 Cбросить структуру до разделов первого уровня
+
+`scripts/08_sections/06_reset-to-first-level`, id `08/reset-to-first-level`, Tier 2. The name
+keeps the 2.7.9 file name's Latin «C». In every body except `notes` and `comments`, the original
+walked the children recursively: every run of children that are not sections (a section's own
+title, epigraphs, picture, annotation and text) was written as a new `<DIV class=section>`, the
+sections themselves were only entered; the body's HTML was replaced by the result.
+
+Expected (`reset-to-first-level.xml`, no answers): the body keeps its picture, title and
+epigraph (fix); then, in this order, the first-level sections `part1` (its title, epigraph and
+annotation, and an `<empty-line/>` - difference), `ch1` and `ch2` (unchanged), `part2` (its title
+and an `<empty-line/>`), the untitled section (unchanged), `ch4` (title and `<empty-line/>`),
+4.1, 4.2 and `epilogue` (unchanged); every section keeps its id (fix). The notes body, the
+annotation and the history are unchanged.
+
+Differences: a section left with its title, epigraphs, picture or annotation only gets an
+`<empty-line/>` (FB2 requires text or subsections; 2.7.9 wrote the heading alone).
+
+Fixes (rule 8):
+- the body's own picture, title and epigraphs stay in the body: on the page they were children
+  of the body's DIV, so the walk wrapped them in a first section of their own - the book title
+  became a chapter title and, the picture coming before the title, the section was invalid;
+- each new section keeps the id of the section it comes from: the original wrote every section
+  as a bare `<DIV class=section>`, so the links to sections broke.
+
+### 10 Сбросить структуру разделов ПОЛНОСТЬЮ
+
+`scripts/08_sections/10_full-reset`, id `08/full-reset`, Tier 2. In every body except `notes`
+and `comments`, the original rebuilt the body's HTML: the body kept its picture, title and
+epigraphs; all its sections became one section with the first one's id; the titles, epigraphs
+and annotations below the body were dissolved (their paragraphs written where they stood);
+paragraphs, pictures and the other containers were written again from their class and id. It
+first put the caret at the start of the page (the book annotation) and ended with the status bar
+text «Полный сброс структуры разделов успешно завершен.».
+
+Expected (`full-reset.xml`): the body keeps its picture, title and epigraph (with its text author,
+fix); one section `part1` holding, in order: «Часть первая», «Эпиграф части.», «Автор эпиграфа
+части» (a paragraph now), «Аннотация части.», «Глава 1», the text with its note link, the poem
+unchanged (its title, epigraph and stanza title kept - fix), the empty line, «Абзац со стилем.»
+(style kept - fix), «Глава 2», the picture, the text, the cite (author kept), the table (span and
+alignment kept - fix), the subtitle, the last paragraph of chapter 2, «Часть вторая», «Раздел без
+заголовка.», «Глава 4», «4.1», «Текст 4.1.», «4.2», an empty line, «Подзаголовок 4.2», «Текст
+4.2.», «Эпилог», «Текст эпилога.». The notes body, the annotation and the history are
+unchanged; `full-reset.caret.xml` (the chain runner of `fixtures/279/08`, which runs the script
+through `mfbe.scripts.run` and reports the selection it left): the caret at the start of the book
+annotation's paragraph.
+
+Differences: should the merged section start with two pictures, an `<empty-line/>` goes between
+them (FB2 does not allow a picture as the first block after the section's picture). The status
+text is sticky (the script API clears a status at the end of the run unless asked not to).
+
+Fixes (rule 8):
+- the text author of a body epigraph stays a text author: the original took the class off every
+  `text-author` whose parent was an epigraph, also in the body epigraphs it kept as epigraphs;
+- the titles and epigraphs of poems and the titles of stanzas are kept: the original dissolved
+  every title and epigraph not directly in a body, which left paragraphs inside poems (invalid
+  FB2) and turned stanza titles into verses;
+- the attributes the rebuild dropped are kept: a body's name, the style of paragraphs and tables,
+  the alignment of rows and cells, the spans of cells (each element was written from its class
+  and id only). A poem's date stays a date (2.7.9 wrote every date as a text author, its page
+  showing dates as text authors).
+
+### 21 Добавить секцию в начало книги
+
+`scripts/08_sections/21_add-section-at-start`, id `08/add-section-at-start`, Tier 2. The
+original found the first body (creating one when the page had none), the body's leading picture,
+title and epigraphs, inserted after the last of them a section holding one inflated empty `<P>`
+(saved as `<empty-line/>`) and moved the caret into it, scrolling there.
+
+Expected (`add-section-at-start.xml`): a new `<section><empty-line/></section>` between the body
+epigraph and `part1`; nothing else changes. `add-section-at-start.caret.xml` (chain runner): the
+caret at the start of the new section, before its empty line (reported at the section, offset 0,
+as the API reports a caret outside text).
+
+Differences: none in the result; the caret is put at the start of the new section with
+`selection.set` (the original's `moveToElementText(newSection); collapse(true)`).
+
+### 13 Почистить структуру
+
+`scripts/08_sections/13_structure-cleanup`, id `08/structure-cleanup`, Tier 2. «Чистка структуры»
+v.1.12 by Александр Ка (2046 lines): a series of numbered operations over the whole page - the
+book annotation, the history and every body - with the settings at its top (all kept, with their
+2.7.9 values), a question when the book has more than one main body, and a result window with
+the count of every operation. The original's code is ported on an emulation of its page
+(`lib/fbe-dom.js`: the DIV/P tree of `fbw_body` built from `mfbe.doc.get()`, the members the code
+uses, the paragraphs' inner HTML in the inline notation of `lib/legacy-html.js`, JScript's `\s`
+through `lib/jscript-regexp.js`); the tree is then written back as FictionBook Editor saved it
+(bodies with `doc.replaceNode`, merged or removed bodies with `doc.removeNode`, the annotation and
+the history with `doc.setDescription`). The operations, in the original's order:
+
+- 100, 103 (text or inline tags outside a paragraph), 150 (a title in the middle of a section),
+  201/202 (a tag inside the same tag), 211 (`&nbsp;` written as the code where the editor shows
+  another character): repairs of the page's HTML that the editor's model cannot hold - always 0;
+- per paragraph, in document order (also of the annotation and the history): 212 a paragraph of
+  white space and tags only is emptied; 213 an empty subtitle becomes an empty line; 214 an empty
+  text author loses its class (unless the previous line is a text author); 227/228 a line made of
+  ⁂, 1-9 `•` `*` `+`, or 3-9 dashes, `~` or `х`/`x` becomes a subtitle (in a section, cite, poem,
+  annotation or the history), bold and italics removed, ⁂ written as `<sub>*</sub><sup>*</sup>
+  <sub>*</sub>`, 2-5 `•` `*` `+` spaced, Cyrillic `х` made Latin, an empty line before it removed;
+  231 a paragraph holding one picture and only spaces and formatting is reduced to the picture;
+  232 a cite, or a poem of one stanza, holding only that paragraph is dissolved; 241 an empty
+  line after a title, epigraph or annotation that ends a section; and for an empty line: 251 the
+  first of two removed, 252 a title, epigraph, stanza, poem, cite or section annotation holding
+  only it dissolved, 253 removed outside a section, 262 a body holding only it removed (when
+  there is another body), 263 a section holding only it removed (after a section, or before one at
+  the start of its parent), 271 removed at the start or the end of its container (not after a
+  title, epigraph, picture or annotation), 272 removed next to a title, annotation, stanza, poem,
+  epigraph, cite, subtitle or section (not next to a picture), 281 in a stanza, between two
+  verses, made a stanza break;
+- 301 a paragraph holding only a picture, in a section, becomes a block picture; 311 an empty
+  line between the lines of a title removed; 320-322 a note link loses its formatting, a comment
+  link (`{N}`) keeps only a superscript over its whole text;
+- 401 an empty container removed; 402 a container holding only one of its kind dissolved;
+- 011 (question) more than one main body: 501 each becomes a section of one new body, 502 its
+  picture going after its title and epigraphs, 503 its name a title (with a question);
+- 511 a body's only section whose head is a title or epigraphs before subsections is dissolved;
+  512 a section's only subsection without a title merged into it; 514 a section of a title and an
+  empty line merged with the untitled section after it; 521 the title of a body's only section
+  (the body holding at most a picture besides) moved into the body;
+- per block picture of a section: 601 empty lines between a picture before subsections and them
+  removed; 611 an empty line between a picture and a neighbour that is not a paragraph, cite,
+  subtitle, title or picture; 621 an empty line after a picture alone in its section; 622 an
+  empty line between the section's start or end and a picture removed; 631 a picture before
+  subsections moved into a new first subsection with an empty line; 632 a picture of a body after
+  its start moved into a new section.
+
+Reference books (`fixtures/279/08/`): `cleanup-lines.fb2` (paragraph operations, notes and
+comment links, a book annotation ending with an empty line), `cleanup-sections.fb2` (structure
+and pictures), `cleanup-title.fb2` (521, and an empty notes body for 262), `cleanup-bodies.fb2`
+(two main bodies: 011/501/502, 263). Expected (the result window answered OK):
+
+- `structure-cleanup.lines.xml` (`cleanup-lines.fb2`): the book annotation loses its trailing
+  empty line (271). Section «Строки»: the empty line after the title (272); «   » emptied (212),
+  then removed as the first of two empty lines (251); «***» → subtitle «* * *» (227/228), the
+  empty line before it removed (272); «⁂» → subtitle `<sub>*</sub><sup>*</sup><sub>*</sub>`;
+  bold «хххх» → subtitle «xxxx» in Latin letters without bold; «- - -» → subtitle; «Текст — не
+  разделитель.» and «~~» stay. Section «Пустые форматы»: the empty title line removed (311); the
+  epigraph and the cite holding only an empty line dissolved (252), their lines then removed next
+  to the title (272); the subtitle « » → an empty line (212/213); the cite's text author « »
+  emptied, losing its class (214), removed at the cite's end (271). Section «Стихи»: the empty
+  lines before and after the first poem removed (272); « » between two verses → the stanza split
+  in two (281); the poem holding one stanza with one verse holding a picture dissolved (232, ×2)
+  and the picture made a block picture (301) between «После стиха.» and «Конец стихов.». Section
+  «Иллюстрации»: « <emphasis>picture</emphasis> » → a block picture after the title (231, 301);
+  the picture with a caption in its line stays; the picture that is a link stays a paragraph (fix);
+  section «Одна картинка»: its picture paragraph → a block picture, then an `<empty-line/>`
+  (difference). Section «Сноски»: the note links [1] and [2] lose their italics and bold (320),
+  «сноска» stays bold; the comment link {1} gets a superscript (322), {2} has one. The notes body
+  and the history unchanged.
+- `structure-cleanup.sections.xml` (`cleanup-sections.fb2`): the body's only section `wrap`
+  (an epigraph before subsections) dissolved into the body (511); `A1` (untitled, the only
+  subsection of `A`) merged into `A` (512); `B`: `B1` (title and empty line) merged into `B2`,
+  which takes the title, and `B`, holding only the two, dissolved (514, 402) - one section `B2`;
+  `C1`, holding only `C11`, dissolved (402), then `C11` merged into `C` (512); `D`: its picture
+  before the subsections moved into a new first subsection with an empty line (631); `E`: the
+  empty epigraph removed (401), an empty line between the first picture and the poem and between
+  the poem and the second picture (611), the empty line after the last picture removed (622).
+- `structure-cleanup.title.xml` (`cleanup-title.fb2`): the notes body holding only an empty line
+  removed (262); the title of the body's only section moved into the body after its picture
+  (521).
+- `structure-cleanup.bodies.xml` (`cleanup-bodies.fb2`, «yes» to merging the bodies): the empty
+  section after `b1s1` removed (263); one body: a section holding the first body's title,
+  epigraph, a new subsection with the picture and an empty line (502, then 631), and `b1s1`; a
+  section «Глава 2» with its text (the second body, whose only section was dissolved into it).
+  `structure-cleanup.bodies-no.xml` («no»): the empty section removed (263); the title «Глава 2»
+  of the second body's only section moved into that body (521).
+
+The four books gave these results; the counts the result window showed (checked with a scratch
+copy that also reported the window's text) equal the operations listed: lines 35 corrections
+(212 ×4, 213, 214, 227 ×4, 228 ×3, 231, 232 ×2, 251, 252 ×2, 271 ×2, 272 ×6, 281, 301 ×3, 311,
+320 ×2, 322), sections 11 (401, 402 ×2, 511, 512 ×2, 514, 611 ×2, 622, 631), title 2 (262, 521),
+bodies 5 (263, 501 ×2, 502, 631) and, with «no», 2 (263, 521). Operations not exercised: 241 (a
+section ending with its title), 601 and 632 (empty lines and pictures where FB2 allows none) and
+503 (a body named otherwise than `notes`, which FB2 2.1 does not allow) cannot occur on a valid
+book; 253 (an empty line left directly in a body, as by a body title holding only an empty line)
+can, but is not in the books.
+
+Differences:
+- the repairs of the page's HTML find nothing (100, 103, 150, 201/202, 211, see above);
+- a section left with its title and a picture only (the picture taken out of the only
+  paragraph of a titled section, which 621 does not reach) gets an `<empty-line/>` after the
+  picture so that it stays valid FB2; 2.7.9 left it without text;
+- with the settings that ask about single places (311 in ask mode; 503 when merging bodies) the
+  place is not shown during the question (the book is written when the script ends); the 311
+  question quotes the title line;
+- the automatic version raise and history entry (`Version_on_off`, off in 2.7.9) is not offered;
+- the result message shows no proverb: left out pending the requester's decision (the original
+  appended a random wartime proverb from a list in its code);
+- a note or comment link inside formatting simply loses that formatting: the model keeps
+  formatting as marks, so where the link sat is not known, and the original's follow-up of
+  moving the spaces at the edges of the split tags out of them (`re323`) is not made; the
+  superscript of a comment link is written in the editor's order of marks.
+
+Fixes (rule 8):
+- a picture that is a link (a note marker or a hyperlink) is not taken out of its paragraph:
+  the settings at the top of the original say such pictures are not processed, but expression
+  `re231` removed every tag around the picture, the link included (the picture lost its link and
+  became a block picture);
+- a picture inside a note or comment link is kept: the code meant to remove the code and style
+  formatting inside such links but tested `mSUP.className` instead of `mSPAN[jj].className`, so
+  it removed the picture's element too.
+
+Open questions: restore the proverb of the result message?
+
+### Not converted
+
+#### 01 Управление структурой разделов и их заголовками…
+
+Re-examined (T069) under FR-024 with script API version 2; still not converted. Names: en
+*Manage the structure of sections and their titles*, uk *Керування структурою розділів та
+їхніми заголовками*. The script only opens its dialog (`HTML/Управление структурой разделов и
+их заголовками - набор фреймов.html` and its frames, v2.0 by Sclex): a drag-and-drop editor of
+the tree of bodies and sections, with the text runs between them as leaves, where several items
+are dragged at once to any place and level, deleted (Del), renamed in place with their
+formatting (F2), wrapped in a new section, expanded and collapsed and walked with the keyboard;
+Save writes the whole page back. Reason: the forms of the script API (version 2 adds the
+`regexp` field) cannot express a live, editable, reorderable tree, and none of version 2's powers
+(clipboard, files, report window, running other scripts) bears on it; a series of forms would be
+another program. The Document Tree moves (Move Left, Move Right, Move With Children) and deletes
+sections; titles are edited in the Body view. Needs: a form field for an editable tree (nesting,
+moves by drag-and-drop or commands, several items at once, delete, rename keeping inline
+formatting, wrap in a new container, the result returned as the new structure), or an API that
+opens the Document Tree for a script and returns the user's changes as one run.
 
 ## 09_Стихи
 
-10 scripts in 2.7.9: 7 new, 3 successors of converted packages. Not yet converted or rechecked.
+Task T052: the 7 scripts new in 2.7.9 except *38_По очереди расформатировать все стихи от
+жирности и курсива* and *39_Расформатировать все стихи от жирности и курсива*, which run other
+scripts and are converted with the combos - 5 scripts. The three packages converted from
+2.7beta1 (`merge-adjacent-poems`, `drama-speakers`, `merge-paragraphs`; notes in
+conversion-notes-b.md) are rechecked later. Originals: `files/Scripts/09_Стихи/` of 2.7.9.
+Reference books: `tests/scripts/fixtures/279/09/` (valid FB2 2.1); snapshots and the group's
+`suite.json`: `tests/scripts/snapshots/09/`. Every expected result below was written from the
+original's code before the run; each snapshot equals it.
+
+Shared technique. The originals walked or rewrote the editor's page (`fbw_body`: the book
+annotation, the history and the bodies as DIVs and Ps). They run here on an emulation of that page
+(`lib/fbe-dom.js`, the same file in every package that needs it and in 08/structure-cleanup): the
+tree of DIV and P elements built from `mfbe.doc.get()` with the members the originals used, the
+paragraphs' inner HTML in the inline notation of `lib/legacy-html.js` (copied unchanged), the
+innerHTML of a DIV written as IE wrote it (a CRLF before every block tag, an empty line as
+`<P>&nbsp;</P>`) and parsed back as IE parsed it; the tree is written back as FictionBook Editor
+saved it (a `<P>` holding only white space became an `<empty-line/>`, a verse outside a stanza a
+paragraph). JScript's `\s` and `.` are kept with `lib/jscript-regexp.js` (copied unchanged).
+Helpers each package carries (identical copies): `lib/fbe-dom.js` ×5 (and 08/structure-cleanup),
+`lib/legacy-html.js` ×5, `lib/jscript-regexp.js` ×5, `lib/history-change.js` ×2. Script API limits
+met: the book annotation and the history (40, 42) are written with `doc.setDescription`; after
+Select All, `selection.get()` returns null in the current API (being fixed), and 35 then searches
+from the start of the book, where 2.7.9 searched from the end of the selection - the end of the
+document - and found nothing. Test packages (never bundled): `fixtures/279/09/chain-runner` (a
+copy of group 19's) and the dated runners `fixtures/279/09/09_tests/40_…-dated`, `42_…-dated`.
+
+### 10 Создать (под)заголовки из первых строк стихов, ориентируясь по абзацам-звездочкам…
+
+`scripts/09_poems/10_titles-from-first-lines`, id `09/titles-from-first-lines`, Tier 2. By stokber:
+in a collection of poems separated by lines of asterisks, each poem gets a section title (or a
+subtitle) made from its first line, ««Первая строка…»». After its help text and the questions -
+use plain asterisk lines? subtitle asterisk lines? titles (OK) or subtitles (Cancel)? the least
+number of lines of a poem (4) -, the original rewrote the first body's `innerHTML` with regular
+expressions: asterisk lines inside cites, poems, stanzas, epigraphs and annotations are protected
+with ☺…☻; empty lines next to asterisk lines go; a title directly followed by an asterisk line
+and a poem gets an empty line (the section it closes keeps a text); each asterisk line followed
+by an optional epigraph (lines up to one ending with «%») and at least the given number of lines
+of at most 400 characters of HTML - all shorter than 80 characters - becomes
+`</DIV><DIV class=section><DIV class=title><P>«…»</P></DIV>` (a new section) or a subtitle; the
+epigraph marked with «%» becomes an epigraph, its lines starting with «@» text authors, the marks
+removed; the protection removed; paragraphs of white space emptied; a message with the counts.
+Here the same expressions run, as written, on the body's HTML as IE wrote it (`lib/fbe-dom.js`:
+`innerHTML` of the body DIV read and written), and the paragraphs and containers left as they
+were keep what the page did not show (`restoreOrigins`).
+
+Reference book `asterisk-poems.fb2`: section «Сборник» - «* * *» right after the title and a
+poem of 4 lines; an empty line, «* * *» and a poem; «* * *» as a subtitle and a poem; a cite
+holding «* * *» and 4 lines; «* * *» followed by prose with a line of 96 characters; section
+«Эпиграфы» - a paragraph, «* * *», two epigraph lines, «@Гамлет%», a poem of 5 lines; section
+«Раздел с аннотацией» whose annotation holds «* * *».
+
+Expected:
+- `titles-from-first-lines.xml` (OK to the help; plain: OK; subtitles: OK; titles: OK; 4; OK):
+  «Сборник» becomes four sections: «Сборник» with an empty line; «Я помню чудное мгновенье…»
+  with its 4 lines; «Пора, мой друг, пора! покоя сердце просит…» (the empty line before the
+  asterisks removed); «Мороз и солнце; день чудесный!..» with its 4 lines, the cite (unchanged,
+  its asterisks protected), «* * *» and the prose (not a poem: a line of 96 characters).
+  «Эпиграфы» becomes «Эпиграфы» with «Вступление.» and «Я шел во тьме к заботам и веселью…» with
+  the epigraph «Тоску и грусть, страданья, самый ад,» / «Всё в красоту она преобразила.» and its
+  text author «Гамлет», then the 5 lines. The annotation's «* * *» unchanged (fix). The message:
+  4 titles, 1 epigraph, 1 author.
+- `titles-from-first-lines.subtitles.xml` (plain: OK; subtitles: Cancel; Cancel: subtitles; 4):
+  «Сборник»: the title, an empty line, the subtitle «Я помню чудное мгновенье…» and the poem, the
+  subtitle «Пора, мой друг…» and the poem, the subtitle «* * *» (subtitle asterisks not chosen)
+  and its poem, the cite, «* * *» and the prose; «Эпиграфы»: «Вступление.», the subtitle «Я шел во
+  тьме к заботам и веселью…», the epigraph lines and «@Гамлет%» as they were (with subtitles the
+  original makes no epigraphs), the poem.
+- `titles-from-first-lines.cancel.xml` (Cancel in the prompt): unchanged.
+
+Differences: the paragraphs and containers the expressions leave as they were are written back
+as they were read, with what 2.7.9's page did not show (a poem's date, xml:lang, a paragraph's
+style, the spans of table cells, a picture's alt text); 2.7.9 saved its rebuilt page.
+
+Fixes (rule 8):
+- a non-breaking space between the asterisks counts as a space: the expression of an asterisk
+  line was built before `nbspEntity` was set (its try block comes further down), so it held the
+  word «undefined» instead of `&nbsp;` and «*&nbsp;*&nbsp;*» was not an asterisk line;
+- asterisk lines in a section annotation lose their protection marks: the marks ☺…☻ were set in
+  cites, poems, stanzas, epigraphs and annotations but removed in the first four only, so «☺* *
+  *☻» stayed in annotations (and the message counted those lines as marked up).
+
+Open questions: none.
+
+### 11 Разметка стихов между разделами с заголовками
+
+`scripts/09_poems/11_mark-poems-between-titles`, id `09/mark-poems-between-titles`, Tier 2. By
+stokber, v.1.22: marks up as a poem each run of at least N short paragraphs (N asked, 3) that is
+the whole text between a title, a subtitle, the start of a section, an epigraph or (if asked) a
+picture and the next section, title, subtitle or picture, all its lines shorter than 80
+characters; empty lines in it become stanza breaks, a date line («1832», with a year 1700-2029)
+and the lines after it become text authors (their italics or bold removed, if asked), asterisk
+subtitles inside sections become plain lines first (if asked) and, inside a poem, a stanza of
+their own. The first body's `innerHTML` is rewritten with regular expressions, as in 10, here
+on the emulated page.
+
+Reference book `titled-poems.fb2`: «Парус» (title, two lines, an empty line, two lines, the
+italic date «1832»), «Проза» (a line of 95 characters and two short ones), «Две строки», «Со
+звёздочками» (two lines, the subtitle «* * *», two lines), «Картинка» (title, picture, three
+lines).
+
+Expected:
+- `mark-poems-between-titles.xml` (pictures: OK; dates' formatting: OK; asterisks: OK; 3; OK):
+  «Парус» → a poem of two stanzas and the text author «1832» without italics; «Проза» and «Две
+  строки» unchanged; «Со звёздочками» → a poem of three stanzas, the middle one the verse «* * *»;
+  «Картинка» → the picture and a poem of one stanza of three verses. Message: 3 poems, 6
+  stanzas, 1 date.
+- `mark-poems-between-titles.no-asterisks.xml` (asterisks: Cancel): «Со звёздочками» unchanged
+  (its subtitle cuts the text into runs of two lines); the rest as above.
+- `mark-poems-between-titles.cancel.xml` (Cancel in the prompt): the message «Вы отменили запуск
+  скрипта…», the book unchanged.
+
+Differences: as for 10, what the page did not show is kept on the parts the expressions leave
+alone.
+
+Fixes: none.
+
+Open questions: `if(questAst = true)` assigns instead of comparing, so turning protected asterisk
+lines back and framing the plain asterisk lines inside the new poems with empty lines (stanzas of
+their own) run even when the user answers No about asterisk subtitles; kept as in 2.7.9, since
+whether the framing was meant to depend on that answer is not clear.
+
+### 35 Поиск неразмеченных стихов
+
+`scripts/09_poems/35_find-unmarked-poems`, id `09/find-unmarked-poems`, Tier 2. A navigation
+script by stokber on Sclex's «Поиск по регекспам» engine: from the end of the selection, it looks
+for the next paragraph - not in a title, subtitle, cite, poem, stanza, text author, epigraph or
+annotation - that the engine's rules call a possible poem line («^(?=[^-–—*♠♣♦♥•■∙▶~©0-9].{2,69}$)»,
+3 to 70 characters) and not an exception (the rules before it, which skip enumerations «а) »,
+lines starting «++», lines with initials «А.», with addresses, without lower-case letters, with an
+abbreviation «т.е», «УДК/ББК/ISBN» lines and captions «Рис. 1»; a space in a rule means a
+non-breaking space, as in the engine). From that paragraph it takes the fragment of the following
+paragraphs of its section that could be a poem: up to the first line longer than 67 characters or
+the first subtitle, picture, poem or other container; up to the first change between italic or
+bold lines and plain ones; up to a date line (kept); and without its lines starting with «*», «~»,
+«+» and the like, an enumeration, a caption, an address, an abbreviation, a line without
+lower-case letters, two empty lines, and - in a fragment of at most 10 lines - a line starting
+with a dash or holding digits. The fragment is selected; the script searches on when it is one
+line, when all its lines are sentences ending with a full stop, when it is two lines with a colon,
+or three lines with an empty one in the middle; otherwise it stops there. When nothing more is
+found it says «От позиции курсора до конца документа ничего не найдено.». `run()` returns
+nothing, as `Run()` did. Converted on the emulated page (`lib/fbe-dom.js`): the fragment's text
+is cut by the original's expressions, as written, from the section's HTML as IE wrote it, and
+the selection is made with `selection.set`.
+
+Reference book `unmarked-poems.fb2`: in chapter 1, among long prose lines (84 characters): a short
+single line, two short sentences, one line for each exception, a marked poem, a cite, and the
+unmarked poem «Белеет парус одинокий…» (4 lines); in chapter 2 «Мороз и солнце…» (3 lines and the
+date «1829», then a short line), three italic lines followed by two plain short lines; a notes
+body with a short note; a history of three short lines without digits. Tests through the chain
+runner of `fixtures/279/09/chain-runner`, which reports each call's selection
+(`<snapshot>.outputs.json`).
+
+Expected:
+- `find-unmarked-poems.xml` (from the body title, five calls): 1 - «Короткая строка» (one line)
+  and «Он ушёл. / Она осталась.» (two sentences) passed over, the exceptions skipped, the marked
+  poem and the cite not searched: n29:0 - n32:26, «Белеет парус…»; 2 - n38:0 - n41:4, «Мороз и
+  солнце…» up to the date; 3 - «Короткая строка после даты» passed over, then n44:0 - n46:21, the
+  three italic lines (the plain lines after them cut off at the change of style); 4 - n47:0 -
+  n48:23, the two plain lines (two lines without full stops: a poem for the script); 5 - the
+  note «Короткое примечание» (one line, the end of its section) passed over, then «От позиции
+  курсора до конца документа ничего не найдено.» and the caret at n54:19, the end of the note (fix:
+  2.7.9 selected a fragment that ends its section one character short, and left the caret at
+  n54:18); the book unchanged;
+- `find-unmarked-poems.middle.xml` (from n45:3, one call): the italic line «Кот пошёл за
+  молоком,» found and passed over (cut at the change of style, one line), then n47:0 - n48:23;
+- `find-unmarked-poems.history.xml` (from the history's first line, one call): n29:0 - n32:26 (fix:
+  2.7.9 searched the history and would select its three short lines as a poem);
+- `find-unmarked-poems.direct.xml` (the package run directly, from the body title): the book
+  unchanged (the run that covers the package in the suite; the selections are checked through the
+  chain runner).
+
+Differences: the candidates passed over are not selected on the way (the original selected and
+scrolled to each); table cells are not looked at (the original found a short cell and always
+passed over it, its fragment holding no plain paragraph; only the caret of a fruitless search can
+differ).
+
+Fixes (rule 8):
+- the document history is not searched: the engine's conditions can name the annotation but not
+  the history, so a search from the top of the document could stop at three short history lines;
+- a fragment that ends its section is selected to its end: `characterCount--` was meant for the
+  line break after the last line, which such a fragment does not have (it was selected one
+  character short, and the next search started one character early).
+
+Open questions: none.
+
+### 40 Расформатировать все стихи
+
+`scripts/09_poems/40_unformat-all-poems`, id `09/unformat-all-poems`, Tier 2. «Расформатирование
+всех стихов» v.1.5 by Александр Ка. After a warning (Yes/No), for every poem of the page (the
+annotation and the history included), in document order: each stanza, title and epigraph inside
+it (last first) gets an empty line before and after it unless the neighbour is empty or a
+subtitle, and is dissolved; every text author (a date too, which the page showed as one) loses its
+class; an empty line is removed when it is the third in a row, stands before a subtitle, or
+follows one (with the next empty line); the poem gets an empty line before it (unless after a
+title or a subtitle) and after it (setting `Add_emptyLine_on_off = 1`); its leading empty lines go
+when it follows a title or subtitle, or come two in a row, its trailing ones when two in a row;
+the poem is dissolved. Verses become paragraphs. Then, with corrections made, the version is
+raised and the history gets a line (settings `Version_on_off = 1`, name «Зорро»; `lib/history-
+change.js`), and a result window shows the counts. The history line carries today's date; the
+snapshots run the script through the test package `fixtures/279/09/09_tests/40_unformat-all-poems-
+dated`, which passes `{ today: "2025-05-10" }` (the script takes the date from a calling script's
+`args.today`, otherwise from the clock).
+
+Reference book `poems.fb2`: a section with a poem with a title, an epigraph with its author, a
+stanza, a stanza starting with the subtitle «* * *», a text author and a date, between two
+paragraphs; a poem right after a section title; a poem inside a cite followed by the cite's text
+author; a poem with a title after a paragraph; the history «v1.0 — создание файла», version 1.0.
+
+Expected (`unformat-all-poems.xml`, Yes, then OK): section 1: the paragraph, an empty line,
+«Название стиха», empty line, «Эпиграф стиха.», «Автор эпиграфа», empty line, «Первая строка,»,
+«вторая строка.», the subtitle «* * *» (the empty line before it removed), «Третья строка,»,
+«четвёртая строка.», empty line, «Поэт», «1999», empty line, «Текст после стиха.»; section 2 (no
+empty line after the title): «Строка.», «Ещё строка.», empty line, «Последняя строка.»; the cite:
+«Строка в цитате.», empty line, its text author; section 4: «Абзац.», empty line, «Заглавие»,
+empty line, «Строка с заглавием.», empty line, «Вторая строфа.». Version 1.1; the history gets
+«v.1.1 —  Скрипт: «Расформатирование всех стихов» 1.5 — (Зорро, 10.05.25)» (two spaces after the
+dash, as the original wrote it; no line for the old version, which the history mentions).
+29 corrections (101 ×7, 102 ×4, 103, 111 ×7, 112 ×2, 113, 114 ×3, 115 ×4).
+
+`unformat-all-poems.history.xml` (`poems-history.fb2`: a poem of two stanzas; version 1.1; the
+history's last line «v.1.1 — Скрипт: «Поверхностное расформатирование всех стихов» 1.5 —
+(Зорро, 8.05.25)», two days before): the poem → «Строка первой строфы.», empty line, «Строка
+второй строфы.»; no version raise: the recent line becomes «v.1.1 — Скрипты: «Поверхностное
+расформатирование всех стихов» 1.5; «Расформатирование всех стихов» 1.5 — (Зорро, 10.05.25)».
+
+`unformat-all-poems.no-history.xml` (`poems-no-history.fb2`: the same poem, no history, version
+«2»): version 2.1; the history is created with «v.2 — ?» and «v.2.1 —  Скрипт:
+«Расформатирование всех стихов» 1.5 — (Зорро, 10.05.25)».
+
+`unformat-all-poems.no.xml` (No to the warning): the book unchanged.
+
+Differences: a subtitle of a dissolved stanza that ends up in an epigraph (a poem in an
+epigraph) becomes a paragraph (FB2 allows no subtitle there; 2.7.9 left it). The history line is
+signed «Зорро», as the settings say (2.7.9's main.js defines no `fbeUserName` either).
+
+Fixes: none. Open questions: none.
+
+### 42 Поверхностно расформатировать все стихи
+
+`scripts/09_poems/42_unformat-poems-shallow`, id `09/unformat-poems-shallow`, Tier 2.
+«Поверхностное расформатирование всех стихов» v.1.5 by Александр Ка, for books whose text is
+formatted as poems at random. After a warning (Yes/No), for every poem that has no text author
+(nor a date) of its own: an empty line goes between two stanzas that follow each other, the
+stanzas and the poem are dissolved (verses become paragraphs, everything else is kept); then the
+version and the history as in 40 (the same settings), and the result window. Test package
+`fixtures/279/09/09_tests/42_unformat-poems-shallow-dated` (`today` 2025-05-10).
+
+Expected (`unformat-poems-shallow.xml`, `poems.fb2`): the first poem (a text author and a date)
+unchanged; section 2: «Строка.», «Ещё строка.», empty line, «Последняя строка.»; the cite:
+«Строка в цитате.» and its text author; the poem with a title unchanged (difference); version 1.1
+and the history line «v.1.1 —  Скрипт: «Поверхностное расформатирование всех стихов» 1.5 —
+(Зорро, 10.05.25)». 6 corrections (101, 111 ×3, 112 ×2).
+
+`unformat-poems-shallow.history.xml` (`poems-history.fb2`): the poem → «Строка первой строфы.»,
+empty line, «Строка второй строфы.»; the history's recent line already names the script: only its
+date becomes 10.05.25; version 1.1.
+
+`unformat-poems-shallow.no.xml` (No): the book unchanged.
+
+Differences: a poem with a title or an epigraph, or with a stanza that has a title, is left as it
+is (dissolving it would leave a title or an epigraph inside the text of a section, which FB2 does
+not allow; 2.7.9 did so and asked before saving such a book); a stanza's subtitle that ends up in
+an epigraph becomes a paragraph.
+
+Fixes: none. Open questions: none.

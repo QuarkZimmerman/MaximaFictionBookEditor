@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Script chain",
+      "text": "[\n  {\n    \"ref\": \"07/math-symbols\",\n    \"returned\": null,\n    \"anchor\": {\n      \"nodeId\": \"n9\",\n      \"offset\": 43\n    },\n    \"head\": {\n      \"nodeId\": \"n9\",\n      \"offset\": 43\n    },\n    \"text\": \"\"\n  }\n]"
+    }
+  ]
+}
