@@ -59,6 +59,12 @@ position" and the keyboard-layout switch on open — see [`CHANGELOG.md`](CHANGE
 [`docs/releases/0.0.5.md`](docs/releases/0.0.5.md) and
 [`docs/releases/0.0.4.md`](docs/releases/0.0.4.md).
 
+The keys are FictionBook Editor's (*Settings > Hotkeys*; Ctrl+S always saves the book). Of the
+browser engine the editor runs in, only its zoom (Ctrl+plus, Ctrl+minus, Ctrl+0, Ctrl+mouse
+wheel), full screen (F11), paste as plain text (Ctrl+Shift+V) and the editing keys of text
+fields remain; its other keys - reloading, printing, its find bar, new windows, DevTools - do
+nothing ([`docs/parity-matrix.md`](docs/parity-matrix.md) §6a).
+
 ## Supported platforms
 
 - Windows 10 and Windows 11, 64-bit.

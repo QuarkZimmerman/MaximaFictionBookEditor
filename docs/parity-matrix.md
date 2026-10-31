@@ -461,6 +461,37 @@ the Hotkeys page and checked by `ui/tests/unit/hotkeys.test.ts` against the orig
 * symbol hotkeys (`symbol.<n>`, `edit.insertNbsp`) - implemented from `resources/symbols.ini`,
   listed under the Symbols group in us9.
 
+## 6a. Keys of the browser engine (feature 007, US5)
+
+The editor runs inside a browser engine (CEF), whose own keys would act on the editor's page,
+not on the book. The shell's command gate (`app/src/engine_commands.cpp`, research R1.4 of
+feature 007) refuses them. Where the editor has a key of its own - FictionBook Editor's Ctrl+S,
+Ctrl+P (Add > Poem), Ctrl+F, F5, F7, Ctrl+W - the editor's command runs; only where no editor
+command takes the key (a modal dialog open) does it reach the engine, and nothing happens.
+
+* **Blocked (engine functions):** saving the page, printing (Ctrl+P), the find bar (Ctrl+F),
+  caret browsing (F7), reloading (Ctrl+R, F5, Shift+F5, Ctrl+Shift+R, Ctrl+F5), going back
+  or forward (Alt+Left, Alt+Right, the mouse's back and forward buttons), new windows, tabs and
+  incognito windows (Ctrl+N, Ctrl+T, Ctrl+Shift+N), closing the tab or the window around the
+  close question (Ctrl+W, Ctrl+F4, Ctrl+Shift+W), history, downloads, bookmarks, clearing the
+  browsing data and the task manager (Ctrl+H, Ctrl+J, Ctrl+D, Ctrl+Shift+O, Ctrl+Shift+Delete,
+  Shift+Esc), and DevTools outside developer runs (F12, Ctrl+Shift+I, J, C). A link asked for
+  in a new tab or window (middle-click, Ctrl+click, Shift+click) and `window.open` open nothing
+  in the engine - the engine of CEF 150 in Chrome style asks the shell for nothing, not even
+  for a plain click on a `target="_blank"` link; every web page the interface opens - About's
+  links, the AI assistant's terms, the version check's release page - goes to the system browser
+  through the editor (`ExternalLink` / `openExternalUrl`, `app.openUrl`).
+* **Kept:** zoom (Ctrl+plus, Ctrl+minus, Ctrl+0 and Ctrl+mouse wheel), full screen (F11),
+  paste as plain text (Ctrl+Shift+V) and the editing keys of text fields.
+* **Evidence:** the key sets `save`, `reload`, `navigate`, `close`, `windows`, `dialogs`,
+  `kept`, `devtools` and `links` of `tools/shell-smoke.mjs` (`MFBE_SMOKE_ENGINE_KEYS=1`, Linux,
+  every CI run), its `popups` set (`window.open` from a real click; in test-hook shells only,
+  the local gate), the second run without the debugging port (F12 and Ctrl+Shift+I, J, C open
+  no window), the journeys `us9-version-check` and `us10-licence` (the pages handed to the
+  system browser, recorded by the core's test provider, `test.openedUrls`), and the engine-key steps of `tools/ci/windows-russian-journey.ps1` (Ctrl+S,
+  Ctrl+R, F5, Ctrl+F4, Ctrl+W, Ctrl+N, F12). The observed command per key is in research R1.4
+  of feature 007.
+
 ## 7. Summary
 
 Counts are recomputed by `node tools/parity-check.mjs` (printed as

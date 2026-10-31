@@ -17,6 +17,7 @@
 
 import type { Command, CommandContext } from '@/app/commands';
 import type { FeatureContext } from '@/app/services';
+import { openExternalUrl } from '@/dialogs/externalUrl';
 import { isRunLocked, type AppStore } from '@/model/store';
 import type { ReleaseInfo } from '@/rpc/types';
 
@@ -154,7 +155,9 @@ export async function fetchLatest(
 
 /**
  * "A new version ... is available: <version>. Open its page?" - Yes opens the release's page
- * in the system browser (the shell opens new windows there, never inside the editor).
+ * in the system browser through the core (`app.openUrl`, as every web page the interface
+ * opens: the shell's engine opens no window, and no system browser, for `window.open` -
+ * feature 007, US5).
  */
 export async function promptNewer(ctx: CommandContext, release: ReleaseInfo): Promise<void> {
   const answer = await ctx.dialogs.showMessage({
@@ -164,7 +167,7 @@ export async function promptNewer(ctx: CommandContext, release: ReleaseInfo): Pr
     icon: 'question',
     testId: 'dialog-version-new',
   });
-  if (answer === 'yes') window.open(release.url, '_blank', 'noopener');
+  if (answer === 'yes') openExternalUrl(ctx.rpc, release.url);
 }
 
 /** Help > Check for new version: the three messages of the original's update check. */

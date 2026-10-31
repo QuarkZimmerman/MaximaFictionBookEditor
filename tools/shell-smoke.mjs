@@ -892,7 +892,140 @@ const KEY_SETS = {
     { keys: 'ctrl+shift+q', state: 'body', logs: [], outcome: 'kept' },
     { keys: 'ctrl+shift+q', state: 'modal', logs: [], outcome: 'kept' },
   ],
+  // US5 (FR-002): no key opens a window of the engine - a new window or tab, an incognito
+  // window, history, downloads, bookmarks, the clearing of browsing data, the task manager.
+  // With a modal dialog open the editor's own hotkeys are off, so each key reaches the engine.
+  // Ctrl+D (bookmark) and Shift+Esc (task manager) reach no command on Linux (observed on
+  // 2026-10-31, T095); the gate blocks every command it does not allow, should a build map them.
+  windows: [
+    { keys: 'ctrl+n', state: 'modal', logs: ['IDC_NEW_WINDOW blocked'], outcome: 'kept' },
+    { keys: 'ctrl+t', state: 'modal', logs: ['IDC_NEW_TAB blocked'], outcome: 'kept' },
+    { keys: 'ctrl+shift+n', state: 'modal', logs: ['IDC_NEW_INCOGNITO_WINDOW blocked'], outcome: 'kept' },
+    { keys: 'ctrl+h', state: 'modal', logs: ['IDC_SHOW_HISTORY blocked'], outcome: 'kept' },
+    { keys: 'ctrl+j', state: 'modal', logs: ['IDC_SHOW_DOWNLOADS blocked'], outcome: 'kept' },
+    { keys: 'ctrl+d', state: 'modal', logs: [], outcome: 'kept' },
+    { keys: 'ctrl+shift+o', state: 'modal', logs: ['IDC_SHOW_BOOKMARK_MANAGER blocked'], outcome: 'kept' },
+    { keys: 'ctrl+shift+Delete', state: 'modal', logs: ['IDC_CLEAR_BROWSING_DATA blocked'], outcome: 'kept' },
+    { keys: 'shift+Escape', state: 'modal', logs: [], outcome: 'kept' },
+  ],
+  // US5 (FR-006, FR-007): no print dialog, find bar or caret browsing of the engine. With a modal
+  // dialog open the gate refuses them; in the Body view the same keys are the editor's Add >
+  // Poem, Find and spell check (FictionBook Editor's keys), which run.
+  dialogs: [
+    { keys: 'ctrl+p', state: 'modal', logs: ['IDC_PRINT blocked'], outcome: 'kept' },
+    { keys: 'ctrl+f', state: 'modal', logs: ['IDC_FIND blocked'], outcome: 'kept' },
+    { keys: 'F7', state: 'modal', logs: ['IDC_CARET_BROWSING_TOGGLE blocked'], outcome: 'kept' },
+    { keys: 'ctrl+p', state: 'body', logs: [], outcome: (ctx) => poemAdded(ctx) },
+    { keys: 'ctrl+f', state: 'body', logs: [], outcome: (ctx) => editorDialog(ctx, 'ctrl+f', 'Find', 'dialog-find') },
+    { keys: 'F7', state: 'body', logs: [], outcome: (ctx) => editorDialog(ctx, 'F7', 'spell check', 'dialog-spelling') },
+  ],
+  // US5 (FR-009): the engine functions the editor keeps - zoom and full screen.
+  kept: [
+    { keys: 'ctrl+equal', state: 'body', logs: ['IDC_ZOOM_PLUS allowed'], outcome: (ctx) => zoomed(ctx, 'ctrl+=', true) },
+    { keys: 'ctrl+0', state: 'body', logs: ['IDC_ZOOM_NORMAL allowed'], outcome: (ctx) => zoomed(ctx, 'ctrl+0', false) },
+    { keys: 'F11', state: 'body', logs: ['IDC_FULLSCREEN allowed'], outcome: (ctx) => fullScreen(ctx, 'F11', true) },
+    { keys: 'F11', state: 'body', logs: ['IDC_FULLSCREEN allowed'], outcome: (ctx) => fullScreen(ctx, 'F11 again', false) },
+  ],
+  // US5 (FR-008): in a developer run (this one has the debugging port) F12 opens the engine's
+  // DevTools; the run without the port (MFBE_SMOKE_NONDEV_BIN, shell-smoke.sh) checks that no
+  // DevTools key opens anything there.
+  devtools: [{ keys: 'F12', state: 'body', logs: ['IDC_DEV_TOOLS_TOGGLE allowed'], outcome: 'devtools' }],
+  // US5 (FR-002): a link asked for in a new tab or window - middle-click, Ctrl+click,
+  // Shift+click - opens no engine window. In the Body view the book's external link is edited
+  // text, which the engine never follows (on Linux a middle-click there pastes the selection, as
+  // in every text field); on a link of the interface the engine of CEF 150 in Chrome style asks
+  // for nothing either (no OnOpenURLFromTab, no OnBeforePopup; observed 2026-10-31 with real X
+  // clicks that reach the link). The interface opens its links in the system browser itself
+  // (ExternalLink, app.openUrl), which a smoke run must not start.
+  links: [
+    { keys: { link: 'middle', where: 'body' }, state: 'body', logs: [], outcome: 'kept' },
+    { keys: { link: 'Control', where: 'body' }, state: 'body', logs: [], outcome: 'kept' },
+    { keys: { link: 'Shift', where: 'body' }, state: 'body', logs: [], outcome: 'kept' },
+    { keys: { link: 'middle', where: 'about' }, state: 'modal', logs: [], outcome: 'kept' },
+  ],
+  // US5 (FR-002): window.open from a real click - the call the version check's Yes button made
+  // before feature 007 - opens no engine window. The engine of CEF 150 in Chrome style asks for
+  // nothing either (no OnBeforePopup, so no system browser; observed 2026-10-31), which is why
+  // the interface opens every web page through the editor (app.openUrl) instead. Only in a
+  // test-hook shell: should an engine ask after all, OnBeforePopup's OpenExternal would start
+  // the browser of a shell without hooks; a test-hook shell logs it and opens nothing.
+  popups: [{ keys: { popup: 'window.open' }, state: 'body', logs: [], outcome: (ctx) => popupProbe(ctx), hooksOnly: true }],
 };
+
+/** The address of the popup probe (popups set): never fetched, a test-hook shell opens nothing. */
+const POPUP_URL = 'https://example.org/mfbe-smoke-popup';
+
+// A probe button, laid over the page, whose click calls window.open as the version check did;
+// a real X click on it gives the call the user gesture of a real click. The click marks the page,
+// so the outcome knows the call was made.
+async function clickPopupProbe(ctx) {
+  const point = await ctx.page.evaluate((url) => {
+    const button = document.createElement('button');
+    button.textContent = 'popup probe';
+    button.style.cssText = 'position:fixed;right:40px;bottom:80px;width:160px;height:40px;z-index:2147483647';
+    button.addEventListener('click', () => {
+      window.__mfbePopupProbe = 'clicked';
+      window.open(url, '_blank', 'noopener');
+      button.remove();
+    });
+    document.body.appendChild(button);
+    const rect = button.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, ratio: window.devicePixelRatio };
+  }, POPUP_URL);
+  xdotool(ctx.env, 'windowactivate', '--sync', ctx.window);
+  xdotool(ctx.env, 'mousemove', '--window', ctx.window, String(Math.round(point.x * point.ratio)), String(Math.round(point.y * point.ratio)));
+  xdotool(ctx.env, 'click', '1');
+}
+
+// The probe's click reached the page and called window.open; no engine window opened (checked by
+// the runner before this). What the engine asked the shell for is reported: nothing, with CEF 150.
+async function popupProbe(ctx) {
+  if ((await ctx.page.evaluate(() => window.__mfbePopupProbe)) !== 'clicked') {
+    throw new Error('window.open: the probe button did not get the click');
+  }
+  const asked = ctx.shelltestLines().slice(ctx.linesBefore).filter((l) => / (before-popup|open-url-from-tab|open-external) /.test(`${l} `));
+  return asked.length === 0
+    ? 'window.open was called; the engine asked for nothing: no window, no system browser'
+    : `window.open was called; the engine asked the shell: ${asked.map((l) => l.replace(/^shelltest: /, '')).join('; ')}; no engine window`;
+}
+
+/** The external link of the smoke book (modern-utf8.fb2, paragraph p1). */
+const EXTERNAL_LINK = 'https://example.org/';
+
+// Add > Poem (Ctrl+P in the Body view) added a poem; Ctrl+Z takes it away again.
+async function poemAdded(ctx) {
+  const poems = ctx.page.locator('[data-testid="body-editor"] .fb-poem');
+  await waitUntil('the poem Ctrl+P adds', async () => (await poems.count()) > (ctx.poems ?? 0), timeoutMs);
+  ctx.press('ctrl+z');
+  await waitUntil('the poem to go with Ctrl+Z', async () => (await poems.count()) === (ctx.poems ?? 0), timeoutMs);
+  return 'Ctrl+P ran Add > Poem (the editor\'s own command), undone with Ctrl+Z';
+}
+
+// The editor's own dialog the key opened; Escape closes it.
+async function editorDialog(ctx, chord, what, testId) {
+  const dialog = ctx.page.locator(`[data-testid="${testId}"]`);
+  await dialog.waitFor({ state: 'visible', timeout: timeoutMs });
+  await ctx.page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden', timeout: timeoutMs });
+  return `${chord} opened the editor's ${what} (its own dialog), closed with Escape`;
+}
+
+// The engine's zoom: Ctrl+= enlarges the page (devicePixelRatio grows), Ctrl+0 restores it.
+async function zoomed(ctx, chord, larger) {
+  const ratio = await ctx.page.evaluate(() => window.devicePixelRatio);
+  if (larger ? !(ratio > ctx.ratio) : Math.abs(ratio - ctx.ratio) > 1e-6) {
+    throw new Error(`${chord}: devicePixelRatio ${ratio}, ${larger ? 'not above' : 'not back at'} ${ctx.ratio}`);
+  }
+  return `${chord}: devicePixelRatio ${ctx.ratio} -> ${ratio} (the engine's zoom, kept)`;
+}
+
+// Full screen through the window manager's state (_NET_WM_STATE_FULLSCREEN, read with xprop).
+async function fullScreen(ctx, chord, on) {
+  const state = () => execFileSync('xprop', ['-id', ctx.window, '_NET_WM_STATE'], { env: ctx.env, encoding: 'utf8' });
+  await waitUntil(`full screen ${on ? 'on' : 'off'} after ${chord}`, async () => state().includes('_NET_WM_STATE_FULLSCREEN') === on, timeoutMs);
+  return `${chord}: full screen ${on ? 'on' : 'off'} (_NET_WM_STATE_FULLSCREEN; the engine's full screen, kept)`;
+}
+
 
 async function fastModeOn(ctx) {
   return (await ctx.page.locator('[data-testid="body-view"]').getAttribute('data-fast-mode')) === 'true';
@@ -924,13 +1057,19 @@ function editorWindow(env) {
   return ids[0];
 }
 
-// The visible top-level windows of the display: id -> title.
-function visibleWindows(env) {
+// The visible top-level windows of the display: id -> title. A search can fail while a window
+// goes away during it (a transient window of the engine): it is tried again before an empty
+// list is believed.
+async function visibleWindows(env) {
   let ids = [];
-  try {
-    ids = xdotool(env, 'search', '--onlyvisible', '--name', '.').split(/\s+/).filter(Boolean);
-  } catch {
-    // xdotool exits with 1 while nothing matches
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      ids = xdotool(env, 'search', '--onlyvisible', '--name', '.').split(/\s+/).filter(Boolean);
+      if (ids.length > 0) break;
+    } catch {
+      // xdotool exits with 1 while nothing matches, and fails on a window that went meanwhile
+    }
+    await sleep(300);
   }
   const windows = new Map();
   for (const id of ids) {
@@ -1041,6 +1180,38 @@ function pressKey(ctx, chord) {
   xdotool(ctx.env, 'key', '--clearmodifiers', chord);
 }
 
+// A click on a link - the book's external link in the Body view, or About's repository link:
+// the middle button, or the left one with Ctrl or Shift. A real click through the X server
+// (xdotool, at the link's place in the window), as a user's: the engine takes it as a user
+// gesture, which a click sent through the page's own input protocol is not.
+async function clickLink(ctx, how, where) {
+  const link =
+    where === 'about'
+      ? ctx.page.locator('[data-testid="about-repository"]')
+      : ctx.page.locator(`[data-testid="body-editor"] a[href="${EXTERNAL_LINK}"]`).first();
+  await link.scrollIntoViewIfNeeded();
+  // The middle of the link's first line: a link that wraps has a gap in the middle of its box.
+  const point = await link.evaluate((el) => {
+    const rect = el.getClientRects()[0];
+    return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, ratio: window.devicePixelRatio } : null;
+  });
+  if (!point) {
+    throw new Error(`the ${where === 'about' ? 'About' : 'Body view'} link is not shown`);
+  }
+  const x = String(Math.round(point.x * point.ratio));
+  const y = String(Math.round(point.y * point.ratio));
+  xdotool(ctx.env, 'windowactivate', '--sync', ctx.window);
+  xdotool(ctx.env, 'mousemove', '--window', ctx.window, x, y);
+  if (how === 'middle') {
+    xdotool(ctx.env, 'click', '2');
+  } else {
+    const key = how === 'Control' ? 'ctrl' : 'shift';
+    xdotool(ctx.env, 'keydown', key);
+    xdotool(ctx.env, 'click', '1');
+    xdotool(ctx.env, 'keyup', key);
+  }
+}
+
 // A real mouse button over the page (8 = back, 9 = forward).
 function clickButton(ctx, button) {
   xdotool(ctx.env, 'windowactivate', '--sync', ctx.window);
@@ -1067,22 +1238,42 @@ async function editKept(ctx) {
 }
 
 function chordLabel(keys) {
-  return typeof keys === 'string' ? keys : `mouse button ${keys.button}`;
+  if (typeof keys === 'string') {
+    return keys;
+  }
+  if (keys.popup) {
+    return `${keys.popup} from a click`;
+  }
+  if (keys.link) {
+    const what = keys.where === 'about' ? "About's link" : "the book's link";
+    return keys.link === 'middle' ? `middle-click on ${what}` : `${keys.link}+click on ${what}`;
+  }
+  return `mouse button ${keys.button}`;
 }
 
 async function runEngineKey(ctx, set, entry) {
   const label = `${set}: ${chordLabel(entry.keys)} (${entry.state})`;
+  if (entry.hooksOnly && !ctx.hooks) {
+    console.log(`engine keys:   ${label} - skipped: needs a test-hook shell`);
+    return false;
+  }
   if (entry.state === 'modal') {
     await ctx.openAbout();
   } else {
     await ctx.closeAbout();
     await ctx.focusEditor();
   }
-  const windowsBefore = ctx.windows();
+  const windowsBefore = await ctx.windows();
   const linesBefore = ctx.shelltestLines().length;
+  ctx.linesBefore = linesBefore;
   const bookBefore = readBook();
+  ctx.poems = await ctx.page.locator('[data-testid="body-editor"] .fb-poem').count();
   if (typeof entry.keys === 'string') {
     ctx.press(entry.keys);
+  } else if (entry.keys.link) {
+    await clickLink(ctx, entry.keys.link, entry.keys.where);
+  } else if (entry.keys.popup) {
+    await clickPopupProbe(ctx);
   } else {
     ctx.click(entry.keys.button);
   }
@@ -1104,7 +1295,7 @@ async function runEngineKey(ctx, set, entry) {
   if (!(await ctx.pageAlive())) {
     throw new Error(`${label}: the editor's page was replaced (url ${ctx.page.url()})`);
   }
-  const windowsAfter = ctx.windows();
+  const windowsAfter = await ctx.windows();
   if (!windowsAfter.has(ctx.window)) {
     throw new Error(`${label}: the editor's window ${ctx.window} closed`);
   }
@@ -1144,6 +1335,7 @@ async function runEngineKey(ctx, set, entry) {
   }
   const logged = ctx.hooks ? ctx.shelltestLines().slice(linesBefore).map((l) => l.replace(/^shelltest: /, '')) : [];
   console.log(`engine keys:   ${label} - ${result}${logged.length ? ` [${logged.join('; ')}]` : ''}`);
+  return true;
 }
 
 async function checkEngineKeysScenario(page) {
@@ -1153,11 +1345,13 @@ async function checkEngineKeysScenario(page) {
     `engine keys:   window ${ctx.window}, ${ctx.hooks ? 'a test-hook shell (the gate logs its decisions)' : 'a shell without test hooks (outcomes only)'}`,
   );
   await ctx.typeEdit();
+  ctx.ratio = await page.evaluate(() => window.devicePixelRatio);
   let count = 0;
   for (const [set, entries] of Object.entries(KEY_SETS)) {
     for (const entry of entries) {
-      await runEngineKey(ctx, set, entry);
-      count += 1;
+      if (await runEngineKey(ctx, set, entry)) {
+        count += 1;
+      }
     }
   }
   await ctx.closeAbout();

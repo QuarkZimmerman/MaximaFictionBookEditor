@@ -290,17 +290,25 @@ TEST_CASE(
     "app.openUrl: http and https reach the opener; file, javascript and mailto are "
     "invalidParams {field: url}",
     "[ai][server]") {
-    AiFixture f;
+    // Without test hooks and without a shell the address goes to the OS opener.
+    test::TempDir data{"mfbe-openurl"};
+    CoreServerOptions options;
+    options.data_dir = data.path().string();
+    options.test_hooks = false;
+    auto server = CoreServer::start(options);
+    test::WsClient ws;
+    REQUIRE(ws.open(server->port(), "/rpc?token=" + server->token()) == 101);
     std::vector<std::vector<std::string>> launched;
     bool start_ok = true;
     process::set_command_runner_for_tests([&](const std::vector<std::string>& argv) {
         launched.push_back(argv);
         return start_ok;
     });
-    CHECK(f.result("app.openUrl",
-                   json{{"url", "https://www.ovhcloud.com/en/terms-and-conditions/"}}) ==
+    CHECK(ws.call("app.openUrl",
+                  json{{"url", "https://www.ovhcloud.com/en/terms-and-conditions/"}})["result"] ==
           json::object());
-    CHECK(f.result("app.openUrl", json{{"url", "http://127.0.0.1:8787/terms?lang=en#top"}}) ==
+    CHECK(ws.call("app.openUrl",
+                  json{{"url", "http://127.0.0.1:8787/terms?lang=en#top"}})["result"] ==
           json::object());
     REQUIRE(launched.size() == 2);
     CHECK(launched[0].back() == "https://www.ovhcloud.com/en/terms-and-conditions/");
@@ -308,24 +316,52 @@ TEST_CASE(
     for (const char* bad : {"file:///etc/passwd", "javascript:alert(1)", "mailto:a@b.c", "https://",
                             "ftp://x.example/", "https://a.example/\n", "", " "}) {
         INFO(bad);
-        const json refused = f.call("app.openUrl", json{{"url", bad}});
+        const json refused = ws.call("app.openUrl", json{{"url", bad}});
         REQUIRE(refused.contains("error"));
         CHECK(refused["error"]["code"] == -32602);
         CHECK(refused["error"]["data"]["field"] == "url");
     }
-    CHECK(f.call("app.openUrl", json{{"url", 5}})["error"]["data"]["field"] == "url");
-    CHECK(f.call("app.openUrl", json::object())["error"]["data"]["field"] == "url");
+    CHECK(ws.call("app.openUrl", json{{"url", 5}})["error"]["data"]["field"] == "url");
+    CHECK(ws.call("app.openUrl", json::object())["error"]["data"]["field"] == "url");
     CHECK(launched.size() == 2);  // nothing else reached the opener
     // An opener that cannot be started is 1050, which the callers tolerate.
     start_ok = false;
-    const json unavailable = f.call("app.openUrl", json{{"url", "https://pollinations.ai/terms"}});
+    const json unavailable = ws.call("app.openUrl", json{{"url", "https://pollinations.ai/terms"}});
     CHECK(unavailable["error"]["code"] == 1050);
     CHECK(unavailable["error"]["message"] == "dialog.unavailable");
     process::set_command_runner_for_tests(nullptr);
+    // Compiled out without test hooks, as every test.* method.
+    CHECK(ws.call("test.openedUrls")["error"]["code"] == -32601);
     // The refusals are protocol errors (invalidParams), logged with the field name only; the
     // URL itself never reaches the log.
-    CHECK(f.log_text().find("javascript") == std::string::npos);
-    CHECK(f.log_text().find("passwd") == std::string::npos);
+    const fs::path log = data / "logs" / "mfbe-errors.log";
+    const std::string text = fs::exists(log) ? test::read_text(log) : std::string();
+    CHECK(text.find("javascript") == std::string::npos);
+    CHECK(text.find("passwd") == std::string::npos);
+}
+
+TEST_CASE(
+    "app.openUrl with test hooks: the test provider records the address (test.openedUrls) and "
+    "nothing is started (feature 007)",
+    "[ai][server]") {
+    AiFixture f;
+    std::vector<std::vector<std::string>> launched;
+    process::set_command_runner_for_tests([&](const std::vector<std::string>& argv) {
+        launched.push_back(argv);
+        return true;
+    });
+    CHECK(f.result("test.openedUrls") == json::array());
+    CHECK(f.result("app.openUrl", json{{"url", "https://www.maxima-library.com"}}) ==
+          json::object());
+    CHECK(f.result("app.openUrl", json{{"url", "https://www.gnu.org/licenses/gpl-3.0.html"}}) ==
+          json::object());
+    // A refused address is not recorded.
+    CHECK(f.call("app.openUrl", json{{"url", "javascript:alert(1)"}})["error"]["code"] == -32602);
+    CHECK(f.result("test.openedUrls") ==
+          json::array(
+              {"https://www.maxima-library.com", "https://www.gnu.org/licenses/gpl-3.0.html"}));
+    CHECK(launched.empty());
+    process::set_command_runner_for_tests(nullptr);
 }
 
 /* ----------------------------------------------------------------------------------------- */

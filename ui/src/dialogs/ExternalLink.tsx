@@ -1,7 +1,8 @@
 /**
  * A link to a web page opened through the core's `app.openUrl` (feature 005 T018/T037;
  * rpc-api §3.1): the one mechanism behind every terms and privacy link of the AI assistant -
- * the settings page and the first-use notice. The element is a real `<a href>` (the journeys
+ * the settings page and the first-use notice - and, since feature 007, About's links (the
+ * shell's engine hands no `target="_blank"` link over). The element is a real `<a href>` (the journeys
  * assert the `href`, screen readers announce a link) whose click - and Enter while focused -
  * calls `app.openUrl({url})` and prevents the default navigation; never `target="_blank"` and
  * never the shell's popup path. A URL that is not `http(s)` is shown as text, never as a link

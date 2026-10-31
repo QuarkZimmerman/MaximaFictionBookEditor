@@ -6,8 +6,9 @@
  * differ). Needs the real core (`MFBE_CORE_BIN`); skipped in core-less mode. Nothing but the
  * stand-in (`fixtures/ai-standin.mjs`, loopback only) is ever contacted: the bundled entries
  * are tested only after a user list file redirected them to it, and the terms links are
- * asserted by `href` and never clicked (a click would run the runner's URL opener through
- * `app.openUrl` - the click handler is AiPage.test.tsx's unit case).
+ * asserted by `href` (the click handler is AiPage.test.tsx's unit case; a click here would only
+ * be recorded by the core's test provider, `test.openedUrls`, as About's links are in
+ * us9-version-check and us10-licence).
  *
  * Scenarios (spec.md US1; quickstart §1):
  *  1. a fresh core: the AI assistant page with *Disabled* selected (FR-001 as amended by the

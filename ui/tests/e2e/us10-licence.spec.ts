@@ -71,7 +71,15 @@ test.describe('US10 - licence and notices in the About dialog', () => {
     await expect(notice).toContainText('WITHOUT ANY WARRANTY');
     const link = page.getByTestId('about-licence-link');
     await expect(link).toHaveAttribute('href', GPL_URL);
-    await expect(link).toHaveAttribute('target', '_blank');
+    // Opened in the system browser through the editor (app.openUrl, feature 007): no target -
+    // the shell's engine hands no target=_blank link over. The test provider records the
+    // address and opens nothing (test.openedUrls); the dialog stays open.
+    await expect(link).not.toHaveAttribute('target');
+    const opened = (await core.rpc<string[]>('test.openedUrls')).length;
+    await link.click();
+    await expect
+      .poll(async () => (await core.rpc<string[]>('test.openedUrls')).slice(opened))
+      .toEqual([GPL_URL]);
     await expect(page.getByTestId('about-licence-where')).toContainText('LICENSE');
 
     const box = page.getByTestId('about-contributors');

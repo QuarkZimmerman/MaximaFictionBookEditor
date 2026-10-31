@@ -10,7 +10,7 @@
 #     "save the page";
 #   - the browser engine's keys sent as real keystrokes (feature 007 FR-002 to FR-005) keep an
 #     unsaved edit, the process and the window: Ctrl+R, F5 with Help > About open, Ctrl+F4, and
-#     Ctrl+W with About open;
+#     Ctrl+W with About open; no key opens a window: Ctrl+N and F12 with About open (US5);
 #   - View > Status Bar, chosen with the Russian accelerators (Alt+В, С), hides the status bar and
 #     settings.json records it;
 #   - File > New, the author "Толстой Лев Николаевич" and the title "Война и мир" typed into the
@@ -438,6 +438,20 @@ function Assert-EditKept([string]$What, [string]$ModifiedTitle, [string]$Marker)
     $kept = Get-CdpValue $script:cdp "document.querySelector('[data-testid=`"body-editor`"]').innerText.includes('$Marker')"
     if ($kept -ne $true) { throw "$What lost the unsaved edit: the Body view no longer holds '$Marker'" }
     Write-Host "engine key: $What kept the process, the window and the unsaved edit"
+}
+
+# The visible top-level windows of the editor's processes, "0x<handle> <class> <title>" each
+# (feature 007, US5: no key may add one).
+function Get-EditorWindows {
+    $ids = @(Get-Process -Name mfbe -ErrorAction SilentlyContinue | ForEach-Object { [uint32]$_.Id })
+    @([MfbeWin32]::TopLevelWindows() | Where-Object { $_.Visible -and $ids -contains $_.ProcessId } |
+        ForEach-Object { '0x{0:X} {1} {2}' -f $_.Handle.ToInt64(), $_.ClassName, $_.Title })
+}
+
+function Assert-NoNewWindow([string]$What, [string[]]$Before) {
+    $added = @(Get-EditorWindows | Where-Object { $Before -notcontains $_ })
+    if ($added.Count -gt 0) { throw "$What opened a window: $($added -join '; ')" }
+    Write-Host "engine key: $What opened no window"
 }
 
 # Clicks the element with $TestId in the page (menus and dialogs of the interface react to clicks
@@ -1026,6 +1040,19 @@ Invoke-EditorRun 'Start with the book' "`"$bookPath`"" {
     Open-About
     Send-Chord 'Ctrl+W'
     Assert-EditKept 'Ctrl+W with About open' $modifiedTitle $marker
+    # Feature 007, US5 (FR-002, FR-008): no key opens a window of the engine. With About open
+    # the keys reach the engine: Ctrl+N (a new window) adds no top-level window of the editor's
+    # processes, and F12 no DevTools window - the release package is not a developer run.
+    $windowsBefore = Get-EditorWindows
+    Send-Chord 'Ctrl+N'
+    Assert-NoNewWindow 'Ctrl+N with About open' $windowsBefore
+    Assert-EditKept 'Ctrl+N with About open' $modifiedTitle $marker
+    Send-Chord 'F12'
+    Assert-NoNewWindow 'F12 with About open' $windowsBefore
+    if (@(Get-EditorWindows | Where-Object { $_ -match 'DevTools' }).Count -gt 0) {
+        throw 'F12 opened a DevTools window in the release package'
+    }
+    Assert-EditKept 'F12 with About open' $modifiedTitle $marker
     Close-About
     # Saved again: the steps that follow start from an unmodified book.
     Send-CdpKey $script:cdp $keyF2

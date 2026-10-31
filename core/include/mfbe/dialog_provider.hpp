@@ -153,6 +153,11 @@ public:
     // Return false to let the core fall back to the OS default opener (xdg-open/explorer/open).
     virtual bool open_path(const std::string& /*path*/) { return false; }
 
+    // "Open this http(s) address in the system browser" (app.openUrl): the AI assistant's terms
+    // and privacy links, About's links (feature 007). Return false to let the core use the OS
+    // default opener; the test provider records the address instead (test.openedUrls).
+    virtual bool open_url(const std::string& /*url*/) { return false; }
+
     // System beep (app.beep): Windows MessageBeep(MB_ICONASTERISK), macOS NSBeep, the display
     // beep on Linux. Default: silent.
     virtual void beep() {}
@@ -184,6 +189,8 @@ public:
     std::vector<std::string> missed() const;
     // Paths passed to open_path (recorded, nothing is opened).
     std::vector<std::string> opened_paths() const;
+    // Addresses passed to open_url, in order (recorded, nothing is opened; test.openedUrls).
+    std::vector<std::string> opened_urls() const;
     // Every file dialog request received, answered or not (test.dialogRequests): the request
     // JSON plus "method" ("dialog.openFile" | "dialog.saveFile" | "dialog.pickFolder") and
     // "mode" ("open" | "openMultiple" | "save" | "folder").
@@ -206,6 +213,7 @@ public:
     void pick_folder(const PickFolderRequest& request, Callback<PickFolderResult> done) override;
     void message(const MessageRequest& request, Callback<MessageResult> done) override;
     bool open_path(const std::string& path) override;
+    bool open_url(const std::string& url) override;
     void beep() override;
     void latest_release(Callback<ReleaseResult> done) override;
 
@@ -216,6 +224,7 @@ private:
     std::deque<Queued> queue_;
     std::vector<std::string> missed_;
     std::vector<std::string> opened_paths_;
+    std::vector<std::string> opened_urls_;
     std::vector<nlohmann::json> requests_;
     std::size_t beeps_ = 0;
     std::deque<ReleaseResult> releases_;

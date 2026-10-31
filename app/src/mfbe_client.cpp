@@ -158,6 +158,9 @@ bool MfbeClient::OnBeforePopup(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame
                                CefRefPtr<CefDictionaryValue>& extra_info,
                                bool* no_javascript_access) {
     CEF_REQUIRE_UI_THREAD();
+    testHookLine("before-popup " + target_url.ToString() +
+                 " disposition=" + std::to_string(static_cast<int>(target_disposition)) +
+                 " gesture=" + (user_gesture ? "1" : "0"));
     // The editor has exactly one document window per process; window.open / target=_blank
     // links go to the OS browser instead of a popup.
     OpenExternal(target_url.ToString());
@@ -370,6 +373,9 @@ bool MfbeClient::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFr
     // editor has one window, so nothing opens in the engine (FR-002); an address outside the
     // application goes to the system browser, as a plain click on it does.
     const std::string url = target_url.ToString();
+    testHookLine("open-url-from-tab " + url +
+                 " disposition=" + std::to_string(static_cast<int>(target_disposition)) +
+                 " gesture=" + (user_gesture ? "1" : "0"));
     if (!IsAllowedUrl(url) && user_gesture) {
         OpenExternal(url);
     }
@@ -467,9 +473,16 @@ void MfbeClient::CloseAllBrowsers(bool force_close) {
 }
 
 void MfbeClient::OpenExternal(const std::string& url) {
+#ifdef MFBE_SHELL_TEST_HOOKS
+    // A test-hook build reports the hand-over instead of starting the system browser (feature
+    // 007, US5): the smoke checks that a link asked for in a new tab or window goes there, and
+    // no browser opens on the test machine.
+    testHookLine("open-external " + url);
+#else
     if (!openExternalUrl(url)) {
         LOG(WARNING) << "mfbe: refusing to open external URL " << url;
     }
+#endif
 }
 
 }  // namespace mfbe::shell
