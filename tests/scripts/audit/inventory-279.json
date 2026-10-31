@@ -10,9 +10,9 @@
       "new": 230,
       "noCounterpart": 6,
       "notConverted": 5,
-      "recheck": 66,
+      "recheck": 64,
       "unchanged": 25,
-      "updated": 45
+      "updated": 47
     },
     "recheckClasses": {
       "identical": 24,
@@ -8202,11 +8202,17 @@
       "htmlDialogs": [],
       "package": "scripts/21_search-replace/04_text-error-search",
       "id": "21/text-error-search",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "21_Поиск и замена/04_Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.).js",
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
+      "openQuestions": [
+        "An inline picture is reported as \"мусор после скана\": the original's text showed a picture as \"~~~\", and the list's garbage class holds \"~\". Kept as 2.7.9 (and 2.7beta1) behave; the 0.0.1 conversion of this package counted a picture as one character that no expression matched, so users of 0.0.1 to 0.0.5 now meet pictures among the hits - should pictures be passed over?"
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 85,
@@ -8339,11 +8345,20 @@
       "htmlDialogs": [],
       "package": "scripts/21_search-replace/10_regexp-set-search-template",
       "id": "21/regexp-set-search-template",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "21_Поиск и замена/10_Поиск по набору регэкспов (заготовка).js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
+      "fixes": [
+        "An entry without a description stopped the original with an error when it was hit (it read the description to test for \"Пропустить\"); it is an ordinary hit now (selected, the status bar unchanged). The shipped list has descriptions everywhere, so its result does not differ from 2.7.9.",
+        "An exception (\"Пропустить...\") matching an empty string made the original search the same place again and again (the editor hung); the search now moves one character on. The shipped list has no such exception."
+      ],
+      "openQuestions": [
+        "A hit right at a collapsed caret is not skipped (5.x commented out the ignoreNullPosition test of 2.7beta1's engine), so an entry that matches an empty string finds the same place on every run and never walks on - among them the instructions' own example for putting the caret in front of the found text, addRegExp(\"(?=\\\")\",\"\",\"Найдено: прямая кавычка.\"). Kept as 2.7.9 behaves (the shipped list has no such entry; the header's translated instructions say so) - skip an empty hit at a collapsed caret, as 2.7beta1 did?"
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 98,
@@ -10308,7 +10323,9 @@
       "id": "tree/example-1",
       "status": "unchanged",
       "predecessor": "TreeCmd/Пример 1.js",
-      "differences": [],
+      "differences": [
+        "The original marked the document for the Document Tree: ProcessCmd() wrapped every paragraph whose text holds no full stop in <DIV class=\"abc\"> (GetClassName()), and the tree listed those paragraphs under GetTitle() «Пример 1». Tree commands are entries of the Document Tree's context menu here, run on the clicked node, and the document holds no marking classes: the command lists the text blocks without a full stop inside the clicked node (the whole book when run without a node) in a form and selects the one chosen, and the status bar gives their count."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {

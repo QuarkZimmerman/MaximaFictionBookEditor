@@ -13,11 +13,11 @@ as the group's entries of `tests/scripts/audit/inventory-279.json`.
 
 Tasks T062 (05 to 25) and T063 (28 to 80): the 23 scripts new since 2.7beta1 are converted; none
 is left unconverted. The two packages converted earlier from 2.7beta1 (`04_text-error-search`,
-`10_regexp-set-search-template`) are rechecked by a later task and were not touched. Packages:
+`10_regexp-set-search-template`) are brought up to 2.7.9 in their recheck below (T087). Packages:
 `scripts/21_search-replace/<NN>_<slug>/`, ids `21/<slug>`, `legacy.fbeVersion` "2.7.9" with the
 version the original's header states. Reference books: `tests/scripts/fixtures/279/21/*.fb2` (all
 valid per `resources/schema/FictionBook.xsd`). Snapshots: `tests/scripts/snapshots/21/`, 55 runs
-in `tests/scripts/snapshots/21/suite.json`; `tests/scripts/run-all.sh --group 21` passes (57 of 57
+in `tests/scripts/snapshots/21/suite.json`; `tests/scripts/run-all.sh --group 21` passes (57 of 57 at the conversion; 62 with the recheck's five
 with the two older packages).
 
 A search changes nothing, so its snapshot is the unchanged book (each was compared with its book).
@@ -38,7 +38,7 @@ Sixteen of the scripts (05, 06, 07, 08, 18, 19, 22, 23, 25, 28, 29, 30, 32, 62, 
 expressions on Sclex's "Поиск по набору регэкспов" in its 2.7.9 versions (5.1 to 5.3, with
 stokber's exceptions), its backward variant (23, 30) and the older 5.4 kept by 32; 75 uses it with
 the clipboard text as its only expression. `regexp-set.js` is a port of that engine, identical in
-all 17 packages; each package keeps its original's list in `init()` as written (macros, entries,
+all 17 packages (19 since the recheck of 04 and 10); each package keeps its original's list in `init()` as written (macros, entries,
 comments and the original's instructions), only `addMacros`, `addRegExp` and `tagRegExp` are
 handed in. The 2.7beta1 engine of 04/10 (`regexp-search.js`, version 2.9) was not reused: 5.x
 searches differently (see below) and has the exceptions.
@@ -448,6 +448,143 @@ found" with the version line.
 ### Not converted
 
 None.
+
+2 of the group's 25 scripts in 2.7.9 are the successors of the 2 packages converted from 2.7beta1
+(task T087, recheck of `scripts/21_search-replace/`; the 2.7beta1 conversion is in
+conversion-notes-c.md, group 21; the 23 new scripts are converted above). Both **updated**; ids
+and folders unchanged. Both ran on the 0.0.1 port of 2.7beta1's engine (`regexp-search.js`,
+Sclex's "Поиск по набору регэкспов" 2.9); in 2.7.9 they run on its 5.x engine, so both packages
+now carry `regexp-set.js`, the port of that engine described above (an identical copy, as in the
+group's other searches), and the 0.0.1 engine file is gone. Each keeps its original's `init()` as
+written, only `addMacros`, `addRegExp` and `tagRegExp` handed in; `legacy` names the 2.7.9 file
+and its version (5.1, 5.2); both gained `name.uk` and `description.uk`. Neither has a proverb.
+Reference books: two new ones in `tests/scripts/fixtures/279/21/` (valid per
+`resources/schema/FictionBook.xsd`); the new snapshots are in `tests/scripts/snapshots/21/` and
+its `suite.json`. The walks below were written from the 2.7.9 code before the runs (for 04 also
+cross-checked by applying the 174 entries to each paragraph's text and HTML as IE gave them) and
+agree with the private probe's printouts run by run.
+
+What the 5.x engine changes for these two packages, against their 0.0.1 engine:
+- A hit right at a collapsed caret is found: 2.7beta1 started one character further
+  (`ignoreNullPosition`, commented out in 5.x), so the caret placed in front of a hit skipped it.
+- The paragraph is seen as IE showed it: in the text an inline picture is `~~~` (0.0.1 counted
+  it as one character that no expression matched, to keep the positions right; the new engine
+  maps positions back exactly), a soft hyphen is decoded (2.7beta1 left `&shy;` in the text,
+  where the garbage expressions caught its `&`; 0.0.1 already had the character); in the HTML
+  the marks nest as the book nests them (0.0.1 sorted them, emphasis outside strong), links are
+  `<A class=note href="#n1">`, styles `<SPAN class=NAME>`, a picture `<SPAN class=image ...><IMG
+  ...></SPAN>`, and `&nbsp;` and `&shy;` are entities.
+- A tag hit that ends inside a tag, or fails its look-behinds, is tried again one character
+  further (2.7beta1 and 0.0.1 resumed after that tag; 2.7beta1 resumed after a failing match,
+  where 0.0.1's native look-behind already tried every position). With 04's entries, which cannot
+  match across a tag's `>`, both give the same hits.
+- Exceptions: a hit whose description starts with "Пропустить" is passed over.
+- Nothing found: "Поиск завершен!" in the status bar, then the message. The caret's paragraph is
+  not searched when the caret is at its end; an entry that does not compile is listed indented;
+  with no selection, or a selected block picture, the original's "Не обрабатываемый тип
+  выделения: sel.type" (0.0.1 said "Поставьте курсор в текст книги.").
+
+### 04 Поиск (без замены) ошибок текста (регэкспы от wotti, Roxana, JonVic и др.)
+
+`scripts/21_search-replace/04_text-error-search`, id `21/text-error-search`: **updated**, from
+2.7beta1's *04_Поиск ошибок текста (регекспы от wotti, Roxana, JonVic и др.)*, version 2.9, to
+5.1. 2.7.9 changed the engine only: the list - 174 entries (129 on the HTML, 45 on the text) and
+13 more commented out - is the same call for call (the lists extracted by running the `init()` of
+both originals and of the package are identical). Ported: the engine (`regexp-set.js` with `~~~`
+and `&shy;` decoded, as the original's `imgTagRE_` and `shyRE`), the list as written with the
+original's instructions in `init()`, the notice (*Версия 5.1*). Names: ru and undo label *Поиск
+(без замены) ошибок текста (регэкспы от wotti, Roxana, JonVic и др.)*, en *Search (without
+replacing) for text errors (regexps by wotti, Roxana, JonVic et al.)*, uk *Пошук (без заміни)
+помилок тексту (регулярні вирази від wotti, Roxana, JonVic та ін.)*; the description gained uk.
+Like the original it returns nothing to a calling script (a caller running it four times got
+`undefined` four times). The list has none of the patterns JScript and JavaScript read
+differently (no `\s`, no class opening with `]`), no exception, no entry without a description
+and none that matches an empty string, so the engine's guards (see 10) do not come into play.
+
+Book `text-error-search.fb2` (new). Expected walk from the caret right before "пего" (n5:6):
+`пего` at the caret (n5; "слово "пего" ("него" с опечаткой)"); the inline picture (n6, the `~`
+of its `~~~`: "мусор после скана"); nothing in "Это кни­га без ошибок." (soft hyphen decoded -
+2.7beta1 reported the `&` of `&shy;`); `рсив` of `Кур<strong><emphasis>сив</emphasis></strong>`
+("курсивность и жирность в слове."); `рный` of `Жир<emphasis><strong>ный</strong></emphasis>`
+("жирность и курсивность в слове."); `3-4`; then "Поиск завершен!" and "От позиции курсора до
+конца документа ничего не найдено." Found so. The 0.0.1 package on the same book passed over
+`пего` and the picture, said "жирность и курсивность" for both words and left the status bar
+alone at the end. On `tests/scripts/fixtures/books/conv-c-21.fb2` from n7 the walk is the 0.0.1
+one - `пего`, `3-4`, `рсив`, the `е` ending a line without a full stop, `nи`, the `п` starting
+the subtitle, ` ,` - then "Поиск завершен!" and the message.
+
+Snapshots: `text-error-search.xml` (`conv-c-21.fb2`, `--select n7:0:0`) stays - a search changes
+nothing, and its expected result, the unchanged book, is the same. Added:
+`text-error-search.caret-at-hit.xml` (`--select n5:6:6`, the hit at a collapsed caret),
+`.picture.xml` (`--select n6:0:0`, the picture hit), `.not-found.xml` (`--select n12:0:0 --answer
+ok`). They equal the book except n10, whose `<emphasis><strong>` the editor writes as
+`<strong><emphasis>` when it saves the book (a script that does nothing gives the same).
+
+Differences: the engine's three (the hit selected exactly and the search started exactly at the
+end of the selection; the view's scrolling; a picture selected as text searched past). No fixes.
+Open question: an inline picture is reported as "мусор после скана", as in 2.7.9 and 2.7beta1
+(the same question as 08); the 0.0.1 package passed over pictures, so users of 0.0.1 to 0.0.5 now
+meet them among the hits - should pictures be passed over? Observed, not a difference of the
+script: after the book is saved and reopened, a word in `<emphasis><strong>` is reported as
+"курсивность и жирность" (the editor's nesting), where FictionBook Editor, which kept the book's
+nesting, kept saying "жирность и курсивность".
+
+### 10 Поиск (без замены) по набору регэкспов (версия с исключениями) (заготовка)
+
+`scripts/21_search-replace/10_regexp-set-search-template`, id `21/regexp-set-search-template`:
+**updated**, from 2.7beta1's *10_Поиск по набору регэкспов (заготовка)*, version 2.9, to 5.2
+(paired by the review). 2.7.9 made it the template of the version with exceptions:
+- the header of 06, kept as written: version 5.2, Sclex with TaKir's set, stokber's fixes of
+  30 January and 6 April 2023, TaKir's advice (clean the text first, a hotkey, bookmarks such as
+  `zzz`);
+- the list: TaKir's seven macros (`<откр-закр-em-str>` to `<сокращения>`), stokber's comments on
+  exceptions and one example entry, `addRegExp("123","","Найдено: 123.")`; 2.7beta1's placeholder
+  `addRegExp("","i","Задайте список регэкспов, отредактировав скрипт…")` - an empty expression
+  that moved the caret on by one character per run and showed that instruction - is commented
+  out, and its italics-in-a-word examples are gone;
+- the 5.2 engine (06's), which also returns "Found" or "NotFound" (`scriptResult`).
+
+Ported: all three - `init()` as written, `regexp-set.js` with `~~~` and `&shy;` decoded, `run()`
+returning the engine's result. The header's English translation of the instructions, kept from
+0.0.1, now follows 2.7.9's (the look-behind limit, exceptions) and warns about empty hits (see the
+open question). Names: ru and undo label *Поиск (без замены) по набору регэкспов (версия с
+исключениями) (заготовка)*, en *Search (without replacing) by a set of regexps (version with
+exceptions) (template)*, uk *Пошук (без заміни) за набором регулярних виразів (версія з
+виключеннями) (заготовка)*; the descriptions now say what the shipped example finds.
+
+Book `regexp-set-template.fb2` (new). Expected walk from n5:0 (one text entry, no word
+boundaries): `123` (n5), the `123` inside `41234` (n6), `123` (n6), then "Поиск завершен!" and the
+message; `1 2 3` and `12-3` are not hits; from the caret right before the `123` of `41234`
+(n6:7) that one is found. Found so; a caller running the template four times through
+`mfbe.scripts.run` got `["Found","Found","Found","NotFound"]`. On `conv-c-21.fb2` (no "123") from
+n7:3 nothing is found.
+
+Snapshots: `regexp-set-search-template.xml` (`conv-c-21.fb2`, `--select n7:3:3`) stays: 2.7beta1's
+template moved the caret there, 2.7.9's finds nothing and says so, neither changes the book.
+Added: `regexp-set-search-template.example.xml` (`--select n5:0:0`) and `.not-found.xml`
+(`--select n7:0:0 --answer ok`), both equal to the book.
+
+Differences: the engine's three. Fixes, as for the backward template 30 (the template is the list
+meant for editing; the guards are in every copy of the engine): an entry without a description
+stopped the original with an error when it was hit (it tested the description for
+"Пропустить"), now an ordinary hit; an exception matching an empty string made the original
+search the same place forever, now the search moves one character on. The shipped list has
+neither, so its results are 2.7.9's. Open question: a hit right at a collapsed caret is not
+skipped, so an entry that matches an empty string - among them the instructions' own
+`addRegExp("(?=\")",...)` for putting the caret in front of the found text - finds the same place
+on every run (a copy of the template with that entry stayed at the first straight quote three
+runs running); kept as 2.7.9 behaves - skip an empty hit at a collapsed caret, as 2.7beta1 did?
+
+### Harness commands
+
+```bash
+G=scripts/21_search-replace; F=tests/scripts/fixtures/279/21; S=tests/scripts/snapshots/21
+node tests/scripts/run-script.mjs $G/04_text-error-search $F/text-error-search.fb2 --select n5:6:6 --snapshot $S/text-error-search.caret-at-hit.xml
+node tests/scripts/run-script.mjs $G/04_text-error-search $F/text-error-search.fb2 --select n6:0:0 --snapshot $S/text-error-search.picture.xml
+node tests/scripts/run-script.mjs $G/04_text-error-search $F/text-error-search.fb2 --select n12:0:0 --answer ok --snapshot $S/text-error-search.not-found.xml
+node tests/scripts/run-script.mjs $G/10_regexp-set-search-template $F/regexp-set-template.fb2 --select n5:0:0 --snapshot $S/regexp-set-search-template.example.xml
+node tests/scripts/run-script.mjs $G/10_regexp-set-search-template $F/regexp-set-template.fb2 --select n7:0:0 --answer ok --snapshot $S/regexp-set-search-template.not-found.xml
+```
 
 ## 22_Дескрипшен
 
@@ -1028,4 +1165,27 @@ three tables.
 
 ## TreeCmd
 
-1 script in 2.7.9: 0 new, 1 successors of converted packages. Not yet converted or rechecked.
+1 script in 2.7.9, *Пример 1.js*, byte for byte 2.7beta1's, and so is its icon (task T088,
+recheck of `scripts/tree/example-1`; the 2.7beta1 conversion is in conversion-notes-c.md,
+TreeCmd).
+
+### Пример 1
+
+`scripts/tree/example-1`, id `tree/example-1`: **unchanged**. The code is not touched; `legacy`
+keeps the 2.7beta1 source `TreeCmd/Пример 1.js` and `fbeVersion` "2.7"; the original has no
+header notice to keep. Names as 2.7.9's (the file name, and the title `GetTitle()` gave the tree):
+ru *Пример 1*, en *Example 1* - 0.0.1 had added *: абзацы без точки* / *: paragraphs without a
+full stop*, which the form's title keeps - and uk *Приклад 1*; the undo label was already *Пример
+1* / *Example 1*. Gained `description.uk` *Приклад команди дерева: показує абзаци вибраного вузла
+(або всієї книги), у яких немає крапки, і переходить до вибраного*. No proverb.
+
+Snapshot `tree/example-1.xml` (`tests/scripts/fixtures/books/conv-c-16.fb2`, `--tree-node n14
+--answer '{"target":"n23"}'`) stays; `tests/scripts/run-all.sh --group tree` passes.
+
+Difference kept from 0.0.1, still true against 2.7.9: the original marked the document for the
+Document Tree - `ProcessCmd()` wrapped every paragraph whose text holds no full stop in `<DIV
+class="abc">` (`GetClassName()`), and the tree listed those paragraphs under «Пример 1». Tree
+commands are entries of the Document Tree's context menu here, run on the clicked node, and the
+document holds no marking classes: the command lists the text blocks without a full stop inside
+the clicked node (the whole book without a node) in a form, selects the one chosen and gives
+their count in the status bar. No fixes, no open questions.

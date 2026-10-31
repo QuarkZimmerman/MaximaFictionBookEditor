@@ -1,7 +1,7 @@
 // Engine of "Поиск возможных заголовков по ключевым словам" (FictionBook Editor 2.7.9, group 13,
 // script 570), the 2.7.9 version (5.0) of Sclex's "Поиск по набору регэкспов". It follows the
-// engine of the converted 2.7 scripts (scripts/21_search-replace/*/regexp-search.js), with the
-// changes of 2.7.9:
+// engine of the scripts converted from 2.7 (the regexp-search.js their group 21 packages carried
+// before their recheck replaced it by 2.7.9's regexp-set.js), with the changes of 2.7.9:
 //   - the search starts at the end of the selection, a hit right at a collapsed caret included
 //     (2.7 skipped it: the 2.7.9 code sets ignoreNullPosition to false);
 //   - the paragraph text the expressions see has non-breaking spaces as spaces (the original read

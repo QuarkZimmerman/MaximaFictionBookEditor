@@ -2,22 +2,25 @@
   "manifestVersion": 1,
   "id": "21/regexp-set-search-template",
   "name": {
-    "en": "Search by a set of regexps (template)",
-    "ru": "Поиск по набору регэкспов (заготовка)"
+    "en": "Search (without replacing) by a set of regexps (version with exceptions) (template)",
+    "ru": "Поиск (без замены) по набору регэкспов (версия с исключениями) (заготовка)",
+    "uk": "Пошук (без заміни) за набором регулярних виразів (версія з виключеннями) (заготовка)"
   },
   "description": {
-    "en": "Template for your own list of regular expressions: edit index.js, then each run selects the next hit after the caret and shows its description in the status bar",
-    "ru": "Заготовка для собственного списка регэкспов: отредактируйте index.js, после чего каждый запуск выделяет следующее совпадение после курсора и показывает его описание в строке состояния"
+    "en": "Template for your own list of regular expressions with exceptions: edit index.js, then each run selects the next hit after the caret and shows its description in the status bar (as shipped, an example that finds \"123\")",
+    "ru": "Заготовка для собственного списка регэкспов с исключениями: отредактируйте index.js, после чего каждый запуск выделяет следующее после курсора совпадение и показывает его описание в строке состояния (в поставке — пример, находящий «123»)",
+    "uk": "Заготовка для власного списку регулярних виразів з виключеннями: відредагуйте index.js, після чого кожен запуск виділяє наступний після курсору збіг і показує його опис у смузі стану (у постачанні — приклад, що знаходить «123»)"
   },
   "kind": "menu",
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Search by a set of regexps (template)",
-    "ru": "Поиск по набору регэкспов (заготовка)"
+    "en": "Search (without replacing) by a set of regexps (version with exceptions) (template)",
+    "ru": "Поиск (без замены) по набору регэкспов (версия с исключениями) (заготовка)"
   },
   "legacy": {
-    "source": "21_Поиск и замена/10_Поиск по набору регэкспов (заготовка).js",
-    "fbeVersion": "2.7"
+    "source": "21_Поиск и замена/10_Поиск (без замены) по набору регэкспов (версия с исключениями) (заготовка).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.2"
   }
 }
