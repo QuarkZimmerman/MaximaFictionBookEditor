@@ -10,6 +10,7 @@
  */
 
 import { createInstance } from 'i18next';
+import { AllSelection } from 'prosemirror-state';
 
 import type { CommandContext } from '@/app/commands';
 import { createAppServices, type AppServices } from '@/app/services';
@@ -810,6 +811,26 @@ describe('doc.find / doc.replaceAll', () => {
 });
 
 describe('selection.*', () => {
+  it('reports Select All as the whole document, from the first text block to the last (feature 007)', async () => {
+    const h = await harness();
+    const ctrl = getBodyController(h.store);
+    const state = ctrl.editorState!;
+    ctrl.apply(state.tr.setSelection(new AllSelection(state.doc)));
+    const selection = (await call(h, 'selection.get')) as SelectionInfo;
+    expect(selection).not.toBeNull();
+    const blocks: string[] = [];
+    let lastSize = 0;
+    state.doc.descendants((node) => {
+      if (!node.isTextblock) return true;
+      blocks.push(String(node.attrs.nodeId));
+      lastSize = node.content.size;
+      return false;
+    });
+    expect(selection.anchor).toEqual({ nodeId: blocks[0], offset: 0 });
+    expect(selection.head).toEqual({ nodeId: blocks[blocks.length - 1], offset: lastSize });
+    expect(selection.nodes.map((n) => n.nodeId)).toEqual(blocks);
+  });
+
   it('reads, sets, replaces, wraps and unwraps the Body selection', async () => {
     const h = await harness();
     await call(h, 'selection.set', { nodeId: 'p1', offset: 6 }, { nodeId: 'p1', offset: 10 });

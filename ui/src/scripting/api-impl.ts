@@ -681,8 +681,18 @@ export function createScriptApi(deps: ScriptApiDeps): ScriptApi {
         }
         return null;
       };
-      const anchor = idOf($anchor);
-      const head = idOf($head);
+      // An end outside every text block - Select All, a selected table or picture - is reported
+      // at the nearest text block inside the selection: the start of the first, the end of the
+      // last (feature 007; a book is open, so the selection is never null).
+      const forward = state.selection.anchor <= state.selection.head;
+      const edge = ($pos: typeof $anchor, dir: 1 | -1) => {
+        const direct = idOf($pos);
+        if (direct) return direct;
+        const near = Selection.findFrom($pos, dir, true);
+        return near ? idOf(near.$head) : null;
+      };
+      const anchor = edge($anchor, forward ? 1 : -1);
+      const head = edge($head, forward ? -1 : 1);
       if (!anchor || !head) return null;
       const nodes: NodeRef[] = [];
       state.doc.nodesBetween(from, to, (node) => {

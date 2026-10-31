@@ -10,17 +10,20 @@ with code completion are in [mfbe.d.ts](mfbe.d.ts); the examples live in [exampl
 
 ## 1. Where scripts live
 
-The editor looks for scripts in several folders and merges what it finds (nothing in a
-lower layer is ever hidden or replaced):
+The editor looks for scripts in several folders and merges what it finds. A script whose `id`
+is also in a lower folder of this list replaces that one in the menu, in its group and place
+(since 0.0.6); the replaced files stay untouched. Highest first:
 
-1. the folder chosen in **Tools > Settings > Other > Scripts folder** (optional),
-2. your personal scripts folder (`Scripts > Open scripts folder` opens it):
+1. the AI assistant's own folder `90_assistant/` inside your personal scripts folder (the
+   scripts it writes or changes with your approval),
+2. the folder chosen in **Tools > Settings > Other > Scripts folder** (optional),
+3. your personal scripts folder (`Scripts > Open scripts folder` opens it):
    - Windows: `%APPDATA%\Maxima Fiction Book Editor\scripts\`
    - Linux: `~/.local/share/maxfbeditor/scripts/`
    - macOS: `~/Library/Application Support/Maxima Fiction Book Editor/scripts/`
    - a portable copy: `user/scripts/` next to the program,
-3. a portable folder next to the program that the editor cannot write to (`user/scripts/`),
-4. the scripts bundled with the editor (read-only, inside the installation).
+4. a portable folder next to the program that the editor cannot write to (`user/scripts/`),
+5. the scripts bundled with the editor (read-only, inside the installation).
 
 Inside a scripts folder every **group** is a sub-folder and every **script** is a sub-folder
 of a group. The `NN_` prefix orders groups and scripts and is removed from the displayed name:
@@ -46,10 +49,18 @@ an invalid manifest is skipped and reported in the error log and in **Settings >
 ### Customising a bundled script
 
 The bundled scripts cannot be edited in place. Copy the script's folder into your personal
-scripts folder, give it a **new `id`** in `script.json` (a copy with the same id is ignored,
-the bundled one wins) and change `name` so you can tell the two apart. Your copy appears next
-to the original; it may live in a group of the same name, in which case both end up in the
-same sub-menu.
+scripts folder and change it there:
+
+- **keep its `id`** and your copy replaces the bundled script in the menu, in its place, with
+  its hotkey, toolbar button and *Last script*; a copy without an icon of its own shows the
+  bundled script's icon. Remove your copy and the bundled script is back;
+- or give it a **new `id`** and change `name` so you can tell the two apart: your copy then
+  appears next to the original; it may live in a group of the same name, in which case both
+  end up in the same sub-menu.
+
+The AI assistant changes a script the same way, on request and after your approval: its copy,
+with the same id, goes into `90_assistant/`, and the version it replaces is kept as a dated
+backup in `script-backups/` of your data folder, from which the assistant can restore it.
 
 ## 2. The manifest (`script.json`)
 
@@ -72,7 +83,7 @@ same sub-menu.
 | Field | Required | Meaning |
 |-------|----------|---------|
 | `manifestVersion` | yes | always `1` |
-| `id` | no | unique id (reverse-DNS style recommended); defaults to `<group folder>/<script folder>`; duplicates across folders are reported and the first one (bundled first) wins |
+| `id` | no | unique id (reverse-DNS style recommended); defaults to `<group folder>/<script folder>`; a script of a higher folder (section 1) with the id of a lower one replaces it in its place; the same id twice in one folder is reported and the first one wins |
 | `name` | yes | display names by language; `en` is required, `ru` optional |
 | `description` | no | tooltip / status-bar text by language |
 | `kind` | yes | `menu` (Scripts menu, toolbar, hotkey) or `tree` (Document Tree context menu). Missing: `tree` inside the `tree/` folder, `menu` elsewhere, with a warning |
@@ -175,12 +186,12 @@ the bodies only: the description's annotation and history are edited through
 
 | Member | What it does | Example |
 |--------|--------------|---------|
-| `selection.get()` | `{ anchor: {nodeId, offset}, head, text, nodes }`; `null` only when no book is open. Without a selection in the Body view it reports a collapsed selection (`anchor` = `head`, `text: ''`) at the start of the first text block - test `text === ''` for "nothing selected". A selected image reports `nodes: []`, `text: '\uFFFC'` and the enclosing paragraph (inline image) or body (block image) as `anchor.nodeId` | [01-upper-case.js](examples/01-upper-case.js) |
+| `selection.get()` | `{ anchor: {nodeId, offset}, head, text, nodes }`; `null` only when no book is open. Without a selection in the Body view it reports a collapsed selection (`anchor` = `head`, `text: ''`) at the start of the first text block - test `text === ''` for "nothing selected". A selected image reports `nodes: []`, `text: '\uFFFC'` and the enclosing paragraph (inline image) or body (block image) as `anchor.nodeId`. Select All, or a selected table, reports the whole range at its text blocks: `anchor` at the start of the first, `head` at the end of the last (feature 007) | [01-upper-case.js](examples/01-upper-case.js) |
 | `selection.set(anchor, head?)` | Moves the caret / selects a range (offsets count characters inside the text block); `anchor` and `head` may lie in different text blocks | [09-long-running.js](examples/09-long-running.js) |
 | `selection.replaceText(text)` | Replaces the selected text (keeps the surrounding marks) | [01-upper-case.js](examples/01-upper-case.js) |
 | `selection.wrap(mark)` | Applies `'strong'`, `'emphasis'`, `'strikethrough'`, `'sub'`, `'sup'`, `'code'`, `{ style: 'name' }` or `{ link: '#id', note: true }` to the selection | [05-footnotes-form.js](examples/05-footnotes-form.js) |
 | `selection.unwrap(mark)` | Removes a mark (`'style'` and `'link'` remove any named style / link) | [04-structure.js](examples/04-structure.js) |
-| `selection.selectNode(ref)` | Selects a whole node, scrolling the Body view to it | [04-structure.js](examples/04-structure.js) |
+| `selection.selectNode(ref)` | Selects a whole node, scrolling the Body view to it. The annotation and history blocks at the top of the Body view have the fixed ids `desc:annotation` and `desc:history`: `selectNode('desc:annotation')` puts the selection at the very start of the Body view (their text is written with `doc.setDescription`) | [04-structure.js](examples/04-structure.js) |
 | `selection.scrollIntoView()` | Scrolls the current selection into view | [04-structure.js](examples/04-structure.js) |
 
 ### 4.3 Dialogs and status - `mfbe.ui`
