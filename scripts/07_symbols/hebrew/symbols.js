@@ -1,4 +1,5 @@
-// Symbol table of the legacy dialog иврит.htm: [symbol, Russian tooltip].
+// Symbol table of the dialog HTML/Иврит.html of FictionBook Editor 2.7.9 (иврит.htm in 2.7beta1,
+// the same table): [symbol, Russian tooltip].
 export const SYMBOLS = [
   ["א", "Алеф"],
   ["ב", "Бейт"],

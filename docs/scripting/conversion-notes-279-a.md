@@ -1763,6 +1763,158 @@ fixed); both scripts then say «Курсор должен находиться �
 that is not in text (`selection.replaceText` refuses one), where the 2.7.9 dialog did nothing for
 a Select All either (its range was not inside `fbw_body`).
 
+Task T079 (part): the recheck of the seven packages converted from 2.7beta1 (notes of that
+conversion: conversion-notes-b.md, group 07). Outcomes: all 7 updated (01 *Спецсимволы*, 02
+*Диакритика*, 03 *Арабский*, 04 *Валюты*, 05 *Греческий*, 06 *Древнерусский*, 07 *Иврит*); the
+ids and folders are unchanged. Every package gained `name.uk` and `description.uk`, the 2.7.9
+`legacy` block (`fbeVersion` "2.7.9", `sourceVersion` "1.3") and the 2.7.9 notice (*script engene
+by Sclex v.1.3*). Reference books: the existing `tests/scripts/fixtures/books/conv-b-07.fb2` and
+the new `tests/scripts/fixtures/279/07/tables.fb2` (valid FB2 2.1); the new snapshots are in
+`tests/scripts/snapshots/07/` and its `suite.json`. Every expected result below was written from
+the 2.7.9 original before the run; each snapshot equals it.
+
+What 2.7.9 changed, the same in all seven. The scripts only open their dialog; the script files
+differ from 2.7beta1 in the dialog's path (`Scripts/<name>.htm` → `HTML/<name>.html`) and the
+engine version in the notice (1.2 → 1.3). The dialogs (version 1.3) keep their symbol tables,
+tooltips, grids and titles and change one thing, the click on a cell:
+- 2.7beta1 pasted the selected HTML back followed by the symbol (`rng.pasteHTML(rng.htmlText +
+  ht)`): the selection was kept and the symbol added after it;
+- 2.7.9 pastes the symbol alone, in the main window inside an undo unit «Вставка символа»
+  (`rng.pasteHTML(ht)`): the selection is replaced by the symbol. In both the range is then
+  collapsed after the paste, so the caret stands after the symbol.
+
+Ported: the chosen symbol now replaces the selection (`selection.replaceText`, as the two 2.7.9
+tables converted in this feature, 08 and 09, do), a caret gets it inserted, and the caret is put
+after it (`selection.set`, from the start of the selection in document order); a selection that
+is not inside text (`selection.replaceText` refuses it) gets the message «Курсор должен
+находиться в тексте книги.», as without a book. The run is one undo step under the script's name
+(2.7.9's undo unit was named «Вставка символа»). The descriptions now say so: «… на место
+выделенного текста или в позицию курсора» (en "… in place of the selected text or at the caret").
+Unchanged from the 0.0.1 conversion: the table is a `list` field of a form, one symbol per run,
+with the form's title of 0.0.1; the list shows each symbol with the dialog's Russian tooltip, in
+every interface language (the two 2.7.9 tables of the group, 08 and 09, carry English tooltips as
+well; the tooltips of these seven were not translated in this recheck, since 2.7.9 did not change
+them).
+
+Differences (each package): the modeless dialog, which stayed open and pasted one symbol per
+click (one undo step each), is a modal form, one symbol per run; with the caret outside the book
+text the script says so, where the dialog did nothing; a symbol that replaces a selection
+beginning exactly where formatting begins (a whole word in italics, as in
+`special-symbols.conv-b-07.xml`) takes the formatting before the selection, since
+`selection.replaceText` takes the marks at the selection's start, which at a boundary are those
+of the text before it - 2.7.9 pasted where IE's range began, inside or outside the formatting tag
+depending on how the selection was made.
+
+Snapshots kept: the five whose selection is a caret (`arabic`, `currency`, `greek`, `hebrew`,
+`old-russian` `.conv-b-07.xml`) - at a caret 2.7beta1 and 2.7.9 insert the same. Re-recorded: the
+two whose selection is not empty (`diacritics`, `special-symbols` `.conv-b-07.xml`), since 2.7.9
+replaces it. Added on `tables.fb2`: one `.selection` snapshot for each of the five others, a
+range over two paragraphs, and three runs of the test package
+`tests/scripts/fixtures/279/07/chain-runner` (which runs the script through `mfbe.scripts.run`
+and reports the selection it left, recorded in `<snapshot>.outputs.json`) for the caret.
+
+### 01 Спецсимволы
+
+`scripts/07_symbols/01_special-symbols`, id `07/special-symbols`: **updated** (the same file
+name; dialog `HTML/Спецсимволы.html`, 60 symbols). Names unchanged (ru *Спецсимволы*, en
+*Special symbols*), uk *Спецсимволи*.
+
+Expected:
+- `special-symbols.conv-b-07.xml` (re-recorded; `--select n8:8:16`, answer §): the selected
+  «курсивом», the whole emphasis, is replaced by «§»: «Слово с § и греческой буквой: альфа.» -
+  without the italics (see the differences; 0.0.1 recorded «<emphasis>курсивом§</emphasis>»);
+- `special-symbols.range.xml` (`--select-range n12:42-n13:40`, answer §): the selection from «x»
+  at the end of one paragraph to «]» in the next is replaced, and the two paragraphs become one:
+  «Первая строка выделения кончается здесь: [§]: конец.»;
+- `special-symbols.caret.xml` (chain-runner, `--select-range n13:40-n12:42`, the same range
+  selected backwards, answer §): the same book, and the caret after the symbol, n12:43.
+
+### 02 Диакритика
+
+`scripts/07_symbols/02_diacritics`, id `07/diacritics`: **updated** (dialog
+`HTML/Диакритика.html`, 182 symbols). Names unchanged (ru *Диакритика*, en *Diacritics*), uk
+*Діакритика*.
+
+Expected: `diacritics.conv-b-07.xml` (re-recorded; `--select n9:15:16`, answer é): the selected
+«e» of «cafe» becomes «é»: «Диакритика: café, naive, resume.» (0.0.1: «cafeé»).
+
+Fix (rule 8): three tooltips of the dialog named the wrong mark - Ă and ă «с короной» (the
+table's word for the caron; the letters have a breve), Ť «со знаком краткости» (the breve; the
+letter has a caron). The list names them «Заглавная A со знаком краткости», «Малая A со знаком
+краткости» and «Заглавная T с короной»; the book result is not affected.
+
+### 03 Арабский
+
+`scripts/07_symbols/arabic`, id `07/arabic`: **updated** (2.7beta1's *Арабский*, numbered 03 in
+2.7.9; dialog `HTML/Арабский.html`, 45 symbols). Names unchanged (ru *Арабский*, en *Arabic*), uk
+*Арабська*.
+
+Expected: `arabic.conv-b-07.xml` stays (caret); `arabic.selection.xml` (`--select n7:21:22`,
+answer ا): «Арабская буква алиф: ا.»
+
+Fix (rule 8): the dialog's list of names (`titleStr`) has 46 entries for 45 symbols - seven empty
+ones before «Алиф» where the six hamza forms have none - so from the seventh symbol on every name
+stood on the next letter: ب was «Алиф», ة «Ба», ث «Та», ج «Са» … ى «Вав», ي «Йа». The list gives
+each name to its letter (ا «Алиф», ب «Ба», ت «Та», ث «Са» … و «Вав», ى «Йа»); ة, ـ and ي are
+listed without a name, as the list's empty entries fall on them. The same in 2.7beta1 and 2.7.9;
+only the labels change, the symbols inserted are the same.
+
+### 04 Валюты
+
+`scripts/07_symbols/currency`, id `07/currency`: **updated** (2.7beta1's *Валюта*, renamed and
+numbered in 2.7.9; dialog `HTML/Валюты.html`, 17 symbols). Renamed as in 2.7.9: ru *Валюты*, en
+*Currencies*, uk *Валюти*; the undo label follows. The form keeps the dialog's title «Валюта».
+The description no longer lists ₽, which the table does not have.
+
+Expected: `currency.conv-b-07.xml` stays (caret); `currency.selection.xml` (`--select n8:8:11`,
+answer €): «Цена: 2 € или 3 USD.»; `currency.caret.xml` (chain-runner, the same selection): the
+same book and the caret after «€», n8:9.
+
+### 05 Греческий
+
+`scripts/07_symbols/greek`, id `07/greek`: **updated** (numbered 05 in 2.7.9; dialog
+`HTML/Греческий.html`, 50 symbols). Names unchanged (ru *Греческий*, en *Greek*), uk *Грецька*.
+
+Expected: `greek.conv-b-07.xml` stays (caret); `greek.selection.xml` (`--select n9:5:10`, answer
+α): the selected «alpha» inside the bold is replaced by «α» in the bold: «<strong>Угол α равен 30
+градусам</strong>, а угол beta - 60.»; `greek.caret.xml` (chain-runner, `--select-range
+n9:10-n9:5`, the same word selected backwards): the same book and the caret after «α», n9:6.
+
+### 06 Древнерусский
+
+`scripts/07_symbols/old-russian`, id `07/old-russian`: **updated** (numbered 06 in 2.7.9; dialog
+`HTML/Древнерусский.html`, 16 symbols). Names unchanged (ru *Древнерусский*, en *Old Russian*),
+uk *Давньоруська*.
+
+Expected: `old-russian.conv-b-07.xml` stays (caret); `old-russian.selection.xml` (`--select
+n11:23:24`, answer ѣ): «В старой орфографии: хлѣб.»
+
+### 07 Иврит
+
+`scripts/07_symbols/hebrew`, id `07/hebrew`: **updated** (numbered 07 in 2.7.9; dialog
+`HTML/Иврит.html`, 30 symbols). Names unchanged (ru *Иврит*, en *Hebrew*), uk *Іврит*.
+
+Expected: `hebrew.conv-b-07.xml` stays (caret); `hebrew.selection.xml` (`--select n10:22:23`,
+answer א): «Ивритская буква алеф: א.»
+
+### Harness commands
+
+```bash
+G=scripts/07_symbols; B=tests/scripts/fixtures/279/07/tables.fb2; S=tests/scripts/snapshots/07
+C=tests/scripts/fixtures/279/07/chain-runner
+node tests/scripts/run-script.mjs $G/01_special-symbols tests/scripts/fixtures/books/conv-b-07.fb2 --select n8:8:16 --answer '{"symbol":"§"}' --snapshot $S/special-symbols.conv-b-07.xml --update
+node tests/scripts/run-script.mjs $G/02_diacritics tests/scripts/fixtures/books/conv-b-07.fb2 --select n9:15:16 --answer '{"symbol":"é"}' --snapshot $S/diacritics.conv-b-07.xml --update
+node tests/scripts/run-script.mjs $G/01_special-symbols $B --select-range n12:42-n13:40 --answer '{"symbol":"§"}' --snapshot $S/special-symbols.range.xml
+node tests/scripts/run-script.mjs $C $B --select-range n13:40-n12:42 --answer 07/special-symbols --answer '{"symbol":"§"}' --snapshot $S/special-symbols.caret.xml
+node tests/scripts/run-script.mjs $G/arabic $B --select n7:21:22 --answer '{"symbol":"ا"}' --snapshot $S/arabic.selection.xml
+node tests/scripts/run-script.mjs $G/currency $B --select n8:8:11 --answer '{"symbol":"€"}' --snapshot $S/currency.selection.xml
+node tests/scripts/run-script.mjs $C $B --select n8:8:11 --answer 07/currency --answer '{"symbol":"€"}' --snapshot $S/currency.caret.xml
+node tests/scripts/run-script.mjs $G/greek $B --select n9:5:10 --answer '{"symbol":"α"}' --snapshot $S/greek.selection.xml
+node tests/scripts/run-script.mjs $C $B --select-range n9:10-n9:5 --answer 07/greek --answer '{"symbol":"α"}' --snapshot $S/greek.caret.xml
+node tests/scripts/run-script.mjs $G/old-russian $B --select n11:23:24 --answer '{"symbol":"ѣ"}' --snapshot $S/old-russian.selection.xml
+node tests/scripts/run-script.mjs $G/hebrew $B --select n10:22:23 --answer '{"symbol":"א"}' --snapshot $S/hebrew.selection.xml
+```
+
 ## 08_Структура разделов
 
 Tasks T051 (part: the 4 scripts new in 2.7.9) and T069 (part: *Управление структурой разделов
@@ -2019,6 +2171,75 @@ sections; titles are edited in the Body view. Needs: a form field for an editabl
 moves by drag-and-drop or commands, several items at once, delete, rename keeping inline
 formatting, wrap in a new container, the result returned as the new structure), or an API that
 opens the Document Tree for a script and returns the user's changes as one run.
+
+Task T079 (part): the recheck of the two packages converted from 2.7beta1 that are still in this
+group (notes of that conversion: conversion-notes-a.md, group 08; the third,
+`split-into-sections`, moved to `scripts/13_subtitles/05_split-into-sections` with its 2.7.9
+successor and was rechecked with group 13, T083). Outcomes: 03 updated, 04 without a 2.7.9
+counterpart and kept as converted (FR-027); the ids and folders are unchanged. Both packages
+gained `name.uk` and `description.uk`. Reference book: the existing
+`tests/scripts/fixtures/books/conv-a-08.fb2`; the new snapshot is in `tests/scripts/snapshots/08/`
+and its `suite.json`. Its expected result was written from the 2.7.9 original before the run,
+and the snapshot equals it.
+
+### 03 Раздел под курсором - обрамить другим (новым) разделом
+
+`scripts/08_sections/03_section-down`, id `08/section-down`: **updated** - 2.7beta1's
+*03_Опустить раздел на один уровень*, renamed by 2.7.9 at the same place, with the same code
+apart from its texts (Sclex, version 1.0). The innermost section holding the start of the
+selection keeps its title, epigraphs, picture and annotation, and everything after them is
+wrapped into one new section without a title, so the section now holds a section. The package
+carries the 2.7.9 notice (*СКрипт "Раздел под курсором - обрамить другим (новым) разделом*,
+*Автор Sclex*, *версия 1.0*) and `legacy` {the 2.7.9 file, `fbeVersion` "2.7.9", `sourceVersion`
+"1.0"}. 2.7.9 changed:
+- the name, ru *Раздел под курсором - обрамить другим (новым) разделом*: en *Wrap the section at
+  the caret in another (new) section*, uk *Розділ під курсором - обрамити іншим (новим)
+  розділом*; the undo label follows; the description (ru, en unchanged) gained uk;
+- the messages, which say «раздел» where they said «секция»: «Ошибка. Курсор не внутри
+  раздела.» (was «…не внутри секции.»; en "Error: the caret is not inside a section.") and
+  «Раздел под курсором был успешно обрамлен другим (новым) разделом.» (was «Внутренности секции
+  опущенны.»; en "The section at the caret was wrapped in another (new) section."); both ported.
+  The conversion's own message for a section with nothing to wrap follows: «В разделе нет
+  содержимого, которое можно обрамить другим разделом.» (en "The section has no content to wrap
+  in another section.").
+
+Also brought to the original's behaviour: the original put its marker at the start of the
+selection (`tr.collapse()` collapses to the start) and went up from it to the section; the 0.0.1
+conversion went up from the selection's anchor, which for a selection made backwards is its end.
+The section is now found from the start of the selection in document order.
+
+Expected (book `conv-a-08.fb2`):
+- `section-down.xml` stays (`--select n10:0:0`): section `flat` keeps its title and epigraph, its
+  ten text blocks (paragraphs, the subtitle, the empty line) go into a new section - 2.7.9's
+  result too, the messages aside;
+- `section-down.no-section.xml` stays (`--select n3:0:0`, the caret in the body's title): «Ошибка.
+  Курсор не внутри раздела.», the book unchanged;
+- `section-down.backward.xml`, added (`--select-range n34:3-n27:2`, a selection made backwards from
+  subsection 2.2 of chapter 2 up to chapter 1): the start of the selection is in chapter 1
+  (`ch1`), which keeps its title «Глава 1» and gets a new section holding «Текст главы 1.»; the
+  rest of the book is unchanged (0.0.1 wrapped the content of subsection 2.2, where the anchor
+  was).
+
+Difference (since 0.0.1, kept): a section with nothing after its title, epigraphs, picture and
+annotation is reported and left alone; the original wrapped nothing into an empty new section,
+which FB2 does not allow (2.7.9 asked before saving such a book).
+
+### 04 Сброс структуры разделов
+
+`scripts/08_sections/04_reset-structure`, id `08/reset-structure`: **no 2.7.9 counterpart**,
+kept as converted (FR-027) with its 2.7beta1 `legacy.source` and `fbeVersion` "2.7". 2.7.9 has no
+script of this name or code: its *06 Cбросить структуру до разделов первого уровня* (version 1.1,
+converted in this feature as `08/reset-to-first-level`) is another algorithm - it rebuilds every
+body except the notes and comments into first-level sections at once - where this one (version
+1.0) lifts the subsections of each top-level section by one level per run. Gained uk *Скидання
+структури розділів*. Snapshot `reset-structure.xml` stays.
+
+### Harness commands
+
+```bash
+G=scripts/08_sections; B=tests/scripts/fixtures/books/conv-a-08.fb2; S=tests/scripts/snapshots/08
+node tests/scripts/run-script.mjs $G/03_section-down $B --select-range n34:3-n27:2 --snapshot $S/section-down.backward.xml
+```
 
 ## 09_Стихи
 

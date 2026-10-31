@@ -1,4 +1,5 @@
-// Symbol table of the legacy dialog древнерусский.htm: [symbol, Russian tooltip].
+// Symbol table of the dialog HTML/Древнерусский.html of FictionBook Editor 2.7.9 (древнерусский.htm
+// in 2.7beta1, the same table): [symbol, Russian tooltip].
 export const SYMBOLS = [
   ["Ѣ", "Буква Ять прописная"],
   ["ѣ", "Буква Ять строчная"],

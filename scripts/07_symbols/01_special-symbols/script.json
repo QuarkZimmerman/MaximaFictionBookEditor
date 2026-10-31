@@ -3,11 +3,13 @@
   "id": "07/special-symbols",
   "name": {
     "en": "Special symbols",
-    "ru": "Спецсимволы"
+    "ru": "Спецсимволы",
+    "uk": "Спецсимволи"
   },
   "description": {
-    "en": "Inserts a special symbol (¡ § © « » ° ± × ÷ † ← → ♠ ™ ‰ …) at the caret",
-    "ru": "Вставляет специальный символ (¡ § © « » ° ± × ÷ † ← → ♠ ™ ‰ …) в позицию курсора"
+    "en": "Inserts a special symbol (¡ § © « » ° ± × ÷ † ← → ♠ ™ ‰ …) in place of the selected text or at the caret",
+    "ru": "Вставляет специальный символ (¡ § © « » ° ± × ÷ † ← → ♠ ™ ‰ …) на место выделенного текста или в позицию курсора",
+    "uk": "Вставляє спеціальний символ (¡ § © « » ° ± × ÷ † ← → ♠ ™ ‰ …) на місце виділеного тексту або на місці курсору"
   },
   "kind": "menu",
   "entry": "index.js",
@@ -19,6 +21,7 @@
   },
   "legacy": {
     "source": "07_Символы/01_Спецсимволы.js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
   }
 }

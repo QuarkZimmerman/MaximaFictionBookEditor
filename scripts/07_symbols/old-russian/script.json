@@ -3,11 +3,13 @@
   "id": "07/old-russian",
   "name": {
     "en": "Old Russian",
-    "ru": "Древнерусский"
+    "ru": "Древнерусский",
+    "uk": "Давньоруська"
   },
   "description": {
-    "en": "Inserts an Old Russian (Old Cyrillic) letter at the caret",
-    "ru": "Вставляет букву древнерусского алфавита в позицию курсора"
+    "en": "Inserts an Old Russian (Old Cyrillic) letter in place of the selected text or at the caret",
+    "ru": "Вставляет букву древнерусского алфавита на место выделенного текста или в позицию курсора",
+    "uk": "Вставляє літеру давньоруського алфавіту на місце виділеного тексту або на місці курсору"
   },
   "kind": "menu",
   "entry": "index.js",
@@ -18,7 +20,8 @@
     "ru": "Древнерусский"
   },
   "legacy": {
-    "source": "07_Символы/Древнерусский.js",
-    "fbeVersion": "2.7"
+    "source": "07_Символы/06_Древнерусский.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
   }
 }

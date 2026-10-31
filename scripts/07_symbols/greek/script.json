@@ -3,11 +3,13 @@
   "id": "07/greek",
   "name": {
     "en": "Greek",
-    "ru": "Греческий"
+    "ru": "Греческий",
+    "uk": "Грецька"
   },
   "description": {
-    "en": "Inserts a letter of the Greek alphabet at the caret",
-    "ru": "Вставляет букву греческого алфавита в позицию курсора"
+    "en": "Inserts a letter of the Greek alphabet in place of the selected text or at the caret",
+    "ru": "Вставляет букву греческого алфавита на место выделенного текста или в позицию курсора",
+    "uk": "Вставляє літеру грецького алфавіту на місце виділеного тексту або на місці курсору"
   },
   "kind": "menu",
   "entry": "index.js",
@@ -18,7 +20,8 @@
     "ru": "Греческий"
   },
   "legacy": {
-    "source": "07_Символы/Греческий.js",
-    "fbeVersion": "2.7"
+    "source": "07_Символы/05_Греческий.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
   }
 }

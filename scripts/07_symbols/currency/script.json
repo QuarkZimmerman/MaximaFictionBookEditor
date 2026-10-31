@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "07/currency",
   "name": {
-    "en": "Currency",
-    "ru": "Валюта"
+    "en": "Currencies",
+    "ru": "Валюты",
+    "uk": "Валюти"
   },
   "description": {
-    "en": "Inserts a currency sign (£ ¢ € ¥ ₽ …) at the caret",
-    "ru": "Вставляет знак валюты (£ ¢ € ¥ …) в позицию курсора"
+    "en": "Inserts a currency sign (£ ¢ € ¥ ₩ ₪ …) in place of the selected text or at the caret",
+    "ru": "Вставляет знак валюты (£ ¢ € ¥ ₩ ₪ …) на место выделенного текста или в позицию курсора",
+    "uk": "Вставляє знак валюти (£ ¢ € ¥ ₩ ₪ …) на місце виділеного тексту або на місці курсору"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Currency",
-    "ru": "Валюта"
+    "en": "Currencies",
+    "ru": "Валюты"
   },
   "legacy": {
-    "source": "07_Символы/Валюта.js",
-    "fbeVersion": "2.7"
+    "source": "07_Символы/04_Валюты.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
   }
 }
