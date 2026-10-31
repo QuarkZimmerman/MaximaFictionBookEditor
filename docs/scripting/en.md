@@ -360,6 +360,25 @@ with a note in the release notes. `tools/legacy-script-audit.py` classifies the 
 scripts and generates manifest skeletons; `tests/scripts/run-script.mjs` runs a package
 headless on a fixture book and prints the resulting FB2 for snapshot comparison.
 
+### Scripts of FictionBook Editor 2.7.9 that are not in the menu
+
+Since 0.0.6 the bundled scripts follow FictionBook Editor 2.7.9; the full account, script by
+script, is in [conversion-notes-279.md](conversion-notes-279.md). Three of its scripts need the
+editor's own page or view, which no script reaches, and are not converted:
+
+- *Обновить иллюстрации* (group 05) redrew the page's pictures - the editor shows a changed
+  picture by itself;
+- *Управление структурой разделов и их заголовками…* (group 08) is a drag-and-drop editor of the
+  section tree - use the Document Tree;
+- *Режим чтения* (top level), a read-only mode of the view with its own keys and scrolling.
+
+Four have nothing to do with editing the book and are left out: the quote phrasetron and the Bulls
+and Cows game (group 99), the obscene words statistics (group 10) and the search for obscene words
+(group 21).
+
+A script list written for 2.7.9 - the templates of group 31, `mfbe.scripts.run("<2.7.9 path>")` -
+finds every other script by its 2.7.9 path (the manifest's `legacy.source` or `legacy.aliases`).
+
 ## 7. Checklist for a new script
 
 1. Create `<scripts folder>/<NN_Group>/<NN_Name>/` with `script.json` and `index.js`

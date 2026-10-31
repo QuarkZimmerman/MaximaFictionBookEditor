@@ -7,9 +7,10 @@
     "successorsOfDropped": 5,
     "noCounterpart": 6,
     "byStatus": {
-      "new": 231,
+      "dropped": 4,
+      "new": 228,
       "noCounterpart": 6,
-      "notConverted": 4,
+      "notConverted": 3,
       "unchanged": 27,
       "updated": 109
     },
@@ -3916,17 +3917,11 @@
       "htmlDialogs": [
         "HTML/Статистика нецензурных слов.html"
       ],
-      "package": "scripts/10_statistics/10_obscene-words-statistics",
-      "id": "10/obscene-words-statistics",
-      "status": "new",
+      "package": null,
+      "id": null,
+      "status": "dropped",
       "predecessor": null,
-      "differences": [
-        "the tables open in the editor's report window (mfbe.ui.report, with Copy and Save as...); the original's setting okno chose between an HTML window (0, the default) and a modeless dialog that could not be copied from (1) and, with tablCopu = 1, put the tables on the clipboard as text: kept as the same settings, where 1 adds the clipboard (mfbe.clipboard.writeText) to the same report window"
-      ],
-      "fixes": [],
-      "openQuestions": [
-        "a word at the very start of the text (the first characters of the book's annotation) is never found, since the expression needs a character before a word; kept as in 2.7.9 - should the start of the text count as such a character?"
-      ]
+      "reason": "Left out by the requester's decision (2026-10-31): the script has nothing to do with editing the book."
     },
     {
       "source": "10_Статистика/16_Словарь книги - в буфер обмена.js",
@@ -9480,17 +9475,11 @@
       "encoding": "utf-8-sig",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": "scripts/21_search-replace/80_obscene-words",
-      "id": "21/obscene-words",
-      "status": "new",
+      "package": null,
+      "id": null,
+      "status": "dropped",
       "predecessor": null,
-      "differences": [
-        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
-        "The view scrolls the hit into sight instead of the original's own scrolling step.",
-        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
-      ],
-      "fixes": [],
-      "openQuestions": []
+      "reason": "Left out by the requester's decision (2026-10-31): the script has nothing to do with editing the book."
     },
     {
       "source": "22_Дескрипшен/00_Изменить дескрипшен - исходный шаблон.js",
@@ -11034,22 +11023,11 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": "scripts/99_misc/09_quote-phrasetron",
-      "id": "99/quote-phrasetron",
-      "status": "new",
+      "package": null,
+      "id": null,
+      "status": "dropped",
       "predecessor": null,
-      "differences": [
-        "The window of results is one message box, which scrolls: the original's pages (\"Показать следующую страницу?\", \"Закрыть окно?\") and its setting for the window's height (Vysota_teksta) are gone.",
-        "In the English interface the window's own lines - its heading, the count, \"No quotes found\", the clipboard question and the heading of the copied text - are in English; the quotations are the book's.",
-        "The book's authors (first, middle and last name) and title come from the document's description; the original read them from the fields of the Description form.",
-        "run() returns the text of the window (the original's Run() returned nothing), and another script may run it with settings of its own (the names of its section НАСТРОЙКИ) in the args of mfbe.scripts.run; the suite's reference runs use both.",
-        "A quotation the line-breaking expression cannot take apart (a line break inside it, which a paragraph's text does not hold) ends there; the original's loop would not have ended."
-      ],
-      "fixes": [],
-      "openQuestions": [
-        "The keywords (Родина, смысл жизни, Путин, путинский, разум, отчизна, мудрость, истина) and the special heading of five diamonds for a quotation naming Путин are the original's settings, kept as written: should the bundled script keep them?",
-        "A stanza is searched as a whole when its first line is met, and the lines after it are jumped over by the number of the stanza's children: with a title or a subtitle in the stanza the jump also passes over the first paragraph after the stanza, and a stanza whose first line is its subtitle is not searched at all. Kept as 2.7.9 behaves."
-      ]
+      "reason": "Left out by the requester's decision (2026-10-31): the script has nothing to do with editing the book."
     },
     {
       "source": "99_Прочее/10_Быки и коровы (игра).js",
@@ -11068,16 +11046,12 @@
       "htmlDialogs": [],
       "package": null,
       "id": null,
-      "status": "notConverted",
+      "status": "dropped",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
       "suggestedPackage": "scripts/99_misc/10_byki-and-korovy-igra",
       "suggestedId": "99/byki-and-korovy-igra",
       "namesReviewed": true,
-      "reason": "A number-guessing game that draws itself into the editor's own page: it inserts a styled DIV of class body before the Description form, holding the game's title, its rules, the story of the \"История\" mode, the record of the moves and a scoreboard of coloured FONT elements that it rewrites after every move; it measures the window (getViewHeight, getBoundingClientRect), scrolls it, drops old records when they no longer fit, and removes the DIV at the end. Only the moves are typed into InputBox prompts. A script has no access to the editor's page (FR-024).",
-      "needs": "A window a script can show and update while it waits in its prompts - a report window whose content a later call replaces, or a form field that shows formatted, coloured text - or a redesign of the game around message boxes and prompts alone."
+      "reason": "Left out by the requester's decision (2026-10-31): the script has nothing to do with editing the book."
     },
     {
       "source": "TreeCmd/Пример 1.js",

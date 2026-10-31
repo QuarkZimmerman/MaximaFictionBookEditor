@@ -7,7 +7,8 @@ as the group's entries of `tests/scripts/audit/inventory-279.json`.
 
 ## 10_Статистика
 
-8 scripts in 2.7.9: **5 new, all converted** here (T053), none left out; the 3 successors of the
+8 scripts in 2.7.9: **5 new, all converted** here (T053), of which the obscene words statistics
+(10) was later left out by the requester's decision; the 3 successors of the
 packages converted from 2.7beta1 (`01_show-links`, `02_show-all-links`, `03_document-statistics`) are
 left for their recheck. Packages: `scripts/10_statistics/<NN>_<slug>/` with the 2.7.9 numbers (`07_`,
 `10_`, `16_`, `17_`, `18_`), ids `10/<slug>`, `legacy.source` the 2.7.9 path, `name` and
@@ -116,40 +117,9 @@ offered with "Общая статистика (…).txt" (English interface: "Ge
 
 ### 10 Статистика нецензурных слов
 
-`10_obscene-words-statistics`, `10/obscene-words-statistics`; v1.8, stokber, with imDaniX's anti-mat
-expression. Counts the obscene words of the whole text (the page's innerText: the book's annotation,
-the history, every body, a line each) and the mentions of the networks and organisations banned in
-Russia (Meta, Facebook, Instagram): the original's expressions, word lists and exceptions are copied
-as written into `patterns.js`, its processing into `index.js` line by line. A message gives both
-numbers ("Найдено нецензурных слов: …", "Упоминаний запрещённых на территории РФ сетей и
-организаций: …"; "В документе не найдено нецензурных слов." when there are none), a report window
-(`mfbe.ui.report`, the original's "HTML/Статистика нецензурных слов.html") shows the words in the
-order of the text and alphabetically with their counts, Latin letters, digits and asterisks in red,
-the network names in green. Then it offers ("ОК / Отмена", the original's `confirm`) to note in the
-book's annotation that the text holds obscene language, and the mentions of Facebook and Instagram
-(with the note on Meta) or of Meta alone; each note is a paragraph after an empty one ("&nbsp;"),
-trailing and leading empty paragraphs removed, as the original's `addToAnno` did - Russian text of the
-book in every interface. The settings `okno = 0` and `tablCopu = 1` are the original's; `okno = 1`
-(its modeless window) also puts the tables on the clipboard as text (`mfbe.clipboard.writeText`).
-Returns `true` as the original's `Run()` did, except after the Meta-only question.
-
-Difference: the tables open in the editor's report window (with Copy and Save as...); the original's
-two kinds of window (an HTML window that could be copied from, a modeless dialog that could not, but
-put the tables on the clipboard) are one, the setting choosing the clipboard only.
-
-Open question: a word at the very start of the text (the first characters of the book's annotation)
-is never found, since the expression needs a character before a word; kept as in 2.7.9 - should the
-start of the text count as such a character?
-
-Reference book `obscene.fb2`: an annotation that starts with an obscene word (not found), words in
-lower case, with a capital and in formatting, an exception the main expression catches ("скипидар"),
-exceptions it does not ("Мандела", "Педерсен"), words with asterisks, an English word, a Latin "x"
-inside a Cyrillic word, "Дранг нах Остен", Instagram, Фейсбук and Meta, a note. Expected - the
-original's own `Run()`, run in an isolated context on the page text, `alert`, `confirm` and the window
-recorded - and recorded: 11 words and 3 mentions, both tables exactly as 2.7.9 builds them (the English
-interface translates the two headers); `obscene-words-statistics.xml` (OK, OK, OK): the annotation
-gets the three notes, each after an empty paragraph (2.7.9 the same); `.no-notes.xml` (OK, Cancel,
-Cancel): the book unchanged, the same report; `.none.xml` (`bare.fb2`): the message, no report.
+**Left out by the requester's decision (2026-10-31):** the script has nothing to do with
+editing the book. It had been converted (the package, its snapshots and books are removed;
+the conversion is in the git history); its inventory entry has the status `dropped`.
 
 ### 16 Словарь книги - в буфер обмена
 

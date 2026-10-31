@@ -106,6 +106,7 @@ def render(inventory: dict, repo: Path) -> str:
     kept = status("kept")
     no_counterpart = status("noCounterpart")
     not_converted = status("notConverted")
+    dropped = status("dropped")
     recheck = status("recheck")
     fixed = [e for e in entries if e.get("fixes")]
 
@@ -123,7 +124,8 @@ def render(inventory: dict, repo: Path) -> str:
                          ("Already as in 2.7.9", unchanged),
                          ("Kept as converted before", kept),
                          ("Converted before, no 2.7.9 counterpart (kept)", no_counterpart),
-                         ("Not converted", not_converted)):
+                         ("Not converted", not_converted),
+                         ("Left out by the requester's decision", dropped)):
         out.append(f"| {label} | {len(items)} |")
     out.append("")
     if pending or recheck:
@@ -163,6 +165,10 @@ def render(inventory: dict, repo: Path) -> str:
             return f"{text} It would need {sentence(needs[0].lower() + needs[1:])}" if needs else text
 
         out.extend(with_text(not_converted, repo, reason))
+    if dropped:
+        out.append(f"- **Left out by the requester's decision** ({len(dropped)}): scripts that have "
+                   "nothing to do with editing the book.")
+        out.extend(with_text(dropped, repo, lambda e: sentence(e.get("reason") or "left out")))
     return "\n".join(out) + "\n"
 
 
@@ -232,6 +238,9 @@ def self_test() -> int:
             {"source": "01_Регистр/Предложение_alxs.js", "fbeVersion": "2.7",
              "group": "01_Регистр", "status": "noCounterpart", "package": None,
              "names": {"ru": "Предложение_alxs"}},
+            {"source": "99_Прочее/10_Игра.js", "fbeVersion": "2.7.9", "group": "99_Прочее",
+             "status": "dropped", "package": None, "reason": "a game",
+             "names": {"ru": "Игра", "en": "A game"}, "namesReviewed": True},
         ]}
         text = render(inventory, repo)
         expected = [
@@ -251,6 +260,10 @@ def self_test() -> int:
             "  - *Обновить иллюстрации*, 05 Иллюстрации: it reads picture files. It would need "
             "reading files the user picks.",
             "  - *Режим чтения* (Reading mode), top level: the editor's page.",
+            "| Left out by the requester's decision | 1 |",
+            "- **Left out by the requester's decision** (1): scripts that have nothing to do with "
+            "editing the book.",
+            "  - *Игра* (A game), 99 Прочее: a game.",
         ]
         failures = [line for line in expected if line not in text]
         # Menu order: group 05 before the top-level script, numbers compared as numbers.

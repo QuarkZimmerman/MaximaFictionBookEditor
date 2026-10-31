@@ -1,8 +1,0 @@
-{
-  "reports": [
-    {
-      "title": "Obscene words statistics",
-      "html": "<table align=left border=1><th>In the order of the text</th>\n<tr><td>блядь</td></tr>\n<tr><td>Хуй</td></tr>\n<tr><td>пиздец</td></tr>\n<tr><td>ёб</td></tr>\n<tr><td>х<font color='red'>*</font>й</td></tr>\n<tr><td>бл<font color='red'>*</font></td></tr>\n<tr><td><font color='red'>fuck</font></td></tr>\n<tr><td><font color='green'>Instagram</font></td></tr>\n<tr><td><font color='green'>Фейсбук</font></td></tr>\n<tr><td><font color='green'>Meta</font></td></tr>\n<tr><td>Блядь</td></tr>\n<tr><td>хуй</td></tr>\n<tr><td><font color='red'>x</font>уйня</td></tr>\n<tr><td>пиздой</td></tr></table><table align=left border=0><tr><td></td></tr></table><table align=left border=1><th>Alphabetically</th>\n\n<tr><td><font color='red'>fuck</font></td><td>1</td></tr>\n<tr><td><font color='red'>x</font>уйня</td><td>1</td></tr>\n<tr><td>Блядь</td><td>1</td></tr>\n<tr><td>Хуй</td><td>1</td></tr>\n<tr><td>бл<font color='red'>*</font></td><td>1</td></tr>\n<tr><td>блядь</td><td>1</td></tr>\n<tr><td>пиздец</td><td>1</td></tr>\n<tr><td>пиздой</td><td>1</td></tr>\n<tr><td>х<font color='red'>*</font>й</td><td>1</td></tr>\n<tr><td>хуй</td><td>1</td></tr>\n<tr><td>ёб</td><td>1</td></tr>\n<tr><td><font color='green'>Instagram</font></td><td>1</td></tr>\n<tr><td><font color='green'>Meta</font></td><td>1</td></tr>\n<tr><td><font color='green'>Фейсбук</font></td><td>1</td></tr>\n</table>"
-    }
-  ]
-}

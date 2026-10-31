@@ -41,8 +41,8 @@ Record: `tests/scripts/audit/updates-279/top.json` (`notConverted`, names review
 
 ## 21_Поиск и замена
 
-Tasks T062 (05 to 25) and T063 (28 to 80): the 23 scripts new since 2.7beta1 are converted; none
-is left unconverted. The two packages converted earlier from 2.7beta1 (`04_text-error-search`,
+Tasks T062 (05 to 25) and T063 (28 to 80): the 23 scripts new since 2.7beta1 are converted; the
+search for obscene words (80) was later left out by the requester's decision. The two packages converted earlier from 2.7beta1 (`04_text-error-search`,
 `10_regexp-set-search-template`) are brought up to 2.7.9 in their recheck below (T087). Packages:
 `scripts/21_search-replace/<NN>_<slug>/`, ids `21/<slug>`, `legacy.fbeVersion` "2.7.9" with the
 version the original's header states. Reference books: `tests/scripts/fixtures/279/21/*.fb2` (all
@@ -464,16 +464,9 @@ the first body's first text block; the clipboard refusal; the engine's.
 
 ### 80 Поиск нецензурных слов
 
-`80_obscene-words`, id `21/obscene-words`, version 1.7, with imDaniX's swear-word expression (credited
-in the kept notice). The original's settings and word lists (`astEnd`, `mat`, `neMat`) are kept as
-written at the top of `index.js`. 14 entries: the exception list ("скипидар", "мандала"...) first,
-words with asterisks, Russian swearing by the main expression, English swearing, mentions of
-organisations banned in the Russian Federation; "nothing found" adds "«Поиск нецензурных слов» v.1.7";
-returns "Found"/"NotFound"; `&shy;` not decoded. Book `obscene-words.fb2`; snapshots
-`obscene-words.xml` (`--select n5:0:0`) and `.not-found.xml` (`--select n11:0:0 --answer ok`). Walk
-from n5: "скипидара" and "мандала" are exceptions (without the exception entry both are hits of the
-main expression), `мудаком` (МАТ), `fuck`, `х*й` (a word with an asterisk), `Facebook`, "nothing
-found" with the version line.
+**Left out by the requester's decision (2026-10-31):** the script has nothing to do with
+editing the book. It had been converted (the package, its snapshots and books are removed;
+the conversion is in the git history); its inventory entry has the status `dropped`.
 
 ### Not converted
 
@@ -2329,103 +2322,11 @@ node tests/scripts/run-script.mjs $G/02_show-whole-code $B --select n5:3:3 --sna
 
 ## 99_Прочее
 
-2 scripts in 2.7.9, both new and both by Александр Ка (part of T068): 09 is converted into the new
-group `scripts/99_misc/` (*Прочее*); 10, a game drawn on the editor's own page, is not converted.
-
-### 09 Цитатный фразотрон
-
-Package `scripts/99_misc/09_quote-phrasetron`, id `99/quote-phrasetron`, v1.4 (Александр Ка,
-29.04.2025); `name` and `description` in ru, en and uk, `needsSelection: false`, the 2.7.9 icon,
-`undoLabel` the name, the skeleton's notice lines verbatim (`check-notices.py --package`: OK).
-
-**What it does.** Every `P` of the bodies other than `notes` and `comments` (the book's annotation and
-history are not bodies), in document order, with its `innerText`: a title's line, a subtitle and a text
-author (a date too) are skipped; a verse stands for its whole stanza - the stanza's text with its line
-breaks as " /&/  " - and the following lines of the stanza are jumped over by the number of the
-stanza's children. A text with a keyword (`reTrueS`: the keyword followed by punctuation, a quotation
-mark, a dash or a space) gives every match of `reTrue` - a sentence around a keyword: from the start or
-after `….?!)]` and spaces, an optional dash, an optional stretch of up to 180 characters from a
-capital, the keyword, up to 230 characters, to `…`, `.`, `?`, `!` or the end - longer than 15
-characters, at most `Max_tsitat` (100). The keywords (`W`, regular expressions): Родина, смысл жизни,
-Путин, путинский, разум, отчизна, мудрость, истина. Each quotation is trimmed of punctuation and spaces
-at its ends, its spaces doubled, broken into lines of about 47 characters (`reZit`, `reZitAlt` once
-the first fails; " /&/  " ends a line), headed by "◊ ◊ ◊" ("◊ ◊ ◊ ◊ ◊" when it names Путин) and
-followed by an empty line; with `Podcherkivat_slova` the keywords get combining low lines (U+0332).
-The window: " «Цитатный фразотрон» v.1.4", a rule, "• Найдено N цитат:" and the quotations, or
-">>  Цитаты не найдены". With `SaveTsitat` and Yes to "Сохранить текст цитат в буфер обмена?" the
-quotations - a heading, each one on its own, its stanza lines on lines of their own - and "(из книги:
-<authors>.  «<title>»)" go to the clipboard; the authors are the first, middle and last names of
-`<title-info>` (a nickname alone gives none).
-
-**Conversion.** `lib/phrasetron.js` is the original's code in its order, with its own variable names
-and comments: the `P`s are the text blocks and empty lines of the bodies (`mfbe.doc.get()`), a stanza's
-children its title, subtitle and verses; the expressions are the original's strings, compiled with
-group 06's `lib/jscript-regexp.js` (copied unchanged, md5 `e8fa308f…`) for JScript's `\s` (no
-U+00A0); `GetNBSP()` gave U+00A0, which the original turned into the text "&nbsp;", so the
-expressions' "|&nbsp;" alternatives look for that text, as they did; the window is one
-`mfbe.ui.message`, the question a Yes/No message, the clipboard `mfbe.clipboard.writeText`. The
-settings stay in `index.js` as the original's section НАСТРОЙКИ (with English glosses); another script
-may pass settings of its own in the args of `mfbe.scripts.run`, and `run()` returns the window's text.
-
-**Reference book** `tests/scripts/fixtures/279/99/phrases.fb2` (valid FB2): three authors (one a
-nickname only), a quoted keyword in the book's annotation (not a body), the body's title, keywords in
-paragraphs, a fragment of 7 characters, a quotation naming Путин, a subtitle, a citation, a stanza of
-two verses and the poem's text author, a table cell, a long paragraph, an epigraph with its text author,
-"путинской" in chapter 2 and a keyword in the notes body. **Expected:** the original's own code,
-taken verbatim from the 2.7.9 file, was run (scratch, not shipped) on a stand-in of its page built from
-this book, with JScript's `\s`: 9 quotations - the paragraphs on мудрость and Отчизна, Путин (five
-diamonds), the citation on смысл жизни, the stanza (its two lines), the cell on разумное решение, the
-whole long paragraph (истина), the epigraph on разум, the paragraph on путинской эпохи (five diamonds);
-not «Истина.» (7 characters), the titles, the subtitle, the text authors, the annotation or the note.
-**Snapshots** (`tests/scripts/snapshots/99/`, 6, in its `suite.json`; the book never changes): a run of
-the package; four runs through the test package `tests/scripts/fixtures/279/99/99_tests/run-with-args`
-(never bundled: it runs a script with the args its prompt gives and reports what `run()` returned,
-recorded in `<snapshot>.outputs.json`) - `.window` (the window's text), `.clipboard` (SaveTsitat, Yes:
-the clipboard too), `.clipboard-no` (SaveTsitat, No), `.underline` (Podcherkivat_slova, Max_tsitat 3:
-"Найдены 3 цитаты", the keywords underlined); `.none` (`tests/scripts/fixtures/279/14/cites.fb2`, no
-keyword: ">>  No quotes found", no question). Each window and clipboard text equals the original's on
-the same book, apart from the window's own lines, which the harness's English interface shows in
-English.
-
-**Differences.** One message box, which scrolls: the original's pages ("Показать следующую
-страницу?", "Закрыть окно?") and its setting for the window's height (Vysota_teksta) are gone; in the
-English interface the window's own lines are in English; the authors and the title come from the
-document's description (the original read the Description form's fields); `run()` returns the window's
-text and takes settings from the args of another script; a quotation the line-breaking expression could
-not take apart (a line break in it, which a paragraph's text does not hold) ends there instead of never.
-
-**Open questions.** The keywords and the five-diamond heading for a quotation naming Путин are the
-original's settings, kept as written: should the bundled script keep them? A stanza is searched at its
-first line and the jump that follows counts its children: with a title or a subtitle it also passes the
-paragraph after the stanza, and a stanza that starts with its subtitle is not searched; kept as 2.7.9
-behaves.
-
-### Not converted: 10 Быки и коровы (игра)
-
-v2.1 (Александр Ка, 30.04.2025). Names: ru "Быки и коровы (игра)", en "Bulls and Cows (a game)", uk
-"Бики та корови (гра)". The computer thinks of a number of distinct digits, the player guesses it in
-InputBox prompts, each guess answered with "bulls" (right digit, right place) and "cows" (right digit,
-wrong place); a "История" mode leads through a story of episodes, prizes open a digit.
-
-**Reason (FR-024: the editor's own page).** The game draws itself into the editor's page: it inserts a
-styled DIV of class body before the Description form, holding the game's title, its rules, the story
-of the "История" mode, the record of the moves and a scoreboard of coloured FONT elements it rewrites
-after every move; it measures the window (`getViewHeight`, `getBoundingClientRect`), scrolls it, drops
-old records when they no longer fit, and removes the DIV at the end. Only the moves are typed into
-prompts. **Needs:** a window a script can show and update while it waits in its prompts (a report
-window whose content a later call replaces, or a form field of formatted, coloured text) - or a
-redesign of the game around message boxes and prompts alone. The match results also showed a random
-saying from its list "Пословицы и поговорки Великой Отечественной войны" (`Kn`), whose last lines are
-about Kursk and Sudzha: nothing of the script, the list included, is copied.
-
-### Harness commands
-
-```bash
-B=tests/scripts/fixtures/279/99; S=tests/scripts/snapshots/99; T=$B/99_tests/run-with-args
-node tests/scripts/run-script.mjs scripts/99_misc/09_quote-phrasetron $B/phrases.fb2 --snapshot $S/quote-phrasetron.xml
-node tests/scripts/run-script.mjs $T $B/phrases.fb2 --answer '{"ref": "99_Прочее\\09_Цитатный фразотрон.js", "args": {"SaveTsitat": 1}}' --answer ok --answer yes --snapshot $S/quote-phrasetron.clipboard.xml
-tests/scripts/run-all.sh --group 99        # 6 snapshots
-```
+2 scripts in 2.7.9, both new and both by Александр Ка: the quote phrasetron (09), converted first,
+and the Bulls and Cows game (10), which draws itself on the editor's own page and was not converted.
+**Both are left out by the requester's decision (2026-10-31):** they have nothing to do with editing
+the book. The group `scripts/99_misc/` is removed with its package, snapshots and books (the
+conversion is in the git history); both inventory entries have the status `dropped`.
 
 ## TreeCmd
 

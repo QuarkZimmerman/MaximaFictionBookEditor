@@ -300,26 +300,6 @@
     ]
   },
   {
-    "snapshot": "21/obscene-words.xml",
-    "script": "scripts/21_search-replace/80_obscene-words",
-    "book": "tests/scripts/fixtures/279/21/obscene-words.fb2",
-    "args": [
-      "--select",
-      "n5:0:0"
-    ]
-  },
-  {
-    "snapshot": "21/obscene-words.not-found.xml",
-    "script": "scripts/21_search-replace/80_obscene-words",
-    "book": "tests/scripts/fixtures/279/21/obscene-words.fb2",
-    "args": [
-      "--select",
-      "n11:0:0",
-      "--answer",
-      "ok"
-    ]
-  },
-  {
     "snapshot": "21/find-clipboard-text.xml",
     "script": "scripts/21_search-replace/75_find-clipboard-text",
     "book": "tests/scripts/fixtures/279/21/clipboard-search.fb2",

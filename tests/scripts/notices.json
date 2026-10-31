@@ -1364,17 +1364,6 @@
       ],
       "shown": []
     },
-    "scripts/10_statistics/10_obscene-words-statistics": {
-      "original": "10_Статистика/10_Статистика нецензурных слов.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт «Статистика нецензурных слов» для редактора Fiction Book Editor (FBE).",
-        "Версия 1.8",
-        "автор — stokber (февраль 2025).",
-        "В скрипте использован регексп-антимат за авторством imDaniX (https://gist.github.com/imDaniX/8449f40655fcc1b92ae8d756cbca1264#file-swears-javascript-regex) дополненный рядом изменений-добавок."
-      ],
-      "shown": []
-    },
     "scripts/10_statistics/16_book-dictionary-to-clipboard": {
       "original": "10_Статистика/16_Словарь книги - в буфер обмена.js",
       "fbeVersion": "2.7.9",
@@ -3888,17 +3877,6 @@
       ],
       "shown": []
     },
-    "scripts/21_search-replace/80_obscene-words": {
-      "original": "21_Поиск и замена/80_Поиск нецензурных слов.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "Скрипт «Поиск нецензурных слов» для редактора Fiction Book Editor (FBE).",
-        "Версия 1.7 (ноябрь 2024)",
-        "Скрипт создан из заготовки скрипта «Поиск по набору регекспов» ув. Sclex-а.",
-        "В скрипте использован регексп-антимат за авторством imDaniX (https://gist.github.com/imDaniX/8449f40655fcc1b92ae8d756cbca1264#file-swears-javascript-regex) дополненный рядом изменений-добавок."
-      ],
-      "shown": []
-    },
     "scripts/22_description/00_change-description-source-template": {
       "original": "22_Дескрипшен/00_Изменить дескрипшен - исходный шаблон.js",
       "fbeVersion": "2.7.9",
@@ -4745,17 +4723,6 @@
         "Скрипт \"Помочь заменить таблицы на их изображения\" v1.11",
         "Автор stokber (август 2025).",
         "В скрипте использованы фрагменты кода из скриптов за авторством Sclex-а."
-      ],
-      "shown": []
-    },
-    "scripts/99_misc/09_quote-phrasetron": {
-      "original": "99_Прочее/09_Цитатный фразотрон.js",
-      "fbeVersion": "2.7.9",
-      "header": [
-        "«Цитатный фразотрон»",
-        "Поиск цитат по ключевым словам",
-        "Скрипт тестировался в FBE v.2.7.7 (win XP, IE8 и win 7, IE11)",
-        "* История изменений в конце скрипта"
       ],
       "shown": []
     }
