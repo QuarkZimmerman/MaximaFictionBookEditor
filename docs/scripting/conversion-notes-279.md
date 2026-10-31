@@ -158,6 +158,12 @@ The recheck of a converted package ports every change in behaviour of its 2.7.9 
 and the folder stay (`20_debug` became `95_programmers`); Russian names follow 2.7.9 and every
 package gains Ukrainian names and descriptions; `legacy` names the 2.7.9 source.
 
+**Accepted as not converted (requester, 2026-10-31).** The four scripts that need the editor's
+own page or view stay out of the bundle: 05's refresh of the pictures (*Обновить иллюстрации*),
+08's section structure manager (*Управление структурой разделов и их заголовками…*), 99's Bulls
+and Cows game (*Быки и коровы*) and the top-level reading mode (*Режим чтения*). Their reasons
+and what each would need are in the inventory and in the group notes.
+
 ## Summary
 
 The release notes' scripts section, written by `tools/release-notes-scripts.py` (T070), comes
