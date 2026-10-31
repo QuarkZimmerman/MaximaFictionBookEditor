@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Разрядка</last-name>
+			</author>
+			<book-title>Паразитная разрядка</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026</date>
+			<id>fixture-279-21-stray-spacing</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Паразитная разрядка</p>
+			</title>
+			<p>Нормальный текст: я и ты, а в доме кот.</p>
+			<p>Слово р а з р я д к а с пробелами.</p>
+			<p>д а — начало с буквы.</p>
+			<p>Ответ пришёл: д.</p>
+			<p>Кавычка «т ест» внутри.</p>
+			<p>Тире — н ачало.</p>
+			<p>С неразрывным р пробелом.</p>
+			<p>Последний абзац.</p>
+		</section>
+	</body>
+</FictionBook>

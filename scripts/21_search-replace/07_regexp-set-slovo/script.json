@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "21/regexp-set-slovo",
+  "name": {
+    "ru": "Поиск (без замены) по набору регэкспов_Slovo",
+    "en": "Search (without replacing) by a set of regexps: words (Slovo)",
+    "uk": "Пошук (без заміни) за набором регулярних виразів_Slovo"
+  },
+  "description": {
+    "ru": "Выделяет следующее после курсора слово с вероятной опечаткой распознавания («пего» вместо «него», «иа» вместо «на» и т. п.) или подозрительное сочетание букв и показывает описание в строке состояния.",
+    "en": "Selects the next word after the caret that looks like a recognition misprint (\"пего\" for \"него\", \"иа\" for \"на\" and so on) or a suspicious letter combination, and shows its description in the status bar.",
+    "uk": "Виділяє наступне після курсору слово з імовірною помилкою розпізнавання («пего» замість «него», «иа» замість «на» тощо) або підозріле сполучення літер і показує опис у смузі стану."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск (без замены) по набору регэкспов_Slovo",
+    "en": "Search (without replacing) by a set of regexps: words (Slovo)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/07_Поиск (без замены) по набору регэкспов_Slovo.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

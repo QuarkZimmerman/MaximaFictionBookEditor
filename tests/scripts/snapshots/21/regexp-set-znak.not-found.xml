@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Знаки</last-name>
+			</author>
+			<book-title>Ошибки знаков</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Ошибки знаков</p>
+			</title>
+			<p>Правильная строка, где всё хорошо.</p>
+			<p>Строка без точки в конце</p>
+			<p>Знак ~ тильды.</p>
+			<p>Картинка <image l:href="#pic.png"/> в строке.</p>
+			<p>Неправильный дефис - вместо тире.</p>
+			<p>Числа 3-4 через дефис.</p>
+			<p>Смесь лaтиницы.</p>
+			<p>Слово сЛово с регистром.</p>
+			<p>Тире—слитно.</p>
+			<p>Буква З вместо цифры.</p>
+			<p>Слова,без пробела.</p>
+			<p>Он сказал — Привет.</p>
+			<p>Слово по-научно-популярному.</p>
+			<p>Кавычки «привет»—тире.</p>
+			<p>Две точки.. в конце.</p>
+			<subtitle>Подзаголовок без точки</subtitle>
+			<subtitle>* * *</subtitle>
+			<poem>
+				<stanza>
+					<v>строчная буква в стихе</v>
+				</stanza>
+			</poem>
+			<p>Курсив внутри с<emphasis>ло</emphasis>ва.</p>
+			<p>Последний абзац.</p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

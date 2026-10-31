@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/garbage-characters-backward",
+  "name": {
+    "ru": "Обратный поиск (без замены) мусорных символов",
+    "en": "Backward search (without replacing) for garbage characters",
+    "uk": "Зворотний пошук (без заміни) сміттєвих символів"
+  },
+  "description": {
+    "ru": "Выделяет ближайший перед курсором мусорный символ — любой, кроме русских и латинских букв, цифр, пробелов и обычных знаков препинания, — ища от курсора к началу книги.",
+    "en": "Selects the nearest garbage character before the caret - anything but Russian and Latin letters, digits, spaces and the usual punctuation - searching from the caret towards the start of the book.",
+    "uk": "Виділяє найближчий перед курсором сміттєвий символ — будь-який, крім російських і латинських літер, цифр, пробілів і звичайних розділових знаків, — шукаючи від курсору до початку книги."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Обратный поиск (без замены) мусорных символов",
+    "en": "Backward search (without replacing) for garbage characters"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/23_Обратный поиск (без замены) мусорных символов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.5"
+  }
+}

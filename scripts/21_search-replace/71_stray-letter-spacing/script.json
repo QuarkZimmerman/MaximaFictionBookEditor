@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/stray-letter-spacing",
+  "name": {
+    "ru": "Поиск паразитной разрядки текста",
+    "en": "Search for stray letter-spacing",
+    "uk": "Пошук паразитної розрядки тексту"
+  },
+  "description": {
+    "ru": "Выделяет следующую после курсора букву, которая не может быть отдельным словом, но стоит между пробелами, в начале строки перед пробелом или между пробелом и знаком препинания (следы разрядки).",
+    "en": "Selects the next letter after the caret that cannot be a word by itself but stands between spaces, at the start of a line before a space, or between a space and punctuation (traces of letter-spacing).",
+    "uk": "Виділяє наступну після курсору літеру, яка не може бути окремим словом, але стоїть між пробілами, на початку рядка перед пробілом або між пробілом і розділовим знаком (сліди розрядки)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск паразитной разрядки текста",
+    "en": "Search for stray letter-spacing"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/71_Поиск паразитной разрядки текста.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.1"
+  }
+}

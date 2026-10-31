@@ -11,7 +11,443 @@ as the group's entries of `tests/scripts/audit/inventory-279.json`.
 
 ## 21_Поиск и замена
 
-25 scripts in 2.7.9: 23 new, 2 successors of converted packages. Not yet converted or rechecked.
+Tasks T062 (05 to 25) and T063 (28 to 80): the 23 scripts new since 2.7beta1 are converted; none
+is left unconverted. The two packages converted earlier from 2.7beta1 (`04_text-error-search`,
+`10_regexp-set-search-template`) are rechecked by a later task and were not touched. Packages:
+`scripts/21_search-replace/<NN>_<slug>/`, ids `21/<slug>`, `legacy.fbeVersion` "2.7.9" with the
+version the original's header states. Reference books: `tests/scripts/fixtures/279/21/*.fb2` (all
+valid per `resources/schema/FictionBook.xsd`). Snapshots: `tests/scripts/snapshots/21/`, 55 runs
+in `tests/scripts/snapshots/21/suite.json`; `tests/scripts/run-all.sh --group 21` passes (57 of 57
+with the two older packages).
+
+A search changes nothing, so its snapshot is the unchanged book (each was compared with its book).
+What a search selects was checked run by run with a private copy of the harness that runs the
+script repeatedly in one editor session and prints, after each run, the selection, the text it
+covers and the status bar; the walks below are those printouts, which were written down from the
+originals' code before the runs and agree with them. The scripts that change the book (14, 64,
+65, 70) have snapshots of their results, 65's clipboard output is in
+`replace-words-from-clipboard.outputs.json`.
+
+Texts: the dialogs and messages are in Russian and English (the Russian ones as the originals have
+them); the expressions' descriptions shown in the status bar stay in Russian, as the expressions
+are about Russian text (as in the 2.7beta1 conversion of 04).
+
+### The engine of the searches by a set of regexps (`regexp-set.js`)
+
+Sixteen of the scripts (05, 06, 07, 08, 18, 19, 22, 23, 25, 28, 29, 30, 32, 62, 71, 80) are a list of
+expressions on Sclex's "Поиск по набору регэкспов" in its 2.7.9 versions (5.1 to 5.3, with
+stokber's exceptions), its backward variant (23, 30) and the older 5.4 kept by 32; 75 uses it with
+the clipboard text as its only expression. `regexp-set.js` is a port of that engine, identical in
+all 17 packages; each package keeps its original's list in `init()` as written (macros, entries,
+comments and the original's instructions), only `addMacros`, `addRegExp` and `tagRegExp` are
+handed in. The 2.7beta1 engine of 04/10 (`regexp-search.js`, version 2.9) was not reused: 5.x
+searches differently (see below) and has the exceptions.
+
+What the engine reproduces:
+
+- **The list.** `addRegExp(re, keys, description, tag condition, look-behind limit)` searches the
+  paragraph's text, `tagRegExp(...)` its HTML; `addMacros("<name>", "re")` defines a sub-pattern
+  for both the list's tag expressions and the later macros, besides the predefined `<emphasis>`,
+  `</emphasis>` ... `<любые-теги>`. Leading look-behinds are cut off and checked by hand against
+  the text before the hit, as the original did (including the optional length limit and JScript's
+  `lastIndex` moving one character on after an empty match, without which the check of
+  `(?<=^|...)` would loop); the rest is a JavaScript RegExp without the `u` flag. An entry that does
+  not compile or whose tag condition is malformed goes into the original's error message
+  ("Ошибки при компиляции регэкспов...", the entries in the original's format) and nothing is
+  searched.
+- **JScript's expressions.** Every pattern is compiled as JScript read it: `\s` / `\S` are
+  `[ \f\n\r\t\v]` / its complement (JavaScript's `\s` also takes U+00A0 and the other Unicode
+  spaces), and a `]` right after `[` or `[^` is a member of the class, as in Perl (JavaScript reads
+  `[]` as an empty class). Only flags g, i, m are accepted. A literal U+00A0 and `\xA0` in a
+  pattern stand for the editor's U+00A0 (the original replaced them by the configured display
+  character, which is U+00A0 by default).
+- **The paragraphs as the original saw them.** Every text block of the bodies in document order,
+  and every empty line, which FictionBook Editor showed as an empty paragraph. The plain text is
+  the original's: an inline picture is three placeholder characters (`~~~`, or `ǾǾǾ` in 19, 22,
+  23, 25, 28, 29, 30), a soft hyphen U+00AD - or the five characters `&shy;` in 23, 71 and 80, which
+  did not decode it. The HTML is IE's innerHTML of FictionBook Editor's rendering: upper-case tags
+  (`<EM>`, `<STRONG>`, `<STRIKE>`, `<SUB>`, `<SUP>`, `<SPAN class=code>`, `<SPAN class=NAME>`,
+  `<A class=note href="#n1">`), the marks nested as the book nests them (the editor's model keeps
+  the order), an inline picture as `<SPAN class=image contentEditable=false href="#id"><IMG
+  src="fbw-internal:#id"></SPAN>`, the entities `&amp;` `&lt;` `&gt;` `&nbsp;` `&shy;`. The plain
+  position of a tag hit is computed from the HTML before it with the original's own replacements.
+  Tag conditions (`-title -subtitle -stanza -poem -epigraph`...) test the paragraph's containers
+  (section, body, epigraph, cite, poem, stanza, title) and its own class (subtitle; text-author,
+  which FictionBook Editor also gave a date); 28 and 32 also know annotation (only 32's conditions
+  may use it).
+- **The search (5.x).** From the end of the selection to the end of the book; the paragraph of the
+  caret is searched only when the caret is not at its end (or it is empty). In the first
+  paragraph with hits the earliest hit of all entries wins, equal positions going to the earlier
+  entry. A tag hit that ends inside a tag, or fails its look-behinds, is tried again one character
+  further (the original's retry; the "ends inside a tag" test always ran, as `rslt_replaced[0]`
+  was undefined in the IE7 document mode of the editor's page). A hit whose description starts
+  with "Пропустить" is an exception: the search goes on right after it (06, 25, 30, 71, 80; 25
+  treats every hit in a table cell so). The hit is selected and its description put in the status
+  bar; nothing found: "Поиск завершен!" in the status bar and "От позиции курсора до конца
+  документа ничего не найдено." (backward: "...до начала документа..."). A collapsed caret does not
+  skip a hit at it (5.x commented that out), so a hit that matches an empty string stays where it
+  is; no bundled list has such an entry, apart from 32's.
+- **The backward variant (23, 30)** searches from the start of the selection to the start of the
+  book on the reversed text and HTML of each paragraph, its expressions written backwards
+  (`cba` finds "abc"); the "inside a tag" test is mirrored. The predefined and TaKir macros are
+  copied unreversed, as in the original (they cannot match reversed tags).
+- **The 5.4 engine of 32** skips a hit right at a collapsed caret (so repeated runs walk on) and
+  resumes after a failing match or the tag a match ended in; it has no exceptions and sets no
+  "Поиск завершен!".
+- **Return value.** 71, 75 and 80 return "Found" or "NotFound" to a script that runs them, as their
+  originals did; the others return nothing, as theirs.
+
+Differences of the engine (recorded per package): the hit is selected exactly where it matched and
+the search starts exactly at the end of the selection (the original moved IE's selection by its
+own character count, off after pictures and soft hyphens); the view scrolls the hit into sight
+instead of the original's scrolling step; an inline picture selected as text is searched past like
+text (the original refused a picture clicked into a "Control" selection with "Не обрабатываемый
+тип выделения: sel.type" - the variable's name, kept as written - but selected a hit on a picture
+as text, and the editor cannot tell the two apart; a selected block picture is still refused).
+The book's annotation and the document's history, which the original's body view showed above the
+first body, are edited in the Description view and cannot be selected: a forward search never
+reached them anyway (the caret is in a body), the backward ones stop at the first body. An empty
+line cannot hold the caret: a hit on one selects from the end of the text block before it to the
+start of the one after it (only 32 can hit one). Guards against two defects of 5.x are in every
+copy and recorded as fixes in the template 30, the list meant for editing: an entry without a
+description stopped the search with an error when hit, an exception matching an empty string hung
+it.
+
+Checked over the 1,000-odd entries of the lists (extracted by running the originals' `init()`):
+no entry has a look-behind after its start (none would have failed in JScript), none fails to
+compile in JavaScript, `\s` occurs only in `([\s]нибудь)` (05, 06, 28), a class starting with `]`
+only in `^[]».,:;!?-]` (05, 06, 19, 29 - see the open question), no string literal holds `\v`
+(JScript read it as "v"), length limits stand only on one-character look-behinds (07) or on an
+entry without one (08), and no entry matches an empty string except 32's `(^$)`. A walk through
+5,000 clean paragraphs takes under a second with 05's list.
+
+### 05 Поиск (без замены) ошибок текста (TaKir-Sclex)
+
+`05_text-errors-takir-sclex`, id `21/text-errors-takir-sclex`, version 5.1. Searches for typical
+errors of Russian text with TaKir and Sclex's list (360 entries, 7 macros): misprinted words, mixed
+alphabets, letters among digits, punctuation slips, dashes, lines without a full stop, formatting
+inside words, strange characters. Engine options: forward, `~~~`, `&shy;` decoded.
+Book `text-errors.fb2`; snapshots `text-errors-takir-sclex.xml` (`--select n5:0:0`) and
+`.not-found.xml` (`--select n26:0:0 --answer ok`).
+Walk from the start of n5, as derived: `&` of `&amp;` (мусор после скана, a tag entry), `☺`
+(Странные нетекстовые символы), ` '` (мусор после скана - the space-and-apostrophe entry, earlier
+than the apostrophe-and-letter one), `*` (звездочки), `3-4`, ` -` (неправильные дефисы-тире), `»`
+at a line start (знаки препинания в начале строки), `о—`, `л..` (двоеточие вместо многоточия),
+`сЛ`, `лa` (Latin a: смесь кириллицы и латиницы), ` З ` (буква З вместо цифры 3), `слова` with
+`лов` in italics (курсивность части слова - entry 111, which precedes 112 at the same position),
+`пего`, `и` at the end of an unpunctuated line (концы строк без точек), the dash ending a verse
+(подозрительные концы строк в стихах), then "nothing found". Not reported, as in the original: the
+unpunctuated subtitle and the `* * *` subtitle (tag conditions), the paragraph ending with an
+inline picture (the line-end expressions cannot skip the picture's SPAN with attributes).
+Open question: the entry `^[\]».,:;!\?-]` loses its backslash in the string literal and reaches
+the RegExp as `^[]».,:;!?-]`; it is compiled as JScript read it (`]` a member of the class). Had
+2.7.9 read it as an empty class, it never fired there and such lines got the later "знаки
+препинания в начале абзаца" (same selection).
+
+### 06 Поиск (без замены) ошибок текста (версия с исключениями) (TaKir-Sclex-stokber)
+
+`06_text-errors-with-exceptions`, id `21/text-errors-with-exceptions`, version 5.2. The list of 05
+(four tag entries commented out) with stokber's exceptions in front: URLs, e-mail addresses,
+ISBNs, references ("см.:", "т. 1."), cities of publication, abbreviations, "что" after
+prepositions, "fb2", hybrid names, English ordinals.
+Book `text-errors-exceptions.fb2`; snapshots `text-errors-with-exceptions.xml` (`--select
+n5:0:0`) and `.not-found.xml` (`--select n11:8:8 --answer ok`). Walk from n5: the URL, the e-mail
+address, `fb2` and ", так что" are exceptions and passed over, ` -` after a URL in the same
+paragraph (the search goes on right after the exception), `сЛ`, then "nothing found". On the same
+book 05 stops at `/`, `/`, `le.c`, `/`, `h?x` inside the first URL alone, then at `@` - the false
+alarms the exceptions are for. Open question: as 05.
+
+### 07 Поиск (без замены) по набору регэкспов_Slovo
+
+`07_regexp-set-slovo`, id `21/regexp-set-slovo`, version 5.1. Misprinted short words and letter
+pairs (122 tag entries, 5 plain ones), mostly on the HTML, so that a word split by formatting is two
+words. Book `slovo.fb2`; snapshots `regexp-set-slovo.xml` (`--select n5:0:0`) and `.not-found.xml`
+(`--select n15:0:0 --answer ok`). Walk from n5: `пего`, `пего` in italics, then in `пе<EM>го</EM>`
+the HTML holds two words - `пе`, then `го`; `иа`; `чтб` (the three-consonant entry, first in the
+list, wins over the word entry); `фуппа` (the word entry precedes `(фупп)` at the same place);
+`фупп`; `т а ` (-а- after a word without a comma); `пего` inside a note link; `яии` of
+"земляиика" (`яиц` is excluded by the entry's class); "nothing found".
+
+### 08 Поиск (без замены) по набору регэкспов_Znak
+
+`08_regexp-set-znak`, id `21/regexp-set-znak`, version 5.1. JonVic's list of 47 entries: line ends,
+scan garbage, hyphens and dashes, alphabets, case, "З" for 3, punctuation spacing, formatting inside
+words. Book `znak.fb2`; snapshots `regexp-set-znak.xml` (`--select n5:0:0`) and `.not-found.xml`
+(`--select n27:0:0 --answer ok`). Walk from n5: `е` (line end), `~`, the inline picture (its
+placeholder `~~~` matches the garbage class), ` -`, `3-4`, `лa`, `сЛ`, `е—`, ` З `, `а,б`, `л — П`,
+`о-научно-п` (a word with two hyphens, a tag entry), `»—`, `и..`, `сло` (italics inside a word),
+"nothing found"; the subtitles (`-subtitle`) and the lower-case verse (`-stanza -poem`) are not
+reported. Open question: pictures are reported as "мусор после скана" (and, ending a paragraph, as
+a line without a full stop), as in 2.7.9 - should they be passed over? While converting this one,
+the hit on the picture showed that the next run must not refuse a picture selected as text (see
+the engine's differences).
+
+### 14 Скрипт-конструктор
+
+`14_script-builder`, id `21/script-builder`, version 1.4, by Александр Ка. A template for
+search-and-replace operations on the paragraphs' HTML: each operation counts the matches of an
+expression and may replace them, optionally only in some kinds of paragraphs; afterwards the
+statistics window (in pages, Yes/No between them). The settings (name, version, history and
+annotation on, window height, demonstration mode on), the example operations and the original's
+instructions are kept as written in `index.js`; the operations run on the paragraph's HTML in the
+original's notation (`lib/legacy-html.js`, copied unchanged) and a paragraph whose HTML changed is
+parsed back, so formatting the operations leave alone is kept. Paragraph order and flags as in the
+original: the book's annotation, the document's history (from the description, written back with
+`doc.setDescription`), then the bodies; `title`, `history`, `stanza`, `poem`, `epigraph`,
+`annotation`, `cite`, `table` from the containers up to the nearest section, `subtitle`,
+`text_author` (also a date) from the paragraph, `text` for a paragraph directly in a section; an
+empty line is an empty paragraph. In the operations `new RegExp` is a JScript-compatible wrapper
+(`\s`, leading `]`), `nbspEntity` is "&nbsp;" (FictionBook Editor's default setting).
+Book `script-builder.fb2`; snapshot `script-builder.xml`. Expected and found: the subtitle count 1,
+"Неразмеченных глав" 1 (`Глава 2.`), "Букв R" 4 (subtitle, two in the verse, the note; the `r` of
+`href` inside a tag is not counted), "Ряд пробелов" 2 and "?! + точки/запятая" 2; 11 lines checked,
+2 corrected: `Абзац с двумя рядами пробелов?!.` and `...ссылка<a ...>1</a>!?.`; the verse keeps its
+double space (`! stanza`). Difference: the HTML is the editor's rendering in the original's
+notation - a link's address as the book has it (`#n1`), not resolved against the page, an inline
+picture as `<IMG href=… alt=…>` - which an operation matching such details may see otherwise (the
+examples do not).
+
+### 15 Скрипт-конструктор (поиск)
+
+`15_search-script-builder`, id `21/search-script-builder`, version 1.2, by Александр Ка. The search
+template: operations count matches in the paragraphs' text without tags (innerText: a picture gives
+nothing), the result is the original's statistics window in up to three columns. As shipped it has
+no operations. Same paragraph order, flags, JScript `RegExp` and `nbspEntity` as 14; helper
+`search-builder.js` (identical in 15 and 16). Book `script-builder.fb2`; snapshot
+`search-script-builder.xml`; the window shows 11 lines (annotation, history and 9 body paragraphs,
+the empty line counted), the counting section dropped as the original drops it when empty.
+Difference: the window shows no proverb - the original added a random saying from a list of
+wartime proverbs; it is left out pending the requester's decision and the list is not copied
+(`Poslovitsa_on_off` is kept with a note, without effect). Open question: restore the proverb of
+the result message?
+
+### 16 Скрипт-конструктор (поиск) - пример
+
+`16_search-script-builder-example`, id `21/search-script-builder-example`, version 1.2. The example
+of 15: counts Russian letters, each Russian letter, Latin letters, each Latin letter, spaces
+(ordinary, "non-breaking", other), over the annotation and the bodies (history off in its
+settings). Snapshot `search-script-builder-example.xml` on `script-builder.fb2`; the window shows 10
+lines and only the non-zero counts (demonstration mode off): Russian letters 159, А 22, Б 3, В 11,
+Г 6, Д 3, Е 10, Ё 2, З 4, И 9, К 8, Л 7, М 5, Н 10, О 11, П 5, Р 11, С 8, Т 7, У 3, Х 1, Ц 2, Ч 2,
+Ы 4, Я 5, Latin letters 7, R 4, X 1, Y 1, Z 1, spaces 27, ordinary spaces 27 - every figure equal to
+an independent count over the same texts. Difference and open question as 15 (proverb). Open
+question: "Неразрывный пробел" (and the `&nbsp;` alternative of "Пробелы") look for the text
+"&nbsp;", which the text never holds with the default setting, so they count none, as in 2.7.9 -
+count U+00A0 instead?
+
+### 18 Поиск странных символов (TaKir-Sclex)
+
+`18_strange-characters`, id `21/strange-characters`, version 5.3. Five entries: letters with a
+combining stress mark, characters outside the allowed ranges (Cyrillic, ASCII, Latin-1, Latin
+Extended A/B, Greek, mathematical operators, number forms and „“–…—­№✓♦•-), a stress typed as "2"
+or an apostrophe. Book `strange-characters.fb2`; snapshots `strange-characters.xml` (`--select
+n5:0:0`) and `.not-found.xml` (`--select n17:0:0 --answer ok`). Walk from n5: `☺`, `е́`, `о2л`,
+`о'`, `”` (U+201D is outside the ranges, unlike “), `€` (the picture's `~~~` is ASCII and allowed),
+`★` in a text-author, "nothing found"; the non-breaking space and the soft hyphen are allowed.
+
+### 19 Поиск разрывов абзацев (РУС)
+
+`19_paragraph-breaks-russian`, id `21/paragraph-breaks-russian`, version 1.4. Ten entries for
+paragraphs broken by a scan: line ends without punctuation (tag entries, outside titles,
+subtitles, poems, epigraphs), dashes ending verses, a lower-case letter after a full stop (not after
+abbreviations), lines starting with punctuation, a lower-case letter or a digit, a dash glued to a
+word. Engine: `ǾǾǾ`. Book `paragraph-breaks.fb2`; snapshots `paragraph-breaks-russian.xml`
+(`--select n5:0:0`) and `.not-found.xml` (`--select n23:0:0 --answer ok`). Walk from n5: `и`, `п`,
+`”` (English closing quote is no Russian line end), `. н`, `—`, the verse's `—`, `,` at a line start
+(знаки препинания в начале строки), `… и`, `3г`, `о—`, `е` before `</EM>` ending a line, "nothing
+found"; "т. д. и" is not reported (abbreviation), nor the lines ending with a note link or a picture
+(the line-end expressions cannot skip `</A>` or the picture's SPAN), nor the subtitle. Open
+question: as 05.
+
+### 22 Поиск (без замены) мусорных символов
+
+`22_garbage-characters`, id `21/garbage-characters`, version 1.5. Two entries: stressed letters and
+any character outside Russian and Latin letters, digits, spaces and the usual punctuation (`Ǿ`,
+the picture placeholder, allowed). Book `garbage-characters.fb2`; snapshots
+`garbage-characters.xml` (`--select n5:0:0`) and `.not-found.xml` (`--select n21:15:15 --answer
+ok`). Walk from n5: `#`, `е́` (the stressed-letter entry, starting before the combining mark the
+garbage class would take), `@` (the picture is passed over), the soft hyphen, `"`, `"`, `'`, `~` in a
+verse, `%` in the notes body, "nothing found".
+
+### 23 Обратный поиск (без замены) мусорных символов
+
+`23_garbage-characters-backward`, id `21/garbage-characters-backward`, version 1.5. The garbage class
+of 22, searched backwards; this version did not decode `&shy;`. Same book; snapshots
+`garbage-characters-backward.xml` (`--select n21:15:15`) and `.not-found.xml` (`--select n5:0:0
+--answer ok`). Walk from the end of the note: `%`, `~`, `'`, `"`, `"`, the soft hyphen (found as the
+`&` of `&shy;`, the soft hyphen itself selected), `@`, the combining stress mark alone (no
+stressed-letter entry here), `#`, "nothing found ... до начала документа". Difference besides the
+engine's: the search stops at the first body (annotation and history not searched).
+
+### 25 Поиск (без замены) неразмеченных дат
+
+`25_unmarked-dates`, id `21/unmarked-dates`, version 1.01, by stokber. Three entries for short
+lines holding a year (1700-2029, not followed by a digit, "год...", "-й"...), a year with "г." or a
+day and a month, outside text authors (and dates), titles and subtitles; a hit in a table cell (and
+in the history) is turned into an exception. Engine: `ǾǾǾ`, cells skipped. Book
+`unmarked-dates.fb2`; snapshots `unmarked-dates.xml` (`--select n5:0:0`) and `.not-found.xml`
+(`--select n10:7:7 --answer ok`). Walk from n5: `1941`, `Москва, 1999`, `Санкт-Петербург, 2005 г.`,
+`12 апреля`, `1–3 мая`, "nothing found"; not reported: the long paragraph ("1941 года"), the title,
+the text-author, the subtitle, `Год 1812-й`, `© 2001`, the poem's date, and the table cell `1999`,
+which matches and is passed over (without the cell rule it is the next hit).
+
+### 28 Поиск пропавших дефисов
+
+`28_missing-hyphens`, id `21/missing-hyphens`, version 1.4. 70 entries: "-либо", "-нибудь",
+"кое-", "-нито", "-то", compass directions and words written without their hyphen. Engine: `ǾǾǾ`.
+Book `missing-hyphens.fb2`; snapshots `missing-hyphens.xml` (`--select n5:0:0`) and
+`.not-found.xml` (`--select n15:0:0 --answer ok`). Walk from n5: `олибо`, ` нибудь`, ` коекуда`,
+`всетаки`, `попрежнему`, `Северозапад`, `юговост`, `шли то `, `Шурымуры`, `хухрымухры`, `нито ` (the
+one after "Инкогнито" is excluded by `(?<!ме|инког)`), "nothing found". The paragraph
+"Что<U+00A0>нибудь" is passed over: `([\s]нибудь)` with JScript's `\s` does not take the
+non-breaking space (JavaScript's own `\s` would).
+
+### 29 Поиск разрывов абзацев (АНГЛ)
+
+`29_paragraph-breaks-english`, id `21/paragraph-breaks-english`, version 1.4. 19's list with `”`
+among the line ends that are not broken. Snapshots `paragraph-breaks-english.xml` (`--select
+n8:0:0`) and `.not-found.xml` (`--select n23:0:0 --answer ok`) on `paragraph-breaks.fb2`. Walk from
+n5: as 19 without the `”` hit. Open question: as 05.
+
+### 30 Обратный поиск по набору регэкспов (версия с исключениями) (заготовка)
+
+`30_regexp-set-backward-template`, id `21/regexp-set-backward-template`, version 1.5. The template of
+the backward search: the shipped list is the original's example, `>PUS/<\d+>PUS<` (a number in
+superscript) and `cba` (finds "abc"), with TaKir's macros. Book `backward-template.fb2`; snapshots
+`regexp-set-backward-template.xml` (`--select n8:16:16`) and `.not-found.xml` (`--select n5:0:0
+--answer ok`). Walk from the end of n8: `ABC` (`cba` is case-insensitive), `10` (superscript), `abc`,
+"nothing found ... до начала документа". Differences as 23. Fixes: an entry without a description
+stopped the original with an error when hit (it read the description to test for "Пропустить") -
+now an ordinary hit; an exception matching an empty string made the original search the same place
+forever - the search now moves one character on. Neither occurs with the shipped list.
+
+### 32 Перейти на следующую пустую строку
+
+`32_next-empty-line`, id `21/next-empty-line`, version 5.4 ("СТАРАЯ, используется для корректной
+работы с пустыми строками"), by Sclex with TaKir's ideas. Two entries: `(^$)` (an empty line) and
+`(^[\x20\xA0]+$)` (a line of spaces); the 5.4 engine, conditions knowing annotation. Book
+`empty-lines.fb2`; snapshots `next-empty-line.xml` (`--select n5:0:0`) and `.not-found.xml`
+(`--select n20:0:0 --answer ok`). Walk from n5: the empty line n6 (selected from the end of n5 to the
+start of n7), the spaces of n8, the empty lines n10 and n11 in one step (end of n9 to start of n12),
+the empty paragraph n13 (caret), the non-breaking spaces of n14, the empty line ending the first
+section (end of n15 to the start of the next section's title), "nothing found". Differences: an
+empty line cannot hold the caret, so a hit on one is shown as that selection and consecutive empty
+lines are passed in one step (the original stopped at each); the original's cursorShift crutch for
+IE's caret at DIV boundaries is dropped; the engine's.
+
+### 62 Поиск (без замены) последовательностей 'буква пробел буква пробел...'
+
+`62_spaced-letters`, id `21/spaced-letters`, version 5.1. One entry: three or more single letters
+separated by spaces or non-breaking spaces. Book `spaced-letters.fb2`; snapshots
+`spaced-letters.xml` (`--select n5:0:0`) and `.not-found.xml` (`--select n11:0:0 --answer ok`). Walk
+from n5: `р а з р я д к а`, `н е р а з р ы в н ы е` (non-breaking spaces), `в б г`, `р а з` (across the
+end of italics), `s p a c e d`, "nothing found"; two single letters in a row ("а в нём") are not.
+
+### 64 Замена символов по списку из буфера обмена
+
+`64_replace-characters-from-clipboard`, id `21/replace-characters-from-clipboard`, version 1.0, by
+Sclex and stokber. Needs a selection (the original refused without one: "Выделите текст!..." with
+its help). Reads the list from the clipboard (`mfbe.clipboard.readText`), removes spaces and empty
+lines, refuses a line of one or three or more characters, then replaces each pair's character in
+the selected text of every paragraph the selection touches, the pairs one after another in the
+list's order; runs keep their marks (one character becomes one), the caret ends at the end of the
+former selection. It works only in a run the user starts: in a run the AI assistant starts, reading
+the clipboard is refused and the script says so and stops. Book `replace-characters.fb2`;
+snapshots `replace-characters-from-clipboard.xml` (`--select-range n5:6-n6:13`, list
+"аА⏎ оО ⏎⏎.!⏎бВ" with CR LF), `.too-long.xml` ("аАБ" - the two-characters message),
+`.empty.xml` (empty clipboard) and `.blank.xml` (spaces and a line break only - "Буфер обмена
+пуст..." as the original's `str == false`). Expected and found: `Альфа и ОмегА — АВв!` (the text
+before offset 6 untouched), `Курсив <emphasis>АВв</emphasis> и <strong>жирный</strong> текст.` (the
+text after offset 13 untouched), the third paragraph unchanged. Differences: the list is read
+directly instead of being turned into JavaScript and run with `eval` - same order, a repeated
+character changing its replacement but not its place, and the pair of two straight quotes, which
+the original could not turn into code, applied; line breaks of any platform; the clipboard refusal.
+
+### 65 Замена слов по списку из буфера обмена
+
+`65_replace-words-from-clipboard`, id `21/replace-words-from-clipboard`, version 1.2, by stokber.
+Reads "word replacement" lines from the clipboard, checks them (letters only, two words a line),
+shows the list and asks to go on, then replaces every whole, case-sensitive occurrence that lies in
+one piece of text between tags, in the bodies and - as the original's settings have it - the book's
+annotation and the document's history; a word continuing across formatting is marked and left
+alone. It counts the occurrences in the text before and after (the original's innerText), reports
+the words replaced and, when some are left, offers to put on the clipboard a regular expression
+finding them (`mfbe.clipboard.writeText`). The HTML work uses the original's expressions on the
+notation of `lib/legacy-html.js`. Clipboard reading: as 64. Book `replace-words.fb2`; snapshots
+`replace-words-from-clipboard.xml` (list of three pairs, OK, OK; outputs.json holds the clipboard
+`(?<![a-zA-Zа-яёА-ЯЁ])(Машипка|ашипка)(?![a-zA-Zа-яёА-ЯЁ])`), `.all-replaced.xml` (one pair, 2
+replaced, no offer), `.cancel.xml` (Cancel at the list - unchanged), `.no-regexp.xml` (Cancel at the
+offer - same book as the first, no clipboard), `.not-a-letter.xml`, `.three-words.xml`,
+`.one-word.xml` (the three list errors - unchanged). Expected and found: annotation `Аннотация:
+молоко и ошибка.`, history `История: опечатка.`, `Здесь ошибка и опечатка.`, `Курсив
+<emphasis>ошибка</emphasis> целиком.`; left alone `аши<emphasis>пка</emphasis>`,
+`при<emphasis>ашипка</emphasis>` and `Машипка` (an upper-case letter counts as a non-letter for the
+count but as a letter for the replacement); "Заменено слов: 6 / Не исправлено слов: 2".
+Differences: the list read directly (no `eval`), a tab-separated line passed over instead of
+stopping with an error; line breaks of any platform; the clipboard refusal.
+
+### 70 Проставить ударения над буквами, выделенными жирностью, курсивом либо регистром
+
+`70_stress-marks-from-formatting`, id `21/stress-marks-from-formatting`, version 1.1, by stokber on
+jurgennt's "Генеральная уборка" engine by Sclex. Asks for the mode: OK - a single vowel in italics or
+bold inside a word becomes the stressed vowel without the formatting (a vowel formatted by itself
+between words is protected by the original's `<b>` markers); Cancel then OK - an upper-case vowel
+after a lower-case letter, or after one capital at a word's start, becomes the stressed lower-case
+vowel; Cancel twice - "Вы ничего не выбрали!". Bodies, annotation and history; the original's
+expressions on the `lib/legacy-html.js` notation, `\s` as JScript's; the count of stressed letters
+before and after, the original's time string. Book `stress-marks.fb2`; snapshots
+`stress-marks-from-formatting.xml` (OK), `.upper-case.xml` (Cancel, OK), `.nothing.xml` (Cancel,
+Cancel - unchanged). Expected and found, mode 1: `папа́`, `о́чень` (bold italics), `моло́ко`,
+annotation `приме́р`, history `ве́рсия`, the stand-alone bold `и` kept, "Заменено букв: 5"; mode 2:
+`моло́ко` only ("молОко"), "Заменено букв: 1". No differences.
+
+### 71 Поиск паразитной разрядки текста
+
+`71_stray-letter-spacing`, id `21/stray-letter-spacing`, version 5.1, by Sclex and stokber, TaKir's
+list. Five entries: a letter that cannot be a word by itself between spaces, at a line start, or
+between a space or a dash and punctuation; returns "Found"/"NotFound"; `&shy;` not decoded. Book
+`stray-spacing.fb2`; snapshots `stray-letter-spacing.xml` (`--select n5:0:0`) and `.not-found.xml`
+(`--select n11:0:0 --answer ok`). Walk from n5: ` р `, ` з `, ` д ` (consecutive letters share their
+spaces, so every other one is found), `д ` at a line start, ` д.`, `«т `, `— н `, "nothing found"
+(`run()` returned "Found" seven times, then "NotFound"). Open question: the alternatives `( |□|▫|◦| )`
+hold two ordinary spaces (□ ▫ ◦ were FictionBook Editor's non-breaking-space display characters), so
+a letter between non-breaking spaces is not found, as in 2.7.9 with the default setting.
+
+### 75 Поиск текста из буфера обмена
+
+`75_find-clipboard-text`, id `21/find-clipboard-text`, version 1.3, stokber's code on Sclex's engine.
+Reads one line from the clipboard ("Буфер обмена пуст..." without text, "Вы скопировали больше
+одной строки..." for several lines), escapes its special characters, drops its leading and trailing
+spaces and turns every run of spaces into `[\x20\xA0]+` (JScript's `\s`: a non-breaking space in the
+clipboard text stays itself), then searches for it case-sensitively from the end of the selection;
+nothing found: "От позиции курсора до конца документа строки: '...' не найдено. Перейти в начало
+документа?" - OK puts the caret at the start of the first body. Returns "Found"/"NotFound". Works only
+in a run the user starts (as 64). Book `clipboard-search.fb2`; snapshots `find-clipboard-text.xml`
+("искомый текст"), `.nbsp.xml` ("искомый<U+00A0>текст"), `.not-found.xml` (OK), `.cancel.xml`,
+`.multiline.xml`, `.empty.xml`. Walks: "искомый текст" from n5 - `искомый текст`, `искомый  текст`
+(two spaces), `искомый<U+00A0>текст`, the question (case-sensitive: "Искомый текст" is not found),
+after OK the caret at the first text block and the next run at the first hit again; the clipboard
+"искомый<U+00A0>текст" finds only the non-breaking one; "  (1+1)  " finds `(1+1)`. Fix: Cancel to the
+question made the original search again from the start of its paragraph and ask again, until OK was
+pressed; Cancel now ends the run. Differences: line breaks of any platform; the start of the book is
+the first body's first text block; the clipboard refusal; the engine's.
+
+### 80 Поиск нецензурных слов
+
+`80_obscene-words`, id `21/obscene-words`, version 1.7, with imDaniX's swear-word expression (credited
+in the kept notice). The original's settings and word lists (`astEnd`, `mat`, `neMat`) are kept as
+written at the top of `index.js`. 14 entries: the exception list ("скипидар", "мандала"...) first,
+words with asterisks, Russian swearing by the main expression, English swearing, mentions of
+organisations banned in the Russian Federation; "nothing found" adds "«Поиск нецензурных слов» v.1.7";
+returns "Found"/"NotFound"; `&shy;` not decoded. Book `obscene-words.fb2`; snapshots
+`obscene-words.xml` (`--select n5:0:0`) and `.not-found.xml` (`--select n11:0:0 --answer ok`). Walk
+from n5: "скипидара" and "мандала" are exceptions (without the exception entry both are hits of the
+main expression), `мудаком` (МАТ), `fuck`, `х*й` (a word with an asterisk), `Facebook`, "nothing
+found" with the version line.
+
+### Not converted
+
+None.
 
 ## 22_Дескрипшен
 

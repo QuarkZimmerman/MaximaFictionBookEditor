@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "21/replace-characters-from-clipboard",
+  "name": {
+    "ru": "Замена символов по списку из буфера обмена",
+    "en": "Replace characters by a list from the clipboard",
+    "uk": "Заміна символів за списком із буфера обміну"
+  },
+  "description": {
+    "ru": "Заменяет символы в выделенном тексте по списку замен из буфера обмена: каждая строка списка — пара символов, заменяемый и замена.",
+    "en": "Replaces characters in the selected text by a list of replacements from the clipboard: each line of the list is a pair of characters, the one to replace and its replacement.",
+    "uk": "Замінює символи у виділеному тексті за списком замін із буфера обміну: кожен рядок списку — пара символів, що замінюється, і заміна."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Замена символов по списку из буфера обмена",
+    "en": "Replace characters by a list from the clipboard"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/64_Замена символов по списку из буфера обмена.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.0"
+  }
+}

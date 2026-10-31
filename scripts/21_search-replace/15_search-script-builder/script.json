@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/search-script-builder",
+  "name": {
+    "ru": "Скрипт-конструктор (поиск)",
+    "en": "Script builder (search)",
+    "uk": "Скрипт-конструктор (пошук)"
+  },
+  "description": {
+    "ru": "Заготовка для собственных операций поиска по регулярным выражениям в тексте абзацев (без тегов): подсчитывает найденное операциями из index.js и показывает окно статистики.",
+    "en": "Template for your own search operations by regular expressions on the text of the paragraphs (without tags): counts what the operations of index.js find and shows a statistics window.",
+    "uk": "Заготовка для власних операцій пошуку за регулярними виразами в тексті абзаців (без тегів): підраховує знайдене операціями з index.js і показує вікно статистики."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Скрипт-конструктор (поиск)",
+    "en": "Script builder (search)"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/15_Скрипт-конструктор (поиск).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

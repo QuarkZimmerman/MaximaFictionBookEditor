@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/unmarked-dates",
+  "name": {
+    "ru": "Поиск (без замены) неразмеченных дат",
+    "en": "Search (without replacing) for unmarked dates",
+    "uk": "Пошук (без заміни) нерозмічених дат"
+  },
+  "description": {
+    "ru": "Выделяет следующую после курсора короткую строку с годом, годом с «г.» или днём и месяцем, которая, вероятно, является неразмеченной датой (вне авторов текста, заголовков, подзаголовков и таблиц).",
+    "en": "Selects the next short line after the caret holding a year, a year with \"г.\" or a day and a month, which is probably a date not marked up as such (outside text authors, titles, subtitles and tables).",
+    "uk": "Виділяє наступний після курсору короткий рядок із роком, роком із «г.» або днем і місяцем, який, імовірно, є нерозміченою датою (поза авторами тексту, заголовками, підзаголовками й таблицями)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск (без замены) неразмеченных дат",
+    "en": "Search (without replacing) for unmarked dates"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/25_Поиск (без замены) неразмеченных дат.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.01"
+  }
+}

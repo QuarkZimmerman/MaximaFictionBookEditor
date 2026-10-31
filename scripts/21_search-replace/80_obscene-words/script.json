@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/obscene-words",
+  "name": {
+    "ru": "Поиск нецензурных слов",
+    "en": "Search for obscene words",
+    "uk": "Пошук нецензурних слів"
+  },
+  "description": {
+    "ru": "Выделяет следующее после курсора нецензурное слово (русский мат по регэкспу imDaniX с дополнениями и исключениями, слова со звёздочками, английская брань) или упоминание организаций, признанных экстремистскими в РФ.",
+    "en": "Selects the next obscene word after the caret (Russian swearing by imDaniX's regular expression with additions and exceptions, words with asterisks, English swearing) or a mention of organisations banned as extremist in the Russian Federation.",
+    "uk": "Виділяє наступне після курсору нецензурне слово (російська лайка за регулярним виразом imDaniX із доповненнями та виключеннями, слова із зірочками, англійська лайка) або згадку організацій, визнаних екстремістськими в РФ."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск нецензурных слов",
+    "en": "Search for obscene words"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/80_Поиск нецензурных слов.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.7"
+  }
+}

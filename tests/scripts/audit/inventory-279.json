@@ -21,7 +21,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 234
+    "converted": 257
   },
   "entries": [
     {
@@ -8016,15 +8016,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/05_text-errors-takir-sclex",
+      "id": "21/text-errors-takir-sclex",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/05_search-without-zameny-of-errors-of-the-text-taki",
-      "suggestedId": "21/search-without-zameny-of-errors-of-the-text-taki"
+      "openQuestions": [
+        "The entry \"^[\\]».,:;!\\?-]\" (\"знаки препинания в начале строки\") reaches the RegExp as \"^[]».,:;!?-]\" (one backslash in a string literal); it is compiled as JScript read it, a ] right after [ being a member of the class (JavaScript reads [] as an empty class, which never matches). If FictionBook Editor's JScript read it as an empty class, the entry never fired in 2.7.9 and such lines were reported by the later \"знаки препинания в начале абзаца\" entry (same selection, other description): keep the JScript reading?"
+      ]
     },
     {
       "source": "21_Поиск и замена/06_Поиск (без замены) ошибок текста (версия с исключениями) (TaKir-Sclex-stokber).js",
@@ -8040,15 +8044,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/06_text-errors-with-exceptions",
+      "id": "21/text-errors-with-exceptions",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/06_search-without-zameny-of-errors-of-the-text-vers",
-      "suggestedId": "21/search-without-zameny-of-errors-of-the-text-vers"
+      "openQuestions": [
+        "The entry \"^[\\]».,:;!\\?-]\" (\"знаки препинания в начале строки\") reaches the RegExp as \"^[]».,:;!?-]\" (one backslash in a string literal); it is compiled as JScript read it, a ] right after [ being a member of the class (JavaScript reads [] as an empty class, which never matches). If FictionBook Editor's JScript read it as an empty class, the entry never fired in 2.7.9 and such lines were reported by the later \"знаки препинания в начале абзаца\" entry (same selection, other description): keep the JScript reading?"
+      ]
     },
     {
       "source": "21_Поиск и замена/07_Поиск (без замены) по набору регэкспов_Slovo.js",
@@ -8064,15 +8072,17 @@
       "encoding": "utf-8-sig",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/07_regexp-set-slovo",
+      "id": "21/regexp-set-slovo",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/07_search-without-zameny-po-a-set-of-regekspov-slov",
-      "suggestedId": "21/search-without-zameny-po-a-set-of-regekspov-slov"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/08_Поиск (без замены) по набору регэкспов_Znak.js",
@@ -8088,15 +8098,19 @@
       "encoding": "utf-8-sig",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/08_regexp-set-znak",
+      "id": "21/regexp-set-znak",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/08_search-without-zameny-po-a-set-of-regekspov-znak",
-      "suggestedId": "21/search-without-zameny-po-a-set-of-regekspov-znak"
+      "openQuestions": [
+        "An inline picture is reported as \"мусор после скана\" (and, at the end of a paragraph, as \"концы строк без точек\"): the original's text showed a picture as \"~~~\", and the list's garbage class holds \"~\". Kept as 2.7.9 behaves - should pictures be passed over?"
+      ]
     },
     {
       "source": "21_Поиск и замена/10_Поиск (без замены) по набору регэкспов (версия с исключениями) (заготовка).js",
@@ -8139,15 +8153,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/14_script-builder",
+      "id": "21/script-builder",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The paragraphs' HTML is the editor's rendering in the original's notation (lib/legacy-html.js): a link's address is written as the book has it (\"#n1\"), not resolved against the editor's page, and an inline picture is <IMG href=... alt=...>; an operation matching such details may see them otherwise than in FictionBook Editor (the shipped example operations do not)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/14_skript-konstruktor",
-      "suggestedId": "21/skript-konstruktor"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/15_Скрипт-конструктор (поиск).js",
@@ -8163,15 +8177,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/15_search-script-builder",
+      "id": "21/search-script-builder",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The result window shows no proverb: left out pending the requester's decision (the original added a random saying from a list of wartime proverbs; the list is not copied)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/15_skript-konstruktor-poisk",
-      "suggestedId": "21/skript-konstruktor-poisk"
+      "openQuestions": [
+        "Restore the proverb of the result message?"
+      ]
     },
     {
       "source": "21_Поиск и замена/16_Скрипт-конструктор (поиск) - пример.js",
@@ -8187,15 +8203,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/16_search-script-builder-example",
+      "id": "21/search-script-builder-example",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The result window shows no proverb: left out pending the requester's decision (the original added a random saying from a list of wartime proverbs; the list is not copied)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/16_skript-konstruktor-poisk-example",
-      "suggestedId": "21/skript-konstruktor-poisk-example"
+      "openQuestions": [
+        "Restore the proverb of the result message?",
+        "The \"Неразрывный пробел\" operation (and the \"&nbsp;\" alternative of \"Пробелы\") counts the text \"&nbsp;\", which the text of a paragraph never holds with FictionBook Editor's default non-breaking-space setting, so it counts none, as in 2.7.9 - should it count U+00A0?"
+      ]
     },
     {
       "source": "21_Поиск и замена/18_Поиск странных символов (TaKir-Sclex).js",
@@ -8211,15 +8230,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/18_strange-characters",
+      "id": "21/strange-characters",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/18_search-strannykh-of-symbols-takir-sclex",
-      "suggestedId": "21/search-strannykh-of-symbols-takir-sclex"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/19_Поиск разрывов абзацев (РУС).js",
@@ -8235,15 +8256,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/19_paragraph-breaks-russian",
+      "id": "21/paragraph-breaks-russian",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/19_search-of-breaks-of-paragraphs-rus",
-      "suggestedId": "21/search-of-breaks-of-paragraphs-rus"
+      "openQuestions": [
+        "The entry \"^[\\]».,:;!\\?-]\" (\"знаки препинания в начале строки\") reaches the RegExp as \"^[]».,:;!?-]\" (one backslash in a string literal); it is compiled as JScript read it, a ] right after [ being a member of the class (JavaScript reads [] as an empty class, which never matches). If FictionBook Editor's JScript read it as an empty class, the entry never fired in 2.7.9 and such lines were reported by the later \"знаки препинания в начале абзаца\" entry (same selection, other description): keep the JScript reading?"
+      ]
     },
     {
       "source": "21_Поиск и замена/22_Поиск (без замены) мусорных символов.js",
@@ -8259,15 +8284,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/22_garbage-characters",
+      "id": "21/garbage-characters",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/22_search-without-zameny-musornykh-of-symbols",
-      "suggestedId": "21/search-without-zameny-musornykh-of-symbols"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/23_Обратный поиск (без замены) мусорных символов.js",
@@ -8283,15 +8310,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/23_garbage-characters-backward",
+      "id": "21/garbage-characters-backward",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused.",
+        "The book's annotation and the document's history, which FictionBook Editor showed above the first body, are edited in the Description view and are not searched: the backward search stops at the start of the first body."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/23_obratnyy-search-without-zameny-musornykh-of-symb",
-      "suggestedId": "21/obratnyy-search-without-zameny-musornykh-of-symb"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/25_Поиск (без замены) неразмеченных дат.js",
@@ -8307,15 +8337,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/25_unmarked-dates",
+      "id": "21/unmarked-dates",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/25_search-without-zameny-nerazmechennykh-dat",
-      "suggestedId": "21/search-without-zameny-nerazmechennykh-dat"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/28_Поиск пропавших дефисов.js",
@@ -8331,15 +8363,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/28_missing-hyphens",
+      "id": "21/missing-hyphens",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/28_search-propavshikh-defisov",
-      "suggestedId": "21/search-propavshikh-defisov"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/29_Поиск разрывов абзацев (АНГЛ).js",
@@ -8355,15 +8389,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/29_paragraph-breaks-english",
+      "id": "21/paragraph-breaks-english",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/29_search-of-breaks-of-paragraphs-angl",
-      "suggestedId": "21/search-of-breaks-of-paragraphs-angl"
+      "openQuestions": [
+        "The entry \"^[\\]».,:;!\\?-]\" (\"знаки препинания в начале строки\") reaches the RegExp as \"^[]».,:;!?-]\" (one backslash in a string literal); it is compiled as JScript read it, a ] right after [ being a member of the class (JavaScript reads [] as an empty class, which never matches). If FictionBook Editor's JScript read it as an empty class, the entry never fired in 2.7.9 and such lines were reported by the later \"знаки препинания в начале абзаца\" entry (same selection, other description): keep the JScript reading?"
+      ]
     },
     {
       "source": "21_Поиск и замена/30_Обратный поиск по набору регэкспов (версия с исключениями) (заготовка).js",
@@ -8379,15 +8417,21 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/30_regexp-set-backward-template",
+      "id": "21/regexp-set-backward-template",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/30_obratnyy-search-po-a-set-of-regular-expressions",
-      "suggestedId": "21/obratnyy-search-po-a-set-of-regular-expressions"
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused.",
+        "The book's annotation and the document's history, which FictionBook Editor showed above the first body, are edited in the Description view and are not searched: the backward search stops at the start of the first body."
+      ],
+      "fixes": [
+        "An entry without a description stopped the original with an error when it was hit (it read the description to test for \"Пропустить\"); it is an ordinary hit now (selected, the status bar unchanged). The shipped list has descriptions everywhere, so its result does not differ from 2.7.9.",
+        "An exception (\"Пропустить...\") matching an empty string made the original search the same place again and again (the editor hung); the search now moves one character on. The shipped list has no such exception."
+      ],
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/32_Перейти на следующую пустую строку.js",
@@ -8403,15 +8447,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/32_next-empty-line",
+      "id": "21/next-empty-line",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An empty line cannot hold the caret in the editor: a hit on an empty line selects from the end of the text block before it to the start of the one after it, so the next run goes on after it and consecutive empty lines are passed in one step (the original put the caret into each of them); an empty paragraph gets the caret, as in the original.",
+        "The original's crutch for IE's caret at DIV boundaries (cursorShift: moving the selection start by a word in a paragraph that is not empty) is not needed and dropped.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/32_go-on-sleduyushchuyu-pustuyu-stroku",
-      "suggestedId": "21/go-on-sleduyushchuyu-pustuyu-stroku"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/62_Поиск (без замены) последовательностей 'буква пробел буква пробел...'.js",
@@ -8427,15 +8475,17 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/62_spaced-letters",
+      "id": "21/spaced-letters",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/62_search-without-zameny-posledovatelnostey-bukva-p",
-      "suggestedId": "21/search-without-zameny-posledovatelnostey-bukva-p"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/64_Замена символов по списку из буфера обмена.js",
@@ -8454,15 +8504,17 @@
         "eval"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/64_replace-characters-from-clipboard",
+      "id": "21/replace-characters-from-clipboard",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The list is read directly instead of being turned into JavaScript code and run with eval (a script has no eval in the editor): the replacements apply in the list's order, and a later line for the same character changes its replacement but not its place, as with the original's object literal; a pair of two straight quotes, which the original could not turn into valid code and stopped on with an error, is applied.",
+        "Line breaks of any platform count as line breaks (the original knew Windows' CR LF only, so a list copied with LF line breaks was read as one line).",
+        "The clipboard is read through the editor (mfbe.clipboard.readText), which allows it only in a run the user started: in a run the AI assistant started the script says so and stops."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/64_replace-of-symbols-po-spisku-from-bufera-obmena",
-      "suggestedId": "21/replace-of-symbols-po-spisku-from-bufera-obmena"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/65_Замена слов по списку из буфера обмена.js",
@@ -8482,15 +8534,17 @@
         "eval"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/65_replace-words-from-clipboard",
+      "id": "21/replace-words-from-clipboard",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The list is read directly instead of being turned into JavaScript code and run with eval (a script has no eval in the editor): the replacements apply in the list's order, and a later line for the same word changes its replacement but not its place, as with the original's object literal; a line the original could not turn into code (two words separated by a tab) is passed over instead of stopping the script with an error.",
+        "Line breaks of any platform count as line breaks (the original knew Windows' CR LF only, so a list copied with LF line breaks was read as one line).",
+        "The clipboard is read through the editor (mfbe.clipboard.readText), which allows it only in a run the user started: in a run the AI assistant started the script says so and stops."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/65_replace-slov-po-spisku-from-bufera-obmena",
-      "suggestedId": "21/replace-slov-po-spisku-from-bufera-obmena"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/70_Проставить ударения над буквами, выделенными жирностью, курсивом либо регистром.js",
@@ -8506,15 +8560,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/70_stress-marks-from-formatting",
+      "id": "21/stress-marks-from-formatting",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/70_prostavit-udareniya-nad-bukvami-vydelennymi-zhir",
-      "suggestedId": "21/prostavit-udareniya-nad-bukvami-vydelennymi-zhir"
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/71_Поиск паразитной разрядки текста.js",
@@ -8530,15 +8582,19 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/71_stray-letter-spacing",
+      "id": "21/stray-letter-spacing",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/71_search-parazitnoy-razryadki-of-the-text",
-      "suggestedId": "21/search-parazitnoy-razryadki-of-the-text"
+      "openQuestions": [
+        "The space alternatives \"( |□|▫|◦| )\" hold two ordinary spaces (□ ▫ ◦ were FictionBook Editor's display characters for a non-breaking space); the last was probably meant to be U+00A0, so a letter between non-breaking spaces is not found, as in 2.7.9 with the default setting - match U+00A0 too?"
+      ]
     },
     {
       "source": "21_Поиск и замена/75_Поиск текста из буфера обмена.js",
@@ -8556,15 +8612,22 @@
         "clipboardRead"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/75_find-clipboard-text",
+      "id": "21/find-clipboard-text",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/75_search-of-the-text-from-bufera-obmena",
-      "suggestedId": "21/search-of-the-text-from-bufera-obmena"
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused.",
+        "Line breaks of any platform count as line breaks (the original knew Windows' CR LF only, so text copied with LF line breaks was read as one line).",
+        "After OK to \"Перейти в начало документа?\" the caret goes to the first text block of the first body (FictionBook Editor's body view began with the book's annotation and history).",
+        "The clipboard is read through the editor (mfbe.clipboard.readText), which allows it only in a run the user started: in a run the AI assistant started the script says so and stops."
+      ],
+      "fixes": [
+        "Answering Cancel to \"Перейти в начало документа?\" made the original search again from the start of the paragraph it began in (searchNext returned true and its loop ran it once more) and, finding nothing there, ask again: the question came back until OK was pressed. Cancel now ends the run (\"NotFound\"); the result differs from 2.7.9 only in that the question is asked once."
+      ],
+      "openQuestions": []
     },
     {
       "source": "21_Поиск и замена/80_Поиск нецензурных слов.js",
@@ -8580,15 +8643,17 @@
       "encoding": "utf-8-sig",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/21_search-replace/80_obscene-words",
+      "id": "21/obscene-words",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The hit is selected exactly where the expression matched, and the search starts exactly at the end of the selection: the original moved IE's selection by its own character count, which was off after inline pictures (three placeholder characters in the text the expressions saw) and soft hyphens.",
+        "The view scrolls the hit into sight instead of the original's own scrolling step.",
+        "An inline picture selected as text is searched past like text: the original refused a picture clicked into a 'Control' selection (\"Не обрабатываемый тип выделения: sel.type\") but selected a hit on a picture as text, and the editor cannot tell the two apart; a selected block picture is still refused."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/21_search-replace/80_search-netsenzurnykh-slov",
-      "suggestedId": "21/search-netsenzurnykh-slov"
+      "openQuestions": []
     },
     {
       "source": "22_Дескрипшен/00_Изменить дескрипшен - исходный шаблон.js",

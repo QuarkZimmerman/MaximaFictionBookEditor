@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "21/script-builder",
+  "name": {
+    "ru": "Скрипт-конструктор",
+    "en": "Script builder",
+    "uk": "Скрипт-конструктор"
+  },
+  "description": {
+    "ru": "Заготовка для собственных операций поиска и замены по регулярным выражениям в абзацах книги (с тегами): выполняет операции из index.js и показывает окно статистики; как поставляется, содержит примеры операций.",
+    "en": "Template for your own search-and-replace operations by regular expressions on the book's paragraphs (with tags): runs the operations of index.js and shows a statistics window; as shipped it holds example operations.",
+    "uk": "Заготовка для власних операцій пошуку й заміни за регулярними виразами в абзацах книги (з тегами): виконує операції з index.js і показує вікно статистики; у поставці містить приклади операцій."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Скрипт-конструктор",
+    "en": "Script builder"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/14_Скрипт-конструктор.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

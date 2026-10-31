@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "21/next-empty-line",
+  "name": {
+    "ru": "Перейти на следующую пустую строку",
+    "en": "Go to the next empty line",
+    "uk": "Перейти до наступного порожнього рядка"
+  },
+  "description": {
+    "ru": "Переходит к следующей после курсора пустой строке или строке из одних пробелов.",
+    "en": "Goes to the next empty line, or line of spaces only, after the caret.",
+    "uk": "Переходить до наступного після курсору порожнього рядка або рядка лише з пробілів."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Перейти на следующую пустую строку",
+    "en": "Go to the next empty line"
+  },
+  "legacy": {
+    "source": "21_Поиск и замена/32_Перейти на следующую пустую строку.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "5.4"
+  }
+}

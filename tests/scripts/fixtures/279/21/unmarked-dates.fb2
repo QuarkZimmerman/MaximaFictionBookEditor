@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Даты</last-name>
+			</author>
+			<book-title>Неразмеченные даты</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026</date>
+			<id>fixture-279-21-unmarked-dates</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Даты 2020</p>
+			</title>
+			<p>Обычный абзац о событиях 1941 года, длинный и с точкой в конце.</p>
+			<p>1941</p>
+			<p>Москва, 1999</p>
+			<p>Санкт-Петербург, 2005 г.</p>
+			<p>12 апреля</p>
+			<p>1–3 мая</p>
+			<cite>
+				<p>Цитата.</p>
+				<text-author>1962</text-author>
+			</cite>
+			<subtitle>1812</subtitle>
+			<table>
+				<tr>
+					<td>1999</td>
+					<td>Ячейка таблицы.</td>
+				</tr>
+			</table>
+			<p>Год 1812-й был трудным.</p>
+			<p>© 2001</p>
+			<poem>
+				<stanza>
+					<v>Строка стиха.</v>
+				</stanza>
+				<date>1999</date>
+			</poem>
+			<p>Последний абзац.</p>
+		</section>
+	</body>
+</FictionBook>
