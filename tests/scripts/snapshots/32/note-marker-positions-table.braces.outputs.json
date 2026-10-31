@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Create a table of footnote markers",
+      "html": "<h2 align=\"center\">Table of where the existing footnote markers are</h2><table width=\"100%\" border=\"1\" cellpadding=\"5\" cellspacing=\"5\"><tr BGCOLOR=\"#bdb76b\"><th height=\"40\">Footnote (2)</th><th>Footnote text (1)</th></tr><tr><td><sub>The first page with footnote markers:</sub></td><td></td></tr>\r\n<tr BGCOLOR=\"orange\"><td align=\"right\">Текст [а] с буквой и [1], фигурные{1}</td><td BGCOLOR=\"#c0c0c0\"></td></tr>\r\n<tr BGCOLOR=\"#f1e7a2\"><td align=\"right\"> и{2}</td><td BGCOLOR=\"#c0c0c0\"></td></tr>\r\n<tr BGCOLOR=\"#f1e7a2\"><td BGCOLOR=\"#c0c0c0\"></td><td>{2} Вторая фигурная.</td></tr>\r\n</table><p align=\"center\">Script \"Create a table of where the footnote markers are\" v.1.4 (stokber)</p>"
+    }
+  ]
+}

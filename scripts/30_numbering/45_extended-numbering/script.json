@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "30/extended-numbering",
+  "name": {
+    "ru": "Расширенная нумерация абзацев",
+    "en": "Extended paragraph numbering",
+    "uk": "Розширена нумерація абзаців"
+  },
+  "description": {
+    "ru": "Ставит в начало выделенных абзацев (или всех абзацев книги) номер с заданными префиксом, начальным числом, шагом и суффиксом, по желанию пропуская пустые.",
+    "en": "Puts a number with the prefix, start number, step and suffix you choose at the start of the selected paragraphs (or of every paragraph of the book), skipping empty ones if you wish.",
+    "uk": "Ставить на початок виділених абзаців (або всіх абзаців книги) номер із заданими префіксом, початковим числом, кроком і суфіксом, за бажанням пропускаючи порожні."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Расширенная нумерация абзацев",
+    "en": "Extended paragraph numbering"
+  },
+  "legacy": {
+    "source": "30_'Числовые' скрипты/45_Расширенная нумерация абзацев.js",
+    "fbeVersion": "2.7.9"
+  }
+}

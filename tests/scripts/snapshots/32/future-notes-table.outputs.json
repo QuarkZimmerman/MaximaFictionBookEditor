@@ -1,0 +1,14 @@
+{
+  "files": {
+    "temp.html": {
+      "bytes": 894,
+      "sha256": "cedf92e7698f51675bf61837bbf6cab2ea9a4aac13ee18730f792db16c9a5d1e"
+    }
+  },
+  "reports": [
+    {
+      "title": "Create a table of footnote markers",
+      "html": "<h2 align=\"center\">Table matching the markers of future footnotes</h2><table  width=\"100%\" border=\"1\" cellpadding=\"5\" cellspacing=\"5\"><tr BGCOLOR=\"DarkKhaki\"><th height=\"40\">Footnote (3)</th><th>No.</th><th>Footnote text (3)</th></tr><tr BGCOLOR=\"Khaki\"><td align=\"right\" BGCOLOR=\"orange\">Начало текста<sup>1</sup></td><td align=\"center\" BGCOLOR=\"DarkKhaki\">1</td><td BGCOLOR=\"orange\"><sup>1</sup> Первая сноска.</td></tr>\r\n<tr BGCOLOR=\"Khaki\"><td align=\"right\"> и продолжение<sup>2</sup></td><td align=\"center\" BGCOLOR=\"DarkKhaki\">2</td><td><sup>2</sup> Вторая сноска.</td></tr>\r\n<tr BGCOLOR=\"Khaki\"><td align=\"right\" BGCOLOR=\"orange\">Вторая страница<sup>1</sup></td><td align=\"center\" BGCOLOR=\"DarkKhaki\">3</td><td BGCOLOR=\"orange\"><sup>1</sup> Сноска второй страницы.</td></tr>\r\n</table><p align=\"center\">Script \"Create a table matching the markers of future footnotes\" v.1.2 (stokber)</p>"
+    }
+  ]
+}

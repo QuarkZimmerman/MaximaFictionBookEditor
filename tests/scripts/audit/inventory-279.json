@@ -22,7 +22,7 @@
       "merged": 1,
       "noCounterpart": 5
     },
-    "converted": 328
+    "converted": 349
   },
   "entries": [
     {
@@ -9483,15 +9483,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/01_number-with-dot",
+      "id": "30/number-with-dot",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/01_into-nachalakh-vydelennykh-of-paragraphs-add-num",
-      "suggestedId": "30/into-nachalakh-vydelennykh-of-paragraphs-add-num"
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/10_В началах выделенных абзацев добавить нумерацию вида '1.' (нумеровать и пустые строки).js",
@@ -9507,15 +9510,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/10_number-with-dot-and-empty-lines",
+      "id": "30/number-with-dot-and-empty-lines",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/10_into-nachalakh-vydelennykh-of-paragraphs-add-num",
-      "suggestedId": "30/into-nachalakh-vydelennykh-of-paragraphs-add-num"
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/15_В началах выделенных абзацев добавить нумерацию вида '1)' (не нумеровать пустые строки).js",
@@ -9531,15 +9537,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/15_number-with-parenthesis",
+      "id": "30/number-with-parenthesis",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/15_into-nachalakh-vydelennykh-of-paragraphs-add-num",
-      "suggestedId": "30/into-nachalakh-vydelennykh-of-paragraphs-add-num"
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/20_В началах выделенных абзацев добавить нумерацию вида '1)' (нумеровать и пустые строки).js",
@@ -9555,15 +9564,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/20_number-with-parenthesis-and-empty-lines",
+      "id": "30/number-with-parenthesis-and-empty-lines",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/20_into-nachalakh-vydelennykh-of-paragraphs-add-num",
-      "suggestedId": "30/into-nachalakh-vydelennykh-of-paragraphs-add-num"
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/22_Добавить маркеры списка (по выбору пользователя) (не маркировать пустые строки)....js",
@@ -9583,15 +9595,19 @@
       "htmlDialogs": [
         "HTML/Добавить маркеры списка (по выбору пользователя) - основной диалог.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/22_add-list-markers",
+      "id": "30/add-list-markers",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The dialog is a form: its choice \"Задать свой маркер:\" counts when that option is chosen (the original's dialog chose it when its field got the focus).",
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/22_add-markery-spiska-po-vyboru-polzovatelya-ne-mar",
-      "suggestedId": "30/add-markery-spiska-po-vyboru-polzovatelya-ne-mar"
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/25_Удалить 'один слой' нумерации вида '1)' в началах выделенных абзацев.js",
@@ -9609,15 +9625,22 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/25_remove-parenthesis-numbering-layer",
+      "id": "30/remove-parenthesis-numbering-layer",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/25_udalit-odin-sloy-numeratsii-vida-1-into-nachalak",
-      "suggestedId": "30/udalit-odin-sloy-numeratsii-vida-1-into-nachalak"
+      "differences": [
+        "A paragraph left with nothing but white space is an empty line at once (a verse in a stanza holds one space): FictionBook Editor showed it as an empty paragraph until the book was saved and saved it so.",
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
+      "fixes": [
+        "A paragraph at whose very start the selection ends is left alone and the walk stops there, as the original meant (nextPAfterBlockEndP): 2.7.9 tested for that paragraph only on the branch that walks into containers, so when it directly followed the previous paragraph (or the selection ended at the start of a formatted part of it) the script went on removing numbering in every paragraph to the end of the book, the notes included.",
+        "The original put the HTML of the whole Body view (fbw_body.outerHTML) on the clipboard at every run - a debugging line left between the walk's preparations - and so replaced what the user had copied; the conversion leaves the clipboard alone."
+      ],
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/28_Удалить 'один слой' нумерации вида '1.' в началах выделенных абзацев.js",
@@ -9635,15 +9658,22 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/28_remove-dot-numbering-layer",
+      "id": "30/remove-dot-numbering-layer",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/28_udalit-odin-sloy-numeratsii-vida-1-into-nachalak",
-      "suggestedId": "30/udalit-odin-sloy-numeratsii-vida-1-into-nachalak"
+      "differences": [
+        "A paragraph left with nothing but white space is an empty line at once (a verse in a stanza holds one space): FictionBook Editor showed it as an empty paragraph until the book was saved and saved it so.",
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
+      "fixes": [
+        "A paragraph at whose very start the selection ends is left alone and the walk stops there, as the original meant (nextPAfterBlockEndP): 2.7.9 tested for that paragraph only on the branch that walks into containers, so when it directly followed the previous paragraph (or the selection ended at the start of a formatted part of it) the script went on removing numbering in every paragraph to the end of the book, the notes included.",
+        "The original put the HTML of the whole Body view (fbw_body.outerHTML) on the clipboard at every run - a debugging line left between the walk's preparations - and so replaced what the user had copied; the conversion leaves the clipboard alone."
+      ],
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/31_Удалить 'один слой' нумерации вида '1.' или '1)' в началах выделенных абзацев.js",
@@ -9661,15 +9691,22 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/31_remove-numbering-layer",
+      "id": "30/remove-numbering-layer",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/31_udalit-odin-sloy-numeratsii-vida-1-ili-1-into-na",
-      "suggestedId": "30/udalit-odin-sloy-numeratsii-vida-1-ili-1-into-na"
+      "differences": [
+        "A paragraph left with nothing but white space is an empty line at once (a verse in a stanza holds one space): FictionBook Editor showed it as an empty paragraph until the book was saved and saved it so.",
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
+      "fixes": [
+        "A paragraph at whose very start the selection ends is left alone and the walk stops there, as the original meant (nextPAfterBlockEndP): 2.7.9 tested for that paragraph only on the branch that walks into containers, so when it directly followed the previous paragraph (or the selection ended at the start of a formatted part of it) the script went on removing numbering in every paragraph to the end of the book, the notes included.",
+        "The original put the HTML of the whole Body view (fbw_body.outerHTML) on the clipboard at every run - a debugging line left between the walk's preparations - and so replaced what the user had copied; the conversion leaves the clipboard alone."
+      ],
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/33_Удалить все 'слои' нумерации вида '1)' в началах выделенных абзацев.js",
@@ -9687,15 +9724,22 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/33_remove-all-parenthesis-numbering",
+      "id": "30/remove-all-parenthesis-numbering",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/33_udalit-all-sloi-numeratsii-vida-1-into-nachalakh",
-      "suggestedId": "30/udalit-all-sloi-numeratsii-vida-1-into-nachalakh"
+      "differences": [
+        "A paragraph left with nothing but white space is an empty line at once (a verse in a stanza holds one space): FictionBook Editor showed it as an empty paragraph until the book was saved and saved it so.",
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
+      "fixes": [
+        "A paragraph at whose very start the selection ends is left alone and the walk stops there, as the original meant (nextPAfterBlockEndP): 2.7.9 tested for that paragraph only on the branch that walks into containers, so when it directly followed the previous paragraph (or the selection ended at the start of a formatted part of it) the script went on removing numbering in every paragraph to the end of the book, the notes included.",
+        "The original put the HTML of the whole Body view (fbw_body.outerHTML) on the clipboard at every run - a debugging line left between the walk's preparations - and so replaced what the user had copied; the conversion leaves the clipboard alone."
+      ],
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/35_Удалить все 'слои' нумерации вида '1.' в началах выделенных абзацев.js",
@@ -9713,15 +9757,22 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/35_remove-all-dot-numbering",
+      "id": "30/remove-all-dot-numbering",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/35_udalit-all-sloi-numeratsii-vida-1-into-nachalakh",
-      "suggestedId": "30/udalit-all-sloi-numeratsii-vida-1-into-nachalakh"
+      "differences": [
+        "A paragraph left with nothing but white space is an empty line at once (a verse in a stanza holds one space): FictionBook Editor showed it as an empty paragraph until the book was saved and saved it so.",
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
+      "fixes": [
+        "A paragraph at whose very start the selection ends is left alone and the walk stops there, as the original meant (nextPAfterBlockEndP): 2.7.9 tested for that paragraph only on the branch that walks into containers, so when it directly followed the previous paragraph (or the selection ended at the start of a formatted part of it) the script went on removing numbering in every paragraph to the end of the book, the notes included.",
+        "The original put the HTML of the whole Body view (fbw_body.outerHTML) on the clipboard at every run - a debugging line left between the walk's preparations - and so replaced what the user had copied; the conversion leaves the clipboard alone."
+      ],
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/37_Удалить все 'слои' нумерации вида '1.' и '1)' в началах выделенных абзацев.js",
@@ -9739,15 +9790,22 @@
         "clipboardWrite"
       ],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/37_remove-all-numbering",
+      "id": "30/remove-all-numbering",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/37_udalit-all-sloi-numeratsii-vida-1-and-1-into-nac",
-      "suggestedId": "30/udalit-all-sloi-numeratsii-vida-1-and-1-into-nac"
+      "differences": [
+        "A paragraph left with nothing but white space is an empty line at once (a verse in a stanza holds one space): FictionBook Editor showed it as an empty paragraph until the book was saved and saved it so.",
+        "A selected picture gets the message for a missing selection; 2.7.9 stopped with a script error (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
+      "fixes": [
+        "A paragraph at whose very start the selection ends is left alone and the walk stops there, as the original meant (nextPAfterBlockEndP): 2.7.9 tested for that paragraph only on the branch that walks into containers, so when it directly followed the previous paragraph (or the selection ended at the start of a formatted part of it) the script went on removing numbering in every paragraph to the end of the book, the notes included.",
+        "The original put the HTML of the whole Body view (fbw_body.outerHTML) on the clipboard at every run - a debugging line left between the walk's preparations - and so replaced what the user had copied; the conversion leaves the clipboard alone."
+      ],
+      "openQuestions": [
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "30_'Числовые' скрипты/40_Нумерацию 'число пробел' в началах выделенных абзацев сделать надстрочным текстом.js",
@@ -9794,15 +9852,23 @@
       "htmlDialogs": [
         "HTML/Расширенная нумерация абзацев - параметры.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/30_numbering/45_extended-numbering",
+      "id": "30/extended-numbering",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/30_numbering/45_rasshirennaya-numeratsiya-of-paragraphs",
-      "suggestedId": "30/rasshirennaya-numeratsiya-of-paragraphs"
+      "differences": [
+        "The dialog is a form without its live preview.",
+        "Its number fields always hold a number, so the original's warnings \"Начальное число должно быть целым!\" and \"Шаг инкремента должен быть целым!\" cannot occur; a fraction counts by its integer part, as parseInt took it.",
+        "The prefix and the suffix are put in as text; the original inserted them as HTML (insertAdjacentHTML), so tags or entities typed into them were interpreted.",
+        "A selected picture counts as no selection (the message, then every paragraph); 2.7.9 stopped with a script error (its selection was then a control range)."
+      ],
+      "fixes": [
+        "A start number of 0 starts at 0: the original's parseInt(settings.startNumber) || 1 made 0 into 1, although the dialog accepts it and the description says the count may start at any number, a negative one too."
+      ],
+      "openQuestions": [
+        "A step of 0 is taken as 1, as the original's parseInt(settings.increment) || 1 did; was a step of 0 (the same number on every paragraph) meant to be possible?",
+        "2.7.9 re-selected with tr1.setEndPoint(\"StartToStart\", tr2) from the start marker's range to the end marker's, which is taken here, as in the earlier conversions of the same code (01_Регистр, 18/line-numbers-to-superscript), as selecting between the two markers; if Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the selection. Keep the re-selection?"
+      ]
     },
     {
       "source": "31_Автоматизация/30_Запуск скриптов по списку.js",
@@ -9984,15 +10050,18 @@
       "htmlDialogs": [
         "HTML/Поиск некорректных маркеров сносок - выбор из вариантов.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/32_note-markers/01_check-footnote-markers-per-page",
+      "id": "32/check-footnote-markers-per-page",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The faulty marker is selected where it is in the book: the original put the caret at the start of the Body view and moved the selection by its own count of characters, made on a text it built from the page's HTML, which went wrong wherever its count and Internet Explorer's differed (pictures, tables, soft hyphens, empty lines, the description's blocks).",
+        "The dialog is a form without its Help button, which opened a window of hints («Поиск некорректных маркеров сносок - справка.htm»)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/32_note-markers/01_search-nekorrektnykh-markerov-postranichnykh-of",
-      "suggestedId": "32/search-nekorrektnykh-markerov-postranichnykh-of"
+      "openQuestions": [
+        "In the mode {1} the original leaves out a link that holds {N} only when it is a plain link (<A href=...>), while the mode [1] leaves out a note link (<A class=note ...>) that holds [N]; whether {1} meant note links too is unclear. Kept as 2.7.9."
+      ]
     },
     {
       "source": "32_Маркеры сносок/02_Поиск некорректных маркеров концевых сносок.js",
@@ -10012,15 +10081,18 @@
       "htmlDialogs": [
         "HTML/Поиск некорректных маркеров сносок - выбор из вариантов.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/32_note-markers/02_check-endnote-markers",
+      "id": "32/check-endnote-markers",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The faulty marker is selected where it is in the book: the original put the caret at the start of the Body view and moved the selection by its own count of characters, made on a text it built from the page's HTML, which went wrong wherever its count and Internet Explorer's differed (pictures, tables, soft hyphens, empty lines, the description's blocks).",
+        "The dialog is a form without its Help button, which opened a window of hints («Поиск некорректных маркеров сносок - справка.htm»)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/32_note-markers/02_search-nekorrektnykh-markerov-kontsevykh-of-foot",
-      "suggestedId": "32/search-nekorrektnykh-markerov-kontsevykh-of-foot"
+      "openQuestions": [
+        "In the mode {1} the original leaves out a link that holds {N} only when it is a plain link (<A href=...>), while the mode [1] leaves out a note link (<A class=note ...>) that holds [N]; whether {1} meant note links too is unclear. Kept as 2.7.9."
+      ]
     },
     {
       "source": "32_Маркеры сносок/03_Поиск некорректных маркеров постраничных сносок со сквозной нумерацией.js",
@@ -10040,15 +10112,18 @@
       "htmlDialogs": [
         "HTML/Поиск некорректных маркеров сносок - выбор из вариантов.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/32_note-markers/03_check-footnote-markers-continuous",
+      "id": "32/check-footnote-markers-continuous",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The faulty marker is selected where it is in the book: the original put the caret at the start of the Body view and moved the selection by its own count of characters, made on a text it built from the page's HTML, which went wrong wherever its count and Internet Explorer's differed (pictures, tables, soft hyphens, empty lines, the description's blocks).",
+        "The dialog is a form without its Help button, which opened a window of hints («Поиск некорректных маркеров сносок - справка.htm»)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/32_note-markers/03_search-nekorrektnykh-markerov-postranichnykh-of",
-      "suggestedId": "32/search-nekorrektnykh-markerov-postranichnykh-of"
+      "openQuestions": [
+        "In the mode {1} the original leaves out a link that holds {N} only when it is a plain link (<A href=...>), while the mode [1] leaves out a note link (<A class=note ...>) that holds [N]; whether {1} meant note links too is unclear. Kept as 2.7.9."
+      ]
     },
     {
       "source": "32_Маркеры сносок/04_Поиск некорректных маркеров концевых сносок с постраничной нумерацией.js",
@@ -10068,15 +10143,18 @@
       "htmlDialogs": [
         "HTML/Поиск некорректных маркеров сносок - выбор из вариантов.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/32_note-markers/04_check-endnote-markers-per-page",
+      "id": "32/check-endnote-markers-per-page",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The faulty marker is selected where it is in the book: the original put the caret at the start of the Body view and moved the selection by its own count of characters, made on a text it built from the page's HTML, which went wrong wherever its count and Internet Explorer's differed (pictures, tables, soft hyphens, empty lines, the description's blocks).",
+        "The dialog is a form without its Help button, which opened a window of hints («Поиск некорректных маркеров сносок - справка.htm»)."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/32_note-markers/04_search-nekorrektnykh-markerov-kontsevykh-of-foot",
-      "suggestedId": "32/search-nekorrektnykh-markerov-kontsevykh-of-foot"
+      "openQuestions": [
+        "In the mode {1} the original leaves out a link that holds {N} only when it is a plain link (<A href=...>), while the mode [1] leaves out a note link (<A class=note ...>) that holds [N]; whether {1} meant note links too is unclear. Kept as 2.7.9."
+      ]
     },
     {
       "source": "32_Маркеры сносок/11_Создать таблицу расположения имеющихся маркеров сносок.js",
@@ -10102,15 +10180,16 @@
         "HTML/temp.html",
         "HTML/Создать таблицу маркеров-сносок.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/32_note-markers/11_note-marker-positions-table",
+      "id": "32/note-marker-positions-table",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The table is written into a file where the user chooses - the editor's Save dialog proposes temp.html - in windows-1251, as FileSystemObject wrote its text file on the Russian Windows the script was written for (the original wrote HTML/temp.html next to the program, or the path set in filePatch, without asking), and is shown in the editor's report window instead of the default browser, which needed another program; with display = 0 it is only shown, in the report window instead of the dialog page's window.",
+        "The dialog is a form."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/32_note-markers/11_sozdat-tablitsu-raspolozheniya-imeyushchikhsya-m",
-      "suggestedId": "32/sozdat-tablitsu-raspolozheniya-imeyushchikhsya-m"
+      "openQuestions": []
     },
     {
       "source": "32_Маркеры сносок/12_Создать таблицу соответствия маркеров будущих сносок.js",
@@ -10136,15 +10215,16 @@
         "HTML/temp.html",
         "HTML/Создать таблицу маркеров-сносок.htm"
       ],
-      "package": null,
-      "id": null,
+      "package": "scripts/32_note-markers/12_future-notes-table",
+      "id": "32/future-notes-table",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "The table is written into a file where the user chooses - the editor's Save dialog proposes temp.html - in windows-1251, as FileSystemObject wrote its text file on the Russian Windows the script was written for (the original wrote HTML/temp.html next to the program, or the path set in filePatch, without asking), and is shown in the editor's report window instead of the default browser, which needed another program; with display = 0 it is only shown, in the report window instead of the dialog page's window.",
+        "The dialog is a form."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/32_note-markers/12_sozdat-tablitsu-sootvetstviya-markerov-budushchi",
-      "suggestedId": "32/sozdat-tablitsu-sootvetstviya-markerov-budushchi"
+      "openQuestions": []
     },
     {
       "source": "32_Маркеры сносок/60_Убрать пробелы из маркеров сносок надстрочным текстом.js",
@@ -10160,15 +10240,15 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/32_note-markers/60_superscript-marker-spaces",
+      "id": "32/superscript-marker-spaces",
       "status": "new",
       "predecessor": null,
-      "differences": [],
+      "differences": [
+        "A superscript, an emphasis or a strong with a language (xml:lang, which 2.7.9 did not keep) is not matched by the expressions written for bare tags."
+      ],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/32_note-markers/60_ubrat-probely-from-markerov-of-footnotes-nadstro",
-      "suggestedId": "32/ubrat-probely-from-markerov-of-footnotes-nadstro"
+      "openQuestions": []
     },
     {
       "source": "32_Маркеры сносок/70_Заменить числа в круглых скобках на знак # (во всем документе).js",
@@ -10184,15 +10264,13 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/32_note-markers/70_parenthesized-numbers-to-hash",
+      "id": "32/parenthesized-numbers-to-hash",
       "status": "new",
       "predecessor": null,
       "differences": [],
       "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/32_note-markers/70_zamenit-chisla-into-kruglykh-skobkakh-on-znak-vo",
-      "suggestedId": "32/zamenit-chisla-into-kruglykh-skobkakh-on-znak-vo"
+      "openQuestions": []
     },
     {
       "source": "32_Маркеры сносок/71_Заменить числа в круглых скобках на знак # (в выделенном фрагменте).js",
@@ -10208,15 +10286,18 @@
       "encoding": "utf-8",
       "capabilities": [],
       "htmlDialogs": [],
-      "package": null,
-      "id": null,
+      "package": "scripts/32_note-markers/71_parenthesized-numbers-to-hash-in-selection",
+      "id": "32/parenthesized-numbers-to-hash-in-selection",
       "status": "new",
       "predecessor": null,
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
-      "suggestedPackage": "scripts/32_note-markers/71_zamenit-chisla-into-kruglykh-skobkakh-on-znak-v",
-      "suggestedId": "32/zamenit-chisla-into-kruglykh-skobkakh-on-znak-v"
+      "differences": [
+        "A selected picture gets the message for a missing selection; 2.7.9 showed \"Ошибка: ...\" (its selection was then a control range, which has no compareEndPoints).",
+        "The message for a selection in an input field is gone: a script sees the Body view only."
+      ],
+      "fixes": [
+        "The paragraphs are always those of the selection: the original took the element holding each end of the selection for its paragraph, so a selection that started inside formatting (italics, bold, a link...) skipped its first paragraph, one inside a single formatted part replaced nothing, and one that ended inside formatting went on to the end of the book."
+      ],
+      "openQuestions": []
     },
     {
       "source": "34_Управление курсором либо выделением/001_Установить курсор в начало документа.js",

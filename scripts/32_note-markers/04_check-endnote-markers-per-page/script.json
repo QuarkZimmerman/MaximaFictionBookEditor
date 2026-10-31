@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "32/check-endnote-markers-per-page",
+  "name": {
+    "ru": "Поиск некорректных маркеров концевых сносок с постраничной нумерацией",
+    "en": "Find faulty markers of endnotes numbered per page",
+    "uk": "Пошук некоректних маркерів кінцевих приміток із посторінковою нумерацією"
+  },
+  "description": {
+    "ru": "Проверяет нумерацию маркеров выбранного вида у концевых сносок, пронумерованных заново на каждой странице или в каждой главе, выделяет первый ошибочный маркер и пишет, в чём ошибка, в строке состояния.",
+    "en": "Checks the numbering of the markers of the chosen kind of endnotes numbered anew on every page or in every chapter, selects the first faulty marker and says what is wrong in the status bar.",
+    "uk": "Перевіряє нумерацію маркерів вибраного виду в кінцевих приміток, пронумерованих заново на кожній сторінці або в кожному розділі, виділяє перший помилковий маркер і пише, у чому помилка, у рядку стану."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск некорректных маркеров концевых сносок с постраничной нумерацией",
+    "en": "Find faulty markers of endnotes numbered per page"
+  },
+  "legacy": {
+    "source": "32_Маркеры сносок/04_Поиск некорректных маркеров концевых сносок с постраничной нумерацией.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.1"
+  }
+}

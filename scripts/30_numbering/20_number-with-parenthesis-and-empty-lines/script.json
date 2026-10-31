@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "30/number-with-parenthesis-and-empty-lines",
+  "name": {
+    "ru": "В началах выделенных абзацев добавить нумерацию вида '1)' (нумеровать и пустые строки)",
+    "en": "Add numbering like '1)' at the starts of the selected paragraphs (number empty lines too)",
+    "uk": "На початках виділених абзаців додати нумерацію виду '1)' (нумерувати й порожні рядки)"
+  },
+  "description": {
+    "ru": "Ставит «1)», «2)», … и неразрывный пробел в начало каждого абзаца выделения, пустые строки тоже (они становятся абзацами).",
+    "en": "Puts “1)”, “2)”, … and a non-breaking space at the start of every paragraph of the selection, empty lines too (they become paragraphs).",
+    "uk": "Ставить «1)», «2)», … і нерозривний пробіл на початок кожного абзацу виділення, порожні рядки теж (вони стають абзацами)."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "В началах выделенных абзацев добавить нумерацию вида '1)' (нумеровать и пустые строки)",
+    "en": "Add numbering like '1)' at the starts of the selected paragraphs (number empty lines too)"
+  },
+  "legacy": {
+    "source": "30_'Числовые' скрипты/20_В началах выделенных абзацев добавить нумерацию вида '1)' (нумеровать и пустые строки).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

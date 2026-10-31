@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "32/parenthesized-numbers-to-hash",
+  "name": {
+    "ru": "Заменить числа в круглых скобках на знак # (во всем документе)",
+    "en": "Replace numbers in parentheses by the # sign (in the whole document)",
+    "uk": "Замінити числа в круглих дужках на знак # (у всьому документі)"
+  },
+  "description": {
+    "ru": "Заменяет каждое целое число в круглых скобках, например «(12)», знаком «#» во всех абзацах книги и сообщает число замен.",
+    "en": "Replaces every whole number in parentheses, such as “(12)”, by “#” in every paragraph of the book and reports the number of replacements.",
+    "uk": "Замінює кожне ціле число в круглих дужках, наприклад «(12)», знаком «#» в усіх абзацах книги й повідомляє кількість замін."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Заменить числа в круглых скобках на знак # (во всем документе)",
+    "en": "Replace numbers in parentheses by the # sign (in the whole document)"
+  },
+  "legacy": {
+    "source": "32_Маркеры сносок/70_Заменить числа в круглых скобках на знак # (во всем документе).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.0"
+  }
+}

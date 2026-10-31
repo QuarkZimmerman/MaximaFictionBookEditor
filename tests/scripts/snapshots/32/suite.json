@@ -1,0 +1,602 @@
+[
+  {
+    "snapshot": "32/superscript-marker-spaces.xml",
+    "script": "scripts/32_note-markers/60_superscript-marker-spaces",
+    "book": "tests/scripts/fixtures/279/32/markers-edit.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "32/parenthesized-numbers-to-hash.xml",
+    "script": "scripts/32_note-markers/70_parenthesized-numbers-to-hash",
+    "book": "tests/scripts/fixtures/279/32/markers-edit.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "32/parenthesized-numbers-to-hash-in-selection.xml",
+    "script": "scripts/32_note-markers/71_parenthesized-numbers-to-hash-in-selection",
+    "book": "tests/scripts/fixtures/279/32/markers-edit.fb2",
+    "args": [
+      "--select-range",
+      "n36:3-n38:20"
+    ]
+  },
+  {
+    "snapshot": "32/parenthesized-numbers-to-hash-in-selection.one-paragraph.xml",
+    "script": "scripts/32_note-markers/71_parenthesized-numbers-to-hash-in-selection",
+    "book": "tests/scripts/fixtures/279/32/markers-edit.fb2",
+    "args": [
+      "--select",
+      "n17:0:5"
+    ]
+  },
+  {
+    "snapshot": "32/check-footnote-markers-per-page.xml",
+    "script": "scripts/32_note-markers/01_check-footnote-markers-per-page",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/check-footnote-markers-per-page.cancel.xml",
+    "script": "scripts/32_note-markers/01_check-footnote-markers-per-page",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/check-endnote-markers.xml",
+    "script": "scripts/32_note-markers/02_check-endnote-markers",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}"
+    ]
+  },
+  {
+    "snapshot": "32/check-footnote-markers-continuous.xml",
+    "script": "scripts/32_note-markers/03_check-footnote-markers-continuous",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}"
+    ]
+  },
+  {
+    "snapshot": "32/check-endnote-markers-per-page.xml",
+    "script": "scripts/32_note-markers/04_check-endnote-markers-per-page",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.pages.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.pages-brackets.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.none.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.in-note.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-in-note.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.space.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-space.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.not-number-brackets.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-not-number.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.not-number-braces.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-not-number.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"curly\"}",
+      "--answer",
+      "{\"kind\": \"curly\"}",
+      "--answer",
+      "{\"kind\": \"curly\"}",
+      "--answer",
+      "{\"kind\": \"curly\"}"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.asterisks.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-asterisks.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"asterisks\"}",
+      "--answer",
+      "{\"kind\": \"asterisks\"}",
+      "--answer",
+      "{\"kind\": \"asterisks\"}",
+      "--answer",
+      "{\"kind\": \"asterisks\"}"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.many-asterisks.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-many-asterisks.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"asterisks\"}",
+      "--answer",
+      "{\"kind\": \"asterisks\"}",
+      "--answer",
+      "{\"kind\": \"asterisks\"}",
+      "--answer",
+      "{\"kind\": \"asterisks\"}"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.tilde-brackets.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-tilde.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"square-tilde\"}",
+      "--answer",
+      "{\"kind\": \"square-tilde\"}",
+      "--answer",
+      "{\"kind\": \"square-tilde\"}",
+      "--answer",
+      "{\"kind\": \"square-tilde\"}"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.tilde-braces.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-tilde.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.tilde-braces-cancel.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-tilde.fb2",
+    "args": [
+      "--answer",
+      "32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--answer",
+      "cancel",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.count-ok.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-count.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.count-cancel.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-count.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "cancel",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "cancel",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "cancel",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/marker-checks.text-first.xml",
+    "script": "tests/scripts/fixtures/279/32/32_tests/checks",
+    "book": "tests/scripts/fixtures/279/32/markers-text-first.fb2",
+    "args": [
+      "--answer",
+      "32_Маркеры сносок\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js|32/check-endnote-markers|32/check-footnote-markers-continuous|32/check-endnote-markers-per-page",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--save-as",
+      "temp.html"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.brackets.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--save-as",
+      "temp.html"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.asterisks.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-asterisks.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"asterisks\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.none.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"hash\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.one-side.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-references-only.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.smileys.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-smileys.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--save-as",
+      "temp.html"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.mismatch.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-tilde.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"square-tilde\"}",
+      "--save-as",
+      "temp.html"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.count.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-count.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.none.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"curly\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.one-side.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-references-only.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"sup\"}",
+      "--answer",
+      "ok"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.braces.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-not-number.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"curly\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.tilde-brackets.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-tilde.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"square-tilde\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.tilde-braces.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-tilde.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/note-marker-positions-table.hash.xml",
+    "script": "scripts/32_note-markers/11_note-marker-positions-table",
+    "book": "tests/scripts/fixtures/279/32/markers-count.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"hash\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.asterisks.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-asterisks.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"asterisks\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.brackets.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-pages.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"square\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.braces.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-not-number.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"curly\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.tilde-braces.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-tilde.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"curly-tilde\"}",
+      "--save-as",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "32/future-notes-table.hash.xml",
+    "script": "scripts/32_note-markers/12_future-notes-table",
+    "book": "tests/scripts/fixtures/279/32/markers-count.fb2",
+    "args": [
+      "--answer",
+      "{\"kind\": \"hash\"}",
+      "--save-as",
+      "cancel"
+    ]
+  }
+]

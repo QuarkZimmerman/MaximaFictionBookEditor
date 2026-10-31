@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "30/remove-dot-numbering-layer",
+  "name": {
+    "ru": "Удалить 'один слой' нумерации вида '1.' в началах выделенных абзацев",
+    "en": "Remove 'one layer' of numbering like '1.' at the starts of the selected paragraphs",
+    "uk": "Видалити 'один шар' нумерації виду '1.' на початках виділених абзаців"
+  },
+  "description": {
+    "ru": "Удаляет в начале каждого абзаца выделения одно число с точкой («12.») вместе с пробелами после него.",
+    "en": "Removes one number with a dot (“12.”) and the spaces after it from the start of every paragraph of the selection.",
+    "uk": "Видаляє на початку кожного абзацу виділення одне число з крапкою («12.») разом із пробілами після нього."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Удалить 'один слой' нумерации вида '1.' в началах выделенных абзацев",
+    "en": "Remove 'one layer' of numbering like '1.' at the starts of the selected paragraphs"
+  },
+  "legacy": {
+    "source": "30_'Числовые' скрипты/28_Удалить 'один слой' нумерации вида '1.' в началах выделенных абзацев.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

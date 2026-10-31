@@ -1,0 +1,8 @@
+{
+  "reports": [
+    {
+      "title": "Footnote marker scripts",
+      "text": "[\n  {\n    \"ref\": \"32_Маркеры сносок\\\\01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js\",\n    \"returned\": null,\n    \"selection\": \"n8:19-n8:20\",\n    \"text\": \"2\"\n  },\n  {\n    \"ref\": \"32/check-endnote-markers\",\n    \"returned\": null,\n    \"selection\": \"n8:19-n8:20\",\n    \"text\": \"2\"\n  },\n  {\n    \"ref\": \"32/check-footnote-markers-continuous\",\n    \"returned\": null,\n    \"selection\": \"n8:19-n8:20\",\n    \"text\": \"2\"\n  },\n  {\n    \"ref\": \"32/check-endnote-markers-per-page\",\n    \"returned\": null,\n    \"selection\": \"n8:19-n8:20\",\n    \"text\": \"2\"\n  }\n]"
+    }
+  ]
+}

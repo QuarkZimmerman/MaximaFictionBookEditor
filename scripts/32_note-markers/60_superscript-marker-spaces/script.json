@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "32/superscript-marker-spaces",
+  "name": {
+    "ru": "Убрать пробелы из маркеров сносок надстрочным текстом",
+    "en": "Remove spaces from superscript footnote markers",
+    "uk": "Прибрати пробіли з маркерів приміток надрядковим текстом"
+  },
+  "description": {
+    "ru": "Выносит пробелы из надстрочных маркеров сносок наружу и убирает пробелы в начале абзаца перед надстрочным маркером во всей книге.",
+    "en": "Moves the spaces out of superscript footnote markers and removes the spaces at the start of a paragraph before a superscript marker throughout the book.",
+    "uk": "Виносить пробіли з надрядкових маркерів приміток назовні та прибирає пробіли на початку абзацу перед надрядковим маркером у всій книзі."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Убрать пробелы из маркеров сносок надстрочным текстом",
+    "en": "Remove spaces from superscript footnote markers"
+  },
+  "legacy": {
+    "source": "32_Маркеры сносок/60_Убрать пробелы из маркеров сносок надстрочным текстом.js",
+    "fbeVersion": "2.7.9"
+  }
+}

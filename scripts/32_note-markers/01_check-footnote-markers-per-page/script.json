@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "32/check-footnote-markers-per-page",
+  "name": {
+    "ru": "Поиск некорректных маркеров постраничных сносок с постраничной нумерацией",
+    "en": "Find faulty markers of page footnotes numbered per page",
+    "uk": "Пошук некоректних маркерів посторінкових приміток із посторінковою нумерацією"
+  },
+  "description": {
+    "ru": "Проверяет нумерацию маркеров выбранного вида у постраничных (или поглавных) сносок, пронумерованных заново на каждой странице, выделяет первый ошибочный маркер и пишет, в чём ошибка, в строке состояния.",
+    "en": "Checks the numbering of the markers of the chosen kind of page (or chapter) footnotes numbered anew on every page, selects the first faulty marker and says what is wrong in the status bar.",
+    "uk": "Перевіряє нумерацію маркерів вибраного виду в посторінкових (або поглавних) приміток, пронумерованих заново на кожній сторінці, виділяє перший помилковий маркер і пише, у чому помилка, у рядку стану."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск некорректных маркеров постраничных сносок с постраничной нумерацией",
+    "en": "Find faulty markers of page footnotes numbered per page"
+  },
+  "legacy": {
+    "source": "32_Маркеры сносок/01_Поиск некорректных маркеров постраничных сносок с постраничной нумерацией.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
+  }
+}

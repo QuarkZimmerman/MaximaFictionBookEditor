@@ -1,0 +1,229 @@
+[
+  {
+    "snapshot": "30/number-with-dot.xml",
+    "script": "scripts/30_numbering/01_number-with-dot",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n10:5-n30:8"
+    ]
+  },
+  {
+    "snapshot": "30/number-with-dot.description.xml",
+    "script": "scripts/30_numbering/01_number-with-dot",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n59:3-n6:5"
+    ]
+  },
+  {
+    "snapshot": "30/number-with-dot.one-paragraph.xml",
+    "script": "scripts/30_numbering/01_number-with-dot",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select",
+      "n10:2:6"
+    ]
+  },
+  {
+    "snapshot": "30/number-with-dot.next-start.xml",
+    "script": "scripts/30_numbering/01_number-with-dot",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n10:3-n11:0"
+    ]
+  },
+  {
+    "snapshot": "30/number-with-dot-and-empty-lines.xml",
+    "script": "scripts/30_numbering/10_number-with-dot-and-empty-lines",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n10:5-n30:8"
+    ]
+  },
+  {
+    "snapshot": "30/number-with-dot-and-empty-lines.description.xml",
+    "script": "scripts/30_numbering/10_number-with-dot-and-empty-lines",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n59:3-n6:5"
+    ]
+  },
+  {
+    "snapshot": "30/number-with-parenthesis.xml",
+    "script": "scripts/30_numbering/15_number-with-parenthesis",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n10:5-n30:8"
+    ]
+  },
+  {
+    "snapshot": "30/number-with-parenthesis-and-empty-lines.xml",
+    "script": "scripts/30_numbering/20_number-with-parenthesis-and-empty-lines",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n10:5-n30:8"
+    ]
+  },
+  {
+    "snapshot": "30/add-list-markers.xml",
+    "script": "scripts/30_numbering/22_add-list-markers",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n10:5-n30:8",
+      "--answer",
+      "{\"marker\":\"•\"}"
+    ]
+  },
+  {
+    "snapshot": "30/add-list-markers.own.xml",
+    "script": "scripts/30_numbering/22_add-list-markers",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n34:0-n35:3",
+      "--answer",
+      "{\"marker\":\"own\",\"own\":\"<1>&\"}"
+    ]
+  },
+  {
+    "snapshot": "30/add-list-markers.own-empty.xml",
+    "script": "scripts/30_numbering/22_add-list-markers",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n10:5-n30:8",
+      "--answer",
+      "{\"marker\":\"own\",\"own\":\"\"}"
+    ]
+  },
+  {
+    "snapshot": "30/remove-parenthesis-numbering-layer.xml",
+    "script": "scripts/30_numbering/25_remove-parenthesis-numbering-layer",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n34:0-n49:3"
+    ]
+  },
+  {
+    "snapshot": "30/remove-dot-numbering-layer.xml",
+    "script": "scripts/30_numbering/28_remove-dot-numbering-layer",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n34:0-n49:3"
+    ]
+  },
+  {
+    "snapshot": "30/remove-numbering-layer.xml",
+    "script": "scripts/30_numbering/31_remove-numbering-layer",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n34:0-n49:3"
+    ]
+  },
+  {
+    "snapshot": "30/remove-numbering-layer.next-start.xml",
+    "script": "scripts/30_numbering/31_remove-numbering-layer",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n34:2-n36:0"
+    ]
+  },
+  {
+    "snapshot": "30/remove-all-parenthesis-numbering.xml",
+    "script": "scripts/30_numbering/33_remove-all-parenthesis-numbering",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n34:0-n49:3"
+    ]
+  },
+  {
+    "snapshot": "30/remove-all-dot-numbering.xml",
+    "script": "scripts/30_numbering/35_remove-all-dot-numbering",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n34:0-n49:3"
+    ]
+  },
+  {
+    "snapshot": "30/remove-all-numbering.xml",
+    "script": "scripts/30_numbering/37_remove-all-numbering",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n34:0-n49:3"
+    ]
+  },
+  {
+    "snapshot": "30/extended-numbering.xml",
+    "script": "scripts/30_numbering/45_extended-numbering",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n10:5-n30:8",
+      "--answer",
+      "{}"
+    ]
+  },
+  {
+    "snapshot": "30/extended-numbering.all.xml",
+    "script": "scripts/30_numbering/45_extended-numbering",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--answer",
+      "{\"prefix\":\"§\",\"startNumber\":0,\"increment\":2,\"suffix\":\": \",\"onlySelected\":false,\"skipEmpty\":false}"
+    ]
+  },
+  {
+    "snapshot": "30/extended-numbering.no-selection.xml",
+    "script": "scripts/30_numbering/45_extended-numbering",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select",
+      "n10:3:3",
+      "--answer",
+      "{}"
+    ]
+  },
+  {
+    "snapshot": "30/extended-numbering.markers.xml",
+    "script": "scripts/30_numbering/45_extended-numbering",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n34:0-n36:4",
+      "--answer",
+      "{\"prefix\":\"• \",\"useNumbering\":false,\"suffix\":\"\"}"
+    ]
+  },
+  {
+    "snapshot": "30/extended-numbering.negative-step.xml",
+    "script": "scripts/30_numbering/45_extended-numbering",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": [
+      "--select-range",
+      "n19:0-n22:2",
+      "--answer",
+      "{\"startNumber\":10,\"increment\":-3,\"suffix\":\") \"}"
+    ]
+  },
+  {
+    "snapshot": "30/number-with-dot.reselect.xml",
+    "script": "tests/scripts/fixtures/279/30/30_tests/reselect",
+    "book": "tests/scripts/fixtures/279/30/numbering.fb2",
+    "args": []
+  }
+]

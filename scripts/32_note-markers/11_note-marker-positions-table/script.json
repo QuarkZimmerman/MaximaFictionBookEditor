@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "32/note-marker-positions-table",
+  "name": {
+    "ru": "Создать таблицу расположения имеющихся маркеров сносок",
+    "en": "Create a table of where the footnote markers are",
+    "uk": "Створити таблицю розташування наявних маркерів приміток"
+  },
+  "description": {
+    "ru": "Показывает в окне отчёта (и предлагает сохранить в файл) таблицу маркеров сносок выбранного вида: маркеры знаков и маркеры текстов сносок с соседним текстом, по «страницам».",
+    "en": "Shows in a report window (and offers to save in a file) a table of the footnote markers of the chosen kind: the note sign markers and the note text markers with the text around them, page by page.",
+    "uk": "Показує у вікні звіту (і пропонує зберегти у файл) таблицю маркерів приміток вибраного виду: маркери знаків і маркери текстів приміток із сусіднім текстом, за «сторінками»."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Создать таблицу расположения имеющихся маркеров сносок",
+    "en": "Create a table of where the footnote markers are"
+  },
+  "legacy": {
+    "source": "32_Маркеры сносок/11_Создать таблицу расположения имеющихся маркеров сносок.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

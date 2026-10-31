@@ -958,7 +958,263 @@ code:
 
 ## 30_'Числовые' скрипты
 
-13 scripts in 2.7.9: 12 new, 1 successors of converted packages. Not yet converted or rechecked.
+12 scripts are new in 2.7.9 and all 12 are converted (T065) into `scripts/30_numbering/`, a new
+group. The group's 13th script, *Нумерацию 'число пробел' в началах выделенных абзацев сделать
+надстрочным текстом*, is 2.7beta1's *Нумерацию в началах строк - надстрочным текстом* moved here from
+group 18 under a new name: its package `scripts/18_editing/09_line-numbers-to-superscript` stays in
+group 18 until its recheck. None of the twelve needs a power beyond FR-024: they only read and edit
+the book and ask the user.
+
+**Where the originals worked.** FictionBook Editor showed the book as one HTML element, `fbw_body`:
+a div for the title-info annotation, one for the document-info history (both always there, an absent
+one as an empty `<P>`) and one per body. Every text block was a `<P>` - paragraphs, title lines,
+verses, subtitles, text authors, dates (class `text-author`), table cells (class `td`/`th`) - and so
+was an empty line, an empty `<P>`. The numbering scripts (Sclex, versions 1.2 and 1.3) pasted an
+empty marker element (`<B id=BlockStart…>`, `<B id=BlockEnd…>`) at each end of the selection and
+walked the page from the element under the selection's start: the `<P>` holding the start marker and
+every `<P>` met after it, up to and including the one holding the end marker, got the number or
+marker by `insertAdjacentHTML("afterbegin", …)` - plain text before everything else of the
+paragraph, outside its formatting. The removal scripts (Sclex, 1.3) walked from the `<P>` holding the
+start marker to the one holding the end marker and removed, in each, the start of its text that
+matched their expression, counting the characters outside the tags of its `innerHTML`
+(`removeSymbolsBeyondTags`). Afterwards both re-selected between the two markers, which had moved with
+the text, and removed them. FictionBook Editor saved a numbered empty `<P>` as a paragraph and a `<P>`
+left with nothing but white space as an `<empty-line/>` (FBDoc.cpp; a verse in a stanza as
+`<v> </v>`).
+
+**Shared code** (each package carries its own byte-identical copies):
+
+- `lib/numbering.js` (new, all twelve): the selection on the page (`textSelection`: a caret or a
+  selected picture is no selection), the paragraphs of the selection for the numbering scripts
+  (`paragraphsOfSelection`: from the one holding its start to the one holding its end) and for the
+  removal scripts (`paragraphsForRemoval`: the same, less a last paragraph at whose very start the
+  selection ends), the originals' `isLineEmpty`, `insertAdjacentHTML("afterbegin")` on a paragraph
+  (`withTextBefore`; an empty line becomes a paragraph), the originals' `processP` of the removal
+  scripts with `removeSymbolsBeyondTags` kept as written (`removeLeadingNumbering`, on the
+  paragraph's `innerHTML` in the notation of `lib/legacy-html.js`), FictionBook Editor's saving of an
+  emptied `<P>` (`savedNode`), the writing back (`PageEdits`: the bodies' paragraphs with
+  `doc.replaceNode`, the annotation's and the history's with one `doc.setDescription`, the empty
+  paragraph of a missing annotation or history as a new one) and the re-selection (`reselect`).
+- `lib/nav-lib.js` (the page as FictionBook Editor showed it, and the selection in it: `loadBook`,
+  `locate`) and `lib/legacy-html.js`, copied unchanged from the packages of groups 16 and 06.
+
+**Reference book and snapshots.** `tests/scripts/fixtures/279/30/numbering.fb2` (valid against
+`FictionBook.xsd`): an annotation of two paragraphs and no history; a first chapter with a title, an
+epigraph, paragraphs (one with italics, one starting with bold), an empty line, a paragraph of two
+spaces, a paragraph holding only an inline picture, a poem (two verses, a text author), a subtitle, a
+table of two cells, a cite and a last paragraph; a second chapter of numbered paragraphs ("1) ",
+"1) 2) ", "12.  ", "3. ", "4.1. ", a bold "5)", a note link "6)", a paragraph "7)" alone,
+"8. 9) ", "10)" without a space, a number in the middle, a poem with "13) " and "14.") and a notes
+body. Snapshots: `tests/scripts/snapshots/30/`, 24 runs listed in `tests/scripts/snapshots/30/suite.json`;
+the test package `tests/scripts/fixtures/279/30/30_tests/reselect` runs five of the scripts through
+`mfbe.scripts.run` on selections it sets and records the selection each one leaves
+(`number-with-dot.reselect.outputs.json`). The harness runs in the English interface. Every expected
+result below was worked out from the original's code before the run; each snapshot equals it. Below,
+`⍽` stands for a non-breaking space; "range A" is the selection from offset 5 of "Первый абзац главы."
+(n10) to offset 8 of "Последний абзац главы." (n30), "the description range" from offset 3 of the
+annotation's second paragraph (n59) to offset 5 of "Глава первая" (n6), "range R" from the start of
+"1) Пункт со скобкой." (n34) to offset 3 of "15. Последний пункт." (n49).
+
+**Common differences.** A selected picture gets the message for a missing selection (2.7.9 stopped
+with a script error: its selection was then a control range); the originals' message for a
+selection in an input field (`TEXTAREA`, `INPUT`) is gone, a script sees the Body view only. The
+numbering scripts and the removal scripts need a selection (`needsSelection`) and keep their message
+for a missing one.
+
+**Common open question.** The originals re-selected with `tr1.setEndPoint("StartToStart", tr2)`
+from the start marker's range to the end marker's; that is taken here, as in the earlier conversions
+of the same code (`01_Регистр`, `18/line-numbers-to-superscript`), as selecting between the two
+markers. If Internet Explorer collapsed that range instead, 2.7.9 left a caret at the end of the
+selection.
+
+### 01 В началах выделенных абзацев добавить нумерацию вида '1.' (не нумеровать пустые строки)
+
+Package `scripts/30_numbering/01_number-with-dot`, id `30/number-with-dot`, version 1.2 (Sclex).
+
+**What it does.** Puts "1.⍽", "2.⍽", … before the content of every paragraph of the selection, the
+empty ones (an empty line, a paragraph of spaces and non-breaking spaces only) left out; a paragraph
+holding only an inline picture is not empty (its `<IMG>` stayed in `isLineEmpty`'s text). Then it
+re-selects the selection. The status text while it runs is the one of *Нумерацию в началах строк -
+надстрочным текстом* ("Делаем числа в началах абзацев надстрочным текстом…"), as in the original.
+
+**Conversion.** `numberParagraphs` with the prefix `cnt + "." + NBSP` and `skipEmpty`.
+
+**Expected and snapshots.** `number-with-dot.xml` (range A): n10 "1.⍽", n11 "2.⍽", the empty line
+and the paragraph of spaces left out, n14 "3.⍽" before its bold start (unformatted), n15 "4.⍽"
+before the picture, the verses "5.⍽", "6.⍽", the poem's text author "7.⍽", the subtitle "8.⍽", the
+cells "9.⍽", "10.⍽", the cite's paragraph and text author "11.⍽", "12.⍽", n30 "13.⍽".
+`number-with-dot.description.xml` (the description range): the annotation's second paragraph "1.⍽"
+before its italics, the empty paragraph of the missing history left out, the body title "2.⍽",
+"Глава первая" "3.⍽". `number-with-dot.one-paragraph.xml` (n10 offsets 2-6): n10 alone.
+`number-with-dot.next-start.xml` (n10 offset 3 to n11 offset 0): n10 and n11 - the paragraph at whose
+very start the selection ends is numbered, as the walk met that `<P>` before its end marker. In
+`number-with-dot.reselect.outputs.json` the selection after range A is n10:8-n30:12 (both ends moved
+by the inserted characters).
+
+### 10 В началах выделенных абзацев добавить нумерацию вида '1.' (нумеровать и пустые строки)
+
+Package `scripts/30_numbering/10_number-with-dot-and-empty-lines`, id
+`30/number-with-dot-and-empty-lines`, version 1.2 (Sclex).
+
+**What it does.** As 01, the empty paragraphs numbered too: an empty line becomes a paragraph "N.⍽",
+the empty paragraph of a missing annotation or history a new annotation or history holding it.
+
+**Expected and snapshots.** `number-with-dot-and-empty-lines.xml` (range A): 1-15, the empty line
+becoming `<p>3.⍽</p>` and the paragraph of spaces "4.⍽  ". `number-with-dot-and-empty-lines.description.xml`
+(the description range): the annotation's second paragraph "1.⍽", a new history `<p>2.⍽</p>`, the
+body title "3.⍽", "Глава первая" "4.⍽".
+
+### 15 В началах выделенных абзацев добавить нумерацию вида '1)' (не нумеровать пустые строки)
+
+Package `scripts/30_numbering/15_number-with-parenthesis`, id `30/number-with-parenthesis`, version
+1.2 (Sclex). As 01 with "1)⍽". Snapshot `number-with-parenthesis.xml` (range A): 1)-13) as in 01. In
+`number-with-dot.reselect.outputs.json`, on the description range, the selection after the run is
+n59:6-n6:8.
+
+### 20 В началах выделенных абзацев добавить нумерацию вида '1)' (нумеровать и пустые строки)
+
+Package `scripts/30_numbering/20_number-with-parenthesis-and-empty-lines`, id
+`30/number-with-parenthesis-and-empty-lines`, version 1.2 (Sclex). As 10 with "1)⍽". Snapshot
+`number-with-parenthesis-and-empty-lines.xml` (range A): 1)-15) as in 10.
+
+### 22 Добавить маркеры списка (по выбору пользователя) (не маркировать пустые строки)
+
+Package `scripts/30_numbering/22_add-list-markers`, id `30/add-list-markers`, version 1.3 (Sclex).
+
+**What it does.** Asks for a list marker - the ten signs of the dialog *Добавить маркеры списка (по
+выбору пользователя) - основной диалог.htm* (—, ~, •, ■, ♠, ♣, ♥, ♦, #, ^) or one of your own - and
+puts it with a non-breaking space before every non-empty paragraph of the selection, as 01. Cancel,
+or an empty marker of your own, does nothing. The dialog escaped `&`, `<` and `>` of a marker of your
+own, so it was inserted as typed; so it is here.
+
+**Conversion.** The dialog is one `ui.form`: a radio field of the ten signs and "Задать свой маркер:",
+a text field for the marker of your own; then `numberParagraphs` with `skipEmpty`.
+
+**Expected and snapshots.** `add-list-markers.xml` (range A, "•"): "•⍽" before the 13 paragraphs of
+01. `add-list-markers.own.xml` (n34 to n35 offset 3, "<1>&" of your own): n34 and n35 start with
+"<1>&⍽". `add-list-markers.own-empty.xml` (range A, your own, empty): the book unchanged.
+
+**Differences.** The choice of your own marker counts when its option is chosen (the original's dialog
+chose it when its field got the focus).
+
+### 25 Удалить 'один слой' нумерации вида '1)' в началах выделенных абзацев
+
+Package `scripts/30_numbering/25_remove-parenthesis-numbering-layer`, id
+`30/remove-parenthesis-numbering-layer`, version 1.3 (Sclex).
+
+**What it does.** Removes one "number)" with the spaces and non-breaking spaces after it (the
+expression `^\d+\)( |⍽)*`) from the start of every paragraph of the selection, as the text without
+its tags - but `<IMG>` and `<A>` - starts: a number inside bold counts, one inside a link does not.
+A paragraph left with nothing but white space is an empty line.
+
+**Conversion.** `removeNumbering` with the original's `re3` (`removeLeadingNumbering` runs its
+`processP` on the paragraph's HTML notation).
+
+**Expected and snapshot** (`remove-parenthesis-numbering-layer.xml`, range R): n34 "Пункт со
+скобкой.", n35 "2) Пункт с двумя слоями.", n39 "Пункт с жирным номером." (the bold went with its
+text), n41 "7)" an empty line, n43 "Пункт без пробела.", the verse "Стих с номером."; the dotted
+numbers, the link "6)", the number in the middle and n49 unchanged.
+
+**Fixes.** (1) A paragraph at whose very start the selection ends is left alone and the walk stops
+there, as the original meant (`nextPAfterBlockEndP`): 2.7.9 tested for that paragraph only on the
+branch that walks into containers, so when it directly followed the previous paragraph (or the
+selection ended at the start of a formatted part of it) the script went on removing numbering in
+every paragraph to the end of the book, the notes included. (2) The original put the HTML of the
+whole Body view (`fbw_body.outerHTML`) on the clipboard at every run - a debugging line left between
+the walk's preparations - and so replaced what the user had copied (the inventory's `clipboardWrite`);
+the conversion leaves the clipboard alone.
+
+**Differences.** A paragraph left with nothing but white space is an empty line at once (a verse in a
+stanza holds one space); FictionBook Editor showed an empty paragraph until the book was saved and
+saved it so.
+
+### 28 Удалить 'один слой' нумерации вида '1.' в началах выделенных абзацев
+
+Package `scripts/30_numbering/28_remove-dot-numbering-layer`, id `30/remove-dot-numbering-layer`,
+version 1.3 (Sclex). As 25 with `^\d+\.( |⍽)*`. Snapshot `remove-dot-numbering-layer.xml` (range R):
+n36 "Пункт с точкой и двумя пробелами.", n37 "Пункт с неразрывным пробелом.", n38 "1. Пункт с номером
+4.1." (one layer: "4."), n42 "9) Пункт со смешанной нумерацией.", the verse "14." a verse of one space,
+n49 "Последний пункт.". In `number-with-dot.reselect.outputs.json`, on n36 offset 6 to n37 offset 3,
+the selection after the run is n36:1-n37:0 (moved back by the removed characters before it). Fixes and
+differences as 25.
+
+### 31 Удалить 'один слой' нумерации вида '1.' или '1)' в началах выделенных абзацев
+
+Package `scripts/30_numbering/31_remove-numbering-layer`, id `30/remove-numbering-layer`, version 1.3
+(Sclex). As 25 with `^\d+[.)]( |⍽)*`. Snapshots: `remove-numbering-layer.xml` (range R: the changes of
+25 and 28 together, n35 and n38 losing one layer, n42 "9) …");
+`remove-numbering-layer.next-start.xml` (n34 offset 2 to the very start of n36): n34 and n35 change,
+n36 stays - in 2.7.9 n36, n37 … n49, the verses and the note's paragraph would all have lost a layer
+(fix 1 of 25). In `number-with-dot.reselect.outputs.json` the selection after that run is n34:0-n36:0.
+Fixes and differences as 25.
+
+### 33 Удалить все 'слои' нумерации вида '1)' в началах выделенных абзацев
+
+Package `scripts/30_numbering/33_remove-all-parenthesis-numbering`, id
+`30/remove-all-parenthesis-numbering`, version 1.3 (Sclex). As 25 with `^(\d+\)( |⍽)*)+`: every
+"number)" in a row. Snapshot `remove-all-parenthesis-numbering.xml` (range R): as 25, n35 "Пункт с
+двумя слоями.". Fixes and differences as 25.
+
+### 35 Удалить все 'слои' нумерации вида '1.' в началах выделенных абзацев
+
+Package `scripts/30_numbering/35_remove-all-dot-numbering`, id `30/remove-all-dot-numbering`, version
+1.3 (Sclex). As 25 with `^(\d+\.( |⍽)*)+`. Snapshot `remove-all-dot-numbering.xml` (range R): as 28,
+n38 "Пункт с номером 4.1." ("4." and "1. "). Fixes and differences as 25.
+
+### 37 Удалить все 'слои' нумерации вида '1.' и '1)' в началах выделенных абзацев
+
+Package `scripts/30_numbering/37_remove-all-numbering`, id `30/remove-all-numbering`, version 1.3
+(Sclex). As 25 with `^(\d+[.)]( |⍽)*)+`. Snapshot `remove-all-numbering.xml` (range R): every numbered
+paragraph but the link's and the middle one loses all its layers, n41 and n48 as in 25 and 28. In
+`number-with-dot.reselect.outputs.json`, on n41 offset 1 to n43 offset 5, the start's paragraph "7)"
+is an empty line afterwards and the selection starts right after it: n42:0-n43:2. Fixes and
+differences as 25.
+
+### 45 Расширенная нумерация абзацев
+
+Package `scripts/30_numbering/45_extended-numbering`, id `30/extended-numbering`, no version (idea
+Haliz, written by DeepSeek, 04.11.2025).
+
+**What it does.** Asks for prefix, numbers on or off, start number, step, suffix, "only the selected
+paragraphs" and "skip empty paragraphs" (the dialog *Расширенная нумерация абзацев - параметры.htm*),
+then puts prefix + number + suffix before every paragraph of the selection (the walk of 01,
+re-selected afterwards) or of the whole page - `fbw_body.getElementsByTagName("P")`: the annotation
+and the history (their empty paragraphs too), then every body -, skipping the empty ones when asked
+and numbering them otherwise (an empty line becomes a paragraph, the empty paragraph of a missing
+annotation or history a new one). The number grows by the step only on the paragraphs processed.
+With "only the selected paragraphs" and no selection it says "Нет выделения. Будут обработаны все
+абзацы в документе." and numbers every paragraph. At the end: "Обработано абзацев: N" or "Не найдено
+абзацев для обработки.".
+
+**Conversion.** The dialog is one `ui.form` (its description of the settings as a static field); the
+loop is the original's `processP` over `paragraphsOfSelection` or the page's paragraphs, written back
+with `PageEdits`.
+
+**Expected and snapshots.** `extended-numbering.xml` (range A, the defaults: no prefix, numbers from
+1 by 1, suffix ". "): the 13 paragraphs of 01 with "1. " … "13. ", message "Обработано абзацев: 13".
+`extended-numbering.all.xml` (every paragraph, no skipping, prefix "§", start 0, step 2, suffix ": "):
+40 paragraphs "§0: " … "§78: " in page order - the two annotation paragraphs, a new history
+`<p>§4: </p>`, the titles, the epigraph, the empty line `<p>§18: </p>`, the paragraph of spaces "§20:
+  ", the verses, the cells, the second chapter, the notes body. `extended-numbering.no-selection.xml`
+(a caret in n10, the defaults): the message for no selection, then 37 paragraphs of the page numbered
+1-37 (the empty ones skipped). `extended-numbering.markers.xml` (n34 to n36 offset 4, prefix "• ",
+numbers off, no suffix): "• " before n34-n36, message 3. `extended-numbering.negative-step.xml` (the
+verses to the subtitle, start 10, step -3, suffix ") "): "10) ", "7) ", "4) ", "1) ".
+
+**Fixes.** A start number of 0 starts at 0: the original's `parseInt(settings.startNumber) || 1` made
+0 into 1, although the dialog accepts it and its description says the count may start at any number,
+a negative one too (2.7.9 gives "§1: " … "§79: " in `extended-numbering.all.xml`).
+
+**Differences.** The dialog's live preview is dropped. Its number fields always hold a number, so the
+original's warnings "Начальное число должно быть целым!" and "Шаг инкремента должен быть целым!"
+cannot occur (a fraction counts by its integer part, as `parseInt` took it). The prefix and the
+suffix are put in as text; the original inserted them as HTML (`insertAdjacentHTML`), so tags or
+entities typed into them were interpreted. A selected picture counts as no selection (2.7.9 stopped
+with a script error).
+
+**Open questions.** A step of 0 is taken as 1, as the original's `parseInt(settings.increment) || 1`
+did: was a step of 0 (the same number on every paragraph) meant to be possible? And the common
+question of the re-selection.
 
 ## 31_Автоматизация
 
@@ -966,7 +1222,310 @@ code:
 
 ## 32_Маркеры сносок
 
-9 scripts in 2.7.9: 9 new, 0 successors of converted packages. Not yet converted or rechecked.
+9 scripts are new in 2.7.9 and all 9 are converted (T067) into `scripts/32_note-markers/`, a new
+group. None needs a power beyond FR-024: the four searches select a marker and write the status bar,
+the two tables use `mfbe.files.saveText` and `mfbe.ui.report` where the originals wrote a file with
+FileSystemObject and opened it in the default browser, and three scripts edit the book.
+
+**Where the originals worked.** FictionBook Editor showed the book as one HTML element, `fbw_body`:
+a div for the title-info annotation, one for the document-info history (an absent one as an empty
+`<P>`) and one per body, every text block a `<P>`, every structural element a div, Internet Explorer
+writing it out (`innerHTML`) with a line break before each block element. The searches (01-04, by
+stokber) and the tables (11, 12, by stokber) took that whole `innerHTML` and turned it with a long
+chain of regular expressions into a list of footnote markers; 60 (Sclex's engine, stokber's
+edition) rewrote each `<P>`'s `innerHTML`; 70 and 71 (TaKir and DeepSeek) replaced in the text nodes of
+the `<P>`s.
+
+**Shared code** (each package carries its own byte-identical copies):
+
+- `lib/marker-page.js` (01-04, 11, 12): `pageHtml()` rebuilds `fbw_body.innerHTML` from the
+  document model in the notation of FictionBook Editor's page (files/fb2.xsl): the annotation and
+  history divs, `<DIV class=body fbname=…>`, a div per section, title, epigraph, annotation, cite,
+  poem, stanza, table and row, a block picture as `<DIV … class=image …><IMG …></DIV>`, every text
+  block a `<P>` (class `subtitle`, `text-author` - a date too -, `td`, `th`), inside it `<STRONG>`,
+  `<EM>`, `<STRIKE>`, `<SUB>`, `<SUP>`, `<SPAN class=code>`, `<SPAN class=NAME>`, `<A class=note
+  href=…>` / `<A href=…>` and an inline picture `<SPAN class=image …><IMG …></SPAN>`, without
+  languages (2.7.9 kept none), the text escaped as `&amp; &lt; &gt; &nbsp; &shy;`. It is a
+  `TrackedString`: every character knows the place of the book it shows, and `replace` gives exactly
+  what `String.replace` gives while carrying the places along (a group of the match keeps its places,
+  a literal replacement of the match's length takes those of the matched characters). Every
+  expression of these scripts is compiled as JScript read it (`lib/jscript-regexp.js`: `\s` without
+  the Unicode spaces, `.` matching `\r`; the tables' zebra expression `(<tr>.+?\n)<tr>` only matches
+  so). `selectMarker` selects the marker a search picked out of its text in the book.
+- `engine.js` (01-04, 11, 12) is the original's code kept as written, generated from the 2.7.9 file
+  with a short list of counted rewrites named in its header: `Run()` is `engine(host, tx)`; the
+  variables it used without declaring them are declared (a module is strict code: `txt`, `i`, and in
+  04 also `countSupDoZ`, `countSupDoT`, `markSnoski`); `fbw_body.innerHTML` is `host.innerHTML`; the
+  dialog (with its Internet Explorer 6 size check) is `host.chooseMarker()`; `MsgBox`, `alert`,
+  `confirm`, the status bar, the clipboard are the host's and awaited (so the functions calling them
+  are async); `PerehodFinal` selects through the host; the tables' `MyMsgWindow`/`WriteFile` are the
+  host's report window and file; every text is `tx(ru, en)`.
+- `lib/search-host.js` (01-04) and `lib/table-host.js` (11, 12): those host objects - the dialog as a
+  form, message boxes (`confirm`: OK / Cancel), the status text (kept after the run, as FictionBook
+  Editor's stayed), the selection, the clipboard, the report window and the file.
+- `lib/page-paragraphs.js` (60, 70, 71): the paragraphs of the page or of the selection (over
+  `lib/nav-lib.js`, copied unchanged) and their writing back - the bodies' with `doc.replaceNode`, the
+  annotation's and the history's with `doc.setDescription`. 60 also carries `lib/legacy-html.js`,
+  11 and 12 `lib/jscript-regexp.js`, unchanged copies.
+
+**Reference books** (`tests/scripts/fixtures/279/32/`, all valid against `FictionBook.xsd`):
+`markers-edit.fb2` (60, 70, 71), and for the searches and the tables `markers-pages.fb2` (superscript
+footnotes numbered per page on two "pages", [1] endnotes), `markers-in-note.fb2` (a reference inside a
+footnote text), `markers-space.fb2` (a space inside a superscript), `markers-not-number.fb2` ([а] with
+a letter, {1 } with a space), `markers-asterisks.fb2` (asterisks, a line "* * *", a page starting with
+three), `markers-many-asterisks.fb2` (thirteen asterisks), `markers-tilde.fb2` ([~1~] text markers
+1, 3; {~1~} text markers 1, 1), `markers-count.fb2` (two superscript references, one text; a # reference
+and its text), `markers-text-first.fb2`
+(the first marker a text marker), `markers-references-only.fb2`, `markers-smileys.fb2` (a "☺" in the
+text). **Snapshots:** `tests/scripts/snapshots/32/`, 44 runs listed in its `suite.json`. The searches
+leave the book as it is and the harness records no status text, so besides one direct run each they
+run through the test package `tests/scripts/fixtures/279/32/32_tests/checks`, which runs the four
+searches one after another (the first by its 2.7.9 path) from the start of the Body view and records
+what each returned and the selection it left (`marker-checks.*.outputs.json`). Each expected result
+below was worked out from the original's code before the run; for the searches a scratch copy whose
+status texts also went to the clipboard confirmed every status text by hand. The harness runs in the
+English interface.
+
+### 01 Поиск некорректных маркеров постраничных сносок с постраничной нумерацией
+
+Package `scripts/32_note-markers/01_check-footnote-markers-per-page`, id
+`32/check-footnote-markers-per-page`, version 1.2 (stokber).
+
+**What it does.** Asks for the kind of markers - superscript (`<SUP>` and the digits ¹²³…), `*`,
+`[1]`, `{1}`, `[~1~]` or `{~1~}` - and checks their numbering for page (or chapter) footnotes numbered
+anew on each page. The script wraps each marker of the kind in ☺…☻ (superscripts after mapping ¹²³ to
+digits, `n` asterisks as the number `n`, a line of nothing but asterisks being a separator; note links
+holding [N] are left out in the mode [1], plain links holding {N} in the mode {1}), takes a marker at
+the start of a paragraph for a footnote text marker (t), any other for a reference marker (z), the
+first reference after a text marker in the same paragraph, and a reference that follows another with
+only formatting tags (and spaces) between them, for a reference inside a footnote text (Z), merges two
+markers with only spaces between them, and cuts the list into
+"pages", each a run of references followed by the run of texts that closes it. Then it checks, in this
+order: more than twelve asterisks, Z, a space inside a reference marker, a reference or a text marker
+that is no number, a first text marker before any reference, a page whose first reference or first
+text is not 1, a page ending with a reference, references and texts not counting up by one, and a
+page with different numbers of references and texts (it asks which of the last correct markers to go
+to and gives the number of the future footnote). The first fault goes to the status bar and its
+marker is selected: the original counted the markers before the fault in its list and moved the
+selection to the same marker of its text. No marker of the kind: "В этом документе не найдено маркеров
+сносок …". No fault: "Ошибок нумерации маркеров сносок не найдено." and `run()` returns true, as the
+original's `Run()` did.
+
+**Expected and snapshots.** Direct runs: `check-footnote-markers-per-page.xml` (markers-pages,
+superscript: no fault) and `check-footnote-markers-per-page.cancel.xml` (the dialog cancelled); the
+book stays as it is. Through `32_tests/checks` (the selection after the run): markers-pages,
+superscript - no fault, true; markers-pages, [1] - no fault; markers-pages, {~1~} - no marker of the
+kind ("…AS BRACES {~1~}."); markers-in-note - Z, the "2" in the footnote text; markers-space - the
+space, "1 " in n7; markers-not-number [1] - no number, "а"; {1} - a text marker no number, "1 " of
+"{1 }"; markers-asterisks - the second page starts with 3, "***" (the line "* * *" is no marker);
+markers-many-asterisks - more than twelve, a caret before the asterisks (the original's length was the
+asterisks themselves, which Internet Explorer took for no move; its message says "Курсор (без
+выделения)"); markers-tilde [~1~] - text markers 1, 3, the "1" of the first; {~1~} - 1, 1, the "1" of
+the first; markers-count - two references, one text: OK goes to the text marker "1" ("…маркер текста
+БУДУЩЕЙ сноски № 1."), Cancel to the first reference "1"; markers-text-first - the first marker is a
+text marker, its "1".
+
+**Differences.** The marker is selected where it is in the book: the original put the caret at the
+start of the Body view and moved the selection by its own count of characters, made on a text it
+built from the page's HTML, which went wrong wherever its count and Internet Explorer's differed
+(pictures, tables, soft hyphens, empty lines, the description's blocks). The dialog is a form without
+its Help button, which opened a window of hints (*Поиск некорректных маркеров сносок - справка.htm*).
+
+**Open questions.** In the mode {1} the original leaves out a link that holds {N} only when it is a
+plain link (`<A href=…>`), while the mode [1] leaves out a note link (`<A class=note …>`) holding [N];
+whether {1} meant note links too is unclear. Kept as 2.7.9.
+
+### 02 Поиск некорректных маркеров концевых сносок
+
+Package `scripts/32_note-markers/02_check-endnote-markers`, id `32/check-endnote-markers`, version 1.4
+(stokber).
+
+**What it does.** As 01 for endnotes: all references first, then all texts, so a reference after a
+text marker is a fault of its own ("Маркер знака сноски после текстов сносок…", checked right after
+the asterisks), the order checks come earlier, a first text marker before any reference says so
+differently when there is no reference at all, the count of the whole book is compared, and the
+no-fault message names the script and its version.
+
+**Expected and snapshot.** Direct run `check-endnote-markers.xml` (markers-pages, superscript: the
+reference "1" of the second page, after the texts). Through the test package: markers-pages - that
+fault and marker; [1] - no fault, the message with "Скрипт 'Поиск некорректных маркеров концевых
+сносок' v.1.4"; markers-asterisks - a reference after the texts, "***"; markers-text-first - a
+reference after the texts, the second "1"; markers-count - OK the text marker, Cancel the first
+reference; the other books as 01.
+
+Differences and open questions as 01.
+
+### 03 Поиск некорректных маркеров постраничных сносок со сквозной нумерацией
+
+Package `scripts/32_note-markers/03_check-footnote-markers-continuous`, id
+`32/check-footnote-markers-continuous`, version 1.2 (stokber).
+
+**What it does.** As 01 for footnotes numbered through the book: the first reference of the book must
+be 1, the last marker a text marker, the first page's first text marker 1, and the numbers go on from
+page to page (references and texts checked across pages first, then within them); the count
+question goes to the last correct reference or text marker.
+
+**Expected and snapshot.** Direct run `check-footnote-markers-continuous.xml` (markers-pages,
+superscript: after the reference 2 comes the reference 1 of the next page; the "2" in n7). Through the
+test package: markers-pages - the same; markers-asterisks and markers-text-first - the last marker is
+no text marker, the last reference; markers-count - OK the text marker "1", Cancel the reference "2";
+the other books as 01.
+
+Differences and open questions as 01.
+
+### 04 Поиск некорректных маркеров концевых сносок с постраничной нумерацией
+
+Package `scripts/32_note-markers/04_check-endnote-markers-per-page`, id
+`32/check-endnote-markers-per-page`, version 1.1 (stokber).
+
+**What it does.** As 01 for endnotes numbered anew on each page or chapter: the references of all
+pages come first, then the texts, each page of them starting at 1; a reference after a footnote text
+paragraph, with only plain text between them, is a fault ("…не характерно для концевых сносок с
+постраничной нумерацией"); the lists of references and texts are cut into pages at each marker 1 and
+compared page by page (the confirm question, then a hint in the status bar). When the numbers of pages
+of references and of texts differ, a message says so - also after another fault was found, as in the
+original. With no marker of the kind the original's code goes on after its message and ends with "no
+fault": `run()` returns true.
+
+**Expected and snapshot.** Direct run `check-endnote-markers-per-page.xml` (markers-pages,
+superscript: the reference of the second page after the texts, then the message of the pages, 1 and
+2). Through the test package: markers-pages - the same; markers-pages {~1~} - "no marker" then "no
+fault", true; markers-not-number [1] - no number, then the message of the pages (2 and 1);
+markers-asterisks - a reference after the texts, "***"; markers-tilde {~1~} - the second page of text
+markers has no references (0 and 1): OK the reference "1" in n7, Cancel the second text marker "1",
+then the message of the pages; markers-count - OK the text marker, Cancel the reference "2";
+markers-text-first - a reference after the texts, then the message of the pages (0 and 1); the other
+books as 01.
+
+Differences and open questions as 01.
+
+### 11 Создать таблицу расположения имеющихся маркеров сносок
+
+Package `scripts/32_note-markers/11_note-marker-positions-table`, id `32/note-marker-positions-table`,
+version 1.4 (stokber).
+
+**What it does.** Asks for the kind of markers (also `#`) and makes an HTML table: each reference
+marker with up to 120 characters of the text before it on the left, each text marker (at the start of
+a paragraph) with up to 120 characters after it on the right, in book order; all rows in the first
+zebra colour, the rows of the markers numbered 1 orange, the empty cells grey, a row "Новая страница с
+маркерами сносок:" before a reference that follows a text. Note links that hold a superscript number
+(FineReader's) are no markers. With the original's default `display = 1` the table is written
+into a file and shown; `display = 0` only shows it. A book holding ☺ or ☻ gets a warning and the
+expression `(☺|☻)+` on the clipboard; no marker of the kind, a message; markers of one side only, a
+message and a table of that side.
+
+**Conversion.** `engine.js`; `WriteFile` is `files.saveText` (the Save dialog proposes "temp.html";
+windows-1251, as FileSystemObject wrote on a Russian Windows, with `WriteLine`'s line break) followed
+by the report window; `MyMsgWindow` is the report window.
+
+**Expected and snapshots.** `note-marker-positions-table.xml` (markers-pages, superscript, saved): 3
+and 3 markers; rows "Начало текста¹" (orange), " и продолжение²", "¹ Первая сноска." (orange), "²
+Вторая сноска.", the new page row, "Вторая страница¹" (orange), "¹ Сноска второй страницы." (orange);
+the file `temp.html` and the report in the outputs. `.brackets.xml` ([1], saved): the references with
+their whole paragraph before them ("…а в скобках [1]", orange), the endnotes. `.asterisks.xml` (the
+Save dialog cancelled, the table shown all the same): "Текст*" orange, " и ещё**", "* Первая." orange,
+"** Вторая.", a new page row, "Дальше***". `.none.xml` (#): "Не найдено ни одного маркера сносок вида
+#." `.one-side.xml` (markers-references-only, the Save dialog cancelled): the message about the
+missing text markers, then the table of the two references. `.smileys.xml`: the warning and the
+clipboard. The other kinds, the Save dialog cancelled: `.braces.xml` ({1}: "фигурные{1}" orange, " и{2}",
+"{2} Вторая фигурная."; "{1 }" with its space is no marker), `.tilde-brackets.xml` ([~1~]: the
+references 1, 2, the texts 1 orange and 3), `.tilde-braces.xml` ({~1~}: one reference, two texts, all
+orange), `.hash.xml` (#: the cells - not the rows - of the markers numbered 1 orange, as the original
+coloured them in this mode).
+
+**Differences.** The table is written where the user chooses (the original wrote HTML/temp.html next
+to the program, or the path set in `filePatch`, without asking) and shown in the report window instead
+of the default browser, which needed another program; the dialog is a form.
+
+### 12 Создать таблицу соответствия маркеров будущих сносок
+
+Package `scripts/32_note-markers/12_future-notes-table`, id `32/future-notes-table`, version 1.2
+(stokber).
+
+**What it does.** As 11, but the table puts the n-th reference marker (with the text before it) beside
+the n-th text marker (with the text after it) under the number n of the future footnote; where the
+two markers differ the number is red; the markers numbered 1 are orange. No marker of the kind, or no
+marker of one side: a message and no table.
+
+**Expected and snapshots.** `future-notes-table.xml` (markers-pages, superscript, saved): three rows
+1-3, the markers 1 orange, no number red. `.mismatch.xml` ([~1~], saved): row 2 "[~2~]" beside "[~3~]
+Третья.", its number red. The other kinds, the Save dialog cancelled: `.asterisks.xml` (row 3
+"Дальше***" beside an empty cell, red 3), `.brackets.xml` ([1]: the two endnotes, no red), `.braces.xml`
+({1}: "{1}" beside "{2} Вторая фигурная." red 1, "{2}" beside an empty cell red 2), `.tilde-braces.xml`
+({~1~}: row 2 with an empty left cell, no red - the expression that marks a mismatch needs a reference
+in the row), `.hash.xml` (#: one row, both cells orange). `.count.xml` (markers-count, the Save dialog cancelled): row 2 " и²" beside
+an empty grey cell, its number red. `.none.xml` ({1}): "Не найдено ни одного маркера сносок вида
+{1}.". `.one-side.xml` (markers-references-only): "Найдено: маркеров знаков сносок: 2 … текстов
+сносок : 0. Таблица создана не будет.".
+
+**Differences.** As 11.
+
+### 60 Убрать пробелы из маркеров сносок надстрочным текстом
+
+Package `scripts/32_note-markers/60_superscript-marker-spaces`, id `32/superscript-marker-spaces`, no
+version in its name (VersionNumber 1.0; engine by Sclex, stokber's edition).
+
+**What it does.** In every paragraph of the page - the annotation and the history included, as its
+settings `ObrabotkaAnnotation` and `ObrabotkaHistory` say - three expressions on the `innerHTML`: spaces
+(and non-breaking spaces) before the end of a superscript go after it, spaces at its start go before
+it - in both cases a run of them becomes its last one, as "$1" took it -, and the spaces at the start
+of a paragraph before a superscript are removed (emphasis and strong around allowed). Then the message
+"–= Jurgen Script =– «Нормализовать пробелы маркеров сносок» v.1.0 stokber Edition", the time taken and
+how many paragraphs each rule changed.
+
+**Conversion.** The original's expressions run unchanged on each paragraph's notation of
+`lib/legacy-html.js`, compiled with JScript's `\s` (a thin space is no space for them); the paragraphs
+are written back with `lib/page-paragraphs.js`.
+
+**Expected and snapshot** (`superscript-marker-spaces.xml`, markers-edit): the annotation's "сноской¹ "
+→ "сноской¹  и"; "Текст<sup> 2</sup>" → "Текст <sup>2</sup>"; "<sup>3⍽⍽</sup>с" → "<sup>3</sup>⍽с";
+"   <sup>4</sup>" → "<sup>4</sup>"; "<emphasis>Курсив<sup> 5 </sup></emphasis>" → "<emphasis>Курсив
+<sup>5</sup></emphasis>  внутри"; the note's "  <sup>2</sup>" → "<sup>2</sup>"; "<sup>6</sup>Ничего"
+unchanged, the superscript with `xml:lang` and the one ending in a thin space unchanged; counts 3, 2, 2.
+
+**Differences.** A superscript, an emphasis or a strong with a language (`xml:lang`, which 2.7.9 did
+not keep) is not matched by the expressions written for bare tags.
+
+### 70 Заменить числа в круглых скобках на знак # (во всем документе)
+
+Package `scripts/32_note-markers/70_parenthesized-numbers-to-hash`, id
+`32/parenthesized-numbers-to-hash`, version 2.0 (idea TaKir, written by DeepSeek and TaKir).
+
+**What it does.** Replaces every whole number in parentheses, "(12)", by "#" in the text nodes of
+`document.getElementsByTagName(...)` for p, v, subtitle and text-author - on FictionBook Editor's page
+that is every `<P>`: every text block of the annotation, the history and all bodies (table cells and
+dates too); the other three tags did not occur there. Each run of text separately, so
+"(<emphasis>8</emphasis>)" does not count. The status bar and a message (caption "FBE скрипт") give
+the number, with a warning when it is odd; an error shows "Ошибка: …".
+
+**Expected and snapshot** (`parenthesized-numbers-to-hash.xml`, markers-edit): 20 replacements - the
+annotation, "(12)" and "(3)", "((6))" → "(#)", the italic "(7)", the note link "(9)", the verse, the
+poem's date, the subtitle, the cell, the cite's paragraph and text author, the third chapter's seven
+and the note's one; "(1a)", "(b2)", "( 4 )", "(-5)", "(2.5)" and "(<emphasis>8</emphasis>)" stay.
+
+### 71 Заменить числа в круглых скобках на знак # (в выделенном фрагменте)
+
+Package `scripts/32_note-markers/71_parenthesized-numbers-to-hash-in-selection`, id
+`32/parenthesized-numbers-to-hash-in-selection`, version 2.0 (idea TaKir, written by DeepSeek and
+TaKir).
+
+**What it does.** As 70 in the whole paragraphs of the selection, from the one holding its start to the
+one holding its end; it needs a selection.
+
+**Expected and snapshots.** `parenthesized-numbers-to-hash-in-selection.xml` (from inside the
+italics of "<emphasis>Начало (21)</emphasis> и текст (22)." to inside the italics of "Конец (24) и
+<emphasis>курсив (25)</emphasis> в конце."): 5 replacements in these three paragraphs, the odd-count
+warning, "(26)" and "(27)" after them unchanged. `.one-paragraph.xml` (a selection inside "Сноска(12)
+и ещё (3)."): 2.
+
+**Fixes.** The paragraphs are always those of the selection: the original took the element holding
+each end of the selection (`parentElement`) for its paragraph, so a selection that started inside
+formatting skipped its first paragraph, one inside a single formatted part replaced nothing, and one
+that ended inside formatting went on to the end of the book (here 2.7.9 would have replaced (23)-(28),
+6, leaving (21) and (22)).
+
+**Differences.** A selected picture gets the message for a missing selection (2.7.9 showed "Ошибка:
+…": its selection was then a control range); the message for a selection in an input field is gone.
 
 ## 34_Управление курсором либо выделением
 

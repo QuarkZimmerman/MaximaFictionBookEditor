@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "test-30/reselect",
+  "name": {
+    "en": "Test: the selection the numbering scripts leave",
+    "ru": "Test: the selection the numbering scripts leave"
+  },
+  "kind": "menu",
+  "entry": "index.js"
+}

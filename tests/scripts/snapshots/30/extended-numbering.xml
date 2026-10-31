@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Нумерация</last-name>
+			</author>
+			<book-title>Числовые скрипты</book-title>
+			<annotation>
+				<p>Аннотация, первый абзац.</p>
+				<p><emphasis>Аннотация</emphasis>, второй абзац.</p>
+			</annotation>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Нумерация абзацев</p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<epigraph>
+				<p>Строка эпиграфа.</p>
+				<text-author>Автор эпиграфа</text-author>
+			</epigraph>
+			<p>1. Первый абзац главы.</p>
+			<p>2. Второй абзац с <emphasis>курсивом</emphasis>.</p>
+			<empty-line/>
+			<p>  </p>
+			<p>3. <strong>Жирное</strong> начало абзаца.</p>
+			<p>4. <image l:href="#pic.png"/></p>
+			<poem>
+				<stanza>
+					<v>5. Первый стих,</v>
+					<v>6. второй стих.</v>
+				</stanza>
+				<text-author>7. Поэт</text-author>
+			</poem>
+			<subtitle>8. Подзаголовок</subtitle>
+			<table>
+				<tr>
+					<td>9. Ячейка А</td>
+					<td>10. Ячейка Б</td>
+				</tr>
+			</table>
+			<cite>
+				<p>11. Строка цитаты.</p>
+				<text-author>12. Автор цитаты</text-author>
+			</cite>
+			<p>13. Последний абзац главы.</p>
+		</section>
+		<section>
+			<title>
+				<p>Глава вторая</p>
+			</title>
+			<p>1) Пункт со скобкой.</p>
+			<p>1) 2) Пункт с двумя слоями.</p>
+			<p>12.  Пункт с точкой и двумя пробелами.</p>
+			<p>3. Пункт с неразрывным пробелом.</p>
+			<p>4.1. Пункт с номером 4.1.</p>
+			<p><strong>5)</strong> Пункт с жирным номером.</p>
+			<p><a l:href="#n1" type="note">6)</a> Пункт со ссылкой в начале.</p>
+			<p>7)</p>
+			<p>8. 9) Пункт со смешанной нумерацией.</p>
+			<p>10)Пункт без пробела.</p>
+			<p>Абзац без номера 11) в середине.</p>
+			<poem>
+				<stanza>
+					<v>13) Стих с номером.</v>
+					<v>14.</v>
+				</stanza>
+			</poem>
+			<p>15. Последний пункт.</p>
+		</section>
+	</body>
+	<body name="notes">
+		<title>
+			<p>Примечания</p>
+		</title>
+		<section id="n1">
+			<title>
+				<p>1</p>
+			</title>
+			<p>16) Текст примечания.</p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "32/check-endnote-markers",
+  "name": {
+    "ru": "Поиск некорректных маркеров концевых сносок",
+    "en": "Find faulty markers of endnotes",
+    "uk": "Пошук некоректних маркерів кінцевих приміток"
+  },
+  "description": {
+    "ru": "Проверяет нумерацию маркеров выбранного вида у концевых сносок, тексты которых собраны в конце книги, выделяет первый ошибочный маркер и пишет, в чём ошибка, в строке состояния.",
+    "en": "Checks the numbering of the markers of the chosen kind of endnotes, whose texts are gathered at the end of the book, selects the first faulty marker and says what is wrong in the status bar.",
+    "uk": "Перевіряє нумерацію маркерів вибраного виду в кінцевих приміток, тексти яких зібрано наприкінці книги, виділяє перший помилковий маркер і пише, у чому помилка, у рядку стану."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": false,
+  "undoLabel": {
+    "ru": "Поиск некорректных маркеров концевых сносок",
+    "en": "Find faulty markers of endnotes"
+  },
+  "legacy": {
+    "source": "32_Маркеры сносок/02_Поиск некорректных маркеров концевых сносок.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.4"
+  }
+}

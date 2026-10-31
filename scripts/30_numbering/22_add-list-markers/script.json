@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "30/add-list-markers",
+  "name": {
+    "ru": "Добавить маркеры списка (по выбору пользователя) (не маркировать пустые строки)",
+    "en": "Add list markers (of your choice) (skip empty lines)",
+    "uk": "Додати маркери списку (на вибір користувача) (не маркувати порожні рядки)"
+  },
+  "description": {
+    "ru": "Ставит выбранный в диалоге маркер списка (—, ~, •, ■, ♠, ♣, ♥, ♦, #, ^ или свой) и неразрывный пробел в начало каждого непустого абзаца выделения.",
+    "en": "Puts the list marker chosen in a dialog (—, ~, •, ■, ♠, ♣, ♥, ♦, #, ^ or one of your own) and a non-breaking space at the start of every non-empty paragraph of the selection.",
+    "uk": "Ставить вибраний у діалозі маркер списку (—, ~, •, ■, ♠, ♣, ♥, ♦, #, ^ або свій) і нерозривний пробіл на початок кожного непорожнього абзацу виділення."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Добавить маркеры списка (по выбору пользователя) (не маркировать пустые строки)",
+    "en": "Add list markers (of your choice) (skip empty lines)"
+  },
+  "legacy": {
+    "source": "30_'Числовые' скрипты/22_Добавить маркеры списка (по выбору пользователя) (не маркировать пустые строки)....js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
+  }
+}

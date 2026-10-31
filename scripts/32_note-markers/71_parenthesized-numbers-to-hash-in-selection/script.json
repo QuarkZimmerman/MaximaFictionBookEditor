@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "id": "32/parenthesized-numbers-to-hash-in-selection",
+  "name": {
+    "ru": "Заменить числа в круглых скобках на знак # (в выделенном фрагменте)",
+    "en": "Replace numbers in parentheses by the # sign (in the selection)",
+    "uk": "Замінити числа в круглих дужках на знак # (у виділеному фрагменті)"
+  },
+  "description": {
+    "ru": "Заменяет каждое целое число в круглых скобках, например «(12)», знаком «#» в абзацах выделения и сообщает число замен.",
+    "en": "Replaces every whole number in parentheses, such as “(12)”, by “#” in the paragraphs of the selection and reports the number of replacements.",
+    "uk": "Замінює кожне ціле число в круглих дужках, наприклад «(12)», знаком «#» в абзацах виділення й повідомляє кількість замін."
+  },
+  "kind": "menu",
+  "entry": "index.js",
+  "icon": "icon.png",
+  "needsSelection": true,
+  "undoLabel": {
+    "ru": "Заменить числа в круглых скобках на знак # (в выделенном фрагменте)",
+    "en": "Replace numbers in parentheses by the # sign (in the selection)"
+  },
+  "legacy": {
+    "source": "32_Маркеры сносок/71_Заменить числа в круглых скобках на знак # (в выделенном фрагменте).js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.0"
+  }
+}
