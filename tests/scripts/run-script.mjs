@@ -419,8 +419,17 @@ async function main() {
   }
 
   const core = await startCore(options.core, dataDir, options.uiDist);
-  const { chromium } = await loadPlaywright();
-  const browser = await chromium.launch();
+  // A browser that cannot start (Playwright's Chromium not installed) must not leave the core
+  // running: every run of a suite would leave one behind.
+  let browser;
+  try {
+    const { chromium } = await loadPlaywright();
+    browser = await chromium.launch();
+  } catch (error) {
+    await core.stop();
+    if (!options.keep) rmSync(dataDir, { recursive: true, force: true });
+    throw error;
+  }
   const outputDir = path.join(dataDir, "outputs");
   mkdirSync(outputDir, { recursive: true });
   let exitCode = 0;
@@ -481,7 +490,8 @@ async function main() {
       });
     }
     for (const name of options.pickFolder) {
-      if (name !== "cancel") mkdirSync(path.join(outputDir, name), { recursive: true });
+      if (name !== "cancel")
+        mkdirSync(path.join(outputDir, name), { recursive: true });
       await call("test.enqueueDialog", {
         method: "dialog.pickFolder",
         result: name === "cancel" ? {} : { path: path.join(outputDir, name) },
@@ -509,16 +519,25 @@ async function main() {
         const doc = window.__mfbeTest.scripts.document();
         const textOf = (node) =>
           (node.content ?? [])
-            .map((child) => (child.type === "text" ? child.text : textOf(child)))
+            .map((child) =>
+              child.type === "text" ? child.text : textOf(child),
+            )
             .join("");
         const visit = (node, depth, where) => {
           if (!node || typeof node !== "object" || node.type === "text") return;
-          const block = (node.content ?? []).some((child) => child.type === "text");
-          const text = block ? ` ${JSON.stringify(textOf(node).slice(0, 70))}` : "";
-          out.push(`${"  ".repeat(depth)}${node.attrs?.nodeId ?? "-"} ${node.type}${where}${text}`);
+          const block = (node.content ?? []).some(
+            (child) => child.type === "text",
+          );
+          const text = block
+            ? ` ${JSON.stringify(textOf(node).slice(0, 70))}`
+            : "";
+          out.push(
+            `${"  ".repeat(depth)}${node.attrs?.nodeId ?? "-"} ${node.type}${where}${text}`,
+          );
           for (const child of node.content ?? []) visit(child, depth + 1, "");
         };
-        for (const body of doc.bodies ?? []) visit(body, 0, body.attrs?.name ? ` (${body.attrs.name})` : "");
+        for (const body of doc.bodies ?? [])
+          visit(body, 0, body.attrs?.name ? ` (${body.attrs.name})` : "");
         const info = doc.description?.titleInfo;
         if (info?.annotation) visit(info.annotation, 0, " (title-info)");
         if (doc.description?.documentInfo?.history)
@@ -555,7 +574,10 @@ async function main() {
     }
 
     const clipboardBefore = options.clipboard ?? "";
-    await page.evaluate((text) => navigator.clipboard.writeText(text), clipboardBefore);
+    await page.evaluate(
+      (text) => navigator.clipboard.writeText(text),
+      clipboardBefore,
+    );
 
     log(`running ${scriptId} on ${path.basename(book)}`);
     const runPromise = page.evaluate(
@@ -610,11 +632,14 @@ async function main() {
     // What the script handed the user besides the document.
     const outputs = await collectOutputs(page, outputDir, clipboardBefore);
     if (options.snapshot) {
-      const outputsFile = options.snapshot.replace(/\.xml$/, "") + ".outputs.json";
+      const outputsFile =
+        options.snapshot.replace(/\.xml$/, "") + ".outputs.json";
       const text = outputs ? `${JSON.stringify(outputs, null, 2)}\n` : null;
       if (text && (options.update || !existsSync(outputsFile))) {
         writeFileSync(outputsFile, text);
-        log(`outputs ${options.update ? "updated" : "created"}: ${outputsFile}`);
+        log(
+          `outputs ${options.update ? "updated" : "created"}: ${outputsFile}`,
+        );
       } else if (existsSync(outputsFile)) {
         if (readFileSync(outputsFile, "utf8") === (text ?? "")) {
           log(`outputs match: ${outputsFile}`);
@@ -702,21 +727,25 @@ async function collectOutputs(page, outputDir, clipboardBefore) {
   walk(outputDir, "");
   if (Object.keys(files).length > 0) outputs.files = files;
   const reports = await page.evaluate(() =>
-    [...document.querySelectorAll('[data-testid^="script-report-"][role="dialog"]')].map(
-      (dialog) => {
-        const id = dialog.getAttribute("data-testid");
-        const frame = dialog.querySelector(`[data-testid="${id}-frame"]`);
-        const text = dialog.querySelector(`[data-testid="${id}-text"]`);
-        const title =
-          dialog.querySelector(".mfbe-dialog-title-text")?.textContent ??
-          dialog.getAttribute("aria-label") ??
-          "";
-        const html = frame
-          ? (/<body>([\s\S]*)<\/body>/.exec(frame.getAttribute("srcdoc") ?? "")?.[1] ?? "")
-          : undefined;
-        return frame ? { title, html } : { title, text: text?.textContent ?? "" };
-      },
-    ),
+    [
+      ...document.querySelectorAll(
+        '[data-testid^="script-report-"][role="dialog"]',
+      ),
+    ].map((dialog) => {
+      const id = dialog.getAttribute("data-testid");
+      const frame = dialog.querySelector(`[data-testid="${id}-frame"]`);
+      const text = dialog.querySelector(`[data-testid="${id}-text"]`);
+      const title =
+        dialog.querySelector(".mfbe-dialog-title-text")?.textContent ??
+        dialog.getAttribute("aria-label") ??
+        "";
+      const html = frame
+        ? (/<body>([\s\S]*)<\/body>/.exec(
+            frame.getAttribute("srcdoc") ?? "",
+          )?.[1] ?? "")
+        : undefined;
+      return frame ? { title, html } : { title, text: text?.textContent ?? "" };
+    }),
   );
   if (reports.length > 0) outputs.reports = reports;
   return Object.keys(outputs).length > 0 ? outputs : null;

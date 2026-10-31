@@ -148,9 +148,13 @@ function inventoryReport(suite, groups = []) {
     counts[entry.status] = (counts[entry.status] ?? 0) + 1;
     if (!entry.package || !inSelectedGroups(entry.package, groups)) continue;
     if (!existsSync(path.join(REPO_ROOT, entry.package, "script.json")))
-      problems.push(`${entry.source}: package ${entry.package} has no script.json`);
+      problems.push(
+        `${entry.source}: package ${entry.package} has no script.json`,
+      );
     else if (!covered.has(entry.package))
-      problems.push(`${entry.source}: package ${entry.package} has no snapshot`);
+      problems.push(
+        `${entry.source}: package ${entry.package} has no snapshot`,
+      );
   }
   return { counts, problems };
 }
@@ -167,7 +171,9 @@ function inventoryReport(suite, groups = []) {
 function inSelectedGroups(dir, groups) {
   if (!groups.length) return true;
   const folder = dir.split("/")[1] ?? "";
-  return groups.some((group) => folder === group || folder.startsWith(`${group}_`));
+  return groups.some(
+    (group) => folder === group || folder.startsWith(`${group}_`),
+  );
 }
 
 function missingUkrainian(packages, groups = []) {
@@ -263,7 +269,9 @@ async function main() {
 
   const packages = convertedPackages();
   const covered = new Set(suite.map((entry) => entry.script));
-  const ownPackages = packages.filter((dir) => inSelectedGroups(dir, options.groups));
+  const ownPackages = packages.filter((dir) =>
+    inSelectedGroups(dir, options.groups),
+  );
   const uncovered = ownPackages.filter((dir) => !covered.has(dir));
   const inventory = inventoryReport(suite, options.groups);
   const ukMissing = missingUkrainian(ownPackages, options.groups);
@@ -332,7 +340,10 @@ async function main() {
         ? " (allowed until the recheck is done: --allow-missing-uk)"
         : ""),
   );
-  for (const item of ukMissing.slice(0, options.allowMissingUk ? 10 : ukMissing.length))
+  for (const item of ukMissing.slice(
+    0,
+    options.allowMissingUk ? 10 : ukMissing.length,
+  ))
     console.log(`  ${item}`);
   if (options.allowMissingUk && ukMissing.length > 10)
     console.log(`  ... and ${ukMissing.length - 10} more`);
@@ -357,7 +368,10 @@ async function main() {
   }
   const ukFails = ukMissing.length > 0 && !options.allowMissingUk;
   process.exit(
-    failed > 0 || uncovered.length > 0 || inventory.problems.length > 0 || ukFails
+    failed > 0 ||
+      uncovered.length > 0 ||
+      inventory.problems.length > 0 ||
+      ukFails
       ? 1
       : 0,
   );
