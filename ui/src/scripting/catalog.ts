@@ -28,6 +28,7 @@ import type { RpcClient } from '@/rpc/client';
 import { getBodyController, hasBodyController } from '@/views/body/bodyEditor';
 
 import { ScriptHost, scriptName, type RunResult } from './host';
+import { groupIconUrl, scriptIconUrl } from './icons';
 import type { NodeRef, ScriptGroup, ScriptInfo, ScriptsListResult } from './types';
 import { createSandboxWorker } from './workerFactory';
 
@@ -445,7 +446,10 @@ export class ScriptsFeature {
 
   /* --------------------------------------------------------------- menus */
 
-  /** Items of the Scripts menu: group sub-menus in `NN` order, then the housekeeping entries. */
+  /**
+   * Items of the Scripts menu: group sub-menus in `NN` order, then the housekeeping entries; a
+   * group and a script with an icon show it left of the name (feature 007, User Story 8).
+   */
   menuItems(): MenuItemSpec[] {
     const items: MenuItemSpec[] = [];
     const visible = this.groupsValue.filter((group) =>
@@ -454,18 +458,24 @@ export class ScriptsFeature {
     for (const group of visible) {
       const scripts = group.scripts
         .filter((script) => script.kind === 'menu')
-        .map<MenuItemSpec>((script) => ({
-          kind: 'command',
-          commandId: scriptCommandId(script.id),
-        }));
+        .map<MenuItemSpec>((script) => {
+          const url = scriptIconUrl(script);
+          return {
+            kind: 'command',
+            commandId: scriptCommandId(script.id),
+            ...(url ? { icon: { url } } : {}),
+          };
+        });
       if (group.id === '') {
         items.push(...scripts);
       } else {
+        const url = groupIconUrl(group);
         items.push({
           kind: 'submenu',
           id: group.id,
           labelKey: dynamicLabelKey('group', group.id),
           items: scripts,
+          ...(url ? { icon: { url } } : {}),
         });
       }
     }

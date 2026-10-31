@@ -12,12 +12,15 @@
  * The submenu's test ids derive from the entry's as the main menu derives its own
  * (`<testId>-<entry id>-popup`, `<testId>-<entry id>-<child id>`). A disabled entry with a
  * `title` (the reason it is unavailable, FR-043) carries it as `title` and `aria-description`.
+ * An entry's `icon` shows left of its label as in the menu bar (feature 007, `MenuItemSlot`).
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { parseAccelerator } from '@/i18n';
 
+import { MenuItemSlot } from './MenuIcon';
+import type { MenuIcon } from './menus';
 import { fitPopupInViewport } from './popupFit';
 
 export interface PopupMenuEntry {
@@ -27,6 +30,8 @@ export interface PopupMenuEntry {
   enabled?: boolean;
   /** Shortcut shown on the right. */
   hotkey?: string;
+  /** The icon left of the label (feature 007, User Story 8). */
+  icon?: MenuIcon;
   /**
    * Shown as `title` and `aria-description` while the entry is disabled: why it is unavailable
    * ("Delete row: the table has only one row; use Delete table", feature 006 FR-043).
@@ -253,7 +258,7 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
         onMouseEnter={onHover}
         onClick={() => activate(entry, inSubmenu)}
       >
-        <span className="mfbe-menu-check" />
+        <MenuItemSlot checked={false} checkable={false} icon={entry.icon} />
         <span className="mfbe-menu-label">
           <EntryLabel label={entry.label} />
         </span>

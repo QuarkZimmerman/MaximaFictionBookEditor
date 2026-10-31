@@ -213,7 +213,7 @@ describe('outlineOf', () => {
 describe('buildWorkingContext', () => {
   it('renders the §2.1 fields: version, view, languages, the title alone, counts, modified, outline, request, errors, scripts', () => {
     const context = buildWorkingContext(input({ modified: true, preExistingErrors: 2 }));
-    expect(context.catalogueVersion).toBe(2);
+    expect(context.catalogueVersion).toBe(3); // feature 007 (catalogue 3)
     expect(context.editor).toEqual({ name: 'Maxima Fiction Book Editor', version: '0.0.5' });
     expect(context.activeView).toBe('body');
     expect(context.uiLanguage).toBe('uk');
@@ -915,7 +915,8 @@ describe('feature 006: the Tables passage, rule 1 and the cells selection (T173)
       );
       for (const n of [1, 2, 3, 4, 5, 6, 7]) expect(prompt).toContain(`\n${n}. `);
     }
-    expect(CATALOGUE_VERSION).toBe(2);
+    // 2 since feature 006, 3 since feature 007 (the script tools of User Story 9).
+    expect(CATALOGUE_VERSION).toBe(3);
   });
 
   function tableState(document: Document): EditorState {

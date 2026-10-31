@@ -17,9 +17,13 @@
 // string. Errors skip the package, warnings keep it; both are reported in `Catalog::issues`
 // and logged (`scripts.invalidManifest`, `scripts.conflict`).
 //
-// Layers are purely additive (FR-127): the bundled layer is walked first and always wins a
-// same-id conflict; among the other layers settings beats user beats portable; the loser is
-// reported as a `duplicateId` issue.
+// Layers (feature 007, data-model §7.2, FR-085): every layer adds its scripts; a script whose
+// id is already loaded at a lower precedence replaces it, in the replaced script's group and
+// place (an `overridden` issue, severity info). Precedence, highest first: the assistant's
+// folder (<Data>/scripts/90_assistant/), the settings folder, the user folder, the portable
+// folder, the bundled scripts. The same id twice at one precedence is a `duplicateId` issue and
+// the first loaded wins. Group names and icons merge as before: bundled first, then settings,
+// user, portable.
 #pragma once
 
 #include <mfbe/resources.hpp>
@@ -58,20 +62,40 @@ struct ScriptManifest {
     std::optional<LegacyInfo> legacy;
 };
 
+// The script an override replaced (feature 007, rpc-api §3.6 `overrides`).
+struct Replaced {
+    std::string origin;         // origin_of() the replaced script
+    std::filesystem::path dir;  // its package folder
+};
+
 struct ScriptPackage {
     ScriptManifest manifest;
     std::string id;  // effective id (= manifest.id)
     std::filesystem::path dir;
-    std::string group;  // group id (folder name, "" for ungrouped scripts)
+    // Group id: the group folder's name ("" for ungrouped scripts); an override's is the
+    // replaced script's (feature 007).
+    std::string group;
     resources::LayerName layer = resources::LayerName::bundled;
     std::vector<std::string> warnings;  // non-fatal manifest problems (reason codes)
+    // Feature 007: the folder name that orders the script in its group - its own (empty), or
+    // the replaced script's for an override, which so keeps the replaced script's place.
+    std::filesystem::path place;
+    // Feature 007: the script this one replaced (a lower precedence's with the same id).
+    std::optional<Replaced> overrides;
+    // Feature 007: the folder `manifest.icon` is served from - its own (empty), or the replaced
+    // script's for an override without a usable icon of its own, which so keeps the icon of
+    // its place (a package proposed by the assistant cannot carry a binary file).
+    std::filesystem::path icon_dir;
 };
 
 struct Group {
-    std::string id;             // folder name ("" for ungrouped scripts, "tree" for tree commands)
-    int order = 0;              // NN prefix; ungrouped = -1; unnumbered = 10000 (+ alphabetical)
-    Names names;                // from group.json, default: folder name without the prefix
-    std::string icon;           // group.json "icon" file name inside the group folder ("" = none)
+    std::string id;    // folder name ("" for ungrouped scripts, "tree" for tree commands)
+    int order = 0;     // NN prefix; ungrouped = -1; unnumbered = 10000 (+ alphabetical)
+    Names names;       // from group.json, default: folder name without the prefix
+    std::string icon;  // group.json "icon" file name inside the group folder ("" = none)
+    // Feature 007: the group folder whose group.json declares `icon` - of the first layer that
+    // declares one (bundled, settings, user, portable), the declaration the merged group uses.
+    std::filesystem::path icon_dir;
     std::filesystem::path dir;  // the folder of the first layer that contributed
     std::vector<ScriptPackage> scripts;
 };
@@ -82,7 +106,8 @@ struct Issue {
     std::string reason;              // "missingManifest" | "invalidJson" | "invalidManifest" |
                                      // "duplicateId" | "entryMissing" | "iconMissing" | ...
     std::string message;             // human-readable detail (English, for logs/tooltips)
-    std::string severity = "error";  // "error" (package skipped) | "warning" (package kept)
+    std::string severity = "error";  // "error" (package skipped) | "warning" (package kept) |
+                                     // "info" (feature 007: `overridden`, a script replaced)
 };
 
 struct ParsedManifest {
@@ -119,32 +144,53 @@ public:
     Group* group(const std::string& id);
     const Group* group(const std::string& id) const;
 
-    // {groups: [{id, order, names, icon?, iconUrl?, scripts: [...]}], issues: [...],
-    //  folders: {bundled, user, custom?, portable?}} - see scripts_handlers.cpp.
+    // {groups: [{id, order, names, dir, icon?, iconUrl?, scripts: [...]}], issues: [...],
+    //  folders: {bundled, user, custom?, portable?}} - see scripts_handlers.cpp; a group's
+    //  `iconUrl` is group_icon_url() of a group with an icon (feature 007).
     nlohmann::json to_json() const;
     static nlohmann::json package_to_json(const ScriptPackage& package);
 
     // Mutators used by the loader (and tests).
-    Group& add_group(Group group);            // merges into an existing group with the same id
-    bool add_package(ScriptPackage package);  // false (+ issue) on a duplicate id
+    Group& add_group(Group group);  // merges into an existing group with the same id
+    // Adds a package and reports its warnings as issues. A package whose id is loaded already
+    // replaces that one when its precedence is higher (precedence_of): it takes the replaced
+    // package's group and place - and its icon when it has none of its own - and the replaced
+    // one is reported as `overridden` (info). At the same precedence the package is a
+    // `duplicateId` (the first one stays); at a lower one it is `overridden` by the loaded one.
+    // The loader adds packages lowest precedence first. False when the package was not added.
+    bool add_package(ScriptPackage package);
     void add_issue(Issue issue) { issues_.push_back(std::move(issue)); }
     void set_folder(const std::string& key, std::filesystem::path path);
     void prune_empty_groups();  // drops groups without a single valid package
     void sort();                // groups by order then id; scripts by folder name
 
 private:
+    ScriptPackage* find_mutable(const std::string& id);
+    void report_warnings(const ScriptPackage& package);
+
     std::vector<Group> groups_;
     std::vector<Issue> issues_;
     std::map<std::string, std::filesystem::path> folders_;
 };
 
-// Walks the script layers (`layers.layers(Kind::scripts)`): bundled first, then settings,
-// user, portable.
+// Walks the script layers (`layers.layers(Kind::scripts)`): the group folders (names, icons)
+// bundled first, then settings, user, portable; the packages lowest precedence first - bundled,
+// portable, user, settings, then the assistant's folder of the user layer (feature 007).
 Catalog load_catalog(const resources::ResourceLayers& layers);
+
+// Feature 007 (data-model §7.2): the precedence of a package, higher wins - bundled 0, portable
+// 1, user 2, settings 3, the assistant's folder 4.
+int precedence_of(const ScriptPackage& package);
 
 // URL path of a package file for the sandbox loader: `/scripts/<id>/<file>` with the id and
 // each path segment percent-encoded.
 std::string package_url(const std::string& id, const std::string& file);
+// Feature 007 (rpc-api §2): the URL path of a group's icon, `/script-groups/<folder>/icon` with
+// the group's folder name percent-encoded as one segment.
+std::string group_icon_url(const std::string& group_id);
+// Feature 007: the icon file of a merged group - `icon` in the folder of the declaration it
+// uses -, empty when it has none or the file is not a regular file inside that folder.
+std::filesystem::path resolve_group_icon(const Group& group);
 // Percent-encodes one URL path segment (RFC 3986 unreserved characters kept).
 std::string url_encode_segment(std::string_view text);
 
@@ -153,12 +199,17 @@ std::string url_encode_segment(std::string_view text);
 // backslashes) or does not exist as a regular file.
 std::filesystem::path resolve_package_file(const ScriptPackage& package, std::string_view file);
 
+// A file the /scripts/{scriptId}/{file} route serves: a file of the package, or the icon an
+// override took over from the script it replaced (feature 007); empty otherwise.
+std::filesystem::path resolve_served_file(const ScriptPackage& package, std::string_view file);
+
 // Relative paths of every regular file inside the package (sorted, '/' separators).
 std::vector<std::string> package_files(const ScriptPackage& package);
 
 // Where a script comes from (feature 007, rpc-api §3.6): "bundled", "settings", "user",
-// "portable", or "assistant" for the assistant's group folder of the user layer
-// (<Data>/scripts/90_assistant/).
+// "portable", or "assistant" for a package in the assistant's group folder of the user layer
+// (<Data>/scripts/90_assistant/) - decided by the folder the package lives in, whatever group
+// it shows in.
 std::string origin_of(const ScriptPackage& package);
 
 // The package context of an HTTP request for a package file (feature 007, rpc-api §2): the id
@@ -218,6 +269,10 @@ std::filesystem::path write_aside_dir(const std::filesystem::path& data_dir);
 // throws WriteFailure with `dir` as it was.
 void write_package(const std::filesystem::path& data_dir, const std::filesystem::path& dir,
                    const std::vector<PackageFile>& files);
+// Removes the package folder `dir` all or nothing (feature 007, a restore that brings back the
+// version under the assistant's copy): the folder is moved into the aside folder, then the
+// aside folder is removed. A failure leaves `dir` as it was and throws WriteFailure.
+void remove_package(const std::filesystem::path& data_dir, const std::filesystem::path& dir);
 // Removes every <data_dir>/.scripts-write-* folder an interrupted write left behind (called
 // by every rescan of the scripts). Best effort.
 void remove_write_leftovers(const std::filesystem::path& data_dir);

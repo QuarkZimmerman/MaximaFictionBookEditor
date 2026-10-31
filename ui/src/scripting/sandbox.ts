@@ -418,6 +418,9 @@ export function describeError(error: unknown, entryUrl: string): ScriptErrorInfo
   const entryFile = decodeURIComponent(entryUrl.slice(packageUrl.length));
   if (error instanceof Error) {
     const info: ScriptErrorInfo = { name: error.name || 'Error', message: error.message };
+    // The machine-readable code of an API error the script let through (script API §6).
+    const { code } = error as Error & { code?: unknown };
+    if (typeof code === 'string' && code !== '') info.code = code;
     if (typeof error.stack === 'string') info.stack = error.stack;
     const location: ErrorLocation | null =
       parseErrorLocation(error.stack, packageUrl) ??

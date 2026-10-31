@@ -25,13 +25,31 @@
 //        bundled id is 1202, another package with the id or an existing target folder 1203
 //        unless `overwrite` and every conflict is the target itself; written all or nothing
 //        through <Data>/.scripts-write-<pid>/; then the rescan of scripts.reload and
-//        resources.changed {what: 'scripts'}.
+//        resources.changed {what: 'scripts'}. Feature 007 (rpc-api §3.6): into the assistant's
+//        folder an id in effect elsewhere - bundled or not - gets a replacing copy instead of
+//        1202 / 1203 (1203 still guards the assistant's own other packages); the version a
+//        write replaces - the copy in effect elsewhere, or the package of an overwrite - is
+//        kept first as a dated backup (script_backups.h), removed again when the write fails;
+//        the result gains `backupId`.
+//   scripts.backups.list({id}) -> {backups: [{backupId, origin, createdAt}]}   newest first
+//   scripts.backups.restore({id, backupId}) -> {restored: true, backupId?}   (feature 007): a
+//        backup of another origin than the assistant's removes the assistant's copy, so the
+//        version under it is in effect again; an assistant backup is written back as the
+//        assistant's copy. The version in effect that a restore replaces is kept as a backup
+//        first (`backupId`); 1204 script.backupNotFound {id, backupId}, 1002 {path, reason};
+//        then the rescan and resources.changed {what: 'scripts'}.
+//   GET/HEAD /script-groups/{groupFolder}/icon   (feature 007, rpc-api §2): the icon file the
+//        merged group declares (group.json `icon`), from the layer whose declaration it uses;
+//        authenticated, `Content-Type` from the extension, nosniff, no-cache; 404 for a group
+//        without an icon or no group of that folder name.
 //   GET/HEAD /scripts/{scriptId}/{file}      package files for the sandbox loader; only files
-//        inside the script's own folder (no "..", no absolute paths); .js served as
-//        text/javascript; 404 otherwise. Feature 007 (rpc-api §2): a request whose Referer
-//        is a module of another package ("/scripts/<A>/…") gets 404 - a package's modules
-//        load only their own package's files; the host page, its workers and requests with
-//        no referrer (a blob: worker loading an entry) are served.
+//        inside the script's own folder (no "..", no absolute paths), and the icon an override
+//        took over from the script it replaced (feature 007); .js served as text/javascript;
+//        404 otherwise. Feature 007 (rpc-api §2): a request whose Referer is a module of
+//        another package ("/scripts/<A>/…") gets 404 - a package's modules load only their own
+//        package's files; the host page, its workers and requests with no referrer (a blob:
+//        worker loading an entry) are served.
+#include "resources/script_backups.h"
 #include "server/loopback_server.hpp"
 #include "server/services.hpp"
 
@@ -167,33 +185,47 @@ bool same_folder(const fs::path& a, const fs::path& b) {
     return !ec && ca == cb;
 }
 
-// The conflicts of rpc-api §3.8: a bundled id (1202); a non-bundled package with the id in
-// another folder or layer, or the target folder itself holding another package or no valid
-// manifest - lifted by `overwrite` only when every conflict is the target folder (1203).
+// Every folder a package with `id` lives in: the one in effect, then the shadowed ones (a
+// duplicate, or replaced by a higher layer's copy).
+std::vector<fs::path> holders_of(const scripts::Catalog& catalog, const std::string& id) {
+    std::vector<fs::path> holders;
+    if (const scripts::ScriptPackage* package = catalog.find(id)) {
+        holders.push_back(package->dir);
+    }
+    for (const scripts::Issue& issue : catalog.issues()) {
+        if ((issue.reason == "duplicateId" || issue.reason == "overridden") && issue.id == id) {
+            holders.push_back(issue.path);
+        }
+    }
+    return holders;
+}
+
+// The conflicts of rpc-api §3.8 (feature 005) as feature 007 amends them (§3.6): outside the
+// assistant's folder a bundled id is 1202 and any other package with the id 1203; into the
+// assistant's folder a script in effect elsewhere is replaced, and only another package of
+// the assistant's folder with the id is 1203; the target folder holding another package or no
+// valid manifest is 1203 - lifted by `overwrite` only when every conflict is the target folder.
 void refuse_conflicts(const scripts::Catalog& catalog, const WriteRequest& request,
-                      const fs::path& target) {
-    if (const scripts::ScriptPackage* bundled = catalog.find(request.id);
-        bundled != nullptr && bundled->layer == resources::LayerName::bundled) {
+                      const fs::path& target, const fs::path& assistant_folder) {
+    const bool into_assistant = request.group == scripts::kAssistantGroup;
+    if (const scripts::ScriptPackage* effective = catalog.find(request.id);
+        !into_assistant && effective != nullptr &&
+        (effective->layer == resources::LayerName::bundled ||
+         (effective->overrides && effective->overrides->origin == "bundled"))) {
         throw rpc::RpcError(rpc::codes::kAiScriptIdBundled, "", json{{"id", request.id}});
     }
     const auto exists = [&](const std::string& id, const fs::path& path) {
         return rpc::RpcError(rpc::codes::kAiScriptExists, "",
                              json{{"id", id}, {"path", platform::utf8_from_path(path)}});
     };
-    // Every folder a package with this id lives in: the effective one and the shadowed ones.
-    std::vector<fs::path> holders;
-    if (const scripts::ScriptPackage* package = catalog.find(request.id)) {
-        holders.push_back(package->dir);
-    }
-    for (const scripts::Issue& issue : catalog.issues()) {
-        if (issue.reason == "duplicateId" && issue.id == request.id) {
-            holders.push_back(issue.path);
+    for (const fs::path& holder : holders_of(catalog, request.id)) {
+        if (same_folder(holder, target)) {
+            continue;
         }
-    }
-    for (const fs::path& holder : holders) {
-        if (!same_folder(holder, target)) {
-            throw exists(request.id, holder);
+        if (into_assistant && !scripts::is_contained(assistant_folder, holder)) {
+            continue;  // replaced by the copy, never changed
         }
+        throw exists(request.id, holder);
     }
     std::error_code ec;
     if (!fs::exists(fs::symlink_status(target, ec))) {
@@ -213,6 +245,44 @@ void refuse_conflicts(const scripts::Catalog& catalog, const WriteRequest& reque
     }
 }
 
+// What a write replaces, kept as a backup first (FR-084): the package of the target folder (an
+// overwrite) - the one in effect, or one a higher layer replaces -, else, from the assistant's
+// folder, the script in effect elsewhere (a replacing copy). Nothing for a new id.
+std::optional<scripts::ScriptPackage> replaced_by(const scripts::Catalog& catalog,
+                                                  const WriteRequest& request,
+                                                  const fs::path& target) {
+    std::error_code ec;
+    if (fs::exists(fs::symlink_status(target, ec))) {
+        for (const scripts::Group& group : catalog.groups()) {
+            for (const scripts::ScriptPackage& package : group.scripts) {
+                if (same_folder(package.dir, target)) {
+                    return package;
+                }
+            }
+        }
+        for (const fs::path& holder : holders_of(catalog, request.id)) {
+            if (same_folder(holder, target)) {
+                scripts::ScriptPackage shadowed;
+                shadowed.id = request.id;
+                shadowed.dir = target;
+                shadowed.layer = resources::LayerName::user;
+                return shadowed;
+            }
+        }
+        return std::nullopt;  // no valid manifest of this id: nothing in effect to keep
+    }
+    if (request.group == scripts::kAssistantGroup) {
+        if (const scripts::ScriptPackage* effective = catalog.find(request.id)) {
+            return *effective;
+        }
+    }
+    return std::nullopt;
+}
+
+rpc::RpcError io_error(const scripts::WriteFailure& e) {
+    return rpc::RpcError(rpc::codes::kDocIoError, "", json{{"path", e.path}, {"reason", e.reason}});
+}
+
 std::string script_id_param(const json& params) {
     const json& p = rpc::params::object(params);
     if (auto id = rpc::params::opt_string(p, "scriptId")) {
@@ -222,6 +292,15 @@ std::string script_id_param(const json& params) {
         return *id;
     }
     throw rpc::invalid_params("scriptId is required", json{{"field", "scriptId"}});
+}
+
+// The `id` of scripts.backups.* (feature 007): a script id under the loader's rule.
+std::string backup_script_id(const json& params) {
+    const std::string id = rpc::params::string(rpc::params::object(params), "id");
+    if (!scripts::is_valid_script_id(id)) {
+        throw rpc::invalid_params("id is not a valid script id", json{{"field", "id"}});
+    }
+    return id;
 }
 
 void end_plain(uWS::HttpResponse<false>* res, const char* status, const std::string& body) {
@@ -266,7 +345,7 @@ void serve_script_file(LoopbackServer& server, Services& services, uWS::HttpResp
         end_plain(res, "404 Not Found", "not found");
         return;
     }
-    const std::filesystem::path path = scripts::resolve_package_file(*package, file);
+    const std::filesystem::path path = scripts::resolve_served_file(*package, file);
     if (path.empty()) {
         end_plain(res, "404 Not Found", "not found");
         return;
@@ -292,10 +371,63 @@ void serve_script_file(LoopbackServer& server, Services& services, uWS::HttpResp
     res->end(content);
 }
 
+// GET/HEAD /script-groups/{groupFolder}/icon (feature 007): a merged group's declared icon.
+void serve_group_icon(LoopbackServer& server, Services& services, uWS::HttpResponse<false>* res,
+                      uWS::HttpRequest* req) {
+    if (!server.check_auth(res, req)) {
+        return;
+    }
+    const std::string raw_id(req->getParameter(0));
+    if (std::string(req->getUrl()) != "/script-groups/" + raw_id + "/icon") {
+        end_plain(res, "404 Not Found", "not found");
+        return;
+    }
+    const std::string id = LoopbackServer::url_decode(raw_id);
+    auto catalog = services.script_catalog();
+    const scripts::Group* group = catalog ? catalog->group(id) : nullptr;
+    if (group == nullptr) {
+        // A group added after the last scan: rescan once.
+        services.refresh_scripts();
+        catalog = services.script_catalog();
+        group = catalog ? catalog->group(id) : nullptr;
+    }
+    const std::filesystem::path path =
+        group == nullptr ? std::filesystem::path() : scripts::resolve_group_icon(*group);
+    if (path.empty()) {
+        end_plain(res, "404 Not Found", "no icon");
+        return;
+    }
+    std::string content;
+    try {
+        content = atomic_file::read_file(path);
+    } catch (const atomic_file::WriteError& e) {
+        log::warning("core", "scripts.readFailed", "cannot read a group icon",
+                     log::extras({{"path", e.path}, {"reason", e.reason}}));
+        end_plain(res, "500 Internal Server Error", "cannot read file");
+        return;
+    }
+    res->writeStatus("200 OK");
+    res->writeHeader("Content-Type",
+                     LoopbackServer::mime_type(platform::utf8_from_path(path.extension())));
+    res->writeHeader("Cache-Control", "no-cache");
+    res->writeHeader("X-Content-Type-Options", "nosniff");
+    if (req->getMethod() == "head") {
+        res->endWithoutBody(content.size());
+        return;
+    }
+    res->end(content);
+}
+
 }  // namespace
 
 void register_scripts_http(LoopbackServer& server, Services& services) {
     uWS::App& app = server.app();
+    app.get("/script-groups/:groupFolder/icon", [&server, &services](auto* res, auto* req) {
+        serve_group_icon(server, services, res, req);
+    });
+    app.head("/script-groups/:groupFolder/icon", [&server, &services](auto* res, auto* req) {
+        serve_group_icon(server, services, res, req);
+    });
     app.get("/scripts/:scriptId/*", [&server, &services](auto* res, auto* req) {
         serve_script_file(server, services, res, req);
     });
@@ -396,26 +528,34 @@ void register_scripts_handlers(rpc::RpcRouter& router, Services& services) {
                                           json{{"field", "files[" + std::to_string(i) + "].path"}});
             }
         }
-        const auto io_failure = [](const scripts::WriteFailure& e) {
-            return rpc::RpcError(rpc::codes::kDocIoError, "",
-                                 json{{"path", e.path}, {"reason", e.reason}});
-        };
         try {
             scripts::refuse_symlinks(root, target);
         } catch (const scripts::WriteFailure& e) {
-            throw io_failure(e);
+            throw io_error(e);
         }
         // The manifest before anything is written, then the conflicts against the current
         // layers (the rescan also removes leftovers of an interrupted write).
         manifest_of(request);
         services.refresh_layers();
         services.refresh_scripts();
-        refuse_conflicts(*services.script_catalog(), request, target);
+        const auto catalog = services.script_catalog();
+        refuse_conflicts(*catalog, request, target,
+                         root / platform::path_from_utf8(scripts::kAssistantGroup));
+        // Feature 007: the backup first, then the aside-folder write and the swap - all or
+        // nothing, so a failed write takes its backup away again.
+        std::optional<scripts::backups::Backup> backup;
         try {
+            if (const auto replaced = replaced_by(*catalog, request, target)) {
+                backup = scripts::backups::create(services.dirs.data, *replaced,
+                                                  scripts::backups::kReasonChange);
+            }
             scripts::refuse_symlinks(root, target);  // again at write time
             scripts::write_package(services.dirs.data, target, request.files);
         } catch (const scripts::WriteFailure& e) {
-            throw io_failure(e);
+            if (backup) {
+                scripts::backups::remove(*backup);
+            }
+            throw io_error(e);
         }
         // The rescan of scripts.reload and its notification.
         services.refresh_layers();
@@ -425,10 +565,110 @@ void register_scripts_handlers(rpc::RpcRouter& router, Services& services) {
         if (const scripts::ScriptPackage* written = services.script_catalog()->find(request.id)) {
             warnings = json(written->warnings);
         }
-        return json{{"id", request.id},
+        json result{{"id", request.id},
                     {"path", platform::utf8_from_path(target)},
                     {"reloaded", true},
                     {"warnings", std::move(warnings)}};
+        if (backup) {
+            result["backupId"] = backup->backup_id;
+        }
+        return result;
+    });
+
+    // Feature 007 (rpc-api §3.6): the backups an assistant's change caused, newest first.
+    router.add_method("scripts.backups.list", [&services](const json& params, rpc::RpcContext&) {
+        const std::string id = backup_script_id(params);
+        json backups = json::array();
+        for (const scripts::backups::Backup& backup :
+             scripts::backups::list(services.dirs.data, id)) {
+            backups.push_back(json{{"backupId", backup.backup_id},
+                                   {"origin", backup.origin},
+                                   {"createdAt", backup.created_at}});
+        }
+        return json{{"backups", std::move(backups)}};
+    });
+
+    // Feature 007 (rpc-api §3.6, data-model §9): a backup back in effect.
+    router.add_method("scripts.backups.restore", [&services](const json& params,
+                                                             rpc::RpcContext& ctx) {
+        const std::string id = backup_script_id(params);
+        const std::string backup_id = rpc::params::string(rpc::params::object(params), "backupId");
+        if (!scripts::backups::is_valid_backup_id(backup_id)) {
+            throw rpc::invalid_params("backupId is not a backup id", json{{"field", "backupId"}});
+        }
+        const auto backup = scripts::backups::find(services.dirs.data, id, backup_id);
+        if (!backup) {
+            throw rpc::RpcError(rpc::codes::kScriptBackupNotFound, "",
+                                json{{"id", id}, {"backupId", backup_id}});
+        }
+        const fs::path root = services.layers.user_folder(resources::Kind::scripts, false);
+        if (root.empty()) {
+            throw rpc::RpcError(rpc::codes::kDocIoError, "",
+                                json{{"path", ""}, {"reason", "no data folder"}});
+        }
+        const fs::path assistant_folder = root / platform::path_from_utf8(scripts::kAssistantGroup);
+        services.refresh_layers();
+        services.refresh_scripts();
+        const auto catalog = services.script_catalog();
+        const scripts::ScriptPackage* effective = catalog->find(id);
+        const scripts::ScriptPackage* copy =
+            effective != nullptr && scripts::origin_of(*effective) == "assistant" ? effective
+                                                                                  : nullptr;
+        json result{{"restored", true}};
+        std::optional<scripts::backups::Backup> kept;
+        try {
+            if (backup->origin != "assistant") {
+                // The version under the assistant's copy comes back once the copy is gone - kept
+                // as a backup first, so the change can be brought back too.
+                if (copy != nullptr) {
+                    scripts::refuse_symlinks(root, copy->dir);
+                    kept = scripts::backups::create(services.dirs.data, *copy,
+                                                    scripts::backups::kReasonRestore);
+                    scripts::remove_package(services.dirs.data, copy->dir);
+                }
+            } else {
+                // The assistant's copy of the backup: in the copy's folder, else in the folder
+                // it was backed up from.
+                fs::path target = copy != nullptr ? copy->dir : fs::path();
+                if (target.empty()) {
+                    std::string folder = platform::utf8_from_path(
+                        platform::path_from_utf8(backup->source_dir).filename());
+                    if (!scripts::is_valid_path_segment(folder)) {
+                        folder = scripts::default_folder_of_id(id);
+                    }
+                    target = assistant_folder / platform::path_from_utf8(folder);
+                    std::error_code ec;
+                    if (!scripts::is_contained(root, target)) {
+                        throw rpc::invalid_params("the backup's folder leaves the scripts folder",
+                                                  json{{"field", "backupId"}});
+                    }
+                    if (fs::exists(fs::symlink_status(target, ec))) {
+                        throw rpc::RpcError(
+                            rpc::codes::kAiScriptExists, "",
+                            json{{"id", id}, {"path", platform::utf8_from_path(target)}});
+                    }
+                }
+                scripts::refuse_symlinks(root, target);
+                const std::vector<scripts::PackageFile> files = scripts::backups::files_of(*backup);
+                if (effective != nullptr) {
+                    kept = scripts::backups::create(services.dirs.data, *effective,
+                                                    scripts::backups::kReasonRestore);
+                }
+                scripts::write_package(services.dirs.data, target, files);
+            }
+        } catch (const scripts::WriteFailure& e) {
+            if (kept) {
+                scripts::backups::remove(*kept);
+            }
+            throw io_error(e);
+        }
+        if (kept) {
+            result["backupId"] = kept->backup_id;
+        }
+        services.refresh_layers();
+        services.refresh_scripts();
+        ctx.notifier.notify("resources.changed", json{{"what", "scripts"}});
+        return result;
     });
 
     router.add_method("resources.openScriptsFolder", [&services](const json&, rpc::RpcContext&) {

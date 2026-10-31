@@ -68,6 +68,8 @@ const LIST: ScriptsListResult = {
       order: 4,
       names: { en: 'Model' },
       dir: '/scripts/04_Model',
+      icon: 'icon.png',
+      iconUrl: '/script-groups/04_Model/icon',
       scripts: [
         script('test.model.append', '04_Model', { iconUrl: '/scripts/test.model.append/icon.png' }),
       ],
@@ -163,6 +165,29 @@ describe('Scripts menu and toolbar', () => {
     );
   });
 
+  it('shows the icons of groups and scripts that have one left of their names (feature 007, US8)', async () => {
+    const { user } = await renderShell();
+    await user.click(screen.getByTestId('menu-scripts'));
+    const popup = screen.getByTestId('menu-scripts-popup');
+    const icon = (testId: string) =>
+      within(popup).getByTestId(testId).querySelector(':scope > .mfbe-menu-check img');
+    // The group with an icon (from the group icon route), the one without none.
+    expect(icon('menu-scripts-04_Model')?.getAttribute('src')).toMatch(
+      /script-groups\/04_Model\/icon(\?token=.*)?$/,
+    );
+    expect(icon('menu-scripts-01_Case')).toBeNull();
+    await user.hover(within(popup).getByTestId('menu-scripts-01_Case'));
+    const submenu = screen.getByTestId('menu-scripts-01_Case-popup');
+    const scriptIcon = (testId: string) =>
+      within(submenu).getByTestId(testId).querySelector(':scope > .mfbe-menu-check img');
+    expect(scriptIcon('menu-scripts-01_Case-test.case.upper')?.getAttribute('src')).toMatch(
+      /scripts\/test\.case\.upper\/icon\.png(\?token=.*)?$/,
+    );
+    expect(scriptIcon('menu-scripts-01_Case-test.case.lower')).toBeNull();
+    // The housekeeping entries have none.
+    expect(icon('menu-scripts-last')).toBeNull();
+  });
+
   it('shows "No scripts found" plus the housekeeping entries for an empty catalogue', async () => {
     const { user } = await renderShell(null);
     await user.click(screen.getByTestId('menu-scripts'));
@@ -251,6 +276,85 @@ describe('Scripts menu and toolbar', () => {
     });
     expect(services.commands.has('script.test.case.upper')).toBe(false);
     expect(services.commands.has('script.test.model.append')).toBe(true);
+  });
+
+  it('shows a replacing copy in the original’s place, its hotkey, toolbar button and Last script following the id (feature 007, T117)', async () => {
+    const { store, services, user, feature, rpc } = await renderShell();
+    await act(async () => {
+      const settings = defaultSettings();
+      settings.session.toolbarLayouts = { scripts: ['scripts.last', 'script.test.case.upper'] };
+      actions.setSettings(store, settings);
+      feature.host.setLastRunId('test.case.upper');
+    });
+    // The assistant's copy of test.case.upper: the core lists it in the original's group and
+    // place, with the original's icon (it has none of its own) and its own name.
+    const copy = script('test.case.upper', '01_Case', {
+      name: { en: 'Upper case (changed)' },
+      dir: '/data/scripts/90_assistant/test.case.upper',
+      folder: 'test.case.upper',
+      source: 'user',
+      origin: 'assistant',
+      overrides: { origin: 'bundled', dir: '/scripts/01_Case/test.case.upper' },
+      iconUrl: '/scripts/test.case.upper/icon.png',
+      entryUrl: '/scripts/test.case.upper/index.js',
+      defaultHotkey: 'Ctrl+Alt+U',
+      needsSelection: true,
+    });
+    rpc.responses['scripts.list'] = {
+      ...LIST,
+      groups: [
+        { ...LIST.groups[0]!, scripts: [copy, LIST.groups[0]!.scripts[1]!] },
+        ...LIST.groups.slice(1),
+      ],
+      issues: [
+        {
+          path: '/scripts/01_Case/test.case.upper',
+          id: 'test.case.upper',
+          reason: 'overridden',
+          message: 'replaced by /data/scripts/90_assistant/test.case.upper (assistant)',
+          severity: 'info',
+        },
+      ],
+    };
+    rpc.responses['scripts.lastRun'] = { scriptId: 'test.case.upper' };
+    await act(async () => {
+      rpc.notify('resources.changed', { what: 'scripts' });
+      await feature.refresh();
+    });
+    expect(feature.find('test.case.upper')).toBe(feature.all()[0]);
+    expect(feature.find('test.case.upper')?.origin).toBe('assistant');
+    // The menu: first in its group, under its new name, with the hotkey.
+    await user.click(screen.getByTestId('menu-scripts'));
+    await user.hover(screen.getByTestId('menu-scripts-01_Case'));
+    const submenu = screen.getByTestId('menu-scripts-01_Case-popup');
+    const items = within(submenu)
+      .getAllByRole('menuitem')
+      .map((item) => item.dataset.testid);
+    expect(items).toEqual([
+      'menu-scripts-01_Case-test.case.upper',
+      'menu-scripts-01_Case-test.case.lower',
+    ]);
+    expect(within(submenu).getByTestId('menu-scripts-01_Case-test.case.upper')).toHaveTextContent(
+      'Upper case (changed)',
+    );
+    expect(within(submenu).getByTestId('menu-scripts-01_Case-test.case.upper')).toHaveTextContent(
+      'Ctrl+Alt+U',
+    );
+    await user.keyboard('{Escape}{Escape}');
+    // The hotkey, the toolbar button and Last script are the id's: they reach the copy.
+    expect(services.hotkeys.lookup('Ctrl+Alt+U')).toEqual(['script.test.case.upper']);
+    expect(services.commands.get('script.test.case.upper')?.label).toBe('Upper case (changed)');
+    expect(feature.toolbarScripts().map((s) => s.id)).toContain('test.case.upper');
+    expect(scriptsToolbarButtons()).toEqual([
+      'toolbar-scripts.last',
+      'scripts-toolbar-test.case.upper',
+    ]);
+    expect(screen.getByTestId('scripts-toolbar-test.case.upper')).toHaveAttribute(
+      'title',
+      'Upper case (changed) (Ctrl+Alt+U)',
+    );
+    expect(feature.host.lastRunId).toBe('test.case.upper');
+    expect(feature.issues.map((issue) => issue.severity)).toEqual(['info']);
   });
 
   it('keeps an open Customize dialog on the scripts of the latest reload', async () => {

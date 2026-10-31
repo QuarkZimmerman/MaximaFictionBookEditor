@@ -61,12 +61,15 @@ import {
   type FragmentNode,
   type FragmentResultNode,
   type SchemaTextResult,
+  type ScriptBackupInfo,
 } from '@/rpc/types';
 import { contentFits } from '@/scripting/api-impl';
+import type { ScriptLegacy, ScriptOrigin } from '@/scripting/types';
 import type { WorkingCopy } from '@/scripting/workingCopy';
 import type { Fb2Elements } from '@/views/source/completion';
 import fb2ElementsJson from '@/views/source/fb2Elements.json';
 
+import { CATALOGUE_VERSION } from './context';
 import {
   errorForModel,
   invalidXmlHint,
@@ -116,6 +119,8 @@ import {
 import {
   checkProposal,
   RUN_NOT_CONFIRMED_HINT,
+  type EffectiveFile,
+  type ModifiedScript,
   type ProposalArgs,
   type ScriptProposal,
 } from './proposal';
@@ -129,8 +134,11 @@ export type { Block, NodeInfo, OutlineEntry } from './tools/model';
 /* Contract constants                                                       */
 /* ------------------------------------------------------------------------ */
 
-/** Catalogue version reported by `get_context` (ai-catalogue §1). */
-export const CATALOGUE_VERSION = 2; // feature 006 (US11): read_table, edit_table, `cells`
+/**
+ * Catalogue version reported by `get_context` (ai-catalogue §1): one constant, the working
+ * context's (`context.ts`), re-exported here for the catalogue's users.
+ */
+export { CATALOGUE_VERSION };
 
 /** The name rule every tool, resource and prompt obeys (OpenAI's, the stricter one). */
 export const TOOL_NAME_RULE = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -175,21 +183,30 @@ export const TABLE_CHANGE_TOOL_NAMES = ['edit_table'] as const;
 /** The script tools of US6 (T076, T077), in the §3.4 order - after the structural change tools. */
 export const US6_SCRIPT_TOOL_NAMES = ['run_script', 'propose_script', 'reload_scripts'] as const;
 
+/** The backup read tool of feature 007 (User Story 9, catalogue 3) - the last read tool. */
+export const BACKUP_READ_TOOL_NAMES = ['list_script_backups'] as const;
+
+/** The backup tool of feature 007 (User Story 9, catalogue 3) - the last script tool. */
+export const BACKUP_TOOL_NAMES = ['restore_script_backup'] as const;
+
 /**
  * Every tool, in the `tools/list` order of §3: the read tools of §3.1 (US2's six, then US4's
- * two, then US6's three, then feature 006's `read_table`), the selection tools of §3.2, the
- * structural change tools of §3.3 with feature 006's `edit_table`, and the script tools of §3.4 -
- * 24 tools (ai-catalogue Δ§1.2).
+ * two, then US6's three, then feature 006's `read_table`, then feature 007's
+ * `list_script_backups`), the selection tools of §3.2, the structural change tools of §3.3 with
+ * feature 006's `edit_table`, and the script tools of §3.4 with feature 007's
+ * `restore_script_backup` - 26 tools (catalogue 3).
  */
 export const TOOL_NAMES = [
   ...US2_TOOL_NAMES.slice(0, 6),
   ...US4_TOOL_NAMES,
   ...US6_READ_TOOL_NAMES,
   ...TABLE_READ_TOOL_NAMES,
+  ...BACKUP_READ_TOOL_NAMES,
   ...US2_TOOL_NAMES.slice(6),
   ...US3_TOOL_NAMES,
   ...TABLE_CHANGE_TOOL_NAMES,
   ...US6_SCRIPT_TOOL_NAMES,
+  ...BACKUP_TOOL_NAMES,
 ] as const;
 
 /** The five schema files of `schema.text()` (rpc-api §3.13), in order - the resources of §4. */
@@ -516,12 +533,26 @@ export interface CatalogueScript {
   id: string;
   /** The display name in the UI language (`en` fallback). */
   name: string;
+  /** Feature 007: the names by language, as the manifest gives them (`en` always). */
+  names?: Record<string, string>;
+  /** The description in the UI language (`en` fallback). */
   description?: string;
+  /** Feature 007: the descriptions by language, as the manifest gives them. */
+  descriptions?: Record<string, string>;
   kind: 'menu' | 'tree';
   needsSelection: boolean;
+  /** The group id (the folder's name) the script shows in. */
   group: string;
+  /** Feature 007: the group's names by language (`list_scripts {group}` takes one). */
+  groupNames?: Record<string, string>;
   /** The layer: `bundled` | `user` | `settings` | `portable`. */
   source: string;
+  /** Feature 007: where it comes from, the assistant's folder told apart. */
+  origin: ScriptOrigin;
+  /** Feature 007: it replaces a lower layer's script of the same id (FR-085). */
+  overrides?: { origin: ScriptOrigin };
+  /** Feature 007: the FictionBook Editor script it was converted from. */
+  legacy?: ScriptLegacy;
   /** The package folder (absolute). */
   folder: string;
 }
@@ -532,14 +563,34 @@ export type ScriptFileContent = { content: string } | { binary: true; bytes?: nu
 /** The end of a nested script run as the host reports it (data-model §6.6). */
 export type NestedRunOutcome =
   | { status: 'done'; document: Document | null; durationMs: number }
-  | { status: 'failed'; message: string; durationMs: number }
+  /** `code`: the API error the script let through (`clipboard.readNotAllowed`, feature 007). */
+  | { status: 'failed'; message: string; code?: string; durationMs: number }
   | { status: 'cancelled'; durationMs: number }
   | { status: 'unavailable'; message: string };
 
 /** The user's decision on a proposal, as the tool reports it to the model (ai-catalogue §3.4). */
 export type ProposalDecision =
-  | { written: true; id: string; path: string; warnings: string[]; runRequested: boolean }
+  | {
+      written: true;
+      id: string;
+      path: string;
+      warnings: string[];
+      runRequested: boolean;
+      /** Feature 007: the backup of the version the write replaced. */
+      backupId?: string;
+    }
   | { written: false; declined: true };
+
+/** What `restore_script_backup` asks the user to confirm (feature 007). */
+export interface RestoreRequest {
+  /** The script: the one in effect, else its id alone (its name is then the id). */
+  script: Pick<CatalogueScript, 'id' | 'name'> & Partial<CatalogueScript>;
+  backup: ScriptBackupInfo;
+}
+
+/** The user's decision on a restore, as the tool reports it (feature 007). */
+export type RestoreDecision =
+  { restored: true; backupId?: string } | { restored: false; declined: true };
 
 /** The scripts surface the request loop binds (`CatalogueDeps.scripts`). */
 export interface ScriptsDeps {
@@ -557,12 +608,13 @@ export interface ScriptsDeps {
   dataDir(): Promise<string>;
   uiLanguage(): string;
   /**
-   * The nested run (T076; data-model §6.6): `ScriptHost.run` on the request's working copy;
-   * the caller takes the result document over (`copy.reset`).
+   * The nested run (T076; data-model §6.6): `ScriptHost.run` on the request's working copy,
+   * started by the assistant (feature 007: `ctx.startedBy`, no clipboard reading); the caller
+   * takes the result document over (`copy.reset`).
    */
   run(
     script: CatalogueScript,
-    treeNode?: { nodeId: string; type: string },
+    options: { treeNode?: { nodeId: string; type: string }; startedBy: 'assistant' },
   ): Promise<NestedRunOutcome>;
   /** The FR-084 gate (review C9): false for a script written in this conversation without the user's go. */
   runAllowed(id: string): boolean;
@@ -571,6 +623,13 @@ export interface ScriptsDeps {
    * rejects with the core's `RpcError` when the write fails.
    */
   propose(proposal: ScriptProposal): Promise<ProposalDecision>;
+  /** Feature 007: `scripts.backups.list` - the script's backups, newest first. */
+  backups(id: string): Promise<ScriptBackupInfo[]>;
+  /**
+   * Feature 007: the restore confirmation dialog and, after *Restore*,
+   * `scripts.backups.restore`; rejects with the core's `RpcError`.
+   */
+  restore(request: RestoreRequest): Promise<RestoreDecision>;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -653,6 +712,7 @@ export async function createCatalogue(deps: CatalogueDeps): Promise<Catalogue> {
   registerSchemaTools(server, context);
   registerScriptReadTools(server, context);
   registerTableReadTools(server, context);
+  registerBackupReadTools(server, context);
   registerSelectionTools(server, context);
   registerChangeTools(server, context);
   registerTableChangeTools(server, context);
@@ -2231,12 +2291,20 @@ function registerSchemaResources(server: McpServer, ctx: ToolContext): void {
 /* Scripts (US6 T075-T077; ai-catalogue §3.1, §3.4, §4, §7)                   */
 /* ------------------------------------------------------------------------ */
 
-/** The manifest contract: §1 "Where scripts live" to §3 "A script" of the scripting guide. */
+/**
+ * The manifest contract: §1 "Where scripts live" to §3 "A script" of the scripting guide, and
+ * since feature 007 (FR-086) its §4.7 - what version 2 of the interface adds (the clipboard,
+ * files, report windows, running other scripts) and the run-chain rules.
+ */
 export function scriptManifestText(guide: string = scriptingGuide): string {
   const start = guide.indexOf('\n## 1.');
   const end = guide.indexOf('\n## 4.');
   if (start < 0 || end < 0 || end <= start) return guide;
-  return `${guide.slice(start + 1, end).trimEnd()}\n`;
+  const manifest = guide.slice(start + 1, end).trimEnd();
+  const powersStart = guide.indexOf('\n### 4.7', end);
+  const powersEnd = powersStart < 0 ? -1 : guide.indexOf('\n## ', powersStart + 1);
+  if (powersStart < 0 || powersEnd < 0) return `${manifest}\n`;
+  return `${manifest}\n\n${guide.slice(powersStart + 1, powersEnd).trimEnd()}\n`;
 }
 
 /** The `mfbe://example-script` package: the bundled script whole, notice header included (§4). */
@@ -2264,13 +2332,13 @@ const MFBE_RESOURCE_META: Record<
     name: 'script-api',
     title: 'Script API (mfbe.d.ts)',
     description:
-      'The mfbe interface a script may use - the allow-list of the sandbox: mfbe.doc, mfbe.selection, mfbe.ui, mfbe.edit, mfbe.env, with every type. Nothing else exists inside a script.',
+      'The mfbe interface a script may use, version 2 - the allow-list of the sandbox: mfbe.doc, mfbe.selection, mfbe.ui (ui.report among it), mfbe.edit, mfbe.env, mfbe.clipboard, mfbe.files and mfbe.scripts, with every type and the error codes. Nothing else exists inside a script.',
   },
   'mfbe://script-manifest.md': {
     name: 'script-manifest',
     title: 'Script package and manifest format',
     description:
-      'Where scripts live, the script.json manifest (manifestVersion 1, id, name, description, kind, entry, needsSelection, undoLabel) and how the entry module is written.',
+      "Where scripts live and how a higher folder's script replaces a lower one of the same id in its place, the script.json manifest (manifestVersion 1, id, name, description, kind, entry, icon, defaultHotkey, needsSelection, undoLabel, legacy), how the entry module is written, and what version 2 of the interface adds: the clipboard, files, report windows, running other scripts and the run-chain rules.",
   },
   'mfbe://example-script': {
     name: 'example-script',
@@ -2313,17 +2381,21 @@ function scriptFileMime(path: string): string {
   }
 }
 
-const scriptSchema = z.looseObject({
+const scriptEntrySchema = z.looseObject({
   id: z.string(),
-  name: z.string(),
+  group: z.string(),
+  name: z.record(z.string(), z.string()),
   description: z.string().optional(),
   kind: z.enum(['menu', 'tree']),
-  needsSelection: z.boolean(),
-  group: z.string(),
-  source: z.string(),
-  available: z.boolean(),
+  runnable: z.boolean(),
   reason: z.enum(['needsSelection', 'treeOnly', 'sourceView']).optional(),
+  origin: z.string(),
+  overrides: z.literal(true).optional(),
 });
+
+/** `list_scripts`: the default and the largest part (feature 007, data-model §10). */
+export const LIST_SCRIPTS_DEFAULT_LIMIT = 50;
+export const LIST_SCRIPTS_MAX_LIMIT = 200;
 
 /** Why a script is not runnable right now (`list_scripts.reason`, ai-catalogue §3.1). */
 function scriptReason(
@@ -2337,6 +2409,64 @@ function scriptReason(
   return undefined;
 }
 
+/** The letters the script search counts as one, letter case aside: ё as е. */
+function searchFold(text: string): string {
+  return text.toLowerCase().replace(/ё/g, 'е');
+}
+
+/** What `list_scripts {query}` searches in: the id, the names, the descriptions, the legacy path. */
+function searchTextOf(script: CatalogueScript): string {
+  return searchFold(
+    [
+      script.id,
+      ...Object.values(script.names ?? { en: script.name }),
+      ...Object.values(script.descriptions ?? { en: script.description ?? '' }),
+      script.legacy?.source ?? '',
+    ].join('\n'),
+  );
+}
+
+/** True when the script shows in the group `group` names: the group's id or one of its names. */
+function inGroup(script: CatalogueScript, group: string): boolean {
+  const wanted = searchFold(group.trim());
+  return [script.group, ...Object.values(script.groupNames ?? {})].some(
+    (name) => searchFold(name) === wanted,
+  );
+}
+
+/**
+ * The texts of a script for the model (feature 007, data-model §10): English and Russian, and
+ * the interface language when it is another one; the languages the manifest gives only.
+ */
+function textsFor(
+  texts: Record<string, string> | undefined,
+  uiLanguage: string,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const language of ['en', 'ru', uiLanguage]) {
+    const text = texts?.[language];
+    if (text) out[language] = text;
+  }
+  return out;
+}
+
+/** A script's files as `read_script` and a `modify` proposal read them (text, or a binary's size). */
+async function readPackageFiles(
+  scripts: ScriptsDeps,
+  script: CatalogueScript,
+): Promise<{ folder: string; files: EffectiveFile[] }> {
+  const source = await scripts.files(script.id);
+  const files = await Promise.all(
+    source.files.map(async (path): Promise<EffectiveFile> => {
+      const read = await scripts.readFile(script.id, path);
+      return 'content' in read
+        ? { path, content: read.content }
+        : { path, binary: true, ...(read.bytes === undefined ? {} : { bytes: read.bytes }) };
+    }),
+  );
+  return { folder: source.folder || script.folder, files };
+}
+
 function registerScriptReadTools(server: McpServer, ctx: ToolContext): void {
   defineTool(
     server,
@@ -2344,32 +2474,80 @@ function registerScriptReadTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'List the scripts',
       description:
-        'Lists the scripts of the editor (bundled and user ones) with id, name, description, kind ("menu" runs from the Scripts menu, "tree" acts on a Document Tree node) and whether a selection is needed. available says whether run_script may run it now: reason "needsSelection" (select text first with set_selection), "treeOnly" (pass treeNode), "sourceView" (scripts run in the Body view only; ask the user to switch). issues lists packages the loader could not read.',
-      inputSchema: z.object({}),
-      outputSchema: z.looseObject({ scripts: z.array(scriptSchema), issues: z.array(z.string()) }),
+        'Lists the scripts of the editor - bundled ones (about 370), the user\'s and the assistant\'s own - in parts: {total, offset, entries}. Narrow it with group (a group id such as "13_subtitles", or a group name) and query (words that must all occur in the id, the names or descriptions in Russian or English, or the original FictionBook Editor path; letter case and ё/е do not matter) rather than paging through everything; offset and limit (default 50, at most 200) page through what matches. Each entry: id, group, name {en, ru}, description (English), kind ("menu" runs from the Scripts menu, "tree" acts on a Document Tree node), runnable with reason "needsSelection" (set_selection first), "treeOnly" (pass treeNode) or "sourceView" (scripts run in the Body view only; ask the user to switch), origin (bundled, settings, user, portable or assistant) and overrides: true for a changed copy that took a script\'s place.',
+      inputSchema: z.object({
+        group: z
+          .string()
+          .optional()
+          .describe('a group id (the group of an entry, such as "13_subtitles") or a group name'),
+        query: z
+          .string()
+          .optional()
+          .describe('words, every one of which must occur in the script (Russian or English)'),
+        offset: z.coerce
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe('the first matching entry to return, counted from 0 (default 0)'),
+        limit: z.coerce
+          .number()
+          .int()
+          .min(1)
+          .max(LIST_SCRIPTS_MAX_LIMIT)
+          .optional()
+          .describe(
+            `the most entries to return (default ${LIST_SCRIPTS_DEFAULT_LIMIT}, at most ${LIST_SCRIPTS_MAX_LIMIT})`,
+          ),
+      }),
+      outputSchema: z.looseObject({
+        total: z.number(),
+        offset: z.number(),
+        entries: z.array(scriptEntrySchema),
+      }),
       annotations: { readOnlyHint: true },
     },
-    async () => {
+    async (args) => {
       const scripts = ctx.requireScripts();
       const listing = await scripts.list();
       const bodyView = scripts.bodyView();
       const hasSelection = ctx.deps.selection.get().kind !== 'none';
+      const uiLanguage = scripts.uiLanguage();
+      const words = searchFold(args.query ?? '')
+        .split(/\s+/)
+        .filter((word) => word !== '');
+      const matching = listing.scripts.filter((script) => {
+        if (args.group !== undefined && args.group.trim() !== '' && !inGroup(script, args.group)) {
+          return false;
+        }
+        if (words.length === 0) return true;
+        const text = searchTextOf(script);
+        return words.every((word) => text.includes(word));
+      });
+      const offset = args.offset ?? 0;
+      const limit = args.limit ?? LIST_SCRIPTS_DEFAULT_LIMIT;
       return {
-        scripts: listing.scripts.map((script) => {
+        total: matching.length,
+        offset,
+        entries: matching.slice(offset, offset + limit).map((script) => {
           const reason = scriptReason(script, bodyView, hasSelection);
+          const descriptions = script.descriptions ?? {};
+          const description =
+            descriptions.en ??
+            script.description ??
+            Object.values(descriptions).find((text) => text !== '');
           return {
             id: script.id,
-            name: script.name,
-            ...(script.description === undefined ? {} : { description: script.description }),
-            kind: script.kind,
-            needsSelection: script.needsSelection,
             group: script.group,
-            source: script.source,
-            available: reason === undefined,
+            name: textsFor(script.names ?? { en: script.name }, uiLanguage),
+            ...(description ? { description } : {}),
+            kind: script.kind,
+            runnable: reason === undefined,
             ...(reason === undefined ? {} : { reason }),
+            origin: script.origin,
+            ...(script.overrides ? { overrides: true as const } : {}),
           };
         }),
-        issues: listing.issues,
       };
     },
   );
@@ -2380,12 +2558,14 @@ function registerScriptReadTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Read a script',
       description:
-        "Returns a script's files: the manifest (script.json), the entry module and the other modules in full, with the package folder and the layer it comes from. Binary files (icons) are listed with binary: true and their size, without content. Read a script before proposing a change to it; a bundled script is never changed in place - propose the changed files under a new id.",
+        'Returns a script\'s files - the manifest (script.json), the entry module and the other modules in full; binary files (icons) with binary: true and their size, without content - with the package folder, the layer it comes from (source), its origin, the descriptions in English and Russian, legacy (the FictionBook Editor script it was converted from: source path, fbeVersion, sourceVersion) and overrides {origin} when it replaces a lower layer\'s script of the same id. Read a script before explaining it or proposing a change to it: propose_script with mode "modify" saves a changed copy under the same id that takes its place - the original stays untouched and a backup is kept.',
       inputSchema: z.object({ id: z.string().min(1).describe('the script id from list_scripts') }),
       outputSchema: z.looseObject({
         id: z.string(),
         folder: z.string(),
         source: z.string(),
+        origin: z.string(),
+        description: z.record(z.string(), z.string()),
         files: z.array(
           z.looseObject({
             path: z.string(),
@@ -2400,19 +2580,18 @@ function registerScriptReadTools(server: McpServer, ctx: ToolContext): void {
     async (args) => {
       const scripts = ctx.requireScripts();
       const { script } = await ctx.scriptById(scripts, args.id);
-      const source = await scripts.files(script.id);
-      const files = await Promise.all(
-        source.files.map(async (path) => {
-          const read = await scripts.readFile(script.id, path);
-          return 'content' in read
-            ? { path, content: read.content }
-            : { path, binary: true, ...(read.bytes === undefined ? {} : { bytes: read.bytes }) };
-        }),
-      );
+      const { folder, files } = await readPackageFiles(scripts, script);
       return {
         id: script.id,
-        folder: source.folder || script.folder,
+        folder,
         source: script.source,
+        origin: script.origin,
+        ...(script.overrides ? { overrides: { origin: script.overrides.origin } } : {}),
+        description: textsFor(
+          script.descriptions ?? (script.description ? { en: script.description } : {}),
+          scripts.uiLanguage(),
+        ),
+        ...(script.legacy ? { legacy: script.legacy } : {}),
         files,
       };
     },
@@ -2424,7 +2603,7 @@ function registerScriptReadTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Read a reference text',
       description:
-        'Returns one of the references for writing scripts: "mfbe://script-api.d.ts" (the mfbe interface a script may use - everything else is unavailable inside the sandbox), "mfbe://script-manifest.md" (where scripts live, the script.json manifest and how the entry module is written), "mfbe://example-script" (one bundled script as a complete package with every file). Read them before propose_script.',
+        'Returns one of the references for writing scripts: "mfbe://script-api.d.ts" (the mfbe interface a script may use, version 2 - everything else is unavailable inside the sandbox), "mfbe://script-manifest.md" (where scripts live and how they replace one another, the script.json manifest, how the entry module is written, and the clipboard, files, report windows and run chains of version 2), "mfbe://example-script" (one bundled script as a complete package with every file). Read them before propose_script.',
       inputSchema: z.object({
         uri: z.enum(MFBE_RESOURCE_URIS).describe('one of the three mfbe:// references'),
       }),
@@ -2456,9 +2635,9 @@ export function scriptWriteError(error: RpcError): ToolError {
     case RpcErrorCode.aiScriptIdBundled:
       return new ToolError(
         'scriptIdBundled',
-        `"${data.id ?? ''}" is a bundled script, which is never modified.`,
+        `"${data.id ?? ''}" is a bundled script; only the assistant's folder can hold a changed copy of it.`,
         {
-          hint: 'Propose the changed script under a new id such as assistant/<name>.',
+          hint: 'Propose it with mode "modify" (saved in the assistant\'s folder), or under a new id such as assistant/<name>.',
         },
       );
     case RpcErrorCode.aiScriptExists:
@@ -2485,7 +2664,7 @@ function registerScriptTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Run a script',
       description:
-        'Runs a script of list_scripts inside this request, exactly as from the Scripts menu: its own dialogs appear to the user, its changes become part of this request (validated like every change; one undo step). Body view only. A script with needsSelection needs a non-empty selection (set_selection first); a "tree" script needs treeNode. A script written in this conversation runs only when the user asked for it (Write and run, or a later instruction). status "failed" means the script threw and its changes were rolled back; the request goes on.',
+        'Runs a script of list_scripts inside this request, exactly as from the Scripts menu: its own dialogs appear to the user, its changes become part of this request (validated like every change; one undo step). Body view only. A script with needsSelection needs a non-empty selection (set_selection first); a "tree" script needs treeNode. A script written in this conversation runs only when the user asked for it (Write and run, or a later instruction). A script run by the assistant cannot read the clipboard: such a run fails with scriptError "clipboard.readNotAllowed" - the user can run it from the Scripts menu. status "failed" means the script threw and its changes were rolled back; the request goes on.',
       inputSchema: z.object({
         id: z.string().min(1).describe('the script id from list_scripts'),
         treeNode: z
@@ -2536,7 +2715,10 @@ function registerScriptTools(server: McpServer, ctx: ToolContext): void {
             { hint: RUN_NOT_CONFIRMED_HINT },
           );
         }
-        const outcome = await scripts.run(script, treeNode);
+        const outcome = await scripts.run(script, {
+          ...(treeNode ? { treeNode } : {}),
+          startedBy: 'assistant',
+        });
         switch (outcome.status) {
           case 'done':
             if (outcome.document) ctx.deps.copy.reset(outcome.document);
@@ -2547,7 +2729,11 @@ function registerScriptTools(server: McpServer, ctx: ToolContext): void {
             };
           case 'failed':
             throw new ToolError('scriptFailed', outcome.message, {
-              hint: 'The script threw; its changes were rolled back. Continue without it or correct the script.',
+              hint:
+                outcome.code === 'clipboard.readNotAllowed'
+                  ? 'The script reads the clipboard, which a run the assistant starts may not (what it read would reach the AI service); its changes were rolled back. The user can run it from the Scripts menu.'
+                  : 'The script threw; its changes were rolled back. Continue without it or correct the script.',
+              ...(outcome.code ? { scriptError: outcome.code } : {}),
               durationMs: outcome.durationMs,
             });
           case 'cancelled':
@@ -2565,17 +2751,28 @@ function registerScriptTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Propose a script',
       description:
-        'Proposes a complete user script package to the user, who sees every file in full and the target folder and decides: Write, Write and run, or Don\'t write - nothing is written before that. files must hold script.json (manifestVersion 1, the same id, name.en, kind, entry, needsSelection, undoLabel) and the entry module ("export default async function run(ctx) {…}" against the mfbe interface alone - read mfbe://script-api.d.ts, mfbe://script-manifest.md and mfbe://example-script first); further modules are imported by relative path. Ids are "assistant/<kebab-name>" (group 90_assistant). A bundled script is never modified: propose the changed files under a new id. To change an existing user script read_script it first and pass the full new set with overwrite: true. summary: what the script does, for the user (≤ 500 characters). written: false, declined: true means the user said no - do not propose again without a new instruction. runRequested: true means the user chose Write and run: call run_script now.',
+        'Proposes a complete script package: the user sees every file and the folder and chooses Write, Write and run or Don\'t write; nothing is written before. files: script.json (manifestVersion 1, id, name.en, kind, entry, needsSelection, undoLabel) and the entry module ("export default async function run(ctx) {…}" against the mfbe interface alone - read mfbe://script-api.d.ts, mfbe://script-manifest.md and mfbe://example-script first); other modules by relative path. mode "new" (default): id "assistant/<kebab-name>" (group 90_assistant); a user script of the id is replaced whole only with overwrite: true. mode "modify": a changed version of a script in effect, bundled ones too - read_script it, pass its id and the full new file set keeping the manifest\'s icon, defaultHotkey and legacy; the copy, in the assistant\'s folder, takes its place. summary: for the user (≤ 500 characters). declined: true - do not propose again unasked; runRequested: true - call run_script now; backupId: the replaced version\'s backup.',
       inputSchema: z.object({
-        id: z.string().min(1).describe('the new script id, assistant/<kebab-name>'),
+        id: z
+          .string()
+          .min(1)
+          .describe(
+            'mode "new": the new id, assistant/<kebab-name>; "modify": the id of the script',
+          ),
+        mode: z
+          .enum(['new', 'modify'])
+          .optional()
+          .describe(
+            '"new" (default) a new script, "modify" a changed version of a script in effect',
+          ),
         group: z
           .string()
           .optional()
-          .describe('the group folder under scripts/ (default 90_assistant)'),
+          .describe('mode "new": the group folder under scripts/ (default 90_assistant)'),
         folder: z
           .string()
           .optional()
-          .describe('the package folder name (default: the last id segment)'),
+          .describe('mode "new": the package folder name (default: the last id segment)'),
         files: z
           .array(
             z.object({
@@ -2594,6 +2791,7 @@ function registerScriptTools(server: McpServer, ctx: ToolContext): void {
         path: z.string().optional(),
         warnings: z.array(z.string()).optional(),
         runRequested: z.boolean().optional(),
+        backupId: z.string().optional(),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
@@ -2604,8 +2802,22 @@ function registerScriptTools(server: McpServer, ctx: ToolContext): void {
         bundledIds: new Set(all.filter((s) => s.source === 'bundled').map((s) => s.id)),
         userIds: new Set(all.filter((s) => s.source !== 'bundled').map((s) => s.id)),
       };
+      // Feature 007: a modify proposal is shown against the files of the script in effect.
+      let effective: ModifiedScript | undefined;
+      const inEffect = all.find((s) => s.id === args.id);
+      if (args.mode === 'modify' && inEffect) {
+        const { folder, files } = await readPackageFiles(scripts, inEffect);
+        effective = {
+          id: inEffect.id,
+          name: inEffect.name,
+          origin: inEffect.origin,
+          folder,
+          files,
+        };
+      }
       const proposalArgs: ProposalArgs = {
         id: args.id,
+        ...(args.mode === undefined ? {} : { mode: args.mode }),
         ...(args.group === undefined ? {} : { group: args.group }),
         ...(args.folder === undefined ? {} : { folder: args.folder }),
         files: args.files,
@@ -2616,6 +2828,7 @@ function registerScriptTools(server: McpServer, ctx: ToolContext): void {
         dataDir: await scripts.dataDir(),
         uiLanguage: scripts.uiLanguage(),
         existing,
+        ...(effective ? { effective } : {}),
       });
       if (!check.ok) {
         const { refusal } = check;
@@ -2648,6 +2861,85 @@ function registerScriptTools(server: McpServer, ctx: ToolContext): void {
       const scripts = ctx.requireScripts();
       return scripts.reload();
     },
+  );
+
+  defineTool(
+    server,
+    'restore_script_backup',
+    {
+      title: 'Restore a backup of a script',
+      description:
+        "Brings a backup of list_script_backups back into effect once the user confirms it in a dialog. A backup of a bundled, settings, user or portable version removes the assistant's changed copy, so that version is in effect again; a backup of an earlier assistant's copy becomes the assistant's copy again. The version in effect before the restore is kept as a backup too (backupId). restored: false, declined: true means the user said no - do not ask again without a new instruction.",
+      inputSchema: z.object({
+        id: z.string().min(1).describe('the script id'),
+        backupId: z.string().min(1).describe('the backupId from list_script_backups'),
+      }),
+      outputSchema: z.looseObject({
+        restored: z.boolean(),
+        declined: z.boolean().optional(),
+        backupId: z.string().optional(),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async (args) => {
+      const scripts = ctx.requireScripts();
+      const backups = await scriptBackups(scripts, args.id);
+      const backup = backups.find((entry) => entry.backupId === args.backupId);
+      if (!backup) throw noSuchBackup(args.id, args.backupId, backups);
+      const { scripts: all } = await scripts.list();
+      const script = all.find((entry) => entry.id === args.id) ?? { id: args.id, name: args.id };
+      try {
+        return await scripts.restore({ script, backup });
+      } catch (error) {
+        if (error instanceof RpcError && error.code === RpcErrorCode.scriptBackupNotFound) {
+          throw noSuchBackup(args.id, args.backupId, []);
+        }
+        if (error instanceof RpcError) throw scriptWriteError(error);
+        throw error;
+      }
+    },
+  );
+}
+
+/** `scripts.backups.list` through the scripts surface, an invalid id as `invalidArguments`. */
+async function scriptBackups(scripts: ScriptsDeps, id: string): Promise<ScriptBackupInfo[]> {
+  try {
+    return await scripts.backups(id);
+  } catch (error) {
+    if (error instanceof RpcError && error.code === RpcErrorCode.invalidParams) {
+      throw new ToolError('invalidArguments', `"${id}" is not a script id.`, { field: 'id' });
+    }
+    throw error;
+  }
+}
+
+function noSuchBackup(id: string, backupId: string, backups: ScriptBackupInfo[]): ToolError {
+  return new ToolError('invalidArguments', `"${id}" has no backup "${backupId}".`, {
+    hint:
+      backups.length > 0
+        ? `list_script_backups lists them: ${backups.map((entry) => entry.backupId).join(', ')}.`
+        : 'list_script_backups lists the backups of a script.',
+  });
+}
+
+/** The backup read tool of feature 007 (catalogue 3), registered after the table read tool. */
+function registerBackupReadTools(server: McpServer, ctx: ToolContext): void {
+  defineTool(
+    server,
+    'list_script_backups',
+    {
+      title: 'List the backups of a script',
+      description:
+        'Lists the backups of a script, newest first: {backups: [{backupId, origin, createdAt}]}. Before every change the assistant writes to a script (propose_script) and before every restore, the version then in effect is kept as a backup; origin says where that version came from (bundled, settings, user, portable or assistant) and createdAt when it was kept (UTC). restore_script_backup brings one back.',
+      inputSchema: z.object({ id: z.string().min(1).describe('the script id') }),
+      outputSchema: z.looseObject({
+        backups: z.array(
+          z.looseObject({ backupId: z.string(), origin: z.string(), createdAt: z.string() }),
+        ),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async (args) => ({ backups: await scriptBackups(ctx.requireScripts(), args.id) }),
   );
 }
 

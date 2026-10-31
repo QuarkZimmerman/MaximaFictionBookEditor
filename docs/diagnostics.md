@@ -96,7 +96,7 @@ rules (one entry per failure, context present, fixture text absent, token absent
 | `exclusions.unreadable`, `exclusions.invalidLines`, `exclusions.writeFailed` | error / warning | path, reason, skipped | `exclusions.txt` |
 | `spell.customDictionaryLine`, `spell.customDictionarySaveFailed`, `spell.dictionaryEncoding` | warning / error | path, tag, encoding | `custom.dic`, Hunspell dictionaries |
 | `genres.parseError`, `genres.duplicate`, `resources.conflict`, `resources.symbolsUnavailable`, `resources.languagesUnavailable` | warning | path, line, layer | layered resources |
-| `scripts.invalidManifest`, `scripts.conflict`, `scripts.readFailed` | warning | path, scriptId, reason | script packages |
+| `scripts.invalidManifest`, `scripts.conflict`, `scripts.readFailed`, `scripts.crossPackage`, `scripts.backupRemoveFailed` | warning | path, scriptId, reason, from, to | script packages; a module asking for another package's file (feature 007); a backup of a write that then failed could not be removed again (feature 007) |
 | `validation.schemaMissing`, `validation.schemaInvalid` | error | path, reason | `FictionBook.xsd` cannot be loaded (validation engine failure) |
 | `binary.spillDirFailed`, `binary.spillFailed`, `binary.spillReadFailed` | warning / error | id, size, reason | temporary files of large binaries |
 | `image.convertFailed`, `image.previewFailed` | warning | docId, id, reason | undecodable or oversized images |

@@ -41,8 +41,14 @@ import type { Document } from '@/model/document';
 import type { ChatRequest, ModelPoint, ViewId } from '@/rpc/types';
 import { documentStats, plainText } from '@/scripting/api-impl';
 
-/** This contract's version (ai-catalogue §2.1 `catalogueVersion`). */
-export const CATALOGUE_VERSION = 2; // feature 006 (US11): the table tools, `cells`, the passage
+/**
+ * This contract's version (ai-catalogue §2.1 `catalogueVersion`) - the one constant, which the
+ * catalogue re-exports. 3 since feature 007 (User Story 9): `list_scripts` narrowed and paged,
+ * `read_script`'s descriptions, legacy, origin and overrides, `propose_script`'s modify mode,
+ * `list_script_backups` and `restore_script_backup`; 2 since feature 006: the table tools,
+ * `cells`, the passage.
+ */
+export const CATALOGUE_VERSION = 3;
 
 /** The editor's name as the model reads it. */
 export const EDITOR_NAME = 'Maxima Fiction Book Editor';

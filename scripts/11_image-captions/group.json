@@ -3,5 +3,6 @@
     "en": "Captions from the pictures' title attribute",
     "ru": "Сделать подписи к картинкам из их атрибута title",
     "uk": "Підписи до зображень з їхнього атрибута title"
-  }
+  },
+  "icon": "icon.png"
 }

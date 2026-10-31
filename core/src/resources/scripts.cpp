@@ -302,12 +302,16 @@ std::string package_url(const std::string& id, const std::string& file) {
     return url;
 }
 
-fs::path resolve_package_file(const ScriptPackage& package, std::string_view file) {
-    if (!is_safe_relative_file(file) || package.dir.empty()) {
+namespace {
+
+// `file` (relative, '/' separators) inside `folder`, made canonical; empty for anything that
+// escapes the folder or is no regular file.
+fs::path resolve_in_folder(const fs::path& folder, std::string_view file) {
+    if (!is_safe_relative_file(file) || folder.empty()) {
         return {};
     }
     std::error_code ec;
-    const fs::path base = fs::weakly_canonical(package.dir, ec);
+    const fs::path base = fs::weakly_canonical(folder, ec);
     if (ec) {
         return {};
     }
@@ -327,6 +331,31 @@ fs::path resolve_package_file(const ScriptPackage& package, std::string_view fil
     return candidate;
 }
 
+}  // namespace
+
+fs::path resolve_package_file(const ScriptPackage& package, std::string_view file) {
+    return resolve_in_folder(package.dir, file);
+}
+
+std::string group_icon_url(const std::string& group_id) {
+    return "/script-groups/" + url_encode_segment(group_id) + "/icon";
+}
+
+fs::path resolve_group_icon(const Group& group) {
+    if (group.icon.empty()) {
+        return {};
+    }
+    return resolve_in_folder(group.icon_dir.empty() ? group.dir : group.icon_dir, group.icon);
+}
+
+fs::path resolve_served_file(const ScriptPackage& package, std::string_view file) {
+    fs::path own = resolve_in_folder(package.dir, file);
+    if (!own.empty() || package.icon_dir.empty() || file != package.manifest.icon) {
+        return own;
+    }
+    return resolve_in_folder(package.icon_dir, file);
+}
+
 std::vector<std::string> package_files(const ScriptPackage& package) {
     std::vector<std::string> files;
     std::error_code ec;
@@ -344,10 +373,25 @@ std::vector<std::string> package_files(const ScriptPackage& package) {
 }
 
 std::string origin_of(const ScriptPackage& package) {
-    if (package.layer == resources::LayerName::user && package.group == kAssistantGroup) {
+    if (package.layer == resources::LayerName::user &&
+        platform::utf8_from_path(package.dir.parent_path().filename()) == kAssistantGroup) {
         return "assistant";
     }
     return resources::to_string(package.layer);
+}
+
+int precedence_of(const ScriptPackage& package) {
+    switch (package.layer) {
+        case resources::LayerName::bundled:
+            return 0;
+        case resources::LayerName::portable:
+            return 1;
+        case resources::LayerName::user:
+            return origin_of(package) == "assistant" ? 4 : 2;
+        case resources::LayerName::settings:
+            return 3;
+    }
+    return 0;
 }
 
 namespace {
@@ -567,6 +611,17 @@ const ScriptPackage* Catalog::find(const std::string& id) const {
     return nullptr;
 }
 
+ScriptPackage* Catalog::find_mutable(const std::string& id) {
+    for (Group& g : groups_) {
+        for (ScriptPackage& p : g.scripts) {
+            if (p.id == id) {
+                return &p;
+            }
+        }
+    }
+    return nullptr;
+}
+
 std::size_t Catalog::size() const {
     std::size_t n = 0;
     for (const Group& g : groups_) {
@@ -599,8 +654,9 @@ Group& Catalog::add_group(Group group) {
         for (const auto& [lang, text] : group.names) {
             existing->names.emplace(lang, text);
         }
-        if (existing->icon.empty()) {
+        if (existing->icon.empty() && !group.icon.empty()) {
             existing->icon = group.icon;
+            existing->icon_dir = group.icon_dir;
         }
         return *existing;
     }
@@ -608,23 +664,85 @@ Group& Catalog::add_group(Group group) {
     return groups_.back();
 }
 
-bool Catalog::add_package(ScriptPackage package) {
-    if (const ScriptPackage* existing = find(package.id)) {
+void Catalog::report_warnings(const ScriptPackage& package) {
+    for (const std::string& w : package.warnings) {
         Issue issue;
         issue.path = package.dir;
         issue.id = package.id;
-        issue.reason = "duplicateId";
+        const auto colon = w.find(':');
+        issue.reason = colon == std::string::npos ? w : w.substr(0, colon);
+        issue.message = colon == std::string::npos ? "" : trim(w.substr(colon + 1));
         issue.severity = "warning";
-        issue.message = "script id already provided by " + platform::utf8_from_path(existing->dir) +
-                        " (" + resources::to_string(existing->layer) + " layer); ignored";
-        log::warning("core", "scripts.conflict",
-                     "script id present in several layers; kept the first",
-                     log::extras({{"id", package.id},
-                                  {"kept", platform::utf8_from_path(existing->dir)},
-                                  {"ignored", platform::utf8_from_path(package.dir)}}));
         issues_.push_back(std::move(issue));
-        return false;
     }
+}
+
+namespace {
+
+// The `overridden` issue of a replaced package (feature 007): its folder, the one in effect.
+Issue overridden_issue(const ScriptPackage& replaced, const ScriptPackage& in_effect) {
+    Issue issue;
+    issue.path = replaced.dir;
+    issue.id = replaced.id;
+    issue.reason = "overridden";
+    issue.severity = "info";
+    issue.message = "replaced by " + platform::utf8_from_path(in_effect.dir) + " (" +
+                    origin_of(in_effect) + ")";
+    return issue;
+}
+
+fs::path place_of(const ScriptPackage& package) {
+    return package.place.empty() ? package.dir.filename() : package.place;
+}
+
+}  // namespace
+
+bool Catalog::add_package(ScriptPackage package) {
+    if (ScriptPackage* existing = find_mutable(package.id)) {
+        const int precedence = precedence_of(package);
+        const int existing_precedence = precedence_of(*existing);
+        if (precedence < existing_precedence) {
+            report_warnings(package);
+            issues_.push_back(overridden_issue(package, *existing));
+            return false;
+        }
+        if (precedence == existing_precedence) {
+            report_warnings(package);
+            Issue issue;
+            issue.path = package.dir;
+            issue.id = package.id;
+            issue.reason = "duplicateId";
+            issue.severity = "warning";
+            issue.message = "script id already provided by " +
+                            platform::utf8_from_path(existing->dir) + " (" +
+                            resources::to_string(existing->layer) + " layer); ignored";
+            log::warning("core", "scripts.conflict",
+                         "script id present twice at one precedence; kept the first",
+                         log::extras({{"id", package.id},
+                                      {"kept", platform::utf8_from_path(existing->dir)},
+                                      {"ignored", platform::utf8_from_path(package.dir)}}));
+            issues_.push_back(std::move(issue));
+            return false;
+        }
+        // An override (FR-085): the replaced script's group and place, and its icon when the
+        // override has no usable one of its own.
+        package.group = existing->group;
+        package.place = place_of(*existing);
+        package.overrides = Replaced{origin_of(*existing), existing->dir};
+        if (package.manifest.icon.empty() && !existing->manifest.icon.empty()) {
+            package.manifest.icon = existing->manifest.icon;
+            package.icon_dir = existing->icon_dir.empty() ? existing->dir : existing->icon_dir;
+            package.warnings.erase(
+                std::remove_if(package.warnings.begin(), package.warnings.end(),
+                               [](const std::string& w) { return w.rfind("iconMissing", 0) == 0; }),
+                package.warnings.end());
+        }
+        report_warnings(package);
+        issues_.push_back(overridden_issue(*existing, package));
+        *existing = std::move(package);
+        return true;
+    }
+    report_warnings(package);
     Group* g = group(package.group);
     if (g == nullptr) {
         Group created;
@@ -690,7 +808,7 @@ void Catalog::sort() {
     for (Group& g : groups_) {
         std::stable_sort(g.scripts.begin(), g.scripts.end(),
                          [](const ScriptPackage& a, const ScriptPackage& b) {
-                             return folder_less(a.dir, b.dir);
+                             return folder_less(place_of(a), place_of(b));
                          });
     }
 }
@@ -723,6 +841,10 @@ json Catalog::package_to_json(const ScriptPackage& p) {
     if (!m.defaultHotkey.empty()) {
         j["defaultHotkey"] = m.defaultHotkey;
     }
+    if (p.overrides) {
+        j["overrides"] = json{{"origin", p.overrides->origin},
+                              {"dir", platform::utf8_from_path(p.overrides->dir)}};
+    }
     if (m.legacy) {
         json legacy{{"source", m.legacy->source}};
         if (!m.legacy->fbeVersion.empty()) {
@@ -750,6 +872,7 @@ json Catalog::to_json() const {
                 {"scripts", std::move(scripts)}};
         if (!g.icon.empty()) {
             jg["icon"] = g.icon;
+            jg["iconUrl"] = group_icon_url(g.id);
         }
         groups.push_back(std::move(jg));
     }
@@ -818,6 +941,7 @@ void load_group_json(const fs::path& dir, Group& group, Catalog& catalog) {
         is_safe_relative_file(j["icon"].get<std::string>()) &&
         is_file(dir / platform::path_from_utf8(j["icon"].get<std::string>()))) {
         group.icon = j["icon"].get<std::string>();
+        group.icon_dir = dir;
     }
 }
 
@@ -876,55 +1000,74 @@ void load_package(const fs::path& dir, const std::string& group_id, resources::L
         package.warnings.push_back("iconMissing: icon \"" + package.manifest.icon + "\" not found");
         package.manifest.icon.clear();
     }
-    for (const std::string& w : package.warnings) {
-        Issue issue;
-        issue.path = dir;
-        issue.id = package.id;
-        const auto colon = w.find(':');
-        issue.reason = colon == std::string::npos ? w : w.substr(0, colon);
-        issue.message = colon == std::string::npos ? "" : trim(w.substr(colon + 1));
-        issue.severity = "warning";
-        catalog.add_issue(std::move(issue));
-    }
-    catalog.add_package(std::move(package));
+    catalog.add_package(std::move(package));  // reports the warnings as issues
 }
 
-void load_root(const fs::path& root, resources::LayerName layer, Catalog& catalog) {
+// The group folders of a scripts root: every sub-folder without a script.json of its own.
+std::vector<fs::path> group_folders(const fs::path& root) {
+    std::vector<fs::path> folders;
     for (const fs::directory_entry& entry : sorted_entries(root)) {
-        if (!is_dir(entry.path())) {
-            continue;  // group icons and stray files are ignored
+        if (is_dir(entry.path()) && !is_file(entry.path() / "script.json")) {
+            folders.push_back(entry.path());
         }
-        if (is_file(entry.path() / "script.json")) {
-            load_package(entry.path(), "", layer, catalog);
-            continue;
-        }
+    }
+    return folders;
+}
+
+bool is_assistant_folder(const fs::path& folder, resources::LayerName layer) {
+    return layer == resources::LayerName::user &&
+           platform::utf8_from_path(folder.filename()) == kAssistantGroup;
+}
+
+// The first pass: a root's groups with the names and icons of their group.json.
+void load_groups(const fs::path& root, Catalog& catalog) {
+    for (const fs::path& folder : group_folders(root)) {
         Group group;
-        group.id = platform::utf8_from_path(entry.path().filename());
+        group.id = platform::utf8_from_path(folder.filename());
         std::optional<int> order;
         const std::string stripped = strip_order_prefix(group.id, &order);
         group.order = order.value_or(kUnnumberedOrder);
         group.names["en"] = stripped;
-        group.dir = entry.path();
-        load_group_json(entry.path(), group, catalog);
-        const std::string group_id = group.id;
+        group.dir = folder;
+        load_group_json(folder, group, catalog);
         catalog.add_group(std::move(group));
-        for (const fs::directory_entry& sub : sorted_entries(entry.path())) {
-            if (!is_dir(sub.path())) {
-                continue;
-            }
-            if (!is_file(sub.path() / "script.json")) {
-                Issue issue;
-                issue.path = sub.path();
-                issue.reason = "missingManifest";
-                issue.severity = "warning";
-                issue.message = "script folder without script.json ignored";
-                log::warning("core", "scripts.invalidManifest",
-                             "script folder without script.json ignored",
-                             log::extras({{"path", platform::utf8_from_path(sub.path())}}));
-                catalog.add_issue(std::move(issue));
-                continue;
-            }
-            load_package(sub.path(), group_id, layer, catalog);
+    }
+}
+
+// The packages of one group folder (`group_id` its name).
+void load_group_packages(const fs::path& folder, resources::LayerName layer, Catalog& catalog) {
+    const std::string group_id = platform::utf8_from_path(folder.filename());
+    for (const fs::directory_entry& sub : sorted_entries(folder)) {
+        if (!is_dir(sub.path())) {
+            continue;  // group.json, the group's icon and stray files
+        }
+        if (!is_file(sub.path() / "script.json")) {
+            Issue issue;
+            issue.path = sub.path();
+            issue.reason = "missingManifest";
+            issue.severity = "warning";
+            issue.message = "script folder without script.json ignored";
+            log::warning("core", "scripts.invalidManifest",
+                         "script folder without script.json ignored",
+                         log::extras({{"path", platform::utf8_from_path(sub.path())}}));
+            catalog.add_issue(std::move(issue));
+            continue;
+        }
+        load_package(sub.path(), group_id, layer, catalog);
+    }
+}
+
+// The second pass: a root's packages - the ungrouped ones, then those of its group folders;
+// the assistant's folder of the user layer is left out (it is loaded last, on top).
+void load_packages(const fs::path& root, resources::LayerName layer, Catalog& catalog) {
+    for (const fs::directory_entry& entry : sorted_entries(root)) {
+        if (is_dir(entry.path()) && is_file(entry.path() / "script.json")) {
+            load_package(entry.path(), "", layer, catalog);
+        }
+    }
+    for (const fs::path& folder : group_folders(root)) {
+        if (!is_assistant_folder(folder, layer)) {
+            load_group_packages(folder, layer, catalog);
         }
     }
 }
@@ -1127,6 +1270,25 @@ void write_package(const fs::path& data_dir, const fs::path& dir,
     fs::remove_all(aside, ec);  // the old set, if any, goes with it
 }
 
+void remove_package(const fs::path& data_dir, const fs::path& dir) {
+    const fs::path aside = write_aside_dir(data_dir);
+    const fs::path old = aside / "old";
+    std::error_code ec;
+    fs::remove_all(aside, ec);  // a leftover of this very process id
+    ec.clear();
+    fs::create_directories(aside, ec);
+    if (ec) {
+        throw WriteFailure(platform::utf8_from_path(aside), platform::utf8_error_message(ec));
+    }
+    if (!rename_dir(dir, old, ec)) {
+        const std::string reason = platform::utf8_error_message(ec);
+        std::error_code ignored;
+        fs::remove_all(aside, ignored);
+        throw WriteFailure(platform::utf8_from_path(dir), reason);
+    }
+    fs::remove_all(aside, ec);
+}
+
 void remove_write_leftovers(const fs::path& data_dir) {
     std::error_code ec;
     for (fs::directory_iterator it(data_dir, ec), end; !ec && it != end; it.increment(ec)) {
@@ -1146,31 +1308,45 @@ void remove_write_leftovers(const fs::path& data_dir) {
 Catalog load_catalog(const resources::ResourceLayers& layers) {
     Catalog catalog;
     const auto all = layers.layers(resources::Kind::scripts);
-    std::vector<const resources::Layer*> order;
+    const auto layer_of = [&](resources::LayerName name) -> const resources::Layer* {
+        for (const auto& l : all) {
+            if (l.layer == name && !l.path.empty()) {
+                return &l;
+            }
+        }
+        return nullptr;
+    };
     for (const auto& l : all) {
-        if (l.layer == resources::LayerName::bundled) {
-            order.push_back(&l);
-        }
-    }
-    for (const auto& l : all) {
-        if (l.layer != resources::LayerName::bundled) {
-            order.push_back(&l);
-        }
-    }
-    for (const resources::Layer* layer : order) {
-        if (layer->path.empty()) {
-            continue;
-        }
         // The user folder is always reported (it is where "Open scripts folder" leads).
-        if (layer->exists || layer->layer == resources::LayerName::user) {
-            catalog.set_folder(folder_key(layer->layer), layer->path);
+        if (!l.path.empty() && (l.exists || l.layer == resources::LayerName::user)) {
+            catalog.set_folder(folder_key(l.layer), l.path);
         }
-        if (!layer->exists) {
-            continue;
-        }
-        load_root(layer->path, layer->layer, catalog);
     }
-    // Groups that ended up empty (only invalid packages) would show as empty sub-menus.
+    using resources::LayerName;
+    // The groups first, their names and icons merging bundled first, then settings, user,
+    // portable (unchanged by feature 007).
+    for (const LayerName name :
+         {LayerName::bundled, LayerName::settings, LayerName::user, LayerName::portable}) {
+        if (const resources::Layer* layer = layer_of(name); layer && layer->exists) {
+            load_groups(layer->path, catalog);
+        }
+    }
+    // Then the packages, lowest precedence first, so that a higher one replaces a lower one in
+    // its place (data-model §7.2): bundled, portable, user, settings, the assistant's folder.
+    for (const LayerName name :
+         {LayerName::bundled, LayerName::portable, LayerName::user, LayerName::settings}) {
+        if (const resources::Layer* layer = layer_of(name); layer && layer->exists) {
+            load_packages(layer->path, name, catalog);
+        }
+    }
+    if (const resources::Layer* user = layer_of(LayerName::user); user && user->exists) {
+        const fs::path assistant = user->path / kAssistantGroup;
+        if (is_dir(assistant)) {
+            load_group_packages(assistant, LayerName::user, catalog);
+        }
+    }
+    // Groups that ended up empty (only invalid packages, or scripts that went to the place of
+    // the scripts they replaced) would show as empty sub-menus.
     catalog.prune_empty_groups();
     catalog.sort();
     return catalog;

@@ -7,10 +7,10 @@
  * `core.dataDir/scripts/` (as `diagnostics.spec.ts` does); the proposals come from
  * `tests/e2e/fixtures/ai-proposals/` (T006).
  *
- *  1. `list_scripts` → every effective script with id, name, description, kind,
- *     needsSelection and availability; `read_script` → the files with content, the icon as a
- *     binary; `read_resource` → the three references (sizes, first lines, the example whole
- *     with its notice header).
+ *  1. `list_scripts` → every effective script with id, names, description, kind, origin and
+ *     whether it may run now (since feature 007 narrowed by group or query, in parts);
+ *     `read_script` → the files with content, the icon as a binary; `read_resource` → the
+ *     three references (sizes, first lines, the example whole with its notice header).
  *  2. `run_script` nested in a request: with a selection the spaces go, together with a
  *     `set_text` of the same request one Mod+z restores both (SC-003), no `scripts.lastRun`;
  *     without a selection `selectionRequired` shown in the activity (FR-054); the form dialog
@@ -81,19 +81,20 @@ interface Envelope {
   error: { code: string; message: string; hint?: string; [extra: string]: unknown };
 }
 
+/** A part of `list_scripts` (catalogue 3, feature 007): narrowed by group or query, paged. */
 interface ScriptListing {
-  scripts: {
+  total: number;
+  offset: number;
+  entries: {
     id: string;
-    name: string;
+    group: string;
+    name: Record<string, string>;
     description?: string;
     kind: string;
-    needsSelection: boolean;
-    group: string;
-    source: string;
-    available: boolean;
+    runnable: boolean;
     reason?: string;
+    origin: string;
   }[];
-  issues: string[];
 }
 
 interface ModelPoint {
@@ -328,7 +329,12 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     await turnOn(page);
     await collapseSelection(page);
     await standin.scenarios([
-      toolCall('c-list', 'list_scripts', {}),
+      // Feature 007: the list comes in parts, narrowed by group or query.
+      toolCall('c-list', 'list_scripts', { query: 'remove-spaces' }),
+      toolCall('c-list-dialogs', 'list_scripts', { group: '02_Dialogs' }),
+      toolCall('c-list-runs', 'list_scripts', { group: '05_Runs' }),
+      toolCall('c-list-errors', 'list_scripts', { group: '03_Errors' }),
+      toolCall('c-list-tree', 'list_scripts', { group: 'tree' }),
       toolCall('c-read', 'read_script', { id: 'test.dialogs.form' }),
       toolCall('c-api', 'read_resource', { uri: 'mfbe://script-api.d.ts' }),
       toolCall('c-manifest', 'read_resource', { uri: 'mfbe://script-manifest.md' }),
@@ -342,6 +348,10 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     const tools = await lastToolMessages(standin);
     expect(tools.map((m) => m.tool_call_id)).toEqual([
       'c-list',
+      'c-list-dialogs',
+      'c-list-runs',
+      'c-list-errors',
+      'c-list-tree',
       'c-read',
       'c-api',
       'c-manifest',
@@ -349,46 +359,45 @@ test.describe('US6 (005) - scripts through the assistant', () => {
       'c-unknown',
     ]);
 
-    // Scenario 1: every effective script with id, name, description, kind, needsSelection and
-    // whether it may run now (no selection: the selection scripts say needsSelection).
-    const list = parse<ScriptListing>(tools[0]!);
-    const byId = new Map(list.scripts.map((s) => [s.id, s]));
+    // Scenario 1: the effective scripts with id, names, description, kind, origin and whether
+    // they may run now (no selection: the selection scripts say needsSelection).
+    const lists = tools.slice(0, 5).map((m) => parse<ScriptListing>(m));
+    const byId = new Map(lists.flatMap((list) => list.entries).map((s) => [s.id, s]));
+    expect(lists[0]!.entries.map((s) => s.id)).toContain('18/remove-spaces');
     expect(byId.get('18/remove-spaces')).toMatchObject({
-      name: 'Remove spaces',
+      name: { en: 'Remove spaces' },
       description: expect.stringContaining('spaces'),
       kind: 'menu',
-      needsSelection: true,
-      source: 'bundled',
-      available: false,
+      origin: 'bundled',
+      runnable: false,
       reason: 'needsSelection',
     });
     expect(byId.get('test.dialogs.form')).toMatchObject({
-      name: 'Form dialog',
+      name: { en: 'Form dialog' },
       kind: 'menu',
-      needsSelection: false,
       group: '02_Dialogs',
-      source: 'user',
-      available: true,
+      origin: 'user',
+      runnable: true,
     });
     expect(byId.get('runs.prompt')).toMatchObject({
-      name: 'Ask in the middle of a run',
+      name: { en: 'Ask in the middle of a run' },
       kind: 'menu',
-      needsSelection: false,
-      source: 'user',
-      available: true,
+      origin: 'user',
+      runnable: true,
     });
-    expect(byId.get('test.errors.throws')).toMatchObject({ available: true });
-    for (const script of list.scripts) {
-      expect(typeof script.id).toBe('string');
-      expect(typeof script.name).toBe('string');
-      expect(['menu', 'tree']).toContain(script.kind);
-      expect(typeof script.needsSelection).toBe('boolean');
-      expect(typeof script.available).toBe('boolean');
+    expect(byId.get('test.errors.throws')).toMatchObject({ runnable: true });
+    for (const list of lists) {
+      expect(list.offset).toBe(0);
+      expect(list.total).toBe(list.entries.length);
+      for (const script of list.entries) {
+        expect(typeof script.id).toBe('string');
+        expect(typeof script.name.en).toBe('string');
+        expect(['menu', 'tree']).toContain(script.kind);
+        expect(typeof script.runnable).toBe('boolean');
+      }
     }
-    expect(
-      list.scripts.filter((s) => s.kind === 'tree').every((s) => s.reason === 'treeOnly'),
-    ).toBe(true);
-    expect(Array.isArray(list.issues)).toBe(true);
+    expect(lists[4]!.entries.length).toBeGreaterThan(0);
+    expect(lists[4]!.entries.every((s) => s.kind === 'tree' && s.reason === 'treeOnly')).toBe(true);
 
     // read_script: the manifest and the entry in full, the icon as a binary with its size.
     const read = parse<{
@@ -396,7 +405,7 @@ test.describe('US6 (005) - scripts through the assistant', () => {
       folder: string;
       source: string;
       files: { path: string; content?: string; binary?: boolean; bytes?: number }[];
-    }>(tools[1]!);
+    }>(tools[5]!);
     expect(read.id).toBe('test.dialogs.form');
     expect(read.source).toBe('user');
     expect(path.resolve(read.folder)).toBe(
@@ -418,22 +427,26 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     });
 
     // read_resource: the three references - sizes and first lines; the example whole.
-    const api = parse<{ uri: string; mimeType: string; text: string }>(tools[2]!);
+    const api = parse<{ uri: string; mimeType: string; text: string }>(tools[6]!);
     const apiFile = readFileSync(path.join(REPO_ROOT, 'docs', 'scripting', 'mfbe.d.ts'), 'utf8');
     expect(api.mimeType).toBe('text/typescript');
     expect(api.text).toBe(apiFile);
     expect(api.text.length).toBe(apiFile.length);
     expect(api.text.split('\n')[0]).toBe(apiFile.split('\n')[0]);
     expect(api.text).toContain('declare namespace mfbe');
-    const manifest = parse<{ mimeType: string; text: string }>(tools[3]!);
+    const manifest = parse<{ mimeType: string; text: string }>(tools[7]!);
     expect(manifest.mimeType).toBe('text/markdown');
     expect(manifest.text.split('\n')[0]).toBe('## 1. Where scripts live');
     expect(manifest.text).toContain('## 2. The manifest (`script.json`)');
     expect(manifest.text).toContain('## 3. A script');
-    expect(manifest.text).not.toContain('## 4.');
+    expect(manifest.text).not.toContain('## 4. The `mfbe` interface');
+    // Feature 007 (FR-086): the powers of the interface's version 2 and the run chains too.
+    expect(manifest.text).toContain('### 4.7 Version 2');
+    expect(manifest.text).toContain('**Run chains.**');
+    expect(manifest.text).not.toContain('## 5.');
     expect(manifest.text.length).toBeGreaterThan(3_000);
-    expect(manifest.text.length).toBeLessThan(10_000);
-    const example = parse<{ mimeType: string; text: string }>(tools[4]!);
+    expect(manifest.text.length).toBeLessThan(16_000);
+    const example = parse<{ mimeType: string; text: string }>(tools[8]!);
     expect(example.mimeType).toBe('application/json');
     const pkg = JSON.parse(example.text) as {
       id: string;
@@ -455,15 +468,18 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     expect(pkg.files[1]!.content).toContain('Notice of the original script');
     expect(example.text.length).toBeGreaterThan(2_000);
     // An unknown id: invalidArguments with the id list as the hint.
-    const unknown = parse<Envelope>(tools[5]!);
+    const unknown = parse<Envelope>(tools[9]!);
     expect(unknown.error.code).toBe('invalidArguments');
     expect(unknown.error.hint).toContain('test.dialogs.form');
 
     // The activity names the script id and the URI, never a file's content.
     const rows = await activityRows(page);
     const calls = rows.filter((r) => r.kind === 'tool.call').map((r) => r.text);
-    expect(calls[1]).toContain('test.dialogs.form');
-    expect(calls[2]).toContain('mfbe://script-api.d.ts');
+    // Feature 007: five list calls first, each named by what it was narrowed to.
+    expect(calls[0]).toContain('remove-spaces');
+    expect(calls[1]).toContain('02_Dialogs');
+    expect(calls[5]).toContain('test.dialogs.form');
+    expect(calls[6]).toContain('mfbe://script-api.d.ts');
     expect(rows.map((r) => r.text).join('\n')).not.toContain('mfbe.ui.form(');
   });
 
@@ -979,7 +995,7 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     await core.rpc('scripts.reload');
     await expect.poll(() => scriptIds(page)).not.toContain('test.model.append');
     await standin.scenarios([
-      toolCall('c-list-before', 'list_scripts', {}),
+      toolCall('c-list-before', 'list_scripts', { group: '04_Model' }),
       { ...toolCall('c-reload', 'reload_scripts', {}), delayMs: 1500 },
       { text: 'Re-read.' },
     ]);
@@ -993,9 +1009,10 @@ test.describe('US6 (005) - scripts through the assistant', () => {
     expect(reloaded.state).toBe('answered');
     tools = await lastToolMessages(standin);
     const listBefore = parse<ScriptListing>(tools[0]!);
-    expect(listBefore.scripts.map((s) => s.id)).not.toContain('test.model.append');
+    expect(listBefore.total).toBe(0);
+    expect(listBefore.entries).toEqual([]);
     const reload = parse<{ count: number; issues: string[] }>(tools[1]!);
-    expect(reload.count).toBeGreaterThan(listBefore.scripts.length);
+    expect(reload.count).toBeGreaterThan(listBefore.total);
     expect(Array.isArray(reload.issues)).toBe(true);
     await expect.poll(() => scriptIds(page)).toContain('test.model.append');
     expect(await documentXml(page)).toBe(xmlBefore);

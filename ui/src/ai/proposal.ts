@@ -20,13 +20,20 @@
  *    and the folder from the id's last segment;
  *  - the **FR-084 gate** (review C9): `run_script` on a script written in this conversation is
  *    allowed only after *Write and run* in the same request, or when the user's latest
- *    instruction was sent after the write.
+ *    instruction was sent after the write;
+ *  - feature 007 (User Story 9; ai-catalogue `propose_script`, data-model §10): the **modify
+ *    mode** - the changed files of a script in effect, saved as the assistant's copy under the
+ *    same id in its folder (`90_assistant`, the copy's own folder when there is one), which
+ *    then takes the original's place - and the **per-file diff** the dialog shows against the
+ *    files in effect.
  *
  * No UI, no RPC, no store: everything here is a pure function (`proposal.test.ts`). Part of the
  * lazy `ai-assistant` chunk.
  */
 
 import type { TFunction } from 'i18next';
+
+import type { ScriptOrigin } from '@/scripting/types';
 
 /* ------------------------------------------------------------------------ */
 /* Limits and defaults (rpc-api §3.8; review E1)                              */
@@ -57,9 +64,14 @@ export interface ProposalFile {
   content: string;
 }
 
+/** What a proposal is (feature 007): a new script, or a changed one of a script in effect. */
+export type ProposalMode = 'new' | 'modify';
+
 /** The arguments of `propose_script` (ai-catalogue §3.4). */
 export interface ProposalArgs {
   id: string;
+  /** Feature 007: `new` (the default) or `modify`. */
+  mode?: ProposalMode;
   group?: string;
   folder?: string;
   files: ProposalFile[];
@@ -96,8 +108,25 @@ export interface ProposalWarning {
   text: string;
 }
 
+/** One file of a script in effect, as `read_script` reads it: the text, or a binary's size. */
+export type EffectiveFile =
+  { path: string; content: string } | { path: string; binary: true; bytes?: number };
+
+/** The script in effect a `modify` proposal changes (feature 007): what the dialog compares. */
+export interface ModifiedScript {
+  id: string;
+  /** Its display name (the interface language, `en` fallback). */
+  name: string;
+  origin: ScriptOrigin;
+  /** Its package folder (absolute): the assistant's copy keeps its own folder. */
+  folder: string;
+  files: EffectiveFile[];
+}
+
 /** The proposal as the dialog shows it (data-model §10.1 without the lifecycle members). */
 export interface ScriptProposal {
+  /** Feature 007: a new script, or a changed one (`modifies`). */
+  mode: ProposalMode;
   scriptId: string;
   /** The script's display name (the manifest's `name` in the UI language, `en` fallback). */
   name: string;
@@ -108,8 +137,14 @@ export interface ScriptProposal {
   manifest: ProposalManifest;
   /** The target folder: `<Data>/scripts/<group>/<folder>/`. */
   target: string;
-  /** A user script with this id exists: the dialog says "replaces". */
+  /**
+   * The target folder holds the script with this id, which the write replaces whole
+   * (`overwrite`): a user script of a `new` proposal - the dialog says "replaces" - or the
+   * assistant's copy a `modify` proposal changes.
+   */
   existing: boolean;
+  /** Feature 007, `modify`: the script in effect it changes. */
+  modifies?: ModifiedScript;
   warnings: ProposalWarning[];
 }
 
@@ -489,6 +524,8 @@ export interface CheckProposalOptions {
   /** The interface language (the script's display name). */
   uiLanguage: string;
   existing: ExistingScripts;
+  /** Feature 007: the script in effect with the proposal's id, its files read (`modify`). */
+  effective?: ModifiedScript;
 }
 
 const refuse = (
@@ -628,22 +665,61 @@ export function checkProposal(args: ProposalArgs, options: CheckProposalOptions)
       { field: 'files' },
     );
   }
-  if (options.existing.bundledIds.has(args.id)) {
-    return refuse('scriptIdBundled', `"${args.id}" is a bundled script, which is never modified`, {
-      hint: 'Propose the changed script under a new id such as assistant/<name>.',
-    });
+  const mode: ProposalMode = args.mode ?? 'new';
+  let group: string;
+  let folder: string;
+  let existing: boolean;
+  if (mode === 'modify') {
+    // Feature 007: the changed script is the assistant's copy under the same id, in its
+    // folder - the copy's own folder when the script in effect is one already.
+    const effective = options.effective;
+    if (!effective || effective.id !== args.id) {
+      return refuse(
+        'invalidArguments',
+        `"${args.id}" is no script in effect, so it cannot be modified`,
+        {
+          field: 'id',
+          hint: 'Find the id with list_scripts, or propose a new script with mode "new".',
+        },
+      );
+    }
+    if (args.group !== undefined && args.group !== DEFAULT_GROUP) {
+      return refuse(
+        'invalidArguments',
+        `a changed script is saved in the assistant's folder ${DEFAULT_GROUP}, not in "${args.group}"`,
+        { field: 'group', hint: 'Leave group out.' },
+      );
+    }
+    existing = effective.origin === 'assistant';
+    const ownFolder = existing ? baseName(effective.folder) : '';
+    if (ownFolder && args.folder !== undefined && args.folder !== ownFolder) {
+      return refuse(
+        'invalidArguments',
+        `the assistant's copy of "${args.id}" lives in the folder "${ownFolder}"`,
+        { field: 'folder', hint: 'Leave folder out.' },
+      );
+    }
+    group = DEFAULT_GROUP;
+    folder = ownFolder || (args.folder ?? folderOf(args.id));
+  } else {
+    if (options.existing.bundledIds.has(args.id)) {
+      return refuse('scriptIdBundled', `"${args.id}" is a bundled script`, {
+        hint: 'Propose a new script under a new id such as assistant/<name>, or change this one with mode "modify": the changed copy takes its place, the original stays and a backup is kept.',
+      });
+    }
+    existing = options.existing.userIds.has(args.id);
+    if (existing && !args.overwrite) {
+      return refuse('scriptExists', `a user script with the id "${args.id}" exists`, {
+        hint: 'Pass overwrite: true to replace it whole (read_script first), change it with mode "modify", or choose another id.',
+      });
+    }
+    group = args.group ?? DEFAULT_GROUP;
+    folder = args.folder ?? folderOf(args.id);
   }
-  const existing = options.existing.userIds.has(args.id);
-  if (existing && !args.overwrite) {
-    return refuse('scriptExists', `a user script with the id "${args.id}" exists`, {
-      hint: 'Pass overwrite: true to replace it whole (read_script first), or choose another id.',
-    });
-  }
-  const group = args.group ?? DEFAULT_GROUP;
-  const folder = args.folder ?? folderOf(args.id);
   return {
     ok: true,
     proposal: {
+      mode,
       scriptId: args.id,
       name: manifest.name[options.uiLanguage] ?? manifest.name.en ?? args.id,
       summary: args.summary,
@@ -653,9 +729,157 @@ export function checkProposal(args: ProposalArgs, options: CheckProposalOptions)
       manifest: { ...manifest, entry },
       target: targetFolder(options.dataDir, group, folder),
       existing,
+      ...(mode === 'modify' && options.effective ? { modifies: options.effective } : {}),
       warnings: scanProposal(files),
     },
   };
+}
+
+/** The last segment of a folder path (either separator). */
+function baseName(folder: string): string {
+  return (
+    folder
+      .replace(/[\\/]+$/, '')
+      .split(/[\\/]/)
+      .pop() ?? ''
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* The per-file diff of a modify proposal (feature 007, T119)                 */
+/* ------------------------------------------------------------------------ */
+
+/** One line of a file's diff: as it was and stays, added, or removed. */
+export interface DiffLine {
+  kind: 'same' | 'added' | 'removed';
+  text: string;
+}
+
+/** What a modify proposal does with one file of the script in effect, or a new one. */
+export type FileChange =
+  | { path: string; status: 'changed' | 'unchanged' | 'added'; lines: DiffLine[] }
+  | { path: string; status: 'removed'; lines: DiffLine[] }
+  | { path: string; status: 'removedBinary'; bytes?: number };
+
+/** Cells of the line table beyond which the middle of two files is shown removed, then added. */
+const DIFF_CELLS_MAX = 4_000_000;
+
+/**
+ * The lines of `after` against `before`, every line of both in order: the common lines once,
+ * the removed ones before the added ones of each change (a longest common subsequence after
+ * the common head and tail; a very large middle is shown removed, then added).
+ */
+export function diffLines(before: string, after: string): DiffLine[] {
+  const a = splitLines(before);
+  const b = splitLines(after);
+  let head = 0;
+  while (head < a.length && head < b.length && a[head] === b[head]) head += 1;
+  let tail = 0;
+  while (
+    tail < a.length - head &&
+    tail < b.length - head &&
+    a[a.length - 1 - tail] === b[b.length - 1 - tail]
+  ) {
+    tail += 1;
+  }
+  const out: DiffLine[] = a.slice(0, head).map((text) => ({ kind: 'same', text }));
+  const midA = a.slice(head, a.length - tail);
+  const midB = b.slice(head, b.length - tail);
+  if (midA.length * midB.length > DIFF_CELLS_MAX) {
+    out.push(...midA.map((text): DiffLine => ({ kind: 'removed', text })));
+    out.push(...midB.map((text): DiffLine => ({ kind: 'added', text })));
+  } else {
+    out.push(...lcsDiff(midA, midB));
+  }
+  out.push(...a.slice(a.length - tail).map((text): DiffLine => ({ kind: 'same', text })));
+  return out;
+}
+
+function splitLines(text: string): string[] {
+  if (text === '') return [];
+  const lines = text.split(/\r\n|\r|\n/);
+  if (lines.at(-1) === '') lines.pop();
+  return lines;
+}
+
+function lcsDiff(a: readonly string[], b: readonly string[]): DiffLine[] {
+  const n = a.length;
+  const m = b.length;
+  // lengths[i][j]: the common subsequence of a[i..] and b[j..], one flat table.
+  const lengths = new Uint32Array((n + 1) * (m + 1));
+  const at = (i: number, j: number) => i * (m + 1) + j;
+  for (let i = n - 1; i >= 0; i -= 1) {
+    for (let j = m - 1; j >= 0; j -= 1) {
+      lengths[at(i, j)] =
+        a[i] === b[j]
+          ? lengths[at(i + 1, j + 1)]! + 1
+          : Math.max(lengths[at(i + 1, j)]!, lengths[at(i, j + 1)]!);
+    }
+  }
+  const out: DiffLine[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && a[i] === b[j]) {
+      out.push({ kind: 'same', text: a[i]! });
+      i += 1;
+      j += 1;
+    } else if (j >= m || (i < n && lengths[at(i + 1, j)]! >= lengths[at(i, j + 1)]!)) {
+      out.push({ kind: 'removed', text: a[i]! });
+      i += 1;
+    } else {
+      out.push({ kind: 'added', text: b[j]! });
+      j += 1;
+    }
+  }
+  return out;
+}
+
+/**
+ * Every file of a modify proposal against the files in effect, in the proposal's order and then
+ * the files the changed script no longer has: changed, unchanged, added, removed - a binary
+ * file in effect (an icon) cannot be proposed and is listed as left out.
+ */
+export function fileChanges(
+  files: readonly { path: string; content: string }[],
+  effective: readonly EffectiveFile[],
+): FileChange[] {
+  const before = new Map(effective.map((file) => [normalisePath(file.path), file]));
+  const out: FileChange[] = [];
+  for (const file of files) {
+    const old = before.get(file.path);
+    before.delete(file.path);
+    if (!old || !('content' in old)) {
+      out.push({
+        path: file.path,
+        status: 'added',
+        lines: splitLines(file.content).map((text) => ({ kind: 'added', text })),
+      });
+      continue;
+    }
+    const lines = diffLines(old.content, file.content);
+    out.push({
+      path: file.path,
+      status: lines.every((line) => line.kind === 'same') ? 'unchanged' : 'changed',
+      lines,
+    });
+  }
+  for (const [path, old] of before) {
+    out.push(
+      'content' in old
+        ? {
+            path,
+            status: 'removed',
+            lines: splitLines(old.content).map((text) => ({ kind: 'removed', text })),
+          }
+        : {
+            path,
+            status: 'removedBinary',
+            ...(old.bytes === undefined ? {} : { bytes: old.bytes }),
+          },
+    );
+  }
+  return out;
 }
 
 /** The files as `scripts.write` receives them: the author line inserted into the entry module. */

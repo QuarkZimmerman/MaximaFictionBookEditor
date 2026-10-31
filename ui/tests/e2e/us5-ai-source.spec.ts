@@ -613,9 +613,10 @@ test.describe('US5 (005) - Ask AI... in the Source view', () => {
     const script = parse<{ error: { code: string; hint?: string } }>(tools[0]!);
     expect(script.error.code).toBe('unavailable');
     expect(script.error.hint).toBe('scripts run in the Body view; ask the user to switch');
-    const listed = parse<{ scripts: { available: boolean; reason?: string }[] }>(tools[1]!);
-    expect(listed.scripts.length).toBeGreaterThan(0);
-    expect(listed.scripts.every((s) => s.available === false && s.reason === 'sourceView')).toBe(
+    // Catalogue 3 (feature 007): a part of {total, offset, entries}, `runnable` per entry.
+    const listed = parse<{ entries: { runnable: boolean; reason?: string }[] }>(tools[1]!);
+    expect(listed.entries.length).toBeGreaterThan(0);
+    expect(listed.entries.every((s) => s.runnable === false && s.reason === 'sourceView')).toBe(
       true,
     );
     // The view did not change for the run (FR-051).

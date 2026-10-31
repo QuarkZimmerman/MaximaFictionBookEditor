@@ -13,6 +13,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import {
+  BACKUP_READ_TOOL_NAMES,
+  BACKUP_TOOL_NAMES,
   CATALOGUE_VERSION,
   CHANGE_TOOL_NAMES,
   EXAMPLE_SCRIPT_ID,
@@ -70,12 +72,14 @@ function textOf(copy: Harness['copy'], nodeId: string): string {
 }
 
 describe('tools/list', () => {
-  it('lists the 24 tools in the §3 order, every one once, with the name rule, short descriptions and object schemas', () => {
+  it('lists the 26 tools in the §3 order, every one once, with the name rule, short descriptions and object schemas', () => {
     const tools = h.catalogue.listed();
     expect(tools.map((t) => t.name)).toEqual([...TOOL_NAMES]);
     // §3 order: the read tools (US2's six, then US4's validate and get_schema, then US6's
-    // three, then feature 006's read_table), the selection tools, the structural change tools
-    // with feature 006's edit_table after set_description, the script tools (Δ§1.2).
+    // three, then feature 006's read_table, then feature 007's list_script_backups), the
+    // selection tools, the structural change tools with feature 006's edit_table after
+    // set_description, the script tools with feature 007's restore_script_backup last
+    // (catalogue 3).
     expect(TOOL_NAMES).toEqual([
       'get_context',
       'get_outline',
@@ -89,6 +93,7 @@ describe('tools/list', () => {
       'read_script',
       'read_resource',
       'read_table',
+      'list_script_backups',
       'set_selection',
       'replace_selection',
       ...US3_TOOL_NAMES,
@@ -96,22 +101,27 @@ describe('tools/list', () => {
       'run_script',
       'propose_script',
       'reload_scripts',
+      'restore_script_backup',
     ]);
-    expect(TOOL_NAMES).toHaveLength(24);
-    expect(new Set(TOOL_NAMES).size).toBe(24);
+    expect(TOOL_NAMES).toHaveLength(26);
+    expect(new Set(TOOL_NAMES).size).toBe(26);
     expect(TABLE_READ_TOOL_NAMES).toEqual(['read_table']);
     expect(TABLE_CHANGE_TOOL_NAMES).toEqual(['edit_table']);
     expect(US4_TOOL_NAMES).toEqual(['validate', 'get_schema']);
     expect(US6_READ_TOOL_NAMES).toEqual(['list_scripts', 'read_script', 'read_resource']);
     expect(US6_SCRIPT_TOOL_NAMES).toEqual(['run_script', 'propose_script', 'reload_scripts']);
+    expect(BACKUP_READ_TOOL_NAMES).toEqual(['list_script_backups']);
+    expect(BACKUP_TOOL_NAMES).toEqual(['restore_script_backup']);
     expect(TOOL_NAMES).toHaveLength(
       US2_TOOL_NAMES.length +
         US4_TOOL_NAMES.length +
         US6_READ_TOOL_NAMES.length +
         TABLE_READ_TOOL_NAMES.length +
+        BACKUP_READ_TOOL_NAMES.length +
         6 +
         TABLE_CHANGE_TOOL_NAMES.length +
-        3,
+        3 +
+        BACKUP_TOOL_NAMES.length,
     );
     expect(US3_TOOL_NAMES).toEqual([
       'replace_node',
@@ -1856,6 +1866,7 @@ const SCRIPTS: CatalogueScript[] = [
     needsSelection: true,
     group: '18_editing',
     source: 'bundled',
+    origin: 'bundled',
     folder: '/app/scripts/18_editing/01_remove-spaces',
   },
   {
@@ -1865,6 +1876,7 @@ const SCRIPTS: CatalogueScript[] = [
     needsSelection: false,
     group: '02_Dialogs',
     source: 'user',
+    origin: 'user',
     folder: '/data/scripts/02_Dialogs/01_Form',
   },
   {
@@ -1874,6 +1886,7 @@ const SCRIPTS: CatalogueScript[] = [
     needsSelection: false,
     group: 'tree',
     source: 'user',
+    origin: 'user',
     folder: '/data/scripts/tree/01_Mark',
   },
   {
@@ -1883,6 +1896,7 @@ const SCRIPTS: CatalogueScript[] = [
     needsSelection: false,
     group: '90_assistant',
     source: 'user',
+    origin: 'assistant',
     folder: '/data/scripts/90_assistant/written-here',
   },
 ];
@@ -1933,7 +1947,7 @@ function fakeScripts(): FakeScripts {
     bodyView: () => fake.body,
     dataDir: () => Promise.resolve('/data'),
     uiLanguage: () => 'en',
-    run: (script, treeNode) => {
+    run: (script, { treeNode }) => {
       fake.runs.push({ id: script.id, ...(treeNode ? { treeNode } : {}) });
       return Promise.resolve(fake.nextRun);
     },
@@ -1944,6 +1958,9 @@ function fakeScripts(): FakeScripts {
         ? Promise.reject(fake.decision)
         : Promise.resolve(fake.decision);
     },
+    // Feature 007: the backups (scriptTools.test.ts covers the tools).
+    backups: () => Promise.resolve([]),
+    restore: () => Promise.resolve({ restored: false, declined: true }),
   };
   return fake;
 }
@@ -1991,53 +2008,59 @@ describe('US6: list_scripts, read_script, read_resource (ai-catalogue §3.1)', (
     expect(h.hookCalls).toEqual([]);
   });
 
-  it('list_scripts: every script with id, name, description, kind, needsSelection, group, source and the availability reasons', async () => {
+  it('list_scripts: every script with id, group, names, description, kind, origin and the runnable reasons (catalogue 3: in parts of {total, offset, entries})', async () => {
     const out = await call('list_scripts', {});
     expect(out.isError).toBe(false);
-    const result = out.result as { scripts: Record<string, unknown>[]; issues: string[] };
-    expect(result.issues).toEqual(['invalidManifest: x (/data/scripts/bad)']);
-    expect(result.scripts).toEqual([
+    const result = out.result as {
+      total: number;
+      offset: number;
+      entries: Record<string, unknown>[];
+    };
+    expect(result.total).toBe(4);
+    expect(result.offset).toBe(0);
+    expect(result.entries).toEqual([
       {
         id: '18/remove-spaces',
-        name: 'Remove spaces',
+        group: '18_editing',
+        name: { en: 'Remove spaces' },
         description: 'Removes spaces from the selection',
         kind: 'menu',
-        needsSelection: true,
-        group: '18_editing',
-        source: 'bundled',
-        available: false,
+        runnable: false,
         reason: 'needsSelection',
+        origin: 'bundled',
       },
       {
         id: 'test.dialogs.form',
-        name: 'Form dialog',
-        kind: 'menu',
-        needsSelection: false,
         group: '02_Dialogs',
-        source: 'user',
-        available: true,
+        name: { en: 'Form dialog' },
+        kind: 'menu',
+        runnable: true,
+        origin: 'user',
       },
       {
         id: 'test.tree.mark',
-        name: 'Mark',
-        kind: 'tree',
-        needsSelection: false,
         group: 'tree',
-        source: 'user',
-        available: false,
+        name: { en: 'Mark' },
+        kind: 'tree',
+        runnable: false,
         reason: 'treeOnly',
+        origin: 'user',
       },
-      expect.objectContaining({ id: 'assistant/written-here', available: true }),
+      expect.objectContaining({
+        id: 'assistant/written-here',
+        runnable: true,
+        origin: 'assistant',
+      }),
     ]);
-    // With a selection the needsSelection script is available; outside the Body view none is.
+    // With a selection the needsSelection script is runnable; outside the Body view none is.
     h.setSelection(inlineSelection('n13', 0, 5));
     const withSelection = (await call('list_scripts', {})).result as {
-      scripts: { available: boolean }[];
+      entries: { runnable: boolean }[];
     };
-    expect(withSelection.scripts[0]!.available).toBe(true);
+    expect(withSelection.entries[0]!.runnable).toBe(true);
     fake.body = false;
-    const source = (await call('list_scripts', {})).result as { scripts: { reason?: string }[] };
-    expect(source.scripts.every((s) => s.reason === 'sourceView')).toBe(true);
+    const source = (await call('list_scripts', {})).result as { entries: { reason?: string }[] };
+    expect(source.entries.every((s) => s.reason === 'sourceView')).toBe(true);
   });
 
   it('read_script: the files with content, binaries listed with their size, an unknown id refused with the id list', async () => {
@@ -2047,6 +2070,8 @@ describe('US6: list_scripts, read_script, read_resource (ai-catalogue §3.1)', (
       id: 'test.dialogs.form',
       folder: '/data/test.dialogs.form',
       source: 'user',
+      origin: 'user',
+      description: {},
       files: [
         { path: 'script.json', content: 'script.json of test.dialogs.form' },
         { path: 'index.js', content: 'index.js of test.dialogs.form' },

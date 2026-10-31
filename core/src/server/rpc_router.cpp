@@ -66,6 +66,8 @@ const char* error_name(int code) {
             return "ai.scriptIdBundled";
         case codes::kAiScriptExists:
             return "ai.scriptExists";
+        case codes::kScriptBackupNotFound:
+            return "script.backupNotFound";
         default:
             return "";
     }

@@ -93,10 +93,15 @@ export const RpcErrorCode = {
   // feature 005 — doc.fragment*, schema.text, scripts.write
   /** `doc.fragmentFromXml`: the parent element cannot hold this element; `data` {element, parent}. */
   aiFragmentNotAllowed: 1201,
-  /** `scripts.write`: the id belongs to a bundled script, which is never modified; `data` {id}. */
+  /**
+   * `scripts.write`: the id belongs to a bundled script and the target is not the assistant's
+   * folder (from which a write replaces it, feature 007); `data` {id}.
+   */
   aiScriptIdBundled: 1202,
   /** `scripts.write`: a user script with this id or this folder exists and `overwrite` is not set; `data` {id, path}. */
   aiScriptExists: 1203,
+  /** `scripts.backups.restore`: the script has no backup of this id (feature 007); `data` {id, backupId}. */
+  scriptBackupNotFound: 1204,
   // Client-side conditions raised by the RPC client itself (never sent by the core).
   clientTimeout: -32001,
   clientDisconnected: -32002,
@@ -705,6 +710,21 @@ export interface ScriptWriteResult {
   path: string;
   reloaded: true;
   warnings: string[];
+  /**
+   * Feature 007: the backup of the version the write replaced - the script in effect elsewhere
+   * (a replacing copy from the assistant's folder) or the package of an overwrite.
+   */
+  backupId?: string;
+}
+
+/** One backup of `scripts.backups.list` (feature 007, data-model §9): newest first. */
+export interface ScriptBackupInfo {
+  /** The backup's folder name, `yyyymmddThhmmssZ` (with `-N` for a second one that second). */
+  backupId: string;
+  /** Where the backed-up version came from. */
+  origin: 'bundled' | 'settings' | 'user' | 'portable' | 'assistant';
+  /** ISO 8601, UTC. */
+  createdAt: string;
 }
 
 /** `data` of 1203 `ai.scriptExists`: the package with the id, or the target folder. */
@@ -1323,7 +1343,10 @@ export interface RpcMethods {
    * elsewhere or an existing target folder, lifted by `overwrite: true` only when every
    * conflict is the target folder itself; 1002 {path, reason} - `reason: 'symlink'` for a
    * link where none may be - with nothing changed (all or nothing through an aside folder).
-   * Then the rescan of `scripts.reload` and `resources.changed {what: 'scripts'}`.
+   * Then the rescan of `scripts.reload` and `resources.changed {what: 'scripts'}`. Feature 007
+   * (rpc-api §3.6): into the assistant's folder an id in effect elsewhere gets a replacing copy
+   * instead of 1202 / 1203; the version a write replaces is kept first as a backup
+   * (`backupId`).
    */
   'scripts.write': {
     params: {
@@ -1334,6 +1357,25 @@ export interface RpcMethods {
       overwrite?: boolean;
     };
     result: ScriptWriteResult;
+  };
+  /**
+   * The backups the assistant's changes caused for one script, newest first (feature 007,
+   * rpc-api §3.6); `[]` for an id that never had one. invalidParams {field: 'id'}.
+   */
+  'scripts.backups.list': {
+    params: { id: string };
+    result: { backups: ScriptBackupInfo[] };
+  };
+  /**
+   * A backup back in effect (feature 007, data-model §9): one of another origin than the
+   * assistant's removes the assistant's copy (the version under it is in effect again), an
+   * assistant one becomes the assistant's copy again; the version in effect it replaces is
+   * kept as a backup first (`backupId`). Errors: 1204 {id, backupId}, 1002 {path, reason},
+   * invalidParams {field: 'id' | 'backupId'}. Then `resources.changed {what: 'scripts'}`.
+   */
+  'scripts.backups.restore': {
+    params: { id: string; backupId: string };
+    result: { restored: true; backupId?: string };
   };
 
   // feature 005 — ai.*, app.openUrl, test hooks

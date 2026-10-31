@@ -264,6 +264,8 @@ const methods = {
   'resources.symbols': () => [],
   // rpc-api.md §3.6 (feature 007): groups whose scripts carry `origin` and `legacy`.
   'scripts.list': () => ({ groups: [], issues: [], folders: {} }),
+  // Feature 007 (rpc-api §3.6): no script, so no backup.
+  'scripts.backups.list': () => ({ backups: [] }),
   'spell.dictionaries': () => [],
   'log.error': () => ({}),
   // Feature 005 (rpc-api §3.1, §3.12): the terms link opener and the service list family.

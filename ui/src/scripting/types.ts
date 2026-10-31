@@ -40,8 +40,19 @@ export interface ScriptInfo {
   source: string;
   /** Where the script comes from; `assistant` is the assistant's folder (feature 007). */
   origin: ScriptOrigin;
+  /**
+   * The script of a lower layer this one replaces (feature 007, FR-085): it then shows in that
+   * script's group and place, and keeps that script's icon when it has none of its own.
+   */
+  overrides?: ScriptOverride;
   entryUrl: string;
   warnings: string[];
+}
+
+/** `ScriptInfo.overrides`: the replaced script's origin and package folder. */
+export interface ScriptOverride {
+  origin: ScriptOrigin;
+  dir: string;
 }
 
 export interface ScriptLegacy {
@@ -57,7 +68,13 @@ export interface ScriptGroup {
   order: number;
   names: Record<string, string>;
   dir: string;
+  /** The icon file group.json declares. */
   icon?: string;
+  /**
+   * `/script-groups/<folder>/icon` (relative to the core origin): the merged group's declared
+   * icon, from the layer whose declaration it uses (feature 007, rpc-api §2).
+   */
+  iconUrl?: string;
   scripts: ScriptInfo[];
 }
 
@@ -66,7 +83,8 @@ export interface ScriptIssue {
   id?: string;
   reason: string;
   message: string;
-  severity: 'error' | 'warning';
+  /** `info` (feature 007): `overridden` - the script at `path` is replaced by another layer's. */
+  severity: 'error' | 'warning' | 'info';
 }
 
 export interface ScriptsListResult {
@@ -335,6 +353,8 @@ export type HostMessage =
 export interface ScriptErrorInfo {
   name: string;
   message: string;
+  /** The `code` of a `ScriptApiError` the script let through (`clipboard.readNotAllowed`, …). */
+  code?: string;
   line?: number;
   column?: number;
   /** File of the location when it is not the entry module (relative to the package). */

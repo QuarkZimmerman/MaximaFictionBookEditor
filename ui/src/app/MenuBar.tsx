@@ -19,10 +19,12 @@ import { useTranslation } from 'react-i18next';
 import { parseAccelerator } from '@/i18n';
 
 import { commandLabelRaw, unavailableTitle, type CommandContext } from './commands';
+import { MenuItemSlot } from './MenuIcon';
 import {
   MAIN_MENU,
   menuItemTestId,
   type DynamicMenuItems,
+  type MenuIcon,
   type MenuItemSpec,
   type MenuSpec,
 } from './menus';
@@ -46,6 +48,8 @@ interface ResolvedItem {
   /** Command has a checked state (toggle). */
   toggle: boolean;
   hotkey: string | undefined;
+  /** The icon left of the name (feature 007): a command's or a submenu's own. */
+  icon?: MenuIcon;
   /**
    * "Command: reason" of a disabled command whose registry entry gives a reason (feature 006,
    * FR-043), set as `title` and `aria-description`.
@@ -132,6 +136,7 @@ function resolveItems(
         checked: command ? services.commands.isChecked(spec.commandId, ctx) : false,
         toggle: command?.checked !== undefined,
         hotkey: services.hotkeys.display(spec.commandId),
+        ...(spec.icon ? { icon: spec.icon } : {}),
         title: command && reason ? unavailableTitle(command, reason, t) : undefined,
       });
       return;
@@ -155,6 +160,7 @@ function resolveItems(
         checked: false,
         toggle: false,
         hotkey: undefined,
+        ...(spec.icon ? { icon: spec.icon } : {}),
         title: reason ?? undefined,
         items,
       });
@@ -463,9 +469,7 @@ export function MenuBar({ menus = MAIN_MENU, dynamicItems = {} }: MenuBarProps) 
             activate(item, index, inSubmenu);
           }}
         >
-          <span className="mfbe-menu-check" aria-hidden="true">
-            {item.checked ? '\u2713' : ''}
-          </span>
+          <MenuItemSlot checked={item.checked} checkable={item.toggle} icon={item.icon} />
           <span className="mfbe-menu-label">
             <AcceleratedLabel text={item.label} index={item.acceleratorIndex} />
           </span>

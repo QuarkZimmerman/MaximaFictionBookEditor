@@ -423,6 +423,16 @@ textarea {
   font-weight: 700;
 }
 
+/* A menu item's icon (feature 007, FR-043): 16 x 16 CSS pixels in the 22 px column of the
+   check mark, so the names stay aligned; high-density screens: see the Scripts toolbar below. */
+.mfbe-menu-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0 auto;
+  image-rendering: auto;
+}
+
 .mfbe-menu-hotkey {
   margin-left: 24px;
   opacity: 0.75;
@@ -544,13 +554,14 @@ textarea {
 
 /*
  * High-DPI (T153): the original toolbar bitmaps exist at 24 px (Commands toolbar) and 16 px
- * (Scripts toolbar, Document Tree). At integer scale factors the small set is drawn with
+ * (Scripts toolbar, Document Tree, and since feature 007 the menus' icons). At integer scale factors the small set is drawn with
  * nearest-neighbour scaling so its pixel art stays crisp instead of blurring; the 24 px set
  * keeps the default smooth scaling. Fractional factors (125 %, 150 %) keep smooth scaling,
  * where nearest-neighbour would produce uneven pixels.
  */
 @media (min-resolution: 2dppx) {
   .mfbe-toolbar-scripts .mfbe-toolbar-button img,
+  .mfbe-menu-icon,
   .mfbe-tree-icon,
   .mfbe-tree-toolbar-button img {
     image-rendering: pixelated;

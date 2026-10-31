@@ -446,3 +446,20 @@
   font-family: var(--mfbe-font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
   font-size: 0.92em;
 }
+
+/* Feature 007 (T119): the per-file diff of a modify proposal - the removed lines and the added
+   ones marked by colour as well as by their - / + mark (the mark alone carries the meaning). */
+.mfbe-ai-diff-status {
+  font-family: var(--mfbe-font-ui, inherit);
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.mfbe-ai-diff-added {
+  color: var(--status-ok, #0f7b0f);
+}
+
+.mfbe-ai-diff-removed {
+  color: var(--status-bad, #c42b1c);
+  text-decoration: line-through;
+}

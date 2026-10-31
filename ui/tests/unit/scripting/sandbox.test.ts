@@ -369,6 +369,17 @@ describe('error mapping', () => {
     expect(described.line).toBeUndefined();
     expect(described.message).toBe("Unexpected token '}'");
 
+    // Feature 007: an API error the script let through keeps its machine-readable code.
+    const refused = Object.assign(new Error('no clipboard here'), {
+      name: 'ScriptApiError',
+      code: 'clipboard.readNotAllowed',
+    });
+    expect(describeError(refused, entry)).toMatchObject({
+      name: 'ScriptApiError',
+      code: 'clipboard.readNotAllowed',
+    });
+    expect(describeError(syntax, entry)).not.toHaveProperty('code');
+
     expect(describeError('plain string', entry)).toEqual({
       name: 'Error',
       message: 'plain string',
