@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test16/chain-marks",
+  "name": {
+    "ru": "Цепочка: переходы по форматированию",
+    "en": "Chain: going to formatting"
+  },
+  "kind": "menu"
+}

@@ -2,22 +2,25 @@
   "manifestVersion": 1,
   "id": "16/previous-paragraph-with-code",
   "name": {
-    "en": "Go to previous paragraph with code",
-    "ru": "Переход на предыдущий абзац, содержащий код"
+    "ru": "Перейти на предыдущий абзац, содержащий код",
+    "en": "Go to previous paragraph containing code",
+    "uk": "Перейти до попереднього абзацу, що містить код"
   },
   "description": {
-    "en": "Moves the caret to the first code in the previous paragraph that contains code; offers to continue from the end of the book when the beginning is reached",
-    "ru": "Переводит курсор на предыдущий абзац, содержащий код; по достижении начала книги предлагает продолжить с конца"
+    "ru": "Переходит на предыдущий абзац, содержащий код, и ставит курсор в конец последнего фрагмента кода в нём; по достижении начала книги предлагает продолжить с конца",
+    "en": "Goes to the previous paragraph that contains code and puts the caret at the end of its last code; at the beginning of the book offers to continue from the end",
+    "uk": "Переходить до попереднього абзацу, що містить код, і ставить курсор у кінець останнього фрагмента коду в ньому; на початку книги пропонує продовжити з кінця"
   },
   "kind": "menu",
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous paragraph with code v1.0.",
-    "ru": "Переход на предыдущий абзац, содержащий код v1.0."
+    "ru": "Перейти на предыдущий абзац, содержащий код",
+    "en": "Go to previous paragraph containing code"
   },
   "legacy": {
-    "source": "16_Поиск форматирования/23_Переход на предыдущий абзац, содержащий код.js",
-    "fbeVersion": "2.7"
+    "source": "16_Поиск форматирования/023_Перейти на предыдущий абзац, содержащий код.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
   }
 }

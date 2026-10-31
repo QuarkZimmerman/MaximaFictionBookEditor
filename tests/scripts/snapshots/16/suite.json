@@ -540,5 +540,22 @@
     "script": "tests/scripts/fixtures/279/16/chains/regexps",
     "book": "tests/scripts/fixtures/279/16/regexps.fb2",
     "args": []
+  },
+  {
+    "snapshot": "16/chain-marks.xml",
+    "script": "tests/scripts/fixtures/279/16/chains/marks",
+    "book": "tests/scripts/fixtures/279/16/marks.fb2",
+    "args": [
+      "--answer",
+      "cancel",
+      "--answer",
+      "cancel"
+    ]
+  },
+  {
+    "snapshot": "16/chain-conv-c-16.xml",
+    "script": "tests/scripts/fixtures/279/16/chains/conv-c-16",
+    "book": "tests/scripts/fixtures/books/conv-c-16.fb2",
+    "args": []
   }
 ]

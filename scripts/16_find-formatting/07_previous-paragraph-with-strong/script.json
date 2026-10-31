@@ -2,22 +2,25 @@
   "manifestVersion": 1,
   "id": "16/previous-paragraph-with-strong",
   "name": {
+    "ru": "Перейти на предыдущий абзац с жирностью",
     "en": "Go to previous paragraph with bold",
-    "ru": "Переход на предыдущий абзац с жирностью"
+    "uk": "Перейти до попереднього абзацу з жирним шрифтом"
   },
   "description": {
-    "en": "Moves the caret to the first bold text in the previous paragraph that contains bold text; offers to continue from the end of the book when the beginning is reached",
-    "ru": "Переводит курсор на предыдущий абзац, содержащий жирность; по достижении начала книги предлагает продолжить с конца"
+    "ru": "Переходит на предыдущий абзац, содержащий жирный текст, и ставит курсор в конец последнего жирного фрагмента в нём; по достижении начала книги предлагает продолжить с конца",
+    "en": "Goes to the previous paragraph that contains bold text and puts the caret at the end of its last bold text; at the beginning of the book offers to continue from the end",
+    "uk": "Переходить до попереднього абзацу, що містить жирний текст, і ставить курсор у кінець останнього жирного фрагмента в ньому; на початку книги пропонує продовжити з кінця"
   },
   "kind": "menu",
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous paragraph with bold v1.0.",
-    "ru": "Переход на предыдущий абзац с жирностью v1.0."
+    "ru": "Перейти на предыдущий абзац с жирностью",
+    "en": "Go to previous paragraph with bold"
   },
   "legacy": {
-    "source": "16_Поиск форматирования/07_Переход на предыдущий абзац с жирностью.js",
-    "fbeVersion": "2.7"
+    "source": "16_Поиск форматирования/007_Перейти на предыдущий абзац с жирностью.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
   }
 }

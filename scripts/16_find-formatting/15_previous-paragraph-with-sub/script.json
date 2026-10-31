@@ -2,22 +2,25 @@
   "manifestVersion": 1,
   "id": "16/previous-paragraph-with-sub",
   "name": {
+    "ru": "Перейти на предыдущий абзац с нижним индексом",
     "en": "Go to previous paragraph with subscript",
-    "ru": "Переход на предыдущий абзац с нижним индексом"
+    "uk": "Перейти до попереднього абзацу з нижнім індексом"
   },
   "description": {
-    "en": "Moves the caret to the first subscript in the previous paragraph that contains subscript; offers to continue from the end of the book when the beginning is reached",
-    "ru": "Переводит курсор на предыдущий абзац, содержащий нижний индекс; по достижении начала книги предлагает продолжить с конца"
+    "ru": "Переходит на предыдущий абзац, содержащий нижний индекс, и ставит курсор в конец последнего нижнего индекса в нём; по достижении начала книги предлагает продолжить с конца",
+    "en": "Goes to the previous paragraph that contains subscript and puts the caret at the end of its last subscript; at the beginning of the book offers to continue from the end",
+    "uk": "Переходить до попереднього абзацу, що містить нижній індекс, і ставить курсор у кінець останнього нижнього індексу в ньому; на початку книги пропонує продовжити з кінця"
   },
   "kind": "menu",
   "entry": "index.js",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous paragraph with subscript v1.0.",
-    "ru": "Переход на предыдущий абзац с нижним индексом v1.0."
+    "ru": "Перейти на предыдущий абзац с нижним индексом",
+    "en": "Go to previous paragraph with subscript"
   },
   "legacy": {
-    "source": "16_Поиск форматирования/15_Переход на предыдущий абзац с нижним индексом.js",
-    "fbeVersion": "2.7"
+    "source": "16_Поиск форматирования/015_Перейти на предыдущий абзац с нижним индексом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
   }
 }

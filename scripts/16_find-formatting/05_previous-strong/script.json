@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "16/previous-strong",
   "name": {
+    "ru": "Перейти на предыдущую жирность",
     "en": "Go to previous bold",
-    "ru": "Переход на предыдущую жирность"
+    "uk": "Перейти до попереднього жирного шрифту"
   },
   "description": {
-    "en": "Moves the caret to the end of the previous run of bold text; offers to continue from the end of the book when the beginning is reached",
-    "ru": "Переводит курсор в конец предыдущего фрагмента (жирность); по достижении начала книги предлагает продолжить с конца"
+    "ru": "Переводит курсор в конец предыдущего фрагмента, набранного жирным; по достижении начала книги предлагает продолжить с конца",
+    "en": "Moves the caret to the end of the previous run of bold text; at the beginning of the book offers to continue from the end",
+    "uk": "Переводить курсор у кінець попереднього фрагмента, набраного жирним шрифтом; на початку книги пропонує продовжити з кінця"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous bold v1.0.",
-    "ru": "Переход на предыдущую жирность v1.0."
+    "ru": "Перейти на предыдущую жирность",
+    "en": "Go to previous bold"
   },
   "legacy": {
-    "source": "16_Поиск форматирования/05_Переход на предыдущую жирность.js",
-    "fbeVersion": "2.7"
+    "source": "16_Поиск форматирования/005_Перейти на предыдущую жирность.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
   }
 }

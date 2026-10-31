@@ -10,8 +10,9 @@
       "new": 230,
       "noCounterpart": 6,
       "notConverted": 5,
-      "recheck": 112,
-      "unchanged": 24
+      "recheck": 88,
+      "unchanged": 24,
+      "updated": 24
     },
     "recheckClasses": {
       "identical": 24,
@@ -4829,9 +4830,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/01_previous-emphasis",
       "id": "16/previous-emphasis",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/01_Переход на предыдущий курсив.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4856,9 +4860,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/02_next-emphasis",
       "id": "16/next-emphasis",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/02_Переход на следующий курсив.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4883,9 +4891,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/03_previous-paragraph-with-emphasis",
       "id": "16/previous-paragraph-with-emphasis",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/03_Переход на предыдущий абзац с курсивом.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4910,9 +4921,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/04_next-paragraph-with-emphasis",
       "id": "16/next-paragraph-with-emphasis",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/04_Переход на следующий абзац с курсивом.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4937,9 +4952,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/05_previous-strong",
       "id": "16/previous-strong",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/05_Переход на предыдущую жирность.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4964,9 +4982,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/06_next-strong",
       "id": "16/next-strong",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/06_Переход на следующую жирность.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -4991,9 +5013,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/07_previous-paragraph-with-strong",
       "id": "16/previous-paragraph-with-strong",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/07_Переход на предыдущий абзац с жирностью.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5018,9 +5043,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/08_next-paragraph-with-strong",
       "id": "16/next-paragraph-with-strong",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/08_Переход на следующий абзац с жирностью.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5045,9 +5074,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/09_previous-sup",
       "id": "16/previous-sup",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/09_Переход на предыдущий верхний индекс.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5072,9 +5104,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/10_next-sup",
       "id": "16/next-sup",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/10_Переход на следующий верхний индекс.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5099,9 +5135,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/11_previous-paragraph-with-sup",
       "id": "16/previous-paragraph-with-sup",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/11_Переход на предыдущий абзац с верхним индексом.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5126,11 +5165,17 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/12_next-paragraph-with-sup",
       "id": "16/next-paragraph-with-sup",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/12_Переход на следующий абзац с верхним индексом.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
-      "openQuestions": [],
+      "openQuestions": [
+        "2.7.9's own combos 31/50 and 31/51 run this script as \"16_Поиск форматирования\\12_Перейти на следующий абзац с верхним индексом.js\", but its file is \"012_...\": 2.7.9 cannot load it there (runScriptInFolder shows \"Скрипт ... не был запущен...\" and the loop ends at once). The package resolves by its 2.7.9 path (012_...) and by its id 16/next-paragraph-with-sup, not by \"12_...\" (scripts.notFound, chain-marks.outputs.json). Left to the conversion of those combos (T066) and the requester: the converted combos name 012_... or the id (a fix of the caller), or the resolver learns to ignore a leading zero of the number (an API change, not made here)."
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 16,
@@ -5153,9 +5198,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/13_previous-sub",
       "id": "16/previous-sub",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/13_Переход на предыдующий нижний индекс.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5180,9 +5228,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/14_next-sub",
       "id": "16/next-sub",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/14_Переход на следующий нижний индекс.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5207,9 +5259,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/15_previous-paragraph-with-sub",
       "id": "16/previous-paragraph-with-sub",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/15_Переход на предыдущий абзац с нижним индексом.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5234,9 +5289,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/16_next-paragraph-with-sub",
       "id": "16/next-paragraph-with-sub",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/16_Переход на следующий абзац с нижним индексом.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5261,9 +5320,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/17_previous-strikethrough",
       "id": "16/previous-strikethrough",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/17_Переход на предыдущее зачеркивание.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5288,9 +5350,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/18_next-strikethrough",
       "id": "16/next-strikethrough",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/18_Переход на следующее зачеркивание.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5315,9 +5381,12 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/19_previous-paragraph-with-strikethrough",
       "id": "16/previous-paragraph-with-strikethrough",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/19_Переход на предыдущий абзац, содержащий зачеркивание.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5342,9 +5411,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/20_next-paragraph-with-strikethrough",
       "id": "16/next-paragraph-with-strikethrough",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/20_Переход на следующий абзац, содержащий зачеркивание.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5369,9 +5442,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/21_previous-code",
       "id": "16/previous-code",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/21_Переход на предыдущий код.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "A named style \"code\" (<style name=\"code\">), which FictionBook Editor showed as <span class=\"code\"> like <code> and so found as well, is not found: the document model tells a style from the code mark, and the script means <code>.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5396,9 +5473,14 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/22_next-code",
       "id": "16/next-code",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/22_Переход на следующий код.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "A named style \"code\" (<style name=\"code\">), which FictionBook Editor showed as <span class=\"code\"> like <code> and so found as well, is not found: the document model tells a style from the code mark, and the script means <code>.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5423,9 +5505,13 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/23_previous-paragraph-with-code",
       "id": "16/previous-paragraph-with-code",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/23_Переход на предыдущий абзац, содержащий код.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "A named style \"code\" (<style name=\"code\">), which FictionBook Editor showed as <span class=\"code\"> like <code> and so found as well, is not found: the document model tells a style from the code mark, and the script means <code>.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
       "openQuestions": [],
       "recheck": {
@@ -5450,11 +5536,18 @@
       "htmlDialogs": [],
       "package": "scripts/16_find-formatting/24_next-paragraph-with-code",
       "id": "16/next-paragraph-with-code",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "16_Поиск форматирования/24_Переход на следующий абзац, содержащий код.js",
-      "differences": [],
+      "differences": [
+        "A selected block picture is refused with the original's message and the script returns nothing, as in 2.7.9; a selected inline picture counts as a one-character text selection and the search starts from it, where FictionBook Editor took a clicked inline picture for a control selection and refused it too: the script API reports an inline picture as part of its paragraph's text.",
+        "Scrolling: the editor scrolls the caret into view; 2.7.9's scrollIfItNeeds (50 pixels further down when the selection is less than 20 pixels above the window's bottom edge) is not reproduced.",
+        "A named style \"code\" (<style name=\"code\">), which FictionBook Editor showed as <span class=\"code\"> like <code> and so found as well, is not found: the document model tells a style from the code mark, and the script means <code>.",
+        "Above the API's 64 MB document snapshot the book's annotation and history are not read and are left out of the walk."
+      ],
       "fixes": [],
-      "openQuestions": [],
+      "openQuestions": [
+        "The commented-out examples of 15 scripts of 2.7.9 (09/38-39, 13/590, 14/057-062, 31/32-33, 31/50-51, 37/06-07) name this script \"16_Поиск форматирования\\24_Перейти на следующий абзац, содержащий код.js\", but its file is \"024_...\": uncommented, such a line fails in 2.7.9 and gets scripts.notFound here (chain-marks.outputs.json). The package resolves by its 2.7.9 path (024_...) and by its id 16/next-paragraph-with-code; how the converted templates name it is left to their conversions (T066 and the groups' tasks)."
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 16,

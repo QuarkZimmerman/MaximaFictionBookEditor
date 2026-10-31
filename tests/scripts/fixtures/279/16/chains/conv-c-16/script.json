@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1,
+  "id": "test16/chain-conv-c-16",
+  "name": {
+    "ru": "Цепочка: переходы по форматированию (conv-c-16)",
+    "en": "Chain: going to formatting (conv-c-16)"
+  },
+  "kind": "menu"
+}

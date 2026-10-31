@@ -2,22 +2,26 @@
   "manifestVersion": 1,
   "id": "16/next-paragraph-with-sub",
   "name": {
+    "ru": "Перейти на следующий абзац с нижним индексом",
     "en": "Go to next paragraph with subscript",
-    "ru": "Переход на следующий абзац с нижним индексом"
+    "uk": "Перейти до наступного абзацу з нижнім індексом"
   },
   "description": {
-    "en": "Moves the caret to the first subscript in the next paragraph that contains subscript; offers to continue from the beginning of the book when the end is reached",
-    "ru": "Переводит курсор на следующий абзац, содержащий нижний индекс; по достижении конца книги предлагает продолжить с начала"
+    "ru": "Переходит на следующий абзац, содержащий нижний индекс, и ставит курсор в начало первого нижнего индекса в нём; по достижении конца книги предлагает продолжить с начала",
+    "en": "Goes to the next paragraph that contains subscript and puts the caret at the start of its first subscript; at the end of the book offers to continue from the beginning",
+    "uk": "Переходить до наступного абзацу, що містить нижній індекс, і ставить курсор на початок першого нижнього індексу в ньому; наприкінці книги пропонує продовжити з початку"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to next paragraph with subscript v1.0.",
-    "ru": "Переход на следующий абзац с нижним индексом v1.0."
+    "ru": "Перейти на следующий абзац с нижним индексом",
+    "en": "Go to next paragraph with subscript"
   },
   "legacy": {
-    "source": "16_Поиск форматирования/16_Переход на следующий абзац с нижним индексом.js",
-    "fbeVersion": "2.7"
+    "source": "16_Поиск форматирования/016_Перейти на следующий абзац с нижним индексом.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
   }
 }

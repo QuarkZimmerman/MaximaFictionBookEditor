@@ -1,119 +1,91 @@
-// Shared engine of the "Search of formatting" scripts (converted from the 24 scripts of
-// 16_Поиск форматирования, FictionBook Editor 2.7, Tier 1). Each package carries its own copy:
-// the sandbox only allows imports from inside the script's folder.
+// Engine of the 24 "Перейти на предыдущий / следующий ..." scripts of FictionBook Editor 2.7.9's
+// group 16_Поиск форматирования (001-024, Sclex, v1.2: italics, bold, superscript, subscript,
+// strikethrough, code, and "... абзац с ..." / "... абзац, содержащий ..." for each). Converted
+// from their 2.7beta1 versions (01-24) first and brought up to 2.7.9 in feature 007. Each package
+// carries its own copy: the sandbox only loads modules from the script's own folder.
 //
-// The original scripts walked the HTML DOM from the caret looking for the next/previous
-// EM/STRONG/SUP/SUB/STRIKE/SPAN.code element and placed the caret at its start (forward) or
-// end (backward); the "paragraph" variants started the search from the next/previous block
-// instead of the caret, i.e. they jump to the next paragraph containing the mark. Here the
-// formatting lives in text marks, so an "element" is a maximal run of text carrying the mark.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// The originals walked the book as FictionBook Editor showed it - the book's annotation and its
+// history first, then every body - from the selection: past the element of the kind they looked
+// for that the caret was in, or that started (forward) / ended (backward) right at it, up to the
+// paragraph's border; then on to the next such element holding text, whose start (forward) or end
+// (backward) got the caret. The paragraph variants started from the next (previous) paragraph
+// instead, so they go to the next (previous) paragraph holding the formatting. At the end (start)
+// of the book they asked whether to go on from the other end (confirm: OK / Cancel), then searched
+// up to the selection and said "Ничего не найдено, поиск завершен." when they got there. In 2.7.9
+// Run() returns "Found", or "NotFound" when nothing is found or the user declines to go on, so that
+// other scripts can call them in loops; nothing for a selected picture.
+//
+// Here the formatting lives in marks: an element is a maximal run of a paragraph's content that
+// carries the mark - a picture carrying it belongs to the run - and holds text. Adjacent elements
+// are one run, as the originals passed them together.
+// Notice of the original script (FictionBook Editor 2.7.9, GPL-3.0), kept as written:
 //Скрипт набора «Поиск форматирования»
 //Автор Sclex
 //Топик про скрипты FBE: http://www.fictionbook.org/forum/viewtopic.php?t=4412
 //Мой сайт про мои скрипты: http://scripts.fictionbook.org
 
-const TEXT_BLOCKS = new Set(['p', 'subtitle', 'text-author', 'v', 'td', 'th', 'date']);
+import { loadBook, locate, refusePicture, setCaret, t } from './nav-lib.js';
 
-const MARK_LABEL = {
-  emphasis: { en: 'italics', ru: 'курсив' },
-  strong: { en: 'bold', ru: 'жирность' },
-  sup: { en: 'superscript', ru: 'верхний индекс' },
-  sub: { en: 'subscript', ru: 'нижний индекс' },
-  strikethrough: { en: 'strikethrough', ru: 'зачёркивание' },
-  code: { en: 'code', ru: 'код' },
-};
-
-function t(ctx, ru, en) {
-  return ctx.uiLanguage === 'ru' ? ru : en;
-}
-
-/**
- * Document-order list of the structural nodes with, for text blocks, the runs of `mark`:
- * `{ nodeId, isText, runs: [{ start, end }] }` (offsets count characters, inline leaves as 1).
- */
-async function collectBlocks(mark) {
-  const order = [];
-  const visit = (node) => {
-    if (node.type === 'text') return;
-    const entry = { nodeId: node.attrs?.nodeId, isText: TEXT_BLOCKS.has(node.type), runs: [] };
-    if (entry.isText) {
-      let offset = 0;
-      let open = null;
-      for (const item of node.content ?? []) {
-        const length = item.type === 'text' ? item.text.length : 1;
-        const marked =
-          item.type === 'text' && length > 0 && (item.marks ?? []).some((m) => m.type === mark);
-        if (marked) {
-          if (!open) open = { start: offset, end: offset + length };
-          else open.end = offset + length;
-        } else if (open) {
-          // An inline image or unmarked text closes the run, like a closing tag did.
-          entry.runs.push(open);
-          open = null;
-        }
-        offset += length;
-      }
-      if (open) entry.runs.push(open);
-    }
-    if (entry.nodeId) order.push(entry);
-    for (const child of node.content ?? []) visit(child);
-  };
-  for (const body of await mfbe.doc.getElementsByTagName('body')) {
-    visit(await mfbe.doc.getNode(body));
-  }
-  return order;
-}
-
-/** Flat list of runs in document order with their block index. */
-function flattenRuns(blocks) {
+/** The runs of `mark` in a paragraph: `[{ start, end }]` (offsets in its text, a picture is one). */
+function runsOf(p, mark) {
   const runs = [];
-  blocks.forEach((block, index) => {
-    for (const run of block.runs) runs.push({ index, nodeId: block.nodeId, ...run });
-  });
+  if (p.kind !== 'p' || p.isPlaceholder || p.type === 'empty-line') return runs;
+  let offset = 0;
+  let open = null;
+  for (const child of p.node.content ?? []) {
+    const length = child.type === 'text' ? child.text.length : 1;
+    const marked = length > 0 && (child.marks ?? []).some((m) => m.type === mark);
+    if (marked) {
+      if (!open) open = { start: offset, end: offset + length, text: false };
+      else open.end = offset + length;
+      if (child.type === 'text') open.text = true;
+    } else if (open) {
+      // Unmarked text or a picture without the mark closes the run, as a closing tag did.
+      if (open.text) runs.push(open);
+      open = null;
+    }
+    offset += length;
+  }
+  if (open && open.text) runs.push(open);
   return runs;
 }
 
-function comparePositions(blocks, a, b) {
-  const ia = blocks.findIndex((x) => x.nodeId === a.nodeId);
-  const ib = blocks.findIndex((x) => x.nodeId === b.nodeId);
-  if (ia !== ib) return ia - ib;
-  return a.offset - b.offset;
-}
-
-export async function runFormatSearch(ctx, options) {
-  const { mark, direction, paragraph } = options;
-  const forward = direction === 'forward';
-  const selection = await mfbe.selection.get();
-  if (!selection) {
-    // The original refused "Control" (image) selections and asked for a text selection.
-    await mfbe.ui.message(
-      t(ctx, 'Поставьте курсор в текст книги.', 'Place the caret in the text of the book.'),
-      { icon: 'warning' },
-    );
-    return;
+/**
+ * Runs one search. `mark` is the model's mark ('emphasis', 'strong', 'sup', 'sub',
+ * 'strikethrough', 'code'); `forward` the direction; `paragraph` true for the variants that start
+ * from the next (previous) paragraph. Resolves with what the original's Run() returned.
+ */
+export async function runFormatSearch(ctx, { mark, forward, paragraph }) {
+  const book = await loadBook();
+  const where = await locate(book, forward);
+  if (!where) return undefined;
+  if (where.picture) {
+    await refusePicture(ctx);
+    return undefined;
   }
-  const blocks = await collectBlocks(mark);
-  const runs = flattenRuns(blocks);
-  // Forward searches start at the end of the selection, backward ones at its start.
-  const [first, last] =
-    comparePositions(blocks, selection.anchor, selection.head) <= 0
-      ? [selection.anchor, selection.head]
-      : [selection.head, selection.anchor];
-  const from = forward ? last : first;
-  let fromIndex = blocks.findIndex((b) => b.nodeId === from.nodeId);
-  if (fromIndex < 0) fromIndex = 0;
-
-  // Candidates after (before) the caret. A run that starts exactly at the caret counts as
-  // the one the caret is in, exactly as the original skipped the element it was standing in.
-  const isCandidate = (run) => {
-    if (paragraph) return forward ? run.index > fromIndex : run.index < fromIndex;
-    if (run.index !== fromIndex) return forward ? run.index > fromIndex : run.index < fromIndex;
-    return forward ? run.start > from.offset : run.end < from.offset;
-  };
-  let found = forward ? runs.find(isCandidate) : [...runs].reverse().find(isCandidate);
-
-  if (!found && runs.length > 0) {
+  const all = [];
+  for (const p of book.ps) {
+    for (const run of runsOf(p, mark)) all.push({ p, index: p.index, ...run });
+  }
+  // Forward searches start at the end of the selection and stop at its start; backward ones the
+  // other way round.
+  const from = forward ? where.end : where.start;
+  const stop = forward ? where.start : where.end;
+  // Past the run at the caret (the paragraph variants: past the caret's paragraph), then the next
+  // run on this side of the book's end.
+  const ahead = forward
+    ? all.find(
+        (r) =>
+          r.index > from.index || (!paragraph && r.index === from.index && r.start > from.offset),
+      )
+    : [...all]
+        .reverse()
+        .find(
+          (r) =>
+            r.index < from.index || (!paragraph && r.index === from.index && r.end < from.offset),
+        );
+  let found = ahead ?? null;
+  if (!found) {
     const question = forward
       ? t(
           ctx,
@@ -125,25 +97,33 @@ export async function runFormatSearch(ctx, options) {
           'Достигнуто начало документа.\nПродолжить поиск с конца документа?',
           'The beginning of the document has been reached.\nContinue searching from the end?',
         );
+    // The original's confirm(): OK and Cancel, with the editor's own button labels.
     const answer = await mfbe.ui.message(question, {
       icon: 'question',
       buttons: [
-        { id: 'yes', label: t(ctx, 'Да', 'Yes'), default: true },
-        { id: 'no', label: t(ctx, 'Нет', 'No'), cancel: true },
+        { id: 'ok', label: '', default: true },
+        { id: 'cancel', label: '', cancel: true },
       ],
     });
-    if (answer !== 'yes') return;
-    found = forward ? runs[0] : runs[runs.length - 1];
-  }
-  if (!found) {
-    await mfbe.ui.message(
-      t(ctx, 'Ничего не найдено, поиск завершен.', 'Nothing found, the search is finished.'),
-    );
-    return;
+    if (answer !== 'ok') return 'NotFound';
+    // From the other end up to the selection: a run the walk enters before it meets the
+    // selection counts, the caret's own paragraph included.
+    found =
+      (forward
+        ? all.find((r) => r.index < stop.index || (r.index === stop.index && r.start < stop.offset))
+        : [...all]
+            .reverse()
+            .find(
+              (r) => r.index > stop.index || (r.index === stop.index && r.end > stop.offset),
+            )) ?? null;
+    if (!found) {
+      await mfbe.ui.message(
+        t(ctx, 'Ничего не найдено, поиск завершен.', 'Nothing found, the search is finished.'),
+      );
+      return 'NotFound';
+    }
   }
   // Caret at the start of the run when moving forward, at its end when moving backward.
-  await mfbe.selection.set({ nodeId: found.nodeId, offset: forward ? found.start : found.end });
-  await mfbe.selection.scrollIntoView();
-  const label = MARK_LABEL[mark];
-  await mfbe.ui.status(t(ctx, `Найдено: ${label.ru}`, `Found: ${label.en}`), { sticky: true });
+  await setCaret(found.p, forward ? found.start : found.end);
+  return 'Found';
 }

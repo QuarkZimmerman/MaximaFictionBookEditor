@@ -2,22 +2,26 @@
   "manifestVersion": 1,
   "id": "16/next-paragraph-with-strong",
   "name": {
+    "ru": "Перейти на следующий абзац с жирностью",
     "en": "Go to next paragraph with bold",
-    "ru": "Переход на следующий абзац с жирностью"
+    "uk": "Перейти до наступного абзацу з жирним шрифтом"
   },
   "description": {
-    "en": "Moves the caret to the first bold text in the next paragraph that contains bold text; offers to continue from the beginning of the book when the end is reached",
-    "ru": "Переводит курсор на следующий абзац, содержащий жирность; по достижении конца книги предлагает продолжить с начала"
+    "ru": "Переходит на следующий абзац, содержащий жирный текст, и ставит курсор в начало первого жирного фрагмента в нём; по достижении конца книги предлагает продолжить с начала",
+    "en": "Goes to the next paragraph that contains bold text and puts the caret at the start of its first bold text; at the end of the book offers to continue from the beginning",
+    "uk": "Переходить до наступного абзацу, що містить жирний текст, і ставить курсор на початок першого жирного фрагмента в ньому; наприкінці книги пропонує продовжити з початку"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to next paragraph with bold v1.0.",
-    "ru": "Переход на следующий абзац с жирностью v1.0."
+    "ru": "Перейти на следующий абзац с жирностью",
+    "en": "Go to next paragraph with bold"
   },
   "legacy": {
-    "source": "16_Поиск форматирования/08_Переход на следующий абзац с жирностью.js",
-    "fbeVersion": "2.7"
+    "source": "16_Поиск форматирования/008_Перейти на следующий абзац с жирностью.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
   }
 }

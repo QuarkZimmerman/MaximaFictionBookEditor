@@ -350,8 +350,8 @@ node tests/scripts/run-script.mjs $G/570_find-possible-titles $B/keywords.fb2 --
 ## 16_Поиск форматирования
 
 73 scripts in 2.7.9: **49 new, all converted** here (T057, T058), none left out; the 24 successors of
-the packages `01_` to `24_` converted from 2.7beta1 are left for their recheck (they still carry
-their 2.7beta1 `legacy` and have no Ukrainian texts yet). Packages:
+the packages `01_` to `24_` converted from 2.7beta1 are brought up to their 2.7.9 versions
+in "The recheck of 001-024" below (T084). Packages:
 `scripts/16_find-formatting/<NN>_<slug>/` with the 2.7.9 number as written (`025_`, `026_`, `125_`
 ... `201_`), ids `16/<slug>`, `legacy.source` the 2.7.9 path - the path `mfbe.scripts.run` resolves
 when a combo of another group runs one of them. Every package has `name` and `description` in ru,
@@ -405,9 +405,9 @@ use `136_`, `138_`, `148_`, `150_`, `152_` and `154_` (13/590, 09/38-39, 14/057-
 resolve. Their commented-out examples name 2.7beta1-era files (`48_Перейти на следующий
 заголовок.js`, `50_…эпиграф.js`, `52_…цитату.js`, `24_…код.js`) that 2.7.9 no longer has, and
 31/50-51 call `16_Поиск форматирования\\12_Перейти на следующий абзац с верхним индексом.js`,
-which 2.7.9 itself cannot load (its file is `012_…`); the package `12_next-paragraph-with-sup`
-(2.7beta1 path `12_Переход на…`) does not resolve under that name either - for the recheck of
-01-24 and the combos' conversion to settle.
+which 2.7.9 itself cannot load (its file is `012_…`); since the recheck the package `12_next-paragraph-with-sup`
+resolves by its 2.7.9 path `012_…` (and by its id), not by `12_…` - see the recheck below and the
+combos of group 31.
 
 **Differences that apply throughout** (each entry of `updates-279/16.json` lists those of its script):
 - *A selected picture.* 025/026 refused a picture selection with a message, the regexp scripts
@@ -455,7 +455,8 @@ CAPS titles and subtitles). Node ids: `run-script.mjs --list-nodes`.
   `chain-paragraphs.xml`, `chain-combinations.xml` with `--answer ok --answer cancel --answer ok`,
   `chain-regexps.xml`).
 - The runs with their selections and answers: `tests/scripts/snapshots/16/suite.json` (59 entries).
-- Group gate: `tests/scripts/run-all.sh --group 16` - 83 snapshots (59 new, 24 of 01-24) pass.
+- Group gate: `tests/scripts/run-all.sh --group 16` - 85 snapshots (59 new, the 24 of 01-24 and
+  the recheck's two chains) pass.
 
 ### 025 Перейти на предыдущее совмещение курсива с жирностью
 
@@ -880,6 +881,345 @@ Differences and open question as 200.
 
 None: every script of the group needs only the Body view's document and selection and the
 editor's messages.
+
+### The recheck of 001-024
+
+24 scripts of 2.7.9 (001-024, *Перейти на предыдущий / следующий …*) are the successors of the
+24 packages `01_` to `24_` converted from 2.7beta1 (task T084, the recheck of
+`scripts/16_find-formatting/`; the 2.7beta1 conversion is in conversion-notes-c.md, group 16; the
+49 scripts new in 2.7.9 are above in this section). All 24 **updated**; ids and
+folders unchanged. Each package keeps its own engine `format-search.js` (24 identical copies) and
+now also carries `nav-lib.js`, copied unchanged from the group's 2.7.9 packages (73 identical
+copies); nothing is imported across packages.
+
+What 2.7.9 changed (Sclex's v1.2 of all 24; 2.7beta1 had v1.0):
+- **Return values.** `Run()` returns `"Found"` when it moved the caret and `"NotFound"` otherwise:
+  nothing found ("Ничего не найдено, поиск завершен."), or Cancel at the question. 2.7beta1's
+  returned nothing. Other scripts run them in loops that go on while the callee returns "Found"
+  (2.7.9's combos 31/50 and 31/51, the commented examples of the run-scripts-by-list templates).
+  Ported: `run()` returns the same strings, nothing for a selected picture (the original's early
+  `return;`), and works from the selection the previous script of the run left.
+- **The caret of the backward scripts** (odd numbers). 2.7beta1 placed it with
+  `range1.collapse(false); if (range1.parentElement!==el && range1.move("character",-1)==1)
+  range1.move("character",1);` - `parentElement` without parentheses is the method itself, never
+  the element, and `TextRange.move` returns the units moved, negative backwards, so the step back
+  was taken and the step forward never: the caret stayed one character before the end of the
+  element found. 2.7.9 adds `if (scriptDirection=="backward") range1.move("character",1);`, so
+  the caret is at the end of the element. The 2.7beta1 conversion already put it at the end of the
+  run, which is now also 2.7.9's place: nothing to port (chain-marks: "Начало" n7:0-6 → n7:6).
+- **Scrolling of the forward scripts**: `scrollIfItNeeds()` after the selection (50 pixels down
+  when the selection is less than 20 pixels above the window's bottom edge). Not reproduced:
+  `selection.set` scrolls the caret into view the editor's way (a difference).
+- **The version** in `versionStr` (v1.0 → v1.2, still "Переход на …"): the name of the original's
+  undo unit and of its error message. These scripts never change the book, and the editor reports
+  a script error itself; `undoLabel` follows the 2.7.9 name, as every package's does.
+- **Names**: *Переход на …* → *Перейти на …*; the file numbers are three digits (`001_` …
+  `024_`); 13's typo *предыдующий* is gone from the file name. **Icons**: 2.7.9 has an `.ico` for
+  001, 002, 004, 005, 006, 008, 009, 010, 012 and 016, 2.7beta1 for 01, 02, 05 and 06 only (the
+  same four files, so their `icon.png` stays); 04, 08, 09, 10, 12 and 16 gained `icon.png` (16×16,
+  converted with the audit tool's `ico_to_png`, as the skeletons were).
+- Layout only: 014 declares `rang1` for `range1` (the variable becomes a global, no effect).
+
+With the return values these scripts are building blocks of loops, so the rest of the engine was
+brought to the originals as well - in 2.7beta1's conversion it differed in ways that matter in a
+loop:
+- **The whole book.** The originals walked FictionBook Editor's `fbw_body`: the book's annotation
+  and its history first, then every body. 2.7beta1's conversion walked the bodies only, since the
+  script API then exposed no description; `mfbe.doc.get()` does now, and the Body view shows the
+  two blocks above the first body. The engine walks the same tree as the group's 2.7.9 packages
+  (`nav-lib.js`: `loadBook`, `locate`, `setCaret`, `refusePicture`), so the annotation and the
+  history are searched, and first, as in FictionBook Editor.
+- **After the question** the originals went on from the other end of the book up to the selection
+  only - a run the walk enters before it meets the selection counts, the caret's own paragraph
+  included - and said "Ничего не найдено, поиск завершен." when they got there. 2.7beta1's
+  conversion took the first (last) run of the book wherever it was: from the start of the book's
+  only run it came back to that run ("found" for ever in a loop), and a book without the
+  formatting got "Ничего не найдено…" without the question. Both as in 2.7.9 now.
+- **The question** is the original's `confirm()`: OK and Cancel with the editor's own button
+  labels (2.7beta1's conversion had Yes / No). The 24 snapshots of that conversion answer it with
+  `--answer yes`; the harness presses the first button for an id it does not find, which is OK -
+  the same continuation as before.
+- **A picture inside an element** belongs to its run (the model gives an inline picture the marks
+  around it): 2.7beta1's conversion split the run there, so `<emphasis>до <image/> после</emphasis>`
+  was two stops; it is one in the original. An element holding a picture only is no stop, as
+  `nonEmptyTag` wanted.
+- **A selected block picture** is refused with the original's message ("Ошибка.\n\nВы используете
+  тип выделения,\nкоторый не поддерживатся этим скриптом – …") and `run()` returns nothing.
+  2.7beta1's conversion answered a missing selection with "Поставьте курсор в текст книги." - the
+  API reports no selection only without a book, and the script now returns nothing then.
+- The sticky status "Найдено: курсив" / "Found: italics" that 2.7beta1's conversion added is
+  dropped: 2.7.9 shows none, and in a loop it would outlive the final "NotFound".
+
+**The engine** (`format-search.js`): the runs of the mark per paragraph (`runsOf`) - a maximal
+stretch of a paragraph's content that carries the mark, a picture carrying it included, that holds
+text; adjacent elements of one kind are one run, as the originals' first loop passed them together.
+Forward searches start at the end of the selection and stop at its start, backward ones the other
+way round. First the run at the caret is passed (one that contains the caret or starts (forward) /
+ends (backward) right at it) - the paragraph variants pass the caret's whole paragraph - then the
+next run up to the book's end (start) gets the caret at its start (forward) or end (backward). With
+none, the question; OK goes on from the other end up to the selection, Cancel returns "NotFound"
+and leaves the selection. The six marks are `emphasis`, `strong`, `sup`, `sub`, `strikethrough` and
+`code` (the originals: `I`/`EM`, `B`/`STRONG`, `SUP`, `SUB`, `STRIKE`, `SPAN.code`).
+
+**How the expected results were worked out.** Before the first run, the 2.7.9 code itself was
+ported to a small program (`getNextNodeInScriptDirection`, `nonEmptyTag`, `mySearch`, the
+`<B>` markers `pasteHTML` put at the selection's start and end, the caret placement) and run on the
+reference books as `files/fb2.xsl` of 2.7.9 renders them (`DIV.annotation`, `DIV.history`, a
+`DIV.body` per body, a `P` for every text block and empty line, `SPAN.image > IMG` for an inline
+picture). Every scenario ran twice, with the markers pasted inside and outside an element that
+ends or starts at the caret (IE's choice is not known), and both gave the same results. Note that
+the markers are `B` elements, which 005-008 count as bold; the port does the same, without effect.
+Every `P` is inflated (`FixupParagraphs`), so the first loop always ends at the next paragraph.
+
+**Reference book** `tests/scripts/fixtures/279/16/marks.fb2` (valid FB2 2.1): an annotation with
+italics and code (n28), a history with bold (n30), the body's title with a subscript (n3), the
+section's title with strikethrough (n6); italics at a paragraph's start, middle and end (n7),
+adjacent italic elements and italics around and after bold (n8), italics around an inline picture
+and an italic holding a picture only (n9), an empty line, one paragraph with bold, code, the book's
+only superscript, a subscript and strikethrough (n13), a block picture, a poem's verse with italics
+(n17) and its text author with bold (n18), a table cell with code (n21), a last paragraph ending
+in italics (n23), and a notes body with a subscript and strikethrough (n26).
+
+**Tests**: two chain drivers (`tests/scripts/fixtures/279/16/chains/marks/` and `…/conv-c-16/`,
+test packages, never bundled) run the packages through `mfbe.scripts.run` by their 2.7.9 paths -
+as the combos do, `ctx.startedBy: 'script'` - from given selections and write one line per call to
+the clipboard: `<NN> from <start> #<call>: <run() value> <anchor>-<head> "<text>"`, or `error
+<code>` for a reference that does not resolve. The harness records it in `<snapshot>.outputs.json`.
+- `16/chain-marks.xml` (marks.fb2, `--answer cancel --answer cancel`, every later message box OK):
+  124 calls, 30 questions and 4 "Ничего не найдено…"; every line and every message box equals the
+  ported 2.7.9 code's result.
+- `16/chain-conv-c-16.xml` (conv-c-16.fb2): each of the 24 once from n9:5, the selection of the
+  existing snapshots; 10 questions (OK). The results are those 2.7beta1's conversion recorded,
+  now with "Found": previous italics n8:41, next italics n12:18, next paragraph with bold n12:11,
+  previous bold / superscript / subscript / strikethrough / code after the question n36:19,
+  n28:23, n26:25, n27:16, n26:14, next superscript n9:24, next paragraph with superscript n19:6,
+  next subscript n11:8, next strikethrough n11:25 and next code n11:47 (the start of «кодом»; the
+  old notes said n11:40).
+- The 24 snapshots of 2.7beta1's conversion (`suite.json`, conv-c-16.fb2, `--select n9:5:5 --answer
+  yes`) are not re-recorded: no run changes the book, so their expected result is unchanged (each
+  equals `chain-conv-c-16.xml`). Both chain books come back as the editor writes them (the
+  editor's own merging of `<emphasis>раз</emphasis><emphasis>два</emphasis>` and dropping of an
+  empty `<emphasis/>`).
+- Group gate: `tests/scripts/run-all.sh --group 16` - 85 snapshots (2 added) pass, no package
+  without Ukrainian names.
+
+**Numbering.** The 2.7.9 files carry three-digit numbers (`001_` … `024_`) where 2.7beta1's had two,
+and `legacy.source` of each package is now its 2.7.9 path, which `mfbe.scripts.run` resolves
+(separators, case and a leading backslash do not count), as does the id. 2.7.9's own callers still
+write two digits: 31/50 and 31/51 run `16_Поиск форматирования\\12_Перейти на следующий абзац с
+верхним индексом.js` - a file 2.7.9 does not have, so in 2.7.9 these two combos only show "Скрипт …
+не был запущен, т.к. не удалось его успешно загрузить…" and their loop ends at once; and the
+commented-out examples of 15 scripts (09/38-39, 13/590, 14/057-062, 31/32-33, 31/50-51, 37/06-07)
+name `16_Поиск форматирования\\24_Перейти на следующий абзац, содержащий код.js`, which would fail
+the same way when uncommented. Here both two-digit names get `scripts.notFound`, as does
+2.7beta1's `12_Переход на …` (no bundled script calls these packages by it); `012_…` and the ids
+resolve (chain-marks, last five lines). Recorded as open questions of 012 and 024: the conversion
+of the callers (T066 and the groups' tasks) names `012_…` / `024_…` or the id - a clear fix of the
+caller - unless the requester prefers the resolver to ignore a leading zero of the number (an API
+change, not made here).
+
+**Differences that remain** (each entry of `updates-279/16-recheck.json` lists those of its
+script):
+- *A selected inline picture* counts as a one-character text selection and the search starts from
+  it (chain-marks: n9:12-13); FictionBook Editor took a clicked inline picture for a control
+  selection and refused it, as it refuses a block picture here. The script API reports an inline
+  picture as part of its paragraph's text.
+- *Scrolling* (the forward scripts): 2.7.9's `scrollIfItNeeds` is not reproduced, see above.
+- *Code* (021-024): a named style "code" (`<style name="code">`), which FictionBook Editor showed as
+  `<span class="code">` like `<code>` and so found as well, is not found: the model tells a style
+  from the code mark, and the scripts mean `<code>`.
+- *Size*: above the API's 64 MB document snapshot the annotation and history are not read and are
+  left out of the walk (`nav-lib.js`).
+
+No fixes. The manifests' own texts were corrected on the way: 10's English undo label said
+"previous", and the descriptions of the backward paragraph variants said the caret went to the
+first run of the paragraph where it goes to the end of the last one.
+
+### 001 Перейти на предыдущий курсив
+
+`01_previous-emphasis`, `16/previous-emphasis` (2.7beta1 *01_Переход на предыдущий курсив*):
+updated. en *Go to previous italics*, uk *Перейти до попереднього курсиву*. Chain marks from the
+end of the book (n26:36): n23:26, n17:13, n9:19 (the run around the picture, one stop), n8:36, n8:14
+(the adjacent elements, one stop), n7:31, n7:23, n7:6, n28:20 (the annotation), the question (OK),
+n23:26 - all "Found"; from the selected run n7:15-23: n7:6; from the selected inline picture
+n9:12-13: n8:36. Chain conv-c-16: n8:41. Differences: inline picture, size.
+
+### 002 Перейти на следующий курсив
+
+`02_next-emphasis`, `16/next-emphasis`: updated. en *Go to next italics*, uk *Перейти до
+наступного курсиву*. Chain marks from the start (n28:0): n28:12 (the annotation), n7:0, n7:15,
+n7:26, n8:8 (n8:8-14, the adjacent elements), n8:23, n9:9 (the picture-only italic n9:21 is no
+stop), n17:5, n23:18, the question (OK), n28:12; from n7:15-23: n7:26; from n9:12-13: n17:5; from the
+end of the last run n23:26: the question, Cancel, "NotFound", the caret stays. Chain conv-c-16:
+n12:18. Differences: inline picture, scrolling, size.
+
+### 003 Перейти на предыдущий абзац с курсивом
+
+`03_previous-paragraph-with-emphasis`, `16/previous-paragraph-with-emphasis`: updated. en *Go to
+previous paragraph with italics*, uk *Перейти до попереднього абзацу з курсивом*. Chain marks from
+n26:36: n23:26, n17:13, n9:19, n8:36, n7:31 (each the end of the paragraph's last run), n28:20,
+the question (OK), n23:26. Chain conv-c-16: n8:41. Differences: inline picture, size.
+
+### 004 Перейти на следующий абзац с курсивом
+
+`04_next-paragraph-with-emphasis`, `16/next-paragraph-with-emphasis`: updated; gained its icon. en
+*Go to next paragraph with italics*, uk *Перейти до наступного абзацу з курсивом*. Chain marks from
+n28:0: n7:0, n8:8, n9:9, n17:5, n23:18 (the caret's own paragraph n28 is passed), the question
+(OK), n28:12. Chain conv-c-16: n12:18. Differences: inline picture, scrolling, size.
+
+### 005 Перейти на предыдущую жирность
+
+`05_previous-strong`, `16/previous-strong`: updated. en *Go to previous bold*, uk *Перейти до
+попереднього жирного шрифту*. Chain marks from n26:36: n18:11 (the text author), n13:11, n8:29
+(bold around italics), n30:16 (the history), the question (OK), n18:11. Chain conv-c-16: the
+question, n36:19 (the notes). Differences: inline picture, size.
+
+### 006 Перейти на следующую жирность
+
+`06_next-strong`, `16/next-strong`: updated. en *Go to next bold*, uk *Перейти до наступного
+жирного шрифту*. Chain marks from n28:0: n30:10, n8:16, n13:5, n18:5, the question (OK), n30:10.
+Chain conv-c-16: n9:8. Differences: inline picture, scrolling, size.
+
+### 007 Перейти на предыдущий абзац с жирностью
+
+`07_previous-paragraph-with-strong`, `16/previous-paragraph-with-strong`: updated. en *Go to
+previous paragraph with bold*, uk *Перейти до попереднього абзацу з жирним шрифтом*. Chain marks
+from n26:36: n18:11, n13:11, n8:29, n30:16, the question (OK), n18:11. Chain conv-c-16: the
+question, n36:19. Differences: inline picture, size.
+
+### 008 Перейти на следующий абзац с жирностью
+
+`08_next-paragraph-with-strong`, `16/next-paragraph-with-strong`: updated; gained its icon. en *Go
+to next paragraph with bold*, uk *Перейти до наступного абзацу з жирним шрифтом*. Chain marks from
+n28:0: n30:10, n8:16, n13:5, n18:5, the question (OK), n30:10. Chain conv-c-16: n12:11 (the bold of
+the caret's own paragraph n9 is passed). Differences: inline picture, scrolling, size.
+
+### 009 Перейти на предыдущий верхний индекс
+
+`09_previous-sup`, `16/previous-sup`: updated; gained its icon. en *Go to previous superscript*, uk
+*Перейти до попереднього верхнього індексу*. marks.fb2 has one superscript (n13:18-22). Chain marks
+from n26:36: n13:22, then the question (OK), "Ничего не найдено, поиск завершен.", "NotFound"
+with the caret left at n13:22; from inside the run (n13:20): the question (OK), n13:22 - the run
+holds text after the selection, so the walk from the end finds it before it meets the selection.
+Chain conv-c-16: the question, n28:23 (the subtitle). Differences: inline picture, size.
+
+### 010 Перейти на следующий верхний индекс
+
+`10_next-sup`, `16/next-sup`: updated; gained its icon. en *Go to next superscript*, uk *Перейти до
+наступного верхнього індексу*. Chain marks from n28:0: n13:18, then the question (OK), "Ничего не
+найдено…", "NotFound" (2.7beta1's conversion went back to n13:18, "found"); from n13:20: the
+question (OK), n13:18. Chain conv-c-16: n9:24. Differences: inline picture, scrolling, size.
+
+### 011 Перейти на предыдущий абзац с верхним индексом
+
+`11_previous-paragraph-with-sup`, `16/previous-paragraph-with-sup`: updated. en *Go to previous
+paragraph with superscript*, uk *Перейти до попереднього абзацу з верхнім індексом*. Chain marks
+from n26:36: n13:22, then the question (OK), "Ничего не найдено…", "NotFound"; from the start of
+n13 (n13:0): the question (OK), n13:22 - the caret's own paragraph counts after the question.
+Chain conv-c-16: the question, n28:23. Differences: inline picture, size.
+
+### 012 Перейти на следующий абзац с верхним индексом
+
+`12_next-paragraph-with-sup`, `16/next-paragraph-with-sup`: updated; gained its icon. en *Go to
+next paragraph with superscript*, uk *Перейти до наступного абзацу з верхнім індексом*. Chain marks
+from n28:0: n13:18, then the question (OK), "Ничего не найдено…", "NotFound"; from the end of n13
+(n13:49): the question (OK), n13:18; by the path `\16_Поиск форматирования\012_…` from n28:0: n13:18.
+Chain conv-c-16: n19:6 (the epigraph's text author). Differences: inline picture, scrolling, size.
+Open question: 2.7.9's combos 31/50-51 call it as `12_…`, see Numbering.
+
+### 013 Перейти на предыдущий нижний индекс
+
+`13_previous-sub`, `16/previous-sub` (2.7beta1 *13_Переход на предыдующий нижний индекс*, whose
+typo the old `legacy.source` kept; the 2.7.9 file has none): updated. en *Go to previous subscript*, uk *Перейти до
+попереднього нижнього індексу*. Chain marks from n26:36: n26:21 (the notes), n13:27, n3:8 (the
+body's title), the question (OK), n26:21. Chain conv-c-16: the question, n26:25. Differences:
+inline picture, size.
+
+### 014 Перейти на следующий нижний индекс
+
+`14_next-sub`, `16/next-sub`: updated. en *Go to next subscript*, uk *Перейти до наступного
+нижнього індексу*. Chain marks from n28:0: n3:7, n13:24, n26:13, the question (OK), n3:7. Chain
+conv-c-16: n11:8. Differences: inline picture, scrolling, size.
+
+### 015 Перейти на предыдущий абзац с нижним индексом
+
+`15_previous-paragraph-with-sub`, `16/previous-paragraph-with-sub`: updated. en *Go to previous
+paragraph with subscript*, uk *Перейти до попереднього абзацу з нижнім індексом*. Chain marks from
+n26:36: n13:27, n3:8 (the caret's own paragraph n26 is passed), the question (OK), n26:21 (the
+walk from the end meets n26 before the selection in n3), n13:27. Chain conv-c-16: the question,
+n26:25. Differences: inline picture, size.
+
+### 016 Перейти на следующий абзац с нижним индексом
+
+`16_next-paragraph-with-sub`, `16/next-paragraph-with-sub`: updated; gained its icon. en *Go to
+next paragraph with subscript*, uk *Перейти до наступного абзацу з нижнім індексом*. Chain marks
+from n28:0: n3:7, n13:24, n26:13, the question (OK), n3:7. Chain conv-c-16: n11:8. Differences:
+inline picture, scrolling, size.
+
+### 017 Перейти на предыдущее зачеркивание
+
+`17_previous-strikethrough`, `16/previous-strikethrough`: updated. en *Go to previous
+strikethrough*, uk *Перейти до попереднього закреслення*. Chain marks from n26:36: n26:35, n13:40,
+n6:12 (the section's title), the question (OK), n26:35. Chain conv-c-16: the question, n27:16 (the
+cite's text author). Differences: inline picture, size.
+
+### 018 Перейти на следующее зачеркивание
+
+`18_next-strikethrough`, `16/next-strikethrough`: updated. en *Go to next strikethrough*, uk
+*Перейти до наступного закреслення*. Chain marks from n28:0: n6:6, n13:29, n26:24, the question
+(OK), n6:6. Chain conv-c-16: n11:25. Differences: inline picture, scrolling, size.
+
+### 019 Перейти на предыдущий абзац, содержащий зачеркивание
+
+`19_previous-paragraph-with-strikethrough`, `16/previous-paragraph-with-strikethrough`: updated. en
+*Go to previous paragraph containing strikethrough*, uk *Перейти до попереднього абзацу, що містить
+закреслення*. Chain marks from n26:36: n13:40, n6:12, the question (OK), n26:35, n13:40. Chain
+conv-c-16: the question, n27:16. Differences: inline picture, size.
+
+### 020 Перейти на следующий абзац, содержащий зачеркивание
+
+`20_next-paragraph-with-strikethrough`, `16/next-paragraph-with-strikethrough`: updated. en *Go to
+next paragraph containing strikethrough*, uk *Перейти до наступного абзацу, що містить
+закреслення*. Chain marks from n28:0: n6:6, n13:29, n26:24, the question (OK), n6:6. Chain
+conv-c-16: n11:25. Differences: inline picture, scrolling, size.
+
+### 021 Перейти на предыдущий код
+
+`21_previous-code`, `16/previous-code`: updated. en *Go to previous code*, uk *Перейти до
+попереднього коду*. Chain marks from n26:36: n21:6 (the table cell), n13:16, n28:28 (the
+annotation), the question (OK), n21:6. Chain conv-c-16: the question, n26:14 (the cite).
+Differences: inline picture, named style "code", size.
+
+### 022 Перейти на следующий код
+
+`22_next-code`, `16/next-code`: updated. en *Go to next code*, uk *Перейти до наступного коду*.
+Chain marks from n28:0: n28:23, n13:13, n21:0, the question (OK), n28:23. Chain conv-c-16: n11:47.
+Differences: inline picture, scrolling, named style "code", size.
+
+### 023 Перейти на предыдущий абзац, содержащий код
+
+`23_previous-paragraph-with-code`, `16/previous-paragraph-with-code`: updated. en *Go to previous
+paragraph containing code*, uk *Перейти до попереднього абзацу, що містить код*. Chain marks from
+n26:36: n21:6, n13:16, n28:28, the question (OK), n21:6; from the start of the book (n28:0): the
+question, Cancel, "NotFound", the caret stays. Chain conv-c-16: the question, n26:14. Differences:
+inline picture, named style "code", size.
+
+### 024 Перейти на следующий абзац, содержащий код
+
+`24_next-paragraph-with-code`, `16/next-paragraph-with-code`: updated. en *Go to next paragraph
+containing code*, uk *Перейти до наступного абзацу, що містить код*. Chain marks from n28:0: n13:13,
+n21:0 (the caret's own paragraph n28 is passed), the question (OK), n28:23 (now the walk from the
+start meets the annotation before the selection), n13:13; by the id `16/next-paragraph-with-code`
+from n28:0: n13:13. Chain conv-c-16: n11:47. Differences: inline picture, scrolling, named style
+"code", size. Open question: the templates' examples name it `24_…`, see Numbering.
+
+### Harness commands of the recheck
+
+```bash
+C=tests/scripts/fixtures/279/16/chains; S=tests/scripts/snapshots/16
+node tests/scripts/run-script.mjs $C/marks tests/scripts/fixtures/279/16/marks.fb2 --answer cancel --answer cancel --snapshot $S/chain-marks.xml
+node tests/scripts/run-script.mjs $C/conv-c-16 tests/scripts/fixtures/books/conv-c-16.fb2 --snapshot $S/chain-conv-c-16.xml
+```
 
 ## 17_Перенос примечаний в скобки
 

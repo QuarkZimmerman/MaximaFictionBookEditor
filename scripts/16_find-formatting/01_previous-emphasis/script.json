@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "16/previous-emphasis",
   "name": {
+    "ru": "Перейти на предыдущий курсив",
     "en": "Go to previous italics",
-    "ru": "Переход на предыдущий курсив"
+    "uk": "Перейти до попереднього курсиву"
   },
   "description": {
-    "en": "Moves the caret to the end of the previous run of italics; offers to continue from the end of the book when the beginning is reached",
-    "ru": "Переводит курсор в конец предыдущего фрагмента (курсив); по достижении начала книги предлагает продолжить с конца"
+    "ru": "Переводит курсор в конец предыдущего фрагмента, набранного курсивом; по достижении начала книги предлагает продолжить с конца",
+    "en": "Moves the caret to the end of the previous run of italics; at the beginning of the book offers to continue from the end",
+    "uk": "Переводить курсор у кінець попереднього фрагмента, набраного курсивом; на початку книги пропонує продовжити з кінця"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Go to previous italics v1.0.",
-    "ru": "Переход на предыдущий курсив v1.0."
+    "ru": "Перейти на предыдущий курсив",
+    "en": "Go to previous italics"
   },
   "legacy": {
-    "source": "16_Поиск форматирования/01_Переход на предыдущий курсив.js",
-    "fbeVersion": "2.7"
+    "source": "16_Поиск форматирования/001_Перейти на предыдущий курсив.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.2"
   }
 }
