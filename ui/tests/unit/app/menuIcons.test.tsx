@@ -177,7 +177,8 @@ describe('the menu icon slot (feature 007, US8)', () => {
       expect(slotOf(within(menu).getByTestId('popup-plain')).querySelector('img')).toBeNull();
       const group = within(menu).getByTestId('popup-group');
       expect(slotOf(group).querySelector('img')).toHaveAttribute('src', GROUP_ICON);
-      fireEvent.mouseEnter(group);
+      // The pointer moves over the group (feature 007: `mouseenter` alone opens nothing).
+      fireEvent.mouseMove(group);
       const child = within(screen.getByTestId('popup-group-popup')).getByTestId(
         'popup-group-child',
       );

@@ -181,6 +181,44 @@ describe('PopupMenu submenus (feature 006)', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('an entry under a pointer at rest opens nothing: the pointer moving over it opens its submenu (feature 007)', () => {
+    setup();
+    const parent = screen.getByTestId('pm-structure');
+    // What Chromium sends to an entry that appears under a pointer at rest: `mouseover` and
+    // `mouseenter` without a `mousemove`.
+    fireEvent.mouseEnter(parent);
+    expect(screen.queryByTestId('pm-structure-popup')).not.toBeInTheDocument();
+    expect(highlighted('pm-structure')).toBe(false);
+    expect(highlighted('pm-cut')).toBe(true);
+    fireEvent.mouseMove(parent);
+    expect(screen.getByTestId('pm-structure-popup')).toBeInTheDocument();
+    expect(highlighted('pm-structure')).toBe(true);
+    // In the submenu the same.
+    const second = screen.getByTestId('pm-structure-second');
+    fireEvent.mouseEnter(second);
+    expect(highlighted('pm-structure-second')).toBe(false);
+    fireEvent.mouseMove(second);
+    expect(highlighted('pm-structure-second')).toBe(true);
+    expect(highlighted('pm-structure')).toBe(true);
+  });
+
+  it('a submenu the pointer opened is marked so until a key or a click takes it over (feature 007)', async () => {
+    const { user } = setup();
+    const parent = screen.getByTestId('pm-structure');
+    fireEvent.mouseMove(parent);
+    expect(screen.getByTestId('pm-structure-popup')).toHaveAttribute('data-opened-by', 'hover');
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByTestId('pm-structure-popup')).not.toHaveAttribute('data-opened-by');
+    expect(highlighted('pm-structure-first')).toBe(true);
+
+    fireEvent.mouseMove(screen.getByTestId('pm-cut'));
+    expect(screen.queryByTestId('pm-structure-popup')).not.toBeInTheDocument();
+    fireEvent.mouseMove(parent);
+    expect(screen.getByTestId('pm-structure-popup')).toHaveAttribute('data-opened-by', 'hover');
+    fireEvent.click(parent);
+    expect(screen.getByTestId('pm-structure-popup')).not.toHaveAttribute('data-opened-by');
+  });
+
   it('ArrowRight on an entry without items does nothing; Escape at the top level closes the menu', async () => {
     const { calls, onClose, user } = setup();
     await user.keyboard('{ArrowRight}');
@@ -311,9 +349,11 @@ describe('PopupMenu submenus (feature 006)', () => {
     const tall = window.innerHeight + 300;
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
       if (this.dataset.testid === 'pm') return rect(0, 0, 200, tall);
+      // To the right of its entry the submenu would cross the window's right edge.
+      if (this.dataset.testid === 'pm-structure') return rect(700, 100, 200, 25);
       if (this.dataset.testid === 'pm-structure-popup') {
-        // To the right of its entry it would cross the window's right edge.
-        return this.style.right === '100%' ? rect(500, 100, 200, 300) : rect(900, 100, 200, 300);
+        // Placed in the window's coordinates (feature 007): its box follows its left and top.
+        return rect(parseFloat(this.style.left) || 0, parseFloat(this.style.top) || 0, 200, 300);
       }
       return original.call(this);
     };
@@ -331,8 +371,9 @@ describe('PopupMenu submenus (feature 006)', () => {
       expect(menu.style.left).toBe('10px');
       await user.hover(screen.getByTestId('pm-structure'));
       const popup = screen.getByTestId('pm-structure-popup');
-      expect(popup.style.right).toBe('100%');
-      expect(popup.style.left).toBe('auto');
+      expect(popup.style.position).toBe('fixed');
+      expect(popup.style.left).toBe('500px'); // its right edge on its entry's left one
+      expect(popup.style.top).toBe('100px');
       expect(popup.style.maxHeight).toBe('');
     } finally {
       HTMLElement.prototype.getBoundingClientRect = original;

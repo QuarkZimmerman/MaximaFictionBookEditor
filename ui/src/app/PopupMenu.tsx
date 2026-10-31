@@ -13,6 +13,12 @@
  * (`<testId>-<entry id>-popup`, `<testId>-<entry id>-<child id>`). A disabled entry with a
  * `title` (the reason it is unavailable, FR-043) carries it as `title` and `aria-description`.
  * An entry's `icon` shows left of its label as in the menu bar (feature 007, `MenuItemSlot`).
+ *
+ * As in the menu bar (feature 007): an entry answers the pointer when the pointer moves over it,
+ * so nothing opens under a pointer at rest; a submenu is placed in the window from its entry's
+ * rectangle and follows it when the menu scrolls, and one the pointer opened that covers part of
+ * its entry waits a moment before it shows (`popupFit.ts`); the keys scroll their highlight into
+ * view.
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -21,7 +27,7 @@ import { parseAccelerator } from '@/i18n';
 
 import { MenuItemSlot } from './MenuIcon';
 import type { MenuIcon } from './menus';
-import { fitPopupInViewport } from './popupFit';
+import { fitPopupInViewport, refitSubmenus, revealItem } from './popupFit';
 
 export interface PopupMenuEntry {
   id: string;
@@ -89,17 +95,23 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   /** The highlighted entry of the open submenu (-1: none). */
   const [subHighlighted, setSubHighlighted] = useState(-1);
+  /** The open submenu was opened by the pointer moving over its entry (not a key or a click). */
+  const [submenuByHover, setSubmenuByHover] = useState(false);
   const submenuEntry = entries.find((entry) => entry.id === openSubmenu);
   const subEntries = submenuEntry?.items ? entriesOf(submenuEntry.items) : [];
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   });
+  /** Set by a key that moved a highlight: the highlighted entry is scrolled into view. */
+  const revealHighlight = useRef(false);
   const close = useCallback(() => onCloseRef.current(), []);
 
+  /** Opens the submenu of `entry`: by a key or a click with its first entry highlighted. */
   const openSubmenuOf = useCallback((entry: PopupMenuEntry, highlightFirst: boolean) => {
     setOpenSubmenu(entry.id);
     setSubHighlighted(highlightFirst ? 0 : -1);
+    setSubmenuByHover(!highlightFirst);
   }, []);
 
   const closeSubmenu = useCallback(() => {
@@ -123,7 +135,7 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
   // Kept inside the window, measured once rendered - again whenever the entries change, since a
   // menu may grow while it is open (the Body context menu's spelling suggestions arrive after
   // it opened); a menu taller than the window scrolls (its submenus are fitted to their entries
-  // by `fitPopupInViewport`).
+  // by `fitPopupInViewport`, again below after every change).
   useLayoutEffect(() => {
     const menu = ref.current;
     if (!menu) return;
@@ -144,6 +156,23 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
     menu.style.left = `${Math.max(0, Math.min(position.x, window.innerWidth - width))}px`;
     menu.style.top = `${Math.max(0, Math.min(position.y, window.innerHeight - shown))}px`;
   }, [position, items]);
+
+  // The open submenu placed again after every change - one a key or a click took over shows at
+  // once (`popupFit.ts`).
+  useLayoutEffect(() => {
+    if (ref.current) refitSubmenus(ref.current);
+  });
+
+  // The entry a key highlighted, in a menu or submenu taller than the window, is scrolled into
+  // view.
+  useLayoutEffect(() => {
+    if (!revealHighlight.current) return;
+    revealHighlight.current = false;
+    const menu = ref.current;
+    const level = openSubmenu ? menu?.querySelector<HTMLElement>('.mfbe-menu-submenu') : menu;
+    const entry = level?.querySelector<HTMLElement>(':scope > .mfbe-menu-item-highlighted');
+    if (level && entry) revealItem(level, entry);
+  });
 
   useEffect(() => {
     const menu = ref.current;
@@ -176,10 +205,13 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const inSubmenu = submenuEntry !== undefined;
+    // A key takes the open submenu over: one that waited for the pointer shows at once.
+    setSubmenuByHover(false);
     const level = inSubmenu ? subEntries : entries;
     const move = (step: number) => {
       event.preventDefault();
       if (level.length === 0) return;
+      revealHighlight.current = true;
       if (inSubmenu) {
         setSubHighlighted((current) =>
           current < 0
@@ -255,7 +287,9 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
         aria-description={title}
         className={`mfbe-menu-item${highlight ? ' mfbe-menu-item-highlighted' : ''}${enabled ? '' : ' mfbe-menu-item-disabled'}`}
         data-testid={entryTestId}
-        onMouseEnter={onHover}
+        // On a move only: an entry that appears under a pointer at rest gets `mouseover` /
+        // `mouseenter` from Chromium without a move, and opens nothing (feature 007).
+        onMouseMove={onHover}
         onClick={() => activate(entry, inSubmenu)}
       >
         <MenuItemSlot checked={false} checkable={false} icon={entry.icon} />
@@ -273,6 +307,7 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
             aria-label={parseAccelerator(entry.label).text}
             className="mfbe-menu-popup mfbe-menu-submenu"
             data-testid={`${entryTestId}-popup`}
+            data-opened-by={submenuByHover ? 'hover' : undefined}
             onMouseLeave={() => setSubHighlighted(-1)}
             // The submenu sits inside its parent entry: a click in it is not the parent's.
             onClick={(event) => event.stopPropagation()}
@@ -286,7 +321,10 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
                   `${entryTestId}-${child.id}`,
                   subEntries.indexOf(child) === subHighlighted,
                   true,
-                  () => setSubHighlighted(subEntries.indexOf(child)),
+                  () => {
+                    const index = subEntries.indexOf(child);
+                    if (index !== subHighlighted) setSubHighlighted(index);
+                  },
                 )
               ),
             )}
@@ -307,6 +345,8 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
       data-testid={testId}
       onKeyDown={onKeyDown}
       onContextMenu={(event) => event.preventDefault()}
+      // Taller than the window, the menu scrolls: its open submenu follows its entry.
+      onScroll={(event) => refitSubmenus(event.currentTarget)}
     >
       {items.map((item, index) => {
         if (item === 'separator') {
@@ -314,7 +354,8 @@ export function PopupMenu({ items, position, onClose, testId, ariaLabel }: Popup
         }
         const current = entries.indexOf(item);
         return renderEntry(item, `${testId}-${item.id}`, current === highlighted, false, () => {
-          setHighlighted(current);
+          // A move inside the open submenu reaches its entry too, which changes nothing there.
+          if (current !== highlighted) setHighlighted(current);
           if (opensSubmenu(item)) {
             if (openSubmenu !== item.id) openSubmenuOf(item, false);
           } else if (openSubmenu !== null) {
