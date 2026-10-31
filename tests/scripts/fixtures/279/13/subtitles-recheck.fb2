@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Подзаголовки</last-name>
+			</author>
+			<book-title>Подзаголовки и пустые строки, версия 4.7</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>fixture</program-used>
+			<date value="2026-10-31">2026</date>
+			<id>fixture-279-13-subtitles-recheck</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<title>
+			<p>Проверка версии <strong>4.7</strong> <emphasis><image l:href="#pic.png"/></emphasis></p>
+		</title>
+		<section>
+			<title>
+				<p>Глава первая</p>
+			</title>
+			<image l:href="#pic.png"/>
+			<empty-line/>
+			<p>Текст после картинки раздела.</p>
+			<poem>
+				<stanza>
+					<subtitle>**</subtitle>
+					<v>Строка стиха</v>
+					<v>* * *</v>
+					<v>Последняя строка</v>
+				</stanza>
+			</poem>
+			<p>Текст после стиха.</p>
+		</section>
+		<section>
+			<title>
+				<p>* * *</p>
+				<p><strong>Вторая</strong> <emphasis>строка</emphasis> заголовка</p>
+			</title>
+			<p>Текст второго раздела.</p>
+		</section>
+		<section>
+			<subtitle>Подзаголовок в начале раздела</subtitle>
+			<p>Текст третьего раздела.</p>
+		</section>
+		<section>
+			<title>
+				<p>***</p>
+			</title>
+			<epigraph>
+				<p>Эпиграф раздела.</p>
+			</epigraph>
+			<p>Текст четвёртого раздела.</p>
+		</section>
+		<section>
+			<title>
+				<p>* *</p>
+			</title>
+			<section>
+				<title>
+					<p>*</p>
+				</title>
+				<p>Первый подраздел.</p>
+			</section>
+			<section>
+				<title>
+					<p>* * *</p>
+				</title>
+				<image l:href="#pic.png"/>
+				<empty-line/>
+				<empty-line/>
+				<p>Второй подраздел с картинкой.</p>
+			</section>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==</binary>
+</FictionBook>

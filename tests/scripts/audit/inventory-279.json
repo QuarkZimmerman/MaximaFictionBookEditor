@@ -10,9 +10,9 @@
       "new": 230,
       "noCounterpart": 6,
       "notConverted": 5,
-      "recheck": 71,
+      "recheck": 66,
       "unchanged": 25,
-      "updated": 40
+      "updated": 45
     },
     "recheckClasses": {
       "identical": 24,
@@ -4103,12 +4103,19 @@
       "htmlDialogs": [
         "HTML/Разметить заголовки разделов либо подзаголовки, найденные по регэкспу - задание параметров.htm"
       ],
-      "package": "scripts/08_sections/02_split-into-sections",
+      "package": "scripts/13_subtitles/05_split-into-sections",
       "id": "08/split-into-sections",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "08_Структура разделов/02_Разбить документ на разделы....js",
-      "differences": [],
-      "fixes": [],
+      "differences": [
+        "Tier 3: the modeless dialog, which stayed open for further runs, is one form. Its two rows of buttons (Разметить заголовки / ... и выйти, Разметить подзаголовки / ... и выйти, Выйти) are the choice \"Разметить\" (titles or subtitles) with OK and Cancel; its 51 ready-made patterns are the presets of the pattern field, whose validity check replaces the original's message about a pattern that does not compile.",
+        "A part of a section left with its title only (and its epigraphs, picture or annotation), and a new section with nothing after its title, get an <empty-line/>, which FB2 requires; when nothing precedes the first new title, the first new section keeps the section's id. 2.7.9 wrote the invalid sections and dropped the emptied section, its id with it, when saving.",
+        "An empty line (or a paragraph of spaces) chosen as a subtitle stays an empty line, counted as in 2.7.9: 2.7.9 wrote an empty subtitle, which it saved as an <empty-line/>.",
+        "The package keeps its folder scripts/13_subtitles/05_split-into-sections and its id 08/split-into-sections (recheck rule 2), so the Scripts menu shows it as 02 of Структура разделов; 2.7.9 moved the script to Заголовки, подзаголовки, пустые строки as 05."
+      ],
+      "fixes": [
+        "An empty pattern is refused for titles as well, with the message 2.7.9 shows for subtitles (\"Вы не ввели никакой регэксп. Пожалуйста, введите регэксп для поиска заголовков ...\"). 2.7.9's title buttons ran with it: the empty expression matched every paragraph and empty line of the text bodies, each of which became the title of a section of its own. The intent is clear from the subtitle buttons' check, whose message speaks of finding titles; the 2.7beta1 conversion refused an empty pattern already."
+      ],
       "openQuestions": [],
       "recheck": {
         "class": "major",
@@ -4272,11 +4279,18 @@
       "htmlDialogs": [],
       "package": "scripts/13_subtitles/525_subtitles-empty-lines",
       "id": "13/subtitles-empty-lines",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "13_Подзаголовки, пустые строки/525_Разметка подзаголовков, чистка пустых строк.js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "Only paragraphs (and existing subtitles) made of one to three asterisks become \"* * *\" subtitles; the original changed any line of the containers it walked, a text author or a date of a poem too, where FB2 allows no subtitle (kept from the 2.7beta1 conversion).",
+        "Edits the schema refuses are skipped and counted in the final message (extra lines \"Не удалено ...\", \"Не превращено в подзаголовки ...\"): removing the only verse of a stanza, a subtitle inside an epigraph, and the subtitle \"* * *\" that a section's asterisk title becomes when an epigraph, an annotation or sub-sections follow the title (that section keeps its title). 2.7.9 made these edits and wrote invalid FB2."
+      ],
+      "fixes": [
+        "The final message gives the number of empty lines removed at the end of cites; 2.7.9 printed the start-of-cite number twice (\"в конце цитаты\" showed EmptyClearedCiteBegin). Kept from the 2.7beta1 conversion."
+      ],
+      "openQuestions": [
+        "2.7.9 commented out the merge of a \"* * *\" section into the previous section (and of a section starting with a subtitle) but still turns the asterisk title of a section that follows another section into the subtitle \"* * *\", so that section now starts with \"* * *\" (the first section of a body or part keeps its asterisk title). Kept as 2.7.9; restore 2.7beta1's merge instead?"
+      ],
       "recheck": {
         "class": "small",
         "changedLines": 15,
@@ -4299,11 +4313,18 @@
       "htmlDialogs": [],
       "package": "scripts/13_subtitles/526_subtitles-empty-lines-unbold-titles",
       "id": "13/subtitles-empty-lines-unbold-titles",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "13_Подзаголовки, пустые строки/526_Разметка подзаголовков, чистка пустых строк, удаление жирности в заголовках.js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "Only paragraphs (and existing subtitles) made of one to three asterisks become \"* * *\" subtitles; the original changed any line of the containers it walked, a text author or a date of a poem too, where FB2 allows no subtitle (kept from the 2.7beta1 conversion).",
+        "Edits the schema refuses are skipped and counted in the final message (extra lines \"Не удалено ...\", \"Не превращено в подзаголовки ...\"): removing the only verse of a stanza, a subtitle inside an epigraph, and the subtitle \"* * *\" that a section's asterisk title becomes when an epigraph, an annotation or sub-sections follow the title (that section keeps its title). 2.7.9 made these edits and wrote invalid FB2."
+      ],
+      "fixes": [
+        "The final message gives the number of empty lines removed at the end of cites; 2.7.9 printed the start-of-cite number twice (\"в конце цитаты\" showed EmptyClearedCiteBegin). Kept from the 2.7beta1 conversion."
+      ],
+      "openQuestions": [
+        "2.7.9 commented out the merge of a \"* * *\" section into the previous section (and of a section starting with a subtitle) but still turns the asterisk title of a section that follows another section into the subtitle \"* * *\", so that section now starts with \"* * *\" (the first section of a body or part keeps its asterisk title). Kept as 2.7.9; restore 2.7beta1's merge instead?"
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 36,
@@ -4326,11 +4347,18 @@
       "htmlDialogs": [],
       "package": "scripts/13_subtitles/527_subtitles-empty-lines-ask-unbold-titles",
       "id": "13/subtitles-empty-lines-ask-unbold-titles",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "13_Подзаголовки, пустые строки/527_Разметка подзаголовков, чистка пустых строк; удаление жирности в заголовках по запросу.js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "Only paragraphs (and existing subtitles) made of one to three asterisks become \"* * *\" subtitles; the original changed any line of the containers it walked, a text author or a date of a poem too, where FB2 allows no subtitle (kept from the 2.7beta1 conversion).",
+        "Edits the schema refuses are skipped and counted in the final message (extra lines \"Не удалено ...\", \"Не превращено в подзаголовки ...\"): removing the only verse of a stanza, a subtitle inside an epigraph, and the subtitle \"* * *\" that a section's asterisk title becomes when an epigraph, an annotation or sub-sections follow the title (that section keeps its title). 2.7.9 made these edits and wrote invalid FB2."
+      ],
+      "fixes": [
+        "The final message gives the number of empty lines removed at the end of cites; 2.7.9 printed the start-of-cite number twice (\"в конце цитаты\" showed EmptyClearedCiteBegin). Kept from the 2.7beta1 conversion."
+      ],
+      "openQuestions": [
+        "2.7.9 commented out the merge of a \"* * *\" section into the previous section (and of a section starting with a subtitle) but still turns the asterisk title of a section that follows another section into the subtitle \"* * *\", so that section now starts with \"* * *\" (the first section of a body or part keeps its asterisk title). Kept as 2.7.9; restore 2.7beta1's merge instead?"
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 36,
@@ -4353,11 +4381,18 @@
       "htmlDialogs": [],
       "package": "scripts/13_subtitles/528_subtitles-empty-lines-plain-titles",
       "id": "13/subtitles-empty-lines-plain-titles",
-      "status": "recheck",
+      "status": "updated",
       "predecessor": "13_Подзаголовки, пустые строки/528_Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках.js",
-      "differences": [],
-      "fixes": [],
-      "openQuestions": [],
+      "differences": [
+        "Only paragraphs (and existing subtitles) made of one to three asterisks become \"* * *\" subtitles; the original changed any line of the containers it walked, a text author or a date of a poem too, where FB2 allows no subtitle (kept from the 2.7beta1 conversion).",
+        "Edits the schema refuses are skipped and counted in the final message (extra lines \"Не удалено ...\", \"Не превращено в подзаголовки ...\"): removing the only verse of a stanza, a subtitle inside an epigraph, and the subtitle \"* * *\" that a section's asterisk title becomes when an epigraph, an annotation or sub-sections follow the title (that section keeps its title). 2.7.9 made these edits and wrote invalid FB2."
+      ],
+      "fixes": [
+        "The final message gives the number of empty lines removed at the end of cites; 2.7.9 printed the start-of-cite number twice (\"в конце цитаты\" showed EmptyClearedCiteBegin). Kept from the 2.7beta1 conversion."
+      ],
+      "openQuestions": [
+        "2.7.9 commented out the merge of a \"* * *\" section into the previous section (and of a section starting with a subtitle) but still turns the asterisk title of a section that follows another section into the subtitle \"* * *\", so that section now starts with \"* * *\" (the first section of a body or part keeps its asterisk title). Kept as 2.7.9; restore 2.7beta1's merge instead?"
+      ],
       "recheck": {
         "class": "moderate",
         "changedLines": 36,

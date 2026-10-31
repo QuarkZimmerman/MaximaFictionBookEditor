@@ -218,5 +218,44 @@
       "--answer",
       "ok"
     ]
+  },
+  {
+    "snapshot": "13/subtitles-empty-lines.recheck.xml",
+    "script": "scripts/13_subtitles/525_subtitles-empty-lines",
+    "book": "tests/scripts/fixtures/279/13/subtitles-recheck.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/subtitles-empty-lines-plain-titles.recheck.xml",
+    "script": "scripts/13_subtitles/528_subtitles-empty-lines-plain-titles",
+    "book": "tests/scripts/fixtures/279/13/subtitles-recheck.fb2",
+    "args": []
+  },
+  {
+    "snapshot": "13/split-into-sections.titles.xml",
+    "script": "scripts/13_subtitles/05_split-into-sections",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles-basic.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"^[ \\\\xA0]*Глава[ \\\\xA0]+\\\\d+(\\\\..*)?[ \\\\xA0]*$\",\"before\":\"1\",\"after\":\"1\"}"
+    ]
+  },
+  {
+    "snapshot": "13/split-into-sections.subtitles.xml",
+    "script": "scripts/13_subtitles/05_split-into-sections",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles-basic.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"^[ \\\\xA0]*(\\\\*[ \\\\xA0]*){3}[ \\\\xA0]*$\",\"before\":\"1\",\"after\":\"1\",\"action\":\"subtitles\"}"
+    ]
+  },
+  {
+    "snapshot": "13/split-into-sections.empty.xml",
+    "script": "scripts/13_subtitles/05_split-into-sections",
+    "book": "tests/scripts/fixtures/279/13/regexp-titles-basic.fb2",
+    "args": [
+      "--answer",
+      "{\"regexp\":\"\"}"
+    ]
   }
 ]

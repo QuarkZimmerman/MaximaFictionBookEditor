@@ -1,30 +1,36 @@
-// Shared engine of the four "Разметка подзаголовков, чистка пустых строк" scripts (converted
-// from 13_Подзаголовки, пустые строки/525…528, FictionBook Editor 2.7, Tier 2). The four
-// packages differ only in the flags passed to `markupSubtitles`; each folder carries its own
-// copy of this file because the sandbox only loads modules from the script's folder.
+// Shared engine of the four "Разметка подзаголовков, чистка пустых строк" scripts of
+// FictionBook Editor 2.7.9 (13_Заголовки, подзаголовки, пустые строки/525…528, version 4.7;
+// first converted from 2.7beta1's version 4.2, Tier 2). The four packages differ only in the
+// flags passed to `markupSubtitles`; each folder carries its own copy of this file (identical
+// copies) because the sandbox only loads modules from the script's folder.
 //
-// What the original did (two passes over the whole book):
+// What the original does (two passes over the whole book):
 //  1. in every section / poem / stanza / cite / epigraph: paragraphs made of one to three
-//     asterisks become `<subtitle>* * *</subtitle>`; empty lines are removed when they stand
-//     next to another empty line, next to a poem, a cite or a subtitle, inside stanzas, at the
-//     start/end of sections, epigraphs and cites (a section keeps its single empty line when
-//     nothing else would remain) and anywhere inside titles; bold/italics are optionally
+//     asterisks become `<subtitle>* * *</subtitle>` (not inside stanzas, since 2.7.9); empty
+//     lines are removed when they stand next to another empty line, next to a poem, a cite or
+//     a subtitle, inside stanzas, at the start/end of sections, epigraphs and cites (a section
+//     keeps its single empty line when nothing else would remain, and, since 2.7.9, the empty
+//     line right after its picture) and anywhere inside titles; bold/italics are optionally
 //     stripped from titles;
-//  2. a section that starts with a subtitle (or whose title is just "* * *") is merged into the
-//     preceding sibling section, so "* * *" separators no longer split chapters.
+//  2. a section that follows a sibling section and whose title starts with an asterisk line
+//     loses its title: that line becomes the subtitle "* * *" and the other title lines
+//     paragraphs of the section, in place. (2.7beta1 then merged such a section, and one that
+//     starts with a subtitle, into the previous section; 2.7.9 commented that merge out.)
 // In FBE an `<empty-line/>` was an empty `<p>`, so "empty line" means both an `empty-line`
 // element and a paragraph containing only spaces / non-breaking spaces (inline images count
 // as content). Edits the schema refuses (the only verse of a stanza, a subtitle inside an
-// epigraph, merging into a section that ends with sub-sections) are skipped and reported.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// epigraph, a "* * *" title unwrapped in front of an epigraph, an annotation or sub-sections)
+// are skipped and reported; 2.7.9 made them and wrote invalid FB2. Only `p` (and existing
+// `subtitle`) lines become "* * *" subtitles (the original changed any line, a text author
+// too); the final message prints the end-of-cite counter where 2.7.9 printed the start-of-cite
+// counter twice.
+// The original's notice, kept as written (FR-029):
 // Разметка подзаголовков, чистка пустых строк
 // Автор: Sclex
 
 const CONTAINERS = new Set(['section', 'body', 'poem', 'stanza', 'cite', 'epigraph']);
 /** Element types the original saw as `<P>` inside the containers it walked. */
 const P_LIKE = new Set(['p', 'subtitle', 'text-author', 'v', 'date', 'empty-line']);
-/** Blocks that may be appended to a section when a "* * *" section is merged into it. */
-const BLOCKS = new Set(['p', 'subtitle', 'poem', 'cite', 'empty-line', 'table', 'image']);
 const BLANK_RE = /^[ \u00A0]*$/;
 const SUBTITLE_RE = /^[ \u00A0]*\*([ \u00A0]*\*)?([ \u00A0]*\*)?[ \u00A0]*$/;
 
@@ -49,15 +55,20 @@ function nodeId(node) {
   return node.attrs?.nodeId;
 }
 
-/** Copy of `node` without the given marks, or null when nothing would change. */
+/**
+ * Copy of `node` without the given marks, or null when nothing would change. Text and inline
+ * pictures carry marks (the original removed the <STRONG> / <EM> tags around a picture too).
+ */
 function withoutMarks(node, names) {
   let changed = false;
   const strip = (n) => {
-    if (n.type === 'text') {
+    if (n.type === 'text' || n.type === 'inline-image') {
       const marks = (n.marks ?? []).filter((m) => !names.has(m.type));
       if (marks.length === (n.marks ?? []).length) return n;
       changed = true;
-      return marks.length ? { ...n, marks } : { type: 'text', text: n.text };
+      const copy = { ...n, marks };
+      if (!marks.length) delete copy.marks;
+      return copy;
     }
     return n.content ? { ...n, content: n.content.map(strip) } : n;
   };
@@ -97,7 +108,7 @@ export async function markupSubtitles(ctx, options) {
     empty: 0, cite: 0, poem: 0, subtitle: 0, inPoem: 0,
     sectionBegin: 0, sectionEnd: 0, epigraphBegin: 0, epigraphEnd: 0, citeBegin: 0, citeEnd: 0,
     titleBegin: 0, titleEnd: 0, titleInside: 0, total: 0,
-    skipped: 0, notConverted: 0, unmerged: 0,
+    skipped: 0, notConverted: 0, titlesKept: 0,
   };
   const started = Date.now();
 
@@ -220,7 +231,8 @@ export async function markupSubtitles(ctx, options) {
         if (kind === 'stanza' && pLike && (await removeAt(children, i, 'inPoem'))) continue;
       }
       if (pLike && (ptr.content ?? []).length > 0) {
-        if (isSubtitleLine(ptr)) await toSubtitle(children, i);
+        // 2.7.9: nothing inside a stanza becomes a "* * *" subtitle.
+        if (kind !== 'stanza' && isSubtitleLine(ptr)) await toSubtitle(children, i);
         if (children[i].type === 'subtitle') {
           i = await removeEmptiesBefore(children, i, 'subtitle');
           await removeEmptiesAfter(children, i, 'subtitle');
@@ -239,6 +251,8 @@ export async function markupSubtitles(ctx, options) {
     const removeAtBegin = async (counter) => {
       const j = children.indexOf(savedFirstEmpty);
       if (j < 0) return; // already removed by one of the neighbourhood rules
+      // 2.7.9: the empty line right after the section's picture stays.
+      if (kind === 'section' && j > 0 && children[j - 1].type === 'image') return;
       while (j < children.length && isEmptyLine(children[j])) {
         if (!(await removeAt(children, j, counter))) break;
       }
@@ -273,47 +287,41 @@ export async function markupSubtitles(ctx, options) {
     }
   };
 
-  /** Pass 2 over one container (the original `Recursive2`): merge "* * *" sections. */
+  /**
+   * The "* * *" title of a section becomes a subtitle (2.7.9's Recursive2): its first line is
+   * replaced by `<subtitle>* * *</subtitle>` (keeping the line's attributes), the other lines
+   * follow as paragraphs; false when the schema refuses the subtitle there.
+   */
+  const unwrapTitle = async (section, title) => {
+    const [line, ...rest] = title.content;
+    const attrs = { ...(line.attrs ?? {}) };
+    delete attrs.nodeId;
+    const subtitle = { type: 'subtitle', attrs, content: [{ type: 'text', text: '* * *' }] };
+    const lines = rest.map((n) => (n.type === 'empty-line' ? { type: 'empty-line', attrs: {} } : { ...stripIds(n), type: 'p' }));
+    let ref;
+    try {
+      ref = await mfbe.doc.replaceNode(nodeId(title), subtitle);
+    } catch {
+      return false; // no subtitle in front of an epigraph, an annotation or sub-sections
+    }
+    for (const node of lines) ref = await mfbe.doc.insertNode('after', ref, node);
+    section.content.splice(0, 1, subtitle, ...lines);
+    return true;
+  };
+
+  /** Pass 2 over one container (the original `Recursive2`). */
   const pass2 = async (container) => {
     const children = container.content ?? [];
-    let i = 0;
-    while (i < children.length) {
+    for (let i = 0; i < children.length; i += 1) {
       const ptr = children[i];
-      let merged = false;
-      if (i > 0 && children[i - 1].type === 'section' && ptr.type === 'section' && ptr.content?.length) {
-        const first = ptr.content[0];
-        let payload = null;
-        if (first.type === 'title' && first.content?.length && isSubtitleLine(first.content[0])) {
-          // The "* * *" title is unwrapped: its first paragraph becomes the subtitle, further
-          // title paragraphs plain paragraphs (that is what the original's HTML produced).
-          payload = [
-            { type: 'subtitle', attrs: {}, content: [{ type: 'text', text: '* * *' }] },
-            ...first.content.slice(1).map((n) => (n.type === 'empty-line' ? n : { ...n, type: 'p' })),
-            ...ptr.content.slice(1),
-          ];
-        } else if (first.type === 'subtitle') {
-          payload = ptr.content.slice();
-        }
-        if (payload) {
-          const prev = children[i - 1];
-          const prevLast = prev.content?.[prev.content.length - 1];
-          const appendable =
-            payload.every((n) => BLOCKS.has(n.type)) && prevLast && prevLast.type !== 'section';
-          if (!appendable) c.unmerged += 1;
-          else {
-            for (const node of payload) {
-              await mfbe.doc.insertNode('append', nodeId(prev), stripIds(node));
-              prev.content.push(node);
-            }
-            await mfbe.doc.removeNode(nodeId(ptr));
-            children.splice(i, 1);
-            merged = true;
-          }
-        }
+      const first = ptr.content?.[0];
+      if (
+        i > 0 && children[i - 1].type === 'section' && ptr.type === 'section' &&
+        first?.type === 'title' && first.content?.length && isSubtitleLine(first.content[0])
+      ) {
+        if (!(await unwrapTitle(ptr, first))) c.titlesKept += 1;
       }
-      if (merged) continue;
       if (ptr.type === 'section' || ptr.type === 'body') await pass2(ptr);
-      i += 1;
     }
   };
 
@@ -324,10 +332,13 @@ export async function markupSubtitles(ctx, options) {
   for (const tree of trees) await pass1(tree);
   for (const tree of trees) await pass2(tree);
 
-  const seconds = Math.ceil(((Date.now() - started) / 1000) * 10) / 10;
+  // The running time as the original wrote it: minutes only beyond a minute.
+  const elapsed = Date.now() - started;
+  const minutes = Math.floor(elapsed / 60000);
+  const seconds = Math.ceil(10 * (elapsed / 1000 - minutes * 60)) / 10;
   const lines = ctx.uiLanguage === 'ru'
     ? [
-        'Работа скрипта «Разметка подзаголовков, чистка пустых строк v4.2» завершена.',
+        'Работа скрипта "Разметка подзаголовков, чистка пустых строк v4.7" завершена.',
         '',
         'Удалено пустых строк:',
         `– из-за соседства с пустой строкой: ${c.empty}`,
@@ -335,8 +346,8 @@ export async function markupSubtitles(ctx, options) {
         `– из-за соседства со стихом: ${c.poem}`,
         `– из-за соседства с подзаголовком: ${c.subtitle}`,
         `– внутри стихов: ${c.inPoem}`,
-        `– в начале секции: ${c.sectionBegin}`,
-        `– в конце секции: ${c.sectionEnd}`,
+        `– в начале раздела: ${c.sectionBegin}`,
+        `– в конце раздела: ${c.sectionEnd}`,
         `– в начале эпиграфа: ${c.epigraphBegin}`,
         `– в конце эпиграфа: ${c.epigraphEnd}`,
         `– в начале цитаты: ${c.citeBegin}`,
@@ -348,12 +359,12 @@ export async function markupSubtitles(ctx, options) {
         `Всего удалено пустых строк: ${c.total}`,
         ...(c.skipped ? [`Не удалено (запрещено структурой документа): ${c.skipped}`] : []),
         ...(c.notConverted ? [`Не превращено в подзаголовки (запрещено структурой): ${c.notConverted}`] : []),
-        ...(c.unmerged ? [`Не объединено секций (запрещено структурой документа): ${c.unmerged}`] : []),
+        ...(c.titlesKept ? [`Не превращено в подзаголовки заголовков «* * *» (запрещено структурой документа): ${c.titlesKept}`] : []),
         '',
-        `Время работы: ${seconds} с`,
+        `Время работы: ${minutes > 0 ? `${minutes} мин. ${seconds} с` : `${seconds} с`}`,
       ]
     : [
-        'The script "Mark up subtitles, clean up empty lines" v4.2 has finished.',
+        'The script "Mark up subtitles, clean up empty lines" v4.7 has finished.',
         '',
         'Empty lines removed:',
         `– next to another empty line: ${c.empty}`,
@@ -374,9 +385,9 @@ export async function markupSubtitles(ctx, options) {
         `Empty lines removed in total: ${c.total}`,
         ...(c.skipped ? [`Not removed (the document structure forbids it): ${c.skipped}`] : []),
         ...(c.notConverted ? [`Not turned into subtitles (the structure forbids it): ${c.notConverted}`] : []),
-        ...(c.unmerged ? [`Sections not merged (the document structure forbids it): ${c.unmerged}`] : []),
+        ...(c.titlesKept ? [`"* * *" titles not turned into subtitles (the document structure forbids it): ${c.titlesKept}`] : []),
         '',
-        `Running time: ${seconds} s`,
+        `Running time: ${minutes > 0 ? `${minutes} min ${seconds} s` : `${seconds} s`}`,
       ];
   await mfbe.ui.message(lines.join('\n'));
 }

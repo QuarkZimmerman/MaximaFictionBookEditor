@@ -387,6 +387,170 @@ node tests/scripts/run-script.mjs $G/570_find-possible-titles $B/keywords.fb2 --
 node tests/scripts/run-script.mjs $G/570_find-possible-titles $B/keywords.fb2 --select n27:6:6 --answer ok --snapshot $S/find-possible-titles.end.xml
 ```
 
+Recheck (task T083) of the five packages converted from 2.7beta1 whose 2.7.9 successors are in
+this group: 525–528 (`scripts/13_subtitles/`, conversion-notes-c.md, group 13) and *05
+Разметить заголовки разделов либо подзаголовки, найденные по регэкспу...*, which 2.7.9 moved
+here from 08_Структура разделов, where it was *02_Разбить документ на разделы...*
+(`scripts/13_subtitles/05_split-into-sections`, conversion-notes-a.md, group 08). Outcomes: all
+five **updated** to their 2.7.9 version 4.7; ids and folders unchanged, so the regexp markup
+stays 02 of *Структура разделов* in the menu (recheck rule 2) while 2.7.9 lists it here as 05.
+Every package gained `name.uk`, `description.uk` and the icon of its 2.7.9 original (`icon.png`;
+2.7beta1 had none for them); `legacy` names the 2.7.9 original with `sourceVersion` 4.7.
+Reference books: the existing `tests/scripts/fixtures/books/conv-c-13.fb2` and `conv-a-08.fb2`
+of the main suite, and the new `tests/scripts/fixtures/279/13/subtitles-recheck.fb2` and
+`regexp-titles-basic.fb2` (valid FB2 2.1); the new snapshots are in `tests/scripts/snapshots/13/`
+and its `suite.json`. Every expected result below was written from the 2.7.9 originals before
+the run; each snapshot equals it.
+
+### 05 Разметить заголовки разделов либо подзаголовки, найденные по регэкспу...
+
+`scripts/13_subtitles/05_split-into-sections`, id `08/split-into-sections`: **updated** (2.7beta1
+v1.4 → 2.7.9 v4.7, a major change). Names as in 2.7.9: ru and undo label *Разметить заголовки
+разделов либо подзаголовки, найденные по регэкспу...*, en *Mark up section titles or subtitles
+found by a regular expression...*, uk *Розмітити заголовки розділів або підзаголовки, знайдені за
+регулярним виразом...*. The script still only opens its modeless dialog, now *HTML/Разметить
+заголовки разделов либо подзаголовки, найденные по регэкспу - задание параметров.htm*, which holds
+the logic. 2.7.9 changed in it: a list of 51 ready-made patterns ("Вида «Глава 123»", "Вида
+«***»", "Chapter One" ...) that fill the pattern field; a second pair of buttons that marks up
+subtitles instead of titles (the matching paragraph, and up to 3 paragraphs before and after it,
+become subtitles; a subtitle is passed over, any other element stops); the notes and comments
+bodies are left alone; subtitles are no longer candidates for titles, and taking paragraphs
+into a title stops at a subtitle; the text tested is the paragraph's HTML without its tags
+(pictures go) with `&nbsp;` and the non-breaking space as U+00A0, `&lt;` `&gt;` `&amp;` decoded
+and the unusual spaces U+2002–U+2006, U+2009, U+200A, U+202F as plain spaces (2.7beta1 tested
+`innerText`); an empty paragraph is tested as a non-breaking space; an empty pattern is refused
+for subtitles; the texts and the version. Ported on the walk of the extended version 06 (the
+same dialog with more conditions): `section-split.js` and `lib/legacy-html.js` are identical
+copies of 06's, `index.js` holds 05's tests as written - 06's without its bold, italic,
+position, empty-lines and length conditions - and `presets.js` 05's own list, extracted
+mechanically like 06's (49 of its patterns are 06's; the "Пролог..." and "Prologue..." lists
+are shorter, "Любой непустой абзац" is missing; the list starts on no preset and the field
+empty, as the dialog did). The form keeps the field ids `regexp`, `caseSensitive`, `before` and
+`after` of the 2.7beta1 conversion and adds the choice `action` (titles, the default, or
+subtitles). `index.js` carries 2.7.9's notice and, as well, the 2.7beta1 one with its forum link.
+
+Snapshots. Re-recorded `08/split-into-sections.xml` (conv-a-08.fb2, `^глава `, 0 before, 1
+after; the entry of the main suite): the subtitle "Глава вторая" is no candidate any more, so it
+stays in the "ГЛАВА ПЕРВАЯ" section with "Текст второй главы." and the empty line after it
+instead of opening a section; 3 titles (2.7beta1 4). Added on regexp-titles-basic.fb2:
+`split-into-sections.titles.xml` (preset «Глава 123», 1 before, 1 after): the titled section
+`s1` keeps its title, id and "Вступление."; "Глава 1" takes the empty line before it and
+"Начало" after it into its title; the subtitle "Глава 2" stays in that section; "Глава 3"
+(non-breaking space) takes nothing, a subtitle stands on either side; "Глава 4" (thin space
+U+2009, a plain space for the test) takes "Текст четвёртой главы." (a cite before it stops the
+capture); "Глава 5" behind an inline picture matches and, with nothing after it, gets an
+`<empty-line/>`; the untitled section and the notes body ("Глава 10") stay; 4 titles.
+`split-into-sections.subtitles.xml` (preset «***», subtitles, 1 before, 1 after): "* * *" with
+"Перед звёздочками" and "После звёздочек", "***" (the subtitle before it is passed over, the
+cite after it stops) and "*  *  *" with "Конец." become subtitles; the empty line before "*  *
+*" is taken and stays an empty line; "Обычный текст." stays, and so do the notes' "* * *"; 3
+subtitles. `split-into-sections.empty.xml` (empty pattern): the message, the book unchanged.
+
+Fix: an empty pattern is refused for titles too, with the message 2.7.9 shows for subtitles
+("Вы не ввели никакой регэксп. Пожалуйста, введите регэксп для поиска заголовков ..."): 2.7.9's
+title buttons ran with it, and the empty expression matched every paragraph and empty line of
+the text bodies, each becoming the title of a section of its own; the subtitle buttons' check
+speaks of finding titles, and the 2.7beta1 conversion refused an empty pattern already.
+Differences: the modeless dialog is one form (the choice "Разметить" and OK; the presets and the
+validity check of the `'regexp'` field replace the dropdown and the compile-error message); a
+part of a section left with its title only and a new section with nothing after its title get an
+`<empty-line/>`, and the first new section keeps the section's id when nothing precedes it (2.7.9
+wrote the invalid sections and lost the id when saving); an empty line chosen as a subtitle
+stays an empty line (2.7.9 saved its empty subtitle as one), counted as in 2.7.9. The package
+follows 2.7.9 into this group at place 05: it moved from `scripts/08_sections/02_split-into-sections`
+to `scripts/13_subtitles/05_split-into-sections`, and its id `08/split-into-sections` is kept, so
+hotkeys, Scripts toolbar buttons and Last script keep running it (FR-028). No open questions.
+
+### 525 Разметка подзаголовков, чистка пустых строк
+
+`scripts/13_subtitles/525_subtitles-empty-lines`, id `13/subtitles-empty-lines`: **updated**
+(v4.2 → v4.7, a small change). The four scripts 525–528 keep one engine, `subtitles-lib.js`
+(identical copies), and differ in their flags as in 2.7.9. 2.7.9 changed in it:
+- the merge of a "* * *" section into the previous one is commented out, and so is that of a
+  section starting with a subtitle. What stays of that pass: a section that follows a sibling
+  section and whose title's first line is one to three asterisks loses its title - that line
+  becomes `<subtitle>* * *</subtitle>` (keeping its attributes) and the other title lines
+  paragraphs of the section, in place (`removeNode(false)`). Ported as `unwrapTitle`; where FB2
+  allows no subtitle at the start of the section (an epigraph, an annotation or sub-sections
+  follow the title) the section keeps its title and the message counts it ("Не превращено в
+  подзаголовки заголовков «* * *»"), where 2.7.9 wrote invalid FB2;
+- the empty line right after a section's picture is no longer removed as an empty line at the
+  start of the section (`removeEmptiesAtBegin` returns when the line follows the picture);
+- nothing inside a stanza becomes a "* * *" subtitle: a stanza's subtitle "**" keeps its text
+  (verses of asterisks were left alone by the conversion already);
+- texts: "v4.7", "в начале раздела" and "в конце раздела" for "... секции".
+Also aligned with the original's message: the script's name in straight quotes, and minutes in
+the running time beyond a minute. Gained uk *Розмітка підзаголовків, очищення порожніх рядків*;
+the description says what 2.7.9 does.
+
+Snapshots. The five snapshots of the four scripts on conv-c-13.fb2 are re-recorded, since 2.7.9
+gives a different result on that book; each gains the same five lines: "Глава с картинкой" keeps
+the empty line after its picture; in "Часть вторая" the "* * *" sub-section stays a section,
+headed by the subtitle "* * *", and the section starting with "Подзаголовок-секция" stays a
+section (2.7beta1 merged both into "Глава третья"). 525's message: next to an empty line 5, a
+cite 2, a poem 2, a subtitle 5, inside poems 1, section start 1, section end 2, epigraph start 1,
+cite start 1, title start 2, end 2, inside 1; 25 in all (2.7beta1 26). Added
+`subtitles-empty-lines.recheck.xml` on subtitles-recheck.fb2: the empty line after the first
+section's picture and the stanza's subtitle "**" stay; the second section's title "* * *" /
+"**Вторая** *строка* заголовка" becomes the subtitle "* * *" and a paragraph that keeps its
+formatting; the section starting with a subtitle stays; "***" in front of an epigraph and "* *"
+over two sub-sections keep their titles (2 counted); of those sub-sections the first keeps its
+title "*" (no section before it), the second gets the subtitle "* * *" in front of its picture,
+whose empty line stays while the one after it goes; 1 empty line removed.
+
+Fix (kept from the 2.7beta1 conversion): the line "в конце цитаты" gives the empty lines removed
+at the end of cites; 2.7.9 printed the start-of-cite number twice. Differences: only paragraphs
+and subtitles of asterisks become "* * *" (the original changed any line, a text author or a
+poem's date too); edits the schema refuses are skipped and counted: the only verse of a stanza, a
+subtitle inside an epigraph, and the asterisk title described above. Open question: 2.7.9 no
+longer merges a "* * *" section into the previous one but still turns its title into a subtitle,
+so such a section now starts with "* * *" (the first section of a body or part keeps its
+asterisk title); kept as 2.7.9 - restore 2.7beta1's merge instead?
+
+### 526 Разметка подзаголовков, чистка пустых строк, удаление жирности в заголовках
+
+`scripts/13_subtitles/526_subtitles-empty-lines-unbold-titles`, id
+`13/subtitles-empty-lines-unbold-titles`: **updated** as 525 (the same engine with titles losing
+bold). 2.7.9 also rewrote its `destrongAndDeitalic` as a regular expression over the title's
+HTML instead of a walk of its elements; on the document model both remove the marks, and the
+engine now also removes them from inline pictures (2.7.9's expression removed the tags around a
+picture too). Gained uk *Розмітка підзаголовків, очищення порожніх рядків, видалення жирного в
+заголовках*. Snapshot `subtitles-empty-lines-unbold-titles.xml` re-recorded (the five lines of
+525). Fix, differences and open question as 525.
+
+### 527 Разметка подзаголовков, чистка пустых строк; удаление жирности в заголовках по запросу
+
+`scripts/13_subtitles/527_subtitles-empty-lines-ask-unbold-titles`, id
+`13/subtitles-empty-lines-ask-unbold-titles`: **updated** as 526; the question "Удалять ли
+жирность в заголовках?" comes first. Gained uk *Розмітка підзаголовків, очищення порожніх рядків;
+видалення жирного в заголовках на запит*. Snapshots `subtitles-empty-lines-ask-unbold-titles.xml`
+(yes, = 526) and `.no.xml` (no, = 525) re-recorded. Fix, differences and open question as 525.
+
+### 528 Разметка подзаголовков, чистка пустых строк, удаление жирности и курсива в заголовках
+
+`scripts/13_subtitles/528_subtitles-empty-lines-plain-titles`, id
+`13/subtitles-empty-lines-plain-titles`: **updated** as 526, titles losing italics too. 2.7.9's
+italics expression has a typo, `( [>^]*)?` for `( [^>]*)?`, which would leave an `<EM>` with
+attributes; 2.7.9's `fb2.xsl` writes `<em>` without any, so it removes every italics as the
+conversion does. Gained uk *Розмітка підзаголовків, очищення порожніх рядків, видалення жирного та
+курсиву в заголовках*. Snapshot `subtitles-empty-lines-plain-titles.xml` re-recorded (the five
+lines of 525); added `subtitles-empty-lines-plain-titles.recheck.xml` on subtitles-recheck.fb2:
+as 525's, with the body title "Проверка версии 4.7" and its picture plain and the second
+section's former title line "Вторая строка заголовка" without bold and italics. Fix, differences
+and open question as 525.
+
+### Harness commands of the recheck
+
+```bash
+G=scripts/13_subtitles; P=scripts/13_subtitles/05_split-into-sections; B=tests/scripts/fixtures/279/13; S=tests/scripts/snapshots/13
+node tests/scripts/run-script.mjs $G/525_subtitles-empty-lines $B/subtitles-recheck.fb2 --snapshot $S/subtitles-empty-lines.recheck.xml
+node tests/scripts/run-script.mjs $G/528_subtitles-empty-lines-plain-titles $B/subtitles-recheck.fb2 --snapshot $S/subtitles-empty-lines-plain-titles.recheck.xml
+node tests/scripts/run-script.mjs $P $B/regexp-titles-basic.fb2 --answer '{"regexp":"^[ \\xA0]*Глава[ \\xA0]+\\d+(\\..*)?[ \\xA0]*$","before":"1","after":"1"}' --snapshot $S/split-into-sections.titles.xml
+node tests/scripts/run-script.mjs $P $B/regexp-titles-basic.fb2 --answer '{"regexp":"^[ \\xA0]*(\\*[ \\xA0]*){3}[ \\xA0]*$","before":"1","after":"1","action":"subtitles"}' --snapshot $S/split-into-sections.subtitles.xml
+node tests/scripts/run-script.mjs $P $B/regexp-titles-basic.fb2 --answer '{"regexp":""}' --snapshot $S/split-into-sections.empty.xml
+# re-recorded entries of the main suite: tests/scripts/run-all.sh --group 13 --filter subtitles-empty-lines; --group 08 --filter split-into-sections
+```
+
 ## 14_Цитаты
 
 10 scripts in 2.7.9: 10 new, 0 successors of converted packages. Not yet converted or rechecked.

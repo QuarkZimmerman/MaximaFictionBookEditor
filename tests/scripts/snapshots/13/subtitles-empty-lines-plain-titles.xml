@@ -73,6 +73,7 @@
 				<p>Глава с картинкой</p>
 			</title>
 			<image l:href="#pic.png"/>
+			<empty-line/>
 			<p>Текст после картинки.</p>
 		</section>
 		<section>
@@ -84,8 +85,12 @@
 					<p>Глава третья</p>
 				</title>
 				<p>Текст третьей главы.</p>
+			</section>
+			<section>
 				<subtitle>* * *</subtitle>
 				<p>Текст, отделённый звёздочками, должен влиться в третью главу.</p>
+			</section>
+			<section>
 				<subtitle>Подзаголовок-секция</subtitle>
 				<p>Текст секции, начинающейся с подзаголовка.</p>
 			</section>

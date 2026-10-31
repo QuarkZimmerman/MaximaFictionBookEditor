@@ -793,7 +793,7 @@
   },
   {
     "snapshot": "08/split-into-sections.xml",
-    "script": "scripts/08_sections/02_split-into-sections",
+    "script": "scripts/13_subtitles/05_split-into-sections",
     "book": "tests/scripts/fixtures/books/conv-a-08.fb2",
     "args": [
       "--answer",

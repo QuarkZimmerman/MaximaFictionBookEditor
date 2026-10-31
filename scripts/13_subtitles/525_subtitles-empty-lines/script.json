@@ -2,22 +2,26 @@
   "manifestVersion": 1,
   "id": "13/subtitles-empty-lines",
   "name": {
+    "ru": "Разметка подзаголовков, чистка пустых строк",
     "en": "Mark up subtitles, clean up empty lines",
-    "ru": "Разметка подзаголовков, чистка пустых строк"
+    "uk": "Розмітка підзаголовків, очищення порожніх рядків"
   },
   "description": {
-    "en": "Turns \"* * *\" paragraphs into subtitles, removes redundant empty lines (next to poems, cites, subtitles and other empty lines, at the start and end of sections, in titles) and merges \"* * *\" sections into the preceding one",
-    "ru": "Превращает абзацы «* * *» в подзаголовки, удаляет лишние пустые строки (рядом со стихами, цитатами, подзаголовками и другими пустыми строками, в начале и конце секций, в заголовках) и вливает секции «* * *» в предыдущие"
+    "ru": "Превращает абзацы из одной–трёх звёздочек в подзаголовки «* * *», удаляет лишние пустые строки (рядом с другими пустыми строками, стихами, цитатами и подзаголовками, внутри строф, в начале и конце разделов, эпиграфов и цитат, в заголовках) и делает заголовок «* * *» раздела подзаголовком.",
+    "en": "Turns paragraphs of one to three asterisks into \"* * *\" subtitles, removes redundant empty lines (next to other empty lines, poems, cites and subtitles, inside stanzas, at the start and end of sections, epigraphs and cites, in titles) and turns the \"* * *\" title of a section into a subtitle.",
+    "uk": "Перетворює абзаци з однієї–трьох зірочок на підзаголовки «* * *», видаляє зайві порожні рядки (поруч з іншими порожніми рядками, віршами, цитатами й підзаголовками, усередині строф, на початку й наприкінці розділів, епіграфів і цитат, у заголовках) і перетворює заголовок розділу «* * *» на підзаголовок."
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Mark up subtitles, clean up empty lines",
-    "ru": "Разметка подзаголовков, чистка пустых строк"
+    "ru": "Разметка подзаголовков, чистка пустых строк",
+    "en": "Mark up subtitles, clean up empty lines"
   },
   "legacy": {
-    "source": "13_Подзаголовки, пустые строки/525_Разметка подзаголовков, чистка пустых строк.js",
-    "fbeVersion": "2.7"
+    "source": "13_Заголовки, подзаголовки, пустые строки/525_Разметка подзаголовков, чистка пустых строк.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "4.7"
   }
 }

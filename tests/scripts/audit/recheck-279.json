@@ -1001,7 +1001,7 @@
       "percent": 0.8
     },
     {
-      "package": "scripts/08_sections/02_split-into-sections",
+      "package": "scripts/13_subtitles/05_split-into-sections",
       "id": "08/split-into-sections",
       "predecessor": "08_Структура разделов/02_Разбить документ на разделы....js",
       "successor": "13_Заголовки, подзаголовки, пустые строки/05_Разметить заголовки разделов либо подзаголовки, найденные по регэкспу....js",
