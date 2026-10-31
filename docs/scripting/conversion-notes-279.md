@@ -75,6 +75,19 @@ tool applies over its own pairing:
   структуры разделов* (08), and the two from-the-start level variants of group 12.
   *Капитализация первого слова* (01) was merged into *Капитализация выделения*.
 
+## Credits (T133)
+
+`tools/legacy-script-audit.py --recheck` collects the author names of the 2.7.9 scripts' headers
+into [`authors-279.txt`](../../tests/scripts/audit/authors-279.txt); the reviewed names are in
+`CONTRIBUTORS.txt` under "Scripts of FictionBook Editor 2.7.x by:", which the About dialog shows:
+Sclex, TaKir, stokber, Jurgen (jurgennt), Faiber, Алекс Савельев (Alex Saveliev), imDaniX, mkb
+and Haliz (the idea of *Расширенная нумерация абзацев*). The review merged the spellings of one
+person (Sclex-а, Sсlex with a Cyrillic с; jurgennt is Jurgen, Alex Saveliev Алекс Савельев),
+added Faiber and TaKir, credited in the headers without the "Автор" the tool looks for, and
+dropped the word fragments the tool read as names ("исходного скрипта", "добавленного кода",
+"идеи", "title", "AllMeans" from a variable name, and the like). Every script keeps its own notice
+(FR-029; `tests/scripts/notices.json`).
+
 ## Groups
 
 | 2.7.9 group | Scripts | New | Successors | Successors of dropped |
