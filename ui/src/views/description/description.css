@@ -314,6 +314,16 @@ textarea.mfbe-desc-input {
   cursor: pointer;
 }
 
+/* A Binary objects thumbnail opens the picture view (feature 007, FR-053). */
+.mfbe-desc-thumb-view {
+  cursor: zoom-in;
+}
+
+.mfbe-desc-thumb-view:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: 1px;
+}
+
 .mfbe-desc-thumb {
   display: inline-block;
   max-width: 96px;

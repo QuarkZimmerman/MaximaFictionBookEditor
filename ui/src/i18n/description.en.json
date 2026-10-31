@@ -118,7 +118,8 @@
       "unreferenced": "not referenced",
       "removeReferenced_one": "The binary object \"{{id}}\" is still referenced {{count}} time. Remove it anyway?",
       "removeReferenced_other": "The binary object \"{{id}}\" is still referenced {{count}} times. Remove it anyway?",
-      "removed": "Binary object \"{{id}}\" removed"
+      "removed": "Binary object \"{{id}}\" removed",
+      "viewNatural": "Click to see the picture at its natural size"
     }
   }
 }

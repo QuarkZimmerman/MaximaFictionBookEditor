@@ -64,6 +64,6 @@ export interface Dialogs {
    */
   openCustom<T>(
     render: (close: (result: T) => void) => ReactNode,
-    options?: { modeless?: boolean },
+    options?: { modeless?: boolean; kind?: 'dialog' | 'viewer' },
   ): Promise<T>;
 }

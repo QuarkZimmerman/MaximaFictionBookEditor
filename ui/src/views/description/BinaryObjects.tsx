@@ -4,7 +4,9 @@
  * badges for "converted to JPEG/PNG on save", "not a decodable image" and "not referenced",
  * dangling image references (from the model and from the last validation report), Remove with
  * the reference check of `binary.remove` (confirmation before `force`) and Add (the
- * `insert.binary` flow). The list is refreshed from `binary.list` when the section mounts so
+ * `insert.binary` flow). A decodable picture's thumbnail is a button that opens the picture
+ * view at its natural size (feature 007, FR-050 to FR-054). The list is refreshed from
+ * `binary.list` when the section mounts so
  * conversions performed by a save are reflected. While a script runs (form `readOnly`,
  * feature 003 FR-011) Add and Remove are unavailable - Add through the command registry's run
  * policy, Remove through the form's lock - and the list stays readable.
@@ -14,6 +16,8 @@ import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAppServices, useCommandContext, useCommandState, useRunCommand } from '@/app/services';
+import { openPictureView } from '@/features/images/openPictureView';
+import { canViewPicture } from '@/features/images/pictureViewModel';
 import { binaryPreviewUrl } from '@/model/binaryUrls';
 import {
   danglingImageRefs,
@@ -163,7 +167,22 @@ export function BinaryObjects() {
                   className={refs === 0 ? 'mfbe-desc-binary-unreferenced' : undefined}
                 >
                   <td className="mfbe-desc-binary-thumb-cell">
-                    {url ? (
+                    {url && docId && canViewPicture(binary) ? (
+                      <button
+                        type="button"
+                        className="mfbe-desc-thumb-button mfbe-desc-thumb-view"
+                        title={t('descriptionForm.binaries.viewNatural')}
+                        data-testid={`binary-objects-view-${binary.id}`}
+                        onClick={() => void openPictureView(dialogs, { docId, binary, store })}
+                      >
+                        <img
+                          className="mfbe-desc-thumb"
+                          src={url}
+                          alt={binary.id}
+                          data-testid={`binary-objects-preview-${binary.id}`}
+                        />
+                      </button>
+                    ) : url ? (
                       <img
                         className="mfbe-desc-thumb"
                         src={url}

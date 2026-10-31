@@ -1,0 +1,67 @@
+/* The picture view (feature 007, US6): the whole window, the picture centred; fitted it is
+   scaled into the window, at its natural size it scrolls. Margins centre it (not flex
+   alignment), so the overflow of a picture at its natural size stays reachable. */
+
+.mfbe-picture-view {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+.mfbe-picture-view-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: auto;
+}
+
+.mfbe-picture-view-picture {
+  display: block;
+  flex: none;
+  margin: auto;
+  max-width: none;
+  max-height: none;
+  background: var(--mfbe-picture-view-bg, #fff);
+  image-rendering: auto;
+}
+
+.mfbe-picture-view-picture:focus-visible {
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: 2px;
+}
+
+.mfbe-picture-view-zoom-in {
+  cursor: zoom-in;
+}
+
+.mfbe-picture-view-zoom-out {
+  cursor: zoom-out;
+}
+
+.mfbe-picture-view-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mfbe-picture-view-close:hover,
+.mfbe-picture-view-close:focus-visible {
+  background: rgba(0, 0, 0, 0.8);
+  outline: 2px solid var(--mfbe-color-accent, #0078d4);
+  outline-offset: 1px;
+}
