@@ -3,11 +3,13 @@
   "id": "06/hyphen-vs-dash",
   "name": {
     "en": "Hyphen vs. dash",
-    "ru": "Дефис - Тире"
+    "ru": "Дефис - Тире",
+    "uk": "Дефіс - Тире"
   },
   "description": {
     "en": "Between Russian words decides hyphen or dash with built-in word lists (known combinations are fixed automatically) and asks about the rest, starting at the caret",
-    "ru": "Между русскими словами выбирает дефис или тире по встроенным словарям (известные сочетания правятся автоматически), об остальных спрашивает, начиная от курсора"
+    "ru": "Между русскими словами выбирает дефис или тире по встроенным словарям (известные сочетания правятся автоматически), об остальных спрашивает, начиная от курсора",
+    "uk": "Між російськими словами вибирає дефіс або тире за вбудованими словниками (відомі сполучення виправляються автоматично), про решту запитує, починаючи від курсора"
   },
   "kind": "menu",
   "entry": "index.js",
@@ -15,10 +17,11 @@
   "needsSelection": false,
   "undoLabel": {
     "en": "Hyphen vs. dash",
-    "ru": "Дефис — тире"
+    "ru": "Дефис - Тире"
   },
   "legacy": {
     "source": "06_Чистка/08_Дефис - Тире.js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.8"
   }
 }

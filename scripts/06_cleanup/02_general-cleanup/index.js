@@ -1,18 +1,24 @@
-// Converted from 06_Чистка/02_Генеральная уборка.js (FictionBook Editor) - "General clean-up".
-// Runs the 79 typographic regular expressions of the original over every text block of the
-// book (and of the title-info annotation / document-info history, which the original also
-// processed): spaces around punctuation, hyphens vs. dashes, ellipses, abbreviations, units,
-// date ranges, leading/trailing spaces, soft hyphens, final dots in titles, junk ids.
-// Each block is rendered in the legacy inline-HTML notation (lib/legacy-html.js) so the
-// expressions that mention <EM>/<STRONG>/&nbsp; keep working and inline formatting survives.
+// Converted from FictionBook Editor 2.7.9: Scripts/06_Чистка/02_Генеральная уборка.js - "General
+// clean-up", version 2.7 (2.7beta1's version 2.3 before feature 007). Runs the original's
+// typographic regular expressions (rules.js, 134 of them) over every text block of the book and of
+// the title-info annotation and the document-info history, as the original processed them: spaces
+// around punctuation, hyphens and dashes, abbreviations and units, date ranges, leading and
+// trailing spaces, soft hyphens, final dots in titles, junk ids, and since 2.7.9 (TaKir) apostrophes,
+// invisible and Unicode space characters, ellipses stuck to words or after punctuation, the space
+// before a note link and "crooked" note links. Each block is rendered in the legacy inline-HTML
+// notation (lib/legacy-html.js), so the expressions that mention <EM>, <STRONG> and &nbsp; work
+// as written and inline formatting survives; they compile with JScript's meaning of \s and .
+// (lib/jscript-regexp.js). The annotation and the history are written back with
+// mfbe.doc.setDescription, since node operations cannot address them.
 //
-// The rule "градус Цельсия" (re67) was dead code in the original (its RegExp was assigned to
-// the wrong variable) and is therefore not applied here either.
-// Notice of the original script (FictionBook Editor 2.7, GPL-3.0), kept as written:
+// Differences from 2.7.9: none in the text. The statistics are shown in a message box as the
+// original's, with the English labels in the English interface.
+//
+// The original's notice, kept as written (FR-029):
 //======================================
-//             «Генеральная уборка»
+//             «Генеральная уборка» (версия 2.7)
 //                                             Engine by ©Sclex
-//                                                    01.05.2007 – 07.05.2008
+//                                                    01.05.2007 – 31.08.2022
 //~~~~~~~~~~~~~~~~~~
 // v.1.01 — курсивное лидирующее тире в диалогах №08 — Faiber
 //~~~~~~~~~~~~~~~~~~
@@ -89,35 +95,32 @@
 //~~~~~~~~~~~~~~~~~~
 // v.1.34 — emphasis'ы со strong'ами загнал в переменные
 //~~~~~~~~~~~~~~~~~~
-// v.1.35 — #84 попыткаоставить наместе точки в заголовках, типа 1980 г.; XXI в.; Буш-мл. и т.п.
+// v.1.35 — #84 попытка оставить на месте точки в заголовках, типа 1980 г.; XXI в.; Буш-мл. и т.п.
 //~~~~~~~~~~~~~~~~~~
 // v.1.36 — ##40,46,46a + PromtSnoska – возможность отключениия простановки квадратных скобок вокруг сноски
 //~~~~~~~~~~~~~~~~~~
 //v.2.0 — изменения для правильной работы с учетом возможности выбора вида неразрывного пробела в FBE
 //======================================
-//v.2.1 — отключил «окавычивание» №15,17, 18, 37, 38 — для этого есть скрипты по кавычкам; перестал обращать внимание на сноски 40, 41, 43, 47 — есть скрипты о сноскам
+//v.2.1 — отключил «окавычивание» №15,17, 18, 37, 38 — для этого есть скрипты по кавычкам; перестал обращать внимание на сноски 40, 41, 43, 47 — есть скрипты по сноскам
 //======================================
 //v.2.2 — убрал Ко
 //======================================
-//v.2.3 — патч https://github.com/evpobr/fictionbookeditor/issues/197
+//v.2.3 — унификация апострофов, замена-удаление различных мусорных знаков: U+202B, U+00AD, U+E088, пробелы U+0020, U+2002, U+200B, U+202F, U+2009, U+200A, прилипшие многоточия и проч. (п.п. 92-141) — TaKir
+//======================================
+//v.2.4 — теперь, если заголовок заканчивается на вопросительное или восклицательное многоточие ("?..", "!..", "?!.") , то скрипт не будет отрывать от него конечную точку.
+//Примеры заголовков, которые раньше обрабатывались неверно: "СССР: вернуться в детство?..", "Ты кто?!."
+//======================================
+//v.2.5 — регэкспы (п.п. 142-149) — TaKir
+//
 //======================================
 import { collectTextBlocks, legacyTimeString, parseInline, rewriteBlockHtml, serializeInline, TEXT_BLOCK_TYPES } from './lib/legacy-html.js';
-import { COUNTER_LABELS, JUNK_ID, RULES, TITLE_DOT_EXCEPTION } from './rules.js';
+import { cleanHtml, HEADING_COUNTERS, JUNK_ID, STATISTICS } from './rules.js';
 
-const VERSION = '2.3';
+const VERSION = '2.7';
 
-/** Applies the rule pipeline to one block's HTML; `parentType` drives the conditional rules. */
-function cleanHtml(html, parentType, counters) {
-  let s = html;
-  for (const rule of RULES) {
-    if (rule.cond === 'inStanza' && parentType !== 'stanza') continue;
-    if (rule.cond === 'notStanza' && parentType === 'stanza') continue;
-    if (rule.cond === 'titleDot' && (parentType !== 'title' || s.search(TITLE_DOT_EXCEPTION) !== -1)) continue;
-    if (s.search(rule.re) === -1) continue;
-    s = s.replace(rule.re, rule.repl);
-    if (rule.counter) counters[rule.counter] = (counters[rule.counter] ?? 0) + 1;
-  }
-  return s;
+/** The original's junk-id test (re90) of a paragraph id. */
+function isJunkId(id) {
+  return typeof id === 'string' && id.search(JUNK_ID) >= 0;
 }
 
 /** The title-info annotation and the document-info history live in the description. */
@@ -136,6 +139,19 @@ function descriptionBlocks(description) {
   return out;
 }
 
+/** The result message: the version, the time and the statistics as 2.7.9 shows them. */
+function resultMessage(ru, started, counters) {
+  let stats = '';
+  if (HEADING_COUNTERS.some((key) => counters[key])) stats += ru ? '\n Статистика' : '\n Statistics';
+  for (const [key, ruLabel, enLabel] of STATISTICS) {
+    if (counters[key]) stats += `\n• ${ru ? ruLabel : enLabel}:\t${counters[key]}`;
+  }
+  if (stats) stats = `\n${stats}`;
+  return ru
+    ? `–= Jurgen Script =–\n«Генеральная уборка» v.${VERSION} Golma+TaKir Edition 2025\n\n Время: ${legacyTimeString(started)}.${stats}`
+    : `–= Jurgen Script =–\n"General clean-up" v.${VERSION} Golma+TaKir Edition 2025\n\n Time: ${legacyTimeString(started)}.${stats}`;
+}
+
 export default async function run(ctx) {
   const ru = ctx.uiLanguage === 'ru';
   const started = Date.now();
@@ -147,8 +163,7 @@ export default async function run(ctx) {
     const block = blocks[i];
     const parentType = block.ancestors[0]?.type;
     // Junk ids left by converters: the attribute goes away together with the text clean-up.
-    const id = block.node.attrs?.id;
-    const dropId = typeof id === 'string' && id.search(JUNK_ID) >= 0;
+    const dropId = isJunkId(block.node.attrs?.id);
     if (dropId) counters['90'] = (counters['90'] ?? 0) + 1;
     await rewriteBlockHtml(block, (html) => cleanHtml(html, parentType, counters));
     if (dropId) {
@@ -165,6 +180,11 @@ export default async function run(ctx) {
   const description = snapshot.description;
   let descriptionChanged = false;
   for (const { node, parentType } of descriptionBlocks(description)) {
+    if (isJunkId(node.attrs?.id)) {
+      delete node.attrs.id;
+      counters['90'] = (counters['90'] ?? 0) + 1;
+      descriptionChanged = true;
+    }
     const extras = [];
     const before = serializeInline(node.content, extras);
     const after = cleanHtml(before, parentType, counters);
@@ -175,10 +195,5 @@ export default async function run(ctx) {
   }
   if (descriptionChanged) await mfbe.doc.setDescription(description);
 
-  const stats = Object.keys(counters)
-    .sort()
-    .map((key) => `\n• ${(COUNTER_LABELS[key] ?? { ru: key, en: key })[ru ? 'ru' : 'en']}:\t${counters[key]}`)
-    .join('');
-  const header = ru ? `–= Jurgen Script =–\n«Генеральная уборка» v.${VERSION} Golma Edition\n\n Время: ${legacyTimeString(started)}.` : `–= Jurgen Script =–\n"General clean-up" v.${VERSION} Golma Edition\n\n Time: ${legacyTimeString(started)}.`;
-  await mfbe.ui.message(stats ? `${header}\n\n ${ru ? 'Статистика' : 'Statistics'}${stats}` : header, { caption: ctx.script.name, icon: 'info' });
+  await mfbe.ui.message(resultMessage(ru, started, counters), { caption: ctx.script.name, icon: 'info' });
 }

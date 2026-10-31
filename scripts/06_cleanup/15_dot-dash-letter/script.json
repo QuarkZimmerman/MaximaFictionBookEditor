@@ -2,23 +2,25 @@
   "manifestVersion": 1,
   "id": "06/dot-dash-letter",
   "name": {
-    "en": "Dot, dash, letter...",
-    "ru": "Точка, тире, буква..."
+    "en": "Full stop, dash, lower-case letter...",
+    "ru": "Точка, тире, буква в нижнем регистре...",
+    "uk": "Крапка, тире, літера в нижньому регістрі..."
   },
   "description": {
     "en": "From the caret on, finds a full stop or comma (including ellipses) followed by a dash and a letter of the wrong case and offers to swap the punctuation or change the letter's case",
-    "ru": "От курсора ищет точку или запятую (включая многоточия), за которыми идут тире и буква не того регистра, и предлагает заменить знак или регистр буквы"
+    "ru": "От курсора ищет точку или запятую (включая многоточия), за которыми идут тире и буква не того регистра, и предлагает заменить знак или регистр буквы",
+    "uk": "Від курсора шукає крапку чи кому (зокрема трикрапки), після яких іде тире й літера не того регістру, і пропонує замінити знак або регістр літери"
   },
   "kind": "menu",
   "entry": "index.js",
+  "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Dot, dash, letter...",
-    "ru": "Точка, тире, буква..."
+    "en": "Full stop, dash, lower-case letter...",
+    "ru": "Точка, тире, буква в нижнем регистре..."
   },
   "legacy": {
     "source": "06_Чистка/15_Точка, тире, буква....js",
     "fbeVersion": "2.7"
-  },
-  "icon": "icon.png"
+  }
 }

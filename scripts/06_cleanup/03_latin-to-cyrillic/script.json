@@ -3,19 +3,21 @@
   "id": "06/latin-to-cyrillic",
   "name": {
     "en": "Latin letters in Cyrillic words",
-    "ru": "Латиница в Кириллице"
+    "ru": "Латиница в Кириллице",
+    "uk": "Латиниця в кирилиці"
   },
   "description": {
     "en": "Replaces look-alike Latin letters (and the digits 3, 6) inside Cyrillic words by Cyrillic letters, fixes the Cyrillic Х in Roman numerals and the one-letter prepositions a/c/o/y",
-    "ru": "Заменяет похожие латинские буквы (и цифры 3, 6) внутри русских слов на кириллицу, исправляет кириллическую Х в римских числах и однобуквенные предлоги a/c/o/y"
+    "ru": "Заменяет похожие латинские буквы (и цифры 3, 6) внутри русских слов на кириллицу, исправляет кириллическую Х в римских числах и однобуквенные предлоги a/c/o/y",
+    "uk": "Замінює схожі латинські літери (і цифри 3, 6) усередині російських слів на кирилицю, виправляє кириличну Х у римських числах і однолітерні прийменники a/c/o/y"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Latin to Cyrillic",
-    "ru": "Кириллизация латиницы"
+    "en": "Latin letters in Cyrillic words",
+    "ru": "Латиница в Кириллице"
   },
   "legacy": {
     "source": "06_Чистка/03_Латиница в Кириллице.js",

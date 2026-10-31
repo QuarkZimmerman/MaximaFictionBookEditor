@@ -1346,6 +1346,344 @@ The complete arguments of every run are in `tests/scripts/snapshots/06/suite.jso
 
 No script of the group is left unconverted.
 
+27 scripts in 2.7.9: 15 are successors of the 16 packages converted from 2.7beta1 (task T078,
+recheck of `scripts/06_cleanup/`; the 2.7beta1 conversion is in conversion-notes-b.md, group
+06), 12 are new (T050, conversion-notes-279-a.md). Outcomes: 10 updated (02, 04, 05, 06, 07, 08,
+10, 12, 19, 20), 5 unchanged (03, 14, 15, 16, 21), 1 without a 2.7.9 counterpart of its own and
+kept as it is (17; FR-027). The ids and folders are unchanged.
+
+**Names and icons.** `name.ru` and `undoLabel.ru` are the 2.7.9 file names; 12, 15, 16, 19, 20
+and 21 were renamed there, and their English names follow. Every package gained `name.uk` and
+`description.uk`. 2.7.9 has an icon of its own for 15 (a new one), 16, 19 and 20 (none before):
+the packages carry them, converted with the audit tool's `ico_to_png` as the skeletons were (16's
+is 2.7beta1's icon of 15, as in 2.7.9).
+
+**Origin.** The updated packages name their 2.7.9 original in `legacy` and keep its notice in
+`index.js`. Their `sourceVersion` is the version the script states and shows: `VersionNumber`
+(02 2.7, 04 2.3, 05 3.3, 07 2.3, 08 1.8, 10 2.6, 12 1.3), `versionStr` (06 4.5) or the dialog's
+version (19, 20: 1.5). The inventory has the first line of the change log for 04, 05, 07, 08 and
+10 (1.2, 1.1, 1.1, 1.2, 1.1: the audit's patterns do not know `VersionNumber`) and none for 06,
+12, 19 and 20; the group's record carries the right values. The unchanged packages and 17 keep
+their 2.7beta1 `legacy` (`fbeVersion` "2.7").
+
+**JScript's \s and .** The updated packages whose expressions come from their original (02, 04,
+05, 07, 08, 10) now compile them through `lib/jscript-regexp.js`, copied unchanged from the
+packages of T050: `\s` is `[\t\n\v\f\r ]` and `.` is `[^\n]` as in the originals' engine. The
+2.7beta1 conversions used ECMAScript's meaning, which also takes U+00A0 typed as a character and
+the other Unicode spaces for spaces. On the books of the existing snapshots this changes nothing
+(they hold no such characters); in *Генеральная уборка*, whose new rules replace Unicode spaces
+after the old ones have run, it does (see 02). The unchanged 14 keeps its expressions as converted.
+
+**Proverbs.** None of the rechecked originals carries the list of wartime proverbs (only 68 and 71
+do, converted in T050); "Курске" in 10 is a proper name of its dictionary.
+
+**Reference books** (new, `tests/scripts/fixtures/279/06/`, valid against `FictionBook.xsd`):
+`general-cleanup-279.fb2` (02), `interactive-279.fb2` (04, 10), `paragraph-breaks.fb2` (06),
+`win1252.fb2` (19, 20). **Snapshots:** 9 added in `tests/scripts/snapshots/06/` and its
+`suite.json`, 1 re-recorded (`general-cleanup.conv-b-06.xml`); every other snapshot of the 16
+packages passes unchanged. Each expected result was worked out from the 2.7.9 original before the
+run. For 02 a scratch oracle ran the original's own `HandleP` (read from the 2.7.9 file and
+executed with JScript's `\s` and `.`) on every block of `conv-b-06.fb2`, `marks-006.fb2` and
+`general-cleanup-279.fb2`: the package's rules give the same HTML and the same counters on every
+block, and the snapshots equal the oracle's result; run on 2.7beta1's file, the oracle also gives
+the old `conv-b-06` snapshot, block for block.
+
+### 02 Генеральная уборка
+
+`scripts/06_cleanup/02_general-cleanup`, id `06/general-cleanup`: **updated** from version 2.3
+to 2.7 (jurgennt, Sclex, Faiber, Golma; 2.3 to 2.5 by TaKir). What 2.7.9 changed in the rules:
+
+- the ellipsis rule (re06, three dots or ",.." to "…") is switched off, so "троеточием..." stays;
+- re44 is switched on: the spaces before a note link go ("ссылкой <a type=note>[1]</a>" becomes
+  "ссылкой[1]");
+- a title ending in "?..", "!.." or "?!." keeps its final dot (re84's exception gains `[?!]\.?`);
+- re85 adds the missing space after a comma or semicolon before one lower-case letter (it needed
+  three);
+- 55 new rules (92-149; 100, 129 and 130 are switched off there), applied after the old ones and
+  counted by matches: soft hyphens and the literal "&shy;", invisible characters (U+200B-U+200E,
+  U+2060, U+FEFF, U+202B, U+2028, U+2029, U+FFFC, U+0323, private use U+E06E), Unicode spaces made
+  normal or non-breaking (U+2000-U+200A, U+202F, U+E088, U+F04A), apostrophes ’ ‘ ´ ʼ ′ ˙ ΄ made
+  ', an ellipsis stuck to a word ("Ну…и" to "Ну… и"), "!…", "?…", ",…" and "?..." made "!..",
+  "?..", ",.." and "?..", " amp; " made " & ", "▫-", "□-", "◦-", "─", U+2010, U+2011 and U+2015 made
+  hyphens or dashes, и with a combining breve made й, ˚ ̊ º ⁰ made °, ĸ made к, ë made ё, doubled
+  <STRONG> tags, and "crooked" note links: a link whose address holds "#http" (re105) and a note
+  link whose text holds no bracket (re106) become their text after a space;
+- the statistics: new lines, capitalised labels, and the heading "Статистика" shown only for some
+  counters (2.7.9 leaves out 83 and the new ones but 121 and 122); the message reads «Генеральная
+  уборка» v.2.7 Golma+TaKir Edition 2025.
+
+Ported: `rules.js` holds 2.7.9's 134 rules in its order, read mechanically from the original
+(expressions, replacements, conditions, counters; a comparison with the old table found exactly
+the changes above in the shared rules), compiled with JScript's meaning of `\s` and `.`; `index.js`
+writes the statistics as 2.7.9 does (2.7beta1's conversion also showed the unlabelled counter 08).
+Junk ids are now also removed from the annotation's and the history's paragraphs, as the original
+did with every `<P>` of the page. The index keeps 2.7.9's notice.
+
+Snapshots: `general-cleanup.conv-b-06.xml` **re-recorded**, its expected result changed in two
+paragraphs: "— Диалог … троеточием..." keeps its three dots, and "Пауза... - потом тишина." stays
+as it is (re13, which made the dash, needs "…"). `general-cleanup.marks-006.xml` stays (same result
+in 2.7.9). Added `general-cleanup.279.xml` on `general-cleanup-279.fb2`: the annotation loses its
+junk id, the space before its comma and its apostrophes ("Аннотация, с … 'таким'."); the history's
+thin space becomes a space; "Он сказал... и замолчал. Неужели?.. Да. Что?.. Нет. Итак,..
+продолжим."; "ссылкой[1] и маркер без скобок 2, а также кривая  ссылка и обычная <a>ссылка</a>."
+(re44, re106, re105 with its added space; the external link stays); "Запятая, и точка с запятой; а
+цифра 1, а и слово, которое."; "Д'Артаньян сказал: 'да' … 55°45'20″" (re22 writes the primes, re94
+makes the first an apostrophe); "до  после" keeps two spaces (JScript's `\s` does not take the
+em space for a space, so the double-space rules do not see it before re132 makes it one;
+ECMAScript's meaning would have given one space), the other spaces and invisible characters as
+listed above; "Noёl", "йод", "20°, 25°, 30°, 40°"; in the poem "Строка стиха" (re96, re80 leaves
+stanzas alone) and "Вторая строка —" (re19); the titles "Ты кто?!." and "СССР: вернуться в
+детство?.." keep their dots, "Глава вторая" loses it. No differences from 2.7.9 in what is
+changed. **Open questions:** re106 unformats every note link whose text holds no bracket, a plain
+"1" or "*" included, although its comment speaks of letter markers whose note is a web address -
+limit it so that books with unbracketed note markers keep their links? re94 also changes
+apostrophes and primes in Latin text and after re22/re23, and re149 turns every ë, and Ë, into a
+lower-case ё (Noël becomes Noёl) - spare Latin text?
+
+### 03 Латиница в Кириллице
+
+`scripts/06_cleanup/03_latin-to-cyrillic`, id `06/latin-to-cyrillic`: **unchanged** (the same
+file in both). Gained uk *Латиниця в кирилиці*. Snapshot `latin-to-cyrillic.conv-b-06.xml` stays.
+Differences kept from 0.0.1: the rule "6 → б" is used as intended (`[^\d]`; the original's string
+literal lost the backslash, `[^d]`, and 2.7.9 kept it), and the annotation is not processed
+(`doc.replaceAll` covers the bodies).
+
+### 04 Фамилия И. О.
+
+`scripts/06_cleanup/04_surname-initials`, id `06/surname-initials`: **updated** from 2.2 to 2.3.
+2.7.9 changed the pattern of "Пётр I" (re70): the numeral is one or more of I, V, X, and what
+follows it must start with a character that is neither a letter, a digit nor a dash, or be
+nothing (it was one numeral letter followed by at least one character). So "Пётр I" at the end of
+a paragraph is found, "Карл XII" is offered whole (and remembered whole), and "Tom Victor" or
+"Людовик XIV-й" are no longer offered. Also the version in the result message and the notice
+("Автор скрипта - jurgennt"). Ported; all seven expressions now compile with JScript's `\s` and
+`.` (the six others are 2.7beta1's, unchanged). uk *Прізвище І. П.*
+
+Snapshots `surname-initials.conv-b-06.xml` and `.marks-006.xml` stay ("Пётр I." matches both
+patterns alike). Added `surname-initials.279.xml` (`interactive-279.fb2`, caret in "Царь Пётр I"):
+two questions, "Пётр I" and "Карл XII", accepted with their proposals: "Царь Пётр I", "Король
+Карл XII, шведский."; "Привет от Tom Victor." and "Людовик XIV-й правил долго." are not asked
+about. Difference kept from 0.0.1: started with the caret in the annotation, the original went
+through the annotation and the history before the bodies; the conversion starts at the first
+paragraph of the bodies.
+
+### 05 Слипшиеся слова
+
+`scripts/06_cleanup/05_stuck-words`, id `06/stuck-words`: **updated** from 2.92 to 3.3. 2.7.9
+fixed two branches past the tenth replacement of a paragraph (`sobCol[sv4]`, an undeclared
+variable, and `k && sobCol[v5]==null>=10`, which never asked and looped) and the highlight's
+offsets; the conversion, which has no limit of ten placeholders and measures the place on the
+plain text, already behaved so. Ported: the version in the result message, the notice (with
+"Автор скрипта - jurgennt"), the expressions with JScript's `\s` and `.`. uk *Злиплі слова*.
+Snapshots `stuck-words.conv-b-06.xml`, `.marks-006.xml` stay (the book is changed as before).
+Differences kept from 0.0.1: the re20 branch uses its own head of the paragraph (the original's
+`sl1` for `sl2`, still in 2.7.9); the prefix `^(.*?)` (a place at the very start of a paragraph
+keeps its first letter); the annotation and the history.
+
+### 06 Управляемое исправление разрывов абзацев...
+
+`scripts/06_cleanup/06_guided-paragraph-breaks`, id `06/guided-paragraph-breaks`: **updated** from
+3.8 («Интерактивная ликвидация разрывов абзацев») to 4.5, with its two dialogs (*… - выбор
+режимов.html*, *… - сомнительные места.html*). What 2.7.9 changed, all ported:
+
+- the letters: lower and upper case are 2.7.9's long lists of many scripts (Latin with
+  diacritics, Greek, Cyrillic beyond Russian, Armenian, Georgian, Glagolitic, Coptic, Cherokee,
+  fullwidth...), copied into `letters.js` as written, instead of `[а-яёa-z]` and `[А-ЯA-ZЁ]`;
+- a paragraph holding a picture is no longer an empty line (its HTML still has the `<IMG>`); it
+  stays, and with nothing to end it, a following paragraph that starts lower-case is a class-7
+  place;
+- a class-7 place asked by hand is offered its own actions (2.7beta1 listed it under class 1 and
+  offered class 1's); 2.7.9 also marks a place of class 2 or 3 asked by hand as settled, which
+  changes nothing, as no later class can apply to it;
+- class 7 now takes a closing quote after one of ?.!… (2.7beta1 required the opposite, against
+  its dialog's own description): «Привет!» / сказал он is a place, Он сказал «привет» / и ушёл no
+  longer;
+- the actions: 6 removes the hyphen or dash and joins with a space (it joined without one), 9 joins
+  with a space and makes the first letter of the second paragraph lower-case, 10 adds ":" and
+  joins, 11 adds ":" (2.7beta1's dialogs had ":" as 9 and 10, which its automatic pass ignored),
+  12 joins without a space keeping the hyphen or dash (2.7beta1's "Соединить без пробела, сохранив
+  тире/дефис" was action 8, which removed it);
+- the options of each class and their labels, as both 2.7.9 dialogs give them (class 3 gains 9,
+  class 4 gains 6, class 5 offers 12, 7, 6, 8, class 2 gains 11 and 9), the descriptions of the
+  first dialog's switches and classes, its title («Управляемое исправление разрывов абзацев
+  v4.5»), the second dialog's «Предположительных разрывов», the result message (*Исправление
+  разрывов абзацев завершено*, *Произведено автоматических слияний…*, the times of the automatic
+  and of the manual processing).
+
+uk *Кероване виправлення розривів абзаців...* Snapshot `guided-paragraph-breaks.conv-b-06.xml`
+stays: its places and their automatic actions (1, 8, 2, 3) mean the same in 2.7.9. Added on
+`paragraph-breaks.fb2`: `guided-paragraph-breaks.auto.xml`, every class automatic with a new action
+(1 → 10, 2 → 9, 3 → 9, 4 → 6, 5 → 12, 6 → 1, 7 → 1): "Сказал так: приходи завтра.", "Он пришёл
+вечером всё стихло.", "Он сказал, что придёт.", "Абзац с запятой, а дальше маленькая буква.", "Он
+стоял у окна.", "Северо-запад.", "Шёл дождь — и ветер.", "«Привет!» сказал он.", "Он сказал
+«привет»" / "и ушёл." untouched, "Мы пили кофе в café: и говорили." (é is a lower-case letter:
+class 1), "Мы приехали в город évreux вечером." (É is a capital: class 2), and the picture's
+paragraph kept, with "и текст после." joined to it, "Текст до картинки" untouched; 11 automatic
+actions. `guided-paragraph-breaks.manual.xml`, classes 3 and 7 by hand, the others left: four
+places, answered "Он сказал." (3), "Абзац с запятой, а дальше…" (1), "«Привет!» сказал он." (1)
+and the picture's place left (0); 3 corrections confirmed by hand (2.7beta1 would have asked about
+three: the two commas and, under class 1, "Он сказал «привет»" / "и ушёл."). Differences
+kept from 0.0.1: the modes dialog is one form (a choice per class of "Ручной выбор" or an action,
+so a place asked by hand starts on "Не трогать", the original's default, where the original's
+separate box let the class's radio buttons preselect it), and the second dialog is one form per
+place, "Прекратить" leaving the rest as it is. No fixes.
+
+### 07 10.000.000.000
+
+`scripts/06_cleanup/07_large-numbers`, id `06/large-numbers`: **updated** from 2.12 to 2.3. 2.7.9
+fixed the highlight's offset for entities, already the conversion's behaviour. Ported: the result
+message as written in 2.7.9 (and 2.7beta1), «Большие числа» v.2.3 with the dot after the time (the
+0.0.1 conversion had written «10.000.000.000»), the notice, the expressions with JScript's `\s` and
+`.`. uk name *10.000.000.000*. Snapshots `large-numbers.conv-b-06.xml`, `.marks-006.xml` stay.
+Differences kept from 0.0.1: the prefix `^(.*?)`; the annotation.
+
+### 08 Дефис - Тире
+
+`scripts/06_cleanup/08_hyphen-vs-dash`, id `06/hyphen-vs-dash`: **updated** from 1.62 to 1.8: the
+highlight's fix as in 07 (already the conversion's), the version in the result message, the
+notice, the expression with JScript's `\s` and `.`. The word lists are unchanged. uk *Дефіс - Тире*.
+Snapshots `hyphen-vs-dash.conv-b-06.xml`, `.marks-006.xml` stay. Differences kept from 0.0.1: the
+prefix `^(.*?)`; the annotation.
+
+### 10 Точка.
+
+`scripts/06_cleanup/10_missing-full-stop`, id `06/missing-full-stop`: **updated** from «Точка.
+Точка, запятая» 1.9 to «Точка.» 2.6. 2.7.9 reads the paragraph's `&nbsp;` as the character and finds
+a place also when a non-breaking space separates the lower-case word from the capitalised one; the
+proposal keeps the separator as typed (re11 "$2$3$4$5$6"). It also drops its debugging `alert`, the
+empty names of its dictionary and the limit of ten placeholders per paragraph (none of which the
+conversion had). Ported: the expression (with JScript's `\s` and `.`), the reading and writing back
+of `&nbsp;`, the result message and the notice. uk *Крапка.* Snapshots
+`missing-full-stop.conv-b-06.xml`, `.marks-006.xml` stay (no non-breaking spaces there). Added
+`missing-full-stop.279.xml` (`interactive-279.fb2`, caret in "Он пришёл домой Было поздно."):
+the place "домой Было" is asked about and answered "домой. Было". Differences kept from 0.0.1:
+the prefix `^(.*?)`; the annotation.
+
+### 12 Удалить возвратные ссылки, созданные FBD
+
+`scripts/06_cleanup/12_remove-back-links`, id `06/remove-back-links` (2.7beta1 *12_Удаление
+возвратов*): **updated** from 1.2 to 1.3. 2.7.9 says «раздел» where it said «секция» in its warning
+about notes sections with not exactly one back link, and ends its result message with the run time
+instead of 2.7beta1's list of binaries (which named variables of another script and failed). Ported
+(the English texts already said "section"). en *Remove the back links made by FBD*, uk *Видалити
+зворотні посилання, створені FBD*. Snapshot `remove-back-links.conv-b-06.xml` stays (only texts
+changed). **Fix:** 2.7.9 appends the time twice ("Время выполнения: 0.01 сек.0.01 сек", where the
+list was); the package shows it once, and leaves out the stray quotation mark before «Удалено» of
+both originals as 0.0.1 did. Difference kept from 0.0.1: only the links matching `^_ftnref` or
+`^_ednref` are removed (the original's counter is never reset inside a notes section, so every link
+after the first back link went too; 2.7.9 kept it).
+
+### 14 Разрыв предложения
+
+`scripts/06_cleanup/14_broken-sentences`, id `06/broken-sentences`: **unchanged** (the same file).
+Gained uk *Розрив речення*. Snapshots `broken-sentences.conv-b-06.xml`, `.marks-006.xml` stay. Its
+expressions keep ECMAScript's `\s` as converted in 0.0.1 (a difference only for U+00A0 typed as a
+character and the other Unicode spaces).
+
+### 15 Точка, тире, буква в нижнем регистре...
+
+`scripts/06_cleanup/15_dot-dash-letter`, id `06/dot-dash-letter` (2.7beta1 *15_Точка, тире,
+буква...*): **unchanged**: 2.7.9 renamed the script and its dialog files; the frames are the same
+but for the names of their stylesheets, and the dialog's title is still *Точка, тире, буква v1.3*.
+en *Full stop, dash, lower-case letter...*, uk *Крапка, тире, літера в нижньому регістрі...*; the
+icon is 2.7.9's new one. Snapshot `dot-dash-letter.conv-b-06.xml` stays.
+
+### 16 Точка, тире, буква в нижнем регистре (без поиска многоточий)...
+
+`scripts/06_cleanup/16_dot-dash-letter-no-ellipsis`, id `06/dot-dash-letter-no-ellipsis`:
+**unchanged**, renamed as 15; it gained 2.7.9's icon (2.7beta1's icon of 15). en *Full stop, dash,
+lower-case letter (without searching for ellipses)...*, uk *Крапка, тире, літера в нижньому регістрі
+(без пошуку трикрапок)...* Snapshot `dot-dash-letter-no-ellipsis.conv-b-06.xml` stays.
+
+### 17 Превращение внешних ссылок в текст
+
+`scripts/06_cleanup/17_external-links-to-text`, id `06/external-links-to-text`: **no 2.7.9
+counterpart** by the pairing review (T019, `pairing-overrides-279.json`: null), kept as converted
+(FR-027; inventory entry `fbeVersion` "2.7"). Gained uk *Перетворення зовнішніх посилань на текст*;
+code, name and undo label unchanged. Snapshot `external-links-to-text.conv-b-06.xml` stays.
+
+**Open question (for the requester).** 2.7.9's *17_Превратить внешние ссылки в текст.js*, converted
+in this feature as `06/external-links-to-plain-text`, is this script's later version: its header
+names the same script («Превращение внешних ссылок в текст», Sclex, version 1.2 against 1.0), it
+stands at the same place 17, and it keeps the undo label, the expression `^ *?(file://|#)` and the
+loop over `document.links`; it adds the links whose address holds "#http:" or "#https:" (the
+expression `# *https?:`) and a message with the count. Under the recheck rules this package would
+follow it - status updated, id kept (FR-028) - and `06/external-links-to-plain-text`, never
+released, would leave the menu, its conversion and its snapshot becoming this package's; one entry
+would then stand at place 17, under 2.7.9's name, and 2.7.9's *Автоматическая чистка простых
+текстов*, which runs `06_Чистка\17_Превратить внешние ссылки в текст.js`, would reach it through
+`legacy.source`. That reverses a recorded review decision (and T078's wording) and removes a package
+of T050, and the rules allow one entry only by dropping one of the two converted packages; so
+nothing was changed, and both stay at place 17 until the requester decides.
+
+### 19 Символы win-1252, истолкованные как win-1251 ('cafй' и т.п.) (поиск отдельных букв)...
+
+`scripts/06_cleanup/19_win1252-letters`, id `06/win1252-letters` (2.7beta1 *19_Символы win-1252
+(буквы)...*): **updated** to the dialog's version 1.5 (*HTML/Символы win-1252, истолкованные как
+win-1251 - набор фреймов.html* and its frames). What 2.7.9 changed: a button *Заменить все от
+текущей позиции до конца документа* replaces the place and every later one with their proposals
+(the text field is not used) and reports *Произведены автоматические замены такого количества
+букв: N.*, or *От текущей позиции до конца документа больше ничего не найдено.* when nothing
+followed the place; the end of the search says *Больше ничего найти не удалось.*; the title; Enter
+in the field replaces with its text (a form's Enter is its OK, whose default action is that one);
+the caret inside formatting, at the start of a paragraph and
+soft hyphens are measured right (the conversion works on the block's plain text and its offsets,
+so this was its behaviour already). Ported in the shared engine `win1252.js` (identical in 19 and
+20): the action *Заменить все…* in the form, the texts and the title. The icon is 2.7.9's.
+en *win-1252 characters read as win-1251 ('cafй' etc.) (search for single letters)...*, uk
+*Символи win-1252, витлумачені як win-1251 ('cafй' тощо) (пошук окремих літер)...*
+
+Snapshot `win1252-letters.conv-b-06.xml` stays. Added `win1252-letters.all.xml` (`win1252.fb2`, caret
+at the start, *Заменить все…* at the first place): all nine letters recoded, "Слова café и Zürich,
+затем München и ещё naïve." and "Ещё Götterdämmerung и crème brûlée на десерт.", message "…букв: 9."
+Differences kept from 0.0.1: a form per place instead of the three frames, the field holding plain
+text (the original accepted and checked formatting tags in it); Ѓ, Ќ, Џ, ђ and ќ, whose windows-1252
+bytes are undefined, are not searched for.
+
+### 20 Символы win-1252, истолкованные как win-1251 ('cafй' и т.п.) (поиск слов)...
+
+`scripts/06_cleanup/20_win1252-words`, id `06/win1252-words` (2.7beta1 *20_Символы win-1252
+(слова)...*): **updated** as 19 (the same dialog; *…в таком количестве слов: N.*). 2.7.9 also
+reworked its search engine: tags may now stand before the first letter of a match and the tag
+groups are greedy (only the HTML around the word differs), the look-behind looks at one character,
+and the search starts one character before the caret, where 2.7beta1 started one after a collapsed
+caret: a word whose first letter is right before the caret is found. The conversion searches the
+plain text, so only the start differs; ported: a search for words starts one character before the
+caret. The icon is 2.7.9's. en *win-1252 characters read as win-1251 ('cafй' etc.) (search for
+words)...*, uk *Символи win-1252, витлумачені як win-1251 ('cafй' тощо) (пошук слів)...*
+
+Snapshot `win1252-words.conv-b-06.xml` stays. Added on `win1252.fb2`: `win1252-words.all.xml`
+(*Заменить все…* at the first word: the seven words recoded, "…слов: 7."), `win1252-words.caret.xml`
+(caret after the "c" of "cafй": the first place is "cafй", replaced with its proposal, then Exit:
+only "café" changes; 2.7beta1 began with "Zьrich"), `win1252-words.all-last.xml` (caret before
+"brыlйe", *Заменить все…*: only "brûlée" changes, message *От текущей позиции до конца документа
+больше ничего не найдено.*). Differences kept from 0.0.1: as 19, and a mixed word at the very start
+of a paragraph is found too (the original's look-behind needs a character before it).
+
+### 21 Удалить теги style
+
+`scripts/06_cleanup/21_remove-style-tags`, id `06/remove-style-tags` (2.7beta1 *21_Удаление тегов
+style*): **unchanged** (the same code). Renamed: ru and undo label *Удалить теги style*, uk
+*Видалити теги style*. Snapshots `remove-style-tags.conv-b-06.xml`, `.marks-006.xml` stay.
+
+### Harness commands
+
+```bash
+export MFBE_CORE_BIN=... MFBE_UI_DIST=...
+tests/scripts/run-all.sh --group 06      # every snapshot of the group, the 9 added ones of snapshots/06/suite.json among them
+G=scripts/06_cleanup; F=tests/scripts/fixtures/279/06; S=tests/scripts/snapshots/06; NB=$'\xc2\xa0'
+node tests/scripts/run-script.mjs $G/02_general-cleanup tests/scripts/fixtures/books/conv-b-06.fb2 --snapshot $S/general-cleanup.conv-b-06.xml   # re-recorded with --update
+node tests/scripts/run-script.mjs $G/02_general-cleanup $F/general-cleanup-279.fb2 --snapshot $S/general-cleanup.279.xml
+node tests/scripts/run-script.mjs $G/04_surname-initials $F/interactive-279.fb2 --select n5:0:0 --answer "Пётр${NB}I" --answer "Карл${NB}XII" --snapshot $S/surname-initials.279.xml
+node tests/scripts/run-script.mjs $G/06_guided-paragraph-breaks $F/paragraph-breaks.fb2 --answer '{"case1":"10","case2":"9","case3":"9","case4":"6","case5":"12","case6":"1","case7":"1"}' --snapshot $S/guided-paragraph-breaks.auto.xml
+node tests/scripts/run-script.mjs $G/06_guided-paragraph-breaks $F/paragraph-breaks.fb2 --answer '{"case1":"0","case2":"0","case3":"manual","case4":"0","case5":"0","case6":"0","case7":"manual"}' --answer '{"action":"3"}' --answer '{"action":"1"}' --answer '{"action":"1"}' --answer '{"action":"0"}' --snapshot $S/guided-paragraph-breaks.manual.xml
+node tests/scripts/run-script.mjs $G/10_missing-full-stop $F/interactive-279.fb2 --select n12:0:0 --answer "домой. Было" --snapshot $S/missing-full-stop.279.xml
+node tests/scripts/run-script.mjs $G/19_win1252-letters $F/win1252.fb2 --select n5:0:0 --answer '{"action":"all"}' --snapshot $S/win1252-letters.all.xml
+node tests/scripts/run-script.mjs $G/20_win1252-words $F/win1252.fb2 --select n5:0:0 --answer '{"action":"all"}' --snapshot $S/win1252-words.all.xml
+node tests/scripts/run-script.mjs $G/20_win1252-words $F/win1252.fb2 --select n5:7:7 --answer '{}' --answer cancel --snapshot $S/win1252-words.caret.xml
+node tests/scripts/run-script.mjs $G/20_win1252-words $F/win1252.fb2 --select n6:28:28 --answer '{"action":"all"}' --snapshot $S/win1252-words.all-last.xml
+```
+
 ## 07_Символы
 
 9 scripts in 2.7.9: 2 new, 7 successors of converted packages. Not yet converted or rechecked.

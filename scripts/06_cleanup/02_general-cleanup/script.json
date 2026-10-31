@@ -3,11 +3,13 @@
   "id": "06/general-cleanup",
   "name": {
     "en": "General clean-up",
-    "ru": "Генеральная уборка"
+    "ru": "Генеральная уборка",
+    "uk": "Генеральне прибирання"
   },
   "description": {
-    "en": "Typographic clean-up of the whole book: spaces around punctuation, hyphens and dashes, ellipses, abbreviations and units, date ranges, leading/trailing spaces, soft hyphens, final dots in titles, junk ids",
-    "ru": "Типографская чистка всей книги: пробелы у знаков препинания, дефисы и тире, многоточия, сокращения и размерности, интервалы дат, начальные/конечные пробелы, мягкие переносы, точки в заголовках, мусорные идентификаторы"
+    "en": "Typographic clean-up of the whole book, its annotation and history: spaces around punctuation, hyphens and dashes, abbreviations and units, number ranges, leading and trailing spaces, soft hyphens, invisible characters and Unicode spaces, apostrophes, ellipses after punctuation, final dots in titles, junk ids and broken note links",
+    "ru": "Типографская чистка всей книги, её аннотации и истории: пробелы у знаков препинания, дефисы и тире, сокращения и размерности, интервалы чисел, начальные и конечные пробелы, мягкие переносы, невидимые символы и пробелы Юникода, апострофы, многоточия после знаков препинания, точки в заголовках, мусорные идентификаторы и кривые ссылки-сноски",
+    "uk": "Типографське чищення всієї книги, її анотації та історії: пробіли біля розділових знаків, дефіси й тире, скорочення й одиниці виміру, інтервали чисел, початкові й кінцеві пробіли, м'які переноси, невидимі символи й пробіли Юнікоду, апострофи, трикрапки після розділових знаків, крапки в заголовках, сміттєві ідентифікатори й криві посилання-примітки"
   },
   "kind": "menu",
   "entry": "index.js",
@@ -15,10 +17,11 @@
   "needsSelection": false,
   "undoLabel": {
     "en": "General clean-up",
-    "ru": "«Генеральная уборка»"
+    "ru": "Генеральная уборка"
   },
   "legacy": {
     "source": "06_Чистка/02_Генеральная уборка.js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.7"
   }
 }

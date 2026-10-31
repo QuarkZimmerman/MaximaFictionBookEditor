@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+	<description>
+		<title-info>
+			<genre>prose_classic</genre>
+			<author>
+				<first-name>Тест</first-name>
+				<last-name>Чистка</last-name>
+			</author>
+			<book-title>Разрывы абзацев</book-title>
+			<lang>ru</lang>
+		</title-info>
+		<document-info>
+			<author>
+				<nickname>fixture</nickname>
+			</author>
+			<program-used>…</program-used>
+			<date>…</date>
+			<id>…</id>
+			<version>1.0</version>
+		</document-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Разрывы</p>
+			</title>
+			<p>Сказал так: приходи завтра.</p>
+			<p>Он пришёл вечером всё стихло.</p>
+			<p>Он сказал, что придёт.</p>
+			<p>Абзац с запятой, а дальше маленькая буква.</p>
+			<p>Он стоял у окна.</p>
+			<p>Северо-запад.</p>
+			<p>Шёл дождь — и ветер.</p>
+			<p>«Привет!» сказал он.</p>
+			<p>Он сказал «привет»</p>
+			<p>и ушёл.</p>
+			<p>Мы пили кофе в café: и говорили.</p>
+			<p>Мы приехали в город évreux вечером.</p>
+			<p>Текст до картинки</p>
+			<p><image l:href="#pic.png"/> и текст после.</p>
+		</section>
+	</body>
+	<binary id="pic.png" content-type="image/png">…</binary>
+</FictionBook>

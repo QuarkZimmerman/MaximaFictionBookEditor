@@ -2,23 +2,26 @@
   "manifestVersion": 1,
   "id": "06/remove-back-links",
   "name": {
-    "en": "Remove back links",
-    "ru": "Удаление возвратов"
+    "en": "Remove the back links made by FBD",
+    "ru": "Удалить возвратные ссылки, созданные FBD",
+    "uk": "Видалити зворотні посилання, створені FBD"
   },
   "description": {
-    "en": "Removes the converter back links (_ftnref…, _ednref…) from the notes body and the matching paragraph ids from the other bodies; warns when a notes section has not exactly one back link",
-    "ru": "Удаляет возвратные ссылки конвертеров (_ftnref…, _ednref…) из body примечаний и соответствующие id абзацев в остальных body; предупреждает, если в секции примечаний не ровно одна возвратная ссылка"
+    "en": "Removes the back links that FictionBook Designer (FBD) leaves in the notes body (_ftnref…, _ednref…) and the matching paragraph ids of the other bodies; warns when a notes section has not exactly one back link",
+    "ru": "Удаляет возвратные ссылки, которые FictionBook Designer (FBD) оставляет в body примечаний (_ftnref…, _ednref…), и соответствующие id абзацев в остальных body; предупреждает, если в разделе примечаний не ровно одна возвратная ссылка",
+    "uk": "Видаляє зворотні посилання, які FictionBook Designer (FBD) залишає в body приміток (_ftnref…, _ednref…), і відповідні id абзаців в інших body; попереджає, якщо в розділі приміток не рівно одне зворотне посилання"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Remove back links",
-    "ru": "Удаление возвратных ссылок"
+    "en": "Remove the back links made by FBD",
+    "ru": "Удалить возвратные ссылки, созданные FBD"
   },
   "legacy": {
-    "source": "06_Чистка/12_Удаление возвратов.js",
-    "fbeVersion": "2.7"
+    "source": "06_Чистка/12_Удалить возвратные ссылки, созданные FBD.js",
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "1.3"
   }
 }

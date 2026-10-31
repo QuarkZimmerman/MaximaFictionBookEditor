@@ -3,22 +3,25 @@
   "id": "06/missing-full-stop",
   "name": {
     "en": "Full stop.",
-    "ru": "Точка."
+    "ru": "Точка.",
+    "uk": "Крапка."
   },
   "description": {
-    "en": "Interactively looks for a missing full stop before a capitalised word that follows a lower-case word, starting at the caret; rejected words are remembered as proper names",
-    "ru": "Интерактивно ищет пропущенную точку перед словом с прописной после строчной, начиная от курсора; отклонённые слова запоминаются как имена собственные"
+    "en": "Interactively looks for a missing full stop before a capitalised word that follows a lower-case word after a space or a non-breaking space, starting at the caret; rejected words are remembered as proper names",
+    "ru": "Интерактивно ищет пропущенную точку перед словом с прописной после строчной через пробел или неразрывный пробел, начиная от курсора; отклонённые слова запоминаются как имена собственные",
+    "uk": "Інтерактивно шукає пропущену крапку перед словом з великої літери після малої через пробіл або нерозривний пробіл, починаючи від курсора; відхилені слова запам'ятовуються як власні назви"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Missing full stop",
-    "ru": "Точка. Точка, запятая"
+    "en": "Full stop.",
+    "ru": "Точка."
   },
   "legacy": {
     "source": "06_Чистка/10_Точка..js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "2.6"
   }
 }

@@ -3,22 +3,25 @@
   "id": "06/guided-paragraph-breaks",
   "name": {
     "en": "Guided repair of paragraph breaks...",
-    "ru": "Управляемое исправление разрывов абзацев..."
+    "ru": "Управляемое исправление разрывов абзацев...",
+    "uk": "Кероване виправлення розривів абзаців..."
   },
   "description": {
-    "en": "Finds paragraphs broken by a scan (hyphen or dash at the end, comma, lower-case continuation, missing full stop); every kind of break is fixed automatically or confirmed one by one, as chosen in the first form",
-    "ru": "Находит абзацы, разорванные при сканировании (дефис или тире в конце, запятая, продолжение со строчной, пропущенная точка); каждый вид разрыва правится автоматически или подтверждается по одному — как выбрано в первой форме"
+    "en": "Finds paragraphs broken by a scan (hyphen or dash at the end, comma, lower-case continuation, missing full stop); every kind of break is fixed automatically (joined, with a full stop, a colon or a dash) or confirmed one by one, as chosen in the first form",
+    "ru": "Находит абзацы, разорванные при сканировании (дефис или тире в конце, запятая, продолжение со строчной, пропущенная точка); каждый вид разрыва правится автоматически (слиянием, точкой, двоеточием или тире) или подтверждается по одному — как выбрано в первой форме",
+    "uk": "Знаходить абзаци, розірвані під час сканування (дефіс або тире в кінці, кома, продовження з малої літери, пропущена крапка); кожен вид розриву виправляється автоматично (злиттям, крапкою, двокрапкою чи тире) або підтверджується по одному — як вибрано в першій формі"
   },
   "kind": "menu",
   "entry": "index.js",
   "icon": "icon.png",
   "needsSelection": false,
   "undoLabel": {
-    "en": "Repair of paragraph breaks",
-    "ru": "Исправление разрывов абзацев"
+    "en": "Guided repair of paragraph breaks...",
+    "ru": "Управляемое исправление разрывов абзацев..."
   },
   "legacy": {
     "source": "06_Чистка/06_Управляемое исправление разрывов абзацев....js",
-    "fbeVersion": "2.7"
+    "fbeVersion": "2.7.9",
+    "sourceVersion": "4.5"
   }
 }
